@@ -55,8 +55,8 @@ const MODULES = [
   { name: "Računovodska obdobja", path: "/obdobja", icon: Calendar },
   { name: "Temeljnice", path: "/temeljnice", icon: FileText },
   { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked },
-  { name: "Kupci", path: "/kupci", icon: Users },
-  { name: "Dobavitelji", path: "/dobavitelji", icon: Truck },
+  { name: "Partnerji", path: "/partnerji", icon: Users },
+  { name: "Računi", path: "/racuni", icon: Receipt },
   { name: "DDV evidence", path: "/ddv", icon: Receipt },
   { name: "Poročila", path: "/porocila", icon: BarChart3 },
 ];

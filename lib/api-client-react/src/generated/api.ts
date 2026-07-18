@@ -23,18 +23,26 @@ import type {
   AccountRecord,
   AssignRoleBody,
   CompanyWithRole,
+  CounterpartyRecord,
   CreateAccountBody,
   CreateCompanyBody,
+  CreateCounterpartyBody,
+  CreateInvoiceBody,
   CreateJournalEntryBody,
   CreatePeriodBody,
   ErrorResponse,
   GetLedgerParams,
   HealthStatus,
+  InvoiceWithLines,
   JournalEntryWithLines,
   LedgerResponse,
   ListAccountsParams,
   ListAccountsResponse,
   ListCompaniesResponse,
+  ListCounterpartiesParams,
+  ListCounterpartiesResponse,
+  ListInvoicesParams,
+  ListInvoicesResponse,
   ListJournalEntriesParams,
   ListJournalEntriesResponse,
   ListPeriodsResponse,
@@ -43,8 +51,11 @@ import type {
   RoleAssignment,
   SeedAccountsResponse,
   UpdateAccountBody,
+  UpdateCounterpartyBody,
+  UpdateInvoiceBody,
   UpdatePeriodBody,
-  UserProfile
+  UserProfile,
+  VoidInvoiceBody
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1444,6 +1455,787 @@ export const useReverseJournalEntry = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getReverseJournalEntryMutationOptions(options));
+    }
+
+export const getListCounterpartiesUrl = (companyId: string,
+    params?: ListCounterpartiesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/counterparties?${stringifiedParams}` : `/api/companies/${companyId}/counterparties`
+}
+
+/**
+ * @summary List customers and suppliers
+ */
+export const listCounterparties = async (companyId: string,
+    params?: ListCounterpartiesParams, options?: RequestInit): Promise<ListCounterpartiesResponse> => {
+
+  return customFetch<ListCounterpartiesResponse>(getListCounterpartiesUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCounterpartiesQueryKey = (companyId: string,
+    params?: ListCounterpartiesParams,) => {
+    return [
+    `/api/companies/${companyId}/counterparties`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCounterpartiesQueryOptions = <TData = Awaited<ReturnType<typeof listCounterparties>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListCounterpartiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterparties>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCounterpartiesQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCounterparties>>> = ({ signal }) => listCounterparties(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCounterparties>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCounterpartiesQueryResult = NonNullable<Awaited<ReturnType<typeof listCounterparties>>>
+export type ListCounterpartiesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List customers and suppliers
+ */
+
+export function useListCounterparties<TData = Awaited<ReturnType<typeof listCounterparties>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListCounterpartiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterparties>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCounterpartiesQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCounterpartyUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/counterparties`
+}
+
+/**
+ * @summary Create a customer or supplier
+ */
+export const createCounterparty = async (companyId: string,
+    createCounterpartyBody: CreateCounterpartyBody, options?: RequestInit): Promise<CounterpartyRecord> => {
+
+  return customFetch<CounterpartyRecord>(getCreateCounterpartyUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createCounterpartyBody)
+  }
+);}
+
+
+
+
+
+export const getCreateCounterpartyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCounterparty>>, TError,{companyId: string;data: BodyType<CreateCounterpartyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCounterparty>>, TError,{companyId: string;data: BodyType<CreateCounterpartyBody>}, TContext> => {
+
+const mutationKey = ['createCounterparty'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCounterparty>>, {companyId: string;data: BodyType<CreateCounterpartyBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createCounterparty(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCounterpartyMutationResult = NonNullable<Awaited<ReturnType<typeof createCounterparty>>>
+    export type CreateCounterpartyMutationBody = BodyType<CreateCounterpartyBody>
+    export type CreateCounterpartyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a customer or supplier
+ */
+export const useCreateCounterparty = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCounterparty>>, TError,{companyId: string;data: BodyType<CreateCounterpartyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCounterparty>>,
+        TError,
+        {companyId: string;data: BodyType<CreateCounterpartyBody>},
+        TContext
+      > => {
+      return useMutation(getCreateCounterpartyMutationOptions(options));
+    }
+
+export const getGetCounterpartyUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/counterparties/${id}`
+}
+
+/**
+ * @summary Get counterparty detail
+ */
+export const getCounterparty = async (companyId: string,
+    id: string, options?: RequestInit): Promise<CounterpartyRecord> => {
+
+  return customFetch<CounterpartyRecord>(getGetCounterpartyUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCounterpartyQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/counterparties/${id}`
+    ] as const;
+    }
+
+
+export const getGetCounterpartyQueryOptions = <TData = Awaited<ReturnType<typeof getCounterparty>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCounterparty>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCounterpartyQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCounterparty>>> = ({ signal }) => getCounterparty(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCounterparty>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCounterpartyQueryResult = NonNullable<Awaited<ReturnType<typeof getCounterparty>>>
+export type GetCounterpartyQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get counterparty detail
+ */
+
+export function useGetCounterparty<TData = Awaited<ReturnType<typeof getCounterparty>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCounterparty>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCounterpartyQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCounterpartyUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/counterparties/${id}`
+}
+
+/**
+ * @summary Update counterparty
+ */
+export const updateCounterparty = async (companyId: string,
+    id: string,
+    updateCounterpartyBody: UpdateCounterpartyBody, options?: RequestInit): Promise<CounterpartyRecord> => {
+
+  return customFetch<CounterpartyRecord>(getUpdateCounterpartyUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateCounterpartyBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateCounterpartyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCounterparty>>, TError,{companyId: string;id: string;data: BodyType<UpdateCounterpartyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCounterparty>>, TError,{companyId: string;id: string;data: BodyType<UpdateCounterpartyBody>}, TContext> => {
+
+const mutationKey = ['updateCounterparty'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCounterparty>>, {companyId: string;id: string;data: BodyType<UpdateCounterpartyBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateCounterparty(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCounterpartyMutationResult = NonNullable<Awaited<ReturnType<typeof updateCounterparty>>>
+    export type UpdateCounterpartyMutationBody = BodyType<UpdateCounterpartyBody>
+    export type UpdateCounterpartyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update counterparty
+ */
+export const useUpdateCounterparty = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCounterparty>>, TError,{companyId: string;id: string;data: BodyType<UpdateCounterpartyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCounterparty>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateCounterpartyBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateCounterpartyMutationOptions(options));
+    }
+
+export const getListInvoicesUrl = (companyId: string,
+    params?: ListInvoicesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/invoices?${stringifiedParams}` : `/api/companies/${companyId}/invoices`
+}
+
+/**
+ * @summary List issued and received invoices
+ */
+export const listInvoices = async (companyId: string,
+    params?: ListInvoicesParams, options?: RequestInit): Promise<ListInvoicesResponse> => {
+
+  return customFetch<ListInvoicesResponse>(getListInvoicesUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListInvoicesQueryKey = (companyId: string,
+    params?: ListInvoicesParams,) => {
+    return [
+    `/api/companies/${companyId}/invoices`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof listInvoices>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListInvoicesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInvoicesQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvoices>>> = ({ signal }) => listInvoices(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInvoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listInvoices>>>
+export type ListInvoicesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List issued and received invoices
+ */
+
+export function useListInvoices<TData = Awaited<ReturnType<typeof listInvoices>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListInvoicesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInvoicesQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateInvoiceUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/invoices`
+}
+
+/**
+ * @summary Create invoice (as draft)
+ */
+export const createInvoice = async (companyId: string,
+    createInvoiceBody: CreateInvoiceBody, options?: RequestInit): Promise<InvoiceWithLines> => {
+
+  return customFetch<InvoiceWithLines>(getCreateInvoiceUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createInvoiceBody)
+  }
+);}
+
+
+
+
+
+export const getCreateInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvoice>>, TError,{companyId: string;data: BodyType<CreateInvoiceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createInvoice>>, TError,{companyId: string;data: BodyType<CreateInvoiceBody>}, TContext> => {
+
+const mutationKey = ['createInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInvoice>>, {companyId: string;data: BodyType<CreateInvoiceBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createInvoice(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createInvoice>>>
+    export type CreateInvoiceMutationBody = BodyType<CreateInvoiceBody>
+    export type CreateInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create invoice (as draft)
+ */
+export const useCreateInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvoice>>, TError,{companyId: string;data: BodyType<CreateInvoiceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createInvoice>>,
+        TError,
+        {companyId: string;data: BodyType<CreateInvoiceBody>},
+        TContext
+      > => {
+      return useMutation(getCreateInvoiceMutationOptions(options));
+    }
+
+export const getGetInvoiceUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/invoices/${id}`
+}
+
+/**
+ * @summary Get invoice detail with lines
+ */
+export const getInvoice = async (companyId: string,
+    id: string, options?: RequestInit): Promise<InvoiceWithLines> => {
+
+  return customFetch<InvoiceWithLines>(getGetInvoiceUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInvoiceQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/invoices/${id}`
+    ] as const;
+    }
+
+
+export const getGetInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof getInvoice>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvoiceQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvoice>>> = ({ signal }) => getInvoice(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvoice>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof getInvoice>>>
+export type GetInvoiceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get invoice detail with lines
+ */
+
+export function useGetInvoice<TData = Awaited<ReturnType<typeof getInvoice>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInvoiceQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateInvoiceUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/invoices/${id}`
+}
+
+/**
+ * @summary Update draft invoice (lines replaced)
+ */
+export const updateInvoice = async (companyId: string,
+    id: string,
+    updateInvoiceBody: UpdateInvoiceBody, options?: RequestInit): Promise<InvoiceWithLines> => {
+
+  return customFetch<InvoiceWithLines>(getUpdateInvoiceUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateInvoiceBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateInvoice>>, TError,{companyId: string;id: string;data: BodyType<UpdateInvoiceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateInvoice>>, TError,{companyId: string;id: string;data: BodyType<UpdateInvoiceBody>}, TContext> => {
+
+const mutationKey = ['updateInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateInvoice>>, {companyId: string;id: string;data: BodyType<UpdateInvoiceBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateInvoice(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof updateInvoice>>>
+    export type UpdateInvoiceMutationBody = BodyType<UpdateInvoiceBody>
+    export type UpdateInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update draft invoice (lines replaced)
+ */
+export const useUpdateInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateInvoice>>, TError,{companyId: string;id: string;data: BodyType<UpdateInvoiceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateInvoice>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateInvoiceBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateInvoiceMutationOptions(options));
+    }
+
+export const getPostInvoiceUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/invoices/${id}/post`
+}
+
+/**
+ * @summary Post invoice and auto-generate journal entry
+ */
+export const postInvoice = async (companyId: string,
+    id: string, options?: RequestInit): Promise<InvoiceWithLines> => {
+
+  return customFetch<InvoiceWithLines>(getPostInvoiceUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postInvoice>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postInvoice>>, TError,{companyId: string;id: string}, TContext> => {
+
+const mutationKey = ['postInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postInvoice>>, {companyId: string;id: string}> = (props) => {
+          const {companyId,id} = props ?? {};
+
+          return  postInvoice(companyId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof postInvoice>>>
+
+    export type PostInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Post invoice and auto-generate journal entry
+ */
+export const usePostInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postInvoice>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postInvoice>>,
+        TError,
+        {companyId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getPostInvoiceMutationOptions(options));
+    }
+
+export const getVoidInvoiceUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/invoices/${id}/void`
+}
+
+/**
+ * @summary Void a posted invoice (creates reversal journal entry)
+ */
+export const voidInvoice = async (companyId: string,
+    id: string,
+    voidInvoiceBody: VoidInvoiceBody, options?: RequestInit): Promise<InvoiceWithLines> => {
+
+  return customFetch<InvoiceWithLines>(getVoidInvoiceUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(voidInvoiceBody)
+  }
+);}
+
+
+
+
+
+export const getVoidInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidInvoice>>, TError,{companyId: string;id: string;data: BodyType<VoidInvoiceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voidInvoice>>, TError,{companyId: string;id: string;data: BodyType<VoidInvoiceBody>}, TContext> => {
+
+const mutationKey = ['voidInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voidInvoice>>, {companyId: string;id: string;data: BodyType<VoidInvoiceBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  voidInvoice(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoidInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof voidInvoice>>>
+    export type VoidInvoiceMutationBody = BodyType<VoidInvoiceBody>
+    export type VoidInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Void a posted invoice (creates reversal journal entry)
+ */
+export const useVoidInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidInvoice>>, TError,{companyId: string;id: string;data: BodyType<VoidInvoiceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof voidInvoice>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<VoidInvoiceBody>},
+        TContext
+      > => {
+      return useMutation(getVoidInvoiceMutationOptions(options));
     }
 
 export const getGetLedgerUrl = (companyId: string,

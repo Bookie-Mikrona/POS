@@ -14,6 +14,8 @@ import KontniPlan from "@/pages/kontni-plan";
 import Obdobja from "@/pages/obdobja";
 import Temeljnice from "@/pages/temeljnice";
 import GlavnaKnjiga from "@/pages/glavna-knjiga";
+import Partnerji from "@/pages/partnerji";
+import Racuni from "@/pages/racuni";
 import Placeholder from "@/pages/placeholder";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
@@ -208,19 +210,8 @@ function ClerkProviderWithRoutes() {
           
           <ProtectedRoute path="/glavna-knjiga" component={GlavnaKnjiga} />
           
-          <ProtectedRoute path="/kupci" component={() => (
-            <Placeholder 
-              title="Kupci in terjatve" 
-              description="Izdani računi, upravljanje s strankami, saldakonti kupcev in opomini." 
-            />
-          )} />
-          
-          <ProtectedRoute path="/dobavitelji" component={() => (
-            <Placeholder 
-              title="Dobavitelji in obveznosti" 
-              description="Prejeti računi, obveznosti do dobaviteljev, nalogi za plačilo." 
-            />
-          )} />
+          <ProtectedRoute path="/partnerji" component={Partnerji} />
+          <ProtectedRoute path="/racuni" component={Racuni} />
           
           <ProtectedRoute path="/ddv" component={() => (
             <Placeholder 

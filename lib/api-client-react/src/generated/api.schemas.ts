@@ -357,6 +357,302 @@ export interface LedgerResponse {
   totalCredit: string;
 }
 
+export type CounterpartyRecordType = typeof CounterpartyRecordType[keyof typeof CounterpartyRecordType];
+
+
+export const CounterpartyRecordType = {
+  customer: 'customer',
+  supplier: 'supplier',
+  both: 'both',
+} as const;
+
+export interface CounterpartyRecord {
+  id: string;
+  companyId: string;
+  type: CounterpartyRecordType;
+  name: string;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  postCode?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  iban?: string | null;
+  /** @nullable */
+  paymentTermsDays?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListCounterpartiesResponse {
+  counterparties: CounterpartyRecord[];
+}
+
+export type CreateCounterpartyBodyType = typeof CreateCounterpartyBodyType[keyof typeof CreateCounterpartyBodyType];
+
+
+export const CreateCounterpartyBodyType = {
+  customer: 'customer',
+  supplier: 'supplier',
+  both: 'both',
+} as const;
+
+export interface CreateCounterpartyBody {
+  type: CreateCounterpartyBodyType;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @maxLength 30
+     * @nullable
+     */
+  taxId?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /**
+     * @maxLength 10
+     * @nullable
+     */
+  postCode?: string | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  city?: string | null;
+  /**
+     * @maxLength 3
+     * @nullable
+     */
+  country?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /**
+     * @maxLength 50
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @maxLength 34
+     * @nullable
+     */
+  iban?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 365
+     * @nullable
+     */
+  paymentTermsDays?: number | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type UpdateCounterpartyBodyType = typeof UpdateCounterpartyBodyType[keyof typeof UpdateCounterpartyBodyType];
+
+
+export const UpdateCounterpartyBodyType = {
+  customer: 'customer',
+  supplier: 'supplier',
+  both: 'both',
+} as const;
+
+export interface UpdateCounterpartyBody {
+  type?: UpdateCounterpartyBodyType;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  postCode?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  iban?: string | null;
+  /** @nullable */
+  paymentTermsDays?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  isActive?: boolean;
+}
+
+export interface InvoiceLine {
+  id: string;
+  invoiceId: string;
+  description: string;
+  /** Decimal quantity as string */
+  quantity: string;
+  /** Unit price excl. VAT as string */
+  unitPrice: string;
+  /** VAT rate percentage (0, 9.50, 22.00) */
+  vatRate: string;
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  sequence: number;
+  /** quantity * unitPrice */
+  lineTotal: string;
+  /** lineTotal * vatRate / 100 */
+  vatAmount: string;
+  /** lineTotal + vatAmount */
+  grossTotal: string;
+}
+
+export type InvoiceRecordType = typeof InvoiceRecordType[keyof typeof InvoiceRecordType];
+
+
+export const InvoiceRecordType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export type InvoiceRecordStatus = typeof InvoiceRecordStatus[keyof typeof InvoiceRecordStatus];
+
+
+export const InvoiceRecordStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  paid: 'paid',
+  void: 'void',
+} as const;
+
+export interface InvoiceRecord {
+  id: string;
+  companyId: string;
+  type: InvoiceRecordType;
+  counterpartyId: string;
+  /** Denormalized for display */
+  counterpartyName: string;
+  periodId: string;
+  periodName: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  /** @nullable */
+  dueDate?: string | null;
+  status: InvoiceRecordStatus;
+  arApAccountId: string;
+  /** @nullable */
+  vatAccountId?: string | null;
+  /** @nullable */
+  linkedEntryId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** Sum of all line totals (excl. VAT) */
+  totalNet: string;
+  /** Sum of all VAT amounts */
+  totalVat: string;
+  /** totalNet + totalVat */
+  totalGross: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type InvoiceWithLines = InvoiceRecord & {
+  lines: InvoiceLine[];
+};
+
+export interface ListInvoicesResponse {
+  invoices: InvoiceRecord[];
+}
+
+export type CreateInvoiceLineBodyVatRate = typeof CreateInvoiceLineBodyVatRate[keyof typeof CreateInvoiceLineBodyVatRate];
+
+
+export const CreateInvoiceLineBodyVatRate = {
+  NUMBER_0: 0,
+  '95': 9.5,
+  NUMBER_22: 22,
+} as const;
+
+export interface CreateInvoiceLineBody {
+  /** @minLength 1 */
+  description: string;
+  /** @minimum 0.001 */
+  quantity: number;
+  /** @minimum 0 */
+  unitPrice: number;
+  vatRate: CreateInvoiceLineBodyVatRate;
+  accountId: string;
+}
+
+export type CreateInvoiceBodyType = typeof CreateInvoiceBodyType[keyof typeof CreateInvoiceBodyType];
+
+
+export const CreateInvoiceBodyType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export interface CreateInvoiceBody {
+  type: CreateInvoiceBodyType;
+  counterpartyId: string;
+  periodId: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  invoiceNumber: string;
+  invoiceDate: string;
+  /** @nullable */
+  dueDate?: string | null;
+  /** AR account for issued invoices, AP account for received invoices */
+  arApAccountId: string;
+  /**
+     * Optional explicit VAT account; if omitted, looked up automatically
+     * @nullable
+     */
+  vatAccountId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @minItems 1 */
+  lines: CreateInvoiceLineBody[];
+}
+
+export interface UpdateInvoiceBody {
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  /** @nullable */
+  dueDate?: string | null;
+  counterpartyId?: string;
+  periodId?: string;
+  arApAccountId?: string;
+  /** @nullable */
+  vatAccountId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  lines?: CreateInvoiceLineBody[];
+}
+
+export interface VoidInvoiceBody {
+  /** Period for the void reversal entry (defaults to invoice period) */
+  periodId?: string;
+  reason?: string;
+}
+
 export type ListAccountsParams = {
 includeInactive?: boolean;
 };
@@ -375,6 +671,48 @@ export const ListJournalEntriesStatus = {
   draft: 'draft',
   posted: 'posted',
   reversed: 'reversed',
+} as const;
+
+export type ListCounterpartiesParams = {
+type?: ListCounterpartiesType;
+search?: string;
+includeInactive?: boolean;
+};
+
+export type ListCounterpartiesType = typeof ListCounterpartiesType[keyof typeof ListCounterpartiesType];
+
+
+export const ListCounterpartiesType = {
+  customer: 'customer',
+  supplier: 'supplier',
+  both: 'both',
+} as const;
+
+export type ListInvoicesParams = {
+type?: ListInvoicesType;
+status?: ListInvoicesStatus;
+counterpartyId?: string;
+periodId?: string;
+dateFrom?: string;
+dateTo?: string;
+};
+
+export type ListInvoicesType = typeof ListInvoicesType[keyof typeof ListInvoicesType];
+
+
+export const ListInvoicesType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export type ListInvoicesStatus = typeof ListInvoicesStatus[keyof typeof ListInvoicesStatus];
+
+
+export const ListInvoicesStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  paid: 'paid',
+  void: 'void',
 } as const;
 
 export type GetLedgerParams = {

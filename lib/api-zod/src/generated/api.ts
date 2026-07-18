@@ -520,6 +520,528 @@ export const ReverseJournalEntryResponse = zod.object({
 
 
 /**
+ * @summary List customers and suppliers
+ */
+export const ListCounterpartiesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListCounterpartiesQueryParams = zod.object({
+  "type": zod.enum(['customer', 'supplier', 'both']).optional(),
+  "search": zod.coerce.string().optional(),
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListCounterpartiesResponse = zod.object({
+  "counterparties": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['customer', 'supplier', 'both']),
+  "name": zod.string(),
+  "taxId": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "iban": zod.string().nullish(),
+  "paymentTermsDays": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a customer or supplier
+ */
+export const CreateCounterpartyParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createCounterpartyBodyNameMax = 200;
+
+export const createCounterpartyBodyTaxIdMax = 30;
+
+export const createCounterpartyBodyPostCodeMax = 10;
+
+export const createCounterpartyBodyCityMax = 100;
+
+export const createCounterpartyBodyCountryMax = 3;
+
+export const createCounterpartyBodyPhoneMax = 50;
+
+export const createCounterpartyBodyIbanMax = 34;
+
+export const createCounterpartyBodyPaymentTermsDaysMin = 0;
+export const createCounterpartyBodyPaymentTermsDaysMax = 365;
+
+
+
+export const CreateCounterpartyBody = zod.object({
+  "type": zod.enum(['customer', 'supplier', 'both']),
+  "name": zod.string().min(1).max(createCounterpartyBodyNameMax),
+  "taxId": zod.string().max(createCounterpartyBodyTaxIdMax).nullish(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().max(createCounterpartyBodyPostCodeMax).nullish(),
+  "city": zod.string().max(createCounterpartyBodyCityMax).nullish(),
+  "country": zod.string().max(createCounterpartyBodyCountryMax).nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().max(createCounterpartyBodyPhoneMax).nullish(),
+  "iban": zod.string().max(createCounterpartyBodyIbanMax).nullish(),
+  "paymentTermsDays": zod.number().min(createCounterpartyBodyPaymentTermsDaysMin).max(createCounterpartyBodyPaymentTermsDaysMax).nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const CreateCounterpartyResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['customer', 'supplier', 'both']),
+  "name": zod.string(),
+  "taxId": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "iban": zod.string().nullish(),
+  "paymentTermsDays": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get counterparty detail
+ */
+export const GetCounterpartyParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const GetCounterpartyResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['customer', 'supplier', 'both']),
+  "name": zod.string(),
+  "taxId": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "iban": zod.string().nullish(),
+  "paymentTermsDays": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update counterparty
+ */
+export const UpdateCounterpartyParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updateCounterpartyBodyNameMax = 200;
+
+
+
+export const UpdateCounterpartyBody = zod.object({
+  "type": zod.enum(['customer', 'supplier', 'both']).optional(),
+  "name": zod.string().min(1).max(updateCounterpartyBodyNameMax).optional(),
+  "taxId": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "iban": zod.string().nullish(),
+  "paymentTermsDays": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateCounterpartyResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['customer', 'supplier', 'both']),
+  "name": zod.string(),
+  "taxId": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "iban": zod.string().nullish(),
+  "paymentTermsDays": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List issued and received invoices
+ */
+export const ListInvoicesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListInvoicesQueryParams = zod.object({
+  "type": zod.enum(['issued', 'received']).optional(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']).optional(),
+  "counterpartyId": zod.coerce.string().optional(),
+  "periodId": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const ListInvoicesResponse = zod.object({
+  "invoices": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string().describe('Denormalized for display'),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']),
+  "arApAccountId": zod.string(),
+  "vatAccountId": zod.string().nullish(),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "totalNet": zod.string().describe('Sum of all line totals (excl. VAT)'),
+  "totalVat": zod.string().describe('Sum of all VAT amounts'),
+  "totalGross": zod.string().describe('totalNet + totalVat'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create invoice (as draft)
+ */
+export const CreateInvoiceParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createInvoiceBodyInvoiceNumberMax = 50;
+
+
+export const createInvoiceBodyLinesItemQuantityMin = 0.001;
+
+export const createInvoiceBodyLinesItemUnitPriceMin = 0;
+
+
+
+
+export const CreateInvoiceBody = zod.object({
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "periodId": zod.string(),
+  "invoiceNumber": zod.string().min(1).max(createInvoiceBodyInvoiceNumberMax),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "arApAccountId": zod.string().describe('AR account for issued invoices, AP account for received invoices'),
+  "vatAccountId": zod.string().nullish().describe('Optional explicit VAT account; if omitted, looked up automatically'),
+  "notes": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string().min(1),
+  "quantity": zod.number().min(createInvoiceBodyLinesItemQuantityMin),
+  "unitPrice": zod.number().min(createInvoiceBodyLinesItemUnitPriceMin),
+  "vatRate": zod.union([zod.literal(0),zod.literal(9.5),zod.literal(22)]),
+  "accountId": zod.string()
+})).min(1)
+})
+
+export const CreateInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string().describe('Denormalized for display'),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']),
+  "arApAccountId": zod.string(),
+  "vatAccountId": zod.string().nullish(),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "totalNet": zod.string().describe('Sum of all line totals (excl. VAT)'),
+  "totalVat": zod.string().describe('Sum of all VAT amounts'),
+  "totalGross": zod.string().describe('totalNet + totalVat'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "description": zod.string(),
+  "quantity": zod.string().describe('Decimal quantity as string'),
+  "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
+  "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "sequence": zod.number(),
+  "lineTotal": zod.string().describe('quantity \* unitPrice'),
+  "vatAmount": zod.string().describe('lineTotal \* vatRate \/ 100'),
+  "grossTotal": zod.string().describe('lineTotal + vatAmount')
+}))
+}))
+
+
+/**
+ * @summary Get invoice detail with lines
+ */
+export const GetInvoiceParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const GetInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string().describe('Denormalized for display'),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']),
+  "arApAccountId": zod.string(),
+  "vatAccountId": zod.string().nullish(),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "totalNet": zod.string().describe('Sum of all line totals (excl. VAT)'),
+  "totalVat": zod.string().describe('Sum of all VAT amounts'),
+  "totalGross": zod.string().describe('totalNet + totalVat'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "description": zod.string(),
+  "quantity": zod.string().describe('Decimal quantity as string'),
+  "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
+  "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "sequence": zod.number(),
+  "lineTotal": zod.string().describe('quantity \* unitPrice'),
+  "vatAmount": zod.string().describe('lineTotal \* vatRate \/ 100'),
+  "grossTotal": zod.string().describe('lineTotal + vatAmount')
+}))
+}))
+
+
+/**
+ * @summary Update draft invoice (lines replaced)
+ */
+export const UpdateInvoiceParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+
+export const updateInvoiceBodyLinesItemQuantityMin = 0.001;
+
+export const updateInvoiceBodyLinesItemUnitPriceMin = 0;
+
+
+
+export const UpdateInvoiceBody = zod.object({
+  "invoiceNumber": zod.string().optional(),
+  "invoiceDate": zod.coerce.date().optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "counterpartyId": zod.string().optional(),
+  "periodId": zod.string().optional(),
+  "arApAccountId": zod.string().optional(),
+  "vatAccountId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string().min(1),
+  "quantity": zod.number().min(updateInvoiceBodyLinesItemQuantityMin),
+  "unitPrice": zod.number().min(updateInvoiceBodyLinesItemUnitPriceMin),
+  "vatRate": zod.union([zod.literal(0),zod.literal(9.5),zod.literal(22)]),
+  "accountId": zod.string()
+})).optional()
+})
+
+export const UpdateInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string().describe('Denormalized for display'),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']),
+  "arApAccountId": zod.string(),
+  "vatAccountId": zod.string().nullish(),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "totalNet": zod.string().describe('Sum of all line totals (excl. VAT)'),
+  "totalVat": zod.string().describe('Sum of all VAT amounts'),
+  "totalGross": zod.string().describe('totalNet + totalVat'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "description": zod.string(),
+  "quantity": zod.string().describe('Decimal quantity as string'),
+  "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
+  "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "sequence": zod.number(),
+  "lineTotal": zod.string().describe('quantity \* unitPrice'),
+  "vatAmount": zod.string().describe('lineTotal \* vatRate \/ 100'),
+  "grossTotal": zod.string().describe('lineTotal + vatAmount')
+}))
+}))
+
+
+/**
+ * @summary Post invoice and auto-generate journal entry
+ */
+export const PostInvoiceParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const PostInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string().describe('Denormalized for display'),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']),
+  "arApAccountId": zod.string(),
+  "vatAccountId": zod.string().nullish(),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "totalNet": zod.string().describe('Sum of all line totals (excl. VAT)'),
+  "totalVat": zod.string().describe('Sum of all VAT amounts'),
+  "totalGross": zod.string().describe('totalNet + totalVat'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "description": zod.string(),
+  "quantity": zod.string().describe('Decimal quantity as string'),
+  "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
+  "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "sequence": zod.number(),
+  "lineTotal": zod.string().describe('quantity \* unitPrice'),
+  "vatAmount": zod.string().describe('lineTotal \* vatRate \/ 100'),
+  "grossTotal": zod.string().describe('lineTotal + vatAmount')
+}))
+}))
+
+
+/**
+ * @summary Void a posted invoice (creates reversal journal entry)
+ */
+export const VoidInvoiceParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const VoidInvoiceBody = zod.object({
+  "periodId": zod.string().optional().describe('Period for the void reversal entry (defaults to invoice period)'),
+  "reason": zod.string().optional()
+})
+
+export const VoidInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "type": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string().describe('Denormalized for display'),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'posted', 'paid', 'void']),
+  "arApAccountId": zod.string(),
+  "vatAccountId": zod.string().nullish(),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "totalNet": zod.string().describe('Sum of all line totals (excl. VAT)'),
+  "totalVat": zod.string().describe('Sum of all VAT amounts'),
+  "totalGross": zod.string().describe('totalNet + totalVat'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "description": zod.string(),
+  "quantity": zod.string().describe('Decimal quantity as string'),
+  "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
+  "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "sequence": zod.number(),
+  "lineTotal": zod.string().describe('quantity \* unitPrice'),
+  "vatAmount": zod.string().describe('lineTotal \* vatRate \/ 100'),
+  "grossTotal": zod.string().describe('lineTotal + vatAmount')
+}))
+}))
+
+
+/**
  * Returns posted journal entry lines for the given filters, with running balance.
  * @summary General ledger — movements per account
  */

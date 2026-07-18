@@ -16,6 +16,10 @@ tags:
     description: Journal entries (temeljnice)
   - name: ledger
     description: General ledger (glavna knjiga)
+  - name: counterparties
+    description: Customers & suppliers (kupci in dobavitelji)
+  - name: invoices
+    description: Issued & received invoices (računi)
 paths:
   /healthz:
     get:
@@ -755,6 +759,499 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Counterparties (kupci & dobavitelji) ────────────────────────────────────
+  /companies/{companyId}/counterparties:
+    get:
+      operationId: listCounterparties
+      tags: [counterparties]
+      summary: List customers and suppliers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [customer, supplier, both]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Counterparties list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCounterpartiesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCounterparty
+      tags: [counterparties]
+      summary: Create a customer or supplier
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCounterpartyBody"
+      responses:
+        "201":
+          description: Counterparty created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CounterpartyRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/counterparties/{id}:
+    get:
+      operationId: getCounterparty
+      tags: [counterparties]
+      summary: Get counterparty detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Counterparty detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CounterpartyRecord"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCounterparty
+      tags: [counterparties]
+      summary: Update counterparty
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCounterpartyBody"
+      responses:
+        "200":
+          description: Counterparty updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CounterpartyRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Invoices (računi) ────────────────────────────────────────────────────────
+  /companies/{companyId}/invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List issued and received invoices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [issued, received]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, posted, paid, void]
+        - name: counterpartyId
+          in: query
+          schema:
+            type: string
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Invoices list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListInvoicesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create invoice (as draft)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceBody"
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithLines"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice detail with lines
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithLines"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update draft invoice (lines replaced)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateInvoiceBody"
+      responses:
+        "200":
+          description: Invoice updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithLines"
+        "400":
+          description: Validation error or invoice not in draft status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/invoices/{id}/post:
+    post:
+      operationId: postInvoice
+      tags: [invoices]
+      summary: Post invoice and auto-generate journal entry
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice posted with linked journal entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithLines"
+        "400":
+          description: Validation error or period locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/invoices/{id}/void:
+    post:
+      operationId: voidInvoice
+      tags: [invoices]
+      summary: Void a posted invoice (creates reversal journal entry)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoidInvoiceBody"
+      responses:
+        "200":
+          description: Invoice voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithLines"
+        "400":
+          description: Invoice not in posted status or period locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── General ledger (konto kartica) ──────────────────────────────────────────
   /companies/{companyId}/ledger:
     get:
@@ -1228,3 +1725,323 @@ components:
         totalCredit:
           type: string
       required: [lines, totalDebit, totalCredit]
+
+    # ── Counterparties ────────────────────────────────────────────────────────
+    CounterpartyRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        type:
+          type: string
+          enum: [customer, supplier, both]
+        name:
+          type: string
+        taxId:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        postCode:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        iban:
+          type: ["string", "null"]
+        paymentTermsDays:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, type, name, isActive, createdAt, updatedAt]
+    ListCounterpartiesResponse:
+      type: object
+      properties:
+        counterparties:
+          type: array
+          items:
+            $ref: "#/components/schemas/CounterpartyRecord"
+      required: [counterparties]
+    CreateCounterpartyBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [customer, supplier, both]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        taxId:
+          type: ["string", "null"]
+          maxLength: 30
+        address:
+          type: ["string", "null"]
+        postCode:
+          type: ["string", "null"]
+          maxLength: 10
+        city:
+          type: ["string", "null"]
+          maxLength: 100
+        country:
+          type: ["string", "null"]
+          maxLength: 3
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+          maxLength: 50
+        iban:
+          type: ["string", "null"]
+          maxLength: 34
+        paymentTermsDays:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 365
+        notes:
+          type: ["string", "null"]
+      required: [type, name]
+    UpdateCounterpartyBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [customer, supplier, both]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        taxId:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        postCode:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        iban:
+          type: ["string", "null"]
+        paymentTermsDays:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+
+    # ── Invoices ──────────────────────────────────────────────────────────────
+    InvoiceLine:
+      type: object
+      properties:
+        id:
+          type: string
+        invoiceId:
+          type: string
+        description:
+          type: string
+        quantity:
+          type: string
+          description: Decimal quantity as string
+        unitPrice:
+          type: string
+          description: Unit price excl. VAT as string
+        vatRate:
+          type: string
+          description: VAT rate percentage (0, 9.50, 22.00)
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        sequence:
+          type: integer
+        lineTotal:
+          type: string
+          description: quantity * unitPrice
+        vatAmount:
+          type: string
+          description: lineTotal * vatRate / 100
+        grossTotal:
+          type: string
+          description: lineTotal + vatAmount
+      required: [id, invoiceId, description, quantity, unitPrice, vatRate, accountId, accountCode, accountName, sequence, lineTotal, vatAmount, grossTotal]
+    InvoiceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        type:
+          type: string
+          enum: [issued, received]
+        counterpartyId:
+          type: string
+        counterpartyName:
+          type: string
+          description: Denormalized for display
+        periodId:
+          type: string
+        periodName:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [draft, posted, paid, void]
+        arApAccountId:
+          type: string
+        vatAccountId:
+          type: ["string", "null"]
+        linkedEntryId:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        totalNet:
+          type: string
+          description: Sum of all line totals (excl. VAT)
+        totalVat:
+          type: string
+          description: Sum of all VAT amounts
+        totalGross:
+          type: string
+          description: totalNet + totalVat
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, type, counterpartyId, counterpartyName, periodId, periodName, invoiceNumber, invoiceDate, status, arApAccountId, totalNet, totalVat, totalGross, createdBy, createdAt, updatedAt]
+    InvoiceWithLines:
+      allOf:
+        - $ref: "#/components/schemas/InvoiceRecord"
+        - type: object
+          properties:
+            lines:
+              type: array
+              items:
+                $ref: "#/components/schemas/InvoiceLine"
+          required: [lines]
+    ListInvoicesResponse:
+      type: object
+      properties:
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceRecord"
+      required: [invoices]
+    CreateInvoiceLineBody:
+      type: object
+      properties:
+        description:
+          type: string
+          minLength: 1
+        quantity:
+          type: number
+          minimum: 0.001
+        unitPrice:
+          type: number
+          minimum: 0
+        vatRate:
+          type: number
+          enum: [0, 9.5, 22]
+        accountId:
+          type: string
+      required: [description, quantity, unitPrice, vatRate, accountId]
+    CreateInvoiceBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [issued, received]
+        counterpartyId:
+          type: string
+        periodId:
+          type: string
+        invoiceNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+        invoiceDate:
+          type: string
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        arApAccountId:
+          type: string
+          description: AR account for issued invoices, AP account for received invoices
+        vatAccountId:
+          type: ["string", "null"]
+          description: Optional explicit VAT account; if omitted, looked up automatically
+        notes:
+          type: ["string", "null"]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateInvoiceLineBody"
+          minItems: 1
+      required: [type, counterpartyId, periodId, invoiceNumber, invoiceDate, arApAccountId, lines]
+    UpdateInvoiceBody:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        counterpartyId:
+          type: string
+        periodId:
+          type: string
+        arApAccountId:
+          type: string
+        vatAccountId:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateInvoiceLineBody"
+    VoidInvoiceBody:
+      type: object
+      properties:
+        periodId:
+          type: string
+          description: Period for the void reversal entry (defaults to invoice period)
+        reason:
+          type: string
+      required: []
