@@ -1,0 +1,2 @@
+- [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
+- [Komunikacija](komunikacija.md) — izključno slovenščina
