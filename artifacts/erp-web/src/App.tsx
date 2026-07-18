@@ -17,6 +17,8 @@ import GlavnaKnjiga from "@/pages/glavna-knjiga";
 import Partnerji from "@/pages/partnerji";
 import Racuni from "@/pages/racuni";
 import Placeholder from "@/pages/placeholder";
+import Placila from "@/pages/placila";
+import Saldakonti from "@/pages/saldakonti";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -212,6 +214,8 @@ function ClerkProviderWithRoutes() {
           
           <ProtectedRoute path="/partnerji" component={Partnerji} />
           <ProtectedRoute path="/racuni" component={Racuni} />
+          <ProtectedRoute path="/placila" component={Placila} />
+          <ProtectedRoute path="/saldakonti" component={Saldakonti} />
           
           <ProtectedRoute path="/ddv" component={() => (
             <Placeholder 

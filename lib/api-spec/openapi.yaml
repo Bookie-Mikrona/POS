@@ -20,6 +20,8 @@ tags:
     description: Customers & suppliers (kupci in dobavitelji)
   - name: invoices
     description: Issued & received invoices (računi)
+  - name: payments
+    description: Payments, open items & aged analysis (plačila, saldakonti)
 paths:
   /healthz:
     get:
@@ -1252,6 +1254,352 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Payments (plačila & saldakonti) ─────────────────────────────────────────
+  /companies/{companyId}/payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List payments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [inbound, outbound]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, posted, void]
+        - name: counterpartyId
+          in: query
+          schema:
+            type: string
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPaymentsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Create payment with allocations (as draft)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentBody"
+      responses:
+        "201":
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithAllocations"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get payment detail with allocations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithAllocations"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/payments/{id}/post:
+    post:
+      operationId: postPayment
+      tags: [payments]
+      summary: Post payment — generate journal entry and update invoice statuses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithAllocations"
+        "400":
+          description: Validation error or period locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/payments/{id}/void:
+    post:
+      operationId: voidPayment
+      tags: [payments]
+      summary: Void a posted payment — reversal journal entry and reopen invoices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoidPaymentBody"
+      responses:
+        "200":
+          description: Payment voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWithAllocations"
+        "400":
+          description: Payment not in posted status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/open-items:
+    get:
+      operationId: getOpenItems
+      tags: [payments]
+      summary: Open items (odprte postavke) per counterparty
+      description: Returns all posted invoices that are not fully paid, with remaining amount.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: counterpartyId
+          in: query
+          schema:
+            type: string
+          description: Filter by counterparty UUID
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [issued, received]
+          description: Filter by invoice type
+        - name: asOfDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Reference date (defaults to today)
+      responses:
+        "200":
+          description: Open items list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenItemsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/aged-analysis:
+    get:
+      operationId: getAgedAnalysis
+      tags: [payments]
+      summary: Aged receivables/payables analysis
+      description: Groups open items into aging buckets (current, 1-30, 31-60, 61-90, 90+ days overdue).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [issued, received]
+          description: issued = receivables, received = payables
+        - name: asOfDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Aged analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgedAnalysisResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── General ledger (konto kartica) ──────────────────────────────────────────
   /companies/{companyId}/ledger:
     get:
@@ -2045,3 +2393,231 @@ components:
         reason:
           type: string
       required: []
+
+    # ── Payments ──────────────────────────────────────────────────────────────
+    PaymentAllocationRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        paymentId:
+          type: string
+        invoiceId:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        allocatedAmount:
+          type: string
+          description: Allocated amount as string (NUMERIC)
+      required: [id, paymentId, invoiceId, invoiceNumber, invoiceDate, allocatedAmount]
+    PaymentRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        counterpartyId:
+          type: string
+        counterpartyName:
+          type: string
+        periodId:
+          type: string
+        periodName:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        paymentDate:
+          type: string
+          format: date
+        amount:
+          type: string
+          description: Total payment amount
+        reference:
+          type: ["string", "null"]
+        bankAccountId:
+          type: string
+        bankAccountCode:
+          type: string
+        bankAccountName:
+          type: string
+        arApAccountId:
+          type: string
+        status:
+          type: string
+          enum: [draft, posted, void]
+        linkedEntryId:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        allocatedAmount:
+          type: string
+          description: Sum of all allocations
+        unallocatedAmount:
+          type: string
+          description: amount - allocatedAmount
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, counterpartyId, counterpartyName, periodId, periodName, direction, paymentDate, amount, bankAccountId, bankAccountCode, bankAccountName, arApAccountId, status, allocatedAmount, unallocatedAmount, createdBy, createdAt, updatedAt]
+    PaymentWithAllocations:
+      allOf:
+        - $ref: "#/components/schemas/PaymentRecord"
+        - type: object
+          properties:
+            allocations:
+              type: array
+              items:
+                $ref: "#/components/schemas/PaymentAllocationRecord"
+          required: [allocations]
+    ListPaymentsResponse:
+      type: object
+      properties:
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentRecord"
+      required: [payments]
+    PaymentAllocationBody:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        allocatedAmount:
+          type: number
+          minimum: 0.01
+      required: [invoiceId, allocatedAmount]
+    CreatePaymentBody:
+      type: object
+      properties:
+        counterpartyId:
+          type: string
+        periodId:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        paymentDate:
+          type: string
+          format: date
+        amount:
+          type: number
+          minimum: 0.01
+        reference:
+          type: ["string", "null"]
+          maxLength: 50
+        bankAccountId:
+          type: string
+          description: Bank/cash account (banka ali blagajna)
+        arApAccountId:
+          type: string
+          description: AR account for inbound, AP account for outbound
+        notes:
+          type: ["string", "null"]
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentAllocationBody"
+          description: Optional allocations; can also be added after creation
+      required: [counterpartyId, periodId, direction, paymentDate, amount, bankAccountId, arApAccountId]
+    VoidPaymentBody:
+      type: object
+      properties:
+        periodId:
+          type: string
+          description: Period for the reversal entry (defaults to payment period)
+        reason:
+          type: ["string", "null"]
+      required: []
+
+    # ── Open items & aged analysis ────────────────────────────────────────────
+    OpenItem:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        counterpartyId:
+          type: string
+        counterpartyName:
+          type: string
+        invoiceType:
+          type: string
+          enum: [issued, received]
+        totalGross:
+          type: string
+        allocatedAmount:
+          type: string
+        remainingAmount:
+          type: string
+        daysOverdue:
+          type: integer
+          description: Days past due date (0 if not yet due)
+      required: [invoiceId, invoiceNumber, invoiceDate, counterpartyId, counterpartyName, invoiceType, totalGross, allocatedAmount, remainingAmount, daysOverdue]
+    OpenItemsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenItem"
+        totalRemaining:
+          type: string
+      required: [items, totalRemaining]
+    AgedBucket:
+      type: object
+      properties:
+        counterpartyId:
+          type: string
+        counterpartyName:
+          type: string
+        current:
+          type: string
+          description: Not yet due
+        bucket1to30:
+          type: string
+          description: 1-30 days overdue
+        bucket31to60:
+          type: string
+          description: 31-60 days overdue
+        bucket61to90:
+          type: string
+          description: 61-90 days overdue
+        bucketOver90:
+          type: string
+          description: Over 90 days overdue
+        total:
+          type: string
+      required: [counterpartyId, counterpartyName, current, bucket1to30, bucket31to60, bucket61to90, bucketOver90, total]
+    AgedAnalysisResponse:
+      type: object
+      properties:
+        asOfDate:
+          type: string
+          format: date
+        type:
+          type: string
+          enum: [issued, received]
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgedBucket"
+        totals:
+          $ref: "#/components/schemas/AgedBucket"
+      required: [asOfDate, type, rows, totals]

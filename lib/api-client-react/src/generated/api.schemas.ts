@@ -653,6 +653,175 @@ export interface VoidInvoiceBody {
   reason?: string;
 }
 
+export interface PaymentAllocationRecord {
+  id: string;
+  paymentId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  /** Allocated amount as string (NUMERIC) */
+  allocatedAmount: string;
+}
+
+export type PaymentRecordDirection = typeof PaymentRecordDirection[keyof typeof PaymentRecordDirection];
+
+
+export const PaymentRecordDirection = {
+  inbound: 'inbound',
+  outbound: 'outbound',
+} as const;
+
+export type PaymentRecordStatus = typeof PaymentRecordStatus[keyof typeof PaymentRecordStatus];
+
+
+export const PaymentRecordStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  void: 'void',
+} as const;
+
+export interface PaymentRecord {
+  id: string;
+  companyId: string;
+  counterpartyId: string;
+  counterpartyName: string;
+  periodId: string;
+  periodName: string;
+  direction: PaymentRecordDirection;
+  paymentDate: string;
+  /** Total payment amount */
+  amount: string;
+  /** @nullable */
+  reference?: string | null;
+  bankAccountId: string;
+  bankAccountCode: string;
+  bankAccountName: string;
+  arApAccountId: string;
+  status: PaymentRecordStatus;
+  /** @nullable */
+  linkedEntryId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** Sum of all allocations */
+  allocatedAmount: string;
+  /** amount - allocatedAmount */
+  unallocatedAmount: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PaymentWithAllocations = PaymentRecord & {
+  allocations: PaymentAllocationRecord[];
+};
+
+export interface ListPaymentsResponse {
+  payments: PaymentRecord[];
+}
+
+export interface PaymentAllocationBody {
+  invoiceId: string;
+  /** @minimum 0.01 */
+  allocatedAmount: number;
+}
+
+export type CreatePaymentBodyDirection = typeof CreatePaymentBodyDirection[keyof typeof CreatePaymentBodyDirection];
+
+
+export const CreatePaymentBodyDirection = {
+  inbound: 'inbound',
+  outbound: 'outbound',
+} as const;
+
+export interface CreatePaymentBody {
+  counterpartyId: string;
+  periodId: string;
+  direction: CreatePaymentBodyDirection;
+  paymentDate: string;
+  /** @minimum 0.01 */
+  amount: number;
+  /**
+     * @maxLength 50
+     * @nullable
+     */
+  reference?: string | null;
+  /** Bank/cash account (banka ali blagajna) */
+  bankAccountId: string;
+  /** AR account for inbound, AP account for outbound */
+  arApAccountId: string;
+  /** @nullable */
+  notes?: string | null;
+  /** Optional allocations; can also be added after creation */
+  allocations?: PaymentAllocationBody[];
+}
+
+export interface VoidPaymentBody {
+  /** Period for the reversal entry (defaults to payment period) */
+  periodId?: string;
+  /** @nullable */
+  reason?: string | null;
+}
+
+export type OpenItemInvoiceType = typeof OpenItemInvoiceType[keyof typeof OpenItemInvoiceType];
+
+
+export const OpenItemInvoiceType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export interface OpenItem {
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  /** @nullable */
+  dueDate?: string | null;
+  counterpartyId: string;
+  counterpartyName: string;
+  invoiceType: OpenItemInvoiceType;
+  totalGross: string;
+  allocatedAmount: string;
+  remainingAmount: string;
+  /** Days past due date (0 if not yet due) */
+  daysOverdue: number;
+}
+
+export interface OpenItemsResponse {
+  items: OpenItem[];
+  totalRemaining: string;
+}
+
+export interface AgedBucket {
+  counterpartyId: string;
+  counterpartyName: string;
+  /** Not yet due */
+  current: string;
+  /** 1-30 days overdue */
+  bucket1to30: string;
+  /** 31-60 days overdue */
+  bucket31to60: string;
+  /** 61-90 days overdue */
+  bucket61to90: string;
+  /** Over 90 days overdue */
+  bucketOver90: string;
+  total: string;
+}
+
+export type AgedAnalysisResponseType = typeof AgedAnalysisResponseType[keyof typeof AgedAnalysisResponseType];
+
+
+export const AgedAnalysisResponseType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export interface AgedAnalysisResponse {
+  asOfDate: string;
+  type: AgedAnalysisResponseType;
+  rows: AgedBucket[];
+  totals: AgedBucket;
+}
+
 export type ListAccountsParams = {
 includeInactive?: boolean;
 };
@@ -713,6 +882,71 @@ export const ListInvoicesStatus = {
   posted: 'posted',
   paid: 'paid',
   void: 'void',
+} as const;
+
+export type ListPaymentsParams = {
+direction?: ListPaymentsDirection;
+status?: ListPaymentsStatus;
+counterpartyId?: string;
+periodId?: string;
+dateFrom?: string;
+dateTo?: string;
+};
+
+export type ListPaymentsDirection = typeof ListPaymentsDirection[keyof typeof ListPaymentsDirection];
+
+
+export const ListPaymentsDirection = {
+  inbound: 'inbound',
+  outbound: 'outbound',
+} as const;
+
+export type ListPaymentsStatus = typeof ListPaymentsStatus[keyof typeof ListPaymentsStatus];
+
+
+export const ListPaymentsStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  void: 'void',
+} as const;
+
+export type GetOpenItemsParams = {
+/**
+ * Filter by counterparty UUID
+ */
+counterpartyId?: string;
+/**
+ * Filter by invoice type
+ */
+type?: GetOpenItemsType;
+/**
+ * Reference date (defaults to today)
+ */
+asOfDate?: string;
+};
+
+export type GetOpenItemsType = typeof GetOpenItemsType[keyof typeof GetOpenItemsType];
+
+
+export const GetOpenItemsType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export type GetAgedAnalysisParams = {
+/**
+ * issued = receivables, received = payables
+ */
+type?: GetAgedAnalysisType;
+asOfDate?: string;
+};
+
+export type GetAgedAnalysisType = typeof GetAgedAnalysisType[keyof typeof GetAgedAnalysisType];
+
+
+export const GetAgedAnalysisType = {
+  issued: 'issued',
+  received: 'received',
 } as const;
 
 export type GetLedgerParams = {

@@ -21,6 +21,7 @@ import type {
 
 import type {
   AccountRecord,
+  AgedAnalysisResponse,
   AssignRoleBody,
   CompanyWithRole,
   CounterpartyRecord,
@@ -29,9 +30,12 @@ import type {
   CreateCounterpartyBody,
   CreateInvoiceBody,
   CreateJournalEntryBody,
+  CreatePaymentBody,
   CreatePeriodBody,
   ErrorResponse,
+  GetAgedAnalysisParams,
   GetLedgerParams,
+  GetOpenItemsParams,
   HealthStatus,
   InvoiceWithLines,
   JournalEntryWithLines,
@@ -45,7 +49,11 @@ import type {
   ListInvoicesResponse,
   ListJournalEntriesParams,
   ListJournalEntriesResponse,
+  ListPaymentsParams,
+  ListPaymentsResponse,
   ListPeriodsResponse,
+  OpenItemsResponse,
+  PaymentWithAllocations,
   PeriodRecord,
   ReverseJournalEntryBody,
   RoleAssignment,
@@ -55,7 +63,8 @@ import type {
   UpdateInvoiceBody,
   UpdatePeriodBody,
   UserProfile,
-  VoidInvoiceBody
+  VoidInvoiceBody,
+  VoidPaymentBody
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2237,6 +2246,576 @@ export const useVoidInvoice = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getVoidInvoiceMutationOptions(options));
     }
+
+export const getListPaymentsUrl = (companyId: string,
+    params?: ListPaymentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/payments?${stringifiedParams}` : `/api/companies/${companyId}/payments`
+}
+
+/**
+ * @summary List payments
+ */
+export const listPayments = async (companyId: string,
+    params?: ListPaymentsParams, options?: RequestInit): Promise<ListPaymentsResponse> => {
+
+  return customFetch<ListPaymentsResponse>(getListPaymentsUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPaymentsQueryKey = (companyId: string,
+    params?: ListPaymentsParams,) => {
+    return [
+    `/api/companies/${companyId}/payments`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPaymentsQueryOptions = <TData = Awaited<ReturnType<typeof listPayments>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListPaymentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPayments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPaymentsQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPayments>>> = ({ signal }) => listPayments(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPayments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPaymentsQueryResult = NonNullable<Awaited<ReturnType<typeof listPayments>>>
+export type ListPaymentsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List payments
+ */
+
+export function useListPayments<TData = Awaited<ReturnType<typeof listPayments>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListPaymentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPayments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPaymentsQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePaymentUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payments`
+}
+
+/**
+ * @summary Create payment with allocations (as draft)
+ */
+export const createPayment = async (companyId: string,
+    createPaymentBody: CreatePaymentBody, options?: RequestInit): Promise<PaymentWithAllocations> => {
+
+  return customFetch<PaymentWithAllocations>(getCreatePaymentUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPaymentBody)
+  }
+);}
+
+
+
+
+
+export const getCreatePaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{companyId: string;data: BodyType<CreatePaymentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{companyId: string;data: BodyType<CreatePaymentBody>}, TContext> => {
+
+const mutationKey = ['createPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPayment>>, {companyId: string;data: BodyType<CreatePaymentBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createPayment(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createPayment>>>
+    export type CreatePaymentMutationBody = BodyType<CreatePaymentBody>
+    export type CreatePaymentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create payment with allocations (as draft)
+ */
+export const useCreatePayment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPayment>>, TError,{companyId: string;data: BodyType<CreatePaymentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPayment>>,
+        TError,
+        {companyId: string;data: BodyType<CreatePaymentBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePaymentMutationOptions(options));
+    }
+
+export const getGetPaymentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payments/${id}`
+}
+
+/**
+ * @summary Get payment detail with allocations
+ */
+export const getPayment = async (companyId: string,
+    id: string, options?: RequestInit): Promise<PaymentWithAllocations> => {
+
+  return customFetch<PaymentWithAllocations>(getGetPaymentUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/payments/${id}`
+    ] as const;
+    }
+
+
+export const getGetPaymentQueryOptions = <TData = Awaited<ReturnType<typeof getPayment>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayment>>> = ({ signal }) => getPayment(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentQueryResult = NonNullable<Awaited<ReturnType<typeof getPayment>>>
+export type GetPaymentQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get payment detail with allocations
+ */
+
+export function useGetPayment<TData = Awaited<ReturnType<typeof getPayment>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPostPaymentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payments/${id}/post`
+}
+
+/**
+ * @summary Post payment — generate journal entry and update invoice statuses
+ */
+export const postPayment = async (companyId: string,
+    id: string, options?: RequestInit): Promise<PaymentWithAllocations> => {
+
+  return customFetch<PaymentWithAllocations>(getPostPaymentUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostPaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPayment>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postPayment>>, TError,{companyId: string;id: string}, TContext> => {
+
+const mutationKey = ['postPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPayment>>, {companyId: string;id: string}> = (props) => {
+          const {companyId,id} = props ?? {};
+
+          return  postPayment(companyId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof postPayment>>>
+
+    export type PostPaymentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Post payment — generate journal entry and update invoice statuses
+ */
+export const usePostPayment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPayment>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postPayment>>,
+        TError,
+        {companyId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getPostPaymentMutationOptions(options));
+    }
+
+export const getVoidPaymentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/payments/${id}/void`
+}
+
+/**
+ * @summary Void a posted payment — reversal journal entry and reopen invoices
+ */
+export const voidPayment = async (companyId: string,
+    id: string,
+    voidPaymentBody: VoidPaymentBody, options?: RequestInit): Promise<PaymentWithAllocations> => {
+
+  return customFetch<PaymentWithAllocations>(getVoidPaymentUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(voidPaymentBody)
+  }
+);}
+
+
+
+
+
+export const getVoidPaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidPayment>>, TError,{companyId: string;id: string;data: BodyType<VoidPaymentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voidPayment>>, TError,{companyId: string;id: string;data: BodyType<VoidPaymentBody>}, TContext> => {
+
+const mutationKey = ['voidPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voidPayment>>, {companyId: string;id: string;data: BodyType<VoidPaymentBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  voidPayment(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoidPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof voidPayment>>>
+    export type VoidPaymentMutationBody = BodyType<VoidPaymentBody>
+    export type VoidPaymentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Void a posted payment — reversal journal entry and reopen invoices
+ */
+export const useVoidPayment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidPayment>>, TError,{companyId: string;id: string;data: BodyType<VoidPaymentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof voidPayment>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<VoidPaymentBody>},
+        TContext
+      > => {
+      return useMutation(getVoidPaymentMutationOptions(options));
+    }
+
+export const getGetOpenItemsUrl = (companyId: string,
+    params?: GetOpenItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/open-items?${stringifiedParams}` : `/api/companies/${companyId}/open-items`
+}
+
+/**
+ * Returns all posted invoices that are not fully paid, with remaining amount.
+ * @summary Open items (odprte postavke) per counterparty
+ */
+export const getOpenItems = async (companyId: string,
+    params?: GetOpenItemsParams, options?: RequestInit): Promise<OpenItemsResponse> => {
+
+  return customFetch<OpenItemsResponse>(getGetOpenItemsUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOpenItemsQueryKey = (companyId: string,
+    params?: GetOpenItemsParams,) => {
+    return [
+    `/api/companies/${companyId}/open-items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetOpenItemsQueryOptions = <TData = Awaited<ReturnType<typeof getOpenItems>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: GetOpenItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpenItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOpenItemsQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpenItems>>> = ({ signal }) => getOpenItems(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOpenItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOpenItemsQueryResult = NonNullable<Awaited<ReturnType<typeof getOpenItems>>>
+export type GetOpenItemsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Open items (odprte postavke) per counterparty
+ */
+
+export function useGetOpenItems<TData = Awaited<ReturnType<typeof getOpenItems>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: GetOpenItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpenItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOpenItemsQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAgedAnalysisUrl = (companyId: string,
+    params?: GetAgedAnalysisParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/aged-analysis?${stringifiedParams}` : `/api/companies/${companyId}/aged-analysis`
+}
+
+/**
+ * Groups open items into aging buckets (current, 1-30, 31-60, 61-90, 90+ days overdue).
+ * @summary Aged receivables/payables analysis
+ */
+export const getAgedAnalysis = async (companyId: string,
+    params?: GetAgedAnalysisParams, options?: RequestInit): Promise<AgedAnalysisResponse> => {
+
+  return customFetch<AgedAnalysisResponse>(getGetAgedAnalysisUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAgedAnalysisQueryKey = (companyId: string,
+    params?: GetAgedAnalysisParams,) => {
+    return [
+    `/api/companies/${companyId}/aged-analysis`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAgedAnalysisQueryOptions = <TData = Awaited<ReturnType<typeof getAgedAnalysis>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: GetAgedAnalysisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgedAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAgedAnalysisQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgedAnalysis>>> = ({ signal }) => getAgedAnalysis(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAgedAnalysis>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAgedAnalysisQueryResult = NonNullable<Awaited<ReturnType<typeof getAgedAnalysis>>>
+export type GetAgedAnalysisQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Aged receivables/payables analysis
+ */
+
+export function useGetAgedAnalysis<TData = Awaited<ReturnType<typeof getAgedAnalysis>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: GetAgedAnalysisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgedAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAgedAnalysisQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetLedgerUrl = (companyId: string,
     params?: GetLedgerParams,) => {

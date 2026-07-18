@@ -8,6 +8,7 @@ import journalEntriesRouter from "./journalEntries";
 import ledgerRouter from "./ledger";
 import counterpartiesRouter from "./counterparties";
 import invoicesRouter from "./invoices";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(journalEntriesRouter);
 router.use(ledgerRouter);
 router.use(counterpartiesRouter);
 router.use(invoicesRouter);
+router.use(paymentsRouter);
 
 export default router;

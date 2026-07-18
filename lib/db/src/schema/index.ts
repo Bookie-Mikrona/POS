@@ -6,3 +6,4 @@ export * from "./journal-entries";
 export * from "./audit-log";
 export * from "./counterparties";
 export * from "./invoices";
+export * from "./payments";

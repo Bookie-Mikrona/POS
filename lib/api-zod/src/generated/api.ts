@@ -1042,6 +1042,321 @@ export const VoidInvoiceResponse = zod.object({
 
 
 /**
+ * @summary List payments
+ */
+export const ListPaymentsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListPaymentsQueryParams = zod.object({
+  "direction": zod.enum(['inbound', 'outbound']).optional(),
+  "status": zod.enum(['draft', 'posted', 'void']).optional(),
+  "counterpartyId": zod.coerce.string().optional(),
+  "periodId": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const ListPaymentsResponse = zod.object({
+  "payments": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.string().describe('Total payment amount'),
+  "reference": zod.string().nullish(),
+  "bankAccountId": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "arApAccountId": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void']),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "allocatedAmount": zod.string().describe('Sum of all allocations'),
+  "unallocatedAmount": zod.string().describe('amount - allocatedAmount'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create payment with allocations (as draft)
+ */
+export const CreatePaymentParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createPaymentBodyAmountMin = 0.01;
+
+export const createPaymentBodyReferenceMax = 50;
+
+export const createPaymentBodyAllocationsItemAllocatedAmountMin = 0.01;
+
+
+
+export const CreatePaymentBody = zod.object({
+  "counterpartyId": zod.string(),
+  "periodId": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.number().min(createPaymentBodyAmountMin),
+  "reference": zod.string().max(createPaymentBodyReferenceMax).nullish(),
+  "bankAccountId": zod.string().describe('Bank\/cash account (banka ali blagajna)'),
+  "arApAccountId": zod.string().describe('AR account for inbound, AP account for outbound'),
+  "notes": zod.string().nullish(),
+  "allocations": zod.array(zod.object({
+  "invoiceId": zod.string(),
+  "allocatedAmount": zod.number().min(createPaymentBodyAllocationsItemAllocatedAmountMin)
+})).optional().describe('Optional allocations; can also be added after creation')
+})
+
+export const CreatePaymentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.string().describe('Total payment amount'),
+  "reference": zod.string().nullish(),
+  "bankAccountId": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "arApAccountId": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void']),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "allocatedAmount": zod.string().describe('Sum of all allocations'),
+  "unallocatedAmount": zod.string().describe('amount - allocatedAmount'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
+}))
+}))
+
+
+/**
+ * @summary Get payment detail with allocations
+ */
+export const GetPaymentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const GetPaymentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.string().describe('Total payment amount'),
+  "reference": zod.string().nullish(),
+  "bankAccountId": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "arApAccountId": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void']),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "allocatedAmount": zod.string().describe('Sum of all allocations'),
+  "unallocatedAmount": zod.string().describe('amount - allocatedAmount'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
+}))
+}))
+
+
+/**
+ * @summary Post payment — generate journal entry and update invoice statuses
+ */
+export const PostPaymentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const PostPaymentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.string().describe('Total payment amount'),
+  "reference": zod.string().nullish(),
+  "bankAccountId": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "arApAccountId": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void']),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "allocatedAmount": zod.string().describe('Sum of all allocations'),
+  "unallocatedAmount": zod.string().describe('amount - allocatedAmount'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
+}))
+}))
+
+
+/**
+ * @summary Void a posted payment — reversal journal entry and reopen invoices
+ */
+export const VoidPaymentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const VoidPaymentBody = zod.object({
+  "periodId": zod.string().optional().describe('Period for the reversal entry (defaults to payment period)'),
+  "reason": zod.string().nullish()
+})
+
+export const VoidPaymentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "direction": zod.enum(['inbound', 'outbound']),
+  "paymentDate": zod.coerce.date(),
+  "amount": zod.string().describe('Total payment amount'),
+  "reference": zod.string().nullish(),
+  "bankAccountId": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "arApAccountId": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'void']),
+  "linkedEntryId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "allocatedAmount": zod.string().describe('Sum of all allocations'),
+  "unallocatedAmount": zod.string().describe('amount - allocatedAmount'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "paymentId": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "allocatedAmount": zod.string().describe('Allocated amount as string (NUMERIC)')
+}))
+}))
+
+
+/**
+ * Returns all posted invoices that are not fully paid, with remaining amount.
+ * @summary Open items (odprte postavke) per counterparty
+ */
+export const GetOpenItemsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetOpenItemsQueryParams = zod.object({
+  "counterpartyId": zod.coerce.string().optional().describe('Filter by counterparty UUID'),
+  "type": zod.enum(['issued', 'received']).optional().describe('Filter by invoice type'),
+  "asOfDate": zod.date().optional().describe('Reference date (defaults to today)')
+})
+
+export const GetOpenItemsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "invoiceType": zod.enum(['issued', 'received']),
+  "totalGross": zod.string(),
+  "allocatedAmount": zod.string(),
+  "remainingAmount": zod.string(),
+  "daysOverdue": zod.number().describe('Days past due date (0 if not yet due)')
+})),
+  "totalRemaining": zod.string()
+})
+
+
+/**
+ * Groups open items into aging buckets (current, 1-30, 31-60, 61-90, 90+ days overdue).
+ * @summary Aged receivables/payables analysis
+ */
+export const GetAgedAnalysisParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetAgedAnalysisQueryParams = zod.object({
+  "type": zod.enum(['issued', 'received']).optional().describe('issued = receivables, received = payables'),
+  "asOfDate": zod.date().optional()
+})
+
+export const GetAgedAnalysisResponse = zod.object({
+  "asOfDate": zod.coerce.date(),
+  "type": zod.enum(['issued', 'received']),
+  "rows": zod.array(zod.object({
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "current": zod.string().describe('Not yet due'),
+  "bucket1to30": zod.string().describe('1-30 days overdue'),
+  "bucket31to60": zod.string().describe('31-60 days overdue'),
+  "bucket61to90": zod.string().describe('61-90 days overdue'),
+  "bucketOver90": zod.string().describe('Over 90 days overdue'),
+  "total": zod.string()
+})),
+  "totals": zod.object({
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "current": zod.string().describe('Not yet due'),
+  "bucket1to30": zod.string().describe('1-30 days overdue'),
+  "bucket31to60": zod.string().describe('31-60 days overdue'),
+  "bucket61to90": zod.string().describe('61-90 days overdue'),
+  "bucketOver90": zod.string().describe('Over 90 days overdue'),
+  "total": zod.string()
+})
+})
+
+
+/**
  * Returns posted journal entry lines for the given filters, with running balance.
  * @summary General ledger — movements per account
  */

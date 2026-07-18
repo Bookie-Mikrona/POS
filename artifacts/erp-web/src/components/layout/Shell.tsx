@@ -9,6 +9,7 @@ import {
   Users, 
   Truck, 
   Receipt, 
+  CreditCard,
   BarChart3, 
   Settings,
   LogOut,
@@ -57,6 +58,8 @@ const MODULES = [
   { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked },
   { name: "Partnerji", path: "/partnerji", icon: Users },
   { name: "Računi", path: "/racuni", icon: Receipt },
+  { name: "Plačila", path: "/placila", icon: CreditCard },
+  { name: "Saldakonti", path: "/saldakonti", icon: BarChart3 },
   { name: "DDV evidence", path: "/ddv", icon: Receipt },
   { name: "Poročila", path: "/porocila", icon: BarChart3 },
 ];
