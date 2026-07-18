@@ -358,6 +358,17 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  const companyId = (() => {
+    try {
+      const stored = localStorage.getItem("erp_active_company");
+      return stored ? JSON.parse(stored)?.id : null;
+    } catch { return null; }
+  })();
+
+  if (companyId && !headers.has("x-company-id")) {
+    headers.set("x-company-id", companyId);
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });

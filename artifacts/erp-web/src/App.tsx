@@ -6,8 +6,10 @@ import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wo
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import { Shell } from "@/components/layout/Shell";
+import { CompanyProvider, useCompany } from "@/contexts/CompanyContext";
 import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
+import CompanySelectPage from "@/pages/company-select";
 import Placeholder from "@/pages/placeholder";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
@@ -109,12 +111,23 @@ function HomeRedirect() {
 
 // Protected route wrapper
 function ProtectedRoute({ component: Component, ...rest }: { component: any, [key: string]: any }) {
+  const [location] = useLocation();
+  const { activeCompany } = useCompany();
+
   return (
     <Route {...rest}>
       <Show when="signed-in">
-        <Shell>
-          <Component />
-        </Shell>
+        {activeCompany || location === "/company-select" ? (
+          location === "/company-select" ? (
+            <Component />
+          ) : (
+            <Shell>
+              <Component />
+            </Shell>
+          )
+        ) : (
+          <Redirect to="/company-select" />
+        )}
       </Show>
       <Show when="signed-out">
         <Redirect to="/" />
@@ -172,14 +185,16 @@ function ClerkProviderWithRoutes() {
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
-      <QueryClientProvider client={queryClient}>
-        <ClerkQueryClientCacheInvalidator />
-        <Switch>
-          <Route path="/" component={HomeRedirect} />
-          <Route path="/sign-in/*?" component={SignInPage} />
-          <Route path="/sign-up/*?" component={SignUpPage} />
-          
-          <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <CompanyProvider>
+        <QueryClientProvider client={queryClient}>
+          <ClerkQueryClientCacheInvalidator />
+          <Switch>
+            <Route path="/" component={HomeRedirect} />
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
+            
+            <ProtectedRoute path="/company-select" component={CompanySelectPage} />
+            <ProtectedRoute path="/dashboard" component={Dashboard} />
           
           <ProtectedRoute path="/kontni-plan" component={() => (
             <Placeholder 
@@ -230,9 +245,10 @@ function ClerkProviderWithRoutes() {
             />
           )} />
 
-          <Route component={NotFound} />
-        </Switch>
-      </QueryClientProvider>
+            <Route component={NotFound} />
+          </Switch>
+        </QueryClientProvider>
+      </CompanyProvider>
     </ClerkProvider>
   );
 }

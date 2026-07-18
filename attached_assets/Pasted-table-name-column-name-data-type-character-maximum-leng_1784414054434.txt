@@ -1,0 +1,354 @@
+table_name,column_name,data_type,character_maximum_length,is_nullable,column_default
+artikli,id,integer,,NO,nextval('artikli_id_seq'::regclass)
+artikli,ime,text,,NO,
+artikli,opis,text,,YES,
+artikli,cena,numeric,,NO,
+artikli,davek,numeric,,NO,9.5
+artikli,aktiven,boolean,,NO,true
+artikli,kategorija_id,integer,,YES,
+artikli,barva,text,,YES,
+artikli,vrstni_red,integer,,NO,0
+artikli,nabavni_artikel,boolean,,NO,false
+artikli,prodajni_artikel,boolean,,NO,true
+artikli,ime_za_nabavo,text,,YES,
+artikli,enota_mere,text,,YES,
+artikli,podjetje_davcna,text,,NO,''::text
+artikli,je_pica,boolean,,NO,false
+artikli,enota_id,integer,,NO,1
+artikli,je_dodatek_za_pico,boolean,,NO,false
+artikli,privzeti_dodatki,json,,NO,'[]'::json
+artikli,je_modifikator,boolean,,NO,false
+artikli,privzeti_modifikatorji,json,,NO,'[]'::json
+artikli,to_go_artikli,json,,NO,'[]'::json
+artikli,to_go,boolean,,NO,false
+artikli_modifikatorske_skupine,artikel_id,integer,,NO,
+artikli_modifikatorske_skupine,skupina_id,integer,,NO,
+artikli_modifikatorske_skupine,vrstni_red,integer,,NO,0
+blagajne,id,integer,,NO,nextval('blagajne_id_seq'::regclass)
+blagajne,podjetje_davcna,text,,NO,''::text
+blagajne,pp_id,text,,NO,
+blagajne,b_id,text,,NO,
+blagajne,ime,text,,NO,
+blagajne,aktivna,boolean,,NO,true
+blagajne,ustvarjeno,timestamp with time zone,,NO,now()
+dnevni_meni,id,integer,,NO,nextval('dnevni_meni_id_seq'::regclass)
+dnevni_meni,podjetje_davcna,text,,NO,''::text
+dnevni_meni,enota_id,integer,,NO,1
+dnevni_meni,datum,date,,NO,
+dnevni_meni,artikel_id,integer,,NO,
+dnevni_meni,modifikator_id,integer,,NO,
+enote,id,integer,,NO,nextval('enote_id_seq'::regclass)
+enote,podjetje_davcna,text,,NO,''::text
+enote,ime,text,,NO,'Enota 1'::text
+enote,aktiven,boolean,,NO,true
+enote,ustvarjeno,timestamp with time zone,,NO,now()
+enote,opis,text,,YES,
+enote,zacetek_dneva_ura,text,,NO,'04:00'::text
+glasovni_sinonimi,id,integer,,NO,nextval('glasovni_sinonimi_id_seq'::regclass)
+glasovni_sinonimi,podjetje_davcna,text,,NO,''::text
+glasovni_sinonimi,beseda,text,,NO,
+glasovni_sinonimi,alias,text,,NO,
+glasovni_sinonimi,ustvarjeno,timestamp with time zone,,NO,now()
+inventure,id,integer,,NO,nextval('inventure_id_seq'::regclass)
+inventure,datum,timestamp without time zone,,NO,now()
+inventure,opomba,text,,YES,
+inventure,ustvarjeno,timestamp without time zone,,NO,now()
+inventure,stevilka,text,,YES,
+inventure,podjetje_davcna,text,,NO,''::text
+inventure,enota_id,integer,,NO,1
+inventure_postavke,id,integer,,NO,nextval('inventure_postavke_id_seq'::regclass)
+inventure_postavke,inventura_id,integer,,NO,
+inventure_postavke,artikel_id,integer,,NO,
+inventure_postavke,stevilo_najdeno,numeric,,NO,
+inventure_postavke,stevilo_prejsnje,numeric,,NO,'0'::numeric
+inventure_postavke,razlika,numeric,,NO,'0'::numeric
+inventure_postavke,cena_kos,numeric,,NO,'0'::numeric
+izmene,id,integer,,NO,nextval('izmene_id_seq'::regclass)
+izmene,natakari_id,integer,,NO,
+izmene,zacetek,timestamp with time zone,,NO,now()
+izmene,konec,timestamp with time zone,,YES,
+izmene,skupaj_znesek,numeric,,NO,'0'::numeric
+izmene,stevilo_racunov,integer,,NO,0
+izmene,podjetje_davcna,text,,NO,''::text
+izmene,enota_id,integer,,NO,1
+kategorije,id,integer,,NO,nextval('kategorije_id_seq'::regclass)
+kategorije,ime,text,,NO,
+kategorije,barva,text,,NO,'#6366f1'::text
+kategorije,vrstni_red,integer,,NO,0
+kategorije,tip,text,,YES,
+kategorije,podjetje_davcna,text,,NO,''::text
+kategorije,enota_id,integer,,NO,1
+kategorije,dnevno_filtriranje,boolean,,NO,false
+mize,id,integer,,NO,nextval('mize_id_seq'::regclass)
+mize,stevilka,integer,,NO,
+mize,ime,text,,YES,
+mize,kapaciteta,integer,,NO,4
+mize,status,text,,NO,'prosta'::text
+mize,podjetje_davcna,text,,NO,''::text
+mize,prostor_id,integer,,YES,
+mize,enota_id,integer,,NO,1
+modifikator_normativi,id,integer,,NO,nextval('modifikator_normativi_id_seq'::regclass)
+modifikator_normativi,modifikator_id,integer,,NO,
+modifikator_normativi,vhodni_artikel_id,integer,,NO,
+modifikator_normativi,kolicina,numeric,,NO,
+modifikator_normativi,vrstni_red,integer,,NO,0
+modifikatorji,id,integer,,NO,nextval('modifikatorji_id_seq'::regclass)
+modifikatorji,skupina_id,integer,,NO,
+modifikatorji,ime,text,,NO,
+modifikatorji,cena_dodatek,numeric,,NO,'0'::numeric
+modifikatorji,aktiven,boolean,,NO,true
+modifikatorji,vrstni_red,integer,,NO,0
+modifikatorske_skupine,id,integer,,NO,nextval('modifikatorske_skupine_id_seq'::regclass)
+modifikatorske_skupine,podjetje_davcna,text,,NO,''::text
+modifikatorske_skupine,enota_id,integer,,NO,1
+modifikatorske_skupine,ime,text,,NO,
+modifikatorske_skupine,obvezna,boolean,,NO,false
+modifikatorske_skupine,min_izbir,integer,,NO,0
+modifikatorske_skupine,max_izbir,integer,,NO,1
+modifikatorske_skupine,vrstni_red,integer,,NO,0
+naprave,id,integer,,NO,nextval('naprave_id_seq'::regclass)
+naprave,podjetje_davcna,text,,NO,''::text
+naprave,enota_id,integer,,NO,1
+naprave,ime,text,,NO,''::text
+naprave,naprava_kljuc,text,,NO,
+naprave,placilni_terminal,text,,YES,
+naprave,ustvarjeno,timestamp with time zone,,NO,now()
+naprave,posodobljeno,timestamp with time zone,,NO,now()
+naprave,dovoljene_mize,ARRAY,,YES,
+naprave,glasovni_prag_zaupanja,real,,YES,
+naprave,nastavitve_json,text,,YES,
+narocila,id,integer,,NO,nextval('narocila_id_seq'::regclass)
+narocila,miza_id,integer,,YES,
+narocila,status,text,,NO,'odprto'::text
+narocila,skupaj,numeric,,NO,'0'::numeric
+narocila,opomba,text,,YES,
+narocila,ustvarjeno,timestamp with time zone,,NO,now()
+narocila,posodobljeno,timestamp with time zone,,NO,now()
+narocila,podjetje_davcna,text,,NO,''::text
+narocila,enota_id,integer,,NO,1
+nastavitve,id,integer,,NO,nextval('nastavitve_id_seq'::regclass)
+nastavitve,kljuc,text,,NO,
+nastavitve,vrednost,text,,NO,
+nastavitve,posodobljeno,timestamp with time zone,,NO,now()
+nastavitve,podjetje_davcna,text,,NO,''::text
+nastavitve,enota_id,integer,,NO,1
+natakari,id,integer,,NO,nextval('natakari_id_seq'::regclass)
+natakari,ime,text,,NO,
+natakari,priimek,text,,NO,
+natakari,davcna_stevilka,text,,YES,
+natakari,aktiven,boolean,,NO,true
+natakari,ustvarjeno,timestamp with time zone,,NO,now()
+natakari,podjetje_davcna,text,,NO,''::text
+natakari,enota_id,integer,,NO,1
+normativi,id,integer,,NO,nextval('normativi_id_seq'::regclass)
+normativi,artikel_id,integer,,NO,
+normativi,vhodni_artikel_id,integer,,NO,
+normativi,kolicina,numeric,,NO,
+normativi,vrstni_red,integer,,NO,0
+partner_ceniki,id,integer,,NO,nextval('partner_ceniki_id_seq'::regclass)
+partner_ceniki,podjetje_davcna,text,,NO,''::text
+partner_ceniki,enota_id,integer,,NO,1
+partner_ceniki,kupec_id,integer,,NO,
+partner_ceniki,artikel_id,integer,,NO,
+partner_ceniki,cena,numeric,,NO,
+partner_ceniki,ustvarjeno,timestamp with time zone,,NO,now()
+poslovni_prostori,id,integer,,NO,nextval('poslovni_prostori_id_seq'::regclass)
+poslovni_prostori,prostor_id,text,,NO,
+poslovni_prostori,naziv,text,,YES,
+poslovni_prostori,tip_prostora,text,,NO,'nepremicnina'::text
+poslovni_prostori,aktiven,boolean,,NO,true
+poslovni_prostori,zaprt,boolean,,NO,false
+poslovni_prostori,ulica,text,,YES,
+poslovni_prostori,hisna_stevilka,text,,YES,
+poslovni_prostori,hisna_stevilka_dodatek,text,,YES,
+poslovni_prostori,skupnost,text,,YES,
+poslovni_prostori,kraj,text,,YES,
+poslovni_prostori,postna_stevilka,text,,YES,
+poslovni_prostori,katastrska_stevilka,text,,YES,
+poslovni_prostori,stevilka_stavbe,text,,YES,
+poslovni_prostori,stevilka_dela_stavbe,text,,YES,
+poslovni_prostori,registrska_tablica,text,,YES,
+poslovni_prostori,vin,text,,YES,
+poslovni_prostori,premicnina_tip,text,,YES,
+poslovni_prostori,veljavnost_od,text,,YES,
+poslovni_prostori,certifikat_pot,text,,YES,
+poslovni_prostori,certifikat_geslo,text,,YES,
+poslovni_prostori,zadnja_registracija,timestamp with time zone,,YES,
+poslovni_prostori,ustvarjeno,timestamp with time zone,,NO,now()
+poslovni_prostori,podjetje_davcna,text,,NO,''::text
+poslovni_prostori,enota_id,integer,,NO,1
+postavke,id,integer,,NO,nextval('postavke_id_seq'::regclass)
+postavke,narocilo_id,integer,,NO,
+postavke,artikel_id,integer,,YES,
+postavke,ime,text,,NO,
+postavke,kolicina,integer,,NO,1
+postavke,cena_kos,numeric,,NO,
+postavke,skupaj,numeric,,NO,
+postavke,davek,numeric,,NO,
+postavke,opomba,text,,YES,
+postavke,cena_kos_originalna,numeric,,YES,
+postavke,racun_id,integer,,YES,
+postavke,gost_stevilka,smallint,,YES,
+postavke,parent_postavka_id,integer,,YES,
+postavke,modifikator_id,integer,,YES,
+postavke,ustvarjeno,timestamp with time zone,,NO,now()
+postavke,pripravljeno,timestamp with time zone,,YES,
+postavke,naprava_id,text,,YES,
+postavke,to_go,boolean,,NO,false
+prejemnice,id,integer,,NO,nextval('prejemnice_id_seq'::regclass)
+prejemnice,datum,timestamp without time zone,,NO,now()
+prejemnice,opomba,text,,YES,
+prejemnice,skupaj_vrednost,numeric,,NO,'0'::numeric
+prejemnice,ustvarjeno,timestamp without time zone,,NO,now()
+prejemnice,stevilka,text,,YES,
+prejemnice,podjetje_davcna,text,,NO,''::text
+prejemnice,enota_id,integer,,NO,1
+prejemnice_postavke,id,integer,,NO,nextval('prejemnice_postavke_id_seq'::regclass)
+prejemnice_postavke,prejemnica_id,integer,,NO,
+prejemnice_postavke,artikel_id,integer,,NO,
+prejemnice_postavke,kolicina,numeric,,NO,
+prejemnice_postavke,cena_kos,numeric,,NO,'0'::numeric
+prejemnice_postavke,skupaj,numeric,,NO,'0'::numeric
+prenosi_narocil,id,integer,,NO,nextval('prenosi_narocil_id_seq'::regclass)
+prenosi_narocil,narocilo_id,integer,,NO,
+prenosi_narocil,podjetje_davcna,text,,NO,''::text
+prenosi_narocil,enota_id,integer,,NO,1
+prenosi_narocil,stara_miza_id,integer,,YES,
+prenosi_narocil,nova_miza_id,integer,,YES,
+prenosi_narocil,ustvarjeno,timestamp with time zone,,NO,now()
+prostori,id,integer,,NO,nextval('prostori_id_seq'::regclass)
+prostori,podjetje_davcna,text,,NO,''::text
+prostori,ime,text,,NO,
+prostori,vrstni_red,integer,,NO,0
+prostori,enota_id,integer,,NO,1
+racuni,id,integer,,NO,nextval('racuni_id_seq'::regclass)
+racuni,narocilo_id,integer,,NO,
+racuni,stevilka_racuna,text,,NO,
+racuni,skupaj,numeric,,NO,
+racuni,ddv,numeric,,NO,
+racuni,placilna_nacin,text,,NO,
+racuni,status,text,,NO,'testni'::text
+racuni,zoi,text,,YES,
+racuni,eor,text,,YES,
+racuni,furs_odgovor,text,,YES,
+racuni,ustvarjeno,timestamp with time zone,,NO,now()
+racuni,natakar_ime,text,,YES,
+racuni,natakar_davcna,text,,YES,
+racuni,izmena_id,integer,,YES,
+racuni,podjetje_davcna,text,,NO,''::text
+racuni,stevilo_printov,integer,,NO,0
+racuni,enota_id,integer,,NO,1
+racuni,osnova,numeric,,YES,
+racuni,opomba,text,,YES,
+racuni,znesek_gotovina,numeric,,YES,
+racuni,znesek_kartica,numeric,,YES,
+racuni,znesek_bon,numeric,,YES,
+racuni,stevilo_bonov,integer,,YES,
+racuni,znesek_bon_pica,numeric,,YES,
+racuni,je_delni,boolean,,NO,false
+racuni,je_storno,boolean,,NO,false
+racuni,izvorni_racun_id,integer,,YES,
+racuni,kupec_davcna_stevilka,text,,YES,
+racuni,kupec_naziv,text,,YES,
+racuni,kupec_naslov,text,,YES,
+racuni,kupec_zavezanec_ddv,boolean,,YES,
+racuni,sumup_checkout_id,text,,YES,
+racuni,viva_terminal_session_id,text,,YES,
+racuni,izdani_kuponi,integer,,YES,
+racuni,znesek_negotovinsko,numeric,,YES,
+racuni,dni_odloga,integer,,YES,
+racuni,datum_cas,timestamp with time zone,,YES,
+racuni,kupec_id,integer,,YES,
+sessions,sid,character varying,,NO,
+sessions,sess,json,,NO,
+sessions,expire,timestamp without time zone,,NO,
+shranjeni_kupci,id,integer,,NO,nextval('shranjeni_kupci_id_seq'::regclass)
+shranjeni_kupci,podjetje_davcna,text,,NO,''::text
+shranjeni_kupci,enota_id,integer,,NO,1
+shranjeni_kupci,naziv,text,,NO,
+shranjeni_kupci,naslov,text,,YES,
+shranjeni_kupci,davcna_stevilka,text,,YES,
+shranjeni_kupci,ustvarjeno,timestamp with time zone,,NO,now()
+shranjeni_kupci,posodobljeno,timestamp with time zone,,NO,now()
+shranjeni_kupci,kratki_naziv,text,,YES,
+shranjeni_kupci,ulica,text,,YES,
+shranjeni_kupci,postna_stevilka,text,,YES,
+shranjeni_kupci,kraj,text,,YES,
+shranjeni_kupci,drzava,text,,YES,
+shranjeni_kupci,koda_drzave,text,,YES,
+shranjeni_kupci,zavezanec_ddv,boolean,,YES,
+shranjeni_kupci,id_za_ddv,text,,YES,
+shranjeni_kupci,maticna_stevilka,text,,YES,
+shranjeni_kupci,trr,jsonb,,YES,
+shranjeni_kupci,email,text,,YES,
+shranjeni_kupci,telefon,text,,YES,
+shranjeni_kupci,stevilo_upor,integer,,NO,1
+shranjeni_kupci,zadnja_uporaba,timestamp with time zone,,NO,now()
+shranjeni_kupci,vrsta_partnerja,text,,YES,
+shranjeni_kupci,kmg_mid,text,,YES,
+shranjeni_kupci,e_racun_prejemnik,boolean,,YES,
+shranjeni_kupci,e_racun_omrezje,text,,YES,
+shranjeni_kupci,e_racun_email,text,,YES,
+shranjeni_kupci,e_racun_naslov,text,,YES,
+testni_zagoni,id,integer,,NO,nextval('testni_zagoni_id_seq'::regclass)
+testni_zagoni,zagnan_ob,timestamp with time zone,,NO,now()
+testni_zagoni,skupaj_testov,integer,,NO,0
+testni_zagoni,prestalo_testov,integer,,NO,0
+testni_zagoni,padlo_testov,integer,,NO,0
+testni_zagoni,trajanje_sekund,numeric,,YES,
+testni_zagoni,status,text,,NO,'uspesno'::text
+testni_zagoni,padli_testi,text,,YES,
+tiskalne_naloge,id,integer,,NO,nextval('tiskalne_naloge_id_seq'::regclass)
+tiskalne_naloge,podjetje_davcna,text,,NO,
+tiskalne_naloge,enota_id,integer,,NO,
+tiskalne_naloge,racun_id,integer,,YES,
+tiskalne_naloge,bajti,text,,NO,
+tiskalne_naloge,ustvarjeno,timestamp with time zone,,NO,now()
+uporabniki,id,integer,,NO,nextval('uporabniki_id_seq'::regclass)
+uporabniki,username,text,,NO,
+uporabniki,password_hash,text,,NO,
+uporabniki,ime,text,,YES,
+uporabniki,aktiven,boolean,,NO,true
+uporabniki,ustvarjeno,timestamp with time zone,,NO,now()
+uporabniki,vloga,text,,NO,'uporabnik'::text
+uporabniki,davcna_stevilka,text,,YES,
+uporabniki,mora_zamenjati_geslo,boolean,,NO,false
+uporabniki,email,text,,YES,
+uporabniki,zadnja_e_posta,timestamp with time zone,,YES,
+uporabniki,enota_id,integer,,YES,
+uporabniki,blagajna_id,integer,,YES,
+viva_vracila,id,integer,,NO,nextval('viva_vracila_id_seq'::regclass)
+viva_vracila,racun_id,integer,,NO,
+viva_vracila,podjetje_davcna,text,,NO,''::text
+viva_vracila,enota_id,integer,,NO,1
+viva_vracila,refund_session_id,text,,NO,
+viva_vracila,znesek,numeric,,NO,
+viva_vracila,status,text,,NO,'pending'::text
+viva_vracila,ustvarjeno,timestamp with time zone,,NO,now()
+viva_vracila,napaka,text,,YES,
+viva_vracila,zakljuceno_at,timestamp with time zone,,YES,
+zacetne_zaloge,id,integer,,NO,nextval('zacetne_zaloge_id_seq'::regclass)
+zacetne_zaloge,leto,integer,,NO,
+zacetne_zaloge,datum,timestamp without time zone,,NO,now()
+zacetne_zaloge,stevilka,text,,YES,
+zacetne_zaloge,opomba,text,,YES,
+zacetne_zaloge,ustvarjeno,timestamp without time zone,,NO,now()
+zacetne_zaloge,podjetje_davcna,text,,NO,''::text
+zacetne_zaloge,enota_id,integer,,NO,1
+zacetne_zaloge_postavke,id,integer,,NO,nextval('zacetne_zaloge_postavke_id_seq'::regclass)
+zacetne_zaloge_postavke,zacetna_zaloga_id,integer,,NO,
+zacetne_zaloge_postavke,artikel_id,integer,,NO,
+zacetne_zaloge_postavke,kolicina,numeric,,NO,'0'::numeric
+zacetne_zaloge_postavke,cena_kos,numeric,,NO,'0'::numeric
+zacetne_zaloge_postavke,stevilo_prejsnje,numeric,,NO,'0'::numeric
+zaloga_gibi,id,integer,,NO,nextval('zaloga_gibi_id_seq'::regclass)
+zaloga_gibi,artikel_id,integer,,NO,
+zaloga_gibi,tip,text,,NO,
+zaloga_gibi,kolicina,numeric,,NO,
+zaloga_gibi,opomba,text,,YES,
+zaloga_gibi,referenca_id,integer,,YES,
+zaloga_gibi,ustvarjeno,timestamp without time zone,,NO,now()
+zaloge,id,integer,,NO,nextval('zaloge_id_seq'::regclass)
+zaloge,artikel_id,integer,,NO,
+zaloge,kolicina,numeric,,NO,'0'::numeric
+zaloge,zadnja_posodobitev,timestamp without time zone,,NO,now()

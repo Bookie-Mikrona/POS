@@ -24,3 +24,90 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface Company {
+  /** UUID podjetja */
+  id: string;
+  /** Davčna številka podjetja (skupni ključ s FURS POS Web) */
+  podjetjeDavcna: string;
+  naziv: string;
+  /** @nullable */
+  kratekNaziv?: string | null;
+  /** @nullable */
+  naslov?: string | null;
+  /** @nullable */
+  postnaStevika?: string | null;
+  /** @nullable */
+  kraj?: string | null;
+  createdAt: string;
+}
+
+export type CompanyWithRoleRole = typeof CompanyWithRoleRole[keyof typeof CompanyWithRoleRole];
+
+
+export const CompanyWithRoleRole = {
+  owner: 'owner',
+  accountant: 'accountant',
+  viewer: 'viewer',
+} as const;
+
+export type CompanyWithRole = Company & {
+  role: CompanyWithRoleRole;
+};
+
+export interface ListCompaniesResponse {
+  companies: CompanyWithRole[];
+}
+
+export interface CreateCompanyBody {
+  /**
+     * Davčna številka podjetja (format SI12345678 ali 12345678)
+     * @minLength 8
+     * @maxLength 20
+     */
+  podjetjeDavcna: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  naziv: string;
+  /** @maxLength 50 */
+  kratekNaziv?: string;
+  /** @maxLength 200 */
+  naslov?: string;
+  /** @maxLength 10 */
+  postnaStevika?: string;
+  /** @maxLength 100 */
+  kraj?: string;
+}
+
+export type AssignRoleBodyRole = typeof AssignRoleBodyRole[keyof typeof AssignRoleBodyRole];
+
+
+export const AssignRoleBodyRole = {
+  owner: 'owner',
+  accountant: 'accountant',
+  viewer: 'viewer',
+} as const;
+
+export interface AssignRoleBody {
+  /** Clerk user ID to assign role to */
+  clerkUserId: string;
+  role: AssignRoleBodyRole;
+}
+
+export type RoleAssignmentRole = typeof RoleAssignmentRole[keyof typeof RoleAssignmentRole];
+
+
+export const RoleAssignmentRole = {
+  owner: 'owner',
+  accountant: 'accountant',
+  viewer: 'viewer',
+} as const;
+
+export interface RoleAssignment {
+  /** UUID */
+  companyId: string;
+  clerkUserId: string;
+  role: RoleAssignmentRole;
+}
+

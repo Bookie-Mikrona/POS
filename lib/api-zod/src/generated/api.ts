@@ -30,3 +30,107 @@ export const GetMeResponse = zod.object({
 })
 
 
+/**
+ * Returns all companies the authenticated user has access to, with their role
+ * @summary List accessible companies
+ */
+export const ListCompaniesResponse = zod.object({
+  "companies": zod.array(zod.object({
+  "id": zod.string().describe('UUID podjetja'),
+  "podjetjeDavcna": zod.string().describe('Davčna številka podjetja (skupni ključ s FURS POS Web)'),
+  "naziv": zod.string(),
+  "kratekNaziv": zod.string().nullish(),
+  "naslov": zod.string().nullish(),
+  "postnaStevika": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "role": zod.enum(['owner', 'accountant', 'viewer'])
+})))
+})
+
+
+/**
+ * Creates a new company and assigns the creator as owner
+ * @summary Create a new company
+ */
+export const createCompanyBodyPodjetjeDavcnaMin = 8;
+export const createCompanyBodyPodjetjeDavcnaMax = 20;
+
+export const createCompanyBodyNazivMax = 200;
+
+export const createCompanyBodyKratekNazivMax = 50;
+
+export const createCompanyBodyNaslovMax = 200;
+
+export const createCompanyBodyPostnaStevikaMax = 10;
+
+export const createCompanyBodyKrajMax = 100;
+
+
+
+export const CreateCompanyBody = zod.object({
+  "podjetjeDavcna": zod.string().min(createCompanyBodyPodjetjeDavcnaMin).max(createCompanyBodyPodjetjeDavcnaMax).describe('Davčna številka podjetja (format SI12345678 ali 12345678)'),
+  "naziv": zod.string().min(1).max(createCompanyBodyNazivMax),
+  "kratekNaziv": zod.string().max(createCompanyBodyKratekNazivMax).optional(),
+  "naslov": zod.string().max(createCompanyBodyNaslovMax).optional(),
+  "postnaStevika": zod.string().max(createCompanyBodyPostnaStevikaMax).optional(),
+  "kraj": zod.string().max(createCompanyBodyKrajMax).optional()
+})
+
+export const CreateCompanyResponse = zod.object({
+  "id": zod.string().describe('UUID podjetja'),
+  "podjetjeDavcna": zod.string().describe('Davčna številka podjetja (skupni ključ s FURS POS Web)'),
+  "naziv": zod.string(),
+  "kratekNaziv": zod.string().nullish(),
+  "naslov": zod.string().nullish(),
+  "postnaStevika": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "role": zod.enum(['owner', 'accountant', 'viewer'])
+}))
+
+
+/**
+ * Returns company details (only if user has access)
+ * @summary Get company details
+ */
+export const GetCompanyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCompanyResponse = zod.object({
+  "id": zod.string().describe('UUID podjetja'),
+  "podjetjeDavcna": zod.string().describe('Davčna številka podjetja (skupni ključ s FURS POS Web)'),
+  "naziv": zod.string(),
+  "kratekNaziv": zod.string().nullish(),
+  "naslov": zod.string().nullish(),
+  "postnaStevika": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "role": zod.enum(['owner', 'accountant', 'viewer'])
+}))
+
+
+/**
+ * Assigns an accounting role to a user for this company (owner only)
+ * @summary Assign role to user
+ */
+export const AssignRoleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AssignRoleBody = zod.object({
+  "clerkUserId": zod.string().describe('Clerk user ID to assign role to'),
+  "role": zod.enum(['owner', 'accountant', 'viewer'])
+})
+
+export const AssignRoleResponse = zod.object({
+  "companyId": zod.string().describe('UUID'),
+  "clerkUserId": zod.string(),
+  "role": zod.enum(['owner', 'accountant', 'viewer'])
+})
+
+

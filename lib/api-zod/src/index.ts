@@ -1,4 +1,3 @@
+// Zod validation schemas generated from OpenAPI spec.
 export * from "./generated/api";
-export * from "./generated/types";
 export * from './generated/api';
-export * from './generated/types';
