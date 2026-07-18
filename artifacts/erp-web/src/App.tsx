@@ -12,6 +12,8 @@ import Dashboard from "@/pages/dashboard";
 import CompanySelectPage from "@/pages/company-select";
 import KontniPlan from "@/pages/kontni-plan";
 import Obdobja from "@/pages/obdobja";
+import Temeljnice from "@/pages/temeljnice";
+import GlavnaKnjiga from "@/pages/glavna-knjiga";
 import Placeholder from "@/pages/placeholder";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
@@ -202,12 +204,9 @@ function ClerkProviderWithRoutes() {
           
           <ProtectedRoute path="/obdobja" component={Obdobja} />
 
-          <ProtectedRoute path="/temeljnice" component={() => (
-            <Placeholder 
-              title="Temeljnice / Glavna knjiga" 
-              description="Vnos dnevnikov, dvostavno knjiženje in pregled prometa po kontih." 
-            />
-          )} />
+          <ProtectedRoute path="/temeljnice" component={Temeljnice} />
+          
+          <ProtectedRoute path="/glavna-knjiga" component={GlavnaKnjiga} />
           
           <ProtectedRoute path="/kupci" component={() => (
             <Placeholder 

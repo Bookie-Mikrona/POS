@@ -8,15 +8,14 @@ servers:
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: auth
-    description: Authentication & user info
   - name: companies
-    description: Company management & access control
   - name: accounts
-    description: Chart of accounts
   - name: periods
-    description: Accounting periods
+  - name: entries
+    description: Journal entries (temeljnice)
+  - name: ledger
+    description: General ledger (glavna knjiga)
 paths:
   /healthz:
     get:
@@ -120,7 +119,6 @@ paths:
           required: true
           schema:
             type: string
-            description: UUID
       responses:
         "200":
           description: Company details
@@ -159,7 +157,6 @@ paths:
           required: true
           schema:
             type: string
-            description: UUID
       requestBody:
         required: true
         content:
@@ -198,13 +195,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  # ── Chart of accounts ────────────────────────────────────────────────────────
+  # ── Chart of accounts ───────────────────────────────────────────────────────
   /companies/{companyId}/accounts:
     get:
       operationId: listAccounts
       tags: [accounts]
       summary: List chart of accounts
-      description: Returns all accounts for the company, ordered by code
       security:
         - bearerAuth: []
       parameters:
@@ -285,13 +281,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
   /companies/{companyId}/accounts/seed:
     post:
       operationId: seedAccounts
       tags: [accounts]
       summary: Import standard Slovenian chart of accounts
-      description: Seeds the company with a standard SRS-compliant chart of accounts. Only allowed if no accounts exist yet.
       security:
         - bearerAuth: []
       parameters:
@@ -325,7 +319,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
   /companies/{companyId}/accounts/{id}:
     patch:
       operationId: updateAccount
@@ -382,7 +375,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  # ── Accounting periods ────────────────────────────────────────────────────────
+  # ── Accounting periods ───────────────────────────────────────────────────────
   /companies/{companyId}/periods:
     get:
       operationId: listPeriods
@@ -458,13 +451,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
   /companies/{companyId}/periods/{id}:
     patch:
       operationId: updatePeriod
       tags: [periods]
       summary: Update period status
-      description: Lock or unlock an accounting period (owner only)
       security:
         - bearerAuth: []
       parameters:
@@ -504,13 +495,315 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden — only owners can lock/unlock periods
+          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Journal entries (temeljnice) ─────────────────────────────────────────────
+  /companies/{companyId}/entries:
+    get:
+      operationId: listJournalEntries
+      tags: [entries]
+      summary: List journal entries
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, posted, reversed]
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Journal entries list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListJournalEntriesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createJournalEntry
+      tags: [entries]
+      summary: Create journal entry (as draft)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJournalEntryBody"
+      responses:
+        "201":
+          description: Journal entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryWithLines"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/entries/{id}:
+    get:
+      operationId: getJournalEntry
+      tags: [entries]
+      summary: Get journal entry with lines
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Journal entry detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryWithLines"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/entries/{id}/post:
+    post:
+      operationId: postJournalEntry
+      tags: [entries]
+      summary: Post a draft journal entry
+      description: Validates debit=credit balance and marks entry as posted. Posting to a locked period is rejected.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Entry posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryWithLines"
+        "400":
+          description: Unbalanced entry or locked period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/entries/{id}/reverse:
+    post:
+      operationId: reverseJournalEntry
+      tags: [entries]
+      summary: Reverse (storno) a posted journal entry
+      description: Creates a new journal entry with swapped debit/credit lines, linked as reversal.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReverseJournalEntryBody"
+      responses:
+        "201":
+          description: Reversal entry created and posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryWithLines"
+        "400":
+          description: Entry not posted or period locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── General ledger (konto kartica) ──────────────────────────────────────────
+  /companies/{companyId}/ledger:
+    get:
+      operationId: getLedger
+      tags: [ledger]
+      summary: General ledger — movements per account
+      description: Returns posted journal entry lines for the given filters, with running balance.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: accountId
+          in: query
+          schema:
+            type: string
+          description: Filter by account UUID
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Ledger lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -553,10 +846,8 @@ components:
       properties:
         id:
           type: string
-          description: UUID podjetja
         podjetjeDavcna:
           type: string
-          description: Davčna številka podjetja (skupni ključ s FURS POS Web)
         naziv:
           type: string
         kratekNaziv:
@@ -633,7 +924,7 @@ components:
           enum: [owner, accountant, viewer]
       required: [companyId, clerkUserId, role]
 
-    # ── Chart of accounts schemas ──────────────────────────────────────────────
+    # ── Chart of accounts ────────────────────────────────────────────────────
     AccountRecord:
       type: object
       properties:
@@ -643,7 +934,6 @@ components:
           type: string
         code:
           type: string
-          description: Številka konta (npr. "0200", "1100")
         name:
           type: string
         type:
@@ -707,10 +997,9 @@ components:
       properties:
         count:
           type: integer
-          description: Number of accounts created
       required: [count]
 
-    # ── Accounting periods schemas ─────────────────────────────────────────────
+    # ── Accounting periods ───────────────────────────────────────────────────
     PeriodRecord:
       type: object
       properties:
@@ -768,3 +1057,174 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+
+    # ── Journal entries ───────────────────────────────────────────────────────
+    JournalEntryLine:
+      type: object
+      properties:
+        id:
+          type: string
+        entryId:
+          type: string
+        accountId:
+          type: string
+        accountCode:
+          type: string
+          description: Denormalized for display
+        accountName:
+          type: string
+          description: Denormalized for display
+        side:
+          type: string
+          enum: [debit, credit]
+        amount:
+          type: string
+          description: Decimal amount as string (NUMERIC precision)
+        description:
+          type: ["string", "null"]
+        sequence:
+          type: integer
+      required: [id, entryId, accountId, accountCode, accountName, side, amount, sequence]
+    JournalEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        periodId:
+          type: string
+        periodName:
+          type: string
+          description: Denormalized for display
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+        reference:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, posted, reversed]
+        reversalOf:
+          type: ["string", "null"]
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, periodId, periodName, entryDate, description, status, createdBy, createdAt, updatedAt]
+    JournalEntryWithLines:
+      allOf:
+        - $ref: "#/components/schemas/JournalEntry"
+        - type: object
+          properties:
+            lines:
+              type: array
+              items:
+                $ref: "#/components/schemas/JournalEntryLine"
+          required: [lines]
+    ListJournalEntriesResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalEntry"
+      required: [entries]
+    CreateJournalEntryLineBody:
+      type: object
+      properties:
+        accountId:
+          type: string
+        side:
+          type: string
+          enum: [debit, credit]
+        amount:
+          type: number
+          minimum: 0.01
+          description: Positive amount; side indicates debit or credit
+        description:
+          type: ["string", "null"]
+      required: [accountId, side, amount]
+    CreateJournalEntryBody:
+      type: object
+      properties:
+        periodId:
+          type: string
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+        reference:
+          type: ["string", "null"]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateJournalEntryLineBody"
+          minItems: 2
+        autoPost:
+          type: boolean
+          description: If true, post the entry immediately after creation if balanced
+      required: [periodId, entryDate, description, lines]
+    ReverseJournalEntryBody:
+      type: object
+      properties:
+        periodId:
+          type: string
+          description: Period for the reversal entry (defaults to same period)
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+      required: [entryDate]
+
+    # ── General ledger ────────────────────────────────────────────────────────
+    LedgerLine:
+      type: object
+      properties:
+        entryId:
+          type: string
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+        reference:
+          type: ["string", "null"]
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        debit:
+          type: string
+          description: Debit amount or "0.00"
+        credit:
+          type: string
+          description: Credit amount or "0.00"
+        runningBalance:
+          type: string
+          description: Running balance (debit-credit cumulative)
+      required: [entryId, entryDate, description, accountId, accountCode, accountName, debit, credit, runningBalance]
+    LedgerResponse:
+      type: object
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/LedgerLine"
+        totalDebit:
+          type: string
+        totalCredit:
+          type: string
+      required: [lines, totalDebit, totalCredit]

@@ -25,9 +25,7 @@ export interface ErrorResponse {
 }
 
 export interface Company {
-  /** UUID podjetja */
   id: string;
-  /** Davčna številka podjetja (skupni ključ s FURS POS Web) */
   podjetjeDavcna: string;
   naziv: string;
   /** @nullable */
@@ -122,7 +120,6 @@ export const AccountRecordType = {
 export interface AccountRecord {
   id: string;
   companyId: string;
-  /** Številka konta (npr. "0200", "1100") */
   code: string;
   name: string;
   type: AccountRecordType;
@@ -182,7 +179,6 @@ export interface UpdateAccountBody {
 }
 
 export interface SeedAccountsResponse {
-  /** Number of accounts created */
   count: number;
 }
 
@@ -236,7 +232,158 @@ export interface UpdatePeriodBody {
   name?: string;
 }
 
+export type JournalEntryLineSide = typeof JournalEntryLineSide[keyof typeof JournalEntryLineSide];
+
+
+export const JournalEntryLineSide = {
+  debit: 'debit',
+  credit: 'credit',
+} as const;
+
+export interface JournalEntryLine {
+  id: string;
+  entryId: string;
+  accountId: string;
+  /** Denormalized for display */
+  accountCode: string;
+  /** Denormalized for display */
+  accountName: string;
+  side: JournalEntryLineSide;
+  /** Decimal amount as string (NUMERIC precision) */
+  amount: string;
+  /** @nullable */
+  description?: string | null;
+  sequence: number;
+}
+
+export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalEntryStatus];
+
+
+export const JournalEntryStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  reversed: 'reversed',
+} as const;
+
+export interface JournalEntry {
+  id: string;
+  companyId: string;
+  periodId: string;
+  /** Denormalized for display */
+  periodName: string;
+  entryDate: string;
+  description: string;
+  /** @nullable */
+  reference?: string | null;
+  status: JournalEntryStatus;
+  /** @nullable */
+  reversalOf?: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type JournalEntryWithLines = JournalEntry & {
+  lines: JournalEntryLine[];
+};
+
+export interface ListJournalEntriesResponse {
+  entries: JournalEntry[];
+}
+
+export type CreateJournalEntryLineBodySide = typeof CreateJournalEntryLineBodySide[keyof typeof CreateJournalEntryLineBodySide];
+
+
+export const CreateJournalEntryLineBodySide = {
+  debit: 'debit',
+  credit: 'credit',
+} as const;
+
+export interface CreateJournalEntryLineBody {
+  accountId: string;
+  side: CreateJournalEntryLineBodySide;
+  /**
+     * Positive amount; side indicates debit or credit
+     * @minimum 0.01
+     */
+  amount: number;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface CreateJournalEntryBody {
+  periodId: string;
+  entryDate: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  description: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @minItems 2 */
+  lines: CreateJournalEntryLineBody[];
+  /** If true, post the entry immediately after creation if balanced */
+  autoPost?: boolean;
+}
+
+export interface ReverseJournalEntryBody {
+  /** Period for the reversal entry (defaults to same period) */
+  periodId?: string;
+  entryDate: string;
+  description?: string;
+}
+
+export interface LedgerLine {
+  entryId: string;
+  entryDate: string;
+  description: string;
+  /** @nullable */
+  reference?: string | null;
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  /** Debit amount or "0.00" */
+  debit: string;
+  /** Credit amount or "0.00" */
+  credit: string;
+  /** Running balance (debit-credit cumulative) */
+  runningBalance: string;
+}
+
+export interface LedgerResponse {
+  lines: LedgerLine[];
+  totalDebit: string;
+  totalCredit: string;
+}
+
 export type ListAccountsParams = {
 includeInactive?: boolean;
+};
+
+export type ListJournalEntriesParams = {
+periodId?: string;
+status?: ListJournalEntriesStatus;
+dateFrom?: string;
+dateTo?: string;
+};
+
+export type ListJournalEntriesStatus = typeof ListJournalEntriesStatus[keyof typeof ListJournalEntriesStatus];
+
+
+export const ListJournalEntriesStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  reversed: 'reversed',
+} as const;
+
+export type GetLedgerParams = {
+/**
+ * Filter by account UUID
+ */
+accountId?: string;
+periodId?: string;
+dateFrom?: string;
+dateTo?: string;
 };
 

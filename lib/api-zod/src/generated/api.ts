@@ -33,8 +33,8 @@ export const GetMeResponse = zod.object({
  */
 export const ListCompaniesResponse = zod.object({
   "companies": zod.array(zod.object({
-  "id": zod.string().describe('UUID podjetja'),
-  "podjetjeDavcna": zod.string().describe('Davčna številka podjetja (skupni ključ s FURS POS Web)'),
+  "id": zod.string(),
+  "podjetjeDavcna": zod.string(),
   "naziv": zod.string(),
   "kratekNaziv": zod.string().nullish(),
   "naslov": zod.string().nullish(),
@@ -75,8 +75,8 @@ export const CreateCompanyBody = zod.object({
 })
 
 export const CreateCompanyResponse = zod.object({
-  "id": zod.string().describe('UUID podjetja'),
-  "podjetjeDavcna": zod.string().describe('Davčna številka podjetja (skupni ključ s FURS POS Web)'),
+  "id": zod.string(),
+  "podjetjeDavcna": zod.string(),
   "naziv": zod.string(),
   "kratekNaziv": zod.string().nullish(),
   "naslov": zod.string().nullish(),
@@ -96,8 +96,8 @@ export const GetCompanyParams = zod.object({
 })
 
 export const GetCompanyResponse = zod.object({
-  "id": zod.string().describe('UUID podjetja'),
-  "podjetjeDavcna": zod.string().describe('Davčna številka podjetja (skupni ključ s FURS POS Web)'),
+  "id": zod.string(),
+  "podjetjeDavcna": zod.string(),
   "naziv": zod.string(),
   "kratekNaziv": zod.string().nullish(),
   "naslov": zod.string().nullish(),
@@ -129,7 +129,6 @@ export const AssignRoleResponse = zod.object({
 
 
 /**
- * Returns all accounts for the company, ordered by code
  * @summary List chart of accounts
  */
 export const ListAccountsParams = zod.object({
@@ -144,7 +143,7 @@ export const ListAccountsResponse = zod.object({
   "accounts": zod.array(zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
-  "code": zod.string().describe('Številka konta (npr. \"0200\", \"1100\")'),
+  "code": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
   "parentId": zod.string().nullish(),
@@ -180,7 +179,7 @@ export const CreateAccountBody = zod.object({
 export const CreateAccountResponse = zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
-  "code": zod.string().describe('Številka konta (npr. \"0200\", \"1100\")'),
+  "code": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
   "parentId": zod.string().nullish(),
@@ -192,7 +191,6 @@ export const CreateAccountResponse = zod.object({
 
 
 /**
- * Seeds the company with a standard SRS-compliant chart of accounts. Only allowed if no accounts exist yet.
  * @summary Import standard Slovenian chart of accounts
  */
 export const SeedAccountsParams = zod.object({
@@ -200,7 +198,7 @@ export const SeedAccountsParams = zod.object({
 })
 
 export const SeedAccountsResponse = zod.object({
-  "count": zod.number().describe('Number of accounts created')
+  "count": zod.number()
 })
 
 
@@ -226,7 +224,7 @@ export const UpdateAccountBody = zod.object({
 export const UpdateAccountResponse = zod.object({
   "id": zod.string(),
   "companyId": zod.string(),
-  "code": zod.string().describe('Številka konta (npr. \"0200\", \"1100\")'),
+  "code": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
   "parentId": zod.string().nullish(),
@@ -288,7 +286,6 @@ export const CreatePeriodResponse = zod.object({
 
 
 /**
- * Lock or unlock an accounting period (owner only)
  * @summary Update period status
  */
 export const UpdatePeriodParams = zod.object({
@@ -314,6 +311,244 @@ export const UpdatePeriodResponse = zod.object({
   "status": zod.enum(['open', 'locked']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List journal entries
+ */
+export const ListJournalEntriesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListJournalEntriesQueryParams = zod.object({
+  "periodId": zod.coerce.string().optional(),
+  "status": zod.enum(['draft', 'posted', 'reversed']).optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const ListJournalEntriesResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string().describe('Denormalized for display'),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "reversalOf": zod.string().nullish(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create journal entry (as draft)
+ */
+export const CreateJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createJournalEntryBodyDescriptionMax = 500;
+
+export const createJournalEntryBodyLinesItemAmountMin = 0.01;
+
+export const createJournalEntryBodyLinesMin = 2;
+
+
+
+export const CreateJournalEntryBody = zod.object({
+  "periodId": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string().min(1).max(createJournalEntryBodyDescriptionMax),
+  "reference": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.number().min(createJournalEntryBodyLinesItemAmountMin).describe('Positive amount; side indicates debit or credit'),
+  "description": zod.string().nullish()
+})).min(createJournalEntryBodyLinesMin),
+  "autoPost": zod.boolean().optional().describe('If true, post the entry immediately after creation if balanced')
+})
+
+export const CreateJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string().describe('Denormalized for display'),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "reversalOf": zod.string().nullish(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string().describe('Denormalized for display'),
+  "accountName": zod.string().describe('Denormalized for display'),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
+  "description": zod.string().nullish(),
+  "sequence": zod.number()
+}))
+}))
+
+
+/**
+ * @summary Get journal entry with lines
+ */
+export const GetJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const GetJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string().describe('Denormalized for display'),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "reversalOf": zod.string().nullish(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string().describe('Denormalized for display'),
+  "accountName": zod.string().describe('Denormalized for display'),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
+  "description": zod.string().nullish(),
+  "sequence": zod.number()
+}))
+}))
+
+
+/**
+ * Validates debit=credit balance and marks entry as posted. Posting to a locked period is rejected.
+ * @summary Post a draft journal entry
+ */
+export const PostJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const PostJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string().describe('Denormalized for display'),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "reversalOf": zod.string().nullish(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string().describe('Denormalized for display'),
+  "accountName": zod.string().describe('Denormalized for display'),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
+  "description": zod.string().nullish(),
+  "sequence": zod.number()
+}))
+}))
+
+
+/**
+ * Creates a new journal entry with swapped debit/credit lines, linked as reversal.
+ * @summary Reverse (storno) a posted journal entry
+ */
+export const ReverseJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const ReverseJournalEntryBody = zod.object({
+  "periodId": zod.string().optional().describe('Period for the reversal entry (defaults to same period)'),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string().optional()
+})
+
+export const ReverseJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "periodId": zod.string(),
+  "periodName": zod.string().describe('Denormalized for display'),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "reversalOf": zod.string().nullish(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "entryId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string().describe('Denormalized for display'),
+  "accountName": zod.string().describe('Denormalized for display'),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
+  "description": zod.string().nullish(),
+  "sequence": zod.number()
+}))
+}))
+
+
+/**
+ * Returns posted journal entry lines for the given filters, with running balance.
+ * @summary General ledger — movements per account
+ */
+export const GetLedgerParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetLedgerQueryParams = zod.object({
+  "accountId": zod.coerce.string().optional().describe('Filter by account UUID'),
+  "periodId": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const GetLedgerResponse = zod.object({
+  "lines": zod.array(zod.object({
+  "entryId": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "debit": zod.string().describe('Debit amount or \"0.00\"'),
+  "credit": zod.string().describe('Credit amount or \"0.00\"'),
+  "runningBalance": zod.string().describe('Running balance (debit-credit cumulative)')
+})),
+  "totalDebit": zod.string(),
+  "totalCredit": zod.string()
 })
 
 

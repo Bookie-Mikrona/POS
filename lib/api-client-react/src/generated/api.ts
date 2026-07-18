@@ -25,14 +25,21 @@ import type {
   CompanyWithRole,
   CreateAccountBody,
   CreateCompanyBody,
+  CreateJournalEntryBody,
   CreatePeriodBody,
   ErrorResponse,
+  GetLedgerParams,
   HealthStatus,
+  JournalEntryWithLines,
+  LedgerResponse,
   ListAccountsParams,
   ListAccountsResponse,
   ListCompaniesResponse,
+  ListJournalEntriesParams,
+  ListJournalEntriesResponse,
   ListPeriodsResponse,
   PeriodRecord,
+  ReverseJournalEntryBody,
   RoleAssignment,
   SeedAccountsResponse,
   UpdateAccountBody,
@@ -535,7 +542,6 @@ export const getListAccountsUrl = (companyId: string,
 }
 
 /**
- * Returns all accounts for the company, ordered by code
  * @summary List chart of accounts
  */
 export const listAccounts = async (companyId: string,
@@ -689,7 +695,6 @@ export const getSeedAccountsUrl = (companyId: string,) => {
 }
 
 /**
- * Seeds the company with a standard SRS-compliant chart of accounts. Only allowed if no accounts exist yet.
  * @summary Import standard Slovenian chart of accounts
  */
 export const seedAccounts = async (companyId: string, options?: RequestInit): Promise<SeedAccountsResponse> => {
@@ -985,7 +990,6 @@ export const getUpdatePeriodUrl = (companyId: string,
 }
 
 /**
- * Lock or unlock an accounting period (owner only)
  * @summary Update period status
  */
 export const updatePeriod = async (companyId: string,
@@ -1049,4 +1053,486 @@ export const useUpdatePeriod = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getUpdatePeriodMutationOptions(options));
     }
+
+export const getListJournalEntriesUrl = (companyId: string,
+    params?: ListJournalEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/entries?${stringifiedParams}` : `/api/companies/${companyId}/entries`
+}
+
+/**
+ * @summary List journal entries
+ */
+export const listJournalEntries = async (companyId: string,
+    params?: ListJournalEntriesParams, options?: RequestInit): Promise<ListJournalEntriesResponse> => {
+
+  return customFetch<ListJournalEntriesResponse>(getListJournalEntriesUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJournalEntriesQueryKey = (companyId: string,
+    params?: ListJournalEntriesParams,) => {
+    return [
+    `/api/companies/${companyId}/entries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListJournalEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listJournalEntries>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListJournalEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJournalEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJournalEntriesQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJournalEntries>>> = ({ signal }) => listJournalEntries(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJournalEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJournalEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listJournalEntries>>>
+export type ListJournalEntriesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List journal entries
+ */
+
+export function useListJournalEntries<TData = Awaited<ReturnType<typeof listJournalEntries>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListJournalEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJournalEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJournalEntriesQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateJournalEntryUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/entries`
+}
+
+/**
+ * @summary Create journal entry (as draft)
+ */
+export const createJournalEntry = async (companyId: string,
+    createJournalEntryBody: CreateJournalEntryBody, options?: RequestInit): Promise<JournalEntryWithLines> => {
+
+  return customFetch<JournalEntryWithLines>(getCreateJournalEntryUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createJournalEntryBody)
+  }
+);}
+
+
+
+
+
+export const getCreateJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJournalEntry>>, TError,{companyId: string;data: BodyType<CreateJournalEntryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createJournalEntry>>, TError,{companyId: string;data: BodyType<CreateJournalEntryBody>}, TContext> => {
+
+const mutationKey = ['createJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createJournalEntry>>, {companyId: string;data: BodyType<CreateJournalEntryBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createJournalEntry(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createJournalEntry>>>
+    export type CreateJournalEntryMutationBody = BodyType<CreateJournalEntryBody>
+    export type CreateJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create journal entry (as draft)
+ */
+export const useCreateJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJournalEntry>>, TError,{companyId: string;data: BodyType<CreateJournalEntryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createJournalEntry>>,
+        TError,
+        {companyId: string;data: BodyType<CreateJournalEntryBody>},
+        TContext
+      > => {
+      return useMutation(getCreateJournalEntryMutationOptions(options));
+    }
+
+export const getGetJournalEntryUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/entries/${id}`
+}
+
+/**
+ * @summary Get journal entry with lines
+ */
+export const getJournalEntry = async (companyId: string,
+    id: string, options?: RequestInit): Promise<JournalEntryWithLines> => {
+
+  return customFetch<JournalEntryWithLines>(getGetJournalEntryUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJournalEntryQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/entries/${id}`
+    ] as const;
+    }
+
+
+export const getGetJournalEntryQueryOptions = <TData = Awaited<ReturnType<typeof getJournalEntry>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJournalEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJournalEntryQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJournalEntry>>> = ({ signal }) => getJournalEntry(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJournalEntry>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJournalEntryQueryResult = NonNullable<Awaited<ReturnType<typeof getJournalEntry>>>
+export type GetJournalEntryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get journal entry with lines
+ */
+
+export function useGetJournalEntry<TData = Awaited<ReturnType<typeof getJournalEntry>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJournalEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJournalEntryQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPostJournalEntryUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/entries/${id}/post`
+}
+
+/**
+ * Validates debit=credit balance and marks entry as posted. Posting to a locked period is rejected.
+ * @summary Post a draft journal entry
+ */
+export const postJournalEntry = async (companyId: string,
+    id: string, options?: RequestInit): Promise<JournalEntryWithLines> => {
+
+  return customFetch<JournalEntryWithLines>(getPostJournalEntryUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPostJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postJournalEntry>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postJournalEntry>>, TError,{companyId: string;id: string}, TContext> => {
+
+const mutationKey = ['postJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postJournalEntry>>, {companyId: string;id: string}> = (props) => {
+          const {companyId,id} = props ?? {};
+
+          return  postJournalEntry(companyId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof postJournalEntry>>>
+
+    export type PostJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Post a draft journal entry
+ */
+export const usePostJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postJournalEntry>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postJournalEntry>>,
+        TError,
+        {companyId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getPostJournalEntryMutationOptions(options));
+    }
+
+export const getReverseJournalEntryUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/entries/${id}/reverse`
+}
+
+/**
+ * Creates a new journal entry with swapped debit/credit lines, linked as reversal.
+ * @summary Reverse (storno) a posted journal entry
+ */
+export const reverseJournalEntry = async (companyId: string,
+    id: string,
+    reverseJournalEntryBody: ReverseJournalEntryBody, options?: RequestInit): Promise<JournalEntryWithLines> => {
+
+  return customFetch<JournalEntryWithLines>(getReverseJournalEntryUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reverseJournalEntryBody)
+  }
+);}
+
+
+
+
+
+export const getReverseJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseJournalEntry>>, TError,{companyId: string;id: string;data: BodyType<ReverseJournalEntryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reverseJournalEntry>>, TError,{companyId: string;id: string;data: BodyType<ReverseJournalEntryBody>}, TContext> => {
+
+const mutationKey = ['reverseJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reverseJournalEntry>>, {companyId: string;id: string;data: BodyType<ReverseJournalEntryBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  reverseJournalEntry(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReverseJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof reverseJournalEntry>>>
+    export type ReverseJournalEntryMutationBody = BodyType<ReverseJournalEntryBody>
+    export type ReverseJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Reverse (storno) a posted journal entry
+ */
+export const useReverseJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseJournalEntry>>, TError,{companyId: string;id: string;data: BodyType<ReverseJournalEntryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reverseJournalEntry>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<ReverseJournalEntryBody>},
+        TContext
+      > => {
+      return useMutation(getReverseJournalEntryMutationOptions(options));
+    }
+
+export const getGetLedgerUrl = (companyId: string,
+    params?: GetLedgerParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/ledger?${stringifiedParams}` : `/api/companies/${companyId}/ledger`
+}
+
+/**
+ * Returns posted journal entry lines for the given filters, with running balance.
+ * @summary General ledger — movements per account
+ */
+export const getLedger = async (companyId: string,
+    params?: GetLedgerParams, options?: RequestInit): Promise<LedgerResponse> => {
+
+  return customFetch<LedgerResponse>(getGetLedgerUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLedgerQueryKey = (companyId: string,
+    params?: GetLedgerParams,) => {
+    return [
+    `/api/companies/${companyId}/ledger`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLedgerQueryOptions = <TData = Awaited<ReturnType<typeof getLedger>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: GetLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLedgerQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLedger>>> = ({ signal }) => getLedger(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLedger>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLedgerQueryResult = NonNullable<Awaited<ReturnType<typeof getLedger>>>
+export type GetLedgerQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary General ledger — movements per account
+ */
+
+export function useGetLedger<TData = Awaited<ReturnType<typeof getLedger>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: GetLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLedgerQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

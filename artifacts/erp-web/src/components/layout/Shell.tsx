@@ -3,7 +3,8 @@ import { Link, useLocation } from "wouter";
 import { 
   Building2, 
   LayoutDashboard, 
-  BookOpen, 
+  BookOpen,
+  BookMarked,
   FileText, 
   Users, 
   Truck, 
@@ -53,6 +54,7 @@ const MODULES = [
   { name: "Kontni plan", path: "/kontni-plan", icon: BookOpen },
   { name: "Računovodska obdobja", path: "/obdobja", icon: Calendar },
   { name: "Temeljnice", path: "/temeljnice", icon: FileText },
+  { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked },
   { name: "Kupci", path: "/kupci", icon: Users },
   { name: "Dobavitelji", path: "/dobavitelji", icon: Truck },
   { name: "DDV evidence", path: "/ddv", icon: Receipt },
