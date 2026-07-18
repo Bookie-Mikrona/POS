@@ -60,7 +60,6 @@ export interface ListCompaniesResponse {
 
 export interface CreateCompanyBody {
   /**
-     * Davčna številka podjetja (format SI12345678 ali 12345678)
      * @minLength 8
      * @maxLength 20
      */
@@ -90,7 +89,6 @@ export const AssignRoleBodyRole = {
 } as const;
 
 export interface AssignRoleBody {
-  /** Clerk user ID to assign role to */
   clerkUserId: string;
   role: AssignRoleBodyRole;
 }
@@ -105,9 +103,140 @@ export const RoleAssignmentRole = {
 } as const;
 
 export interface RoleAssignment {
-  /** UUID */
   companyId: string;
   clerkUserId: string;
   role: RoleAssignmentRole;
 }
+
+export type AccountRecordType = typeof AccountRecordType[keyof typeof AccountRecordType];
+
+
+export const AccountRecordType = {
+  asset: 'asset',
+  liability: 'liability',
+  equity: 'equity',
+  revenue: 'revenue',
+  expense: 'expense',
+} as const;
+
+export interface AccountRecord {
+  id: string;
+  companyId: string;
+  /** Številka konta (npr. "0200", "1100") */
+  code: string;
+  name: string;
+  type: AccountRecordType;
+  /** @nullable */
+  parentId?: string | null;
+  isActive: boolean;
+  /** @nullable */
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListAccountsResponse {
+  accounts: AccountRecord[];
+}
+
+export type CreateAccountBodyType = typeof CreateAccountBodyType[keyof typeof CreateAccountBodyType];
+
+
+export const CreateAccountBodyType = {
+  asset: 'asset',
+  liability: 'liability',
+  equity: 'equity',
+  revenue: 'revenue',
+  expense: 'expense',
+} as const;
+
+export interface CreateAccountBody {
+  /**
+     * @minLength 1
+     * @maxLength 20
+     */
+  code: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  type: CreateAccountBodyType;
+  /** @nullable */
+  parentId?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface UpdateAccountBody {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  isActive?: boolean;
+  /** @nullable */
+  parentId?: string | null;
+}
+
+export interface SeedAccountsResponse {
+  /** Number of accounts created */
+  count: number;
+}
+
+export type PeriodRecordStatus = typeof PeriodRecordStatus[keyof typeof PeriodRecordStatus];
+
+
+export const PeriodRecordStatus = {
+  open: 'open',
+  locked: 'locked',
+} as const;
+
+export interface PeriodRecord {
+  id: string;
+  companyId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: PeriodRecordStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListPeriodsResponse {
+  periods: PeriodRecord[];
+}
+
+export interface CreatePeriodBody {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+export type UpdatePeriodBodyStatus = typeof UpdatePeriodBodyStatus[keyof typeof UpdatePeriodBodyStatus];
+
+
+export const UpdatePeriodBodyStatus = {
+  open: 'open',
+  locked: 'locked',
+} as const;
+
+export interface UpdatePeriodBody {
+  status?: UpdatePeriodBodyStatus;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name?: string;
+}
+
+export type ListAccountsParams = {
+includeInactive?: boolean;
+};
 

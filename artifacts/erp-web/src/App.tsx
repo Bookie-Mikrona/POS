@@ -10,6 +10,8 @@ import { CompanyProvider, useCompany } from "@/contexts/CompanyContext";
 import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import CompanySelectPage from "@/pages/company-select";
+import KontniPlan from "@/pages/kontni-plan";
+import Obdobja from "@/pages/obdobja";
 import Placeholder from "@/pages/placeholder";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
@@ -196,13 +198,10 @@ function ClerkProviderWithRoutes() {
             <ProtectedRoute path="/company-select" component={CompanySelectPage} />
             <ProtectedRoute path="/dashboard" component={Dashboard} />
           
-          <ProtectedRoute path="/kontni-plan" component={() => (
-            <Placeholder 
-              title="Kontni plan" 
-              description="Modul za urejanje sintetičnih in analitičnih kontov glede na slovenske računovodske standarde." 
-            />
-          )} />
+          <ProtectedRoute path="/kontni-plan" component={KontniPlan} />
           
+          <ProtectedRoute path="/obdobja" component={Obdobja} />
+
           <ProtectedRoute path="/temeljnice" component={() => (
             <Placeholder 
               title="Temeljnice / Glavna knjiga" 

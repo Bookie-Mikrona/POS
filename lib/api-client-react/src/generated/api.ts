@@ -20,13 +20,23 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountRecord,
   AssignRoleBody,
   CompanyWithRole,
+  CreateAccountBody,
   CreateCompanyBody,
+  CreatePeriodBody,
   ErrorResponse,
   HealthStatus,
+  ListAccountsParams,
+  ListAccountsResponse,
   ListCompaniesResponse,
+  ListPeriodsResponse,
+  PeriodRecord,
   RoleAssignment,
+  SeedAccountsResponse,
+  UpdateAccountBody,
+  UpdatePeriodBody,
   UserProfile
 } from './api.schemas';
 
@@ -66,7 +76,6 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const healthCheck = async ( options?: RequestInit): Promise<HealthStatus> => {
@@ -144,7 +153,6 @@ export const getGetMeUrl = () => {
 }
 
 /**
- * Returns the authenticated user's profile
  * @summary Get current user
  */
 export const getMe = async ( options?: RequestInit): Promise<UserProfile> => {
@@ -222,7 +230,6 @@ export const getListCompaniesUrl = () => {
 }
 
 /**
- * Returns all companies the authenticated user has access to, with their role
  * @summary List accessible companies
  */
 export const listCompanies = async ( options?: RequestInit): Promise<ListCompaniesResponse> => {
@@ -300,7 +307,6 @@ export const getCreateCompanyUrl = () => {
 }
 
 /**
- * Creates a new company and assigns the creator as owner
  * @summary Create a new company
  */
 export const createCompany = async (createCompanyBody: CreateCompanyBody, options?: RequestInit): Promise<CompanyWithRole> => {
@@ -372,7 +378,6 @@ export const getGetCompanyUrl = (id: string,) => {
 }
 
 /**
- * Returns company details (only if user has access)
  * @summary Get company details
  */
 export const getCompany = async (id: string, options?: RequestInit): Promise<CompanyWithRole> => {
@@ -450,7 +455,6 @@ export const getAssignRoleUrl = (id: string,) => {
 }
 
 /**
- * Assigns an accounting role to a user for this company (owner only)
  * @summary Assign role to user
  */
 export const assignRole = async (id: string,
@@ -512,5 +516,537 @@ export const useAssignRole = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getAssignRoleMutationOptions(options));
+    }
+
+export const getListAccountsUrl = (companyId: string,
+    params?: ListAccountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/accounts?${stringifiedParams}` : `/api/companies/${companyId}/accounts`
+}
+
+/**
+ * Returns all accounts for the company, ordered by code
+ * @summary List chart of accounts
+ */
+export const listAccounts = async (companyId: string,
+    params?: ListAccountsParams, options?: RequestInit): Promise<ListAccountsResponse> => {
+
+  return customFetch<ListAccountsResponse>(getListAccountsUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAccountsQueryKey = (companyId: string,
+    params?: ListAccountsParams,) => {
+    return [
+    `/api/companies/${companyId}/accounts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listAccounts>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListAccountsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAccountsQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccounts>>> = ({ signal }) => listAccounts(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listAccounts>>>
+export type ListAccountsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List chart of accounts
+ */
+
+export function useListAccounts<TData = Awaited<ReturnType<typeof listAccounts>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListAccountsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAccountsQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAccountUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/accounts`
+}
+
+/**
+ * @summary Create account
+ */
+export const createAccount = async (companyId: string,
+    createAccountBody: CreateAccountBody, options?: RequestInit): Promise<AccountRecord> => {
+
+  return customFetch<AccountRecord>(getCreateAccountUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAccountBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccount>>, TError,{companyId: string;data: BodyType<CreateAccountBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccount>>, TError,{companyId: string;data: BodyType<CreateAccountBody>}, TContext> => {
+
+const mutationKey = ['createAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccount>>, {companyId: string;data: BodyType<CreateAccountBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createAccount(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createAccount>>>
+    export type CreateAccountMutationBody = BodyType<CreateAccountBody>
+    export type CreateAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create account
+ */
+export const useCreateAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccount>>, TError,{companyId: string;data: BodyType<CreateAccountBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAccount>>,
+        TError,
+        {companyId: string;data: BodyType<CreateAccountBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAccountMutationOptions(options));
+    }
+
+export const getSeedAccountsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/accounts/seed`
+}
+
+/**
+ * Seeds the company with a standard SRS-compliant chart of accounts. Only allowed if no accounts exist yet.
+ * @summary Import standard Slovenian chart of accounts
+ */
+export const seedAccounts = async (companyId: string, options?: RequestInit): Promise<SeedAccountsResponse> => {
+
+  return customFetch<SeedAccountsResponse>(getSeedAccountsUrl(companyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSeedAccountsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedAccounts>>, TError,{companyId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof seedAccounts>>, TError,{companyId: string}, TContext> => {
+
+const mutationKey = ['seedAccounts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof seedAccounts>>, {companyId: string}> = (props) => {
+          const {companyId} = props ?? {};
+
+          return  seedAccounts(companyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SeedAccountsMutationResult = NonNullable<Awaited<ReturnType<typeof seedAccounts>>>
+
+    export type SeedAccountsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Import standard Slovenian chart of accounts
+ */
+export const useSeedAccounts = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedAccounts>>, TError,{companyId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof seedAccounts>>,
+        TError,
+        {companyId: string},
+        TContext
+      > => {
+      return useMutation(getSeedAccountsMutationOptions(options));
+    }
+
+export const getUpdateAccountUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/accounts/${id}`
+}
+
+/**
+ * @summary Update account
+ */
+export const updateAccount = async (companyId: string,
+    id: string,
+    updateAccountBody: UpdateAccountBody, options?: RequestInit): Promise<AccountRecord> => {
+
+  return customFetch<AccountRecord>(getUpdateAccountUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateAccountBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccount>>, TError,{companyId: string;id: string;data: BodyType<UpdateAccountBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAccount>>, TError,{companyId: string;id: string;data: BodyType<UpdateAccountBody>}, TContext> => {
+
+const mutationKey = ['updateAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAccount>>, {companyId: string;id: string;data: BodyType<UpdateAccountBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateAccount(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAccountMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccount>>>
+    export type UpdateAccountMutationBody = BodyType<UpdateAccountBody>
+    export type UpdateAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update account
+ */
+export const useUpdateAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccount>>, TError,{companyId: string;id: string;data: BodyType<UpdateAccountBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAccount>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateAccountBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAccountMutationOptions(options));
+    }
+
+export const getListPeriodsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/periods`
+}
+
+/**
+ * @summary List accounting periods
+ */
+export const listPeriods = async (companyId: string, options?: RequestInit): Promise<ListPeriodsResponse> => {
+
+  return customFetch<ListPeriodsResponse>(getListPeriodsUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPeriodsQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/periods`
+    ] as const;
+    }
+
+
+export const getListPeriodsQueryOptions = <TData = Awaited<ReturnType<typeof listPeriods>>, TError = ErrorType<ErrorResponse>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPeriods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPeriodsQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPeriods>>> = ({ signal }) => listPeriods(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPeriods>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPeriodsQueryResult = NonNullable<Awaited<ReturnType<typeof listPeriods>>>
+export type ListPeriodsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List accounting periods
+ */
+
+export function useListPeriods<TData = Awaited<ReturnType<typeof listPeriods>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPeriods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPeriodsQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePeriodUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/periods`
+}
+
+/**
+ * @summary Create accounting period
+ */
+export const createPeriod = async (companyId: string,
+    createPeriodBody: CreatePeriodBody, options?: RequestInit): Promise<PeriodRecord> => {
+
+  return customFetch<PeriodRecord>(getCreatePeriodUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPeriodBody)
+  }
+);}
+
+
+
+
+
+export const getCreatePeriodMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPeriod>>, TError,{companyId: string;data: BodyType<CreatePeriodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPeriod>>, TError,{companyId: string;data: BodyType<CreatePeriodBody>}, TContext> => {
+
+const mutationKey = ['createPeriod'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPeriod>>, {companyId: string;data: BodyType<CreatePeriodBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createPeriod(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePeriodMutationResult = NonNullable<Awaited<ReturnType<typeof createPeriod>>>
+    export type CreatePeriodMutationBody = BodyType<CreatePeriodBody>
+    export type CreatePeriodMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create accounting period
+ */
+export const useCreatePeriod = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPeriod>>, TError,{companyId: string;data: BodyType<CreatePeriodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPeriod>>,
+        TError,
+        {companyId: string;data: BodyType<CreatePeriodBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePeriodMutationOptions(options));
+    }
+
+export const getUpdatePeriodUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/periods/${id}`
+}
+
+/**
+ * Lock or unlock an accounting period (owner only)
+ * @summary Update period status
+ */
+export const updatePeriod = async (companyId: string,
+    id: string,
+    updatePeriodBody: UpdatePeriodBody, options?: RequestInit): Promise<PeriodRecord> => {
+
+  return customFetch<PeriodRecord>(getUpdatePeriodUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePeriodBody)
+  }
+);}
+
+
+
+
+
+export const getUpdatePeriodMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePeriod>>, TError,{companyId: string;id: string;data: BodyType<UpdatePeriodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePeriod>>, TError,{companyId: string;id: string;data: BodyType<UpdatePeriodBody>}, TContext> => {
+
+const mutationKey = ['updatePeriod'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePeriod>>, {companyId: string;id: string;data: BodyType<UpdatePeriodBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updatePeriod(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePeriodMutationResult = NonNullable<Awaited<ReturnType<typeof updatePeriod>>>
+    export type UpdatePeriodMutationBody = BodyType<UpdatePeriodBody>
+    export type UpdatePeriodMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update period status
+ */
+export const useUpdatePeriod = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePeriod>>, TError,{companyId: string;id: string;data: BodyType<UpdatePeriodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePeriod>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdatePeriodBody>},
+        TContext
+      > => {
+      return useMutation(getUpdatePeriodMutationOptions(options));
     }
 

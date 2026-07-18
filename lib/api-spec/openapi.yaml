@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: ERP — Dvostavno Knjigovodstvo API
@@ -14,13 +13,16 @@ tags:
     description: Authentication & user info
   - name: companies
     description: Company management & access control
+  - name: accounts
+    description: Chart of accounts
+  - name: periods
+    description: Accounting periods
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -33,7 +35,6 @@ paths:
       operationId: getMe
       tags: [auth]
       summary: Get current user
-      description: Returns the authenticated user's profile
       security:
         - bearerAuth: []
       responses:
@@ -54,7 +55,6 @@ paths:
       operationId: listCompanies
       tags: [companies]
       summary: List accessible companies
-      description: Returns all companies the authenticated user has access to, with their role
       security:
         - bearerAuth: []
       responses:
@@ -74,7 +74,6 @@ paths:
       operationId: createCompany
       tags: [companies]
       summary: Create a new company
-      description: Creates a new company and assigns the creator as owner
       security:
         - bearerAuth: []
       requestBody:
@@ -113,7 +112,6 @@ paths:
       operationId: getCompany
       tags: [companies]
       summary: Get company details
-      description: Returns company details (only if user has access)
       security:
         - bearerAuth: []
       parameters:
@@ -153,7 +151,6 @@ paths:
       operationId: assignRole
       tags: [companies]
       summary: Assign role to user
-      description: Assigns an accounting role to a user for this company (owner only)
       security:
         - bearerAuth: []
       parameters:
@@ -189,7 +186,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Forbidden — only owners can assign roles
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -200,6 +197,325 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Chart of accounts ────────────────────────────────────────────────────────
+  /companies/{companyId}/accounts:
+    get:
+      operationId: listAccounts
+      tags: [accounts]
+      summary: List chart of accounts
+      description: Returns all accounts for the company, ordered by code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Accounts list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListAccountsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAccount
+      tags: [accounts]
+      summary: Create account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountBody"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Account code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/accounts/seed:
+    post:
+      operationId: seedAccounts
+      tags: [accounts]
+      summary: Import standard Slovenian chart of accounts
+      description: Seeds the company with a standard SRS-compliant chart of accounts. Only allowed if no accounts exist yet.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Accounts seeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedAccountsResponse"
+        "400":
+          description: Accounts already exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/accounts/{id}:
+    patch:
+      operationId: updateAccount
+      tags: [accounts]
+      summary: Update account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAccountBody"
+      responses:
+        "200":
+          description: Account updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Accounting periods ────────────────────────────────────────────────────────
+  /companies/{companyId}/periods:
+    get:
+      operationId: listPeriods
+      tags: [periods]
+      summary: List accounting periods
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Periods list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPeriodsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPeriod
+      tags: [periods]
+      summary: Create accounting period
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePeriodBody"
+      responses:
+        "201":
+          description: Period created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeriodRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/periods/{id}:
+    patch:
+      operationId: updatePeriod
+      tags: [periods]
+      summary: Update period status
+      description: Lock or unlock an accounting period (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePeriodBody"
+      responses:
+        "200":
+          description: Period updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeriodRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — only owners can lock/unlock periods
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -211,8 +527,7 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
     UserProfile:
       type: object
       properties:
@@ -226,16 +541,13 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
-      required:
-        - id
-        - email
+      required: [id, email]
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
-      required:
-        - error
+      required: [error]
     Company:
       type: object
       properties:
@@ -258,11 +570,7 @@ components:
         createdAt:
           type: string
           format: date-time
-      required:
-        - id
-        - podjetjeDavcna
-        - naziv
-        - createdAt
+      required: [id, podjetjeDavcna, naziv, createdAt]
     CompanyWithRole:
       allOf:
         - $ref: "#/components/schemas/Company"
@@ -271,8 +579,7 @@ components:
             role:
               type: string
               enum: [owner, accountant, viewer]
-          required:
-            - role
+          required: [role]
     ListCompaniesResponse:
       type: object
       properties:
@@ -280,14 +587,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CompanyWithRole"
-      required:
-        - companies
+      required: [companies]
     CreateCompanyBody:
       type: object
       properties:
         podjetjeDavcna:
           type: string
-          description: Davčna številka podjetja (format SI12345678 ali 12345678)
           minLength: 8
           maxLength: 20
         naziv:
@@ -306,33 +611,160 @@ components:
         kraj:
           type: string
           maxLength: 100
-      required:
-        - podjetjeDavcna
-        - naziv
+      required: [podjetjeDavcna, naziv]
     AssignRoleBody:
       type: object
       properties:
         clerkUserId:
           type: string
-          description: Clerk user ID to assign role to
         role:
           type: string
           enum: [owner, accountant, viewer]
-      required:
-        - clerkUserId
-        - role
+      required: [clerkUserId, role]
     RoleAssignment:
       type: object
       properties:
         companyId:
           type: string
-          description: UUID
         clerkUserId:
           type: string
         role:
           type: string
           enum: [owner, accountant, viewer]
-      required:
-        - companyId
-        - clerkUserId
-        - role
+      required: [companyId, clerkUserId, role]
+
+    # ── Chart of accounts schemas ──────────────────────────────────────────────
+    AccountRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        code:
+          type: string
+          description: Številka konta (npr. "0200", "1100")
+        name:
+          type: string
+        type:
+          type: string
+          enum: [asset, liability, equity, revenue, expense]
+        parentId:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, code, name, type, isActive, createdAt, updatedAt]
+    ListAccountsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountRecord"
+      required: [accounts]
+    CreateAccountBody:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          type: string
+          enum: [asset, liability, equity, revenue, expense]
+        parentId:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+      required: [code, name, type]
+    UpdateAccountBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        parentId:
+          type: ["string", "null"]
+    SeedAccountsResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Number of accounts created
+      required: [count]
+
+    # ── Accounting periods schemas ─────────────────────────────────────────────
+    PeriodRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [open, locked]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, name, startDate, endDate, status, createdAt, updatedAt]
+    ListPeriodsResponse:
+      type: object
+      properties:
+        periods:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeriodRecord"
+      required: [periods]
+    CreatePeriodBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+      required: [name, startDate, endDate]
+    UpdatePeriodBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, locked]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100

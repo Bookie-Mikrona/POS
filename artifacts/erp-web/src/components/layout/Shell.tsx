@@ -15,7 +15,8 @@ import {
   ChevronDown,
   User as UserIcon,
   Menu,
-  ShieldAlert
+  ShieldAlert,
+  Calendar
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
@@ -50,6 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const MODULES = [
   { name: "Pregled", path: "/dashboard", icon: LayoutDashboard },
   { name: "Kontni plan", path: "/kontni-plan", icon: BookOpen },
+  { name: "Računovodska obdobja", path: "/obdobja", icon: Calendar },
   { name: "Temeljnice", path: "/temeljnice", icon: FileText },
   { name: "Kupci", path: "/kupci", icon: Users },
   { name: "Dobavitelji", path: "/dobavitelji", icon: Truck },

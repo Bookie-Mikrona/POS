@@ -9,7 +9,6 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -18,7 +17,6 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * Returns the authenticated user's profile
  * @summary Get current user
  */
 export const GetMeResponse = zod.object({
@@ -31,7 +29,6 @@ export const GetMeResponse = zod.object({
 
 
 /**
- * Returns all companies the authenticated user has access to, with their role
  * @summary List accessible companies
  */
 export const ListCompaniesResponse = zod.object({
@@ -51,7 +48,6 @@ export const ListCompaniesResponse = zod.object({
 
 
 /**
- * Creates a new company and assigns the creator as owner
  * @summary Create a new company
  */
 export const createCompanyBodyPodjetjeDavcnaMin = 8;
@@ -70,7 +66,7 @@ export const createCompanyBodyKrajMax = 100;
 
 
 export const CreateCompanyBody = zod.object({
-  "podjetjeDavcna": zod.string().min(createCompanyBodyPodjetjeDavcnaMin).max(createCompanyBodyPodjetjeDavcnaMax).describe('Davčna številka podjetja (format SI12345678 ali 12345678)'),
+  "podjetjeDavcna": zod.string().min(createCompanyBodyPodjetjeDavcnaMin).max(createCompanyBodyPodjetjeDavcnaMax),
   "naziv": zod.string().min(1).max(createCompanyBodyNazivMax),
   "kratekNaziv": zod.string().max(createCompanyBodyKratekNazivMax).optional(),
   "naslov": zod.string().max(createCompanyBodyNaslovMax).optional(),
@@ -93,7 +89,6 @@ export const CreateCompanyResponse = zod.object({
 
 
 /**
- * Returns company details (only if user has access)
  * @summary Get company details
  */
 export const GetCompanyParams = zod.object({
@@ -115,7 +110,6 @@ export const GetCompanyResponse = zod.object({
 
 
 /**
- * Assigns an accounting role to a user for this company (owner only)
  * @summary Assign role to user
  */
 export const AssignRoleParams = zod.object({
@@ -123,14 +117,203 @@ export const AssignRoleParams = zod.object({
 })
 
 export const AssignRoleBody = zod.object({
-  "clerkUserId": zod.string().describe('Clerk user ID to assign role to'),
+  "clerkUserId": zod.string(),
   "role": zod.enum(['owner', 'accountant', 'viewer'])
 })
 
 export const AssignRoleResponse = zod.object({
-  "companyId": zod.string().describe('UUID'),
+  "companyId": zod.string(),
   "clerkUserId": zod.string(),
   "role": zod.enum(['owner', 'accountant', 'viewer'])
+})
+
+
+/**
+ * Returns all accounts for the company, ordered by code
+ * @summary List chart of accounts
+ */
+export const ListAccountsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListAccountsQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListAccountsResponse = zod.object({
+  "accounts": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string().describe('Številka konta (npr. \"0200\", \"1100\")'),
+  "name": zod.string(),
+  "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "parentId": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "description": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create account
+ */
+export const CreateAccountParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createAccountBodyCodeMax = 20;
+
+export const createAccountBodyNameMax = 200;
+
+
+
+export const CreateAccountBody = zod.object({
+  "code": zod.string().min(1).max(createAccountBodyCodeMax),
+  "name": zod.string().min(1).max(createAccountBodyNameMax),
+  "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "parentId": zod.string().nullish(),
+  "description": zod.string().nullish()
+})
+
+export const CreateAccountResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string().describe('Številka konta (npr. \"0200\", \"1100\")'),
+  "name": zod.string(),
+  "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "parentId": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "description": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Seeds the company with a standard SRS-compliant chart of accounts. Only allowed if no accounts exist yet.
+ * @summary Import standard Slovenian chart of accounts
+ */
+export const SeedAccountsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const SeedAccountsResponse = zod.object({
+  "count": zod.number().describe('Number of accounts created')
+})
+
+
+/**
+ * @summary Update account
+ */
+export const UpdateAccountParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updateAccountBodyNameMax = 200;
+
+
+
+export const UpdateAccountBody = zod.object({
+  "name": zod.string().min(1).max(updateAccountBodyNameMax).optional(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean().optional(),
+  "parentId": zod.string().nullish()
+})
+
+export const UpdateAccountResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string().describe('Številka konta (npr. \"0200\", \"1100\")'),
+  "name": zod.string(),
+  "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "parentId": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "description": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List accounting periods
+ */
+export const ListPeriodsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListPeriodsResponse = zod.object({
+  "periods": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "name": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['open', 'locked']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create accounting period
+ */
+export const CreatePeriodParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createPeriodBodyNameMax = 100;
+
+
+
+export const CreatePeriodBody = zod.object({
+  "name": zod.string().min(1).max(createPeriodBodyNameMax),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date()
+})
+
+export const CreatePeriodResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "name": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['open', 'locked']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Lock or unlock an accounting period (owner only)
+ * @summary Update period status
+ */
+export const UpdatePeriodParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updatePeriodBodyNameMax = 100;
+
+
+
+export const UpdatePeriodBody = zod.object({
+  "status": zod.enum(['open', 'locked']).optional(),
+  "name": zod.string().min(1).max(updatePeriodBodyNameMax).optional()
+})
+
+export const UpdatePeriodResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "name": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['open', 'locked']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
 
 
