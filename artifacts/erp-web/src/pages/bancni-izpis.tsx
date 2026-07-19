@@ -242,6 +242,11 @@ export default function BancniIzpis() {
   // Auto-post option
   const [autoPost, setAutoPost] = useState(false);
 
+  // Track the company that was active when the wizard started (step 1 → 2 transition).
+  // If the user switches company while mid-wizard we detect it and reset.
+  const wizardCompanyIdRef = useRef<string | null>(null);
+  const [showCompanyChangedDialog, setShowCompanyChangedDialog] = useState(false);
+
   // Step 3 state
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -266,6 +271,20 @@ export default function BancniIzpis() {
 
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
+
+  // Detect mid-wizard company switch at any point (including during async parse).
+  // Fires whenever the active company OR the current step changes, so a company
+  // switch that happened while parse/match was still running (step "upload") is
+  // also caught the moment the wizard advances to "review".
+  useEffect(() => {
+    if (!activeCompany) return;
+    if (!wizardCompanyIdRef.current) return;
+    if (activeCompany.id === wizardCompanyIdRef.current) return;
+    // Company changed while wizard is in progress — show warning dialog.
+    // The actual reset + ref clear happens when the user confirms the dialog.
+    setShowCompanyChangedDialog(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompany?.id, step]);
 
   // After accounts are fetched, validate saved IDs against actual account lists.
   // If a saved ID is no longer in the active accounts, clear it so the user
@@ -294,6 +313,11 @@ export default function BancniIzpis() {
 
   const handleParse = async () => {
     if (!file || !activeCompany || !periodId || !bankAccountId) return;
+    // Capture the company ID in a local variable *and* in the ref before any
+    // async work. The local copy is the stable "session token" for this specific
+    // invocation; the ref is the shared signal that reset() can clear.
+    const companyIdAtStart = activeCompany.id;
+    wizardCompanyIdRef.current = companyIdAtStart;
     // Persist the current account configuration for next time
     saveImportConfig(activeCompany.id, { bankAccountId, arAccountId, apAccountId });
     setConfigLoaded(true);
@@ -303,6 +327,15 @@ export default function BancniIzpis() {
       const { transactions } = await parseBankStatement(activeCompany.id, file);
       setMatching(true);
       const { suggestions: s } = await matchTransactions(activeCompany.id, transactions);
+
+      // Guard: if a company switch was confirmed (reset() cleared the ref) while
+      // parse/match was in-flight, discard results and do NOT advance the wizard.
+      // Without this check, stale suggestions from company A would be written into
+      // state and the wizard would advance to review even after a reset.
+      if (wizardCompanyIdRef.current !== companyIdAtStart) {
+        return;
+      }
+
       setSuggestions(s);
 
       // Pre-set decisions:
@@ -333,6 +366,8 @@ export default function BancniIzpis() {
       setDecisions(initial);
       setStep("review");
     } catch (err: any) {
+      // On failure clear the wizard company ref so the effect stays quiet.
+      wizardCompanyIdRef.current = null;
       setParseError(err.message ?? "Napaka pri razčlenjevanju");
     } finally {
       setParsing(false);
@@ -355,6 +390,14 @@ export default function BancniIzpis() {
 
   const handleConfirm = async () => {
     if (!activeCompany) return;
+    // Hard invariant: the active company must be set and must match the company
+    // this wizard session was started for. A null ref means the session was
+    // already reset; a mismatch means the user switched company after suggestions
+    // were fetched. Either way, block and force a reset.
+    if (!wizardCompanyIdRef.current || activeCompany.id !== wizardCompanyIdRef.current) {
+      setShowCompanyChangedDialog(true);
+      return;
+    }
     setConfirming(true);
     setConfirmError(null);
     setConfirmProgress(null);
@@ -767,6 +810,34 @@ export default function BancniIzpis() {
           </div>
         </div>
       )}
+
+      {/* ─── Company-changed mid-wizard warning dialog ───────────────────────── */}
+      <Dialog open={showCompanyChangedDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={e => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TriangleAlert className="h-5 w-5 text-amber-500" />
+              Podjetje je bilo zamenjano
+            </DialogTitle>
+            <DialogDescription>
+              Med potekom čarovnika ste zamenjali aktivno podjetje. Predlogi ujemanja in sprejete odločitve se nanašajo na prejšnje podjetje in so zato neveljavni.
+              <br /><br />
+              Čarovnik bo ponastavljen na prvi korak, da lahko začnete uvoz za pravilno podjetje.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setShowCompanyChangedDialog(false);
+                wizardCompanyIdRef.current = null;
+                reset();
+              }}
+            >
+              Razumem — ponastavi čarovnik
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── STEP 3: Confirm / Done ──────────────────────────────────────────── */}
       {step === "confirm" && confirmResult && (
