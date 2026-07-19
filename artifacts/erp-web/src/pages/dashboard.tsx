@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Landmark,
   ShieldAlert,
+  UtensilsCrossed,
 } from "lucide-react";
 import {
   BarChart,
@@ -302,6 +303,16 @@ const MODULES = [
     description: "Bilanca stanja, izkaz poslovnega izida, bruto bilanca",
     color: "text-purple-600",
     bg: "bg-purple-600/10",
+  },
+  {
+    id: "pos",
+    requires: "pos",
+    name: "POS Gostinstvo",
+    path: "/pos/",
+    icon: UtensilsCrossed,
+    description: "Naročila, mize, blagajna in kuhinja za gostinstvo",
+    color: "text-orange-600",
+    bg: "bg-orange-600/10",
   },
 ];
 

@@ -23,6 +23,7 @@ import {
   ScanLine,
   Layers,
   PieChart,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
@@ -198,6 +199,24 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ) : null}
+
+        {activeModules.includes("pos") && (
+          <SidebarGroup className="mt-4">
+            <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Gostinstvo</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="POS Gostinstvo">
+                    <a href="/pos/" className="flex items-center w-full">
+                      <UtensilsCrossed className="h-4 w-4" />
+                      <span>POS Blagajna</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup className="mt-6">
           <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Sistem</SidebarGroupLabel>
