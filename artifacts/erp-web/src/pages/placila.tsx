@@ -321,6 +321,12 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
 
   const [allocations, setAllocations] = useState<{ id: string; invoiceId: string; allocatedAmount: string }[]>([]);
 
+  // Duplicate detection state
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    paymentId: string;
+    message: string;
+  } | null>(null);
+
   const cpTypeForPayment = formData.direction === "inbound" ? "customer" : "supplier";
   const validCounterparties = counterparties.filter(c => c.type === cpTypeForPayment || c.type === "both");
 
@@ -365,14 +371,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
 
   const createMut = useCreatePayment();
 
-  const handleSave = () => {
-    if (!activeCompany) return;
-    
-    if (!isAllocationValid) {
-      alert("Vsota poravnav ne sme presegati zneska plačila.");
-      return;
-    }
-
+  const buildPayload = (force = false) => {
     const validAllocations = allocations
       .filter(a => a.invoiceId && parseFloat(a.allocatedAmount) > 0)
       .map(a => ({
@@ -380,8 +379,8 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
         allocatedAmount: parseFloat(a.allocatedAmount)
       }));
 
-    createMut.mutate({
-      companyId: activeCompany.id,
+    return {
+      companyId: activeCompany!.id,
       data: {
         direction: formData.direction,
         counterpartyId: formData.counterpartyId,
@@ -392,13 +391,34 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
         bankAccountId: formData.bankAccountId,
         arApAccountId: formData.arApAccountId,
         notes: formData.notes || null,
-        allocations: validAllocations.length > 0 ? validAllocations : undefined
-      }
-    }, {
+        allocations: validAllocations.length > 0 ? validAllocations : undefined,
+        ...(force ? { force: true } : {}),
+      } as any,
+    };
+  };
+
+  const handleSave = (force = false) => {
+    if (!activeCompany) return;
+    
+    if (!isAllocationValid) {
+      alert("Vsota poravnav ne sme presegati zneska plačila.");
+      return;
+    }
+
+    createMut.mutate(buildPayload(force), {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
+        setDuplicateWarning(null);
         onOpenChange(false);
-      }
+      },
+      onError: (err: any) => {
+        if (err?.status === 409 && err?.data?.duplicateOf?.paymentId) {
+          setDuplicateWarning({
+            paymentId: err.data.duplicateOf.paymentId,
+            message: err.data?.error ?? "Plačilo s temi podatki že obstaja v sistemu.",
+          });
+        }
+      },
     });
   };
 
@@ -573,12 +593,53 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
 
         <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Prekliči</Button>
-          <Button onClick={handleSave} disabled={!canSave || createMut.isPending}>
+          <Button onClick={() => handleSave(false)} disabled={!canSave || createMut.isPending}>
             {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Shrani plačilo
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      {/* Duplicate payment warning dialog */}
+      <Dialog open={!!duplicateWarning} onOpenChange={(v) => { if (!v) setDuplicateWarning(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="h-5 w-5" />
+              Možno podvojeno plačilo
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-1">
+                <p>
+                  V sistemu že obstaja plačilo z istimi podatki (datum, znesek, sklic).
+                </p>
+                {duplicateWarning && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <span className="font-medium">ID obstoječega plačila:</span>{" "}
+                    <code className="font-mono text-xs">{duplicateWarning.paymentId}</code>
+                  </div>
+                )}
+                <p className="text-sm">
+                  Ali res želite shraniti to plačilo kot novo vnos? Izberite <strong>Vseeno shrani</strong> samo, če ste prepričani, da gre za ločeno plačilo.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDuplicateWarning(null)}>
+              Prekliči
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleSave(true)}
+              disabled={createMut.isPending}
+            >
+              {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Vseeno shrani
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
