@@ -1,54 +1,40 @@
 ---
-name: ERP foundation
-description: Skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions za ERP projekt
+name: ERP Foundation
+description: Skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
 ---
 
-## Stack
-- pnpm monorepo: React+Vite frontend (`artifacts/erp-web`), Express+Drizzle backend (`artifacts/api-server`)
-- PostgreSQL via `@workspace/db`, Drizzle ORM
-- Clerk auth (`CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`)
-- OpenAPI spec → Orval codegen → `@workspace/api-client-react` + `@workspace/api-zod`
+## Infrastruktura
 
-## Integrations (Task #11)
-- Anthropic AI via Replit AI Integrations (`AI_INTEGRATIONS_ANTHROPIC_BASE_URL`, `AI_INTEGRATIONS_ANTHROPIC_API_KEY`)
-- Object Storage via `@workspace/integrations-anthropic-ai` + `@google-cloud/storage`
-- Bucket env vars: `DEFAULT_OBJECT_STORAGE_BUCKET_ID`, `PRIVATE_OBJECT_DIR`, `PUBLIC_OBJECT_SEARCH_PATHS`
+- **Monorepo**: pnpm workspace
+- **API**: `artifacts/api-server` — Express + Fastify-pino, TypeScript, esbuild bundle
+- **ERP frontend**: `artifacts/erp-web` — React + Vite + Clerk auth
+- **DB**: `lib/db` — Drizzle ORM, PostgreSQL
+- **Auth**: Clerk (CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, VITE_CLERK_PUBLISHABLE_KEY)
 
-## Architecture decisions
+## POS Backend rute
 
-### Denarne vrednosti
-`numeric(18,2)` v DB, string v JSON — nikoli float.
+**Status: INTEGRIRANE IN BUILDIRANE** (2026-07-19)
 
-### Audit log
-Vedno znotraj `db.transaction()`.
+- 24 POS rut v `artifacts/api-server/src/routes/pos/`
+- POS router registriran v `artifacts/api-server/src/routes/index.ts`
+- TypeCheck: 0 napak
+- Bundle: ~4.3mb (s POS rutami)
 
-### Hook pattern
-`{ query: { enabled: !!companyId } as any }` — TanStack Query v5 workaround.
+**Why:** Rute so bile prenesene iz starega projekta — imele so napačne importe, manjkajoče tipe, napačne API klice.
 
-### OpenAPI omejitev
-`format: email` prepovedano — Orval generira napačno Zod kodo.
+**Ključni popravki:**
+- `alias` iz drizzle-orm → `aliasedTable` (drizzle v0.45) — POZOR: v `glasovni-sinonimi.ts` je `alias` ime DB polja, ne drizzle funkcija!
+- `broadcastTo(napravaId, event, payload)` → `broadcast(event, payload)` (pos-sse nima ciljnega broadcast-a)
+- `podjetjeDavcna` kolona ne obstaja v nastavitveTable/shranjeniKupciTable — treba izpustiti iz insertov
+- `bcryptjs` — treba namestiti runtime paket (`pnpm add bcryptjs` v api-server), ne samo `@types/bcryptjs`
+- `crypto.randomUUID()` — uvoziti `randomUUID` direktno iz `node:crypto`, ne aliasirati modula
+- `req.session` — Express nima session brez middleware; rešeno z `(req as any).session`
+- `r` iz `poisciNaInetis()` vrne `null` — TypeScript ne more narrowati znotraj `if (false)` — rešeno z `const r: any = ...`
 
-### Poslovne napake
-`throw Object.assign(new Error(...), { statusCode: 400 })` + `try/catch` → HTTP 400.
+## POS Middleware
 
-### Datumi v DB
-`date({ mode: "string" })` — pri vhodu iz Zod (format: date) konvertiraj `Date → ISO string` z `.toISOString().slice(0, 10)`.
+- `requireEnota` — `artifacts/api-server/src/middlewares/pos.ts` — preverja POS enoto
 
-### OCR async flow
-`setImmediate()` po HTTP 201 odzivu — OCR se izvaja asinhrono, polling na clientu.
+## Naslednji koraki
 
-## Zaključene naloge
-- #4: General ledger & journal entries
-- #5: AR/AP (partnerji, računi, posting logika)
-- #6: Payments & saldakonti
-- #7: DDV modul (vat_codes, knjiga IR/PR, DDV-O, frontend ddv.tsx)
-- #11: AI OCR dokumenti (Anthropic Vision, Object Storage, dokumenti.tsx)
-
-## Predlagane naloge (PROPOSED/PENDING)
-- #8: Bančni izpiski
-- #9: KPI dashboard
-- #10: Dimenzije (cost centers, projects) na kontih in journal lines
-- #12: Finančna poročila (bilanca stanja, izkaz poslovnega izida)
-- #13: Boljše napake pri OCR brez partnerja/konta
-- #14: Predogled dokumenta
-- #15: AI OCR learning (feedback loop)
+- Ustvari `artifacts/pos-web` — blagajniški POS frontend

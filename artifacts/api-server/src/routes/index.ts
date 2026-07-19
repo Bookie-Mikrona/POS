@@ -16,6 +16,7 @@ import storageRouter from "./storage";
 import bankStatementsRouter from "./bankStatements";
 import dimensionsRouter from "./dimensions";
 import reportsRouter from "./reports";
+import posRouter from "./pos/index";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(storageRouter);
 router.use(bankStatementsRouter);
 router.use(dimensionsRouter);
 router.use(reportsRouter);
+router.use(posRouter);
 
 export default router;

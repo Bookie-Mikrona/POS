@@ -1,3 +1,4 @@
+// ── ERP: Dvostavno knjigovodstvo ─────────────────────────────────────────────
 export * from "./companies";
 export * from "./accounting-roles";
 export * from "./accounts";
@@ -12,3 +13,5 @@ export * from "./vat-codes";
 export * from "./documents";
 export * from "./conversations";
 export * from "./messages";
+// ── POS: Gostinstvo ──────────────────────────────────────────────────────────
+export * from "./pos/index";
