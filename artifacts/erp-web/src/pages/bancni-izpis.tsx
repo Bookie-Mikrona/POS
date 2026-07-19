@@ -246,6 +246,12 @@ export default function BancniIzpis() {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmResult, setConfirmResult] = useState<{ created: number; skipped: number; posted: number; postErrors: string[] } | null>(null);
+  const [confirmProgress, setConfirmProgress] = useState<{
+    current: number;
+    total: number;
+    action: "creating" | "posting";
+    label: string;
+  } | null>(null);
 
   // Data fetching
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
@@ -351,11 +357,20 @@ export default function BancniIzpis() {
     if (!activeCompany) return;
     setConfirming(true);
     setConfirmError(null);
+    setConfirmProgress(null);
 
     let created = 0;
     let skipped = 0;
     let posted = 0;
     const postErrors: string[] = [];
+
+    // Count only matched transactions for the progress total
+    const toProcess = suggestions.filter(item => {
+      const d = decisions.get(item.transaction.id);
+      return d && d.kind === "matched";
+    });
+    const total = toProcess.length;
+    let processedIndex = 0;
 
     for (const item of suggestions) {
       const tx = item.transaction;
@@ -364,6 +379,7 @@ export default function BancniIzpis() {
       if (decision.kind === "pending") { skipped++; continue; }
 
       // matched
+      processedIndex++;
       const direction = tx.amount > 0 ? "inbound" : "outbound";
       const arApAccountId = direction === "inbound" ? arAccountId : apAccountId;
       const counterpartyId = decision.counterpartyId;
@@ -371,6 +387,15 @@ export default function BancniIzpis() {
       // If the user explicitly chose to import a transaction that was flagged as a
       // duplicate, pass force=true so the server-side duplicate check is bypassed.
       const forceImport = !!item.duplicateOf;
+
+      const txLabel = tx.reference ?? tx.counterpartyName ?? tx.date;
+
+      setConfirmProgress({
+        current: processedIndex,
+        total,
+        action: "creating",
+        label: `Ustvarjam plačilo ${processedIndex} od ${total}${txLabel ? ` — ${txLabel}` : ""}`,
+      });
 
       let paymentId: string | null = null;
       try {
@@ -401,6 +426,12 @@ export default function BancniIzpis() {
 
       // Auto-post if requested
       if (autoPost && paymentId) {
+        setConfirmProgress({
+          current: processedIndex,
+          total,
+          action: "posting",
+          label: `Knjižim plačilo ${processedIndex} od ${total}${txLabel ? ` — ${txLabel}` : ""}`,
+        });
         try {
           await postPayment(activeCompany.id, paymentId);
           posted++;
@@ -413,6 +444,7 @@ export default function BancniIzpis() {
 
     queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
     setConfirmResult({ created, skipped, posted, postErrors });
+    setConfirmProgress(null);
     setConfirming(false);
     setStep("confirm");
   };
@@ -650,6 +682,28 @@ export default function BancniIzpis() {
       {/* ─── STEP 2: Review ──────────────────────────────────────────────────── */}
       {step === "review" && (
         <div className="space-y-4">
+          {/* Progress panel — shown while confirming */}
+          {confirming && confirmProgress && (
+            <div className="p-5 border rounded-lg bg-card space-y-4">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{confirmProgress.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {confirmProgress.action === "creating" ? "Ustvarjam plačila…" : "Knjižim v glavno knjigo…"}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold tabular-nums shrink-0">
+                  {confirmProgress.current}/{confirmProgress.total}
+                </span>
+              </div>
+              <Progress
+                value={Math.round((confirmProgress.current / confirmProgress.total) * 100)}
+                className="h-2"
+              />
+            </div>
+          )}
+
           {/* Summary bar */}
           <div className="flex flex-wrap gap-4 p-4 border rounded-lg bg-card">
             <div className="text-sm">
@@ -678,10 +732,11 @@ export default function BancniIzpis() {
               </div>
             )}
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep("upload")}>
+              <Button variant="outline" size="sm" onClick={() => setStep("upload")} disabled={confirming}>
                 <ChevronLeft className="mr-1 h-3 w-3" /> Nazaj
               </Button>
-              <Button size="sm" onClick={handleConfirm} disabled={matchedCount === 0}>
+              <Button size="sm" onClick={handleConfirm} disabled={matchedCount === 0 || confirming}>
+                {confirming && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
                 Poknjiži {matchedCount} plačil <ChevronRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
@@ -702,7 +757,7 @@ export default function BancniIzpis() {
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t">
-            <Button variant="outline" onClick={() => setStep("upload")}>
+            <Button variant="outline" onClick={() => setStep("upload")} disabled={confirming}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Nazaj na uvoz
             </Button>
             <Button onClick={handleConfirm} disabled={matchedCount === 0 || confirming}>
