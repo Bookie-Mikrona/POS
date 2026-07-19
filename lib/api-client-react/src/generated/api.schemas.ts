@@ -1586,6 +1586,29 @@ export interface IncomeStatementResponse {
   compare?: IncomeStatementData | null;
 }
 
+export interface TrialBalanceRow {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  turnoverDebit: string;
+  turnoverCredit: string;
+  balanceDebit: string;
+  balanceCredit: string;
+}
+
+export interface TrialBalanceResponse {
+  /** @nullable */
+  dateFrom?: string | null;
+  /** @nullable */
+  dateTo?: string | null;
+  rows: TrialBalanceRow[];
+  totalTurnoverDebit: string;
+  totalTurnoverCredit: string;
+  totalBalanceDebit: string;
+  totalBalanceCredit: string;
+}
+
 export interface AnthropicConversation {
   id: number;
   title: string;
@@ -1839,6 +1862,17 @@ dateFrom?: string;
 dateTo?: string;
 compareDateFrom?: string;
 compareDateTo?: string;
+};
+
+export type GetTrialBalanceParams = {
+/**
+ * Start of period (inclusive)
+ */
+dateFrom?: string;
+/**
+ * End of period (inclusive)
+ */
+dateTo?: string;
 };
 
 export type ListDocumentsParams = {

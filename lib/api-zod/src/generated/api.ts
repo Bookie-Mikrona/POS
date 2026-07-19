@@ -2296,6 +2296,38 @@ export const GetIncomeStatementResponse = zod.object({
 
 
 /**
+ * @summary Trial balance (bruto bilanca) — turnover and balance per account
+ */
+export const GetTrialBalanceParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetTrialBalanceQueryParams = zod.object({
+  "dateFrom": zod.date().optional().describe('Start of period (inclusive)'),
+  "dateTo": zod.date().optional().describe('End of period (inclusive)')
+})
+
+export const GetTrialBalanceResponse = zod.object({
+  "dateFrom": zod.coerce.date().nullish(),
+  "dateTo": zod.coerce.date().nullish(),
+  "rows": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "accountType": zod.string(),
+  "turnoverDebit": zod.string(),
+  "turnoverCredit": zod.string(),
+  "balanceDebit": zod.string(),
+  "balanceCredit": zod.string()
+})),
+  "totalTurnoverDebit": zod.string(),
+  "totalTurnoverCredit": zod.string(),
+  "totalBalanceDebit": zod.string(),
+  "totalBalanceCredit": zod.string()
+})
+
+
+/**
  * @summary List uploaded documents for a company
  */
 export const ListDocumentsParams = zod.object({

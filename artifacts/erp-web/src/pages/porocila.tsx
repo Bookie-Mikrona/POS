@@ -966,7 +966,7 @@ function TrialBalanceTab() {
     const q = search.trim().toLowerCase();
     if (!q) return data.rows;
     return data.rows.filter(
-      (r) => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q),
+      (r) => r.accountCode.toLowerCase().includes(q) || r.accountName.toLowerCase().includes(q),
     );
   }, [data, search]);
 
@@ -991,12 +991,10 @@ function TrialBalanceTab() {
   // Totals from data (unfiltered for accuracy)
   const totals = data
     ? {
-        openingDebit: data.totalOpeningDebit,
-        openingCredit: data.totalOpeningCredit,
-        periodDebit: data.totalPeriodDebit,
-        periodCredit: data.totalPeriodCredit,
-        closingDebit: data.totalClosingDebit,
-        closingCredit: data.totalClosingCredit,
+        turnoverDebit: data.totalTurnoverDebit,
+        turnoverCredit: data.totalTurnoverCredit,
+        balanceDebit: data.totalBalanceDebit,
+        balanceCredit: data.totalBalanceCredit,
       }
     : null;
 
@@ -1085,8 +1083,8 @@ function TrialBalanceTab() {
           {/* Balance check badge */}
           <div className="flex items-center gap-3 mb-3 print:hidden">
             <span className="text-sm font-medium">Skupaj knjižbe:</span>
-            {parseFloat(data.totalPeriodDebit).toFixed(2) ===
-            parseFloat(data.totalPeriodCredit).toFixed(2) ? (
+            {parseFloat(data.totalTurnoverDebit ?? "0").toFixed(2) ===
+            parseFloat(data.totalTurnoverCredit ?? "0").toFixed(2) ? (
               <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
                 ✓ Bilanca uravnotežena
               </Badge>
@@ -1108,20 +1106,15 @@ function TrialBalanceTab() {
                   <th className="text-left px-3 py-2 font-semibold w-24">Šifra</th>
                   <th className="text-left px-3 py-2 font-semibold">Naziv konta</th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
-                    Začetno stanje
-                  </th>
-                  <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
                     Promet v obdobju
                   </th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
-                    Končno stanje
+                    Saldo (kumulativno)
                   </th>
                 </tr>
                 <tr className="bg-muted/30 text-muted-foreground">
                   <th className="px-3 py-1"></th>
                   <th className="px-3 py-1"></th>
-                  <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
-                  <th className="text-right px-3 py-1 font-medium">Dobro</th>
                   <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
                   <th className="text-right px-3 py-1 font-medium">Dobro</th>
                   <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
@@ -1136,36 +1129,30 @@ function TrialBalanceTab() {
                       i % 2 === 0 ? "bg-background hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"
                     }
                   >
-                    <td className="px-3 py-1.5 font-mono text-xs tabular-nums">{row.code}</td>
+                    <td className="px-3 py-1.5 font-mono text-xs tabular-nums">{row.accountCode}</td>
                     <td className="px-3 py-1.5 max-w-xs">
-                      <span className="truncate block">{row.name}</span>
+                      <span className="truncate block">{row.accountName}</span>
                       <span className="text-muted-foreground text-[10px]">
-                        {ACCOUNT_TYPE_LABELS[row.type] ?? row.type}
+                        {ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30">
-                      {parseFloat(row.openingDebit) !== 0 ? fmtZ(row.openingDebit) : ""}
-                    </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">
-                      {parseFloat(row.openingCredit) !== 0 ? fmtZ(row.openingCredit) : ""}
-                    </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-blue-700 dark:text-blue-400">
-                      {parseFloat(row.periodDebit) !== 0 ? fmtZ(row.periodDebit) : ""}
+                      {parseFloat(row.turnoverDebit) !== 0 ? fmtZ(row.turnoverDebit) : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-blue-700 dark:text-blue-400">
-                      {parseFloat(row.periodCredit) !== 0 ? fmtZ(row.periodCredit) : ""}
+                      {parseFloat(row.turnoverCredit) !== 0 ? fmtZ(row.turnoverCredit) : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 font-medium">
-                      {parseFloat(row.closingDebit) !== 0 ? fmtZ(row.closingDebit) : ""}
+                      {parseFloat(row.balanceDebit) !== 0 ? fmtZ(row.balanceDebit) : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums font-medium">
-                      {parseFloat(row.closingCredit) !== 0 ? fmtZ(row.closingCredit) : ""}
+                      {parseFloat(row.balanceCredit) !== 0 ? fmtZ(row.balanceCredit) : ""}
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
                       Ni podatkov za izbrano obdobje.
                     </td>
                   </tr>
@@ -1177,23 +1164,17 @@ function TrialBalanceTab() {
                     <td className="px-3 py-2 text-xs uppercase tracking-wide" colSpan={2}>
                       Skupaj
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums border-l border-border/50">
-                      {fmt(totals.openingDebit)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {fmt(totals.openingCredit)}
-                    </td>
                     <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 text-blue-700 dark:text-blue-400">
-                      {fmt(totals.periodDebit)}
+                      {fmt(totals.turnoverDebit)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-blue-700 dark:text-blue-400">
-                      {fmt(totals.periodCredit)}
+                      {fmt(totals.turnoverCredit)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums border-l border-border/50">
-                      {fmt(totals.closingDebit)}
+                      {fmt(totals.balanceDebit)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {fmt(totals.closingCredit)}
+                      {fmt(totals.balanceCredit)}
                     </td>
                   </tr>
                 </tfoot>

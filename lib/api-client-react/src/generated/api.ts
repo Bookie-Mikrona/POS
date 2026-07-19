@@ -52,6 +52,7 @@ import type {
   GetIncomeStatementParams,
   GetLedgerParams,
   GetOpenItemsParams,
+  GetTrialBalanceParams,
   GetVatRegisterParams,
   GetVatReturnParams,
   HealthStatus,
@@ -94,6 +95,7 @@ import type {
   RoleAssignment,
   SeedAccountsResponse,
   SeedVatCodesResponse,
+  TrialBalanceResponse,
   UnauthorizedResponse,
   UpdateAccountBody,
   UpdateCounterpartyBody,
@@ -4604,6 +4606,95 @@ export function useGetIncomeStatement<TData = Awaited<ReturnType<typeof getIncom
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetIncomeStatementQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTrialBalanceUrl = (companyId: string,
+    params?: GetTrialBalanceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/reports/trial-balance?${stringifiedParams}` : `/api/companies/${companyId}/reports/trial-balance`
+}
+
+/**
+ * @summary Trial balance (bruto bilanca) — turnover and balance per account
+ */
+export const getTrialBalance = async (companyId: string,
+    params?: GetTrialBalanceParams, options?: RequestInit): Promise<TrialBalanceResponse> => {
+
+  return customFetch<TrialBalanceResponse>(getGetTrialBalanceUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTrialBalanceQueryKey = (companyId: string,
+    params?: GetTrialBalanceParams,) => {
+    return [
+    `/api/companies/${companyId}/reports/trial-balance`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTrialBalanceQueryOptions = <TData = Awaited<ReturnType<typeof getTrialBalance>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: GetTrialBalanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTrialBalance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTrialBalanceQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTrialBalance>>> = ({ signal }) => getTrialBalance(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTrialBalance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTrialBalanceQueryResult = NonNullable<Awaited<ReturnType<typeof getTrialBalance>>>
+export type GetTrialBalanceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Trial balance (bruto bilanca) — turnover and balance per account
+ */
+
+export function useGetTrialBalance<TData = Awaited<ReturnType<typeof getTrialBalance>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: GetTrialBalanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTrialBalance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTrialBalanceQueryOptions(companyId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
