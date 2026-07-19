@@ -496,4 +496,168 @@ router.get(
   },
 );
 
+// ── Trial Balance (Bruto bilanca / Preizkusna bilanca) ────────────────────────
+
+interface TrialBalanceRow {
+  accountId: string;
+  code: string;
+  name: string;
+  type: string;
+  /** Opening balance: debit side */
+  openingDebit: string;
+  /** Opening balance: credit side */
+  openingCredit: string;
+  /** Period turnover: debit */
+  periodDebit: string;
+  /** Period turnover: credit */
+  periodCredit: string;
+  /** Closing balance: debit side */
+  closingDebit: string;
+  /** Closing balance: credit side */
+  closingCredit: string;
+}
+
+interface TrialBalanceResponse {
+  dateFrom: string | null;
+  dateTo: string | null;
+  rows: TrialBalanceRow[];
+  totalOpeningDebit: string;
+  totalOpeningCredit: string;
+  totalPeriodDebit: string;
+  totalPeriodCredit: string;
+  totalClosingDebit: string;
+  totalClosingCredit: string;
+}
+
+/**
+ * Aggregate raw debit/credit sums per account for a given date range.
+ * Unlike aggregateBalances, this keeps raw debit/credit separate (no sign flip).
+ */
+async function aggregateRaw(
+  companyId: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<Map<string, { code: string; name: string; type: string; debit: number; credit: number }>> {
+  const conditions = [
+    eq(journalEntriesTable.companyId, companyId),
+    eq(journalEntriesTable.status, "posted"),
+  ];
+  if (dateFrom) conditions.push(gte(journalEntriesTable.entryDate, dateFrom));
+  if (dateTo) conditions.push(lte(journalEntriesTable.entryDate, dateTo));
+
+  const rows = await db
+    .select({
+      accountId: journalEntryLinesTable.accountId,
+      accountCode: accountsTable.code,
+      accountName: accountsTable.name,
+      accountType: accountsTable.type,
+      side: journalEntryLinesTable.side,
+      total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+    })
+    .from(journalEntryLinesTable)
+    .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+    .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+    .where(and(...conditions))
+    .groupBy(
+      journalEntryLinesTable.accountId,
+      journalEntryLinesTable.side,
+      accountsTable.code,
+      accountsTable.name,
+      accountsTable.type,
+    );
+
+  const map = new Map<string, { code: string; name: string; type: string; debit: number; credit: number }>();
+  for (const row of rows) {
+    const existing = map.get(row.accountId) ?? {
+      code: row.accountCode,
+      name: row.accountName,
+      type: row.accountType,
+      debit: 0,
+      credit: 0,
+    };
+    const amount = parseFloat(row.total ?? "0");
+    if (row.side === "debit") existing.debit += amount;
+    else existing.credit += amount;
+    map.set(row.accountId, existing);
+  }
+  return map;
+}
+
+router.get(
+  "/companies/:companyId/reports/trial-balance",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const companyId = extractParam(req.params.companyId);
+    const authReq = req as AuthenticatedRequest;
+
+    if (!(await resolveAccess(authReq.clerkUserId, companyId, res))) return;
+
+    const { dateFrom: dfRaw, dateTo: dtRaw } = req.query as Record<string, string | undefined>;
+    const dateFrom = dfRaw ?? undefined;
+    const dateTo = dtRaw ?? undefined;
+
+    // Opening: all posted entries BEFORE dateFrom (if provided)
+    // Period: entries in [dateFrom, dateTo]
+    // Closing: opening + period
+
+    const [openingMap, periodMap] = await Promise.all([
+      dateFrom
+        ? aggregateRaw(companyId, undefined, subtractOneDay(dateFrom))
+        : Promise.resolve(new Map<string, { code: string; name: string; type: string; debit: number; credit: number }>()),
+      aggregateRaw(companyId, dateFrom, dateTo),
+    ]);
+
+    // Collect all account IDs that appear in either map
+    const allIds = new Set([...openingMap.keys(), ...periodMap.keys()]);
+
+    // If no dateFrom, opening is zero; period covers everything up to dateTo
+    const rows: TrialBalanceRow[] = Array.from(allIds)
+      .map((accountId) => {
+        const o = openingMap.get(accountId) ?? { code: "", name: "", type: "", debit: 0, credit: 0 };
+        const p = periodMap.get(accountId) ?? { code: o.code, name: o.name, type: o.type, debit: 0, credit: 0 };
+        const meta = openingMap.get(accountId) ?? periodMap.get(accountId)!;
+
+        const closingDebit = o.debit + p.debit;
+        const closingCredit = o.credit + p.credit;
+
+        return {
+          accountId,
+          code: meta.code,
+          name: meta.name,
+          type: meta.type,
+          openingDebit: o.debit.toFixed(2),
+          openingCredit: o.credit.toFixed(2),
+          periodDebit: p.debit.toFixed(2),
+          periodCredit: p.credit.toFixed(2),
+          closingDebit: closingDebit.toFixed(2),
+          closingCredit: closingCredit.toFixed(2),
+        };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    const sum = (field: keyof TrialBalanceRow) =>
+      rows.reduce((s, r) => s + parseFloat(r[field] as string), 0).toFixed(2);
+
+    const response: TrialBalanceResponse = {
+      dateFrom: dateFrom ?? null,
+      dateTo: dateTo ?? null,
+      rows,
+      totalOpeningDebit: sum("openingDebit"),
+      totalOpeningCredit: sum("openingCredit"),
+      totalPeriodDebit: sum("periodDebit"),
+      totalPeriodCredit: sum("periodCredit"),
+      totalClosingDebit: sum("closingDebit"),
+      totalClosingCredit: sum("closingCredit"),
+    };
+
+    res.json(response);
+  },
+);
+
+function subtractOneDay(dateStr: string): string {
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export default router;

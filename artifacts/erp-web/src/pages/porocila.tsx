@@ -15,9 +15,11 @@ import {
   useGetBalanceSheet,
   useGetIncomeStatement,
   useListPeriods,
+  useGetTrialBalance,
   type ReportSection,
   type BalanceSheetData,
   type IncomeStatementData,
+  type TrialBalanceRow,
 } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -923,6 +925,301 @@ function IncomeStatementTab() {
   );
 }
 
+// ── Trial Balance (Preizkusna bilanca / Bruto bilanca) ────────────────────────
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  asset: "Sredstva",
+  liability: "Obveznosti",
+  equity: "Kapital",
+  revenue: "Prihodki",
+  expense: "Odhodki",
+};
+
+function TrialBalanceTab() {
+  const { company } = useCompany();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const [dateFrom, setDateFrom] = useState(yearStart());
+  const [dateTo, setDateTo] = useState(todayStr());
+  const [queried, setQueried] = useState(false);
+  const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const [appliedFrom, setAppliedFrom] = useState(yearStart());
+  const [appliedTo, setAppliedTo] = useState(todayStr());
+
+  const { data, isFetching, isError, error } = useGetTrialBalance(
+    company?.id ?? "",
+    { dateFrom: appliedFrom, dateTo: appliedTo },
+    { query: { enabled: !!company?.id && queried } },
+  );
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setAppliedFrom(dateFrom);
+    setAppliedTo(dateTo);
+    setQueried(true);
+  }
+
+  const filtered: TrialBalanceRow[] = React.useMemo(() => {
+    if (!data) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return data.rows;
+    return data.rows.filter(
+      (r) => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q),
+    );
+  }, [data, search]);
+
+  async function handleExportPdf() {
+    if (!data || !company) return;
+    setExporting(true);
+    try {
+      await exportToPdf({
+        contentRef,
+        companyName: company.name,
+        reportTitle: "Bruto bilanca (preizkusna bilanca)",
+        subtitle: `Obdobje: ${appliedFrom} – ${appliedTo}`,
+        filename: `bruto-bilanca-${appliedFrom}-${appliedTo}.pdf`,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const fmtZ = (v: string) => fmt(v) === "—" ? "—" : fmt(v);
+
+  // Totals from data (unfiltered for accuracy)
+  const totals = data
+    ? {
+        openingDebit: data.totalOpeningDebit,
+        openingCredit: data.totalOpeningCredit,
+        periodDebit: data.totalPeriodDebit,
+        periodCredit: data.totalPeriodCredit,
+        closingDebit: data.totalClosingDebit,
+        closingCredit: data.totalClosingCredit,
+      }
+    : null;
+
+  return (
+    <div className="space-y-5">
+      {/* Filters */}
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-wrap items-end gap-3 bg-muted/40 rounded-lg p-4 print:hidden"
+      >
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="tb-from" className="text-xs">Datum od</Label>
+          <Input
+            id="tb-from"
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-36 h-8 text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="tb-to" className="text-xs">Datum do</Label>
+          <Input
+            id="tb-to"
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-36 h-8 text-sm"
+          />
+        </div>
+        <Button type="submit" size="sm" disabled={isFetching} className="h-8">
+          {isFetching ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+          Prikaži
+        </Button>
+        {queried && data && (
+          <>
+            <div className="flex flex-col gap-1 ml-auto">
+              <Label htmlFor="tb-search" className="text-xs">Iskanje konta</Label>
+              <Input
+                id="tb-search"
+                placeholder="Šifra ali naziv…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-44 h-8 text-sm"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              disabled={exporting}
+              onClick={handleExportPdf}
+            >
+              {exporting ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Download className="h-3 w-3 mr-1" />
+              )}
+              PDF
+            </Button>
+          </>
+        )}
+      </form>
+
+      {isError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka</AlertTitle>
+          <AlertDescription>
+            {(error as Error)?.message ?? "Poizvedba ni uspela."}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isFetching && (
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-7 w-full" />
+          ))}
+        </div>
+      )}
+
+      {queried && data && !isFetching && (
+        <div ref={contentRef}>
+          {/* Balance check badge */}
+          <div className="flex items-center gap-3 mb-3 print:hidden">
+            <span className="text-sm font-medium">Skupaj knjižbe:</span>
+            {parseFloat(data.totalPeriodDebit).toFixed(2) ===
+            parseFloat(data.totalPeriodCredit).toFixed(2) ? (
+              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                ✓ Bilanca uravnotežena
+              </Badge>
+            ) : (
+              <Badge variant="destructive">
+                ✗ Bilanca ni uravnotežena
+              </Badge>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto">
+              {filtered.length} kontov
+              {search ? ` (filter: ${data.rows.length} skupaj)` : ""}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/60">
+                  <th className="text-left px-3 py-2 font-semibold w-24">Šifra</th>
+                  <th className="text-left px-3 py-2 font-semibold">Naziv konta</th>
+                  <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
+                    Začetno stanje
+                  </th>
+                  <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
+                    Promet v obdobju
+                  </th>
+                  <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
+                    Končno stanje
+                  </th>
+                </tr>
+                <tr className="bg-muted/30 text-muted-foreground">
+                  <th className="px-3 py-1"></th>
+                  <th className="px-3 py-1"></th>
+                  <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
+                  <th className="text-right px-3 py-1 font-medium">Dobro</th>
+                  <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
+                  <th className="text-right px-3 py-1 font-medium">Dobro</th>
+                  <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
+                  <th className="text-right px-3 py-1 font-medium">Dobro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row, i) => (
+                  <tr
+                    key={row.accountId}
+                    className={
+                      i % 2 === 0 ? "bg-background hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"
+                    }
+                  >
+                    <td className="px-3 py-1.5 font-mono text-xs tabular-nums">{row.code}</td>
+                    <td className="px-3 py-1.5 max-w-xs">
+                      <span className="truncate block">{row.name}</span>
+                      <span className="text-muted-foreground text-[10px]">
+                        {ACCOUNT_TYPE_LABELS[row.type] ?? row.type}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30">
+                      {parseFloat(row.openingDebit) !== 0 ? fmtZ(row.openingDebit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">
+                      {parseFloat(row.openingCredit) !== 0 ? fmtZ(row.openingCredit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-blue-700 dark:text-blue-400">
+                      {parseFloat(row.periodDebit) !== 0 ? fmtZ(row.periodDebit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-blue-700 dark:text-blue-400">
+                      {parseFloat(row.periodCredit) !== 0 ? fmtZ(row.periodCredit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 font-medium">
+                      {parseFloat(row.closingDebit) !== 0 ? fmtZ(row.closingDebit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums font-medium">
+                      {parseFloat(row.closingCredit) !== 0 ? fmtZ(row.closingCredit) : ""}
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                      Ni podatkov za izbrano obdobje.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              {totals && (
+                <tfoot>
+                  <tr className="bg-muted/60 font-semibold border-t-2 border-border">
+                    <td className="px-3 py-2 text-xs uppercase tracking-wide" colSpan={2}>
+                      Skupaj
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums border-l border-border/50">
+                      {fmt(totals.openingDebit)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {fmt(totals.openingCredit)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 text-blue-700 dark:text-blue-400">
+                      {fmt(totals.periodDebit)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-blue-700 dark:text-blue-400">
+                      {fmt(totals.periodCredit)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums border-l border-border/50">
+                      {fmt(totals.closingDebit)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {fmt(totals.closingCredit)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          {/* Print header (hidden on screen) */}
+          <div className="hidden print:block mb-4">
+            <p className="text-base font-bold">{company?.name}</p>
+            <p className="text-sm font-semibold">Bruto bilanca (preizkusna bilanca)</p>
+            <p className="text-xs text-muted-foreground">Obdobje: {appliedFrom} – {appliedTo}</p>
+          </div>
+        </div>
+      )}
+
+      {!queried && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <FileText className="h-12 w-12 mb-4 opacity-30" />
+          <p className="text-sm">Izberite obdobje in kliknite »Prikaži«.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page root ─────────────────────────────────────────────────────────────────
 
 export default function Porocila() {
@@ -932,7 +1229,7 @@ export default function Porocila() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Finančna poročila</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Bilanca stanja in izkaz poslovnega izida po SRS klasifikaciji kontov.
+          Bilanca stanja, izkaz poslovnega izida in bruto bilanca kontov po SRS.
         </p>
       </div>
 
@@ -940,6 +1237,7 @@ export default function Porocila() {
         <TabsList>
           <TabsTrigger value="balance-sheet">Bilanca stanja</TabsTrigger>
           <TabsTrigger value="income-statement">Izkaz poslovnega izida</TabsTrigger>
+          <TabsTrigger value="trial-balance">Bruto bilanca</TabsTrigger>
         </TabsList>
 
         <TabsContent value="balance-sheet" className="mt-0">
@@ -948,6 +1246,10 @@ export default function Porocila() {
 
         <TabsContent value="income-statement" className="mt-0">
           <IncomeStatementTab />
+        </TabsContent>
+
+        <TabsContent value="trial-balance" className="mt-0">
+          <TrialBalanceTab />
         </TabsContent>
       </Tabs>
 
