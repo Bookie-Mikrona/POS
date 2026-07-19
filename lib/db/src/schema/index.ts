@@ -13,6 +13,7 @@ export * from "./payments";
 export * from "./vat-codes";
 export * from "./documents";
 export * from "./counterparty-account-templates";
+export * from "./company-import-config";
 export * from "./conversations";
 export * from "./messages";
 // ── POS: Gostinstvo ──────────────────────────────────────────────────────────

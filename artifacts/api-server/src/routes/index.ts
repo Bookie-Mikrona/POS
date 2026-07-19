@@ -16,6 +16,7 @@ import storageRouter from "./storage";
 import bankStatementsRouter from "./bankStatements";
 import dimensionsRouter from "./dimensions";
 import reportsRouter from "./reports";
+import importConfigRouter from "./importConfig";
 import posRouter from "./pos/index";
 import adminRouter from "./admin";
 
@@ -38,6 +39,7 @@ router.use(storageRouter);
 router.use(bankStatementsRouter);
 router.use(dimensionsRouter);
 router.use(reportsRouter);
+router.use(importConfigRouter);
 router.use(posRouter);
 router.use("/admin", adminRouter);
 

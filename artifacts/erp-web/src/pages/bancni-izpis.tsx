@@ -169,42 +169,41 @@ async function matchTransactions(
 
 type Step = "upload" | "review" | "confirm";
 
-// ─── Import config persistence ────────────────────────────────────────────────
+// ─── Import config persistence (API-based) ───────────────────────────────────
 
 interface SavedImportConfig {
-  bankAccountId: string;
-  arAccountId: string;
-  apAccountId: string;
+  bankAccountId: string | null;
+  arAccountId: string | null;
+  apAccountId: string | null;
 }
 
-function importConfigKey(companyId: string) {
-  return `erp:import-config:${companyId}`;
-}
-
-function loadImportConfig(companyId: string): SavedImportConfig | null {
+async function fetchImportConfig(companyId: string): Promise<SavedImportConfig | null> {
   try {
-    const raw = localStorage.getItem(importConfigKey(companyId));
-    if (!raw) return null;
-    return JSON.parse(raw) as SavedImportConfig;
+    const resp = await fetch(`/api/companies/${companyId}/import-config`);
+    if (!resp.ok) return null;
+    const data = await resp.json() as SavedImportConfig;
+    // Return null if all fields are empty so callers treat it as "no config"
+    if (!data.bankAccountId && !data.arAccountId && !data.apAccountId) return null;
+    return data;
   } catch {
     return null;
   }
 }
 
-function saveImportConfig(companyId: string, config: SavedImportConfig) {
+async function saveImportConfigApi(companyId: string, config: SavedImportConfig): Promise<void> {
   try {
-    localStorage.setItem(importConfigKey(companyId), JSON.stringify(config));
+    await fetch(`/api/companies/${companyId}/import-config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
   } catch {
-    // localStorage might be unavailable — silently skip
+    // Network error — silently skip (non-critical)
   }
 }
 
-function clearImportConfig(companyId: string) {
-  try {
-    localStorage.removeItem(importConfigKey(companyId));
-  } catch {
-    // ignore
-  }
+async function clearImportConfigApi(companyId: string): Promise<void> {
+  await saveImportConfigApi(companyId, { bankAccountId: null, arAccountId: null, apAccountId: null });
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -231,13 +230,21 @@ export default function BancniIzpis() {
   // Load saved config when the active company changes
   useEffect(() => {
     if (!activeCompany) return;
-    const saved = loadImportConfig(activeCompany.id);
-    // Always assign all three fields unconditionally (default to "") to prevent
-    // stale values from a previous company remaining in state.
-    setBankAccountId(saved?.bankAccountId ?? "");
-    setArAccountId(saved?.arAccountId ?? "");
-    setApAccountId(saved?.apAccountId ?? "");
-    setConfigLoaded(!!saved);
+    // Clear immediately to prevent stale values from a previous company
+    setBankAccountId("");
+    setArAccountId("");
+    setApAccountId("");
+    setConfigLoaded(false);
+    const companyId = activeCompany.id;
+    fetchImportConfig(companyId).then(saved => {
+      // Guard: company may have changed while the request was in-flight
+      if (companyId !== activeCompany.id) return;
+      setBankAccountId(saved?.bankAccountId ?? "");
+      setArAccountId(saved?.arAccountId ?? "");
+      setApAccountId(saved?.apAccountId ?? "");
+      setConfigLoaded(!!saved);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id]);
 
   // Skipped rows from the last parse
@@ -327,8 +334,8 @@ export default function BancniIzpis() {
     // invocation; the ref is the shared signal that reset() can clear.
     const companyIdAtStart = activeCompany.id;
     wizardCompanyIdRef.current = companyIdAtStart;
-    // Persist the current account configuration for next time
-    saveImportConfig(activeCompany.id, { bankAccountId, arAccountId, apAccountId });
+    // Persist the current account configuration for next time (fire-and-forget)
+    saveImportConfigApi(activeCompany.id, { bankAccountId, arAccountId, apAccountId });
     setConfigLoaded(true);
     setParsing(true);
     setParseError(null);
@@ -506,20 +513,6 @@ export default function BancniIzpis() {
     setStep("upload");
     setFile(null);
     setPeriodId("");
-    // Re-hydrate account fields from saved config so that "Nov uvoz" in the
-    // same session still shows prefilled values (same behaviour as page reload).
-    if (activeCompany) {
-      const saved = loadImportConfig(activeCompany.id);
-      setBankAccountId(saved?.bankAccountId ?? "");
-      setArAccountId(saved?.arAccountId ?? "");
-      setApAccountId(saved?.apAccountId ?? "");
-      setConfigLoaded(!!saved);
-    } else {
-      setBankAccountId("");
-      setArAccountId("");
-      setApAccountId("");
-      setConfigLoaded(false);
-    }
     setSuggestions([]);
     setDecisions(new Map());
     setSkippedRows([]);
@@ -527,6 +520,22 @@ export default function BancniIzpis() {
     setConfirmError(null);
     setParseError(null);
     setAutoPost(false);
+    // Re-hydrate account fields from saved config so that "Nov uvoz" in the
+    // same session still shows prefilled values (same behaviour as page reload).
+    if (activeCompany) {
+      const companyId = activeCompany.id;
+      fetchImportConfig(companyId).then(saved => {
+        setBankAccountId(saved?.bankAccountId ?? "");
+        setArAccountId(saved?.arAccountId ?? "");
+        setApAccountId(saved?.apAccountId ?? "");
+        setConfigLoaded(!!saved);
+      });
+    } else {
+      setBankAccountId("");
+      setArAccountId("");
+      setApAccountId("");
+      setConfigLoaded(false);
+    }
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -610,7 +619,7 @@ export default function BancniIzpis() {
                   title="Ponastavi nastavitve na privzete vrednosti"
                   onClick={() => {
                     if (!activeCompany) return;
-                    clearImportConfig(activeCompany.id);
+                    clearImportConfigApi(activeCompany.id);
                     setBankAccountId("");
                     setArAccountId("");
                     setApAccountId("");
