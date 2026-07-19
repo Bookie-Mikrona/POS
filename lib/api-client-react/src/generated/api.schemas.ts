@@ -1548,19 +1548,9 @@ export interface BalanceSheetSide {
   total: string;
 }
 
-export interface AccountTypeWarning {
-  accountId: string;
-  code: string;
-  name: string;
-  storedType: string;
-  effectiveType: string;
-}
-
 export interface BalanceSheetData {
   aktiva: BalanceSheetSide;
   pasiva: BalanceSheetSide;
-  /** @nullable */
-  typeWarnings?: AccountTypeWarning[] | null;
 }
 
 export interface BalanceSheetResponse {
@@ -1581,8 +1571,6 @@ export interface IncomeStatementData {
   revenue: PLSide;
   expenses: PLSide;
   netResult: string;
-  /** @nullable */
-  typeWarnings?: AccountTypeWarning[] | null;
 }
 
 export interface IncomeStatementResponse {
