@@ -22,6 +22,8 @@ import type {
 import type {
   AccountRecord,
   AgedAnalysisResponse,
+  AjpesLookupBody,
+  AjpesLookupResponse,
   AnthropicConversation,
   AnthropicConversationInput,
   AssignRoleBody,
@@ -1666,6 +1668,79 @@ export const useCreateCounterparty = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateCounterpartyMutationOptions(options));
+    }
+
+export const getAjpesLookupUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/counterparties/ajpes-lookup`
+}
+
+/**
+ * Sprejme davčno številko in vrne podatke podjetja iz AJPES registra. V produkciji bi klicali pravi AJPES API; trenutno vrača realistične testne podatke.
+ * @summary Poizvedba po AJPES registru (simulacija)
+ */
+export const ajpesLookup = async (companyId: string,
+    ajpesLookupBody: AjpesLookupBody, options?: RequestInit): Promise<AjpesLookupResponse> => {
+
+  return customFetch<AjpesLookupResponse>(getAjpesLookupUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ajpesLookupBody)
+  }
+);}
+
+
+
+
+
+export const getAjpesLookupMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ajpesLookup>>, TError,{companyId: string;data: BodyType<AjpesLookupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ajpesLookup>>, TError,{companyId: string;data: BodyType<AjpesLookupBody>}, TContext> => {
+
+const mutationKey = ['ajpesLookup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ajpesLookup>>, {companyId: string;data: BodyType<AjpesLookupBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  ajpesLookup(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AjpesLookupMutationResult = NonNullable<Awaited<ReturnType<typeof ajpesLookup>>>
+    export type AjpesLookupMutationBody = BodyType<AjpesLookupBody>
+    export type AjpesLookupMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Poizvedba po AJPES registru (simulacija)
+ */
+export const useAjpesLookup = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ajpesLookup>>, TError,{companyId: string;data: BodyType<AjpesLookupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof ajpesLookup>>,
+        TError,
+        {companyId: string;data: BodyType<AjpesLookupBody>},
+        TContext
+      > => {
+      return useMutation(getAjpesLookupMutationOptions(options));
     }
 
 export const getGetCounterpartyUrl = (companyId: string,

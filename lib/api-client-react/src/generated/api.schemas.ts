@@ -603,6 +603,13 @@ export interface CounterpartyRecord {
   name: string;
   /** @nullable */
   taxId?: string | null;
+  /**
+     * Matična številka podjetja (8-mestna, AJPES register)
+     * @nullable
+     */
+  registrationNumber?: string | null;
+  /** Zavezanec za DDV */
+  vatPayer: boolean;
   /** @nullable */
   address?: string | null;
   /** @nullable */
@@ -651,6 +658,14 @@ export interface CreateCounterpartyBody {
      * @nullable
      */
   taxId?: string | null;
+  /**
+     * Matična številka podjetja
+     * @maxLength 20
+     * @nullable
+     */
+  registrationNumber?: string | null;
+  /** Zavezanec za DDV */
+  vatPayer?: boolean;
   /** @nullable */
   address?: string | null;
   /**
@@ -708,6 +723,12 @@ export interface UpdateCounterpartyBody {
   name?: string;
   /** @nullable */
   taxId?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  registrationNumber?: string | null;
+  vatPayer?: boolean;
   /** @nullable */
   address?: string | null;
   /** @nullable */
@@ -727,6 +748,39 @@ export interface UpdateCounterpartyBody {
   /** @nullable */
   notes?: string | null;
   isActive?: boolean;
+}
+
+/**
+ * Vir podatkov (ajpes_sim = simulacija)
+ */
+export type AjpesLookupResponseSource = typeof AjpesLookupResponseSource[keyof typeof AjpesLookupResponseSource];
+
+
+export const AjpesLookupResponseSource = {
+  ajpes_sim: 'ajpes_sim',
+} as const;
+
+/**
+ * Simuliran odgovor AJPES poizvedbe po davčni številki
+ */
+export interface AjpesLookupResponse {
+  found: boolean;
+  taxId: string;
+  /** @nullable */
+  registrationNumber?: string | null;
+  name: string;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  postCode?: string | null;
+  /** @nullable */
+  city?: string | null;
+  country: string;
+  vatPayer: boolean;
+  /** @nullable */
+  iban?: string | null;
+  /** Vir podatkov (ajpes_sim = simulacija) */
+  source: AjpesLookupResponseSource;
 }
 
 export interface InvoiceLine {
@@ -1606,6 +1660,11 @@ export const ListCounterpartiesType = {
   supplier: 'supplier',
   both: 'both',
 } as const;
+
+export type AjpesLookupBody = {
+  /** Davčna številka (npr. SI12345678 ali 12345678) */
+  taxId: string;
+};
 
 export type ListInvoicesParams = {
 type?: ListInvoicesType;

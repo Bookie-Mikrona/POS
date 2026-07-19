@@ -638,6 +638,8 @@ export const ListCounterpartiesResponse = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']),
   "name": zod.string(),
   "taxId": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish().describe('Matična številka podjetja (8-mestna, AJPES register)'),
+  "vatPayer": zod.boolean().describe('Zavezanec za DDV'),
   "address": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -665,6 +667,9 @@ export const createCounterpartyBodyNameMax = 200;
 
 export const createCounterpartyBodyTaxIdMax = 30;
 
+export const createCounterpartyBodyRegistrationNumberMax = 20;
+
+export const createCounterpartyBodyVatPayerDefault = false;
 export const createCounterpartyBodyPostCodeMax = 10;
 
 export const createCounterpartyBodyCityMax = 100;
@@ -684,6 +689,8 @@ export const CreateCounterpartyBody = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']),
   "name": zod.string().min(1).max(createCounterpartyBodyNameMax),
   "taxId": zod.string().max(createCounterpartyBodyTaxIdMax).nullish(),
+  "registrationNumber": zod.string().max(createCounterpartyBodyRegistrationNumberMax).nullish().describe('Matična številka podjetja'),
+  "vatPayer": zod.boolean().default(createCounterpartyBodyVatPayerDefault).describe('Zavezanec za DDV'),
   "address": zod.string().nullish(),
   "postCode": zod.string().max(createCounterpartyBodyPostCodeMax).nullish(),
   "city": zod.string().max(createCounterpartyBodyCityMax).nullish(),
@@ -701,6 +708,8 @@ export const CreateCounterpartyResponse = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']),
   "name": zod.string(),
   "taxId": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish().describe('Matična številka podjetja (8-mestna, AJPES register)'),
+  "vatPayer": zod.boolean().describe('Zavezanec za DDV'),
   "address": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -717,6 +726,33 @@ export const CreateCounterpartyResponse = zod.object({
 
 
 /**
+ * Sprejme davčno številko in vrne podatke podjetja iz AJPES registra. V produkciji bi klicali pravi AJPES API; trenutno vrača realistične testne podatke.
+ * @summary Poizvedba po AJPES registru (simulacija)
+ */
+export const AjpesLookupParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const AjpesLookupBody = zod.object({
+  "taxId": zod.string().describe('Davčna številka (npr. SI12345678 ali 12345678)')
+})
+
+export const AjpesLookupResponse = zod.object({
+  "found": zod.boolean(),
+  "taxId": zod.string(),
+  "registrationNumber": zod.string().nullish(),
+  "name": zod.string(),
+  "address": zod.string().nullish(),
+  "postCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "country": zod.string(),
+  "vatPayer": zod.boolean(),
+  "iban": zod.string().nullish(),
+  "source": zod.enum(['ajpes_sim']).describe('Vir podatkov (ajpes_sim = simulacija)')
+}).describe('Simuliran odgovor AJPES poizvedbe po davčni številki')
+
+
+/**
  * @summary Get counterparty detail
  */
 export const GetCounterpartyParams = zod.object({
@@ -730,6 +766,8 @@ export const GetCounterpartyResponse = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']),
   "name": zod.string(),
   "taxId": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish().describe('Matična številka podjetja (8-mestna, AJPES register)'),
+  "vatPayer": zod.boolean().describe('Zavezanec za DDV'),
   "address": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -755,12 +793,16 @@ export const UpdateCounterpartyParams = zod.object({
 
 export const updateCounterpartyBodyNameMax = 200;
 
+export const updateCounterpartyBodyRegistrationNumberMax = 20;
+
 
 
 export const UpdateCounterpartyBody = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']).optional(),
   "name": zod.string().min(1).max(updateCounterpartyBodyNameMax).optional(),
   "taxId": zod.string().nullish(),
+  "registrationNumber": zod.string().max(updateCounterpartyBodyRegistrationNumberMax).nullish(),
+  "vatPayer": zod.boolean().optional(),
   "address": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -779,6 +821,8 @@ export const UpdateCounterpartyResponse = zod.object({
   "type": zod.enum(['customer', 'supplier', 'both']),
   "name": zod.string(),
   "taxId": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish().describe('Matična številka podjetja (8-mestna, AJPES register)'),
+  "vatPayer": zod.boolean().describe('Zavezanec za DDV'),
   "address": zod.string().nullish(),
   "postCode": zod.string().nullish(),
   "city": zod.string().nullish(),

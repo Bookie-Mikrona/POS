@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, or, ilike, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import {
   db,
   counterpartiesTable,
@@ -10,6 +10,7 @@ import {
   UpdateCounterpartyBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { ajpesLookup } from "../lib/ajpesSim";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,28 @@ async function resolveAccess(
   }
   return { role: row.role };
 }
+
+// POST /companies/:companyId/counterparties/ajpes-lookup
+router.post(
+  "/companies/:companyId/counterparties/ajpes-lookup",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+
+    const { taxId } = req.body as { taxId?: string };
+    if (!taxId || typeof taxId !== "string" || !taxId.trim()) {
+      res.status(400).json({ error: "Davčna številka je obvezna" });
+      return;
+    }
+
+    const result = await ajpesLookup(taxId);
+    res.json(result);
+  },
+);
 
 // GET /companies/:companyId/counterparties
 router.get(

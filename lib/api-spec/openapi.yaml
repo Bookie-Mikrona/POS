@@ -862,6 +862,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/counterparties/ajpes-lookup:
+    post:
+      operationId: ajpesLookup
+      tags: [counterparties]
+      summary: Poizvedba po AJPES registru (simulacija)
+      description: Sprejme davčno številko in vrne podatke podjetja iz AJPES registra. V produkciji bi klicali pravi AJPES API; trenutno vrača realistične testne podatke.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                taxId:
+                  type: string
+                  description: Davčna številka (npr. SI12345678 ali 12345678)
+              required: [taxId]
+      responses:
+        "200":
+          description: Rezultat AJPES poizvedbe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AjpesLookupResponse"
+        "400":
+          description: Manjkajoča ali neveljavna davčna številka
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /companies/{companyId}/counterparties/{id}:
     get:
       operationId: getCounterparty
@@ -3475,6 +3525,12 @@ components:
           type: string
         taxId:
           type: ["string", "null"]
+        registrationNumber:
+          type: ["string", "null"]
+          description: Matična številka podjetja (8-mestna, AJPES register)
+        vatPayer:
+          type: boolean
+          description: Zavezanec za DDV
         address:
           type: ["string", "null"]
         postCode:
@@ -3501,7 +3557,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, companyId, type, name, isActive, createdAt, updatedAt]
+      required: [id, companyId, type, name, vatPayer, isActive, createdAt, updatedAt]
     ListCounterpartiesResponse:
       type: object
       properties:
@@ -3523,6 +3579,14 @@ components:
         taxId:
           type: ["string", "null"]
           maxLength: 30
+        registrationNumber:
+          type: ["string", "null"]
+          maxLength: 20
+          description: Matična številka podjetja
+        vatPayer:
+          type: boolean
+          description: Zavezanec za DDV
+          default: false
         address:
           type: ["string", "null"]
         postCode:
@@ -3561,6 +3625,11 @@ components:
           maxLength: 200
         taxId:
           type: ["string", "null"]
+        registrationNumber:
+          type: ["string", "null"]
+          maxLength: 20
+        vatPayer:
+          type: boolean
         address:
           type: ["string", "null"]
         postCode:
@@ -3581,6 +3650,35 @@ components:
           type: ["string", "null"]
         isActive:
           type: boolean
+    AjpesLookupResponse:
+      type: object
+      description: Simuliran odgovor AJPES poizvedbe po davčni številki
+      properties:
+        found:
+          type: boolean
+        taxId:
+          type: string
+        registrationNumber:
+          type: ["string", "null"]
+        name:
+          type: string
+        address:
+          type: ["string", "null"]
+        postCode:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        country:
+          type: string
+        vatPayer:
+          type: boolean
+        iban:
+          type: ["string", "null"]
+        source:
+          type: string
+          enum: [ajpes_sim]
+          description: Vir podatkov (ajpes_sim = simulacija)
+      required: [found, taxId, name, vatPayer, country, source]
 
     # ── Invoices ──────────────────────────────────────────────────────────────
     InvoiceLine:

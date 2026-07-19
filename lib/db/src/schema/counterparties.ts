@@ -28,6 +28,10 @@ export const counterpartiesTable = pgTable("counterparties", {
   name: text("name").notNull(),
   /** Davčna številka (SI12345678 ali tuja) */
   taxId: text("tax_id"),
+  /** Matična številka podjetja (8-mestna, AJPES register) */
+  registrationNumber: text("registration_number"),
+  /** Zavezanec za DDV */
+  vatPayer: boolean("vat_payer").notNull().default(false),
   address: text("address"),
   postCode: text("post_code"),
   city: text("city"),
