@@ -86,8 +86,8 @@ async function runOcrWithClaude(
   mimeType: string,
   companyId: string,
 ): Promise<OcrResult> {
-  // Pridobi kontekst (partnerji + konte) za boljše predloge
-  const [counterparties, accounts, vatCodes] = await Promise.all([
+  // Pridobi kontekst (partnerji + konte + pretekle knjižbe) za boljše predloge
+  const [counterparties, accounts, vatCodes, recentBookingRows] = await Promise.all([
     db.select({ id: counterpartiesTable.id, name: counterpartiesTable.name, taxId: counterpartiesTable.taxId })
       .from(counterpartiesTable)
       .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true)))
@@ -100,7 +100,50 @@ async function runOcrWithClaude(
     db.select({ id: vatCodesTable.id, code: vatCodesTable.code, rate: vatCodesTable.rate })
       .from(vatCodesTable)
       .where(and(eq(vatCodesTable.companyId, companyId), eq(vatCodesTable.isActive, true))),
+    // Pretekle potrjene knjižbe za učenje vzorcev kontiranja po partnerjih
+    db.select({
+      counterpartyId: counterpartiesTable.id,
+      counterpartyName: counterpartiesTable.name,
+      invoiceType: invoicesTable.type,
+      lineDescription: invoiceLinesTable.description,
+      accountCode: accountsTable.code,
+      accountName: accountsTable.name,
+      vatRate: invoiceLinesTable.vatRate,
+    })
+      .from(invoiceLinesTable)
+      .innerJoin(invoicesTable, eq(invoiceLinesTable.invoiceId, invoicesTable.id))
+      .innerJoin(counterpartiesTable, eq(invoicesTable.counterpartyId, counterpartiesTable.id))
+      .innerJoin(accountsTable, eq(invoiceLinesTable.accountId, accountsTable.id))
+      .where(
+        and(
+          eq(invoicesTable.companyId, companyId),
+          inArray(invoicesTable.status, ["posted", "paid"]),
+        ),
+      )
+      .orderBy(desc(invoicesTable.createdAt))
+      .limit(100),
   ]);
+
+  // Združi pretekle knjižbe po partnerjih — max 5 vrstic na partnerja
+  const bookingsByCounterparty = new Map<string, typeof recentBookingRows>();
+  for (const row of recentBookingRows) {
+    const existing = bookingsByCounterparty.get(row.counterpartyId) ?? [];
+    if (existing.length < 5) {
+      existing.push(row);
+      bookingsByCounterparty.set(row.counterpartyId, existing);
+    }
+  }
+  const pastBookingsContext = bookingsByCounterparty.size > 0
+    ? Array.from(bookingsByCounterparty.entries())
+        .map(([, rows]) => {
+          const cpName = rows[0].counterpartyName;
+          const lines = rows.map(r =>
+            `    • ${r.invoiceType === "received" ? "prejet" : "izdan"} račun | ${r.lineDescription} → konto ${r.accountCode} (${r.accountName}), DDV ${r.vatRate}%`,
+          ).join("\n");
+          return `  ${cpName}:\n${lines}`;
+        })
+        .join("\n\n")
+    : "(še ni preteklih knjižb)";
 
   const counterpartyList = counterparties.map(c => `- ${c.name}${c.taxId ? ` (DDV: ${c.taxId})` : ""} [id: ${c.id}]`).join("\n");
   const accountList = accounts.map(a => `- ${a.code}: ${a.name} [id: ${a.id}]`).join("\n");
@@ -120,6 +163,9 @@ ${accountList || "(ni kontov)"}
 DDV kode:
 ${vatList || "(ni DDV kod)"}
 
+PRETEKLE POTRJENE KNJIŽBE PO PARTNERJIH (uporabi kot učni vzorec za predlog kontov):
+${pastBookingsContext}
+
 TIPIČNI VZORCI KONTIRANJA ZA GOSTINSTVO (upoštevaj pri predlogih):
 - Prejet račun za surovine/hrano (9,5% DDV):  BREME 3100 + 1601 | DOBRO 2200
 - Prejet račun za pijačo (22% DDV):            BREME 3101 + 1600 | DOBRO 2201
@@ -135,10 +181,11 @@ NAVODILA:
 1. Prepoznaj vrsto dokumenta: invoice_received (prejet od dobavitelja) ali invoice_issued (izdan kupcu)
 2. Ekstrahiraj vse metapodatke: številka računa, datum, rok plačila, partner, naslov, DDV identifikacijska številka
 3. Ekstrahiraj vse vrstice: opis, količina, cena/enoto, stopnja DDV, osnova, znesek DDV
-4. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama in vzorcev kontiranja
-5. Poišči partnerja v sistemu (fuzzy match po imenu ali DDV številki)
-6. Izračunaj skupne vsote
-7. Oceni zaupnost prepoznave (0.0-1.0)
+4. Poišči partnerja v sistemu (fuzzy match po imenu ali DDV številki)
+5. Če je partner prepoznan in ima pretekle knjižbe (zgoraj), PREDNOSTNO uporabi enake konte kot v prejšnjih knjižbah za istega partnerja — to zagotavlja doslednost
+6. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama — najprej preveri vzorce preteklih knjižb, nato tipične vzorce kontiranja
+7. Izračunaj skupne vsote
+8. Oceni zaupnost prepoznave (0.0-1.0) — višja zaupnost, ko se konte ujemajo s preteklimi knjižbami
 
 VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
 {
