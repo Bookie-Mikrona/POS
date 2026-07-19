@@ -74,6 +74,11 @@ export default function KontniPlan() {
     parentId: "none",
     isCash: false,
     isOpenItem: false,
+    allowsPosting: true,
+    requiresPartner: false,
+    requiresCostCenter: false,
+    requiresProject: false,
+    taxBehavior: "none" as "none" | "output_vat" | "input_vat" | "exempt",
   });
 
   const { data, isLoading, error } = useListAccounts(
@@ -121,6 +126,11 @@ export default function KontniPlan() {
         parentId: acc.parentId || "none",
         isCash: acc.isCash ?? false,
         isOpenItem: acc.isOpenItem ?? false,
+        allowsPosting: acc.allowsPosting ?? true,
+        requiresPartner: acc.requiresPartner ?? false,
+        requiresCostCenter: acc.requiresCostCenter ?? false,
+        requiresProject: acc.requiresProject ?? false,
+        taxBehavior: (acc.taxBehavior ?? "none") as "none" | "output_vat" | "input_vat" | "exempt",
       });
     } else {
       setEditingAccount(null);
@@ -132,6 +142,11 @@ export default function KontniPlan() {
         parentId: "none",
         isCash: false,
         isOpenItem: false,
+        allowsPosting: true,
+        requiresPartner: false,
+        requiresCostCenter: false,
+        requiresProject: false,
+        taxBehavior: "none",
       });
     }
     setDialogOpen(true);
@@ -151,6 +166,11 @@ export default function KontniPlan() {
           parentId,
           isCash: formData.isCash,
           isOpenItem: formData.isOpenItem,
+          allowsPosting: formData.allowsPosting,
+          requiresPartner: formData.requiresPartner,
+          requiresCostCenter: formData.requiresCostCenter,
+          requiresProject: formData.requiresProject,
+          taxBehavior: formData.taxBehavior,
         }
       }, {
         onSuccess: () => {
@@ -169,6 +189,11 @@ export default function KontniPlan() {
           parentId,
           isCash: formData.isCash,
           isOpenItem: formData.isOpenItem,
+          allowsPosting: formData.allowsPosting,
+          requiresPartner: formData.requiresPartner,
+          requiresCostCenter: formData.requiresCostCenter,
+          requiresProject: formData.requiresProject,
+          taxBehavior: formData.taxBehavior,
         }
       }, {
         onSuccess: () => {
@@ -418,6 +443,63 @@ export default function KontniPlan() {
               />
             </div>
             <div className="border rounded-lg p-3 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Knjiženje</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="allowsPosting" className="text-sm font-medium">Dovoli knjižbe</Label>
+                  <p className="text-xs text-muted-foreground">Izklopite za skupinske konte (samo seštevanje)</p>
+                </div>
+                <Switch
+                  id="allowsPosting"
+                  checked={formData.allowsPosting}
+                  onCheckedChange={(v) => setFormData({ ...formData, allowsPosting: v })}
+                />
+              </div>
+              {!formData.allowsPosting && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded p-2">
+                  ⚠️ Knjiženje na ta konto bo zavrnjeno. Konto se uporablja samo kot skupinska postavka.
+                </p>
+              )}
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Obvezne dimenzije pri knjiženju</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="requiresPartner" className="text-sm font-medium">Zahteva poslovnega partnerja</Label>
+                  <p className="text-xs text-muted-foreground">Kupci, dobavitelji</p>
+                </div>
+                <Switch
+                  id="requiresPartner"
+                  checked={formData.requiresPartner}
+                  onCheckedChange={(v) => setFormData({ ...formData, requiresPartner: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="requiresCostCenter" className="text-sm font-medium">Zahteva stroškovno mesto</Label>
+                  <p className="text-xs text-muted-foreground">Analitično računovodstvo</p>
+                </div>
+                <Switch
+                  id="requiresCostCenter"
+                  checked={formData.requiresCostCenter}
+                  onCheckedChange={(v) => setFormData({ ...formData, requiresCostCenter: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="requiresProject" className="text-sm font-medium">Zahteva projekt</Label>
+                  <p className="text-xs text-muted-foreground">Projektno računovodstvo</p>
+                </div>
+                <Switch
+                  id="requiresProject"
+                  checked={formData.requiresProject}
+                  onCheckedChange={(v) => setFormData({ ...formData, requiresProject: v })}
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Lastnosti konta</p>
               <div className="flex items-center justify-between">
                 <div>
@@ -441,6 +523,21 @@ export default function KontniPlan() {
                   onCheckedChange={(v) => setFormData({ ...formData, isOpenItem: v })}
                 />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="taxBehavior">DDV vedenje</Label>
+              <Select value={formData.taxBehavior} onValueChange={(val) => setFormData({ ...formData, taxBehavior: val as "none" | "output_vat" | "input_vat" | "exempt" })}>
+                <SelectTrigger id="taxBehavior">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Brez DDV</SelectItem>
+                  <SelectItem value="output_vat">Izstopni DDV (prodaja)</SelectItem>
+                  <SelectItem value="input_vat">Vstopni DDV (nabava)</SelectItem>
+                  <SelectItem value="exempt">Oproščeno DDV</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
