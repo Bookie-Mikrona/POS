@@ -15,6 +15,7 @@ import {
   TrendingDown,
   TrendingUp,
   RefreshCw,
+  Landmark,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,7 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useGetOpenItems, useGetAgedAnalysis } from "@workspace/api-client-react";
+import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance } from "@workspace/api-client-react";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -264,6 +265,12 @@ export default function Dashboard() {
     { query: { enabled: !!activeCompany?.id } as any },
   );
 
+  // Bank balance — stanje bančnih računov (110x)
+  const { data: bankData, isLoading: bankLoading } = useGetBankBalance(
+    activeCompany?.id ?? "",
+    { query: { enabled: !!activeCompany?.id } as any },
+  );
+
   // Derived KPIs
   const terjatveTotal = terData?.totalRemaining ?? null;
   const obveznostiTotal = obvData?.totalRemaining ?? null;
@@ -320,6 +327,9 @@ export default function Dashboard() {
   const hasZapadle = zapadleTerjatve !== null && parseFloat(zapadleTerjatve) > 0;
   const kpiLoading = terLoading || obvLoading;
 
+  // Bank balance derived value
+  const bankBalanceValue = bankData?.totalBalance ?? null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -353,7 +363,17 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
               Ključni kazalniki
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              <KpiCard
+                title="Stanje bančnih računov"
+                value={bankBalanceValue !== null ? fmtEur(bankBalanceValue) : null}
+                sub="Skupni saldo kontov 110x"
+                href="/glavna-knjiga?accountCodePrefix=110"
+                icon={Landmark}
+                iconColor="text-emerald-600"
+                iconBg="bg-emerald-600/10"
+                loading={bankLoading}
+              />
               <KpiCard
                 title="Skupaj odprte terjatve"
                 value={terjatveTotal !== null ? fmtEur(terjatveTotal) : null}

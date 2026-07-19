@@ -2362,6 +2362,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Bank balance (stanje bančnih računov 110x) ───────────────────────────────
+  /companies/{companyId}/bank-balance:
+    get:
+      operationId: getBankBalance
+      tags: [ledger]
+      summary: Bank account balance — total balance of 110x accounts
+      description: Returns the total balance (debit minus credit) of all accounts with code starting with 110 for the given company.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bank balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankBalanceResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── General ledger (konto kartica) ──────────────────────────────────────────
   /companies/{companyId}/ledger:
     get:
@@ -3497,6 +3532,28 @@ components:
           type: string
           description: Running balance (debit-credit cumulative)
       required: [entryId, entryDate, description, accountId, accountCode, accountName, debit, credit, runningBalance]
+    BankBalanceResponse:
+      type: object
+      properties:
+        totalBalance:
+          type: string
+          description: Total balance across all 110x accounts (debit minus credit)
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              accountId:
+                type: string
+              accountCode:
+                type: string
+              accountName:
+                type: string
+              balance:
+                type: string
+            required: [accountId, accountCode, accountName, balance]
+      required: [totalBalance, accounts]
+
     LedgerResponse:
       type: object
       properties:

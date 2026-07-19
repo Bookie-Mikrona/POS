@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, asc } from "drizzle-orm";
+import { eq, and, gte, lte, asc, like, inArray } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
@@ -125,6 +125,78 @@ router.get(
       lines,
       totalDebit: totalDebit.toFixed(2),
       totalCredit: totalCredit.toFixed(2),
+    });
+  },
+);
+
+// GET /companies/:companyId/bank-balance
+// Vrne skupni saldo bančnih kontov (kode 110x) za podjetje
+router.get(
+  "/companies/:companyId/bank-balance",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+
+    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!ok) return;
+
+    // Najdi vse bančne konte (110x)
+    const bankAccounts = await db
+      .select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name })
+      .from(accountsTable)
+      .where(and(eq(accountsTable.companyId, companyId), like(accountsTable.code, "110%")));
+
+    if (bankAccounts.length === 0) {
+      res.json({ totalBalance: "0.00", accounts: [] });
+      return;
+    }
+
+    const bankAccountIds = bankAccounts.map((a) => a.id);
+
+    // Seštej debite in kredite za vse bančne konte iz knjiženih vpisov
+    const rows = await db
+      .select({
+        accountId: journalEntryLinesTable.accountId,
+        side: journalEntryLinesTable.side,
+        amount: journalEntryLinesTable.amount,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(
+        journalEntriesTable,
+        eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+      )
+      .where(
+        and(
+          eq(journalEntriesTable.companyId, companyId),
+          eq(journalEntriesTable.status, "posted"),
+          inArray(journalEntryLinesTable.accountId, bankAccountIds),
+        ),
+      );
+
+    // Izračunaj saldo po kontu
+    const balanceMap = new Map<string, number>();
+    for (const row of rows) {
+      const current = balanceMap.get(row.accountId) ?? 0;
+      const amt = parseFloat(row.amount ?? "0");
+      balanceMap.set(row.accountId, current + (row.side === "debit" ? amt : -amt));
+    }
+
+    let totalBalance = 0;
+    const accounts = bankAccounts.map((a) => {
+      const balance = balanceMap.get(a.id) ?? 0;
+      totalBalance += balance;
+      return {
+        accountId: a.id,
+        accountCode: a.code,
+        accountName: a.name,
+        balance: balance.toFixed(2),
+      };
+    });
+
+    res.json({
+      totalBalance: totalBalance.toFixed(2),
+      accounts,
     });
   },
 );

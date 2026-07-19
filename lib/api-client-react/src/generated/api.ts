@@ -29,6 +29,7 @@ import type {
   AssignRoleBody,
   BadRequestResponse,
   BalanceSheetResponse,
+  BankBalanceResponse,
   CompanyWithRole,
   ConfirmDocumentBody,
   CounterpartyRecord,
@@ -4257,6 +4258,84 @@ export function useGetAgedAnalysis<TData = Awaited<ReturnType<typeof getAgedAnal
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAgedAnalysisQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBankBalanceUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-balance`
+}
+
+/**
+ * Returns the total balance (debit minus credit) of all accounts with code starting with 110 for the given company.
+ * @summary Bank account balance — total balance of 110x accounts
+ */
+export const getBankBalance = async (companyId: string, options?: RequestInit): Promise<BankBalanceResponse> => {
+
+  return customFetch<BankBalanceResponse>(getGetBankBalanceUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankBalanceQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/bank-balance`
+    ] as const;
+    }
+
+
+export const getGetBankBalanceQueryOptions = <TData = Awaited<ReturnType<typeof getBankBalance>>, TError = ErrorType<ErrorResponse>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankBalance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankBalanceQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankBalance>>> = ({ signal }) => getBankBalance(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankBalance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankBalanceQueryResult = NonNullable<Awaited<ReturnType<typeof getBankBalance>>>
+export type GetBankBalanceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Bank account balance — total balance of 110x accounts
+ */
+
+export function useGetBankBalance<TData = Awaited<ReturnType<typeof getBankBalance>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankBalance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankBalanceQueryOptions(companyId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

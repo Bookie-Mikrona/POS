@@ -2082,6 +2082,25 @@ export const GetAgedAnalysisResponse = zod.object({
 
 
 /**
+ * Returns the total balance (debit minus credit) of all accounts with code starting with 110 for the given company.
+ * @summary Bank account balance — total balance of 110x accounts
+ */
+export const GetBankBalanceParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetBankBalanceResponse = zod.object({
+  "totalBalance": zod.string().describe('Total balance across all 110x accounts (debit minus credit)'),
+  "accounts": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+}))
+})
+
+
+/**
  * Returns posted journal entry lines for the given filters, with running balance.
  * @summary General ledger — movements per account
  */

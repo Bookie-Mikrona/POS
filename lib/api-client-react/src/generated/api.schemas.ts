@@ -581,6 +581,19 @@ export interface LedgerLine {
   runningBalance: string;
 }
 
+export type BankBalanceResponseAccountsItem = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  balance: string;
+};
+
+export interface BankBalanceResponse {
+  /** Total balance across all 110x accounts (debit minus credit) */
+  totalBalance: string;
+  accounts: BankBalanceResponseAccountsItem[];
+}
+
 export interface LedgerResponse {
   lines: LedgerLine[];
   totalDebit: string;
