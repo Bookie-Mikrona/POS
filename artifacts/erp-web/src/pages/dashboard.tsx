@@ -43,6 +43,76 @@ function fmtEur(value: number | string) {
   return new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" }).format(n);
 }
 
+// ─── Bank balance card ────────────────────────────────────────────────────────
+
+interface BankBalanceCardProps {
+  totalBalance: string | null;
+  accounts: Array<{ accountId: string; accountCode: string; accountName: string; balance: string }>;
+  loading: boolean;
+}
+
+function BankBalanceCard({ totalBalance, accounts, loading }: BankBalanceCardProps) {
+  return (
+    <Card className="shadow-sm border-border/60">
+      <CardHeader className="pb-2 flex flex-row items-center gap-3">
+        <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-emerald-600/10 text-emerald-600">
+          <Landmark className="h-4 w-4" />
+        </div>
+        <CardTitle className="text-sm font-medium text-muted-foreground leading-snug">
+          Stanje bančnih računov
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pb-3">
+        {loading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-36" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        ) : (
+          <>
+            <div className="text-2xl font-bold tracking-tight">
+              {totalBalance !== null ? fmtEur(totalBalance) : "—"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">Skupni saldo kontov 110x</p>
+            {accounts.length > 0 && (
+              <div className="space-y-1 border-t border-border/40 pt-2 mt-2">
+                {accounts.map((acc) => {
+                  const bal = parseFloat(acc.balance);
+                  const isZero = bal === 0;
+                  return (
+                    <Link
+                      key={acc.accountId}
+                      href={`/glavna-knjiga?accountCodePrefix=${encodeURIComponent(acc.accountCode)}`}
+                    >
+                      <div className={`flex items-center justify-between rounded px-1.5 py-1 text-xs hover:bg-muted/60 transition-colors cursor-pointer group ${isZero ? "text-muted-foreground" : ""}`}>
+                        <span className="font-mono mr-2 shrink-0 group-hover:text-primary transition-colors">
+                          {acc.accountCode}
+                        </span>
+                        <span className="truncate flex-1 mr-2 group-hover:text-primary transition-colors">
+                          {acc.accountName}
+                        </span>
+                        <span className={`font-semibold tabular-nums shrink-0 ${isZero ? "text-muted-foreground" : bal < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                          {fmtEur(bal)}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+      <CardFooter className="pt-0 flex justify-end">
+        <Link href="/glavna-knjiga?accountCodePrefix=110">
+          <ArrowUpRight className="h-4 w-4 text-muted-foreground/40 hover:text-primary transition-colors" />
+        </Link>
+      </CardFooter>
+    </Card>
+  );
+}
+
 // ─── KPI card ─────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
@@ -381,14 +451,9 @@ export default function Dashboard() {
               Ključni kazalniki
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              <KpiCard
-                title="Stanje bančnih računov"
-                value={bankBalanceValue !== null ? fmtEur(bankBalanceValue) : null}
-                sub="Skupni saldo kontov 110x"
-                href="/glavna-knjiga?accountCodePrefix=110"
-                icon={Landmark}
-                iconColor="text-emerald-600"
-                iconBg="bg-emerald-600/10"
+              <BankBalanceCard
+                totalBalance={bankBalanceValue}
+                accounts={bankData?.accounts ?? []}
                 loading={bankLoading}
               />
               <KpiCard
