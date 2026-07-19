@@ -13,11 +13,11 @@ import {
   Banknote,
   Check,
   SkipForward,
+  TriangleAlert,
 } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
-  useCreatePayment,
   useListPeriods,
   useListAccounts,
   useListCounterparties,
@@ -61,9 +61,18 @@ interface MatchSuggestion {
   matchReasons: string[];
 }
 
+interface DuplicateInfo {
+  paymentId: string;
+  paymentDate: string;
+  amount: string;
+  reference: string | null;
+  direction: string;
+}
+
 interface TransactionWithSuggestions {
   transaction: BankTransaction;
   suggestions: MatchSuggestion[];
+  duplicateOf?: DuplicateInfo;
 }
 
 // ─── Decision per transaction ─────────────────────────────────────────────────
@@ -91,6 +100,34 @@ async function parseBankStatement(
     throw new Error((err as any).error ?? `HTTP ${resp.status}`);
   }
   return resp.json();
+}
+
+interface CreatePaymentPayload {
+  direction: "inbound" | "outbound";
+  counterpartyId: string;
+  periodId: string;
+  paymentDate: string;
+  amount: number;
+  reference: string | null;
+  bankAccountId: string;
+  arApAccountId: string;
+  notes: string | null;
+  allocations: { invoiceId: string; allocatedAmount: number }[];
+  force?: boolean;
+}
+
+async function createPaymentApi(companyId: string, payload: CreatePaymentPayload): Promise<string> {
+  const resp = await fetch(`/api/companies/${companyId}/payments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data.id as string;
 }
 
 async function postPayment(companyId: string, paymentId: string): Promise<void> {
@@ -170,8 +207,6 @@ export default function BancniIzpis() {
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
 
-  const createPaymentMut = useCreatePayment();
-
   // ─── Step 1: Upload & Parse ────────────────────────────────────────────────
 
   const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -190,9 +225,17 @@ export default function BancniIzpis() {
       const { suggestions: s } = await matchTransactions(activeCompany.id, transactions);
       setSuggestions(s);
 
-      // Pre-set decisions: auto-accept first suggestion if confidence ≥ 0.6
+      // Pre-set decisions:
+      // - Duplicates (already imported) → skip by default
+      // - High-confidence matches (≥ 0.6) → auto-accept
+      // - Everything else → pending
       const initial = new Map<string, MatchDecision>();
       for (const item of s) {
+        if (item.duplicateOf) {
+          // Default duplicates to skip; user can override manually
+          initial.set(item.transaction.id, { kind: "skip" });
+          continue;
+        }
         const best = item.suggestions[0];
         if (best && best.confidence >= 0.6) {
           initial.set(item.transaction.id, {
@@ -226,6 +269,7 @@ export default function BancniIzpis() {
   const matchedCount = [...decisions.values()].filter(d => d.kind === "matched").length;
   const skippedCount = [...decisions.values()].filter(d => d.kind === "skip").length;
   const pendingCount = [...decisions.values()].filter(d => d.kind === "pending").length;
+  const duplicateCount = suggestions.filter(s => s.duplicateOf).length;
 
   // ─── Step 3: Confirm ──────────────────────────────────────────────────────
 
@@ -250,35 +294,29 @@ export default function BancniIzpis() {
       const arApAccountId = direction === "inbound" ? arAccountId : apAccountId;
       const counterpartyId = decision.counterpartyId;
 
+      // If the user explicitly chose to import a transaction that was flagged as a
+      // duplicate, pass force=true so the server-side duplicate check is bypassed.
+      const forceImport = !!item.duplicateOf;
+
       let paymentId: string | null = null;
       try {
-        paymentId = await new Promise<string>((resolve, reject) => {
-          createPaymentMut.mutate(
+        paymentId = await createPaymentApi(activeCompany.id, {
+          direction,
+          counterpartyId,
+          periodId,
+          paymentDate: tx.date,
+          amount: Math.abs(tx.amount),
+          reference: tx.reference ?? null,
+          bankAccountId,
+          arApAccountId,
+          notes: tx.description ?? null,
+          allocations: [
             {
-              companyId: activeCompany.id,
-              data: {
-                direction,
-                counterpartyId,
-                periodId,
-                paymentDate: tx.date,
-                amount: Math.abs(tx.amount),
-                reference: tx.reference ?? null,
-                bankAccountId,
-                arApAccountId,
-                notes: tx.description ?? null,
-                allocations: [
-                  {
-                    invoiceId: decision.invoiceId,
-                    allocatedAmount: parseFloat(decision.allocatedAmount),
-                  },
-                ],
-              },
+              invoiceId: decision.invoiceId,
+              allocatedAmount: parseFloat(decision.allocatedAmount),
             },
-            {
-              onSuccess: (data: any) => { resolve(data.id); },
-              onError: (e) => reject(e),
-            },
-          );
+          ],
+          force: forceImport,
         });
         created++;
       } catch (e: any) {
@@ -515,6 +553,13 @@ export default function BancniIzpis() {
               <span className="text-muted-foreground">Preskoči: </span>
               <span className="font-semibold text-muted-foreground">{skippedCount}</span>
             </div>
+            {duplicateCount > 0 && (
+              <div className="text-sm flex items-center gap-1">
+                <TriangleAlert className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-muted-foreground">Možni duplikati: </span>
+                <span className="font-semibold text-amber-600">{duplicateCount}</span>
+              </div>
+            )}
             {pendingCount > 0 && (
               <div className="text-sm">
                 <span className="text-muted-foreground">Čaka na odločitev: </span>
@@ -540,6 +585,7 @@ export default function BancniIzpis() {
                 decision={decisions.get(item.transaction.id) ?? { kind: "pending" }}
                 onDecision={d => setDecision(item.transaction.id, d)}
                 counterparties={counterparties}
+                duplicateOf={item.duplicateOf}
               />
             ))}
           </div>
@@ -639,11 +685,13 @@ function TransactionReviewRow({
   decision,
   onDecision,
   counterparties,
+  duplicateOf,
 }: {
   item: TransactionWithSuggestions;
   decision: MatchDecision;
   onDecision: (d: MatchDecision) => void;
   counterparties: any[];
+  duplicateOf?: DuplicateInfo;
 }) {
   const tx = item.transaction;
   const isInbound = tx.amount > 0;
@@ -651,8 +699,10 @@ function TransactionReviewRow({
   const [manualInvoiceId, setManualInvoiceId] = useState("");
   const [manualAmount, setManualAmount] = useState(Math.abs(tx.amount).toFixed(2));
 
+  // Duplicate transactions get amber border even when skipped, to stay visually distinct
   const statusColor =
     decision.kind === "matched" ? "border-green-500 bg-green-50"
+    : decision.kind === "skip" && duplicateOf ? "border-amber-400 bg-amber-50/40"
     : decision.kind === "skip" ? "border-muted bg-muted/20"
     : "border-amber-400 bg-amber-50";
 
@@ -705,6 +755,29 @@ function TransactionReviewRow({
           )}
         </div>
       </div>
+
+      {/* Duplicate warning — shown regardless of decision so user can consciously override */}
+      {duplicateOf && (
+        <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <TriangleAlert className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold">Možni podvojen uvoz.</span>{" "}
+            Plačilo z istim datumom ({duplicateOf.paymentDate}), zneskom ({parseFloat(duplicateOf.amount).toFixed(2)})
+            {duplicateOf.reference ? ` in sklicem ${duplicateOf.reference}` : ""} je že v sistemu.
+            {decision.kind === "skip" && (
+              <> Transakcija je privzeto preskočena.{" "}
+                <button
+                  type="button"
+                  className="underline font-medium hover:text-amber-900"
+                  onClick={() => onDecision({ kind: "pending" })}
+                >
+                  Uvozi kljub temu
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Suggestions */}
       {decision.kind !== "matched" && decision.kind !== "skip" && (

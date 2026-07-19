@@ -292,6 +292,53 @@ router.post(
     }
 
     const { counterpartyId, periodId, direction, amount, bankAccountId, arApAccountId, reference, notes, allocations } = parsed.data;
+    // `force` is not in the Zod schema intentionally — it's an override flag for duplicate detection
+    const force = (req.body as any).force === true;
+
+    // ── Duplicate detection (server-side enforcement) ──────────────────────────
+    // Reject if a draft or posted payment with the same company, direction,
+    // date, and amount (within 1 cent) already exists — unless force=true.
+    if (!force) {
+      const paymentDate = (parsed.data.paymentDate as unknown as Date).toISOString().slice(0, 10);
+
+      const normRef = (r: string | null | undefined): string | null => {
+        if (!r) return null;
+        const n = r.replace(/[\s-]/g, "").toUpperCase();
+        return n || null;
+      };
+      const incomingRef = normRef(reference);
+
+      // Pull candidate payments: same company, direction, date — narrow in SQL, final filter in JS
+      const candidates = await db
+        .select({
+          id: paymentsTable.id,
+          amount: paymentsTable.amount,
+          reference: paymentsTable.reference,
+        })
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.companyId, companyId),
+            eq(paymentsTable.direction, direction),
+            eq(paymentsTable.paymentDate, paymentDate),
+            sql`${paymentsTable.status} IN ('draft', 'posted')`,
+          ),
+        );
+
+      for (const cand of candidates) {
+        const candAmt = parseFloat(cand.amount ?? "0");
+        if (Math.abs(candAmt - amount) > 0.005) continue;
+        const candRef = normRef(cand.reference);
+        // If both sides have a reference and they differ → not a duplicate
+        if (incomingRef && candRef && incomingRef !== candRef) continue;
+        // Duplicate found
+        res.status(409).json({
+          error: `Plačilo z istim datumom (${paymentDate}), zneskom (${amount.toFixed(2)}) in sklicem že obstaja v sistemu. Za prisilni uvoz dodajte polje force: true.`,
+          duplicateOf: { paymentId: cand.id },
+        });
+        return;
+      }
+    }
 
     // Validacije — company-scoped FK
     const [period] = await db.select({ id: accountingPeriodsTable.id })

@@ -70,9 +70,19 @@ export interface MatchSuggestion {
   matchReasons: string[];
 }
 
+export interface DuplicateInfo {
+  paymentId: string;
+  paymentDate: string;
+  amount: string;
+  reference: string | null;
+  direction: string;
+}
+
 export interface TransactionWithSuggestions {
   transaction: BankTransaction;
   suggestions: MatchSuggestion[];
+  /** Present when this transaction matches an already-imported payment */
+  duplicateOf?: DuplicateInfo;
 }
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -284,11 +294,94 @@ function nameSimilarity(a: string | null, b: string | null): number {
   return longer.includes(shorter) ? 0.7 : 0;
 }
 
+/** Normalise reference for duplicate comparison */
+function normRefForDup(ref: string | null | undefined): string | null {
+  if (!ref) return null;
+  const n = ref.replace(/[\s-]/g, "").toUpperCase();
+  return n || null;
+}
+
 async function buildMatchSuggestions(
   companyId: string,
   transactions: BankTransaction[],
 ): Promise<TransactionWithSuggestions[]> {
   if (transactions.length === 0) return [];
+
+  // ── Duplicate detection ───────────────────────────────────────────────────
+  // Fetch existing posted/draft payments for this company to detect re-imports.
+  const existingPayments = await db
+    .select({
+      id: paymentsTable.id,
+      paymentDate: paymentsTable.paymentDate,
+      amount: paymentsTable.amount,
+      reference: paymentsTable.reference,
+      direction: paymentsTable.direction,
+    })
+    .from(paymentsTable)
+    .where(
+      and(
+        eq(paymentsTable.companyId, companyId),
+        sql`${paymentsTable.status} IN ('draft', 'posted')`,
+      ),
+    );
+
+  // Build a lookup: "date|amount|normRef" -> payment (direction-aware)
+  type PaymentRow = typeof existingPayments[number];
+  const paymentByKey = new Map<string, PaymentRow>();
+  for (const p of existingPayments) {
+    const amt = parseFloat(p.amount ?? "0");
+    const ref = normRefForDup(p.reference);
+    // Key includes direction so inbound/outbound don't collide
+    const key = `${p.direction}|${p.paymentDate}|${amt.toFixed(2)}|${ref ?? ""}`;
+    paymentByKey.set(key, p);
+  }
+
+  /**
+   * Determine if a bank transaction is a duplicate of an existing payment.
+   * Match criteria (all must hold):
+   *   1. Same direction (inbound/outbound)
+   *   2. Same date
+   *   3. Same absolute amount (within 1 cent)
+   *   4. If both have a reference: normalised references match
+   *      If neither has a reference (or only one does): amount+date is sufficient
+   */
+  function findDuplicate(tx: BankTransaction): DuplicateInfo | undefined {
+    const direction = tx.amount > 0 ? "inbound" : "outbound";
+    const absAmt = Math.abs(tx.amount);
+    const txRef = normRefForDup(tx.reference);
+
+    // First try exact key match (fast path)
+    const exactKey = `${direction}|${tx.date}|${absAmt.toFixed(2)}|${txRef ?? ""}`;
+    const exact = paymentByKey.get(exactKey);
+    if (exact) {
+      return {
+        paymentId: exact.id,
+        paymentDate: exact.paymentDate,
+        amount: exact.amount,
+        reference: exact.reference,
+        direction: exact.direction,
+      };
+    }
+
+    // Fallback: iterate to handle 1-cent tolerance and ref-less matches
+    for (const p of existingPayments) {
+      if (p.direction !== direction) continue;
+      if (p.paymentDate !== tx.date) continue;
+      const pAmt = parseFloat(p.amount ?? "0");
+      if (Math.abs(pAmt - absAmt) > 0.005) continue;
+      const pRef = normRefForDup(p.reference);
+      // If both have refs they must match; if neither has a ref match on date+amount
+      if (txRef && pRef && txRef !== pRef) continue;
+      return {
+        paymentId: p.id,
+        paymentDate: p.paymentDate,
+        amount: p.amount,
+        reference: p.reference,
+        direction: p.direction,
+      };
+    }
+    return undefined;
+  }
 
   // Fetch all open items (posted invoices with remaining balance)
   const invoices = await db
@@ -434,7 +527,8 @@ async function buildMatchSuggestions(
     scored.sort((a, b) => b.score - a.score);
     const suggestions: MatchSuggestion[] = scored.slice(0, 5).map(({ score: _s, ...rest }) => rest);
 
-    results.push({ transaction: tx, suggestions });
+    const duplicateOf = findDuplicate(tx);
+    results.push({ transaction: tx, suggestions, duplicateOf });
   }
 
   return results;
