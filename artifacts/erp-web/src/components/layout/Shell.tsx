@@ -58,6 +58,7 @@ const MODULES = [
   { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked },
   { name: "Partnerji", path: "/partnerji", icon: Users },
   { name: "Računi", path: "/racuni", icon: Receipt },
+  { name: "Dokumenti", path: "/dokumenti", icon: FileText },
   { name: "Plačila", path: "/placila", icon: CreditCard },
   { name: "Saldakonti", path: "/saldakonti", icon: BarChart3 },
   { name: "DDV evidence", path: "/ddv", icon: Receipt },

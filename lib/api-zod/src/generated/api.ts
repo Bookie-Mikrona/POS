@@ -1626,3 +1626,531 @@ export const GetLedgerResponse = zod.object({
 })
 
 
+/**
+ * @summary List uploaded documents for a company
+ */
+export const ListDocumentsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const listDocumentsQueryLimitDefault = 50;
+
+export const ListDocumentsQueryParams = zod.object({
+  "status": zod.enum(['pending', 'processing', 'done', 'confirmed', 'rejected', 'error']).optional(),
+  "limit": zod.coerce.number().default(listDocumentsQueryLimitDefault)
+})
+
+export const ListDocumentsResponse = zod.object({
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().nullish(),
+  "objectPath": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'done', 'confirmed', 'rejected', 'error']),
+  "documentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "errorMessage": zod.string().nullish(),
+  "ocrResult": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "confirmedData": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "linkedInvoiceId": zod.string().nullish(),
+  "uploadedByClerkId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * After uploading the file to object storage via /storage/uploads/request-url,
+ * register it here to trigger async OCR extraction. Status changes to processing,
+ * then done (with ocrResult) or error.
+ * @summary Register an uploaded document and trigger AI/OCR processing
+ */
+export const RegisterDocumentParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const RegisterDocumentBody = zod.object({
+  "objectPath": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().optional()
+})
+
+export const RegisterDocumentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().nullish(),
+  "objectPath": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'done', 'confirmed', 'rejected', 'error']),
+  "documentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "errorMessage": zod.string().nullish(),
+  "ocrResult": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "confirmedData": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "linkedInvoiceId": zod.string().nullish(),
+  "uploadedByClerkId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get document detail with OCR result
+ */
+export const GetDocumentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const GetDocumentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().nullish(),
+  "objectPath": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'done', 'confirmed', 'rejected', 'error']),
+  "documentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "errorMessage": zod.string().nullish(),
+  "ocrResult": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "confirmedData": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "linkedInvoiceId": zod.string().nullish(),
+  "uploadedByClerkId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Confirm (or reject) OCR proposal and optionally create a draft invoice
+ */
+export const ConfirmDocumentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const ConfirmDocumentBody = zod.object({
+  "documentType": zod.enum(['invoice_received', 'invoice_issued', 'other']).optional(),
+  "counterpartyId": zod.string().nullish(),
+  "periodId": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})).optional(),
+  "createInvoice": zod.boolean().optional().describe('Ali naj se avtomatično ustvari draft račun')
+}).describe('Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa')
+
+export const ConfirmDocumentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().nullish(),
+  "objectPath": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'done', 'confirmed', 'rejected', 'error']),
+  "documentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "errorMessage": zod.string().nullish(),
+  "ocrResult": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "confirmedData": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "linkedInvoiceId": zod.string().nullish(),
+  "uploadedByClerkId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Reject an OCR proposal
+ */
+export const RejectDocumentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const RejectDocumentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().nullish(),
+  "objectPath": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'done', 'confirmed', 'rejected', 'error']),
+  "documentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "errorMessage": zod.string().nullish(),
+  "ocrResult": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "confirmedData": zod.union([zod.object({
+  "rawText": zod.string(),
+  "confidence": zod.number(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "counterpartyAddress": zod.string().nullish(),
+  "invoiceNumber": zod.string().nullish(),
+  "invoiceDate": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "totalNet": zod.number().nullish(),
+  "totalVat": zod.number().nullish(),
+  "totalGross": zod.number().nullish(),
+  "currency": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "vatRate": zod.number(),
+  "vatBase": zod.number(),
+  "vatAmount": zod.number(),
+  "accountCode": zod.string().nullish(),
+  "accountId": zod.string().nullish(),
+  "confidence": zod.number()
+})),
+  "suggestedCounterpartyId": zod.string().nullish(),
+  "suggestedCounterpartyName": zod.string().nullish(),
+  "suggestedDocumentType": zod.union([zod.literal('invoice_received'),zod.literal('invoice_issued'),zod.literal(null)]).nullish(),
+  "suggestedPeriodId": zod.string().nullish(),
+  "error": zod.string().nullish()
+}),zod.null()]).optional(),
+  "linkedInvoiceId": zod.string().nullish(),
+  "uploadedByClerkId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1),
+  "size": zod.number().min(1),
+  "contentType": zod.string().min(1)
+})
+
+
+
+
+
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string(),
+  "objectPath": zod.string(),
+  "metadata": zod.object({
+  "name": zod.string().min(1),
+  "size": zod.number().min(1),
+  "contentType": zod.string().min(1)
+}).optional()
+})
+
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.coerce.string()
+})
+
+export const GetStorageObjectResponse = zod.unknown()
+
+
+/**
+ * @summary List all conversations
+ */
+export const ListAnthropicConversationsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAnthropicConversationsResponse = zod.array(ListAnthropicConversationsResponseItem)
+
+
+/**
+ * @summary Create a new conversation
+ */
+export const CreateAnthropicConversationBody = zod.object({
+  "title": zod.string()
+})
+
+export const CreateAnthropicConversationResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+

@@ -24,6 +24,12 @@ tags:
     description: Payments, open items & aged analysis (plačila, saldakonti)
   - name: vat
     description: VAT codes, VAT register & DDV-O return (DDV šifranti, knjiga IR/PR, obračun)
+  - name: documents
+    description: AI/OCR document processing — upload, extract, propose & confirm (AI obdelava dokumentov)
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+  - name: anthropic
+    description: Anthropic AI chat operations
 paths:
   /healthz:
     get:
@@ -1938,6 +1944,345 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Documents (AI/OCR obdelava) ─────────────────────────────────────────────
+  /companies/{companyId}/documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List uploaded documents for a company
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, done, confirmed, rejected, error]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Documents list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDocumentsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/documents/register:
+    post:
+      operationId: registerDocument
+      tags: [documents]
+      summary: Register an uploaded document and trigger AI/OCR processing
+      description: |
+        After uploading the file to object storage via /storage/uploads/request-url,
+        register it here to trigger async OCR extraction. Status changes to processing,
+        then done (with ocrResult) or error.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                objectPath:
+                  type: string
+                fileName:
+                  type: string
+                mimeType:
+                  type: string
+                fileSizeBytes:
+                  type: integer
+              required: [objectPath, fileName, mimeType]
+      responses:
+        "201":
+          description: Document registered and OCR started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get document detail with OCR result
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentRecord"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/documents/{id}/confirm:
+    post:
+      operationId: confirmDocument
+      tags: [documents]
+      summary: Confirm (or reject) OCR proposal and optionally create a draft invoice
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmDocumentBody"
+      responses:
+        "200":
+          description: Document confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentRecord"
+        "400":
+          description: Validation error or document not in done status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/documents/{id}/reject:
+    post:
+      operationId: rejectDocument
+      tags: [documents]
+      summary: Reject an OCR proposal
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentRecord"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Object Storage ────────────────────────────────────────────────────────────
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed with correct Content-Type.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  # ── Anthropic AI chat ─────────────────────────────────────────────────────────
+  /anthropic/conversations:
+    get:
+      operationId: listAnthropicConversations
+      tags: [anthropic]
+      summary: List all conversations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnthropicConversation"
+    post:
+      operationId: createAnthropicConversation
+      tags: [anthropic]
+      summary: Create a new conversation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnthropicConversationInput"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicConversation"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3127,3 +3472,241 @@ components:
         totals:
           $ref: "#/components/schemas/VatReturnRow"
       required: [periodId, periodName, rows, totals]
+
+    # ── Object Storage ────────────────────────────────────────────────────────
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    # ── Documents (AI OCR) ────────────────────────────────────────────────────
+    ProposedLine:
+      type: object
+      properties:
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        vatRate:
+          type: number
+        vatBase:
+          type: number
+        vatAmount:
+          type: number
+        accountCode:
+          type: ["string", "null"]
+        accountId:
+          type: ["string", "null"]
+        confidence:
+          type: number
+      required: [description, quantity, unitPrice, vatRate, vatBase, vatAmount, confidence]
+    OcrResult:
+      type: object
+      properties:
+        rawText:
+          type: string
+        confidence:
+          type: number
+        counterpartyName:
+          type: ["string", "null"]
+        counterpartyTaxId:
+          type: ["string", "null"]
+        counterpartyAddress:
+          type: ["string", "null"]
+        invoiceNumber:
+          type: ["string", "null"]
+        invoiceDate:
+          type: ["string", "null"]
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        totalNet:
+          type: ["number", "null"]
+        totalVat:
+          type: ["number", "null"]
+        totalGross:
+          type: ["number", "null"]
+        currency:
+          type: ["string", "null"]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProposedLine"
+        suggestedCounterpartyId:
+          type: ["string", "null"]
+        suggestedCounterpartyName:
+          type: ["string", "null"]
+        suggestedDocumentType:
+          type: ["string", "null"]
+          enum: [invoice_received, invoice_issued, null]
+        suggestedPeriodId:
+          type: ["string", "null"]
+        error:
+          type: ["string", "null"]
+      required: [rawText, confidence, lines]
+    DocumentRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSizeBytes:
+          type: ["integer", "null"]
+        objectPath:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, done, confirmed, rejected, error]
+        documentType:
+          type: ["string", "null"]
+          enum: [invoice_received, invoice_issued, other, null]
+        errorMessage:
+          type: ["string", "null"]
+        ocrResult:
+          oneOf:
+            - $ref: "#/components/schemas/OcrResult"
+            - type: "null"
+        confirmedData:
+          oneOf:
+            - $ref: "#/components/schemas/OcrResult"
+            - type: "null"
+        linkedInvoiceId:
+          type: ["string", "null"]
+        uploadedByClerkId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, fileName, mimeType, objectPath, status, createdAt, updatedAt]
+    ListDocumentsResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentRecord"
+      required: [documents]
+    ConfirmDocumentBody:
+      type: object
+      description: Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa
+      properties:
+        documentType:
+          type: string
+          enum: [invoice_received, invoice_issued, other]
+        counterpartyId:
+          type: ["string", "null"]
+        periodId:
+          type: ["string", "null"]
+        invoiceNumber:
+          type: ["string", "null"]
+        invoiceDate:
+          type: ["string", "null"]
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProposedLine"
+        createInvoice:
+          type: boolean
+          description: Ali naj se avtomatično ustvari draft račun
+      required: []
+
+    # ── Anthropic (AI chat) ───────────────────────────────────────────────────
+    AnthropicConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, createdAt]
+    AnthropicMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, conversationId, role, content, createdAt]
+    AnthropicConversationInput:
+      type: object
+      properties:
+        title:
+          type: string
+      required: [title]
+    AnthropicMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+      required: [content]
+    AnthropicConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnthropicMessage"
+      required: [id, title, createdAt, messages]
+    AnthropicError:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]

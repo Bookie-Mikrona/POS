@@ -16,6 +16,7 @@ import Temeljnice from "@/pages/temeljnice";
 import GlavnaKnjiga from "@/pages/glavna-knjiga";
 import Partnerji from "@/pages/partnerji";
 import Racuni from "@/pages/racuni";
+import Dokumenti from "@/pages/dokumenti";
 import Placeholder from "@/pages/placeholder";
 import Placila from "@/pages/placila";
 import Saldakonti from "@/pages/saldakonti";
@@ -215,6 +216,7 @@ function ClerkProviderWithRoutes() {
           
           <ProtectedRoute path="/partnerji" component={Partnerji} />
           <ProtectedRoute path="/racuni" component={Racuni} />
+          <ProtectedRoute path="/dokumenti" component={Dokumenti} />
           <ProtectedRoute path="/placila" component={Placila} />
           <ProtectedRoute path="/saldakonti" component={Saldakonti} />
           

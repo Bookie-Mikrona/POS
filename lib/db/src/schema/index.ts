@@ -8,3 +8,6 @@ export * from "./counterparties";
 export * from "./invoices";
 export * from "./payments";
 export * from "./vat-codes";
+export * from "./documents";
+export * from "./conversations";
+export * from "./messages";

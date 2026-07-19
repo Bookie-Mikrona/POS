@@ -1004,6 +1004,199 @@ export interface VatReturnResponse {
   totals: VatReturnRow;
 }
 
+export interface UploadUrlRequest {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
+export interface ProposedLine {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+  vatBase: number;
+  vatAmount: number;
+  /** @nullable */
+  accountCode?: string | null;
+  /** @nullable */
+  accountId?: string | null;
+  confidence: number;
+}
+
+/**
+ * @nullable
+ */
+export type OcrResultSuggestedDocumentType = typeof OcrResultSuggestedDocumentType[keyof typeof OcrResultSuggestedDocumentType] | null;
+
+
+export const OcrResultSuggestedDocumentType = {
+  invoice_received: 'invoice_received',
+  invoice_issued: 'invoice_issued',
+} as const;
+
+export interface OcrResult {
+  rawText: string;
+  confidence: number;
+  /** @nullable */
+  counterpartyName?: string | null;
+  /** @nullable */
+  counterpartyTaxId?: string | null;
+  /** @nullable */
+  counterpartyAddress?: string | null;
+  /** @nullable */
+  invoiceNumber?: string | null;
+  /** @nullable */
+  invoiceDate?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+  /** @nullable */
+  totalNet?: number | null;
+  /** @nullable */
+  totalVat?: number | null;
+  /** @nullable */
+  totalGross?: number | null;
+  /** @nullable */
+  currency?: string | null;
+  lines: ProposedLine[];
+  /** @nullable */
+  suggestedCounterpartyId?: string | null;
+  /** @nullable */
+  suggestedCounterpartyName?: string | null;
+  /** @nullable */
+  suggestedDocumentType?: OcrResultSuggestedDocumentType;
+  /** @nullable */
+  suggestedPeriodId?: string | null;
+  /** @nullable */
+  error?: string | null;
+}
+
+export type DocumentRecordStatus = typeof DocumentRecordStatus[keyof typeof DocumentRecordStatus];
+
+
+export const DocumentRecordStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  done: 'done',
+  confirmed: 'confirmed',
+  rejected: 'rejected',
+  error: 'error',
+} as const;
+
+/**
+ * @nullable
+ */
+export type DocumentRecordDocumentType = typeof DocumentRecordDocumentType[keyof typeof DocumentRecordDocumentType] | null;
+
+
+export const DocumentRecordDocumentType = {
+  invoice_received: 'invoice_received',
+  invoice_issued: 'invoice_issued',
+  other: 'other',
+} as const;
+
+export interface DocumentRecord {
+  id: string;
+  companyId: string;
+  fileName: string;
+  mimeType: string;
+  /** @nullable */
+  fileSizeBytes?: number | null;
+  objectPath: string;
+  status: DocumentRecordStatus;
+  /** @nullable */
+  documentType?: DocumentRecordDocumentType;
+  /** @nullable */
+  errorMessage?: string | null;
+  ocrResult?: OcrResult | null;
+  confirmedData?: OcrResult | null;
+  /** @nullable */
+  linkedInvoiceId?: string | null;
+  /** @nullable */
+  uploadedByClerkId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListDocumentsResponse {
+  documents: DocumentRecord[];
+}
+
+export type ConfirmDocumentBodyDocumentType = typeof ConfirmDocumentBodyDocumentType[keyof typeof ConfirmDocumentBodyDocumentType];
+
+
+export const ConfirmDocumentBodyDocumentType = {
+  invoice_received: 'invoice_received',
+  invoice_issued: 'invoice_issued',
+  other: 'other',
+} as const;
+
+/**
+ * Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa
+ */
+export interface ConfirmDocumentBody {
+  documentType?: ConfirmDocumentBodyDocumentType;
+  /** @nullable */
+  counterpartyId?: string | null;
+  /** @nullable */
+  periodId?: string | null;
+  /** @nullable */
+  invoiceNumber?: string | null;
+  /** @nullable */
+  invoiceDate?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+  lines?: ProposedLine[];
+  /** Ali naj se avtomatično ustvari draft račun */
+  createInvoice?: boolean;
+}
+
+export interface AnthropicConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface AnthropicMessage {
+  id: number;
+  conversationId: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface AnthropicConversationInput {
+  title: string;
+}
+
+export interface AnthropicMessageInput {
+  content: string;
+}
+
+export interface AnthropicConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: AnthropicMessage[];
+}
+
+export interface AnthropicError {
+  error: string;
+}
+
 export type ListAccountsParams = {
 includeInactive?: boolean;
 };
@@ -1165,5 +1358,29 @@ accountId?: string;
 periodId?: string;
 dateFrom?: string;
 dateTo?: string;
+};
+
+export type ListDocumentsParams = {
+status?: ListDocumentsStatus;
+limit?: number;
+};
+
+export type ListDocumentsStatus = typeof ListDocumentsStatus[keyof typeof ListDocumentsStatus];
+
+
+export const ListDocumentsStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  done: 'done',
+  confirmed: 'confirmed',
+  rejected: 'rejected',
+  error: 'error',
+} as const;
+
+export type RegisterDocumentBody = {
+  objectPath: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes?: number;
 };
 

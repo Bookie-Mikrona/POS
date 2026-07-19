@@ -22,8 +22,11 @@ import type {
 import type {
   AccountRecord,
   AgedAnalysisResponse,
+  AnthropicConversation,
+  AnthropicConversationInput,
   AssignRoleBody,
   CompanyWithRole,
+  ConfirmDocumentBody,
   CounterpartyRecord,
   CreateAccountBody,
   CreateCompanyBody,
@@ -33,6 +36,8 @@ import type {
   CreatePaymentBody,
   CreatePeriodBody,
   CreateVatCodeBody,
+  DocumentRecord,
+  ErrorEnvelope,
   ErrorResponse,
   GetAgedAnalysisParams,
   GetLedgerParams,
@@ -48,6 +53,8 @@ import type {
   ListCompaniesResponse,
   ListCounterpartiesParams,
   ListCounterpartiesResponse,
+  ListDocumentsParams,
+  ListDocumentsResponse,
   ListInvoicesParams,
   ListInvoicesResponse,
   ListJournalEntriesParams,
@@ -60,6 +67,7 @@ import type {
   OpenItemsResponse,
   PaymentWithAllocations,
   PeriodRecord,
+  RegisterDocumentBody,
   ReverseJournalEntryBody,
   RoleAssignment,
   SeedAccountsResponse,
@@ -69,6 +77,8 @@ import type {
   UpdateInvoiceBody,
   UpdatePeriodBody,
   UpdateVatCodeBody,
+  UploadUrlRequest,
+  UploadUrlResponse,
   UserProfile,
   VatCodeRecord,
   VatRegisterResponse,
@@ -3400,4 +3410,693 @@ export function useGetLedger<TData = Awaited<ReturnType<typeof getLedger>>, TErr
 
 
 
+
+export const getListDocumentsUrl = (companyId: string,
+    params?: ListDocumentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/documents?${stringifiedParams}` : `/api/companies/${companyId}/documents`
+}
+
+/**
+ * @summary List uploaded documents for a company
+ */
+export const listDocuments = async (companyId: string,
+    params?: ListDocumentsParams, options?: RequestInit): Promise<ListDocumentsResponse> => {
+
+  return customFetch<ListDocumentsResponse>(getListDocumentsUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDocumentsQueryKey = (companyId: string,
+    params?: ListDocumentsParams,) => {
+    return [
+    `/api/companies/${companyId}/documents`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListDocumentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentsQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocuments>>> = ({ signal }) => listDocuments(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocuments>>>
+export type ListDocumentsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List uploaded documents for a company
+ */
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListDocumentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDocumentsQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRegisterDocumentUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/documents/register`
+}
+
+/**
+ * After uploading the file to object storage via /storage/uploads/request-url,
+ * register it here to trigger async OCR extraction. Status changes to processing,
+ * then done (with ocrResult) or error.
+ * @summary Register an uploaded document and trigger AI/OCR processing
+ */
+export const registerDocument = async (companyId: string,
+    registerDocumentBody: RegisterDocumentBody, options?: RequestInit): Promise<DocumentRecord> => {
+
+  return customFetch<DocumentRecord>(getRegisterDocumentUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registerDocumentBody)
+  }
+);}
+
+
+
+
+
+export const getRegisterDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerDocument>>, TError,{companyId: string;data: BodyType<RegisterDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerDocument>>, TError,{companyId: string;data: BodyType<RegisterDocumentBody>}, TContext> => {
+
+const mutationKey = ['registerDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerDocument>>, {companyId: string;data: BodyType<RegisterDocumentBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  registerDocument(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof registerDocument>>>
+    export type RegisterDocumentMutationBody = BodyType<RegisterDocumentBody>
+    export type RegisterDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Register an uploaded document and trigger AI/OCR processing
+ */
+export const useRegisterDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerDocument>>, TError,{companyId: string;data: BodyType<RegisterDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerDocument>>,
+        TError,
+        {companyId: string;data: BodyType<RegisterDocumentBody>},
+        TContext
+      > => {
+      return useMutation(getRegisterDocumentMutationOptions(options));
+    }
+
+export const getGetDocumentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/documents/${id}`
+}
+
+/**
+ * @summary Get document detail with OCR result
+ */
+export const getDocument = async (companyId: string,
+    id: string, options?: RequestInit): Promise<DocumentRecord> => {
+
+  return customFetch<DocumentRecord>(getGetDocumentUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/documents/${id}`
+    ] as const;
+    }
+
+
+export const getGetDocumentQueryOptions = <TData = Awaited<ReturnType<typeof getDocument>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocument>>> = ({ signal }) => getDocument(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocument>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof getDocument>>>
+export type GetDocumentQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get document detail with OCR result
+ */
+
+export function useGetDocument<TData = Awaited<ReturnType<typeof getDocument>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDocumentQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfirmDocumentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/documents/${id}/confirm`
+}
+
+/**
+ * @summary Confirm (or reject) OCR proposal and optionally create a draft invoice
+ */
+export const confirmDocument = async (companyId: string,
+    id: string,
+    confirmDocumentBody: ConfirmDocumentBody, options?: RequestInit): Promise<DocumentRecord> => {
+
+  return customFetch<DocumentRecord>(getConfirmDocumentUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(confirmDocumentBody)
+  }
+);}
+
+
+
+
+
+export const getConfirmDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,{companyId: string;id: string;data: BodyType<ConfirmDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,{companyId: string;id: string;data: BodyType<ConfirmDocumentBody>}, TContext> => {
+
+const mutationKey = ['confirmDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmDocument>>, {companyId: string;id: string;data: BodyType<ConfirmDocumentBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  confirmDocument(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof confirmDocument>>>
+    export type ConfirmDocumentMutationBody = BodyType<ConfirmDocumentBody>
+    export type ConfirmDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Confirm (or reject) OCR proposal and optionally create a draft invoice
+ */
+export const useConfirmDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,{companyId: string;id: string;data: BodyType<ConfirmDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmDocument>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<ConfirmDocumentBody>},
+        TContext
+      > => {
+      return useMutation(getConfirmDocumentMutationOptions(options));
+    }
+
+export const getRejectDocumentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/documents/${id}/reject`
+}
+
+/**
+ * @summary Reject an OCR proposal
+ */
+export const rejectDocument = async (companyId: string,
+    id: string, options?: RequestInit): Promise<DocumentRecord> => {
+
+  return customFetch<DocumentRecord>(getRejectDocumentUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRejectDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectDocument>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectDocument>>, TError,{companyId: string;id: string}, TContext> => {
+
+const mutationKey = ['rejectDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectDocument>>, {companyId: string;id: string}> = (props) => {
+          const {companyId,id} = props ?? {};
+
+          return  rejectDocument(companyId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof rejectDocument>>>
+
+    export type RejectDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Reject an OCR proposal
+ */
+export const useRejectDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectDocument>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectDocument>>,
+        TError,
+        {companyId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getRejectDocumentMutationOptions(options));
+    }
+
+export const getRequestUploadUrlUrl = () => {
+
+
+
+
+  return `/api/storage/uploads/request-url`
+}
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const requestUploadUrl = async (uploadUrlRequest: UploadUrlRequest, options?: RequestInit): Promise<UploadUrlResponse> => {
+
+  return customFetch<UploadUrlResponse>(getRequestUploadUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(uploadUrlRequest)
+  }
+);}
+
+
+
+
+
+export const getRequestUploadUrlMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlRequest>}, TContext> => {
+
+const mutationKey = ['requestUploadUrl'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestUploadUrl>>, {data: BodyType<UploadUrlRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestUploadUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestUploadUrl>>>
+    export type RequestUploadUrlMutationBody = BodyType<UploadUrlRequest>
+    export type RequestUploadUrlMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Request a presigned URL for file upload
+ */
+export const useRequestUploadUrl = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestUploadUrl>>,
+        TError,
+        {data: BodyType<UploadUrlRequest>},
+        TContext
+      > => {
+      return useMutation(getRequestUploadUrlMutationOptions(options));
+    }
+
+export const getGetStorageObjectUrl = (objectPath: string,) => {
+
+
+
+
+  return `/api/storage/objects/${objectPath}`
+}
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const getStorageObject = async (objectPath: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetStorageObjectUrl(objectPath),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStorageObjectQueryKey = (objectPath: string,) => {
+    return [
+    `/api/storage/objects/${objectPath}`
+    ] as const;
+    }
+
+
+export const getGetStorageObjectQueryOptions = <TData = Awaited<ReturnType<typeof getStorageObject>>, TError = ErrorType<ErrorEnvelope>>(objectPath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStorageObjectQueryKey(objectPath);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStorageObject>>> = ({ signal }) => getStorageObject(objectPath, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: objectPath !== null && objectPath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStorageObjectQueryResult = NonNullable<Awaited<ReturnType<typeof getStorageObject>>>
+export type GetStorageObjectQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+
+export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorageObject>>, TError = ErrorType<ErrorEnvelope>>(
+ objectPath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStorageObjectQueryOptions(objectPath,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAnthropicConversationsUrl = () => {
+
+
+
+
+  return `/api/anthropic/conversations`
+}
+
+/**
+ * @summary List all conversations
+ */
+export const listAnthropicConversations = async ( options?: RequestInit): Promise<AnthropicConversation[]> => {
+
+  return customFetch<AnthropicConversation[]>(getListAnthropicConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAnthropicConversationsQueryKey = () => {
+    return [
+    `/api/anthropic/conversations`
+    ] as const;
+    }
+
+
+export const getListAnthropicConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listAnthropicConversations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAnthropicConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAnthropicConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAnthropicConversations>>> = ({ signal }) => listAnthropicConversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAnthropicConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAnthropicConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAnthropicConversations>>>
+export type ListAnthropicConversationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all conversations
+ */
+
+export function useListAnthropicConversations<TData = Awaited<ReturnType<typeof listAnthropicConversations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAnthropicConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAnthropicConversationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAnthropicConversationUrl = () => {
+
+
+
+
+  return `/api/anthropic/conversations`
+}
+
+/**
+ * @summary Create a new conversation
+ */
+export const createAnthropicConversation = async (anthropicConversationInput: AnthropicConversationInput, options?: RequestInit): Promise<AnthropicConversation> => {
+
+  return customFetch<AnthropicConversation>(getCreateAnthropicConversationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(anthropicConversationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAnthropicConversationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAnthropicConversation>>, TError,{data: BodyType<AnthropicConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAnthropicConversation>>, TError,{data: BodyType<AnthropicConversationInput>}, TContext> => {
+
+const mutationKey = ['createAnthropicConversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAnthropicConversation>>, {data: BodyType<AnthropicConversationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAnthropicConversation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAnthropicConversationMutationResult = NonNullable<Awaited<ReturnType<typeof createAnthropicConversation>>>
+    export type CreateAnthropicConversationMutationBody = BodyType<AnthropicConversationInput>
+    export type CreateAnthropicConversationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new conversation
+ */
+export const useCreateAnthropicConversation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAnthropicConversation>>, TError,{data: BodyType<AnthropicConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAnthropicConversation>>,
+        TError,
+        {data: BodyType<AnthropicConversationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAnthropicConversationMutationOptions(options));
+    }
 
