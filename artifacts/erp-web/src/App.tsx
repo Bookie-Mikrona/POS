@@ -25,6 +25,7 @@ import Ddv from "@/pages/ddv";
 import Dimenzije from "@/pages/dimenzije";
 import Porocila from "@/pages/porocila";
 import PorocilaAnalitika from "@/pages/porocila-dimenzije";
+import Nastavitve from "@/pages/nastavitve";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -232,12 +233,7 @@ function ClerkProviderWithRoutes() {
           <ProtectedRoute path="/porocila" component={Porocila} />
           <ProtectedRoute path="/porocila/dimenzije" component={PorocilaAnalitika} />
           
-          <ProtectedRoute path="/nastavitve" component={() => (
-            <Placeholder 
-              title="Nastavitve podjetja" 
-              description="Podatki o podjetju, davčne nastavitve, uporabniki in pravice." 
-            />
-          )} />
+          <ProtectedRoute path="/nastavitve" component={Nastavitve} />
 
             <Route component={NotFound} />
           </Switch>
