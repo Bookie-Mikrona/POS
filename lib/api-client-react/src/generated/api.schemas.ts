@@ -9,6 +9,2132 @@ export interface HealthStatus {
   status: string;
 }
 
+export type KategorijaTip = typeof KategorijaTip[keyof typeof KategorijaTip] | null;
+
+
+export const KategorijaTip = {
+  hrana: 'hrana',
+  pijaca: 'pijaca',
+} as const;
+
+export interface Kategorija {
+  id: number;
+  ime: string;
+  barva: string;
+  vrstniRed: number;
+  tip?: KategorijaTip;
+  /** Ali kategorija uporablja dnevno filtriranje modifikatorjev */
+  dnevnoFiltriranje?: boolean;
+}
+
+export type KategorijaInputTip = typeof KategorijaInputTip[keyof typeof KategorijaInputTip] | null;
+
+
+export const KategorijaInputTip = {
+  hrana: 'hrana',
+  pijaca: 'pijaca',
+} as const;
+
+export interface KategorijaInput {
+  /** @minLength 1 */
+  ime: string;
+  barva: string;
+  vrstniRed?: number;
+  tip?: KategorijaInputTip;
+  dnevnoFiltriranje?: boolean;
+}
+
+export interface Modifikator {
+  id: number;
+  skupinaId: number;
+  ime: string;
+  cenaDodatek: number;
+  aktiven: boolean;
+  vrstniRed: number;
+}
+
+export interface ModSkupinaFull {
+  id: number;
+  ime: string;
+  obvezna: boolean;
+  minIzbir: number;
+  maxIzbir: number;
+  vrstniRed: number;
+  modifikatorji: Modifikator[];
+}
+
+export interface Artikel {
+  id: number;
+  ime: string;
+  /** @nullable */
+  opis?: string | null;
+  cena: number;
+  /** DDV stopnja v % (npr. 9.5 ali 22) */
+  davek: number;
+  aktiven: boolean;
+  /** @nullable */
+  kategorijaId?: number | null;
+  /** @nullable */
+  kategorijaIme?: string | null;
+  /**
+     * Hex barva ozadja kartice (npr. '#3b82f6')
+     * @nullable
+     */
+  barva?: string | null;
+  /** Vrstni red prikaza v meniju */
+  vrstniRed: number;
+  /** Ali je artikel nabavni artikel */
+  nabavniArtikel?: boolean;
+  /** Ali je artikel prodajni artikel */
+  prodajniArtikel?: boolean;
+  /**
+     * Ime artikla za nabavo (Eslog)
+     * @nullable
+     */
+  imeZaNabavo?: string | null;
+  /**
+     * Enota mere po Eslog/UNECE (npr. LTR, KOM, KGM)
+     * @nullable
+     */
+  enotaMere?: string | null;
+  /** Ali artikel spada med pice (za bon za pico) */
+  jePica?: boolean;
+  /** Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator */
+  jeDodatekZaPico?: boolean;
+  /** Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji */
+  privzetiDodatki?: number[];
+  /** Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja) */
+  jeModifikator?: boolean;
+  /** Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla */
+  privzetiModifikatorji?: number[];
+  /** Seznam ID-jev artiklov (embalaža) za opcijo To Go — ob kliku se samodejno dodajo k naročilu */
+  toGoArtikli?: number[];
+  /** Ali je artikel označen kot "To Go" — prikazuje gumb za dodajanje embalaže v naročilu */
+  toGo?: boolean;
+  /** Ali ima artikel vsaj en vnos v normativu (receptura) */
+  hasNormativ?: boolean;
+  /** Modifikatorske skupine prirejene artiklu */
+  modSkupine?: ModSkupinaFull[];
+}
+
+export interface ArtikelInput {
+  /** @minLength 1 */
+  ime: string;
+  /** @nullable */
+  opis?: string | null;
+  cena?: number;
+  davek?: number;
+  aktiven?: boolean;
+  /** @nullable */
+  kategorijaId?: number | null;
+  /**
+     * Hex barva ozadja kartice
+     * @nullable
+     */
+  barva?: string | null;
+  /** Vrstni red prikaza v meniju */
+  vrstniRed?: number;
+  nabavniArtikel?: boolean;
+  prodajniArtikel?: boolean;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere?: string | null;
+  /** Ali artikel spada med pice (za bon za pico) */
+  jePica?: boolean;
+  /** Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator */
+  jeDodatekZaPico?: boolean;
+  /** Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji */
+  privzetiDodatki?: number[];
+  /** Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja) */
+  jeModifikator?: boolean;
+  /** Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla */
+  privzetiModifikatorji?: number[];
+  /** Seznam ID-jev artiklov (embalaža) za opcijo To Go */
+  toGoArtikli?: number[];
+  /** Ali je artikel označen kot "To Go" */
+  toGo?: boolean;
+}
+
+export interface Normativ {
+  id: number;
+  artikelId: number;
+  vhodniArtikelId: number;
+  vhodniArtikelIme: string;
+  /** @nullable */
+  enotaMere?: string | null;
+  kolicina: number;
+  vrstniRed: number;
+}
+
+export interface NormativInput {
+  vhodniArtikelId: number;
+  kolicina: number;
+}
+
+export interface ArtikelReorderItem {
+  id: number;
+  vrstniRed: number;
+}
+
+export interface ArtikelPopularnost {
+  artikelId: number;
+  ime: string;
+  steviloNarocil: number;
+  skupajZnesek: number;
+}
+
+export type MizaStatus = typeof MizaStatus[keyof typeof MizaStatus];
+
+
+export const MizaStatus = {
+  prosta: 'prosta',
+  zasedena: 'zasedena',
+  rezervirana: 'rezervirana',
+} as const;
+
+export interface Miza {
+  id: number;
+  stevilka: number;
+  /** @nullable */
+  ime?: string | null;
+  kapaciteta: number;
+  status: MizaStatus;
+  /** @nullable */
+  prostorId?: number | null;
+}
+
+export type MizaInputStatus = typeof MizaInputStatus[keyof typeof MizaInputStatus];
+
+
+export const MizaInputStatus = {
+  prosta: 'prosta',
+  zasedena: 'zasedena',
+  rezervirana: 'rezervirana',
+} as const;
+
+export interface MizaInput {
+  stevilka: number;
+  /** @nullable */
+  ime?: string | null;
+  kapaciteta: number;
+  status?: MizaInputStatus;
+  /** @nullable */
+  prostorId?: number | null;
+}
+
+export interface Prostor {
+  id: number;
+  ime: string;
+  vrstniRed: number;
+}
+
+export interface ProstorInput {
+  ime: string;
+  vrstniRed?: number;
+}
+
+export interface Postavka {
+  id: number;
+  artikelId: number;
+  ime: string;
+  kolicina: number;
+  cenaKos: number;
+  /**
+     * Originalna cena brez popusta (null ce ni popusta)
+     * @nullable
+     */
+  cenaKosOriginalna?: number | null;
+  skupaj: number;
+  davek: number;
+  /** @nullable */
+  opomba?: string | null;
+  /** @nullable */
+  kategorijaId?: number | null;
+  /** @nullable */
+  kategorijaIme?: string | null;
+  /** Ali artikel spada med pice (za bon za pico) */
+  jePica?: boolean;
+  /**
+     * ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)
+     * @nullable
+     */
+  racunId?: number | null;
+  /**
+     * Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)
+     * @nullable
+     */
+  racunStevilka?: string | null;
+  /**
+     * Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)
+     * @nullable
+     */
+  gostStevilka?: number | null;
+  /**
+     * ID nadrejene postavke (pice), kateri ta dodatek pripada
+     * @nullable
+     */
+  parentPostavkaId?: number | null;
+  /**
+     * ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)
+     * @nullable
+     */
+  modifikatorId?: number | null;
+  /** Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj) */
+  toGo?: boolean;
+  /** Cas vnosa postavke v narocilo */
+  ustvarjeno: string;
+  /**
+     * Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)
+     * @nullable
+     */
+  pripravljeno?: string | null;
+}
+
+export interface IzbraniModifikator {
+  modifikatorId: number;
+  ime: string;
+  cenaDodatek: number;
+}
+
+export interface PostavkaInput {
+  artikelId: number;
+  kolicina: number;
+  /** @nullable */
+  opomba?: string | null;
+  /**
+     * Stevilka gosta, ki naroča ta artikel
+     * @nullable
+     */
+  gostStevilka?: number | null;
+  /**
+     * ID nadrejene postavke (pice), kateri ta dodatek pripada
+     * @nullable
+     */
+  parentPostavkaId?: number | null;
+  /** Če true, strežnik ne vstavi samodejnih privzetih dodatkov (odjemalec jih vstavi eksplicitno) */
+  brezPrivzetihDodatkov?: boolean;
+  /** Izbrani modifikatorji za to postavko (vstavljeni kot otroške postavke) */
+  izbranModifikatorji?: IzbraniModifikator[];
+}
+
+/**
+ * Vir zahteve (kuhinja ali tocilnica) — posredovano v SSE event
+ */
+export type TogglePostavkaPripravljenoInputVir = typeof TogglePostavkaPripravljenoInputVir[keyof typeof TogglePostavkaPripravljenoInputVir];
+
+
+export const TogglePostavkaPripravljenoInputVir = {
+  kuhinja: 'kuhinja',
+  tocilnica: 'tocilnica',
+} as const;
+
+export interface TogglePostavkaPripravljenoInput {
+  /** true = oznaci kot pripravljeno, false = razveljavi oznako */
+  pripravljeno: boolean;
+  /** Vir zahteve (kuhinja ali tocilnica) — posredovano v SSE event */
+  vir?: TogglePostavkaPripravljenoInputVir;
+}
+
+export interface PostavkaKolicinaInput {
+  /** Nova kolicina (dovoljene negativne vrednosti za popravke/vracila) */
+  kolicina: number;
+  /**
+     * Nova cena na kos po popustu (cenaKosOriginalna ostane nespremenjena)
+     * @nullable
+     */
+  cenaKos?: number | null;
+  /**
+     * Nova stevilka gosta (null za odstranitev dodelitve)
+     * @nullable
+     */
+  gostStevilka?: number | null;
+  /**
+     * Zvocna ali pisna opomba za to postavko
+     * @nullable
+     */
+  opomba?: string | null;
+  /** Oznaci postavko kot To Go */
+  toGo?: boolean;
+}
+
+export interface DDVNeskladje {
+  /** Ali je DDV neskladje večje od 0.01 EUR */
+  imaNeskladje: boolean;
+  /** Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu */
+  razlika: number;
+}
+
+export interface PrenosNarocila {
+  id: number;
+  narociloId: number;
+  /** @nullable */
+  staraMizaId?: number | null;
+  /** @nullable */
+  staraMizaStevilka?: number | null;
+  /** @nullable */
+  staraMizaIme?: string | null;
+  /** @nullable */
+  novaMizaId?: number | null;
+  /** @nullable */
+  novaMizaStevilka?: number | null;
+  /** @nullable */
+  novaMizaIme?: string | null;
+  ustvarjeno: string;
+}
+
+export type NarociloStatus = typeof NarociloStatus[keyof typeof NarociloStatus];
+
+
+export const NarociloStatus = {
+  odprto: 'odprto',
+  zakljuceno: 'zakljuceno',
+  preklicano: 'preklicano',
+} as const;
+
+export interface Narocilo {
+  id: number;
+  /** @nullable */
+  mizaId?: number | null;
+  /** @nullable */
+  mizaStevilka?: number | null;
+  /** @nullable */
+  mizaIme?: string | null;
+  status: NarociloStatus;
+  skupaj: number;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  /** @nullable */
+  posodobljeno?: string | null;
+  postavke: Postavka[];
+  /** Zgodovina prenosov naročila med mizami */
+  prenosi: PrenosNarocila[];
+  /** DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR */
+  ddvNeskladje?: DDVNeskladje | null;
+}
+
+export interface SpojiNarocilaInput {
+  /** ID izvornega narocila, katerega neracunane postavke se prenesejo v ciljno narocilo */
+  virNarociloId: number;
+}
+
+export interface NarociloInput {
+  /** @nullable */
+  mizaId?: number | null;
+  /** @nullable */
+  opomba?: string | null;
+}
+
+export type NarociloUpdateStatus = typeof NarociloUpdateStatus[keyof typeof NarociloUpdateStatus];
+
+
+export const NarociloUpdateStatus = {
+  odprto: 'odprto',
+  zakljuceno: 'zakljuceno',
+  preklicano: 'preklicano',
+} as const;
+
+export interface NarociloUpdate {
+  status?: NarociloUpdateStatus;
+  /** @nullable */
+  opomba?: string | null;
+  /**
+     * Prestavi naročilo na drugo mizo (null = brez mize)
+     * @nullable
+     */
+  mizaId?: number | null;
+}
+
+export interface Izmena {
+  id: number;
+  natakariId: number;
+  /** Polno ime natakarja (denormalizirano za hitrost) */
+  natakarIme: string;
+  zacetek: string;
+  /** @nullable */
+  konec?: string | null;
+  /** Skupni promet izmene (izračunano ob zapiranju) */
+  skupajZnesek: number;
+  /** Število računov v izmeni */
+  steviloRacunov: number;
+}
+
+export interface IzmenaInput {
+  natakariId: number;
+}
+
+export interface Enota {
+  id: number;
+  ime: string;
+  /** @nullable */
+  opis?: string | null;
+  aktiven: boolean;
+  /** Ura začetka poslovnega dne v formatu HH:MM (npr. "04:00") */
+  zacetekDnevaUra: string;
+  ustvarjeno: string;
+}
+
+export interface EnotaInput {
+  ime: string;
+  /** @nullable */
+  opis?: string | null;
+  aktiven: boolean;
+  /** Ura začetka poslovnega dne v formatu HH:MM (npr. "04:00") */
+  zacetekDnevaUra?: string;
+}
+
+export interface EnotaPreklopTelo {
+  enotaId: number;
+}
+
+export interface EnotaPreklopOdgovor {
+  ok: boolean;
+  enotaId: number;
+}
+
+export interface Natakari {
+  id: number;
+  ime: string;
+  priimek: string;
+  /**
+     * Davčna številka operaterja (za FURS)
+     * @nullable
+     */
+  davcnaStevilka?: string | null;
+  aktiven: boolean;
+  ustvarjeno?: string;
+}
+
+export interface NatakariInput {
+  ime: string;
+  priimek: string;
+  /** @nullable */
+  davcnaStevilka?: string | null;
+  aktiven: boolean;
+}
+
+export type RacunPlacilnaNacin = typeof RacunPlacilnaNacin[keyof typeof RacunPlacilnaNacin];
+
+
+export const RacunPlacilnaNacin = {
+  gotovina: 'gotovina',
+  kartica: 'kartica',
+  bon: 'bon',
+  bon_pica: 'bon_pica',
+  negotovinsko: 'negotovinsko',
+  reprezentanca: 'reprezentanca',
+  lastna_poraba: 'lastna_poraba',
+} as const;
+
+export type RacunStatus = typeof RacunStatus[keyof typeof RacunStatus];
+
+
+export const RacunStatus = {
+  poslan: 'poslan',
+  napaka: 'napaka',
+  testni: 'testni',
+  storniran: 'storniran',
+} as const;
+
+export interface Racun {
+  id: number;
+  narociloId: number;
+  /** True ce je to delni racun (samo del postavk narocila) */
+  jeDelni?: boolean;
+  /** Formatirana stevilka racuna (npr. 2024-001-0001) */
+  stevilkaRacuna: string;
+  skupaj: number;
+  ddv: number;
+  /**
+     * Osnova brez DDV (skupaj - ddv)
+     * @nullable
+     */
+  osnova?: number | null;
+  placilnaNacin: RacunPlacilnaNacin;
+  status: RacunStatus;
+  /**
+     * Zastitna oznaka izdajatelja (ZOI)
+     * @nullable
+     */
+  zoi?: string | null;
+  /**
+     * Edinstvena oznaka racuna od FURS
+     * @nullable
+     */
+  eor?: string | null;
+  /**
+     * Surov odgovor FURS API
+     * @nullable
+     */
+  fursOdgovor?: string | null;
+  ustvarjeno: string;
+  /**
+     * Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka
+     * @nullable
+     */
+  datumCas?: string | null;
+  /** @nullable */
+  mizaStevilka?: number | null;
+  /**
+     * Ime natakarja/operaterja na računu
+     * @nullable
+     */
+  natakarIme?: string | null;
+  /**
+     * Davčna številka operaterja (za FURS)
+     * @nullable
+     */
+  natakarDavcna?: string | null;
+  /** Skupno stevilo ponovnih izpisov (kopij) */
+  steviloPrintov?: number;
+  /**
+     * Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)
+     * @nullable
+     */
+  fursNapaka?: string | null;
+  /**
+     * Posebna opomba za revizijsko sled (npr. pri izredni izdaji)
+     * @nullable
+     */
+  opomba?: string | null;
+  /**
+     * Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP/B ker prostori niso nastavljeni)
+     * @nullable
+     */
+  opozorilo?: string | null;
+  /**
+     * Znesek plačan z gotovino
+     * @nullable
+     */
+  znesekGotovina?: number | null;
+  /**
+     * Znesek plačan s kartico
+     * @nullable
+     */
+  znesekKartica?: number | null;
+  /**
+     * Znesek plačan z darilnim bonom
+     * @nullable
+     */
+  znesekBon?: number | null;
+  /**
+     * Število bonov za pico
+     * @nullable
+     */
+  steviloBonov?: number | null;
+  /**
+     * Znesek pokrit z boni za pico
+     * @nullable
+     */
+  znesekBonPica?: number | null;
+  /**
+     * Znesek plačan z nakazilom na TRR (negotovinsko)
+     * @nullable
+     */
+  znesekNegotovinsko?: number | null;
+  /**
+     * Število dni odloga plačila (za negotovinsko plačilo na TRR)
+     * @nullable
+     */
+  dniOdloga?: number | null;
+  /** True ce je ta racun storno (razveljavitev) drugega racuna */
+  jeStorno?: boolean;
+  /**
+     * ID izvornega racuna ki ga ta storno racun razveljavlja
+     * @nullable
+     */
+  izvorni_racun_id?: number | null;
+  /**
+     * Davčna številka kupca (za B2B račun)
+     * @nullable
+     */
+  kupecDavcnaStevilka?: string | null;
+  /**
+     * Naziv/ime kupca
+     * @nullable
+     */
+  kupecNaziv?: string | null;
+  /**
+     * Naslov kupca
+     * @nullable
+     */
+  kupecNaslov?: string | null;
+  /**
+     * Ali je kupec zavezanec za DDV
+     * @nullable
+     */
+  kupecZavezanecDdv?: boolean | null;
+  /**
+     * SumUp checkout ID (prisoten samo pri SumUp plačilih)
+     * @nullable
+     */
+  sumupCheckoutId?: string | null;
+  /**
+     * Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)
+     * @nullable
+     */
+  vivaTerminalSessionId?: string | null;
+}
+
+export interface RacunUvozItem {
+  artikelId: number;
+  ime: string;
+  kolicina: number;
+  cenaKos: number;
+}
+
+export type RacunInputPlacilnaNacin = typeof RacunInputPlacilnaNacin[keyof typeof RacunInputPlacilnaNacin];
+
+
+export const RacunInputPlacilnaNacin = {
+  gotovina: 'gotovina',
+  kartica: 'kartica',
+  bon: 'bon',
+  bon_pica: 'bon_pica',
+  negotovinsko: 'negotovinsko',
+  reprezentanca: 'reprezentanca',
+  lastna_poraba: 'lastna_poraba',
+} as const;
+
+/**
+ * Način pošiljanja na FURS — nadpiše nastavitve; privzeto iz nastavitev
+ */
+export type RacunInputFursNacin = typeof RacunInputFursNacin[keyof typeof RacunInputFursNacin];
+
+
+export const RacunInputFursNacin = {
+  simulacija: 'simulacija',
+  testno: 'testno',
+  produkcija: 'produkcija',
+} as const;
+
+export interface RacunInput {
+  narociloId: number;
+  placilnaNacin: RacunInputPlacilnaNacin;
+  /** Način pošiljanja na FURS — nadpiše nastavitve; privzeto iz nastavitev */
+  fursNacin?: RacunInputFursNacin;
+  /**
+     * ID natakarja za FURS operater in izpis na racunu
+     * @nullable
+     */
+  natakariId?: number | null;
+  /** Preskoči DDV preverjanje (zahteva veljaven skrbniški PIN) */
+  preskociDDVPreverjanje?: boolean;
+  /** Skrbniški PIN za potrditev izredne izdaje */
+  skrbnisPIN?: string;
+  /**
+     * ID aktivne blagajne (PP+B kombinacija) — nadpiše nastavitve
+     * @nullable
+     */
+  blagajnaId?: number | null;
+  /** Seznam ID-jev postavk za delni racun; ce ni podan, se zajamejo vse postavke */
+  postavkeIds?: number[];
+  /**
+     * Znesek plačan z gotovino
+     * @nullable
+     */
+  znesekGotovina?: number | null;
+  /**
+     * Znesek plačan s kartico
+     * @nullable
+     */
+  znesekKartica?: number | null;
+  /**
+     * Znesek plačan z darilnim bonom
+     * @nullable
+     */
+  znesekBon?: number | null;
+  /**
+     * Število bonov za pico
+     * @nullable
+     */
+  steviloBonov?: number | null;
+  /**
+     * Znesek pokrit z boni za pico
+     * @nullable
+     */
+  znesekBonPica?: number | null;
+  /**
+     * Znesek plačan z nakazilom na TRR (negotovinsko)
+     * @nullable
+     */
+  znesekNegotovinsko?: number | null;
+  /**
+     * Število dni odloga plačila (za negotovinsko plačilo na TRR)
+     * @nullable
+     */
+  dniOdloga?: number | null;
+  /**
+     * Število kuponov izdanih stranki (pice plačane brez bonov)
+     * @nullable
+     */
+  izdaniKuponi?: number | null;
+  /**
+     * Davčna številka kupca (za B2B račun)
+     * @nullable
+     */
+  kupecDavcnaStevilka?: string | null;
+  /**
+     * Naziv/ime kupca
+     * @nullable
+     */
+  kupecNaziv?: string | null;
+  /**
+     * Naslov kupca
+     * @nullable
+     */
+  kupecNaslov?: string | null;
+  /**
+     * Ali je kupec zavezanec za DDV
+     * @nullable
+     */
+  kupecZavezanecDdv?: boolean | null;
+  /**
+     * SumUp checkout ID (shrani se pri SumUp plačilu)
+     * @nullable
+     */
+  sumupCheckoutId?: string | null;
+  /**
+     * Viva Terminal session ID (shrani se pri Viva Terminal plačilu)
+     * @nullable
+     */
+  vivaTerminalSessionId?: string | null;
+  /**
+     * ID shranjenega kupca — če je podan, se pri izračunu računa uporabijo cene iz partnerjevega cenika
+     * @nullable
+     */
+  kupecId?: number | null;
+}
+
+export interface BlagajnaPogled {
+  id: number;
+  podjetjeDavcna: string;
+  ppId: string;
+  bId: string;
+  ime: string;
+  aktivna: boolean;
+  ustvarjeno: string;
+}
+
+export interface BlagajnaVnos {
+  ppId: string;
+  bId: string;
+  ime: string;
+  aktivna?: boolean;
+}
+
+export interface BlagajnaPosodobitev {
+  ppId: string;
+  bId: string;
+  ime: string;
+  aktivna?: boolean;
+}
+
+export interface PosljiEmailRacunaInput {
+  /** E-poštni naslov prejemnika */
+  prejemnik: string;
+}
+
+export interface EmailRacunaOdgovor {
+  uspeh: boolean;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface RetryFursRacunRezultat {
+  id: number;
+  stevilkaRacuna: string;
+  uspeh: boolean;
+  /** @nullable */
+  eor?: string | null;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface RetryFursBatchOdgovor {
+  /** Skupno število računov s statusom napaka */
+  skupaj: number;
+  /** Število uspešno registriranih računov */
+  uspesno: number;
+  /** Število računov, ki jih ni bilo mogoče registrirati */
+  neuspesno: number;
+  racuni: RetryFursRacunRezultat[];
+}
+
+/**
+ * Način pošiljanja na FURS — privzeto iz nastavitev
+ */
+export type PonoviPosiljanjeInputFursNacin = typeof PonoviPosiljanjeInputFursNacin[keyof typeof PonoviPosiljanjeInputFursNacin];
+
+
+export const PonoviPosiljanjeInputFursNacin = {
+  simulacija: 'simulacija',
+  testno: 'testno',
+  produkcija: 'produkcija',
+} as const;
+
+export interface PonoviPosiljanjeInput {
+  /** Način pošiljanja na FURS — privzeto iz nastavitev */
+  fursNacin?: PonoviPosiljanjeInputFursNacin;
+}
+
+export interface PrometPoNacinuPlacila {
+  /** Skupni znesek plačil z gotovino (brez dela pokritega z boni za pico) */
+  gotovina: number;
+  /** Skupni znesek kartičnih plačil brez SumUp (brez dela pokritega z boni za pico) */
+  kartica: number;
+  /** Skupni znesek plačil z boni (brez dela pokritega z boni za pico) */
+  bon: number;
+  /** Skupni znesek plačil prek SumUp (brez dela pokritega z boni za pico) */
+  sumup: number;
+  /** Skupni znesek pokrit z boni za pico */
+  bonPica: number;
+  /** Skupno število bonov za pico */
+  steviloBonov: number;
+  /** Skupni znesek plačil z nakazilom na TRR */
+  negotovinsko: number;
+  /** Skupni znesek plačil reprezentance */
+  reprezentanca?: number;
+  /** Skupni znesek lastne porabe */
+  lastna_poraba?: number;
+}
+
+export interface PrometUra {
+  ura: number;
+  znesek: number;
+}
+
+export interface IzmenaStat {
+  izmenaId: number;
+  natakarIme: string;
+  zacetek: string;
+  /** @nullable */
+  konec?: string | null;
+  skupajZnesek: number;
+  steviloRacunov: number;
+  aktivna: boolean;
+}
+
+export interface Statistike {
+  dnevniPromet: number;
+  steviloRacunov: number;
+  steviloAktivnihNarocil: number;
+  skupajDDV: number;
+  prometPoNacinuPlacila: PrometPoNacinuPlacila;
+  priljubljeniArtikli: ArtikelPopularnost[];
+  prometPoUrah: PrometUra[];
+  prometPoIzmenah: IzmenaStat[];
+}
+
+/**
+ * Način pošiljanja na FURS: 'simulacija' = lokalna simulacija (brez omrežja); 'testno' = FURS testni strežnik (blagajne-test.fu.gov.si); 'produkcija' = FURS produkcijski strežnik (blagajne.fu.gov.si)
+ */
+export type NastavitveFursNacin = typeof NastavitveFursNacin[keyof typeof NastavitveFursNacin];
+
+
+export const NastavitveFursNacin = {
+  simulacija: 'simulacija',
+  testno: 'testno',
+  produkcija: 'produkcija',
+} as const;
+
+/**
+ * Način združevanja gumbov artiklov v naročilu — 'izklopljeno': brez grupiranja; 'staro': mali popover; 'novo': drsni panel (bottom sheet)
+ */
+export type NastavitveGrupiranjeNacin = typeof NastavitveGrupiranjeNacin[keyof typeof NastavitveGrupiranjeNacin];
+
+
+export const NastavitveGrupiranjeNacin = {
+  izklopljeno: 'izklopljeno',
+  staro: 'staro',
+  novo: 'novo',
+} as const;
+
+export interface Nastavitve {
+  nazivRestavracije: string;
+  naslovRestavracije: string;
+  /** Pravni naziv podjetja iz DDV registra (samo za branje) */
+  nazivPodjetja?: string;
+  /** Sedež podjetja iz DDV registra (samo za branje) */
+  naslovPodjetja?: string;
+  davcnaStevilka: string;
+  /** FURS ID poslovnega prostora (npr. PP001) */
+  poslovniProstor: string;
+  /** FURS ID elektronske naprave/blagajne (npr. B001) */
+  elektronskaNaprava: string;
+  /** Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca */
+  ponudnikDavcna?: string;
+  /** Pot do PEM zasebnega ključa na strežniku (za produkcijsko ZOI podpisovanje) */
+  certifikatPot?: string;
+  /** Geslo/fraza PEM zasebnega ključa */
+  certifikatGeslo?: string;
+  /** Prva vrstica pozdrava na dnu računa (npr. Hvala za obisk!) */
+  racunPozdrav1?: string;
+  /** Druga vrstica pozdrava na dnu računa */
+  racunPozdrav2?: string;
+  /** Način pošiljanja na FURS: 'simulacija' = lokalna simulacija (brez omrežja); 'testno' = FURS testni strežnik (blagajne-test.fu.gov.si); 'produkcija' = FURS produkcijski strežnik (blagajne.fu.gov.si) */
+  fursNacin?: NastavitveFursNacin;
+  /** Izpeljano iz fursNacin (true = simulacija ali testno; false = produkcija). Samo za branje. */
+  testniNacin?: boolean;
+  /** URL PHP proxy na slovenskem strežniku za FURS komunikacijo (npr. https://www.bookie.si/abc/dlb/furs-proxy.php). Če nastavljeno, se SOAP zahtevki posredujejo prek proxy-ja namesto direktno. */
+  fursProxyUrl?: string;
+  /** True če je certifikat FURS naložen v bazo podatkov (samo za branje — ne pošiljajte v PUT zahtevku) */
+  certifikatNaložen?: boolean;
+  /** SMTP strežnik za pošiljanje e-pošte (npr. smtp.gmail.com) */
+  smtpHost?: string;
+  /** SMTP vrata (npr. 587 za TLS, 465 za SSL) */
+  smtpPort?: number;
+  /** Uporabniško ime za SMTP prijavo */
+  smtpUser?: string;
+  /** True če je SMTP geslo nastavljeno (samo za branje — za spremembo gesla uporabite updateNastavitve) */
+  smtpGesloNastavljeno?: boolean;
+  /** E-poštni naslov pošiljatelja (npr. pos@restavracija.si) */
+  smtpFrom?: string;
+  /** Ali je pošiljanje e-pošte aktivirano */
+  smtpAktiven?: boolean;
+  /** Ali je skrbniški PIN za izredno izdajo nastavljen (samo za branje) */
+  izrednaIzdajaPINNastavljen?: boolean;
+  /** Če true, vsak FURS klic (nov račun, ponovi, storno) vrne simulirano napako sistema FURS — za testiranje odpornosti blagajne */
+  simulirajFursNapako?: boolean;
+  /** Način združevanja gumbov artiklov v naročilu — 'izklopljeno': brez grupiranja; 'staro': mali popover; 'novo': drsni panel (bottom sheet) */
+  grupiranjeNacin?: NastavitveGrupiranjeNacin;
+  /** IBAN prodajalca za prikaz na računih z negotovinskim plačilom */
+  prodajalecIban?: string;
+  /** BIC/SWIFT koda banke prodajalca */
+  prodajalecBic?: string;
+  /** Matična številka podjetja za prikaz v nogi računa */
+  racunMaticna?: string;
+  /** Sodišče vpisa in številka vložka za prikaz v nogi računa (npr. Okrožno sodišče v Ljubljani, reg. vl. 12345/2020) */
+  racunSodisce?: string;
+  /** Podatek o osnovnem kapitalu za prikaz v nogi računa (npr. Osnovni kapital 7.500,00 EUR, vplačan v celoti) */
+  racunKapital?: string;
+  /** DDV klavzula za prikaz v nogi računa (npr. za male zavezance ali obrnjeno davčno breme) */
+  racunDdvKlavzula?: string;
+  /** Če true, se na negotovinskih računih prikaže klavzula o zbirnem računu (DDV obračunan ob izdaji POS računov) */
+  racunZbirnaKlavzula?: boolean;
+  /** Pravna opomba za prikaz v nogi računa (npr. lastninski pridržek, zamudne obresti, sodišče) */
+  racunPravnaKlavzula?: string;
+  /** API žeton za Windows tiskalni agent (samo za branje — generirano avtomatsko) */
+  agentTiskalnikToken?: string;
+}
+
+/**
+ * Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)
+ */
+export type NastavitveTerminaliUpdateTiskalnikSirina = typeof NastavitveTerminaliUpdateTiskalnikSirina[keyof typeof NastavitveTerminaliUpdateTiskalnikSirina];
+
+
+export const NastavitveTerminaliUpdateTiskalnikSirina = {
+  NUMBER_58: 58,
+  NUMBER_80: 80,
+} as const;
+
+/**
+ * Nastavitve plačilnih terminalov — dostopno vsem prijavljenim uporabnikom
+ */
+export interface NastavitveTerminaliUpdate {
+  terminalAktiven?: boolean;
+  terminalIp?: string;
+  terminalPort?: number;
+  terminalTimeoutMs?: number;
+  paytenAndroidAktiven?: boolean;
+  paytenAndroidPackageName?: string;
+  sumupAktiven?: boolean;
+  sumupTerminalSerial?: string;
+  /** Pošljite samo za spremembo; prazno = obdrži obstoječi */
+  sumupApiKey?: string;
+  vivaAktiven?: boolean;
+  vivaClientId?: string;
+  /** Pošljite samo za spremembo; prazno = obdrži obstoječi */
+  vivaClientSecret?: string;
+  vivaSourceCode?: string;
+  vivaDemoNacin?: boolean;
+  vivaTerminalAktiven?: boolean;
+  vivaTerminalId?: string;
+  vivaAndroidTerminalAktiven?: boolean;
+  vivaAndroidSourceCode?: string;
+  vivaTapToPayAktiven?: boolean;
+  vivaTapToPaySourceCode?: string;
+  /** Ime Windows tiskalnika za tiskalni agent (per-naprava) */
+  agentTiskalnikIme?: string;
+  /** Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev) */
+  tiskalnikSirina?: NastavitveTerminaliUpdateTiskalnikSirina;
+}
+
+/**
+ * Telo zahtevka za posodobitev nastavitev; smtpPassword pošljite samo če želite spremeniti geslo
+ */
+export type NastavitveUpdate = Nastavitve & {
+  /** Novo geslo za SMTP prijavo (izpustite ali pustite prazno, da obdržite obstoječe) */
+  smtpPassword?: string;
+  /** Nov skrbniški PIN za izredno izdajo (4–8 znakov; izpustite za ohranitev obstoječega) */
+  izrednaIzdajaPIN?: string;
+};
+
+export interface TerminalPlaciloPovprasevanje {
+  narociloId: number;
+  /** Znesek v evrih (npr. 12.50) */
+  znesek: number;
+}
+
+export type TerminalPlaciloOdgovorStatus = typeof TerminalPlaciloOdgovorStatus[keyof typeof TerminalPlaciloOdgovorStatus];
+
+
+export const TerminalPlaciloOdgovorStatus = {
+  odobren: 'odobren',
+  zavrnjen: 'zavrnjen',
+  napaka: 'napaka',
+  preklic: 'preklic',
+} as const;
+
+export interface TerminalPlaciloOdgovor {
+  status: TerminalPlaciloOdgovorStatus;
+  /** @nullable */
+  avtorizacijskaKoda?: string | null;
+  /** @nullable */
+  referenca?: string | null;
+  /** @nullable */
+  kartica?: string | null;
+  /** @nullable */
+  maskiranPan?: string | null;
+  /** @nullable */
+  znesek?: number | null;
+  surovOdgovor: string;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface TerminalTestOdgovor {
+  uspeh: boolean;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface SumupPayBody {
+  narociloId: number;
+  /** Znesek v evrih (npr. 12.50) */
+  znesek: number;
+}
+
+export interface SumupPayOdgovor {
+  /** ID SumUp plačila za polling statusa */
+  checkoutId: string;
+}
+
+export type SumupStatusOdgovorStatus = typeof SumupStatusOdgovorStatus[keyof typeof SumupStatusOdgovorStatus];
+
+
+export const SumupStatusOdgovorStatus = {
+  PAID: 'PAID',
+  PENDING: 'PENDING',
+  FAILED: 'FAILED',
+} as const;
+
+export interface SumupStatusOdgovor {
+  status: SumupStatusOdgovorStatus;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface VivaPayBody {
+  narociloId: number;
+  /** Znesek v evrih (npr. 12.50) */
+  znesek: number;
+}
+
+export interface VivaPayOdgovor {
+  /** Koda naročila Viva Wallet za polling statusa */
+  orderCode: string;
+  /** URL za Smart Checkout QR kodo */
+  checkoutUrl: string;
+}
+
+export type VivaStatusOdgovorStatus = typeof VivaStatusOdgovorStatus[keyof typeof VivaStatusOdgovorStatus];
+
+
+export const VivaStatusOdgovorStatus = {
+  PAID: 'PAID',
+  PENDING: 'PENDING',
+  FAILED: 'FAILED',
+} as const;
+
+export interface VivaStatusOdgovor {
+  status: VivaStatusOdgovorStatus;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface VivaTerminalPayBody {
+  narociloId: number;
+  /** Znesek v evrih (npr. 12.50) */
+  znesek: number;
+}
+
+export interface VivaTerminalPayOdgovor {
+  /** UUID seje za polling statusa terminala */
+  sessionId: string;
+}
+
+export type VivaTerminalStatusOdgovorStatus = typeof VivaTerminalStatusOdgovorStatus[keyof typeof VivaTerminalStatusOdgovorStatus];
+
+
+export const VivaTerminalStatusOdgovorStatus = {
+  PAID: 'PAID',
+  PENDING: 'PENDING',
+  FAILED: 'FAILED',
+} as const;
+
+export interface VivaTerminalStatusOdgovor {
+  status: VivaTerminalStatusOdgovorStatus;
+  /** @nullable */
+  napaka?: string | null;
+}
+
+export interface VivaTerminalRefundBody {
+  /** Znesek vračila v evrih (npr. 12.50) */
+  znesek: number;
+  /** SessionId originalnega kartičnega plačila (UUID iz računa) */
+  originalSessionId?: string;
+  /** Referenčna koda transakcije (alternativa za originalSessionId) */
+  referencnaKoda?: string;
+}
+
+export interface VivaTerminalRefundOdgovor {
+  /** UUID seje vračila za polling statusa terminala */
+  sessionId: string;
+}
+
+/**
+ * Status vračila
+ */
+export type VivaVraciloStatus = typeof VivaVraciloStatus[keyof typeof VivaVraciloStatus];
+
+
+export const VivaVraciloStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed',
+} as const;
+
+export interface VivaVracilo {
+  id: number;
+  racunId: number;
+  /** UUID seje vračila (za polling terminala) */
+  refundSessionId: string;
+  /** Znesek vračila v evrih */
+  znesek: number;
+  /** Status vračila */
+  status: VivaVraciloStatus;
+  /** Sporočilo o napaki, če je terminal zavrnil vračilo */
+  napaka?: string | null;
+  ustvarjeno: string;
+}
+
+export interface ReconcileZalogeResult {
+  /** Število artiklov, za katere so bile zaloge preračunane */
+  popravljeno: number;
+}
+
+export interface ZalogaPogled {
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere: string | null;
+  kolicina: number;
+  /** @nullable */
+  zadnjaCena?: number | null;
+  zadnjaPosodobitev: string;
+}
+
+export type ZalogaGibPogledTip = typeof ZalogaGibPogledTip[keyof typeof ZalogaGibPogledTip];
+
+
+export const ZalogaGibPogledTip = {
+  prejemnica: 'prejemnica',
+  inventura: 'inventura',
+  poraba: 'poraba',
+} as const;
+
+export interface ZalogaGibPogled {
+  id: number;
+  artikelId: number;
+  artikelIme: string;
+  tip: ZalogaGibPogledTip;
+  kolicina: number;
+  /** @nullable */
+  opomba?: string | null;
+  /** @nullable */
+  referencaId?: number | null;
+  ustvarjeno: string;
+}
+
+export interface KarticaArtikla {
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere?: string | null;
+  /** @nullable */
+  cena?: number | null;
+  /** @nullable */
+  zadnjaCena?: number | null;
+  kolicina: number;
+  /** @nullable */
+  vrednost?: number | null;
+  gibi: ZalogaGibPogled[];
+}
+
+export interface PrejemnicaPostavkaInput {
+  artikelId: number;
+  kolicina: number;
+  cenaKos?: number;
+}
+
+export interface PrejemnicaUrediVnos {
+  datum?: string;
+  /** @nullable */
+  opomba?: string | null;
+  postavke?: PrejemnicaPostavkaInput[];
+}
+
+export interface InventuraPostavkaInput {
+  artikelId: number;
+  steviloNajdeno: number;
+}
+
+export interface InventuraUrediVnos {
+  datum?: string;
+  /** @nullable */
+  opomba?: string | null;
+  postavke?: InventuraPostavkaInput[];
+}
+
+export interface PrejemnicaGlava {
+  id: number;
+  /** @nullable */
+  stevilka?: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  skupajVrednost: number;
+  ustvarjeno: string;
+  steviloPostavk?: number;
+}
+
+export interface PrejemnicaPostavkaPogled {
+  id: number;
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere?: string | null;
+  kolicina: number;
+  cenaKos: number;
+  skupaj: number;
+}
+
+export interface PrejemnicaFull {
+  id: number;
+  /** @nullable */
+  stevilka?: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  skupajVrednost: number;
+  ustvarjeno: string;
+  postavke: PrejemnicaPostavkaPogled[];
+}
+
+export interface PrejemnicaInput {
+  datum?: string;
+  opomba?: string;
+  postavke: PrejemnicaPostavkaInput[];
+}
+
+export interface InventuraGlava {
+  id: number;
+  /** @nullable */
+  stevilka?: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  steviloPostavk: number;
+}
+
+export interface InventuraPostavkaPogled {
+  id: number;
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere?: string | null;
+  steviloNajdeno: number;
+  steviloPrejsnje: number;
+  razlika: number;
+  cenaKos: number;
+}
+
+export interface InventuraFull {
+  id: number;
+  /** @nullable */
+  stevilka?: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  postavke: InventuraPostavkaPogled[];
+}
+
+export interface ZacetnaZalogaGlava {
+  id: number;
+  leto: number;
+  /** @nullable */
+  stevilka: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  steviloPostavk: number;
+}
+
+export interface ZacetnaZalogaPostavkaPogled {
+  id: number;
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere?: string | null;
+  kolicina: number;
+  cenaKos: number;
+  steviloPrejsnje: number;
+}
+
+export interface ZacetnaZalogaFull {
+  id: number;
+  leto: number;
+  /** @nullable */
+  stevilka: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  postavke: ZacetnaZalogaPostavkaPogled[];
+}
+
+export interface ZacetnaZalogaPostavkaInput {
+  artikelId: number;
+  kolicina: number;
+  cenaKos: number;
+}
+
+export interface ZacetnaZalogaInput {
+  leto: number;
+  datum?: string;
+  /** @nullable */
+  opomba?: string | null;
+  postavke: ZacetnaZalogaPostavkaInput[];
+}
+
+export interface ZacetnaZalogaUrediVnos {
+  datum?: string;
+  /** @nullable */
+  opomba?: string | null;
+  postavke?: ZacetnaZalogaPostavkaInput[];
+}
+
+export interface InventuraInput {
+  datum?: string;
+  opomba?: string;
+  postavke: InventuraPostavkaInput[];
+}
+
+export type PoslovniProstorTipProstora = typeof PoslovniProstorTipProstora[keyof typeof PoslovniProstorTipProstora];
+
+
+export const PoslovniProstorTipProstora = {
+  nepremicnina: 'nepremicnina',
+  premicnina: 'premicnina',
+  elektronska_naprava: 'elektronska_naprava',
+} as const;
+
+export interface PoslovniProstor {
+  id: number;
+  prostorId: string;
+  /** @nullable */
+  naziv?: string | null;
+  tipProstora: PoslovniProstorTipProstora;
+  aktiven: boolean;
+  zaprt: boolean;
+  /** @nullable */
+  ulica?: string | null;
+  /** @nullable */
+  hisnaStevilka?: string | null;
+  /** @nullable */
+  hisnaStevilkaDodatek?: string | null;
+  /** @nullable */
+  skupnost?: string | null;
+  /** @nullable */
+  kraj?: string | null;
+  /** @nullable */
+  postnaStevilka?: string | null;
+  /** @nullable */
+  katastrskaStevilka?: string | null;
+  /** @nullable */
+  stevilkaStavbe?: string | null;
+  /** @nullable */
+  stevilkaDelaStavbe?: string | null;
+  /** @nullable */
+  registrskaTablica?: string | null;
+  /** @nullable */
+  vin?: string | null;
+  /** @nullable */
+  premicninaTip?: string | null;
+  /** @nullable */
+  veljavnostOd?: string | null;
+  /** @nullable */
+  certifikatPot?: string | null;
+  /** @nullable */
+  certifikatGeslo?: string | null;
+  /** @nullable */
+  zadnjaRegistracija?: string | null;
+  ustvarjeno: string;
+}
+
+export type PoslovniProstorVnosTipProstora = typeof PoslovniProstorVnosTipProstora[keyof typeof PoslovniProstorVnosTipProstora];
+
+
+export const PoslovniProstorVnosTipProstora = {
+  nepremicnina: 'nepremicnina',
+  premicnina: 'premicnina',
+  elektronska_naprava: 'elektronska_naprava',
+} as const;
+
+export interface PoslovniProstorVnos {
+  prostorId: string;
+  /** @nullable */
+  naziv?: string | null;
+  tipProstora: PoslovniProstorVnosTipProstora;
+  aktiven?: boolean;
+  /** @nullable */
+  ulica?: string | null;
+  /** @nullable */
+  hisnaStevilka?: string | null;
+  /** @nullable */
+  hisnaStevilkaDodatek?: string | null;
+  /** @nullable */
+  skupnost?: string | null;
+  /** @nullable */
+  kraj?: string | null;
+  /** @nullable */
+  postnaStevilka?: string | null;
+  /** @nullable */
+  katastrskaStevilka?: string | null;
+  /** @nullable */
+  stevilkaStavbe?: string | null;
+  /** @nullable */
+  stevilkaDelaStavbe?: string | null;
+  /** @nullable */
+  registrskaTablica?: string | null;
+  /** @nullable */
+  vin?: string | null;
+  /** @nullable */
+  premicninaTip?: string | null;
+  /** @nullable */
+  veljavnostOd?: string | null;
+  /** @nullable */
+  certifikatPot?: string | null;
+  /** @nullable */
+  certifikatGeslo?: string | null;
+}
+
+/**
+ * Način pošiljanja na FURS — privzeto iz nastavitev
+ */
+export type RegistracijaProstoraTeloFursNacin = typeof RegistracijaProstoraTeloFursNacin[keyof typeof RegistracijaProstoraTeloFursNacin];
+
+
+export const RegistracijaProstoraTeloFursNacin = {
+  simulacija: 'simulacija',
+  testno: 'testno',
+  produkcija: 'produkcija',
+} as const;
+
+export interface RegistracijaProstoraTelo {
+  /** Način pošiljanja na FURS — privzeto iz nastavitev */
+  fursNacin?: RegistracijaProstoraTeloFursNacin;
+}
+
+export type TestniZagonPogledStatus = typeof TestniZagonPogledStatus[keyof typeof TestniZagonPogledStatus];
+
+
+export const TestniZagonPogledStatus = {
+  uspesno: 'uspesno',
+  neuspesno: 'neuspesno',
+  napaka: 'napaka',
+} as const;
+
+export interface TestniZagonPogled {
+  id: number;
+  zagnanOb: string;
+  skupajTestov: number;
+  prestaloTestov: number;
+  padloTestov: number;
+  /** @nullable */
+  trajanjeSekund?: number | null;
+  status: TestniZagonPogledStatus;
+  /** @nullable */
+  padliTesti?: string | null;
+}
+
+export interface RegistracijaProstoraOdgovor {
+  uspeh: boolean;
+  /** @nullable */
+  napaka?: string | null;
+  surovOdgovor: string;
+  /** @nullable */
+  poslovniProstorId?: string | null;
+}
+
+export interface UvozUporabnikaNapaka {
+  vrstica: number;
+  napaka: string;
+}
+
+export interface UvozArtiklovVrstica {
+  ime: string;
+  cena: number;
+  ddv: number;
+  kategorija?: string | null;
+}
+
+export interface UvozArtiklovNapaka {
+  vrstica: number;
+  napaka: string;
+}
+
+export interface UvozArtiklovRezultat {
+  predogled?: UvozArtiklovVrstica[];
+  skupaj?: number;
+  veljavnih?: number;
+  uvozenih?: number;
+  preskocenih?: number;
+  napake: UvozArtiklovNapaka[];
+}
+
+export interface TrrPostavka {
+  iban: string;
+  bic: string;
+}
+
+/**
+ * Vrsta poslovnega partnerja (obcan/sp/podjetje/kmet/javni_sektor)
+ * @nullable
+ */
+export type ShranjenKupecVrstaPartnerja = typeof ShranjenKupecVrstaPartnerja[keyof typeof ShranjenKupecVrstaPartnerja] | null;
+
+
+export const ShranjenKupecVrstaPartnerja = {
+  obcan: 'obcan',
+  sp: 'sp',
+  podjetje: 'podjetje',
+  kmet: 'kmet',
+  javni_sektor: 'javni_sektor',
+} as const;
+
+export interface ShranjenKupec {
+  id: number;
+  /** Dolgi naziv */
+  naziv: string;
+  /**
+     * Kratki naziv
+     * @nullable
+     */
+  kratkiNaziv?: string | null;
+  /**
+     * Naslov (zastarelo — zapolni se iz ulica+postnaStevilka+kraj)
+     * @nullable
+     */
+  naslov?: string | null;
+  /**
+     * Ulica in hišna številka
+     * @nullable
+     */
+  ulica?: string | null;
+  /** @nullable */
+  postnaStevilka?: string | null;
+  /** @nullable */
+  kraj?: string | null;
+  /** @nullable */
+  drzava?: string | null;
+  /**
+     * Koda države (npr. SI)
+     * @nullable
+     */
+  kodaDrzave?: string | null;
+  /**
+     * Ali je zavezanec za DDV
+     * @nullable
+     */
+  zavezanecDdv?: boolean | null;
+  /** @nullable */
+  davcnaStevilka?: string | null;
+  /**
+     * ID za DDV (npr. SI12345678)
+     * @nullable
+     */
+  idZaDdv?: string | null;
+  /** @nullable */
+  maticnaStevilka?: string | null;
+  /**
+     * Seznam TRR računov (IBAN in BIC)
+     * @nullable
+     */
+  trr?: TrrPostavka[] | null;
+  /**
+     * Vrsta poslovnega partnerja (obcan/sp/podjetje/kmet/javni_sektor)
+     * @nullable
+     */
+  vrstaPartnerja?: ShranjenKupecVrstaPartnerja;
+  /**
+     * KMG-MID identifikator kmetijskega gospodarstva
+     * @nullable
+     */
+  kmgMid?: string | null;
+  /**
+     * Ali je partner registriran za prejem e-računov (eRegister GZS)
+     * @nullable
+     */
+  eRacunPrejemnik?: boolean | null;
+  /**
+     * Ponudnik / omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)
+     * @nullable
+     */
+  eRacunOmrezje?: string | null;
+  /**
+     * E-poštni naslov za dostavo e-računov
+     * @nullable
+     */
+  eRacunEmail?: string | null;
+  /**
+     * Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)
+     * @nullable
+     */
+  eRacunNaslov?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  telefon?: string | null;
+  /** Število uporab tega kupca */
+  steviloUpor: number;
+  /** Datum zadnje uporabe */
+  zadnjaUporaba: string;
+  ustvarjeno?: string;
+}
+
+/**
+ * Vrsta poslovnega partnerja (obcan/sp/podjetje/kmet/javni_sektor)
+ * @nullable
+ */
+export type ShranjenKupecInputVrstaPartnerja = typeof ShranjenKupecInputVrstaPartnerja[keyof typeof ShranjenKupecInputVrstaPartnerja] | null;
+
+
+export const ShranjenKupecInputVrstaPartnerja = {
+  obcan: 'obcan',
+  sp: 'sp',
+  podjetje: 'podjetje',
+  kmet: 'kmet',
+  javni_sektor: 'javni_sektor',
+} as const;
+
+export interface ShranjenKupecInput {
+  /** Dolgi naziv */
+  naziv: string;
+  /** @nullable */
+  kratkiNaziv?: string | null;
+  /** @nullable */
+  naslov?: string | null;
+  /** @nullable */
+  ulica?: string | null;
+  /** @nullable */
+  postnaStevilka?: string | null;
+  /** @nullable */
+  kraj?: string | null;
+  /** @nullable */
+  drzava?: string | null;
+  /** @nullable */
+  kodaDrzave?: string | null;
+  /** @nullable */
+  zavezanecDdv?: boolean | null;
+  /** @nullable */
+  davcnaStevilka?: string | null;
+  /** @nullable */
+  idZaDdv?: string | null;
+  /** @nullable */
+  maticnaStevilka?: string | null;
+  /** @nullable */
+  trr?: TrrPostavka[] | null;
+  /**
+     * Vrsta poslovnega partnerja (obcan/sp/podjetje/kmet/javni_sektor)
+     * @nullable
+     */
+  vrstaPartnerja?: ShranjenKupecInputVrstaPartnerja;
+  /**
+     * KMG-MID identifikator kmetijskega gospodarstva
+     * @nullable
+     */
+  kmgMid?: string | null;
+  /**
+     * Ali je partner registriran za prejem e-računov (eRegister GZS)
+     * @nullable
+     */
+  eRacunPrejemnik?: boolean | null;
+  /**
+     * Ponudnik / omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)
+     * @nullable
+     */
+  eRacunOmrezje?: string | null;
+  /**
+     * E-poštni naslov za dostavo e-računov
+     * @nullable
+     */
+  eRacunEmail?: string | null;
+  /**
+     * Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)
+     * @nullable
+     */
+  eRacunNaslov?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  telefon?: string | null;
+}
+
+export interface KupecPoisciRezultat {
+  /**
+     * ID shranjenega kupca v bazi (null če kupec ni bil shranjen)
+     * @nullable
+     */
+  id?: number | null;
+  /** Davčna številka brez SI predpone (8 številk) */
+  davcnaStevilka: string;
+  /**
+     * DDV ID z SI predpono (npr. SI12345678)
+     * @nullable
+     */
+  idZaDdv?: string | null;
+  /** Dolgi naziv iz registra */
+  naziv: string;
+  /**
+     * Kratki naziv iz registra
+     * @nullable
+     */
+  kratkiNaziv?: string | null;
+  /**
+     * Celoten naslov kot niz
+     * @nullable
+     */
+  naslov?: string | null;
+  /** @nullable */
+  ulica?: string | null;
+  /** @nullable */
+  postnaStevilka?: string | null;
+  /** @nullable */
+  kraj?: string | null;
+  /** @nullable */
+  zavezanecDdv?: boolean | null;
+  /** @nullable */
+  maticnaStevilka?: string | null;
+  /** @nullable */
+  trr?: TrrPostavka[] | null;
+  /**
+     * Ali je partner registriran za prejem e-računov
+     * @nullable
+     */
+  eRacunPrejemnik?: boolean | null;
+  /**
+     * Ponudnik / omrežje e-računov
+     * @nullable
+     */
+  eRacunOmrezje?: string | null;
+  /**
+     * E-poštni naslov za dostavo e-računov
+     * @nullable
+     */
+  eRacunEmail?: string | null;
+  /**
+     * Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)
+     * @nullable
+     */
+  eRacunNaslov?: string | null;
+}
+
+/**
+ * Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)
+ */
+export type NapravaTerminalConfigTiskalnikSirina = typeof NapravaTerminalConfigTiskalnikSirina[keyof typeof NapravaTerminalConfigTiskalnikSirina];
+
+
+export const NapravaTerminalConfigTiskalnikSirina = {
+  NUMBER_58: 58,
+  NUMBER_80: 80,
+} as const;
+
+/**
+ * Sanitizirana terminalna konfiguracija naprave (skrivnosti so maskirane)
+ */
+export interface NapravaTerminalConfig {
+  terminalAktiven?: boolean;
+  terminalIp?: string;
+  terminalPort?: number;
+  terminalTimeoutMs?: number;
+  paytenAndroidAktiven?: boolean;
+  paytenAndroidPackageName?: string;
+  sumupAktiven?: boolean;
+  sumupTerminalSerial?: string;
+  sumupApiKeyNastavljen?: boolean;
+  vivaAktiven?: boolean;
+  vivaClientId?: string;
+  vivaClientSecretNastavljen?: boolean;
+  vivaSourceCode?: string;
+  vivaDemoNacin?: boolean;
+  vivaTerminalAktiven?: boolean;
+  vivaTerminalId?: string;
+  vivaAndroidTerminalAktiven?: boolean;
+  vivaAndroidSourceCode?: string;
+  vivaTapToPayAktiven?: boolean;
+  vivaTapToPaySourceCode?: string;
+  /** Ime Windows tiskalnika za tiskalni agent (per-naprava) */
+  agentTiskalnikIme?: string;
+  /** Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev) */
+  tiskalnikSirina?: NapravaTerminalConfigTiskalnikSirina;
+}
+
+export interface Naprava {
+  id: number;
+  podjetjeDavcna: string;
+  enotaId: number;
+  ime: string;
+  napravaKljuc: string;
+  /**
+     * null = globalna veriga; 'none' = preskoči; 'payten_hw' | 'payten_android' | 'sumup' | 'viva_cloud' | 'viva_android' | 'viva_ttp' | 'viva_smart'
+     * @nullable
+     */
+  placilniTerminal?: string | null;
+  /** Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize. */
+  dovoljeneMize?: number[] | null;
+  /**
+     * Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  glasovniPragZaupanja?: number | null;
+  /** Terminalne nastavitve te naprave (null = ni nastavljeno, ne preglasi globalnih). */
+  terminalConfig?: NapravaTerminalConfig | null;
+  ustvarjeno: string;
+  posodobljeno: string;
+}
+
+export interface NapravaRegistracijaVnos {
+  napravaKljuc: string;
+  ime: string;
+}
+
+export interface NapravaPosodobitev {
+  ime?: string;
+  /**
+     * null = globalna veriga; 'none' = preskoči; 'payten_hw' | 'payten_android' | 'sumup' | 'viva_cloud' | 'viva_android' | 'viva_ttp' | 'viva_smart'
+     * @nullable
+     */
+  placilniTerminal?: string | null;
+  dovoljeneMize?: number[] | null;
+  /**
+     * Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  glasovniPragZaupanja?: number | null;
+}
+
+export interface UvozUporabnikovRezultat {
+  ustvarjenih: number;
+  preskocenih: number;
+  napake: UvozUporabnikaNapaka[];
+}
+
+export interface GlasovniSinonim {
+  id: number;
+  beseda: string;
+  alias: string;
+}
+
+export interface GlasovniSinonimiInput {
+  beseda: string;
+  alias: string;
+}
+
+export type RacunPlacilnaNacinInputPlacilnaNacin = typeof RacunPlacilnaNacinInputPlacilnaNacin[keyof typeof RacunPlacilnaNacinInputPlacilnaNacin];
+
+
+export const RacunPlacilnaNacinInputPlacilnaNacin = {
+  gotovina: 'gotovina',
+  kartica: 'kartica',
+  bon: 'bon',
+  bon_pica: 'bon_pica',
+  negotovinsko: 'negotovinsko',
+  reprezentanca: 'reprezentanca',
+  lastna_poraba: 'lastna_poraba',
+} as const;
+
+export interface RacunPlacilnaNacinInput {
+  placilnaNacin: RacunPlacilnaNacinInputPlacilnaNacin;
+  /**
+     * Znesek plačan z gotovino
+     * @nullable
+     */
+  znesekGotovina?: number | null;
+  /**
+     * Znesek plačan s kartico
+     * @nullable
+     */
+  znesekKartica?: number | null;
+  /**
+     * Znesek plačan z darilnim bonom
+     * @nullable
+     */
+  znesekBon?: number | null;
+  /**
+     * Število bonov za pico
+     * @nullable
+     */
+  steviloBonov?: number | null;
+  /**
+     * Znesek pokrit z boni za pico
+     * @nullable
+     */
+  znesekBonPica?: number | null;
+  /**
+     * Davčna številka kupca (za B2B račun)
+     * @nullable
+     */
+  kupecDavcnaStevilka?: string | null;
+  /**
+     * Naziv/ime kupca
+     * @nullable
+     */
+  kupecNaziv?: string | null;
+  /**
+     * Naslov kupca
+     * @nullable
+     */
+  kupecNaslov?: string | null;
+  /**
+     * Ali je kupec zavezanec za DDV
+     * @nullable
+     */
+  kupecZavezanecDdv?: boolean | null;
+}
+
+export interface ModSkupina {
+  id: number;
+  ime: string;
+  obvezna: boolean;
+  minIzbir: number;
+  maxIzbir: number;
+  vrstniRed: number;
+}
+
+export interface ModSkupinaInput {
+  /** @minLength 1 */
+  ime: string;
+  obvezna?: boolean;
+  minIzbir?: number;
+  maxIzbir?: number;
+  vrstniRed?: number;
+}
+
+export interface ModifikatorInput {
+  /** @minLength 1 */
+  ime: string;
+  cenaDodatek?: number;
+  aktiven?: boolean;
+  vrstniRed?: number;
+}
+
+export interface ModNormativItem {
+  id: number;
+  vhodniArtikelId: number;
+  artikelIme: string;
+  kolicina: number;
+}
+
+export interface ModNormativVnos {
+  vhodniArtikelId: number;
+  kolicina: number;
+}
+
+export interface ModNormativiPayload {
+  normativi: ModNormativVnos[];
+}
+
+export type DodajModifikatorjeInputModifikatorjiItem = {
+  modifikatorId: number;
+};
+
+export interface DodajModifikatorjeInput {
+  modifikatorji: DodajModifikatorjeInputModifikatorjiItem[];
+  /** Eksplicitni seznam skupin, za katere se izvede replace (tudi brisanje). Ce ni podan, se skupinaIds izpeljejo iz modifikatorji. */
+  skupineIds?: number[];
+}
+
+export interface DnevniMeniVnos {
+  id: number;
+  datum: string;
+  artikelId: number;
+  modifikatorId: number;
+}
+
+export interface SetDnevniMeniBody {
+  /** Seznam modifikator ID-jev, ki so na voljo za ta artikel ta dan */
+  modifikatorIds: number[];
+}
+
+export interface PartnerCenikItem {
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  kategorijaId?: number | null;
+  /** @nullable */
+  kategorijaIme?: string | null;
+  /** Originalna (standardna) cena artikla */
+  originalCena?: number;
+  /** Cena v tem ceniku (partnerska cena) */
+  cena: number;
+  /** DDV stopnja artikla (%) */
+  davek?: number;
+}
+
+export interface PartnerCenikInput {
+  /** Partnerska cena (brez DDV ni relevantna — DDV stopnja se prevzame iz artikla) */
+  cena: number;
+}
+
+export interface KopirajTedenInput {
+  /** Začetek tedna, ki ga kopiramo (ISO datum ponedeljka, YYYY-MM-DD) */
+  izDatum: string;
+  /** Začetek ciljnega tedna (ISO datum ponedeljka, YYYY-MM-DD) */
+  doDatum: string;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -1661,6 +3787,164 @@ export type ForbiddenResponse = ErrorResponse;
  * Not found
  */
 export type NotFoundResponse = ErrorResponse;
+
+export type ImportUsers400 = {
+  napaka: string;
+};
+
+export type ListTestniZagoniParams = {
+limit?: number;
+};
+
+export type ListArtikliParams = {
+/**
+ * @nullable
+ */
+kategorijaId?: number | null;
+};
+
+export type UvozArtiklovCsvParams = {
+/**
+ * true = predogled brez shranjevanja; false = dejanski uvoz
+ */
+dryRun?: boolean;
+/**
+ * Ravnanje s podvojenimi artiklih: preskoči ali posodobi ceno/DDV
+ */
+podvojeni?: UvozArtiklovCsvPodvojeni;
+};
+
+export type UvozArtiklovCsvPodvojeni = typeof UvozArtiklovCsvPodvojeni[keyof typeof UvozArtiklovCsvPodvojeni];
+
+
+export const UvozArtiklovCsvPodvojeni = {
+  preskoči: 'preskoči',
+  posodobi: 'posodobi',
+} as const;
+
+export type UvozArtiklovCsv400 = {
+  napaka: string;
+};
+
+export type DeleteArtikel409VpNormativiItem = {
+  id: number;
+  ime: string;
+};
+
+export type DeleteArtikel409 = {
+  error: string;
+  vpNormativi: DeleteArtikel409VpNormativiItem[];
+};
+
+export type GetArtikelVNormativi200Item = {
+  id: number;
+  ime: string;
+};
+
+export type SetArtikelModSkupineBody = {
+  skupineIds: number[];
+};
+
+export type ListNarocilaParams = {
+/**
+ * @nullable
+ */
+status?: ListNarocilaStatus;
+/**
+ * @nullable
+ */
+mizaId?: number | null;
+};
+
+export type ListNarocilaStatus = typeof ListNarocilaStatus[keyof typeof ListNarocilaStatus] | null;
+
+
+export const ListNarocilaStatus = {
+  odprto: 'odprto',
+  zakljuceno: 'zakljuceno',
+  preklicano: 'preklicano',
+} as const;
+
+export type SpojiNarocili400 = {
+  error: string;
+};
+
+export type TogglePostavkaPripravljeno200 = {
+  ok?: boolean;
+};
+
+export type CreateShranjenKupec400 = {
+  napaka: string;
+};
+
+export type DeleteShranjenKupec404 = {
+  napaka: string;
+};
+
+export type OsveziShranjenKupec400 = {
+  napaka: string;
+};
+
+export type OsveziShranjenKupec404 = {
+  napaka: string;
+};
+
+export type PoisciKupcaParams = {
+/**
+ * 8-mestna davčna številka kupca
+ */
+davcna: string;
+};
+
+export type PoisciKupca400 = {
+  napaka: string;
+};
+
+export type PoisciKupca404 = {
+  napaka: string;
+};
+
+export type ListRacuniParams = {
+/**
+ * @nullable
+ */
+datum?: string | null;
+};
+
+export type ListIzmeneParams = {
+/**
+ * Ce true, vrne samo odprte izmene
+ */
+aktivne?: boolean;
+};
+
+export type GetKarticaArtiklaParams = {
+datumOd?: string;
+datumDo?: string;
+};
+
+export type ListZalogaGibiParams = {
+artikelId?: number;
+};
+
+export type CheckZacetnaZalogaLeto200 = {
+  exists: boolean;
+  /** @nullable */
+  id?: number | null;
+};
+
+export type CreateGlasovniSinonim400 = {
+  napaka: string;
+};
+
+export type ListDnevniMeniParams = {
+od: string;
+do: string;
+};
+
+export type KopirajTeden200 = {
+  kopirano: number;
+};
 
 export type ListAccountsParams = {
 includeInactive?: boolean;

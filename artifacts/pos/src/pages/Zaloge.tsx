@@ -1,0 +1,1572 @@
+import { useState, useEffect, useRef } from "react";
+import {
+  useListZaloge,
+  useListPrejemnice,
+  useListInventure,
+  useListArtikli,
+  useCreatePrejemnica,
+  useCreateInventura,
+  useUpdatePrejemnica,
+  useDeletePrejemnica,
+  useUpdateInventura,
+  useDeleteInventura,
+  useGetKarticaArtikla,
+  useGetPrejemnica,
+  useGetInventura,
+  getListZalogeQueryKey,
+  getListPrejemniceQueryKey,
+  getListInventureQueryKey,
+  getGetPrejemnicaQueryKey,
+  getGetInventuraQueryKey,
+  useListZacetneZaloge,
+  useCreateZacetnaZaloga,
+  useGetZacetnaZaloga,
+  useUpdateZacetnaZaloga,
+  useDeleteZacetnaZaloga,
+  getListZacetneZalogeQueryKey,
+  getGetZacetnaZalogaQueryKey,
+  useReconcileZaloge,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
+  Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
+} from "lucide-react";
+
+type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string };
+type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
+type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
+
+const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const dialog = (e.currentTarget as HTMLElement).closest('[role="dialog"]');
+  if (!dialog) return;
+  const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+    'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+  ));
+  const idx = focusable.indexOf(e.currentTarget as HTMLElement);
+  if (idx > -1 && idx < focusable.length - 1) focusable[idx + 1].focus();
+};
+
+const fmt = (n: number, d = 2) => n.toLocaleString("sl-SI", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtDatum = (d: string | Date) =>
+  new Date(d).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
+const fmtCas = (d: string | Date) =>
+  new Date(d).toLocaleString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+function TipBadge({ tip }: { tip: string }) {
+  if (tip === "prejemnica") return <Badge className="bg-green-100 text-green-800 border-green-200">↑ Prejemnica</Badge>;
+  if (tip === "poraba") return <Badge className="bg-red-100 text-red-800 border-red-200">↓ Poraba</Badge>;
+  return <Badge className="bg-blue-100 text-blue-800 border-blue-200">≡ Inventura</Badge>;
+}
+
+// ── Kartica artikla dialog ─────────────────────────────────────────────────
+function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () => void }) {
+  const [datumOd, setDatumOd] = useState("");
+  const [datumDo, setDatumDo] = useState("");
+
+  const params = {
+    ...(datumOd ? { datumOd } : {}),
+    ...(datumDo ? { datumDo } : {}),
+  };
+  const { data, isLoading } = useGetKarticaArtikla(artikelId, params);
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        {!data && isLoading ? (
+          <div className="py-12 text-center text-muted-foreground">Nalaganje...</div>
+        ) : !data ? null : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <Package className="w-5 h-5 text-primary" />
+                {data.artikelIme}
+                {data.imeZaNabavo && data.imeZaNabavo !== data.artikelIme && (
+                  <span className="text-muted-foreground text-base font-normal">({data.imeZaNabavo})</span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-3 gap-3 mt-2">
+              <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Zaloga</p>
+                <p className={`text-2xl font-bold tabular-nums ${data.kolicina <= 0 ? "text-red-600" : data.kolicina < 5 ? "text-amber-600" : "text-green-700"}`}>
+                  {fmt(data.kolicina, 3)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{data.enotaMere ?? "–"}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Zadnja nab. cena</p>
+                <p className="text-2xl font-bold tabular-nums">
+                  {data.zadnjaCena != null ? `${fmt(data.zadnjaCena)} €` : "–"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">/ {data.enotaMere ?? "enoto"}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Vrednost zaloge</p>
+                <p className="text-2xl font-bold tabular-nums">
+                  {data.vrednost != null ? `${fmt(data.vrednost)} €` : "–"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">po nab. ceni</p>
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <div className="flex items-center justify-between mb-3 gap-3">
+                <p className="text-sm font-semibold shrink-0">Gibanje zalog</p>
+                <div className="flex items-center gap-2 text-sm">
+                  <Label className="text-xs text-muted-foreground shrink-0">Od</Label>
+                  <Input
+                    type="date"
+                    value={datumOd}
+                    onChange={e => setDatumOd(e.target.value)}
+                    className="h-7 text-xs w-36"
+                  />
+                  <Label className="text-xs text-muted-foreground shrink-0">Do</Label>
+                  <Input
+                    type="date"
+                    value={datumDo}
+                    onChange={e => setDatumDo(e.target.value)}
+                    className="h-7 text-xs w-36"
+                  />
+                  {(datumOd || datumDo) && (
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => { setDatumOd(""); setDatumDo(""); }}>
+                      <X className="w-3 h-3 mr-1" />Počisti
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {isLoading ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">Nalaganje...</div>
+              ) : data.gibi.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  {datumOd || datumDo ? "Ni gibanj za izbrano obdobje" : "Ni zabeleženih gibanj"}
+                </p>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vrsta</TableHead>
+                        <TableHead className="text-right">Količina</TableHead>
+                        <TableHead>Opomba</TableHead>
+                        <TableHead className="text-right text-xs">Datum/čas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.gibi.map(g => (
+                        <TableRow key={g.id}>
+                          <TableCell><TipBadge tip={g.tip} /></TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">
+                            <span className={g.kolicina >= 0 ? "text-green-700" : "text-red-600"}>
+                              {g.kolicina >= 0 ? "+" : ""}{fmt(g.kolicina, 3)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{g.opomba ?? "–"}</TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                            {fmtCas((g as unknown as { datumDokumenta?: string }).datumDokumenta ?? g.ustvarjeno)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Edit Prejemnica dialog ─────────────────────────────────────────────────
+function EditPrejemnicaDialog({
+  id, nabavniArtikli, onClose, onSaved,
+}: {
+  id: number;
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data, isLoading } = useGetPrejemnica(id);
+  const updatePrejemnica = useUpdatePrejemnica();
+  const { toast } = useToast();
+
+  const [datum, setDatum] = useState("");
+  const [opomba, setOpomba] = useState("");
+  const [rows, setRows] = useState<PrejemnicaRow[]>([]);
+  const initializedId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (data && initializedId.current !== data.id) {
+      initializedId.current = data.id;
+      setDatum(new Date(data.datum).toISOString().slice(0, 10));
+      setOpomba(data.opomba ?? "");
+      setRows(data.postavke.map(p => ({
+        artikelId: p.artikelId,
+        kolicina: String(p.kolicina),
+        cenaKos: String(p.cenaKos),
+      })));
+    }
+  }, [data]);
+
+  const addRow = () => setRows(r => [...r, { artikelId: nabavniArtikli[0]?.id ?? 0, kolicina: "", cenaKos: "" }]);
+  const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
+  const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
+    setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+
+  const skupajVrednost = rows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0);
+
+  const handleSave = () => {
+    const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    if (!validRows.length) { toast({ title: "Vsaj ena postavka je obvezna", variant: "destructive" }); return; }
+    updatePrejemnica.mutate({
+      id,
+      data: {
+        datum,
+        opomba: opomba || null,
+        postavke: validRows.map(r => ({
+          artikelId: r.artikelId,
+          kolicina: parseFloat(r.kolicina),
+          cenaKos: parseFloat(r.cenaKos) || 0,
+        })),
+      },
+    }, {
+      onSuccess: () => { toast({ title: "Prejemnica posodobljena" }); onSaved(); },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Uredi prejemnico</DialogTitle></DialogHeader>
+        {isLoading || rows.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Dobavitelj, referenca..." onKeyDown={handleEnterAsTab} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Postavke</Label>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artikel</TableHead>
+                      <TableHead className="text-right w-28">Količina</TableHead>
+                      <TableHead className="text-right w-28">Cena/enoto</TableHead>
+                      <TableHead className="text-right w-24">Skupaj</TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, i) => {
+                      const art = nabavniArtikli.find(a => a.id === row.artikelId);
+                      const skupaj = (parseFloat(row.kolicina) || 0) * (parseFloat(row.cenaKos) || 0);
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <select
+                              className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                              value={row.artikelId}
+                              onChange={e => updateRow(i, "artikelId", parseInt(e.target.value))}
+                            >
+                              {nabavniArtikli.map(a => (
+                                <option key={a.id} value={a.id}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" step="0.001" value={row.kolicina}
+                              onChange={e => updateRow(i, "kolicina", e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" min="0" step="0.01" value={row.cenaKos}
+                              onChange={e => updateRow(i, "cenaKos", e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-medium">
+                            {skupaj > 0 ? `${fmt(skupaj)} €` : "–"}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => removeRow(i)} disabled={rows.length === 1}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="sm" onClick={addRow}>
+                  <Plus className="w-4 h-4 mr-1" />Dodaj postavko
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Skupaj: <strong className="text-foreground">{fmt(skupajVrednost)} €</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button onClick={handleSave} disabled={updatePrejemnica.isPending || rows.length === 0}>
+            {updatePrejemnica.isPending ? "Shranjujem..." : "Shrani"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Edit Inventura dialog ──────────────────────────────────────────────────
+function EditInventuraDialog({
+  id, nabavniArtikli, zaloge, onClose, onSaved,
+}: {
+  id: number;
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  zaloge: { artikelId: number; kolicina: number; zadnjaCena?: number | null }[] | undefined;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data, isLoading } = useGetInventura(id);
+  const updateInventura = useUpdateInventura();
+  const { toast } = useToast();
+
+  const [datum, setDatum] = useState("");
+  const [opomba, setOpomba] = useState("");
+  const [rows, setRows] = useState<InventuraRow[]>([]);
+  const initializedId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (data && initializedId.current !== data.id) {
+      initializedId.current = data.id;
+      setDatum(new Date(data.datum).toISOString().slice(0, 10));
+      setOpomba(data.opomba ?? "");
+      setRows(data.postavke.map(p => ({
+        artikelId: p.artikelId,
+        steviloNajdeno: String(p.steviloNajdeno),
+        cenaKos: String(p.cenaKos),
+      })));
+    }
+  }, [data]);
+
+  const addRow = () => {
+    setRows(r => [...r, { artikelId: 0, steviloNajdeno: "0", cenaKos: "0" }]);
+  };
+  const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
+  const updateRow = (i: number, val: string) =>
+    setRows(r => r.map((row, j) => j === i ? { ...row, steviloNajdeno: val } : row));
+  const updateArtikel = (i: number, artikelId: number) => {
+    const zadnjaCena = zaloge?.find(z => z.artikelId === artikelId)?.zadnjaCena ?? null;
+    setRows(r => r.map((row, j) => j === i ? { ...row, artikelId, cenaKos: String(zadnjaCena ?? row.cenaKos) } : row));
+  };
+
+  const handleSave = () => {
+    const validRows = rows.filter(r => r.artikelId > 0);
+    if (!validRows.length) { toast({ title: "Vsaj ena postavka je obvezna", variant: "destructive" }); return; }
+    updateInventura.mutate({
+      id,
+      data: {
+        datum,
+        opomba: opomba || null,
+        postavke: validRows.map(r => ({
+          artikelId: r.artikelId,
+          steviloNajdeno: parseFloat(r.steviloNajdeno) || 0,
+        })),
+      },
+    }, {
+      onSuccess: () => { toast({ title: "Inventura posodobljena" }); onSaved(); },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Uredi inventuro</DialogTitle></DialogHeader>
+        {isLoading || rows.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Opomba k inventuri..." onKeyDown={handleEnterAsTab} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Postavke</Label>
+              <div className="rounded-md border overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artikel</TableHead>
+                      <TableHead className="text-right">Cena</TableHead>
+                      <TableHead className="text-right">Knjižno</TableHead>
+                      <TableHead className="text-right w-28">Dejansko</TableHead>
+                      <TableHead className="text-right text-red-700">Razl. kol. (−)</TableHead>
+                      <TableHead className="text-right text-green-700">Razl. kol. (+)</TableHead>
+                      <TableHead className="text-right text-red-700">Razl. vredn. (−)</TableHead>
+                      <TableHead className="text-right text-green-700">Razl. vredn. (+)</TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, i) => {
+                      const art = nabavniArtikli.find(a => a.id === row.artikelId);
+                      const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
+                      const cena = parseFloat(row.cenaKos) || null;
+                      const knjizno = Number(zalogaInfo?.kolicina ?? 0);
+                      const dejansko = parseFloat(row.steviloNajdeno) || 0;
+                      const razlikaKol = dejansko - knjizno;
+                      const razlikaVrednost = cena != null ? razlikaKol * cena : null;
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <select
+                              className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                              value={row.artikelId}
+                              onChange={e => updateArtikel(i, parseInt(e.target.value))}
+                            >
+                              <option value={0} disabled>— Izberi artikel —</option>
+                              {nabavniArtikli.map(a => (
+                                <option key={a.id} value={a.id}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {cena != null ? `${fmt(cena)} €` : <span className="text-muted-foreground">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
+                          <TableCell>
+                            <Input type="number" min="0" step="0.001" value={row.steviloNajdeno}
+                              onChange={e => updateRow(i, e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
+                            {razlikaKol < 0 ? fmt(razlikaKol, 3) : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-green-600">
+                            {razlikaKol > 0 ? `+${fmt(razlikaKol, 3)}` : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
+                            {razlikaVrednost != null && razlikaVrednost < 0 ? `${fmt(razlikaVrednost)} €` : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-green-600">
+                            {razlikaVrednost != null && razlikaVrednost > 0 ? `+${fmt(razlikaVrednost)} €` : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => removeRow(i)} disabled={rows.length === 1}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <Button variant="outline" size="sm" onClick={addRow}>
+                <Plus className="w-4 h-4 mr-1" />Dodaj postavko
+              </Button>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button onClick={handleSave} disabled={updateInventura.isPending || rows.length === 0}>
+            {updateInventura.isPending ? "Shranjujem..." : "Shrani"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Edit Začetna zaloga dialog ─────────────────────────────────────────────
+function EditZacetnaZalogaDialog({
+  id, nabavniArtikli, onClose, onSaved,
+}: {
+  id: number;
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data, isLoading } = useGetZacetnaZaloga(id);
+  const updateZacetnaZaloga = useUpdateZacetnaZaloga();
+  const { toast } = useToast();
+
+  const [datum, setDatum] = useState("");
+  const [opomba, setOpomba] = useState("");
+  const [rows, setRows] = useState<ZacetnaZalogaRow[]>([]);
+  const initializedId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (data && initializedId.current !== data.id) {
+      initializedId.current = data.id;
+      setDatum(new Date(data.datum).toISOString().slice(0, 10));
+      setOpomba(data.opomba ?? "");
+      setRows(data.postavke.map(p => ({
+        artikelId: p.artikelId,
+        kolicina: String(p.kolicina),
+        cenaKos: String(p.cenaKos),
+      })));
+    }
+  }, [data]);
+
+  const skupajVrednost = rows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0);
+
+  const addRow = () => {
+    const usedIds = new Set(rows.map(r => r.artikelId));
+    const next = nabavniArtikli.find(a => !usedIds.has(a.id));
+    setRows(r => [...r, { artikelId: next?.id ?? nabavniArtikli[0]?.id ?? 0, kolicina: "0", cenaKos: "0" }]);
+  };
+  const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
+  const updateRow = (i: number, key: keyof ZacetnaZalogaRow, val: string | number) =>
+    setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+
+  const handleSave = () => {
+    const validRows = rows.filter(r => r.artikelId > 0);
+    if (!validRows.length) { toast({ title: "Vsaj ena postavka je obvezna", variant: "destructive" }); return; }
+    updateZacetnaZaloga.mutate({
+      id,
+      data: {
+        datum,
+        opomba: opomba || null,
+        postavke: validRows.map(r => ({
+          artikelId: r.artikelId,
+          kolicina: parseFloat(r.kolicina) || 0,
+          cenaKos: parseFloat(r.cenaKos) || 0,
+        })),
+      },
+    }, {
+      onSuccess: () => { toast({ title: "Začetne zaloge posodobljene" }); onSaved(); },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Uredi začetne zaloge</DialogTitle></DialogHeader>
+        {isLoading || rows.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Opomba..." onKeyDown={handleEnterAsTab} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Postavke</Label>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artikel</TableHead>
+                      <TableHead className="text-right w-28">Količina</TableHead>
+                      <TableHead className="text-right w-28">Cena/enoto</TableHead>
+                      <TableHead className="text-right w-28">Vrednost (€)</TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, i) => {
+                      const vrednost = (parseFloat(row.kolicina) || 0) * (parseFloat(row.cenaKos) || 0);
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <select
+                              className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                              value={row.artikelId}
+                              onChange={e => updateRow(i, "artikelId", parseInt(e.target.value))}
+                            >
+                              {nabavniArtikli.map(a => (
+                                <option key={a.id} value={a.id}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" step="0.001" value={row.kolicina}
+                              onChange={e => updateRow(i, "kolicina", e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" min="0" step="0.01" value={row.cenaKos}
+                              onChange={e => updateRow(i, "cenaKos", e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-medium">
+                            {vrednost > 0 ? `${fmt(vrednost)} €` : <span className="text-muted-foreground">–</span>}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => removeRow(i)} disabled={rows.length === 1}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="sm" onClick={addRow}>
+                  <Plus className="w-4 h-4 mr-1" />Dodaj postavko
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Skupna vrednost: <strong className="text-foreground">{fmt(skupajVrednost)} €</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button onClick={handleSave} disabled={updateZacetnaZaloga.isPending || rows.length === 0}>
+            {updateZacetnaZaloga.isPending ? "Shranjujem..." : "Shrani"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+export default function Zaloge() {
+  const { data: zaloge, isLoading: loadingZ } = useListZaloge();
+  const { data: prejemnice, isLoading: loadingP } = useListPrejemnice();
+  const { data: inventure, isLoading: loadingI } = useListInventure();
+  const { data: zacetneZaloge, isLoading: loadingZZ } = useListZacetneZaloge();
+  const { data: artikli } = useListArtikli();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const jeAdmin = user?.vloga === "admin" || user?.vloga === "superadmin";
+  const currentYear = new Date().getFullYear();
+
+  // ── Reconcile ──────────────────────────────────────────────────────
+  const reconcile = useReconcileZaloge();
+  const [reconcileDialogOpen, setReconcileDialogOpen] = useState(false);
+  const handleReconcile = () => {
+    reconcile.mutate(undefined, {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        toast({ title: `Zaloge popravljene (${data.popravljeno} artiklov)` });
+      },
+      onError: () => toast({ title: "Napaka pri popravljanju zalog", variant: "destructive" }),
+    });
+  };
+
+  const nabavniArtikli = (artikli ?? []).filter(a => a.nabavniArtikel);
+
+  // ── Kartica ────────────────────────────────────────────────────────
+  const [karticeArtikelId, setKarticeArtikelId] = useState<number | null>(null);
+
+  // ── Search ─────────────────────────────────────────────────────────
+  const [search, setSearch] = useState("");
+  const q = search.toLowerCase();
+  const filteredZaloge = (zaloge ?? []).filter(z =>
+    !q || z.artikelIme.toLowerCase().includes(q) || (z.imeZaNabavo ?? "").toLowerCase().includes(q)
+  );
+  const negativneZaloge = (zaloge ?? []).filter(z => z.kolicina < 0);
+
+  // ── Prejemnica create ──────────────────────────────────────────────
+  const [prejDialogOpen, setPrejDialogOpen] = useState(false);
+  const [prejDatum, setPrejDatum] = useState("");
+  const [prejOpomba, setPrejOpomba] = useState("");
+  const [prejRows, setPrejRows] = useState<PrejemnicaRow[]>([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
+  const createPrejemnica = useCreatePrejemnica();
+
+  const openPrejDialog = () => {
+    setPrejDatum(new Date().toISOString().slice(0, 10));
+    setPrejOpomba("");
+    setPrejRows([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setPrejDialogOpen(true);
+  };
+  const handleSavePrejemnica = () => {
+    const validRows = prejRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    createPrejemnica.mutate({
+      data: {
+        datum: prejDatum || undefined,
+        opomba: prejOpomba || undefined,
+        postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseFloat(r.kolicina), cenaKos: parseFloat(r.cenaKos) || 0 })),
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
+        setPrejDialogOpen(false);
+        toast({ title: "Prejemnica shranjena" });
+      },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+  const addPrejRow = () => setPrejRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+  const removePrejRow = (i: number) => setPrejRows(r => r.filter((_, j) => j !== i));
+  const updatePrejRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
+    setPrejRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+
+  // ── Prejemnica edit ────────────────────────────────────────────────
+  const [editPrejId, setEditPrejId] = useState<number | null>(null);
+
+  // ── Prejemnica delete ──────────────────────────────────────────────
+  const [deletePrejId, setDeletePrejId] = useState<number | null>(null);
+  const deletePrejemnica = useDeletePrejemnica();
+  const handleDeletePrejemnica = () => {
+    if (!deletePrejId) return;
+    deletePrejemnica.mutate({ id: deletePrejId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
+        setDeletePrejId(null);
+        toast({ title: "Prejemnica izbrisana, zaloge povrnjene" });
+      },
+      onError: () => toast({ title: "Napaka pri brisanju", variant: "destructive" }),
+    });
+  };
+
+  // ── Inventura create ───────────────────────────────────────────────
+  const [invDialogOpen, setInvDialogOpen] = useState(false);
+  const [invDatum, setInvDatum] = useState("");
+  const [invOpomba, setInvOpomba] = useState("");
+  const [invRows, setInvRows] = useState<InventuraRow[]>([]);
+  const createInventura = useCreateInventura();
+
+  const openInvDialog = () => {
+    setInvDatum(new Date().toISOString().slice(0, 10));
+    setInvOpomba("");
+    setInvRows(nabavniArtikli.map(a => {
+      const z = zaloge?.find(z => z.artikelId === a.id);
+      return { artikelId: a.id, steviloNajdeno: String(z?.kolicina ?? 0), cenaKos: String(z?.zadnjaCena ?? 0) };
+    }));
+    setInvDialogOpen(true);
+  };
+  const handleSaveInventura = () => {
+    const validRows = invRows.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
+    if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    createInventura.mutate({
+      data: {
+        datum: invDatum || undefined,
+        opomba: invOpomba || undefined,
+        postavke: validRows.map(r => ({ artikelId: r.artikelId, steviloNajdeno: parseFloat(r.steviloNajdeno) || 0 })),
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListInventureQueryKey() });
+        setInvDialogOpen(false);
+        toast({ title: "Inventura shranjena" });
+      },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+  const updateInvRow = (i: number, val: string) =>
+    setInvRows(r => r.map((row, j) => j === i ? { ...row, steviloNajdeno: val } : row));
+
+  const invTotals = invRows.reduce((acc, row) => {
+    const art = nabavniArtikli.find(a => a.id === row.artikelId);
+    const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
+    const cena = parseFloat(row.cenaKos) || (zalogaInfo?.zadnjaCena ?? null);
+    const knjizno = Number(zalogaInfo?.kolicina ?? 0);
+    const dejansko = parseFloat(row.steviloNajdeno) || 0;
+    if (!art) return acc;
+    acc.knjizna += cena != null ? knjizno * cena : 0;
+    acc.dejanska += cena != null ? dejansko * cena : 0;
+    const razlikaKol = dejansko - knjizno;
+    const razlikaVrednost = cena != null ? razlikaKol * cena : 0;
+    if (razlikaVrednost < 0) acc.negativna += razlikaVrednost;
+    if (razlikaVrednost > 0) acc.pozitivna += razlikaVrednost;
+    return acc;
+  }, { knjizna: 0, dejanska: 0, negativna: 0, pozitivna: 0 });
+
+  // ── Inventura edit ─────────────────────────────────────────────────
+  const [editInvId, setEditInvId] = useState<number | null>(null);
+
+  // ── Inventura delete ───────────────────────────────────────────────
+  const [deleteInvId, setDeleteInvId] = useState<number | null>(null);
+  const deleteInventura = useDeleteInventura();
+
+  // ── Začetne zaloge create ──────────────────────────────────────────
+  const [zzDialogOpen, setZzDialogOpen] = useState(false);
+  const [zzDatum, setZzDatum] = useState("");
+  const [zzOpomba, setZzOpomba] = useState("");
+  const [zzLeto, setZzLeto] = useState(currentYear);
+  const [zzRows, setZzRows] = useState<ZacetnaZalogaRow[]>([]);
+  const createZacetnaZaloga = useCreateZacetnaZaloga();
+
+  const openZzDialog = () => {
+    setZzDatum(new Date().toISOString().slice(0, 10));
+    setZzOpomba("");
+    setZzLeto(currentYear);
+    setZzRows(nabavniArtikli.map(a => {
+      const z = zaloge?.find(z => z.artikelId === a.id);
+      return { artikelId: a.id, kolicina: String(z?.kolicina ?? 0), cenaKos: String(z?.zadnjaCena ?? 0) };
+    }));
+    setZzDialogOpen(true);
+  };
+  const handleSaveZacetnaZaloga = () => {
+    const validRows = zzRows.filter(r => r.artikelId > 0);
+    if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    createZacetnaZaloga.mutate({
+      data: {
+        leto: zzLeto,
+        datum: zzDatum || undefined,
+        opomba: zzOpomba || null,
+        postavke: validRows.map(r => ({
+          artikelId: r.artikelId,
+          kolicina: parseFloat(r.kolicina) || 0,
+          cenaKos: parseFloat(r.cenaKos) || 0,
+        })),
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListZacetneZalogeQueryKey() });
+        setZzDialogOpen(false);
+        toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene` });
+      },
+      onError: (e: unknown) => {
+        const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast({ title: msg ?? "Napaka pri shranjevanju", variant: "destructive" });
+      },
+    });
+  };
+  const zzSkupajVrednost = zzRows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0);
+
+  const addZzRow = () => {
+    const usedIds = new Set(zzRows.map(r => r.artikelId));
+    const next = nabavniArtikli.find(a => !usedIds.has(a.id));
+    setZzRows(r => [...r, { artikelId: next?.id ?? nabavniArtikli[0]?.id ?? 0, kolicina: "0", cenaKos: "0" }]);
+  };
+  const removeZzRow = (i: number) => setZzRows(r => r.filter((_, j) => j !== i));
+  const updateZzRow = <K extends keyof ZacetnaZalogaRow>(i: number, key: K, val: ZacetnaZalogaRow[K]) =>
+    setZzRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+
+  // ── Začetne zaloge edit ────────────────────────────────────────────
+  const [editZzId, setEditZzId] = useState<number | null>(null);
+
+  // ── Začetne zaloge delete ──────────────────────────────────────────
+  const [deleteZzId, setDeleteZzId] = useState<number | null>(null);
+  const deleteZacetnaZaloga = useDeleteZacetnaZaloga();
+  const handleDeleteZacetnaZaloga = () => {
+    if (!deleteZzId) return;
+    deleteZacetnaZaloga.mutate({ id: deleteZzId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListZacetneZalogeQueryKey() });
+        setDeleteZzId(null);
+        toast({ title: "Začetne zaloge izbrisane, zaloge povrnjene" });
+      },
+      onError: () => toast({ title: "Napaka pri brisanju", variant: "destructive" }),
+    });
+  };
+
+  const letoZzExists = (leto: number) => (zacetneZaloge ?? []).some(z => z.leto === leto);
+  const handleDeleteInventura = () => {
+    if (!deleteInvId) return;
+    deleteInventura.mutate({ id: deleteInvId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListInventureQueryKey() });
+        setDeleteInvId(null);
+        toast({ title: "Inventura izbrisana, zaloge povrnjene na prejšnje vrednosti" });
+      },
+      onError: () => toast({ title: "Napaka pri brisanju", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <div className="p-6 flex-1 overflow-auto space-y-4">
+      <div className="flex items-center gap-3">
+        <PackageOpen className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl font-bold">Zaloge</h1>
+      </div>
+
+      <Tabs defaultValue="zaloge">
+        <TabsList>
+          <TabsTrigger value="zaloge">Trenutne zaloge</TabsTrigger>
+          <TabsTrigger value="prejemnice">Prejemnice</TabsTrigger>
+          <TabsTrigger value="inventure">Inventure</TabsTrigger>
+          <TabsTrigger value="zacetne-zaloge">Začetne zaloge</TabsTrigger>
+        </TabsList>
+
+        {/* ── Trenutne zaloge ──────────────────────────────────────── */}
+        <TabsContent value="zaloge" className="space-y-4 mt-4">
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Iskanje artiklov..." className="pl-8 pr-8" />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground self-center flex-1">Kliknite vrstico za kartico artikla</p>
+            {jeAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReconcileDialogOpen(true)}
+                  disabled={reconcile.isPending}
+                  title="Preračuna stanja zalog iz dnevnika gibanj"
+                >
+                  <Wrench className="w-4 h-4 mr-1.5" />
+                  {reconcile.isPending ? "Popravljam..." : "Popravi zaloge"}
+                </Button>
+                <AlertDialog open={reconcileDialogOpen} onOpenChange={setReconcileDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Popravi zaloge?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Preračuna zaloge vseh artiklov iz dnevnika gibanj. Obstoječa stanja bodo nadomeščena z izračunanimi vrednostmi.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Prekliči</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleReconcile}>Potrdi</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </div>
+          {!loadingZ && negativneZaloge.length > 0 && (
+            <div className="flex items-center gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-red-600" />
+              <span className="text-sm font-medium">
+                {negativneZaloge.length === 1
+                  ? "1 artikel ima negativno zalogo"
+                  : `${negativneZaloge.length} artiklov ima negativno zalogo`}
+                {" — "}
+                {negativneZaloge.map(z => z.artikelIme).join(", ")}
+              </span>
+            </div>
+          )}
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Artikel</TableHead>
+                  <TableHead>Ime za nabavo</TableHead>
+                  <TableHead className="text-right">Zaloga</TableHead>
+                  <TableHead>Enota</TableHead>
+                  <TableHead className="text-right">Zad. nab. cena</TableHead>
+                  <TableHead className="text-right">Vrednost</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right text-muted-foreground text-xs">Posodobljeno</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingZ ? (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
+                ) : filteredZaloge.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Ni zadetkov</TableCell></TableRow>
+                ) : filteredZaloge.map(z => (
+                  <TableRow
+                    key={z.artikelId}
+                    className={`cursor-pointer hover:bg-muted/50 ${z.kolicina < 0 ? "bg-red-50 hover:bg-red-100" : ""}`}
+                    onClick={() => setKarticeArtikelId(z.artikelId)}
+                  >
+                    <TableCell className="font-medium">{z.artikelIme}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{z.imeZaNabavo ?? "–"}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">
+                      <span className={`inline-flex items-center justify-end gap-1 ${z.kolicina < 0 ? "text-red-600" : z.kolicina === 0 ? "text-red-500" : z.kolicina < 5 ? "text-amber-600" : "text-green-700"}`}>
+                        {z.kolicina < 0 && <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                        {fmt(z.kolicina, 3)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{z.enotaMere ?? "–"}</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {z.zadnjaCena != null ? `${fmt(z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-sm tabular-nums">
+                      {z.zadnjaCena != null ? `${fmt(z.kolicina * z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell text-right text-muted-foreground text-xs">{fmtDatum(z.zadnjaPosodobitev)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {!loadingZ && filteredZaloge.length > 0 && (
+              <div className="border-t px-4 py-2 flex justify-end text-sm text-muted-foreground">
+                Skupaj vrednost zalog:&nbsp;
+                <strong className="text-foreground">
+                  {fmt(filteredZaloge.reduce((s, z) => s + (z.zadnjaCena != null ? z.kolicina * z.zadnjaCena : 0), 0))} €
+                </strong>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* ── Prejemnice ────────────────────────────────────────────── */}
+        <TabsContent value="prejemnice" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={openPrejDialog}>
+              <Plus className="w-4 h-4 mr-2" />Nova prejemnica
+            </Button>
+          </div>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-28">Številka</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Opomba</TableHead>
+                  <TableHead className="text-center">Postavke</TableHead>
+                  <TableHead className="text-right">Vrednost</TableHead>
+                  <TableHead className="w-20"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingP ? (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
+                ) : (prejemnice ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Ni prejemnic</TableCell></TableRow>
+                ) : (prejemnice ?? []).map(p => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-mono text-sm font-medium text-primary">{p.stevilka ?? "–"}</TableCell>
+                    <TableCell className="font-medium">{fmtDatum(p.datum)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{p.opomba ?? "–"}</TableCell>
+                    <TableCell className="text-center"><Badge variant="outline">{p.steviloPostavk ?? 0}</Badge></TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{fmt(Number(p.skupajVrednost))} €</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={() => setEditPrejId(p.id)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeletePrejId(p.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* ── Inventure ─────────────────────────────────────────────── */}
+        <TabsContent value="inventure" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={openInvDialog}>
+              <ClipboardList className="w-4 h-4 mr-2" />Nova inventura
+            </Button>
+          </div>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-28">Številka</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Opomba</TableHead>
+                  <TableHead className="text-center">Postavke</TableHead>
+                  <TableHead className="w-20"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingI ? (
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
+                ) : (inventure ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Ni inventur</TableCell></TableRow>
+                ) : (inventure ?? []).map(inv => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="font-mono text-sm font-medium text-primary">{inv.stevilka ?? "–"}</TableCell>
+                    <TableCell className="font-medium">{fmtDatum(inv.datum)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{inv.opomba ?? "–"}</TableCell>
+                    <TableCell className="text-center"><Badge variant="outline">{inv.steviloPostavk ?? 0}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={() => setEditInvId(inv.id)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteInvId(inv.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {/* ── Začetne zaloge ─────────────────────────────────────────── */}
+        <TabsContent value="zacetne-zaloge" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              En dokument na leto. Zahtevano pred prvim naročilom v novem letu.
+            </p>
+            <Button size="sm" onClick={openZzDialog} disabled={letoZzExists(currentYear)}>
+              <Plus className="w-4 h-4 mr-2" />
+              {letoZzExists(currentYear) ? `Leto ${currentYear} že vneseno` : `Nova začetna zaloga (${currentYear})`}
+            </Button>
+          </div>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">Leto</TableHead>
+                  <TableHead className="w-28">Številka</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Opomba</TableHead>
+                  <TableHead className="text-center">Artiklov</TableHead>
+                  <TableHead className="w-20"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingZZ ? (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
+                ) : (zacetneZaloge ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Ni začetnih zalog</TableCell></TableRow>
+                ) : (zacetneZaloge ?? []).map(zz => (
+                  <TableRow key={zz.id}>
+                    <TableCell className="font-bold text-lg tabular-nums">{zz.leto}</TableCell>
+                    <TableCell className="font-mono text-sm font-medium text-primary">{zz.stevilka ?? "–"}</TableCell>
+                    <TableCell className="font-medium">{fmtDatum(zz.datum)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{zz.opomba ?? "–"}</TableCell>
+                    <TableCell className="text-center"><Badge variant="outline">{zz.steviloPostavk ?? 0}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={() => setEditZzId(zz.id)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteZzId(zz.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Kartica dialog ──────────────────────────────────────────── */}
+      {karticeArtikelId != null && (
+        <KarticaDialog artikelId={karticeArtikelId} onClose={() => setKarticeArtikelId(null)} />
+      )}
+
+      {/* ── Prejemnica create dialog ─────────────────────────────────── */}
+      <Dialog open={prejDialogOpen} onOpenChange={setPrejDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Nova prejemnica</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <Input type="date" value={prejDatum} onChange={e => setPrejDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={prejOpomba} onChange={e => setPrejOpomba(e.target.value)} placeholder="Dobavitelj, referenca..." onKeyDown={handleEnterAsTab} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Postavke</Label>
+              <div className="space-y-2">
+                {prejRows.map((row, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <select className="flex-1 border rounded-md px-3 py-2 text-sm bg-background" value={row.artikelId}
+                      onChange={e => {
+                        const aid = parseInt(e.target.value);
+                        updatePrejRow(i, "artikelId", aid);
+                        if (aid > 0) {
+                          const zadnjaCena = (zaloge ?? []).find(z => z.artikelId === aid)?.zadnjaCena;
+                          if (zadnjaCena != null) updatePrejRow(i, "cenaKos", String(zadnjaCena));
+                        }
+                      }}>
+                      <option value={0}>— Izberi artikel —</option>
+                      {nabavniArtikli.map(a => (
+                        <option key={a.id} value={a.id}>{a.imeZaNabavo || a.ime} {a.enotaMere ? `(${a.enotaMere})` : ""}</option>
+                      ))}
+                    </select>
+                    <Input type="number" step="0.001" placeholder="Količina" value={row.kolicina}
+                      onChange={e => updatePrejRow(i, "kolicina", e.target.value)} onKeyDown={handleEnterAsTab} className="w-28" />
+                    <Input type="number" min="0" step="0.01" placeholder="Cena/enoto" value={row.cenaKos}
+                      onChange={e => updatePrejRow(i, "cenaKos", e.target.value)} onKeyDown={handleEnterAsTab} className="w-28" />
+                    <Button variant="ghost" size="icon" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={addPrejRow}>
+                <Plus className="w-4 h-4 mr-1" />Dodaj postavko
+              </Button>
+              {prejRows.some(r => r.kolicina && r.cenaKos) && (
+                <p className="text-sm text-muted-foreground text-right">
+                  Skupaj: <strong>
+                    {fmt(prejRows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0))} €
+                  </strong>
+                </p>
+              )}
+            </div>
+            <Button className="w-full" onClick={handleSavePrejemnica} disabled={createPrejemnica.isPending}>
+              {createPrejemnica.isPending ? "Shranjujem..." : "Shrani prejemnico"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Prejemnica edit dialog ────────────────────────────────────── */}
+      {editPrejId != null && (
+        <EditPrejemnicaDialog
+          id={editPrejId}
+          nabavniArtikli={nabavniArtikli}
+          onClose={() => setEditPrejId(null)}
+          onSaved={() => {
+            setEditPrejId(null);
+            queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getGetPrejemnicaQueryKey(editPrejId) });
+          }}
+        />
+      )}
+
+      {/* ── Prejemnica delete confirm ──────────────────────────────────── */}
+      <AlertDialog open={!!deletePrejId} onOpenChange={v => !v && setDeletePrejId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Izbriši prejemnico?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Prejemnica bo izbrisana in <strong>zaloge bodo zmanjšane</strong> za količino iz te prejemnice. Tega dejanja ni mogoče razveljaviti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Prekliči</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePrejemnica} disabled={deletePrejemnica.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletePrejemnica.isPending ? "Brišem..." : "Potrdi"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Inventura create dialog ───────────────────────────────────── */}
+      <Dialog open={invDialogOpen} onOpenChange={setInvDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingDown className="w-5 h-5" />Nova inventura
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <Input type="date" value={invDatum} onChange={e => setInvDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={invOpomba} onChange={e => setInvOpomba(e.target.value)} placeholder="Opomba k inventuri..." onKeyDown={handleEnterAsTab} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Dejanske zaloge</Label>
+              <div className="rounded-md border overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artikel</TableHead>
+                      <TableHead className="text-right">Cena</TableHead>
+                      <TableHead className="text-right">Knjižno</TableHead>
+                      <TableHead className="text-right">Dejansko</TableHead>
+                      <TableHead className="text-right text-red-700">Razl. kol. (−)</TableHead>
+                      <TableHead className="text-right text-green-700">Razl. kol. (+)</TableHead>
+                      <TableHead className="text-right">Knj. vrednost</TableHead>
+                      <TableHead className="text-right">Dej. vrednost</TableHead>
+                      <TableHead className="text-right text-red-700">Razl. vredn. (−)</TableHead>
+                      <TableHead className="text-right text-green-700">Razl. vredn. (+)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invRows.map((row, i) => {
+                      const art = nabavniArtikli.find(a => a.id === row.artikelId);
+                      const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
+                      const cena = zalogaInfo?.zadnjaCena ?? null;
+                      const knjizno = Number(zalogaInfo?.kolicina ?? 0);
+                      const dejansko = parseFloat(row.steviloNajdeno) || 0;
+                      const razlikaKol = dejansko - knjizno;
+                      const knj = cena != null ? knjizno * cena : null;
+                      const dej = cena != null ? dejansko * cena : null;
+                      const razlikaVrednost = cena != null ? razlikaKol * cena : null;
+                      return (
+                        <TableRow key={row.artikelId}>
+                          <TableCell className="font-medium text-sm whitespace-nowrap">
+                            {art?.imeZaNabavo || art?.ime} <span className="text-muted-foreground">({art?.enotaMere ?? "–"})</span>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {cena != null ? `${fmt(cena)} €` : <span className="text-muted-foreground">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
+                          <TableCell className="text-right">
+                            <Input type="number" min="0" step="0.001" value={row.steviloNajdeno}
+                              onChange={e => updateInvRow(i, e.target.value)} onKeyDown={handleEnterAsTab} className="w-24 text-right ml-auto h-8" />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
+                            {razlikaKol < 0 ? fmt(razlikaKol, 3) : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-green-600">
+                            {razlikaKol > 0 ? `+${fmt(razlikaKol, 3)}` : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">{knj != null ? `${fmt(knj)} €` : "–"}</TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">{dej != null ? `${fmt(dej)} €` : "–"}</TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
+                            {razlikaVrednost != null && razlikaVrednost < 0 ? `${fmt(razlikaVrednost)} €` : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-semibold text-green-600">
+                            {razlikaVrednost != null && razlikaVrednost > 0 ? `+${fmt(razlikaVrednost)} €` : <span className="text-muted-foreground/40">–</span>}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex flex-wrap justify-end gap-x-6 gap-y-1 text-sm px-1 pt-1">
+                <span className="text-muted-foreground">Knjižna vrednost: <strong className="text-foreground">{fmt(invTotals.knjizna)} €</strong></span>
+                <span className="text-muted-foreground">Dejanska vrednost: <strong className="text-foreground">{fmt(invTotals.dejanska)} €</strong></span>
+                <span className="text-muted-foreground">Manko (−): <strong className="text-red-600">{fmt(invTotals.negativna)} €</strong></span>
+                <span className="text-muted-foreground">Višek (+): <strong className="text-green-600">+{fmt(invTotals.pozitivna)} €</strong></span>
+                <span className="text-muted-foreground">Neto razlika: <strong className={invTotals.negativna + invTotals.pozitivna < 0 ? "text-red-600" : invTotals.negativna + invTotals.pozitivna > 0 ? "text-green-600" : "text-foreground"}>
+                  {invTotals.negativna + invTotals.pozitivna > 0 ? "+" : ""}{fmt(invTotals.negativna + invTotals.pozitivna)} €
+                </strong></span>
+              </div>
+            </div>
+            <Button className="w-full" onClick={handleSaveInventura} disabled={createInventura.isPending}>
+              {createInventura.isPending ? "Shranjujem..." : "Potrdi inventuro"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Inventura edit dialog ──────────────────────────────────────── */}
+      {editInvId != null && (
+        <EditInventuraDialog
+          id={editInvId}
+          nabavniArtikli={nabavniArtikli}
+          zaloge={zaloge?.map(z => ({ artikelId: z.artikelId, kolicina: z.kolicina, zadnjaCena: z.zadnjaCena ?? null }))}
+          onClose={() => setEditInvId(null)}
+          onSaved={() => {
+            setEditInvId(null);
+            queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getListInventureQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getGetInventuraQueryKey(editInvId) });
+          }}
+        />
+      )}
+
+      {/* ── Inventura delete confirm ───────────────────────────────────── */}
+      <AlertDialog open={!!deleteInvId} onOpenChange={v => !v && setDeleteInvId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Izbriši inventuro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Inventura bo izbrisana in <strong>zaloge bodo povrnjene na vrednosti pred inventuro</strong>. Tega dejanja ni mogoče razveljaviti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Prekliči</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteInventura} disabled={deleteInventura.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteInventura.isPending ? "Brišem..." : "Potrdi"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Začetne zaloge create dialog ──────────────────────────────── */}
+      <Dialog open={zzDialogOpen} onOpenChange={setZzDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="w-5 h-5" />Začetne zaloge
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Leto</Label>
+                <Input type="number" value={zzLeto} onChange={e => setZzLeto(parseInt(e.target.value) || currentYear)}
+                  min={2000} max={2100} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <Input type="date" value={zzDatum} onChange={e => setZzDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={zzOpomba} onChange={e => setZzOpomba(e.target.value)} placeholder="Opomba..." onKeyDown={handleEnterAsTab} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Artikli</Label>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artikel</TableHead>
+                      <TableHead className="text-right w-32">Količina</TableHead>
+                      <TableHead className="text-right w-32">Cena/enoto (€)</TableHead>
+                      <TableHead className="text-right w-28">Vrednost (€)</TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {zzRows.map((row, i) => {
+                      const vrednost = (parseFloat(row.kolicina) || 0) * (parseFloat(row.cenaKos) || 0);
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <select className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
+                              value={row.artikelId}
+                              onChange={e => updateZzRow(i, "artikelId", parseInt(e.target.value))}>
+                              {nabavniArtikli.map(a => (
+                                <option key={a.id} value={a.id}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" step="0.001" value={row.kolicina}
+                              onChange={e => updateZzRow(i, "kolicina", e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" min="0" step="0.01" value={row.cenaKos}
+                              onChange={e => updateZzRow(i, "cenaKos", e.target.value)}
+                              onKeyDown={handleEnterAsTab}
+                              className="text-right h-8" />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-medium">
+                            {vrednost > 0 ? `${fmt(vrednost)} €` : <span className="text-muted-foreground">–</span>}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => removeZzRow(i)} disabled={zzRows.length === 1}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="sm" onClick={addZzRow}>
+                  <Plus className="w-4 h-4 mr-1" />Dodaj artikel
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Skupna vrednost: <strong className="text-foreground">{fmt(zzSkupajVrednost)} €</strong>
+                </p>
+              </div>
+            </div>
+            <Button className="w-full" onClick={handleSaveZacetnaZaloga} disabled={createZacetnaZaloga.isPending}>
+              {createZacetnaZaloga.isPending ? "Shranjujem..." : `Shrani začetne zaloge (${zzLeto})`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Začetne zaloge edit dialog ────────────────────────────────── */}
+      {editZzId != null && (
+        <EditZacetnaZalogaDialog
+          id={editZzId}
+          nabavniArtikli={nabavniArtikli}
+          onClose={() => setEditZzId(null)}
+          onSaved={() => {
+            setEditZzId(null);
+            queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getListZacetneZalogeQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getGetZacetnaZalogaQueryKey(editZzId) });
+          }}
+        />
+      )}
+
+      {/* ── Začetne zaloge delete confirm ─────────────────────────────── */}
+      <AlertDialog open={!!deleteZzId} onOpenChange={v => !v && setDeleteZzId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Izbriši začetne zaloge?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Začetne zaloge bodo izbrisane in <strong>zaloge artiklov bodo povrnjene na vrednosti pred vnosom</strong>. Tega dejanja ni mogoče razveljaviti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Prekliči</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteZacetnaZaloga} disabled={deleteZacetnaZaloga.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteZacetnaZaloga.isPending ? "Brišem..." : "Izbriši"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

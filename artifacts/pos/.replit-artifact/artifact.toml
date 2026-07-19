@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/pos/"
+title = "POS Gostinstvo"
+version = "1.0.0"
+id = "artifacts/pos"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/pos/" ]
+localPort = 24730
+
+[services.development]
+run = "pnpm --filter @workspace/pos run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pos", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pos/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24730"
+BASE_PATH = "/pos/"

@@ -17,6 +17,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _napravaIdGetter: (() => string | null) | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +43,10 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+export function setNapravaIdGetter(getter: (() => string | null) | null): void {
+  _napravaIdGetter = getter;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -367,6 +372,11 @@ export async function customFetch<T = unknown>(
 
   if (companyId && !headers.has("x-company-id")) {
     headers.set("x-company-id", companyId);
+  }
+
+  if (_napravaIdGetter && !headers.has("x-naprava-id")) {
+    const napravaId = _napravaIdGetter();
+    if (napravaId) headers.set("x-naprava-id", napravaId);
   }
 
   const requestInfo = { method, url: resolveUrl(input) };

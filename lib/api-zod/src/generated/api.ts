@@ -9,10 +9,3755 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Uvoz uporabnikov iz CSV datoteke
+ */
+export const ImportUsersResponse = zod.object({
+  "ustvarjenih": zod.number(),
+  "preskocenih": zod.number(),
+  "napake": zod.array(zod.object({
+  "vrstica": zod.number(),
+  "napaka": zod.string()
+}))
+})
+
+
+/**
+ * @summary Zadnji zagoni testov
+ */
+export const listTestniZagoniQueryLimitDefault = 20;
+
+export const ListTestniZagoniQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listTestniZagoniQueryLimitDefault)
+})
+
+export const ListTestniZagoniResponseItem = zod.object({
+  "id": zod.number(),
+  "zagnanOb": zod.string(),
+  "skupajTestov": zod.number(),
+  "prestaloTestov": zod.number(),
+  "padloTestov": zod.number(),
+  "trajanjeSekund": zod.number().nullish(),
+  "status": zod.enum(['uspesno', 'neuspesno', 'napaka']),
+  "padliTesti": zod.string().nullish()
+})
+export const ListTestniZagoniResponse = zod.array(ListTestniZagoniResponseItem)
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
   "status": zod.string()
+})
+
+
+/**
+ * @summary Seznam kategorij
+ */
+export const ListKategorijeResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "barva": zod.string(),
+  "vrstniRed": zod.number(),
+  "tip": zod.enum(['hrana', 'pijaca']).nullish(),
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+})
+export const ListKategorijeResponse = zod.array(ListKategorijeResponseItem)
+
+
+/**
+ * @summary Ustvari kategorijo
+ */
+
+
+
+export const CreateKategorijaBody = zod.object({
+  "ime": zod.string().min(1),
+  "barva": zod.string(),
+  "vrstniRed": zod.number().optional(),
+  "tip": zod.enum(['hrana', 'pijaca']).nullish(),
+  "dnevnoFiltriranje": zod.boolean().optional()
+})
+
+export const CreateKategorijaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "barva": zod.string(),
+  "vrstniRed": zod.number(),
+  "tip": zod.enum(['hrana', 'pijaca']).nullish(),
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+})
+
+
+export const GetKategorijaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetKategorijaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "barva": zod.string(),
+  "vrstniRed": zod.number(),
+  "tip": zod.enum(['hrana', 'pijaca']).nullish(),
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+})
+
+
+export const UpdateKategorijaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateKategorijaBody = zod.object({
+  "ime": zod.string().min(1),
+  "barva": zod.string(),
+  "vrstniRed": zod.number().optional(),
+  "tip": zod.enum(['hrana', 'pijaca']).nullish(),
+  "dnevnoFiltriranje": zod.boolean().optional()
+})
+
+export const UpdateKategorijaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "barva": zod.string(),
+  "vrstniRed": zod.number(),
+  "tip": zod.enum(['hrana', 'pijaca']).nullish(),
+  "dnevnoFiltriranje": zod.boolean().optional().describe('Ali kategorija uporablja dnevno filtriranje modifikatorjev')
+})
+
+
+export const DeleteKategorijaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteKategorijaResponse = zod.void()
+
+
+/**
+ * @summary Seznam artiklov
+ */
+export const ListArtikliQueryParams = zod.object({
+  "kategorijaId": zod.coerce.number().nullish()
+})
+
+export const ListArtikliResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "cena": zod.number(),
+  "davek": zod.number().describe('DDV stopnja v % (npr. 9.5 ali 22)'),
+  "aktiven": zod.boolean(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "barva": zod.string().nullish().describe('Hex barva ozadja kartice (npr. \'#3b82f6\')'),
+  "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
+  "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
+  "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
+  "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
+  "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
+  "jeModifikator": zod.boolean().optional().describe('Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja)'),
+  "privzetiModifikatorji": zod.array(zod.number()).optional().describe('Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla'),
+  "toGoArtikli": zod.array(zod.number()).optional().describe('Seznam ID-jev artiklov (embalaža) za opcijo To Go — ob kliku se samodejno dodajo k naročilu'),
+  "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
+  "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+}))
+})).optional().describe('Modifikatorske skupine prirejene artiklu')
+})
+export const ListArtikliResponse = zod.array(ListArtikliResponseItem)
+
+
+/**
+ * @summary Ustvari artikel
+ */
+
+
+
+export const CreateArtikelBody = zod.object({
+  "ime": zod.string().min(1),
+  "opis": zod.string().nullish(),
+  "cena": zod.number().optional(),
+  "davek": zod.number().optional(),
+  "aktiven": zod.boolean().optional(),
+  "kategorijaId": zod.number().nullish(),
+  "barva": zod.string().nullish().describe('Hex barva ozadja kartice'),
+  "vrstniRed": zod.number().optional().describe('Vrstni red prikaza v meniju'),
+  "nabavniArtikel": zod.boolean().optional(),
+  "prodajniArtikel": zod.boolean().optional(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
+  "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
+  "jeModifikator": zod.boolean().optional().describe('Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja)'),
+  "privzetiModifikatorji": zod.array(zod.number()).optional().describe('Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla'),
+  "toGoArtikli": zod.array(zod.number()).optional().describe('Seznam ID-jev artiklov (embalaža) za opcijo To Go'),
+  "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\"')
+})
+
+export const CreateArtikelResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "cena": zod.number(),
+  "davek": zod.number().describe('DDV stopnja v % (npr. 9.5 ali 22)'),
+  "aktiven": zod.boolean(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "barva": zod.string().nullish().describe('Hex barva ozadja kartice (npr. \'#3b82f6\')'),
+  "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
+  "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
+  "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
+  "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
+  "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
+  "jeModifikator": zod.boolean().optional().describe('Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja)'),
+  "privzetiModifikatorji": zod.array(zod.number()).optional().describe('Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla'),
+  "toGoArtikli": zod.array(zod.number()).optional().describe('Seznam ID-jev artiklov (embalaža) za opcijo To Go — ob kliku se samodejno dodajo k naročilu'),
+  "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
+  "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+}))
+})).optional().describe('Modifikatorske skupine prirejene artiklu')
+})
+
+
+/**
+ * @summary Uvoz artiklov iz CSV datoteke
+ */
+export const uvozArtiklovCsvQueryDryRunDefault = true;
+export const uvozArtiklovCsvQueryPodvojeniDefault = `presko\u010Di`;
+
+export const UvozArtiklovCsvQueryParams = zod.object({
+  "dryRun": zod.coerce.boolean().default(uvozArtiklovCsvQueryDryRunDefault).describe('true = predogled brez shranjevanja; false = dejanski uvoz'),
+  "podvojeni": zod.enum(['preskoči', 'posodobi']).default(uvozArtiklovCsvQueryPodvojeniDefault).describe('Ravnanje s podvojenimi artiklih: preskoči ali posodobi ceno\/DDV')
+})
+
+export const UvozArtiklovCsvResponse = zod.object({
+  "predogled": zod.array(zod.object({
+  "ime": zod.string(),
+  "cena": zod.number(),
+  "ddv": zod.number(),
+  "kategorija": zod.string().nullish()
+})).optional(),
+  "skupaj": zod.number().optional(),
+  "veljavnih": zod.number().optional(),
+  "uvozenih": zod.number().optional(),
+  "preskocenih": zod.number().optional(),
+  "napake": zod.array(zod.object({
+  "vrstica": zod.number(),
+  "napaka": zod.string()
+}))
+})
+
+
+/**
+ * @summary Posodobi vrstni red artiklov
+ */
+export const ReorderArtikliBodyItem = zod.object({
+  "id": zod.number(),
+  "vrstniRed": zod.number()
+})
+export const ReorderArtikliBody = zod.array(ReorderArtikliBodyItem)
+
+export const ReorderArtikliResponse = zod.void()
+
+
+export const GetArtikelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetArtikelResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "cena": zod.number(),
+  "davek": zod.number().describe('DDV stopnja v % (npr. 9.5 ali 22)'),
+  "aktiven": zod.boolean(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "barva": zod.string().nullish().describe('Hex barva ozadja kartice (npr. \'#3b82f6\')'),
+  "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
+  "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
+  "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
+  "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
+  "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
+  "jeModifikator": zod.boolean().optional().describe('Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja)'),
+  "privzetiModifikatorji": zod.array(zod.number()).optional().describe('Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla'),
+  "toGoArtikli": zod.array(zod.number()).optional().describe('Seznam ID-jev artiklov (embalaža) za opcijo To Go — ob kliku se samodejno dodajo k naročilu'),
+  "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
+  "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+}))
+})).optional().describe('Modifikatorske skupine prirejene artiklu')
+})
+
+
+export const UpdateArtikelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateArtikelBody = zod.object({
+  "ime": zod.string().min(1),
+  "opis": zod.string().nullish(),
+  "cena": zod.number().optional(),
+  "davek": zod.number().optional(),
+  "aktiven": zod.boolean().optional(),
+  "kategorijaId": zod.number().nullish(),
+  "barva": zod.string().nullish().describe('Hex barva ozadja kartice'),
+  "vrstniRed": zod.number().optional().describe('Vrstni red prikaza v meniju'),
+  "nabavniArtikel": zod.boolean().optional(),
+  "prodajniArtikel": zod.boolean().optional(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
+  "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
+  "jeModifikator": zod.boolean().optional().describe('Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja)'),
+  "privzetiModifikatorji": zod.array(zod.number()).optional().describe('Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla'),
+  "toGoArtikli": zod.array(zod.number()).optional().describe('Seznam ID-jev artiklov (embalaža) za opcijo To Go'),
+  "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\"')
+})
+
+export const UpdateArtikelResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "cena": zod.number(),
+  "davek": zod.number().describe('DDV stopnja v % (npr. 9.5 ali 22)'),
+  "aktiven": zod.boolean(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "barva": zod.string().nullish().describe('Hex barva ozadja kartice (npr. \'#3b82f6\')'),
+  "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
+  "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
+  "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
+  "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
+  "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
+  "jeModifikator": zod.boolean().optional().describe('Ali je artikel modifikator katerega koli drugega artikla (ne prikazuje se v glavni mreži naročanja)'),
+  "privzetiModifikatorji": zod.array(zod.number()).optional().describe('Seznam ID-jev modifikatorjev (artiklov), ki se privzeto prednastavijo ob naročilu starševskega artikla'),
+  "toGoArtikli": zod.array(zod.number()).optional().describe('Seznam ID-jev artiklov (embalaža) za opcijo To Go — ob kliku se samodejno dodajo k naročilu'),
+  "toGo": zod.boolean().optional().describe('Ali je artikel označen kot \"To Go\" — prikazuje gumb za dodajanje embalaže v naročilu'),
+  "hasNormativ": zod.boolean().optional().describe('Ali ima artikel vsaj en vnos v normativu (receptura)'),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+}))
+})).optional().describe('Modifikatorske skupine prirejene artiklu')
+})
+
+
+export const DeleteArtikelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteArtikelResponse = zod.void()
+
+
+/**
+ * @summary Kateri artikli vsebujejo ta artikel kot sestavino v normativu
+ */
+export const GetArtikelVNormativiParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetArtikelVNormativiResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string()
+})
+export const GetArtikelVNormativiResponse = zod.array(GetArtikelVNormativiResponseItem)
+
+
+/**
+ * @summary Normativ artikla (seznam vhodnih artiklov)
+ */
+export const GetArtikelNormativiParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetArtikelNormativiResponseItem = zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "vhodniArtikelId": zod.number(),
+  "vhodniArtikelIme": zod.string(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "vrstniRed": zod.number()
+})
+export const GetArtikelNormativiResponse = zod.array(GetArtikelNormativiResponseItem)
+
+
+/**
+ * @summary Nastavi normativ artikla (zamenja vse vhodne artikle)
+ */
+export const UpdateArtikelNormativiParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateArtikelNormativiBodyItem = zod.object({
+  "vhodniArtikelId": zod.number(),
+  "kolicina": zod.number()
+})
+export const UpdateArtikelNormativiBody = zod.array(UpdateArtikelNormativiBodyItem)
+
+export const UpdateArtikelNormativiResponse = zod.void()
+
+
+/**
+ * @summary Najpogosteje naroceni artikli
+ */
+export const ListPriljubljeniArtikliResponseItem = zod.object({
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "steviloNarocil": zod.number(),
+  "skupajZnesek": zod.number()
+})
+export const ListPriljubljeniArtikliResponse = zod.array(ListPriljubljeniArtikliResponseItem)
+
+
+/**
+ * @summary Seznam modifikatorskih skupin za to enoto
+ */
+export const ListModSkupineResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number()
+})
+export const ListModSkupineResponse = zod.array(ListModSkupineResponseItem)
+
+
+/**
+ * @summary Ustvari modifikatorsko skupino
+ */
+
+
+
+export const CreateModSkupinaBody = zod.object({
+  "ime": zod.string().min(1),
+  "obvezna": zod.boolean().optional(),
+  "minIzbir": zod.number().optional(),
+  "maxIzbir": zod.number().optional(),
+  "vrstniRed": zod.number().optional()
+})
+
+export const CreateModSkupinaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number()
+})
+
+
+/**
+ * @summary Podrobnosti modifikatorske skupine z modifikatorji
+ */
+export const GetModSkupinaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetModSkupinaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+}))
+})
+
+
+/**
+ * @summary Posodobi modifikatorsko skupino
+ */
+export const UpdateModSkupinaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateModSkupinaBody = zod.object({
+  "ime": zod.string().min(1),
+  "obvezna": zod.boolean().optional(),
+  "minIzbir": zod.number().optional(),
+  "maxIzbir": zod.number().optional(),
+  "vrstniRed": zod.number().optional()
+})
+
+export const UpdateModSkupinaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number()
+})
+
+
+/**
+ * @summary Izbriši modifikatorsko skupino
+ */
+export const DeleteModSkupinaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteModSkupinaResponse = zod.void()
+
+
+/**
+ * @summary Dodaj modifikator v skupino
+ */
+export const AddModifikatorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const AddModifikatorBody = zod.object({
+  "ime": zod.string().min(1),
+  "cenaDodatek": zod.number().optional(),
+  "aktiven": zod.boolean().optional(),
+  "vrstniRed": zod.number().optional()
+})
+
+export const AddModifikatorResponse = zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+})
+
+
+/**
+ * @summary Posodobi modifikator
+ */
+export const UpdateModifikatorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateModifikatorBody = zod.object({
+  "ime": zod.string().min(1),
+  "cenaDodatek": zod.number().optional(),
+  "aktiven": zod.boolean().optional(),
+  "vrstniRed": zod.number().optional()
+})
+
+export const UpdateModifikatorResponse = zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+})
+
+
+/**
+ * @summary Izbriši modifikator
+ */
+export const DeleteModifikatorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteModifikatorResponse = zod.void()
+
+
+/**
+ * @summary Normativ modifikatorja
+ */
+export const GetModifikatorNormativiParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetModifikatorNormativiResponseItem = zod.object({
+  "id": zod.number(),
+  "vhodniArtikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "kolicina": zod.number()
+})
+export const GetModifikatorNormativiResponse = zod.array(GetModifikatorNormativiResponseItem)
+
+
+/**
+ * @summary Nastavi normativ modifikatorja (zamenja obstoječe)
+ */
+export const SetModifikatorNormativiParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetModifikatorNormativiBody = zod.object({
+  "normativi": zod.array(zod.object({
+  "vhodniArtikelId": zod.number(),
+  "kolicina": zod.number()
+}))
+})
+
+export const SetModifikatorNormativiResponse = zod.void()
+
+
+/**
+ * @summary Modifikatorske skupine za artikel
+ */
+export const GetArtikelModSkupineParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetArtikelModSkupineResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
+  "vrstniRed": zod.number()
+}))
+})
+export const GetArtikelModSkupineResponse = zod.array(GetArtikelModSkupineResponseItem)
+
+
+/**
+ * @summary Nastavi modifikatorske skupine za artikel (zamenja obstoječe)
+ */
+export const SetArtikelModSkupineParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetArtikelModSkupineBody = zod.object({
+  "skupineIds": zod.array(zod.number())
+})
+
+export const SetArtikelModSkupineResponse = zod.void()
+
+
+/**
+ * @summary Seznam miz
+ */
+export const ListMizeResponseItem = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.number(),
+  "ime": zod.string().nullish(),
+  "kapaciteta": zod.number(),
+  "status": zod.enum(['prosta', 'zasedena', 'rezervirana']),
+  "prostorId": zod.number().nullish()
+})
+export const ListMizeResponse = zod.array(ListMizeResponseItem)
+
+
+/**
+ * @summary Ustvari mizo
+ */
+export const CreateMizaBody = zod.object({
+  "stevilka": zod.number(),
+  "ime": zod.string().nullish(),
+  "kapaciteta": zod.number(),
+  "status": zod.enum(['prosta', 'zasedena', 'rezervirana']).optional(),
+  "prostorId": zod.number().nullish()
+})
+
+export const CreateMizaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.number(),
+  "ime": zod.string().nullish(),
+  "kapaciteta": zod.number(),
+  "status": zod.enum(['prosta', 'zasedena', 'rezervirana']),
+  "prostorId": zod.number().nullish()
+})
+
+
+export const GetMizaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetMizaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.number(),
+  "ime": zod.string().nullish(),
+  "kapaciteta": zod.number(),
+  "status": zod.enum(['prosta', 'zasedena', 'rezervirana']),
+  "prostorId": zod.number().nullish()
+})
+
+
+export const UpdateMizaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateMizaBody = zod.object({
+  "stevilka": zod.number(),
+  "ime": zod.string().nullish(),
+  "kapaciteta": zod.number(),
+  "status": zod.enum(['prosta', 'zasedena', 'rezervirana']).optional(),
+  "prostorId": zod.number().nullish()
+})
+
+export const UpdateMizaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.number(),
+  "ime": zod.string().nullish(),
+  "kapaciteta": zod.number(),
+  "status": zod.enum(['prosta', 'zasedena', 'rezervirana']),
+  "prostorId": zod.number().nullish()
+})
+
+
+export const DeleteMizaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteMizaResponse = zod.void()
+
+
+/**
+ * @summary Seznam prostorov
+ */
+export const ListProstoriResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "vrstniRed": zod.number()
+})
+export const ListProstoriResponse = zod.array(ListProstoriResponseItem)
+
+
+/**
+ * @summary Ustvari prostor
+ */
+export const CreateProstorBody = zod.object({
+  "ime": zod.string(),
+  "vrstniRed": zod.number().optional()
+})
+
+export const CreateProstorResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "vrstniRed": zod.number()
+})
+
+
+export const UpdateProstorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProstorBody = zod.object({
+  "ime": zod.string(),
+  "vrstniRed": zod.number().optional()
+})
+
+export const UpdateProstorResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "vrstniRed": zod.number()
+})
+
+
+export const DeleteProstorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProstorResponse = zod.void()
+
+
+/**
+ * @summary Seznam narocil
+ */
+export const ListNarocilaQueryParams = zod.object({
+  "status": zod.union([zod.literal('odprto'),zod.literal('zakljuceno'),zod.literal('preklicano'),zod.literal(null)]).nullish(),
+  "mizaId": zod.coerce.number().nullish()
+})
+
+export const ListNarocilaResponseItem = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+export const ListNarocilaResponse = zod.array(ListNarocilaResponseItem)
+
+
+/**
+ * @summary Ustvari narocilo
+ */
+export const CreateNarociloBody = zod.object({
+  "mizaId": zod.number().nullish(),
+  "opomba": zod.string().nullish()
+})
+
+export const CreateNarociloResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+/**
+ * @summary Aktivna odprta narocila po mizah
+ */
+export const ListAktivnaNarocilaResponseItem = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+export const ListAktivnaNarocilaResponse = zod.array(ListAktivnaNarocilaResponseItem)
+
+
+export const GetNarociloParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetNarociloResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+export const UpdateNarociloParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateNarociloBody = zod.object({
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']).optional(),
+  "opomba": zod.string().nullish(),
+  "mizaId": zod.number().nullish().describe('Prestavi naročilo na drugo mizo (null = brez mize)')
+})
+
+export const UpdateNarociloResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+export const DeleteNarociloParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteNarociloResponse = zod.void()
+
+
+/**
+ * @summary Spoji dve narocili iste mize v eno
+ */
+export const SpojiNarociliParams = zod.object({
+  "id": zod.coerce.number().describe('Ciljno narocilo (v katerega se prenesejo postavke)')
+})
+
+export const SpojiNarociliBody = zod.object({
+  "virNarociloId": zod.number().describe('ID izvornega narocila, katerega neracunane postavke se prenesejo v ciljno narocilo')
+})
+
+export const SpojiNarociliResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+/**
+ * @summary Dodaj postavko narocilu
+ */
+export const AddPostavkaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddPostavkaBody = zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number(),
+  "opomba": zod.string().nullish(),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki naroča ta artikel'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "brezPrivzetihDodatkov": zod.boolean().optional().describe('Če true, strežnik ne vstavi samodejnih privzetih dodatkov (odjemalec jih vstavi eksplicitno)'),
+  "izbranModifikatorji": zod.array(zod.object({
+  "modifikatorId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number()
+})).optional().describe('Izbrani modifikatorji za to postavko (vstavljeni kot otroške postavke)')
+})
+
+export const AddPostavkaResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+/**
+ * @summary Posodobi kolicino postavke
+ */
+export const UpdatePostavkaKolicinaParams = zod.object({
+  "id": zod.coerce.number(),
+  "postavkaId": zod.coerce.number()
+})
+
+export const UpdatePostavkaKolicinaBody = zod.object({
+  "kolicina": zod.number().describe('Nova kolicina (dovoljene negativne vrednosti za popravke\/vracila)'),
+  "cenaKos": zod.number().nullish().describe('Nova cena na kos po popustu (cenaKosOriginalna ostane nespremenjena)'),
+  "gostStevilka": zod.number().nullish().describe('Nova stevilka gosta (null za odstranitev dodelitve)'),
+  "opomba": zod.string().nullish().describe('Zvocna ali pisna opomba za to postavko'),
+  "toGo": zod.boolean().optional().describe('Oznaci postavko kot To Go')
+})
+
+export const UpdatePostavkaKolicinaResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+/**
+ * @summary Odstrani postavko iz narocila
+ */
+export const RemovePostavkaParams = zod.object({
+  "id": zod.coerce.number(),
+  "postavkaId": zod.coerce.number()
+})
+
+export const RemovePostavkaResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+/**
+ * @summary Oznaci postavko kot pripravljeno ali razveljavi oznako
+ */
+export const TogglePostavkaPripravljenoParams = zod.object({
+  "id": zod.coerce.number(),
+  "postavkaId": zod.coerce.number()
+})
+
+export const TogglePostavkaPripravljenoBody = zod.object({
+  "pripravljeno": zod.boolean().describe('true = oznaci kot pripravljeno, false = razveljavi oznako'),
+  "vir": zod.enum(['kuhinja', 'tocilnica']).optional().describe('Vir zahteve (kuhinja ali tocilnica) — posredovano v SSE event')
+})
+
+export const TogglePostavkaPripravljenoResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Dodaj modifikatorje obstoječi postavki
+ */
+export const AddPostavkaModifikatorjiParams = zod.object({
+  "id": zod.coerce.number(),
+  "postavkaId": zod.coerce.number()
+})
+
+export const AddPostavkaModifikatorjiBody = zod.object({
+  "modifikatorji": zod.array(zod.object({
+  "modifikatorId": zod.number()
+})),
+  "skupineIds": zod.array(zod.number()).optional().describe('Eksplicitni seznam skupin, za katere se izvede replace (tudi brisanje). Ce ni podan, se skupinaIds izpeljejo iz modifikatorji.')
+})
+
+export const AddPostavkaModifikatorjiResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR')
+})
+
+
+/**
+ * @summary Pogosti kupci (razvrščeni po pogostosti)
+ */
+export const GetKupciPogostiResponseItem = zod.object({
+  "id": zod.number(),
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish().describe('Kratki naziv'),
+  "naslov": zod.string().nullish().describe('Naslov (zastarelo — zapolni se iz ulica+postnaStevilka+kraj)'),
+  "ulica": zod.string().nullish().describe('Ulica in hišna številka'),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish().describe('Koda države (npr. SI)'),
+  "zavezanecDdv": zod.boolean().nullish().describe('Ali je zavezanec za DDV'),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish().describe('ID za DDV (npr. SI12345678)'),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish().describe('Seznam TRR računov (IBAN in BIC)'),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish(),
+  "steviloUpor": zod.number().describe('Število uporab tega kupca'),
+  "zadnjaUporaba": zod.coerce.date().describe('Datum zadnje uporabe'),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+export const GetKupciPogostiResponse = zod.array(GetKupciPogostiResponseItem)
+
+
+/**
+ * @summary Seznam shranjenih kupcev
+ */
+export const ListShranjeniKupciResponseItem = zod.object({
+  "id": zod.number(),
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish().describe('Kratki naziv'),
+  "naslov": zod.string().nullish().describe('Naslov (zastarelo — zapolni se iz ulica+postnaStevilka+kraj)'),
+  "ulica": zod.string().nullish().describe('Ulica in hišna številka'),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish().describe('Koda države (npr. SI)'),
+  "zavezanecDdv": zod.boolean().nullish().describe('Ali je zavezanec za DDV'),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish().describe('ID za DDV (npr. SI12345678)'),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish().describe('Seznam TRR računov (IBAN in BIC)'),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish(),
+  "steviloUpor": zod.number().describe('Število uporab tega kupca'),
+  "zadnjaUporaba": zod.coerce.date().describe('Datum zadnje uporabe'),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+export const ListShranjeniKupciResponse = zod.array(ListShranjeniKupciResponseItem)
+
+
+/**
+ * @summary Shrani kupca
+ */
+export const CreateShranjenKupecBody = zod.object({
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish(),
+  "naslov": zod.string().nullish(),
+  "ulica": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish(),
+  "zavezanecDdv": zod.boolean().nullish(),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish(),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish(),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish()
+})
+
+export const CreateShranjenKupecResponse = zod.object({
+  "id": zod.number(),
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish().describe('Kratki naziv'),
+  "naslov": zod.string().nullish().describe('Naslov (zastarelo — zapolni se iz ulica+postnaStevilka+kraj)'),
+  "ulica": zod.string().nullish().describe('Ulica in hišna številka'),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish().describe('Koda države (npr. SI)'),
+  "zavezanecDdv": zod.boolean().nullish().describe('Ali je zavezanec za DDV'),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish().describe('ID za DDV (npr. SI12345678)'),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish().describe('Seznam TRR računov (IBAN in BIC)'),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish(),
+  "steviloUpor": zod.number().describe('Število uporab tega kupca'),
+  "zadnjaUporaba": zod.coerce.date().describe('Datum zadnje uporabe'),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Posodobi shranjenega kupca
+ */
+export const UpdateShranjenKupecParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateShranjenKupecBody = zod.object({
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish(),
+  "naslov": zod.string().nullish(),
+  "ulica": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish(),
+  "zavezanecDdv": zod.boolean().nullish(),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish(),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish(),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish()
+})
+
+export const UpdateShranjenKupecResponse = zod.object({
+  "id": zod.number(),
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish().describe('Kratki naziv'),
+  "naslov": zod.string().nullish().describe('Naslov (zastarelo — zapolni se iz ulica+postnaStevilka+kraj)'),
+  "ulica": zod.string().nullish().describe('Ulica in hišna številka'),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish().describe('Koda države (npr. SI)'),
+  "zavezanecDdv": zod.boolean().nullish().describe('Ali je zavezanec za DDV'),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish().describe('ID za DDV (npr. SI12345678)'),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish().describe('Seznam TRR računov (IBAN in BIC)'),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish(),
+  "steviloUpor": zod.number().describe('Število uporab tega kupca'),
+  "zadnjaUporaba": zod.coerce.date().describe('Datum zadnje uporabe'),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Izbriši shranjenega kupca
+ */
+export const DeleteShranjenKupecParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteShranjenKupecResponse = zod.void()
+
+
+/**
+ * @summary Osveži podatke shranjenega kupca iz javnih registrov (INETIS/AJPES)
+ */
+export const OsveziShranjenKupecParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const OsveziShranjenKupecResponse = zod.object({
+  "id": zod.number(),
+  "naziv": zod.string().describe('Dolgi naziv'),
+  "kratkiNaziv": zod.string().nullish().describe('Kratki naziv'),
+  "naslov": zod.string().nullish().describe('Naslov (zastarelo — zapolni se iz ulica+postnaStevilka+kraj)'),
+  "ulica": zod.string().nullish().describe('Ulica in hišna številka'),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "drzava": zod.string().nullish(),
+  "kodaDrzave": zod.string().nullish().describe('Koda države (npr. SI)'),
+  "zavezanecDdv": zod.boolean().nullish().describe('Ali je zavezanec za DDV'),
+  "davcnaStevilka": zod.string().nullish(),
+  "idZaDdv": zod.string().nullish().describe('ID za DDV (npr. SI12345678)'),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish().describe('Seznam TRR računov (IBAN in BIC)'),
+  "vrstaPartnerja": zod.union([zod.literal('obcan'),zod.literal('sp'),zod.literal('podjetje'),zod.literal('kmet'),zod.literal('javni_sektor'),zod.literal(null)]).nullish().describe('Vrsta poslovnega partnerja (obcan\/sp\/podjetje\/kmet\/javni_sektor)'),
+  "kmgMid": zod.string().nullish().describe('KMG-MID identifikator kmetijskega gospodarstva'),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov (eRegister GZS)'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov (npr. OTP, NLB, bizBox, Halcom, UJP…)'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)'),
+  "email": zod.string().nullish(),
+  "telefon": zod.string().nullish(),
+  "steviloUpor": zod.number().describe('Število uporab tega kupca'),
+  "zadnjaUporaba": zod.coerce.date().describe('Datum zadnje uporabe'),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Vrni cenik (seznam artiklov s cenami) za poslovnega partnerja
+ */
+export const GetPartnerCenikParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPartnerCenikResponseItem = zod.object({
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "originalCena": zod.number().optional().describe('Originalna (standardna) cena artikla'),
+  "cena": zod.number().describe('Cena v tem ceniku (partnerska cena)'),
+  "davek": zod.number().optional().describe('DDV stopnja artikla (%)')
+})
+export const GetPartnerCenikResponse = zod.array(GetPartnerCenikResponseItem)
+
+
+/**
+ * @summary Dodaj ali posodobi ceno artikla v ceniku partnerja
+ */
+export const UpsertPartnerCenikItemParams = zod.object({
+  "id": zod.coerce.number(),
+  "artikelId": zod.coerce.number()
+})
+
+export const UpsertPartnerCenikItemBody = zod.object({
+  "cena": zod.number().describe('Partnerska cena (brez DDV ni relevantna — DDV stopnja se prevzame iz artikla)')
+})
+
+export const UpsertPartnerCenikItemResponse = zod.object({
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "originalCena": zod.number().optional().describe('Originalna (standardna) cena artikla'),
+  "cena": zod.number().describe('Cena v tem ceniku (partnerska cena)'),
+  "davek": zod.number().optional().describe('DDV stopnja artikla (%)')
+})
+
+
+/**
+ * @summary Odstrani artikel iz cenika partnerja
+ */
+export const DeletePartnerCenikItemParams = zod.object({
+  "id": zod.coerce.number(),
+  "artikelId": zod.coerce.number()
+})
+
+export const DeletePartnerCenikItemResponse = zod.void()
+
+
+/**
+ * @summary Poišči kupca po davčni številki (AJPES ePRS)
+ */
+export const PoisciKupcaQueryParams = zod.object({
+  "davcna": zod.coerce.string()
+})
+
+export const PoisciKupcaResponse = zod.object({
+  "id": zod.number().nullish().describe('ID shranjenega kupca v bazi (null če kupec ni bil shranjen)'),
+  "davcnaStevilka": zod.string().describe('Davčna številka brez SI predpone (8 številk)'),
+  "idZaDdv": zod.string().nullish().describe('DDV ID z SI predpono (npr. SI12345678)'),
+  "naziv": zod.string().describe('Dolgi naziv iz registra'),
+  "kratkiNaziv": zod.string().nullish().describe('Kratki naziv iz registra'),
+  "naslov": zod.string().nullish().describe('Celoten naslov kot niz'),
+  "ulica": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "zavezanecDdv": zod.boolean().nullish(),
+  "maticnaStevilka": zod.string().nullish(),
+  "trr": zod.array(zod.object({
+  "iban": zod.string(),
+  "bic": zod.string()
+})).nullish(),
+  "eRacunPrejemnik": zod.boolean().nullish().describe('Ali je partner registriran za prejem e-računov'),
+  "eRacunOmrezje": zod.string().nullish().describe('Ponudnik \/ omrežje e-računov'),
+  "eRacunEmail": zod.string().nullish().describe('E-poštni naslov za dostavo e-računov'),
+  "eRacunNaslov": zod.string().nullish().describe('Naslov prejemnika za e-račune (IBAN za UJP, GLN za druge mreže)')
+})
+
+
+/**
+ * @summary Seznam racunov
+ */
+export const ListRacuniQueryParams = zod.object({
+  "datum": zod.coerce.string().nullish()
+})
+
+export const ListRacuniResponseItem = zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "jeDelni": zod.boolean().optional().describe('True ce je to delni racun (samo del postavk narocila)'),
+  "stevilkaRacuna": zod.string().describe('Formatirana stevilka racuna (npr. 2024-001-0001)'),
+  "skupaj": zod.number(),
+  "ddv": zod.number(),
+  "osnova": zod.number().nullish().describe('Osnova brez DDV (skupaj - ddv)'),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "status": zod.enum(['poslan', 'napaka', 'testni', 'storniran']),
+  "zoi": zod.string().nullish().describe('Zastitna oznaka izdajatelja (ZOI)'),
+  "eor": zod.string().nullish().describe('Edinstvena oznaka racuna od FURS'),
+  "fursOdgovor": zod.string().nullish().describe('Surov odgovor FURS API'),
+  "ustvarjeno": zod.coerce.date(),
+  "datumCas": zod.coerce.date().nullish().describe('Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka'),
+  "mizaStevilka": zod.number().nullish(),
+  "natakarIme": zod.string().nullish().describe('Ime natakarja\/operaterja na računu'),
+  "natakarDavcna": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "steviloPrintov": zod.number().optional().describe('Skupno stevilo ponovnih izpisov (kopij)'),
+  "fursNapaka": zod.string().nullish().describe('Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)'),
+  "opomba": zod.string().nullish().describe('Posebna opomba za revizijsko sled (npr. pri izredni izdaji)'),
+  "opozorilo": zod.string().nullish().describe('Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP\/B ker prostori niso nastavljeni)'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "jeStorno": zod.boolean().optional().describe('True ce je ta racun storno (razveljavitev) drugega racuna'),
+  "izvorni_racun_id": zod.number().nullish().describe('ID izvornega racuna ki ga ta storno racun razveljavlja'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (prisoten samo pri SumUp plačilih)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)')
+})
+export const ListRacuniResponse = zod.array(ListRacuniResponseItem)
+
+
+/**
+ * @summary Izdaj fiscalni racun (poslje na FURS)
+ */
+export const CreateRacunBody = zod.object({
+  "narociloId": zod.number(),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS — nadpiše nastavitve; privzeto iz nastavitev'),
+  "natakariId": zod.number().nullish().describe('ID natakarja za FURS operater in izpis na racunu'),
+  "preskociDDVPreverjanje": zod.boolean().optional().describe('Preskoči DDV preverjanje (zahteva veljaven skrbniški PIN)'),
+  "skrbnisPIN": zod.string().optional().describe('Skrbniški PIN za potrditev izredne izdaje'),
+  "blagajnaId": zod.number().nullish().describe('ID aktivne blagajne (PP+B kombinacija) — nadpiše nastavitve'),
+  "postavkeIds": zod.array(zod.number()).optional().describe('Seznam ID-jev postavk za delni racun; ce ni podan, se zajamejo vse postavke'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "izdaniKuponi": zod.number().nullish().describe('Število kuponov izdanih stranki (pice plačane brez bonov)'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (shrani se pri SumUp plačilu)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (shrani se pri Viva Terminal plačilu)'),
+  "kupecId": zod.number().nullish().describe('ID shranjenega kupca — če je podan, se pri izračunu računa uporabijo cene iz partnerjevega cenika')
+})
+
+export const CreateRacunResponse = zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "jeDelni": zod.boolean().optional().describe('True ce je to delni racun (samo del postavk narocila)'),
+  "stevilkaRacuna": zod.string().describe('Formatirana stevilka racuna (npr. 2024-001-0001)'),
+  "skupaj": zod.number(),
+  "ddv": zod.number(),
+  "osnova": zod.number().nullish().describe('Osnova brez DDV (skupaj - ddv)'),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "status": zod.enum(['poslan', 'napaka', 'testni', 'storniran']),
+  "zoi": zod.string().nullish().describe('Zastitna oznaka izdajatelja (ZOI)'),
+  "eor": zod.string().nullish().describe('Edinstvena oznaka racuna od FURS'),
+  "fursOdgovor": zod.string().nullish().describe('Surov odgovor FURS API'),
+  "ustvarjeno": zod.coerce.date(),
+  "datumCas": zod.coerce.date().nullish().describe('Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka'),
+  "mizaStevilka": zod.number().nullish(),
+  "natakarIme": zod.string().nullish().describe('Ime natakarja\/operaterja na računu'),
+  "natakarDavcna": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "steviloPrintov": zod.number().optional().describe('Skupno stevilo ponovnih izpisov (kopij)'),
+  "fursNapaka": zod.string().nullish().describe('Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)'),
+  "opomba": zod.string().nullish().describe('Posebna opomba za revizijsko sled (npr. pri izredni izdaji)'),
+  "opozorilo": zod.string().nullish().describe('Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP\/B ker prostori niso nastavljeni)'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "jeStorno": zod.boolean().optional().describe('True ce je ta racun storno (razveljavitev) drugega racuna'),
+  "izvorni_racun_id": zod.number().nullish().describe('ID izvornega racuna ki ga ta storno racun razveljavlja'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (prisoten samo pri SumUp plačilih)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)')
+})
+
+
+export const GetRacunParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetRacunResponse = zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "jeDelni": zod.boolean().optional().describe('True ce je to delni racun (samo del postavk narocila)'),
+  "stevilkaRacuna": zod.string().describe('Formatirana stevilka racuna (npr. 2024-001-0001)'),
+  "skupaj": zod.number(),
+  "ddv": zod.number(),
+  "osnova": zod.number().nullish().describe('Osnova brez DDV (skupaj - ddv)'),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "status": zod.enum(['poslan', 'napaka', 'testni', 'storniran']),
+  "zoi": zod.string().nullish().describe('Zastitna oznaka izdajatelja (ZOI)'),
+  "eor": zod.string().nullish().describe('Edinstvena oznaka racuna od FURS'),
+  "fursOdgovor": zod.string().nullish().describe('Surov odgovor FURS API'),
+  "ustvarjeno": zod.coerce.date(),
+  "datumCas": zod.coerce.date().nullish().describe('Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka'),
+  "mizaStevilka": zod.number().nullish(),
+  "natakarIme": zod.string().nullish().describe('Ime natakarja\/operaterja na računu'),
+  "natakarDavcna": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "steviloPrintov": zod.number().optional().describe('Skupno stevilo ponovnih izpisov (kopij)'),
+  "fursNapaka": zod.string().nullish().describe('Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)'),
+  "opomba": zod.string().nullish().describe('Posebna opomba za revizijsko sled (npr. pri izredni izdaji)'),
+  "opozorilo": zod.string().nullish().describe('Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP\/B ker prostori niso nastavljeni)'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "jeStorno": zod.boolean().optional().describe('True ce je ta racun storno (razveljavitev) drugega racuna'),
+  "izvorni_racun_id": zod.number().nullish().describe('ID izvornega racuna ki ga ta storno racun razveljavlja'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (prisoten samo pri SumUp plačilih)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)')
+})
+
+
+/**
+ * @summary Posodobi način plačila obstoječega računa
+ */
+export const UpdateRacunPlacilnaNacinParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateRacunPlacilnaNacinBody = zod.object({
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV')
+})
+
+export const UpdateRacunPlacilnaNacinResponse = zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "jeDelni": zod.boolean().optional().describe('True ce je to delni racun (samo del postavk narocila)'),
+  "stevilkaRacuna": zod.string().describe('Formatirana stevilka racuna (npr. 2024-001-0001)'),
+  "skupaj": zod.number(),
+  "ddv": zod.number(),
+  "osnova": zod.number().nullish().describe('Osnova brez DDV (skupaj - ddv)'),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "status": zod.enum(['poslan', 'napaka', 'testni', 'storniran']),
+  "zoi": zod.string().nullish().describe('Zastitna oznaka izdajatelja (ZOI)'),
+  "eor": zod.string().nullish().describe('Edinstvena oznaka racuna od FURS'),
+  "fursOdgovor": zod.string().nullish().describe('Surov odgovor FURS API'),
+  "ustvarjeno": zod.coerce.date(),
+  "datumCas": zod.coerce.date().nullish().describe('Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka'),
+  "mizaStevilka": zod.number().nullish(),
+  "natakarIme": zod.string().nullish().describe('Ime natakarja\/operaterja na računu'),
+  "natakarDavcna": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "steviloPrintov": zod.number().optional().describe('Skupno stevilo ponovnih izpisov (kopij)'),
+  "fursNapaka": zod.string().nullish().describe('Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)'),
+  "opomba": zod.string().nullish().describe('Posebna opomba za revizijsko sled (npr. pri izredni izdaji)'),
+  "opozorilo": zod.string().nullish().describe('Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP\/B ker prostori niso nastavljeni)'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "jeStorno": zod.boolean().optional().describe('True ce je ta racun storno (razveljavitev) drugega racuna'),
+  "izvorni_racun_id": zod.number().nullish().describe('ID izvornega racuna ki ga ta storno racun razveljavlja'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (prisoten samo pri SumUp plačilih)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)')
+})
+
+
+/**
+ * @summary Postavke računa za uvoz v naročilo
+ */
+export const GetRacunPostavkeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetRacunPostavkeResponseItem = zod.object({
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number()
+})
+export const GetRacunPostavkeResponse = zod.array(GetRacunPostavkeResponseItem)
+
+
+/**
+ * @summary Storniraj (razveljavi) račun in povrni zalogo
+ */
+export const StornirajRacunParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const StornirajRacunResponse = zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "jeDelni": zod.boolean().optional().describe('True ce je to delni racun (samo del postavk narocila)'),
+  "stevilkaRacuna": zod.string().describe('Formatirana stevilka racuna (npr. 2024-001-0001)'),
+  "skupaj": zod.number(),
+  "ddv": zod.number(),
+  "osnova": zod.number().nullish().describe('Osnova brez DDV (skupaj - ddv)'),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "status": zod.enum(['poslan', 'napaka', 'testni', 'storniran']),
+  "zoi": zod.string().nullish().describe('Zastitna oznaka izdajatelja (ZOI)'),
+  "eor": zod.string().nullish().describe('Edinstvena oznaka racuna od FURS'),
+  "fursOdgovor": zod.string().nullish().describe('Surov odgovor FURS API'),
+  "ustvarjeno": zod.coerce.date(),
+  "datumCas": zod.coerce.date().nullish().describe('Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka'),
+  "mizaStevilka": zod.number().nullish(),
+  "natakarIme": zod.string().nullish().describe('Ime natakarja\/operaterja na računu'),
+  "natakarDavcna": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "steviloPrintov": zod.number().optional().describe('Skupno stevilo ponovnih izpisov (kopij)'),
+  "fursNapaka": zod.string().nullish().describe('Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)'),
+  "opomba": zod.string().nullish().describe('Posebna opomba za revizijsko sled (npr. pri izredni izdaji)'),
+  "opozorilo": zod.string().nullish().describe('Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP\/B ker prostori niso nastavljeni)'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "jeStorno": zod.boolean().optional().describe('True ce je ta racun storno (razveljavitev) drugega racuna'),
+  "izvorni_racun_id": zod.number().nullish().describe('ID izvornega racuna ki ga ta storno racun razveljavlja'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (prisoten samo pri SumUp plačilih)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)')
+})
+
+
+/**
+ * @summary Ob prijavi poskusi registrirati vse neregistrirane račune (status napaka) na FURS
+ */
+export const RetryFursBatchResponse = zod.object({
+  "skupaj": zod.number().describe('Skupno število računov s statusom napaka'),
+  "uspesno": zod.number().describe('Število uspešno registriranih računov'),
+  "neuspesno": zod.number().describe('Število računov, ki jih ni bilo mogoče registrirati'),
+  "racuni": zod.array(zod.object({
+  "id": zod.number(),
+  "stevilkaRacuna": zod.string(),
+  "uspeh": zod.boolean(),
+  "eor": zod.string().nullish(),
+  "napaka": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Ponovi pošiljanje obstoječega računa na FURS
+ */
+export const PonoviPosiljanjeRacunaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PonoviPosiljanjeRacunaBody = zod.object({
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS — privzeto iz nastavitev')
+})
+
+export const PonoviPosiljanjeRacunaResponse = zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "jeDelni": zod.boolean().optional().describe('True ce je to delni racun (samo del postavk narocila)'),
+  "stevilkaRacuna": zod.string().describe('Formatirana stevilka racuna (npr. 2024-001-0001)'),
+  "skupaj": zod.number(),
+  "ddv": zod.number(),
+  "osnova": zod.number().nullish().describe('Osnova brez DDV (skupaj - ddv)'),
+  "placilnaNacin": zod.enum(['gotovina', 'kartica', 'bon', 'bon_pica', 'negotovinsko', 'reprezentanca', 'lastna_poraba']),
+  "status": zod.enum(['poslan', 'napaka', 'testni', 'storniran']),
+  "zoi": zod.string().nullish().describe('Zastitna oznaka izdajatelja (ZOI)'),
+  "eor": zod.string().nullish().describe('Edinstvena oznaka racuna od FURS'),
+  "fursOdgovor": zod.string().nullish().describe('Surov odgovor FURS API'),
+  "ustvarjeno": zod.coerce.date(),
+  "datumCas": zod.coerce.date().nullish().describe('Čas poslan FURS-u (IssueDateTime); null za stare račune brez tega podatka'),
+  "mizaStevilka": zod.number().nullish(),
+  "natakarIme": zod.string().nullish().describe('Ime natakarja\/operaterja na računu'),
+  "natakarDavcna": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "steviloPrintov": zod.number().optional().describe('Skupno stevilo ponovnih izpisov (kopij)'),
+  "fursNapaka": zod.string().nullish().describe('Uporabniku prijazno sporocilo o FURS napaki (prisotno le ob neuspehu pri fiskalizaciji)'),
+  "opomba": zod.string().nullish().describe('Posebna opomba za revizijsko sled (npr. pri izredni izdaji)'),
+  "opozorilo": zod.string().nullish().describe('Opozorilo za operaterja (npr. račun izdan s privzetimi vrednostmi PP\/B ker prostori niso nastavljeni)'),
+  "znesekGotovina": zod.number().nullish().describe('Znesek plačan z gotovino'),
+  "znesekKartica": zod.number().nullish().describe('Znesek plačan s kartico'),
+  "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
+  "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
+  "znesekNegotovinsko": zod.number().nullish().describe('Znesek plačan z nakazilom na TRR (negotovinsko)'),
+  "dniOdloga": zod.number().nullish().describe('Število dni odloga plačila (za negotovinsko plačilo na TRR)'),
+  "jeStorno": zod.boolean().optional().describe('True ce je ta racun storno (razveljavitev) drugega racuna'),
+  "izvorni_racun_id": zod.number().nullish().describe('ID izvornega racuna ki ga ta storno racun razveljavlja'),
+  "kupecDavcnaStevilka": zod.string().nullish().describe('Davčna številka kupca (za B2B račun)'),
+  "kupecNaziv": zod.string().nullish().describe('Naziv\/ime kupca'),
+  "kupecNaslov": zod.string().nullish().describe('Naslov kupca'),
+  "kupecZavezanecDdv": zod.boolean().nullish().describe('Ali je kupec zavezanec za DDV'),
+  "sumupCheckoutId": zod.string().nullish().describe('SumUp checkout ID (prisoten samo pri SumUp plačilih)'),
+  "vivaTerminalSessionId": zod.string().nullish().describe('Viva Terminal session ID (prisoten samo pri Viva Terminal plačilih)')
+})
+
+
+/**
+ * @summary Pošlji račun na e-poštni naslov stranke
+ */
+export const PosljiEmailRacunaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PosljiEmailRacunaBody = zod.object({
+  "prejemnik": zod.string().describe('E-poštni naslov prejemnika')
+})
+
+export const PosljiEmailRacunaResponse = zod.object({
+  "uspeh": zod.boolean(),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Seznam vračil na Viva terminalu za podan račun
+ */
+export const ListVivaVracilaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListVivaVracilaResponseItem = zod.object({
+  "id": zod.number(),
+  "racunId": zod.number(),
+  "refundSessionId": zod.string().describe('UUID seje vračila (za polling terminala)'),
+  "znesek": zod.number().describe('Znesek vračila v evrih'),
+  "status": zod.enum(['pending', 'paid', 'failed']).describe('Status vračila'),
+  "napaka": zod.string().nullish().describe('Sporočilo o napaki, če je terminal zavrnil vračilo'),
+  "ustvarjeno": zod.coerce.date()
+})
+export const ListVivaVracilaResponse = zod.array(ListVivaVracilaResponseItem)
+
+
+/**
+ * @summary Dnevne statistike
+ */
+export const GetStatistikeResponse = zod.object({
+  "dnevniPromet": zod.number(),
+  "steviloRacunov": zod.number(),
+  "steviloAktivnihNarocil": zod.number(),
+  "skupajDDV": zod.number(),
+  "prometPoNacinuPlacila": zod.object({
+  "gotovina": zod.number().describe('Skupni znesek plačil z gotovino (brez dela pokritega z boni za pico)'),
+  "kartica": zod.number().describe('Skupni znesek kartičnih plačil brez SumUp (brez dela pokritega z boni za pico)'),
+  "bon": zod.number().describe('Skupni znesek plačil z boni (brez dela pokritega z boni za pico)'),
+  "sumup": zod.number().describe('Skupni znesek plačil prek SumUp (brez dela pokritega z boni za pico)'),
+  "bonPica": zod.number().describe('Skupni znesek pokrit z boni za pico'),
+  "steviloBonov": zod.number().describe('Skupno število bonov za pico'),
+  "negotovinsko": zod.number().describe('Skupni znesek plačil z nakazilom na TRR'),
+  "reprezentanca": zod.number().optional().describe('Skupni znesek plačil reprezentance'),
+  "lastna_poraba": zod.number().optional().describe('Skupni znesek lastne porabe')
+}),
+  "priljubljeniArtikli": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "steviloNarocil": zod.number(),
+  "skupajZnesek": zod.number()
+})),
+  "prometPoUrah": zod.array(zod.object({
+  "ura": zod.number(),
+  "znesek": zod.number()
+})),
+  "prometPoIzmenah": zod.array(zod.object({
+  "izmenaId": zod.number(),
+  "natakarIme": zod.string(),
+  "zacetek": zod.coerce.date(),
+  "konec": zod.coerce.date().nullish(),
+  "skupajZnesek": zod.number(),
+  "steviloRacunov": zod.number(),
+  "aktivna": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Seznam izmen
+ */
+export const ListIzmeneQueryParams = zod.object({
+  "aktivne": zod.coerce.boolean().optional().describe('Ce true, vrne samo odprte izmene')
+})
+
+export const ListIzmeneResponseItem = zod.object({
+  "id": zod.number(),
+  "natakariId": zod.number(),
+  "natakarIme": zod.string().describe('Polno ime natakarja (denormalizirano za hitrost)'),
+  "zacetek": zod.coerce.date(),
+  "konec": zod.coerce.date().nullish(),
+  "skupajZnesek": zod.number().describe('Skupni promet izmene (izračunano ob zapiranju)'),
+  "steviloRacunov": zod.number().describe('Število računov v izmeni')
+})
+export const ListIzmeneResponse = zod.array(ListIzmeneResponseItem)
+
+
+/**
+ * @summary Odpri novo izmeno
+ */
+export const OpenIzmenaBody = zod.object({
+  "natakariId": zod.number()
+})
+
+export const OpenIzmenaResponse = zod.object({
+  "id": zod.number(),
+  "natakariId": zod.number(),
+  "natakarIme": zod.string().describe('Polno ime natakarja (denormalizirano za hitrost)'),
+  "zacetek": zod.coerce.date(),
+  "konec": zod.coerce.date().nullish(),
+  "skupajZnesek": zod.number().describe('Skupni promet izmene (izračunano ob zapiranju)'),
+  "steviloRacunov": zod.number().describe('Število računov v izmeni')
+})
+
+
+/**
+ * @summary Aktivne (odprte) izmene
+ */
+export const ListAktivneIzmeneResponseItem = zod.object({
+  "id": zod.number(),
+  "natakariId": zod.number(),
+  "natakarIme": zod.string().describe('Polno ime natakarja (denormalizirano za hitrost)'),
+  "zacetek": zod.coerce.date(),
+  "konec": zod.coerce.date().nullish(),
+  "skupajZnesek": zod.number().describe('Skupni promet izmene (izračunano ob zapiranju)'),
+  "steviloRacunov": zod.number().describe('Število računov v izmeni')
+})
+export const ListAktivneIzmeneResponse = zod.array(ListAktivneIzmeneResponseItem)
+
+
+/**
+ * @summary Zapri izmeno in izračunaj seštevke
+ */
+export const ZapriIzmenoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ZapriIzmenoResponse = zod.object({
+  "id": zod.number(),
+  "natakariId": zod.number(),
+  "natakarIme": zod.string().describe('Polno ime natakarja (denormalizirano za hitrost)'),
+  "zacetek": zod.coerce.date(),
+  "konec": zod.coerce.date().nullish(),
+  "skupajZnesek": zod.number().describe('Skupni promet izmene (izračunano ob zapiranju)'),
+  "steviloRacunov": zod.number().describe('Število računov v izmeni')
+})
+
+
+/**
+ * @summary Seznam registriranih naprav za enoto
+ */
+export const listNapraveResponseGlasovniPragZaupanjaMin = 0;
+export const listNapraveResponseGlasovniPragZaupanjaMax = 1;
+
+
+
+export const ListNapraveResponseItem = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "enotaId": zod.number(),
+  "ime": zod.string(),
+  "napravaKljuc": zod.string(),
+  "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
+  "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
+  "glasovniPragZaupanja": zod.number().min(listNapraveResponseGlasovniPragZaupanjaMin).max(listNapraveResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "terminalConfig": zod.object({
+  "terminalAktiven": zod.boolean().optional(),
+  "terminalIp": zod.string().optional(),
+  "terminalPort": zod.number().optional(),
+  "terminalTimeoutMs": zod.number().optional(),
+  "paytenAndroidAktiven": zod.boolean().optional(),
+  "paytenAndroidPackageName": zod.string().optional(),
+  "sumupAktiven": zod.boolean().optional(),
+  "sumupTerminalSerial": zod.string().optional(),
+  "sumupApiKeyNastavljen": zod.boolean().optional(),
+  "vivaAktiven": zod.boolean().optional(),
+  "vivaClientId": zod.string().optional(),
+  "vivaClientSecretNastavljen": zod.boolean().optional(),
+  "vivaSourceCode": zod.string().optional(),
+  "vivaDemoNacin": zod.boolean().optional(),
+  "vivaTerminalAktiven": zod.boolean().optional(),
+  "vivaTerminalId": zod.string().optional(),
+  "vivaAndroidTerminalAktiven": zod.boolean().optional(),
+  "vivaAndroidSourceCode": zod.string().optional(),
+  "vivaTapToPayAktiven": zod.boolean().optional(),
+  "vivaTapToPaySourceCode": zod.string().optional(),
+  "agentTiskalnikIme": zod.string().optional().describe('Ime Windows tiskalnika za tiskalni agent (per-naprava)'),
+  "tiskalnikSirina": zod.union([zod.literal(58),zod.literal(80)]).optional().describe('Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)')
+}).describe('Sanitizirana terminalna konfiguracija naprave (skrivnosti so maskirane)').nullish().describe('Terminalne nastavitve te naprave (null = ni nastavljeno, ne preglasi globalnih).'),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date()
+})
+export const ListNapraveResponse = zod.array(ListNapraveResponseItem)
+
+
+/**
+ * @summary Registriraj ali posodobi napravo (upsert po napravaKljuc)
+ */
+export const UpsertNapravaBody = zod.object({
+  "napravaKljuc": zod.string(),
+  "ime": zod.string()
+})
+
+export const upsertNapravaResponseGlasovniPragZaupanjaMin = 0;
+export const upsertNapravaResponseGlasovniPragZaupanjaMax = 1;
+
+
+
+export const UpsertNapravaResponse = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "enotaId": zod.number(),
+  "ime": zod.string(),
+  "napravaKljuc": zod.string(),
+  "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
+  "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
+  "glasovniPragZaupanja": zod.number().min(upsertNapravaResponseGlasovniPragZaupanjaMin).max(upsertNapravaResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "terminalConfig": zod.object({
+  "terminalAktiven": zod.boolean().optional(),
+  "terminalIp": zod.string().optional(),
+  "terminalPort": zod.number().optional(),
+  "terminalTimeoutMs": zod.number().optional(),
+  "paytenAndroidAktiven": zod.boolean().optional(),
+  "paytenAndroidPackageName": zod.string().optional(),
+  "sumupAktiven": zod.boolean().optional(),
+  "sumupTerminalSerial": zod.string().optional(),
+  "sumupApiKeyNastavljen": zod.boolean().optional(),
+  "vivaAktiven": zod.boolean().optional(),
+  "vivaClientId": zod.string().optional(),
+  "vivaClientSecretNastavljen": zod.boolean().optional(),
+  "vivaSourceCode": zod.string().optional(),
+  "vivaDemoNacin": zod.boolean().optional(),
+  "vivaTerminalAktiven": zod.boolean().optional(),
+  "vivaTerminalId": zod.string().optional(),
+  "vivaAndroidTerminalAktiven": zod.boolean().optional(),
+  "vivaAndroidSourceCode": zod.string().optional(),
+  "vivaTapToPayAktiven": zod.boolean().optional(),
+  "vivaTapToPaySourceCode": zod.string().optional(),
+  "agentTiskalnikIme": zod.string().optional().describe('Ime Windows tiskalnika za tiskalni agent (per-naprava)'),
+  "tiskalnikSirina": zod.union([zod.literal(58),zod.literal(80)]).optional().describe('Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)')
+}).describe('Sanitizirana terminalna konfiguracija naprave (skrivnosti so maskirane)').nullish().describe('Terminalne nastavitve te naprave (null = ni nastavljeno, ne preglasi globalnih).'),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Posodobi terminalne nastavitve trenutne naprave (per-naprava)
+ */
+export const UpdateNapraveTerminaliBody = zod.object({
+  "terminalAktiven": zod.boolean().optional(),
+  "terminalIp": zod.string().optional(),
+  "terminalPort": zod.number().optional(),
+  "terminalTimeoutMs": zod.number().optional(),
+  "paytenAndroidAktiven": zod.boolean().optional(),
+  "paytenAndroidPackageName": zod.string().optional(),
+  "sumupAktiven": zod.boolean().optional(),
+  "sumupTerminalSerial": zod.string().optional(),
+  "sumupApiKey": zod.string().optional().describe('Pošljite samo za spremembo; prazno = obdrži obstoječi'),
+  "vivaAktiven": zod.boolean().optional(),
+  "vivaClientId": zod.string().optional(),
+  "vivaClientSecret": zod.string().optional().describe('Pošljite samo za spremembo; prazno = obdrži obstoječi'),
+  "vivaSourceCode": zod.string().optional(),
+  "vivaDemoNacin": zod.boolean().optional(),
+  "vivaTerminalAktiven": zod.boolean().optional(),
+  "vivaTerminalId": zod.string().optional(),
+  "vivaAndroidTerminalAktiven": zod.boolean().optional(),
+  "vivaAndroidSourceCode": zod.string().optional(),
+  "vivaTapToPayAktiven": zod.boolean().optional(),
+  "vivaTapToPaySourceCode": zod.string().optional(),
+  "agentTiskalnikIme": zod.string().optional().describe('Ime Windows tiskalnika za tiskalni agent (per-naprava)'),
+  "tiskalnikSirina": zod.union([zod.literal(58),zod.literal(80)]).optional().describe('Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)')
+}).describe('Nastavitve plačilnih terminalov — dostopno vsem prijavljenim uporabnikom')
+
+export const updateNapraveTerminaliResponseGlasovniPragZaupanjaMin = 0;
+export const updateNapraveTerminaliResponseGlasovniPragZaupanjaMax = 1;
+
+
+
+export const UpdateNapraveTerminaliResponse = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "enotaId": zod.number(),
+  "ime": zod.string(),
+  "napravaKljuc": zod.string(),
+  "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
+  "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
+  "glasovniPragZaupanja": zod.number().min(updateNapraveTerminaliResponseGlasovniPragZaupanjaMin).max(updateNapraveTerminaliResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "terminalConfig": zod.object({
+  "terminalAktiven": zod.boolean().optional(),
+  "terminalIp": zod.string().optional(),
+  "terminalPort": zod.number().optional(),
+  "terminalTimeoutMs": zod.number().optional(),
+  "paytenAndroidAktiven": zod.boolean().optional(),
+  "paytenAndroidPackageName": zod.string().optional(),
+  "sumupAktiven": zod.boolean().optional(),
+  "sumupTerminalSerial": zod.string().optional(),
+  "sumupApiKeyNastavljen": zod.boolean().optional(),
+  "vivaAktiven": zod.boolean().optional(),
+  "vivaClientId": zod.string().optional(),
+  "vivaClientSecretNastavljen": zod.boolean().optional(),
+  "vivaSourceCode": zod.string().optional(),
+  "vivaDemoNacin": zod.boolean().optional(),
+  "vivaTerminalAktiven": zod.boolean().optional(),
+  "vivaTerminalId": zod.string().optional(),
+  "vivaAndroidTerminalAktiven": zod.boolean().optional(),
+  "vivaAndroidSourceCode": zod.string().optional(),
+  "vivaTapToPayAktiven": zod.boolean().optional(),
+  "vivaTapToPaySourceCode": zod.string().optional(),
+  "agentTiskalnikIme": zod.string().optional().describe('Ime Windows tiskalnika za tiskalni agent (per-naprava)'),
+  "tiskalnikSirina": zod.union([zod.literal(58),zod.literal(80)]).optional().describe('Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)')
+}).describe('Sanitizirana terminalna konfiguracija naprave (skrivnosti so maskirane)').nullish().describe('Terminalne nastavitve te naprave (null = ni nastavljeno, ne preglasi globalnih).'),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Posodobi ime in/ali placilniTerminal naprave
+ */
+export const UpdateNapravaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateNapravaBodyGlasovniPragZaupanjaMin = 0;
+export const updateNapravaBodyGlasovniPragZaupanjaMax = 1;
+
+
+
+export const UpdateNapravaBody = zod.object({
+  "ime": zod.string().optional(),
+  "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
+  "dovoljeneMize": zod.array(zod.number()).nullish(),
+  "glasovniPragZaupanja": zod.number().min(updateNapravaBodyGlasovniPragZaupanjaMin).max(updateNapravaBodyGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.')
+})
+
+export const updateNapravaResponseGlasovniPragZaupanjaMin = 0;
+export const updateNapravaResponseGlasovniPragZaupanjaMax = 1;
+
+
+
+export const UpdateNapravaResponse = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "enotaId": zod.number(),
+  "ime": zod.string(),
+  "napravaKljuc": zod.string(),
+  "placilniTerminal": zod.string().nullish().describe('null = globalna veriga; \'none\' = preskoči; \'payten_hw\' | \'payten_android\' | \'sumup\' | \'viva_cloud\' | \'viva_android\' | \'viva_ttp\' | \'viva_smart\''),
+  "dovoljeneMize": zod.array(zod.number()).nullish().describe('Seznam ID-jev miz, ki so dovoljene na tej napravi. null ali prazno = vse mize.'),
+  "glasovniPragZaupanja": zod.number().min(updateNapravaResponseGlasovniPragZaupanjaMin).max(updateNapravaResponseGlasovniPragZaupanjaMax).nullish().describe('Prag zaupanja za glasovne ukaze (0–1). null = privzeto 0.5.'),
+  "terminalConfig": zod.object({
+  "terminalAktiven": zod.boolean().optional(),
+  "terminalIp": zod.string().optional(),
+  "terminalPort": zod.number().optional(),
+  "terminalTimeoutMs": zod.number().optional(),
+  "paytenAndroidAktiven": zod.boolean().optional(),
+  "paytenAndroidPackageName": zod.string().optional(),
+  "sumupAktiven": zod.boolean().optional(),
+  "sumupTerminalSerial": zod.string().optional(),
+  "sumupApiKeyNastavljen": zod.boolean().optional(),
+  "vivaAktiven": zod.boolean().optional(),
+  "vivaClientId": zod.string().optional(),
+  "vivaClientSecretNastavljen": zod.boolean().optional(),
+  "vivaSourceCode": zod.string().optional(),
+  "vivaDemoNacin": zod.boolean().optional(),
+  "vivaTerminalAktiven": zod.boolean().optional(),
+  "vivaTerminalId": zod.string().optional(),
+  "vivaAndroidTerminalAktiven": zod.boolean().optional(),
+  "vivaAndroidSourceCode": zod.string().optional(),
+  "vivaTapToPayAktiven": zod.boolean().optional(),
+  "vivaTapToPaySourceCode": zod.string().optional(),
+  "agentTiskalnikIme": zod.string().optional().describe('Ime Windows tiskalnika za tiskalni agent (per-naprava)'),
+  "tiskalnikSirina": zod.union([zod.literal(58),zod.literal(80)]).optional().describe('Širina termalnega tiskalnika v mm (58 = 32 stolpcev, 80 = 40 stolpcev)')
+}).describe('Sanitizirana terminalna konfiguracija naprave (skrivnosti so maskirane)').nullish().describe('Terminalne nastavitve te naprave (null = ni nastavljeno, ne preglasi globalnih).'),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Izbriši napravo
+ */
+export const DeleteNapravaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteNapravaResponse = zod.void()
+
+
+/**
+ * @summary Seznam FURS blagajn za podjetje
+ */
+export const ListBlagajneResponseItem = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "ppId": zod.string(),
+  "bId": zod.string(),
+  "ime": zod.string(),
+  "aktivna": zod.boolean(),
+  "ustvarjeno": zod.coerce.date()
+})
+export const ListBlagajneResponse = zod.array(ListBlagajneResponseItem)
+
+
+/**
+ * @summary Ustvari novo FURS blagajno
+ */
+export const CreateBlagajnaBody = zod.object({
+  "ppId": zod.string(),
+  "bId": zod.string(),
+  "ime": zod.string(),
+  "aktivna": zod.boolean().optional()
+})
+
+export const CreateBlagajnaResponse = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "ppId": zod.string(),
+  "bId": zod.string(),
+  "ime": zod.string(),
+  "aktivna": zod.boolean(),
+  "ustvarjeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Posodobi FURS blagajno
+ */
+export const UpdateBlagajnaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateBlagajnaBody = zod.object({
+  "ppId": zod.string(),
+  "bId": zod.string(),
+  "ime": zod.string(),
+  "aktivna": zod.boolean().optional()
+})
+
+export const UpdateBlagajnaResponse = zod.object({
+  "id": zod.number(),
+  "podjetjeDavcna": zod.string(),
+  "ppId": zod.string(),
+  "bId": zod.string(),
+  "ime": zod.string(),
+  "aktivna": zod.boolean(),
+  "ustvarjeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Izbriši FURS blagajno
+ */
+export const DeleteBlagajnaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteBlagajnaResponse = zod.void()
+
+
+/**
+ * @summary Seznam poslovnih enot
+ */
+export const ListEnoteResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "aktiven": zod.boolean(),
+  "zacetekDnevaUra": zod.string().describe('Ura začetka poslovnega dne v formatu HH:MM (npr. \"04:00\")'),
+  "ustvarjeno": zod.coerce.date()
+})
+export const ListEnoteResponse = zod.array(ListEnoteResponseItem)
+
+
+/**
+ * @summary Ustvari poslovno enoto
+ */
+export const CreateEnotaBody = zod.object({
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "aktiven": zod.boolean(),
+  "zacetekDnevaUra": zod.string().optional().describe('Ura začetka poslovnega dne v formatu HH:MM (npr. \"04:00\")')
+})
+
+export const CreateEnotaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "aktiven": zod.boolean(),
+  "zacetekDnevaUra": zod.string().describe('Ura začetka poslovnega dne v formatu HH:MM (npr. \"04:00\")'),
+  "ustvarjeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Posodobi poslovno enoto
+ */
+export const UpdateEnotaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateEnotaBody = zod.object({
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "aktiven": zod.boolean(),
+  "zacetekDnevaUra": zod.string().optional().describe('Ura začetka poslovnega dne v formatu HH:MM (npr. \"04:00\")')
+})
+
+export const UpdateEnotaResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "opis": zod.string().nullish(),
+  "aktiven": zod.boolean(),
+  "zacetekDnevaUra": zod.string().describe('Ura začetka poslovnega dne v formatu HH:MM (npr. \"04:00\")'),
+  "ustvarjeno": zod.coerce.date()
+})
+
+
+/**
+ * @summary Izbriši poslovno enoto (samo prazno)
+ */
+export const DeleteEnotaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteEnotaResponse = zod.void()
+
+
+/**
+ * @summary Preklopi aktivno poslovno enoto v seji
+ */
+export const IzberiEnotaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const IzberiEnotaResponse = zod.object({
+  "ok": zod.boolean(),
+  "enotaId": zod.number()
+})
+
+
+/**
+ * @summary Preklopi aktivno poslovno enoto v seji
+ */
+export const PreklopiEnotaBody = zod.object({
+  "enotaId": zod.number()
+})
+
+export const PreklopiEnotaResponse = zod.object({
+  "ok": zod.boolean(),
+  "enotaId": zod.number()
+})
+
+
+/**
+ * @summary Seznam natakarjev
+ */
+export const ListNatakariResponseItem = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "priimek": zod.string(),
+  "davcnaStevilka": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "aktiven": zod.boolean(),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+export const ListNatakariResponse = zod.array(ListNatakariResponseItem)
+
+
+/**
+ * @summary Dodaj natakarja
+ */
+export const CreateNatakarBody = zod.object({
+  "ime": zod.string(),
+  "priimek": zod.string(),
+  "davcnaStevilka": zod.string().nullish(),
+  "aktiven": zod.boolean()
+})
+
+export const CreateNatakarResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "priimek": zod.string(),
+  "davcnaStevilka": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "aktiven": zod.boolean(),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+
+
+export const UpdateNatakarParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateNatakarBody = zod.object({
+  "ime": zod.string(),
+  "priimek": zod.string(),
+  "davcnaStevilka": zod.string().nullish(),
+  "aktiven": zod.boolean()
+})
+
+export const UpdateNatakarResponse = zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "priimek": zod.string(),
+  "davcnaStevilka": zod.string().nullish().describe('Davčna številka operaterja (za FURS)'),
+  "aktiven": zod.boolean(),
+  "ustvarjeno": zod.coerce.date().optional()
+})
+
+
+export const DeleteNatakarParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteNatakarResponse = zod.void()
+
+
+/**
+ * @summary Preberi sistemske nastavitve
+ */
+export const GetNastavitveResponse = zod.object({
+  "nazivRestavracije": zod.string(),
+  "naslovRestavracije": zod.string(),
+  "nazivPodjetja": zod.string().optional().describe('Pravni naziv podjetja iz DDV registra (samo za branje)'),
+  "naslovPodjetja": zod.string().optional().describe('Sedež podjetja iz DDV registra (samo za branje)'),
+  "davcnaStevilka": zod.string(),
+  "poslovniProstor": zod.string().describe('FURS ID poslovnega prostora (npr. PP001)'),
+  "elektronskaNaprava": zod.string().describe('FURS ID elektronske naprave\/blagajne (npr. B001)'),
+  "ponudnikDavcna": zod.string().optional().describe('Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca'),
+  "certifikatPot": zod.string().optional().describe('Pot do PEM zasebnega ključa na strežniku (za produkcijsko ZOI podpisovanje)'),
+  "certifikatGeslo": zod.string().optional().describe('Geslo\/fraza PEM zasebnega ključa'),
+  "racunPozdrav1": zod.string().optional().describe('Prva vrstica pozdrava na dnu računa (npr. Hvala za obisk!)'),
+  "racunPozdrav2": zod.string().optional().describe('Druga vrstica pozdrava na dnu računa'),
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS: \'simulacija\' = lokalna simulacija (brez omrežja); \'testno\' = FURS testni strežnik (blagajne-test.fu.gov.si); \'produkcija\' = FURS produkcijski strežnik (blagajne.fu.gov.si)'),
+  "testniNacin": zod.boolean().optional().describe('Izpeljano iz fursNacin (true = simulacija ali testno; false = produkcija). Samo za branje.'),
+  "fursProxyUrl": zod.string().optional().describe('URL PHP proxy na slovenskem strežniku za FURS komunikacijo (npr. https:\/\/www.bookie.si\/abc\/dlb\/furs-proxy.php). Če nastavljeno, se SOAP zahtevki posredujejo prek proxy-ja namesto direktno.'),
+  "certifikatNaložen": zod.boolean().optional().describe('True če je certifikat FURS naložen v bazo podatkov (samo za branje — ne pošiljajte v PUT zahtevku)'),
+  "smtpHost": zod.string().optional().describe('SMTP strežnik za pošiljanje e-pošte (npr. smtp.gmail.com)'),
+  "smtpPort": zod.number().optional().describe('SMTP vrata (npr. 587 za TLS, 465 za SSL)'),
+  "smtpUser": zod.string().optional().describe('Uporabniško ime za SMTP prijavo'),
+  "smtpGesloNastavljeno": zod.boolean().optional().describe('True če je SMTP geslo nastavljeno (samo za branje — za spremembo gesla uporabite updateNastavitve)'),
+  "smtpFrom": zod.string().optional().describe('E-poštni naslov pošiljatelja (npr. pos@restavracija.si)'),
+  "smtpAktiven": zod.boolean().optional().describe('Ali je pošiljanje e-pošte aktivirano'),
+  "izrednaIzdajaPINNastavljen": zod.boolean().optional().describe('Ali je skrbniški PIN za izredno izdajo nastavljen (samo za branje)'),
+  "simulirajFursNapako": zod.boolean().optional().describe('Če true, vsak FURS klic (nov račun, ponovi, storno) vrne simulirano napako sistema FURS — za testiranje odpornosti blagajne'),
+  "grupiranjeNacin": zod.enum(['izklopljeno', 'staro', 'novo']).optional().describe('Način združevanja gumbov artiklov v naročilu — \'izklopljeno\': brez grupiranja; \'staro\': mali popover; \'novo\': drsni panel (bottom sheet)'),
+  "prodajalecIban": zod.string().optional().describe('IBAN prodajalca za prikaz na računih z negotovinskim plačilom'),
+  "prodajalecBic": zod.string().optional().describe('BIC\/SWIFT koda banke prodajalca'),
+  "racunMaticna": zod.string().optional().describe('Matična številka podjetja za prikaz v nogi računa'),
+  "racunSodisce": zod.string().optional().describe('Sodišče vpisa in številka vložka za prikaz v nogi računa (npr. Okrožno sodišče v Ljubljani, reg. vl. 12345\/2020)'),
+  "racunKapital": zod.string().optional().describe('Podatek o osnovnem kapitalu za prikaz v nogi računa (npr. Osnovni kapital 7.500,00 EUR, vplačan v celoti)'),
+  "racunDdvKlavzula": zod.string().optional().describe('DDV klavzula za prikaz v nogi računa (npr. za male zavezance ali obrnjeno davčno breme)'),
+  "racunZbirnaKlavzula": zod.boolean().optional().describe('Če true, se na negotovinskih računih prikaže klavzula o zbirnem računu (DDV obračunan ob izdaji POS računov)'),
+  "racunPravnaKlavzula": zod.string().optional().describe('Pravna opomba za prikaz v nogi računa (npr. lastninski pridržek, zamudne obresti, sodišče)'),
+  "agentTiskalnikToken": zod.string().optional().describe('API žeton za Windows tiskalni agent (samo za branje — generirano avtomatsko)')
+})
+
+
+/**
+ * @summary Posodobi sistemske nastavitve
+ */
+export const UpdateNastavitveBody = zod.object({
+  "nazivRestavracije": zod.string(),
+  "naslovRestavracije": zod.string(),
+  "nazivPodjetja": zod.string().optional().describe('Pravni naziv podjetja iz DDV registra (samo za branje)'),
+  "naslovPodjetja": zod.string().optional().describe('Sedež podjetja iz DDV registra (samo za branje)'),
+  "davcnaStevilka": zod.string(),
+  "poslovniProstor": zod.string().describe('FURS ID poslovnega prostora (npr. PP001)'),
+  "elektronskaNaprava": zod.string().describe('FURS ID elektronske naprave\/blagajne (npr. B001)'),
+  "ponudnikDavcna": zod.string().optional().describe('Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca'),
+  "certifikatPot": zod.string().optional().describe('Pot do PEM zasebnega ključa na strežniku (za produkcijsko ZOI podpisovanje)'),
+  "certifikatGeslo": zod.string().optional().describe('Geslo\/fraza PEM zasebnega ključa'),
+  "racunPozdrav1": zod.string().optional().describe('Prva vrstica pozdrava na dnu računa (npr. Hvala za obisk!)'),
+  "racunPozdrav2": zod.string().optional().describe('Druga vrstica pozdrava na dnu računa'),
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS: \'simulacija\' = lokalna simulacija (brez omrežja); \'testno\' = FURS testni strežnik (blagajne-test.fu.gov.si); \'produkcija\' = FURS produkcijski strežnik (blagajne.fu.gov.si)'),
+  "testniNacin": zod.boolean().optional().describe('Izpeljano iz fursNacin (true = simulacija ali testno; false = produkcija). Samo za branje.'),
+  "fursProxyUrl": zod.string().optional().describe('URL PHP proxy na slovenskem strežniku za FURS komunikacijo (npr. https:\/\/www.bookie.si\/abc\/dlb\/furs-proxy.php). Če nastavljeno, se SOAP zahtevki posredujejo prek proxy-ja namesto direktno.'),
+  "certifikatNaložen": zod.boolean().optional().describe('True če je certifikat FURS naložen v bazo podatkov (samo za branje — ne pošiljajte v PUT zahtevku)'),
+  "smtpHost": zod.string().optional().describe('SMTP strežnik za pošiljanje e-pošte (npr. smtp.gmail.com)'),
+  "smtpPort": zod.number().optional().describe('SMTP vrata (npr. 587 za TLS, 465 za SSL)'),
+  "smtpUser": zod.string().optional().describe('Uporabniško ime za SMTP prijavo'),
+  "smtpGesloNastavljeno": zod.boolean().optional().describe('True če je SMTP geslo nastavljeno (samo za branje — za spremembo gesla uporabite updateNastavitve)'),
+  "smtpFrom": zod.string().optional().describe('E-poštni naslov pošiljatelja (npr. pos@restavracija.si)'),
+  "smtpAktiven": zod.boolean().optional().describe('Ali je pošiljanje e-pošte aktivirano'),
+  "izrednaIzdajaPINNastavljen": zod.boolean().optional().describe('Ali je skrbniški PIN za izredno izdajo nastavljen (samo za branje)'),
+  "simulirajFursNapako": zod.boolean().optional().describe('Če true, vsak FURS klic (nov račun, ponovi, storno) vrne simulirano napako sistema FURS — za testiranje odpornosti blagajne'),
+  "grupiranjeNacin": zod.enum(['izklopljeno', 'staro', 'novo']).optional().describe('Način združevanja gumbov artiklov v naročilu — \'izklopljeno\': brez grupiranja; \'staro\': mali popover; \'novo\': drsni panel (bottom sheet)'),
+  "prodajalecIban": zod.string().optional().describe('IBAN prodajalca za prikaz na računih z negotovinskim plačilom'),
+  "prodajalecBic": zod.string().optional().describe('BIC\/SWIFT koda banke prodajalca'),
+  "racunMaticna": zod.string().optional().describe('Matična številka podjetja za prikaz v nogi računa'),
+  "racunSodisce": zod.string().optional().describe('Sodišče vpisa in številka vložka za prikaz v nogi računa (npr. Okrožno sodišče v Ljubljani, reg. vl. 12345\/2020)'),
+  "racunKapital": zod.string().optional().describe('Podatek o osnovnem kapitalu za prikaz v nogi računa (npr. Osnovni kapital 7.500,00 EUR, vplačan v celoti)'),
+  "racunDdvKlavzula": zod.string().optional().describe('DDV klavzula za prikaz v nogi računa (npr. za male zavezance ali obrnjeno davčno breme)'),
+  "racunZbirnaKlavzula": zod.boolean().optional().describe('Če true, se na negotovinskih računih prikaže klavzula o zbirnem računu (DDV obračunan ob izdaji POS računov)'),
+  "racunPravnaKlavzula": zod.string().optional().describe('Pravna opomba za prikaz v nogi računa (npr. lastninski pridržek, zamudne obresti, sodišče)'),
+  "agentTiskalnikToken": zod.string().optional().describe('API žeton za Windows tiskalni agent (samo za branje — generirano avtomatsko)')
+}).and(zod.object({
+  "smtpPassword": zod.string().optional().describe('Novo geslo za SMTP prijavo (izpustite ali pustite prazno, da obdržite obstoječe)'),
+  "izrednaIzdajaPIN": zod.string().optional().describe('Nov skrbniški PIN za izredno izdajo (4–8 znakov; izpustite za ohranitev obstoječega)')
+})).describe('Telo zahtevka za posodobitev nastavitev; smtpPassword pošljite samo če želite spremeniti geslo')
+
+export const UpdateNastavitveResponse = zod.object({
+  "nazivRestavracije": zod.string(),
+  "naslovRestavracije": zod.string(),
+  "nazivPodjetja": zod.string().optional().describe('Pravni naziv podjetja iz DDV registra (samo za branje)'),
+  "naslovPodjetja": zod.string().optional().describe('Sedež podjetja iz DDV registra (samo za branje)'),
+  "davcnaStevilka": zod.string(),
+  "poslovniProstor": zod.string().describe('FURS ID poslovnega prostora (npr. PP001)'),
+  "elektronskaNaprava": zod.string().describe('FURS ID elektronske naprave\/blagajne (npr. B001)'),
+  "ponudnikDavcna": zod.string().optional().describe('Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca'),
+  "certifikatPot": zod.string().optional().describe('Pot do PEM zasebnega ključa na strežniku (za produkcijsko ZOI podpisovanje)'),
+  "certifikatGeslo": zod.string().optional().describe('Geslo\/fraza PEM zasebnega ključa'),
+  "racunPozdrav1": zod.string().optional().describe('Prva vrstica pozdrava na dnu računa (npr. Hvala za obisk!)'),
+  "racunPozdrav2": zod.string().optional().describe('Druga vrstica pozdrava na dnu računa'),
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS: \'simulacija\' = lokalna simulacija (brez omrežja); \'testno\' = FURS testni strežnik (blagajne-test.fu.gov.si); \'produkcija\' = FURS produkcijski strežnik (blagajne.fu.gov.si)'),
+  "testniNacin": zod.boolean().optional().describe('Izpeljano iz fursNacin (true = simulacija ali testno; false = produkcija). Samo za branje.'),
+  "fursProxyUrl": zod.string().optional().describe('URL PHP proxy na slovenskem strežniku za FURS komunikacijo (npr. https:\/\/www.bookie.si\/abc\/dlb\/furs-proxy.php). Če nastavljeno, se SOAP zahtevki posredujejo prek proxy-ja namesto direktno.'),
+  "certifikatNaložen": zod.boolean().optional().describe('True če je certifikat FURS naložen v bazo podatkov (samo za branje — ne pošiljajte v PUT zahtevku)'),
+  "smtpHost": zod.string().optional().describe('SMTP strežnik za pošiljanje e-pošte (npr. smtp.gmail.com)'),
+  "smtpPort": zod.number().optional().describe('SMTP vrata (npr. 587 za TLS, 465 za SSL)'),
+  "smtpUser": zod.string().optional().describe('Uporabniško ime za SMTP prijavo'),
+  "smtpGesloNastavljeno": zod.boolean().optional().describe('True če je SMTP geslo nastavljeno (samo za branje — za spremembo gesla uporabite updateNastavitve)'),
+  "smtpFrom": zod.string().optional().describe('E-poštni naslov pošiljatelja (npr. pos@restavracija.si)'),
+  "smtpAktiven": zod.boolean().optional().describe('Ali je pošiljanje e-pošte aktivirano'),
+  "izrednaIzdajaPINNastavljen": zod.boolean().optional().describe('Ali je skrbniški PIN za izredno izdajo nastavljen (samo za branje)'),
+  "simulirajFursNapako": zod.boolean().optional().describe('Če true, vsak FURS klic (nov račun, ponovi, storno) vrne simulirano napako sistema FURS — za testiranje odpornosti blagajne'),
+  "grupiranjeNacin": zod.enum(['izklopljeno', 'staro', 'novo']).optional().describe('Način združevanja gumbov artiklov v naročilu — \'izklopljeno\': brez grupiranja; \'staro\': mali popover; \'novo\': drsni panel (bottom sheet)'),
+  "prodajalecIban": zod.string().optional().describe('IBAN prodajalca za prikaz na računih z negotovinskim plačilom'),
+  "prodajalecBic": zod.string().optional().describe('BIC\/SWIFT koda banke prodajalca'),
+  "racunMaticna": zod.string().optional().describe('Matična številka podjetja za prikaz v nogi računa'),
+  "racunSodisce": zod.string().optional().describe('Sodišče vpisa in številka vložka za prikaz v nogi računa (npr. Okrožno sodišče v Ljubljani, reg. vl. 12345\/2020)'),
+  "racunKapital": zod.string().optional().describe('Podatek o osnovnem kapitalu za prikaz v nogi računa (npr. Osnovni kapital 7.500,00 EUR, vplačan v celoti)'),
+  "racunDdvKlavzula": zod.string().optional().describe('DDV klavzula za prikaz v nogi računa (npr. za male zavezance ali obrnjeno davčno breme)'),
+  "racunZbirnaKlavzula": zod.boolean().optional().describe('Če true, se na negotovinskih računih prikaže klavzula o zbirnem računu (DDV obračunan ob izdaji POS računov)'),
+  "racunPravnaKlavzula": zod.string().optional().describe('Pravna opomba za prikaz v nogi računa (npr. lastninski pridržek, zamudne obresti, sodišče)'),
+  "agentTiskalnikToken": zod.string().optional().describe('API žeton za Windows tiskalni agent (samo za branje — generirano avtomatsko)')
+})
+
+
+/**
+ * @summary Posreduj kartično plačilo na Payten terminal
+ */
+export const TerminalPayBody = zod.object({
+  "narociloId": zod.number(),
+  "znesek": zod.number().describe('Znesek v evrih (npr. 12.50)')
+})
+
+export const TerminalPayResponse = zod.object({
+  "status": zod.enum(['odobren', 'zavrnjen', 'napaka', 'preklic']),
+  "avtorizacijskaKoda": zod.string().nullish(),
+  "referenca": zod.string().nullish(),
+  "kartica": zod.string().nullish(),
+  "maskiranPan": zod.string().nullish(),
+  "znesek": zod.number().nullish(),
+  "surovOdgovor": zod.string(),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Preizkusi TCP povezavo na Payten terminal
+ */
+export const TerminalTestResponse = zod.object({
+  "uspeh": zod.boolean(),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Sproži plačilo prek SumUp terminala in pošlji na SumUp Solo
+ */
+export const SumupPayBody = zod.object({
+  "narociloId": zod.number(),
+  "znesek": zod.number().describe('Znesek v evrih (npr. 12.50)')
+})
+
+export const SumupPayResponse = zod.object({
+  "checkoutId": zod.string().describe('ID SumUp plačila za polling statusa')
+})
+
+
+/**
+ * @summary Preveri status SumUp plačila (polling)
+ */
+export const SumupStatusParams = zod.object({
+  "checkoutId": zod.coerce.string()
+})
+
+export const SumupStatusResponse = zod.object({
+  "status": zod.enum(['PAID', 'PENDING', 'FAILED']),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Sproži plačilo prek Viva Wallet Smart Checkout in vrni QR kodo
+ */
+export const VivaPayBody = zod.object({
+  "narociloId": zod.number(),
+  "znesek": zod.number().describe('Znesek v evrih (npr. 12.50)')
+})
+
+export const VivaPayResponse = zod.object({
+  "orderCode": zod.string().describe('Koda naročila Viva Wallet za polling statusa'),
+  "checkoutUrl": zod.string().describe('URL za Smart Checkout QR kodo')
+})
+
+
+/**
+ * @summary Preveri status Viva Wallet plačila (polling)
+ */
+export const VivaStatusParams = zod.object({
+  "orderCode": zod.coerce.string()
+})
+
+export const VivaStatusResponse = zod.object({
+  "status": zod.enum(['PAID', 'PENDING', 'FAILED']),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Sproži plačilo prek fizičnega Viva.com POS terminala
+ */
+export const VivaTerminalPayBody = zod.object({
+  "narociloId": zod.number(),
+  "znesek": zod.number().describe('Znesek v evrih (npr. 12.50)')
+})
+
+export const VivaTerminalPayResponse = zod.object({
+  "sessionId": zod.string().describe('UUID seje za polling statusa terminala')
+})
+
+
+/**
+ * @summary Preveri status plačila na Viva.com POS terminalu (polling)
+ */
+export const VivaTerminalStatusParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const VivaTerminalStatusResponse = zod.object({
+  "status": zod.enum(['PAID', 'PENDING', 'FAILED']),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Sproži vračilo plačila prek fizičnega Viva.com POS terminala
+ */
+export const VivaTerminalRefundBody = zod.object({
+  "znesek": zod.number().describe('Znesek vračila v evrih (npr. 12.50)'),
+  "originalSessionId": zod.string().optional().describe('SessionId originalnega kartičnega plačila (UUID iz računa)'),
+  "referencnaKoda": zod.string().optional().describe('Referenčna koda transakcije (alternativa za originalSessionId)')
+})
+
+export const VivaTerminalRefundResponse = zod.object({
+  "sessionId": zod.string().describe('UUID seje vračila za polling statusa terminala')
+})
+
+
+/**
+ * @summary Preveri status vračila na Viva.com POS terminalu (polling)
+ */
+export const VivaTerminalRefundStatusParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const VivaTerminalRefundStatusResponse = zod.object({
+  "status": zod.enum(['PAID', 'PENDING', 'FAILED']),
+  "napaka": zod.string().nullish()
+})
+
+
+/**
+ * @summary Trenutne zaloge vhodnih artiklov
+ */
+export const ListZalogeResponseItem = zod.object({
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullable(),
+  "kolicina": zod.number(),
+  "zadnjaCena": zod.number().nullish(),
+  "zadnjaPosodobitev": zod.string()
+})
+export const ListZalogeResponse = zod.array(ListZalogeResponseItem)
+
+
+/**
+ * @summary Kartica vhodnega artikla (zaloga + gibi + zadnja cena)
+ */
+export const GetKarticaArtiklaParams = zod.object({
+  "artikelId": zod.coerce.number()
+})
+
+export const GetKarticaArtiklaQueryParams = zod.object({
+  "datumOd": zod.coerce.string().optional(),
+  "datumDo": zod.coerce.string().optional()
+})
+
+export const GetKarticaArtiklaResponse = zod.object({
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "cena": zod.number().nullish(),
+  "zadnjaCena": zod.number().nullish(),
+  "kolicina": zod.number(),
+  "vrednost": zod.number().nullish(),
+  "gibi": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "tip": zod.enum(['prejemnica', 'inventura', 'poraba']),
+  "kolicina": zod.number(),
+  "opomba": zod.string().nullish(),
+  "referencaId": zod.number().nullish(),
+  "ustvarjeno": zod.string()
+}))
+})
+
+
+/**
+ * @summary Popravi stanja zalog iz dnevnika (samo admin)
+ */
+export const ReconcileZalogeResponse = zod.object({
+  "popravljeno": zod.number().describe('Število artiklov, za katere so bile zaloge preračunane')
+})
+
+
+/**
+ * @summary Gibanje zalog (log premikov)
+ */
+export const ListZalogaGibiQueryParams = zod.object({
+  "artikelId": zod.coerce.number().optional()
+})
+
+export const ListZalogaGibiResponseItem = zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "tip": zod.enum(['prejemnica', 'inventura', 'poraba']),
+  "kolicina": zod.number(),
+  "opomba": zod.string().nullish(),
+  "referencaId": zod.number().nullish(),
+  "ustvarjeno": zod.string()
+})
+export const ListZalogaGibiResponse = zod.array(ListZalogaGibiResponseItem)
+
+
+/**
+ * @summary Seznam prejemnic
+ */
+export const ListPrejemniceResponseItem = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "skupajVrednost": zod.number(),
+  "ustvarjeno": zod.string(),
+  "steviloPostavk": zod.number().optional()
+})
+export const ListPrejemniceResponse = zod.array(ListPrejemniceResponseItem)
+
+
+/**
+ * @summary Vnos nove prejemnice
+ */
+export const CreatePrejemnicaBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().optional(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number().optional()
+}))
+})
+
+export const CreatePrejemnicaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "skupajVrednost": zod.number(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "skupaj": zod.number()
+}))
+})
+
+
+/**
+ * @summary Podrobnosti prejemnice
+ */
+export const GetPrejemnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPrejemnicaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "skupajVrednost": zod.number(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "skupaj": zod.number()
+}))
+})
+
+
+/**
+ * @summary Posodobi datum/opombo prejemnice
+ */
+export const UpdatePrejemnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePrejemnicaBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().nullish(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number().optional()
+})).optional()
+})
+
+export const UpdatePrejemnicaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "skupajVrednost": zod.number(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "skupaj": zod.number()
+}))
+})
+
+
+/**
+ * @summary Izbriši prejemnico (razveljavitev zalog)
+ */
+export const DeletePrejemnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePrejemnicaResponse = zod.void()
+
+
+/**
+ * @summary Seznam inventur
+ */
+export const ListInventureResponseItem = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "steviloPostavk": zod.number()
+})
+export const ListInventureResponse = zod.array(ListInventureResponseItem)
+
+
+/**
+ * @summary Vnos nove inventure
+ */
+export const CreateInventuraBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().optional(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "steviloNajdeno": zod.number()
+}))
+})
+
+export const CreateInventuraResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "steviloNajdeno": zod.number(),
+  "steviloPrejsnje": zod.number(),
+  "razlika": zod.number(),
+  "cenaKos": zod.number()
+}))
+})
+
+
+/**
+ * @summary Seznam začetnih zalog
+ */
+export const ListZacetneZalogeResponseItem = zod.object({
+  "id": zod.number(),
+  "leto": zod.number(),
+  "stevilka": zod.string().nullable(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "steviloPostavk": zod.number()
+})
+export const ListZacetneZalogeResponse = zod.array(ListZacetneZalogeResponseItem)
+
+
+/**
+ * @summary Vnos začetnih zalog za leto
+ */
+export const CreateZacetnaZalogaBody = zod.object({
+  "leto": zod.number(),
+  "datum": zod.string().optional(),
+  "opomba": zod.string().nullish(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number()
+}))
+})
+
+export const CreateZacetnaZalogaResponse = zod.object({
+  "id": zod.number(),
+  "leto": zod.number(),
+  "stevilka": zod.string().nullable(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "steviloPrejsnje": zod.number()
+}))
+})
+
+
+/**
+ * @summary Preveri ali obstajajo začetne zaloge za določeno leto
+ */
+export const CheckZacetnaZalogaLetoParams = zod.object({
+  "leto": zod.coerce.number()
+})
+
+export const CheckZacetnaZalogaLetoResponse = zod.object({
+  "exists": zod.boolean(),
+  "id": zod.number().nullish()
+})
+
+
+/**
+ * @summary Podrobnosti začetnih zalog
+ */
+export const GetZacetnaZalogaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetZacetnaZalogaResponse = zod.object({
+  "id": zod.number(),
+  "leto": zod.number(),
+  "stevilka": zod.string().nullable(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "steviloPrejsnje": zod.number()
+}))
+})
+
+
+/**
+ * @summary Posodobi začetne zaloge
+ */
+export const UpdateZacetnaZalogaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateZacetnaZalogaBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().nullish(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number()
+})).optional()
+})
+
+export const UpdateZacetnaZalogaResponse = zod.object({
+  "id": zod.number(),
+  "leto": zod.number(),
+  "stevilka": zod.string().nullable(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "steviloPrejsnje": zod.number()
+}))
+})
+
+
+/**
+ * @summary Izbriši začetne zaloge (povrni stanje)
+ */
+export const DeleteZacetnaZalogaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteZacetnaZalogaResponse = zod.void()
+
+
+/**
+ * @summary Podrobnosti inventure
+ */
+export const GetInventuraParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetInventuraResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "steviloNajdeno": zod.number(),
+  "steviloPrejsnje": zod.number(),
+  "razlika": zod.number(),
+  "cenaKos": zod.number()
+}))
+})
+
+
+/**
+ * @summary Posodobi datum/opombo inventure
+ */
+export const UpdateInventuraParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateInventuraBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().nullish(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "steviloNajdeno": zod.number()
+})).optional()
+})
+
+export const UpdateInventuraResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "steviloNajdeno": zod.number(),
+  "steviloPrejsnje": zod.number(),
+  "razlika": zod.number(),
+  "cenaKos": zod.number()
+}))
+})
+
+
+/**
+ * @summary Izbriši inventuro (povrni prejšnje zaloge)
+ */
+export const DeleteInventuraParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteInventuraResponse = zod.void()
+
+
+/**
+ * @summary Seznam poslovnih prostorov
+ */
+export const ListPoslovniProstoriResponseItem = zod.object({
+  "id": zod.number(),
+  "prostorId": zod.string(),
+  "naziv": zod.string().nullish(),
+  "tipProstora": zod.enum(['nepremicnina', 'premicnina', 'elektronska_naprava']),
+  "aktiven": zod.boolean(),
+  "zaprt": zod.boolean(),
+  "ulica": zod.string().nullish(),
+  "hisnaStevilka": zod.string().nullish(),
+  "hisnaStevilkaDodatek": zod.string().nullish(),
+  "skupnost": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "katastrskaStevilka": zod.string().nullish(),
+  "stevilkaStavbe": zod.string().nullish(),
+  "stevilkaDelaStavbe": zod.string().nullish(),
+  "registrskaTablica": zod.string().nullish(),
+  "vin": zod.string().nullish(),
+  "premicninaTip": zod.string().nullish(),
+  "veljavnostOd": zod.string().nullish(),
+  "certifikatPot": zod.string().nullish(),
+  "certifikatGeslo": zod.string().nullish(),
+  "zadnjaRegistracija": zod.string().nullish(),
+  "ustvarjeno": zod.string()
+})
+export const ListPoslovniProstoriResponse = zod.array(ListPoslovniProstoriResponseItem)
+
+
+/**
+ * @summary Dodaj poslovni prostor
+ */
+export const CreatePoslovniProstorBody = zod.object({
+  "prostorId": zod.string(),
+  "naziv": zod.string().nullish(),
+  "tipProstora": zod.enum(['nepremicnina', 'premicnina', 'elektronska_naprava']),
+  "aktiven": zod.boolean().optional(),
+  "ulica": zod.string().nullish(),
+  "hisnaStevilka": zod.string().nullish(),
+  "hisnaStevilkaDodatek": zod.string().nullish(),
+  "skupnost": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "katastrskaStevilka": zod.string().nullish(),
+  "stevilkaStavbe": zod.string().nullish(),
+  "stevilkaDelaStavbe": zod.string().nullish(),
+  "registrskaTablica": zod.string().nullish(),
+  "vin": zod.string().nullish(),
+  "premicninaTip": zod.string().nullish(),
+  "veljavnostOd": zod.string().nullish(),
+  "certifikatPot": zod.string().nullish(),
+  "certifikatGeslo": zod.string().nullish()
+})
+
+export const CreatePoslovniProstorResponse = zod.object({
+  "id": zod.number(),
+  "prostorId": zod.string(),
+  "naziv": zod.string().nullish(),
+  "tipProstora": zod.enum(['nepremicnina', 'premicnina', 'elektronska_naprava']),
+  "aktiven": zod.boolean(),
+  "zaprt": zod.boolean(),
+  "ulica": zod.string().nullish(),
+  "hisnaStevilka": zod.string().nullish(),
+  "hisnaStevilkaDodatek": zod.string().nullish(),
+  "skupnost": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "katastrskaStevilka": zod.string().nullish(),
+  "stevilkaStavbe": zod.string().nullish(),
+  "stevilkaDelaStavbe": zod.string().nullish(),
+  "registrskaTablica": zod.string().nullish(),
+  "vin": zod.string().nullish(),
+  "premicninaTip": zod.string().nullish(),
+  "veljavnostOd": zod.string().nullish(),
+  "certifikatPot": zod.string().nullish(),
+  "certifikatGeslo": zod.string().nullish(),
+  "zadnjaRegistracija": zod.string().nullish(),
+  "ustvarjeno": zod.string()
+})
+
+
+/**
+ * @summary Posodobi poslovni prostor
+ */
+export const UpdatePoslovniProstorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePoslovniProstorBody = zod.object({
+  "prostorId": zod.string(),
+  "naziv": zod.string().nullish(),
+  "tipProstora": zod.enum(['nepremicnina', 'premicnina', 'elektronska_naprava']),
+  "aktiven": zod.boolean().optional(),
+  "ulica": zod.string().nullish(),
+  "hisnaStevilka": zod.string().nullish(),
+  "hisnaStevilkaDodatek": zod.string().nullish(),
+  "skupnost": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "katastrskaStevilka": zod.string().nullish(),
+  "stevilkaStavbe": zod.string().nullish(),
+  "stevilkaDelaStavbe": zod.string().nullish(),
+  "registrskaTablica": zod.string().nullish(),
+  "vin": zod.string().nullish(),
+  "premicninaTip": zod.string().nullish(),
+  "veljavnostOd": zod.string().nullish(),
+  "certifikatPot": zod.string().nullish(),
+  "certifikatGeslo": zod.string().nullish()
+})
+
+export const UpdatePoslovniProstorResponse = zod.object({
+  "id": zod.number(),
+  "prostorId": zod.string(),
+  "naziv": zod.string().nullish(),
+  "tipProstora": zod.enum(['nepremicnina', 'premicnina', 'elektronska_naprava']),
+  "aktiven": zod.boolean(),
+  "zaprt": zod.boolean(),
+  "ulica": zod.string().nullish(),
+  "hisnaStevilka": zod.string().nullish(),
+  "hisnaStevilkaDodatek": zod.string().nullish(),
+  "skupnost": zod.string().nullish(),
+  "kraj": zod.string().nullish(),
+  "postnaStevilka": zod.string().nullish(),
+  "katastrskaStevilka": zod.string().nullish(),
+  "stevilkaStavbe": zod.string().nullish(),
+  "stevilkaDelaStavbe": zod.string().nullish(),
+  "registrskaTablica": zod.string().nullish(),
+  "vin": zod.string().nullish(),
+  "premicninaTip": zod.string().nullish(),
+  "veljavnostOd": zod.string().nullish(),
+  "certifikatPot": zod.string().nullish(),
+  "certifikatGeslo": zod.string().nullish(),
+  "zadnjaRegistracija": zod.string().nullish(),
+  "ustvarjeno": zod.string()
+})
+
+
+/**
+ * @summary Izbriši poslovni prostor
+ */
+export const DeletePoslovniProstorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePoslovniProstorResponse = zod.void()
+
+
+/**
+ * @summary Registriraj poslovni prostor pri FURS
+ */
+export const RegistrirajProstorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RegistrirajProstorBody = zod.object({
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS — privzeto iz nastavitev')
+})
+
+export const RegistrirajProstorResponse = zod.object({
+  "uspeh": zod.boolean(),
+  "napaka": zod.string().nullish(),
+  "surovOdgovor": zod.string(),
+  "poslovniProstorId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Zapri poslovni prostor pri FURS
+ */
+export const ZapriProstorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ZapriProstorBody = zod.object({
+  "fursNacin": zod.enum(['simulacija', 'testno', 'produkcija']).optional().describe('Način pošiljanja na FURS — privzeto iz nastavitev')
+})
+
+export const ZapriProstorResponse = zod.object({
+  "uspeh": zod.boolean(),
+  "napaka": zod.string().nullish(),
+  "surovOdgovor": zod.string(),
+  "poslovniProstorId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Seznam glasovnih sinonimov
+ */
+export const ListGlasovniSinonimiResponseItem = zod.object({
+  "id": zod.number(),
+  "beseda": zod.string(),
+  "alias": zod.string()
+})
+export const ListGlasovniSinonimiResponse = zod.array(ListGlasovniSinonimiResponseItem)
+
+
+/**
+ * @summary Dodaj glasovni sinonim
+ */
+export const CreateGlasovniSinonimBody = zod.object({
+  "beseda": zod.string(),
+  "alias": zod.string()
+})
+
+export const CreateGlasovniSinonimResponse = zod.object({
+  "id": zod.number(),
+  "beseda": zod.string(),
+  "alias": zod.string()
+})
+
+
+/**
+ * @summary Odstrani glasovni sinonim
+ */
+export const DeleteGlasovniSinonimParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteGlasovniSinonimResponse = zod.void()
+
+
+/**
+ * @summary Seznam dnevnih menijev za obdobje
+ */
+export const ListDnevniMeniQueryParams = zod.object({
+  "od": zod.coerce.string(),
+  "do": zod.coerce.string()
+})
+
+export const ListDnevniMeniResponseItem = zod.object({
+  "id": zod.number(),
+  "datum": zod.coerce.date(),
+  "artikelId": zod.number(),
+  "modifikatorId": zod.number()
+})
+export const ListDnevniMeniResponse = zod.array(ListDnevniMeniResponseItem)
+
+
+/**
+ * @summary Nastavi modifikatorje za artikel na določen dan (zamenja vse)
+ */
+export const SetDnevniMeniArtikelParams = zod.object({
+  "datum": zod.coerce.string(),
+  "artikelId": zod.coerce.number()
+})
+
+export const SetDnevniMeniArtikelBody = zod.object({
+  "modifikatorIds": zod.array(zod.number()).describe('Seznam modifikator ID-jev, ki so na voljo za ta artikel ta dan')
+})
+
+export const SetDnevniMeniArtikelResponseItem = zod.object({
+  "id": zod.number(),
+  "datum": zod.coerce.date(),
+  "artikelId": zod.number(),
+  "modifikatorId": zod.number()
+})
+export const SetDnevniMeniArtikelResponse = zod.array(SetDnevniMeniArtikelResponseItem)
+
+
+/**
+ * @summary Kopiraj vnose enega tedna v naslednji teden
+ */
+export const KopirajTedenBody = zod.object({
+  "izDatum": zod.string().describe('Začetek tedna, ki ga kopiramo (ISO datum ponedeljka, YYYY-MM-DD)'),
+  "doDatum": zod.string().describe('Začetek ciljnega tedna (ISO datum ponedeljka, YYYY-MM-DD)')
+})
+
+export const KopirajTedenResponse = zod.object({
+  "kopirano": zod.number()
 })
 
 
