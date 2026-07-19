@@ -1332,10 +1332,6 @@ export interface ProposedLine {
   /** @nullable */
   accountId?: string | null;
   confidence: number;
-  /** Vir predloga konta: "history" = pretekle knjižbe tega partnerja, "pattern" = tipičen vzorec */
-  suggestionSource?: 'history' | 'pattern';
-  /** Število preteklih potrditev tega konta za istega partnerja (samo pri "history") */
-  suggestionCount?: number | null;
 }
 
 /**
