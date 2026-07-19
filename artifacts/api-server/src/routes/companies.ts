@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { db, companiesTable, accountingRolesTable, companyModulesTable } from "@workspace/db";
 import {
   CreateCompanyBody,
   AssignRoleBody,
@@ -61,7 +61,24 @@ router.get(
       .where(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId))
       .orderBy(companiesTable.naziv);
 
-    res.json({ companies: rows });
+    // Pridobi aktivne module za vsa podjetja tega uporabnika
+    const companyIds = rows.map((r) => r.id);
+    const moduleRows = companyIds.length
+      ? await db
+          .select({ companyId: companyModulesTable.companyId, module: companyModulesTable.module })
+          .from(companyModulesTable)
+          .where(inArray(companyModulesTable.companyId, companyIds))
+      : [];
+
+    const modulesMap = new Map<string, string[]>();
+    for (const m of moduleRows) {
+      if (!modulesMap.has(m.companyId)) modulesMap.set(m.companyId, []);
+      modulesMap.get(m.companyId)!.push(m.module);
+    }
+
+    const companies = rows.map((r) => ({ ...r, modules: modulesMap.get(r.id) ?? [] }));
+
+    res.json({ companies });
   },
 );
 

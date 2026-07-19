@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   Building2, 
@@ -57,22 +57,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const MODULES = [
-  { name: "Pregled", path: "/dashboard", icon: LayoutDashboard },
-  { name: "Kontni plan", path: "/kontni-plan", icon: BookOpen },
-  { name: "Računovodska obdobja", path: "/obdobja", icon: Calendar },
-  { name: "Temeljnice", path: "/temeljnice", icon: FileText },
-  { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked },
-  { name: "Partnerji", path: "/partnerji", icon: Users },
-  { name: "Računi", path: "/racuni", icon: Receipt },
-  { name: "AI Dokumenti", path: "/dokumenti", icon: ScanLine },
-  { name: "Plačila", path: "/placila", icon: CreditCard },
-  { name: "Uvoz izpiskov", path: "/bancni-izpis", icon: Banknote },
-  { name: "Saldakonti", path: "/saldakonti", icon: BarChart3 },
-  { name: "DDV evidence", path: "/ddv", icon: Receipt },
-  { name: "Dimenzije", path: "/dimenzije", icon: Layers },
-  { name: "Poročila", path: "/porocila", icon: BarChart3 },
-  { name: "Analitika", path: "/porocila/dimenzije", icon: PieChart },
+// null = vedno vidno; 'erp'/'pos' = zahteva aktiven modul
+const MODULES: { name: string; path: string; icon: React.ElementType; requires: "erp" | "pos" | null }[] = [
+  { name: "Pregled", path: "/dashboard", icon: LayoutDashboard, requires: null },
+  { name: "Kontni plan", path: "/kontni-plan", icon: BookOpen, requires: "erp" },
+  { name: "Računovodska obdobja", path: "/obdobja", icon: Calendar, requires: "erp" },
+  { name: "Temeljnice", path: "/temeljnice", icon: FileText, requires: "erp" },
+  { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked, requires: "erp" },
+  { name: "Partnerji", path: "/partnerji", icon: Users, requires: "erp" },
+  { name: "Računi", path: "/racuni", icon: Receipt, requires: "erp" },
+  { name: "AI Dokumenti", path: "/dokumenti", icon: ScanLine, requires: "erp" },
+  { name: "Plačila", path: "/placila", icon: CreditCard, requires: "erp" },
+  { name: "Uvoz izpiskov", path: "/bancni-izpis", icon: Banknote, requires: "erp" },
+  { name: "Saldakonti", path: "/saldakonti", icon: BarChart3, requires: "erp" },
+  { name: "DDV evidence", path: "/ddv", icon: Receipt, requires: "erp" },
+  { name: "Dimenzije", path: "/dimenzije", icon: Layers, requires: "erp" },
+  { name: "Poročila", path: "/porocila", icon: BarChart3, requires: "erp" },
+  { name: "Analitika", path: "/porocila/dimenzije", icon: PieChart, requires: "erp" },
 ];
 
 const SETTINGS_MODULES = [
@@ -83,6 +84,18 @@ function CompanySwitcher() {
   const { activeCompany, setActiveCompany } = useCompany();
   const { data } = useListCompanies();
   const companies = data?.companies ?? [];
+
+  // Ko se seznam podjetij osveži (npr. admin doda modul), posodobi activeCompany
+  // da se modules polje ujema s svežimi podatki iz API-ja
+  useEffect(() => {
+    if (!activeCompany || companies.length === 0) return;
+    const fresh = companies.find((c) => c.id === activeCompany.id);
+    if (!fresh) return;
+    // Posodobimo samo če se kateri koli ključ razlikuje (plitka primerjava)
+    const currentJson = JSON.stringify(activeCompany);
+    const freshJson = JSON.stringify(fresh);
+    if (currentJson !== freshJson) setActiveCompany(fresh);
+  }, [companies]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec"
@@ -135,8 +148,17 @@ function CompanySwitcher() {
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { user, isLoaded } = useUser();
+  const { activeCompany } = useCompany();
   const { data: me } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
   const isSuperAdmin = !!(me as unknown as UserProfileExtended)?.isSuperAdmin;
+
+  // Aktivni moduli podjetja (iz razširjenega tipa CompanyWithRole)
+  const activeModules: string[] = (activeCompany as (typeof activeCompany & { modules?: string[] }))?.modules ?? [];
+
+  // Filtriramo samo tiste vnose v meniju, ki so pokrite z aktivnimi moduli
+  const visibleModules = MODULES.filter(
+    (m) => m.requires === null || activeModules.includes(m.requires),
+  );
 
   // Custom navigation handler to support base path
   const navigate = (path: string) => {
@@ -154,7 +176,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Glavna knjiga</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {MODULES.map((module) => {
+              {visibleModules.map((module) => {
                 const isActive = location === module.path || (location.startsWith(module.path) && module.path !== "/dashboard");
                 return (
                   <SidebarMenuItem key={module.path}>
