@@ -12,6 +12,7 @@ import {
   journalEntriesTable,
   journalEntryLinesTable,
   invoicesTable,
+  invoiceLinesTable,
 } from "@workspace/db";
 import {
   CreatePaymentBody,
@@ -176,13 +177,13 @@ async function refreshInvoiceStatuses(
       .select({
         gross: sql<string>`
           COALESCE(SUM(
-            (il.quantity::numeric * il.unit_price::numeric) +
-            (il.quantity::numeric * il.unit_price::numeric * il.vat_rate::numeric / 100)
+            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) +
+            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)
           ), 0)
         `,
       })
-      .from(sql`invoice_lines il`)
-      .where(sql`il.invoice_id = ${invoiceId}`);
+      .from(invoiceLinesTable)
+      .where(eq(invoiceLinesTable.invoiceId, invoiceId));
 
     const allocated = parseFloat(allocRow?.allocated ?? "0");
     const gross = parseFloat(grossRow?.gross ?? "0");
@@ -434,12 +435,12 @@ router.post(
       // Pridobi bruto znesek za vsak račun
       const grossRows = await db
         .select({
-          invoiceId: sql<string>`il.invoice_id`,
-          gross: sql<string>`COALESCE(SUM((il.quantity::numeric * il.unit_price::numeric) + (il.quantity::numeric * il.unit_price::numeric * il.vat_rate::numeric / 100)), 0)`,
+          invoiceId: invoiceLinesTable.invoiceId,
+          gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
         })
-        .from(sql`invoice_lines il`)
-        .where(sql`il.invoice_id = ANY(${invoiceIds})`)
-        .groupBy(sql`il.invoice_id`);
+        .from(invoiceLinesTable)
+        .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
+        .groupBy(invoiceLinesTable.invoiceId);
       const grossMap = new Map(grossRows.map((r) => [r.invoiceId, parseFloat(r.gross ?? "0")]));
 
       for (const alloc of allocations) {
@@ -674,12 +675,12 @@ router.post(
         // Bruto zneski računov
         const grossRows = await tx
           .select({
-            invoiceId: sql<string>`il.invoice_id`,
-            gross: sql<string>`COALESCE(SUM((il.quantity::numeric * il.unit_price::numeric) + (il.quantity::numeric * il.unit_price::numeric * il.vat_rate::numeric / 100)), 0)`,
+            invoiceId: invoiceLinesTable.invoiceId,
+            gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
           })
-          .from(sql`invoice_lines il`)
-          .where(sql`il.invoice_id = ANY(${invoiceIds})`)
-          .groupBy(sql`il.invoice_id`);
+          .from(invoiceLinesTable)
+          .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
+          .groupBy(invoiceLinesTable.invoiceId);
         const grossMap = new Map(grossRows.map((r) => [r.invoiceId, parseFloat(r.gross ?? "0")]));
 
         for (const alloc of allocsToPost) {
@@ -942,17 +943,17 @@ router.get(
     // Pridobi bruto zneske iz vrstic
     const grossRows = await db
       .select({
-        invoiceId: sql<string>`il.invoice_id`,
+        invoiceId: invoiceLinesTable.invoiceId,
         gross: sql<string>`
           COALESCE(SUM(
-            (il.quantity::numeric * il.unit_price::numeric) +
-            (il.quantity::numeric * il.unit_price::numeric * il.vat_rate::numeric / 100)
+            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) +
+            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)
           ), 0)
         `,
       })
-      .from(sql`invoice_lines il`)
-      .where(sql`il.invoice_id = ANY(${invoiceIds})`)
-      .groupBy(sql`il.invoice_id`);
+      .from(invoiceLinesTable)
+      .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
+      .groupBy(invoiceLinesTable.invoiceId);
 
     const grossMap = new Map<string, number>();
     for (const r of grossRows) grossMap.set(r.invoiceId, parseFloat(r.gross ?? "0"));
@@ -1057,12 +1058,12 @@ router.get(
     // Bruto po računu
     const grossRows = await db
       .select({
-        invoiceId: sql<string>`il.invoice_id`,
-        gross: sql<string>`COALESCE(SUM((il.quantity::numeric * il.unit_price::numeric) + (il.quantity::numeric * il.unit_price::numeric * il.vat_rate::numeric / 100)), 0)`,
+        invoiceId: invoiceLinesTable.invoiceId,
+        gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
       })
-      .from(sql`invoice_lines il`)
-      .where(sql`il.invoice_id = ANY(${invoiceIds})`)
-      .groupBy(sql`il.invoice_id`);
+      .from(invoiceLinesTable)
+      .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
+      .groupBy(invoiceLinesTable.invoiceId);
     const grossMap = new Map(grossRows.map((r) => [r.invoiceId, parseFloat(r.gross ?? "0")]));
 
     // Poravnano po računu
