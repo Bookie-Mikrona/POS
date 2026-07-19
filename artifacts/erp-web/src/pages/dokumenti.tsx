@@ -1002,7 +1002,7 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!form.counterpartyId || !form.periodId || confirmMut.isPending || isViewer}
+              disabled={!form.counterpartyId || !form.periodId || hasUnresolvedLines || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}

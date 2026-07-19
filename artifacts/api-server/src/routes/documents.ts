@@ -459,6 +459,36 @@ router.post(
       arApAccountId?: string;
     };
 
+    // Validacija: vse vrstice morajo imeti veljavni accountId iz kontnega načrta tega podjetja
+    const submittedLines: ProposedLine[] = lines.length > 0 ? lines : ((doc.ocrResult?.lines ?? []) as ProposedLine[]);
+    const allLineAccountIds = submittedLines.map(l => l.accountId).filter((id): id is string => !!id);
+    const missingAccountLines = submittedLines.filter(l => !l.accountId);
+    if (missingAccountLines.length > 0) {
+      res.status(400).json({
+        error: `${missingAccountLines.length} ${missingAccountLines.length === 1 ? "vrstica nima" : "vrstice nimajo"} izbranega konta — pred potrditvijo izberite konto za vsako vrstico`
+      });
+      return;
+    }
+    if (allLineAccountIds.length > 0) {
+      const uniqueLineAccountIds = [...new Set(allLineAccountIds)];
+      const validAccounts = await db
+        .select({ id: accountsTable.id })
+        .from(accountsTable)
+        .where(and(
+          inArray(accountsTable.id, uniqueLineAccountIds),
+          eq(accountsTable.companyId, companyId),
+          eq(accountsTable.isActive, true),
+        ));
+      const validIds = new Set(validAccounts.map(a => a.id));
+      const invalidIds = uniqueLineAccountIds.filter(id => !validIds.has(id));
+      if (invalidIds.length > 0) {
+        res.status(400).json({
+          error: `${invalidIds.length} ${invalidIds.length === 1 ? "konto ni najden" : "kontov ni najdenih"} v kontnem načrtu tega podjetja — preverite kontiranje pred potrditvijo`
+        });
+        return;
+      }
+    }
+
     // Sestavi confirmedData iz OCR + popravkov računovodje
     const base = doc.ocrResult ?? { rawText: "", confidence: 0, lines: [] };
     const confirmedData: OcrResult = {
