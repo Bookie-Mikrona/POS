@@ -5,6 +5,7 @@ import {
   db,
   counterpartiesTable,
   invoicesTable,
+  invoiceLinesTable,
   paymentAllocationsTable,
   paymentsTable,
   accountingRolesTable,
@@ -481,12 +482,12 @@ async function buildMatchSuggestions(
   // Gross amounts from invoice lines
   const grossRows = await db
     .select({
-      invoiceId: sql<string>`il.invoice_id`,
-      gross: sql<string>`COALESCE(SUM((il.quantity::numeric * il.unit_price::numeric) + (il.quantity::numeric * il.unit_price::numeric * il.vat_rate::numeric / 100)), 0)`,
+      invoiceId: invoiceLinesTable.invoiceId,
+      gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
     })
-    .from(sql`invoice_lines il`)
-    .where(sql`il.invoice_id = ANY(${invoiceIds})`)
-    .groupBy(sql`il.invoice_id`);
+    .from(invoiceLinesTable)
+    .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
+    .groupBy(invoiceLinesTable.invoiceId);
   const grossMap = new Map(grossRows.map(r => [r.invoiceId, parseFloat(r.gross ?? "0")]));
 
   // Already allocated amounts (from posted payments)
