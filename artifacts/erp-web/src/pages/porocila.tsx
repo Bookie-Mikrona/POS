@@ -936,7 +936,7 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 };
 
 function TrialBalanceTab() {
-  const { company } = useCompany();
+  const { activeCompany } = useCompany();
   const contentRef = useRef<HTMLDivElement>(null);
 
   const [dateFrom, setDateFrom] = useState(yearStart());
@@ -949,9 +949,9 @@ function TrialBalanceTab() {
   const [appliedTo, setAppliedTo] = useState(todayStr());
 
   const { data, isFetching, isError, error } = useGetTrialBalance(
-    company?.id ?? "",
+    activeCompany?.id ?? "",
     { dateFrom: appliedFrom, dateTo: appliedTo },
-    { query: { enabled: !!company?.id && queried } },
+    { query: { enabled: !!activeCompany?.id && queried } as any },
   );
 
   function handleSubmit(e: React.FormEvent) {
@@ -971,12 +971,12 @@ function TrialBalanceTab() {
   }, [data, search]);
 
   async function handleExportPdf() {
-    if (!data || !company) return;
+    if (!data || !activeCompany) return;
     setExporting(true);
     try {
       await exportToPdf({
         contentRef,
-        companyName: company.name,
+        companyName: activeCompany.naziv ?? "Podjetje",
         reportTitle: "Bruto bilanca (preizkusna bilanca)",
         subtitle: `Obdobje: ${appliedFrom} – ${appliedTo}`,
         filename: `bruto-bilanca-${appliedFrom}-${appliedTo}.pdf`,
@@ -1203,7 +1203,7 @@ function TrialBalanceTab() {
 
           {/* Print header (hidden on screen) */}
           <div className="hidden print:block mb-4">
-            <p className="text-base font-bold">{company?.name}</p>
+            <p className="text-base font-bold">{activeCompany?.naziv}</p>
             <p className="text-sm font-semibold">Bruto bilanca (preizkusna bilanca)</p>
             <p className="text-xs text-muted-foreground">Obdobje: {appliedFrom} – {appliedTo}</p>
           </div>

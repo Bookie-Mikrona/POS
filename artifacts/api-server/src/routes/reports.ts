@@ -583,6 +583,7 @@ async function aggregateRaw(
   return map;
 }
 
+// GET /companies/:companyId/reports/trial-balance
 router.get(
   "/companies/:companyId/reports/trial-balance",
   requireAuth,
