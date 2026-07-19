@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { ClerkProvider, SignIn } from "@clerk/clerk-react";
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,11 +24,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { saveReturnUrl } from "@/lib/returnUrl";
 import { setNapravaIdGetter } from "@workspace/api-client-react";
 import { getNapravaId } from "@/lib/naprava";
 setNapravaIdGetter(getNapravaId);
-import LoginPage from "@/pages/Login";
 import SuperAdminPage from "@/pages/SuperAdmin";
 
 import HomePage from "@/pages/Home";
@@ -609,15 +608,19 @@ function ZamenjajGesloOverlay() {
   );
 }
 
+function ClerkSignInPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <SignIn routing="hash" />
+    </div>
+  );
+}
+
 function AuthGate() {
   const { user, loading } = useAuth();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!loading && !user && location !== "/login") {
-      saveReturnUrl(location);
-      setLocation("/login");
-    }
     if (!loading && user && location === "/login") {
       setLocation(user.vloga === "superadmin" ? "/superadmin" : "/");
     }
@@ -631,36 +634,39 @@ function AuthGate() {
     );
   }
 
-  if (!user) return <LoginPage />;
+  if (!user) return <ClerkSignInPage />;
   return <ProtectedRouter />;
 }
 
 function AppRouter() {
   return (
     <Switch>
-      <Route path="/login" component={LoginPage} />
       <Route component={AuthGate} />
     </Switch>
   );
 }
 
 function App() {
+  const pubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+  if (!pubKey) throw new Error("Manjka VITE_CLERK_PUBLISHABLE_KEY");
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <GotovToastProvider>
-          <AuthProvider>
-            <BlagajnaProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <AppRouter />
-              </WouterRouter>
-            </BlagajnaProvider>
-          </AuthProvider>
-          <Toaster />
-          <GotovToastSystem />
-        </GotovToastProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ClerkProvider publishableKey={pubKey}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <GotovToastProvider>
+            <AuthProvider>
+              <BlagajnaProvider>
+                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <AppRouter />
+                </WouterRouter>
+              </BlagajnaProvider>
+            </AuthProvider>
+            <Toaster />
+            <GotovToastSystem />
+          </GotovToastProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }
 

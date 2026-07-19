@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { getAuthToken, getEnotaId } from "@workspace/api-client-react";
 
 export interface NapravaTerminalConfig {
   terminalAktiven?: boolean;
@@ -88,10 +89,16 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
     setNapravaLoading(true);
     try {
       const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+      const token = await getAuthToken();
+      const enotaId = getEnotaId();
+      if (!token || !enotaId) return; // čakamo na prijavo
       const res = await fetch(`${base}/api/naprave/registracija`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "X-Enota-Id": enotaId,
+        },
         body: JSON.stringify({ napravaKljuc, ime: defaultDeviceIme() }),
       });
       if (!res.ok) return;

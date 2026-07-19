@@ -18,6 +18,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _napravaIdGetter: (() => string | null) | null = null;
+let _enotaIdGetter: (() => string | null) | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -47,6 +48,27 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
 
 export function setNapravaIdGetter(getter: (() => string | null) | null): void {
   _napravaIdGetter = getter;
+}
+
+/**
+ * Register a getter that supplies the active POS enota (business unit) ID.
+ * Before every fetch the getter is invoked; when it returns a non-null string,
+ * an `X-Enota-Id` header is attached to the request.
+ */
+export function setEnotaIdGetter(getter: (() => string | null) | null): void {
+  _enotaIdGetter = getter;
+}
+
+/** Returns the current auth bearer token (or null). Useful for direct fetch() calls outside the generated client. */
+export async function getAuthToken(): Promise<string | null> {
+  if (!_authTokenGetter) return null;
+  return _authTokenGetter();
+}
+
+/** Returns the current enota ID string (or null). Useful for direct fetch() calls outside the generated client. */
+export function getEnotaId(): string | null {
+  if (!_enotaIdGetter) return null;
+  return _enotaIdGetter();
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -377,6 +399,11 @@ export async function customFetch<T = unknown>(
   if (_napravaIdGetter && !headers.has("x-naprava-id")) {
     const napravaId = _napravaIdGetter();
     if (napravaId) headers.set("x-naprava-id", napravaId);
+  }
+
+  if (_enotaIdGetter && !headers.has("x-enota-id")) {
+    const enotaId = _enotaIdGetter();
+    if (enotaId) headers.set("x-enota-id", enotaId);
   }
 
   const requestInfo = { method, url: resolveUrl(input) };

@@ -34,6 +34,8 @@ import inventureRouter from "./inventure";
 import prejemniceRouter from "./prejemnice";
 import zacetneZalogeRouter from "./zacetne-zaloge";
 import zalogeRouter from "./zaloge";
+import posAuthRouter from "./auth";
+import posAdminUporabnikiRouter from "./admin-uporabniki";
 
 const router: IRouter = Router();
 
@@ -59,6 +61,10 @@ router.get("/pos/events", requireEnota, (req: Request, res: Response) => {
     removeClient(res);
   });
 });
+
+// Auth in admin rute — samo Clerk JWT, brez X-Enota-Id
+router.use("/pos", posAuthRouter);
+router.use("/pos", posAdminUporabnikiRouter);
 
 // Vse POS rute — zahtevajo Clerk JWT + X-Enota-Id
 router.use("/pos", requireEnota, enoteRouter);

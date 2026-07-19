@@ -28,3 +28,4 @@ export * from "./tiskalne-naloge";
 export * from "./glasovni-sinonimi";
 export * from "./dnevni-meni";
 export * from "./partner-ceniki";
+export * from "./uporabniki";
