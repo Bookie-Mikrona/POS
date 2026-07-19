@@ -2555,6 +2555,12 @@ export const JournalEntrySourceType = {
 export interface JournalEntry {
   id: string;
   companyId: string;
+  /** Unikatna stroškovna mesta iz vrstic temeljnice (samo v seznam pogledu) */
+  costCenterNames?: string[];
+  /** Unikatni projekti iz vrstic temeljnice (samo v seznam pogledu) */
+  projectNames?: string[];
+  /** Unikatni oddelki iz vrstic temeljnice (samo v seznam pogledu) */
+  departmentNames?: string[];
   periodId: string;
   /** Denormalized for display */
   periodName: string;
@@ -3955,6 +3961,9 @@ periodId?: string;
 status?: ListJournalEntriesStatus;
 dateFrom?: string;
 dateTo?: string;
+costCenterId?: string;
+projectId?: string;
+departmentId?: string;
 };
 
 export type ListJournalEntriesStatus = typeof ListJournalEntriesStatus[keyof typeof ListJournalEntriesStatus];

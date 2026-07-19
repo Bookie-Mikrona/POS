@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, asc, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, asc, gte, lte, inArray, exists } from "drizzle-orm";
 import Decimal from "decimal.js";
 import {
   db,
@@ -164,7 +164,7 @@ router.get(
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
 
-    const { periodId, status, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+    const { periodId, status, dateFrom, dateTo, costCenterId, projectId, departmentId } = req.query as Record<string, string | undefined>;
 
     const conditions: ReturnType<typeof eq>[] = [
       eq(journalEntriesTable.companyId, companyId),
@@ -173,6 +173,36 @@ router.get(
     if (status) conditions.push(eq(journalEntriesTable.status, status as any));
     if (dateFrom) conditions.push(gte(journalEntriesTable.entryDate, dateFrom));
     if (dateTo) conditions.push(lte(journalEntriesTable.entryDate, dateTo));
+    if (costCenterId) conditions.push(
+      exists(
+        db.select({ one: journalEntryLinesTable.id })
+          .from(journalEntryLinesTable)
+          .where(and(
+            eq(journalEntryLinesTable.entryId, journalEntriesTable.id),
+            eq(journalEntryLinesTable.costCenterId, costCenterId),
+          ))
+      )
+    );
+    if (projectId) conditions.push(
+      exists(
+        db.select({ one: journalEntryLinesTable.id })
+          .from(journalEntryLinesTable)
+          .where(and(
+            eq(journalEntryLinesTable.entryId, journalEntriesTable.id),
+            eq(journalEntryLinesTable.projectId, projectId),
+          ))
+      )
+    );
+    if (departmentId) conditions.push(
+      exists(
+        db.select({ one: journalEntryLinesTable.id })
+          .from(journalEntryLinesTable)
+          .where(and(
+            eq(journalEntryLinesTable.entryId, journalEntriesTable.id),
+            eq(journalEntryLinesTable.departmentId, departmentId),
+          ))
+      )
+    );
 
     const entries = await db
       .select({
@@ -202,7 +232,48 @@ router.get(
       .where(and(...conditions))
       .orderBy(asc(journalEntriesTable.entryDate), asc(journalEntriesTable.createdAt));
 
-    res.json({ entries });
+    // Pridobi agregirana imena dimenzij za vsako temeljnico
+    const entryIds = entries.map(e => e.id);
+    type DimRow = { entryId: string; costCenterName: string | null; projectName: string | null; departmentName: string | null };
+    let dimRows: DimRow[] = [];
+    if (entryIds.length > 0) {
+      dimRows = await db
+        .select({
+          entryId: journalEntryLinesTable.entryId,
+          costCenterName: costCentersTable.name,
+          projectName: projectsTable.name,
+          departmentName: departmentsTable.name,
+        })
+        .from(journalEntryLinesTable)
+        .leftJoin(costCentersTable, eq(costCentersTable.id, journalEntryLinesTable.costCenterId))
+        .leftJoin(projectsTable, eq(projectsTable.id, journalEntryLinesTable.projectId))
+        .leftJoin(departmentsTable, eq(departmentsTable.id, journalEntryLinesTable.departmentId))
+        .where(inArray(journalEntryLinesTable.entryId, entryIds));
+    }
+
+    // Aggrigiraj po entryId → unikatna imena
+    const dimByEntry = new Map<string, { costCenterNames: Set<string>; projectNames: Set<string>; departmentNames: Set<string> }>();
+    for (const row of dimRows) {
+      if (!dimByEntry.has(row.entryId)) {
+        dimByEntry.set(row.entryId, { costCenterNames: new Set(), projectNames: new Set(), departmentNames: new Set() });
+      }
+      const agg = dimByEntry.get(row.entryId)!;
+      if (row.costCenterName) agg.costCenterNames.add(row.costCenterName);
+      if (row.projectName) agg.projectNames.add(row.projectName);
+      if (row.departmentName) agg.departmentNames.add(row.departmentName);
+    }
+
+    const enrichedEntries = entries.map(e => {
+      const agg = dimByEntry.get(e.id);
+      return {
+        ...e,
+        costCenterNames: agg ? [...agg.costCenterNames] : [],
+        projectNames: agg ? [...agg.projectNames] : [],
+        departmentNames: agg ? [...agg.departmentNames] : [],
+      };
+    });
+
+    res.json({ entries: enrichedEntries });
   },
 );
 

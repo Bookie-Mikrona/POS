@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { Plus, Search, Filter, AlertCircle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Search, Filter, AlertCircle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
@@ -63,15 +63,30 @@ export default function Temeljnice() {
 
   const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [costCenterFilter, setCostCenterFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
 
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
+
+  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const costCenters = costCentersData?.costCenters ?? [];
+
+  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const projects = projectsData?.projects ?? [];
+
+  const { data: departmentsData } = useListDepartments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const departments = departmentsData?.departments ?? [];
 
   const { data: entriesData, isLoading, error } = useListJournalEntries(
     activeCompany?.id ?? "",
     {
       periodId: periodFilter !== "all" ? periodFilter : undefined,
       status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+      costCenterId: costCenterFilter !== "all" ? costCenterFilter : undefined,
+      projectId: projectFilter !== "all" ? projectFilter : undefined,
+      departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
     },
     { query: { enabled: !!activeCompany?.id } as any }
   );
@@ -107,6 +122,9 @@ export default function Temeljnice() {
   const clearFilters = () => {
     setPeriodFilter("all");
     setStatusFilter("all");
+    setCostCenterFilter("all");
+    setProjectFilter("all");
+    setDepartmentFilter("all");
   };
 
   if (error) {
@@ -136,12 +154,12 @@ export default function Temeljnice() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row flex-wrap gap-4 bg-card p-4 rounded-lg border shadow-sm items-end sm:items-center">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full sm:w-auto">
+      <div className="flex flex-col gap-4 bg-card p-4 rounded-lg border shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground">Obdobje</Label>
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger>
                 <SelectValue placeholder="Vsa obdobja" />
               </SelectTrigger>
               <SelectContent>
@@ -152,11 +170,11 @@ export default function Temeljnice() {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground">Status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger>
                 <SelectValue placeholder="Vsi statusi" />
               </SelectTrigger>
               <SelectContent>
@@ -167,12 +185,65 @@ export default function Temeljnice() {
               </SelectContent>
             </Select>
           </div>
+
+          {costCenters.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Stroškovno mesto</Label>
+              <Select value={costCenterFilter} onValueChange={setCostCenterFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vsa stroškovna mesta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Vsa stroškovna mesta</SelectItem>
+                  {costCenters.map(cc => (
+                    <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Projekt</Label>
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vsi projekti" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Vsi projekti</SelectItem>
+                  {projects.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {departments.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Oddelek</Label>
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vsi oddelki" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Vsi oddelki</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
-        {(periodFilter !== "all" || statusFilter !== "all") && (
-          <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground ml-auto sm:ml-0">
-            Počisti filtre
-          </Button>
+        {(periodFilter !== "all" || statusFilter !== "all" || costCenterFilter !== "all" || projectFilter !== "all" || departmentFilter !== "all") && (
+          <div className="flex">
+            <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground h-8 px-3 text-xs">
+              Počisti filtre
+            </Button>
+          </div>
         )}
       </div>
 
@@ -219,8 +290,31 @@ export default function Temeljnice() {
                 >
                   <TableCell className="font-medium">{new Date(entry.entryDate).toLocaleDateString("sl-SI")}</TableCell>
                   <TableCell>
-                    {entry.description}
-                    {entry.reversalOf && <Badge variant="secondary" className="ml-2 text-[10px] py-0">Storno</Badge>}
+                    <div className="space-y-1">
+                      <div>
+                        {entry.description}
+                        {entry.reversalOf && <Badge variant="secondary" className="ml-2 text-[10px] py-0">Storno</Badge>}
+                      </div>
+                      {((entry.costCenterNames?.length ?? 0) > 0 || (entry.projectNames?.length ?? 0) > 0 || (entry.departmentNames?.length ?? 0) > 0) && (
+                        <div className="flex flex-wrap gap-1">
+                          {entry.costCenterNames?.map(name => (
+                            <span key={name} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
+                              <Building2 className="h-2.5 w-2.5" />{name}
+                            </span>
+                          ))}
+                          {entry.projectNames?.map(name => (
+                            <span key={name} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              <FolderKanban className="h-2.5 w-2.5" />{name}
+                            </span>
+                          ))}
+                          {entry.departmentNames?.map(name => (
+                            <span key={name} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                              <Users className="h-2.5 w-2.5" />{name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {entry.sourceType ? (
