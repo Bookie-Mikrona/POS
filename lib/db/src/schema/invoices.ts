@@ -73,6 +73,15 @@ export const invoicesTable = pgTable("invoices", {
  * Vrstice računa.
  * Znesek = quantity × unitPrice (brez DDV).
  * DDV = znesek × vatRate / 100.
+ *
+ * INVARIANT — neodvisnost od dokumenta:
+ * - invoice_lines kaskadira samo iz invoices (onDelete: "cascade" na invoiceId).
+ * - invoice_lines NI vezan na dokument (documents) — ni FK, ni CASCADE.
+ * - Brisanje dokumenta torej NE izbriše računa niti njegovih vrstic.
+ * - Knjižbe (invoices + invoice_lines) ostanejo shranjene kot učni kontekst
+ *   za prihodnje predloge kontiranja, ne glede na življenjski cikel dokumenta.
+ * - Vsak poskus dodajanja FK document → invoice_lines z CASCADE mora biti
+ *   zavrnjen, ker bi kršil ta invariant.
  */
 export const invoiceLinesTable = pgTable("invoice_lines", {
   id: uuid("id").primaryKey().defaultRandom(),

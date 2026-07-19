@@ -7,6 +7,15 @@
  *   3. Backend takoj sproži async OCR (ne čaka na odgovor) → status: processing
  *   4. OCR konča → status: done + ocrResult
  *   5. Računovodja potrdi (POST .../confirm) → status: confirmed + opcijsko draft račun
+ *
+ * INVARIANT — potrjena knjižba ostane zapisana tudi po brisanju dokumenta:
+ *   - Ni DELETE endpointa za dokumente. Dokumenti se ne brišejo.
+ *   - Ko je račun (invoice) ustvarjen ob potrditvi, živi neodvisno od dokumenta.
+ *   - FK je enosmeren: documents.linkedInvoiceId → invoices.id (brez CASCADE).
+ *   - Brisanje dokumenta (če bi bilo kdaj dodano) NE sme izbrisati računa ali
+ *     invoice_lines — te vsebujejo učni kontekst za prihodnje predloge kontiranja.
+ *   - Vsak prihodnji DELETE handler mora eksplicitno ničiti linkedInvoiceId
+ *     na dokumentu in pustiti invoice nedotaknjen.
  */
 
 import { Router, type Request, type Response, type IRouter } from "express";

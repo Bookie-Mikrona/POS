@@ -104,7 +104,16 @@ export const documentsTable = pgTable("documents", {
   ocrResult: jsonb("ocr_result").$type<OcrResult>(),
   /** Računovodjeve popravke (JSON — iste polje kot ocrResult) */
   confirmedData: jsonb("confirmed_data").$type<OcrResult>(),
-  /** Ustvarjeni račun (po potrditvi) */
+  /**
+   * Ustvarjeni račun (po potrditvi).
+   *
+   * INVARIANT: ta FK kaže IZ dokumenta NA račun — ne obratno.
+   * Ker ni onDelete: "cascade", brisanje dokumenta ne izbriše računa ali njegovih vrstic.
+   * Račun in knjižbe ostanejo neodvisni od dokumenta ter se uporabljajo
+   * kot učni kontekst za prihodnje predloge kontiranja.
+   * Prav tako ni obratnega FK (invoice → document), zato brisanje
+   * računa ne vpliva na dokument.
+   */
   linkedInvoiceId: uuid("linked_invoice_id").references(() => invoicesTable.id),
   /** Naložil (Clerk userId) */
   uploadedByClerkId: text("uploaded_by_clerk_id"),
