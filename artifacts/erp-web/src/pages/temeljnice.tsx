@@ -12,6 +12,10 @@ import {
   useReverseJournalEntry,
   useListPeriods,
   useListAccounts,
+  useListCounterparties,
+  useListCostCenters,
+  useListProjects,
+  useListDepartments,
   getListJournalEntriesQueryKey,
   type JournalEntry,
 } from "@workspace/api-client-react";
@@ -304,13 +308,25 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   const [reference, setReference] = useState("");
   const [autoPost, setAutoPost] = useState(false);
 
+  const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const counterparties = counterpartiesData?.counterparties ?? [];
+
+  const { data: costCentersData } = useListCostCenters(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const costCenters = costCentersData?.costCenters ?? [];
+
+  const { data: projectsData } = useListProjects(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const projects = projectsData?.projects ?? [];
+
+  const { data: departmentsData } = useListDepartments(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const departments = departmentsData?.departments ?? [];
+
   const [lines, setLines] = useState([
-    { id: "1", accountId: "", side: "debit" as const, amount: "", description: "" },
-    { id: "2", accountId: "", side: "credit" as const, amount: "", description: "" },
+    { id: "1", accountId: "", side: "debit" as const, amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "" },
+    { id: "2", accountId: "", side: "credit" as const, amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "" },
   ]);
 
   const addLine = () => {
-    setLines([...lines, { id: Math.random().toString(), accountId: "", side: "debit", amount: "", description: "" }]);
+    setLines([...lines, { id: Math.random().toString(), accountId: "", side: "debit", amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "" }]);
   };
 
   const removeLine = (id: string) => {
@@ -341,7 +357,11 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
       accountId: l.accountId,
       side: l.side,
       amount: parseFloat(l.amount),
-      description: l.description || null
+      description: l.description || null,
+      partnerId: l.partnerId || null,
+      costCenterId: l.costCenterId || null,
+      projectId: l.projectId || null,
+      departmentId: l.departmentId || null,
     }));
 
     if (finalLines.length < 2) return;
@@ -474,6 +494,73 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                       <Input value={line.description} onChange={e => updateLine(line.id, "description", e.target.value)} className="h-9" placeholder="..." />
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {counterparties.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Partner (neobvezno)</Label>
+                        <Select value={line.partnerId || "__none__"} onValueChange={(val) => updateLine(line.id, "partnerId", val === "__none__" ? "" : val)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">—</SelectItem>
+                            {counterparties.map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {costCenters.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Stroškovno mesto (neobvezno)</Label>
+                        <Select value={line.costCenterId || "__none__"} onValueChange={(val) => updateLine(line.id, "costCenterId", val === "__none__" ? "" : val)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">—</SelectItem>
+                            {costCenters.map(cc => (
+                              <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {projects.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Projekt (neobvezno)</Label>
+                        <Select value={line.projectId || "__none__"} onValueChange={(val) => updateLine(line.id, "projectId", val === "__none__" ? "" : val)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">—</SelectItem>
+                            {projects.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {departments.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Oddelek (neobvezno)</Label>
+                        <Select value={line.departmentId || "__none__"} onValueChange={(val) => updateLine(line.id, "departmentId", val === "__none__" ? "" : val)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">—</SelectItem>
+                            {departments.map(d => (
+                              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -579,7 +666,7 @@ function DetailEntrySheet({ entry, open, onOpenChange, onStorno }: { entry: Jour
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead>Konto</TableHead>
+                    <TableHead>Konto / Dimenzije</TableHead>
                     <TableHead className="text-right w-[120px]">Breme</TableHead>
                     <TableHead className="text-right w-[120px]">Dobro</TableHead>
                   </TableRow>
@@ -595,9 +682,30 @@ function DetailEntrySheet({ entry, open, onOpenChange, onStorno }: { entry: Jour
                     lines.map((line: any) => (
                       <TableRow key={line.id}>
                         <TableCell>
-                          <div className="font-medium">{line.accountCode}</div>
-                          <div className="text-xs text-muted-foreground">{line.accountName}</div>
-                          {line.description && <div className="text-xs mt-1 text-muted-foreground/80 italic">{line.description}</div>}
+                          <div className="font-medium">{line.accountCode} — {line.accountName}</div>
+                          {line.description && <div className="text-xs mt-0.5 text-muted-foreground/80 italic">{line.description}</div>}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {line.partnerName && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                                Partner: {line.partnerName}
+                              </Badge>
+                            )}
+                            {line.costCenterName && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal bg-blue-50 border-blue-200 text-blue-700">
+                                SM: {line.costCenterName}
+                              </Badge>
+                            )}
+                            {line.projectName && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal bg-violet-50 border-violet-200 text-violet-700">
+                                Projekt: {line.projectName}
+                              </Badge>
+                            )}
+                            {line.departmentName && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal bg-amber-50 border-amber-200 text-amber-700">
+                                Oddelek: {line.departmentName}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">{line.side === 'debit' ? parseFloat(line.amount).toFixed(2) : ''}</TableCell>
                         <TableCell className="text-right">{line.side === 'credit' ? parseFloat(line.amount).toFixed(2) : ''}</TableCell>
