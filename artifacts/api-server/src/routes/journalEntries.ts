@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, asc, gte, lte, inArray } from "drizzle-orm";
+import Decimal from "decimal.js";
 import {
   db,
   journalEntriesTable,
@@ -19,6 +20,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { writeAuditLog } from "../lib/auditLog";
+import { accountingError } from "../lib/accountingErrors";
 
 const router: IRouter = Router();
 
@@ -57,10 +59,13 @@ async function fetchEntryWithLines(entryId: string) {
       companyId: journalEntriesTable.companyId,
       periodId: journalEntriesTable.periodId,
       periodName: accountingPeriodsTable.name,
+      documentDate: journalEntriesTable.documentDate,
       entryDate: journalEntriesTable.entryDate,
+      taxDate: journalEntriesTable.taxDate,
       description: journalEntriesTable.description,
       reference: journalEntriesTable.reference,
       status: journalEntriesTable.status,
+      postedAt: journalEntriesTable.postedAt,
       reversalOf: journalEntriesTable.reversalOf,
       sourceType: journalEntriesTable.sourceType,
       approvedBy: journalEntriesTable.approvedBy,
@@ -110,21 +115,40 @@ async function fetchEntryWithLines(entryId: string) {
   return { ...entry, lines };
 }
 
-/** Preveri debitno-kreditno ravnovesje. Vrne null če OK, sicer opis napake. */
-function checkBalance(
-  lines: { side: string; amount: string }[],
-): string | null {
-  let debitTotal = 0;
-  let creditTotal = 0;
+/**
+ * §68 — Preveri debitno-kreditno ravnovesje z Decimal.js natančnostjo.
+ * §96 — Vrne null če OK, sicer strukturiran error payload.
+ */
+function checkBalance(lines: { side: string; amount: string }[]) {
+  let debitTotal = new Decimal(0);
+  let creditTotal = new Decimal(0);
   for (const l of lines) {
-    const amt = parseFloat(l.amount);
-    if (l.side === "debit") debitTotal += amt;
-    else creditTotal += amt;
+    const amt = new Decimal(l.amount);
+    if (l.side === "debit") debitTotal = debitTotal.plus(amt);
+    else creditTotal = creditTotal.plus(amt);
   }
-  // Zaokroži na 2 decimalki da se izognemo floating-point napakam
-  const diff = Math.abs(Math.round((debitTotal - creditTotal) * 100) / 100);
-  if (diff > 0) {
-    return `Temeljnica ni uravnotežena: debet ${debitTotal.toFixed(2)} ≠ kredit ${creditTotal.toFixed(2)}`;
+  if (!debitTotal.equals(creditTotal)) {
+    return accountingError(
+      "ENTRY_NOT_BALANCED",
+      `Temeljnica ni uravnotežena: debet ${debitTotal.toFixed(2)} ≠ kredit ${creditTotal.toFixed(2)}`,
+    );
+  }
+  return null;
+}
+
+/**
+ * §96 — Preveri da ima vsaka vrstica amount > 0.
+ */
+function checkLineAmounts(lines: { amount: string | number; sequence?: number }[]) {
+  for (let i = 0; i < lines.length; i++) {
+    const amt = new Decimal(String(lines[i].amount));
+    if (amt.lte(0)) {
+      return accountingError(
+        "LINE_AMOUNT_ZERO",
+        `Vrstica ${i + 1}: znesek mora biti večji od 0 (dobljeno: ${amt.toFixed(2)})`,
+        { line: i + 1 },
+      );
+    }
   }
   return null;
 }
@@ -160,6 +184,9 @@ router.get(
         description: journalEntriesTable.description,
         reference: journalEntriesTable.reference,
         status: journalEntriesTable.status,
+        documentDate: journalEntriesTable.documentDate,
+        taxDate: journalEntriesTable.taxDate,
+        postedAt: journalEntriesTable.postedAt,
         reversalOf: journalEntriesTable.reversalOf,
         sourceType: journalEntriesTable.sourceType,
         approvedBy: journalEntriesTable.approvedBy,
@@ -215,20 +242,26 @@ router.post(
       .limit(1);
 
     if (!period) {
-      res.status(404).json({ error: "Računovodsko obdobje ni najdeno" });
+      res.status(404).json(accountingError("PERIOD_NOT_FOUND", "Računovodsko obdobje ni najdeno"));
       return;
     }
 
     if (period.status === "locked") {
-      res.status(400).json({ error: "Obdobje je zaklenjeno. Knjižbe v zaklenjeno obdobje niso dovoljene." });
+      res.status(400).json(accountingError("PERIOD_CLOSED", "Obdobje je zaklenjeno. Knjižbe v zaklenjeno obdobje niso dovoljene."));
       return;
     }
+
+    // §96 — Vsaka vrstica mora imeti amount > 0
+    const amountErr = checkLineAmounts(lines.map((l, i) => ({ amount: l.amount, sequence: i })));
+    if (amountErr) { res.status(400).json(amountErr); return; }
 
     // Preveri da vsi account_id-ji obstajajo in so del podjetja
     const accountIds = [...new Set(lines.map((l) => l.accountId))];
     const foundAccounts = await db
       .select({
         id: accountsTable.id,
+        code: accountsTable.code,
+        isActive: accountsTable.isActive,
         allowsPosting: accountsTable.allowsPosting,
         requiresPartner: accountsTable.requiresPartner,
         requiresCostCenter: accountsTable.requiresCostCenter,
@@ -238,7 +271,7 @@ router.post(
       .where(and(inArray(accountsTable.id, accountIds), eq(accountsTable.companyId, companyId)));
 
     if (foundAccounts.length !== accountIds.length) {
-      res.status(400).json({ error: "Vsaj en konto ne obstaja ali ne pripada temu podjetju" });
+      res.status(400).json(accountingError("ACCOUNT_NOT_FOUND", "Vsaj en konto ne obstaja ali ne pripada temu podjetju"));
       return;
     }
 
@@ -291,45 +324,47 @@ router.post(
       }
     }
 
-    // Validacija dimenzij: konto zahteva partnerja / stroškovno mesto / projekt
+    // §69, §70 — Validacija kontov in dimenzij
     for (const line of lines) {
       const acc = accountMap.get(line.accountId);
       if (!acc) continue;
+      if (!acc.isActive) {
+        res.status(400).json(accountingError("ACCOUNT_INACTIVE", `Konto ${acc.code} ni aktiven.`, { account: acc.code }));
+        return;
+      }
       if (!acc.allowsPosting) {
-        res.status(400).json({ error: `Konto ne dovoljuje neposrednih knjižb (skupinski konto)` });
+        res.status(400).json(accountingError("ACCOUNT_NOT_POSTABLE", `Na konto ${acc.code} ni dovoljeno neposredno knjižiti (skupinski konto).`, { account: acc.code }));
         return;
       }
       if (acc.requiresPartner && !line.partnerId) {
-        res.status(400).json({ error: `Konto zahteva poslovnega partnerja na vsaki vrstici` });
+        res.status(400).json(accountingError("PARTNER_REQUIRED", `Za konto ${acc.code} je poslovni partner obvezen.`, { account: acc.code, dimension: "PARTNER" }));
         return;
       }
       if (acc.requiresCostCenter && !line.costCenterId) {
-        res.status(400).json({ error: `Konto zahteva stroškovno mesto na vsaki vrstici` });
+        res.status(400).json(accountingError("COST_CENTER_REQUIRED", `Za konto ${acc.code} je stroškovno mesto obvezno.`, { account: acc.code, dimension: "COST_CENTER" }));
         return;
       }
       if (acc.requiresProject && !line.projectId) {
-        res.status(400).json({ error: `Konto zahteva projekt na vsaki vrstici` });
+        res.status(400).json(accountingError("PROJECT_REQUIRED", `Za konto ${acc.code} je projekt obvezen.`, { account: acc.code, dimension: "PROJECT" }));
         return;
       }
     }
 
-    // Pripravi vrstice za balance check
-    const lineAmountStrings = lines.map((l) => ({
-      side: l.side,
-      amount: l.amount.toFixed(2),
-    }));
-
-    // Za autoPost preveri balance pred insertom
+    // §68 — Za autoPost preveri balance pred insertom (Decimal natančnost)
     if (autoPost) {
-      const balanceErr = checkBalance(lineAmountStrings);
-      if (balanceErr) {
-        res.status(400).json({ error: balanceErr });
-        return;
-      }
+      const balanceErr = checkBalance(lines.map((l) => ({ side: l.side, amount: l.amount.toFixed(2) })));
+      if (balanceErr) { res.status(400).json(balanceErr); return; }
     }
 
-    // Kovert datuma: z.coerce.date() → Date → string
+    // Kovert datumov: z.coerce.date() → Date → string
     const entryDate = (parsed.data.entryDate as unknown as Date).toISOString().slice(0, 10);
+    const documentDate = parsed.data.documentDate
+      ? (parsed.data.documentDate as unknown as Date).toISOString().slice(0, 10)
+      : null;
+    const taxDate = parsed.data.taxDate
+      ? (parsed.data.taxDate as unknown as Date).toISOString().slice(0, 10)
+      : null;
+    const now = new Date();
 
     const entry = await db.transaction(async (tx) => {
       const [newEntry] = await tx
@@ -337,10 +372,13 @@ router.post(
         .values({
           companyId,
           periodId,
+          documentDate,
           entryDate,
+          taxDate,
           description,
           reference: reference ?? null,
           status: autoPost ? "posted" : "draft",
+          postedAt: autoPost ? now : null,
           sourceType: (sourceType ?? "manual") as "manual" | "bank_import" | "document" | "ai_suggestion",
           approvedBy: autoPost ? authReq.clerkUserId : null,
           createdBy: authReq.clerkUserId,
@@ -436,11 +474,11 @@ router.post(
       .limit(1);
 
     if (!entry) {
-      res.status(404).json({ error: "Temeljnica ni najdena" });
+      res.status(404).json(accountingError("ACCOUNT_NOT_FOUND", "Temeljnica ni najdena"));
       return;
     }
     if (entry.status !== "draft") {
-      res.status(400).json({ error: "Samo osnutke je mogoče knjižiti" });
+      res.status(400).json(accountingError("ENTRY_NOT_BALANCED", "Samo osnutke je mogoče knjižiti"));
       return;
     }
 
@@ -451,7 +489,7 @@ router.post(
       .limit(1);
 
     if (period?.status === "locked") {
-      res.status(400).json({ error: "Obdobje je zaklenjeno. Knjižbe v zaklenjeno obdobje niso dovoljene." });
+      res.status(400).json(accountingError("PERIOD_CLOSED", "Obdobje je zaklenjeno. Knjižbe v zaklenjeno obdobje niso dovoljene."));
       return;
     }
 
@@ -467,18 +505,18 @@ router.post(
       .from(journalEntryLinesTable)
       .where(eq(journalEntryLinesTable.entryId, id));
 
+    // §68 — Balance check z Decimal natančnostjo
     const balanceErr = checkBalance(lines);
-    if (balanceErr) {
-      res.status(400).json({ error: balanceErr });
-      return;
-    }
+    if (balanceErr) { res.status(400).json(balanceErr); return; }
 
-    // Validacija dimenzij pri knjiženju
+    // §69, §70 — Validacija kontov (isActive, allowsPosting, dimenzije)
     const lineAccountIds = [...new Set(lines.map((l) => l.accountId))];
     if (lineAccountIds.length > 0) {
       const lineAccounts = await db
         .select({
           id: accountsTable.id,
+          code: accountsTable.code,
+          isActive: accountsTable.isActive,
           allowsPosting: accountsTable.allowsPosting,
           requiresPartner: accountsTable.requiresPartner,
           requiresCostCenter: accountsTable.requiresCostCenter,
@@ -490,29 +528,34 @@ router.post(
       for (const line of lines) {
         const acc = lineAccountMap.get(line.accountId);
         if (!acc) continue;
+        if (!acc.isActive) {
+          res.status(400).json(accountingError("ACCOUNT_INACTIVE", `Konto ${acc.code} ni aktiven.`, { account: acc.code }));
+          return;
+        }
         if (!acc.allowsPosting) {
-          res.status(400).json({ error: "Konto ne dovoljuje neposrednih knjižb (skupinski konto)" });
+          res.status(400).json(accountingError("ACCOUNT_NOT_POSTABLE", `Na konto ${acc.code} ni dovoljeno neposredno knjižiti (skupinski konto).`, { account: acc.code }));
           return;
         }
         if (acc.requiresPartner && !line.partnerId) {
-          res.status(400).json({ error: "Konto zahteva poslovnega partnerja na vsaki vrstici" });
+          res.status(400).json(accountingError("PARTNER_REQUIRED", `Za konto ${acc.code} je poslovni partner obvezen.`, { account: acc.code, dimension: "PARTNER" }));
           return;
         }
         if (acc.requiresCostCenter && !line.costCenterId) {
-          res.status(400).json({ error: "Konto zahteva stroškovno mesto na vsaki vrstici" });
+          res.status(400).json(accountingError("COST_CENTER_REQUIRED", `Za konto ${acc.code} je stroškovno mesto obvezno.`, { account: acc.code, dimension: "COST_CENTER" }));
           return;
         }
         if (acc.requiresProject && !line.projectId) {
-          res.status(400).json({ error: "Konto zahteva projekt na vsaki vrstici" });
+          res.status(400).json(accountingError("PROJECT_REQUIRED", `Za konto ${acc.code} je projekt obvezen.`, { account: acc.code, dimension: "PROJECT" }));
           return;
         }
       }
     }
 
+    const now = new Date();
     await db.transaction(async (tx) => {
       await tx
         .update(journalEntriesTable)
-        .set({ status: "posted", approvedBy: authReq.clerkUserId })
+        .set({ status: "posted", approvedBy: authReq.clerkUserId, postedAt: now })
         .where(eq(journalEntriesTable.id, id));
 
       // Revizijski dnevnik je del transakcije

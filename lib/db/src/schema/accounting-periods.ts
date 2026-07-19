@@ -10,7 +10,13 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { companiesTable } from "./companies";
 
-export const periodStatusEnum = pgEnum("period_status", ["open", "locked"]);
+/**
+ * §73 — Statusi fiskalnega obdobja:
+ * open       — normalno knjiženje
+ * controlled — knjiženje z dodatnimi pravicami, navadni popravki zavrnjeni
+ * locked     — samo storno/popravki z razlogom (star: locked = closed)
+ */
+export const periodStatusEnum = pgEnum("period_status", ["open", "controlled", "locked"]);
 
 export const accountingPeriodsTable = pgTable("accounting_periods", {
   id: uuid("id").primaryKey().defaultRandom(),

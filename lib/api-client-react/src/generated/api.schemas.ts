@@ -432,11 +432,27 @@ export interface JournalEntry {
   periodId: string;
   /** Denormalized for display */
   periodName: string;
+  /**
+     * §72 Datum listine (na dokumentu). Ločen od datuma knjiženja.
+     * @nullable
+     */
+  documentDate?: string | null;
+  /** §72 Datum knjiženja — določa fiskalno obdobje. */
   entryDate: string;
+  /**
+     * §72 Davčni datum za DDV evidence.
+     * @nullable
+     */
+  taxDate?: string | null;
   description: string;
   /** @nullable */
   reference?: string | null;
   status: JournalEntryStatus;
+  /**
+     * §94 Kdaj je bila knjižba potrjena/knjižena.
+     * @nullable
+     */
+  postedAt?: string | null;
   /** @nullable */
   reversalOf?: string | null;
   /** Izvor knjižbe za revizijsko sled */
@@ -514,7 +530,18 @@ export const CreateJournalEntryBodySourceType = {
 
 export interface CreateJournalEntryBody {
   periodId: string;
+  /**
+     * §72 Datum listine (datum na dokumentu/računu)
+     * @nullable
+     */
+  documentDate?: string | null;
+  /** §72 Datum knjiženja v GK */
   entryDate: string;
+  /**
+     * §72 Davčni datum za DDV evidence (privzeto = documentDate)
+     * @nullable
+     */
+  taxDate?: string | null;
   /**
      * @minLength 1
      * @maxLength 500

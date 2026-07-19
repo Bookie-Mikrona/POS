@@ -37,12 +37,27 @@ export const journalEntriesTable = pgTable("journal_entries", {
   periodId: uuid("period_id")
     .notNull()
     .references(() => accountingPeriodsTable.id),
-  /** Datum knjiženja (YYYY-MM-DD) */
+  /**
+   * §72 — Datum listine (datum na dokumentu, npr. računu).
+   * Ločen od datuma knjiženja! Obvezno za pravilno periodizacijo po SRS.
+   */
+  documentDate: date("document_date", { mode: "string" }),
+  /**
+   * §72 — Datum knjiženja = datum, na katerega se knjižba upošteva v GK.
+   * Določa fiskalno obdobje skupaj s periodId.
+   */
   entryDate: date("entry_date", { mode: "string" }).notNull(),
+  /**
+   * §72 — Davčni datum za DDV evidence.
+   * Privzeto enak datumu listine, a lahko različen (npr. intrastat).
+   */
+  taxDate: date("tax_date", { mode: "string" }),
   description: text("description").notNull(),
   /** Zunanji sklic (npr. številka računa) */
   reference: text("reference"),
   status: journalEntryStatusEnum("status").notNull().default("draft"),
+  /** §94 — Kdaj je bila knjižba dejansko potrjena/knjižena */
+  postedAt: timestamp("posted_at", { withTimezone: true }),
   /** Kateri vnos ta vnos stornira (samo za storno temeljnice) */
   reversalOf: uuid("reversal_of"),
   /**

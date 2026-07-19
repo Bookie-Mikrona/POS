@@ -3283,9 +3283,18 @@ components:
         periodName:
           type: string
           description: Denormalized for display
+        documentDate:
+          type: ["string", "null"]
+          format: date
+          description: "§72 Datum listine (na dokumentu). Ločen od datuma knjiženja."
         entryDate:
           type: string
           format: date
+          description: "§72 Datum knjiženja — določa fiskalno obdobje."
+        taxDate:
+          type: ["string", "null"]
+          format: date
+          description: "§72 Davčni datum za DDV evidence."
         description:
           type: string
         reference:
@@ -3293,6 +3302,10 @@ components:
         status:
           type: string
           enum: [draft, posted, reversed]
+        postedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: "§94 Kdaj je bila knjižba potrjena/knjižena."
         reversalOf:
           type: ["string", "null"]
         sourceType:
@@ -3361,9 +3374,18 @@ components:
       properties:
         periodId:
           type: string
+        documentDate:
+          type: ["string", "null"]
+          format: date
+          description: "§72 Datum listine (datum na dokumentu/računu)"
         entryDate:
           type: string
           format: date
+          description: "§72 Datum knjiženja v GK"
+        taxDate:
+          type: ["string", "null"]
+          format: date
+          description: "§72 Davčni datum za DDV evidence (privzeto = documentDate)"
         description:
           type: string
           minLength: 1

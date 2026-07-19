@@ -19,6 +19,7 @@
     "@workspace/integrations-anthropic-ai": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
+    "decimal.js": "^10.6.0",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
     "google-auth-library": "^10.9.0",

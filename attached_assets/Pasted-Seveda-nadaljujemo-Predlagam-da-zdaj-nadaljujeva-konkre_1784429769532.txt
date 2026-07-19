@@ -1,0 +1,1466 @@
+Seveda, nadaljujemo. 👍
+
+Predlagam, da zdaj nadaljujeva konkretno in sistematično:
+
+Naslednji korak: arhitektura AI računovodskega sistema
+
+Za tvojo aplikacijo bi najprej določil temeljno računovodsko jedro, na katerem bodo pozneje zgrajeni AI, avtomatizacija in uporabniški vmesnik.
+
+1. Računovodsko jedro
+POSLOVNI DOGODEK
+       ↓
+KNJIGOVODSKA LISTINA
+       ↓
+KNJIŽBA
+       ↓
+DNEVNIK
+       ↓
+GLAVNA KNJIGA
+       ↓
+SALDAKONTI
+       ↓
+DDV
+       ↓
+POROČILA
+
+Osnovno pravilo:
+
+AI lahko predlaga, vendar računovodsko jedro odloča in zagotavlja pravilnost.
+
+2. Ključni moduli
+Šifranti
+kontni načrt,
+partnerji,
+davčne stopnje,
+DDV obravnave,
+poslovne enote,
+stroškovna mesta,
+projekti.
+Prejeti računi
+OCR,
+uvoz e-računa,
+AI prepoznava,
+predlog knjižbe,
+potrjevanje.
+Izdani računi
+izdajanje računov,
+DDV,
+e-računi,
+avtomatsko knjiženje.
+Banka
+uvoz bančnih izpiskov,
+avtomatsko ujemanje,
+AI predlog knjižbe,
+povezava s saldakonti.
+Glavna knjiga
+Saldakonti kupcev in dobaviteljev
+DDV
+Osnovna sredstva
+Plače oziroma integracija s plačnim modulom.
+Poročila
+AI računovodski pomočnik
+AI kontrolor
+3. Najpomembnejša odločitev
+
+Po mojem mnenju moramo zdaj najprej izdelati popoln podatkovni model.
+
+Predvsem:
+
+KONTO
+PARTNER
+DOKUMENT
+KNJIŽBA
+DNEVNIK
+SALDAKONTO
+DDV
+STROŠKOVNO_MESTO
+PROJEKT
+POSLOVNO_OBDOBJE
+
+Nato lahko določimo, kako bo izgledala baza PostgreSQL in kako bo sistem razvit v Replitu.
+
+Predlagam, da naslednji korak naredimo zelo konkretno: izdelava celotnega podatkovnega modela za slovensko dvostavno knjigovodstvo in saldakonte, vključno z analitičnim kontnim načrtom.
+
+Nadaljujemo z dejansko implementacijsko specifikacijo kontnega modula za Replit.
+
+61. Struktura projekta
+
+Predlagam monorepo:
+
+accounting-erp/
+│
+├── apps/
+│   ├── web/
+│   │   ├── src/
+│   │   │   ├── pages/
+│   │   │   ├── components/
+│   │   │   ├── features/
+│   │   │   │   └── chart-of-accounts/
+│   │   │   └── api/
+│   │
+│   └── api/
+│       └── src/
+│           ├── modules/
+│           │   ├── accounting/
+│           │   ├── chart-of-accounts/
+│           │   ├── subledger/
+│           │   ├── tax/
+│           │   └── reporting/
+│           └── server.ts
+│
+├── packages/
+│   ├── accounting-core/
+│   ├── accounting-rules/
+│   ├── database/
+│   ├── validation/
+│   └── shared/
+│
+├── drizzle/
+│   ├── schema/
+│   └── migrations/
+│
+└── tests/
+    ├── accounting/
+    ├── tax/
+    └── subledger/
+Ključno pravilo
+UI
+ ↓
+API
+ ↓
+APPLICATION SERVICE
+ ↓
+ACCOUNTING CORE
+ ↓
+DATABASE
+
+Nikoli:
+
+React UI
+   ↓
+neposredno v
+   ↓
+journal_lines
+62. Enums
+
+Za računovodski sistem je bolje uporabljati strogo definirane vrednosti.
+
+export const accountTypes = [
+  "ASSET",
+  "LIABILITY",
+  "EQUITY",
+  "REVENUE",
+  "EXPENSE",
+  "INVENTORY",
+  "TAX",
+  "CASH",
+  "BANK",
+  "CUSTOMER_RECEIVABLE",
+  "SUPPLIER_PAYABLE",
+  "FIXED_ASSET",
+  "ACCUMULATED_DEPRECIATION",
+  "CLEARING",
+  "OFF_BALANCE",
+  "TECHNICAL",
+] as const;
+
+Nivo konta:
+
+export const accountLevels = [
+  "CLASS",
+  "GROUP",
+  "SYNTHETIC",
+  "ANALYTIC",
+] as const;
+
+Normalno stanje:
+
+export const normalBalances = [
+  "DEBIT",
+  "CREDIT",
+] as const;
+63. Ključna validacija kontnega načrta
+
+Ko uporabnik ustvari konto, sistem ne sme dovoliti vsega.
+
+Primer
+Konto: 410000
+Nadrejeni konto: 4100
+
+Sistem preveri:
+
+✓ Koda je unikatna
+✓ Nadrejeni konto obstaja
+✓ Nadrejeni konto je v istem kontnem načrtu
+✓ Konto ni sam sebi nadrejeni
+✓ Konto ni v ciklični hierarhiji
+✓ Datum veljavnosti je pravilen
+✓ Konto ima veljaven tip
+64. Validacija hierarhije
+function validateAccountHierarchy(
+  accountCode: string,
+  parentCode: string | null
+) {
+  if (!parentCode) return true;
+
+  if (accountCode === parentCode) {
+    throw new Error("Konto ne more biti sam sebi nadrejeni konto.");
+  }
+
+  if (!accountCode.startsWith(parentCode)) {
+    throw new Error(
+      "Konto mora biti hierarhično povezan z nadrejenim kontom."
+    );
+  }
+
+  return true;
+}
+
+Vendar je pomembno:
+
+ne smemo predpostaviti, da mora biti vsak kontni načrt hierarhično zgrajen samo z začetnimi ciframi.
+
+Zato je še boljša rešitev eksplicitna povezava:
+
+parent_id
+
+Kode so samo identifikatorji.
+
+65. Računovodsko jedro
+
+To je najpomembnejši del celotnega sistema.
+
+AccountingEngine
+│
+├── validateEntry()
+├── validatePeriod()
+├── validateLines()
+├── validateAccounts()
+├── validateDimensions()
+├── validateTax()
+├── createEntry()
+├── postEntry()
+├── reverseEntry()
+└── closePeriod()
+Osnovni tok
+DRAFT
+  ↓
+VALIDATING
+  ↓
+VALID
+  ↓
+APPROVED
+  ↓
+POSTED
+
+Če je napaka:
+
+DRAFT
+  ↓
+REJECTED
+66. Knjižba nikoli ne sme biti neposredno ustvarjena
+
+Napačno:
+
+await db.insert(journalLines).values(data);
+
+Pravilno:
+
+await accountingEngine.post({
+  companyId,
+  documentId,
+  postingDate,
+  lines,
+});
+
+Engine nato:
+
+1. Preveri podjetje
+2. Preveri obdobje
+3. Preveri kontni načrt
+4. Preveri konte
+5. Preveri debet/kredit
+6. Preveri partnerje
+7. Preveri dimenzije
+8. Preveri DDV
+9. Ustvari knjižbo
+10. Ustvari saldakont
+11. Ustvari davčne evidence
+12. Zapiše revizijsko sled
+67. Najpomembnejša funkcija: validateJournalEntry
+type JournalLineInput = {
+  accountId: string;
+  debit: number;
+  credit: number;
+  partnerId?: string;
+  costCenterId?: string;
+  projectId?: string;
+  taxCodeId?: string;
+};
+
+type JournalEntryInput = {
+  companyId: string;
+  fiscalPeriodId: string;
+  postingDate: Date;
+  lines: JournalLineInput[];
+};
+
+Validacija:
+
+function validateJournalEntry(
+  entry: JournalEntryInput
+) {
+  if (entry.lines.length < 2) {
+    throw new Error(
+      "Knjižba mora imeti najmanj dve vrstici."
+    );
+  }
+
+  const totalDebit = entry.lines.reduce(
+    (sum, line) => sum + line.debit,
+    0
+  );
+
+  const totalCredit = entry.lines.reduce(
+    (sum, line) => sum + line.credit,
+    0
+  );
+
+  if (totalDebit !== totalCredit) {
+    throw new Error(
+      "Knjižba ni uravnotežena."
+    );
+  }
+}
+
+V produkciji pa ne smemo uporabljati navadnega number za denarne izračune.
+
+68. Denar mora uporabljati Decimal
+
+Napačno:
+
+0.1 + 0.2 !== 0.3
+
+Za računovodstvo:
+
+DECIMAL(19, 4)
+
+ali ustrezna natančnost glede na poslovne potrebe.
+
+V aplikaciji:
+
+import Decimal from "decimal.js";
+
+const debit = new Decimal("100.10");
+const credit = new Decimal("100.10");
+
+if (!debit.equals(credit)) {
+  throw new Error("Knjižba ni uravnotežena.");
+}
+
+To je nujno za:
+
+DDV;
+tečajne razlike;
+delna plačila;
+zaokroževanje;
+večvalutno poslovanje.
+69. Validacija konta
+KONTO
+  ↓
+ACTIVE?
+  ↓
+POSTABLE?
+  ↓
+VALID ON POSTING DATE?
+  ↓
+CORRECT CHART?
+  ↓
+ALLOW MANUAL POSTING?
+
+Primer:
+
+function validateAccount(account: Account) {
+  if (!account.isActive) {
+    throw new Error("Konto ni aktiven.");
+  }
+
+  if (!account.isPostable) {
+    throw new Error(
+      "Na nadrejeni konto ni dovoljeno knjižiti."
+    );
+  }
+}
+
+To prepreči knjiženje na:
+
+41
+
+če je 41 samo zbirni konto, knjižiti pa je dovoljeno na:
+
+410000
+410001
+410002
+70. Validacija obveznih analitik
+
+Primer:
+
+410000
+├── COST_CENTER_REQUIRED
+└── PROJECT_ALLOWED
+
+Knjižba:
+
+410000
+100 EUR
+brez stroškovnega mesta
+
+Rezultat:
+
+❌ KNJIŽBA ZAVRNJENA
+Razlog:
+Konto 410000 zahteva stroškovno mesto.
+
+To je boljše kot opozorilo, če je dimenzija računovodsko obvezna.
+
+71. Sistem napak
+
+Napake morajo biti strukturirane:
+
+{
+  "code": "ACCOUNT_DIMENSION_REQUIRED",
+  "account": "410000",
+  "dimension": "COST_CENTER",
+  "message": "Za konto 410000 je stroškovno mesto obvezno."
+}
+
+Možni tipi:
+
+ACCOUNT_NOT_FOUND
+ACCOUNT_INACTIVE
+ACCOUNT_NOT_POSTABLE
+PERIOD_CLOSED
+ENTRY_NOT_BALANCED
+PARTNER_REQUIRED
+COST_CENTER_REQUIRED
+PROJECT_REQUIRED
+TAX_CODE_REQUIRED
+INVALID_TAX_CODE
+DUPLICATE_DOCUMENT
+INVALID_CURRENCY
+
+To omogoča:
+
+Backend
+  ↓
+strukturirana napaka
+  ↓
+Frontend
+  ↓
+razumljivo sporočilo računovodji
+72. Periodizacija
+
+Vsaka knjižba mora imeti:
+
+document_date
+posting_date
+tax_date
+fiscal_period
+
+Primer:
+
+Datum računa:       28.12.2026
+Datum prejema:      03.01.2027
+Datum knjiženja:    03.01.2027
+Davčno obdobje:     12/2026 ali 01/2027
+
+To je razlog, zakaj ne smemo imeti samo enega date polja.
+
+73. Zaklepanje obdobja
+OPEN
+  ↓
+CONTROLLED
+  ↓
+CLOSED
+OPEN
+
+Dovoljeno:
+
+✓ knjiženje
+✓ popravljanje
+✓ storniranje
+CONTROLLED
+✓ knjiženje z dodatnimi pravicami
+✓ popravki z razlogom
+✗ običajno brisanje
+CLOSED
+✗ običajno knjiženje
+✗ brisanje
+✗ neposredna sprememba
+
+Popravek:
+
+CLOSED PERIOD
+      ↓
+CORRECTION ENTRY
+      ↓
+NEW OPEN PERIOD
+74. Storno ni brisanje
+
+Napačno:
+
+DELETE journal_entry
+
+Pravilno:
+
+ORIGINAL ENTRY
+      ↓
+REVERSAL ENTRY
+      ↓
+CORRECTED ENTRY
+
+Primer:
+
+Prvotno:
+D 410000    100
+K 220000    100
+
+Storno:
+D 220000    100
+K 410000    100
+
+Pravilno:
+D 420000    100
+K 220000    100
+
+Tako ostane popolna sled:
+
+ORIGINAL
+   ↓
+REVERSAL
+   ↓
+CORRECTION
+75. Revizijska sled
+
+Vsak pomemben dogodek:
+
+CREATE
+UPDATE
+APPROVE
+POST
+REVERSE
+CLOSE
+REOPEN
+IMPORT
+AI_SUGGEST
+AI_ACCEPT
+AI_REJECT
+
+Primer:
+
+{
+  "event": "AI_SUGGEST",
+  "entity": "journal_entry",
+  "entityId": "123",
+  "model": "accounting-classifier-v1",
+  "confidence": 0.94,
+  "suggestion": {
+    "account": "410000",
+    "taxCode": "INPUT_VAT_22"
+  }
+}
+
+Nato:
+
+AI PREDLOG
+    ↓
+RAČUNOVODJA PREGLEDA
+    ↓
+POTRDI
+    ↓
+KNJIŽBA
+76. AI mora biti ločen od knjižbenega jedra
+
+Arhitektura:
+
+DOCUMENT
+   ↓
+AI EXTRACTION
+   ↓
+AI SUGGESTION
+   ↓
+ACCOUNTING RULE ENGINE
+   ↓
+HUMAN APPROVAL
+   ↓
+POSTING ENGINE
+
+Nikoli:
+
+PDF
+ ↓
+LLM
+ ↓
+DIRECT POSTING
+
+To je preveč tvegano za računovodski sistem.
+
+77. AI predlog knjižbe
+{
+  "documentId": "doc-001",
+  "suggestions": [
+    {
+      "account": "410000",
+      "confidence": 0.96,
+      "reason": "Podobni računi istega dobavitelja."
+    },
+    {
+      "account": "220000",
+      "confidence": 0.99,
+      "reason": "Dobaviteljeva obveznost."
+    }
+  ]
+}
+
+Sistem nato izvede:
+
+AI PREDLOG
+    ↓
+KONTNI RULE ENGINE
+    ↓
+PREVERI
+    ↓
+ČLOVEK
+    ↓
+POTRDI
+    ↓
+KNJIŽBA
+78. API endpointi
+Kontni načrt
+GET    /api/chart-of-accounts
+POST   /api/chart-of-accounts
+PUT    /api/chart-of-accounts/:id
+Konti
+GET    /api/accounts
+GET    /api/accounts/:id
+POST   /api/accounts
+PUT    /api/accounts/:id
+PATCH  /api/accounts/:id/status
+Hierarhija
+GET /api/accounts/tree
+GET /api/accounts/:id/children
+GET /api/accounts/:id/ancestors
+Pravila
+GET  /api/accounts/:id/rules
+POST /api/accounts/:id/rules
+PUT  /api/account-rules/:id
+Validacija
+POST /api/accounting/validate-entry
+POST /api/accounting/post-entry
+POST /api/accounting/reverse-entry
+79. Uporabniški vmesnik
+
+Glavni zaslon:
+
+┌─────────────────────────────────────┐
+│ KONTNI NAČRT                         │
+├─────────────────────────────────────┤
+│ 🔍 Iskanje                           │
+│                                     │
+│ 0  Dolgoročna sredstva              │
+│ 1  Kratkoročna sredstva             │
+│ 2  Kratkoročne obveznosti           │
+│ 3  Zaloge                           │
+│ 4  Stroški                          │
+│ 5  Prosti razred                    │
+│ 6  Proizvodi in blago               │
+│ 7  Odhodki in prihodki              │
+│ 8  Kapital in poslovni izid         │
+│ 9  Zunajbilančna evidenca            │
+└─────────────────────────────────────┘
+
+Klik:
+
+4 Stroški
+   ↓
+41
+   ↓
+410
+   ↓
+410000
+
+Desni panel:
+
+KONTO 410000
+────────────────
+Osnovni material
+
+Vrsta: Strošek
+Narava: Debet
+Knjižljiv: DA
+
+Stroškovno mesto: OBVEZNO
+Projekt: OPCIJSKO
+Partner: OPCIJSKO
+DDV: DOVOLJEN
+80. Najpomembnejša odločitev za razvoj
+
+Ne začnemo z vnosom vseh kontov.
+
+Najprej zgradimo:
+
+1. DATABASE SCHEMA
+2. ACCOUNTING CORE
+3. ACCOUNT RULE ENGINE
+4. TESTS
+5. ADMIN UI
+6. SEED DATA
+7. IMPORT OF REFERENCE STRUCTURE
+
+Šele nato:
+
+AI
+OCR
+BANKING
+E-INVOICING
+Predlagan vrstni red razvoja
+FAZA 1
+Kontni modul + obdobja
+
+FAZA 2
+Dvostavno knjižbeno jedro
+
+FAZA 3
+Partnerji + saldakonti
+
+FAZA 4
+Dokumenti + računi
+
+FAZA 5
+DDV
+
+FAZA 6
+Banka
+
+FAZA 7
+Poročila
+
+FAZA 8
+AI
+
+FAZA 9
+Napredna avtomatizacija
+
+Naslednji logični korak je zdaj izdelava konkretnega Drizzle schema datotečnega paketa za prve tabele: account_frameworks, chart_of_accounts, accounts, account_rules, account_dimensions, fiscal_periods, journal_entries in journal_lines. To je že neposredno uporabna osnova za začetek projekta v Replitu.
+
+naprej
+
+Nadaljujemo z dejansko začetno implementacijo podatkovnega jedra. Zdaj preidemo iz arhitekture v konkretno tehnično specifikacijo, ki jo lahko kasneje neposredno uporabiš v Replitu.
+
+81. Prva faza: podatkovno jedro
+
+Začetni modul vsebuje:
+
+ACCOUNTING CORE
+│
+├── Companies
+├── Fiscal periods
+├── Account frameworks
+├── Charts of accounts
+├── Accounts
+├── Account rules
+├── Dimensions
+├── Journal entries
+└── Journal lines
+
+Relacijsko:
+
+COMPANY
+   │
+   ├── CHART_OF_ACCOUNTS
+   │       │
+   │       └── ACCOUNTS
+   │              ├── ACCOUNT_RULES
+   │              └── ACCOUNT_DIMENSIONS
+   │
+   ├── FISCAL_PERIODS
+   │
+   └── JOURNAL_ENTRIES
+           │
+           └── JOURNAL_LINES
+                   │
+                   └── ACCOUNTS
+82. Organizacijska struktura podjetij
+
+Ker bo sistem namenjen tudi računovodskim servisom, ne smemo zasnovati samo:
+
+USER → COMPANY
+
+Pravilneje:
+
+ORGANIZATION
+      ↓
+ACCOUNTING FIRM
+      ↓
+CLIENT COMPANIES
+      ↓
+USERS
+
+Primer:
+
+MIKRONA ACCOUNTING
+│
+├── Podjetje A
+├── Podjetje B
+├── Podjetje C
+└── Podjetje D
+
+Uporabnik:
+
+RAČUNOVODJA
+      ↓
+dostop do:
+├── Podjetje A
+├── Podjetje B
+└── Podjetje C
+
+Drugi uporabnik:
+
+DIREKTOR PODJETJA A
+      ↓
+dostop samo do:
+└── Podjetje A
+
+To je osnova za večpodjetniški SaaS ERP.
+
+83. organizations
+organizations
+────────────────────
+id
+name
+type
+tax_number
+country_code
+created_at
+updated_at
+
+Vrste:
+
+ACCOUNTING_FIRM
+COMPANY
+GROUP
+NONPROFIT
+84. organization_members
+organization_members
+────────────────────
+id
+organization_id
+user_id
+role
+created_at
+
+Vloge:
+
+OWNER
+ADMIN
+ACCOUNTANT
+BOOKKEEPER
+AUDITOR
+MANAGER
+VIEWER
+
+Toda uporabnik lahko potrebuje različne pravice v različnih podjetjih.
+
+Zato:
+
+ORGANIZATION
+      ↓
+MEMBERSHIP
+      ↓
+ROLE
+      ↓
+PERMISSIONS
+85. companies
+companies
+────────────────────────
+id
+organization_id
+legal_name
+short_name
+tax_number
+registration_number
+country_code
+currency_code
+fiscal_year_start
+status
+created_at
+updated_at
+
+Primer:
+
+Pravna oseba:       PODJETJE d.o.o.
+Davčna številka:    SI12345678
+Matična številka:   1234567000
+Država:             SI
+Valuta:             EUR
+
+Davčne številke in matične številke morajo biti unikatne znotraj ustrezne jurisdikcije.
+
+86. Kontni okvir
+account_frameworks
+────────────────────────
+id
+code
+name
+jurisdiction
+standard_reference
+version
+valid_from
+valid_to
+status
+
+Primer:
+
+SI-SRS
+Slovenija
+SRS 2024
+2024
+ACTIVE
+
+Toda pomembno:
+
+Referenčni kontni okvir ni isto kot kontni načrt podjetja.
+
+87. Kontni načrt
+chart_of_accounts
+────────────────────────
+id
+company_id
+framework_id
+code
+name
+description
+version
+is_default
+valid_from
+valid_to
+status
+
+Primer:
+
+Podjetje A
+    ↓
+Kontni načrt 2026
+    ↓
+SI-SRS-2024
+
+Računovodski servis lahko uporablja:
+
+ACCOUNTING FIRM MASTER CHART
+             ↓
+    ┌────────┼────────┐
+    ↓        ↓        ↓
+Podjetje A  Podjetje B  Podjetje C
+88. Konti
+accounts
+────────────────────────
+id
+chart_of_accounts_id
+parent_id
+code
+name
+description
+level
+account_type
+normal_balance
+statement_type
+is_header
+is_postable
+is_active
+valid_from
+valid_to
+created_at
+updated_at
+
+Primer:
+
+ID:                uuid
+Koda:              410000
+Naziv:             Osnovni material
+Nivo:              ANALYTIC
+Vrsta:             EXPENSE
+Normalno stanje:   DEBIT
+Knjižljiv:         DA
+89. Pomembna izboljšava: konto in zgodovina
+
+Konta ne smemo brisati.
+
+Napačno:
+
+DELETE ACCOUNT
+
+Pravilno:
+
+ACCOUNT
+   ↓
+INACTIVE
+   ↓
+NO NEW POSTINGS
+   ↓
+HISTORY PRESERVED
+
+Primer:
+
+410000
+Velja:
+01.01.2024 – 31.12.2026
+
+Status:
+INACTIVE
+
+Zgodovinske knjižbe še vedno kažejo na ta konto.
+
+To je bistveno za:
+
+revizijo;
+davčne kontrole;
+zgodovinska poročila;
+ponovno izdelavo starih bilanc.
+90. Pravila konta
+account_rules
+────────────────────────
+id
+account_id
+rule_type
+rule_value
+priority
+valid_from
+valid_to
+
+Primer:
+
+KONTO 120000
+
+PARTNER_REQUIRED       TRUE
+OPEN_ITEM_REQUIRED     TRUE
+DUE_DATE_REQUIRED      TRUE
+
+Konto 410000:
+
+COST_CENTER_REQUIRED   TRUE
+PROJECT_ALLOWED        TRUE
+PARTNER_ALLOWED        TRUE
+91. Dimenzijski sistem
+
+Dimenzije ne smejo biti trdo zakodirane.
+
+Potrebujemo:
+
+dimensions
+────────────────
+id
+company_id
+code
+name
+type
+is_active
+
+Primer:
+
+COST_CENTER
+PROJECT
+BUSINESS_UNIT
+ACTIVITY
+CONTRACT
+
+Vrednosti:
+
+dimension_values
+────────────────
+id
+dimension_id
+code
+name
+parent_id
+is_active
+
+Primer:
+
+STROŠKOVNO MESTO
+│
+├── 100 Uprava
+├── 200 Prodaja
+├── 300 Proizvodnja
+└── 400 Servis
+92. Povezava konta z dimenzijami
+account_dimensions
+────────────────────────
+id
+account_id
+dimension_id
+is_required
+is_allowed
+
+Primer:
+
+410000
+│
+├── COST_CENTER → REQUIRED
+├── PROJECT     → ALLOWED
+└── PARTNER     → ALLOWED
+
+Knjižba:
+
+410000
+100 EUR
+
+Rezultat:
+
+❌ ZAVRNJENO
+
+Manjka obvezna dimenzija:
+COST_CENTER
+93. Fiskalno obdobje
+fiscal_periods
+────────────────────────
+id
+company_id
+year
+period_number
+start_date
+end_date
+status
+closed_at
+closed_by
+
+Primer:
+
+2026 / 01
+01.01.2026 – 31.01.2026
+OPEN
+
+Statusi:
+
+OPEN
+CONTROLLED
+CLOSED
+LOCKED
+94. Knjižbeni dnevnik
+journal_entries
+────────────────────────
+id
+company_id
+fiscal_period_id
+entry_number
+document_date
+posting_date
+description
+source_type
+status
+created_by
+posted_by
+posted_at
+created_at
+
+Primer:
+
+Dnevnik:          2026-001
+Dokument:         RAČUN
+Datum:            15.01.2026
+Datum knjiženja:  15.01.2026
+Status:           POSTED
+95. Vrstice knjižbe
+journal_lines
+────────────────────────
+id
+journal_entry_id
+line_number
+account_id
+debit
+credit
+currency_code
+exchange_rate
+description
+
+Kasneje:
+
+partner_id
+cost_center_id
+project_id
+tax_code_id
+open_item_id
+
+Knjižba:
+
+D 410000      100
+D 260000       22
+K 220000      122
+
+Matematično:
+
+DEBET = 122
+KREDIT = 122
+96. Neizpodbitna računovodska invarianta
+
+Sistem mora zagotavljati:
+
+Σ DEBET = Σ KREDIT
+
+Toda v produkciji moramo preverjati tudi:
+
+Σ DEBET - Σ KREDIT = 0
+
+z ustrezno decimalno natančnostjo.
+
+Poleg tega:
+
+DEBET >= 0
+KREDIT >= 0
+
+in posamezna vrstica ne sme imeti hkrati:
+
+DEBET > 0
+IN
+KREDIT > 0
+
+Pravilno:
+
+D 100 / K 0
+
+ali:
+
+D 0 / K 100
+97. Knjižba mora biti transakcija
+
+To je zelo pomembno.
+
+Ko se knjižba potrdi:
+
+BEGIN TRANSACTION
+    ↓
+CREATE JOURNAL ENTRY
+    ↓
+CREATE JOURNAL LINES
+    ↓
+VALIDATE BALANCE
+    ↓
+CREATE SUBLEDGER
+    ↓
+CREATE TAX RECORDS
+    ↓
+CREATE AUDIT LOG
+COMMIT
+
+Če katerikoli korak odpove:
+
+ROLLBACK
+
+Nikoli ne sme nastati stanje:
+
+JOURNAL ENTRY CREATED
+BUT
+JOURNAL LINES MISSING
+98. Knjižbeni servis
+async function postJournalEntry(input) {
+  return db.transaction(async (tx) => {
+
+    await validateFiscalPeriod(input);
+
+    await validateAccounts(input.lines);
+
+    await validateDimensions(input.lines);
+
+    validateBalancedEntry(input.lines);
+
+    const entry =
+      await createJournalEntry(tx, input);
+
+    await createJournalLines(
+      tx,
+      entry.id,
+      input.lines
+    );
+
+    await createSubledgerItems(
+      tx,
+      entry.id
+    );
+
+    await createTaxRecords(
+      tx,
+      entry.id
+    );
+
+    await createAuditLog(
+      tx,
+      entry.id
+    );
+
+    return entry;
+  });
+}
+
+To je jedro celotnega računovodskega sistema.
+
+99. Statusni model knjižbe
+DRAFT
+  ↓
+VALIDATING
+  ↓
+VALID
+  ↓
+APPROVED
+  ↓
+POSTED
+
+Če pride do napake:
+
+DRAFT
+  ↓
+REJECTED
+
+Po knjiženju:
+
+POSTED
+  ↓
+REVERSED
+
+Nikoli:
+
+POSTED
+  ↓
+EDITED
+100. Revizijska sled
+
+Za vsako spremembo:
+
+audit_logs
+────────────────────────
+id
+company_id
+user_id
+entity_type
+entity_id
+action
+before_data
+after_data
+ip_address
+created_at
+
+Primer:
+
+UPORABNIK:       računovodja
+AKCIJA:          POST
+OBJEKT:          journal_entry
+ČAS:             19.07.2026 03:15
+
+Pri občutljivih računovodskih podatkih je pomembno, da se spremembe ne beležijo samo kot:
+
+"updated": true
+
+ampak:
+
+PREJ:
+konto = 410000
+znesek = 100
+
+POTEM:
+konto = 420000
+znesek = 100
+101. Prva testna matrika
+
+Preden nadaljujemo z AI, moramo preveriti računovodsko jedro.
+
+Test 1: uravnotežena knjižba
+D 410000   100
+K 220000   100
+
+Rezultat:
+
+✓ POSTED
+Test 2: neuravnotežena knjižba
+D 410000   100
+K 220000    90
+
+Rezultat:
+
+❌ ENTRY_NOT_BALANCED
+Test 3: zaprto obdobje
+Obdobje: CLOSED
+
+Rezultat:
+
+❌ PERIOD_CLOSED
+Test 4: manjkajoče stroškovno mesto
+Konto: 410000
+Stroškovno mesto: NULL
+
+Rezultat:
+
+❌ COST_CENTER_REQUIRED
+Test 5: knjiženje na zbirni konto
+Konto: 41
+is_postable: FALSE
+
+Rezultat:
+
+❌ ACCOUNT_NOT_POSTABLE
+102. Naslednji velik modul: partnerji
+
+Po končanem kontnem jedru je naslednji logični modul:
+
+PARTNER MASTER DATA
+
+Struktura:
+
+PARTNER
+│
+├── Legal entity
+├── Natural person
+├── Customer
+├── Supplier
+├── Employee
+├── Bank
+└── Other
+
+Podatki:
+
+partners
+├── id
+├── company_id
+├── name
+├── tax_number
+├── registration_number
+├── address
+├── country
+├── customer_status
+├── supplier_status
+└── active
+
+Nato:
+
+PARTNER
+    ↓
+CUSTOMER/SUPPLIER
+    ↓
+DOCUMENT
+    ↓
+OPEN ITEM
+    ↓
+SETTLEMENT
+Trenutna končna arhitektura
+┌────────────────────────────────────┐
+│           AI LAYER                 │
+├────────────────────────────────────┤
+│       ACCOUNTING RULE ENGINE       │
+├────────────────────────────────────┤
+│       POSTING ENGINE               │
+├────────────────────────────────────┤
+│       GENERAL LEDGER               │
+├──────────────┬─────────────────────┤
+│ SUBLEDGER    │ TAX ENGINE           │
+├──────────────┴─────────────────────┤
+│       ACCOUNTING MASTER DATA       │
+├────────────────────────────────────┤
+│       POSTGRESQL DATABASE          │
+└────────────────────────────────────┘
