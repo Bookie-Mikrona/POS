@@ -10,7 +10,7 @@
  */
 
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, desc, sql, asc } from "drizzle-orm";
+import { eq, and, desc, sql, asc, inArray } from "drizzle-orm";
 import {
   db,
   documentsTable,
@@ -289,9 +289,28 @@ router.post(
       return;
     }
 
-    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    const allowed = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowed.includes(mimeType)) {
       res.status(400).json({ error: `Nepodprt format. Dovoljeni: ${allowed.join(", ")}` });
+      return;
+    }
+
+    // Preveri dejno velikost datoteke iz GCS metapodatkov — ne zaupamo vrednosti odjemalca
+    const MAX_BYTES = parseInt(process.env.MAX_UPLOAD_BYTES ?? String(20 * 1024 * 1024), 10);
+    const actualSizeBytes = await storage.getObjectEntitySizeBytes(objectPath);
+    if (actualSizeBytes != null && actualSizeBytes > MAX_BYTES) {
+      res.status(400).json({ error: `Datoteka je prevelika (max ${Math.round(MAX_BYTES / 1024 / 1024)} MB)` });
+      return;
+    }
+
+    // Prepričamo se, da objectPath še ni vezan na drug dokument (preprečimo ponovna vezava)
+    const [existing] = await db
+      .select({ id: documentsTable.id })
+      .from(documentsTable)
+      .where(eq(documentsTable.objectPath, objectPath))
+      .limit(1);
+    if (existing) {
+      res.status(409).json({ error: "Dokument s to potjo že obstaja" });
       return;
     }
 
@@ -369,6 +388,7 @@ router.post(
       dueDate,
       lines = [],
       createInvoice = false,
+      arApAccountId,
     } = req.body as {
       documentType?: string;
       counterpartyId?: string;
@@ -378,6 +398,7 @@ router.post(
       dueDate?: string;
       lines?: ProposedLine[];
       createInvoice?: boolean;
+      arApAccountId?: string;
     };
 
     // Sestavi confirmedData iz OCR + popravkov računovodje
@@ -410,10 +431,47 @@ router.post(
         .limit(1);
       if (!period) { res.status(400).json({ error: "Obdobje ni najdeno" }); return; }
 
+      // Validacija kontov vrstic — vsi morajo pripadati istemu podjetju
+      const lineAccountIds = [...new Set((lines ?? []).filter(l => l.accountId).map((l) => l.accountId as string))];
+      if (lineAccountIds.length > 0) {
+        const validLineAccounts = await db
+          .select({ id: accountsTable.id })
+          .from(accountsTable)
+          .where(and(
+            inArray(accountsTable.id, lineAccountIds),
+            eq(accountsTable.companyId, companyId),
+          ));
+        if (validLineAccounts.length !== lineAccountIds.length) {
+          res.status(400).json({ error: "Eden ali več kontov vrstic ne pripada temu podjetju" });
+          return;
+        }
+      }
+
       const invType = documentType === "invoice_issued" ? "issued" : "received";
 
-      // Poišči privzete konte (z ustrezno prefiksom za vrsto računa)
+      // Poišči privzete AR/AP konto (120 za izdane, 220 za prejete) če ni podan
+      const arApPrefix = invType === "issued" ? "120" : "220";
       const revenuePrefix = invType === "issued" ? "760" : "400";
+
+      const [resolvedArApAccount] = arApAccountId
+        ? await db.select({ id: accountsTable.id })
+            .from(accountsTable)
+            .where(and(eq(accountsTable.id, arApAccountId), eq(accountsTable.companyId, companyId)))
+            .limit(1)
+        : await db.select({ id: accountsTable.id })
+            .from(accountsTable)
+            .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true),
+              sql`${accountsTable.code} LIKE ${arApPrefix + "%"}`,
+            ))
+            .orderBy(asc(accountsTable.code))
+            .limit(1);
+
+      if (!resolvedArApAccount) {
+        res.status(400).json({ error: `Privzeti AR/AP konto (${arApPrefix}*) ni najden — ročno izberite konto terjatev/obveznosti` });
+        return;
+      }
+
+      // Poišči privzet prihodkovni/stroškovni konto za vrstice
       const [defaultAccount] = await db.select({ id: accountsTable.id })
         .from(accountsTable)
         .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true),
@@ -432,6 +490,8 @@ router.post(
           invoiceDate: invoiceDate as string,
           dueDate: (dueDate ?? null) as string | null,
           status: "draft",
+          arApAccountId: resolvedArApAccount.id,
+          createdBy: authReq.clerkUserId,
           notes: `Ustvarjeno iz dokumenta: ${doc.fileName}`,
         } as any).returning({ id: invoicesTable.id });
 

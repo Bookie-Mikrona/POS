@@ -159,6 +159,22 @@ export class ObjectStorageService {
     return objectFile;
   }
 
+  /**
+   * Returns the actual byte size of an object entity as reported by GCS metadata.
+   * Use this for server-side size enforcement — do NOT rely on client-supplied sizes.
+   */
+  async getObjectEntitySizeBytes(objectPath: string): Promise<number | null> {
+    try {
+      const file = await this.getObjectEntityFile(objectPath);
+      const [metadata] = await file.getMetadata();
+      const raw = metadata?.size;
+      if (raw == null) return null;
+      return typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+    } catch {
+      return null;
+    }
+  }
+
   normalizeObjectEntityPath(rawPath: string): string {
     if (!rawPath.startsWith('https://storage.googleapis.com/')) {
       return rawPath;

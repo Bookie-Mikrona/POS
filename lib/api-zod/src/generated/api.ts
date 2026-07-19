@@ -1899,7 +1899,7 @@ export const GetDocumentResponse = zod.object({
 
 
 /**
- * @summary Confirm (or reject) OCR proposal and optionally create a draft invoice
+ * @summary Confirm OCR proposal and optionally create a draft invoice
  */
 export const ConfirmDocumentParams = zod.object({
   "companyId": zod.coerce.string(),
@@ -1924,6 +1924,7 @@ export const ConfirmDocumentBody = zod.object({
   "accountId": zod.string().nullish(),
   "confidence": zod.number()
 })).optional(),
+  "arApAccountId": zod.string().nullish().describe('Konto terjatev (izdani račun) ali obveznosti (prejet račun); če ni podan, se samodejno poišče privzeti konto (120\* ali 220\*)'),
   "createInvoice": zod.boolean().optional().describe('Ali naj se avtomatično ustvari draft račun')
 }).describe('Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa')
 

@@ -3667,7 +3667,7 @@ export const getConfirmDocumentUrl = (companyId: string,
 }
 
 /**
- * @summary Confirm (or reject) OCR proposal and optionally create a draft invoice
+ * @summary Confirm OCR proposal and optionally create a draft invoice
  */
 export const confirmDocument = async (companyId: string,
     id: string,
@@ -3718,7 +3718,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ConfirmDocumentMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Confirm (or reject) OCR proposal and optionally create a draft invoice
+ * @summary Confirm OCR proposal and optionally create a draft invoice
  */
 export const useConfirmDocument = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,{companyId: string;id: string;data: BodyType<ConfirmDocumentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}

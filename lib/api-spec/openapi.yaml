@@ -24,10 +24,10 @@ tags:
     description: Payments, open items & aged analysis (plačila, saldakonti)
   - name: vat
     description: VAT codes, VAT register & DDV-O return (DDV šifranti, knjiga IR/PR, obračun)
+  - name: storage
+    description: Object storage upload and serving endpoints
   - name: documents
     description: AI/OCR document processing — upload, extract, propose & confirm (AI obdelava dokumentov)
-  - name: Storage
-    description: Object storage upload and serving endpoints.
   - name: anthropic
     description: Anthropic AI chat operations
 paths:
@@ -2092,7 +2092,7 @@ paths:
     post:
       operationId: confirmDocument
       tags: [documents]
-      summary: Confirm (or reject) OCR proposal and optionally create a draft invoice
+      summary: Confirm OCR proposal and optionally create a draft invoice
       security:
         - bearerAuth: []
       parameters:
@@ -2114,13 +2114,13 @@ paths:
               $ref: "#/components/schemas/ConfirmDocumentBody"
       responses:
         "200":
-          description: Document confirmed
+          description: Document confirmed, invoice draft created (if requested)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentRecord"
         "400":
-          description: Validation error or document not in done status
+          description: Validation error or document not in reviewable status
           content:
             application/json:
               schema:
@@ -2190,7 +2190,7 @@ paths:
   # ── Object Storage ────────────────────────────────────────────────────────────
   /storage/uploads/request-url:
     post:
-      tags: [Storage]
+      tags: [storage]
       operationId: requestUploadUrl
       summary: Request a presigned URL for file upload
       security:
@@ -2222,9 +2222,11 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
   /storage/objects/{objectPath}:
     get:
-      tags: [Storage]
+      tags: [storage]
       operationId: getStorageObject
       summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      security:
+        - bearerAuth: []
       parameters:
         - name: objectPath
           in: path
@@ -2239,6 +2241,18 @@ paths:
               schema:
                 type: string
                 format: binary
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden — caller does not belong to the company that owns this object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Object not found.
           content:
@@ -3622,6 +3636,19 @@ components:
           items:
             $ref: "#/components/schemas/DocumentRecord"
       required: [documents]
+    CreateDocumentBody:
+      type: object
+      required: [objectPath, fileName, mimeType]
+      properties:
+        objectPath:
+          type: string
+          description: Path returned from requestUploadUrl
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSizeBytes:
+          type: integer
     ConfirmDocumentBody:
       type: object
       description: Potrdi predlog OCR in (po potrebi) popravi podatke pred ustvarjanjem računa
@@ -3645,6 +3672,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProposedLine"
+        arApAccountId:
+          type: ["string", "null"]
+          description: Konto terjatev (izdani račun) ali obveznosti (prejet račun); če ni podan, se samodejno poišče privzeti konto (120* ali 220*)
         createInvoice:
           type: boolean
           description: Ali naj se avtomatično ustvari draft račun

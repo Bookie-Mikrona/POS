@@ -1135,6 +1135,14 @@ export interface ListDocumentsResponse {
   documents: DocumentRecord[];
 }
 
+export interface CreateDocumentBody {
+  /** Path returned from requestUploadUrl */
+  objectPath: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes?: number;
+}
+
 export type ConfirmDocumentBodyDocumentType = typeof ConfirmDocumentBodyDocumentType[keyof typeof ConfirmDocumentBodyDocumentType];
 
 
@@ -1160,6 +1168,11 @@ export interface ConfirmDocumentBody {
   /** @nullable */
   dueDate?: string | null;
   lines?: ProposedLine[];
+  /**
+     * Konto terjatev (izdani račun) ali obveznosti (prejet račun); če ni podan, se samodejno poišče privzeti konto (120* ali 220*)
+     * @nullable
+     */
+  arApAccountId?: string | null;
   /** Ali naj se avtomatično ustvari draft račun */
   createInvoice?: boolean;
 }

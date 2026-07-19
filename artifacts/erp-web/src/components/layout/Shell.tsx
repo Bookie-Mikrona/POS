@@ -18,7 +18,8 @@ import {
   User as UserIcon,
   Menu,
   ShieldAlert,
-  Calendar
+  Calendar,
+  ScanLine,
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
@@ -58,7 +59,7 @@ const MODULES = [
   { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked },
   { name: "Partnerji", path: "/partnerji", icon: Users },
   { name: "Računi", path: "/racuni", icon: Receipt },
-  { name: "Dokumenti", path: "/dokumenti", icon: FileText },
+  { name: "AI Dokumenti", path: "/dokumenti", icon: ScanLine },
   { name: "Plačila", path: "/placila", icon: CreditCard },
   { name: "Saldakonti", path: "/saldakonti", icon: BarChart3 },
   { name: "DDV evidence", path: "/ddv", icon: Receipt },

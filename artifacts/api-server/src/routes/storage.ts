@@ -1,9 +1,12 @@
 import { Readable } from 'stream';
+import { eq, and } from 'drizzle-orm';
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from '@workspace/api-zod';
 import { Router, type IRouter, type Request, type Response } from 'express';
+import { db, documentsTable, accountingRolesTable } from '@workspace/db';
+import { requireAuth, type AuthenticatedRequest } from '../middlewares/requireAuth';
 
 import { ObjectPermission } from '../lib/objectAcl';
 import {
@@ -14,45 +17,41 @@ import {
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
-function hasAuthenticatedSession(
-  req: Request,
-): req is Request & { isAuthenticated: () => boolean } {
-  if (
-    !('isAuthenticated' in req) ||
-    typeof req.isAuthenticated !== 'function'
-  ) {
-    return false;
-  }
-
-  return req.isAuthenticated();
-}
-
 /**
  * POST /storage/uploads/request-url
  *
  * Request a presigned URL for file upload.
  * The client sends JSON metadata (name, size, contentType) — NOT the file.
  * Then uploads the file directly to the returned presigned URL.
- * Requires auth middleware so public callers cannot mint write-capable URLs.
+ * Requires Clerk auth so public callers cannot mint write-capable URLs.
  */
 router.post(
   '/storage/uploads/request-url',
+  requireAuth,
   async (req: Request, res: Response) => {
-    if (!hasAuthenticatedSession(req)) {
-      res.status(401).json({ error: 'Unauthorized' });
-
-      return;
-    }
-
     const parsed = RequestUploadUrlBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'Missing or invalid required fields' });
       return;
     }
 
-    try {
-      const { name, size, contentType } = parsed.data;
+    const { name, size, contentType } = parsed.data;
 
+    // Allowlist MIME types (server-side, before minting a write URL)
+    const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!ALLOWED_MIME.includes(contentType)) {
+      res.status(400).json({ error: 'Dovoljeni tipi: PDF, JPG, PNG, WEBP' });
+      return;
+    }
+
+    // Hard size limit before minting a write URL
+    const MAX_BYTES = parseInt(process.env.MAX_UPLOAD_BYTES ?? String(20 * 1024 * 1024), 10);
+    if (size > MAX_BYTES) {
+      res.status(400).json({ error: `Datoteka je prevelika (max ${Math.round(MAX_BYTES / 1024 / 1024)} MB)` });
+      return;
+    }
+
+    try {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       const objectPath =
         objectStorageService.normalizeObjectEntityPath(uploadURL);
@@ -113,33 +112,44 @@ router.get(
 /**
  * GET /storage/objects/*
  *
- * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
+ * Serve private object entities from PRIVATE_OBJECT_DIR.
+ * Requires authentication and company-level ownership check via the documents table.
  */
-router.get('/storage/objects/*path', async (req: Request, res: Response) => {
+router.get('/storage/objects/*path', requireAuth, async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const raw = req.params.path;
+  const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
+  const objectPath = `/objects/${wildcardPath}`;
+
+  // Lookup which company owns this object via the documents table
+  const [doc] = await db
+    .select({ companyId: documentsTable.companyId })
+    .from(documentsTable)
+    .where(eq(documentsTable.objectPath, objectPath))
+    .limit(1);
+
+  if (!doc) {
+    res.status(404).json({ error: 'Object not found' });
+    return;
+  }
+
+  // Verify caller has a role in the specific company that owns this object
+  const [role] = await db
+    .select({ role: accountingRolesTable.role })
+    .from(accountingRolesTable)
+    .where(and(
+      eq(accountingRolesTable.clerkUserId, authReq.clerkUserId),
+      eq(accountingRolesTable.companyId, doc.companyId),
+    ))
+    .limit(1);
+
+  if (!role) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
   try {
-    const raw = req.params.path;
-    const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
-    const objectPath = `/objects/${wildcardPath}`;
-    const objectFile =
-      await objectStorageService.getObjectEntityFile(objectPath);
-
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
-
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
     const response = await objectStorageService.downloadObject(objectFile);
 
     res.status(response.status);
