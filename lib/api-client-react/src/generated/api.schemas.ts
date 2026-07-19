@@ -1548,20 +1548,9 @@ export interface BalanceSheetSide {
   total: string;
 }
 
-export interface AccountTypeWarning {
-  accountId: string;
-  code: string;
-  name: string;
-  /** The type stored in the database */
-  storedType: string;
-  /** The SRS type derived from the account code digit (what was actually used for placement) */
-  effectiveType: string;
-}
-
 export interface BalanceSheetData {
   aktiva: BalanceSheetSide;
   pasiva: BalanceSheetSide;
-  typeWarnings: AccountTypeWarning[];
 }
 
 export interface BalanceSheetResponse {
@@ -1582,7 +1571,6 @@ export interface IncomeStatementData {
   revenue: PLSide;
   expenses: PLSide;
   netResult: string;
-  typeWarnings: AccountTypeWarning[];
 }
 
 export interface IncomeStatementResponse {
