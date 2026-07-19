@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Upload,
@@ -14,6 +14,7 @@ import {
   Check,
   SkipForward,
   TriangleAlert,
+  RotateCcw,
 } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
@@ -162,6 +163,44 @@ async function matchTransactions(
 
 type Step = "upload" | "review" | "confirm";
 
+// ─── Import config persistence ────────────────────────────────────────────────
+
+interface SavedImportConfig {
+  bankAccountId: string;
+  arAccountId: string;
+  apAccountId: string;
+}
+
+function importConfigKey(companyId: string) {
+  return `erp:import-config:${companyId}`;
+}
+
+function loadImportConfig(companyId: string): SavedImportConfig | null {
+  try {
+    const raw = localStorage.getItem(importConfigKey(companyId));
+    if (!raw) return null;
+    return JSON.parse(raw) as SavedImportConfig;
+  } catch {
+    return null;
+  }
+}
+
+function saveImportConfig(companyId: string, config: SavedImportConfig) {
+  try {
+    localStorage.setItem(importConfigKey(companyId), JSON.stringify(config));
+  } catch {
+    // localStorage might be unavailable — silently skip
+  }
+}
+
+function clearImportConfig(companyId: string) {
+  try {
+    localStorage.removeItem(importConfigKey(companyId));
+  } catch {
+    // ignore
+  }
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BancniIzpis() {
@@ -179,6 +218,21 @@ export default function BancniIzpis() {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Whether the current account fields were pre-filled from a saved config
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Load saved config when the active company changes
+  useEffect(() => {
+    if (!activeCompany) return;
+    const saved = loadImportConfig(activeCompany.id);
+    // Always assign all three fields unconditionally (default to "") to prevent
+    // stale values from a previous company remaining in state.
+    setBankAccountId(saved?.bankAccountId ?? "");
+    setArAccountId(saved?.arAccountId ?? "");
+    setApAccountId(saved?.apAccountId ?? "");
+    setConfigLoaded(!!saved);
+  }, [activeCompany?.id]);
 
   // Step 2 state
   const [suggestions, setSuggestions] = useState<TransactionWithSuggestions[]>([]);
@@ -207,6 +261,23 @@ export default function BancniIzpis() {
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
 
+  // After accounts are fetched, validate saved IDs against actual account lists.
+  // If a saved ID is no longer in the active accounts, clear it so the user
+  // cannot silently post to a deactivated or deleted account.
+  useEffect(() => {
+    if (!configLoaded) return;
+    if (bankAccountId && !bankAccounts.some(a => a.id === bankAccountId)) {
+      setBankAccountId("");
+    }
+    if (arAccountId && !arAccounts.some(a => a.id === arAccountId)) {
+      setArAccountId("");
+    }
+    if (apAccountId && !apAccounts.some(a => a.id === apAccountId)) {
+      setApAccountId("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankAccounts.length, arAccounts.length, apAccounts.length]);
+
   // ─── Step 1: Upload & Parse ────────────────────────────────────────────────
 
   const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -217,6 +288,9 @@ export default function BancniIzpis() {
 
   const handleParse = async () => {
     if (!file || !activeCompany || !periodId || !bankAccountId) return;
+    // Persist the current account configuration for next time
+    saveImportConfig(activeCompany.id, { bankAccountId, arAccountId, apAccountId });
+    setConfigLoaded(true);
     setParsing(true);
     setParseError(null);
     try {
@@ -347,9 +421,20 @@ export default function BancniIzpis() {
     setStep("upload");
     setFile(null);
     setPeriodId("");
-    setBankAccountId("");
-    setArAccountId("");
-    setApAccountId("");
+    // Re-hydrate account fields from saved config so that "Nov uvoz" in the
+    // same session still shows prefilled values (same behaviour as page reload).
+    if (activeCompany) {
+      const saved = loadImportConfig(activeCompany.id);
+      setBankAccountId(saved?.bankAccountId ?? "");
+      setArAccountId(saved?.arAccountId ?? "");
+      setApAccountId(saved?.apAccountId ?? "");
+      setConfigLoaded(!!saved);
+    } else {
+      setBankAccountId("");
+      setArAccountId("");
+      setApAccountId("");
+      setConfigLoaded(false);
+    }
     setSuggestions([]);
     setDecisions(new Map());
     setConfirmResult(null);
@@ -430,7 +515,33 @@ export default function BancniIzpis() {
 
           {/* Account & period config */}
           <div className="space-y-4 p-5 border rounded-lg bg-card">
-            <h3 className="font-semibold text-sm">Nastavitve knjiženja</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">Nastavitve knjiženja</h3>
+              {configLoaded && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                  title="Ponastavi nastavitve na privzete vrednosti"
+                  onClick={() => {
+                    if (!activeCompany) return;
+                    clearImportConfig(activeCompany.id);
+                    setBankAccountId("");
+                    setArAccountId("");
+                    setApAccountId("");
+                    setConfigLoaded(false);
+                  }}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Ponastavi nastavitve
+                </button>
+              )}
+            </div>
+            {configLoaded && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Info className="h-3 w-3 shrink-0" />
+                Predizpolnjeno iz prejšnjega uvoza.
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
