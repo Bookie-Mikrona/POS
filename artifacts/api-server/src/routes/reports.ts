@@ -56,11 +56,16 @@ interface AccountBalance {
   type: string;
   /** Signed balance in the account's natural direction (positive = normal side) */
   balance: number;
+  /** Raw debit sum — used to recompute balance when effective type overrides stored type */
+  debit: number;
+  /** Raw credit sum */
+  credit: number;
 }
 
 /**
  * Aggregate posted journal entry lines for a company within an optional date range.
- * Returns one entry per account with the net balance signed in the account's natural direction.
+ * Returns one entry per account with the net balance signed in the account's natural direction,
+ * plus raw debit/credit sums for reclassification support.
  */
 async function aggregateBalances(
   companyId: string,
@@ -119,12 +124,14 @@ async function aggregateBalances(
     map.set(row.accountId, existing);
   }
 
-  // Convert to signed balance in the account's natural direction
+  // Convert to signed balance in the account's natural direction; keep raw sums for reclassification.
   return Array.from(map.entries()).map(([accountId, acct]) => ({
     accountId,
     code: acct.code,
     name: acct.name,
     type: acct.type,
+    debit: acct.debit,
+    credit: acct.credit,
     balance: isDebitNormal(acct.type)
       ? acct.debit - acct.credit   // assets/expenses: positive = debit balance (normal)
       : acct.credit - acct.debit,  // liab/equity/revenue: positive = credit balance (normal)
@@ -221,55 +228,141 @@ function buildSections(accounts: AccountBalance[]): ReportSection[] {
   return Array.from(sectionMap.values()).sort((a, b) => a.class.localeCompare(b.class));
 }
 
+// ── SRS type classification ───────────────────────────────────────────────────
+
+/**
+ * SRS (Slovenian Accounting Standards) authoritative type per first code digit.
+ * When an account's stored `type` conflicts with this mapping the SRS code digit
+ * wins for report placement, so the account is never silently excluded.
+ */
+const SRS_EXPECTED_TYPES: Record<string, string> = {
+  "0": "asset",
+  "1": "asset",
+  "2": "asset",
+  "3": "liability",
+  "4": "expense",
+  "5": "expense",
+  "6": "expense",
+  "7": "revenue",
+  "8": "liability",
+  "9": "equity",
+};
+
+export interface AccountTypeWarning {
+  accountId: string;
+  code: string;
+  name: string;
+  /** The type stored in the database */
+  storedType: string;
+  /** The SRS type derived from the account code digit (what was actually used for placement) */
+  effectiveType: string;
+}
+
+/**
+ * Resolve the effective type used for report classification.
+ *
+ * The stored `type` is the primary source of truth.  When it conflicts with the
+ * SRS-standard type for the account's code digit we fall back to the SRS digit
+ * mapping so the account is always placed in the correct report section rather
+ * than being silently excluded.  The mismatch is surfaced as a warning so the
+ * accountant can fix the master data.
+ */
+function resolveEffectiveType(acct: AccountBalance): string {
+  const digit = acct.code.charAt(0);
+  const srsType = SRS_EXPECTED_TYPES[digit];
+  // If the SRS standard disagrees with the stored type, the code digit wins.
+  if (srsType && srsType !== acct.type) return srsType;
+  return acct.type;
+}
+
+/**
+ * Compute the signed balance using the EFFECTIVE type (not the stored type).
+ * Necessary when the stored type disagrees with the SRS classification because
+ * aggregateBalances signed the balance according to the stored type convention.
+ */
+function balanceForType(acct: AccountBalance, effectiveType: string): number {
+  return isDebitNormal(effectiveType)
+    ? acct.debit - acct.credit
+    : acct.credit - acct.debit;
+}
+
 // ── Balance sheet ─────────────────────────────────────────────────────────────
 
 function buildBalanceSheet(accounts: AccountBalance[]) {
-  const assets = accounts.filter((a) => a.type === "asset");
-  const liabEquity = accounts.filter(
-    (a) => a.type === "liability" || a.type === "equity",
+  // Resolve effective classification for every account; recompute balance sign
+  // so that SRS-overridden accounts display correctly in their new section.
+  const resolved = accounts.map((a) => {
+    const effectiveType = resolveEffectiveType(a);
+    return { ...a, effectiveType, balance: balanceForType(a, effectiveType) };
+  });
+
+  const assets   = resolved.filter((a) => a.effectiveType === "asset");
+  const liabEquity = resolved.filter(
+    (a) => a.effectiveType === "liability" || a.effectiveType === "equity",
   );
 
   const aktivaSections = buildSections(assets);
   const pasivaSections = buildSections(liabEquity);
 
-  const totalAktiva = aktivaSections.reduce(
-    (s, sec) => s + parseFloat(sec.subtotal),
-    0,
-  );
-  const totalPasiva = pasivaSections.reduce(
-    (s, sec) => s + parseFloat(sec.subtotal),
-    0,
-  );
+  const totalAktiva = aktivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
+  const totalPasiva = pasivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
+
+  // Warnings are limited to accounts that actually appear in THIS report (non-zero balance)
+  // and whose stored type was overridden by the SRS code-digit rule.
+  const inReport = [...assets, ...liabEquity].filter((a) => a.balance !== 0);
+  const typeWarnings: AccountTypeWarning[] = inReport
+    .filter((a) => a.effectiveType !== a.type)
+    .map((a) => ({
+      accountId: a.accountId,
+      code: a.code,
+      name: a.name,
+      storedType: a.type,
+      effectiveType: a.effectiveType,
+    }));
 
   return {
     aktiva: { sections: aktivaSections, total: totalAktiva.toFixed(2) },
     pasiva: { sections: pasivaSections, total: totalPasiva.toFixed(2) },
+    typeWarnings,
   };
 }
 
 // ── Income statement ──────────────────────────────────────────────────────────
 
 function buildIncomeStatement(accounts: AccountBalance[]) {
-  const revenues = accounts.filter((a) => a.type === "revenue");
-  const expenses = accounts.filter((a) => a.type === "expense");
+  // Same SRS-consistent classification as buildBalanceSheet.
+  const resolved = accounts.map((a) => {
+    const effectiveType = resolveEffectiveType(a);
+    return { ...a, effectiveType, balance: balanceForType(a, effectiveType) };
+  });
+
+  const revenues = resolved.filter((a) => a.effectiveType === "revenue");
+  const expenses = resolved.filter((a) => a.effectiveType === "expense");
 
   const revenueSections = buildSections(revenues);
   const expenseSections = buildSections(expenses);
 
-  const totalRevenue = revenueSections.reduce(
-    (s, sec) => s + parseFloat(sec.subtotal),
-    0,
-  );
-  const totalExpenses = expenseSections.reduce(
-    (s, sec) => s + parseFloat(sec.subtotal),
-    0,
-  );
+  const totalRevenue  = revenueSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
+  const totalExpenses = expenseSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
   const netResult = totalRevenue - totalExpenses;
 
+  // Warnings scoped to accounts that appear in THIS report.
+  const inReport = [...revenues, ...expenses].filter((a) => a.balance !== 0);
+  const typeWarnings: AccountTypeWarning[] = inReport
+    .filter((a) => a.effectiveType !== a.type)
+    .map((a) => ({
+      accountId: a.accountId,
+      code: a.code,
+      name: a.name,
+      storedType: a.type,
+      effectiveType: a.effectiveType,
+    }));
+
   return {
-    revenue: { sections: revenueSections, total: totalRevenue.toFixed(2) },
+    revenue:  { sections: revenueSections,  total: totalRevenue.toFixed(2) },
     expenses: { sections: expenseSections, total: totalExpenses.toFixed(2) },
     netResult: netResult.toFixed(2),
+    typeWarnings,
   };
 }
 

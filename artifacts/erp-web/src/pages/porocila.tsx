@@ -20,6 +20,7 @@ import {
   type BalanceSheetData,
   type IncomeStatementData,
   type TrialBalanceRow,
+  type AccountTypeWarning,
 } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -321,6 +322,61 @@ function TotalRow({
   );
 }
 
+// ── SRS type-mismatch warning block ──────────────────────────────────────────
+
+const ACCOUNT_TYPE_SL: Record<string, string> = {
+  asset: "sredstvo",
+  liability: "obveznost",
+  equity: "kapital",
+  revenue: "prihodek",
+  expense: "odhodek/strošek",
+};
+
+function TypeWarningsAlert({ warnings }: { warnings: AccountTypeWarning[] }) {
+  const [open, setOpen] = useState(false);
+  if (!warnings || warnings.length === 0) return null;
+  return (
+    <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 mt-4 print:hidden">
+      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+      <AlertTitle className="text-amber-800 dark:text-amber-300 flex items-center gap-2">
+        {warnings.length === 1
+          ? "1 konto z neskladjem SRS tipa"
+          : `${warnings.length} kontov z neskladjem SRS tipa`}
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="text-xs font-normal underline decoration-dotted cursor-pointer ml-1"
+        >
+          {open ? "Skrij podrobnosti" : "Pokaži podrobnosti"}
+        </button>
+      </AlertTitle>
+      <AlertDescription className="text-amber-700 dark:text-amber-400 text-xs mt-1">
+        Šifra konta nakazuje drugačen SRS razred kot shranjeni tip konta. Konto je
+        uvrščen v poročilo po SRS razredu šifre (efektivni tip), ne po shranjenem tipu.
+        Preverite nastavitve kontnega plana.
+        {open && (
+          <div className="mt-2 space-y-1">
+            {warnings.map((w) => (
+              <div
+                key={w.accountId}
+                className="flex items-center gap-2 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/30"
+              >
+                <span className="font-mono font-medium w-16 flex-shrink-0">{w.code}</span>
+                <span className="flex-1 truncate">{w.name}</span>
+                <span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
+                  shranjeni tip: <span className="font-medium">{ACCOUNT_TYPE_SL[w.storedType] ?? w.storedType}</span>
+                  {" → "}
+                  uvrščen kot:{" "}
+                  <span className="font-medium">{ACCOUNT_TYPE_SL[w.effectiveType] ?? w.effectiveType}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 // ── Balance Sheet tab ─────────────────────────────────────────────────────────
 
 function BalanceSheetTab() {
@@ -585,6 +641,9 @@ function BalanceSheetTab() {
               </div>
             );
           })()}
+
+          {/* SRS type mismatch warnings */}
+          <TypeWarningsAlert warnings={current.typeWarnings ?? []} />
         </div>
       )}
 
@@ -912,6 +971,9 @@ function IncomeStatementTab() {
               </div>
             );
           })()}
+
+          {/* SRS type mismatch warnings */}
+          <TypeWarningsAlert warnings={current.typeWarnings ?? []} />
         </div>
       )}
 
