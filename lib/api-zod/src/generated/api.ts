@@ -1042,6 +1042,243 @@ export const VoidInvoiceResponse = zod.object({
 
 
 /**
+ * @summary List VAT codes for a company
+ */
+export const ListVatCodesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListVatCodesQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListVatCodesResponse = zod.object({
+  "vatCodes": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "rate": zod.string().describe('DDV stopnja v % (npr. \"22.00\")'),
+  "behavior": zod.enum(['standard', 'exempt', 'zero_rated', 'reverse_charge']),
+  "accountOutputId": zod.string().nullish(),
+  "accountOutputCode": zod.string().nullish(),
+  "accountInputId": zod.string().nullish(),
+  "accountInputCode": zod.string().nullish(),
+  "validFrom": zod.coerce.date().nullish(),
+  "validTo": zod.coerce.date().nullish(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a VAT code
+ */
+export const CreateVatCodeParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createVatCodeBodyCodeMax = 20;
+
+export const createVatCodeBodyNameMax = 100;
+
+export const createVatCodeBodyRateMin = 0;
+export const createVatCodeBodyRateMax = 100;
+
+
+
+export const CreateVatCodeBody = zod.object({
+  "code": zod.string().max(createVatCodeBodyCodeMax),
+  "name": zod.string().max(createVatCodeBodyNameMax),
+  "rate": zod.number().min(createVatCodeBodyRateMin).max(createVatCodeBodyRateMax),
+  "behavior": zod.enum(['standard', 'exempt', 'zero_rated', 'reverse_charge']).optional(),
+  "accountOutputId": zod.string().nullish(),
+  "accountInputId": zod.string().nullish(),
+  "validFrom": zod.coerce.date().nullish(),
+  "validTo": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const CreateVatCodeResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "rate": zod.string().describe('DDV stopnja v % (npr. \"22.00\")'),
+  "behavior": zod.enum(['standard', 'exempt', 'zero_rated', 'reverse_charge']),
+  "accountOutputId": zod.string().nullish(),
+  "accountOutputCode": zod.string().nullish(),
+  "accountInputId": zod.string().nullish(),
+  "accountInputCode": zod.string().nullish(),
+  "validFrom": zod.coerce.date().nullish(),
+  "validTo": zod.coerce.date().nullish(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Seed standard Slovenian VAT codes (22%, 9.5%, 0%, reverse charge)
+ */
+export const SeedVatCodesParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const SeedVatCodesResponse = zod.object({
+  "seeded": zod.number(),
+  "codes": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "rate": zod.string().describe('DDV stopnja v % (npr. \"22.00\")'),
+  "behavior": zod.enum(['standard', 'exempt', 'zero_rated', 'reverse_charge']),
+  "accountOutputId": zod.string().nullish(),
+  "accountOutputCode": zod.string().nullish(),
+  "accountInputId": zod.string().nullish(),
+  "accountInputCode": zod.string().nullish(),
+  "validFrom": zod.coerce.date().nullish(),
+  "validTo": zod.coerce.date().nullish(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Update a VAT code
+ */
+export const UpdateVatCodeParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updateVatCodeBodyNameMax = 100;
+
+export const updateVatCodeBodyRateMin = 0;
+export const updateVatCodeBodyRateMax = 100;
+
+
+
+export const UpdateVatCodeBody = zod.object({
+  "name": zod.string().max(updateVatCodeBodyNameMax).optional(),
+  "rate": zod.number().min(updateVatCodeBodyRateMin).max(updateVatCodeBodyRateMax).optional(),
+  "behavior": zod.enum(['standard', 'exempt', 'zero_rated', 'reverse_charge']).optional(),
+  "accountOutputId": zod.string().nullish(),
+  "accountInputId": zod.string().nullish(),
+  "validFrom": zod.coerce.date().nullish(),
+  "validTo": zod.coerce.date().nullish(),
+  "isActive": zod.boolean().optional(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateVatCodeResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "rate": zod.string().describe('DDV stopnja v % (npr. \"22.00\")'),
+  "behavior": zod.enum(['standard', 'exempt', 'zero_rated', 'reverse_charge']),
+  "accountOutputId": zod.string().nullish(),
+  "accountOutputCode": zod.string().nullish(),
+  "accountInputId": zod.string().nullish(),
+  "accountInputCode": zod.string().nullish(),
+  "validFrom": zod.coerce.date().nullish(),
+  "validTo": zod.coerce.date().nullish(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary VAT register (knjiga izdanih/prejetih računov) for a period
+ */
+export const GetVatRegisterParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetVatRegisterQueryParams = zod.object({
+  "periodId": zod.coerce.string(),
+  "type": zod.enum(['issued', 'received']).optional().describe('issued = knjiga IR, received = knjiga PR; omit for both'),
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const GetVatRegisterResponse = zod.object({
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "dateFrom": zod.coerce.date().nullish(),
+  "dateTo": zod.coerce.date().nullish(),
+  "entries": zod.array(zod.object({
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "invoiceType": zod.enum(['issued', 'received']),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "counterpartyTaxId": zod.string().nullish(),
+  "vatCodeId": zod.string().nullish(),
+  "vatCode": zod.string().nullish(),
+  "vatRate": zod.string().describe('Stopnja DDV v %'),
+  "vatBase": zod.string().describe('Davčna osnova'),
+  "vatAmount": zod.string().describe('Znesek DDV'),
+  "grossAmount": zod.string().describe('Bruto (osnova + DDV)')
+})),
+  "totalVatBase": zod.string(),
+  "totalVatAmount": zod.string(),
+  "totalGross": zod.string()
+})
+
+
+/**
+ * @summary DDV-O return summary — taxable base and VAT per code, input vs output
+ */
+export const GetVatReturnParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetVatReturnQueryParams = zod.object({
+  "periodId": zod.coerce.string()
+})
+
+export const GetVatReturnResponse = zod.object({
+  "periodId": zod.string(),
+  "periodName": zod.string(),
+  "rows": zod.array(zod.object({
+  "vatCodeId": zod.string().nullish(),
+  "vatCode": zod.string().nullish(),
+  "vatCodeName": zod.string().nullish(),
+  "vatRate": zod.string(),
+  "outputBase": zod.string().describe('Izstopni DDV — davčna osnova (izdani računi)'),
+  "outputVat": zod.string().describe('Izstopni DDV — znesek'),
+  "inputBase": zod.string().describe('Vstopni DDV — davčna osnova (prejeti računi)'),
+  "inputVat": zod.string().describe('Vstopni DDV — znesek'),
+  "netVat": zod.string().describe('Neto DDV obveznost (outputVat - inputVat)')
+})),
+  "totals": zod.object({
+  "vatCodeId": zod.string().nullish(),
+  "vatCode": zod.string().nullish(),
+  "vatCodeName": zod.string().nullish(),
+  "vatRate": zod.string(),
+  "outputBase": zod.string().describe('Izstopni DDV — davčna osnova (izdani računi)'),
+  "outputVat": zod.string().describe('Izstopni DDV — znesek'),
+  "inputBase": zod.string().describe('Vstopni DDV — davčna osnova (prejeti računi)'),
+  "inputVat": zod.string().describe('Vstopni DDV — znesek'),
+  "netVat": zod.string().describe('Neto DDV obveznost (outputVat - inputVat)')
+})
+})
+
+
+/**
  * @summary List payments
  */
 export const ListPaymentsParams = zod.object({

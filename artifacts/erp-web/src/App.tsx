@@ -19,6 +19,7 @@ import Racuni from "@/pages/racuni";
 import Placeholder from "@/pages/placeholder";
 import Placila from "@/pages/placila";
 import Saldakonti from "@/pages/saldakonti";
+import Ddv from "@/pages/ddv";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -217,12 +218,7 @@ function ClerkProviderWithRoutes() {
           <ProtectedRoute path="/placila" component={Placila} />
           <ProtectedRoute path="/saldakonti" component={Saldakonti} />
           
-          <ProtectedRoute path="/ddv" component={() => (
-            <Placeholder 
-              title="DDV evidence" 
-              description="Knjige izdanih in prejetih računov, DDV-O obrazec in rekapitulacije." 
-            />
-          )} />
+          <ProtectedRoute path="/ddv" component={Ddv} />
           
           <ProtectedRoute path="/porocila" component={() => (
             <Placeholder 

@@ -822,6 +822,188 @@ export interface AgedAnalysisResponse {
   totals: AgedBucket;
 }
 
+export type VatCodeRecordBehavior = typeof VatCodeRecordBehavior[keyof typeof VatCodeRecordBehavior];
+
+
+export const VatCodeRecordBehavior = {
+  standard: 'standard',
+  exempt: 'exempt',
+  zero_rated: 'zero_rated',
+  reverse_charge: 'reverse_charge',
+} as const;
+
+export interface VatCodeRecord {
+  id: string;
+  companyId: string;
+  code: string;
+  name: string;
+  /** DDV stopnja v % (npr. "22.00") */
+  rate: string;
+  behavior: VatCodeRecordBehavior;
+  /** @nullable */
+  accountOutputId?: string | null;
+  /** @nullable */
+  accountOutputCode?: string | null;
+  /** @nullable */
+  accountInputId?: string | null;
+  /** @nullable */
+  accountInputCode?: string | null;
+  /** @nullable */
+  validFrom?: string | null;
+  /** @nullable */
+  validTo?: string | null;
+  isActive: boolean;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListVatCodesResponse {
+  vatCodes: VatCodeRecord[];
+}
+
+export type CreateVatCodeBodyBehavior = typeof CreateVatCodeBodyBehavior[keyof typeof CreateVatCodeBodyBehavior];
+
+
+export const CreateVatCodeBodyBehavior = {
+  standard: 'standard',
+  exempt: 'exempt',
+  zero_rated: 'zero_rated',
+  reverse_charge: 'reverse_charge',
+} as const;
+
+export interface CreateVatCodeBody {
+  /** @maxLength 20 */
+  code: string;
+  /** @maxLength 100 */
+  name: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  rate: number;
+  behavior?: CreateVatCodeBodyBehavior;
+  /** @nullable */
+  accountOutputId?: string | null;
+  /** @nullable */
+  accountInputId?: string | null;
+  /** @nullable */
+  validFrom?: string | null;
+  /** @nullable */
+  validTo?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type UpdateVatCodeBodyBehavior = typeof UpdateVatCodeBodyBehavior[keyof typeof UpdateVatCodeBodyBehavior];
+
+
+export const UpdateVatCodeBodyBehavior = {
+  standard: 'standard',
+  exempt: 'exempt',
+  zero_rated: 'zero_rated',
+  reverse_charge: 'reverse_charge',
+} as const;
+
+export interface UpdateVatCodeBody {
+  /** @maxLength 100 */
+  name?: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  rate?: number;
+  behavior?: UpdateVatCodeBodyBehavior;
+  /** @nullable */
+  accountOutputId?: string | null;
+  /** @nullable */
+  accountInputId?: string | null;
+  /** @nullable */
+  validFrom?: string | null;
+  /** @nullable */
+  validTo?: string | null;
+  isActive?: boolean;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface SeedVatCodesResponse {
+  seeded: number;
+  codes: VatCodeRecord[];
+}
+
+export type VatRegisterLineInvoiceType = typeof VatRegisterLineInvoiceType[keyof typeof VatRegisterLineInvoiceType];
+
+
+export const VatRegisterLineInvoiceType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export interface VatRegisterLine {
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  invoiceType: VatRegisterLineInvoiceType;
+  counterpartyId: string;
+  counterpartyName: string;
+  /** @nullable */
+  counterpartyTaxId?: string | null;
+  /** @nullable */
+  vatCodeId?: string | null;
+  /** @nullable */
+  vatCode?: string | null;
+  /** Stopnja DDV v % */
+  vatRate: string;
+  /** Davčna osnova */
+  vatBase: string;
+  /** Znesek DDV */
+  vatAmount: string;
+  /** Bruto (osnova + DDV) */
+  grossAmount: string;
+}
+
+export interface VatRegisterResponse {
+  periodId: string;
+  periodName: string;
+  /** @nullable */
+  dateFrom?: string | null;
+  /** @nullable */
+  dateTo?: string | null;
+  entries: VatRegisterLine[];
+  totalVatBase: string;
+  totalVatAmount: string;
+  totalGross: string;
+}
+
+export interface VatReturnRow {
+  /** @nullable */
+  vatCodeId?: string | null;
+  /** @nullable */
+  vatCode?: string | null;
+  /** @nullable */
+  vatCodeName?: string | null;
+  vatRate: string;
+  /** Izstopni DDV — davčna osnova (izdani računi) */
+  outputBase: string;
+  /** Izstopni DDV — znesek */
+  outputVat: string;
+  /** Vstopni DDV — davčna osnova (prejeti računi) */
+  inputBase: string;
+  /** Vstopni DDV — znesek */
+  inputVat: string;
+  /** Neto DDV obveznost (outputVat - inputVat) */
+  netVat: string;
+}
+
+export interface VatReturnResponse {
+  periodId: string;
+  periodName: string;
+  rows: VatReturnRow[];
+  totals: VatReturnRow;
+}
+
 export type ListAccountsParams = {
 includeInactive?: boolean;
 };
@@ -883,6 +1065,32 @@ export const ListInvoicesStatus = {
   paid: 'paid',
   void: 'void',
 } as const;
+
+export type ListVatCodesParams = {
+includeInactive?: boolean;
+};
+
+export type GetVatRegisterParams = {
+periodId: string;
+/**
+ * issued = knjiga IR, received = knjiga PR; omit for both
+ */
+type?: GetVatRegisterType;
+dateFrom?: string;
+dateTo?: string;
+};
+
+export type GetVatRegisterType = typeof GetVatRegisterType[keyof typeof GetVatRegisterType];
+
+
+export const GetVatRegisterType = {
+  issued: 'issued',
+  received: 'received',
+} as const;
+
+export type GetVatReturnParams = {
+periodId: string;
+};
 
 export type ListPaymentsParams = {
 direction?: ListPaymentsDirection;

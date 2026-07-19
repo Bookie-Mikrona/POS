@@ -32,10 +32,13 @@ import type {
   CreateJournalEntryBody,
   CreatePaymentBody,
   CreatePeriodBody,
+  CreateVatCodeBody,
   ErrorResponse,
   GetAgedAnalysisParams,
   GetLedgerParams,
   GetOpenItemsParams,
+  GetVatRegisterParams,
+  GetVatReturnParams,
   HealthStatus,
   InvoiceWithLines,
   JournalEntryWithLines,
@@ -52,17 +55,24 @@ import type {
   ListPaymentsParams,
   ListPaymentsResponse,
   ListPeriodsResponse,
+  ListVatCodesParams,
+  ListVatCodesResponse,
   OpenItemsResponse,
   PaymentWithAllocations,
   PeriodRecord,
   ReverseJournalEntryBody,
   RoleAssignment,
   SeedAccountsResponse,
+  SeedVatCodesResponse,
   UpdateAccountBody,
   UpdateCounterpartyBody,
   UpdateInvoiceBody,
   UpdatePeriodBody,
+  UpdateVatCodeBody,
   UserProfile,
+  VatCodeRecord,
+  VatRegisterResponse,
+  VatReturnResponse,
   VoidInvoiceBody,
   VoidPaymentBody
 } from './api.schemas';
@@ -2246,6 +2256,490 @@ export const useVoidInvoice = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getVoidInvoiceMutationOptions(options));
     }
+
+export const getListVatCodesUrl = (companyId: string,
+    params?: ListVatCodesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/vat-codes?${stringifiedParams}` : `/api/companies/${companyId}/vat-codes`
+}
+
+/**
+ * @summary List VAT codes for a company
+ */
+export const listVatCodes = async (companyId: string,
+    params?: ListVatCodesParams, options?: RequestInit): Promise<ListVatCodesResponse> => {
+
+  return customFetch<ListVatCodesResponse>(getListVatCodesUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVatCodesQueryKey = (companyId: string,
+    params?: ListVatCodesParams,) => {
+    return [
+    `/api/companies/${companyId}/vat-codes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListVatCodesQueryOptions = <TData = Awaited<ReturnType<typeof listVatCodes>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params?: ListVatCodesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVatCodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVatCodesQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVatCodes>>> = ({ signal }) => listVatCodes(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVatCodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVatCodesQueryResult = NonNullable<Awaited<ReturnType<typeof listVatCodes>>>
+export type ListVatCodesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List VAT codes for a company
+ */
+
+export function useListVatCodes<TData = Awaited<ReturnType<typeof listVatCodes>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params?: ListVatCodesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVatCodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVatCodesQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateVatCodeUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/vat-codes`
+}
+
+/**
+ * @summary Create a VAT code
+ */
+export const createVatCode = async (companyId: string,
+    createVatCodeBody: CreateVatCodeBody, options?: RequestInit): Promise<VatCodeRecord> => {
+
+  return customFetch<VatCodeRecord>(getCreateVatCodeUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createVatCodeBody)
+  }
+);}
+
+
+
+
+
+export const getCreateVatCodeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVatCode>>, TError,{companyId: string;data: BodyType<CreateVatCodeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createVatCode>>, TError,{companyId: string;data: BodyType<CreateVatCodeBody>}, TContext> => {
+
+const mutationKey = ['createVatCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVatCode>>, {companyId: string;data: BodyType<CreateVatCodeBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createVatCode(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateVatCodeMutationResult = NonNullable<Awaited<ReturnType<typeof createVatCode>>>
+    export type CreateVatCodeMutationBody = BodyType<CreateVatCodeBody>
+    export type CreateVatCodeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a VAT code
+ */
+export const useCreateVatCode = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVatCode>>, TError,{companyId: string;data: BodyType<CreateVatCodeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createVatCode>>,
+        TError,
+        {companyId: string;data: BodyType<CreateVatCodeBody>},
+        TContext
+      > => {
+      return useMutation(getCreateVatCodeMutationOptions(options));
+    }
+
+export const getSeedVatCodesUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/vat-codes/seed`
+}
+
+/**
+ * @summary Seed standard Slovenian VAT codes (22%, 9.5%, 0%, reverse charge)
+ */
+export const seedVatCodes = async (companyId: string, options?: RequestInit): Promise<SeedVatCodesResponse> => {
+
+  return customFetch<SeedVatCodesResponse>(getSeedVatCodesUrl(companyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSeedVatCodesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedVatCodes>>, TError,{companyId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof seedVatCodes>>, TError,{companyId: string}, TContext> => {
+
+const mutationKey = ['seedVatCodes'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof seedVatCodes>>, {companyId: string}> = (props) => {
+          const {companyId} = props ?? {};
+
+          return  seedVatCodes(companyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SeedVatCodesMutationResult = NonNullable<Awaited<ReturnType<typeof seedVatCodes>>>
+
+    export type SeedVatCodesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Seed standard Slovenian VAT codes (22%, 9.5%, 0%, reverse charge)
+ */
+export const useSeedVatCodes = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedVatCodes>>, TError,{companyId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof seedVatCodes>>,
+        TError,
+        {companyId: string},
+        TContext
+      > => {
+      return useMutation(getSeedVatCodesMutationOptions(options));
+    }
+
+export const getUpdateVatCodeUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/vat-codes/${id}`
+}
+
+/**
+ * @summary Update a VAT code
+ */
+export const updateVatCode = async (companyId: string,
+    id: string,
+    updateVatCodeBody: UpdateVatCodeBody, options?: RequestInit): Promise<VatCodeRecord> => {
+
+  return customFetch<VatCodeRecord>(getUpdateVatCodeUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateVatCodeBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateVatCodeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVatCode>>, TError,{companyId: string;id: string;data: BodyType<UpdateVatCodeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVatCode>>, TError,{companyId: string;id: string;data: BodyType<UpdateVatCodeBody>}, TContext> => {
+
+const mutationKey = ['updateVatCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVatCode>>, {companyId: string;id: string;data: BodyType<UpdateVatCodeBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateVatCode(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVatCodeMutationResult = NonNullable<Awaited<ReturnType<typeof updateVatCode>>>
+    export type UpdateVatCodeMutationBody = BodyType<UpdateVatCodeBody>
+    export type UpdateVatCodeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a VAT code
+ */
+export const useUpdateVatCode = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVatCode>>, TError,{companyId: string;id: string;data: BodyType<UpdateVatCodeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVatCode>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateVatCodeBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateVatCodeMutationOptions(options));
+    }
+
+export const getGetVatRegisterUrl = (companyId: string,
+    params: GetVatRegisterParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/vat-register?${stringifiedParams}` : `/api/companies/${companyId}/vat-register`
+}
+
+/**
+ * @summary VAT register (knjiga izdanih/prejetih računov) for a period
+ */
+export const getVatRegister = async (companyId: string,
+    params: GetVatRegisterParams, options?: RequestInit): Promise<VatRegisterResponse> => {
+
+  return customFetch<VatRegisterResponse>(getGetVatRegisterUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVatRegisterQueryKey = (companyId: string,
+    params?: GetVatRegisterParams,) => {
+    return [
+    `/api/companies/${companyId}/vat-register`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetVatRegisterQueryOptions = <TData = Awaited<ReturnType<typeof getVatRegister>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params: GetVatRegisterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVatRegisterQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVatRegister>>> = ({ signal }) => getVatRegister(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVatRegister>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVatRegisterQueryResult = NonNullable<Awaited<ReturnType<typeof getVatRegister>>>
+export type GetVatRegisterQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary VAT register (knjiga izdanih/prejetih računov) for a period
+ */
+
+export function useGetVatRegister<TData = Awaited<ReturnType<typeof getVatRegister>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params: GetVatRegisterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVatRegisterQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetVatReturnUrl = (companyId: string,
+    params: GetVatReturnParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/vat-return?${stringifiedParams}` : `/api/companies/${companyId}/vat-return`
+}
+
+/**
+ * @summary DDV-O return summary — taxable base and VAT per code, input vs output
+ */
+export const getVatReturn = async (companyId: string,
+    params: GetVatReturnParams, options?: RequestInit): Promise<VatReturnResponse> => {
+
+  return customFetch<VatReturnResponse>(getGetVatReturnUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVatReturnQueryKey = (companyId: string,
+    params?: GetVatReturnParams,) => {
+    return [
+    `/api/companies/${companyId}/vat-return`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetVatReturnQueryOptions = <TData = Awaited<ReturnType<typeof getVatReturn>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    params: GetVatReturnParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatReturn>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVatReturnQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVatReturn>>> = ({ signal }) => getVatReturn(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVatReturn>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVatReturnQueryResult = NonNullable<Awaited<ReturnType<typeof getVatReturn>>>
+export type GetVatReturnQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary DDV-O return summary — taxable base and VAT per code, input vs output
+ */
+
+export function useGetVatReturn<TData = Awaited<ReturnType<typeof getVatReturn>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    params: GetVatReturnParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatReturn>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVatReturnQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListPaymentsUrl = (companyId: string,
     params?: ListPaymentsParams,) => {

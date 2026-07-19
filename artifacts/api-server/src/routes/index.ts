@@ -9,6 +9,8 @@ import ledgerRouter from "./ledger";
 import counterpartiesRouter from "./counterparties";
 import invoicesRouter from "./invoices";
 import paymentsRouter from "./payments";
+import vatCodesRouter from "./vatCodes";
+import vatRegisterRouter from "./vatRegister";
 
 const router: IRouter = Router();
 
@@ -22,5 +24,7 @@ router.use(ledgerRouter);
 router.use(counterpartiesRouter);
 router.use(invoicesRouter);
 router.use(paymentsRouter);
+router.use(vatCodesRouter);
+router.use(vatRegisterRouter);
 
 export default router;

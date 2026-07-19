@@ -13,6 +13,7 @@ import { counterpartiesTable } from "./counterparties";
 import { accountingPeriodsTable } from "./accounting-periods";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
+import { vatCodesTable } from "./vat-codes";
 
 export const invoiceTypeEnum = pgEnum("invoice_type", ["issued", "received"]);
 
@@ -83,8 +84,14 @@ export const invoiceLinesTable = pgTable("invoice_lines", {
   quantity: numeric("quantity", { precision: 10, scale: 3 }).notNull(),
   /** Cena na enoto brez DDV — NUMERIC(18,4) za natančnost */
   unitPrice: numeric("unit_price", { precision: 18, scale: 4 }).notNull(),
-  /** Stopnja DDV v % (0, 9.50, 22.00) */
+  /** Stopnja DDV v % (0, 9.50, 22.00) — legacy, obdrži za BC */
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).notNull().default("22.00"),
+  /** DDV koda (FK) — nova metoda; ko je nastavljena, vatRate se izračuna iz nje */
+  vatCodeId: uuid("vat_code_id").references(() => vatCodesTable.id),
+  /** Davčna osnova (quantity × unitPrice brez DDV) */
+  vatBase: numeric("vat_base", { precision: 18, scale: 2 }),
+  /** Znesek DDV */
+  vatAmount: numeric("vat_amount", { precision: 18, scale: 2 }),
   /** Konto prihodkov (izdani) ali stroškov (prejeti) */
   accountId: uuid("account_id")
     .notNull()

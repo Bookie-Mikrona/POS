@@ -22,6 +22,8 @@ tags:
     description: Issued & received invoices (računi)
   - name: payments
     description: Payments, open items & aged analysis (plačila, saldakonti)
+  - name: vat
+    description: VAT codes, VAT register & DDV-O return (DDV šifranti, knjiga IR/PR, obračun)
 paths:
   /healthz:
     get:
@@ -1249,6 +1251,288 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── VAT codes & DDV register ────────────────────────────────────────────────
+  /companies/{companyId}/vat-codes:
+    get:
+      operationId: listVatCodes
+      tags: [vat]
+      summary: List VAT codes for a company
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: VAT codes list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListVatCodesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createVatCode
+      tags: [vat]
+      summary: Create a VAT code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVatCodeBody"
+      responses:
+        "201":
+          description: VAT code created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VatCodeRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: VAT code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/vat-codes/seed:
+    post:
+      operationId: seedVatCodes
+      tags: [vat]
+      summary: Seed standard Slovenian VAT codes (22%, 9.5%, 0%, reverse charge)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: VAT codes seeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedVatCodesResponse"
+        "400":
+          description: VAT codes already exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/vat-codes/{id}:
+    patch:
+      operationId: updateVatCode
+      tags: [vat]
+      summary: Update a VAT code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVatCodeBody"
+      responses:
+        "200":
+          description: VAT code updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VatCodeRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/vat-register:
+    get:
+      operationId: getVatRegister
+      tags: [vat]
+      summary: VAT register (knjiga izdanih/prejetih računov) for a period
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [issued, received]
+          description: issued = knjiga IR, received = knjiga PR; omit for both
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: VAT register entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VatRegisterResponse"
+        "400":
+          description: Missing period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/vat-return:
+    get:
+      operationId: getVatReturn
+      tags: [vat]
+      summary: DDV-O return summary — taxable base and VAT per code, input vs output
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: DDV-O summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VatReturnResponse"
+        "400":
+          description: Missing period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -2621,3 +2905,225 @@ components:
         totals:
           $ref: "#/components/schemas/AgedBucket"
       required: [asOfDate, type, rows, totals]
+
+    # ── VAT codes ─────────────────────────────────────────────────────────────
+    VatCodeRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        rate:
+          type: string
+          description: DDV stopnja v % (npr. "22.00")
+        behavior:
+          type: string
+          enum: [standard, exempt, zero_rated, reverse_charge]
+        accountOutputId:
+          type: ["string", "null"]
+        accountOutputCode:
+          type: ["string", "null"]
+        accountInputId:
+          type: ["string", "null"]
+        accountInputCode:
+          type: ["string", "null"]
+        validFrom:
+          type: ["string", "null"]
+          format: date
+        validTo:
+          type: ["string", "null"]
+          format: date
+        isActive:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, code, name, rate, behavior, isActive, createdAt, updatedAt]
+    ListVatCodesResponse:
+      type: object
+      properties:
+        vatCodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VatCodeRecord"
+      required: [vatCodes]
+    CreateVatCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 100
+        rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        behavior:
+          type: string
+          enum: [standard, exempt, zero_rated, reverse_charge]
+        accountOutputId:
+          type: ["string", "null"]
+        accountInputId:
+          type: ["string", "null"]
+        validFrom:
+          type: ["string", "null"]
+          format: date
+        validTo:
+          type: ["string", "null"]
+          format: date
+        notes:
+          type: ["string", "null"]
+      required: [code, name, rate]
+    UpdateVatCodeBody:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        behavior:
+          type: string
+          enum: [standard, exempt, zero_rated, reverse_charge]
+        accountOutputId:
+          type: ["string", "null"]
+        accountInputId:
+          type: ["string", "null"]
+        validFrom:
+          type: ["string", "null"]
+          format: date
+        validTo:
+          type: ["string", "null"]
+          format: date
+        isActive:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+      required: []
+    SeedVatCodesResponse:
+      type: object
+      properties:
+        seeded:
+          type: integer
+        codes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VatCodeRecord"
+      required: [seeded, codes]
+
+    # ── VAT register & DDV-O ──────────────────────────────────────────────────
+    VatRegisterLine:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        invoiceType:
+          type: string
+          enum: [issued, received]
+        counterpartyId:
+          type: string
+        counterpartyName:
+          type: string
+        counterpartyTaxId:
+          type: ["string", "null"]
+        vatCodeId:
+          type: ["string", "null"]
+        vatCode:
+          type: ["string", "null"]
+        vatRate:
+          type: string
+          description: Stopnja DDV v %
+        vatBase:
+          type: string
+          description: Davčna osnova
+        vatAmount:
+          type: string
+          description: Znesek DDV
+        grossAmount:
+          type: string
+          description: Bruto (osnova + DDV)
+      required: [invoiceId, invoiceNumber, invoiceDate, invoiceType, counterpartyId, counterpartyName, vatRate, vatBase, vatAmount, grossAmount]
+    VatRegisterResponse:
+      type: object
+      properties:
+        periodId:
+          type: string
+        periodName:
+          type: string
+        dateFrom:
+          type: ["string", "null"]
+          format: date
+        dateTo:
+          type: ["string", "null"]
+          format: date
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/VatRegisterLine"
+        totalVatBase:
+          type: string
+        totalVatAmount:
+          type: string
+        totalGross:
+          type: string
+      required: [periodId, periodName, entries, totalVatBase, totalVatAmount, totalGross]
+    VatReturnRow:
+      type: object
+      properties:
+        vatCodeId:
+          type: ["string", "null"]
+        vatCode:
+          type: ["string", "null"]
+        vatCodeName:
+          type: ["string", "null"]
+        vatRate:
+          type: string
+        outputBase:
+          type: string
+          description: Izstopni DDV — davčna osnova (izdani računi)
+        outputVat:
+          type: string
+          description: Izstopni DDV — znesek
+        inputBase:
+          type: string
+          description: Vstopni DDV — davčna osnova (prejeti računi)
+        inputVat:
+          type: string
+          description: Vstopni DDV — znesek
+        netVat:
+          type: string
+          description: Neto DDV obveznost (outputVat - inputVat)
+      required: [vatRate, outputBase, outputVat, inputBase, inputVat, netVat]
+    VatReturnResponse:
+      type: object
+      properties:
+        periodId:
+          type: string
+        periodName:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/VatReturnRow"
+        totals:
+          $ref: "#/components/schemas/VatReturnRow"
+      required: [periodId, periodName, rows, totals]

@@ -7,3 +7,4 @@ export * from "./audit-log";
 export * from "./counterparties";
 export * from "./invoices";
 export * from "./payments";
+export * from "./vat-codes";
