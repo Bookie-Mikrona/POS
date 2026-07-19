@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, Upload, Loader2, FileSearch, CheckCircle2, XCircle, AlertCircle, 
-  Building2, AlertTriangle, FileUp
+  Building2, AlertTriangle, FileUp, UserPlus, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -15,9 +15,12 @@ import {
   useRejectDocument,
   useRequestUploadUrl,
   useListCounterparties,
+  useCreateCounterparty,
+  useListAccounts,
   useListPeriods,
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
+  getListCounterpartiesQueryKey,
   type DocumentRecord
 } from "@workspace/api-client-react";
 
@@ -401,11 +404,44 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
 
+  const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const accounts = accountsData?.accounts ?? [];
+
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
   const openPeriods = periods.filter(p => p.status === "open");
 
   const confirmMut = useConfirmDocument();
+  const createCounterpartyMut = useCreateCounterparty();
+
+  // Mini-form for quick partner creation
+  const [showCreatePartner, setShowCreatePartner] = useState(false);
+  const [newPartner, setNewPartner] = useState({
+    name: ocr?.counterpartyName || "",
+    taxId: ocr?.counterpartyTaxId?.replace(/^SI/, "") || "",
+    type: "supplier" as "customer" | "supplier" | "both",
+  });
+
+  const handleCreatePartner = () => {
+    if (!activeCompany || !newPartner.name.trim()) return;
+    createCounterpartyMut.mutate(
+      {
+        companyId: activeCompany.id,
+        data: {
+          name: newPartner.name.trim(),
+          taxId: newPartner.taxId.trim() || null,
+          type: newPartner.type,
+        },
+      },
+      {
+        onSuccess: (created) => {
+          queryClient.invalidateQueries({ queryKey: getListCounterpartiesQueryKey(activeCompany.id) });
+          setForm(p => ({ ...p, counterpartyId: created.id }));
+          setShowCreatePartner(false);
+        },
+      }
+    );
+  };
 
   const [form, setForm] = useState({
     documentType: ocr?.suggestedDocumentType || "invoice_received",
@@ -416,6 +452,70 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     dueDate: ocr?.dueDate?.split("T")[0] || "",
     createInvoice: true
   });
+
+  // Fuzzy match account code to loaded accounts list
+  const fuzzyMatchAccount = (code: string | null | undefined) => {
+    if (!code || accounts.length === 0) return null;
+    const exact = accounts.find(a => a.code === code);
+    if (exact) return exact;
+    // Prefix match: "400" → "4000", or "4200" → "420"
+    const prefix = accounts.find(a => a.code.startsWith(code) || code.startsWith(a.code));
+    return prefix ?? null;
+  };
+
+  // Editable lines state — initialized with OCR lines, fuzzy-resolved account applied
+  // We delay init until accounts are loaded; useEffect updates when accounts arrive
+  const [editableLines, setEditableLines] = useState<Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    vatBase: number;
+    vatAmount: number;
+    accountCode: string | null;
+    accountId: string | null;
+    confidence: number;
+  }>>(() =>
+    (ocr?.lines ?? []).map(l => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      vatRate: l.vatRate,
+      vatBase: l.vatBase,
+      vatAmount: l.vatAmount,
+      accountCode: l.accountCode ?? null,
+      accountId: l.accountId ?? null,
+      confidence: l.confidence,
+    }))
+  );
+
+  // Once accounts load, apply fuzzy matching to lines that have no resolved accountId
+  const accountsLoaded = accounts.length > 0;
+  const [fuzzyApplied, setFuzzyApplied] = useState(false);
+  useEffect(() => {
+    if (!accountsLoaded || fuzzyApplied) return;
+    setEditableLines(prev =>
+      prev.map(line => {
+        if (line.accountId) return line; // already resolved
+        const match = fuzzyMatchAccount(line.accountCode);
+        if (!match) return line;
+        return { ...line, accountId: match.id, accountCode: match.code };
+      })
+    );
+    setFuzzyApplied(true);
+  }, [accountsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateLine = (idx: number, accountId: string) => {
+    const acct = accounts.find(a => a.id === accountId);
+    setEditableLines(prev =>
+      prev.map((l, i) =>
+        i === idx ? { ...l, accountId: accountId || null, accountCode: acct?.code ?? l.accountCode } : l
+      )
+    );
+  };
+
+  const linesWithMissingAccount = editableLines.filter(l => !l.accountId);
+  const hasUnresolvedLines = linesWithMissingAccount.length > 0;
 
   // Confidence calculations
   const docConfidence = ocr?.confidence ? (ocr.confidence <= 1 ? ocr.confidence * 100 : ocr.confidence) : 0;
@@ -436,7 +536,8 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         invoiceDate: form.invoiceDate || null,
         dueDate: form.dueDate || null,
         createInvoice: form.createInvoice,
-        lines: ocr?.lines || []
+        // Submit editable lines (with fuzzy-resolved + manually selected accounts)
+        lines: editableLines
       }
     }, {
       onSuccess: () => {
@@ -522,6 +623,18 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               </h3>
             </div>
             
+            {hasUnresolvedLines && (
+              <div className="px-5 pb-2">
+                <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    {linesWithMissingAccount.length === 1
+                      ? "1 vrstica nima izbranega konta — izberite konto pred potrditvijo."
+                      : `${linesWithMissingAccount.length} vrstice nimajo izbranega konta — izberite konte pred potrditvijo.`}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground bg-muted/30 uppercase border-b">
@@ -529,25 +642,43 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                     <th className="px-4 py-3 font-medium">Opis</th>
                     <th className="px-4 py-3 font-medium text-right">Znesek</th>
                     <th className="px-4 py-3 font-medium text-right">DDV %</th>
-                    <th className="px-4 py-3 font-medium">Konto</th>
+                    <th className="px-4 py-3 font-medium min-w-[180px]">Konto</th>
                     <th className="px-4 py-3 font-medium text-center">Zanesljivost</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {ocr?.lines && ocr.lines.length > 0 ? (
-                    ocr.lines.map((line, idx) => {
+                  {editableLines.length > 0 ? (
+                    editableLines.map((line, idx) => {
                       const lConf = line.confidence <= 1 ? line.confidence * 100 : line.confidence;
+                      const missing = !line.accountId;
                       return (
-                        <tr key={idx} className="hover:bg-muted/10">
+                        <tr key={idx} className={`hover:bg-muted/10 ${missing ? "bg-amber-50/40" : ""}`}>
                           <td className="px-4 py-3 font-medium truncate max-w-[150px]" title={line.description}>{line.description}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{formatEur(line.vatBase)}</td>
                           <td className="px-4 py-3 text-right">{line.vatRate}%</td>
-                          <td className="px-4 py-3">
-                            {line.accountCode ? (
-                              <Badge variant="outline" className="font-mono bg-background">{line.accountCode}</Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Ni predloga</span>
-                            )}
+                          <td className="px-4 py-2">
+                            <Select
+                              value={line.accountId ?? ""}
+                              onValueChange={v => updateLine(idx, v)}
+                              disabled={isViewer}
+                            >
+                              <SelectTrigger
+                                className={`h-8 text-xs bg-background ${missing ? "border-amber-300 text-amber-700" : ""}`}
+                              >
+                                <SelectValue placeholder={
+                                  line.accountCode
+                                    ? `${line.accountCode} — ni v planu`
+                                    : "Izberite konto…"
+                                } />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {accounts.map(a => (
+                                  <SelectItem key={a.id} value={a.id}>
+                                    <span className="font-mono mr-1">{a.code}</span> {a.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <Badge variant="secondary" className={`text-[10px] ${lConf >= 80 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
@@ -620,6 +751,86 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                   ))}
                 </SelectContent>
               </Select>
+              {/* Show hint when AI found a name but no matching counterparty */}
+              {!form.counterpartyId && ocr?.counterpartyName && !isViewer && (
+                <div className="mt-1.5">
+                  <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                    <AlertDescription className="text-xs ml-1">
+                      AI je prepoznal "<strong>{ocr.counterpartyName}</strong>", a partnerja ni v sistemu.
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-1.5 w-full border-dashed text-amber-700 border-amber-300 hover:bg-amber-50"
+                    onClick={() => {
+                      setNewPartner({
+                        name: ocr.counterpartyName || "",
+                        taxId: ocr.counterpartyTaxId?.replace(/^SI/, "") || "",
+                        type: "supplier",
+                      });
+                      setShowCreatePartner(v => !v);
+                    }}
+                  >
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                    Ustvari partnerja iz AI podatkov
+                    {showCreatePartner ? <ChevronUp className="ml-auto h-3.5 w-3.5" /> : <ChevronDown className="ml-auto h-3.5 w-3.5" />}
+                  </Button>
+
+                  {/* Inline mini create-partner form */}
+                  {showCreatePartner && (
+                    <div className="mt-2 p-3 border rounded-lg bg-background space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nov partner</p>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ime <span className="text-destructive">*</span></Label>
+                        <Input
+                          value={newPartner.name}
+                          onChange={e => setNewPartner(p => ({ ...p, name: e.target.value }))}
+                          placeholder="Naziv podjetja"
+                          className="h-8 text-sm bg-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Davčna številka</Label>
+                        <Input
+                          value={newPartner.taxId}
+                          onChange={e => setNewPartner(p => ({ ...p, taxId: e.target.value }))}
+                          placeholder="npr. 12345678"
+                          className="h-8 text-sm bg-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tip</Label>
+                        <Select value={newPartner.type} onValueChange={v => setNewPartner(p => ({ ...p, type: v as any }))}>
+                          <SelectTrigger className="h-8 text-sm bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="supplier">Dobavitelj</SelectItem>
+                            <SelectItem value="customer">Kupec</SelectItem>
+                            <SelectItem value="both">Oboje</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={!newPartner.name.trim() || createCounterpartyMut.isPending}
+                        onClick={handleCreatePartner}
+                      >
+                        {createCounterpartyMut.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <UserPlus className="mr-1.5 h-3.5 w-3.5" />}
+                        Shrani partnerja
+                      </Button>
+                      {createCounterpartyMut.isError && (
+                        <p className="text-xs text-destructive">Napaka pri ustvarjanju partnerja. Preverite podatke.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -666,7 +877,18 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t flex justify-end">
+          <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground space-y-1">
+              {!form.counterpartyId && (
+                <p className="text-destructive flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Partner ni izbran</p>
+              )}
+              {!form.periodId && (
+                <p className="text-destructive flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Obdobje ni izbrano</p>
+              )}
+              {hasUnresolvedLines && (
+                <p className="text-amber-600 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> {linesWithMissingAccount.length} {linesWithMissingAccount.length === 1 ? "vrstica nima" : "vrstice nimajo"} konta</p>
+              )}
+            </div>
             <Button 
               size="lg" 
               onClick={handleSubmit} 
