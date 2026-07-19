@@ -367,25 +367,49 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
             <DocumentReviewForm doc={doc} />
           </div>
         ) : doc.status === "confirmed" ? (
-          <div className="p-8 flex flex-col items-center justify-center h-full text-center">
-            <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 className="h-8 w-8" />
+          <div className="p-6 space-y-6">
+            <div className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
+              <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-emerald-800">Dokument potrjen</h3>
+                <p className="text-sm text-emerald-700 mt-0.5">
+                  Podatki so bili uspešno shranjeni.
+                  {doc.updatedAt && (
+                    <span className="ml-1 text-emerald-600">
+                      · {new Date(doc.updatedAt).toLocaleString("sl-SI", { dateStyle: "medium", timeStyle: "short" })}
+                    </span>
+                  )}
+                </p>
+              </div>
+              {doc.linkedInvoiceId && (
+                <Button asChild variant="outline" size="sm" className="shrink-0 border-emerald-300 text-emerald-800 hover:bg-emerald-100">
+                  <Link href="/racuni">Odpri račun</Link>
+                </Button>
+              )}
             </div>
-            <h3 className="text-xl font-medium text-emerald-800 mb-2">Dokument potrjen</h3>
-            <p className="text-muted-foreground mb-6">Podatki so bili uspešno shranjeni.</p>
-            {doc.linkedInvoiceId && (
-              <Button asChild variant="outline">
-                <Link href="/racuni">Odpri račun</Link>
-              </Button>
-            )}
+            <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
           </div>
         ) : doc.status === "rejected" ? (
-          <div className="p-8 flex flex-col items-center justify-center h-full text-center">
-            <div className="h-16 w-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
-              <XCircle className="h-8 w-8" />
+          <div className="p-6 space-y-6">
+            <div className="flex items-center gap-4 p-4 rounded-xl border border-red-200 bg-red-50">
+              <div className="h-12 w-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">
+                <XCircle className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-red-800">Dokument zavrnjen</h3>
+                <p className="text-sm text-red-700 mt-0.5">
+                  Ta dokument je bil zavrnjen in ne bo obdelan.
+                  {doc.updatedAt && (
+                    <span className="ml-1 text-red-600">
+                      · {new Date(doc.updatedAt).toLocaleString("sl-SI", { dateStyle: "medium", timeStyle: "short" })}
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
-            <h3 className="text-xl font-medium text-red-800 mb-2">Dokument zavrnjen</h3>
-            <p className="text-muted-foreground">Ta dokument je bil zavrnjen in ne bo obdelan.</p>
+            <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
           </div>
         ) : null}
       </div>
