@@ -227,6 +227,10 @@ export default function BancniIzpis() {
   // Whether the current account fields were pre-filled from a saved config
   const [configLoaded, setConfigLoaded] = useState(false);
 
+  // Set to true when at least one saved account ID was cleared because it no
+  // longer exists in the active accounts list (deactivated / deleted).
+  const [invalidAccountsCleared, setInvalidAccountsCleared] = useState(false);
+
   // Load saved config when the active company changes
   useEffect(() => {
     if (!activeCompany) return;
@@ -235,6 +239,7 @@ export default function BancniIzpis() {
     setArAccountId("");
     setApAccountId("");
     setConfigLoaded(false);
+    setInvalidAccountsCleared(false);
     const companyId = activeCompany.id;
     fetchImportConfig(companyId).then(saved => {
       // Guard: company may have changed while the request was in-flight
@@ -243,6 +248,7 @@ export default function BancniIzpis() {
       setArAccountId(saved?.arAccountId ?? "");
       setApAccountId(saved?.apAccountId ?? "");
       setConfigLoaded(!!saved);
+      setInvalidAccountsCleared(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompany?.id]);
@@ -305,19 +311,30 @@ export default function BancniIzpis() {
   // After accounts are fetched, validate saved IDs against actual account lists.
   // If a saved ID is no longer in the active accounts, clear it so the user
   // cannot silently post to a deactivated or deleted account.
+  // We also surface a warning so the user knows they must choose a new account.
   useEffect(() => {
     if (!configLoaded) return;
+    // Only validate once accounts have been fetched (non-empty data means the
+    // query resolved — an empty list is itself a valid resolved state).
+    if (!accountsData) return;
+    let anyCleared = false;
     if (bankAccountId && !bankAccounts.some(a => a.id === bankAccountId)) {
       setBankAccountId("");
+      anyCleared = true;
     }
     if (arAccountId && !arAccounts.some(a => a.id === arAccountId)) {
       setArAccountId("");
+      anyCleared = true;
     }
     if (apAccountId && !apAccounts.some(a => a.id === apAccountId)) {
       setApAccountId("");
+      anyCleared = true;
+    }
+    if (anyCleared) {
+      setInvalidAccountsCleared(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bankAccounts.length, arAccounts.length, apAccounts.length]);
+  }, [accountsData, bankAccounts.length, arAccounts.length, apAccounts.length]);
 
   // ─── Step 1: Upload & Parse ────────────────────────────────────────────────
 
@@ -520,6 +537,7 @@ export default function BancniIzpis() {
     setConfirmError(null);
     setParseError(null);
     setAutoPost(false);
+    setInvalidAccountsCleared(false);
     // Re-hydrate account fields from saved config so that "Nov uvoz" in the
     // same session still shows prefilled values (same behaviour as page reload).
     if (activeCompany) {
@@ -631,10 +649,16 @@ export default function BancniIzpis() {
                 </button>
               )}
             </div>
-            {configLoaded && (
+            {configLoaded && !invalidAccountsCleared && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Info className="h-3 w-3 shrink-0" />
                 Predizpolnjeno iz prejšnjega uvoza.
+              </div>
+            )}
+            {invalidAccountsCleared && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <TriangleAlert className="h-3 w-3 shrink-0" />
+                Nekateri shranjeni konti niso več aktivni in so bili počiščeni. Preverite nastavitve spodaj.
               </div>
             )}
 
