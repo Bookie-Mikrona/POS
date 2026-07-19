@@ -120,11 +120,22 @@ ${accountList || "(ni kontov)"}
 DDV kode:
 ${vatList || "(ni DDV kod)"}
 
+TIPIČNI VZORCI KONTIRANJA ZA GOSTINSTVO (upoštevaj pri predlogih):
+- Prejet račun za surovine/hrano (9,5% DDV):  BREME 3100 + 1601 | DOBRO 2200
+- Prejet račun za pijačo (22% DDV):            BREME 3101 + 1600 | DOBRO 2201
+- Prejet račun za embalažo (22% DDV):          BREME 3102 + 1600 | DOBRO 2202
+- Prejet račun za računovodstvo (22% DDV):     BREME 4150 + 1600 | DOBRO 2203
+- Prejet račun za najemnino (22% DDV):         BREME 410  + 1600 | DOBRO 2202
+- Prejet račun za elektriko/vodo (22% DDV):    BREME 412  + 1600 | DOBRO 2202
+- Prenos surovin v kuhinjo (interni):          BREME 4000 | DOBRO 3100
+- Dnevni iztržek blagajne (gotovina):          BREME 1050 | DOBRO 8000/8002/8003/8004 + 2800/2801
+- DDV stopnje: hrana v lokalu 9,5% (8000), sokovi 9,5% (8003), pijača+alkohol 22% (8002), embalaža 22% (8004)
+
 NAVODILA:
 1. Prepoznaj vrsto dokumenta: invoice_received (prejet od dobavitelja) ali invoice_issued (izdan kupcu)
 2. Ekstrahiraj vse metapodatke: številka računa, datum, rok plačila, partner, naslov, DDV identifikacijska številka
 3. Ekstrahiraj vse vrstice: opis, količina, cena/enoto, stopnja DDV, osnova, znesek DDV
-4. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama
+4. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama in vzorcev kontiranja
 5. Poišči partnerja v sistemu (fuzzy match po imenu ali DDV številki)
 6. Izračunaj skupne vsote
 7. Oceni zaupnost prepoznave (0.0-1.0)
