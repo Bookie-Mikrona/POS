@@ -20,8 +20,25 @@ import {
   type BalanceSheetData,
   type IncomeStatementData,
   type TrialBalanceRow,
-  type AccountTypeWarning,
 } from "@workspace/api-client-react";
+
+// Defined locally — backend adds this to responses but it is not yet in the
+// generated OpenAPI schema (schema update pending in a future task).
+interface AccountTypeWarning {
+  accountId: string;
+  code: string;
+  name: string;
+  storedType: string;
+  effectiveType: string;
+}
+
+type BalanceSheetDataWithWarnings = BalanceSheetData & {
+  typeWarnings?: AccountTypeWarning[];
+};
+
+type IncomeStatementDataWithWarnings = IncomeStatementData & {
+  typeWarnings?: AccountTypeWarning[];
+};
 import { useCompany } from "@/contexts/CompanyContext";
 
 import { Button } from "@/components/ui/button";
@@ -432,7 +449,7 @@ function BalanceSheetTab() {
   }
 
   const showCompare = !!data?.compare;
-  const current = data?.current;
+  const current = data?.current as BalanceSheetDataWithWarnings | undefined;
   const compare = data?.compare;
 
   return (
@@ -718,7 +735,7 @@ function IncomeStatementTab() {
   }
 
   const showCompare = !!data?.compare;
-  const current = data?.current;
+  const current = data?.current as IncomeStatementDataWithWarnings | undefined;
   const compare = data?.compare;
 
   return (
