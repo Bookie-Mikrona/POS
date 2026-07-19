@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, Upload, Loader2, FileSearch, CheckCircle2, XCircle, AlertCircle, 
-  Building2, AlertTriangle, FileUp, UserPlus, ChevronDown, ChevronUp
+  Building2, AlertTriangle, FileUp, UserPlus, ChevronDown, ChevronUp,
+  Eye, EyeOff, ZoomIn, ZoomOut, ExternalLink
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -392,6 +394,111 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
 }
 
 // ----------------------------------------------------------------------
+// DOCUMENT PREVIEW COMPONENT
+// ----------------------------------------------------------------------
+
+function DocumentPreview({ objectPath, mimeType }: { objectPath: string; mimeType: string }) {
+  const { getToken } = useAuth();
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const normalizedPath = objectPath.startsWith("/objects/")
+    ? objectPath.slice("/objects/".length)
+    : objectPath;
+  const apiUrl = `${BASE}/api/storage/objects/${normalizedPath}`;
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(apiUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) { if (!cancelled) setLoadError(true); return; }
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) setBlobUrl(objectUrl);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [apiUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isPdf = mimeType === "application/pdf";
+
+  return (
+    <Card className="shadow-none border-border overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+        <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground">
+          <Eye className="h-4 w-4 text-muted-foreground" />
+          Predogled dokumenta
+        </h3>
+        <div className="flex items-center gap-2">
+          {blobUrl && (
+            <a
+              href={blobUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title="Odpri v novem zavihku"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+          <button
+            onClick={() => setCollapsed(v => !v)}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title={collapsed ? "Prikaži predogled" : "Skrij predogled"}
+          >
+            {collapsed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            <span>{collapsed ? "Prikaži" : "Skrij"}</span>
+          </button>
+        </div>
+      </div>
+
+      {!collapsed && (
+        <CardContent className="p-0">
+          {loadError ? (
+            <div className="flex items-center justify-center h-40 text-sm text-muted-foreground gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              Predogleda ni bilo mogoče naložiti.
+            </div>
+          ) : !blobUrl ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : isPdf ? (
+            <iframe
+              src={blobUrl}
+              title="Predogled PDF dokumenta"
+              className="w-full border-0"
+              style={{ height: "520px" }}
+            />
+          ) : (
+            <div className="flex items-center justify-center bg-muted/10 p-4" style={{ minHeight: "300px", maxHeight: "520px" }}>
+              <img
+                src={blobUrl}
+                alt="Predogled dokumenta"
+                className="max-w-full object-contain rounded"
+                style={{ maxHeight: "488px" }}
+              />
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
 // FORM & REVIEW SECTION
 // ----------------------------------------------------------------------
 
@@ -549,6 +656,9 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
   return (
     <div className="space-y-6">
+      {/* Document Preview */}
+      <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
+
       {/* 2-Column OCR Overview */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
