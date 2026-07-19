@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   FileText,
   AlertCircle,
@@ -8,6 +8,8 @@ import {
   Minus,
   ChevronDown,
   ChevronRight,
+  Download,
+  Loader2,
 } from "lucide-react";
 import {
   useGetBalanceSheet,
@@ -51,6 +53,141 @@ function prevYearEnd() {
 
 function prevYearStart() {
   return `${new Date().getFullYear() - 1}-01-01`;
+}
+
+// ── PDF export ────────────────────────────────────────────────────────────────
+
+async function exportToPdf(opts: {
+  contentRef: React.RefObject<HTMLDivElement | null>;
+  companyName: string;
+  reportTitle: string;
+  subtitle: string;
+  filename: string;
+}) {
+  const { contentRef, companyName, reportTitle, subtitle, filename } = opts;
+  if (!contentRef.current) return;
+
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import("jspdf"),
+    import("html2canvas"),
+  ]);
+
+  const element = contentRef.current;
+
+  // Snapshot without interactive chrome (collapse buttons hidden)
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    backgroundColor: "#ffffff",
+  });
+
+  const PAGE_W = 210; // A4 mm
+  const PAGE_H = 297;
+  const MARGIN = 14;
+  const HEADER_H = 28; // mm reserved for header on first page
+  const HEADER_H_CONT = 12; // mm reserved for header on continuation pages
+  const FOOTER_H = 10;
+
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  const imgW = PAGE_W - MARGIN * 2;
+  const imgH = (canvas.height * imgW) / canvas.width;
+  const printableH = PAGE_H - MARGIN - FOOTER_H;
+
+  let remainingH = imgH;
+  let sourceY = 0;
+  let pageNum = 1;
+
+  const drawHeader = (isFirst: boolean) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(isFirst ? 13 : 9);
+    pdf.setTextColor(30, 30, 30);
+    if (isFirst) {
+      pdf.text(companyName, MARGIN, MARGIN + 5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text(reportTitle, MARGIN, MARGIN + 11);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(subtitle, MARGIN, MARGIN + 17);
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(MARGIN, MARGIN + 20, PAGE_W - MARGIN, MARGIN + 20);
+    } else {
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`${companyName} — ${reportTitle}`, MARGIN, MARGIN + 5);
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(MARGIN, MARGIN + 7, PAGE_W - MARGIN, MARGIN + 7);
+    }
+    pdf.setTextColor(30, 30, 30);
+  };
+
+  const drawFooter = (page: number, total: number) => {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7);
+    pdf.setTextColor(150, 150, 150);
+    const genDate = new Date().toLocaleDateString("sl-SI", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    pdf.text(`Generirano: ${genDate}`, MARGIN, PAGE_H - MARGIN + 4);
+    pdf.text(`Stran ${page} / ${total}`, PAGE_W - MARGIN, PAGE_H - MARGIN + 4, { align: "right" });
+    pdf.setTextColor(30, 30, 30);
+  };
+
+  // Calculate total pages
+  const firstPageH = printableH - MARGIN - HEADER_H;
+  const contPageH = printableH - MARGIN - HEADER_H_CONT;
+  let totalPages = 1;
+  let rem = imgH - firstPageH;
+  while (rem > 0) {
+    totalPages++;
+    rem -= contPageH;
+  }
+
+  // Render pages
+  while (remainingH > 0) {
+    const isFirst = pageNum === 1;
+    const headerH = isFirst ? HEADER_H : HEADER_H_CONT;
+    const contentStartY = MARGIN + headerH;
+    const availableH = printableH - contentStartY;
+
+    const sliceH = Math.min(remainingH, availableH);
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = (sliceH / imgH) * canvas.height;
+    const ctx = sliceCanvas.getContext("2d")!;
+    ctx.drawImage(
+      canvas,
+      0,
+      sourceY,
+      canvas.width,
+      sliceCanvas.height,
+      0,
+      0,
+      canvas.width,
+      sliceCanvas.height,
+    );
+
+    const sliceDataUrl = sliceCanvas.toDataURL("image/png");
+
+    drawHeader(isFirst);
+    pdf.addImage(sliceDataUrl, "PNG", MARGIN, contentStartY, imgW, sliceH);
+    drawFooter(pageNum, totalPages);
+
+    sourceY += sliceCanvas.height;
+    remainingH -= sliceH;
+
+    if (remainingH > 0) {
+      pdf.addPage();
+      pageNum++;
+    }
+  }
+
+  pdf.save(filename);
 }
 
 // ── Collapsible section row ───────────────────────────────────────────────────
@@ -205,6 +342,7 @@ function BalanceSheetTab() {
   );
 
   const printRef = useRef<HTMLDivElement>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   function handleGenerate() {
     setAppliedAsOf(asOf);
@@ -214,6 +352,25 @@ function BalanceSheetTab() {
 
   function handlePrint() {
     window.print();
+  }
+
+  async function handleDownloadPdf() {
+    if (!data) return;
+    setPdfLoading(true);
+    try {
+      const subtitle = appliedCompareAsOf
+        ? `Stanje na dan: ${appliedAsOf}  |  Primerjava: ${appliedCompareAsOf}`
+        : `Stanje na dan: ${appliedAsOf}`;
+      await exportToPdf({
+        contentRef: printRef,
+        companyName: activeCompany?.naziv ?? "Podjetje",
+        reportTitle: "BILANCA STANJA",
+        subtitle,
+        filename: `bilanca-stanja-${appliedAsOf}.pdf`,
+      });
+    } finally {
+      setPdfLoading(false);
+    }
   }
 
   const showCompare = !!data?.compare;
@@ -261,9 +418,31 @@ function BalanceSheetTab() {
               Prikaži poročilo
             </Button>
             {queried && data && (
-              <Button variant="outline" size="icon" className="h-9 w-9 print:hidden" onClick={handlePrint} title="Natisni">
-                <Printer className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 print:hidden"
+                  onClick={handlePrint}
+                  title="Natisni"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-9 gap-1.5 print:hidden"
+                  onClick={handleDownloadPdf}
+                  disabled={pdfLoading}
+                  title="Prenesi PDF"
+                >
+                  {pdfLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  <span className="text-sm">Prenesi PDF</span>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -442,6 +621,9 @@ function IncomeStatementTab() {
     { query: { enabled: !!activeCompany?.id && queried } as any },
   );
 
+  const printRef = useRef<HTMLDivElement>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   function handleGenerate() {
     setApplied({
       dateFrom,
@@ -453,6 +635,25 @@ function IncomeStatementTab() {
 
   function handlePrint() {
     window.print();
+  }
+
+  async function handleDownloadPdf() {
+    if (!data || !applied) return;
+    setPdfLoading(true);
+    try {
+      const subtitle = applied.compareDateFrom
+        ? `Obdobje: ${applied.dateFrom} – ${applied.dateTo}  |  Primerjava: ${applied.compareDateFrom} – ${applied.compareDateTo}`
+        : `Obdobje: ${applied.dateFrom} – ${applied.dateTo}`;
+      await exportToPdf({
+        contentRef: printRef,
+        companyName: activeCompany?.naziv ?? "Podjetje",
+        reportTitle: "IZKAZ POSLOVNEGA IZIDA",
+        subtitle,
+        filename: `izkaz-poslovnega-izida-${applied.dateFrom}-${applied.dateTo}.pdf`,
+      });
+    } finally {
+      setPdfLoading(false);
+    }
   }
 
   const showCompare = !!data?.compare;
@@ -498,9 +699,31 @@ function IncomeStatementTab() {
               Prikaži poročilo
             </Button>
             {queried && data && (
-              <Button variant="outline" size="icon" className="h-9 w-9 print:hidden" onClick={handlePrint} title="Natisni">
-                <Printer className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 print:hidden"
+                  onClick={handlePrint}
+                  title="Natisni"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-9 gap-1.5 print:hidden"
+                  onClick={handleDownloadPdf}
+                  disabled={pdfLoading}
+                  title="Prenesi PDF"
+                >
+                  {pdfLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  <span className="text-sm">Prenesi PDF</span>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -581,7 +804,7 @@ function IncomeStatementTab() {
       )}
 
       {data && current && (
-        <div className="space-y-5">
+        <div ref={printRef} className="space-y-5">
           {/* Print header */}
           <div className="hidden print:block text-center mb-6">
             <h1 className="text-xl font-bold">{activeCompany?.naziv}</h1>
