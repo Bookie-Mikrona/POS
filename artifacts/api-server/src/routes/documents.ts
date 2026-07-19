@@ -302,6 +302,41 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     };
   }
 
+  // Določi vir predloga za vsako vrstico (history vs pattern)
+  const detectedCounterpartyId = parsed.suggestedCounterpartyId ?? null;
+  const enrichedLines: ProposedLine[] = (parsed.lines ?? []).map(line => {
+    const accountId = line.accountId ?? null;
+    if (!accountId || !detectedCounterpartyId) {
+      return { ...line, suggestionSource: "pattern" as const };
+    }
+
+    // Preveri shranjene predloge za tega partnerja
+    const matchingTemplate = templateRows.find(
+      t => t.counterpartyId === detectedCounterpartyId && t.accountId === accountId,
+    );
+    if (matchingTemplate) {
+      return {
+        ...line,
+        suggestionSource: "history" as const,
+        suggestionCount: matchingTemplate.usageCount ?? undefined,
+      };
+    }
+
+    // Preveri pretekle knjižbe za tega partnerja
+    const matchingBookings = recentBookingRows.filter(
+      b => b.counterpartyId === detectedCounterpartyId && b.accountCode === line.accountCode,
+    );
+    if (matchingBookings.length > 0) {
+      return {
+        ...line,
+        suggestionSource: "history" as const,
+        suggestionCount: matchingBookings.length,
+      };
+    }
+
+    return { ...line, suggestionSource: "pattern" as const };
+  });
+
   return {
     rawText: parsed.rawText ?? rawText,
     confidence: parsed.confidence ?? 0,
@@ -315,7 +350,7 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     totalVat: parsed.totalVat ?? undefined,
     totalGross: parsed.totalGross ?? undefined,
     currency: parsed.currency ?? "EUR",
-    lines: (parsed.lines ?? []) as ProposedLine[],
+    lines: enrichedLines,
     suggestedCounterpartyId: parsed.suggestedCounterpartyId ?? undefined,
     suggestedCounterpartyName: parsed.suggestedCounterpartyName ?? undefined,
     suggestedDocumentType: parsed.suggestedDocumentType ?? undefined,

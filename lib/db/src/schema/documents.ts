@@ -48,6 +48,10 @@ export interface ProposedLine {
   accountCode?: string;     // Predlagana koda konta
   accountId?: string;       // Predlagan ID konta (fuzzy match)
   confidence: number;       // 0-1 zaupnost predloga
+  /** Vir predloga konta */
+  suggestionSource?: "history" | "pattern";
+  /** Število preteklih potrditev tega konta za istega partnerja (samo za "history") */
+  suggestionCount?: number;
 }
 
 /**

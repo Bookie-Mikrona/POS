@@ -687,6 +687,8 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     accountCode: string | null;
     accountId: string | null;
     confidence: number;
+    suggestionSource?: "history" | "pattern";
+    suggestionCount?: number;
   }>>(() =>
     (ocr?.lines ?? []).map(l => ({
       description: l.description,
@@ -698,6 +700,8 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
       accountCode: l.accountCode ?? null,
       accountId: l.accountId ?? null,
       confidence: l.confidence,
+      suggestionSource: l.suggestionSource,
+      suggestionCount: l.suggestionCount ?? undefined,
     }))
   );
 
@@ -711,6 +715,7 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         if (line.accountId) return line; // already resolved
         const match = fuzzyMatchAccount(line.accountCode);
         if (!match) return line;
+        // Preserve suggestionSource/suggestionCount when fuzzy-resolving
         return { ...line, accountId: match.id, accountCode: match.code };
       })
     );
@@ -894,6 +899,19 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                                 ))}
                               </SelectContent>
                             </Select>
+                            {line.suggestionSource === "history" && line.accountId && (
+                              <p className="text-[10px] text-emerald-700 mt-0.5 flex items-center gap-1">
+                                <span>✓</span>
+                                {line.suggestionCount != null && line.suggestionCount > 0
+                                  ? `Na podlagi ${line.suggestionCount} preteklih ${line.suggestionCount === 1 ? "računa" : "računov"} tega dobavitelja`
+                                  : "Na podlagi preteklih računov tega dobavitelja"}
+                              </p>
+                            )}
+                            {line.suggestionSource === "pattern" && line.accountId && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Tipičen vzorec kontiranja
+                              </p>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <Badge variant="secondary" className={`text-[10px] ${lConf >= 80 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
