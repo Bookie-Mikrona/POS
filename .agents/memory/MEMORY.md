@@ -1,2 +1,3 @@
 - [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
+- [Super admin sistem](super-admin.md) — env var SUPER_ADMIN_IDS, company_modules tabela, admin panel na /admin
 - [Komunikacija](komunikacija.md) — izključno slovenščina

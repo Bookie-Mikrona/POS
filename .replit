@@ -25,4 +25,4 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-SUPER_ADMIN_IDS = ""
+SUPER_ADMIN_IDS = "user_3GhFXPAlFf51CI7swb8CKrU7Ykb"
