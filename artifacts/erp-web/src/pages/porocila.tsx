@@ -1,0 +1,746 @@
+import React, { useState, useRef } from "react";
+import {
+  FileText,
+  AlertCircle,
+  Printer,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import {
+  useGetBalanceSheet,
+  useGetIncomeStatement,
+  useListPeriods,
+  type ReportSection,
+  type BalanceSheetData,
+  type IncomeStatementData,
+} from "@workspace/api-client-react";
+import { useCompany } from "@/contexts/CompanyContext";
+
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmt(val: string | number | undefined | null): string {
+  if (val === undefined || val === null) return "—";
+  const n = typeof val === "string" ? parseFloat(val) : val;
+  if (isNaN(n)) return "—";
+  return n.toLocaleString("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function yearStart() {
+  return `${new Date().getFullYear()}-01-01`;
+}
+
+function prevYearEnd() {
+  return `${new Date().getFullYear() - 1}-12-31`;
+}
+
+function prevYearStart() {
+  return `${new Date().getFullYear() - 1}-01-01`;
+}
+
+// ── Collapsible section row ───────────────────────────────────────────────────
+
+function SectionBlock({
+  section,
+  compareSection,
+  showCompare,
+}: {
+  section: ReportSection;
+  compareSection?: ReportSection | null;
+  showCompare: boolean;
+}) {
+  const [open, setOpen] = useState(true);
+  const subtotal = parseFloat(section.subtotal);
+  const cmpSubtotal = compareSection ? parseFloat(compareSection.subtotal) : null;
+
+  return (
+    <div className="mb-1">
+      {/* Section header */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 hover:bg-muted transition-colors text-left group"
+      >
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        )}
+        <span className="flex-1 text-sm font-medium text-foreground">{section.label}</span>
+        <span className="text-sm font-semibold tabular-nums text-foreground min-w-[110px] text-right">
+          {fmt(subtotal)}
+        </span>
+        {showCompare && (
+          <span className="text-sm tabular-nums text-muted-foreground min-w-[110px] text-right">
+            {cmpSubtotal !== null ? fmt(cmpSubtotal) : "—"}
+          </span>
+        )}
+      </button>
+
+      {/* Account lines */}
+      {open && (
+        <div className="mt-0.5 ml-5 border-l border-border/40 pl-3 space-y-px">
+          {section.items.map((item) => {
+            const cmpItem = compareSection?.items.find((ci) => ci.accountId === item.accountId);
+            return (
+              <div
+                key={item.accountId}
+                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/30 transition-colors"
+              >
+                <span className="text-xs font-mono text-muted-foreground w-16 flex-shrink-0">
+                  {item.accountCode}
+                </span>
+                <span className="flex-1 text-sm text-foreground truncate">{item.accountName}</span>
+                <span className="text-sm tabular-nums text-foreground min-w-[110px] text-right">
+                  {fmt(item.balance)}
+                </span>
+                {showCompare && (
+                  <span className="text-sm tabular-nums text-muted-foreground min-w-[110px] text-right">
+                    {cmpItem ? fmt(cmpItem.balance) : "—"}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Total row ─────────────────────────────────────────────────────────────────
+
+function TotalRow({
+  label,
+  value,
+  compareValue,
+  showCompare,
+  highlight = false,
+  size = "normal",
+}: {
+  label: string;
+  value: string;
+  compareValue?: string | null;
+  showCompare: boolean;
+  highlight?: boolean;
+  size?: "normal" | "large";
+}) {
+  const n = parseFloat(value);
+  const isPositive = n > 0;
+  const isNegative = n < 0;
+  const valueColor = highlight
+    ? isPositive
+      ? "text-emerald-600 dark:text-emerald-400"
+      : isNegative
+      ? "text-red-600 dark:text-red-400"
+      : "text-foreground"
+    : "text-foreground";
+
+  return (
+    <div
+      className={`flex items-center gap-2 px-3 py-2.5 rounded-md border ${
+        size === "large"
+          ? "bg-foreground/5 border-border font-bold"
+          : "bg-muted/30 border-border/50 font-semibold"
+      }`}
+    >
+      <span className={`flex-1 ${size === "large" ? "text-base" : "text-sm"}`}>{label}</span>
+      {highlight && (
+        <span className="mr-1">
+          {isPositive ? (
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+          ) : isNegative ? (
+            <TrendingDown className="h-4 w-4 text-red-500" />
+          ) : (
+            <Minus className="h-4 w-4 text-muted-foreground" />
+          )}
+        </span>
+      )}
+      <span className={`tabular-nums min-w-[110px] text-right ${size === "large" ? "text-base" : "text-sm"} ${valueColor}`}>
+        {fmt(value)}
+      </span>
+      {showCompare && (
+        <span className="tabular-nums text-muted-foreground min-w-[110px] text-right text-sm">
+          {compareValue != null ? fmt(compareValue) : "—"}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── Balance Sheet tab ─────────────────────────────────────────────────────────
+
+function BalanceSheetTab() {
+  const { activeCompany } = useCompany();
+
+  const [asOf, setAsOf] = useState(todayStr());
+  const [compareAsOf, setCompareAsOf] = useState(prevYearEnd());
+  const [enableCompare, setEnableCompare] = useState(false);
+
+  const [appliedAsOf, setAppliedAsOf] = useState(todayStr());
+  const [appliedCompareAsOf, setAppliedCompareAsOf] = useState<string | undefined>(undefined);
+  const [queried, setQueried] = useState(false);
+
+  const { data, isLoading, error } = useGetBalanceSheet(
+    activeCompany?.id ?? "",
+    {
+      asOf: appliedAsOf,
+      ...(appliedCompareAsOf ? { compareAsOf: appliedCompareAsOf } : {}),
+    },
+    { query: { enabled: !!activeCompany?.id && queried } as any },
+  );
+
+  const printRef = useRef<HTMLDivElement>(null);
+
+  function handleGenerate() {
+    setAppliedAsOf(asOf);
+    setAppliedCompareAsOf(enableCompare ? compareAsOf : undefined);
+    setQueried(true);
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
+  const showCompare = !!data?.compare;
+  const current = data?.current;
+  const compare = data?.compare;
+
+  return (
+    <div className="space-y-5">
+      {/* Filter bar */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Stanje na dan</Label>
+            <Input
+              type="date"
+              value={asOf}
+              onChange={(e) => setAsOf(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enableCompare}
+                onChange={(e) => setEnableCompare(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm">Primerjaj z</span>
+            </label>
+          </div>
+          {enableCompare && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Primerjalni datum</Label>
+              <Input
+                type="date"
+                value={compareAsOf}
+                onChange={(e) => setCompareAsOf(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <Button onClick={handleGenerate} className="h-9 flex-1">
+              Prikaži poročilo
+            </Button>
+            {queried && data && (
+              <Button variant="outline" size="icon" className="h-9 w-9 print:hidden" onClick={handlePrint} title="Natisni">
+                <Printer className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => { setAsOf(todayStr()); setEnableCompare(true); setCompareAsOf(prevYearEnd()); }}
+          >
+            Tekočo leto vs. prejšnje
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => { setAsOf(prevYearEnd()); setEnableCompare(false); }}
+          >
+            Konec preteklega leta
+          </Button>
+        </div>
+      </div>
+
+      {/* Loading */}
+      {isLoading && <Skeleton className="h-64 w-full" />}
+
+      {/* Error */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka</AlertTitle>
+          <AlertDescription>Napaka pri nalaganju bilance stanja.</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Report */}
+      {data && current && (
+        <div ref={printRef} className="space-y-6">
+          {/* Print header */}
+          <div className="hidden print:block text-center mb-6">
+            <h1 className="text-xl font-bold">{activeCompany?.naziv}</h1>
+            <h2 className="text-lg font-semibold mt-1">BILANCA STANJA</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Stanje na dan: {appliedAsOf}
+              {showCompare && ` | Primerjava: ${appliedCompareAsOf}`}
+            </p>
+          </div>
+
+          {/* Column headers */}
+          {showCompare && (
+            <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <span className="flex-1"></span>
+              <span className="min-w-[110px] text-right">{appliedAsOf}</span>
+              <span className="min-w-[110px] text-right">{appliedCompareAsOf}</span>
+            </div>
+          )}
+
+          {/* AKTIVA */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-base font-bold tracking-tight">AKTIVA</h3>
+              <Badge variant="outline" className="text-xs">
+                Skupaj: {fmt(current.aktiva.total)} EUR
+              </Badge>
+            </div>
+            {current.aktiva.sections.length === 0 ? (
+              <p className="text-sm text-muted-foreground px-3">Ni knjiženih postavk na aktivnih kontih.</p>
+            ) : (
+              current.aktiva.sections.map((sec) => (
+                <SectionBlock
+                  key={sec.class}
+                  section={sec}
+                  compareSection={compare?.aktiva.sections.find((s) => s.class === sec.class)}
+                  showCompare={showCompare}
+                />
+              ))
+            )}
+            <TotalRow
+              label="SKUPAJ AKTIVA"
+              value={current.aktiva.total}
+              compareValue={compare?.aktiva.total}
+              showCompare={showCompare}
+              size="large"
+            />
+          </div>
+
+          <div className="border-t border-border my-4" />
+
+          {/* PASIVA */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-base font-bold tracking-tight">PASIVA</h3>
+              <Badge variant="outline" className="text-xs">
+                Skupaj: {fmt(current.pasiva.total)} EUR
+              </Badge>
+            </div>
+            {current.pasiva.sections.length === 0 ? (
+              <p className="text-sm text-muted-foreground px-3">Ni knjiženih postavk na pasivnih kontih.</p>
+            ) : (
+              current.pasiva.sections.map((sec) => (
+                <SectionBlock
+                  key={sec.class}
+                  section={sec}
+                  compareSection={compare?.pasiva.sections.find((s) => s.class === sec.class)}
+                  showCompare={showCompare}
+                />
+              ))
+            )}
+            <TotalRow
+              label="SKUPAJ PASIVA"
+              value={current.pasiva.total}
+              compareValue={compare?.pasiva.total}
+              showCompare={showCompare}
+              size="large"
+            />
+          </div>
+
+          {/* Balance check */}
+          {(() => {
+            const diff = Math.abs(parseFloat(current.aktiva.total) - parseFloat(current.pasiva.total));
+            if (diff > 0.01) {
+              return (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Bilanca se ne ujema</AlertTitle>
+                  <AlertDescription>
+                    Razlika med aktivo in pasivo: {fmt(diff.toFixed(2))} EUR. Preverite knjižbe.
+                  </AlertDescription>
+                </Alert>
+              );
+            }
+            return (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-300 mt-2">
+                <span className="font-medium">✓ Bilanca uravnotežena</span>
+                <span className="text-emerald-600/70 dark:text-emerald-400/70 text-xs">
+                  (Aktiva = Pasiva = {fmt(current.aktiva.total)} EUR)
+                </span>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {!queried && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <FileText className="h-12 w-12 mb-4 opacity-30" />
+          <p className="text-sm">Izberite datum in kliknite »Prikaži poročilo«.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Income Statement tab ──────────────────────────────────────────────────────
+
+function IncomeStatementTab() {
+  const { activeCompany } = useCompany();
+
+  const [dateFrom, setDateFrom] = useState(yearStart());
+  const [dateTo, setDateTo] = useState(todayStr());
+  const [compareDateFrom, setCompareDateFrom] = useState(prevYearStart());
+  const [compareDateTo, setCompareDateTo] = useState(prevYearEnd());
+  const [enableCompare, setEnableCompare] = useState(false);
+
+  const [applied, setApplied] = useState<{
+    dateFrom?: string;
+    dateTo?: string;
+    compareDateFrom?: string;
+    compareDateTo?: string;
+  } | null>(null);
+  const [queried, setQueried] = useState(false);
+
+  const { data, isLoading, error } = useGetIncomeStatement(
+    activeCompany?.id ?? "",
+    applied ?? {},
+    { query: { enabled: !!activeCompany?.id && queried } as any },
+  );
+
+  function handleGenerate() {
+    setApplied({
+      dateFrom,
+      dateTo,
+      ...(enableCompare ? { compareDateFrom, compareDateTo } : {}),
+    });
+    setQueried(true);
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
+  const showCompare = !!data?.compare;
+  const current = data?.current;
+  const compare = data?.compare;
+
+  return (
+    <div className="space-y-5">
+      {/* Filter bar */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Od datuma</Label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Do datuma</Label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enableCompare}
+                onChange={(e) => setEnableCompare(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-sm">Primerja obdobja</span>
+            </label>
+          </div>
+          <div className="flex gap-2 items-end">
+            <Button onClick={handleGenerate} className="h-9 flex-1">
+              Prikaži poročilo
+            </Button>
+            {queried && data && (
+              <Button variant="outline" size="icon" className="h-9 w-9 print:hidden" onClick={handlePrint} title="Natisni">
+                <Printer className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {enableCompare && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-border/50">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Primerjava od</Label>
+              <Input
+                type="date"
+                value={compareDateFrom}
+                onChange={(e) => setCompareDateFrom(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Primerjava do</Label>
+              <Input
+                type="date"
+                value={compareDateTo}
+                onChange={(e) => setCompareDateTo(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => {
+              setDateFrom(yearStart());
+              setDateTo(todayStr());
+              setEnableCompare(true);
+              setCompareDateFrom(prevYearStart());
+              setCompareDateTo(prevYearEnd());
+            }}
+          >
+            Tekočo leto vs. prejšnje
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => {
+              setDateFrom(yearStart());
+              setDateTo(todayStr());
+              setEnableCompare(false);
+            }}
+          >
+            Tekoče leto
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => {
+              setDateFrom(prevYearStart());
+              setDateTo(prevYearEnd());
+              setEnableCompare(false);
+            }}
+          >
+            Preteklo leto
+          </Button>
+        </div>
+      </div>
+
+      {isLoading && <Skeleton className="h-64 w-full" />}
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka</AlertTitle>
+          <AlertDescription>Napaka pri nalaganju izkaza poslovnega izida.</AlertDescription>
+        </Alert>
+      )}
+
+      {data && current && (
+        <div className="space-y-5">
+          {/* Print header */}
+          <div className="hidden print:block text-center mb-6">
+            <h1 className="text-xl font-bold">{activeCompany?.naziv}</h1>
+            <h2 className="text-lg font-semibold mt-1">IZKAZ POSLOVNEGA IZIDA</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Obdobje: {applied?.dateFrom} – {applied?.dateTo}
+              {showCompare && ` | Primerjava: ${applied?.compareDateFrom} – ${applied?.compareDateTo}`}
+            </p>
+          </div>
+
+          {/* Column headers */}
+          {showCompare && (
+            <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <span className="flex-1"></span>
+              <span className="min-w-[110px] text-right">
+                {applied?.dateFrom} – {applied?.dateTo}
+              </span>
+              <span className="min-w-[110px] text-right">
+                {applied?.compareDateFrom} – {applied?.compareDateTo}
+              </span>
+            </div>
+          )}
+
+          {/* PRIHODKI */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-base font-bold tracking-tight">PRIHODKI</h3>
+              <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                {fmt(current.revenue.total)} EUR
+              </Badge>
+            </div>
+            {current.revenue.sections.length === 0 ? (
+              <p className="text-sm text-muted-foreground px-3">Ni knjiženih prihodkov v izbranem obdobju.</p>
+            ) : (
+              current.revenue.sections.map((sec) => (
+                <SectionBlock
+                  key={sec.class}
+                  section={sec}
+                  compareSection={compare?.revenue.sections.find((s) => s.class === sec.class)}
+                  showCompare={showCompare}
+                />
+              ))
+            )}
+            <TotalRow
+              label="SKUPAJ PRIHODKI"
+              value={current.revenue.total}
+              compareValue={compare?.revenue.total}
+              showCompare={showCompare}
+            />
+          </div>
+
+          <div className="border-t border-border my-2" />
+
+          {/* ODHODKI */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-base font-bold tracking-tight">ODHODKI</h3>
+              <Badge variant="outline" className="text-xs text-red-600 border-red-300">
+                {fmt(current.expenses.total)} EUR
+              </Badge>
+            </div>
+            {current.expenses.sections.length === 0 ? (
+              <p className="text-sm text-muted-foreground px-3">Ni knjiženih odhodkov v izbranem obdobju.</p>
+            ) : (
+              current.expenses.sections.map((sec) => (
+                <SectionBlock
+                  key={sec.class}
+                  section={sec}
+                  compareSection={compare?.expenses.sections.find((s) => s.class === sec.class)}
+                  showCompare={showCompare}
+                />
+              ))
+            )}
+            <TotalRow
+              label="SKUPAJ ODHODKI"
+              value={current.expenses.total}
+              compareValue={compare?.expenses.total}
+              showCompare={showCompare}
+            />
+          </div>
+
+          <div className="border-t-2 border-border mt-4 pt-2" />
+
+          {/* NET RESULT */}
+          <TotalRow
+            label="POSLOVNI IZID OBDOBJA"
+            value={current.netResult}
+            compareValue={compare?.netResult}
+            showCompare={showCompare}
+            highlight={true}
+            size="large"
+          />
+
+          {/* Margin indicator */}
+          {(() => {
+            const rev = parseFloat(current.revenue.total);
+            const net = parseFloat(current.netResult);
+            if (rev === 0) return null;
+            const margin = ((net / rev) * 100).toFixed(1);
+            return (
+              <div className="text-xs text-muted-foreground px-3">
+                Marža poslovnega izida: <span className="font-medium">{margin}%</span>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {!queried && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <FileText className="h-12 w-12 mb-4 opacity-30" />
+          <p className="text-sm">Izberite obdobje in kliknite »Prikaži poročilo«.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Page root ─────────────────────────────────────────────────────────────────
+
+export default function Porocila() {
+  return (
+    <div className="space-y-6 max-w-5xl">
+      {/* Page title */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Finančna poročila</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Bilanca stanja in izkaz poslovnega izida po SRS klasifikaciji kontov.
+        </p>
+      </div>
+
+      <Tabs defaultValue="balance-sheet" className="space-y-5">
+        <TabsList>
+          <TabsTrigger value="balance-sheet">Bilanca stanja</TabsTrigger>
+          <TabsTrigger value="income-statement">Izkaz poslovnega izida</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="balance-sheet" className="mt-0">
+          <BalanceSheetTab />
+        </TabsContent>
+
+        <TabsContent value="income-statement" className="mt-0">
+          <IncomeStatementTab />
+        </TabsContent>
+      </Tabs>
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .max-w-5xl, .max-w-5xl * { visibility: visible; }
+          .max-w-5xl { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; }
+          .print\\:hidden { display: none !important; }
+          button, [role="tablist"] { display: none !important; }
+          input[type="date"], input[type="checkbox"] { display: none !important; }
+          label { display: none !important; }
+          .hidden.print\\:block { display: block !important; visibility: visible !important; }
+        }
+      `}</style>
+    </div>
+  );
+}

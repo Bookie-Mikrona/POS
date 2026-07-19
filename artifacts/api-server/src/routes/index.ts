@@ -15,6 +15,7 @@ import documentsRouter from "./documents";
 import storageRouter from "./storage";
 import bankStatementsRouter from "./bankStatements";
 import dimensionsRouter from "./dimensions";
+import reportsRouter from "./reports";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(documentsRouter);
 router.use(storageRouter);
 router.use(bankStatementsRouter);
 router.use(dimensionsRouter);
+router.use(reportsRouter);
 
 export default router;

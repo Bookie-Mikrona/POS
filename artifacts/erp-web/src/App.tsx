@@ -23,6 +23,7 @@ import BancniIzpis from "@/pages/bancni-izpis";
 import Saldakonti from "@/pages/saldakonti";
 import Ddv from "@/pages/ddv";
 import Dimenzije from "@/pages/dimenzije";
+import Porocila from "@/pages/porocila";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -227,12 +228,7 @@ function ClerkProviderWithRoutes() {
           
           <ProtectedRoute path="/dimenzije" component={Dimenzije} />
           
-          <ProtectedRoute path="/porocila" component={() => (
-            <Placeholder 
-              title="Poročila in analitika" 
-              description="Bruto bilanca, bilanca stanja, izkaz poslovnega izida in ostala standardna poročila." 
-            />
-          )} />
+          <ProtectedRoute path="/porocila" component={Porocila} />
           
           <ProtectedRoute path="/nastavitve" component={() => (
             <Placeholder 

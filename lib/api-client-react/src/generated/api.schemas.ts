@@ -1392,6 +1392,63 @@ export interface MatchBankTransactionsResponse {
   suggestions: TransactionWithSuggestions[];
 }
 
+export interface ReportLineItem {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  balance: string;
+}
+
+export interface ReportSection {
+  class: string;
+  label: string;
+  items: ReportLineItem[];
+  subtotal: string;
+}
+
+export interface BalanceSheetSide {
+  sections: ReportSection[];
+  total: string;
+}
+
+export interface BalanceSheetData {
+  aktiva: BalanceSheetSide;
+  pasiva: BalanceSheetSide;
+}
+
+export interface BalanceSheetResponse {
+  /** @nullable */
+  asOf?: string | null;
+  /** @nullable */
+  compareAsOf?: string | null;
+  current: BalanceSheetData;
+  compare?: BalanceSheetData | null;
+}
+
+export interface PLSide {
+  sections: ReportSection[];
+  total: string;
+}
+
+export interface IncomeStatementData {
+  revenue: PLSide;
+  expenses: PLSide;
+  netResult: string;
+}
+
+export interface IncomeStatementResponse {
+  /** @nullable */
+  dateFrom?: string | null;
+  /** @nullable */
+  dateTo?: string | null;
+  /** @nullable */
+  compareDateFrom?: string | null;
+  /** @nullable */
+  compareDateTo?: string | null;
+  current: IncomeStatementData;
+  compare?: IncomeStatementData | null;
+}
+
 export interface AnthropicConversation {
   id: number;
   title: string;
@@ -1622,6 +1679,24 @@ accountId?: string;
 periodId?: string;
 dateFrom?: string;
 dateTo?: string;
+};
+
+export type GetBalanceSheetParams = {
+/**
+ * Cut-off date (defaults to today)
+ */
+asOf?: string;
+/**
+ * Optional comparison cut-off date (e.g. previous year-end)
+ */
+compareAsOf?: string;
+};
+
+export type GetIncomeStatementParams = {
+dateFrom?: string;
+dateTo?: string;
+compareDateFrom?: string;
+compareDateTo?: string;
 };
 
 export type ListDocumentsParams = {

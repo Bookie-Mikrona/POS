@@ -2033,6 +2033,168 @@ export const GetLedgerResponse = zod.object({
 
 
 /**
+ * @summary Balance sheet (bilanca stanja) grouped by SRS account class
+ */
+export const GetBalanceSheetParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetBalanceSheetQueryParams = zod.object({
+  "asOf": zod.date().optional().describe('Cut-off date (defaults to today)'),
+  "compareAsOf": zod.date().optional().describe('Optional comparison cut-off date (e.g. previous year-end)')
+})
+
+export const GetBalanceSheetResponse = zod.object({
+  "asOf": zod.coerce.date().nullish(),
+  "compareAsOf": zod.coerce.date().nullish(),
+  "current": zod.object({
+  "aktiva": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+}),
+  "pasiva": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+})
+}),
+  "compare": zod.union([zod.object({
+  "aktiva": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+}),
+  "pasiva": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+})
+}),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Income statement (izkaz poslovnega izida) — revenues minus expenses
+ */
+export const GetIncomeStatementParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const GetIncomeStatementQueryParams = zod.object({
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional(),
+  "compareDateFrom": zod.date().optional(),
+  "compareDateTo": zod.date().optional()
+})
+
+export const GetIncomeStatementResponse = zod.object({
+  "dateFrom": zod.coerce.date().nullish(),
+  "dateTo": zod.coerce.date().nullish(),
+  "compareDateFrom": zod.coerce.date().nullish(),
+  "compareDateTo": zod.coerce.date().nullish(),
+  "current": zod.object({
+  "revenue": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+}),
+  "expenses": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+}),
+  "netResult": zod.string()
+}),
+  "compare": zod.union([zod.object({
+  "revenue": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+}),
+  "expenses": zod.object({
+  "sections": zod.array(zod.object({
+  "class": zod.string(),
+  "label": zod.string(),
+  "items": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "balance": zod.string()
+})),
+  "subtotal": zod.string()
+})),
+  "total": zod.string()
+}),
+  "netResult": zod.string()
+}),zod.null()]).optional()
+})
+
+
+/**
  * @summary List uploaded documents for a company
  */
 export const ListDocumentsParams = zod.object({

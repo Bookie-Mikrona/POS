@@ -32,6 +32,8 @@ tags:
     description: Anthropic AI chat operations
   - name: dimensions
     description: Analytic dimensions — cost centers, projects, departments (stroškovna mesta, projekti, oddelki)
+  - name: reports
+    description: Financial reports — balance sheet, income statement (bilanca stanja, izkaz poslovnega izida)
 paths:
   /healthz:
     get:
@@ -2364,6 +2366,105 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Financial reports ────────────────────────────────────────────────────────
+  /companies/{companyId}/reports/balance-sheet:
+    get:
+      operationId: getBalanceSheet
+      tags: [reports]
+      summary: Balance sheet (bilanca stanja) grouped by SRS account class
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: asOf
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Cut-off date (defaults to today)
+        - name: compareAsOf
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Optional comparison cut-off date (e.g. previous year-end)
+      responses:
+        "200":
+          description: Balance sheet data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceSheetResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}/reports/income-statement:
+    get:
+      operationId: getIncomeStatement
+      tags: [reports]
+      summary: Income statement (izkaz poslovnega izida) — revenues minus expenses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: compareDateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: compareDateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Income statement data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncomeStatementResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ── Documents (AI/OCR obdelava) ─────────────────────────────────────────────
   /companies/{companyId}/documents:
     get:
@@ -4370,6 +4471,110 @@ components:
           items:
             $ref: "#/components/schemas/TransactionWithSuggestions"
       required: [suggestions]
+
+    # ── Financial reports ─────────────────────────────────────────────────────
+    ReportLineItem:
+      type: object
+      properties:
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        balance:
+          type: string
+      required: [accountId, accountCode, accountName, balance]
+    ReportSection:
+      type: object
+      properties:
+        class:
+          type: string
+        label:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportLineItem"
+        subtotal:
+          type: string
+      required: [class, label, items, subtotal]
+    BalanceSheetSide:
+      type: object
+      properties:
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportSection"
+        total:
+          type: string
+      required: [sections, total]
+    BalanceSheetData:
+      type: object
+      properties:
+        aktiva:
+          $ref: "#/components/schemas/BalanceSheetSide"
+        pasiva:
+          $ref: "#/components/schemas/BalanceSheetSide"
+      required: [aktiva, pasiva]
+    BalanceSheetResponse:
+      type: object
+      properties:
+        asOf:
+          type: ["string", "null"]
+          format: date
+        compareAsOf:
+          type: ["string", "null"]
+          format: date
+        current:
+          $ref: "#/components/schemas/BalanceSheetData"
+        compare:
+          oneOf:
+            - $ref: "#/components/schemas/BalanceSheetData"
+            - type: "null"
+      required: [current]
+    PLSide:
+      type: object
+      properties:
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportSection"
+        total:
+          type: string
+      required: [sections, total]
+    IncomeStatementData:
+      type: object
+      properties:
+        revenue:
+          $ref: "#/components/schemas/PLSide"
+        expenses:
+          $ref: "#/components/schemas/PLSide"
+        netResult:
+          type: string
+      required: [revenue, expenses, netResult]
+    IncomeStatementResponse:
+      type: object
+      properties:
+        dateFrom:
+          type: ["string", "null"]
+          format: date
+        dateTo:
+          type: ["string", "null"]
+          format: date
+        compareDateFrom:
+          type: ["string", "null"]
+          format: date
+        compareDateTo:
+          type: ["string", "null"]
+          format: date
+        current:
+          $ref: "#/components/schemas/IncomeStatementData"
+        compare:
+          oneOf:
+            - $ref: "#/components/schemas/IncomeStatementData"
+            - type: "null"
+      required: [current]
 
     # ── Anthropic (AI chat) ───────────────────────────────────────────────────
     AnthropicConversation:
