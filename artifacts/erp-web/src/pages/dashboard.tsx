@@ -14,8 +14,8 @@ import {
   Clock,
   TrendingDown,
   TrendingUp,
-  RefreshCw,
   Landmark,
+  ShieldAlert,
 } from "lucide-react";
 import {
   BarChart,
@@ -175,6 +175,7 @@ function AgingChart({ title, data, colors, loading }: AgingChartProps) {
 const MODULES = [
   {
     id: "kontni-plan",
+    requires: "erp",
     name: "Kontni plan",
     path: "/kontni-plan",
     icon: BookOpen,
@@ -184,6 +185,7 @@ const MODULES = [
   },
   {
     id: "temeljnice",
+    requires: "erp",
     name: "Temeljnice",
     path: "/temeljnice",
     icon: FileText,
@@ -193,6 +195,7 @@ const MODULES = [
   },
   {
     id: "kupci",
+    requires: "erp",
     name: "Kupci",
     path: "/kupci",
     icon: Users,
@@ -202,6 +205,7 @@ const MODULES = [
   },
   {
     id: "dobavitelji",
+    requires: "erp",
     name: "Dobavitelji",
     path: "/dobavitelji",
     icon: Truck,
@@ -211,6 +215,7 @@ const MODULES = [
   },
   {
     id: "ddv",
+    requires: "erp",
     name: "DDV evidence",
     path: "/ddv",
     icon: Receipt,
@@ -220,6 +225,7 @@ const MODULES = [
   },
   {
     id: "porocila",
+    requires: "erp",
     name: "Poročila",
     path: "/porocila",
     icon: BarChart3,
@@ -233,6 +239,15 @@ const MODULES = [
 
 export default function Dashboard() {
   const { activeCompany } = useCompany();
+
+  // Aktivni moduli — enaka logika kot v Shell.tsx
+  const activeModules: string[] =
+    (activeCompany as (typeof activeCompany & { modules?: string[] }))?.modules ?? [];
+  const hasErp = activeModules.includes("erp");
+
+  // Vidni moduli v gridu (filtrirani po aktivnih)
+  const visibleModules = MODULES.filter((m) => activeModules.includes(m.requires));
+
   const today = new Date().toISOString().slice(0, 10);
   const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
@@ -241,34 +256,34 @@ export default function Dashboard() {
   const { data: terData, isLoading: terLoading } = useGetOpenItems(
     activeCompany?.id ?? "",
     { type: "issued" },
-    { query: { enabled: !!activeCompany?.id } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp } as any },
   );
 
   // Open items — obveznosti (received)
   const { data: obvData, isLoading: obvLoading } = useGetOpenItems(
     activeCompany?.id ?? "",
     { type: "received" },
-    { query: { enabled: !!activeCompany?.id } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp } as any },
   );
 
   // Aged analysis — terjatve
   const { data: agedTerData, isLoading: agedTerLoading } = useGetAgedAnalysis(
     activeCompany?.id ?? "",
     { type: "issued" },
-    { query: { enabled: !!activeCompany?.id } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp } as any },
   );
 
   // Aged analysis — obveznosti
   const { data: agedObvData, isLoading: agedObvLoading } = useGetAgedAnalysis(
     activeCompany?.id ?? "",
     { type: "received" },
-    { query: { enabled: !!activeCompany?.id } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp } as any },
   );
 
   // Bank balance — stanje bančnih računov (110x)
   const { data: bankData, isLoading: bankLoading } = useGetBankBalance(
     activeCompany?.id ?? "",
-    { query: { enabled: !!activeCompany?.id } as any },
+    { query: { enabled: !!activeCompany?.id && hasErp } as any },
   );
 
   // Derived KPIs
@@ -340,13 +355,15 @@ export default function Dashboard() {
             {activeCompany ? activeCompany.naziv : "Izberite podjetje za prikaz podatkov"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" asChild>
-            <Link href="/temeljnice/nova">
-              <Plus className="h-4 w-4 mr-2" /> Nova temeljnica
-            </Link>
-          </Button>
-        </div>
+        {hasErp && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" asChild>
+              <Link href="/temeljnice/nova">
+                <Plus className="h-4 w-4 mr-2" /> Nova temeljnica
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
       {!activeCompany ? (
@@ -356,7 +373,7 @@ export default function Dashboard() {
             Izberite podjetje v zgornjem desnem kotu za prikaz KPI podatkov.
           </AlertDescription>
         </Alert>
-      ) : (
+      ) : !hasErp ? null : (
         <>
           {/* KPI cards */}
           <div>
@@ -445,38 +462,47 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Module grid */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-          Moduli sistema
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {MODULES.map((module) => (
-            <Link key={module.id} href={module.path}>
-              <Card className="h-full shadow-sm hover:shadow-md transition-shadow cursor-pointer border-border/60 hover:border-primary/30 group">
-                <CardHeader className="pb-3 flex flex-row items-center gap-4">
-                  <div
-                    className={`h-10 w-10 rounded-lg flex items-center justify-center ${module.bg} ${module.color}`}
-                  >
-                    <module.icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-base group-hover:text-primary transition-colors">
-                      {module.name}
-                    </CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="pb-4">
-                  <p className="text-sm text-muted-foreground line-clamp-2">{module.description}</p>
-                </CardContent>
-                <CardFooter className="pt-0 flex justify-end">
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
-                </CardFooter>
-              </Card>
-            </Link>
-          ))}
+      {/* Module grid — prikaži samo aktivne module; če jih ni, prazen zaslon */}
+      {visibleModules.length > 0 ? (
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            Moduli sistema
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {visibleModules.map((module) => (
+              <Link key={module.id} href={module.path}>
+                <Card className="h-full shadow-sm hover:shadow-md transition-shadow cursor-pointer border-border/60 hover:border-primary/30 group">
+                  <CardHeader className="pb-3 flex flex-row items-center gap-4">
+                    <div
+                      className={`h-10 w-10 rounded-lg flex items-center justify-center ${module.bg} ${module.color}`}
+                    >
+                      <module.icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base group-hover:text-primary transition-colors">
+                        {module.name}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <p className="text-sm text-muted-foreground line-clamp-2">{module.description}</p>
+                  </CardContent>
+                  <CardFooter className="pt-0 flex justify-end">
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                  </CardFooter>
+                </Card>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : activeCompany ? (
+        <Alert>
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            Temu podjetju ni dodeljen noben modul. Obrnite se na skrbnika sistema za dodelitev dostopa.
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }
