@@ -87,21 +87,48 @@ export interface TransactionWithSuggestions {
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
 
+export interface SkippedRow {
+  lineNumber: number;
+  reason: string;
+}
+
+/** Validate that an ISO date string (YYYY-MM-DD) represents a real calendar date. */
+function isValidIsoDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const [y, mo, d] = date.split("-").map(Number);
+  if (y < 1900 || y > 2100) return false;
+  if (mo < 1 || mo > 12) return false;
+  if (d < 1 || d > 31) return false;
+  // Use Date to catch month/day overflow (e.g. Feb 30)
+  const dt = new Date(`${date}T00:00:00Z`);
+  return !isNaN(dt.getTime()) && dt.getUTCFullYear() === y && dt.getUTCMonth() + 1 === mo && dt.getUTCDate() === d;
+}
+
+interface ParseResult {
+  transactions: BankTransaction[];
+  skippedRows: SkippedRow[];
+}
+
 /**
  * Parse MT940 SWIFT format into BankTransaction array.
  * Handles the common `:61:` and `:86:` tag structure.
  */
-function parseMT940(content: string): BankTransaction[] {
+function parseMT940(content: string): ParseResult {
   const transactions: BankTransaction[] = [];
+  const skippedRows: SkippedRow[] = [];
+
   // Normalise line endings
   const text = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const rawLines = text.split("\n");
 
   // Split into tag blocks
   const tagRe = /^:(\w+):(.*?)(?=\n:\w+:|$)/gms;
-  const tags: { tag: string; value: string }[] = [];
+  const tags: { tag: string; value: string; lineNumber: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = tagRe.exec(text)) !== null) {
-    tags.push({ tag: m[1], value: m[2].trim() });
+    // Estimate line number by counting newlines before this match
+    const lineNumber = text.slice(0, m.index).split("\n").length;
+    tags.push({ tag: m[1], value: m[2].trim(), lineNumber });
   }
 
   let currency = "EUR";
@@ -114,19 +141,33 @@ function parseMT940(content: string): BankTransaction[] {
 
   let idx = 0;
   for (let i = 0; i < tags.length; i++) {
-    const { tag, value } = tags[i];
+    const { tag, value, lineNumber } = tags[i];
     if (tag !== "61") continue;
 
     // :61: YYMMDD[MMDD][C/D][S]AmountFRef
     // E.g. 2412231224C123,45NTRFNONREF
     const txRe = /^(\d{2})(\d{2})(\d{2})(?:\d{4})?([CD]R?)(\d+,\d+)\w{0,4}(.*)$/s;
     const txm = txRe.exec(value.replace(/\n/g, ""));
-    if (!txm) continue;
+    if (!txm) {
+      skippedRows.push({ lineNumber, reason: "Vrstica :61: ni v prepoznavnem formatu" });
+      continue;
+    }
 
     const [, yy, mm, dd, cdFlag, amountRaw, rest] = txm;
     const date = `20${yy}-${mm}-${dd}`;
+
+    if (!isValidIsoDate(date)) {
+      skippedRows.push({ lineNumber, reason: `Neveljaven datum: ${date}` });
+      continue;
+    }
+
     const absAmount = parseFloat(amountRaw.replace(",", "."));
     const amount = cdFlag.startsWith("D") ? -absAmount : absAmount;
+
+    if (amount === 0) {
+      skippedRows.push({ lineNumber, reason: "Znesek je 0" });
+      continue;
+    }
 
     // Reference is after the NTRF/NCHK etc fund code (next line or trailing)
     const refMatch = /\n?(.+)/.exec(rest);
@@ -167,16 +208,18 @@ function parseMT940(content: string): BankTransaction[] {
     });
   }
 
-  return transactions;
+  return { transactions, skippedRows };
 }
 
 /**
  * Parse CSV bank export (NLB, SKB, Addiko and generic SI bank formats).
  * Accepts semicolon or comma delimiters. Auto-detects columns from headers.
  */
-function parseCSV(content: string): BankTransaction[] {
-  const lines = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(l => l.trim());
-  if (lines.length < 2) return [];
+function parseCSV(content: string): ParseResult {
+  const skippedRows: SkippedRow[] = [];
+  const allLines = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const lines = allLines.filter(l => l.trim());
+  if (lines.length < 2) return { transactions: [], skippedRows };
 
   // Detect delimiter
   const firstLine = lines[0];
@@ -221,14 +264,31 @@ function parseCSV(content: string): BankTransaction[] {
   const transactions: BankTransaction[] = [];
   let idx = 0;
 
+  // Track file line numbers (1-based, accounting for blank lines in the original)
+  // lines[] is already filtered, so we reconstruct positions from allLines
+  const lineNumberOf = (filteredIndex: number): number => {
+    let count = 0;
+    for (let n = 0; n < allLines.length; n++) {
+      if (allLines[n].trim()) {
+        if (count === filteredIndex) return n + 1;
+        count++;
+      }
+    }
+    return filteredIndex + 1;
+  };
+
   for (let i = 1; i < lines.length; i++) {
+    const fileLineNum = lineNumberOf(i);
     const cols = parseLine(lines[i]);
     if (cols.every(c => !c)) continue;
 
     const get = (ci: number): string => (ci >= 0 && ci < cols.length ? cols[ci] : "").trim();
 
     const rawDate = get(dateCol);
-    if (!rawDate) continue;
+    if (!rawDate) {
+      skippedRows.push({ lineNumber: fileLineNum, reason: "Manjkajoč datum" });
+      continue;
+    }
 
     // Parse date (DD.MM.YYYY or YYYY-MM-DD or DD/MM/YYYY)
     let date = rawDate;
@@ -237,6 +297,11 @@ function parseCSV(content: string): BankTransaction[] {
       const [, d, mo, y] = dmY;
       const year = y.length === 2 ? `20${y}` : y;
       date = `${year}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+
+    if (!isValidIsoDate(date)) {
+      skippedRows.push({ lineNumber: fileLineNum, reason: `Neveljaven datum: "${rawDate}"` });
+      continue;
     }
 
     // Parse amount
@@ -251,7 +316,10 @@ function parseCSV(content: string): BankTransaction[] {
       amount = cr - db2;
     }
 
-    if (amount === 0) continue;
+    if (amount === 0) {
+      skippedRows.push({ lineNumber: fileLineNum, reason: "Znesek je 0" });
+      continue;
+    }
 
     const reference = get(refCol) || null;
     const counterpartyName = get(nameCol) || null;
@@ -272,7 +340,7 @@ function parseCSV(content: string): BankTransaction[] {
     });
   }
 
-  return transactions;
+  return { transactions, skippedRows };
 }
 
 // ─── Matching engine ──────────────────────────────────────────────────────────
@@ -560,28 +628,38 @@ router.post(
     const content = req.file.buffer.toString("utf-8");
     const filename = req.file.originalname.toLowerCase();
 
-    let transactions: BankTransaction[];
+    let parseResult: ParseResult;
     try {
       if (filename.endsWith(".mt940") || filename.endsWith(".sta") || filename.endsWith(".940") || content.includes(":61:")) {
-        transactions = parseMT940(content);
-        if (transactions.length === 0) {
+        parseResult = parseMT940(content);
+        if (parseResult.transactions.length === 0) {
           // Fallback to CSV if MT940 parsing yields nothing
-          transactions = parseCSV(content);
+          parseResult = parseCSV(content);
         }
       } else {
-        transactions = parseCSV(content);
+        parseResult = parseCSV(content);
       }
     } catch (err) {
       res.status(400).json({ error: "Napaka pri razčlenjevanju datoteke. Preverite format (CSV ali MT940)." });
       return;
     }
 
-    if (transactions.length === 0) {
+    const { transactions, skippedRows } = parseResult;
+
+    if (transactions.length === 0 && skippedRows.length === 0) {
       res.status(422).json({ error: "V datoteki ni bilo najdenih transakcij. Preverite format." });
       return;
     }
 
-    res.json({ transactions, count: transactions.length });
+    if (transactions.length === 0) {
+      res.status(422).json({
+        error: "Vse vrstice so bile preskočene. Preverite format datoteke.",
+        skippedRows,
+      });
+      return;
+    }
+
+    res.json({ transactions, count: transactions.length, skippedRows });
   },
 );
 

@@ -39,6 +39,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 // ─── Types mirrored from backend ─────────────────────────────────────────────
 
+interface SkippedRow {
+  lineNumber: number;
+  reason: string;
+}
+
 interface BankTransaction {
   id: string;
   date: string;
@@ -88,7 +93,7 @@ type MatchDecision =
 async function parseBankStatement(
   companyId: string,
   file: File,
-): Promise<{ transactions: BankTransaction[]; count: number }> {
+): Promise<{ transactions: BankTransaction[]; count: number; skippedRows: SkippedRow[] }> {
   const form = new FormData();
   form.append("file", file);
   const resp = await fetch(`/api/companies/${companyId}/bank-statements/parse`, {
@@ -100,7 +105,8 @@ async function parseBankStatement(
     const err = await resp.json().catch(() => ({}));
     throw new Error((err as any).error ?? `HTTP ${resp.status}`);
   }
-  return resp.json();
+  const data = await resp.json();
+  return { skippedRows: [], ...data };
 }
 
 interface CreatePaymentPayload {
@@ -234,6 +240,9 @@ export default function BancniIzpis() {
     setConfigLoaded(!!saved);
   }, [activeCompany?.id]);
 
+  // Skipped rows from the last parse
+  const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
+
   // Step 2 state
   const [suggestions, setSuggestions] = useState<TransactionWithSuggestions[]>([]);
   const [decisions, setDecisions] = useState<Map<string, MatchDecision>>(new Map());
@@ -324,7 +333,8 @@ export default function BancniIzpis() {
     setParsing(true);
     setParseError(null);
     try {
-      const { transactions } = await parseBankStatement(activeCompany.id, file);
+      const { transactions, skippedRows: sr } = await parseBankStatement(activeCompany.id, file);
+      setSkippedRows(sr);
       setMatching(true);
       const { suggestions: s } = await matchTransactions(activeCompany.id, transactions);
 
@@ -512,6 +522,7 @@ export default function BancniIzpis() {
     }
     setSuggestions([]);
     setDecisions(new Map());
+    setSkippedRows([]);
     setConfirmResult(null);
     setConfirmError(null);
     setParseError(null);
@@ -725,6 +736,34 @@ export default function BancniIzpis() {
       {/* ─── STEP 2: Review ──────────────────────────────────────────────────── */}
       {step === "review" && (
         <div className="space-y-4">
+          {/* Skipped rows warning */}
+          {skippedRows.length > 0 && (
+            <Alert variant="default" className="border-amber-200 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
+              <TriangleAlert className="h-4 w-4" />
+              <AlertTitle>
+                {skippedRows.length === 1
+                  ? "1 vrstica je bila preskočena"
+                  : `${skippedRows.length} vrstic je bilo preskočenih`}
+              </AlertTitle>
+              <AlertDescription>
+                <p className="mb-2">
+                  Naslednje vrstice niso bile uvožene zaradi neveljavnih podatkov:
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {skippedRows.slice(0, 10).map((row, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="font-mono text-amber-700 shrink-0">V{row.lineNumber}:</span>
+                      <span>{row.reason}</span>
+                    </li>
+                  ))}
+                  {skippedRows.length > 10 && (
+                    <li className="text-amber-700 text-xs">… in še {skippedRows.length - 10} vrstic</li>
+                  )}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Progress panel — shown while confirming */}
           {confirming && confirmProgress && (
             <div className="p-5 border rounded-lg bg-card space-y-4">
