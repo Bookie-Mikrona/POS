@@ -21,6 +21,7 @@ import {
   invoicesTable,
   invoiceLinesTable,
   accountingPeriodsTable,
+  counterpartyAccountTemplatesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -87,7 +88,7 @@ async function runOcrWithClaude(
   companyId: string,
 ): Promise<OcrResult> {
   // Pridobi kontekst (partnerji + konte + pretekle knjižbe) za boljše predloge
-  const [counterparties, accounts, vatCodes, recentBookingRows] = await Promise.all([
+  const [counterparties, accounts, vatCodes, recentBookingRows, templateRows] = await Promise.all([
     db.select({ id: counterpartiesTable.id, name: counterpartiesTable.name, taxId: counterpartiesTable.taxId })
       .from(counterpartiesTable)
       .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true)))
@@ -122,7 +123,43 @@ async function runOcrWithClaude(
       )
       .orderBy(desc(invoicesTable.createdAt))
       .limit(100),
+    // Shranjene predloge kontiranja po partnerju — nastanejo ob potrditvi dokumenta
+    db.select({
+      counterpartyId: counterpartyAccountTemplatesTable.counterpartyId,
+      counterpartyName: counterpartiesTable.name,
+      accountId: counterpartyAccountTemplatesTable.accountId,
+      accountCode: accountsTable.code,
+      accountName: accountsTable.name,
+      documentType: counterpartyAccountTemplatesTable.documentType,
+      lastLineDescription: counterpartyAccountTemplatesTable.lastLineDescription,
+      usageCount: counterpartyAccountTemplatesTable.usageCount,
+    })
+      .from(counterpartyAccountTemplatesTable)
+      .innerJoin(counterpartiesTable, eq(counterpartyAccountTemplatesTable.counterpartyId, counterpartiesTable.id))
+      .innerJoin(accountsTable, eq(counterpartyAccountTemplatesTable.accountId, accountsTable.id))
+      .where(eq(counterpartyAccountTemplatesTable.companyId, companyId))
+      .orderBy(desc(counterpartyAccountTemplatesTable.usageCount))
+      .limit(200),
   ]);
+
+  // Združi shranjene predloge po partnerjih
+  const templatesByCounterparty = new Map<string, typeof templateRows>();
+  for (const row of templateRows) {
+    const existing = templatesByCounterparty.get(row.counterpartyId) ?? [];
+    existing.push(row);
+    templatesByCounterparty.set(row.counterpartyId, existing);
+  }
+  const templatesContext = templatesByCounterparty.size > 0
+    ? Array.from(templatesByCounterparty.entries())
+        .map(([, rows]) => {
+          const cpName = rows[0].counterpartyName;
+          const lines = rows.map(r =>
+            `    • [${r.usageCount}× potrjeno] ${r.documentType === "invoice_received" ? "prejet" : "izdan"} račun | "${r.lastLineDescription ?? "–"}" → konto ${r.accountCode} (${r.accountName})`,
+          ).join("\n");
+          return `  ${cpName}:\n${lines}`;
+        })
+        .join("\n\n")
+    : null;
 
   // Združi pretekle knjižbe po partnerjih — max 5 vrstic na partnerja
   const bookingsByCounterparty = new Map<string, typeof recentBookingRows>();
@@ -163,7 +200,10 @@ ${accountList || "(ni kontov)"}
 DDV kode:
 ${vatList || "(ni DDV kod)"}
 
-PRETEKLE POTRJENE KNJIŽBE PO PARTNERJIH (uporabi kot učni vzorec za predlog kontov):
+SHRANJENE PREDLOGE KONTIRANJA PO PARTNERJIH (NAJVIŠJA PRIORITETA — te konte je računovodja že potrdil za istega partnerja):
+${templatesContext ?? "(še ni shranjenih predlog)"}
+
+PRETEKLE POTRJENE KNJIŽBE PO PARTNERJIH (sekundaren učni vzorec):
 ${pastBookingsContext}
 
 TIPIČNI VZORCI KONTIRANJA ZA GOSTINSTVO (upoštevaj pri predlogih):
@@ -182,10 +222,11 @@ NAVODILA:
 2. Ekstrahiraj vse metapodatke: številka računa, datum, rok plačila, partner, naslov, DDV identifikacijska številka
 3. Ekstrahiraj vse vrstice: opis, količina, cena/enoto, stopnja DDV, osnova, znesek DDV
 4. Poišči partnerja v sistemu (fuzzy match po imenu ali DDV številki)
-5. Če je partner prepoznan in ima pretekle knjižbe (zgoraj), PREDNOSTNO uporabi enake konte kot v prejšnjih knjižbah za istega partnerja — to zagotavlja doslednost
-6. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama — najprej preveri vzorce preteklih knjižb, nato tipične vzorce kontiranja
-7. Izračunaj skupne vsote
-8. Oceni zaupnost prepoznave (0.0-1.0) — višja zaupnost, ko se konte ujemajo s preteklimi knjižbami
+5. Če je partner prepoznan in ima SHRANJENE PREDLOGE (zgoraj), OBVEZNO uporabi točno te konte — to so konte, ki jih je računovodja že potrdil za tega partnerja
+6. Če ni shranjenih predlog, preveri pretekle knjižbe (sekundarni vir)
+7. Za vsako vrstico predlagaj najprimernejši konto iz zgornjega seznama — najprej shranjene predloge, nato pretekle knjižbe, nato tipične vzorce
+8. Izračunaj skupne vsote
+9. Oceni zaupnost prepoznave (0.0-1.0) — višja zaupnost, ko se konte ujemajo s shranjenimi predlogami (max 0.98 za shranjene predloge, max 0.85 za pretekle knjižbe)
 
 VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
 {
@@ -613,6 +654,51 @@ router.post(
       confirmedData: confirmedData as any,
       linkedInvoiceId,
     }).where(eq(documentsTable.id, id)).returning();
+
+    // ── Upsert predlog kontiranja po partnerju ──────────────────────────────
+    // Ob vsaki potrditvi shranimo par (partner + konto) za vsako vrstico.
+    // Ob naslednjem dokumentu istega partnerja se ti pari predlagajo pred AI.
+    if (counterpartyId && confirmedData.lines.length > 0) {
+      const docTypeKey = confirmedData.suggestedDocumentType ?? documentType ?? "invoice_received";
+      // Zberi unikatne accountId-je iz vrstic
+      const lineAccountPairs = confirmedData.lines
+        .filter((l) => l.accountId)
+        .reduce<Map<string, string>>((acc, l) => {
+          if (!acc.has(l.accountId!)) acc.set(l.accountId!, l.description ?? "");
+          return acc;
+        }, new Map());
+
+      if (lineAccountPairs.size > 0) {
+        await Promise.all(
+          Array.from(lineAccountPairs.entries()).map(([acctId, desc]) =>
+            db
+              .insert(counterpartyAccountTemplatesTable)
+              .values({
+                companyId,
+                counterpartyId,
+                accountId: acctId,
+                documentType: docTypeKey,
+                lastLineDescription: desc || null,
+                usageCount: 1,
+                lastUsedAt: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: [
+                  counterpartyAccountTemplatesTable.companyId,
+                  counterpartyAccountTemplatesTable.counterpartyId,
+                  counterpartyAccountTemplatesTable.accountId,
+                  counterpartyAccountTemplatesTable.documentType,
+                ],
+                set: {
+                  usageCount: sql`${counterpartyAccountTemplatesTable.usageCount} + 1`,
+                  lastLineDescription: desc || null,
+                  lastUsedAt: new Date(),
+                },
+              }),
+          ),
+        );
+      }
+    }
 
     res.json(updated);
   },

@@ -1,9 +1,11 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import {
   db,
   counterpartiesTable,
   accountingRolesTable,
+  counterpartyAccountTemplatesTable,
+  accountsTable,
 } from "@workspace/db";
 import {
   CreateCounterpartyBody,
@@ -163,6 +165,53 @@ router.get(
     }
 
     res.json(row);
+  },
+);
+
+// GET /companies/:companyId/counterparties/:id/account-templates
+router.get(
+  "/companies/:companyId/counterparties/:id/account-templates",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+
+    const [cp] = await db
+      .select({ id: counterpartiesTable.id })
+      .from(counterpartiesTable)
+      .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, companyId)))
+      .limit(1);
+    if (!cp) {
+      res.status(404).json({ error: "Partner ni najden" });
+      return;
+    }
+
+    const templates = await db
+      .select({
+        id: counterpartyAccountTemplatesTable.id,
+        accountId: counterpartyAccountTemplatesTable.accountId,
+        accountCode: accountsTable.code,
+        accountName: accountsTable.name,
+        documentType: counterpartyAccountTemplatesTable.documentType,
+        lastLineDescription: counterpartyAccountTemplatesTable.lastLineDescription,
+        usageCount: counterpartyAccountTemplatesTable.usageCount,
+        lastUsedAt: counterpartyAccountTemplatesTable.lastUsedAt,
+      })
+      .from(counterpartyAccountTemplatesTable)
+      .innerJoin(accountsTable, eq(counterpartyAccountTemplatesTable.accountId, accountsTable.id))
+      .where(
+        and(
+          eq(counterpartyAccountTemplatesTable.companyId, companyId),
+          eq(counterpartyAccountTemplatesTable.counterpartyId, id),
+        ),
+      )
+      .orderBy(desc(counterpartyAccountTemplatesTable.usageCount));
+
+    res.json({ templates });
   },
 );
 
