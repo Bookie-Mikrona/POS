@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
@@ -128,7 +128,7 @@ function HomeRedirect() {
 
 // Super admin hook — reads isSuperAdmin from /api/me response
 function useIsSuperAdmin(): boolean {
-  const { user, isLoaded } = useClerk() as any;
+  const { user, isLoaded } = useUser();
   const { data } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
   return !!(data as any)?.isSuperAdmin;
 }
