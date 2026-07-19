@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, Upload, Loader2, FileSearch, CheckCircle2, XCircle, AlertCircle, 
   Building2, AlertTriangle, FileUp, UserPlus, ChevronDown, ChevronUp,
-  Eye, EyeOff, ZoomIn, ZoomOut, ExternalLink
+  Eye, EyeOff, ZoomIn, ZoomOut, ExternalLink, Maximize2, X
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -402,6 +402,7 @@ function DocumentPreview({ objectPath, mimeType }: { objectPath: string; mimeTyp
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
   const normalizedPath = objectPath.startsWith("/objects/")
@@ -432,69 +433,149 @@ function DocumentPreview({ objectPath, mimeType }: { objectPath: string; mimeTyp
     };
   }, [apiUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Close fullscreen on Escape
+  useEffect(() => {
+    if (!fullscreen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [fullscreen]);
+
   const isPdf = mimeType === "application/pdf";
 
   return (
-    <Card className="shadow-none border-border overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
-        <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <Eye className="h-4 w-4 text-muted-foreground" />
-          Predogled dokumenta
-        </h3>
-        <div className="flex items-center gap-2">
-          {blobUrl && (
-            <a
-              href={blobUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+    <>
+      <Card className="shadow-none border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+          <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground">
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            Predogled dokumenta
+          </h3>
+          <div className="flex items-center gap-2">
+            {blobUrl && (
+              <>
+                <button
+                  onClick={() => setFullscreen(true)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="Celozaslonski predogled"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  <span>Razširi</span>
+                </button>
+                <a
+                  href={blobUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="Odpri v novem zavihku"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </>
+            )}
+            <button
+              onClick={() => setCollapsed(v => !v)}
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              title="Odpri v novem zavihku"
+              title={collapsed ? "Prikaži predogled" : "Skrij predogled"}
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          )}
-          <button
-            onClick={() => setCollapsed(v => !v)}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            title={collapsed ? "Prikaži predogled" : "Skrij predogled"}
-          >
-            {collapsed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            <span>{collapsed ? "Prikaži" : "Skrij"}</span>
-          </button>
+              {collapsed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              <span>{collapsed ? "Prikaži" : "Skrij"}</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {!collapsed && (
-        <CardContent className="p-0">
-          {loadError ? (
-            <div className="flex items-center justify-center h-40 text-sm text-muted-foreground gap-2">
-              <AlertCircle className="h-4 w-4 text-destructive" />
-              Predogleda ni bilo mogoče naložiti.
-            </div>
-          ) : !blobUrl ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : isPdf ? (
-            <iframe
-              src={blobUrl}
-              title="Predogled PDF dokumenta"
-              className="w-full border-0"
-              style={{ height: "520px" }}
-            />
-          ) : (
-            <div className="flex items-center justify-center bg-muted/10 p-4" style={{ minHeight: "300px", maxHeight: "520px" }}>
-              <img
+        {!collapsed && (
+          <CardContent className="p-0">
+            {loadError ? (
+              <div className="flex items-center justify-center h-40 text-sm text-muted-foreground gap-2">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                Predogleda ni bilo mogoče naložiti.
+              </div>
+            ) : !blobUrl ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : isPdf ? (
+              <iframe
                 src={blobUrl}
-                alt="Predogled dokumenta"
-                className="max-w-full object-contain rounded"
-                style={{ maxHeight: "488px" }}
+                title="Predogled PDF dokumenta"
+                className="w-full border-0"
+                style={{ height: "520px" }}
               />
+            ) : (
+              <div className="flex items-center justify-center bg-muted/10 p-4" style={{ minHeight: "300px", maxHeight: "520px" }}>
+                <img
+                  src={blobUrl}
+                  alt="Predogled dokumenta"
+                  className="max-w-full object-contain rounded"
+                  style={{ maxHeight: "488px" }}
+                />
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Fullscreen modal */}
+      {fullscreen && blobUrl && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/90"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Celozaslonski predogled dokumenta"
+        >
+          {/* Modal header */}
+          <div className="flex items-center justify-between px-5 py-3 bg-black/60 border-b border-white/10 shrink-0">
+            <span className="text-sm font-medium text-white/80 flex items-center gap-2">
+              <Eye className="h-4 w-4 text-white/50" />
+              Celozaslonski predogled
+            </span>
+            <div className="flex items-center gap-3">
+              <a
+                href={blobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                title="Odpri v novem zavihku"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Nov zavihek</span>
+              </a>
+              <button
+                onClick={() => setFullscreen(false)}
+                className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md"
+                title="Zapri (Escape)"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>Zapri</span>
+              </button>
             </div>
-          )}
-        </CardContent>
+          </div>
+
+          {/* Modal content */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {isPdf ? (
+              <iframe
+                src={blobUrl}
+                title="Celozaslonski predogled PDF dokumenta"
+                className="w-full h-full border-0"
+                style={{ minHeight: "100%" }}
+              />
+            ) : (
+              <div className="flex items-center justify-center w-full h-full p-6">
+                <img
+                  src={blobUrl}
+                  alt="Celozaslonski predogled dokumenta"
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            )}
+          </div>
+        </div>
       )}
-    </Card>
+    </>
   );
 }
 
