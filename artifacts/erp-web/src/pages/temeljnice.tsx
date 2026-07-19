@@ -391,7 +391,16 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
     }
   }, [open, openPeriods, periodId]);
 
-  const canSave = periodId && description && lines.filter(l => l.accountId && parseFloat(l.amount) > 0).length >= 2 && (!autoPost || totals.balanced);
+  const validLines = lines.filter(l => l.accountId && parseFloat(l.amount) > 0);
+  const dimensionErrors = validLines.some(l => {
+    const acc = activeAccounts.find(a => a.id === l.accountId);
+    if (!acc) return false;
+    if (acc.requiresPartner && !l.partnerId) return true;
+    if (acc.requiresCostCenter && !l.costCenterId) return true;
+    if (acc.requiresProject && !l.projectId) return true;
+    return false;
+  });
+  const canSave = periodId && description && validLines.length >= 2 && (!autoPost || totals.balanced) && !dimensionErrors;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -495,72 +504,99 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {counterparties.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Partner (neobvezno)</Label>
-                        <Select value={line.partnerId || "__none__"} onValueChange={(val) => updateLine(line.id, "partnerId", val === "__none__" ? "" : val)}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">—</SelectItem>
-                            {counterparties.map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  {(() => {
+                    const selAcc = activeAccounts.find(a => a.id === line.accountId);
+                    const reqPartner = selAcc?.requiresPartner ?? false;
+                    const reqCostCenter = selAcc?.requiresCostCenter ?? false;
+                    const reqProject = selAcc?.requiresProject ?? false;
+                    const showPartner = counterparties.length > 0 || reqPartner;
+                    const showCostCenter = costCenters.length > 0 || reqCostCenter;
+                    const showProject = projects.length > 0 || reqProject;
+                    const showDept = departments.length > 0;
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        {showPartner && (
+                          <div className="space-y-1.5">
+                            <Label className={`text-xs ${reqPartner ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              Partner{reqPartner ? <span className="text-destructive ml-0.5">*</span> : " (neobvezno)"}
+                            </Label>
+                            <Select value={line.partnerId || "__none__"} onValueChange={(val) => updateLine(line.id, "partnerId", val === "__none__" ? "" : val)}>
+                              <SelectTrigger className={`h-9 ${reqPartner && !line.partnerId ? "border-destructive ring-1 ring-destructive" : ""}`}>
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {!reqPartner && <SelectItem value="__none__">—</SelectItem>}
+                                {counterparties.map(c => (
+                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {reqPartner && !line.partnerId && (
+                              <p className="text-xs text-destructive">Za ta konto je poslovni partner obvezen.</p>
+                            )}
+                          </div>
+                        )}
+                        {showCostCenter && (
+                          <div className="space-y-1.5">
+                            <Label className={`text-xs ${reqCostCenter ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              Stroškovno mesto{reqCostCenter ? <span className="text-destructive ml-0.5">*</span> : " (neobvezno)"}
+                            </Label>
+                            <Select value={line.costCenterId || "__none__"} onValueChange={(val) => updateLine(line.id, "costCenterId", val === "__none__" ? "" : val)}>
+                              <SelectTrigger className={`h-9 ${reqCostCenter && !line.costCenterId ? "border-destructive ring-1 ring-destructive" : ""}`}>
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {!reqCostCenter && <SelectItem value="__none__">—</SelectItem>}
+                                {costCenters.map(cc => (
+                                  <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {reqCostCenter && !line.costCenterId && (
+                              <p className="text-xs text-destructive">Za ta konto je stroškovno mesto obvezno.</p>
+                            )}
+                          </div>
+                        )}
+                        {showProject && (
+                          <div className="space-y-1.5">
+                            <Label className={`text-xs ${reqProject ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              Projekt{reqProject ? <span className="text-destructive ml-0.5">*</span> : " (neobvezno)"}
+                            </Label>
+                            <Select value={line.projectId || "__none__"} onValueChange={(val) => updateLine(line.id, "projectId", val === "__none__" ? "" : val)}>
+                              <SelectTrigger className={`h-9 ${reqProject && !line.projectId ? "border-destructive ring-1 ring-destructive" : ""}`}>
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {!reqProject && <SelectItem value="__none__">—</SelectItem>}
+                                {projects.map(p => (
+                                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {reqProject && !line.projectId && (
+                              <p className="text-xs text-destructive">Za ta konto je projekt obvezen.</p>
+                            )}
+                          </div>
+                        )}
+                        {showDept && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Oddelek (neobvezno)</Label>
+                            <Select value={line.departmentId || "__none__"} onValueChange={(val) => updateLine(line.id, "departmentId", val === "__none__" ? "" : val)}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">—</SelectItem>
+                                {departments.map(d => (
+                                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {costCenters.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Stroškovno mesto (neobvezno)</Label>
-                        <Select value={line.costCenterId || "__none__"} onValueChange={(val) => updateLine(line.id, "costCenterId", val === "__none__" ? "" : val)}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">—</SelectItem>
-                            {costCenters.map(cc => (
-                              <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {projects.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Projekt (neobvezno)</Label>
-                        <Select value={line.projectId || "__none__"} onValueChange={(val) => updateLine(line.id, "projectId", val === "__none__" ? "" : val)}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">—</SelectItem>
-                            {projects.map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {departments.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Oddelek (neobvezno)</Label>
-                        <Select value={line.departmentId || "__none__"} onValueChange={(val) => updateLine(line.id, "departmentId", val === "__none__" ? "" : val)}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">—</SelectItem>
-                            {departments.map(d => (
-                              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
