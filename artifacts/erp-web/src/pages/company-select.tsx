@@ -1,14 +1,18 @@
 import React, { useState } from "react";
 import { useLocation } from "wouter";
-import { Building2, Plus, ArrowRight, Loader2, AlertCircle } from "lucide-react";
-import { useListCompanies, useCreateCompany, type CompanyWithRole } from "@workspace/api-client-react";
+import { Building2, Plus, ArrowRight, Loader2, AlertCircle, Clock, ShieldCheck } from "lucide-react";
+import { useListCompanies, useCreateCompany, useGetMe, type CompanyWithRole } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useUser } from "@clerk/react";
 
 export default function CompanySelectPage() {
   const [, setLocation] = useLocation();
   const { setActiveCompany } = useCompany();
   const { data, isLoading, error } = useListCompanies();
   const createCompany = useCreateCompany();
+  const { user, isLoaded } = useUser();
+  const { data: me } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
+  const isSuperAdmin = !!(me as any)?.isSuperAdmin;
 
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
@@ -88,9 +92,37 @@ export default function CompanySelectPage() {
               ))}
               
               {companies.length === 0 && !isCreating && (
-                <div className="text-center py-8 text-sm text-neutral-500 bg-neutral-50 rounded-lg border border-neutral-200 border-dashed">
-                  Trenutno nimate dostopa do nobenega podjetja.
-                </div>
+                isSuperAdmin ? (
+                  <div className="text-center py-8 space-y-3">
+                    <div className="flex justify-center">
+                      <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
+                        <ShieldCheck className="h-6 w-6 text-violet-700" />
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-neutral-900">Super admin</p>
+                    <p className="text-xs text-neutral-500">Odprite administracijo za upravljanje podjetij.</p>
+                    <a
+                      href="/admin"
+                      onClick={(e) => { e.preventDefault(); setLocation("/admin"); }}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      Odpri administracijo
+                    </a>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 space-y-3">
+                    <div className="flex justify-center">
+                      <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Clock className="h-6 w-6 text-amber-600" />
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-neutral-900">Čakate na dostop</p>
+                    <p className="text-xs text-neutral-500 max-w-xs mx-auto">
+                      Vaš račun je registriran. Administrator sistema vam bo dodelil dostop do podjetja.
+                    </p>
+                  </div>
+                )
               )}
             </div>
           )}

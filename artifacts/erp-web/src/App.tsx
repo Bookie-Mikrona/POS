@@ -7,6 +7,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 
 import { Shell } from "@/components/layout/Shell";
 import { CompanyProvider, useCompany } from "@/contexts/CompanyContext";
+import { useGetMe } from "@workspace/api-client-react";
 import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import CompanySelectPage from "@/pages/company-select";
@@ -26,6 +27,7 @@ import Dimenzije from "@/pages/dimenzije";
 import Porocila from "@/pages/porocila";
 import PorocilaAnalitika from "@/pages/porocila-dimenzije";
 import Nastavitve from "@/pages/nastavitve";
+import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -124,15 +126,32 @@ function HomeRedirect() {
   );
 }
 
+// Super admin hook — reads isSuperAdmin from /api/me response
+function useIsSuperAdmin(): boolean {
+  const { user, isLoaded } = useClerk() as any;
+  const { data } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
+  return !!(data as any)?.isSuperAdmin;
+}
+
 // Protected route wrapper
-function ProtectedRoute({ component: Component, ...rest }: { component: any, [key: string]: any }) {
+function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: { component: any; adminOnly?: boolean; [key: string]: any }) {
   const [location] = useLocation();
   const { activeCompany } = useCompany();
+  const isSuperAdmin = useIsSuperAdmin();
 
   return (
     <Route {...rest}>
       <Show when="signed-in">
-        {activeCompany || location === "/company-select" ? (
+        {/* Super admin kan /admin brez aktivnega podjetja */}
+        {adminOnly ? (
+          isSuperAdmin ? (
+            <Shell>
+              <Component />
+            </Shell>
+          ) : (
+            <Redirect to="/dashboard" />
+          )
+        ) : activeCompany || location === "/company-select" ? (
           location === "/company-select" ? (
             <Component />
           ) : (
@@ -234,6 +253,7 @@ function ClerkProviderWithRoutes() {
           <ProtectedRoute path="/porocila/dimenzije" component={PorocilaAnalitika} />
           
           <ProtectedRoute path="/nastavitve" component={Nastavitve} />
+          <ProtectedRoute path="/admin" component={AdminPage} adminOnly={true} />
 
             <Route component={NotFound} />
           </Switch>

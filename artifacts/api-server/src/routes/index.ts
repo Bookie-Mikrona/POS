@@ -17,6 +17,7 @@ import bankStatementsRouter from "./bankStatements";
 import dimensionsRouter from "./dimensions";
 import reportsRouter from "./reports";
 import posRouter from "./pos/index";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(bankStatementsRouter);
 router.use(dimensionsRouter);
 router.use(reportsRouter);
 router.use(posRouter);
+router.use("/admin", adminRouter);
 
 export default router;

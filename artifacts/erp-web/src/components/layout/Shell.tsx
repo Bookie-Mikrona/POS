@@ -26,6 +26,9 @@ import {
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
+
+// Extend UserProfile to include isSuperAdmin from our /me endpoint
+type UserProfileExtended = { isSuperAdmin?: boolean };
 import { useCompany } from "@/contexts/CompanyContext";
 
 import {
@@ -131,8 +134,10 @@ function CompanySwitcher() {
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-  
+  const { user, isLoaded } = useUser();
+  const { data: me } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
+  const isSuperAdmin = !!(me as unknown as UserProfileExtended)?.isSuperAdmin;
+
   // Custom navigation handler to support base path
   const navigate = (path: string) => {
     setLocation(path);
@@ -191,6 +196,20 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+              {isSuperAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin" || location.startsWith("/admin")}
+                    tooltip="Administracija sistema"
+                  >
+                    <button onClick={() => navigate("/admin")} className="flex items-center w-full">
+                      <ShieldAlert className="h-4 w-4" />
+                      <span>Administracija</span>
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

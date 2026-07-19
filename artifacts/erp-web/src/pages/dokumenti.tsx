@@ -23,8 +23,15 @@ import {
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
   getListCounterpartiesQueryKey,
-  type DocumentRecord
+  type DocumentRecord,
+  type ProposedLine,
 } from "@workspace/api-client-react";
+
+// Task #31 dodal ti polji v backend, še nista v generiranem scheemu
+type ProposedLineExtended = ProposedLine & {
+  suggestionSource?: "history" | "pattern";
+  suggestionCount?: number;
+};
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -690,19 +697,22 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     suggestionSource?: "history" | "pattern";
     suggestionCount?: number;
   }>>(() =>
-    (ocr?.lines ?? []).map(l => ({
-      description: l.description,
-      quantity: l.quantity,
-      unitPrice: l.unitPrice,
-      vatRate: l.vatRate,
-      vatBase: l.vatBase,
-      vatAmount: l.vatAmount,
-      accountCode: l.accountCode ?? null,
-      accountId: l.accountId ?? null,
-      confidence: l.confidence,
-      suggestionSource: l.suggestionSource,
-      suggestionCount: l.suggestionCount ?? undefined,
-    }))
+    (ocr?.lines ?? []).map(l => {
+      const le = l as ProposedLineExtended;
+      return {
+        description: l.description,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        vatRate: l.vatRate,
+        vatBase: l.vatBase,
+        vatAmount: l.vatAmount,
+        accountCode: l.accountCode ?? null,
+        accountId: l.accountId ?? null,
+        confidence: l.confidence,
+        suggestionSource: le.suggestionSource,
+        suggestionCount: le.suggestionCount ?? undefined,
+      };
+    })
   );
 
   // Once accounts load, apply fuzzy matching to lines that have no resolved accountId

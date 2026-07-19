@@ -24,12 +24,16 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
       (e: EmailAddress) => e.id === user.primaryEmailAddressId,
     );
 
+    const superAdminIds = (process.env.SUPER_ADMIN_IDS ?? "")
+      .split(",").map((s) => s.trim()).filter(Boolean);
+
     res.json({
       id: user.id,
       email: primaryEmail?.emailAddress ?? "",
       firstName: user.firstName ?? null,
       lastName: user.lastName ?? null,
       imageUrl: user.imageUrl ?? null,
+      isSuperAdmin: superAdminIds.includes(user.id),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to fetch user");
