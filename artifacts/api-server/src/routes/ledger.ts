@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, asc, like, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, asc, like, inArray, or } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
@@ -52,9 +52,14 @@ router.get(
     const { accountId, periodId, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
 
     // Gradi filter pogoje
+    // Vključimo tako "posted" kot "reversed" vnose, da se storno in original
+    // oba pojavita v ledgerju in neto saldo pravilno znaša 0.
     const entryConditions: ReturnType<typeof eq>[] = [
       eq(journalEntriesTable.companyId, companyId),
-      eq(journalEntriesTable.status, "posted"),
+      or(
+        eq(journalEntriesTable.status, "posted"),
+        eq(journalEntriesTable.status, "reversed"),
+      )!,
     ];
     if (periodId) entryConditions.push(eq(journalEntriesTable.periodId, periodId));
     if (dateFrom) entryConditions.push(gte(journalEntriesTable.entryDate, dateFrom));
@@ -154,7 +159,9 @@ router.get(
 
     const bankAccountIds = bankAccounts.map((a) => a.id);
 
-    // Seštej debite in kredite za vse bančne konte iz knjiženih vpisov
+    // Seštej debite in kredite za vse bančne konte iz knjiženih vpisov.
+    // Vključimo "reversed" vnose skupaj s "posted", ker je storno del
+    // revizijske sledi in neto skupaj z originalnim vnosom doseže 0.
     const rows = await db
       .select({
         accountId: journalEntryLinesTable.accountId,
@@ -169,7 +176,10 @@ router.get(
       .where(
         and(
           eq(journalEntriesTable.companyId, companyId),
-          eq(journalEntriesTable.status, "posted"),
+          or(
+            eq(journalEntriesTable.status, "posted"),
+            eq(journalEntriesTable.status, "reversed"),
+          )!,
           inArray(journalEntryLinesTable.accountId, bankAccountIds),
         ),
       );

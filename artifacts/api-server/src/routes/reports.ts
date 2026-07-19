@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray, isNotNull, or } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
@@ -72,9 +72,15 @@ async function aggregateBalances(
   dateTo?: string,
   dateFrom?: string,
 ): Promise<AccountBalance[]> {
+  // Vključimo "posted" in "reversed" vnose: storno knjižba je vedno "posted",
+  // original pa dobi status "reversed". Oba skupaj neto znesek dosežeta 0,
+  // kar je pravilno računovodsko ravnanje za razveljavitev.
   const conditions = [
     eq(journalEntriesTable.companyId, companyId),
-    eq(journalEntriesTable.status, "posted"),
+    or(
+      eq(journalEntriesTable.status, "posted"),
+      eq(journalEntriesTable.status, "reversed"),
+    )!,
   ];
   if (dateTo) conditions.push(lte(journalEntriesTable.entryDate, dateTo));
   if (dateFrom) conditions.push(gte(journalEntriesTable.entryDate, dateFrom));
@@ -488,10 +494,13 @@ router.get(
       return;
     }
 
-    // Build base conditions for journal entries
+    // Build base conditions for journal entries (vključimo reversed za pravilni neto)
     const jeConditions = [
       eq(journalEntriesTable.companyId, companyId),
-      eq(journalEntriesTable.status, "posted"),
+      or(
+        eq(journalEntriesTable.status, "posted"),
+        eq(journalEntriesTable.status, "reversed"),
+      )!,
     ];
     if (dateFrom) jeConditions.push(gte(journalEntriesTable.entryDate, dateFrom));
     if (dateTo) jeConditions.push(lte(journalEntriesTable.entryDate, dateTo));
@@ -622,9 +631,13 @@ async function aggregateRaw(
   dateFrom?: string,
   dateTo?: string,
 ): Promise<Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>> {
+  // Vključimo "reversed" vnose za pravilni neto pri storniranih plačilih
   const conditions = [
     eq(journalEntriesTable.companyId, companyId),
-    eq(journalEntriesTable.status, "posted"),
+    or(
+      eq(journalEntriesTable.status, "posted"),
+      eq(journalEntriesTable.status, "reversed"),
+    )!,
   ];
   if (dateFrom) conditions.push(gte(journalEntriesTable.entryDate, dateFrom));
   if (dateTo) conditions.push(lte(journalEntriesTable.entryDate, dateTo));
