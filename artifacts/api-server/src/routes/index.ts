@@ -14,6 +14,7 @@ import vatRegisterRouter from "./vatRegister";
 import documentsRouter from "./documents";
 import storageRouter from "./storage";
 import bankStatementsRouter from "./bankStatements";
+import dimensionsRouter from "./dimensions";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(vatRegisterRouter);
 router.use(documentsRouter);
 router.use(storageRouter);
 router.use(bankStatementsRouter);
+router.use(dimensionsRouter);
 
 export default router;

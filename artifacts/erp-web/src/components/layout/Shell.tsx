@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   Calendar,
   ScanLine,
+  Layers,
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
@@ -65,6 +66,7 @@ const MODULES = [
   { name: "Uvoz izpiskov", path: "/bancni-izpis", icon: Banknote },
   { name: "Saldakonti", path: "/saldakonti", icon: BarChart3 },
   { name: "DDV evidence", path: "/ddv", icon: Receipt },
+  { name: "Dimenzije", path: "/dimenzije", icon: Layers },
   { name: "Poročila", path: "/porocila", icon: BarChart3 },
 ];
 

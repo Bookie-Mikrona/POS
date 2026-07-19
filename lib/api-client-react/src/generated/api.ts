@@ -25,20 +25,24 @@ import type {
   AnthropicConversation,
   AnthropicConversationInput,
   AssignRoleBody,
+  BadRequestResponse,
   CompanyWithRole,
   ConfirmDocumentBody,
   CounterpartyRecord,
   CreateAccountBody,
   CreateCompanyBody,
   CreateCounterpartyBody,
+  CreateDimensionBody,
   CreateInvoiceBody,
   CreateJournalEntryBody,
   CreatePaymentBody,
   CreatePeriodBody,
   CreateVatCodeBody,
+  DimensionRecord,
   DocumentRecord,
   ErrorEnvelope,
   ErrorResponse,
+  ForbiddenResponse,
   GetAgedAnalysisParams,
   GetLedgerParams,
   GetOpenItemsParams,
@@ -51,8 +55,12 @@ import type {
   ListAccountsParams,
   ListAccountsResponse,
   ListCompaniesResponse,
+  ListCostCentersParams,
+  ListCostCentersResponse,
   ListCounterpartiesParams,
   ListCounterpartiesResponse,
+  ListDepartmentsParams,
+  ListDepartmentsResponse,
   ListDocumentsParams,
   ListDocumentsResponse,
   ListInvoicesParams,
@@ -62,10 +70,13 @@ import type {
   ListPaymentsParams,
   ListPaymentsResponse,
   ListPeriodsResponse,
+  ListProjectsParams,
+  ListProjectsResponse,
   ListVatCodesParams,
   ListVatCodesResponse,
   MatchBankTransactionsBody,
   MatchBankTransactionsResponse,
+  NotFoundResponse,
   OpenItemsResponse,
   ParseBankStatementBody,
   ParseBankStatementResponse,
@@ -76,8 +87,10 @@ import type {
   RoleAssignment,
   SeedAccountsResponse,
   SeedVatCodesResponse,
+  UnauthorizedResponse,
   UpdateAccountBody,
   UpdateCounterpartyBody,
+  UpdateDimensionBody,
   UpdateInvoiceBody,
   UpdatePeriodBody,
   UpdateVatCodeBody,
@@ -3290,6 +3303,711 @@ export const useMatchBankTransactions = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getMatchBankTransactionsMutationOptions(options));
+    }
+
+export const getListCostCentersUrl = (companyId: string,
+    params?: ListCostCentersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/cost-centers?${stringifiedParams}` : `/api/companies/${companyId}/cost-centers`
+}
+
+/**
+ * @summary List cost centers (stroškovna mesta)
+ */
+export const listCostCenters = async (companyId: string,
+    params?: ListCostCentersParams, options?: RequestInit): Promise<ListCostCentersResponse> => {
+
+  return customFetch<ListCostCentersResponse>(getListCostCentersUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCostCentersQueryKey = (companyId: string,
+    params?: ListCostCentersParams,) => {
+    return [
+    `/api/companies/${companyId}/cost-centers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCostCentersQueryOptions = <TData = Awaited<ReturnType<typeof listCostCenters>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(companyId: string,
+    params?: ListCostCentersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCostCenters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCostCentersQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCostCenters>>> = ({ signal }) => listCostCenters(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCostCenters>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCostCentersQueryResult = NonNullable<Awaited<ReturnType<typeof listCostCenters>>>
+export type ListCostCentersQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List cost centers (stroškovna mesta)
+ */
+
+export function useListCostCenters<TData = Awaited<ReturnType<typeof listCostCenters>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+ companyId: string,
+    params?: ListCostCentersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCostCenters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCostCentersQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCostCenterUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/cost-centers`
+}
+
+/**
+ * @summary Create cost center
+ */
+export const createCostCenter = async (companyId: string,
+    createDimensionBody: CreateDimensionBody, options?: RequestInit): Promise<DimensionRecord> => {
+
+  return customFetch<DimensionRecord>(getCreateCostCenterUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createDimensionBody)
+  }
+);}
+
+
+
+
+
+export const getCreateCostCenterMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCostCenter>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCostCenter>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext> => {
+
+const mutationKey = ['createCostCenter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCostCenter>>, {companyId: string;data: BodyType<CreateDimensionBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createCostCenter(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCostCenterMutationResult = NonNullable<Awaited<ReturnType<typeof createCostCenter>>>
+    export type CreateCostCenterMutationBody = BodyType<CreateDimensionBody>
+    export type CreateCostCenterMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>
+
+    /**
+ * @summary Create cost center
+ */
+export const useCreateCostCenter = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCostCenter>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCostCenter>>,
+        TError,
+        {companyId: string;data: BodyType<CreateDimensionBody>},
+        TContext
+      > => {
+      return useMutation(getCreateCostCenterMutationOptions(options));
+    }
+
+export const getUpdateCostCenterUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/cost-centers/${id}`
+}
+
+/**
+ * @summary Update cost center
+ */
+export const updateCostCenter = async (companyId: string,
+    id: string,
+    updateDimensionBody: UpdateDimensionBody, options?: RequestInit): Promise<DimensionRecord> => {
+
+  return customFetch<DimensionRecord>(getUpdateCostCenterUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateDimensionBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateCostCenterMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCostCenter>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCostCenter>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext> => {
+
+const mutationKey = ['updateCostCenter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCostCenter>>, {companyId: string;id: string;data: BodyType<UpdateDimensionBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateCostCenter(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCostCenterMutationResult = NonNullable<Awaited<ReturnType<typeof updateCostCenter>>>
+    export type UpdateCostCenterMutationBody = BodyType<UpdateDimensionBody>
+    export type UpdateCostCenterMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Update cost center
+ */
+export const useUpdateCostCenter = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCostCenter>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCostCenter>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateDimensionBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateCostCenterMutationOptions(options));
+    }
+
+export const getListProjectsUrl = (companyId: string,
+    params?: ListProjectsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/projects?${stringifiedParams}` : `/api/companies/${companyId}/projects`
+}
+
+/**
+ * @summary List projects (projekti)
+ */
+export const listProjects = async (companyId: string,
+    params?: ListProjectsParams, options?: RequestInit): Promise<ListProjectsResponse> => {
+
+  return customFetch<ListProjectsResponse>(getListProjectsUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectsQueryKey = (companyId: string,
+    params?: ListProjectsParams,) => {
+    return [
+    `/api/companies/${companyId}/projects`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(companyId: string,
+    params?: ListProjectsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectsQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjects>>> = ({ signal }) => listProjects(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjects>>>
+export type ListProjectsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List projects (projekti)
+ */
+
+export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+ companyId: string,
+    params?: ListProjectsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectsQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProjectUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/projects`
+}
+
+/**
+ * @summary Create project
+ */
+export const createProject = async (companyId: string,
+    createDimensionBody: CreateDimensionBody, options?: RequestInit): Promise<DimensionRecord> => {
+
+  return customFetch<DimensionRecord>(getCreateProjectUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createDimensionBody)
+  }
+);}
+
+
+
+
+
+export const getCreateProjectMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProject>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProject>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext> => {
+
+const mutationKey = ['createProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProject>>, {companyId: string;data: BodyType<CreateDimensionBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createProject(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProjectMutationResult = NonNullable<Awaited<ReturnType<typeof createProject>>>
+    export type CreateProjectMutationBody = BodyType<CreateDimensionBody>
+    export type CreateProjectMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>
+
+    /**
+ * @summary Create project
+ */
+export const useCreateProject = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProject>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProject>>,
+        TError,
+        {companyId: string;data: BodyType<CreateDimensionBody>},
+        TContext
+      > => {
+      return useMutation(getCreateProjectMutationOptions(options));
+    }
+
+export const getUpdateProjectUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/projects/${id}`
+}
+
+/**
+ * @summary Update project
+ */
+export const updateProject = async (companyId: string,
+    id: string,
+    updateDimensionBody: UpdateDimensionBody, options?: RequestInit): Promise<DimensionRecord> => {
+
+  return customFetch<DimensionRecord>(getUpdateProjectUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateDimensionBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateProjectMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext> => {
+
+const mutationKey = ['updateProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProject>>, {companyId: string;id: string;data: BodyType<UpdateDimensionBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateProject(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProjectMutationResult = NonNullable<Awaited<ReturnType<typeof updateProject>>>
+    export type UpdateProjectMutationBody = BodyType<UpdateDimensionBody>
+    export type UpdateProjectMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Update project
+ */
+export const useUpdateProject = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProject>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateDimensionBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateProjectMutationOptions(options));
+    }
+
+export const getListDepartmentsUrl = (companyId: string,
+    params?: ListDepartmentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/companies/${companyId}/departments?${stringifiedParams}` : `/api/companies/${companyId}/departments`
+}
+
+/**
+ * @summary List departments (oddelki)
+ */
+export const listDepartments = async (companyId: string,
+    params?: ListDepartmentsParams, options?: RequestInit): Promise<ListDepartmentsResponse> => {
+
+  return customFetch<ListDepartmentsResponse>(getListDepartmentsUrl(companyId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDepartmentsQueryKey = (companyId: string,
+    params?: ListDepartmentsParams,) => {
+    return [
+    `/api/companies/${companyId}/departments`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDepartmentsQueryOptions = <TData = Awaited<ReturnType<typeof listDepartments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(companyId: string,
+    params?: ListDepartmentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDepartments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDepartmentsQueryKey(companyId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDepartments>>> = ({ signal }) => listDepartments(companyId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDepartments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDepartmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listDepartments>>>
+export type ListDepartmentsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List departments (oddelki)
+ */
+
+export function useListDepartments<TData = Awaited<ReturnType<typeof listDepartments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+ companyId: string,
+    params?: ListDepartmentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDepartments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDepartmentsQueryOptions(companyId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDepartmentUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/departments`
+}
+
+/**
+ * @summary Create department
+ */
+export const createDepartment = async (companyId: string,
+    createDimensionBody: CreateDimensionBody, options?: RequestInit): Promise<DimensionRecord> => {
+
+  return customFetch<DimensionRecord>(getCreateDepartmentUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createDimensionBody)
+  }
+);}
+
+
+
+
+
+export const getCreateDepartmentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDepartment>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDepartment>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext> => {
+
+const mutationKey = ['createDepartment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDepartment>>, {companyId: string;data: BodyType<CreateDimensionBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createDepartment(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDepartmentMutationResult = NonNullable<Awaited<ReturnType<typeof createDepartment>>>
+    export type CreateDepartmentMutationBody = BodyType<CreateDimensionBody>
+    export type CreateDepartmentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>
+
+    /**
+ * @summary Create department
+ */
+export const useCreateDepartment = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDepartment>>, TError,{companyId: string;data: BodyType<CreateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDepartment>>,
+        TError,
+        {companyId: string;data: BodyType<CreateDimensionBody>},
+        TContext
+      > => {
+      return useMutation(getCreateDepartmentMutationOptions(options));
+    }
+
+export const getUpdateDepartmentUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/departments/${id}`
+}
+
+/**
+ * @summary Update department
+ */
+export const updateDepartment = async (companyId: string,
+    id: string,
+    updateDimensionBody: UpdateDimensionBody, options?: RequestInit): Promise<DimensionRecord> => {
+
+  return customFetch<DimensionRecord>(getUpdateDepartmentUrl(companyId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateDimensionBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateDepartmentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDepartment>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDepartment>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext> => {
+
+const mutationKey = ['updateDepartment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDepartment>>, {companyId: string;id: string;data: BodyType<UpdateDimensionBody>}> = (props) => {
+          const {companyId,id,data} = props ?? {};
+
+          return  updateDepartment(companyId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDepartmentMutationResult = NonNullable<Awaited<ReturnType<typeof updateDepartment>>>
+    export type UpdateDepartmentMutationBody = BodyType<UpdateDimensionBody>
+    export type UpdateDepartmentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Update department
+ */
+export const useUpdateDepartment = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDepartment>>, TError,{companyId: string;id: string;data: BodyType<UpdateDimensionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDepartment>>,
+        TError,
+        {companyId: string;id: string;data: BodyType<UpdateDimensionBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateDepartmentMutationOptions(options));
     }
 
 export const getGetOpenItemsUrl = (companyId: string,

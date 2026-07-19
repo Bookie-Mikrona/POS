@@ -19,6 +19,14 @@ export const accountTypeEnum = pgEnum("account_type", [
   "expense",     // Odhodki/Stroški
 ]);
 
+/** DDV vedenje konta (npr. izstopni DDV, vstopni DDV, brez DDV) */
+export const taxBehaviorEnum = pgEnum("tax_behavior", [
+  "none",           // Brez DDV
+  "output_vat",     // Izstopni DDV (prodaja)
+  "input_vat",      // Vstopni DDV (nabava)
+  "exempt",         // Oproščeno
+]);
+
 export const accountsTable = pgTable(
   "accounts",
   {
@@ -34,6 +42,16 @@ export const accountsTable = pgTable(
     parentId: uuid("parent_id"),
     isActive: boolean("is_active").notNull().default(true),
     description: text("description"),
+    /** Ali se lahko na ta konto knjižijo vrstice (false = samo skupinski konto) */
+    allowsPosting: boolean("allows_posting").notNull().default(true),
+    /** Ali vrstica temeljnice na ta konto zahteva poslovnega partnerja */
+    requiresPartner: boolean("requires_partner").notNull().default(false),
+    /** Ali vrstica temeljnice na ta konto zahteva stroškovno mesto */
+    requiresCostCenter: boolean("requires_cost_center").notNull().default(false),
+    /** Ali vrstica temeljnice na ta konto zahteva projekt */
+    requiresProject: boolean("requires_project").notNull().default(false),
+    /** DDV vedenje tega konta */
+    taxBehavior: taxBehaviorEnum("tax_behavior").notNull().default("none"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

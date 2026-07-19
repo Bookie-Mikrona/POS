@@ -149,6 +149,11 @@ export const ListAccountsResponse = zod.object({
   "parentId": zod.string().nullish(),
   "isActive": zod.boolean(),
   "description": zod.string().nullish(),
+  "allowsPosting": zod.boolean().describe('Ali se sme na ta konto knjižiti (false = skupinski konto)'),
+  "requiresPartner": zod.boolean().describe('Vrstica temeljnice mora imeti poslovnega partnerja'),
+  "requiresCostCenter": zod.boolean().describe('Vrstica temeljnice mora imeti stroškovno mesto'),
+  "requiresProject": zod.boolean().describe('Vrstica temeljnice mora imeti projekt'),
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).describe('DDV vedenje konta'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -173,7 +178,12 @@ export const CreateAccountBody = zod.object({
   "name": zod.string().min(1).max(createAccountBodyNameMax),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
   "parentId": zod.string().nullish(),
-  "description": zod.string().nullish()
+  "description": zod.string().nullish(),
+  "allowsPosting": zod.boolean().optional(),
+  "requiresPartner": zod.boolean().optional(),
+  "requiresCostCenter": zod.boolean().optional(),
+  "requiresProject": zod.boolean().optional(),
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).optional()
 })
 
 export const CreateAccountResponse = zod.object({
@@ -185,6 +195,11 @@ export const CreateAccountResponse = zod.object({
   "parentId": zod.string().nullish(),
   "isActive": zod.boolean(),
   "description": zod.string().nullish(),
+  "allowsPosting": zod.boolean().describe('Ali se sme na ta konto knjižiti (false = skupinski konto)'),
+  "requiresPartner": zod.boolean().describe('Vrstica temeljnice mora imeti poslovnega partnerja'),
+  "requiresCostCenter": zod.boolean().describe('Vrstica temeljnice mora imeti stroškovno mesto'),
+  "requiresProject": zod.boolean().describe('Vrstica temeljnice mora imeti projekt'),
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).describe('DDV vedenje konta'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -218,7 +233,12 @@ export const UpdateAccountBody = zod.object({
   "name": zod.string().min(1).max(updateAccountBodyNameMax).optional(),
   "description": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
-  "parentId": zod.string().nullish()
+  "parentId": zod.string().nullish(),
+  "allowsPosting": zod.boolean().optional(),
+  "requiresPartner": zod.boolean().optional(),
+  "requiresCostCenter": zod.boolean().optional(),
+  "requiresProject": zod.boolean().optional(),
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).optional()
 })
 
 export const UpdateAccountResponse = zod.object({
@@ -230,6 +250,11 @@ export const UpdateAccountResponse = zod.object({
   "parentId": zod.string().nullish(),
   "isActive": zod.boolean(),
   "description": zod.string().nullish(),
+  "allowsPosting": zod.boolean().describe('Ali se sme na ta konto knjižiti (false = skupinski konto)'),
+  "requiresPartner": zod.boolean().describe('Vrstica temeljnice mora imeti poslovnega partnerja'),
+  "requiresCostCenter": zod.boolean().describe('Vrstica temeljnice mora imeti stroškovno mesto'),
+  "requiresProject": zod.boolean().describe('Vrstica temeljnice mora imeti projekt'),
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).describe('DDV vedenje konta'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -370,7 +395,11 @@ export const CreateJournalEntryBody = zod.object({
   "accountId": zod.string(),
   "side": zod.enum(['debit', 'credit']),
   "amount": zod.number().min(createJournalEntryBodyLinesItemAmountMin).describe('Positive amount; side indicates debit or credit'),
-  "description": zod.string().nullish()
+  "description": zod.string().nullish(),
+  "partnerId": zod.string().nullish().describe('Poslovni partner (zahtevano, če konto zahteva partnerja)'),
+  "costCenterId": zod.string().nullish().describe('Stroškovno mesto (zahtevano, če konto zahteva)'),
+  "projectId": zod.string().nullish().describe('Projekt (zahtevano, če konto zahteva)'),
+  "departmentId": zod.string().nullish().describe('Oddelek (opcijsko)')
 })).min(createJournalEntryBodyLinesMin),
   "autoPost": zod.boolean().optional().describe('If true, post the entry immediately after creation if balanced')
 })
@@ -398,7 +427,15 @@ export const CreateJournalEntryResponse = zod.object({
   "side": zod.enum(['debit', 'credit']),
   "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
   "description": zod.string().nullish(),
-  "sequence": zod.number()
+  "sequence": zod.number(),
+  "partnerId": zod.string().nullish().describe('Poslovni partner (FK counterparty)'),
+  "partnerName": zod.string().nullish().describe('Ime partnerja (denormalized)'),
+  "costCenterId": zod.string().nullish().describe('Stroškovno mesto'),
+  "costCenterName": zod.string().nullish(),
+  "projectId": zod.string().nullish().describe('Projekt'),
+  "projectName": zod.string().nullish(),
+  "departmentId": zod.string().nullish().describe('Oddelek'),
+  "departmentName": zod.string().nullish()
 }))
 }))
 
@@ -434,7 +471,15 @@ export const GetJournalEntryResponse = zod.object({
   "side": zod.enum(['debit', 'credit']),
   "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
   "description": zod.string().nullish(),
-  "sequence": zod.number()
+  "sequence": zod.number(),
+  "partnerId": zod.string().nullish().describe('Poslovni partner (FK counterparty)'),
+  "partnerName": zod.string().nullish().describe('Ime partnerja (denormalized)'),
+  "costCenterId": zod.string().nullish().describe('Stroškovno mesto'),
+  "costCenterName": zod.string().nullish(),
+  "projectId": zod.string().nullish().describe('Projekt'),
+  "projectName": zod.string().nullish(),
+  "departmentId": zod.string().nullish().describe('Oddelek'),
+  "departmentName": zod.string().nullish()
 }))
 }))
 
@@ -471,7 +516,15 @@ export const PostJournalEntryResponse = zod.object({
   "side": zod.enum(['debit', 'credit']),
   "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
   "description": zod.string().nullish(),
-  "sequence": zod.number()
+  "sequence": zod.number(),
+  "partnerId": zod.string().nullish().describe('Poslovni partner (FK counterparty)'),
+  "partnerName": zod.string().nullish().describe('Ime partnerja (denormalized)'),
+  "costCenterId": zod.string().nullish().describe('Stroškovno mesto'),
+  "costCenterName": zod.string().nullish(),
+  "projectId": zod.string().nullish().describe('Projekt'),
+  "projectName": zod.string().nullish(),
+  "departmentId": zod.string().nullish().describe('Oddelek'),
+  "departmentName": zod.string().nullish()
 }))
 }))
 
@@ -514,7 +567,15 @@ export const ReverseJournalEntryResponse = zod.object({
   "side": zod.enum(['debit', 'credit']),
   "amount": zod.string().describe('Decimal amount as string (NUMERIC precision)'),
   "description": zod.string().nullish(),
-  "sequence": zod.number()
+  "sequence": zod.number(),
+  "partnerId": zod.string().nullish().describe('Poslovni partner (FK counterparty)'),
+  "partnerName": zod.string().nullish().describe('Ime partnerja (denormalized)'),
+  "costCenterId": zod.string().nullish().describe('Stroškovno mesto'),
+  "costCenterName": zod.string().nullish(),
+  "projectId": zod.string().nullish().describe('Projekt'),
+  "projectName": zod.string().nullish(),
+  "departmentId": zod.string().nullish().describe('Oddelek'),
+  "departmentName": zod.string().nullish()
 }))
 }))
 
@@ -1606,6 +1667,264 @@ export const MatchBankTransactionsResponse = zod.object({
   "matchReasons": zod.array(zod.string())
 }))
 }))
+})
+
+
+/**
+ * @summary List cost centers (stroškovna mesta)
+ */
+export const ListCostCentersParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListCostCentersQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListCostCentersResponse = zod.object({
+  "costCenters": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create cost center
+ */
+export const CreateCostCenterParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createCostCenterBodyCodeMax = 20;
+
+export const createCostCenterBodyNameMax = 200;
+
+
+
+export const CreateCostCenterBody = zod.object({
+  "code": zod.string().min(1).max(createCostCenterBodyCodeMax),
+  "name": zod.string().min(1).max(createCostCenterBodyNameMax),
+  "description": zod.string().nullish()
+})
+
+export const CreateCostCenterResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update cost center
+ */
+export const UpdateCostCenterParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updateCostCenterBodyNameMax = 200;
+
+
+
+export const UpdateCostCenterBody = zod.object({
+  "name": zod.string().min(1).max(updateCostCenterBodyNameMax).optional(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateCostCenterResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List projects (projekti)
+ */
+export const ListProjectsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListProjectsQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListProjectsResponse = zod.object({
+  "projects": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create project
+ */
+export const CreateProjectParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createProjectBodyCodeMax = 20;
+
+export const createProjectBodyNameMax = 200;
+
+
+
+export const CreateProjectBody = zod.object({
+  "code": zod.string().min(1).max(createProjectBodyCodeMax),
+  "name": zod.string().min(1).max(createProjectBodyNameMax),
+  "description": zod.string().nullish()
+})
+
+export const CreateProjectResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update project
+ */
+export const UpdateProjectParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updateProjectBodyNameMax = 200;
+
+
+
+export const UpdateProjectBody = zod.object({
+  "name": zod.string().min(1).max(updateProjectBodyNameMax).optional(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateProjectResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List departments (oddelki)
+ */
+export const ListDepartmentsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ListDepartmentsQueryParams = zod.object({
+  "includeInactive": zod.coerce.boolean().optional()
+})
+
+export const ListDepartmentsResponse = zod.object({
+  "departments": zod.array(zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create department
+ */
+export const CreateDepartmentParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const createDepartmentBodyCodeMax = 20;
+
+export const createDepartmentBodyNameMax = 200;
+
+
+
+export const CreateDepartmentBody = zod.object({
+  "code": zod.string().min(1).max(createDepartmentBodyCodeMax),
+  "name": zod.string().min(1).max(createDepartmentBodyNameMax),
+  "description": zod.string().nullish()
+})
+
+export const CreateDepartmentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update department
+ */
+export const UpdateDepartmentParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const updateDepartmentBodyNameMax = 200;
+
+
+
+export const UpdateDepartmentBody = zod.object({
+  "name": zod.string().min(1).max(updateDepartmentBodyNameMax).optional(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateDepartmentResponse = zod.object({
+  "id": zod.string(),
+  "companyId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
 
 

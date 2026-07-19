@@ -106,6 +106,62 @@ export interface RoleAssignment {
   role: RoleAssignmentRole;
 }
 
+export interface DimensionRecord {
+  id: string;
+  companyId: string;
+  code: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CostCenterRecord = DimensionRecord;
+
+export type ProjectRecord = DimensionRecord;
+
+export type DepartmentRecord = DimensionRecord;
+
+export interface ListCostCentersResponse {
+  costCenters: DimensionRecord[];
+}
+
+export interface ListProjectsResponse {
+  projects: DimensionRecord[];
+}
+
+export interface ListDepartmentsResponse {
+  departments: DimensionRecord[];
+}
+
+export interface CreateDimensionBody {
+  /**
+     * @minLength 1
+     * @maxLength 20
+     */
+  code: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface UpdateDimensionBody {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  isActive?: boolean;
+}
+
 export type AccountRecordType = typeof AccountRecordType[keyof typeof AccountRecordType];
 
 
@@ -115,6 +171,19 @@ export const AccountRecordType = {
   equity: 'equity',
   revenue: 'revenue',
   expense: 'expense',
+} as const;
+
+/**
+ * DDV vedenje konta
+ */
+export type AccountRecordTaxBehavior = typeof AccountRecordTaxBehavior[keyof typeof AccountRecordTaxBehavior];
+
+
+export const AccountRecordTaxBehavior = {
+  none: 'none',
+  output_vat: 'output_vat',
+  input_vat: 'input_vat',
+  exempt: 'exempt',
 } as const;
 
 export interface AccountRecord {
@@ -128,6 +197,16 @@ export interface AccountRecord {
   isActive: boolean;
   /** @nullable */
   description?: string | null;
+  /** Ali se sme na ta konto knjižiti (false = skupinski konto) */
+  allowsPosting: boolean;
+  /** Vrstica temeljnice mora imeti poslovnega partnerja */
+  requiresPartner: boolean;
+  /** Vrstica temeljnice mora imeti stroškovno mesto */
+  requiresCostCenter: boolean;
+  /** Vrstica temeljnice mora imeti projekt */
+  requiresProject: boolean;
+  /** DDV vedenje konta */
+  taxBehavior: AccountRecordTaxBehavior;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,6 +226,16 @@ export const CreateAccountBodyType = {
   expense: 'expense',
 } as const;
 
+export type CreateAccountBodyTaxBehavior = typeof CreateAccountBodyTaxBehavior[keyof typeof CreateAccountBodyTaxBehavior];
+
+
+export const CreateAccountBodyTaxBehavior = {
+  none: 'none',
+  output_vat: 'output_vat',
+  input_vat: 'input_vat',
+  exempt: 'exempt',
+} as const;
+
 export interface CreateAccountBody {
   /**
      * @minLength 1
@@ -163,7 +252,22 @@ export interface CreateAccountBody {
   parentId?: string | null;
   /** @nullable */
   description?: string | null;
+  allowsPosting?: boolean;
+  requiresPartner?: boolean;
+  requiresCostCenter?: boolean;
+  requiresProject?: boolean;
+  taxBehavior?: CreateAccountBodyTaxBehavior;
 }
+
+export type UpdateAccountBodyTaxBehavior = typeof UpdateAccountBodyTaxBehavior[keyof typeof UpdateAccountBodyTaxBehavior];
+
+
+export const UpdateAccountBodyTaxBehavior = {
+  none: 'none',
+  output_vat: 'output_vat',
+  input_vat: 'input_vat',
+  exempt: 'exempt',
+} as const;
 
 export interface UpdateAccountBody {
   /**
@@ -176,6 +280,11 @@ export interface UpdateAccountBody {
   isActive?: boolean;
   /** @nullable */
   parentId?: string | null;
+  allowsPosting?: boolean;
+  requiresPartner?: boolean;
+  requiresCostCenter?: boolean;
+  requiresProject?: boolean;
+  taxBehavior?: UpdateAccountBodyTaxBehavior;
 }
 
 export interface SeedAccountsResponse {
@@ -254,6 +363,37 @@ export interface JournalEntryLine {
   /** @nullable */
   description?: string | null;
   sequence: number;
+  /**
+     * Poslovni partner (FK counterparty)
+     * @nullable
+     */
+  partnerId?: string | null;
+  /**
+     * Ime partnerja (denormalized)
+     * @nullable
+     */
+  partnerName?: string | null;
+  /**
+     * Stroškovno mesto
+     * @nullable
+     */
+  costCenterId?: string | null;
+  /** @nullable */
+  costCenterName?: string | null;
+  /**
+     * Projekt
+     * @nullable
+     */
+  projectId?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /**
+     * Oddelek
+     * @nullable
+     */
+  departmentId?: string | null;
+  /** @nullable */
+  departmentName?: string | null;
 }
 
 export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalEntryStatus];
@@ -309,6 +449,26 @@ export interface CreateJournalEntryLineBody {
   amount: number;
   /** @nullable */
   description?: string | null;
+  /**
+     * Poslovni partner (zahtevano, če konto zahteva partnerja)
+     * @nullable
+     */
+  partnerId?: string | null;
+  /**
+     * Stroškovno mesto (zahtevano, če konto zahteva)
+     * @nullable
+     */
+  costCenterId?: string | null;
+  /**
+     * Projekt (zahtevano, če konto zahteva)
+     * @nullable
+     */
+  projectId?: string | null;
+  /**
+     * Oddelek (opcijsko)
+     * @nullable
+     */
+  departmentId?: string | null;
 }
 
 export interface CreateJournalEntryBody {
@@ -1265,6 +1425,26 @@ export interface AnthropicError {
   error: string;
 }
 
+/**
+ * Validation error
+ */
+export type BadRequestResponse = ErrorResponse;
+
+/**
+ * Unauthorized
+ */
+export type UnauthorizedResponse = ErrorResponse;
+
+/**
+ * Forbidden
+ */
+export type ForbiddenResponse = ErrorResponse;
+
+/**
+ * Not found
+ */
+export type NotFoundResponse = ErrorResponse;
+
 export type ListAccountsParams = {
 includeInactive?: boolean;
 };
@@ -1381,6 +1561,18 @@ export const ListPaymentsStatus = {
 
 export type ParseBankStatementBody = {
   file: Blob;
+};
+
+export type ListCostCentersParams = {
+includeInactive?: boolean;
+};
+
+export type ListProjectsParams = {
+includeInactive?: boolean;
+};
+
+export type ListDepartmentsParams = {
+includeInactive?: boolean;
 };
 
 export type GetOpenItemsParams = {

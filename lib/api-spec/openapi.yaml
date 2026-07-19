@@ -30,6 +30,8 @@ tags:
     description: AI/OCR document processing — upload, extract, propose & confirm (AI obdelava dokumentov)
   - name: anthropic
     description: Anthropic AI chat operations
+  - name: dimensions
+    description: Analytic dimensions — cost centers, projects, departments (stroškovna mesta, projekti, oddelki)
 paths:
   /healthz:
     get:
@@ -1897,6 +1899,322 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ── Dimensions (stroškovna mesta, projekti, oddelki) ────────────────────────
+  /companies/{companyId}/cost-centers:
+    get:
+      operationId: listCostCenters
+      tags: [dimensions]
+      summary: List cost centers (stroškovna mesta)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Cost centers list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCostCentersResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createCostCenter
+      tags: [dimensions]
+      summary: Create cost center
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDimensionBody"
+      responses:
+        "201":
+          description: Cost center created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostCenterRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/cost-centers/{id}:
+    patch:
+      operationId: updateCostCenter
+      tags: [dimensions]
+      summary: Update cost center
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDimensionBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostCenterRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /companies/{companyId}/projects:
+    get:
+      operationId: listProjects
+      tags: [dimensions]
+      summary: List projects (projekti)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Projects list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListProjectsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createProject
+      tags: [dimensions]
+      summary: Create project
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDimensionBody"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/projects/{id}:
+    patch:
+      operationId: updateProject
+      tags: [dimensions]
+      summary: Update project
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDimensionBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /companies/{companyId}/departments:
+    get:
+      operationId: listDepartments
+      tags: [dimensions]
+      summary: List departments (oddelki)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Departments list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDepartmentsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createDepartment
+      tags: [dimensions]
+      summary: Create department
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDimensionBody"
+      responses:
+        "201":
+          description: Department created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/departments/{id}:
+    patch:
+      operationId: updateDepartment
+      tags: [dimensions]
+      summary: Update department
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDimensionBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /companies/{companyId}/open-items:
     get:
       operationId: getOpenItems
@@ -2404,6 +2722,31 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthStatus:
       type: object
@@ -2514,6 +2857,85 @@ components:
           enum: [owner, accountant, viewer]
       required: [companyId, clerkUserId, role]
 
+    # ── Dimensions ───────────────────────────────────────────────────────────
+    DimensionRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, companyId, code, name, isActive, createdAt, updatedAt]
+    CostCenterRecord:
+      $ref: "#/components/schemas/DimensionRecord"
+    ProjectRecord:
+      $ref: "#/components/schemas/DimensionRecord"
+    DepartmentRecord:
+      $ref: "#/components/schemas/DimensionRecord"
+    ListCostCentersResponse:
+      type: object
+      properties:
+        costCenters:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostCenterRecord"
+      required: [costCenters]
+    ListProjectsResponse:
+      type: object
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectRecord"
+      required: [projects]
+    ListDepartmentsResponse:
+      type: object
+      properties:
+        departments:
+          type: array
+          items:
+            $ref: "#/components/schemas/DepartmentRecord"
+      required: [departments]
+    CreateDimensionBody:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: ["string", "null"]
+      required: [code, name]
+    UpdateDimensionBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+
     # ── Chart of accounts ────────────────────────────────────────────────────
     AccountRecord:
       type: object
@@ -2535,13 +2957,29 @@ components:
           type: boolean
         description:
           type: ["string", "null"]
+        allowsPosting:
+          type: boolean
+          description: Ali se sme na ta konto knjižiti (false = skupinski konto)
+        requiresPartner:
+          type: boolean
+          description: Vrstica temeljnice mora imeti poslovnega partnerja
+        requiresCostCenter:
+          type: boolean
+          description: Vrstica temeljnice mora imeti stroškovno mesto
+        requiresProject:
+          type: boolean
+          description: Vrstica temeljnice mora imeti projekt
+        taxBehavior:
+          type: string
+          enum: [none, output_vat, input_vat, exempt]
+          description: DDV vedenje konta
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, companyId, code, name, type, isActive, createdAt, updatedAt]
+      required: [id, companyId, code, name, type, isActive, allowsPosting, requiresPartner, requiresCostCenter, requiresProject, taxBehavior, createdAt, updatedAt]
     ListAccountsResponse:
       type: object
       properties:
@@ -2568,6 +3006,17 @@ components:
           type: ["string", "null"]
         description:
           type: ["string", "null"]
+        allowsPosting:
+          type: boolean
+        requiresPartner:
+          type: boolean
+        requiresCostCenter:
+          type: boolean
+        requiresProject:
+          type: boolean
+        taxBehavior:
+          type: string
+          enum: [none, output_vat, input_vat, exempt]
       required: [code, name, type]
     UpdateAccountBody:
       type: object
@@ -2582,6 +3031,17 @@ components:
           type: boolean
         parentId:
           type: ["string", "null"]
+        allowsPosting:
+          type: boolean
+        requiresPartner:
+          type: boolean
+        requiresCostCenter:
+          type: boolean
+        requiresProject:
+          type: boolean
+        taxBehavior:
+          type: string
+          enum: [none, output_vat, input_vat, exempt]
     SeedAccountsResponse:
       type: object
       properties:
@@ -2674,6 +3134,27 @@ components:
           type: ["string", "null"]
         sequence:
           type: integer
+        partnerId:
+          type: ["string", "null"]
+          description: Poslovni partner (FK counterparty)
+        partnerName:
+          type: ["string", "null"]
+          description: Ime partnerja (denormalized)
+        costCenterId:
+          type: ["string", "null"]
+          description: Stroškovno mesto
+        costCenterName:
+          type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+          description: Projekt
+        projectName:
+          type: ["string", "null"]
+        departmentId:
+          type: ["string", "null"]
+          description: Oddelek
+        departmentName:
+          type: ["string", "null"]
       required: [id, entryId, accountId, accountCode, accountName, side, amount, sequence]
     JournalEntry:
       type: object
@@ -2740,6 +3221,18 @@ components:
           description: Positive amount; side indicates debit or credit
         description:
           type: ["string", "null"]
+        partnerId:
+          type: ["string", "null"]
+          description: Poslovni partner (zahtevano, če konto zahteva partnerja)
+        costCenterId:
+          type: ["string", "null"]
+          description: Stroškovno mesto (zahtevano, če konto zahteva)
+        projectId:
+          type: ["string", "null"]
+          description: Projekt (zahtevano, če konto zahteva)
+        departmentId:
+          type: ["string", "null"]
+          description: Oddelek (opcijsko)
       required: [accountId, side, amount]
     CreateJournalEntryBody:
       type: object

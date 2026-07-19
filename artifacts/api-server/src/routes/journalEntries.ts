@@ -8,6 +8,10 @@ import {
   accountingPeriodsTable,
   accountingRolesTable,
   auditLogTable,
+  counterpartiesTable,
+  costCentersTable,
+  projectsTable,
+  departmentsTable,
 } from "@workspace/db";
 import {
   CreateJournalEntryBody,
@@ -83,9 +87,21 @@ async function fetchEntryWithLines(entryId: string) {
       amount: journalEntryLinesTable.amount,
       description: journalEntryLinesTable.description,
       sequence: journalEntryLinesTable.sequence,
+      partnerId: journalEntryLinesTable.partnerId,
+      partnerName: counterpartiesTable.name,
+      costCenterId: journalEntryLinesTable.costCenterId,
+      costCenterName: costCentersTable.name,
+      projectId: journalEntryLinesTable.projectId,
+      projectName: projectsTable.name,
+      departmentId: journalEntryLinesTable.departmentId,
+      departmentName: departmentsTable.name,
     })
     .from(journalEntryLinesTable)
     .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+    .leftJoin(counterpartiesTable, eq(counterpartiesTable.id, journalEntryLinesTable.partnerId))
+    .leftJoin(costCentersTable, eq(costCentersTable.id, journalEntryLinesTable.costCenterId))
+    .leftJoin(projectsTable, eq(projectsTable.id, journalEntryLinesTable.projectId))
+    .leftJoin(departmentsTable, eq(departmentsTable.id, journalEntryLinesTable.departmentId))
     .where(eq(journalEntryLinesTable.entryId, entryId))
     .orderBy(asc(journalEntryLinesTable.sequence));
 
@@ -207,13 +223,90 @@ router.post(
     // Preveri da vsi account_id-ji obstajajo in so del podjetja
     const accountIds = [...new Set(lines.map((l) => l.accountId))];
     const foundAccounts = await db
-      .select({ id: accountsTable.id })
+      .select({
+        id: accountsTable.id,
+        allowsPosting: accountsTable.allowsPosting,
+        requiresPartner: accountsTable.requiresPartner,
+        requiresCostCenter: accountsTable.requiresCostCenter,
+        requiresProject: accountsTable.requiresProject,
+      })
       .from(accountsTable)
       .where(and(inArray(accountsTable.id, accountIds), eq(accountsTable.companyId, companyId)));
 
     if (foundAccounts.length !== accountIds.length) {
       res.status(400).json({ error: "Vsaj en konto ne obstaja ali ne pripada temu podjetju" });
       return;
+    }
+
+    const accountMap = new Map(foundAccounts.map((a) => [a.id, a]));
+
+    // Validacija: vsi dimension FK-ji morajo biti v istem podjetju
+    const allPartnerIds = [...new Set(lines.map((l) => l.partnerId).filter((x): x is string => !!x))];
+    const allCostCenterIds = [...new Set(lines.map((l) => l.costCenterId).filter((x): x is string => !!x))];
+    const allProjectIds = [...new Set(lines.map((l) => l.projectId).filter((x): x is string => !!x))];
+    const allDepartmentIds = [...new Set(lines.map((l) => l.departmentId).filter((x): x is string => !!x))];
+
+    if (allPartnerIds.length > 0) {
+      const found = await db
+        .select({ id: counterpartiesTable.id })
+        .from(counterpartiesTable)
+        .where(and(inArray(counterpartiesTable.id, allPartnerIds), eq(counterpartiesTable.companyId, companyId)));
+      if (found.length !== allPartnerIds.length) {
+        res.status(400).json({ error: "Vsaj en poslovni partner ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allCostCenterIds.length > 0) {
+      const found = await db
+        .select({ id: costCentersTable.id })
+        .from(costCentersTable)
+        .where(and(inArray(costCentersTable.id, allCostCenterIds), eq(costCentersTable.companyId, companyId)));
+      if (found.length !== allCostCenterIds.length) {
+        res.status(400).json({ error: "Vsaj eno stroškovno mesto ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allProjectIds.length > 0) {
+      const found = await db
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
+        .where(and(inArray(projectsTable.id, allProjectIds), eq(projectsTable.companyId, companyId)));
+      if (found.length !== allProjectIds.length) {
+        res.status(400).json({ error: "Vsaj en projekt ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+    if (allDepartmentIds.length > 0) {
+      const found = await db
+        .select({ id: departmentsTable.id })
+        .from(departmentsTable)
+        .where(and(inArray(departmentsTable.id, allDepartmentIds), eq(departmentsTable.companyId, companyId)));
+      if (found.length !== allDepartmentIds.length) {
+        res.status(400).json({ error: "Vsaj en oddelek ne obstaja ali ne pripada temu podjetju" });
+        return;
+      }
+    }
+
+    // Validacija dimenzij: konto zahteva partnerja / stroškovno mesto / projekt
+    for (const line of lines) {
+      const acc = accountMap.get(line.accountId);
+      if (!acc) continue;
+      if (!acc.allowsPosting) {
+        res.status(400).json({ error: `Konto ne dovoljuje neposrednih knjižb (skupinski konto)` });
+        return;
+      }
+      if (acc.requiresPartner && !line.partnerId) {
+        res.status(400).json({ error: `Konto zahteva poslovnega partnerja na vsaki vrstici` });
+        return;
+      }
+      if (acc.requiresCostCenter && !line.costCenterId) {
+        res.status(400).json({ error: `Konto zahteva stroškovno mesto na vsaki vrstici` });
+        return;
+      }
+      if (acc.requiresProject && !line.projectId) {
+        res.status(400).json({ error: `Konto zahteva projekt na vsaki vrstici` });
+        return;
+      }
     }
 
     // Pripravi vrstice za balance check
@@ -256,6 +349,10 @@ router.post(
           amount: l.amount.toFixed(2),
           description: l.description ?? null,
           sequence: i,
+          partnerId: l.partnerId ?? null,
+          costCenterId: l.costCenterId ?? null,
+          projectId: l.projectId ?? null,
+          departmentId: l.departmentId ?? null,
         })),
       );
 
@@ -353,7 +450,14 @@ router.post(
     }
 
     const lines = await db
-      .select({ side: journalEntryLinesTable.side, amount: journalEntryLinesTable.amount })
+      .select({
+        side: journalEntryLinesTable.side,
+        amount: journalEntryLinesTable.amount,
+        accountId: journalEntryLinesTable.accountId,
+        partnerId: journalEntryLinesTable.partnerId,
+        costCenterId: journalEntryLinesTable.costCenterId,
+        projectId: journalEntryLinesTable.projectId,
+      })
       .from(journalEntryLinesTable)
       .where(eq(journalEntryLinesTable.entryId, id));
 
@@ -361,6 +465,42 @@ router.post(
     if (balanceErr) {
       res.status(400).json({ error: balanceErr });
       return;
+    }
+
+    // Validacija dimenzij pri knjiženju
+    const lineAccountIds = [...new Set(lines.map((l) => l.accountId))];
+    if (lineAccountIds.length > 0) {
+      const lineAccounts = await db
+        .select({
+          id: accountsTable.id,
+          allowsPosting: accountsTable.allowsPosting,
+          requiresPartner: accountsTable.requiresPartner,
+          requiresCostCenter: accountsTable.requiresCostCenter,
+          requiresProject: accountsTable.requiresProject,
+        })
+        .from(accountsTable)
+        .where(inArray(accountsTable.id, lineAccountIds));
+      const lineAccountMap = new Map(lineAccounts.map((a) => [a.id, a]));
+      for (const line of lines) {
+        const acc = lineAccountMap.get(line.accountId);
+        if (!acc) continue;
+        if (!acc.allowsPosting) {
+          res.status(400).json({ error: "Konto ne dovoljuje neposrednih knjižb (skupinski konto)" });
+          return;
+        }
+        if (acc.requiresPartner && !line.partnerId) {
+          res.status(400).json({ error: "Konto zahteva poslovnega partnerja na vsaki vrstici" });
+          return;
+        }
+        if (acc.requiresCostCenter && !line.costCenterId) {
+          res.status(400).json({ error: "Konto zahteva stroškovno mesto na vsaki vrstici" });
+          return;
+        }
+        if (acc.requiresProject && !line.projectId) {
+          res.status(400).json({ error: "Konto zahteva projekt na vsaki vrstici" });
+          return;
+        }
+      }
     }
 
     await db.transaction(async (tx) => {
@@ -456,6 +596,10 @@ router.post(
         amount: journalEntryLinesTable.amount,
         description: journalEntryLinesTable.description,
         sequence: journalEntryLinesTable.sequence,
+        partnerId: journalEntryLinesTable.partnerId,
+        costCenterId: journalEntryLinesTable.costCenterId,
+        projectId: journalEntryLinesTable.projectId,
+        departmentId: journalEntryLinesTable.departmentId,
       })
       .from(journalEntryLinesTable)
       .where(eq(journalEntryLinesTable.entryId, id))
@@ -479,7 +623,7 @@ router.post(
         })
         .returning({ id: journalEntriesTable.id });
 
-      // Zamenjaj debit ↔ kredit
+      // Zamenjaj debit ↔ kredit (ohrani dimenzije)
       await tx.insert(journalEntryLinesTable).values(
         originalLines.map((l) => ({
           entryId: newEntry.id,
@@ -488,6 +632,10 @@ router.post(
           amount: l.amount,
           description: l.description,
           sequence: l.sequence,
+          partnerId: l.partnerId ?? null,
+          costCenterId: l.costCenterId ?? null,
+          projectId: l.projectId ?? null,
+          departmentId: l.departmentId ?? null,
         })),
       );
 

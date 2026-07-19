@@ -22,6 +22,7 @@ import Placila from "@/pages/placila";
 import BancniIzpis from "@/pages/bancni-izpis";
 import Saldakonti from "@/pages/saldakonti";
 import Ddv from "@/pages/ddv";
+import Dimenzije from "@/pages/dimenzije";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -223,6 +224,8 @@ function ClerkProviderWithRoutes() {
           <ProtectedRoute path="/saldakonti" component={Saldakonti} />
           
           <ProtectedRoute path="/ddv" component={Ddv} />
+          
+          <ProtectedRoute path="/dimenzije" component={Dimenzije} />
           
           <ProtectedRoute path="/porocila" component={() => (
             <Placeholder 

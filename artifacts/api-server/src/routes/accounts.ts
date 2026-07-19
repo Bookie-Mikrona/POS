@@ -212,11 +212,21 @@ router.patch(
       description: string | null;
       isActive: boolean;
       parentId: string | null;
+      allowsPosting: boolean;
+      requiresPartner: boolean;
+      requiresCostCenter: boolean;
+      requiresProject: boolean;
+      taxBehavior: "none" | "output_vat" | "input_vat" | "exempt";
     }> = {};
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
     if ("description" in parsed.data) updateData.description = parsed.data.description ?? null;
     if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
     if ("parentId" in parsed.data) updateData.parentId = parsed.data.parentId ?? null;
+    if (parsed.data.allowsPosting !== undefined) updateData.allowsPosting = parsed.data.allowsPosting;
+    if (parsed.data.requiresPartner !== undefined) updateData.requiresPartner = parsed.data.requiresPartner;
+    if (parsed.data.requiresCostCenter !== undefined) updateData.requiresCostCenter = parsed.data.requiresCostCenter;
+    if (parsed.data.requiresProject !== undefined) updateData.requiresProject = parsed.data.requiresProject;
+    if (parsed.data.taxBehavior !== undefined) updateData.taxBehavior = parsed.data.taxBehavior as any;
 
     if (Object.keys(updateData).length === 0) {
       const [current] = await db

@@ -11,6 +11,8 @@ import {
 import { companiesTable } from "./companies";
 import { accountingPeriodsTable } from "./accounting-periods";
 import { accountsTable } from "./accounts";
+import { counterpartiesTable } from "./counterparties";
+import { costCentersTable, projectsTable, departmentsTable } from "./dimensions";
 
 export const journalEntryStatusEnum = pgEnum("journal_entry_status", [
   "draft",
@@ -58,6 +60,7 @@ export const journalEntriesTable = pgTable("journal_entries", {
  * Vrstice temeljnice (debit / kredit knjižbe).
  * Vsota debetnih = vsota kreditnih je zahteva aplikacijske plasti.
  * Znesek je vedno pozitiven; stran (debit/kredit) pove smer.
+ * Dimenzije (partner, stroškovno mesto, projekt, oddelek) so analitične oznake.
  */
 export const journalEntryLinesTable = pgTable("journal_entry_lines", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -73,6 +76,14 @@ export const journalEntryLinesTable = pgTable("journal_entry_lines", {
   description: text("description"),
   /** Vrstni red za prikaz */
   sequence: integer("sequence").notNull().default(0),
+  /** Poslovni partner (FK na counterparties) — zahtevano, če konto zahteva partnerja */
+  partnerId: uuid("partner_id").references(() => counterpartiesTable.id, { onDelete: "set null" }),
+  /** Stroškovno mesto — zahtevano, če konto zahteva stroškovno mesto */
+  costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, { onDelete: "set null" }),
+  /** Projekt — zahtevano, če konto zahteva projekt */
+  projectId: uuid("project_id").references(() => projectsTable.id, { onDelete: "set null" }),
+  /** Oddelek */
+  departmentId: uuid("department_id").references(() => departmentsTable.id, { onDelete: "set null" }),
 });
 
 export type JournalEntry = typeof journalEntriesTable.$inferSelect;
