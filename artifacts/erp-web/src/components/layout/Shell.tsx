@@ -59,7 +59,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // null = vedno vidno; 'erp'/'pos' = zahteva aktiven modul
 const MODULES: { name: string; path: string; icon: React.ElementType; requires: "erp" | "pos" | null }[] = [
-  { name: "Pregled", path: "/dashboard", icon: LayoutDashboard, requires: null },
+  { name: "Pregled", path: "/dashboard", icon: LayoutDashboard, requires: "erp" as const },
   { name: "Kontni plan", path: "/kontni-plan", icon: BookOpen, requires: "erp" },
   { name: "Računovodska obdobja", path: "/obdobja", icon: Calendar, requires: "erp" },
   { name: "Temeljnice", path: "/temeljnice", icon: FileText, requires: "erp" },
@@ -172,31 +172,33 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="px-2 py-4">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Glavna knjiga</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {visibleModules.map((module) => {
-                const isActive = location === module.path || (location.startsWith(module.path) && module.path !== "/dashboard");
-                return (
-                  <SidebarMenuItem key={module.path}>
-                    <SidebarMenuButton 
-                      asChild 
-                      isActive={isActive}
-                      tooltip={module.name}
-                    >
-                      <button onClick={() => navigate(module.path)} className="flex items-center w-full">
-                        <module.icon className="h-4 w-4" />
-                        <span>{module.name}</span>
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        
+        {visibleModules.length > 0 ? (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Glavna knjiga</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleModules.map((module) => {
+                  const isActive = location === module.path || (location.startsWith(module.path) && module.path !== "/dashboard");
+                  return (
+                    <SidebarMenuItem key={module.path}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={module.name}
+                      >
+                        <button onClick={() => navigate(module.path)} className="flex items-center w-full">
+                          <module.icon className="h-4 w-4" />
+                          <span>{module.name}</span>
+                        </button>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
+
         <SidebarGroup className="mt-6">
           <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Sistem</SidebarGroupLabel>
           <SidebarGroupContent>
