@@ -34,6 +34,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ─── Types mirrored from backend ─────────────────────────────────────────────
 
@@ -92,6 +93,18 @@ async function parseBankStatement(
   return resp.json();
 }
 
+async function postPayment(companyId: string, paymentId: string): Promise<void> {
+  const resp = await fetch(`/api/companies/${companyId}/payments/${paymentId}/post`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+  }
+}
+
 async function matchTransactions(
   companyId: string,
   transactions: BankTransaction[],
@@ -135,10 +148,13 @@ export default function BancniIzpis() {
   const [decisions, setDecisions] = useState<Map<string, MatchDecision>>(new Map());
   const [matching, setMatching] = useState(false);
 
+  // Auto-post option
+  const [autoPost, setAutoPost] = useState(false);
+
   // Step 3 state
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  const [confirmResult, setConfirmResult] = useState<{ created: number; skipped: number } | null>(null);
+  const [confirmResult, setConfirmResult] = useState<{ created: number; skipped: number; posted: number; postErrors: string[] } | null>(null);
 
   // Data fetching
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
@@ -220,6 +236,8 @@ export default function BancniIzpis() {
 
     let created = 0;
     let skipped = 0;
+    let posted = 0;
+    const postErrors: string[] = [];
 
     for (const item of suggestions) {
       const tx = item.transaction;
@@ -229,14 +247,12 @@ export default function BancniIzpis() {
 
       // matched
       const direction = tx.amount > 0 ? "inbound" : "outbound";
-      // Use the right AR/AP account based on direction
       const arApAccountId = direction === "inbound" ? arAccountId : apAccountId;
-
-      // Find or fallback for counterpartyId — use the matched suggestion's counterpartyId
       const counterpartyId = decision.counterpartyId;
 
+      let paymentId: string | null = null;
       try {
-        await new Promise<void>((resolve, reject) => {
+        paymentId = await new Promise<string>((resolve, reject) => {
           createPaymentMut.mutate(
             {
               companyId: activeCompany.id,
@@ -259,19 +275,32 @@ export default function BancniIzpis() {
               },
             },
             {
-              onSuccess: () => { created++; resolve(); },
+              onSuccess: (data: any) => { resolve(data.id); },
               onError: (e) => reject(e),
             },
           );
         });
+        created++;
       } catch (e: any) {
         // Record partial failure but continue
         skipped++;
+        continue;
+      }
+
+      // Auto-post if requested
+      if (autoPost && paymentId) {
+        try {
+          await postPayment(activeCompany.id, paymentId);
+          posted++;
+        } catch (e: any) {
+          const ref = tx.reference ?? tx.date;
+          postErrors.push(`${ref}: ${e.message ?? "Napaka pri knjiženju"}`);
+        }
       }
     }
 
     queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
-    setConfirmResult({ created, skipped });
+    setConfirmResult({ created, skipped, posted, postErrors });
     setConfirming(false);
     setStep("confirm");
   };
@@ -288,6 +317,7 @@ export default function BancniIzpis() {
     setConfirmResult(null);
     setConfirmError(null);
     setParseError(null);
+    setAutoPost(false);
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -429,6 +459,24 @@ export default function BancniIzpis() {
             </div>
           </div>
 
+          {/* Auto-post option */}
+          <div className="flex items-start gap-3 p-4 border rounded-lg bg-card">
+            <Checkbox
+              id="auto-post"
+              checked={autoPost}
+              onCheckedChange={(v) => setAutoPost(!!v)}
+              className="mt-0.5"
+            />
+            <div className="space-y-1">
+              <Label htmlFor="auto-post" className="cursor-pointer font-medium">
+                Samodejno poknjiži po uvozu
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Vsako ustvarjeno plačilo bo takoj poknjiženo. Napake pri posameznem knjiženju ne prekinejo uvoza — prikazane so skupaj na koncu.
+              </p>
+            </div>
+          </div>
+
           {parseError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -511,18 +559,45 @@ export default function BancniIzpis() {
       {/* ─── STEP 3: Confirm / Done ──────────────────────────────────────────── */}
       {step === "confirm" && confirmResult && (
         <div className="max-w-lg mx-auto text-center space-y-6 py-8">
-          <div className="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
+          <div className={`h-20 w-20 rounded-full flex items-center justify-center mx-auto ${confirmResult.postErrors.length > 0 ? "bg-amber-100" : "bg-green-100"}`}>
+            {confirmResult.postErrors.length > 0
+              ? <AlertCircle className="h-10 w-10 text-amber-600" />
+              : <CheckCircle2 className="h-10 w-10 text-green-600" />
+            }
           </div>
           <div>
             <h2 className="text-2xl font-bold">Uvoz zaključen</h2>
-            <p className="text-muted-foreground mt-2">
-              Uspešno ustvarjenih plačil: <span className="font-semibold text-foreground">{confirmResult.created}</span>
-              {confirmResult.skipped > 0 && (
-                <> · Preskočenih: <span className="font-semibold text-foreground">{confirmResult.skipped}</span></>
+            <div className="text-muted-foreground mt-2 space-y-1">
+              <p>
+                Ustvarjenih plačil: <span className="font-semibold text-foreground">{confirmResult.created}</span>
+                {confirmResult.skipped > 0 && (
+                  <> · Preskočenih: <span className="font-semibold text-foreground">{confirmResult.skipped}</span></>
+                )}
+              </p>
+              {autoPost && (
+                <p>
+                  Poknjiženih: <span className="font-semibold text-green-700">{confirmResult.posted}</span>
+                  {confirmResult.postErrors.length > 0 && (
+                    <> · Napak pri knjiženju: <span className="font-semibold text-amber-600">{confirmResult.postErrors.length}</span></>
+                  )}
+                </p>
               )}
-            </p>
+            </div>
           </div>
+          {confirmResult.postErrors.length > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Napake pri samodejnem knjiženju</AlertTitle>
+              <AlertDescription>
+                <ul className="mt-1 space-y-1 text-left list-disc list-inside">
+                  {confirmResult.postErrors.map((e, i) => (
+                    <li key={i} className="text-xs">{e}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs">Plačila so bila ustvarjena — poknjižite jih ročno v seznamu plačil.</p>
+              </AlertDescription>
+            </Alert>
+          )}
           {confirmError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
