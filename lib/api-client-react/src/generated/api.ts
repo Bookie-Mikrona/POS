@@ -64,7 +64,11 @@ import type {
   ListPeriodsResponse,
   ListVatCodesParams,
   ListVatCodesResponse,
+  MatchBankTransactionsBody,
+  MatchBankTransactionsResponse,
   OpenItemsResponse,
+  ParseBankStatementBody,
+  ParseBankStatementResponse,
   PaymentWithAllocations,
   PeriodRecord,
   RegisterDocumentBody,
@@ -3139,6 +3143,153 @@ export const useVoidPayment = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getVoidPaymentMutationOptions(options));
+    }
+
+export const getParseBankStatementUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-statements/parse`
+}
+
+/**
+ * Accepts multipart/form-data with a single `file` field (CSV or MT940/STA). Returns parsed transactions.
+ * @summary Parse an uploaded CSV or MT940 bank statement file
+ */
+export const parseBankStatement = async (companyId: string,
+    parseBankStatementBody: ParseBankStatementBody, options?: RequestInit): Promise<ParseBankStatementResponse> => {
+    const formData = new FormData();
+formData.append(`file`, parseBankStatementBody.file);
+
+  return customFetch<ParseBankStatementResponse>(getParseBankStatementUrl(companyId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getParseBankStatementMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof parseBankStatement>>, TError,{companyId: string;data: BodyType<ParseBankStatementBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof parseBankStatement>>, TError,{companyId: string;data: BodyType<ParseBankStatementBody>}, TContext> => {
+
+const mutationKey = ['parseBankStatement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof parseBankStatement>>, {companyId: string;data: BodyType<ParseBankStatementBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  parseBankStatement(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ParseBankStatementMutationResult = NonNullable<Awaited<ReturnType<typeof parseBankStatement>>>
+    export type ParseBankStatementMutationBody = BodyType<ParseBankStatementBody>
+    export type ParseBankStatementMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Parse an uploaded CSV or MT940 bank statement file
+ */
+export const useParseBankStatement = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof parseBankStatement>>, TError,{companyId: string;data: BodyType<ParseBankStatementBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof parseBankStatement>>,
+        TError,
+        {companyId: string;data: BodyType<ParseBankStatementBody>},
+        TContext
+      > => {
+      return useMutation(getParseBankStatementMutationOptions(options));
+    }
+
+export const getMatchBankTransactionsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-statements/match`
+}
+
+/**
+ * @summary Match parsed bank transactions against open invoice items
+ */
+export const matchBankTransactions = async (companyId: string,
+    matchBankTransactionsBody: MatchBankTransactionsBody, options?: RequestInit): Promise<MatchBankTransactionsResponse> => {
+
+  return customFetch<MatchBankTransactionsResponse>(getMatchBankTransactionsUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(matchBankTransactionsBody)
+  }
+);}
+
+
+
+
+
+export const getMatchBankTransactionsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchBankTransactions>>, TError,{companyId: string;data: BodyType<MatchBankTransactionsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof matchBankTransactions>>, TError,{companyId: string;data: BodyType<MatchBankTransactionsBody>}, TContext> => {
+
+const mutationKey = ['matchBankTransactions'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchBankTransactions>>, {companyId: string;data: BodyType<MatchBankTransactionsBody>}> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  matchBankTransactions(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MatchBankTransactionsMutationResult = NonNullable<Awaited<ReturnType<typeof matchBankTransactions>>>
+    export type MatchBankTransactionsMutationBody = BodyType<MatchBankTransactionsBody>
+    export type MatchBankTransactionsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Match parsed bank transactions against open invoice items
+ */
+export const useMatchBankTransactions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchBankTransactions>>, TError,{companyId: string;data: BodyType<MatchBankTransactionsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof matchBankTransactions>>,
+        TError,
+        {companyId: string;data: BodyType<MatchBankTransactionsBody>},
+        TContext
+      > => {
+      return useMutation(getMatchBankTransactionsMutationOptions(options));
     }
 
 export const getGetOpenItemsUrl = (companyId: string,

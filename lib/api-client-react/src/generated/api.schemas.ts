@@ -1177,6 +1177,61 @@ export interface ConfirmDocumentBody {
   createInvoice?: boolean;
 }
 
+/**
+ * Single transaction parsed from a bank statement file
+ */
+export interface BankTransaction {
+  id: string;
+  date: string;
+  /** Positive = credit (inbound), negative = debit (outbound) */
+  amount: number;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  counterpartyName?: string | null;
+  /** @nullable */
+  counterpartyIban?: string | null;
+  /** @nullable */
+  description?: string | null;
+  currency: string;
+}
+
+export interface ParseBankStatementResponse {
+  transactions: BankTransaction[];
+  count: number;
+}
+
+export interface MatchBankTransactionsBody {
+  /** @maxItems 500 */
+  transactions: BankTransaction[];
+}
+
+export interface MatchSuggestion {
+  invoiceId: string;
+  invoiceNumber: string;
+  counterpartyId: string;
+  counterpartyName: string;
+  invoiceDate: string;
+  /** @nullable */
+  dueDate?: string | null;
+  remainingAmount: string;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  matchReasons: string[];
+}
+
+export interface TransactionWithSuggestions {
+  transaction: BankTransaction;
+  suggestions: MatchSuggestion[];
+}
+
+export interface MatchBankTransactionsResponse {
+  suggestions: TransactionWithSuggestions[];
+}
+
 export interface AnthropicConversation {
   id: number;
   title: string;
@@ -1323,6 +1378,10 @@ export const ListPaymentsStatus = {
   posted: 'posted',
   void: 'void',
 } as const;
+
+export type ParseBankStatementBody = {
+  file: Blob;
+};
 
 export type GetOpenItemsParams = {
 /**

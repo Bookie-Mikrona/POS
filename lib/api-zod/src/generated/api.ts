@@ -1523,6 +1523,93 @@ export const VoidPaymentResponse = zod.object({
 
 
 /**
+ * Accepts multipart/form-data with a single `file` field (CSV or MT940/STA). Returns parsed transactions.
+ * @summary Parse an uploaded CSV or MT940 bank statement file
+ */
+export const ParseBankStatementParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ParseBankStatementBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const parseBankStatementResponseTransactionsItemCurrencyDefault = `EUR`;
+
+export const ParseBankStatementResponse = zod.object({
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.coerce.date(),
+  "amount": zod.number().describe('Positive = credit (inbound), negative = debit (outbound)'),
+  "reference": zod.string().nullish(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyIban": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "currency": zod.string().default(parseBankStatementResponseTransactionsItemCurrencyDefault)
+}).describe('Single transaction parsed from a bank statement file')),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Match parsed bank transactions against open invoice items
+ */
+export const MatchBankTransactionsParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const matchBankTransactionsBodyTransactionsItemCurrencyDefault = `EUR`;
+export const matchBankTransactionsBodyTransactionsMax = 500;
+
+
+
+export const MatchBankTransactionsBody = zod.object({
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.coerce.date(),
+  "amount": zod.number().describe('Positive = credit (inbound), negative = debit (outbound)'),
+  "reference": zod.string().nullish(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyIban": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "currency": zod.string().default(matchBankTransactionsBodyTransactionsItemCurrencyDefault)
+}).describe('Single transaction parsed from a bank statement file')).max(matchBankTransactionsBodyTransactionsMax)
+})
+
+export const matchBankTransactionsResponseSuggestionsItemTransactionCurrencyDefault = `EUR`;
+export const matchBankTransactionsResponseSuggestionsItemSuggestionsItemConfidenceMin = 0;
+export const matchBankTransactionsResponseSuggestionsItemSuggestionsItemConfidenceMax = 1;
+
+
+
+export const MatchBankTransactionsResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "transaction": zod.object({
+  "id": zod.string(),
+  "date": zod.coerce.date(),
+  "amount": zod.number().describe('Positive = credit (inbound), negative = debit (outbound)'),
+  "reference": zod.string().nullish(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyIban": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "currency": zod.string().default(matchBankTransactionsResponseSuggestionsItemTransactionCurrencyDefault)
+}).describe('Single transaction parsed from a bank statement file'),
+  "suggestions": zod.array(zod.object({
+  "invoiceId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "counterpartyId": zod.string(),
+  "counterpartyName": zod.string(),
+  "invoiceDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullish(),
+  "remainingAmount": zod.string(),
+  "confidence": zod.number().min(matchBankTransactionsResponseSuggestionsItemSuggestionsItemConfidenceMin).max(matchBankTransactionsResponseSuggestionsItemSuggestionsItemConfidenceMax),
+  "matchReasons": zod.array(zod.string())
+}))
+}))
+})
+
+
+/**
  * Returns all posted invoices that are not fully paid, with remaining amount.
  * @summary Open items (odprte postavke) per counterparty
  */
