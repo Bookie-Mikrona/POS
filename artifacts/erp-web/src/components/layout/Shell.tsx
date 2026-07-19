@@ -22,6 +22,7 @@ import {
   Calendar,
   ScanLine,
   Layers,
+  PieChart,
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
@@ -68,6 +69,7 @@ const MODULES = [
   { name: "DDV evidence", path: "/ddv", icon: Receipt },
   { name: "Dimenzije", path: "/dimenzije", icon: Layers },
   { name: "Poročila", path: "/porocila", icon: BarChart3 },
+  { name: "Analitika", path: "/porocila/dimenzije", icon: PieChart },
 ];
 
 const SETTINGS_MODULES = [

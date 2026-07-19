@@ -24,6 +24,7 @@ import Saldakonti from "@/pages/saldakonti";
 import Ddv from "@/pages/ddv";
 import Dimenzije from "@/pages/dimenzije";
 import Porocila from "@/pages/porocila";
+import PorocilaAnalitika from "@/pages/porocila-dimenzije";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -229,6 +230,7 @@ function ClerkProviderWithRoutes() {
           <ProtectedRoute path="/dimenzije" component={Dimenzije} />
           
           <ProtectedRoute path="/porocila" component={Porocila} />
+          <ProtectedRoute path="/porocila/dimenzije" component={PorocilaAnalitika} />
           
           <ProtectedRoute path="/nastavitve" component={() => (
             <Placeholder 

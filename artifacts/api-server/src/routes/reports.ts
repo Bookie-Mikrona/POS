@@ -1,11 +1,14 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
   journalEntryLinesTable,
   accountsTable,
   accountingRolesTable,
+  costCentersTable,
+  projectsTable,
+  departmentsTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 
@@ -345,6 +348,151 @@ router.get(
       current,
       compare,
     });
+  },
+);
+
+// ── Dimensions report ─────────────────────────────────────────────────────────
+
+type DimensionType = "costCenter" | "project" | "department";
+
+interface DimensionReportRow {
+  id: string;
+  code: string;
+  name: string;
+  totalDebit: string;
+  totalCredit: string;
+  balance: string;
+}
+
+interface DimensionReportResponse {
+  dimensionType: DimensionType;
+  dateFrom: string | null;
+  dateTo: string | null;
+  accountId: string | null;
+  rows: DimensionReportRow[];
+  grandTotalDebit: string;
+  grandTotalCredit: string;
+  grandTotalBalance: string;
+}
+
+// GET /companies/:companyId/reports/dimensions
+router.get(
+  "/companies/:companyId/reports/dimensions",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+
+    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!ok) return;
+
+    const { dimensionType, dateFrom, dateTo, accountId } =
+      req.query as Record<string, string | undefined>;
+
+    const dimType = (dimensionType ?? "costCenter") as DimensionType;
+    if (!["costCenter", "project", "department"].includes(dimType)) {
+      res.status(400).json({ error: "Neveljaven tip dimenzije" });
+      return;
+    }
+
+    // Build base conditions for journal entries
+    const jeConditions = [
+      eq(journalEntriesTable.companyId, companyId),
+      eq(journalEntriesTable.status, "posted"),
+    ];
+    if (dateFrom) jeConditions.push(gte(journalEntriesTable.entryDate, dateFrom));
+    if (dateTo) jeConditions.push(lte(journalEntriesTable.entryDate, dateTo));
+
+    // Line conditions
+    const lineConditions: ReturnType<typeof eq>[] = [];
+    if (accountId) lineConditions.push(eq(journalEntryLinesTable.accountId, accountId) as any);
+
+    // Choose dimension table and FK column based on type
+    const dimTable =
+      dimType === "costCenter"
+        ? costCentersTable
+        : dimType === "project"
+        ? projectsTable
+        : departmentsTable;
+
+    const dimFkCol =
+      dimType === "costCenter"
+        ? journalEntryLinesTable.costCenterId
+        : dimType === "project"
+        ? journalEntryLinesTable.projectId
+        : journalEntryLinesTable.departmentId;
+
+    // Only include lines that have the chosen dimension set
+    const notNullCondition = isNotNull(dimFkCol);
+
+    const allConditions = [
+      ...jeConditions,
+      notNullCondition,
+      ...lineConditions,
+    ];
+
+    const rows = await db
+      .select({
+        dimId: dimTable.id,
+        dimCode: dimTable.code,
+        dimName: dimTable.name,
+        side: journalEntryLinesTable.side,
+        total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(
+        journalEntriesTable,
+        eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+      )
+      .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+      .where(and(...allConditions))
+      .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
+
+    // Aggregate per dimension
+    const map = new Map<
+      string,
+      { code: string; name: string; debit: number; credit: number }
+    >();
+
+    for (const row of rows) {
+      const existing = map.get(row.dimId) ?? {
+        code: row.dimCode,
+        name: row.dimName,
+        debit: 0,
+        credit: 0,
+      };
+      const amount = parseFloat(row.total ?? "0");
+      if (row.side === "debit") existing.debit += amount;
+      else existing.credit += amount;
+      map.set(row.dimId, existing);
+    }
+
+    const reportRows: DimensionReportRow[] = Array.from(map.entries())
+      .map(([id, dim]) => ({
+        id,
+        code: dim.code,
+        name: dim.name,
+        totalDebit: dim.debit.toFixed(2),
+        totalCredit: dim.credit.toFixed(2),
+        balance: (dim.debit - dim.credit).toFixed(2),
+      }))
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);
+    const grandTotalCredit = reportRows.reduce((s, r) => s + parseFloat(r.totalCredit), 0);
+
+    const response: DimensionReportResponse = {
+      dimensionType: dimType,
+      dateFrom: dateFrom ?? null,
+      dateTo: dateTo ?? null,
+      accountId: accountId ?? null,
+      rows: reportRows,
+      grandTotalDebit: grandTotalDebit.toFixed(2),
+      grandTotalCredit: grandTotalCredit.toFixed(2),
+      grandTotalBalance: (grandTotalDebit - grandTotalCredit).toFixed(2),
+    };
+
+    res.json(response);
   },
 );
 
