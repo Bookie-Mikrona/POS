@@ -13,6 +13,7 @@ import vatCodesRouter from "./vatCodes";
 import vatRegisterRouter from "./vatRegister";
 import documentsRouter from "./documents";
 import storageRouter from "./storage";
+import bankStatementsRouter from "./bankStatements";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(vatCodesRouter);
 router.use(vatRegisterRouter);
 router.use(documentsRouter);
 router.use(storageRouter);
+router.use(bankStatementsRouter);
 
 export default router;

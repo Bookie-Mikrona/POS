@@ -1795,6 +1795,108 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  # ── Bank statement import ──────────────────────────────────────────────────
+  /companies/{companyId}/bank-statements/parse:
+    post:
+      operationId: parseBankStatement
+      tags: [payments]
+      summary: Parse an uploaded CSV or MT940 bank statement file
+      description: Accepts multipart/form-data with a single `file` field (CSV or MT940/STA). Returns parsed transactions.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "200":
+          description: Parsed transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParseBankStatementResponse"
+        "400":
+          description: Missing file or parse error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: No transactions found in file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/bank-statements/match:
+    post:
+      operationId: matchBankTransactions
+      tags: [payments]
+      summary: Match parsed bank transactions against open invoice items
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchBankTransactionsBody"
+      responses:
+        "200":
+          description: Match suggestions per transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchBankTransactionsResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /companies/{companyId}/open-items:
     get:
       operationId: getOpenItems
@@ -3679,6 +3781,102 @@ components:
           type: boolean
           description: Ali naj se avtomatično ustvari draft račun
       required: []
+
+    # ── Bank statement import ─────────────────────────────────────────────────
+    BankTransaction:
+      type: object
+      description: Single transaction parsed from a bank statement file
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+          format: date
+        amount:
+          type: number
+          description: Positive = credit (inbound), negative = debit (outbound)
+        reference:
+          type: ["string", "null"]
+        counterpartyName:
+          type: ["string", "null"]
+        counterpartyIban:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        currency:
+          type: string
+          default: EUR
+      required: [id, date, amount, currency]
+
+    ParseBankStatementResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankTransaction"
+        count:
+          type: integer
+      required: [transactions, count]
+
+    MatchBankTransactionsBody:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankTransaction"
+          maxItems: 500
+      required: [transactions]
+
+    MatchSuggestion:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        invoiceNumber:
+          type: string
+        counterpartyId:
+          type: string
+        counterpartyName:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        remainingAmount:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        matchReasons:
+          type: array
+          items:
+            type: string
+      required: [invoiceId, invoiceNumber, counterpartyId, counterpartyName, invoiceDate, remainingAmount, confidence, matchReasons]
+
+    TransactionWithSuggestions:
+      type: object
+      properties:
+        transaction:
+          $ref: "#/components/schemas/BankTransaction"
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchSuggestion"
+      required: [transaction, suggestions]
+
+    MatchBankTransactionsResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionWithSuggestions"
+      required: [suggestions]
 
     # ── Anthropic (AI chat) ───────────────────────────────────────────────────
     AnthropicConversation:
