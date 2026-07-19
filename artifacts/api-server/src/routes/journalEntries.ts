@@ -62,6 +62,8 @@ async function fetchEntryWithLines(entryId: string) {
       reference: journalEntriesTable.reference,
       status: journalEntriesTable.status,
       reversalOf: journalEntriesTable.reversalOf,
+      sourceType: journalEntriesTable.sourceType,
+      approvedBy: journalEntriesTable.approvedBy,
       createdBy: journalEntriesTable.createdBy,
       createdAt: journalEntriesTable.createdAt,
       updatedAt: journalEntriesTable.updatedAt,
@@ -159,6 +161,8 @@ router.get(
         reference: journalEntriesTable.reference,
         status: journalEntriesTable.status,
         reversalOf: journalEntriesTable.reversalOf,
+        sourceType: journalEntriesTable.sourceType,
+        approvedBy: journalEntriesTable.approvedBy,
         createdBy: journalEntriesTable.createdBy,
         createdAt: journalEntriesTable.createdAt,
         updatedAt: journalEntriesTable.updatedAt,
@@ -196,7 +200,7 @@ router.post(
       return;
     }
 
-    const { periodId, description, reference, lines, autoPost } = parsed.data;
+    const { periodId, description, reference, lines, autoPost, sourceType } = parsed.data;
 
     // Preveri period pripada podjetju
     const [period] = await db
@@ -337,6 +341,8 @@ router.post(
           description,
           reference: reference ?? null,
           status: autoPost ? "posted" : "draft",
+          sourceType: (sourceType ?? "manual") as "manual" | "bank_import" | "document" | "ai_suggestion",
+          approvedBy: autoPost ? authReq.clerkUserId : null,
           createdBy: authReq.clerkUserId,
         })
         .returning({ id: journalEntriesTable.id });
@@ -506,7 +512,7 @@ router.post(
     await db.transaction(async (tx) => {
       await tx
         .update(journalEntriesTable)
-        .set({ status: "posted" })
+        .set({ status: "posted", approvedBy: authReq.clerkUserId })
         .where(eq(journalEntriesTable.id, id));
 
       // Revizijski dnevnik je del transakcije

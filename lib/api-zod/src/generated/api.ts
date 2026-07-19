@@ -154,6 +154,8 @@ export const ListAccountsResponse = zod.object({
   "requiresCostCenter": zod.boolean().describe('Vrstica temeljnice mora imeti stroškovno mesto'),
   "requiresProject": zod.boolean().describe('Vrstica temeljnice mora imeti projekt'),
   "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).describe('DDV vedenje konta'),
+  "isCash": zod.boolean().describe('Denarno\/bančno sredstvo (blagajna, TRR) — za izkaz denarnih tokov'),
+  "isOpenItem": zod.boolean().describe('Saldakontni konto — kupci in dobavitelji z odprtimi postavkami'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -183,7 +185,9 @@ export const CreateAccountBody = zod.object({
   "requiresPartner": zod.boolean().optional(),
   "requiresCostCenter": zod.boolean().optional(),
   "requiresProject": zod.boolean().optional(),
-  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).optional()
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).optional(),
+  "isCash": zod.boolean().optional(),
+  "isOpenItem": zod.boolean().optional()
 })
 
 export const CreateAccountResponse = zod.object({
@@ -200,6 +204,8 @@ export const CreateAccountResponse = zod.object({
   "requiresCostCenter": zod.boolean().describe('Vrstica temeljnice mora imeti stroškovno mesto'),
   "requiresProject": zod.boolean().describe('Vrstica temeljnice mora imeti projekt'),
   "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).describe('DDV vedenje konta'),
+  "isCash": zod.boolean().describe('Denarno\/bančno sredstvo (blagajna, TRR) — za izkaz denarnih tokov'),
+  "isOpenItem": zod.boolean().describe('Saldakontni konto — kupci in dobavitelji z odprtimi postavkami'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -238,7 +244,9 @@ export const UpdateAccountBody = zod.object({
   "requiresPartner": zod.boolean().optional(),
   "requiresCostCenter": zod.boolean().optional(),
   "requiresProject": zod.boolean().optional(),
-  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).optional()
+  "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).optional(),
+  "isCash": zod.boolean().optional(),
+  "isOpenItem": zod.boolean().optional()
 })
 
 export const UpdateAccountResponse = zod.object({
@@ -255,6 +263,8 @@ export const UpdateAccountResponse = zod.object({
   "requiresCostCenter": zod.boolean().describe('Vrstica temeljnice mora imeti stroškovno mesto'),
   "requiresProject": zod.boolean().describe('Vrstica temeljnice mora imeti projekt'),
   "taxBehavior": zod.enum(['none', 'output_vat', 'input_vat', 'exempt']).describe('DDV vedenje konta'),
+  "isCash": zod.boolean().describe('Denarno\/bančno sredstvo (blagajna, TRR) — za izkaz denarnih tokov'),
+  "isOpenItem": zod.boolean().describe('Saldakontni konto — kupci in dobavitelji z odprtimi postavkami'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -364,6 +374,8 @@ export const ListJournalEntriesResponse = zod.object({
   "reference": zod.string().nullish(),
   "status": zod.enum(['draft', 'posted', 'reversed']),
   "reversalOf": zod.string().nullish(),
+  "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).describe('Izvor knjižbe za revizijsko sled'),
+  "approvedBy": zod.string().nullish().describe('Clerk user ID ki je potrdil\/knjižil vnos'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -401,7 +413,8 @@ export const CreateJournalEntryBody = zod.object({
   "projectId": zod.string().nullish().describe('Projekt (zahtevano, če konto zahteva)'),
   "departmentId": zod.string().nullish().describe('Oddelek (opcijsko)')
 })).min(createJournalEntryBodyLinesMin),
-  "autoPost": zod.boolean().optional().describe('If true, post the entry immediately after creation if balanced')
+  "autoPost": zod.boolean().optional().describe('If true, post the entry immediately after creation if balanced'),
+  "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).optional().describe('Izvor knjižbe (privzeto manual)')
 })
 
 export const CreateJournalEntryResponse = zod.object({
@@ -414,6 +427,8 @@ export const CreateJournalEntryResponse = zod.object({
   "reference": zod.string().nullish(),
   "status": zod.enum(['draft', 'posted', 'reversed']),
   "reversalOf": zod.string().nullish(),
+  "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).describe('Izvor knjižbe za revizijsko sled'),
+  "approvedBy": zod.string().nullish().describe('Clerk user ID ki je potrdil\/knjižil vnos'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -458,6 +473,8 @@ export const GetJournalEntryResponse = zod.object({
   "reference": zod.string().nullish(),
   "status": zod.enum(['draft', 'posted', 'reversed']),
   "reversalOf": zod.string().nullish(),
+  "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).describe('Izvor knjižbe za revizijsko sled'),
+  "approvedBy": zod.string().nullish().describe('Clerk user ID ki je potrdil\/knjižil vnos'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -503,6 +520,8 @@ export const PostJournalEntryResponse = zod.object({
   "reference": zod.string().nullish(),
   "status": zod.enum(['draft', 'posted', 'reversed']),
   "reversalOf": zod.string().nullish(),
+  "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).describe('Izvor knjižbe za revizijsko sled'),
+  "approvedBy": zod.string().nullish().describe('Clerk user ID ki je potrdil\/knjižil vnos'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -554,6 +573,8 @@ export const ReverseJournalEntryResponse = zod.object({
   "reference": zod.string().nullish(),
   "status": zod.enum(['draft', 'posted', 'reversed']),
   "reversalOf": zod.string().nullish(),
+  "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).describe('Izvor knjižbe za revizijsko sled'),
+  "approvedBy": zod.string().nullish().describe('Clerk user ID ki je potrdil\/knjižil vnos'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()

@@ -34,6 +34,19 @@ const STATUS_LABELS: Record<string, string> = {
   reversed: "Stornirano"
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  manual: "Ročno",
+  bank_import: "Banka",
+  document: "Dokument",
+  ai_suggestion: "AI",
+};
+const SOURCE_COLORS: Record<string, string> = {
+  manual: "bg-gray-100 text-gray-700",
+  bank_import: "bg-blue-100 text-blue-700",
+  document: "bg-violet-100 text-violet-700",
+  ai_suggestion: "bg-amber-100 text-amber-700",
+};
+
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "outline",
   posted: "default",
@@ -187,7 +200,7 @@ export default function Temeljnice() {
               <TableRow>
                 <TableHead className="w-[120px]">Datum</TableHead>
                 <TableHead>Opis</TableHead>
-                <TableHead>Sklic</TableHead>
+                <TableHead className="w-[90px]">Izvor</TableHead>
                 <TableHead className="w-[150px]">Obdobje</TableHead>
                 <TableHead className="w-[120px]">Status</TableHead>
                 <TableHead className="w-[160px] text-right">Dejanja</TableHead>
@@ -205,7 +218,13 @@ export default function Temeljnice() {
                     {entry.description}
                     {entry.reversalOf && <Badge variant="secondary" className="ml-2 text-[10px] py-0">Storno</Badge>}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{entry.reference || "-"}</TableCell>
+                  <TableCell>
+                    {entry.sourceType ? (
+                      <Badge variant="secondary" className={`text-[10px] py-0 ${SOURCE_COLORS[entry.sourceType] ?? ""}`}>
+                        {SOURCE_LABELS[entry.sourceType] ?? entry.sourceType}
+                      </Badge>
+                    ) : "-"}
+                  </TableCell>
                   <TableCell>{entry.periodName}</TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANTS[entry.status]} className={entry.status === 'posted' ? 'bg-green-600 hover:bg-green-700' : ''}>

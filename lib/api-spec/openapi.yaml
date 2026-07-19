@@ -3074,13 +3074,19 @@ components:
           type: string
           enum: [none, output_vat, input_vat, exempt]
           description: DDV vedenje konta
+        isCash:
+          type: boolean
+          description: Denarno/bančno sredstvo (blagajna, TRR) — za izkaz denarnih tokov
+        isOpenItem:
+          type: boolean
+          description: Saldakontni konto — kupci in dobavitelji z odprtimi postavkami
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, companyId, code, name, type, isActive, allowsPosting, requiresPartner, requiresCostCenter, requiresProject, taxBehavior, createdAt, updatedAt]
+      required: [id, companyId, code, name, type, isActive, allowsPosting, requiresPartner, requiresCostCenter, requiresProject, taxBehavior, isCash, isOpenItem, createdAt, updatedAt]
     ListAccountsResponse:
       type: object
       properties:
@@ -3118,6 +3124,10 @@ components:
         taxBehavior:
           type: string
           enum: [none, output_vat, input_vat, exempt]
+        isCash:
+          type: boolean
+        isOpenItem:
+          type: boolean
       required: [code, name, type]
     UpdateAccountBody:
       type: object
@@ -3143,6 +3153,10 @@ components:
         taxBehavior:
           type: string
           enum: [none, output_vat, input_vat, exempt]
+        isCash:
+          type: boolean
+        isOpenItem:
+          type: boolean
     SeedAccountsResponse:
       type: object
       properties:
@@ -3281,6 +3295,13 @@ components:
           enum: [draft, posted, reversed]
         reversalOf:
           type: ["string", "null"]
+        sourceType:
+          type: string
+          enum: [manual, bank_import, document, ai_suggestion]
+          description: Izvor knjižbe za revizijsko sled
+        approvedBy:
+          type: ["string", "null"]
+          description: Clerk user ID ki je potrdil/knjižil vnos
         createdBy:
           type: string
         createdAt:
@@ -3289,7 +3310,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, companyId, periodId, periodName, entryDate, description, status, createdBy, createdAt, updatedAt]
+      required: [id, companyId, periodId, periodName, entryDate, description, status, sourceType, createdBy, createdAt, updatedAt]
     JournalEntryWithLines:
       allOf:
         - $ref: "#/components/schemas/JournalEntry"
@@ -3357,6 +3378,10 @@ components:
         autoPost:
           type: boolean
           description: If true, post the entry immediately after creation if balanced
+        sourceType:
+          type: string
+          enum: [manual, bank_import, document, ai_suggestion]
+          description: Izvor knjižbe (privzeto manual)
       required: [periodId, entryDate, description, lines]
     ReverseJournalEntryBody:
       type: object

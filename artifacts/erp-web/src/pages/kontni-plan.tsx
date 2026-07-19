@@ -72,6 +72,8 @@ export default function KontniPlan() {
     type: "asset",
     description: "",
     parentId: "none",
+    isCash: false,
+    isOpenItem: false,
   });
 
   const { data, isLoading, error } = useListAccounts(
@@ -117,6 +119,8 @@ export default function KontniPlan() {
         type: acc.type,
         description: acc.description || "",
         parentId: acc.parentId || "none",
+        isCash: acc.isCash ?? false,
+        isOpenItem: acc.isOpenItem ?? false,
       });
     } else {
       setEditingAccount(null);
@@ -126,6 +130,8 @@ export default function KontniPlan() {
         type: "asset",
         description: "",
         parentId: "none",
+        isCash: false,
+        isOpenItem: false,
       });
     }
     setDialogOpen(true);
@@ -143,6 +149,8 @@ export default function KontniPlan() {
           name: formData.name,
           description: formData.description || null,
           parentId,
+          isCash: formData.isCash,
+          isOpenItem: formData.isOpenItem,
         }
       }, {
         onSuccess: () => {
@@ -159,6 +167,8 @@ export default function KontniPlan() {
           type: formData.type as any,
           description: formData.description || null,
           parentId,
+          isCash: formData.isCash,
+          isOpenItem: formData.isOpenItem,
         }
       }, {
         onSuccess: () => {
@@ -273,6 +283,7 @@ export default function KontniPlan() {
                   <TableHead className="w-[120px]">Koda</TableHead>
                   <TableHead>Ime konta</TableHead>
                   <TableHead className="w-[150px]">Tip</TableHead>
+                  <TableHead className="w-[140px]">Lastnosti</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Dejanja</TableHead>
                 </TableRow>
@@ -298,6 +309,13 @@ export default function KontniPlan() {
                           <Badge variant="secondary" className={TYPE_COLORS[acc.type]}>
                             {TYPE_LABELS[acc.type]}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {acc.isCash && <Badge variant="secondary" className="bg-sky-100 text-sky-700 text-[10px] py-0">Denarni</Badge>}
+                            {acc.isOpenItem && <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] py-0">Saldakonto</Badge>}
+                            {!acc.allowsPosting && <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-[10px] py-0">Skupinski</Badge>}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {!acc.isActive && <Badge variant="outline" className="text-muted-foreground">Neaktivno</Badge>}
@@ -398,6 +416,31 @@ export default function KontniPlan() {
                 value={formData.description} 
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
+            </div>
+            <div className="border rounded-lg p-3 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Lastnosti konta</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="isCash" className="text-sm font-medium">Denarni konto</Label>
+                  <p className="text-xs text-muted-foreground">Blagajna, TRR — za izkaz denarnih tokov</p>
+                </div>
+                <Switch
+                  id="isCash"
+                  checked={formData.isCash}
+                  onCheckedChange={(v) => setFormData({ ...formData, isCash: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="isOpenItem" className="text-sm font-medium">Saldakontni konto</Label>
+                  <p className="text-xs text-muted-foreground">Kupci, dobavitelji — odprte postavke</p>
+                </div>
+                <Switch
+                  id="isOpenItem"
+                  checked={formData.isOpenItem}
+                  onCheckedChange={(v) => setFormData({ ...formData, isOpenItem: v })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

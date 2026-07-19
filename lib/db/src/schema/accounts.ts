@@ -52,6 +52,10 @@ export const accountsTable = pgTable(
     requiresProject: boolean("requires_project").notNull().default(false),
     /** DDV vedenje tega konta */
     taxBehavior: taxBehaviorEnum("tax_behavior").notNull().default("none"),
+    /** Ali je to denarno/bančno sredstvo (razred 10x, blagajna) — za izkaz denarnih tokov */
+    isCash: boolean("is_cash").notNull().default(false),
+    /** Ali se vodijo odprte postavke (saldakonti) — kupci, dobavitelji */
+    isOpenItem: boolean("is_open_item").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

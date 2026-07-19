@@ -207,6 +207,10 @@ export interface AccountRecord {
   requiresProject: boolean;
   /** DDV vedenje konta */
   taxBehavior: AccountRecordTaxBehavior;
+  /** Denarno/bančno sredstvo (blagajna, TRR) — za izkaz denarnih tokov */
+  isCash: boolean;
+  /** Saldakontni konto — kupci in dobavitelji z odprtimi postavkami */
+  isOpenItem: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -257,6 +261,8 @@ export interface CreateAccountBody {
   requiresCostCenter?: boolean;
   requiresProject?: boolean;
   taxBehavior?: CreateAccountBodyTaxBehavior;
+  isCash?: boolean;
+  isOpenItem?: boolean;
 }
 
 export type UpdateAccountBodyTaxBehavior = typeof UpdateAccountBodyTaxBehavior[keyof typeof UpdateAccountBodyTaxBehavior];
@@ -285,6 +291,8 @@ export interface UpdateAccountBody {
   requiresCostCenter?: boolean;
   requiresProject?: boolean;
   taxBehavior?: UpdateAccountBodyTaxBehavior;
+  isCash?: boolean;
+  isOpenItem?: boolean;
 }
 
 export interface SeedAccountsResponse {
@@ -405,6 +413,19 @@ export const JournalEntryStatus = {
   reversed: 'reversed',
 } as const;
 
+/**
+ * Izvor knjižbe za revizijsko sled
+ */
+export type JournalEntrySourceType = typeof JournalEntrySourceType[keyof typeof JournalEntrySourceType];
+
+
+export const JournalEntrySourceType = {
+  manual: 'manual',
+  bank_import: 'bank_import',
+  document: 'document',
+  ai_suggestion: 'ai_suggestion',
+} as const;
+
 export interface JournalEntry {
   id: string;
   companyId: string;
@@ -418,6 +439,13 @@ export interface JournalEntry {
   status: JournalEntryStatus;
   /** @nullable */
   reversalOf?: string | null;
+  /** Izvor knjižbe za revizijsko sled */
+  sourceType: JournalEntrySourceType;
+  /**
+     * Clerk user ID ki je potrdil/knjižil vnos
+     * @nullable
+     */
+  approvedBy?: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -471,6 +499,19 @@ export interface CreateJournalEntryLineBody {
   departmentId?: string | null;
 }
 
+/**
+ * Izvor knjižbe (privzeto manual)
+ */
+export type CreateJournalEntryBodySourceType = typeof CreateJournalEntryBodySourceType[keyof typeof CreateJournalEntryBodySourceType];
+
+
+export const CreateJournalEntryBodySourceType = {
+  manual: 'manual',
+  bank_import: 'bank_import',
+  document: 'document',
+  ai_suggestion: 'ai_suggestion',
+} as const;
+
 export interface CreateJournalEntryBody {
   periodId: string;
   entryDate: string;
@@ -485,6 +526,8 @@ export interface CreateJournalEntryBody {
   lines: CreateJournalEntryLineBody[];
   /** If true, post the entry immediately after creation if balanced */
   autoPost?: boolean;
+  /** Izvor knjižbe (privzeto manual) */
+  sourceType?: CreateJournalEntryBodySourceType;
 }
 
 export interface ReverseJournalEntryBody {

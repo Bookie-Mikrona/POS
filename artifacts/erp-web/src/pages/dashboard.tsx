@@ -327,7 +327,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Nadzorna plošča</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {activeCompany ? activeCompany.name : "Izberite podjetje za prikaz podatkov"}
+            {activeCompany ? activeCompany.naziv : "Izberite podjetje za prikaz podatkov"}
           </p>
         </div>
         <div className="flex items-center gap-2">

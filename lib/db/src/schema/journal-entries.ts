@@ -45,6 +45,17 @@ export const journalEntriesTable = pgTable("journal_entries", {
   status: journalEntryStatusEnum("status").notNull().default("draft"),
   /** Kateri vnos ta vnos stornira (samo za storno temeljnice) */
   reversalOf: uuid("reversal_of"),
+  /**
+   * Izvor knjižbe — za revizijsko sled.
+   * manual: ročno vnesen | bank_import: uvoz bančnega izpiska
+   * document: potrjen dokument (AI OCR) | ai_suggestion: AI predlog
+   */
+  sourceType: text("source_type")
+    .$type<"manual" | "bank_import" | "document" | "ai_suggestion">()
+    .notNull()
+    .default("manual"),
+  /** Clerk user ID ki je potrdil/knjižil vnos */
+  approvedBy: text("approved_by"),
   /** Clerk user ID ki je ustvaril vnos */
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
