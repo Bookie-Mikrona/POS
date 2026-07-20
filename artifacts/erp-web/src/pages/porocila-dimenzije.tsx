@@ -5,6 +5,7 @@ import {
   Building,
   AlertCircle,
   Printer,
+  Download,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -39,6 +40,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+
+function exportCsv(
+  rows: DimensionReportRow[],
+  grandTotalDebit: string,
+  grandTotalCredit: string,
+  grandTotalBalance: string,
+  dimensionLabel: string,
+  dateFrom: string,
+  dateTo: string,
+  accountLabel?: string,
+) {
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const num = (v: string) => v.replace(".", ","); // Slovenian decimal
+
+  const lines: string[] = [];
+
+  // Metadata header
+  lines.push(escape(`Analitično računovodstvo — ${dimensionLabel}`));
+  lines.push(escape(`Obdobje: ${dateFrom} – ${dateTo}${accountLabel ? ` | Konto: ${accountLabel}` : ""}`));
+  lines.push(""); // blank separator
+
+  // Column headers
+  lines.push(["Koda", "Naziv", "Debet (EUR)", "Kredit (EUR)", "Saldo (EUR)"].map(escape).join(";"));
+
+  // Data rows
+  for (const row of rows) {
+    lines.push([
+      escape(row.code),
+      escape(row.name),
+      num(row.totalDebit),
+      num(row.totalCredit),
+      num(row.balance),
+    ].join(";"));
+  }
+
+  // Grand total
+  lines.push([
+    escape("SKUPAJ"),
+    escape(""),
+    num(grandTotalDebit),
+    num(grandTotalCredit),
+    num(grandTotalBalance),
+  ].join(";"));
+
+  // UTF-8 BOM + content
+  const bom = "\uFEFF";
+  const csv = bom + lines.join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeDate = dateFrom && dateTo ? `_${dateFrom}_${dateTo}` : "";
+  a.href = url;
+  a.download = `porocilo_dimenzije_${dimensionLabel.replace(/\s+/g, "_")}${safeDate}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -215,15 +274,40 @@ export default function PorocilaAnalitika() {
               Prikaži poročilo
             </Button>
             {applied.queried && data && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 print:hidden"
-                onClick={handlePrint}
-                title="Natisni"
-              >
-                <Printer className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 print:hidden"
+                  onClick={() =>
+                    exportCsv(
+                      data.rows,
+                      data.grandTotalDebit,
+                      data.grandTotalCredit,
+                      data.grandTotalBalance,
+                      dimOption.label,
+                      applied.dateFrom,
+                      applied.dateTo,
+                      applied.accountId
+                        ? (accountsData?.accounts ?? []).find((a: any) => a.id === applied.accountId)
+                            ?.code
+                        : undefined,
+                    )
+                  }
+                  title="Izvozi v CSV"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 print:hidden"
+                  onClick={handlePrint}
+                  title="Natisni"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              </>
             )}
           </div>
         </div>

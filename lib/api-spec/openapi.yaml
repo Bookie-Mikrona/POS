@@ -3527,6 +3527,18 @@ paths:
           schema:
             type: string
             format: date
+        - name: costCenterId
+          in: query
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          schema:
+            type: string
+        - name: departmentId
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: Journal entries list
