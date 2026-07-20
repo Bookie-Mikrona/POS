@@ -2591,12 +2591,6 @@ export interface JournalEntry {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  /** Stroškovna mesta, ki se pojavijo na vsaj eni vrstici te temeljnice */
-  costCenterNames?: string[];
-  /** Projekti, ki se pojavijo na vsaj eni vrstici te temeljnice */
-  projectNames?: string[];
-  /** Oddelki, ki se pojavijo na vsaj eni vrstici te temeljnice */
-  departmentNames?: string[];
 }
 
 export type JournalEntryWithLines = JournalEntry & {

@@ -4105,7 +4105,10 @@ export const ListJournalEntriesQueryParams = zod.object({
   "periodId": zod.coerce.string().optional(),
   "status": zod.enum(['draft', 'posted', 'reversed']).optional(),
   "dateFrom": zod.date().optional(),
-  "dateTo": zod.date().optional()
+  "dateTo": zod.date().optional(),
+  "costCenterId": zod.coerce.string().optional(),
+  "projectId": zod.coerce.string().optional(),
+  "departmentId": zod.coerce.string().optional()
 })
 
 export const ListJournalEntriesResponse = zod.object({
