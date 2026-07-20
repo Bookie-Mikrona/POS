@@ -416,6 +416,28 @@ export default function PorocilaAnalitika() {
         </Alert>
       )}
 
+      {/* Untagged lines warning */}
+      {data && applied.queried && (parseFloat(data.untaggedDebit) !== 0 || parseFloat(data.untaggedCredit) !== 0) && (
+        <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle className="font-semibold">Poročilo ni popolno — obstajajo knjižbe brez dimenzije</AlertTitle>
+          <AlertDescription className="space-y-1">
+            <p>
+              V izbranem obdobju je{" "}
+              <strong>
+                {fmt(data.untaggedBalance)} EUR
+              </strong>{" "}
+              neto salda iz vrstic, ki niso označene z dimenzijo{" "}
+              <strong>{DIM_OPTIONS.find((d) => d.value === applied.dimensionType)?.label ?? applied.dimensionType}</strong>.
+              Te vrstice so izključene iz zgornjega poročila.
+            </p>
+            <p className="text-xs opacity-80">
+              Debet brez dimenzije: {fmt(data.untaggedDebit)} EUR · Kredit brez dimenzije: {fmt(data.untaggedCredit)} EUR
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Report table */}
       {data && applied.queried && (
         <div className="space-y-4">

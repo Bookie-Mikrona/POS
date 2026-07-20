@@ -2591,6 +2591,10 @@ export interface JournalEntry {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /** Denormalized dimension names for display in the list view */
+  costCenterNames?: string[];
+  projectNames?: string[];
+  departmentNames?: string[];
 }
 
 export type JournalEntryWithLines = JournalEntry & {

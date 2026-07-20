@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, sql, inArray, isNotNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
@@ -482,6 +482,12 @@ interface DimensionReportResponse {
   grandTotalDebit: string;
   grandTotalCredit: string;
   grandTotalBalance: string;
+  /** Total debit of lines that have NO dimension tag (excluded from the report above) */
+  untaggedDebit: string;
+  /** Total credit of lines that have NO dimension tag (excluded from the report above) */
+  untaggedCredit: string;
+  /** Net balance (debit - credit) of untagged lines */
+  untaggedBalance: string;
 }
 
 // GET /companies/:companyId/reports/dimensions
@@ -635,6 +641,34 @@ router.get(
       }
     }
 
+    // ── Untagged lines aggregation ────────────────────────────────────────────
+    // Count lines that match the same date/company/account filters but have
+    // NO dimension tag. These are excluded from the report above, and their
+    // total gives the accountant a sense of how much is missing.
+    const untaggedConditions = [
+      ...jeConditions,
+      isNull(dimFkCol),
+      ...lineConditions,
+    ];
+
+    const untaggedRows = await db
+      .select({
+        side: journalEntryLinesTable.side,
+        total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .where(and(...untaggedConditions))
+      .groupBy(journalEntryLinesTable.side);
+
+    let untaggedDebit = 0;
+    let untaggedCredit = 0;
+    for (const row of untaggedRows) {
+      const amount = parseFloat(row.total ?? "0");
+      if (row.side === "debit") untaggedDebit += amount;
+      else untaggedCredit += amount;
+    }
+
     const reportRows: DimensionReportRow[] = Array.from(dimMap.entries())
       .map(([id, dim]) => {
         const row: DimensionReportRow = {
@@ -678,6 +712,9 @@ router.get(
       grandTotalDebit: grandTotalDebit.toFixed(2),
       grandTotalCredit: grandTotalCredit.toFixed(2),
       grandTotalBalance: (grandTotalDebit - grandTotalCredit).toFixed(2),
+      untaggedDebit: untaggedDebit.toFixed(2),
+      untaggedCredit: untaggedCredit.toFixed(2),
+      untaggedBalance: (untaggedDebit - untaggedCredit).toFixed(2),
     };
 
     res.json(response);

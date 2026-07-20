@@ -37,6 +37,12 @@ export interface DimensionReportResponse {
   grandTotalDebit: string;
   grandTotalCredit: string;
   grandTotalBalance: string;
+  /** Total debit of lines that have NO dimension tag (excluded from the report) */
+  untaggedDebit: string;
+  /** Total credit of lines that have NO dimension tag (excluded from the report) */
+  untaggedCredit: string;
+  /** Net balance (debit - credit) of untagged lines */
+  untaggedBalance: string;
 }
 
 export interface GetDimensionReportParams {
