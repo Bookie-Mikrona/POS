@@ -2591,6 +2591,10 @@ export interface JournalEntry {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /** Denormalized dimension names aggregated from lines */
+  costCenterNames?: string[];
+  projectNames?: string[];
+  departmentNames?: string[];
 }
 
 export type JournalEntryWithLines = JournalEntry & {
@@ -3955,6 +3959,9 @@ periodId?: string;
 status?: ListJournalEntriesStatus;
 dateFrom?: string;
 dateTo?: string;
+costCenterId?: string;
+projectId?: string;
+departmentId?: string;
 };
 
 export type ListJournalEntriesStatus = typeof ListJournalEntriesStatus[keyof typeof ListJournalEntriesStatus];

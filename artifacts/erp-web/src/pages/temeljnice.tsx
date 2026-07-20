@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { Plus, Search, Filter, AlertCircle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users } from "lucide-react";
+import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
@@ -708,7 +708,14 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
           </div>
         </div>
 
-        <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4">
+        {dimensionErrors && (
+          <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Nekatere vrstice imajo konto, ki zahteva stroškovno mesto ali projekt — izpolnite obvezna polja, označena z <strong>*</strong>.</span>
+          </div>
+        )}
+
+        <SheetFooter className="mt-4 pt-4 border-t sticky bottom-0 bg-background pb-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Prekliči</Button>
           <Button onClick={handleSave} disabled={!canSave || createMut.isPending}>
             {createMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
