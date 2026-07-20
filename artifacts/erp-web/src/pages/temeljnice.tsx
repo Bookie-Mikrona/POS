@@ -494,7 +494,12 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
     if (acc.requiresProject && !l.projectId) return true;
     return false;
   });
-  const canSave = periodId && description && validLines.length >= 2 && (!autoPost || totals.balanced) && !dimensionErrors;
+  const groupAccountErrors = lines.some(l => {
+    if (!l.accountId) return false;
+    const acc = activeAccounts.find(a => a.id === l.accountId);
+    return acc ? acc.allowsPosting === false : false;
+  });
+  const canSave = periodId && description && validLines.length >= 2 && (!autoPost || totals.balanced) && !dimensionErrors && !groupAccountErrors;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -558,7 +563,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">Konto</Label>
                       <Select value={line.accountId} onValueChange={(val) => updateLine(line.id, "accountId", val)}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className={`h-9 ${line.accountId && activeAccounts.find(a => a.id === line.accountId)?.allowsPosting === false ? "border-amber-500 ring-1 ring-amber-500" : ""}`}>
                           <SelectValue placeholder="Izberite konto..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -567,6 +572,12 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                           ))}
                         </SelectContent>
                       </Select>
+                      {line.accountId && activeAccounts.find(a => a.id === line.accountId)?.allowsPosting === false && (
+                        <div className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                          <span>To je skupinski konto — na njem knjiženje ni dovoljeno. Izberite analitični konto.</span>
+                        </div>
+                      )}
                     </div>
                     {lines.length > 2 && (
                       <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive self-end" onClick={() => removeLine(line.id)}>
