@@ -2591,12 +2591,6 @@ export interface JournalEntry {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  /** Denormalizirana imena stroškovnih mest na vrsticah te knjižbe */
-  costCenterNames?: string[];
-  /** Denormalizirana imena projektov na vrsticah te knjižbe */
-  projectNames?: string[];
-  /** Denormalizirana imena oddelkov na vrsticah te knjižbe */
-  departmentNames?: string[];
 }
 
 export type JournalEntryWithLines = JournalEntry & {
