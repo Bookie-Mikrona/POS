@@ -8,6 +8,15 @@ import { customFetch } from "./custom-fetch";
 
 export type DimensionType = "costCenter" | "project" | "department";
 
+export interface AccountBreakdownRow {
+  accountId: string;
+  code: string;
+  name: string;
+  totalDebit: string;
+  totalCredit: string;
+  balance: string;
+}
+
 export interface DimensionReportRow {
   id: string;
   code: string;
@@ -15,6 +24,8 @@ export interface DimensionReportRow {
   totalDebit: string;
   totalCredit: string;
   balance: string;
+  /** Present when groupBy=account was requested */
+  accounts?: AccountBreakdownRow[];
 }
 
 export interface DimensionReportResponse {
@@ -33,6 +44,7 @@ export interface GetDimensionReportParams {
   dateFrom?: string;
   dateTo?: string;
   accountId?: string;
+  groupBy?: "account";
 }
 
 export function getDimensionReportQueryKey(
@@ -55,6 +67,7 @@ export function useGetDimensionReport(
       if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
       if (params.dateTo) qs.set("dateTo", params.dateTo);
       if (params.accountId) qs.set("accountId", params.accountId);
+      if (params.groupBy) qs.set("groupBy", params.groupBy);
       return customFetch<DimensionReportResponse>(
         `/api/companies/${companyId}/reports/dimensions?${qs.toString()}`,
       );

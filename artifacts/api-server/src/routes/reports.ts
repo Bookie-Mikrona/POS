@@ -454,6 +454,15 @@ router.get(
 
 type DimensionType = "costCenter" | "project" | "department";
 
+interface AccountBreakdownRow {
+  accountId: string;
+  code: string;
+  name: string;
+  totalDebit: string;
+  totalCredit: string;
+  balance: string;
+}
+
 interface DimensionReportRow {
   id: string;
   code: string;
@@ -461,6 +470,7 @@ interface DimensionReportRow {
   totalDebit: string;
   totalCredit: string;
   balance: string;
+  accounts?: AccountBreakdownRow[];
 }
 
 interface DimensionReportResponse {
@@ -485,7 +495,7 @@ router.get(
     const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!ok) return;
 
-    const { dimensionType, dateFrom, dateTo, accountId } =
+    const { dimensionType, dateFrom, dateTo, accountId, groupBy } =
       req.query as Record<string, string | undefined>;
 
     const dimType = (dimensionType ?? "costCenter") as DimensionType;
@@ -493,6 +503,8 @@ router.get(
       res.status(400).json({ error: "Neveljaven tip dimenzije" });
       return;
     }
+
+    const withAccountBreakdown = groupBy === "account";
 
     // Build base conditions for journal entries (vključimo reversed za pravilni neto)
     const jeConditions = [
@@ -533,51 +545,125 @@ router.get(
       ...lineConditions,
     ];
 
-    const rows = await db
-      .select({
-        dimId: dimTable.id,
-        dimCode: dimTable.code,
-        dimName: dimTable.name,
-        side: journalEntryLinesTable.side,
-        total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
-      })
-      .from(journalEntryLinesTable)
-      .innerJoin(
-        journalEntriesTable,
-        eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
-      )
-      .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
-      .where(and(...allConditions))
-      .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
+    // ── Query with optional account breakdown ─────────────────────────────────
 
-    // Aggregate per dimension
-    const map = new Map<
+    // Aggregate per dimension (always)
+    const dimMap = new Map<
       string,
       { code: string; name: string; debit: number; credit: number }
     >();
 
-    for (const row of rows) {
-      const existing = map.get(row.dimId) ?? {
-        code: row.dimCode,
-        name: row.dimName,
-        debit: 0,
-        credit: 0,
-      };
-      const amount = parseFloat(row.total ?? "0");
-      if (row.side === "debit") existing.debit += amount;
-      else existing.credit += amount;
-      map.set(row.dimId, existing);
+    // Aggregate per (dimension, account) when groupBy=account
+    const accountMap = new Map<
+      string, // key = `${dimId}::${accountId}`
+      { dimId: string; accountId: string; code: string; name: string; debit: number; credit: number }
+    >();
+
+    if (withAccountBreakdown) {
+      // Single query that groups by dim + account + side
+      const rows = await db
+        .select({
+          dimId: dimTable.id,
+          dimCode: dimTable.code,
+          dimName: dimTable.name,
+          accountId: journalEntryLinesTable.accountId,
+          accountCode: accountsTable.code,
+          accountName: accountsTable.name,
+          side: journalEntryLinesTable.side,
+          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+        .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
+        .where(and(...allConditions))
+        .groupBy(
+          dimTable.id,
+          dimTable.code,
+          dimTable.name,
+          journalEntryLinesTable.accountId,
+          accountsTable.code,
+          accountsTable.name,
+          journalEntryLinesTable.side,
+        );
+
+      for (const row of rows) {
+        const amount = parseFloat(row.total ?? "0");
+
+        // Dim-level aggregate
+        const dimExisting = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
+        if (row.side === "debit") dimExisting.debit += amount;
+        else dimExisting.credit += amount;
+        dimMap.set(row.dimId, dimExisting);
+
+        // Account-level aggregate
+        const key = `${row.dimId}::${row.accountId}`;
+        const accExisting = accountMap.get(key) ?? {
+          dimId: row.dimId,
+          accountId: row.accountId,
+          code: row.accountCode,
+          name: row.accountName,
+          debit: 0,
+          credit: 0,
+        };
+        if (row.side === "debit") accExisting.debit += amount;
+        else accExisting.credit += amount;
+        accountMap.set(key, accExisting);
+      }
+    } else {
+      // Standard query — group by dim + side only
+      const rows = await db
+        .select({
+          dimId: dimTable.id,
+          dimCode: dimTable.code,
+          dimName: dimTable.name,
+          side: journalEntryLinesTable.side,
+          total: sql<string>`SUM(${journalEntryLinesTable.amount}::numeric)`,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .innerJoin(dimTable, eq(dimTable.id, dimFkCol))
+        .where(and(...allConditions))
+        .groupBy(dimTable.id, dimTable.code, dimTable.name, journalEntryLinesTable.side);
+
+      for (const row of rows) {
+        const existing = dimMap.get(row.dimId) ?? { code: row.dimCode, name: row.dimName, debit: 0, credit: 0 };
+        const amount = parseFloat(row.total ?? "0");
+        if (row.side === "debit") existing.debit += amount;
+        else existing.credit += amount;
+        dimMap.set(row.dimId, existing);
+      }
     }
 
-    const reportRows: DimensionReportRow[] = Array.from(map.entries())
-      .map(([id, dim]) => ({
-        id,
-        code: dim.code,
-        name: dim.name,
-        totalDebit: dim.debit.toFixed(2),
-        totalCredit: dim.credit.toFixed(2),
-        balance: (dim.debit - dim.credit).toFixed(2),
-      }))
+    const reportRows: DimensionReportRow[] = Array.from(dimMap.entries())
+      .map(([id, dim]) => {
+        const row: DimensionReportRow = {
+          id,
+          code: dim.code,
+          name: dim.name,
+          totalDebit: dim.debit.toFixed(2),
+          totalCredit: dim.credit.toFixed(2),
+          balance: (dim.debit - dim.credit).toFixed(2),
+        };
+
+        if (withAccountBreakdown) {
+          // Collect account sub-rows for this dimension, sorted by account code
+          const accRows: AccountBreakdownRow[] = Array.from(accountMap.values())
+            .filter((a) => a.dimId === id)
+            .map((a) => ({
+              accountId: a.accountId,
+              code: a.code,
+              name: a.name,
+              totalDebit: a.debit.toFixed(2),
+              totalCredit: a.credit.toFixed(2),
+              balance: (a.debit - a.credit).toFixed(2),
+            }))
+            .sort((a, b) => a.code.localeCompare(b.code));
+          row.accounts = accRows;
+        }
+
+        return row;
+      })
       .sort((a, b) => a.code.localeCompare(b.code));
 
     const grandTotalDebit = reportRows.reduce((s, r) => s + parseFloat(r.totalDebit), 0);

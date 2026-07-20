@@ -10,11 +10,14 @@ import {
   TrendingDown,
   Minus,
   BarChart3,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import {
   useGetDimensionReport,
   type DimensionType,
   type DimensionReportRow,
+  type AccountBreakdownRow,
   useListAccounts,
 } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -160,6 +163,18 @@ export default function PorocilaAnalitika() {
     queried: boolean;
   }>({ dimensionType: "costCenter", dateFrom: yearStart(), dateTo: todayStr(), accountId: "", queried: false });
 
+  // Expanded dimension rows (set of row ids)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  function toggleRow(id: string) {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   // Load accounts for filter dropdown
   const { data: accountsData } = useListAccounts(
     companyId,
@@ -167,7 +182,7 @@ export default function PorocilaAnalitika() {
     { query: { enabled: !!companyId } as any },
   );
 
-  // Fetch report data
+  // Fetch report data (always request account breakdown)
   const { data, isLoading, error } = useGetDimensionReport(
     companyId,
     {
@@ -175,6 +190,7 @@ export default function PorocilaAnalitika() {
       dateFrom: applied.dateFrom || undefined,
       dateTo: applied.dateTo || undefined,
       accountId: applied.accountId || undefined,
+      groupBy: "account",
     },
     { query: { enabled: !!companyId && applied.queried } as any },
   );
@@ -187,6 +203,7 @@ export default function PorocilaAnalitika() {
       accountId,
       queried: true,
     });
+    setExpandedRows(new Set());
   }
 
   function handlePrint() {
@@ -455,6 +472,7 @@ export default function PorocilaAnalitika() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
+                    <TableHead className="w-8 print:hidden" />
                     <TableHead className="w-28 font-semibold">Koda</TableHead>
                     <TableHead className="font-semibold">Naziv</TableHead>
                     <TableHead className="text-right font-semibold min-w-[120px]">
@@ -469,28 +487,74 @@ export default function PorocilaAnalitika() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.rows.map((row: DimensionReportRow) => (
-                    <TableRow key={row.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-mono text-sm font-medium">
-                        {row.code}
-                      </TableCell>
-                      <TableCell className="text-sm">{row.name}</TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {fmt(row.totalDebit)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {fmt(row.totalCredit)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <BalanceIcon val={row.balance} />
-                          <span className={`font-semibold ${balanceColor(row.balance)}`}>
-                            {fmt(row.balance)}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {data.rows.map((row: DimensionReportRow) => {
+                    const hasAccounts = (row.accounts?.length ?? 0) > 0;
+                    const isExpanded = expandedRows.has(row.id);
+                    return (
+                      <React.Fragment key={row.id}>
+                        {/* Dimension row */}
+                        <TableRow
+                          className={`hover:bg-muted/30 transition-colors ${hasAccounts ? "cursor-pointer" : ""}`}
+                          onClick={hasAccounts ? () => toggleRow(row.id) : undefined}
+                        >
+                          <TableCell className="print:hidden w-8 pl-3 pr-0">
+                            {hasAccounts ? (
+                              isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-medium">
+                            {row.code}
+                          </TableCell>
+                          <TableCell className="text-sm font-medium">{row.name}</TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {fmt(row.totalDebit)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {fmt(row.totalCredit)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <BalanceIcon val={row.balance} />
+                              <span className={`font-semibold ${balanceColor(row.balance)}`}>
+                                {fmt(row.balance)}
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Account breakdown sub-rows */}
+                        {isExpanded && row.accounts?.map((acc: AccountBreakdownRow) => (
+                          <TableRow
+                            key={acc.accountId}
+                            className="bg-muted/20 hover:bg-muted/40 transition-colors"
+                          >
+                            <TableCell className="print:hidden w-8" />
+                            <TableCell className="pl-8 font-mono text-xs text-muted-foreground">
+                              {acc.code}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground pl-4">
+                              {acc.name}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                              {fmt(acc.totalDebit)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                              {fmt(acc.totalCredit)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-xs">
+                              <span className={`${balanceColor(acc.balance)}`}>
+                                {fmt(acc.balance)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
 
