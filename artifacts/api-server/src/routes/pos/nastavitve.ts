@@ -12,11 +12,11 @@ const requireAdminEnote = requireEnota;
 const router: IRouter = Router();
 
 const DEFAULTS: Record<string, string> = {
-  nazivRestavracije:   "Restavracija",
+  nazivRestavracije:   "",
   naslovRestavracije:  "",
   nazivPodjetja:       "",
   naslovPodjetja:      "",
-  davcnaStevilka:      "12345678",
+  davcnaStevilka:      "",
   poslovniProstor:     "PP001",
   elektronskaNaprava:  "B001",
   ponudnikDavcna:      "",

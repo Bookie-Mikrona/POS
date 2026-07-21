@@ -335,19 +335,26 @@ function Layout({ children }: { children: React.ReactNode }) {
           >
             <div className="p-3 border-b border-sidebar-border/50 text-red-600">
               <h1 className="text-base font-bold tracking-tight">POS Cockpit</h1>
-              {!isSuperAdmin && (nastavitve?.davcnaStevilka || nastavitve?.nazivPodjetja) && (
-                <div className="mt-1 space-y-0.5">
-                  {nastavitve.davcnaStevilka && (
-                    <p className="text-[10px] font-mono text-sidebar-foreground/60">{nastavitve.davcnaStevilka}</p>
-                  )}
-                  {nastavitve.nazivPodjetja && (
-                    <p className="text-xs font-medium text-sidebar-foreground leading-snug">{nastavitve.nazivPodjetja}</p>
-                  )}
-                  {nastavitve.naslovPodjetja && (
-                    <p className="text-[10px] text-sidebar-foreground/50 leading-snug">{nastavitve.naslovPodjetja}</p>
-                  )}
-                </div>
-              )}
+              {!isSuperAdmin && (() => {
+                // Davčna: iz nastavitev ali pa iz prijavljenega uporabnika (companies tabela)
+                const davcna = nastavitve?.davcnaStevilka || user?.podjetjeDavcna;
+                const naziv = nastavitve?.nazivPodjetja || nastavitve?.nazivRestavracije;
+                const naslov = nastavitve?.naslovPodjetja || nastavitve?.naslovRestavracije;
+                if (!davcna && !naziv) return null;
+                return (
+                  <div className="mt-1 space-y-0.5">
+                    {davcna && (
+                      <p className="text-[10px] font-mono text-sidebar-foreground/60">{davcna}</p>
+                    )}
+                    {naziv && (
+                      <p className="text-xs font-medium text-sidebar-foreground leading-snug">{naziv}</p>
+                    )}
+                    {naslov && (
+                      <p className="text-[10px] text-sidebar-foreground/50 leading-snug">{naslov}</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <nav className="py-3 px-2 flex flex-col gap-1">
               {allNav.map(item => (
