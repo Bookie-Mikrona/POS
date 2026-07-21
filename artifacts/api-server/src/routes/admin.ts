@@ -4,7 +4,7 @@
  */
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, desc, and } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable } from "@workspace/db";
+import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { CreateCompanyBody, AssignRoleBody } from "@workspace/api-zod";
@@ -356,6 +356,96 @@ function razclenitNaslov(naslov: string): { ulica: string | null; postnaStevilka
     kraj: rest.slice(spaceIdx + 1).trim() || null,
   };
 }
+
+// ── POS uporabniki (admin panel) ──────────────────────────────────────────────
+
+// GET /admin/companies/:id/enote — seznam enot za podjetje (za dropdown)
+router.get("/companies/:id/enote", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rows = await db
+    .select({ id: enoteTable.id, ime: enoteTable.ime, aktiven: enoteTable.aktiven })
+    .from(enoteTable)
+    .where(eq(enoteTable.companyId, companyId));
+  res.json({ enote: rows });
+});
+
+// GET /admin/companies/:id/pos-roles — seznam POS uporabnikov za podjetje
+router.get("/companies/:id/pos-roles", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rows = await db
+    .select({
+      id: posUporabnikiTable.id,
+      clerkUserId: posUporabnikiTable.clerkUserId,
+      vloga: posUporabnikiTable.vloga,
+      ime: posUporabnikiTable.ime,
+      priimek: posUporabnikiTable.priimek,
+      aktiven: posUporabnikiTable.aktiven,
+      enotaId: posUporabnikiTable.enotaId,
+      enotaIme: enoteTable.ime,
+    })
+    .from(posUporabnikiTable)
+    .leftJoin(enoteTable, eq(posUporabnikiTable.enotaId, enoteTable.id))
+    .where(eq(posUporabnikiTable.companyId, companyId));
+  res.json({ users: rows });
+});
+
+// POST /admin/companies/:id/pos-roles — dodeli POS vlogo
+router.post("/companies/:id/pos-roles", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { clerkUserId, vloga, enotaId } = req.body as { clerkUserId: string; vloga: string; enotaId?: number | null };
+
+  if (!clerkUserId || !vloga) { res.status(400).json({ error: "Manjkata clerkUserId ali vloga." }); return; }
+  if (!["admin", "admin_enote", "uporabnik"].includes(vloga)) { res.status(400).json({ error: "Neveljavna vloga." }); return; }
+  if ((vloga === "admin_enote" || vloga === "uporabnik") && !enotaId) {
+    res.status(400).json({ error: "Za to vlogo je enota obvezna." }); return;
+  }
+
+  // Pridobi ime in priimek iz Clerk
+  let ime = "";
+  let priimek = "";
+  try {
+    const clerkUser = await clerkClient.users.getUser(clerkUserId);
+    ime = clerkUser.firstName ?? "";
+    priimek = clerkUser.lastName ?? "";
+    if (!ime && !priimek) {
+      const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+      ime = email.split("@")[0] ?? "";
+    }
+  } catch { /* pustimo prazno če Clerk ne vrne */ }
+
+  const [row] = await db
+    .insert(posUporabnikiTable)
+    .values({
+      clerkUserId,
+      companyId,
+      vloga,
+      enotaId: vloga === "admin" ? null : (enotaId ?? null),
+      ime,
+      priimek,
+      aktiven: true,
+    })
+    .onConflictDoUpdate({
+      target: [posUporabnikiTable.clerkUserId, posUporabnikiTable.companyId],
+      set: { vloga, enotaId: vloga === "admin" ? null : (enotaId ?? null), ime, priimek, aktiven: true },
+    })
+    .returning();
+
+  res.json(row);
+});
+
+// DELETE /admin/companies/:id/pos-roles/:clerkUserId — odstrani POS dostop
+router.delete("/companies/:id/pos-roles/:clerkUserId", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const clerkUserId = Array.isArray(req.params.clerkUserId) ? req.params.clerkUserId[0] : req.params.clerkUserId;
+
+  await db
+    .delete(posUporabnikiTable)
+    .where(and(eq(posUporabnikiTable.clerkUserId, clerkUserId), eq(posUporabnikiTable.companyId, companyId)));
+
+  res.status(204).send();
+});
+
+// ── Iskanje podjetja po davčni številki ──────────────────────────────────────
 
 // GET /admin/podjetje/poisci?davcna=XXXXXXXX
 router.get("/podjetje/poisci", async (req: Request, res: Response): Promise<void> => {

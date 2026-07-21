@@ -63,6 +63,189 @@ const MODULE_COLORS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
 };
+const POS_VLOGA_LABELS: Record<string, string> = {
+  admin: "Admin podjetja",
+  admin_enote: "Admin enote",
+  uporabnik: "Uporabnik",
+};
+const POS_VLOGA_COLORS: Record<string, string> = {
+  admin: "bg-violet-100 text-violet-800 border-violet-200",
+  admin_enote: "bg-sky-100 text-sky-800 border-sky-200",
+  uporabnik: "bg-slate-100 text-slate-700 border-slate-200",
+};
+
+interface PosUserRow {
+  id: number;
+  clerkUserId: string;
+  vloga: string;
+  ime: string;
+  priimek: string;
+  aktiven: boolean;
+  enotaId: number | null;
+  enotaIme: string | null;
+}
+
+interface Enota {
+  id: number;
+  ime: string;
+  aktiven: boolean;
+}
+
+// ── POS Roles Section ─────────────────────────────────────────────────────────
+
+function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers: AdminUser[] }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ clerkUserId: "", vloga: "uporabnik", enotaId: "" });
+  const [feedback, setFeedback] = useState<"ok" | "">("");
+
+  const { data: posData, isLoading: posLoading } = useQuery({
+    queryKey: ["admin", "pos-roles", companyId],
+    queryFn: () => apiFetch<{ users: PosUserRow[] }>(`/api/admin/companies/${companyId}/pos-roles`),
+  });
+
+  const { data: enoteData } = useQuery({
+    queryKey: ["admin", "enote", companyId],
+    queryFn: () => apiFetch<{ enote: Enota[] }>(`/api/admin/companies/${companyId}/enote`),
+  });
+
+  const needsEnota = form.vloga === "admin_enote" || form.vloga === "uporabnik";
+  const enote = enoteData?.enote ?? [];
+  const posUsers = posData?.users ?? [];
+
+  const assignMutation = useMutation({
+    mutationFn: (body: { clerkUserId: string; vloga: string; enotaId?: number | null }) =>
+      apiFetch(`/api/admin/companies/${companyId}/pos-roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "pos-roles", companyId] });
+      setForm({ clerkUserId: "", vloga: "uporabnik", enotaId: "" });
+      setFeedback("ok");
+      setTimeout(() => setFeedback(""), 3000);
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (clerkUserId: string) =>
+      apiFetch<void>(`/api/admin/companies/${companyId}/pos-roles/${clerkUserId}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "pos-roles", companyId] }),
+  });
+
+  const canSubmit = form.clerkUserId && (!needsEnota || form.enotaId);
+
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Dostop do POS gostinstva</p>
+
+      {/* Obstoječi POS uporabniki */}
+      {posLoading ? (
+        <div className="space-y-1 mb-3">{[0, 1].map((i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+      ) : posUsers.length > 0 ? (
+        <div className="mb-3 divide-y border rounded-md bg-background">
+          {posUsers.map((u) => {
+            const name = [u.ime, u.priimek].filter(Boolean).join(" ") || u.clerkUserId;
+            return (
+              <div key={u.clerkUserId} className="flex items-center gap-2 px-3 py-2">
+                <span className="flex-1 text-xs font-medium truncate">{name}</span>
+                <Badge variant="outline" className={`text-xs shrink-0 ${POS_VLOGA_COLORS[u.vloga] ?? ""}`}>
+                  {POS_VLOGA_LABELS[u.vloga] ?? u.vloga}
+                </Badge>
+                {u.enotaIme && (
+                  <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">· {u.enotaIme}</span>
+                )}
+                <button
+                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  onClick={() => removeMutation.mutate(u.clerkUserId)}
+                  disabled={removeMutation.isPending}
+                  title="Odstrani dostop"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground mb-3">Ni POS uporabnikov.</p>
+      )}
+
+      {/* Obrazec za dodelitev */}
+      <div className="flex flex-wrap gap-2 items-end">
+        {/* Uporabnik */}
+        <Select value={form.clerkUserId} onValueChange={(v) => setForm((f) => ({ ...f, clerkUserId: v }))}>
+          <SelectTrigger className="h-8 w-52 text-xs"><SelectValue placeholder="Izberi uporabnika…" /></SelectTrigger>
+          <SelectContent>
+            {allUsers.map((u) => (
+              <SelectItem key={u.clerkUserId} value={u.clerkUserId}>
+                <span className="flex flex-col">
+                  <span>{u.firstName || u.lastName ? `${u.firstName} ${u.lastName}`.trim() : u.email}</span>
+                  {(u.firstName || u.lastName) && <span className="text-xs text-muted-foreground">{u.email}</span>}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Vloga */}
+        <Select
+          value={form.vloga}
+          onValueChange={(v) => setForm((f) => ({ ...f, vloga: v, enotaId: "" }))}
+        >
+          <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Admin podjetja</SelectItem>
+            <SelectItem value="admin_enote">Admin enote</SelectItem>
+            <SelectItem value="uporabnik">Uporabnik</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Enota (samo za admin_enote / uporabnik) */}
+        {needsEnota && (
+          <Select value={form.enotaId} onValueChange={(v) => setForm((f) => ({ ...f, enotaId: v }))}>
+            <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectValue placeholder={enote.length ? "Izberi enoto…" : "Ni enot"} />
+            </SelectTrigger>
+            <SelectContent>
+              {enote.map((e) => (
+                <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <Button
+          size="sm"
+          className="h-8 text-xs"
+          disabled={assignMutation.isPending || !canSubmit}
+          onClick={() =>
+            assignMutation.mutate({
+              clerkUserId: form.clerkUserId,
+              vloga: form.vloga,
+              enotaId: needsEnota && form.enotaId ? Number(form.enotaId) : null,
+            })
+          }
+        >
+          {assignMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Dodeli"}
+        </Button>
+
+        {feedback === "ok" && (
+          <span className="text-xs text-green-600 flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3" /> Dostop dodeljen.
+          </span>
+        )}
+        {assignMutation.isError && (
+          <span className="text-xs text-destructive">{(assignMutation.error as Error).message}</span>
+        )}
+      </div>
+
+      {needsEnota && enote.length === 0 && (
+        <p className="text-xs text-amber-600 mt-1.5">⚠ Podjetje nima poslovnih enot. Najprej jih ustvari v POS sistemu.</p>
+      )}
+    </div>
+  );
+}
 
 // ── Podjetja tab ──────────────────────────────────────────────────────────────
 
@@ -330,50 +513,57 @@ function PodjetjaTab() {
                     )}
                   </div>
 
-                  {/* Dodaj dostop */}
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Dodaj dostop</p>
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <Select
-                        value={assignForm[c.id]?.clerkUserId ?? ""}
-                        onValueChange={(v) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], clerkUserId: v } }))}
-                      >
-                        <SelectTrigger className="h-8 w-56 text-xs">
-                          <SelectValue placeholder="Izberi uporabnika…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(usersData?.users ?? []).map((u) => (
-                            <SelectItem key={u.clerkUserId} value={u.clerkUserId}>
-                              <span className="flex flex-col">
-                                <span>{u.firstName || u.lastName ? `${u.firstName} ${u.lastName}`.trim() : u.email}</span>
-                                {(u.firstName || u.lastName) && <span className="text-xs text-muted-foreground">{u.email}</span>}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={assignForm[c.id]?.role ?? "accountant"}
-                        onValueChange={(v) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], role: v } }))}
-                      >
-                        <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="owner">Lastnik</SelectItem>
-                          <SelectItem value="accountant">Računovodja</SelectItem>
-                          <SelectItem value="viewer">Pregledovalec</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        size="sm"
-                        className="h-8 text-xs"
-                        disabled={assignRoleMutation.isPending || !assignForm[c.id]?.clerkUserId}
-                        onClick={() => assignRoleMutation.mutate({ companyId: c.id, clerkUserId: assignForm[c.id]?.clerkUserId ?? "", role: assignForm[c.id]?.role ?? "accountant" })}
-                      >
-                        {assignRoleMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Dodeli"}
-                      </Button>
-                      {feedback[c.id] && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{feedback[c.id]}</span>}
+                  {/* Dodaj ERP dostop — prikaži samo če ima ERP modul */}
+                  {c.modules.includes("erp") && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Dostop do ERP (glavna knjiga)</p>
+                      <div className="flex flex-wrap gap-2 items-end">
+                        <Select
+                          value={assignForm[c.id]?.clerkUserId ?? ""}
+                          onValueChange={(v) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], clerkUserId: v } }))}
+                        >
+                          <SelectTrigger className="h-8 w-56 text-xs">
+                            <SelectValue placeholder="Izberi uporabnika…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(usersData?.users ?? []).map((u) => (
+                              <SelectItem key={u.clerkUserId} value={u.clerkUserId}>
+                                <span className="flex flex-col">
+                                  <span>{u.firstName || u.lastName ? `${u.firstName} ${u.lastName}`.trim() : u.email}</span>
+                                  {(u.firstName || u.lastName) && <span className="text-xs text-muted-foreground">{u.email}</span>}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={assignForm[c.id]?.role ?? "accountant"}
+                          onValueChange={(v) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], role: v } }))}
+                        >
+                          <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="owner">Lastnik</SelectItem>
+                            <SelectItem value="accountant">Računovodja</SelectItem>
+                            <SelectItem value="viewer">Pregledovalec</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={assignRoleMutation.isPending || !assignForm[c.id]?.clerkUserId}
+                          onClick={() => assignRoleMutation.mutate({ companyId: c.id, clerkUserId: assignForm[c.id]?.clerkUserId ?? "", role: assignForm[c.id]?.role ?? "accountant" })}
+                        >
+                          {assignRoleMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Dodeli"}
+                        </Button>
+                        {feedback[c.id] && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{feedback[c.id]}</span>}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* POS dostop — prikaži samo če ima POS modul */}
+                  {c.modules.includes("pos") && (
+                    <PosRolesSection companyId={c.id} allUsers={usersData?.users ?? []} />
+                  )}
                 </div>
               )}
             </div>
