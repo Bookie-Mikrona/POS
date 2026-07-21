@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearReturnUrl();
     localStorage.removeItem(POS_ENOTA_ID_KEY);
     setPosUser(null);
-    await signOut();
+    await signOut({ redirectUrl: "/pos/" });
   }, [queryClient, signOut]);
 
   return (

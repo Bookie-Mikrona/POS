@@ -664,7 +664,7 @@ function App() {
   const pubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
   if (!pubKey) throw new Error("Manjka VITE_CLERK_PUBLISHABLE_KEY");
   return (
-    <ClerkProvider publishableKey={pubKey}>
+    <ClerkProvider publishableKey={pubKey} afterSignOutUrl="/pos/">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <GotovToastProvider>
