@@ -1,6 +1,5 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { type AuthenticatedRequest } from "./requireAuth";
-
 /**
  * Middleware: dostop samo za super adminov.
  * Super admini so definirani v env var SUPER_ADMIN_IDS (vejičnik-ločen seznam Clerk user ID-jev).
@@ -17,13 +16,10 @@ export function requireSuperAdmin(
     return;
   }
 
-  const superAdminIds = (process.env.SUPER_ADMIN_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const rawEnv = process.env.SUPER_ADMIN_IDS ?? "";
+  const superAdminIds = rawEnv.split(",").map((s) => s.trim()).filter(Boolean);
 
   if (!superAdminIds.includes(authReq.clerkUserId)) {
-    req.log?.warn({ clerkUserId: authReq.clerkUserId, superAdminIds }, "requireSuperAdmin: 403 forbidden");
     res.status(403).json({ error: "Dostop samo za administratorje sistema" });
     return;
   }

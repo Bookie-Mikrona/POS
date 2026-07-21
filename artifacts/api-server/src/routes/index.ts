@@ -40,7 +40,7 @@ router.use(bankStatementsRouter);
 router.use(dimensionsRouter);
 router.use(reportsRouter);
 router.use(importConfigRouter);
-router.use(posRouter);
 router.use("/admin", adminRouter);
+router.use(posRouter);
 
 export default router;
