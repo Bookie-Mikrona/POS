@@ -86,6 +86,7 @@ interface KupecForm {
   eRacunOmrezje: string;
   eRacunEmail: string;
   eRacunNaslov: string;
+  eRacunSifraPu: string;
   trr: TrrVrstica[];
   email: string;
   telefon: string;
@@ -95,7 +96,7 @@ function prazenForm(): KupecForm {
   return {
     vrstaPartnerja: null, naziv: "", kratkiNaziv: "", ulica: "", postnaStevilka: "", kraj: "",
     drzava: "", kodaDrzave: "", zavezanecDdv: false, davcnaStevilka: "",
-    idZaDdv: "", maticnaStevilka: "", kmgMid: "", eRacunPrejemnik: false, eRacunOmrezje: "", eRacunEmail: "", eRacunNaslov: "", trr: [], email: "", telefon: "",
+    idZaDdv: "", maticnaStevilka: "", kmgMid: "", eRacunPrejemnik: false, eRacunOmrezje: "", eRacunEmail: "", eRacunNaslov: "", eRacunSifraPu: "", trr: [], email: "", telefon: "",
   };
 }
 
@@ -135,6 +136,7 @@ function kupecVForm(k: ShranjenKupec): KupecForm {
     eRacunOmrezje: k.eRacunOmrezje ?? "",
     eRacunEmail: k.eRacunEmail ?? "",
     eRacunNaslov: k.eRacunNaslov ?? "",
+    eRacunSifraPu: (k as any).eRacunSifraPu ?? "",
     trr: (k.trr as TrrVrstica[] | null) ?? [],
     email: k.email ?? "",
     telefon: k.telefon ?? "",
@@ -167,6 +169,7 @@ interface InetisRezultat {
   eRacunOmrezje?: string | null;
   eRacunEmail?: string | null;
   eRacunNaslov?: string | null;
+  eRacunSifraPu?: string | null;
 }
 
 export default function Partnerji() {
@@ -359,6 +362,7 @@ export default function Partnerji() {
             eRacunOmrezje: data.eRacunOmrezje ?? f.eRacunOmrezje,
             ...(data.eRacunEmail != null ? { eRacunEmail: data.eRacunEmail ?? "" } : {}),
             ...(data.eRacunNaslov != null ? { eRacunNaslov: data.eRacunNaslov ?? "" } : {}),
+            ...(data.eRacunSifraPu != null ? { eRacunSifraPu: data.eRacunSifraPu ?? "" } : {}),
           } : {}),
         };
       });
@@ -394,6 +398,7 @@ export default function Partnerji() {
       eRacunOmrezje: form.eRacunOmrezje.trim() || null,
       eRacunEmail: form.eRacunEmail.trim() || null,
       eRacunNaslov: form.eRacunNaslov.trim() || null,
+      eRacunSifraPu: form.eRacunSifraPu.trim() || null,
       trr: form.trr.filter(t => t.iban.trim()).map(t => ({ iban: t.iban.trim(), bic: t.bic.trim() })),
       email: form.email.trim() || null,
       telefon: form.telefon.trim() || null,
@@ -839,7 +844,7 @@ export default function Partnerji() {
                     <Checkbox
                       id="eRacunPrejemnik"
                       checked={form.eRacunPrejemnik}
-                      onCheckedChange={v => setForm(f => ({ ...f, eRacunPrejemnik: !!v, eRacunOmrezje: v ? f.eRacunOmrezje : "", eRacunEmail: v ? f.eRacunEmail : "", eRacunNaslov: v ? f.eRacunNaslov : "" }))}
+                      onCheckedChange={v => setForm(f => ({ ...f, eRacunPrejemnik: !!v, eRacunOmrezje: v ? f.eRacunOmrezje : "", eRacunEmail: v ? f.eRacunEmail : "", eRacunNaslov: v ? f.eRacunNaslov : "", eRacunSifraPu: v ? f.eRacunSifraPu : "" }))}
                     />
                     <Label htmlFor="eRacunPrejemnik" className="text-xs cursor-pointer">
                       Partner je registriran za prejem e-računov (eRegister GZS)
@@ -860,6 +865,18 @@ export default function Partnerji() {
                         </p>
                       </div>
                       <div className="space-y-1">
+                        <Label className="text-xs">Šifra proračunskega uporabnika (KPU)</Label>
+                        <KlavijaturaInput
+                          value={form.eRacunSifraPu}
+                          onChange={v => setField("eRacunSifraPu", v)}
+                          placeholder="npr. 75990"
+                          naslov="Šifra proračunskega uporabnika (KPU)"
+                        />
+                        <p className="text-[10px] text-muted-foreground leading-snug">
+                          Obvezno za UJP omrežje — šifra iz seznama proračunskih uporabnikov.
+                        </p>
+                      </div>
+                      <div className="space-y-1">
                         <Label className="text-xs">Naslov prejemnika / IBAN</Label>
                         <KlavijaturaInput
                           value={form.eRacunNaslov}
@@ -868,7 +885,7 @@ export default function Partnerji() {
                           naslov="E-račun naslov / IBAN"
                         />
                         <p className="text-[10px] text-muted-foreground leading-snug">
-                          Za UJP omrežje: IBAN bančnega računa prejemnika (iz bizBox registra).
+                          Za UJP omrežje: IBAN bančnega računa prejemnika.
                         </p>
                       </div>
                       <div className="space-y-1">

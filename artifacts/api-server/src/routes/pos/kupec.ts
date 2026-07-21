@@ -104,6 +104,7 @@ function mapKupec(k: typeof shranjeniKupciTable.$inferSelect) {
     eRacunOmrezje: k.eRacunOmrezje ?? null,
     eRacunEmail: k.eRacunEmail ?? null,
     eRacunNaslov: k.eRacunNaslov ?? null,
+    eRacunSifraPu: k.eRacunSifraPu ?? null,
     email: k.email ?? null,
     telefon: k.telefon ?? null,
     steviloUpor: k.steviloUpor,
@@ -292,6 +293,9 @@ router.post("/kupec/shranjeni", async (req, res): Promise<void> => {
       kmgMid: d.kmgMid ?? null,
       eRacunPrejemnik: d.eRacunPrejemnik ?? null,
       eRacunOmrezje: d.eRacunOmrezje ?? null,
+      eRacunNaslov: d.eRacunNaslov ?? null,
+      eRacunEmail: d.eRacunEmail ?? null,
+      eRacunSifraPu: d.eRacunSifraPu ?? null,
       email: d.email ?? null,
       telefon: d.telefon ?? null,
       steviloUpor: 1,
@@ -331,6 +335,9 @@ router.put("/kupec/shranjeni/:id", async (req, res): Promise<void> => {
       kmgMid: d.kmgMid ?? null,
       eRacunPrejemnik: d.eRacunPrejemnik ?? null,
       eRacunOmrezje: d.eRacunOmrezje ?? null,
+      eRacunNaslov: d.eRacunNaslov ?? null,
+      eRacunEmail: d.eRacunEmail ?? null,
+      eRacunSifraPu: d.eRacunSifraPu ?? null,
       email: d.email ?? null,
       telefon: d.telefon ?? null})
     .where(and(
@@ -410,6 +417,7 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   const eRacunNaslov = jeVUjp
     ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
     : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
+  const eRacunSifraPu = jeVUjp ? (ujpVnosi[0]!.sifraPu || null) : obstojecKupec.eRacunSifraPu ?? null;
 
   const trrji = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
   const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
@@ -419,7 +427,7 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   // - Če BizBox odgovori: posodobi
   // - Sicer: ohrani obstoječe
   const eRacunPosodobitev =
-    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov }
+    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu }
     : eReg !== null ? {
         eRacunPrejemnik: eReg.registriran,
         eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
@@ -512,7 +520,8 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           ...(eRacunPrejemnik !== null ? {
             eRacunPrejemnik,
             eRacunOmrezje,
-            ...(eRacunNaslov ? { eRacunNaslov } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
+            ...(eRacunNaslov ? { eRacunNaslov } : {}),
+            ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
       } else {
         const [inserted] = await db.insert(shranjeniKupciTable).values({
           enotaId: tenotaId,
@@ -533,7 +542,8 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           ...(eRacunPrejemnik !== null ? {
             eRacunPrejemnik,
             eRacunOmrezje,
-            ...(eRacunNaslov ? { eRacunNaslov } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
+            ...(eRacunNaslov ? { eRacunNaslov } : {}),
+            ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
         shranjeniId = inserted?.id ?? null;
       }
     } catch {
@@ -541,12 +551,14 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
     }
   }
 
+  const eRacunSifraPuIzPoisci = jeVUjp ? (ujpVnosi[0]!.sifraPu || null) : null;
   res.json({
     ...r,
     id: shranjeniId,
     eRacunPrejemnik,
     eRacunOmrezje,
     eRacunNaslov,
+    eRacunSifraPu: eRacunSifraPuIzPoisci,
     ujpVnosi: jeVUjp ? ujpVnosi : undefined,
   });
 });
