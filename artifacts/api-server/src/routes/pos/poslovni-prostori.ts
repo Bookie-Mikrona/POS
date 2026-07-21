@@ -74,15 +74,26 @@ router.post("/poslovni-prostori/:id/registriraj", requireAdmin, async (req, res)
   const nastavitveMap = await readAll("", tenotaId);
   const nastavitve = toResponse(nastavitveMap);
 
-  if (!nastavitve.davcnaStevilka) {
-    res.status(400).json({ error: "Davčna številka ni nastavljena v nastavitvah" });
+  // Fallback za davcnaStevilka: nastavitve → companies tabela prek enote
+  let davcna = nastavitve.davcnaStevilka;
+  if (!davcna) {
+    const [en] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, tenotaId));
+    if (en?.companyId) {
+      const [co] = await db.select({ podjetjeDavcna: companiesTable.podjetjeDavcna }).from(companiesTable).where(eq(companiesTable.id, en.companyId));
+      davcna = co?.podjetjeDavcna?.replace(/^SI/i, "") ?? "";
+    }
+  }
+  if (!davcna) {
+    res.status(400).json({ error: "Davčna številka ni nastavljena. Vnesite jo v Nastavitvah → Davčni podatki." });
     return;
   }
 
+  const ponudnik = nastavitve.ponudnikDavcna || process.env.ERP_PONUDNIK_DAVCNA || undefined;
+
   const odgovor = await registrirajPoslovniProstor(
     {
-      davcnaStevilka: nastavitve.davcnaStevilka,
-      ponudnikDavcna: nastavitve.ponudnikDavcna || undefined,
+      davcnaStevilka: davcna,
+      ponudnikDavcna: ponudnik,
       poslovniProstorId: prostor.prostorId,
       tipProstora: (prostor.tipProstora as import('../../lib/pos-furs').FursTipProstora) ?? "nepremicnina",
       ulica: prostor.ulica ?? undefined,
