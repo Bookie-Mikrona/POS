@@ -160,7 +160,7 @@ function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: { 
             </Shell>
           )
         ) : (
-          <Redirect to="/company-select" />
+          <Redirect to={isSuperAdmin ? "/admin" : "/company-select"} />
         )}
       </Show>
       <Show when="signed-out">
