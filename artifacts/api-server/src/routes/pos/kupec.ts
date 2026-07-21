@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { artikliTable, db, kategorijeTable, partnerCenikiTable, shranjeniKupciTable } from "@workspace/db";
+import { poisciVUjp } from "../ujp";
 
 const router: IRouter = Router();
 
@@ -418,8 +419,18 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
     return;
   }
 
-  // Vzporedno preverimo bizBox eImenik (eRacunPrejemnik)
-  const eReg: any = await poisciNaBizBox(davcna, r.naziv);
+  // Vzporedno preverimo bizBox eImenik + UJP seznam (eRacunPrejemnik)
+  const [eReg, ujpVnosi] = await Promise.all([
+    poisciNaBizBox(davcna, r.naziv),
+    poisciVUjp(davcna, r.maticnaStevilka ?? undefined),
+  ]);
+
+  // UJP ima prednost pred BizBox za javni sektor — TrrSt je e-naslov za dostavo
+  const jeVUjp = ujpVnosi.length > 0;
+  const ujpNaslov = jeVUjp ? ujpVnosi[0]!.trrSt : null;
+  const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
+  const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? null);
+  const eRacunNaslov = jeVUjp ? ujpNaslov : (eReg?.naslov ?? null);
 
   // Avtomatsko shrani / posodobi v shranjeni_kupci z vsemi INETIS podatki
   const tenotaId = (req as any).enotaId ?? 1;
@@ -435,8 +446,6 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
         .limit(1);
 
       const vrstaIzPoisci = zaznajVrsto(r.naziv, r.zavezanecDdv, r.maticnaStevilka);
-      const eRacunPrejemnikIzPoisci = eReg?.registriran ?? null;
-      const eRacunOmrezjeIzPoisci = eReg?.omrezje ?? null;
 
       if (existing) {
         shranjeniId = existing.id;
@@ -453,10 +462,10 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           trr: r.trr,
           zadnjaUporaba: new Date(),
           ...(vrstaIzPoisci !== null ? { vrstaPartnerja: vrstaIzPoisci } : {}),
-          ...(eRacunPrejemnikIzPoisci !== null ? {
-            eRacunPrejemnik: eRacunPrejemnikIzPoisci,
-            eRacunOmrezje: eRacunOmrezjeIzPoisci,
-            ...(eReg?.naslov ? { eRacunNaslov: eReg!.naslov } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
+          ...(eRacunPrejemnik !== null ? {
+            eRacunPrejemnik,
+            eRacunOmrezje,
+            ...(eRacunNaslov ? { eRacunNaslov } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
       } else {
         const [inserted] = await db.insert(shranjeniKupciTable).values({
           enotaId: tenotaId,
@@ -474,10 +483,10 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           steviloUpor: 0,
           zadnjaUporaba: new Date(),
           ...(vrstaIzPoisci !== null ? { vrstaPartnerja: vrstaIzPoisci } : {}),
-          ...(eRacunPrejemnikIzPoisci !== null ? {
-            eRacunPrejemnik: eRacunPrejemnikIzPoisci,
-            eRacunOmrezje: eRacunOmrezjeIzPoisci,
-            ...(eReg?.naslov ? { eRacunNaslov: eReg!.naslov } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
+          ...(eRacunPrejemnik !== null ? {
+            eRacunPrejemnik,
+            eRacunOmrezje,
+            ...(eRacunNaslov ? { eRacunNaslov } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
         shranjeniId = inserted?.id ?? null;
       }
     } catch {
@@ -488,9 +497,11 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
   res.json({
     ...r,
     id: shranjeniId,
-    eRacunPrejemnik: eReg?.registriran ?? null,
-    eRacunOmrezje: eReg?.omrezje ?? null,
-    eRacunNaslov: eReg?.naslov ?? null});
+    eRacunPrejemnik,
+    eRacunOmrezje,
+    eRacunNaslov,
+    ujpVnosi: jeVUjp ? ujpVnosi : undefined,
+  });
 });
 
 export async function upsertPogostKupec(opts: {

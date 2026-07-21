@@ -20,6 +20,7 @@ import importConfigRouter from "./importConfig";
 import posRouter from "./pos/index";
 import adminRouter from "./admin";
 import superadminRouter from "./superadmin";
+import ujpRouter from "./ujp";
 
 const router: IRouter = Router();
 
@@ -43,6 +44,7 @@ router.use(reportsRouter);
 router.use(importConfigRouter);
 router.use("/admin", adminRouter);
 router.use(superadminRouter);
+router.use(ujpRouter);
 router.use(posRouter);
 
 export default router;

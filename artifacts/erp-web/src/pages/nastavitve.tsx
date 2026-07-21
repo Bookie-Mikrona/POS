@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Building2, Users, Save, UserPlus, AlertCircle, CheckCircle2, Loader2, Trash2, Plus, X } from "lucide-react";
+import { Building2, Users, Save, UserPlus, AlertCircle, CheckCircle2, Loader2, Trash2, Plus, X, RefreshCw, Database } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useGetCompany, useGetMe, useAssignRole } from "@workspace/api-client-react";
 import type { CompanyWithRole, RoleAssignment } from "@workspace/api-client-react";
@@ -505,6 +505,115 @@ function UporabnikiTab({ companyId, isOwner }: { companyId: string; isOwner: boo
   );
 }
 
+// ── UJP sinhronizacija ────────────────────────────────────────────────────────
+
+interface UjpStatus { skupaj: number; zadnjiUvoz: string | null; }
+
+function UjpTab() {
+  const qc = useQueryClient();
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncRezultat, setSyncRezultat] = useState<{ uvozenih: number; datum: string } | null>(null);
+  const [syncNapaka, setSyncNapaka] = useState<string | null>(null);
+
+  const { data: status, isLoading: statusLoading } = useQuery<UjpStatus>({
+    queryKey: ["ujp-status"],
+    queryFn: () => apiFetch<UjpStatus>("/api/ujp/status"),
+    staleTime: 60_000,
+  });
+
+  const handleSync = async () => {
+    setSyncLoading(true);
+    setSyncRezultat(null);
+    setSyncNapaka(null);
+    try {
+      const r = await apiFetch<{ uvozenih: number; datum: string }>("/api/ujp/sync", { method: "POST" });
+      setSyncRezultat(r);
+      void qc.invalidateQueries({ queryKey: ["ujp-status"] });
+    } catch (err) {
+      setSyncNapaka(err instanceof Error ? err.message : "Neznana napaka");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const formatDatum = (iso: string | null | undefined) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Seznam proračunskih uporabnikov UJP
+          </CardTitle>
+          <CardDescription>
+            Uradni seznam javnih institucij, ki sprejemajo e-račune prek UJP portala. Vir:{" "}
+            <a href="https://storitve.ujp.gov.si/dostop/seznam-prejemnikov-eracunov/" target="_blank" rel="noopener noreferrer" className="underline">
+              storitve.ujp.gov.si
+            </a>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status */}
+          <div className="rounded-lg border bg-muted/30 px-4 py-3 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">
+                {statusLoading ? (
+                  <span className="text-muted-foreground">Nalagam…</span>
+                ) : (status?.skupaj ?? 0) > 0 ? (
+                  <span>{(status!.skupaj).toLocaleString("sl-SI")} proračunskih uporabnikov</span>
+                ) : (
+                  <span className="text-muted-foreground">Seznam ni bil še uvožen</span>
+                )}
+              </p>
+              {!statusLoading && status?.zadnjiUvoz && (
+                <p className="text-xs text-muted-foreground">Zadnji uvoz: {formatDatum(status.zadnjiUvoz)}</p>
+              )}
+            </div>
+            <Button onClick={() => void handleSync()} disabled={syncLoading} className="gap-2 shrink-0">
+              {syncLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {syncLoading ? "Uvažam…" : "Osveži seznam"}
+            </Button>
+          </div>
+
+          {/* Rezultat */}
+          {syncRezultat && (
+            <Alert className="border-green-200 bg-green-50 text-green-800">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>
+                Uvoz uspešen: {syncRezultat.uvozenih.toLocaleString("sl-SI")} proračunskih uporabnikov ({syncRezultat.datum})
+              </AlertDescription>
+            </Alert>
+          )}
+          {syncNapaka && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{syncNapaka}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Navodilo */}
+          <div className="rounded-lg border px-4 py-3 space-y-2 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Kako deluje</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>Ko iščete poslovnega partnerja po davčni številki, sistem samodejno preveri, ali je ta v UJP seznamu.</li>
+              <li>Če je najden, se partnerju nastavi <strong>e-račun prejemnik: DA</strong>, omrežje <strong>UJP</strong> in TRR za dostavo.</li>
+              <li>UJP seznam posodobite ročno (dnevno posodabljanje priporočeno).</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Page root ─────────────────────────────────────────────────────────────────
 
 export default function Nastavitve() {
@@ -540,6 +649,10 @@ export default function Nastavitve() {
             <Users className="h-3.5 w-3.5" />
             Uporabniki in pravice
           </TabsTrigger>
+          <TabsTrigger value="ujp" className="gap-2">
+            <Database className="h-3.5 w-3.5" />
+            UJP e-računi
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="podatki" className="mt-0">
@@ -548,6 +661,10 @@ export default function Nastavitve() {
 
         <TabsContent value="uporabniki" className="mt-0">
           <UporabnikiTab companyId={activeCompany.id} isOwner={isOwner} />
+        </TabsContent>
+
+        <TabsContent value="ujp" className="mt-0">
+          <UjpTab />
         </TabsContent>
       </Tabs>
     </div>

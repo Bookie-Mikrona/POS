@@ -20,3 +20,5 @@ export * from "./report-exports";
 export * from "./system-settings";
 // ── POS: Gostinstvo ──────────────────────────────────────────────────────────
 export * from "./pos/index";
+// ── Skupni registri ──────────────────────────────────────────────────────────
+export * from "./ujp-prejemniki";
