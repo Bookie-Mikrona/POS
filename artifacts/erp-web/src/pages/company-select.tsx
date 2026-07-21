@@ -30,12 +30,22 @@ export default function CompanySelectPage() {
   // Počakamo da sta OBA klica zaključena preden določimo stanje
   const isLoading = companiesLoading || (isLoaded && !!user?.id && meLoading);
 
+  // Zaznaj POS podjetje po vlogi (role začne z "pos_") — ne zanašaj se na posOnly polje
+  const isPosOnly = (company: CompanyWithRole) => (company.role as string).startsWith("pos_");
+
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
     pos_admin: "POS – Admin podjetja", pos_admin_enote: "POS – Admin enote", pos_uporabnik: "POS – Uporabnik",
   })[role] ?? role;
 
-  const isPosOnly = (company: CompanyWithRole & { posOnly?: boolean }) => !!(company as any).posOnly;
+  // Če ima uporabnik SAMO POS dostop (nič ERP), ga takoj preusmeri na POS app
+  const erpCompanies = companies.filter(c => !isPosOnly(c));
+  React.useEffect(() => {
+    if (isLoading || isSuperAdmin) return;
+    if (companies.length > 0 && erpCompanies.length === 0) {
+      window.location.href = "/pos/";
+    }
+  }, [isLoading, companies.length, erpCompanies.length, isSuperAdmin]);
 
   const handleSelect = (company: CompanyWithRole) => {
     setActiveCompany(company);
@@ -96,11 +106,11 @@ export default function CompanySelectPage() {
               {companies.map(company => {
                 const posOnly = isPosOnly(company);
                 if (posOnly) {
-                  // POS-only podjetje — gumb odpre POS app
+                  // POS-only podjetje — uporabi window.location za polno navigacijo (izogne se wouter intercepciji)
                   return (
-                    <a
+                    <button
                       key={company.id}
-                      href="/pos/"
+                      onClick={() => { window.location.href = "/pos/"; }}
                       className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50/40 hover:bg-amber-50 transition-colors group"
                     >
                       <div className="flex-1 min-w-0 pr-4">
@@ -108,12 +118,12 @@ export default function CompanySelectPage() {
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-neutral-500">{company.podjetjeDavcna}</span>
                           <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                            {roleLabel(company.role)}
+                            POS gostinstvo
                           </span>
                         </div>
                       </div>
                       <ArrowRight className="h-5 w-5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </a>
+                    </button>
                   );
                 }
                 return (

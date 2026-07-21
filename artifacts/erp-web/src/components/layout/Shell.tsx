@@ -94,8 +94,11 @@ function CompanySwitcher() {
     if (data === undefined) return;
     const fresh = companies.find((c) => c.id === activeCompany.id);
     if (!fresh) {
-      // Ta uporabnik nima dostopa do shranjenega podjetja → počistimo
-      setActiveCompany(null);
+      // Počistimo samo ERP podjetja — POS podjetje (role začne z "pos_") ne sme biti počiščeno,
+      // ker ga Shell ne more pravilno preveriti (POS dostop je v drugi tabeli)
+      if (!(activeCompany.role as string).startsWith("pos_")) {
+        setActiveCompany(null);
+      }
       return;
     }
     // Posodobimo samo če se kateri koli ključ razlikuje (plitka primerjava)
