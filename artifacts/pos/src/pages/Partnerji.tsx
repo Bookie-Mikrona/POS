@@ -268,8 +268,8 @@ export default function Partnerji() {
         ulica: data.ulica ?? "",
         postnaStevilka: data.postnaStevilka ?? "",
         kraj: data.kraj ?? "",
-        drzava: data.drzava ?? "",
-        kodaDrzave: data.kodaDrzave ?? "",
+        drzava: data.drzava || "Slovenija",
+        kodaDrzave: data.kodaDrzave || "SI",
         zavezanecDdv: data.zavezanecDdv ?? false,
         idZaDdv: data.idZaDdv ?? "",
         maticnaStevilka: data.maticnaStevilka ?? "",
@@ -364,6 +364,8 @@ export default function Partnerji() {
       const data = await r.json() as InetisRezultat;
       setForm(f => {
         const novaVrsta = zaznajVrsto(data.naziv ?? f.naziv, data.zavezanecDdv ?? f.zavezanecDdv, data.maticnaStevilka ?? f.maticnaStevilka);
+        const novaDrzava = f.drzava || data.drzava || "Slovenija";
+        const novaKodaDrzave = f.kodaDrzave || data.kodaDrzave || "SI";
         return {
           ...f,
           naziv: data.naziv ?? f.naziv,
@@ -371,8 +373,8 @@ export default function Partnerji() {
           ulica: data.ulica ?? f.ulica,
           postnaStevilka: data.postnaStevilka ?? f.postnaStevilka,
           kraj: data.kraj ?? f.kraj,
-          drzava: data.drzava ?? f.drzava,
-          kodaDrzave: data.kodaDrzave ?? f.kodaDrzave,
+          drzava: novaDrzava,
+          kodaDrzave: novaKodaDrzave,
           zavezanecDdv: data.zavezanecDdv ?? f.zavezanecDdv,
           idZaDdv: data.idZaDdv ?? f.idZaDdv,
           maticnaStevilka: data.maticnaStevilka ?? f.maticnaStevilka,
