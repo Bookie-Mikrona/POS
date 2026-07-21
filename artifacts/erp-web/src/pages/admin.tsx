@@ -180,9 +180,7 @@ function PodjetjaTab() {
                 <Label>Davčna številka *</Label>
                 <div className="flex gap-2 items-center">
                   <div className="relative flex-1 max-w-[200px]">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none">SI</span>
                     <Input
-                      className="pl-8"
                       value={createForm.podjetjeDavcna}
                       onChange={(e) => handleDavcnaChange(e.target.value)}
                       placeholder="12345678"
@@ -262,7 +260,7 @@ function PodjetjaTab() {
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    SI{c.podjetjeDavcna} · {c.userCount} {c.userCount === 1 ? "uporabnik" : "uporabnikov"}
+                    {c.podjetjeDavcna} · {c.userCount} {c.userCount === 1 ? "uporabnik" : "uporabnikov"}
                   </p>
                 </div>
                 {expanded === c.id ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}

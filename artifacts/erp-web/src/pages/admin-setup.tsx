@@ -141,7 +141,7 @@ export default function AdminSetupPage() {
                   >
                     <div>
                       <p className="text-sm font-medium text-neutral-900">{c.naziv}</p>
-                      <p className="text-xs text-neutral-500 mt-0.5">SI{c.podjetjeDavcna}</p>
+                      <p className="text-xs text-neutral-500 mt-0.5">{c.podjetjeDavcna}</p>
                     </div>
                     {isPending
                       ? <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
@@ -186,9 +186,6 @@ export default function AdminSetupPage() {
                   </label>
                   <div className="flex gap-2 items-center">
                     <div className="flex flex-1">
-                      <span className="inline-flex items-center px-3 text-sm border border-r-0 border-neutral-200 rounded-l-md bg-neutral-50 text-neutral-500">
-                        SI
-                      </span>
                       <input
                         required
                         type="text"
@@ -196,7 +193,7 @@ export default function AdminSetupPage() {
                         onChange={(e) => handleDavcnaChange(e.target.value)}
                         placeholder="12345678"
                         maxLength={8}
-                        className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-r-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                       />
                     </div>
                     {davcnaLookup === "loading" && <Loader2 className="h-4 w-4 animate-spin text-neutral-400 shrink-0" />}
