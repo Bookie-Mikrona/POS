@@ -10,6 +10,10 @@ import {
   ChevronRight,
   Download,
   Loader2,
+  Mail,
+  Send,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import {
   useGetBalanceSheet,
@@ -40,6 +44,7 @@ type IncomeStatementDataWithWarnings = IncomeStatementData & {
   typeWarnings?: AccountTypeWarning[];
 };
 import { useCompany } from "@/contexts/CompanyContext";
+import { useAuth } from "@clerk/react";
 
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -49,6 +54,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -75,140 +88,156 @@ function prevYearStart() {
   return `${new Date().getFullYear() - 1}-01-01`;
 }
 
-// ── PDF export ────────────────────────────────────────────────────────────────
+// ── Server-side PDF export & e-mail ──────────────────────────────────────────
 
-async function exportToPdf(opts: {
-  contentRef: React.RefObject<HTMLDivElement | null>;
-  companyName: string;
-  reportTitle: string;
-  subtitle: string;
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function serverExportPdf(opts: {
+  companyId: string;
+  params: Record<string, string | undefined>;
+  reportType: "balance-sheet" | "income-statement" | "trial-balance";
   filename: string;
-}) {
-  const { contentRef, companyName, reportTitle, subtitle, filename } = opts;
-  if (!contentRef.current) return;
-
-  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-    import("jspdf"),
-    import("html2canvas"),
-  ]);
-
-  const element = contentRef.current;
-
-  // Snapshot without interactive chrome (collapse buttons hidden)
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    logging: false,
-    backgroundColor: "#ffffff",
+  token: string;
+}): Promise<void> {
+  const { companyId, params, reportType, filename, token } = opts;
+  const res = await fetch(`${BASE}/api/companies/${companyId}/reports/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reportType, ...params }),
   });
-
-  const PAGE_W = 210; // A4 mm
-  const PAGE_H = 297;
-  const MARGIN = 14;
-  const HEADER_H = 28; // mm reserved for header on first page
-  const HEADER_H_CONT = 12; // mm reserved for header on continuation pages
-  const FOOTER_H = 10;
-
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-  const imgW = PAGE_W - MARGIN * 2;
-  const imgH = (canvas.height * imgW) / canvas.width;
-  const printableH = PAGE_H - MARGIN - FOOTER_H;
-
-  let remainingH = imgH;
-  let sourceY = 0;
-  let pageNum = 1;
-
-  const drawHeader = (isFirst: boolean) => {
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(isFirst ? 13 : 9);
-    pdf.setTextColor(30, 30, 30);
-    if (isFirst) {
-      pdf.text(companyName, MARGIN, MARGIN + 5);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(11);
-      pdf.text(reportTitle, MARGIN, MARGIN + 11);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(subtitle, MARGIN, MARGIN + 17);
-      pdf.setDrawColor(200, 200, 200);
-      pdf.line(MARGIN, MARGIN + 20, PAGE_W - MARGIN, MARGIN + 20);
-    } else {
-      pdf.setFontSize(8);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`${companyName} — ${reportTitle}`, MARGIN, MARGIN + 5);
-      pdf.setDrawColor(200, 200, 200);
-      pdf.line(MARGIN, MARGIN + 7, PAGE_W - MARGIN, MARGIN + 7);
-    }
-    pdf.setTextColor(30, 30, 30);
-  };
-
-  const drawFooter = (page: number, total: number) => {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7);
-    pdf.setTextColor(150, 150, 150);
-    const genDate = new Date().toLocaleDateString("sl-SI", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-    pdf.text(`Generirano: ${genDate}`, MARGIN, PAGE_H - MARGIN + 4);
-    pdf.text(`Stran ${page} / ${total}`, PAGE_W - MARGIN, PAGE_H - MARGIN + 4, { align: "right" });
-    pdf.setTextColor(30, 30, 30);
-  };
-
-  // Calculate total pages
-  const firstPageH = printableH - MARGIN - HEADER_H;
-  const contPageH = printableH - MARGIN - HEADER_H_CONT;
-  let totalPages = 1;
-  let rem = imgH - firstPageH;
-  while (rem > 0) {
-    totalPages++;
-    rem -= contPageH;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
   }
-
-  // Render pages
-  while (remainingH > 0) {
-    const isFirst = pageNum === 1;
-    const headerH = isFirst ? HEADER_H : HEADER_H_CONT;
-    const contentStartY = MARGIN + headerH;
-    const availableH = printableH - contentStartY;
-
-    const sliceH = Math.min(remainingH, availableH);
-    const sliceCanvas = document.createElement("canvas");
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = (sliceH / imgH) * canvas.height;
-    const ctx = sliceCanvas.getContext("2d")!;
-    ctx.drawImage(
-      canvas,
-      0,
-      sourceY,
-      canvas.width,
-      sliceCanvas.height,
-      0,
-      0,
-      canvas.width,
-      sliceCanvas.height,
-    );
-
-    const sliceDataUrl = sliceCanvas.toDataURL("image/png");
-
-    drawHeader(isFirst);
-    pdf.addImage(sliceDataUrl, "PNG", MARGIN, contentStartY, imgW, sliceH);
-    drawFooter(pageNum, totalPages);
-
-    sourceY += sliceCanvas.height;
-    remainingH -= sliceH;
-
-    if (remainingH > 0) {
-      pdf.addPage();
-      pageNum++;
-    }
-  }
-
-  pdf.save(filename);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
+
+async function serverSendEmail(opts: {
+  companyId: string;
+  params: Record<string, string | undefined>;
+  reportType: "balance-sheet" | "income-statement" | "trial-balance";
+  email: string;
+  token: string;
+}): Promise<void> {
+  const { companyId, params, reportType, email, token } = opts;
+  const res = await fetch(`${BASE}/api/companies/${companyId}/reports/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reportType, email, ...params }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+}
+
+// ── E-mail dialog ─────────────────────────────────────────────────────────────
+
+function EmailDialog({
+  open,
+  onClose,
+  onSend,
+  loading,
+  error,
+  success,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSend: (email: string) => void;
+  loading: boolean;
+  error: string | null;
+  success: boolean;
+}) {
+  const [email, setEmail] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    onSend(email.trim());
+  }
+
+  // Reset email input when dialog closes
+  React.useEffect(() => {
+    if (!open) setEmail("");
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !loading) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Pošlji poročilo po e-pošti
+          </DialogTitle>
+          <DialogDescription>
+            PDF bo generiran na strežniku in poslan neposredno na vpisani e-poštni naslov.
+          </DialogDescription>
+        </DialogHeader>
+
+        {success ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              E-pošta je bila uspešno poslana!
+            </p>
+            <Button variant="outline" onClick={onClose} className="mt-2">
+              Zapri
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email-recipient" className="text-sm">
+                E-poštni naslov prejemnika
+              </Label>
+              <Input
+                id="email-recipient"
+                type="email"
+                placeholder="revizor@podjetje.si"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                className="h-9"
+                autoFocus
+              />
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                Prekliči
+              </Button>
+              <Button type="submit" disabled={loading || !email.trim()} className="gap-2">
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Pošlji
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Browser PDF export (fallback — kept for reference, no longer used) ────────
+// Server-side export is now the primary method.
 
 // ── Collapsible section row ───────────────────────────────────────────────────
 
@@ -398,6 +427,7 @@ function TypeWarningsAlert({ warnings }: { warnings: AccountTypeWarning[] }) {
 
 function BalanceSheetTab() {
   const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
 
   const [asOf, setAsOf] = useState(todayStr());
   const [compareAsOf, setCompareAsOf] = useState(prevYearEnd());
@@ -419,6 +449,12 @@ function BalanceSheetTab() {
   const printRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  // Email dialog state
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
   function handleGenerate() {
     setAppliedAsOf(asOf);
     setAppliedCompareAsOf(enableCompare ? compareAsOf : undefined);
@@ -430,21 +466,54 @@ function BalanceSheetTab() {
   }
 
   async function handleDownloadPdf() {
-    if (!data) return;
+    if (!data || !activeCompany) return;
     setPdfLoading(true);
     try {
-      const subtitle = appliedCompareAsOf
-        ? `Stanje na dan: ${appliedAsOf}  |  Primerjava: ${appliedCompareAsOf}`
-        : `Stanje na dan: ${appliedAsOf}`;
-      await exportToPdf({
-        contentRef: printRef,
-        companyName: activeCompany?.naziv ?? "Podjetje",
-        reportTitle: "BILANCA STANJA",
-        subtitle,
+      const token = await getToken();
+      await serverExportPdf({
+        companyId: activeCompany.id,
+        reportType: "balance-sheet",
+        params: {
+          asOf: appliedAsOf,
+          ...(appliedCompareAsOf ? { compareAsOf: appliedCompareAsOf } : {}),
+        },
         filename: `bilanca-stanja-${appliedAsOf}.pdf`,
+        token: token ?? "",
       });
+    } catch (err) {
+      alert(`Napaka pri izvozu PDF: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setPdfLoading(false);
+    }
+  }
+
+  function handleOpenEmail() {
+    setEmailError(null);
+    setEmailSuccess(false);
+    setEmailOpen(true);
+  }
+
+  async function handleSendEmail(email: string) {
+    if (!activeCompany) return;
+    setEmailLoading(true);
+    setEmailError(null);
+    try {
+      const token = await getToken();
+      await serverSendEmail({
+        companyId: activeCompany.id,
+        reportType: "balance-sheet",
+        params: {
+          asOf: appliedAsOf,
+          ...(appliedCompareAsOf ? { compareAsOf: appliedCompareAsOf } : {}),
+        },
+        email,
+        token: token ?? "",
+      });
+      setEmailSuccess(true);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEmailLoading(false);
     }
   }
 
@@ -515,7 +584,16 @@ function BalanceSheetTab() {
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  <span className="text-sm">Prenesi PDF</span>
+                  <span className="text-sm">PDF</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 print:hidden"
+                  onClick={handleOpenEmail}
+                  title="Pošlji po e-pošti"
+                >
+                  <Mail className="h-4 w-4" />
                 </Button>
               </>
             )}
@@ -670,6 +748,15 @@ function BalanceSheetTab() {
           <p className="text-sm">Izberite datum in kliknite »Prikaži poročilo«.</p>
         </div>
       )}
+
+      <EmailDialog
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        onSend={handleSendEmail}
+        loading={emailLoading}
+        error={emailError}
+        success={emailSuccess}
+      />
     </div>
   );
 }
@@ -678,6 +765,7 @@ function BalanceSheetTab() {
 
 function IncomeStatementTab() {
   const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
 
   const [dateFrom, setDateFrom] = useState(yearStart());
   const [dateTo, setDateTo] = useState(todayStr());
@@ -702,6 +790,12 @@ function IncomeStatementTab() {
   const printRef = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  // Email dialog state
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
   function handleGenerate() {
     setApplied({
       dateFrom,
@@ -716,21 +810,56 @@ function IncomeStatementTab() {
   }
 
   async function handleDownloadPdf() {
-    if (!data || !applied) return;
+    if (!data || !applied || !activeCompany) return;
     setPdfLoading(true);
     try {
-      const subtitle = applied.compareDateFrom
-        ? `Obdobje: ${applied.dateFrom} – ${applied.dateTo}  |  Primerjava: ${applied.compareDateFrom} – ${applied.compareDateTo}`
-        : `Obdobje: ${applied.dateFrom} – ${applied.dateTo}`;
-      await exportToPdf({
-        contentRef: printRef,
-        companyName: activeCompany?.naziv ?? "Podjetje",
-        reportTitle: "IZKAZ POSLOVNEGA IZIDA",
-        subtitle,
+      const token = await getToken();
+      await serverExportPdf({
+        companyId: activeCompany.id,
+        reportType: "income-statement",
+        params: {
+          dateFrom: applied.dateFrom,
+          dateTo: applied.dateTo,
+          ...(applied.compareDateFrom ? { compareDateFrom: applied.compareDateFrom, compareDateTo: applied.compareDateTo } : {}),
+        },
         filename: `izkaz-poslovnega-izida-${applied.dateFrom}-${applied.dateTo}.pdf`,
+        token: token ?? "",
       });
+    } catch (err) {
+      alert(`Napaka pri izvozu PDF: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setPdfLoading(false);
+    }
+  }
+
+  function handleOpenEmail() {
+    setEmailError(null);
+    setEmailSuccess(false);
+    setEmailOpen(true);
+  }
+
+  async function handleSendEmail(email: string) {
+    if (!activeCompany || !applied) return;
+    setEmailLoading(true);
+    setEmailError(null);
+    try {
+      const token = await getToken();
+      await serverSendEmail({
+        companyId: activeCompany.id,
+        reportType: "income-statement",
+        params: {
+          dateFrom: applied.dateFrom,
+          dateTo: applied.dateTo,
+          ...(applied.compareDateFrom ? { compareDateFrom: applied.compareDateFrom, compareDateTo: applied.compareDateTo } : {}),
+        },
+        email,
+        token: token ?? "",
+      });
+      setEmailSuccess(true);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEmailLoading(false);
     }
   }
 
@@ -799,7 +928,16 @@ function IncomeStatementTab() {
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  <span className="text-sm">Prenesi PDF</span>
+                  <span className="text-sm">PDF</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 print:hidden"
+                  onClick={handleOpenEmail}
+                  title="Pošlji po e-pošti"
+                >
+                  <Mail className="h-4 w-4" />
                 </Button>
               </>
             )}
@@ -1000,6 +1138,15 @@ function IncomeStatementTab() {
           <p className="text-sm">Izberite obdobje in kliknite »Prikaži poročilo«.</p>
         </div>
       )}
+
+      <EmailDialog
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        onSend={handleSendEmail}
+        loading={emailLoading}
+        error={emailError}
+        success={emailSuccess}
+      />
     </div>
   );
 }
@@ -1016,6 +1163,7 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 
 function TrialBalanceTab() {
   const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
   const contentRef = useRef<HTMLDivElement>(null);
 
   const [dateFrom, setDateFrom] = useState(yearStart());
@@ -1026,6 +1174,12 @@ function TrialBalanceTab() {
 
   const [appliedFrom, setAppliedFrom] = useState(yearStart());
   const [appliedTo, setAppliedTo] = useState(todayStr());
+
+  // Email dialog state
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
 
   const { data, isFetching, isError, error } = useGetTrialBalance(
     activeCompany?.id ?? "",
@@ -1053,15 +1207,45 @@ function TrialBalanceTab() {
     if (!data || !activeCompany) return;
     setExporting(true);
     try {
-      await exportToPdf({
-        contentRef,
-        companyName: activeCompany.naziv ?? "Podjetje",
-        reportTitle: "Bruto bilanca (preizkusna bilanca)",
-        subtitle: `Obdobje: ${appliedFrom} – ${appliedTo}`,
+      const token = await getToken();
+      await serverExportPdf({
+        companyId: activeCompany.id,
+        reportType: "trial-balance",
+        params: { dateFrom: appliedFrom, dateTo: appliedTo },
         filename: `bruto-bilanca-${appliedFrom}-${appliedTo}.pdf`,
+        token: token ?? "",
       });
+    } catch (err) {
+      alert(`Napaka pri izvozu PDF: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setExporting(false);
+    }
+  }
+
+  function handleOpenEmail() {
+    setEmailError(null);
+    setEmailSuccess(false);
+    setEmailOpen(true);
+  }
+
+  async function handleSendEmail(email: string) {
+    if (!activeCompany) return;
+    setEmailLoading(true);
+    setEmailError(null);
+    try {
+      const token = await getToken();
+      await serverSendEmail({
+        companyId: activeCompany.id,
+        reportType: "trial-balance",
+        params: { dateFrom: appliedFrom, dateTo: appliedTo },
+        email,
+        token: token ?? "",
+      });
+      setEmailSuccess(true);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEmailLoading(false);
     }
   }
 
@@ -1124,16 +1308,27 @@ function TrialBalanceTab() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-8"
+              className="h-8 gap-1.5"
               disabled={exporting}
               onClick={handleExportPdf}
             >
               {exporting ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Download className="h-3 w-3 mr-1" />
+                <Download className="h-3 w-3" />
               )}
               PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={handleOpenEmail}
+              title="Pošlji po e-pošti"
+            >
+              <Mail className="h-3 w-3" />
+              E-pošta
             </Button>
           </>
         )}
@@ -1276,6 +1471,15 @@ function TrialBalanceTab() {
           <p className="text-sm">Izberite obdobje in kliknite »Prikaži«.</p>
         </div>
       )}
+
+      <EmailDialog
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        onSend={handleSendEmail}
+        loading={emailLoading}
+        error={emailError}
+        success={emailSuccess}
+      />
     </div>
   );
 }

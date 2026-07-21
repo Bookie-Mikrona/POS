@@ -9,8 +9,15 @@ import {
   costCentersTable,
   projectsTable,
   departmentsTable,
+  companiesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import {
+  generateBalanceSheetPdf,
+  generateIncomeStatementPdf,
+  generateTrialBalancePdf,
+} from "../lib/report-pdf";
+import { posljiPorociloPdf, getErpSmtp } from "../lib/erp-email";
 
 const router: IRouter = Router();
 
@@ -858,6 +865,184 @@ router.get(
     };
 
     res.json(response);
+  },
+);
+
+// ── POST /companies/:companyId/reports/export ─────────────────────────────────
+// Generira PDF na strežniku in ga:
+//   • vrne kot blob (application/pdf), ali
+//   • pošlje po e-pošti, če je podan `email` v telesu zahteve.
+
+router.post(
+  "/companies/:companyId/reports/export",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+
+    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!ok) return;
+
+    const {
+      reportType,
+      email,
+      // balance-sheet params
+      asOf,
+      compareAsOf,
+      // income-statement params
+      dateFrom,
+      dateTo,
+      compareDateFrom,
+      compareDateTo,
+    } = req.body as {
+      reportType: "balance-sheet" | "income-statement" | "trial-balance";
+      email?: string;
+      asOf?: string;
+      compareAsOf?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      compareDateFrom?: string;
+      compareDateTo?: string;
+    };
+
+    if (!reportType) {
+      res.status(400).json({ error: "reportType je obvezen." });
+      return;
+    }
+
+    // Pridobi ime podjetja
+    const [companyRow] = await db
+      .select({ naziv: companiesTable.naziv })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1);
+    const companyName = companyRow?.naziv ?? "Podjetje";
+
+    let pdfBuffer: Buffer;
+    let filename: string;
+    let reportTitle: string;
+    let subtitle: string;
+
+    try {
+      if (reportType === "balance-sheet") {
+        if (!asOf) {
+          res.status(400).json({ error: "asOf je obvezen za bilanco stanja." });
+          return;
+        }
+        const currentAccounts = await aggregateBalances(companyId, asOf, undefined);
+        const current = buildBalanceSheet(currentAccounts);
+        let compare = null;
+        if (compareAsOf) {
+          const cmpAccounts = await aggregateBalances(companyId, compareAsOf, undefined);
+          compare = buildBalanceSheet(cmpAccounts);
+        }
+        reportTitle = "BILANCA STANJA";
+        subtitle = compareAsOf
+          ? `Stanje na dan: ${asOf}  |  Primerjava: ${compareAsOf}`
+          : `Stanje na dan: ${asOf}`;
+        filename = `bilanca-stanja-${asOf}.pdf`;
+        pdfBuffer = await generateBalanceSheetPdf({ companyName, asOf, compareAsOf: compareAsOf ?? null, current, compare });
+
+      } else if (reportType === "income-statement") {
+        const currentAccounts = await aggregateBalances(companyId, dateTo, dateFrom);
+        const current = buildIncomeStatement(currentAccounts);
+        let compare = null;
+        if (compareDateFrom || compareDateTo) {
+          const cmpAccounts = await aggregateBalances(companyId, compareDateTo, compareDateFrom);
+          compare = buildIncomeStatement(cmpAccounts);
+        }
+        reportTitle = "IZKAZ POSLOVNEGA IZIDA";
+        subtitle = compareDateFrom
+          ? `Obdobje: ${dateFrom} – ${dateTo}  |  Primerjava: ${compareDateFrom} – ${compareDateTo}`
+          : `Obdobje: ${dateFrom} – ${dateTo}`;
+        filename = `izkaz-poslovnega-izida-${dateFrom ?? "brez"}-${dateTo ?? "brez"}.pdf`;
+        pdfBuffer = await generateIncomeStatementPdf({
+          companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "",
+          compareDateFrom: compareDateFrom ?? null, compareDateTo: compareDateTo ?? null,
+          current, compare,
+        });
+
+      } else if (reportType === "trial-balance") {
+        const [turnoverMap, balanceMap] = await Promise.all([
+          aggregateRaw(companyId, dateFrom, dateTo),
+          aggregateRaw(companyId, undefined, dateTo),
+        ]);
+        const allIds = new Set([...turnoverMap.keys(), ...balanceMap.keys()]);
+        const rows = Array.from(allIds)
+          .map((accountId) => {
+            const t = turnoverMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
+            const b = balanceMap.get(accountId) ?? { accountCode: t.accountCode, accountName: t.accountName, accountType: t.accountType, debit: 0, credit: 0 };
+            const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId)!;
+            return {
+              accountId,
+              accountCode: meta.accountCode,
+              accountName: meta.accountName,
+              accountType: meta.accountType,
+              turnoverDebit: t.debit.toFixed(2),
+              turnoverCredit: t.credit.toFixed(2),
+              balanceDebit: b.debit.toFixed(2),
+              balanceCredit: b.credit.toFixed(2),
+            };
+          })
+          .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+        const sumField = (field: "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit") =>
+          rows.reduce((s, r) => s + parseFloat(r[field]), 0).toFixed(2);
+        reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
+        subtitle = `Obdobje: ${dateFrom ?? ""} – ${dateTo ?? ""}`;
+        filename = `bruto-bilanca-${dateFrom ?? "brez"}-${dateTo ?? "brez"}.pdf`;
+        pdfBuffer = await generateTrialBalancePdf({
+          companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "", rows,
+          totalTurnoverDebit: sumField("turnoverDebit"),
+          totalTurnoverCredit: sumField("turnoverCredit"),
+          totalBalanceDebit: sumField("balanceDebit"),
+          totalBalanceCredit: sumField("balanceCredit"),
+        });
+
+      } else {
+        res.status(400).json({ error: "Neveljaven reportType." });
+        return;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Napaka pri generiranju PDF: ${msg}` });
+      return;
+    }
+
+    // Pošlji po e-pošti ali vrni kot blob
+    if (email) {
+      const result = await posljiPorociloPdf({
+        prejemnik: email,
+        companyName,
+        reportTitle,
+        subtitle,
+        filename,
+        pdfBuffer,
+      });
+      if (result.uspeh) {
+        res.json({ uspeh: true, sporocilo: `PDF poslan na ${email}` });
+      } else {
+        res.status(502).json({ error: result.napaka ?? "Pošiljanje ni uspelo." });
+      }
+    } else {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(pdfBuffer);
+    }
+  },
+);
+
+// GET /companies/:companyId/reports/export/smtp-status
+// Vrne, ali so SMTP nastavitve konfigurirane (brez razkritja poverilnic).
+router.get(
+  "/companies/:companyId/reports/export/smtp-status",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!ok) return;
+    const smtp = getErpSmtp();
+    res.json({ konfigurirano: !!smtp });
   },
 );
 
