@@ -1,12 +1,18 @@
 /**
  * POS Gostinstvo — ruter za vse POS endpoint-e.
- * Vsi zahtevki zahtevajo:
+ *
+ * Generirani API klient (@workspace/api-client-react) kliče poti brez /pos/ prefiksa
+ * (npr. /api/enote, /api/artikli). Rute so zato montirane direktno na koren.
+ *
+ * Izjema: auth ruta ostane na /pos/auth/me ker jo AuthContext kliče direktno s tem URL-om.
+ *
+ * Zahteve za večino rut:
  *   Authorization: Bearer <clerk-jwt>   (Clerk)
  *   X-Enota-Id: <integer>               (aktivna poslovna enota)
  */
 
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { requireEnota } from "../../middlewares/pos";
+import { Router, type IRouter, type Request, type Response } from "express";
+import { requireEnota, requirePosCompany } from "../../middlewares/pos";
 import { addClient, removeClient } from "../../lib/pos-sse";
 
 import enoteRouter from "./enote";
@@ -40,7 +46,8 @@ import posAdminUporabnikiRouter from "./admin-uporabniki";
 const router: IRouter = Router();
 
 // SSE tok za kuhinjo in blagajne — zahteva auth
-router.get("/pos/events", requireEnota, (req: Request, res: Response) => {
+// Klient kliče /api/events (useRealtimeSync.ts)
+router.get("/events", requireEnota, (req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
@@ -62,35 +69,39 @@ router.get("/pos/events", requireEnota, (req: Request, res: Response) => {
   });
 });
 
-// Auth in admin rute — samo Clerk JWT, brez X-Enota-Id
+// Auth ruta — ostane na /pos/ ker jo AuthContext kliče direktno z /api/pos/auth/me
 router.use("/pos", posAuthRouter);
-router.use("/pos", posAdminUporabnikiRouter);
 
-// Vse POS rute — zahtevajo Clerk JWT + X-Enota-Id
-router.use("/pos", requireEnota, enoteRouter);
-router.use("/pos", requireEnota, kategorijeRouter);
-router.use("/pos", requireEnota, artikliRouter);
-router.use("/pos", requireEnota, mizeRouter);
-router.use("/pos", requireEnota, prostoriRouter);
-router.use("/pos", requireEnota, narocilaRouter);
-router.use("/pos", requireEnota, racuniRouter);
-router.use("/pos", requireEnota, nastavitveRouter);
-router.use("/pos", requireEnota, natakariRouter);
-router.use("/pos", requireEnota, izmeneRouter);
-router.use("/pos", requireEnota, blagajneRouter);
-router.use("/pos", requireEnota, poslovniProstoriRouter);
-router.use("/pos", requireEnota, napraveRouter);
-router.use("/pos", requireEnota, statistikeRouter);
-router.use("/pos", requireEnota, certifikatRouter);
-router.use("/pos", requireEnota, fursRegisterRouter);
-router.use("/pos", requireEnota, fursDiagnostikaRouter);
-router.use("/pos", requireEnota, kupecRouter);
-router.use("/pos", requireEnota, glasovniSinonimiRouter);
-router.use("/pos", requireEnota, dnevniMeniRouter);
-router.use("/pos", requireEnota, modSkupineRouter);
-router.use("/pos", requireEnota, inventureRouter);
-router.use("/pos", requireEnota, prejemniceRouter);
-router.use("/pos", requireEnota, zacetneZalogeRouter);
-router.use("/pos", requireEnota, zalogeRouter);
+// POS admin — upravljanje uporabnikov (brez X-Enota-Id)
+router.use(posAdminUporabnikiRouter);
+
+// Upravljanje enot — samo Clerk JWT + POS admin vloga (brez X-Enota-Id)
+router.use(requirePosCompany, enoteRouter);
+
+// Vse ostale POS rute — zahtevajo Clerk JWT + X-Enota-Id
+router.use(requireEnota, kategorijeRouter);
+router.use(requireEnota, artikliRouter);
+router.use(requireEnota, mizeRouter);
+router.use(requireEnota, prostoriRouter);
+router.use(requireEnota, narocilaRouter);
+router.use(requireEnota, racuniRouter);
+router.use(requireEnota, nastavitveRouter);
+router.use(requireEnota, natakariRouter);
+router.use(requireEnota, izmeneRouter);
+router.use(requireEnota, blagajneRouter);
+router.use(requireEnota, poslovniProstoriRouter);
+router.use(requireEnota, napraveRouter);
+router.use(requireEnota, statistikeRouter);
+router.use(requireEnota, certifikatRouter);
+router.use(requireEnota, fursRegisterRouter);
+router.use(requireEnota, fursDiagnostikaRouter);
+router.use(requireEnota, kupecRouter);
+router.use(requireEnota, glasovniSinonimiRouter);
+router.use(requireEnota, dnevniMeniRouter);
+router.use(requireEnota, modSkupineRouter);
+router.use(requireEnota, inventureRouter);
+router.use(requireEnota, prejemniceRouter);
+router.use(requireEnota, zacetneZalogeRouter);
+router.use(requireEnota, zalogeRouter);
 
 export default router;

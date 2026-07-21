@@ -1,28 +1,25 @@
 /**
- * POS Gostinstvo — middleware za Clerk auth + enota izolacija.
+ * POS Gostinstvo — middleware za Clerk auth + enota/podjetje izolacija.
  *
- * Zamenjuje stari session-based requireAuth iz POS projekta.
- * Vsak POS API klic mora imeti:
- *   Authorization: Bearer <clerk-jwt>
- *   X-Enota-Id: <integer>
- *
- * Middleware nastavi (req as PosRequest).enotaId za vse nadaljnje route handlere.
+ * requireEnota  — za rute ki zahtevajo aktivno enoto (X-Enota-Id header)
+ * requirePosCompany — za rute ki zahtevajo samo company-level dostop (npr. upravljanje enot)
  */
 
 import type { Request, Response, NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { enoteTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { enoteTable, posUporabnikiTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
 
 export interface PosRequest extends Request {
   enotaId: number;
   clerkUserId: string;
+  companyId: string;
 }
 
 /**
  * requireEnota — Clerk JWT preverjanje + enota validacija.
- * Nastavi req.enotaId in req.clerkUserId.
+ * Nastavi req.enotaId, req.clerkUserId in req.companyId.
  */
 export async function requireEnota(
   req: Request,
@@ -45,9 +42,9 @@ export async function requireEnota(
     return;
   }
 
-  // 3. Preveri da enota obstaja
+  // 3. Preveri da enota obstaja + pridobi companyId
   const [enota] = await db
-    .select({ id: enoteTable.id })
+    .select({ id: enoteTable.id, companyId: enoteTable.companyId })
     .from(enoteTable)
     .where(eq(enoteTable.id, enotaId))
     .limit(1);
@@ -60,6 +57,59 @@ export async function requireEnota(
   // 4. Nastavi na zahtevku
   (req as PosRequest).enotaId = enotaId;
   (req as PosRequest).clerkUserId = userId;
+  (req as PosRequest).companyId = enota.companyId;
+  (req as any).companyId = enota.companyId; // za kompatibilnost z enote.ts ki bere (req as any).companyId
+
+  next();
+}
+
+/**
+ * requirePosCompany — Clerk JWT preverjanje + company izolacija prek POS user zapisa.
+ * Uporablja se za rute ki ne zahtevajo X-Enota-Id (npr. upravljanje enot).
+ * Nastavi req.companyId in req.clerkUserId.
+ * Zahteva vlogo admin ali admin_enote.
+ */
+export async function requirePosCompany(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  // 1. Preveri Clerk JWT
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ napaka: "Prijava je obvezna" });
+    return;
+  }
+
+  // 2. Poišči POS user → pridobi companyId
+  const [user] = await db
+    .select({
+      companyId: posUporabnikiTable.companyId,
+      vloga: posUporabnikiTable.vloga,
+    })
+    .from(posUporabnikiTable)
+    .where(
+      and(
+        eq(posUporabnikiTable.clerkUserId, userId),
+        eq(posUporabnikiTable.aktiven, true),
+      )
+    )
+    .limit(1);
+
+  if (!user) {
+    res.status(403).json({ napaka: "Nimate dostopa do POS sistema" });
+    return;
+  }
+
+  if (user.vloga !== "admin" && user.vloga !== "admin_enote") {
+    res.status(403).json({ napaka: "Upravljanje enot zahteva vlogo admin ali admin_enote" });
+    return;
+  }
+
+  // 3. Nastavi na zahtevku
+  (req as PosRequest).clerkUserId = userId;
+  (req as PosRequest).companyId = user.companyId;
+  (req as any).companyId = user.companyId;
 
   next();
 }

@@ -4,7 +4,7 @@
  * Zahteva Clerk JWT brez X-Enota-Id (upravljanje je na nivoju podjetja).
  */
 import { Router, type IRouter, type Request, type Response } from "express";
-import { requireAuth as clerkRequireAuth } from "@clerk/express";
+import { getAuth } from "@clerk/express";
 import { and, eq } from "drizzle-orm";
 import { db, posUporabnikiTable, enoteTable } from "@workspace/db";
 
@@ -15,12 +15,7 @@ const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "")
 
 /** Middleware: zahteva Clerk JWT + preveri, da je klic iz superadmina ali admin vloge. */
 async function requirePosAdmin(req: Request, res: Response, next: () => void): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    clerkRequireAuth()(req, res, (err?: unknown) => { if (err) reject(err); else resolve(); });
-  }).catch(() => { if (!res.headersSent) res.status(401).json({ napaka: "Prijava je obvezna" }); return; });
-  if (res.headersSent) return;
-
-  const clerkUserId = (req as any).auth?.userId as string | undefined;
+  const { userId: clerkUserId } = getAuth(req);
   if (!clerkUserId) { res.status(401).json({ napaka: "Prijava je obvezna" }); return; }
 
   if (SUPER_ADMIN_IDS.includes(clerkUserId)) { next(); return; }
