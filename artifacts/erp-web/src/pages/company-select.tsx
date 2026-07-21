@@ -47,18 +47,30 @@ export default function CompanySelectPage() {
     });
   };
 
+  // Določimo stanje strani glede na podatke
+  const noAccess = !isLoading && !error && companies.length === 0 && !isSuperAdmin;
+  const hasCompanies = !isLoading && !error && companies.length > 0;
+
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4 py-12">
       <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-neutral-200/50 overflow-hidden">
         <div className="p-6">
           <div className="flex justify-center mb-6">
-            <div className="h-12 w-12 bg-neutral-100 rounded-xl flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-neutral-900" />
+            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${noAccess ? "bg-amber-100" : "bg-neutral-100"}`}>
+              {noAccess
+                ? <Clock className="h-6 w-6 text-amber-600" />
+                : <Building2 className="h-6 w-6 text-neutral-900" />}
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-center text-neutral-900 mb-2">Izberite podjetje</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-center text-neutral-900 mb-2">
+            {noAccess ? "Čakate na dostop" : "Izberite podjetje"}
+          </h1>
           <p className="text-sm text-center text-neutral-500 mb-8">
-            Za nadaljevanje izberite podjetje, s katerim želite delati, ali ustvarite novega.
+            {noAccess
+              ? "Vaš račun je registriran. Administrator sistema vam bo dodelil dostop do podjetja."
+              : hasCompanies
+                ? "Izberite podjetje, s katerim želite delati."
+                : "Za nadaljevanje izberite podjetje, s katerim želite delati."}
           </p>
 
           {isLoading ? (
@@ -91,38 +103,24 @@ export default function CompanySelectPage() {
                 </button>
               ))}
               
-              {companies.length === 0 && !isCreating && (
-                isSuperAdmin ? (
-                  <div className="text-center py-8 space-y-3">
-                    <div className="flex justify-center">
-                      <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
-                        <ShieldCheck className="h-6 w-6 text-violet-700" />
-                      </div>
+              {companies.length === 0 && !isCreating && isSuperAdmin && (
+                <div className="text-center py-8 space-y-3">
+                  <div className="flex justify-center">
+                    <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
+                      <ShieldCheck className="h-6 w-6 text-violet-700" />
                     </div>
-                    <p className="text-sm font-medium text-neutral-900">Super admin</p>
-                    <p className="text-xs text-neutral-500">Odprite administracijo za upravljanje podjetij.</p>
-                    <a
-                      href="/admin"
-                      onClick={(e) => { e.preventDefault(); setLocation("/admin"); }}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      Odpri administracijo
-                    </a>
                   </div>
-                ) : (
-                  <div className="text-center py-10 space-y-3">
-                    <div className="flex justify-center">
-                      <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                        <Clock className="h-6 w-6 text-amber-600" />
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium text-neutral-900">Čakate na dostop</p>
-                    <p className="text-xs text-neutral-500 max-w-xs mx-auto">
-                      Vaš račun je registriran. Administrator sistema vam bo dodelil dostop do podjetja.
-                    </p>
-                  </div>
-                )
+                  <p className="text-sm font-medium text-neutral-900">Super admin</p>
+                  <p className="text-xs text-neutral-500">Odprite administracijo za upravljanje podjetij.</p>
+                  <a
+                    href="/admin"
+                    onClick={(e) => { e.preventDefault(); setLocation("/admin"); }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    Odpri administracijo
+                  </a>
+                </div>
               )}
             </div>
           )}
