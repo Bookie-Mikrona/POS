@@ -19,6 +19,7 @@ import reportsRouter from "./reports";
 import importConfigRouter from "./importConfig";
 import posRouter from "./pos/index";
 import adminRouter from "./admin";
+import superadminRouter from "./superadmin";
 
 const router: IRouter = Router();
 
@@ -41,6 +42,7 @@ router.use(dimensionsRouter);
 router.use(reportsRouter);
 router.use(importConfigRouter);
 router.use("/admin", adminRouter);
+router.use(superadminRouter);
 router.use(posRouter);
 
 export default router;

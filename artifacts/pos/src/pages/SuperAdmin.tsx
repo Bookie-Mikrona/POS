@@ -20,11 +20,14 @@ import TestniZagoniPage from "@/pages/TestniZagoni";
 
 interface PodjetjeUporabnik {
   id: number;
-  username: string;
+  clerkUserId: string;
+  username: string; // ime + priimek ali clerkUserId (za prikaz)
   ime: string | null;
   vloga: string;
   aktiven: boolean;
 }
+
+interface TrrVrstica { iban: string; bic: string; }
 
 interface Podjetje {
   davcnaStevilka: string;
@@ -81,29 +84,35 @@ function NovoPodjetjeDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [davcna, setDavcna] = useState("");
   const [naziv, setNaziv] = useState("");
+  const [kratekNaziv, setKratekNaziv] = useState("");
   const [naslov, setNaslov] = useState("");
-  const [adminUsername, setAdminUsername] = useState("");
-  const [adminGeslo, setAdminGeslo] = useState("");
-  const [adminIme, setAdminIme] = useState("");
+  const [maticnaStevilka, setMaticnaStevilka] = useState("");
+  const [trr, setTrr] = useState<TrrVrstica[]>([]);
   const [loading, setLoading] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupNapaka, setLookupNapaka] = useState("");
   const { toast } = useToast();
 
   const reset = () => {
-    setDavcna(""); setNaziv(""); setNaslov(""); setAdminUsername("");
-    setAdminGeslo(""); setAdminIme(""); setLookupNapaka("");
+    setDavcna(""); setNaziv(""); setKratekNaziv(""); setNaslov("");
+    setMaticnaStevilka(""); setTrr([]); setLookupNapaka("");
   };
 
   const handleDdvLookup = async () => {
-    if (!davcna.trim()) return;
+    const d = davcna.replace(/^SI/i, "").trim();
+    if (!/^\d{8}$/.test(d)) return;
     setLookupLoading(true);
     setLookupNapaka("");
     try {
-      const data = await apiFetch(`/api/superadmin/ddv-lookup?davcna=${encodeURIComponent(davcna.trim())}`);
-      const r = data as { naziv?: string; naslov?: string };
+      const r = await apiFetch(`/api/superadmin/ddv-lookup?davcna=${encodeURIComponent(d)}`) as {
+        naziv?: string; kratekNaziv?: string | null; naslov?: string;
+        maticnaStevilka?: string | null; trr?: TrrVrstica[];
+      };
       if (r.naziv) setNaziv(r.naziv);
+      if (r.kratekNaziv) setKratekNaziv(r.kratekNaziv);
       if (r.naslov) setNaslov(r.naslov);
+      if (r.maticnaStevilka) setMaticnaStevilka(r.maticnaStevilka);
+      if (r.trr?.length) setTrr(r.trr);
     } catch (err) {
       setLookupNapaka(err instanceof Error ? err.message : "Iskanje ni uspelo");
     } finally {
@@ -117,7 +126,7 @@ function NovoPodjetjeDialog({ onCreated }: { onCreated: () => void }) {
     try {
       await apiFetch("/api/superadmin/podjetja", {
         method: "POST",
-        body: JSON.stringify({ davcna, naziv, naslov, adminUsername, adminGeslo, adminIme }),
+        body: JSON.stringify({ davcna, naziv, kratekNaziv: kratekNaziv || undefined, naslov: naslov || undefined, maticnaStevilka: maticnaStevilka || undefined, trr: trr.length ? trr : undefined }),
       });
       toast({ title: "Podjetje ustvarjeno", description: `${naziv || davcna} je bilo dodano.` });
       reset();
@@ -148,8 +157,8 @@ function NovoPodjetjeDialog({ onCreated }: { onCreated: () => void }) {
             <div className="relative">
               <Input
                 value={davcna}
-                onChange={e => { setDavcna(e.target.value); setLookupNapaka(""); setNaziv(""); setNaslov(""); }}
-                onBlur={() => { if (davcna.trim()) void handleDdvLookup(); }}
+                onChange={e => { setDavcna(e.target.value); setLookupNapaka(""); }}
+                onBlur={() => void handleDdvLookup()}
                 placeholder="12345678"
                 required
                 disabled={loading}
@@ -164,30 +173,38 @@ function NovoPodjetjeDialog({ onCreated }: { onCreated: () => void }) {
                 <AlertCircle className="h-3 w-3 shrink-0" />{lookupNapaka}
               </p>
             )}
-            {(naziv || naslov) && (
-              <div className="rounded-md bg-muted px-3 py-2 space-y-0.5">
-                {naziv && <p className="text-sm font-medium">{naziv}</p>}
-                {naslov && <p className="text-sm text-muted-foreground">{naslov}</p>}
-              </div>
-            )}
-          </div>
-          <Separator />
-          <p className="text-sm font-medium text-muted-foreground">Admin račun</p>
-          <div className="space-y-2">
-            <Label>Uporabniško ime *</Label>
-            <Input value={adminUsername} onChange={e => setAdminUsername(e.target.value)} placeholder="admin" required disabled={loading} autoComplete="off" />
           </div>
           <div className="space-y-2">
-            <Label>Geslo *</Label>
-            <Input type="password" value={adminGeslo} onChange={e => setAdminGeslo(e.target.value)} placeholder="vsaj 6 znakov" required disabled={loading} autoComplete="new-password" />
+            <Label>Naziv *</Label>
+            <Input value={naziv} onChange={e => setNaziv(e.target.value)} required disabled={loading} placeholder="Podjetje d.o.o." />
           </div>
           <div className="space-y-2">
-            <Label>Ime in priimek</Label>
-            <Input value={adminIme} onChange={e => setAdminIme(e.target.value)} placeholder="Janez Novak" disabled={loading} autoComplete="off" />
+            <Label>Kratek naziv</Label>
+            <Input value={kratekNaziv} onChange={e => setKratekNaziv(e.target.value)} disabled={loading} placeholder="Podjetje" />
           </div>
+          <div className="space-y-2">
+            <Label>Naslov</Label>
+            <Input value={naslov} onChange={e => setNaslov(e.target.value)} disabled={loading} placeholder="Ulica 1, 1000 Ljubljana" />
+          </div>
+          <div className="space-y-2">
+            <Label>Matična številka</Label>
+            <Input value={maticnaStevilka} onChange={e => setMaticnaStevilka(e.target.value)} disabled={loading} placeholder="1234567000" />
+          </div>
+          {trr.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Bančni računi (TRR)</Label>
+              {trr.map((t, i) => (
+                <div key={i} className="rounded-md bg-muted px-3 py-1.5 text-xs font-mono flex gap-2">
+                  <span className="flex-1">{t.iban}</span>
+                  {t.bic && <span className="text-muted-foreground">{t.bic}</span>}
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">Uvoženo iz registra. Po ustvaritvi urejajte v ERP → Nastavitve.</p>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>Prekliči</Button>
-            <Button type="submit" disabled={loading || !davcna || !adminUsername || !adminGeslo}>
+            <Button type="submit" disabled={loading || !davcna || !naziv}>
               {loading ? "Ustvarjam..." : "Ustvari"}
             </Button>
           </div>
@@ -201,14 +218,13 @@ function NovoPodjetjeDialog({ onCreated }: { onCreated: () => void }) {
 
 function NovUporabnikDialog({ davcna, onCreated }: { davcna: string; onCreated: () => void }) {
   const [open, setOpen] = useState(false);
-  const [username, setUsername] = useState("");
-  const [geslo, setGeslo] = useState("");
+  const [clerkUserId, setClerkUserId] = useState("");
   const [ime, setIme] = useState("");
-  const [vloga, setVloga] = useState("uporabnik");
+  const [vloga, setVloga] = useState("admin");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const reset = () => { setUsername(""); setGeslo(""); setIme(""); setVloga("uporabnik"); };
+  const reset = () => { setClerkUserId(""); setIme(""); setVloga("admin"); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,7 +232,7 @@ function NovUporabnikDialog({ davcna, onCreated }: { davcna: string; onCreated: 
     try {
       await apiFetch(`/api/superadmin/podjetja/${encodeURIComponent(davcna)}/uporabniki`, {
         method: "POST",
-        body: JSON.stringify({ username, geslo, ime, vloga }),
+        body: JSON.stringify({ clerkUserId, ime, vloga }),
       });
       toast({ title: "Uporabnik dodan" });
       reset();
@@ -239,16 +255,17 @@ function NovUporabnikDialog({ davcna, onCreated }: { davcna: string; onCreated: 
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Nov uporabnik</DialogTitle>
+          <DialogTitle>Nov POS uporabnik</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
-            <Label>Uporabniško ime *</Label>
-            <Input value={username} onChange={e => setUsername(e.target.value)} required disabled={loading} />
+            <Label>Clerk user ID *</Label>
+            <Input value={clerkUserId} onChange={e => setClerkUserId(e.target.value)} placeholder="user_2abc…" required disabled={loading} />
+            <p className="text-xs text-muted-foreground">Najdete ga v Clerk Dashboard ali v nastavitvah ERP računa.</p>
           </div>
           <div className="space-y-2">
-            <Label>Geslo *</Label>
-            <Input type="password" value={geslo} onChange={e => setGeslo(e.target.value)} required disabled={loading} />
+            <Label>Ime in priimek</Label>
+            <Input value={ime} onChange={e => setIme(e.target.value)} placeholder="Janez Novak" disabled={loading} />
           </div>
           <div className="space-y-2">
             <Label>Ime in priimek</Label>
@@ -283,7 +300,6 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
   const [ime, setIme] = useState(user.ime ?? "");
   const [vloga, setVloga] = useState(user.vloga);
   const [aktiven, setAktiven] = useState(user.aktiven);
-  const [geslo, setGeslo] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -291,11 +307,9 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
     e.preventDefault();
     setLoading(true);
     try {
-      const body: Record<string, unknown> = { ime, vloga, aktiven };
-      if (geslo) body.geslo = geslo;
       await apiFetch(`/api/superadmin/podjetja/${encodeURIComponent(davcna)}/uporabniki/${user.id}`, {
         method: "PATCH",
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ime, vloga, aktiven }),
       });
       toast({ title: "Uporabnik posodobljen" });
       setOpen(false);
@@ -318,6 +332,7 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
         <DialogHeader>
           <DialogTitle>Uredi: {user.username}</DialogTitle>
         </DialogHeader>
+        <p className="text-xs text-muted-foreground font-mono px-1">{user.clerkUserId}</p>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label>Ime in priimek</Label>
@@ -329,6 +344,7 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="uporabnik">Uporabnik</SelectItem>
+                <SelectItem value="admin_enote">Admin enote</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -343,10 +359,6 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
               className="rounded"
             />
             <Label htmlFor="aktiven">Aktiven</Label>
-          </div>
-          <div className="space-y-2">
-            <Label>Novo geslo (pustite prazno, če ne menjate)</Label>
-            <Input type="password" value={geslo} onChange={e => setGeslo(e.target.value)} disabled={loading} placeholder="vsaj 6 znakov" />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>Prekliči</Button>

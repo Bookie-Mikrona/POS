@@ -488,12 +488,30 @@ router.get("/podjetje/poisci", async (req: Request, res: Response): Promise<void
     const rawNaslov = p.Naslov ?? null;
     const adresni = rawNaslov ? razclenitNaslov(rawNaslov) : { ulica: null, postnaStevilka: null, kraj: null };
 
+    const trrji = (p.TransakcijskiRacuni ?? [])
+      .filter((t: { TRRSurovi?: string; Zaprt?: boolean }) => !t.Zaprt && t.TRRSurovi && /^\d{15}$/.test(t.TRRSurovi ?? ""))
+      .map((t: { TRRSurovi?: string; Banka?: string }) => {
+        const surovi = t.TRRSurovi!;
+        const rearranged = surovi + "281800";
+        const mod = BigInt(rearranged) % 97n;
+        const check = String(98n - mod).padStart(2, "0");
+        const iban = `SI${check}${surovi}`;
+        const BANCNI_BIC: Record<string, string> = {
+          "NLB": "LJBASI2X", "Nova KBM": "KBMASI2X", "SKB": "SKBASI2X",
+          "Addiko": "HAABSI22", "OTP banka": "OTPVSI2X", "UniCredit Banka": "BACXSI22",
+          "Banka Intesa Sanpaolo": "BISISI22", "Gorenjska banka": "GBKPSI2X",
+        };
+        return { iban, bic: (t.Banka && BANCNI_BIC[t.Banka]) ? BANCNI_BIC[t.Banka]! : "" };
+      });
+
     res.json({
       naziv: p.Naziv ?? p.NazivKratek ?? "",
       kratekNaziv: p.NazivKratek ?? null,
       naslov: adresni.ulica ?? rawNaslov ?? null,
-      postnaStevika: adresni.postnaStevilka ?? null, // ohranimo ime iz DB sheme
+      postnaStevika: adresni.postnaStevilka ?? null,
       kraj: adresni.kraj ?? null,
+      maticnaStevilka: (p as { MaticnaStevilka?: string }).MaticnaStevilka ?? null,
+      trr: trrji,
     });
   } catch {
     res.status(502).json({ error: "Napaka pri iskanju v registru." });
