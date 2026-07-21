@@ -324,7 +324,16 @@ export default function Partnerji() {
   const addTrr = () => setForm(f => ({ ...f, trr: [...f.trr, { iban: "", bic: "" }] }));
   const removeTrr = (i: number) => setForm(f => ({ ...f, trr: f.trr.filter((_, idx) => idx !== i) }));
   const setTrr = (i: number, key: "iban" | "bic", val: string) =>
-    setForm(f => { const trr = [...f.trr]; trr[i] = { ...trr[i]!, [key]: val }; return { ...f, trr }; });
+    setForm(f => {
+      const trr = [...f.trr];
+      const vrstica = { ...trr[i]!, [key]: val };
+      // Samodejni BIC za UJP podračune (SI5601... = Banka Slovenije)
+      if (key === "iban" && val.replace(/\s/g, "").toUpperCase().startsWith("SI5601")) {
+        vrstica.bic = "BSLJSI2X";
+      }
+      trr[i] = vrstica;
+      return { ...f, trr };
+    });
 
   async function handlePoisci() {
     const davcna = form.davcnaStevilka.trim();

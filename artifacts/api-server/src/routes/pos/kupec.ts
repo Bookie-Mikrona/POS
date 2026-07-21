@@ -421,8 +421,11 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
     : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
   const eRacunSifraPu = jeVUjp ? (ujpVnosi[0]!.sifraPu || null) : obstojecKupec.eRacunSifraPu ?? null;
-  // BIC je za vse UJP podračune vedno BSLJSI2X (Banka Slovenije)
-  const eRacunBic = jeVUjp ? "BSLJSI2X" : (obstojecKupec.eRacunBic ?? null);
+  // BIC BSLJSI2X velja za UJP podračune, ki se začnejo z SI5601 (Banka Slovenije, šifra banke 01)
+  const ujpIban = jeVUjp ? ujpTrrVIban(ujpVnosi[0]!.trrSt) : null;
+  const eRacunBic = (jeVUjp && ujpIban?.replace(/\s/g, "").toUpperCase().startsWith("SI5601"))
+    ? "BSLJSI2X"
+    : (obstojecKupec.eRacunBic ?? null);
 
   const trrji = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
   const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
@@ -432,7 +435,7 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   // - Če BizBox odgovori: posodobi
   // - Sicer: ohrani obstoječe
   const eRacunPosodobitev =
-    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu, eRacunBic: "BSLJSI2X" }
+    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu, eRacunBic }
     : eReg !== null ? {
         eRacunPrejemnik: eReg.registriran,
         eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
