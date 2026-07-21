@@ -127,15 +127,7 @@ export default function CompanySelectPage() {
             </div>
           )}
 
-          {!isCreating ? (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border-2 border-dashed border-neutral-200 text-sm font-medium text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Dodaj novo podjetje
-            </button>
-          ) : (
+          {isSuperAdmin && (isCreating ? (
             <div className="bg-neutral-50 rounded-lg p-5 border border-neutral-200 mt-4">
               <h3 className="font-medium text-neutral-900 mb-4 flex items-center gap-2">
                 <Plus className="h-4 w-4" />
@@ -198,7 +190,15 @@ export default function CompanySelectPage() {
                 )}
               </form>
             </div>
-          )}
+          ) : (
+            <button
+              onClick={() => setIsCreating(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md border-2 border-dashed border-neutral-200 text-sm font-medium text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Dodaj novo podjetje
+            </button>
+          ))}
         </div>
       </div>
     </div>
