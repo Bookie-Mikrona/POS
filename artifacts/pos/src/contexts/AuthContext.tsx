@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => setPosUser(null))
       .finally(() => setPosLoading(false));
-  }, [clerkLoaded, isSignedIn, getToken, base, clerkUser]);
+  }, [clerkLoaded, isSignedIn, getToken, clerkUser]);
 
   const login = useCallback((u: Uporabnik) => {
     clearNastavitveStorage();

@@ -20,7 +20,7 @@ const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "")
  * Superadmin: določen prek SUPER_ADMIN_IDS env var.
  * Ostali: poiščemo v pos_uporabniki tabeli.
  */
-router.get("/pos/auth/me", async (req: Request, res: Response): Promise<void> => {
+router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
   const { userId: clerkUserId } = getAuth(req);
   if (!clerkUserId) { res.status(401).json({ napaka: "Prijava je obvezna" }); return; }
 

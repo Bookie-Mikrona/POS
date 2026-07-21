@@ -10,7 +10,7 @@
  */
 
 import type { Request, Response, NextFunction } from "express";
-import { requireAuth as clerkRequireAuth } from "@clerk/express";
+import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { enoteTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -29,21 +29,12 @@ export async function requireEnota(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  // 1. Preveri Clerk JWT (isto kot naš ERP requireAuth)
-  const clerkMiddleware = clerkRequireAuth();
-  await new Promise<void>((resolve, reject) => {
-    clerkMiddleware(req, res, (err?: unknown) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  }).catch(() => {
-    if (!res.headersSent) {
-      res.status(401).json({ napaka: "Prijava je obvezna" });
-    }
+  // 1. Preveri Clerk JWT prek globalnega clerkMiddleware (nastavljenega v app.ts)
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ napaka: "Prijava je obvezna" });
     return;
-  });
-
-  if (res.headersSent) return;
+  }
 
   // 2. Pridobi enota_id iz headerja
   const enotaIdRaw = req.headers["x-enota-id"];
@@ -68,7 +59,7 @@ export async function requireEnota(
 
   // 4. Nastavi na zahtevku
   (req as PosRequest).enotaId = enotaId;
-  (req as PosRequest).clerkUserId = (req as any).auth?.userId ?? "";
+  (req as PosRequest).clerkUserId = userId;
 
   next();
 }
