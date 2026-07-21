@@ -8,7 +8,7 @@ import { useUser, useClerk } from "@clerk/react";
 export default function CompanySelectPage() {
   const [, setLocation] = useLocation();
   const { setActiveCompany } = useCompany();
-  const { data, isLoading: companiesLoading, error } = useListCompanies();
+  const { data, isLoading: companiesLoading, isFetching: companiesFetching, error } = useListCompanies();
   const createCompany = useCreateCompany();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -27,8 +27,11 @@ export default function CompanySelectPage() {
 
   const companies = data?.companies ?? [];
 
-  // Počakamo da sta OBA klica zaključena preden določimo stanje
-  const isLoading = companiesLoading || (isLoaded && !!user?.id && meLoading);
+  // Počakamo da sta OBA klica zaključena preden določimo stanje.
+  // Ko dobimo napako a je fetch še v teku, gre za retry — ne prikazujemo napake ampak spinner.
+  // (Tipično takoj po sign-up ko session cookie še ni vzpostavljen, a bo retry uspel.)
+  const isRetrying = !!error && companiesFetching;
+  const isLoading = companiesLoading || isRetrying || (isLoaded && !!user?.id && meLoading);
 
   // Zaznaj POS podjetje po vlogi (role začne z "pos_")
   const isPosOnly = (company: CompanyWithRole) => (company.role as string).startsWith("pos_");
