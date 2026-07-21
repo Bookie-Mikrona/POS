@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   History,
   RefreshCw,
+  Sheet,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   useGetBalanceSheet,
   useGetIncomeStatement,
@@ -1231,6 +1233,77 @@ function TrialBalanceTab() {
     }
   }
 
+  const [xlsxExporting, setXlsxExporting] = useState(false);
+
+  function handleExportXlsx() {
+    if (!data) return;
+    setXlsxExporting(true);
+    try {
+      const companyName = activeCompany?.naziv ?? "";
+
+      // Header rows
+      const headerRows: (string | number)[][] = [
+        [companyName],
+        ["Bruto bilanca (preizkusna bilanca)"],
+        [`Obdobje: ${appliedFrom} – ${appliedTo}`],
+        [],
+        ["Šifra", "Naziv konta", "Tip", "Promet breme", "Promet dobro", "Saldo breme", "Saldo dobro"],
+      ];
+
+      // Data rows — all rows from the full dataset (not filtered)
+      const dataRows: (string | number)[][] = data.rows.map((row) => [
+        row.accountCode,
+        row.accountName,
+        ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType,
+        parseFloat(row.turnoverDebit || "0"),
+        parseFloat(row.turnoverCredit || "0"),
+        parseFloat(row.balanceDebit || "0"),
+        parseFloat(row.balanceCredit || "0"),
+      ]);
+
+      // Totals row
+      const totalDebit = data.rows.reduce((s, r) => s + parseFloat(r.turnoverDebit || "0"), 0);
+      const totalCredit = data.rows.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0);
+      const totalBalDebit = data.rows.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0);
+      const totalBalCredit = data.rows.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
+      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalDebit, totalCredit, totalBalDebit, totalBalCredit];
+
+      const allRows = [...headerRows, ...dataRows, [], totalsRow];
+
+      const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+      // Column widths
+      ws["!cols"] = [
+        { wch: 12 },  // Šifra
+        { wch: 40 },  // Naziv
+        { wch: 14 },  // Tip
+        { wch: 16 },  // Promet breme
+        { wch: 16 },  // Promet dobro
+        { wch: 16 },  // Saldo breme
+        { wch: 16 },  // Saldo dobro
+      ];
+
+      // Number format for numeric columns (D–G, rows starting at data row)
+      const dataStartRow = headerRows.length; // 0-based
+      const numFmt = "#,##0.00";
+      for (let r = dataStartRow; r < dataStartRow + dataRows.length + 2; r++) {
+        for (const col of [3, 4, 5, 6]) {
+          const cellAddr = XLSX.utils.encode_cell({ r, c: col });
+          if (ws[cellAddr] && typeof ws[cellAddr].v === "number") {
+            ws[cellAddr].z = numFmt;
+          }
+        }
+      }
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Bruto bilanca");
+
+      XLSX.writeFile(wb, `bruto-bilanca-${appliedFrom}-${appliedTo}.xlsx`);
+    } finally {
+      setXlsxExporting(false);
+    }
+  }
+
   function handleOpenEmail() {
     setEmailError(null);
     setEmailSuccess(false);
@@ -1341,6 +1414,22 @@ function TrialBalanceTab() {
                 <Download className="h-3 w-3" />
               )}
               PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              disabled={xlsxExporting}
+              onClick={handleExportXlsx}
+              title="Izvozi v Excel"
+            >
+              {xlsxExporting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sheet className="h-3 w-3" />
+              )}
+              Izvozi XLSX
             </Button>
             <Button
               type="button"
