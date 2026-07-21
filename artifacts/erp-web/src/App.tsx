@@ -115,10 +115,14 @@ function SignUpPage() {
 }
 
 function HomeRedirect() {
+  const { isSuperAdmin, isLoading } = useIsSuperAdminState();
+  const { isSignedIn } = useUser();
+  // Počakaj na me query preden preusmerimo — sicer super admin pristane na /dashboard
+  if (isSignedIn && isLoading) return null;
   return (
     <>
       <Show when="signed-in">
-        <Redirect to="/dashboard" />
+        <Redirect to={isSuperAdmin ? "/admin" : "/dashboard"} />
       </Show>
       <Show when="signed-out">
         <LandingPage />
@@ -129,9 +133,15 @@ function HomeRedirect() {
 
 // Super admin hook — reads isSuperAdmin from /api/me response
 function useIsSuperAdmin(): boolean {
+  return useIsSuperAdminState().isSuperAdmin;
+}
+function useIsSuperAdminState(): { isSuperAdmin: boolean; isLoading: boolean } {
   const { user, isLoaded } = useUser();
-  const { data } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
-  return !!(data as any)?.isSuperAdmin;
+  const { data, isLoading } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
+  return {
+    isSuperAdmin: !!(data as any)?.isSuperAdmin,
+    isLoading: !isLoaded || (isLoaded && !!user?.id && isLoading),
+  };
 }
 
 // Hook: pridobi stanje ERP sistema (ali je setup narejen)
@@ -172,6 +182,12 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
     // Setup je narejen — auto-nastavi activeCompany če še ni
     if (!activeCompany && system.company) {
       setActiveCompany(system.company as unknown as Parameters<typeof setActiveCompany>[0]);
+    }
+
+    // Super admin na / ali /dashboard → vedno preusmeri na /admin
+    if (location === "/" || location === "/dashboard") {
+      setLocation("/admin");
+      return;
     }
 
     // Če je prišel na /admin/setup ampak setup je že opravljen → /admin

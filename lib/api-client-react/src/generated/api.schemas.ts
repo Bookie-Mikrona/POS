@@ -3717,6 +3717,8 @@ export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
   accountType: string;
+  openingBalanceDebit: string;
+  openingBalanceCredit: string;
   turnoverDebit: string;
   turnoverCredit: string;
   balanceDebit: string;
