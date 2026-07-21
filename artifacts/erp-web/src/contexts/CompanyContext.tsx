@@ -39,7 +39,18 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const stored = localStorage.getItem(storageKey(userId));
-      setActiveCompanyState(stored ? (JSON.parse(stored) as CompanyWithRole) : null);
+      if (stored) {
+        const parsed = JSON.parse(stored) as CompanyWithRole;
+        // POS podjetja nikoli ne shranjujemo kot activeCompany — to je ERP kontekst
+        if ((parsed.role as string).startsWith("pos_")) {
+          localStorage.removeItem(storageKey(userId));
+          setActiveCompanyState(null);
+        } else {
+          setActiveCompanyState(parsed);
+        }
+      } else {
+        setActiveCompanyState(null);
+      }
     } catch {
       setActiveCompanyState(null);
     }

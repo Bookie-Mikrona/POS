@@ -30,22 +30,15 @@ export default function CompanySelectPage() {
   // Počakamo da sta OBA klica zaključena preden določimo stanje
   const isLoading = companiesLoading || (isLoaded && !!user?.id && meLoading);
 
-  // Zaznaj POS podjetje po vlogi (role začne z "pos_") — ne zanašaj se na posOnly polje
+  // Zaznaj POS podjetje po vlogi (role začne z "pos_")
   const isPosOnly = (company: CompanyWithRole) => (company.role as string).startsWith("pos_");
+  const erpCompanies = companies.filter(c => !isPosOnly(c));
+  const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0;
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
     pos_admin: "POS – Admin podjetja", pos_admin_enote: "POS – Admin enote", pos_uporabnik: "POS – Uporabnik",
   })[role] ?? role;
-
-  // Če ima uporabnik SAMO POS dostop (nič ERP), ga takoj preusmeri na POS app
-  const erpCompanies = companies.filter(c => !isPosOnly(c));
-  React.useEffect(() => {
-    if (isLoading || isSuperAdmin) return;
-    if (companies.length > 0 && erpCompanies.length === 0) {
-      window.location.href = "/pos/";
-    }
-  }, [isLoading, companies.length, erpCompanies.length, isSuperAdmin]);
 
   const handleSelect = (company: CompanyWithRole) => {
     setActiveCompany(company);
@@ -69,6 +62,49 @@ export default function CompanySelectPage() {
   // Določimo stanje strani — šele ko sta OBA zahtevka zaključena
   const noAccess = !isLoading && !error && companies.length === 0 && !isSuperAdmin;
   const hasCompanies = !isLoading && !error && companies.length > 0;
+
+  // POS-only uporabnik: pokaži ločen zaslon (brez auto-redirect, ki bi povzročil zanko)
+  if (posOnlyUser) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4 py-12">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-neutral-200/50 overflow-hidden">
+          <div className="p-6 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-amber-100">
+                <Building2 className="h-6 w-6 text-amber-600" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-2">POS sistem</h1>
+            <p className="text-sm text-neutral-500 mb-6">
+              Vaš dostop je do sistema POS gostinstvo. Kliknite spodaj, da odprete aplikacijo.
+            </p>
+            <div className="space-y-3 mb-6">
+              {companies.map(company => (
+                <button
+                  key={company.id}
+                  onClick={() => { window.location.href = "/pos/"; }}
+                  className="w-full flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors group"
+                >
+                  <div className="text-left">
+                    <div className="font-medium text-neutral-900">{company.naziv}</div>
+                    <div className="text-xs text-neutral-500 mt-0.5">{company.podjetjeDavcna} · {roleLabel(company.role)}</div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-amber-500 shrink-0" />
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-neutral-400 hover:text-neutral-600 flex items-center gap-1.5 mx-auto transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Odjava
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4 py-12">
@@ -106,7 +142,6 @@ export default function CompanySelectPage() {
               {companies.map(company => {
                 const posOnly = isPosOnly(company);
                 if (posOnly) {
-                  // POS-only podjetje — uporabi window.location za polno navigacijo (izogne se wouter intercepciji)
                   return (
                     <button
                       key={company.id}
