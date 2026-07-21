@@ -6,12 +6,16 @@ import {
   AssignRoleBody,
 } from "@workspace/api-zod";
 
+interface TrrEntry { iban: string; bic: string; }
+
 interface UpdateCompanyFields {
   naziv?: string;
   kratekNaziv?: string | null;
   naslov?: string | null;
   postnaStevika?: string | null;
   kraj?: string | null;
+  maticnaStevilka?: string | null;
+  trr?: TrrEntry[] | null;
 }
 
 function parseUpdateCompany(body: unknown): { ok: true; data: UpdateCompanyFields } | { ok: false; error: string } {
@@ -22,10 +26,23 @@ function parseUpdateCompany(body: unknown): { ok: true; data: UpdateCompanyField
     if (typeof b.naziv !== "string" || b.naziv.trim() === "") return { ok: false, error: "naziv mora biti neprazen niz" };
     data.naziv = b.naziv.trim();
   }
-  for (const field of ["kratekNaziv", "naslov", "postnaStevika", "kraj"] as const) {
+  for (const field of ["kratekNaziv", "naslov", "postnaStevika", "kraj", "maticnaStevilka"] as const) {
     if (field in b) {
       if (b[field] !== null && typeof b[field] !== "string") return { ok: false, error: `${field} mora biti niz ali null` };
       data[field] = b[field] as string | null;
+    }
+  }
+  if ("trr" in b) {
+    if (b.trr === null) {
+      data.trr = null;
+    } else if (Array.isArray(b.trr)) {
+      for (const entry of b.trr) {
+        if (typeof entry !== "object" || entry === null || typeof (entry as TrrEntry).iban !== "string" || typeof (entry as TrrEntry).bic !== "string")
+          return { ok: false, error: "trr mora biti seznam objektov {iban, bic}" };
+      }
+      data.trr = b.trr as TrrEntry[];
+    } else {
+      return { ok: false, error: "trr mora biti seznam ali null" };
     }
   }
   return { ok: true, data };

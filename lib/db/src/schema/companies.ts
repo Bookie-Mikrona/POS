@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +18,10 @@ export const companiesTable = pgTable("companies", {
   naslov: text("naslov"),
   postnaStevika: text("postna_stevilka"),
   kraj: text("kraj"),
+  /** Matična številka podjetja */
+  maticnaStevilka: text("maticna_stevilka"),
+  /** Bančni računi (TRR): [{iban, bic}], prvi je privzeti za negotovinsko plačilo */
+  trr: jsonb("trr").$type<Array<{ iban: string; bic: string }>>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

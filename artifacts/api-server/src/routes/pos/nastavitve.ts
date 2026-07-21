@@ -201,6 +201,8 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
       naslov: companiesTable.naslov,
       postnaStevika: companiesTable.postnaStevika,
       kraj: companiesTable.kraj,
+      maticnaStevilka: companiesTable.maticnaStevilka,
+      trr: companiesTable.trr,
     }).from(companiesTable).where(eq(companiesTable.id, enota.companyId));
 
     if (company) {
@@ -218,6 +220,11 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
         const deli = [company.naslov, company.postnaStevika && company.kraj ? `${company.postnaStevika} ${company.kraj}` : (company.kraj ?? "")].filter(Boolean);
         if (deli.length) map["naslovRestavracije"] = deli.join(", ");
       }
+      // Negotovinsko plačilo — iz prvega TRR in matične številke podjetja
+      const prvTrr = company.trr?.[0];
+      if (!map["prodajalecIban"] && prvTrr?.iban) map["prodajalecIban"] = prvTrr.iban;
+      if (!map["prodajalecBic"] && prvTrr?.bic)  map["prodajalecBic"]  = prvTrr.bic;
+      if (!map["racunMaticna"] && company.maticnaStevilka) map["racunMaticna"] = company.maticnaStevilka;
     }
   }
 

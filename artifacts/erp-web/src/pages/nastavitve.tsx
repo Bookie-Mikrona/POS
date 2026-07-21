@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Building2, Users, Save, UserPlus, AlertCircle, CheckCircle2, Loader2, Trash2 } from "lucide-react";
+import { Building2, Users, Save, UserPlus, AlertCircle, CheckCircle2, Loader2, Trash2, Plus, X } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useGetCompany, useGetMe, useAssignRole } from "@workspace/api-client-react";
 import type { CompanyWithRole, RoleAssignment } from "@workspace/api-client-react";
@@ -40,12 +40,16 @@ interface CompanyRoleEntry {
   createdAt: string;
 }
 
+interface TrrEntry { iban: string; bic: string; }
+
 interface UpdateCompanyBody {
   naziv?: string;
   kratekNaziv?: string | null;
   naslov?: string | null;
   postnaStevika?: string | null;
   kraj?: string | null;
+  maticnaStevilka?: string | null;
+  trr?: TrrEntry[] | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,18 +80,23 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
     naslov: "",
     postnaStevika: "",
     kraj: "",
+    maticnaStevilka: "",
   });
+  const [trr, setTrr] = useState<TrrEntry[]>([]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (data) {
+      const d = data as typeof data & { maticnaStevilka?: string | null; trr?: TrrEntry[] | null };
       setForm({
-        naziv: data.naziv ?? "",
-        kratekNaziv: data.kratekNaziv ?? "",
-        naslov: data.naslov ?? "",
-        postnaStevika: data.postnaStevika ?? "",
-        kraj: data.kraj ?? "",
+        naziv: d.naziv ?? "",
+        kratekNaziv: d.kratekNaziv ?? "",
+        naslov: d.naslov ?? "",
+        postnaStevika: d.postnaStevika ?? "",
+        kraj: d.kraj ?? "",
+        maticnaStevilka: d.maticnaStevilka ?? "",
       });
+      setTrr(d.trr ?? []);
     }
   }, [data]);
 
@@ -117,7 +126,19 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
       naslov: form.naslov || null,
       postnaStevika: form.postnaStevika || null,
       kraj: form.kraj || null,
+      maticnaStevilka: form.maticnaStevilka || null,
+      trr: trr.length > 0 ? trr : null,
     });
+  }
+
+  function addTrr() {
+    setTrr(t => [...t, { iban: "", bic: "" }]);
+  }
+  function removeTrr(i: number) {
+    setTrr(t => t.filter((_, idx) => idx !== i));
+  }
+  function updateTrr(i: number, field: keyof TrrEntry, val: string) {
+    setTrr(t => t.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
   }
 
   if (isLoading) {
@@ -197,6 +218,70 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
             placeholder="Ljubljana"
           />
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="maticna">Matična številka</Label>
+        <Input
+          id="maticna"
+          value={form.maticnaStevilka}
+          onChange={(e) => setForm((f) => ({ ...f, maticnaStevilka: e.target.value }))}
+          disabled={!isOwner}
+          placeholder="1234567000"
+        />
+        <p className="text-xs text-muted-foreground">Se samodejno prenese v POS negotovinsko plačilo.</p>
+      </div>
+
+      {/* Bančni računi (TRR) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Bančni računi (TRR)</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Prvi TRR se samodejno prenese v POS kot IBAN/BIC za negotovinsko plačilo.
+            </p>
+          </div>
+          {isOwner && (
+            <Button type="button" variant="outline" size="sm" onClick={addTrr} className="gap-1.5 h-7 text-xs">
+              <Plus className="h-3.5 w-3.5" /> Dodaj TRR
+            </Button>
+          )}
+        </div>
+        {trr.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">Ni dodanih bančnih računov.</p>
+        )}
+        {trr.map((entry, i) => (
+          <div key={i} className="flex gap-2 items-start">
+            <div className="flex-1 space-y-1.5">
+              <Input
+                value={entry.iban}
+                onChange={(e) => updateTrr(i, "iban", e.target.value.toUpperCase())}
+                disabled={!isOwner}
+                placeholder="SI56 1234 5678 9012 345"
+              />
+            </div>
+            <div className="w-36 space-y-1.5">
+              <Input
+                value={entry.bic}
+                onChange={(e) => updateTrr(i, "bic", e.target.value.toUpperCase())}
+                disabled={!isOwner}
+                placeholder="BSLJSI2X"
+              />
+            </div>
+            {isOwner && (
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeTrr(i)}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ))}
+        {trr.length > 0 && (
+          <div className="flex gap-2 px-0.5">
+            <p className="flex-1 text-[10px] text-muted-foreground">IBAN</p>
+            <p className="w-36 text-[10px] text-muted-foreground">BIC / SWIFT</p>
+            {isOwner && <div className="w-9" />}
+          </div>
+        )}
       </div>
 
       {!isOwner && (
