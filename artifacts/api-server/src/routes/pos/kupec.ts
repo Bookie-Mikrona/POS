@@ -3,6 +3,31 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { artikliTable, db, kategorijeTable, partnerCenikiTable, shranjeniKupciTable } from "@workspace/db";
 import { poisciVUjp } from "../ujp";
 
+/**
+ * Pretvori 15-mestno slovensko TRR številko (UJP format) v IBAN.
+ * Če je vrednost že v IBAN formatu (začne s "SI"), jo vrne nespremenjen.
+ * Napačen format vrne izvorno vrednost.
+ */
+function ujpTrrVIban(trrSt: string): string {
+  const cleaned = trrSt.trim();
+  if (/^SI\d{17}$/i.test(cleaned)) return cleaned.toUpperCase(); // že IBAN
+  if (!/^\d{15}$/.test(cleaned)) return cleaned;                 // ne prepoznan format
+  const rearranged = cleaned + "281800";
+  const mod = BigInt(rearranged) % 97n;
+  const check = String(98n - mod).padStart(2, "0");
+  return `SI${check}${cleaned}`;
+}
+
+/**
+ * Normalizira matično številko za primerjavo z UJP bazo.
+ * Inetis vrne matično s trailing ničlami (npr. "5067889000"), UJP hrani 7-mestno ("5067889").
+ */
+function normalizeMaticnaZaUjp(m?: string | null): string | undefined {
+  if (!m) return undefined;
+  const t = m.trim().replace(/0+$/, "");
+  return t.length >= 4 ? t : m.trim();
+}
+
 const router: IRouter = Router();
 
 type TrrPostavka = { iban: string; bic: string };
@@ -371,16 +396,20 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     return;
   }
 
+  const maticnaZaUjp = normalizeMaticnaZaUjp(svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka);
   const [eReg, ujpVnosi] = await Promise.all([
     poisciNaBizBox(davcna, svezi.naziv),
-    poisciVUjp(davcna, svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka ?? undefined),
+    poisciVUjp(davcna, maticnaZaUjp),
   ]);
 
   // UJP ima prednost pred BizBox za javni sektor
   const jeVUjp = ujpVnosi.length > 0;
   const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
   const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? obstojecKupec.eRacunOmrezje ?? null);
-  const eRacunNaslov = jeVUjp ? ujpVnosi[0]!.trrSt : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
+  // trrSt iz UJP je 15-mestna surova TRR — pretvorimo v SI IBAN za shranjevanje
+  const eRacunNaslov = jeVUjp
+    ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
+    : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
 
   const trrji = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
   const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
@@ -439,15 +468,16 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
   // Vzporedno preverimo bizBox eImenik + UJP seznam (eRacunPrejemnik)
   const [eReg, ujpVnosi] = await Promise.all([
     poisciNaBizBox(davcna, r.naziv),
-    poisciVUjp(davcna, r.maticnaStevilka ?? undefined),
+    poisciVUjp(davcna, normalizeMaticnaZaUjp(r.maticnaStevilka)),
   ]);
 
-  // UJP ima prednost pred BizBox za javni sektor — TrrSt je e-naslov za dostavo
+  // UJP ima prednost pred BizBox za javni sektor — trrSt pretvorimo v SI IBAN
   const jeVUjp = ujpVnosi.length > 0;
-  const ujpNaslov = jeVUjp ? ujpVnosi[0]!.trrSt : null;
   const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
   const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? null);
-  const eRacunNaslov = jeVUjp ? ujpNaslov : (eReg?.naslov ?? null);
+  const eRacunNaslov = jeVUjp
+    ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
+    : (eReg?.naslov ?? null);
 
   // Avtomatsko shrani / posodobi v shranjeni_kupci z vsemi INETIS podatki
   const tenotaId = (req as any).enotaId ?? 1;
