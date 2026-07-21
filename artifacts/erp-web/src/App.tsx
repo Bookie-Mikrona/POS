@@ -116,19 +116,19 @@ function SignUpPage() {
 
 function HomeRedirect() {
   const { isSuperAdmin, isLoading } = useIsSuperAdminState();
-  const { isSignedIn } = useUser();
-  // Počakaj na me query preden preusmerimo — sicer super admin pristane na /dashboard
+  const { isSignedIn, isLoaded } = useUser();
+
+  // Clerk se inicializira — prikaži pristajalno stran takoj da ni praznega zaslona
+  if (!isLoaded) return <LandingPage />;
+
+  // Prijavljen — počakaj na /api/me (da super admin ne pristane na /dashboard)
   if (isSignedIn && isLoading) return null;
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to={isSuperAdmin ? "/admin" : "/dashboard"} />
-      </Show>
-      <Show when="signed-out">
-        <LandingPage />
-      </Show>
-    </>
-  );
+
+  // Prijavljen → preusmeri
+  if (isSignedIn) return <Redirect to={isSuperAdmin ? "/admin" : "/dashboard"} />;
+
+  // Odjavljen → pristajalna stran
+  return <LandingPage />;
 }
 
 // Super admin hook — reads isSuperAdmin from /api/me response
