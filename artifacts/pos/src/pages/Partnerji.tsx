@@ -12,6 +12,7 @@ import {
   getListShranjeniKupciQueryKey,
   getGetKupciPogostiQueryKey,
   getGetPartnerCenikQueryKey,
+  getEnotaId,
   type ShranjenKupec,
   type PartnerCenikItem,
 } from "@workspace/api-client-react";
@@ -235,7 +236,11 @@ export default function Partnerji() {
     setHitriNajden(null);
     try {
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcna}`, { credentials: "include" });
+      const enotaId = getEnotaId();
+      const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcna}`, {
+        credentials: "include",
+        headers: enotaId ? { "X-Enota-Id": enotaId } : {},
+      });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json() as InetisRezultat;
       const vrsta = zaznajVrsto(data.naziv, data.zavezanecDdv, data.maticnaStevilka);
@@ -324,7 +329,11 @@ export default function Partnerji() {
     setPoisciLoading(true);
     try {
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcna}`, { credentials: "include" });
+      const enotaId = getEnotaId();
+      const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcna}`, {
+        credentials: "include",
+        headers: enotaId ? { "X-Enota-Id": enotaId } : {},
+      });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json() as InetisRezultat;
       setForm(f => {
