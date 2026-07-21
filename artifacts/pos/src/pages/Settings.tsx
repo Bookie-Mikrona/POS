@@ -1109,7 +1109,12 @@ export default function Settings() {
           queryClient.invalidateQueries({ queryKey: getListPoslovniProstoriQueryKey() });
           setPpRegResult(data as { uspeh: boolean; napaka?: string | null; surovOdgovor?: string });
         },
-        onError: () => setPpRegResult({ uspeh: false, napaka: "Omrežna napaka" }),
+        onError: (err: unknown) => {
+          const sporocilo =
+            (err as { message?: string })?.message ||
+            "Omrežna napaka";
+          setPpRegResult({ uspeh: false, napaka: sporocilo });
+        },
       }
     );
   };
