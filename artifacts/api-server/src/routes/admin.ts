@@ -341,4 +341,66 @@ router.post("/system/setup", async (req: Request, res: Response): Promise<void> 
   res.status(201).json({ ...company, modules, role: "owner" });
 });
 
+// ── Iskanje podjetja po davčni številki (inetis register) ─────────────────────
+
+function razclenitNaslov(naslov: string): { ulica: string | null; postnaStevilka: string | null; kraj: string | null } {
+  const idx = naslov.lastIndexOf(", ");
+  if (idx === -1) return { ulica: naslov.trim() || null, postnaStevilka: null, kraj: null };
+  const ulica = naslov.slice(0, idx).trim();
+  const rest = naslov.slice(idx + 2).trim();
+  const spaceIdx = rest.indexOf(" ");
+  if (spaceIdx === -1) return { ulica: ulica || null, postnaStevilka: rest || null, kraj: null };
+  return {
+    ulica: ulica || null,
+    postnaStevilka: rest.slice(0, spaceIdx),
+    kraj: rest.slice(spaceIdx + 1).trim() || null,
+  };
+}
+
+// GET /admin/podjetje/poisci?davcna=XXXXXXXX
+router.get("/podjetje/poisci", async (req: Request, res: Response): Promise<void> => {
+  const davcna = typeof req.query.davcna === "string" ? req.query.davcna.replace(/^SI/i, "").trim() : "";
+  if (!/^\d{8}$/.test(davcna)) {
+    res.status(400).json({ error: "Davčna številka mora imeti točno 8 številk." });
+    return;
+  }
+
+  try {
+    const r = await fetch(
+      `https://ddv.inetis.com/Ajax.aspx?a=isci&niz=${encodeURIComponent(davcna)}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!r.ok) { res.status(502).json({ error: "Register ni dosegljiv." }); return; }
+
+    const data = await r.json() as {
+      status: string;
+      list: Array<{
+        Naziv?: string;
+        NazivKratek?: string;
+        Naslov?: string;
+        DavcnaStevilkaKratka?: string;
+      }> | null;
+    };
+
+    if (data.status !== "ok" || !data.list?.length) {
+      res.status(404).json({ error: "Podjetje s to davčno številko ni bilo najdeno v registru." });
+      return;
+    }
+
+    const p = data.list[0]!;
+    const rawNaslov = p.Naslov ?? null;
+    const adresni = rawNaslov ? razclenitNaslov(rawNaslov) : { ulica: null, postnaStevilka: null, kraj: null };
+
+    res.json({
+      naziv: p.Naziv ?? p.NazivKratek ?? "",
+      kratekNaziv: p.NazivKratek ?? null,
+      naslov: adresni.ulica ?? rawNaslov ?? null,
+      postnaStevika: adresni.postnaStevilka ?? null, // ohranimo ime iz DB sheme
+      kraj: adresni.kraj ?? null,
+    });
+  } catch {
+    res.status(502).json({ error: "Napaka pri iskanju v registru." });
+  }
+});
+
 export default router;

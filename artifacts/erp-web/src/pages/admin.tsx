@@ -70,9 +70,36 @@ function PodjetjaTab() {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ podjetjeDavcna: "", naziv: "", kratekNaziv: "" });
+  const [createForm, setCreateForm] = useState({ podjetjeDavcna: "", naziv: "", kratekNaziv: "", naslov: "", postnaStevika: "", kraj: "" });
+  const [davcnaLookup, setDavcnaLookup] = useState<"idle" | "loading" | "found" | "error">("idle");
   const [assignForm, setAssignForm] = useState<Record<string, { clerkUserId: string; role: string }>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
+
+  const handleDavcnaChange = async (val: string) => {
+    const cleaned = val.replace(/\D/g, "").slice(0, 8);
+    setCreateForm((f) => ({ ...f, podjetjeDavcna: cleaned }));
+    if (cleaned.length === 8) {
+      setDavcnaLookup("loading");
+      try {
+        const res = await fetch(`/api/admin/podjetje/poisci?davcna=${cleaned}`);
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+        setCreateForm((f) => ({
+          ...f,
+          naziv: d.naziv || f.naziv,
+          kratekNaziv: d.kratekNaziv || f.kratekNaziv,
+          naslov: d.naslov || f.naslov,
+          postnaStevika: d.postnaStevika || f.postnaStevika,
+          kraj: d.kraj || f.kraj,
+        }));
+        setDavcnaLookup("found");
+      } catch {
+        setDavcnaLookup("error");
+      }
+    } else {
+      setDavcnaLookup("idle");
+    }
+  };
 
   const { data: usersData } = useQuery({
     queryKey: ["admin", "users"],
@@ -87,7 +114,7 @@ function PodjetjaTab() {
   const createMutation = useMutation({
     mutationFn: (body: typeof createForm) =>
       apiFetch("/api/admin/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "companies"] }); setShowCreate(false); setCreateForm({ podjetjeDavcna: "", naziv: "", kratekNaziv: "" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "companies"] }); setShowCreate(false); setDavcnaLookup("idle"); setCreateForm({ podjetjeDavcna: "", naziv: "", kratekNaziv: "", naslov: "", postnaStevika: "", kraj: "" }); },
   });
 
   const enableModuleMutation = useMutation({
@@ -141,27 +168,69 @@ function PodjetjaTab() {
         <Card className="border-dashed">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Ustvari novo podjetje</CardTitle>
+            <CardDescription className="text-xs">Vnesite davčno številko — podatki podjetja se samodejno prenesejo iz registra.</CardDescription>
           </CardHeader>
           <CardContent>
             <form
               onSubmit={(e) => { e.preventDefault(); createMutation.mutate(createForm); }}
-              className="flex flex-wrap gap-3 items-end"
+              className="space-y-3"
             >
-              <div className="space-y-1.5 flex-1 min-w-32">
+              {/* Davčna + indikator */}
+              <div className="space-y-1.5">
                 <Label>Davčna številka *</Label>
-                <Input value={createForm.podjetjeDavcna} onChange={(e) => setCreateForm((f) => ({ ...f, podjetjeDavcna: e.target.value }))} placeholder="12345678" required />
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1 max-w-[200px]">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground select-none">SI</span>
+                    <Input
+                      className="pl-8"
+                      value={createForm.podjetjeDavcna}
+                      onChange={(e) => handleDavcnaChange(e.target.value)}
+                      placeholder="12345678"
+                      maxLength={8}
+                      required
+                    />
+                  </div>
+                  {davcnaLookup === "loading" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  {davcnaLookup === "found" && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                  {davcnaLookup === "error" && <span className="text-xs text-amber-600">Ni najdeno — vnesite ročno</span>}
+                </div>
               </div>
-              <div className="space-y-1.5 flex-1 min-w-40">
-                <Label>Naziv *</Label>
-                <Input value={createForm.naziv} onChange={(e) => setCreateForm((f) => ({ ...f, naziv: e.target.value }))} placeholder="Podjetje d.o.o." required />
+
+              {/* Naziv + kratek naziv */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                  <Label>Naziv *</Label>
+                  <Input value={createForm.naziv} onChange={(e) => setCreateForm((f) => ({ ...f, naziv: e.target.value }))} placeholder="Podjetje d.o.o." required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Kratek naziv</Label>
+                  <Input value={createForm.kratekNaziv} onChange={(e) => setCreateForm((f) => ({ ...f, kratekNaziv: e.target.value }))} placeholder="Podjetje" />
+                </div>
               </div>
-              <div className="space-y-1.5 flex-1 min-w-32">
-                <Label>Kratek naziv</Label>
-                <Input value={createForm.kratekNaziv} onChange={(e) => setCreateForm((f) => ({ ...f, kratekNaziv: e.target.value }))} placeholder="Podjetje" />
+
+              {/* Naslov */}
+              <div className="space-y-1.5">
+                <Label>Naslov</Label>
+                <Input value={createForm.naslov} onChange={(e) => setCreateForm((f) => ({ ...f, naslov: e.target.value }))} placeholder="Slovenska cesta 1" />
               </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}><X className="h-4 w-4" /></Button>
-                <Button type="submit" disabled={createMutation.isPending}>
+
+              {/* Poštna + kraj */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Poštna številka</Label>
+                  <Input value={createForm.postnaStevika} onChange={(e) => setCreateForm((f) => ({ ...f, postnaStevika: e.target.value }))} placeholder="1000" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Kraj</Label>
+                  <Input value={createForm.kraj} onChange={(e) => setCreateForm((f) => ({ ...f, kraj: e.target.value }))} placeholder="Ljubljana" />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setDavcnaLookup("idle"); setCreateForm({ podjetjeDavcna: "", naziv: "", kratekNaziv: "", naslov: "", postnaStevika: "", kraj: "" }); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending || davcnaLookup === "loading"}>
                   {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ustvari"}
                 </Button>
               </div>

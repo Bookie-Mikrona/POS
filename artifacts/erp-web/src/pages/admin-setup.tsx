@@ -4,6 +4,8 @@ import { Building2, Loader2, ShieldCheck, AlertCircle, CheckCircle2, ChevronRigh
 import { useQuery } from "@tanstack/react-query";
 import { useCompany } from "@/contexts/CompanyContext";
 
+type DavcnaLookup = "idle" | "loading" | "found" | "error";
+
 interface ExistingCompany {
   id: string;
   naziv: string;
@@ -43,6 +45,33 @@ export default function AdminSetupPage() {
   });
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [davcnaLookup, setDavcnaLookup] = useState<DavcnaLookup>("idle");
+
+  const handleDavcnaChange = async (val: string) => {
+    const cleaned = val.replace(/\D/g, "").slice(0, 8);
+    setForm((f) => ({ ...f, podjetjeDavcna: cleaned }));
+    if (cleaned.length === 8) {
+      setDavcnaLookup("loading");
+      try {
+        const res = await fetch(`/api/admin/podjetje/poisci?davcna=${cleaned}`);
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+        setForm((f) => ({
+          ...f,
+          naziv: d.naziv || f.naziv,
+          kratekNaziv: d.kratekNaziv || f.kratekNaziv,
+          naslov: d.naslov || f.naslov,
+          postnaStevika: d.postnaStevika || f.postnaStevika,
+          kraj: d.kraj || f.kraj,
+        }));
+        setDavcnaLookup("found");
+      } catch {
+        setDavcnaLookup("error");
+      }
+    } else {
+      setDavcnaLookup("idle");
+    }
+  };
 
   // Pridobi obstoječa podjetja v sistemu
   const { data } = useQuery({
@@ -155,18 +184,24 @@ export default function AdminSetupPage() {
                   <label className="block text-xs font-medium text-neutral-700 mb-1">
                     Davčna številka <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 text-sm border border-r-0 border-neutral-200 rounded-l-md bg-neutral-50 text-neutral-500">
-                      SI
-                    </span>
-                    <input
-                      required
-                      type="text"
-                      value={form.podjetjeDavcna}
-                      onChange={set("podjetjeDavcna")}
-                      placeholder="12345678"
-                      className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-r-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                    />
+                  <div className="flex gap-2 items-center">
+                    <div className="flex flex-1">
+                      <span className="inline-flex items-center px-3 text-sm border border-r-0 border-neutral-200 rounded-l-md bg-neutral-50 text-neutral-500">
+                        SI
+                      </span>
+                      <input
+                        required
+                        type="text"
+                        value={form.podjetjeDavcna}
+                        onChange={(e) => handleDavcnaChange(e.target.value)}
+                        placeholder="12345678"
+                        maxLength={8}
+                        className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-r-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      />
+                    </div>
+                    {davcnaLookup === "loading" && <Loader2 className="h-4 w-4 animate-spin text-neutral-400 shrink-0" />}
+                    {davcnaLookup === "found" && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
+                    {davcnaLookup === "error" && <span className="text-xs text-amber-600 shrink-0">Ni najdeno</span>}
                   </div>
                 </div>
 
