@@ -3,7 +3,7 @@ import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from '@clerk/r
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
-import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Shell } from "@/components/layout/Shell";
 import { CompanyProvider, useCompany } from "@/contexts/CompanyContext";
@@ -28,6 +28,7 @@ import Porocila from "@/pages/porocila";
 import PorocilaAnalitika from "@/pages/porocila-dimenzije";
 import Nastavitve from "@/pages/nastavitve";
 import AdminPage from "@/pages/admin";
+import AdminSetupPage from "@/pages/admin-setup";
 import NotFound from "@/pages/not-found";
 import { queryClient } from "@/lib/queryClient";
 
@@ -133,8 +134,55 @@ function useIsSuperAdmin(): boolean {
   return !!(data as any)?.isSuperAdmin;
 }
 
+// Hook: pridobi stanje ERP sistema (ali je setup narejen)
+interface ErpSystem {
+  erpOwnerCompanyId: string | null;
+  company: (Record<string, unknown> & { role: string; modules: string[] }) | null;
+}
+function useErpSystem(enabled: boolean) {
+  const { user } = useUser();
+  return useQuery({
+    queryKey: ["/api/admin/system"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/system");
+      if (!res.ok) throw new Error("Napaka pri preverjanju sistema");
+      return res.json() as Promise<ErpSystem>;
+    },
+    enabled: enabled && !!user?.id,
+    staleTime: 30_000,
+  });
+}
+
+// Super admin guard — ob vsaki navigaciji preveri stanje sistema
+function SuperAdminGuard({ children }: { children: React.ReactNode }) {
+  const [location, setLocation] = useLocation();
+  const isSuperAdmin = useIsSuperAdmin();
+  const { activeCompany, setActiveCompany } = useCompany();
+  const { data: system, isLoading } = useErpSystem(isSuperAdmin);
+
+  useEffect(() => {
+    if (!isSuperAdmin || isLoading || system === undefined) return;
+
+    if (!system.erpOwnerCompanyId) {
+      // Setup še ni narejen → setup stran (razen če že tam)
+      if (location !== "/admin/setup") setLocation("/admin/setup");
+      return;
+    }
+
+    // Setup je narejen — auto-nastavi activeCompany če še ni
+    if (!activeCompany && system.company) {
+      setActiveCompany(system.company as unknown as Parameters<typeof setActiveCompany>[0]);
+    }
+
+    // Če je prišel na /admin/setup ampak setup je že opravljen → /admin
+    if (location === "/admin/setup") setLocation("/admin");
+  }, [isSuperAdmin, isLoading, system, location, activeCompany]);
+
+  return <>{children}</>;
+}
+
 // Protected route wrapper
-function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: { component: any; adminOnly?: boolean; [key: string]: any }) {
+function ProtectedRoute({ component: Component, adminOnly = false, setupPage = false, ...rest }: { component: any; adminOnly?: boolean; setupPage?: boolean; [key: string]: any }) {
   const [location] = useLocation();
   const { activeCompany } = useCompany();
   const isSuperAdmin = useIsSuperAdmin();
@@ -142,8 +190,11 @@ function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: { 
   return (
     <Route {...rest}>
       <Show when="signed-in">
-        {/* Super admin kan /admin brez aktivnega podjetja */}
-        {adminOnly ? (
+        {/* Setup stran — samo super admin, brez Shella */}
+        {setupPage ? (
+          isSuperAdmin ? <Component /> : <Redirect to="/dashboard" />
+        ) : adminOnly ? (
+          /* Admin stran — samo super admin, z Shellom */
           isSuperAdmin ? (
             <Shell>
               <Component />
@@ -222,11 +273,13 @@ function ClerkProviderWithRoutes() {
       <CompanyProvider>
         <QueryClientProvider client={queryClient}>
           <ClerkQueryClientCacheInvalidator />
+          <SuperAdminGuard>
           <Switch>
             <Route path="/" component={HomeRedirect} />
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
             
+            <ProtectedRoute path="/admin/setup" component={AdminSetupPage} setupPage={true} />
             <ProtectedRoute path="/company-select" component={CompanySelectPage} />
             <ProtectedRoute path="/dashboard" component={Dashboard} />
           
@@ -257,6 +310,7 @@ function ClerkProviderWithRoutes() {
 
             <Route component={NotFound} />
           </Switch>
+          </SuperAdminGuard>
         </QueryClientProvider>
       </CompanyProvider>
     </ClerkProvider>

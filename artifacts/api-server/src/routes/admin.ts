@@ -4,7 +4,7 @@
  */
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, desc, and } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable } from "@workspace/db";
+import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { CreateCompanyBody, AssignRoleBody } from "@workspace/api-zod";
@@ -194,6 +194,102 @@ router.delete("/companies/:id/roles/:clerkUserId", async (req: Request, res: Res
     );
 
   res.status(204).send();
+});
+
+// ── Sistemske nastavitve ──────────────────────────────────────────────────────
+
+const ERP_OWNER_KEY = "erp_owner_company_id";
+
+// GET /admin/system — vrne lastnika ERP paketa (ali null če setup še ni narejen)
+router.get("/system", async (_req: Request, res: Response): Promise<void> => {
+  const [setting] = await db
+    .select({ value: systemSettingsTable.value })
+    .from(systemSettingsTable)
+    .where(eq(systemSettingsTable.key, ERP_OWNER_KEY))
+    .limit(1);
+
+  if (!setting) {
+    res.json({ erpOwnerCompanyId: null, company: null });
+    return;
+  }
+
+  const [company] = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, setting.value))
+    .limit(1);
+
+  // Pridobi module za to podjetje
+  const modules = await db
+    .select({ module: companyModulesTable.module })
+    .from(companyModulesTable)
+    .where(eq(companyModulesTable.companyId, setting.value));
+
+  res.json({
+    erpOwnerCompanyId: setting.value,
+    company: company ? { ...company, modules: modules.map(m => m.module), role: "owner" } : null,
+  });
+});
+
+// POST /admin/system/setup — prva nastavitev: ustvari lastnika ERP paketa
+router.post("/system/setup", async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
+
+  // Prepreči ponoven setup
+  const [existing] = await db
+    .select({ value: systemSettingsTable.value })
+    .from(systemSettingsTable)
+    .where(eq(systemSettingsTable.key, ERP_OWNER_KEY))
+    .limit(1);
+
+  if (existing) {
+    res.status(409).json({ error: "Sistem je že nastavljen. ERP lastnik je že določen." });
+    return;
+  }
+
+  const parsed = CreateCompanyBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  // Preveri ali davčna že obstaja
+  const [dup] = await db
+    .select({ id: companiesTable.id })
+    .from(companiesTable)
+    .where(eq(companiesTable.podjetjeDavcna, parsed.data.podjetjeDavcna))
+    .limit(1);
+
+  if (dup) {
+    res.status(409).json({ error: "Podjetje s to davčno številko že obstaja." });
+    return;
+  }
+
+  // Ustvari podjetje
+  const [company] = await db
+    .insert(companiesTable)
+    .values(parsed.data)
+    .returning();
+
+  // Dodeli super adminu vlogo lastnika
+  await db
+    .insert(accountingRolesTable)
+    .values({ clerkUserId: authReq.clerkUserId, companyId: company.id, role: "owner" })
+    .onConflictDoNothing();
+
+  // Aktiviraj ERP modul
+  await db
+    .insert(companyModulesTable)
+    .values({ companyId: company.id, module: "erp", enabledBy: authReq.clerkUserId })
+    .onConflictDoNothing();
+
+  // Shrani nastavitev
+  await db
+    .insert(systemSettingsTable)
+    .values({ key: ERP_OWNER_KEY, value: company.id });
+
+  const modules = ["erp"];
+  res.status(201).json({ ...company, modules, role: "owner" });
 });
 
 export default router;
