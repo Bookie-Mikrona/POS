@@ -162,7 +162,12 @@ function toResponse(map: Record<string, string>) {
     racunDdvKlavzula:           map["racunDdvKlavzula"]      ?? "",
     racunZbirnaKlavzula:        (map["racunZbirnaKlavzula"]  ?? "false") === "true",
     racunPravnaKlavzula:        map["racunPravnaKlavzula"]   ?? "",
-    agentTiskalnikToken:        map["agentTiskalnikToken"]   ?? ""};
+    agentTiskalnikToken:        map["agentTiskalnikToken"]   ?? "",
+    podjetjeTrr: (() => {
+      try { return JSON.parse(map["__podjetjeTrr"] ?? "[]") as Array<{ iban: string; bic: string }>; }
+      catch { return [] as Array<{ iban: string; bic: string }>; }
+    })(),
+  };
 }
 
 router.get("/nastavitve/ddv-stopnje", async (_req, res): Promise<void> => {
@@ -220,11 +225,13 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
         const deli = [company.naslov, company.postnaStevika && company.kraj ? `${company.postnaStevika} ${company.kraj}` : (company.kraj ?? "")].filter(Boolean);
         if (deli.length) map["naslovRestavracije"] = deli.join(", ");
       }
-      // Negotovinsko plačilo — iz prvega TRR in matične številke podjetja
+      // Negotovinsko plačilo — iz prvega TRR in matične številke podjetja (samo če je prazno)
       const prvTrr = company.trr?.[0];
       if (!map["prodajalecIban"] && prvTrr?.iban) map["prodajalecIban"] = prvTrr.iban;
       if (!map["prodajalecBic"] && prvTrr?.bic)  map["prodajalecBic"]  = prvTrr.bic;
       if (!map["racunMaticna"] && company.maticnaStevilka) map["racunMaticna"] = company.maticnaStevilka;
+      // Shrani vse TRR-je podjetja za prikaz v selektorju
+      if (company.trr?.length) map["__podjetjeTrr"] = JSON.stringify(company.trr);
     }
   }
 

@@ -532,6 +532,7 @@ export default function Settings() {
   const [grupiranjeNacinShranjujem, setGrupiranjeNacinShranjujem] = useState(false);
   const [agentTiskalnikIme, setAgentTiskalnikIme] = useState("");
   const [tiskalnikSirina, setTiskalnikSirina] = useState<58 | 80>(58);
+  const [podjetjeTrr, setPodjetjeTrr] = useState<Array<{ iban: string; bic: string }>>([]);
   const [prodajalecIban, setProdajalecIban] = useState("");
   const [prodajalecBic, setProdajalecBic] = useState("");
   const [racunMaticna, setRacunMaticna] = useState("");
@@ -702,6 +703,7 @@ export default function Settings() {
       const fn = ((nastavitve as Nastavitve & { fursNacin?: string }).fursNacin ?? "simulacija") as "simulacija" | "testno" | "produkcija";
       setFursNacin(fn);
       setPpFursNacin(fn);
+      setPodjetjeTrr((nastavitve as Nastavitve & { podjetjeTrr?: Array<{ iban: string; bic: string }> }).podjetjeTrr ?? []);
       setProdajalecIban((nastavitve as Nastavitve & { prodajalecIban?: string }).prodajalecIban ?? "");
       setProdajalecBic((nastavitve as Nastavitve & { prodajalecBic?: string }).prodajalecBic ?? "");
       setRacunMaticna((nastavitve as Nastavitve & { racunMaticna?: string }).racunMaticna ?? "");
@@ -3043,6 +3045,34 @@ export default function Settings() {
 
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Negotovinsko plačilo (TRR)</p>
               <p className="text-xs text-muted-foreground">Podatki se prikažejo na računu, ko je izbrano plačilo na TRR. Kupec mora biti vnesen.</p>
+              {podjetjeTrr.length > 1 && (
+                <div className="space-y-2">
+                  <Label>Račun za prejemanje nakazil</Label>
+                  <Select
+                    value={prodajalecIban}
+                    onValueChange={val => {
+                      const izbran = podjetjeTrr.find(t => t.iban === val);
+                      if (izbran) {
+                        setProdajalecIban(izbran.iban);
+                        setProdajalecBic(izbran.bic);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Izberite TRR..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {podjetjeTrr.map((t, i) => (
+                        <SelectItem key={i} value={t.iban}>
+                          <span className="font-mono text-xs">{t.iban}</span>
+                          {t.bic && <span className="text-muted-foreground ml-2 text-xs">{t.bic}</span>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Izbira samodejno izpolni IBAN in BIC spodaj.</p>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>IBAN prodajalca</Label>
