@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const STORAGE_KEY = "pos_active_blagajna_id";
+export const BLAGAJNA_STORAGE_KEY = "pos_active_blagajna_id";
 
 interface BlagajnaCtx {
   activeBlagajnaId: number | null;
@@ -15,15 +15,16 @@ export function BlagajnaProvider({ children }: { children: ReactNode }) {
   const jeUporabnik = user?.vloga === "uporabnik";
 
   const [localBlagajnaId, setLocalBlagajnaIdState] = useState<number | null>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? parseInt(stored) : null;
+    const stored = localStorage.getItem(BLAGAJNA_STORAGE_KEY);
+    const parsed = stored ? parseInt(stored, 10) : NaN;
+    return !isNaN(parsed) ? parsed : null;
   });
 
   const setActiveBlagajnaId = (id: number | null) => {
     if (jeUporabnik) return;
     setLocalBlagajnaIdState(id);
-    if (id !== null) localStorage.setItem(STORAGE_KEY, String(id));
-    else localStorage.removeItem(STORAGE_KEY);
+    if (id !== null) localStorage.setItem(BLAGAJNA_STORAGE_KEY, String(id));
+    else localStorage.removeItem(BLAGAJNA_STORAGE_KEY);
   };
 
   const activeBlagajnaId = jeUporabnik ? (user?.blagajnaId ?? null) : localBlagajnaId;

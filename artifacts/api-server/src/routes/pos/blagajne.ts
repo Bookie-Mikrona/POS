@@ -1,12 +1,38 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, sql } from "drizzle-orm";
-import { blagajneTable, db } from "@workspace/db";
-import { requireEnota } from "../../middlewares/pos";
+import { and, eq, isNotNull } from "drizzle-orm";
+import { blagajneTable, poslovniProstoriTable, db } from "@workspace/db";
+import { requireEnota, type PosRequest } from "../../middlewares/pos";
 
 const router: IRouter = Router();
 
-router.get("/blagajne", async (req, res): Promise<void> => {
-  const rows = await db.select().from(blagajneTable).where(sql`true`);
+/**
+ * GET /blagajne
+ * Vrne samo blagajne za trenutno enoto (X-Enota-Id), katerih poslovni prostor
+ * je registriran na FURS (zadnjaRegistracija IS NOT NULL) in aktiven.
+ */
+router.get("/blagajne", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as PosRequest).enotaId;
+  const rows = await db
+    .select({
+      id: blagajneTable.id,
+      enotaId: blagajneTable.enotaId,
+      ppId: blagajneTable.ppId,
+      bId: blagajneTable.bId,
+      ime: blagajneTable.ime,
+      aktivna: blagajneTable.aktivna,
+      ustvarjeno: blagajneTable.ustvarjeno,
+    })
+    .from(blagajneTable)
+    .innerJoin(
+      poslovniProstoriTable,
+      and(
+        eq(poslovniProstoriTable.prostorId, blagajneTable.ppId),
+        eq(poslovniProstoriTable.enotaId, blagajneTable.enotaId),
+        isNotNull(poslovniProstoriTable.zadnjaRegistracija),
+        eq(poslovniProstoriTable.aktiven, true),
+      ),
+    )
+    .where(eq(blagajneTable.enotaId, enotaId));
   res.json(rows);
 });
 
