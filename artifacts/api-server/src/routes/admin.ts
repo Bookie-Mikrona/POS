@@ -267,29 +267,45 @@ router.post("/system/setup", async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const parsed = CreateCompanyBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
+  // Če obstaja `companyId` v body → použij obstoječe podjetje direktno
+  const existingId = (req.body as { companyId?: string }).companyId;
+  let company: typeof companiesTable.$inferSelect;
+
+  if (existingId) {
+    const [found] = await db
+      .select()
+      .from(companiesTable)
+      .where(eq(companiesTable.id, existingId))
+      .limit(1);
+    if (!found) {
+      res.status(404).json({ error: "Podjetje ne obstaja." });
+      return;
+    }
+    company = found;
+  } else {
+    const parsed2 = CreateCompanyBody.safeParse(req.body);
+    if (!parsed2.success) {
+      res.status(400).json({ error: parsed2.error.message });
+      return;
+    }
+
+    // Preveri ali davčna že obstaja — če da, použij obstoječe
+    const [dup] = await db
+      .select()
+      .from(companiesTable)
+      .where(eq(companiesTable.podjetjeDavcna, parsed2.data.podjetjeDavcna))
+      .limit(1);
+
+    if (dup) {
+      company = dup;
+    } else {
+      const [created] = await db
+        .insert(companiesTable)
+        .values(parsed2.data)
+        .returning();
+      company = created;
+    }
   }
-
-  // Preveri ali davčna že obstaja
-  const [dup] = await db
-    .select({ id: companiesTable.id })
-    .from(companiesTable)
-    .where(eq(companiesTable.podjetjeDavcna, parsed.data.podjetjeDavcna))
-    .limit(1);
-
-  if (dup) {
-    res.status(409).json({ error: "Podjetje s to davčno številko že obstaja." });
-    return;
-  }
-
-  // Ustvari podjetje
-  const [company] = await db
-    .insert(companiesTable)
-    .values(parsed.data)
-    .returning();
 
   // Dodeli super adminu vlogo lastnika
   await db
