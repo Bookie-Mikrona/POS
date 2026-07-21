@@ -24,6 +24,7 @@ export const shranjeniKupciTable = pgTable("shranjeni_kupci", {
   eRacunEmail: text("e_racun_email"),
   eRacunNaslov: text("e_racun_naslov"),
   eRacunSifraPu: text("e_racun_sifra_pu"),
+  eRacunBic: text("e_racun_bic"),
   email: text("email"),
   telefon: text("telefon"),
   steviloUpor: integer("stevilo_upor").notNull().default(1),

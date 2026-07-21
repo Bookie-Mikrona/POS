@@ -105,6 +105,7 @@ function mapKupec(k: typeof shranjeniKupciTable.$inferSelect) {
     eRacunEmail: k.eRacunEmail ?? null,
     eRacunNaslov: k.eRacunNaslov ?? null,
     eRacunSifraPu: k.eRacunSifraPu ?? null,
+    eRacunBic: k.eRacunBic ?? null,
     email: k.email ?? null,
     telefon: k.telefon ?? null,
     steviloUpor: k.steviloUpor,
@@ -296,6 +297,7 @@ router.post("/kupec/shranjeni", async (req, res): Promise<void> => {
       eRacunNaslov: d.eRacunNaslov ?? null,
       eRacunEmail: d.eRacunEmail ?? null,
       eRacunSifraPu: d.eRacunSifraPu ?? null,
+      eRacunBic: d.eRacunBic ?? null,
       email: d.email ?? null,
       telefon: d.telefon ?? null,
       steviloUpor: 1,
@@ -338,6 +340,7 @@ router.put("/kupec/shranjeni/:id", async (req, res): Promise<void> => {
       eRacunNaslov: d.eRacunNaslov ?? null,
       eRacunEmail: d.eRacunEmail ?? null,
       eRacunSifraPu: d.eRacunSifraPu ?? null,
+      eRacunBic: d.eRacunBic ?? null,
       email: d.email ?? null,
       telefon: d.telefon ?? null})
     .where(and(
@@ -418,6 +421,8 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
     : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
   const eRacunSifraPu = jeVUjp ? (ujpVnosi[0]!.sifraPu || null) : obstojecKupec.eRacunSifraPu ?? null;
+  // BIC je za vse UJP podračune vedno BSLJSI2X (Banka Slovenije)
+  const eRacunBic = jeVUjp ? "BSLJSI2X" : (obstojecKupec.eRacunBic ?? null);
 
   const trrji = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
   const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
@@ -427,7 +432,7 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   // - Če BizBox odgovori: posodobi
   // - Sicer: ohrani obstoječe
   const eRacunPosodobitev =
-    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu }
+    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu, eRacunBic: "BSLJSI2X" }
     : eReg !== null ? {
         eRacunPrejemnik: eReg.registriran,
         eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
@@ -521,7 +526,8 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
             eRacunPrejemnik,
             eRacunOmrezje,
             ...(eRacunNaslov ? { eRacunNaslov } : {}),
-            ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
+            ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {}),
+            ...(jeVUjp ? { eRacunBic: "BSLJSI2X" } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
       } else {
         const [inserted] = await db.insert(shranjeniKupciTable).values({
           enotaId: tenotaId,
@@ -543,7 +549,8 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
             eRacunPrejemnik,
             eRacunOmrezje,
             ...(eRacunNaslov ? { eRacunNaslov } : {}),
-            ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
+            ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {}),
+            ...(jeVUjp ? { eRacunBic: "BSLJSI2X" } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
         shranjeniId = inserted?.id ?? null;
       }
     } catch {
@@ -559,6 +566,7 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
     eRacunOmrezje,
     eRacunNaslov,
     eRacunSifraPu: eRacunSifraPuIzPoisci,
+    eRacunBic: jeVUjp ? "BSLJSI2X" : null,
     ujpVnosi: jeVUjp ? ujpVnosi : undefined,
   });
 });
