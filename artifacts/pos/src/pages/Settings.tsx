@@ -514,6 +514,9 @@ export default function Settings() {
   const [paytenAndroidPackageName, setPaytenAndroidPackageName] = useState("com.payten.mpos");
   const [nazivRestavracije, setNazivRestavracije] = useState("");
   const [naslovRestavracije, setNaslovRestavracije] = useState("");
+  const [naslovUlica, setNaslovUlica] = useState("");
+  const [naslovPostna, setNaslovPostna] = useState("");
+  const [naslovKraj, setNaslovKraj] = useState("");
   const [davcnaStevilka, setDavcnaStevilka] = useState("");
   const [poslovniProstor, setPoslovniProstor] = useState("PP001");
   const [elektronskaNaprava, setElektronskaNaprava] = useState("B001");
@@ -682,6 +685,9 @@ export default function Settings() {
     if (nastavitve) {
       setNazivRestavracije(nastavitve.nazivRestavracije ?? "");
       setNaslovRestavracije(nastavitve.naslovRestavracije ?? "");
+      setNaslovUlica((nastavitve as any).naslovUlica ?? "");
+      setNaslovPostna((nastavitve as any).naslovPostna ?? "");
+      setNaslovKraj((nastavitve as any).naslovKraj ?? "");
       setDavcnaStevilka(nastavitve.davcnaStevilka ?? "");
       setPoslovniProstor(nastavitve.poslovniProstor ?? "PP001");
       setElektronskaNaprava(nastavitve.elektronskaNaprava ?? "B001");
@@ -1167,6 +1173,7 @@ export default function Settings() {
     const body: Nastavitve = {
       nazivRestavracije,
       naslovRestavracije,
+      ...(naslovUlica || naslovPostna || naslovKraj ? { naslovUlica, naslovPostna, naslovKraj } as any : {}),
       davcnaStevilka,
       poslovniProstor,
       elektronskaNaprava,
@@ -2800,19 +2807,52 @@ export default function Settings() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Naziv restavracije</Label>
+                  <Label>Naziv podjetja</Label>
                   <Input
-                    placeholder="Restavracija pri Janezu"
+                    placeholder="Restavracija pri Janezu d.o.o."
                     value={nazivRestavracije}
                     onChange={e => setNazivRestavracije(e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Naslov</Label>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Ulica in hišna številka</Label>
                   <Input
-                    placeholder="Slovenska ulica 1, 1000 Ljubljana"
-                    value={naslovRestavracije}
-                    onChange={e => setNaslovRestavracije(e.target.value)}
+                    placeholder="Slovenska cesta 1"
+                    value={naslovUlica}
+                    onChange={e => {
+                      setNaslovUlica(e.target.value);
+                      // Posodobi tudi sestavljeni naslov za nazaj-kompatibilnost
+                      const deli = [e.target.value, naslovPostna && naslovKraj ? `${naslovPostna} ${naslovKraj}` : naslovKraj].filter(Boolean);
+                      setNaslovRestavracije(deli.join(", "));
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Poštna številka</Label>
+                  <Input
+                    placeholder="1000"
+                    value={naslovPostna}
+                    onChange={e => {
+                      setNaslovPostna(e.target.value);
+                      const deli = [naslovUlica, e.target.value && naslovKraj ? `${e.target.value} ${naslovKraj}` : naslovKraj].filter(Boolean);
+                      setNaslovRestavracije(deli.join(", "));
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Kraj</Label>
+                  <Input
+                    placeholder="Ljubljana"
+                    value={naslovKraj}
+                    onChange={e => {
+                      setNaslovKraj(e.target.value);
+                      const deli = [naslovUlica, naslovPostna && e.target.value ? `${naslovPostna} ${e.target.value}` : e.target.value].filter(Boolean);
+                      setNaslovRestavracije(deli.join(", "));
+                    }}
                   />
                 </div>
               </div>

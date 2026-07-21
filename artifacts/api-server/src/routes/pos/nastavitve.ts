@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, ne } from "drizzle-orm";
-import { db, enoteTable, nastavitveTable } from "@workspace/db";
+import { db, enoteTable, nastavitveTable, companiesTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { fursSOAPEcho } from "../../lib/pos-furs";
 import { randomUUID } from "node:crypto";
@@ -16,6 +16,9 @@ const DEFAULTS: Record<string, string> = {
   naslovRestavracije:  "",
   nazivPodjetja:       "",
   naslovPodjetja:      "",
+  naslovUlica:         "",
+  naslovPostna:        "",
+  naslovKraj:          "",
   davcnaStevilka:      "",
   poslovniProstor:     "PP001",
   elektronskaNaprava:  "B001",
@@ -121,6 +124,9 @@ function toResponse(map: Record<string, string>) {
     naslovRestavracije: map["naslovRestavracije"] ?? DEFAULTS["naslovRestavracije"],
     nazivPodjetja:      map["nazivPodjetja"]      || map["nazivRestavracije"] || DEFAULTS["nazivRestavracije"],
     naslovPodjetja:     map["naslovPodjetja"]     || map["naslovRestavracije"] || DEFAULTS["naslovRestavracije"],
+    naslovUlica:        map["naslovUlica"]        ?? DEFAULTS["naslovUlica"],
+    naslovPostna:       map["naslovPostna"]       ?? DEFAULTS["naslovPostna"],
+    naslovKraj:         map["naslovKraj"]         ?? DEFAULTS["naslovKraj"],
     davcnaStevilka:     map["davcnaStevilka"]     ?? DEFAULTS["davcnaStevilka"],
     poslovniProstor:    map["poslovniProstor"]    ?? DEFAULTS["poslovniProstor"],
     elektronskaNaprava: map["elektronskaNaprava"] ?? DEFAULTS["elektronskaNaprava"],
@@ -183,9 +189,43 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
     map["agentTiskalnikToken"] = token;
   }
 
-  const [enota] = await db.select({ zacetekDnevaUra: enoteTable.zacetekDnevaUra })
+  const [enota] = await db.select({ zacetekDnevaUra: enoteTable.zacetekDnevaUra, companyId: enoteTable.companyId })
     .from(enoteTable)
     .where(and(eq(enoteTable.id, tenotaId)));
+
+  // Samodejno izpolni prazna polja iz podatkov podjetja (pri prvi prijavi admina)
+  if (enota?.companyId) {
+    const [company] = await db.select({
+      naziv: companiesTable.naziv,
+      podjetjeDavcna: companiesTable.podjetjeDavcna,
+      naslov: companiesTable.naslov,
+      postnaStevika: companiesTable.postnaStevika,
+      kraj: companiesTable.kraj,
+    }).from(companiesTable).where(eq(companiesTable.id, enota.companyId));
+
+    if (company) {
+      // Davčna številka — brez predpone SI
+      if (!map["davcnaStevilka"]) map["davcnaStevilka"] = company.podjetjeDavcna.replace(/^SI/i, "");
+      // Naziv podjetja
+      if (!map["nazivRestavracije"]) map["nazivRestavracije"] = company.naziv;
+      if (!map["nazivPodjetja"]) map["nazivPodjetja"] = company.naziv;
+      // Naslov — ločena polja
+      if (!map["naslovUlica"] && company.naslov) map["naslovUlica"] = company.naslov;
+      if (!map["naslovPostna"] && company.postnaStevika) map["naslovPostna"] = company.postnaStevika;
+      if (!map["naslovKraj"] && company.kraj) map["naslovKraj"] = company.kraj;
+      // Sestavljeni naslov za nazaj-kompatibilnost
+      if (!map["naslovRestavracije"]) {
+        const deli = [company.naslov, company.postnaStevika && company.kraj ? `${company.postnaStevika} ${company.kraj}` : (company.kraj ?? "")].filter(Boolean);
+        if (deli.length) map["naslovRestavracije"] = deli.join(", ");
+      }
+    }
+  }
+
+  // Samodejno izpolni davčno ERP ponudnika iz env var
+  if (!map["ponudnikDavcna"] && process.env.ERP_PONUDNIK_DAVCNA) {
+    map["ponudnikDavcna"] = process.env.ERP_PONUDNIK_DAVCNA;
+  }
+
   res.json({ ...(toResponse(map)), zacetekDnevaUra: enota?.zacetekDnevaUra ?? "04:00" });
 });
 
@@ -201,6 +241,9 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
   const updates: Record<string, string> = {
     nazivRestavracije:  parsed.data.nazivRestavracije,
     naslovRestavracije: parsed.data.naslovRestavracije,
+    naslovUlica:        (parsed.data as { naslovUlica?: string }).naslovUlica ?? "",
+    naslovPostna:       (parsed.data as { naslovPostna?: string }).naslovPostna ?? "",
+    naslovKraj:         (parsed.data as { naslovKraj?: string }).naslovKraj ?? "",
     davcnaStevilka:     parsed.data.davcnaStevilka,
     poslovniProstor:    parsed.data.poslovniProstor,
     elektronskaNaprava: parsed.data.elektronskaNaprava,

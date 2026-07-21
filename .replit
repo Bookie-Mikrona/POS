@@ -26,3 +26,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 SUPER_ADMIN_IDS = "user_3GhFXPAlFf51CI7swb8CKrU7Ykb"
+ERP_PONUDNIK_DAVCNA = "84040653"

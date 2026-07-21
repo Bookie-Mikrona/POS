@@ -958,6 +958,12 @@ export interface Nastavitve {
   nazivPodjetja?: string;
   /** Sedež podjetja iz DDV registra (samo za branje) */
   naslovPodjetja?: string;
+  /** Ulica in hišna številka sedeža podjetja */
+  naslovUlica?: string;
+  /** Poštna številka sedeža podjetja */
+  naslovPostna?: string;
+  /** Kraj sedeža podjetja */
+  naslovKraj?: string;
   davcnaStevilka: string;
   /** FURS ID poslovnega prostora (npr. PP001) */
   poslovniProstor: string;
