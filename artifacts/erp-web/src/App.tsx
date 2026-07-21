@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from '@clerk/react';
+import { useEffect, useRef } from "react";
+import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
@@ -101,7 +101,7 @@ const clerkAppearance = {
 function SignInPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={`${basePath}/` || "/"} />
     </div>
   );
 }
@@ -109,7 +109,7 @@ function SignInPage() {
 function SignUpPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={`${basePath}/` || "/"} />
     </div>
   );
 }
@@ -209,37 +209,26 @@ function ProtectedRoute({ component: Component, adminOnly = false, setupPage = f
   const [location] = useLocation();
   const { activeCompany } = useCompany();
   const isSuperAdmin = useIsSuperAdmin();
+  const { isSignedIn, isLoaded } = useUser();
 
   return (
     <Route {...rest}>
-      <Show when="signed-in">
-        {/* Setup stran — samo super admin, brez Shella */}
-        {setupPage ? (
-          isSuperAdmin ? <Component /> : <Redirect to="/dashboard" />
-        ) : adminOnly ? (
-          /* Admin stran — samo super admin, z Shellom */
-          isSuperAdmin ? (
-            <Shell>
-              <Component />
-            </Shell>
-          ) : (
-            <Redirect to="/dashboard" />
-          )
-        ) : activeCompany || location === "/company-select" ? (
-          location === "/company-select" ? (
-            <Component />
-          ) : (
-            <Shell>
-              <Component />
-            </Shell>
-          )
-        ) : (
-          <Redirect to={isSuperAdmin ? "/admin" : "/company-select"} />
-        )}
-      </Show>
-      <Show when="signed-out">
+      {/* Clerk se inicializira — ne prikazuj nič da ni 'flash' napačne vsebine */}
+      {!isLoaded ? (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : !isSignedIn ? (
         <Redirect to="/" />
-      </Show>
+      ) : setupPage ? (
+        isSuperAdmin ? <Component /> : <Redirect to="/dashboard" />
+      ) : adminOnly ? (
+        isSuperAdmin ? <Shell><Component /></Shell> : <Redirect to="/dashboard" />
+      ) : activeCompany || location === "/company-select" ? (
+        location === "/company-select" ? <Component /> : <Shell><Component /></Shell>
+      ) : (
+        <Redirect to={isSuperAdmin ? "/admin" : "/company-select"} />
+      )}
     </Route>
   );
 }
