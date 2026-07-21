@@ -1,17 +1,18 @@
 import React, { useState } from "react";
 import { useLocation } from "wouter";
-import { Building2, Plus, ArrowRight, Loader2, AlertCircle, Clock, ShieldCheck } from "lucide-react";
+import { Building2, Plus, ArrowRight, Loader2, AlertCircle, Clock, ShieldCheck, LogOut } from "lucide-react";
 import { useListCompanies, useCreateCompany, useGetMe, type CompanyWithRole } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useUser } from "@clerk/react";
+import { useUser, useClerk } from "@clerk/react";
 
 export default function CompanySelectPage() {
   const [, setLocation] = useLocation();
   const { setActiveCompany } = useCompany();
-  const { data, isLoading, error } = useListCompanies();
+  const { data, isLoading: companiesLoading, error } = useListCompanies();
   const createCompany = useCreateCompany();
   const { user, isLoaded } = useUser();
-  const { data: me } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
+  const { signOut } = useClerk();
+  const { data: me, isLoading: meLoading } = useGetMe({ query: { enabled: isLoaded && !!user?.id, queryKey: ["/api/me"] } });
   const isSuperAdmin = !!(me as any)?.isSuperAdmin;
 
   const [isCreating, setIsCreating] = useState(false);
@@ -25,6 +26,9 @@ export default function CompanySelectPage() {
   });
 
   const companies = data?.companies ?? [];
+
+  // Počakamo da sta OBA klica zaključena preden določimo stanje
+  const isLoading = companiesLoading || (isLoaded && !!user?.id && meLoading);
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec"
@@ -47,7 +51,9 @@ export default function CompanySelectPage() {
     });
   };
 
-  // Določimo stanje strani glede na podatke
+  const handleSignOut = () => signOut({ redirectUrl: "/" });
+
+  // Določimo stanje strani — šele ko sta OBA zahtevka zaključena
   const noAccess = !isLoading && !error && companies.length === 0 && !isSuperAdmin;
   const hasCompanies = !isLoading && !error && companies.length > 0;
 
@@ -197,6 +203,18 @@ export default function CompanySelectPage() {
               Dodaj novo podjetje
             </button>
           ))}
+
+          {/* Odjava — vedno vidna */}
+          <div className="mt-6 pt-5 border-t border-neutral-100 flex items-center justify-between">
+            <p className="text-xs text-neutral-400 truncate max-w-[60%]">{user?.primaryEmailAddress?.emailAddress}</p>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Odjava
+            </button>
+          </div>
         </div>
       </div>
     </div>
