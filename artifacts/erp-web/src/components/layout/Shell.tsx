@@ -287,6 +287,8 @@ export function Topbar() {
     signOut({ redirectUrl: basePath || "/" });
   };
 
+  const isSuperAdmin = !!(dbUser as unknown as UserProfileExtended)?.isSuperAdmin;
+
   const displayName = dbUser?.firstName 
     ? `${dbUser.firstName} ${dbUser.lastName || ''}`.trim() 
     : user?.primaryEmailAddress?.emailAddress || "Uporabnik";
@@ -294,6 +296,16 @@ export function Topbar() {
   const initials = dbUser?.firstName
     ? `${dbUser.firstName[0]}${dbUser.lastName ? dbUser.lastName[0] : ''}`.toUpperCase()
     : "UR";
+
+  const roleLabel = (role: string) => ({
+    owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec"
+  })[role] ?? role;
+
+  const userSubtitle = isSuperAdmin
+    ? "Super admin"
+    : activeCompany
+      ? roleLabel(activeCompany.role)
+      : null;
 
   return (
     <header className="h-16 border-b border-border bg-card text-card-foreground px-4 flex items-center justify-between shrink-0 sticky top-0 z-10 shadow-sm">
@@ -324,7 +336,9 @@ export function Topbar() {
               </Avatar>
               <div className="flex flex-col items-start hidden sm:flex">
                 <span className="text-sm font-medium leading-none">{displayName}</span>
-                <span className="text-[10px] text-muted-foreground mt-0.5">Računovodja</span>
+                {userSubtitle && (
+                  <span className="text-[10px] text-muted-foreground mt-0.5">{userSubtitle}</span>
+                )}
               </div>
             </button>
           </DropdownMenuTrigger>
