@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
@@ -122,7 +122,14 @@ function HomeRedirect() {
   if (!isLoaded) return <LandingPage />;
 
   // Prijavljen — počakaj na /api/me (da super admin ne pristane na /dashboard)
-  if (isSignedIn && isLoading) return null;
+  if (isSignedIn && isLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <span className="text-sm">Nalaganje…</span>
+      </div>
+    </div>
+  );
 
   // Prijavljen → preusmeri
   if (isSignedIn) return <Redirect to={isSuperAdmin ? "/admin" : "/dashboard"} />;
@@ -269,6 +276,8 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
+      afterSignInUrl={`${basePath}/` || "/"}
+      afterSignUpUrl={`${basePath}/` || "/"}
       localization={{
         signIn: {
           start: {
