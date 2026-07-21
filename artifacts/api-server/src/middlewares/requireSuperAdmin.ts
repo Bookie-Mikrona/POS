@@ -23,6 +23,7 @@ export function requireSuperAdmin(
     .filter(Boolean);
 
   if (!superAdminIds.includes(authReq.clerkUserId)) {
+    req.log?.warn({ clerkUserId: authReq.clerkUserId, superAdminIds }, "requireSuperAdmin: 403 forbidden");
     res.status(403).json({ error: "Dostop samo za administratorje sistema" });
     return;
   }
