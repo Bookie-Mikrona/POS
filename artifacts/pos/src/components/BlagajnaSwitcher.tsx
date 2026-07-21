@@ -30,12 +30,9 @@ export function BlagajnaSwitcher() {
     const veljavna = aktivne.find(b => b.id === activeBlagajnaId);
 
     if (!veljavna) {
-      // Shranjena vrednost ni veljavna (zastarela, druga enota) ali ni nastavljena
       if (aktivne.length === 1) {
-        // Samo ena blagajna → avtomatično nastavi
         setActiveBlagajnaId(aktivne[0].id);
       } else {
-        // Več blagajn in neveljavna vrednost → počisti
         setActiveBlagajnaId(null);
       }
     }
@@ -46,12 +43,25 @@ export function BlagajnaSwitcher() {
   if (!blagajne) return null;
 
   const aktivne = blagajne.filter(b => b.aktivna);
-
-  // Samo ena blagajna → switcher ni potreben (samodejno izbrana)
-  if (aktivne.length <= 1) return null;
+  if (aktivne.length === 0) return null;
 
   const aktivna = aktivne.find(b => b.id === activeBlagajnaId);
 
+  // Samo ena blagajna — prikaži kot statično oznako brez dropdown-a
+  if (aktivne.length <= 1) {
+    const b = aktivne[0];
+    return (
+      <div className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-sidebar-foreground/80 border border-sidebar-border/40">
+        <MonitorCheck className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60" />
+        <span className="flex-1 text-left truncate">
+          <span className="font-mono">{b.ppId}-{b.bId}</span>
+          {b.ime && <span className="text-sidebar-foreground/60 ml-1">{b.ime}</span>}
+        </span>
+      </div>
+    );
+  }
+
+  // Več blagajn — dropdown za izbiro
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
