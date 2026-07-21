@@ -52,8 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [posLoading, setPosLoading] = useState(true);
   const queryClient = useQueryClient();
 
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-
   // Nastavi Clerk token getter za vse API klice prek api-client-react
   useEffect(() => {
     setAuthTokenGetter(async () => {
@@ -67,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getToken]);
 
   // Po Clerk prijavi: pridobi POS vlogo
+  // POMEMBNO: URL mora biti /api/pos/auth/me brez ${BASE_URL} prefiksa.
+  // Replit proxy usmerja /pos/* na POS Vite strežnik — /api/* pa direktno na API strežnik.
   useEffect(() => {
     if (!clerkLoaded) return;
     if (!isSignedIn) { setPosUser(null); setPosLoading(false); return; }
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getToken()
       .then(token => {
         if (!token) return null;
-        return fetch(`${base}/api/pos/auth/me`, {
+        return fetch(`/api/pos/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
       })

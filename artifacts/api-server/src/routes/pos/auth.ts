@@ -3,8 +3,8 @@
  * Zahteva samo Clerk JWT (brez X-Enota-Id), ker je to endpoint za ugotovitev vloge.
  */
 import { Router, type IRouter, type Request, type Response } from "express";
-import { requireAuth as clerkRequireAuth } from "@clerk/express";
-import { and, eq, or, isNull } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
+import { and, eq } from "drizzle-orm";
 import { db, posUporabnikiTable, enoteTable, companiesTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -14,18 +14,14 @@ const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 
-function requireClerkOnly() {
-  return clerkRequireAuth();
-}
-
 /**
  * GET /pos/auth/me
  * Vrne vlogo in podatke trenutno prijavljenega Clerk uporabnika v POS sistemu.
  * Superadmin: določen prek SUPER_ADMIN_IDS env var.
  * Ostali: poiščemo v pos_uporabniki tabeli.
  */
-router.get("/pos/auth/me", requireClerkOnly(), async (req: Request, res: Response): Promise<void> => {
-  const clerkUserId = (req as any).auth?.userId as string | undefined;
+router.get("/pos/auth/me", async (req: Request, res: Response): Promise<void> => {
+  const { userId: clerkUserId } = getAuth(req);
   if (!clerkUserId) { res.status(401).json({ napaka: "Prijava je obvezna" }); return; }
 
   // Superadmin — platformni nivo
