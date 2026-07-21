@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Building2, Users, Plus, ShieldCheck, Loader2, AlertCircle,
-  CheckCircle2, ChevronDown, ChevronRight, Trash2, Package, X,
+  CheckCircle2, ChevronDown, ChevronRight, Trash2, Package, X, TriangleAlert,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,19 @@ function PodjetjaTab() {
     mutationFn: ({ companyId, module }: { companyId: string; module: string }) =>
       apiFetch<void>(`/api/admin/companies/${companyId}/modules/${module}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "companies"] }),
+  });
+
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // companyId za brisanje
+
+  const deleteMutation = useMutation({
+    mutationFn: (companyId: string) =>
+      apiFetch<void>(`/api/admin/companies/${companyId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "companies"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      setDeleteConfirm(null);
+      setExpanded(null);
+    },
   });
 
   const assignRoleMutation = useMutation({
@@ -204,6 +217,40 @@ function PodjetjaTab() {
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* Nevarno območje */}
+                  <div className="pt-2 border-t border-destructive/20">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Nevarno območje</p>
+                    {deleteConfirm === c.id ? (
+                      <div className="flex items-center gap-3 bg-destructive/5 border border-destructive/30 rounded-md px-3 py-2">
+                        <TriangleAlert className="h-4 w-4 text-destructive shrink-0" />
+                        <span className="text-xs text-destructive flex-1">Trajno izbriši podjetje in vse njegove podatke?</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => deleteMutation.mutate(c.id)}
+                        >
+                          {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Izbriši"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setDeleteConfirm(null)}>Prekliči</Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive gap-1.5"
+                        onClick={() => setDeleteConfirm(c.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Izbriši podjetje
+                      </Button>
+                    )}
+                    {deleteMutation.isError && deleteConfirm === null && (
+                      <p className="text-xs text-destructive mt-1">{(deleteMutation.error as Error).message}</p>
+                    )}
                   </div>
 
                   {/* Dodaj dostop */}

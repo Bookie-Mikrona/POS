@@ -85,6 +85,26 @@ router.post("/companies", async (req: Request, res: Response): Promise<void> => 
   res.status(201).json(company);
 });
 
+// DELETE /admin/companies/:id — izbriši podjetje (kaskadno počisti vloge, module)
+router.delete("/companies/:id", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  // Prepreči brisanje ERP lastnika
+  const [ownerSetting] = await db
+    .select({ value: systemSettingsTable.value })
+    .from(systemSettingsTable)
+    .where(eq(systemSettingsTable.key, "erp_owner_company_id"))
+    .limit(1);
+
+  if (ownerSetting?.value === companyId) {
+    res.status(409).json({ error: "Tega podjetja ni mogoče izbrisati — je lastnik ERP paketa." });
+    return;
+  }
+
+  await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
+  res.status(204).send();
+});
+
 // ── Moduli ────────────────────────────────────────────────────────────────────
 
 // POST /admin/companies/:id/modules — aktiviraj modul za podjetje
