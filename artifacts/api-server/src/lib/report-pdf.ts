@@ -192,8 +192,17 @@ function drawTotalRow(state: PdfState, label: string, value: string, cmpValue?: 
     .text(label, MARGIN + 6, state.y + 5, { width: USABLE_W - (cmpValue !== undefined ? 220 : 110) - 12, lineBreak: false });
   const n = parseFloat(value);
   const valueColor = highlight ? (n >= 0 ? COLOR_POSITIVE : COLOR_NEGATIVE) : COLOR_PRIMARY;
+
+  // When highlighted (e.g. net result row), prefix the value with a text-based
+  // trend indicator — replaces SVG icons (TrendingUp/TrendingDown) that cannot
+  // be rendered by html2canvas or within pdfkit's built-in WinAnsi fonts.
+  // Uses plain ASCII "(+)" / "(-)" which renders correctly in all PDF viewers.
+  const displayValue = highlight
+    ? `${n > 0 ? "(+) " : n < 0 ? "(-) " : ""}${fmtNum(value)}`
+    : fmtNum(value);
+
   state.doc.font("Helvetica-Bold").fontSize(9).fillColor(valueColor)
-    .text(fmtNum(value), PAGE_W - MARGIN - (cmpValue !== undefined ? 220 : 110), state.y + 5, { width: 100, align: "right", lineBreak: false });
+    .text(displayValue, PAGE_W - MARGIN - (cmpValue !== undefined ? 220 : 110), state.y + 5, { width: 100, align: "right", lineBreak: false });
   if (cmpValue !== undefined) {
     state.doc.font("Helvetica-Bold").fontSize(9).fillColor(COLOR_MUTED)
       .text(fmtNum(cmpValue), PAGE_W - MARGIN - 110, state.y + 5, { width: 100, align: "right", lineBreak: false });
