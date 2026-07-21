@@ -427,7 +427,14 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     ? "BSLJSI2X"
     : (obstojecKupec.eRacunBic ?? null);
 
-  const trrji = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
+  const surowiTrr = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
+  // Samodejno dopolni BIC za SI5601... podračune (Banka Slovenije = BSLJSI2X)
+  const trrji = surowiTrr
+    ? (surowiTrr as Array<{ iban: string; bic: string }>).map(t =>
+        (!t.bic && t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601"))
+          ? { ...t, bic: "BSLJSI2X" }
+          : t)
+    : surowiTrr;
   const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
 
   // Sestavi posodobitev za e-račun polja:
