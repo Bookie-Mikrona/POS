@@ -363,7 +363,7 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     return;
   }
 
-  // INETIS najprej (dobi naziv), nato bizBox z nazivom (išče po imenu, potrdi z davčno)
+  // INETIS najprej (dobi naziv), nato vzporedno BizBox + UJP
   const svezi = await poisciNaInetis(davcna);
 
   if (!svezi) {
@@ -371,10 +371,31 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     return;
   }
 
-  const eReg = await poisciNaBizBox(davcna, svezi.naziv);
+  const [eReg, ujpVnosi] = await Promise.all([
+    poisciNaBizBox(davcna, svezi.naziv),
+    poisciVUjp(davcna, svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka ?? undefined),
+  ]);
+
+  // UJP ima prednost pred BizBox za javni sektor
+  const jeVUjp = ujpVnosi.length > 0;
+  const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
+  const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? obstojecKupec.eRacunOmrezje ?? null);
+  const eRacunNaslov = jeVUjp ? ujpVnosi[0]!.trrSt : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
 
   const trrji = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
   const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
+
+  // Sestavi posodobitev za e-račun polja:
+  // - Če UJP najden: vedno prepiši (UJP je avtoritativen vir)
+  // - Če BizBox odgovori: posodobi
+  // - Sicer: ohrani obstoječe
+  const eRacunPosodobitev =
+    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov }
+    : eReg !== null ? {
+        eRacunPrejemnik: eReg.registriran,
+        eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
+        ...(eReg.naslov ? { eRacunNaslov: eReg.naslov } : {})}
+    : {};
 
   const [posodobljen] = await db
     .update(shranjeniKupciTable)
@@ -389,13 +410,9 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
       idZaDdv: svezi.idZaDdv ?? obstojecKupec.idZaDdv,
       maticnaStevilka: svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka,
       trr: trrji,
-      // vrstaPartnerja: zaznamo iz naziva; ne prepisujemo z null (ko zaznava ne uspe)
       ...(novaVrsta !== null ? { vrstaPartnerja: novaVrsta } : {}),
-      // eRacunPrejemnik: posodabljamo samo če eRegister odgovori (sicer pustimo obstoječe)
-      ...(eReg !== null ? {
-        eRacunPrejemnik: eReg.registriran,
-        eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
-        ...(eReg.naslov ? { eRacunNaslov: eReg.naslov } : {})} : {})})
+      ...eRacunPosodobitev,
+    })
     .where(and(
       eq(shranjeniKupciTable.id, id),
       sql`true`,
