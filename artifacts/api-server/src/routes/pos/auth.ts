@@ -55,8 +55,8 @@ router.get("/pos/auth/me", requireClerkOnly(), async (req: Request, res: Respons
       ime: posUporabnikiTable.ime,
       priimek: posUporabnikiTable.priimek,
       aktiven: posUporabnikiTable.aktiven,
-      companyIme: companiesTable.name,
-      companyDavcna: companiesTable.taxId,
+      companyIme: companiesTable.naziv,
+      companyDavcna: companiesTable.podjetjeDavcna,
     })
     .from(posUporabnikiTable)
     .innerJoin(companiesTable, eq(posUporabnikiTable.companyId, companiesTable.id))

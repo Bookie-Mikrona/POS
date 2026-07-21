@@ -42,19 +42,26 @@ router.get("/companies", async (_req: Request, res: Response): Promise<void> => 
     })
     .from(companyModulesTable);
 
-  // Pridobi število uporabnikov na podjetje
-  const roles = await db
-    .select({
-      companyId: accountingRolesTable.companyId,
-      clerkUserId: accountingRolesTable.clerkUserId,
-    })
+  // Pridobi število uporabnikov na podjetje (ERP + POS skupaj, brez podvajanja)
+  const erpRoles = await db
+    .select({ companyId: accountingRolesTable.companyId, clerkUserId: accountingRolesTable.clerkUserId })
     .from(accountingRolesTable);
 
-  const companiesWithModules = companies.map((c) => ({
-    ...c,
-    modules: modules.filter((m) => m.companyId === c.id).map((m) => m.module),
-    userCount: roles.filter((r) => r.companyId === c.id).length,
-  }));
+  const posRoles = await db
+    .select({ companyId: posUporabnikiTable.companyId, clerkUserId: posUporabnikiTable.clerkUserId })
+    .from(posUporabnikiTable)
+    .where(eq(posUporabnikiTable.aktiven, true));
+
+  const companiesWithModules = companies.map((c) => {
+    const erpUsers = new Set(erpRoles.filter((r) => r.companyId === c.id).map((r) => r.clerkUserId));
+    const posUsers = new Set(posRoles.filter((r) => r.companyId === c.id).map((r) => r.clerkUserId));
+    const allUsers = new Set([...erpUsers, ...posUsers]);
+    return {
+      ...c,
+      modules: modules.filter((m) => m.companyId === c.id).map((m) => m.module),
+      userCount: allUsers.size,
+    };
+  });
 
   res.json({ companies: companiesWithModules });
 });

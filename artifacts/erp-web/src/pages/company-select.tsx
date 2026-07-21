@@ -31,8 +31,11 @@ export default function CompanySelectPage() {
   const isLoading = companiesLoading || (isLoaded && !!user?.id && meLoading);
 
   const roleLabel = (role: string) => ({
-    owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec"
+    owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
+    pos_admin: "POS – Admin podjetja", pos_admin_enote: "POS – Admin enote", pos_uporabnik: "POS – Uporabnik",
   })[role] ?? role;
+
+  const isPosOnly = (company: CompanyWithRole & { posOnly?: boolean }) => !!(company as any).posOnly;
 
   const handleSelect = (company: CompanyWithRole) => {
     setActiveCompany(company);
@@ -90,24 +93,48 @@ export default function CompanySelectPage() {
             </div>
           ) : (
             <div className="space-y-3 mb-8">
-              {companies.map(company => (
-                <button
-                  key={company.id}
-                  onClick={() => handleSelect(company)}
-                  className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group"
-                >
-                  <div className="flex-1 min-w-0 pr-4">
-                    <h3 className="font-medium text-neutral-900 truncate">{company.naziv}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-neutral-500">SI{company.podjetjeDavcna}</span>
-                      <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
-                        {roleLabel(company.role)}
-                      </span>
+              {companies.map(company => {
+                const posOnly = isPosOnly(company);
+                if (posOnly) {
+                  // POS-only podjetje — gumb odpre POS app
+                  return (
+                    <a
+                      key={company.id}
+                      href="/pos/"
+                      className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50/40 hover:bg-amber-50 transition-colors group"
+                    >
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h3 className="font-medium text-neutral-900 truncate">{company.naziv}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-neutral-500">{company.podjetjeDavcna}</span>
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                            {roleLabel(company.role)}
+                          </span>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </a>
+                  );
+                }
+                return (
+                  <button
+                    key={company.id}
+                    onClick={() => handleSelect(company)}
+                    className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group"
+                  >
+                    <div className="flex-1 min-w-0 pr-4">
+                      <h3 className="font-medium text-neutral-900 truncate">{company.naziv}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-neutral-500">SI{company.podjetjeDavcna}</span>
+                        <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
+                          {roleLabel(company.role)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                </button>
-              ))}
+                    <ArrowRight className="h-5 w-5 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
+                );
+              })}
               
               {companies.length === 0 && !isCreating && isSuperAdmin && (
                 <div className="text-center py-8 space-y-3">

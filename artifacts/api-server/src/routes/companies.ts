@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable } from "@workspace/db";
+import { db, companiesTable, accountingRolesTable, companyModulesTable, posUporabnikiTable } from "@workspace/db";
 import {
   CreateCompanyBody,
   AssignRoleBody,
@@ -34,14 +34,15 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 
 const router: IRouter = Router();
 
-// GET /companies — seznam podjetij prijavljenega uporabnika
+// GET /companies — seznam podjetij prijavljenega uporabnika (ERP + POS)
 router.get(
   "/companies",
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
 
-    const rows = await db
+    // ERP podjetja (accountingRoles)
+    const erpRows = await db
       .select({
         id: companiesTable.id,
         podjetjeDavcna: companiesTable.podjetjeDavcna,
@@ -54,20 +55,39 @@ router.get(
         role: accountingRolesTable.role,
       })
       .from(accountingRolesTable)
-      .innerJoin(
-        companiesTable,
-        eq(companiesTable.id, accountingRolesTable.companyId),
-      )
+      .innerJoin(companiesTable, eq(companiesTable.id, accountingRolesTable.companyId))
       .where(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId))
       .orderBy(companiesTable.naziv);
 
-    // Pridobi aktivne module za vsa podjetja tega uporabnika
-    const companyIds = rows.map((r) => r.id);
-    const moduleRows = companyIds.length
+    // POS podjetja (posUporabniki) — samo tista ki niso že v ERP seznamu
+    const erpIds = new Set(erpRows.map((r) => r.id));
+    const posRows = await db
+      .select({
+        id: companiesTable.id,
+        podjetjeDavcna: companiesTable.podjetjeDavcna,
+        naziv: companiesTable.naziv,
+        kratekNaziv: companiesTable.kratekNaziv,
+        naslov: companiesTable.naslov,
+        postnaStevika: companiesTable.postnaStevika,
+        kraj: companiesTable.kraj,
+        createdAt: companiesTable.createdAt,
+        vloga: posUporabnikiTable.vloga,
+      })
+      .from(posUporabnikiTable)
+      .innerJoin(companiesTable, eq(companiesTable.id, posUporabnikiTable.companyId))
+      .where(and(
+        eq(posUporabnikiTable.clerkUserId, authReq.clerkUserId),
+        eq(posUporabnikiTable.aktiven, true),
+      ))
+      .orderBy(companiesTable.naziv);
+
+    // Združi vse ID-je za module query
+    const allIds = [...new Set([...erpRows.map((r) => r.id), ...posRows.map((r) => r.id)])];
+    const moduleRows = allIds.length
       ? await db
           .select({ companyId: companyModulesTable.companyId, module: companyModulesTable.module })
           .from(companyModulesTable)
-          .where(inArray(companyModulesTable.companyId, companyIds))
+          .where(inArray(companyModulesTable.companyId, allIds))
       : [];
 
     const modulesMap = new Map<string, string[]>();
@@ -76,7 +96,13 @@ router.get(
       modulesMap.get(m.companyId)!.push(m.module);
     }
 
-    const companies = rows.map((r) => ({ ...r, modules: modulesMap.get(r.id) ?? [] }));
+    const companies = [
+      ...erpRows.map((r) => ({ ...r, modules: modulesMap.get(r.id) ?? [], posOnly: false })),
+      // Dodaj POS podjetja ki niso v ERP, z oznako posOnly
+      ...posRows
+        .filter((r) => !erpIds.has(r.id))
+        .map((r) => ({ ...r, role: `pos_${r.vloga}`, modules: modulesMap.get(r.id) ?? [], posOnly: true })),
+    ];
 
     res.json({ companies });
   },
