@@ -2591,6 +2591,12 @@ export interface JournalEntry {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /** Denormalized names of cost centers linked to this entry's lines */
+  costCenterNames?: string[];
+  /** Denormalized names of projects linked to this entry's lines */
+  projectNames?: string[];
+  /** Denormalized names of departments linked to this entry's lines */
+  departmentNames?: string[];
 }
 
 export type JournalEntryWithLines = JournalEntry & {

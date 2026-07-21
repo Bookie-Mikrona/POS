@@ -16,5 +16,6 @@ export * from "./counterparty-account-templates";
 export * from "./company-import-config";
 export * from "./conversations";
 export * from "./messages";
+export * from "./report-exports";
 // ── POS: Gostinstvo ──────────────────────────────────────────────────────────
 export * from "./pos/index";

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   FileText,
   AlertCircle,
@@ -14,6 +14,8 @@ import {
   Send,
   X,
   CheckCircle2,
+  History,
+  RefreshCw,
 } from "lucide-react";
 import {
   useGetBalanceSheet,
@@ -1484,6 +1486,220 @@ function TrialBalanceTab() {
   );
 }
 
+// ── Export history tab ────────────────────────────────────────────────────────
+
+interface ExportRecord {
+  id: string;
+  reportType: "balance-sheet" | "income-statement" | "trial-balance";
+  params: Record<string, string | undefined>;
+  filename: string;
+  exportedBy: string;
+  exportedAt: string;
+  emailSentTo: string | null;
+}
+
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  "balance-sheet": "Bilanca stanja",
+  "income-statement": "Izkaz poslovnega izida",
+  "trial-balance": "Bruto bilanca",
+};
+
+function formatExportParams(params: Record<string, string | undefined>, reportType: string): string {
+  if (reportType === "balance-sheet") {
+    return params.compareAsOf
+      ? `Stanje: ${params.asOf} | Primerjava: ${params.compareAsOf}`
+      : `Stanje na dan: ${params.asOf}`;
+  }
+  if (reportType === "income-statement") {
+    const base = `${params.dateFrom} – ${params.dateTo}`;
+    return params.compareDateFrom
+      ? `${base} | Primerjava: ${params.compareDateFrom} – ${params.compareDateTo}`
+      : base;
+  }
+  if (reportType === "trial-balance") {
+    return `${params.dateFrom} – ${params.dateTo}`;
+  }
+  return JSON.stringify(params);
+}
+
+function ExportHistoryTab() {
+  const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
+
+  const [records, setRecords] = useState<ExportRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  async function fetchHistory() {
+    if (!activeCompany) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${BASE}/api/companies/${activeCompany.id}/reports/export/history`,
+        { headers: { Authorization: `Bearer ${token ?? ""}` } },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setRecords(data.exports ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeCompany) fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompany?.id]);
+
+  async function handleReDownload(record: ExportRecord) {
+    if (!activeCompany) return;
+    setDownloading(record.id);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${BASE}/api/companies/${activeCompany.id}/reports/export/history/${record.id}/download`,
+        { headers: { Authorization: `Bearer ${token ?? ""}` } },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = record.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Napaka pri prenosu: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Vsakič, ko je poročilo izvoženo ali poslano po e-pošti, se vnos zabeleži tukaj.
+          Shranjene PDF-e je mogoče prenesti brez ponovnega generiranja.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 flex-shrink-0"
+          onClick={fetchHistory}
+          disabled={loading}
+        >
+          {loading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          Osveži
+        </Button>
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {loading && records.length === 0 && (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-10 rounded bg-muted animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {!loading && records.length === 0 && !error && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <History className="h-12 w-12 mb-4 opacity-30" />
+          <p className="text-sm">Ni še nobenih izvozov za to podjetje.</p>
+          <p className="text-xs mt-1">Ko boste izvozili ali poslali poročilo, se bo tukaj pojavil vnos.</p>
+        </div>
+      )}
+
+      {records.length > 0 && (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/60 border-b border-border">
+                <th className="text-left px-4 py-2.5 font-semibold text-xs">Datum izvoza</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-xs">Vrsta poročila</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-xs">Parametri</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-xs">Poslano na</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-xs">Prenos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((rec, i) => (
+                <tr
+                  key={rec.id}
+                  className={i % 2 === 0 ? "bg-background hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"}
+                >
+                  <td className="px-4 py-2.5 text-xs tabular-nums whitespace-nowrap text-muted-foreground">
+                    {new Date(rec.exportedAt).toLocaleString("sl-SI", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    <Badge variant="outline" className="text-xs font-normal">
+                      {REPORT_TYPE_LABELS[rec.reportType] ?? rec.reportType}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-xs">
+                    <span className="truncate block">{formatExportParams(rec.params, rec.reportType)}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                    {rec.emailSentTo ?? (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={() => handleReDownload(rec)}
+                      disabled={downloading === rec.id}
+                      title={`Prenesi ${rec.filename}`}
+                    >
+                      {downloading === rec.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      PDF
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page root ─────────────────────────────────────────────────────────────────
 
 export default function Porocila() {
@@ -1502,6 +1718,10 @@ export default function Porocila() {
           <TabsTrigger value="balance-sheet">Bilanca stanja</TabsTrigger>
           <TabsTrigger value="income-statement">Izkaz poslovnega izida</TabsTrigger>
           <TabsTrigger value="trial-balance">Bruto bilanca</TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <History className="h-3.5 w-3.5" />
+            Zgodovina izvozov
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="balance-sheet" className="mt-0">
@@ -1514,6 +1734,10 @@ export default function Porocila() {
 
         <TabsContent value="trial-balance" className="mt-0">
           <TrialBalanceTab />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0">
+          <ExportHistoryTab />
         </TabsContent>
       </Tabs>
 

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, sql, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray, isNotNull, isNull, or, desc } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
@@ -10,6 +10,7 @@ import {
   projectsTable,
   departmentsTable,
   companiesTable,
+  reportExportsTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import {
@@ -1008,6 +1009,31 @@ router.post(
       return;
     }
 
+    // Zabeleži izvoz v revizijsko sled
+    const exportParams: Record<string, string | undefined> = {};
+    if (reportType === "balance-sheet") {
+      exportParams.asOf = asOf;
+      if (compareAsOf) exportParams.compareAsOf = compareAsOf;
+    } else if (reportType === "income-statement") {
+      exportParams.dateFrom = dateFrom;
+      exportParams.dateTo = dateTo;
+      if (compareDateFrom) exportParams.compareDateFrom = compareDateFrom;
+      if (compareDateTo) exportParams.compareDateTo = compareDateTo;
+    } else {
+      exportParams.dateFrom = dateFrom;
+      exportParams.dateTo = dateTo;
+    }
+
+    await db.insert(reportExportsTable).values({
+      companyId,
+      reportType,
+      params: exportParams,
+      filename,
+      exportedBy: authReq.clerkUserId,
+      pdfData: pdfBuffer,
+      emailSentTo: email ?? null,
+    });
+
     // Pošlji po e-pošti ali vrni kot blob
     if (email) {
       const result = await posljiPorociloPdf({
@@ -1028,6 +1054,75 @@ router.post(
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.send(pdfBuffer);
     }
+  },
+);
+
+// ── GET /companies/:companyId/reports/export/history ─────────────────────────
+// Vrne seznam vseh izvozov za podjetje (brez pdfData za hitrost).
+
+router.get(
+  "/companies/:companyId/reports/export/history",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!ok) return;
+
+    const rows = await db
+      .select({
+        id: reportExportsTable.id,
+        reportType: reportExportsTable.reportType,
+        params: reportExportsTable.params,
+        filename: reportExportsTable.filename,
+        exportedBy: reportExportsTable.exportedBy,
+        exportedAt: reportExportsTable.exportedAt,
+        emailSentTo: reportExportsTable.emailSentTo,
+      })
+      .from(reportExportsTable)
+      .where(eq(reportExportsTable.companyId, companyId))
+      .orderBy(desc(reportExportsTable.exportedAt))
+      .limit(200);
+
+    res.json({ exports: rows });
+  },
+);
+
+// ── GET /companies/:companyId/reports/export/history/:id/download ─────────────
+// Vrne shranjeni PDF brez ponovnega generiranja.
+
+router.get(
+  "/companies/:companyId/reports/export/history/:id/download",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const exportId = extractParam(req.params.id);
+    const ok = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!ok) return;
+
+    const [row] = await db
+      .select({
+        filename: reportExportsTable.filename,
+        pdfData: reportExportsTable.pdfData,
+        companyId: reportExportsTable.companyId,
+      })
+      .from(reportExportsTable)
+      .where(eq(reportExportsTable.id, exportId))
+      .limit(1);
+
+    if (!row) {
+      res.status(404).json({ error: "Izvoz ne obstaja." });
+      return;
+    }
+    if (row.companyId !== companyId) {
+      res.status(403).json({ error: "Dostop ni dovoljen." });
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${row.filename}"`);
+    res.send(row.pdfData);
   },
 );
 
