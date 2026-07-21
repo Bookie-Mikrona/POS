@@ -20,6 +20,13 @@ import {
   type JournalEntry,
 } from "@workspace/api-client-react";
 
+// API vrne dimenzijska polja za seznam, ki niso (še) v generiranem tipu
+type JournalEntryWithDims = JournalEntry & {
+  costCenterNames?: string[];
+  projectNames?: string[];
+  departmentNames?: string[];
+};
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -282,7 +289,7 @@ export default function Temeljnice() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map(entry => (
+              {(entries as JournalEntryWithDims[]).map(entry => (
                 <TableRow 
                   key={entry.id} 
                   className="cursor-pointer hover:bg-muted/50 transition-colors"

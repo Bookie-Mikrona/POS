@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { useUser } from "@clerk/react";
 import type { CompanyWithRole } from "@workspace/api-client-react";
 
 interface CompanyContextValue {
@@ -8,18 +9,51 @@ interface CompanyContextValue {
 
 const CompanyContext = createContext<CompanyContextValue | null>(null);
 
+function storageKey(userId: string) {
+  return `erp_active_company_${userId}`;
+}
+
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
-  const [activeCompany, setActiveCompanyState] = useState<CompanyWithRole | null>(() => {
+  const { user, isLoaded } = useUser();
+  const prevUserIdRef = useRef<string | null>(null);
+
+  const [activeCompany, setActiveCompanyState] = useState<CompanyWithRole | null>(null);
+
+  // Ko je Clerk naložen in poznamo userId, naložimo pravo shranjen izbor
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const userId = user?.id ?? null;
+
+    // Če se je uporabnik zamenjal (ali odjavil), počistimo aktivno podjetje
+    if (prevUserIdRef.current !== null && prevUserIdRef.current !== userId) {
+      setActiveCompanyState(null);
+    }
+
+    prevUserIdRef.current = userId;
+
+    if (!userId) {
+      setActiveCompanyState(null);
+      return;
+    }
+
     try {
-      const stored = localStorage.getItem("erp_active_company");
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  });
+      const stored = localStorage.getItem(storageKey(userId));
+      setActiveCompanyState(stored ? (JSON.parse(stored) as CompanyWithRole) : null);
+    } catch {
+      setActiveCompanyState(null);
+    }
+  }, [isLoaded, user?.id]);
 
   const setActiveCompany = (company: CompanyWithRole | null) => {
     setActiveCompanyState(company);
-    if (company) localStorage.setItem("erp_active_company", JSON.stringify(company));
-    else localStorage.removeItem("erp_active_company");
+    const userId = user?.id;
+    if (!userId) return;
+    if (company) {
+      localStorage.setItem(storageKey(userId), JSON.stringify(company));
+    } else {
+      localStorage.removeItem(storageKey(userId));
+    }
   };
 
   return (

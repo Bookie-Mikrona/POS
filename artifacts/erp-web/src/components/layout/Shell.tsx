@@ -89,14 +89,20 @@ function CompanySwitcher() {
   // Ko se seznam podjetij osveži (npr. admin doda modul), posodobi activeCompany
   // da se modules polje ujema s svežimi podatki iz API-ja
   useEffect(() => {
-    if (!activeCompany || companies.length === 0) return;
+    if (!activeCompany) return;
+    // data === undefined pomeni še nalagamo; ne počistimo prezgodaj
+    if (data === undefined) return;
     const fresh = companies.find((c) => c.id === activeCompany.id);
-    if (!fresh) return;
+    if (!fresh) {
+      // Ta uporabnik nima dostopa do shranjenega podjetja → počistimo
+      setActiveCompany(null);
+      return;
+    }
     // Posodobimo samo če se kateri koli ključ razlikuje (plitka primerjava)
     const currentJson = JSON.stringify(activeCompany);
     const freshJson = JSON.stringify(fresh);
     if (currentJson !== freshJson) setActiveCompany(fresh);
-  }, [companies]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec"
@@ -218,6 +224,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
+        {(activeCompany?.role === "owner" || isSuperAdmin) && (
         <SidebarGroup className="mt-6">
           <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-2 px-2">Sistem</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -256,6 +263,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
