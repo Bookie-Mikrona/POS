@@ -72,6 +72,15 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      // Posreduj /pos/api/... → API strežnik na :8080 kot /api/...
+      // Brez tega nginx usmeri /pos/* na POS Vite, ki vrne index.html za vse API klice
+      '/pos/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/pos/, ''),
+      },
+    },
   },
   preview: {
     port,
