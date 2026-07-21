@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, useClerk, useUser, useSignIn, useSignUp } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
@@ -98,18 +98,52 @@ const clerkAppearance = {
   },
 };
 
+function AuthSpinner() {
+  return (
+    <div className="min-h-[100dvh] flex items-center justify-center bg-zinc-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-900 border-t-transparent" />
+    </div>
+  );
+}
+
 function SignInPage() {
+  const { isSignedIn, isLoaded } = useUser();
+  const { signIn, isLoaded: signInLoaded } = useSignIn();
+  const [, setLocation] = useLocation();
+  // Fallback: če Clerk po prijavi ne pokliče routerPush, sami navigiramo
+  useEffect(() => {
+    if (isLoaded && isSignedIn) setLocation("/");
+  }, [isLoaded, isSignedIn, setLocation]);
+  // Pokaži spinner takoj ko je signIn "complete" ali ko je isSignedIn=true —
+  // to prepreči prazen zaslon ki ga Clerk prikaže med tranzicijo stanja
+  const isCompleting =
+    (signInLoaded && signIn?.status === "complete") ||
+    (isLoaded && isSignedIn);
+  if (isCompleting) return <AuthSpinner />;
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={`${basePath}/` || "/"} />
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
     </div>
   );
 }
 
 function SignUpPage() {
+  const { isSignedIn, isLoaded } = useUser();
+  const { signUp, isLoaded: signUpLoaded } = useSignUp();
+  const [, setLocation] = useLocation();
+  // Fallback: če Clerk po registraciji ne pokliče routerPush, sami navigiramo
+  useEffect(() => {
+    if (isLoaded && isSignedIn) setLocation("/");
+  }, [isLoaded, isSignedIn, setLocation]);
+  // Pokaži spinner takoj ko je signUp "complete" ali ko je isSignedIn=true —
+  // to prepreči prazen zaslon ki ga Clerk prikaže med tranzicijo stanja
+  const isCompleting =
+    (signUpLoaded && signUp?.status === "complete") ||
+    (isLoaded && isSignedIn);
+  if (isCompleting) return <AuthSpinner />;
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={`${basePath}/` || "/"} />
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
     </div>
   );
 }
@@ -265,8 +299,6 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
-      afterSignInUrl={`${basePath}/` || "/"}
-      afterSignUpUrl={`${basePath}/` || "/"}
       localization={{
         signIn: {
           start: {
