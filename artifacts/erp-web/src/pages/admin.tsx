@@ -95,7 +95,7 @@ interface Enota {
 
 function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers: AdminUser[] }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ clerkUserId: "", vloga: "uporabnik", enotaId: "" });
+  const [form, setForm] = useState({ clerkUserId: "", vloga: "admin", enotaId: "" });
   const [feedback, setFeedback] = useState<"ok" | "">("");
 
   const { data: posData, isLoading: posLoading } = useQuery({
