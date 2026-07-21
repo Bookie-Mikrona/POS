@@ -32,6 +32,11 @@ interface AdminCompany {
 
 interface AdminUser {
   clerkUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  imageUrl: string;
+  createdAt: string;
   companies: { companyId: string; naziv: string; role: string; createdAt: string }[];
 }
 
@@ -68,6 +73,11 @@ function PodjetjaTab() {
   const [createForm, setCreateForm] = useState({ podjetjeDavcna: "", naziv: "", kratekNaziv: "" });
   const [assignForm, setAssignForm] = useState<Record<string, { clerkUserId: string; role: string }>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
+
+  const { data: usersData } = useQuery({
+    queryKey: ["admin", "users"],
+    queryFn: () => apiFetch<{ users: AdminUser[] }>("/api/admin/users"),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "companies"],
@@ -257,14 +267,24 @@ function PodjetjaTab() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Dodaj dostop</p>
                     <div className="flex flex-wrap gap-2 items-end">
-                      <div className="space-y-1">
-                        <Input
-                          placeholder="Clerk ID (user_…)"
-                          className="h-8 text-xs w-52"
-                          value={assignForm[c.id]?.clerkUserId ?? ""}
-                          onChange={(e) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], clerkUserId: e.target.value } }))}
-                        />
-                      </div>
+                      <Select
+                        value={assignForm[c.id]?.clerkUserId ?? ""}
+                        onValueChange={(v) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], clerkUserId: v } }))}
+                      >
+                        <SelectTrigger className="h-8 w-56 text-xs">
+                          <SelectValue placeholder="Izberi uporabnika…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(usersData?.users ?? []).map((u) => (
+                            <SelectItem key={u.clerkUserId} value={u.clerkUserId}>
+                              <span className="flex flex-col">
+                                <span>{u.firstName || u.lastName ? `${u.firstName} ${u.lastName}`.trim() : u.email}</span>
+                                {(u.firstName || u.lastName) && <span className="text-xs text-muted-foreground">{u.email}</span>}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Select
                         value={assignForm[c.id]?.role ?? "accountant"}
                         onValueChange={(v) => setAssignForm((f) => ({ ...f, [c.id]: { ...f[c.id], role: v } }))}
@@ -315,25 +335,39 @@ function UporabnikiAdminTab() {
         <div className="text-center py-10 text-muted-foreground text-sm">Ni registriranih uporabnikov.</div>
       ) : (
         <div className="divide-y border rounded-lg bg-card">
-          {users.map((u) => (
-            <div key={u.clerkUserId} className="p-4">
-              <p className="text-xs font-mono text-muted-foreground mb-1">{u.clerkUserId}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {u.companies.length === 0 ? (
-                  <span className="text-xs text-amber-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> Brez dostopa — čaka na dodelitev
-                  </span>
-                ) : (
-                  u.companies.map((c) => (
-                    <Badge key={c.companyId} variant="outline" className="text-xs gap-1">
-                      <Building2 className="h-3 w-3" />
-                      {c.naziv} · {ROLE_LABELS[c.role] ?? c.role}
-                    </Badge>
-                  ))
-                )}
+          {users.map((u) => {
+            const displayName = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
+            const hasAccess = u.companies.length > 0;
+            return (
+              <div key={u.clerkUserId} className={`p-4 ${!hasAccess ? "bg-amber-50/50" : ""}`}>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900">{displayName}</p>
+                    {displayName !== u.email && (
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    )}
+                  </div>
+                  {!hasAccess && (
+                    <span className="text-xs text-amber-600 flex items-center gap-1 shrink-0 mt-0.5">
+                      <AlertCircle className="h-3 w-3" /> Čaka na dostop
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {hasAccess ? (
+                    u.companies.map((c) => (
+                      <Badge key={c.companyId} variant="outline" className="text-xs gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {c.naziv} · {ROLE_LABELS[c.role] ?? c.role}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Uporabnik nima dostopa do nobenega podjetja.</p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

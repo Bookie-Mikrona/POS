@@ -8,6 +8,7 @@ import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSe
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { CreateCompanyBody, AssignRoleBody } from "@workspace/api-zod";
+import { clerkClient } from "@clerk/express";
 
 const router: IRouter = Router();
 
@@ -146,27 +147,28 @@ router.delete("/companies/:id/modules/:module", async (req: Request, res: Respon
 
 // ── Uporabniki ────────────────────────────────────────────────────────────────
 
-// GET /admin/users — vsi Clerk user IDji z vlogami (za pregled, kdo ima dostop)
+// GET /admin/users — VSI Clerk uporabniki + njihove vloge v podjetjih
 router.get("/users", async (_req: Request, res: Response): Promise<void> => {
-  const rows = await db
-    .select({
-      clerkUserId: accountingRolesTable.clerkUserId,
-      companyId: accountingRolesTable.companyId,
-      companyNaziv: companiesTable.naziv,
-      role: accountingRolesTable.role,
-      createdAt: accountingRolesTable.createdAt,
-    })
-    .from(accountingRolesTable)
-    .innerJoin(companiesTable, eq(companiesTable.id, accountingRolesTable.companyId))
-    .orderBy(accountingRolesTable.clerkUserId);
+  // 1. Hkrati pridobimo Clerk userje in vloge iz DB
+  const [clerkResponse, dbRows] = await Promise.all([
+    clerkClient.users.getUserList({ limit: 500, orderBy: "-created_at" }),
+    db
+      .select({
+        clerkUserId: accountingRolesTable.clerkUserId,
+        companyId: accountingRolesTable.companyId,
+        companyNaziv: companiesTable.naziv,
+        role: accountingRolesTable.role,
+        createdAt: accountingRolesTable.createdAt,
+      })
+      .from(accountingRolesTable)
+      .innerJoin(companiesTable, eq(companiesTable.id, accountingRolesTable.companyId)),
+  ]);
 
-  // Grupiraj po userju
-  const userMap = new Map<string, { clerkUserId: string; companies: { companyId: string; naziv: string; role: string; createdAt: Date }[] }>();
-  for (const row of rows) {
-    if (!userMap.has(row.clerkUserId)) {
-      userMap.set(row.clerkUserId, { clerkUserId: row.clerkUserId, companies: [] });
-    }
-    userMap.get(row.clerkUserId)!.companies.push({
+  // 2. Grupiraj vloge po Clerk userju
+  const rolesMap = new Map<string, { companyId: string; naziv: string; role: string; createdAt: Date }[]>();
+  for (const row of dbRows) {
+    if (!rolesMap.has(row.clerkUserId)) rolesMap.set(row.clerkUserId, []);
+    rolesMap.get(row.clerkUserId)!.push({
       companyId: row.companyId,
       naziv: row.companyNaziv,
       role: row.role,
@@ -174,7 +176,18 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
     });
   }
 
-  res.json({ users: Array.from(userMap.values()) });
+  // 3. Sestavi seznam iz vseh Clerk userjev
+  const users = clerkResponse.data.map((u) => ({
+    clerkUserId: u.id,
+    email: u.emailAddresses[0]?.emailAddress ?? "",
+    firstName: u.firstName ?? "",
+    lastName: u.lastName ?? "",
+    imageUrl: u.imageUrl ?? "",
+    createdAt: new Date(u.createdAt).toISOString(),
+    companies: rolesMap.get(u.id) ?? [],
+  }));
+
+  res.json({ users });
 });
 
 // POST /admin/companies/:id/roles — dodeli dostop do podjetja kateremukoli userju
