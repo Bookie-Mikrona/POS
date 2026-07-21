@@ -517,6 +517,13 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
 
       const vrstaIzPoisci = zaznajVrsto(r.naziv, r.zavezanecDdv, r.maticnaStevilka);
 
+      // SI5601 podračuni gredo vedno skozi Banko Slovenije → BIC vedno BSLJSI2X
+      const trr_popravljeni = r.trr
+        ? (r.trr as Array<{ iban: string; bic: string }>).map(t =>
+            t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
+              ? { ...t, bic: "BSLJSI2X" } : t)
+        : r.trr;
+
       if (existing) {
         shranjeniId = existing.id;
         await db.update(shranjeniKupciTable).set({
@@ -529,7 +536,7 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           zavezanecDdv: r.zavezanecDdv,
           idZaDdv: r.idZaDdv,
           maticnaStevilka: r.maticnaStevilka,
-          trr: r.trr,
+          trr: trr_popravljeni,
           zadnjaUporaba: new Date(),
           ...(vrstaIzPoisci !== null ? { vrstaPartnerja: vrstaIzPoisci } : {}),
           ...(eRacunPrejemnik !== null ? {
@@ -551,7 +558,7 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           davcnaStevilka: r.davcnaStevilka,
           idZaDdv: r.idZaDdv,
           maticnaStevilka: r.maticnaStevilka,
-          trr: r.trr,
+          trr: trr_popravljeni,
           steviloUpor: 0,
           zadnjaUporaba: new Date(),
           ...(vrstaIzPoisci !== null ? { vrstaPartnerja: vrstaIzPoisci } : {}),

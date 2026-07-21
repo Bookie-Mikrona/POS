@@ -93,6 +93,15 @@ interface KupecForm {
   telefon: string;
 }
 
+/** Samodejno dopolni BIC za SI5601... podračune (Banka Slovenije = BSLJSI2X) */
+function popravljTrrBic(trr: TrrVrstica[]): TrrVrstica[] {
+  return trr.map(t =>
+    t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
+      ? { ...t, bic: "BSLJSI2X" }
+      : t
+  );
+}
+
 function prazenForm(): KupecForm {
   return {
     vrstaPartnerja: null, naziv: "", kratkiNaziv: "", ulica: "", postnaStevilka: "", kraj: "",
@@ -264,13 +273,15 @@ export default function Partnerji() {
         zavezanecDdv: data.zavezanecDdv ?? false,
         idZaDdv: data.idZaDdv ?? "",
         maticnaStevilka: data.maticnaStevilka ?? "",
-        trr: data.trr ?? [],
+        trr: popravljTrrBic(data.trr ?? []),
         email: data.email ?? "",
         telefon: data.telefon ?? "",
         eRacunPrejemnik: data.eRacunPrejemnik ?? false,
         eRacunOmrezje: data.eRacunOmrezje ?? "",
         eRacunEmail: data.eRacunEmail ?? "",
         eRacunNaslov: data.eRacunNaslov ?? "",
+        eRacunSifraPu: data.eRacunSifraPu ?? "",
+        eRacunBic: data.eRacunBic ?? "",
       });
       setEditId(data.id ?? null);
       setHitriDodajOpen(false);
@@ -365,7 +376,7 @@ export default function Partnerji() {
           zavezanecDdv: data.zavezanecDdv ?? f.zavezanecDdv,
           idZaDdv: data.idZaDdv ?? f.idZaDdv,
           maticnaStevilka: data.maticnaStevilka ?? f.maticnaStevilka,
-          trr: (data.trr && data.trr.length > 0) ? data.trr : f.trr,
+          trr: (data.trr && data.trr.length > 0) ? popravljTrrBic(data.trr) : f.trr,
           email: data.email ?? f.email,
           telefon: data.telefon ?? f.telefon,
           ...(novaVrsta !== null ? { vrstaPartnerja: novaVrsta } : {}),
