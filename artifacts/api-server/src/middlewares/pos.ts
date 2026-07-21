@@ -42,19 +42,31 @@ export async function requireEnota(
     return;
   }
 
-  // 3. Preveri da enota obstaja + pridobi companyId
-  const [enota] = await db
-    .select({ id: enoteTable.id, companyId: enoteTable.companyId })
-    .from(enoteTable)
-    .where(eq(enoteTable.id, enotaId))
+  // 3. Poišči POS uporabnika → pridobi companyId
+  const [posUser] = await db
+    .select({ companyId: posUporabnikiTable.companyId, vloga: posUporabnikiTable.vloga })
+    .from(posUporabnikiTable)
+    .where(and(eq(posUporabnikiTable.clerkUserId, userId), eq(posUporabnikiTable.aktiven, true)))
     .limit(1);
 
-  if (!enota) {
-    res.status(404).json({ napaka: "Poslovna enota ne obstaja" });
+  if (!posUser) {
+    res.status(403).json({ napaka: "Nimate dostopa do POS sistema" });
     return;
   }
 
-  // 4. Nastavi na zahtevku
+  // 4. Preveri da enota obstaja IN pripada uporabnikovemu podjetju
+  const [enota] = await db
+    .select({ id: enoteTable.id, companyId: enoteTable.companyId })
+    .from(enoteTable)
+    .where(and(eq(enoteTable.id, enotaId), eq(enoteTable.companyId, posUser.companyId)))
+    .limit(1);
+
+  if (!enota) {
+    res.status(403).json({ napaka: "Poslovna enota ne obstaja ali nimate dostopa do nje", koda: "ENOTA_NEDOSTOPNA" });
+    return;
+  }
+
+  // 5. Nastavi na zahtevku
   (req as PosRequest).enotaId = enotaId;
   (req as PosRequest).clerkUserId = userId;
   (req as PosRequest).companyId = enota.companyId;

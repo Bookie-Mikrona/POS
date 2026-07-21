@@ -86,11 +86,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Določi enotaId: za admin vzamemo shranjeno preferenco, drugače iz vloge
         let enotaId = data.enotaId ?? undefined;
         if (data.vloga === "admin") {
-          const stored = localStorage.getItem(POS_ENOTA_ID_KEY);
-          if (stored) enotaId = parseInt(stored, 10);
-          else if (data.enote?.[0]) {
-            enotaId = data.enote[0].id;
-            localStorage.setItem(POS_ENOTA_ID_KEY, String(enotaId));
+          const enoteIds = new Set((data.enote ?? []).map(e => e.id));
+          const storedRaw = localStorage.getItem(POS_ENOTA_ID_KEY);
+          const stored = storedRaw ? parseInt(storedRaw, 10) : NaN;
+
+          if (!isNaN(stored) && enoteIds.has(stored)) {
+            // Shranjena vrednost je veljavna enota tega podjetja
+            enotaId = stored;
+          } else {
+            // Ni shranjene preference ali je zastarela (drugo podjetje) → vzamemo prvo
+            localStorage.removeItem(POS_ENOTA_ID_KEY);
+            if (data.enote?.[0]) {
+              enotaId = data.enote[0].id;
+              localStorage.setItem(POS_ENOTA_ID_KEY, String(enotaId));
+            }
           }
         } else if (enotaId) {
           localStorage.setItem(POS_ENOTA_ID_KEY, String(enotaId));
