@@ -3717,6 +3717,8 @@ export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
   accountType: string;
+  openingBalanceDebit: string;
+  openingBalanceCredit: string;
   turnoverDebit: string;
   turnoverCredit: string;
   balanceDebit: string;
@@ -3729,6 +3731,8 @@ export interface TrialBalanceResponse {
   /** @nullable */
   dateTo?: string | null;
   rows: TrialBalanceRow[];
+  totalOpeningBalanceDebit: string;
+  totalOpeningBalanceCredit: string;
   totalTurnoverDebit: string;
   totalTurnoverCredit: string;
   totalBalanceDebit: string;

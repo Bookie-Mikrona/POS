@@ -125,6 +125,8 @@ interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
   accountType: string;
+  openingBalanceDebit: string;
+  openingBalanceCredit: string;
   turnoverDebit: string;
   turnoverCredit: string;
   balanceDebit: string;
@@ -417,6 +419,8 @@ export async function generateTrialBalancePdf(opts: {
   dateFrom: string;
   dateTo: string;
   rows: TrialBalanceRow[];
+  totalOpeningBalanceDebit: string;
+  totalOpeningBalanceCredit: string;
   totalTurnoverDebit: string;
   totalTurnoverCredit: string;
   totalBalanceDebit: string;
@@ -426,19 +430,29 @@ export async function generateTrialBalancePdf(opts: {
   const reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
   const subtitle = `Obdobje: ${dateFrom} - ${dateTo}`;
 
-  const totalPages = Math.max(1, Math.ceil((rows.length + 3) / 42));
+  // Use A4 landscape for 8-column layout
+  const PAGE_W_L = 841.89;
+  const PAGE_H_L = 595.28;
+  const USABLE_W_L = PAGE_W_L - MARGIN * 2;
+  const NUM_W_L = 80;
 
-  // Column layout: Code | Name | Promet D | Promet C | Saldo D | Saldo C
-  const COL_CODE = MARGIN;
-  const COL_NAME = MARGIN + 55;
-  const COL_PROM_D = PAGE_W - MARGIN - 310;
-  const COL_PROM_C = PAGE_W - MARGIN - 220;
-  const COL_SAL_D  = PAGE_W - MARGIN - 115;
-  const COL_SAL_C  = PAGE_W - MARGIN - 10;
-  const NUM_W = 100;
+  // Column positions (landscape)
+  const COL_CODE  = MARGIN;
+  const COL_NAME  = MARGIN + 55;
+  // 6 numeric columns, each NUM_W_L wide, right-aligned to page
+  const COL_SAL_C  = PAGE_W_L - MARGIN - NUM_W_L;
+  const COL_SAL_D  = COL_SAL_C - NUM_W_L - 4;
+  const COL_PROM_C = COL_SAL_D - NUM_W_L - 4;
+  const COL_PROM_D = COL_PROM_C - NUM_W_L - 4;
+  const COL_OB_C   = COL_PROM_D - NUM_W_L - 4;
+  const COL_OB_D   = COL_OB_C - NUM_W_L - 4;
+  const NAME_W     = COL_OB_D - COL_NAME - 8;
+
+  const ROWS_PER_PAGE = 48;
+  const totalPages = Math.max(1, Math.ceil((rows.length + 3) / ROWS_PER_PAGE));
 
   const doc = new PDFDocument({
-    size: "A4",
+    size: [PAGE_W_L, PAGE_H_L],
     margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
     autoFirstPage: true,
     bufferPages: true,
@@ -446,73 +460,132 @@ export async function generateTrialBalancePdf(opts: {
 
   const bufferPromise = collectDocBuffer(doc);
 
-  const state: PdfState = { doc, y: contentY(1), page: 1, totalPages, companyName, reportTitle, subtitle };
-  drawHeader(doc, companyName, reportTitle, subtitle, 1, totalPages);
+  // Simplified header for landscape
+  function drawLandscapeHeader(page: number) {
+    if (page === 1) {
+      doc.font("Helvetica-Bold").fontSize(12).fillColor(COLOR_PRIMARY)
+        .text(companyName, MARGIN, MARGIN);
+      doc.font("Helvetica-Bold").fontSize(10)
+        .text(reportTitle, MARGIN, MARGIN + 17);
+      doc.font("Helvetica").fontSize(8).fillColor(COLOR_MUTED)
+        .text(subtitle, MARGIN, MARGIN + 31);
+      doc.moveTo(MARGIN, MARGIN + 43).lineTo(PAGE_W_L - MARGIN, MARGIN + 43)
+        .strokeColor(COLOR_LINE).lineWidth(0.5).stroke();
+    } else {
+      doc.font("Helvetica").fontSize(8).fillColor(COLOR_MUTED)
+        .text(`${companyName} — ${reportTitle}`, MARGIN, MARGIN);
+      doc.moveTo(MARGIN, MARGIN + 13).lineTo(PAGE_W_L - MARGIN, MARGIN + 13)
+        .strokeColor(COLOR_LINE).lineWidth(0.5).stroke();
+    }
+    const genDate = new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
+    doc.font("Helvetica").fontSize(7).fillColor("#9ca3af")
+      .text(`Generirano: ${genDate}`, MARGIN, PAGE_H_L - MARGIN + 4, { continued: false })
+      .text(`Stran ${page} / ${totalPages}`, MARGIN, PAGE_H_L - MARGIN + 4, { align: "right" });
+    doc.fillColor(COLOR_PRIMARY);
+  }
 
-  // Table header renderer
+  let currentPage = 1;
+  let y = MARGIN + 50; // below first-page header
+
+  drawLandscapeHeader(1);
+
+  function contentStartY(page: number) {
+    return page === 1 ? MARGIN + 50 : MARGIN + 20;
+  }
+
   function drawTableHeader() {
-    const hY = state.y;
-    doc.rect(MARGIN, hY, USABLE_W, 26).fillColor(COLOR_SECTION).fill();
-    doc.font("Helvetica-Bold").fontSize(7.5).fillColor(COLOR_PRIMARY);
+    const hY = y;
+    doc.rect(MARGIN, hY, USABLE_W_L, 26).fillColor(COLOR_SECTION).fill();
+    doc.font("Helvetica-Bold").fontSize(7).fillColor(COLOR_PRIMARY);
     doc.text("Sifra", COL_CODE + 2, hY + 3, { width: 50, lineBreak: false });
-    doc.text("Naziv konta", COL_NAME + 2, hY + 3, { width: 120, lineBreak: false });
-    doc.text("Promet v obdobju", COL_PROM_D, hY + 3, { width: COL_PROM_C + NUM_W - COL_PROM_D, align: "center", lineBreak: false });
-    doc.text("Saldo (kumulativno)", COL_SAL_D, hY + 3, { width: NUM_W, align: "center", lineBreak: false });
-    doc.font("Helvetica").fontSize(7).fillColor(COLOR_MUTED);
-    doc.text("Breme", COL_PROM_D, hY + 15, { width: NUM_W, align: "right", lineBreak: false });
-    doc.text("Dobro", COL_PROM_C, hY + 15, { width: NUM_W, align: "right", lineBreak: false });
-    doc.text("Breme", COL_SAL_D, hY + 15, { width: NUM_W, align: "right", lineBreak: false });
-    doc.text("Dobro", COL_SAL_C - NUM_W, hY + 15, { width: NUM_W, align: "right", lineBreak: false });
-    state.y = hY + 28;
-    state.doc.fillColor(COLOR_PRIMARY);
+    doc.text("Naziv konta", COL_NAME + 2, hY + 3, { width: NAME_W, lineBreak: false });
+    // Group labels
+    doc.text("Zacetni saldo", COL_OB_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    doc.text("Promet v obdobju", COL_PROM_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    doc.text("Zakljucni saldo", COL_SAL_D, hY + 3, { width: NUM_W_L * 2 + 4, align: "center", lineBreak: false });
+    // Sub-labels
+    doc.font("Helvetica").fontSize(6.5).fillColor(COLOR_MUTED);
+    doc.text("Breme", COL_OB_D, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.text("Dobro", COL_OB_C, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.text("Breme", COL_PROM_D, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.text("Dobro", COL_PROM_C, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.text("Breme", COL_SAL_D, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    doc.text("Dobro", COL_SAL_C, hY + 16, { width: NUM_W_L, align: "right", lineBreak: false });
+    y = hY + 28;
+    doc.fillColor(COLOR_PRIMARY);
   }
 
   drawTableHeader();
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
-    checkNewPage(state, 14);
-    if (state.y === contentY(state.page)) drawTableHeader();
+
+    // Check if we need a new page
+    if (y + 14 > PAGE_H_L - MARGIN - 20) {
+      doc.addPage({ size: [PAGE_W_L, PAGE_H_L] });
+      currentPage++;
+      y = contentStartY(currentPage);
+      drawLandscapeHeader(currentPage);
+      drawTableHeader();
+    }
 
     const bg = i % 2 === 0 ? "#ffffff" : "#f9fafb";
-    doc.rect(MARGIN, state.y, USABLE_W, 13).fillColor(bg).fill();
-    doc.font("Helvetica").fontSize(7.5).fillColor(COLOR_MUTED)
-      .text(row.accountCode, COL_CODE + 2, state.y + 2, { width: 50, lineBreak: false });
-    doc.font("Helvetica").fontSize(7.5).fillColor(COLOR_PRIMARY)
-      .text(row.accountName, COL_NAME + 2, state.y + 2, { width: COL_PROM_D - COL_NAME - 8, lineBreak: false });
+    doc.rect(MARGIN, y, USABLE_W_L, 13).fillColor(bg).fill();
+    doc.font("Helvetica").fontSize(7).fillColor(COLOR_MUTED)
+      .text(row.accountCode, COL_CODE + 2, y + 2, { width: 50, lineBreak: false });
+    doc.font("Helvetica").fontSize(7).fillColor(COLOR_PRIMARY)
+      .text(row.accountName, COL_NAME + 2, y + 2, { width: NAME_W, lineBreak: false });
 
+    const od = parseFloat(row.openingBalanceDebit);
+    const oc = parseFloat(row.openingBalanceCredit);
     const td = parseFloat(row.turnoverDebit);
     const tc = parseFloat(row.turnoverCredit);
     const bd = parseFloat(row.balanceDebit);
     const bc = parseFloat(row.balanceCredit);
 
-    doc.font("Helvetica").fontSize(7.5).fillColor("#1d4ed8");
-    if (td !== 0) doc.text(fmtNum(td), COL_PROM_D, state.y + 2, { width: NUM_W, align: "right", lineBreak: false });
-    if (tc !== 0) doc.text(fmtNum(tc), COL_PROM_C, state.y + 2, { width: NUM_W, align: "right", lineBreak: false });
-    doc.fillColor(COLOR_PRIMARY);
-    if (bd !== 0) doc.font("Helvetica-Bold").fontSize(7.5).text(fmtNum(bd), COL_SAL_D, state.y + 2, { width: NUM_W, align: "right", lineBreak: false });
-    if (bc !== 0) doc.font("Helvetica-Bold").fontSize(7.5).text(fmtNum(bc), COL_SAL_C - NUM_W, state.y + 2, { width: NUM_W, align: "right", lineBreak: false });
+    // Opening balance (grey)
+    doc.font("Helvetica").fontSize(7).fillColor(COLOR_MUTED);
+    if (od !== 0) doc.text(fmtNum(od), COL_OB_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (oc !== 0) doc.text(fmtNum(oc), COL_OB_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
 
-    state.y += 13;
+    // Turnover (blue)
+    doc.fillColor("#1d4ed8");
+    if (td !== 0) doc.text(fmtNum(td), COL_PROM_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (tc !== 0) doc.text(fmtNum(tc), COL_PROM_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+
+    // Closing balance (bold, primary)
+    doc.fillColor(COLOR_PRIMARY);
+    if (bd !== 0) doc.font("Helvetica-Bold").fontSize(7).text(fmtNum(bd), COL_SAL_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+    if (bc !== 0) doc.font("Helvetica-Bold").fontSize(7).text(fmtNum(bc), COL_SAL_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
+
+    y += 13;
   }
 
   // Totals row
-  checkNewPage(state, 20);
-  doc.rect(MARGIN, state.y, USABLE_W, 18).fillColor(COLOR_TOTAL).fill();
+  if (y + 20 > PAGE_H_L - MARGIN - 20) {
+    doc.addPage({ size: [PAGE_W_L, PAGE_H_L] });
+    currentPage++;
+    y = contentStartY(currentPage);
+    drawLandscapeHeader(currentPage);
+  }
+  doc.rect(MARGIN, y, USABLE_W_L, 18).fillColor(COLOR_TOTAL).fill();
   doc.font("Helvetica-Bold").fontSize(8).fillColor(COLOR_PRIMARY)
-    .text("SKUPAJ", COL_CODE + 2, state.y + 4, { width: 200, lineBreak: false });
+    .text("SKUPAJ", COL_CODE + 2, y + 4, { width: 200, lineBreak: false });
+  doc.fillColor(COLOR_MUTED);
+  doc.text(fmtNum(opts.totalOpeningBalanceDebit), COL_OB_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  doc.text(fmtNum(opts.totalOpeningBalanceCredit), COL_OB_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
   doc.fillColor("#1d4ed8");
-  doc.text(fmtNum(opts.totalTurnoverDebit), COL_PROM_D, state.y + 4, { width: NUM_W, align: "right", lineBreak: false });
-  doc.text(fmtNum(opts.totalTurnoverCredit), COL_PROM_C, state.y + 4, { width: NUM_W, align: "right", lineBreak: false });
+  doc.text(fmtNum(opts.totalTurnoverDebit), COL_PROM_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  doc.text(fmtNum(opts.totalTurnoverCredit), COL_PROM_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
   doc.fillColor(COLOR_PRIMARY);
-  doc.text(fmtNum(opts.totalBalanceDebit), COL_SAL_D, state.y + 4, { width: NUM_W, align: "right", lineBreak: false });
-  doc.text(fmtNum(opts.totalBalanceCredit), COL_SAL_C - NUM_W, state.y + 4, { width: NUM_W, align: "right", lineBreak: false });
-  state.y += 22;
+  doc.text(fmtNum(opts.totalBalanceDebit), COL_SAL_D, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  doc.text(fmtNum(opts.totalBalanceCredit), COL_SAL_C, y + 4, { width: NUM_W_L, align: "right", lineBreak: false });
+  y += 22;
 
   // Balance check
   const balanced = parseFloat(opts.totalTurnoverDebit).toFixed(2) === parseFloat(opts.totalTurnoverCredit).toFixed(2);
   doc.font("Helvetica").fontSize(8).fillColor(balanced ? COLOR_POSITIVE : COLOR_NEGATIVE)
-    .text(balanced ? "Bilanca uravnotezena" : "Bilanca ni uravnotezena", MARGIN, state.y);
+    .text(balanced ? "Bilanca uravnotezena" : "Bilanca ni uravnotezena", MARGIN, y);
 
   doc.end();
   return bufferPromise;

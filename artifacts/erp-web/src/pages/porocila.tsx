@@ -1247,7 +1247,7 @@ function TrialBalanceTab() {
         ["Bruto bilanca (preizkusna bilanca)"],
         [`Obdobje: ${appliedFrom} – ${appliedTo}`],
         [],
-        ["Šifra", "Naziv konta", "Tip", "Promet breme", "Promet dobro", "Saldo breme", "Saldo dobro"],
+        ["Šifra", "Naziv konta", "Tip", "Začetni saldo B", "Začetni saldo D", "Promet breme", "Promet dobro", "Saldo breme", "Saldo dobro"],
       ];
 
       // Data rows — all rows from the full dataset (not filtered)
@@ -1255,6 +1255,8 @@ function TrialBalanceTab() {
         row.accountCode,
         row.accountName,
         ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType,
+        parseFloat(row.openingBalanceDebit || "0"),
+        parseFloat(row.openingBalanceCredit || "0"),
         parseFloat(row.turnoverDebit || "0"),
         parseFloat(row.turnoverCredit || "0"),
         parseFloat(row.balanceDebit || "0"),
@@ -1262,11 +1264,13 @@ function TrialBalanceTab() {
       ]);
 
       // Totals row
+      const totalObD = data.rows.reduce((s, r) => s + parseFloat(r.openingBalanceDebit || "0"), 0);
+      const totalObC = data.rows.reduce((s, r) => s + parseFloat(r.openingBalanceCredit || "0"), 0);
       const totalDebit = data.rows.reduce((s, r) => s + parseFloat(r.turnoverDebit || "0"), 0);
       const totalCredit = data.rows.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0);
       const totalBalDebit = data.rows.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0);
       const totalBalCredit = data.rows.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
-      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalDebit, totalCredit, totalBalDebit, totalBalCredit];
+      const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalObD, totalObC, totalDebit, totalCredit, totalBalDebit, totalBalCredit];
 
       const allRows = [...headerRows, ...dataRows, [], totalsRow];
 
@@ -1277,17 +1281,19 @@ function TrialBalanceTab() {
         { wch: 12 },  // Šifra
         { wch: 40 },  // Naziv
         { wch: 14 },  // Tip
+        { wch: 16 },  // Začetni saldo B
+        { wch: 16 },  // Začetni saldo D
         { wch: 16 },  // Promet breme
         { wch: 16 },  // Promet dobro
         { wch: 16 },  // Saldo breme
         { wch: 16 },  // Saldo dobro
       ];
 
-      // Number format for numeric columns (D–G, rows starting at data row)
+      // Number format for numeric columns (D–I, rows starting at data row)
       const dataStartRow = headerRows.length; // 0-based
       const numFmt = "#,##0.00";
       for (let r = dataStartRow; r < dataStartRow + dataRows.length + 2; r++) {
-        for (const col of [3, 4, 5, 6]) {
+        for (const col of [3, 4, 5, 6, 7, 8]) {
           const cellAddr = XLSX.utils.encode_cell({ r, c: col });
           if (ws[cellAddr] && typeof ws[cellAddr].v === "number") {
             ws[cellAddr].z = numFmt;
@@ -1336,6 +1342,8 @@ function TrialBalanceTab() {
   // Totals computed from the filtered rows so they reflect the active class/search filter
   const totals = filtered.length > 0 || (queried && data)
     ? {
+        openingBalanceDebit: filtered.reduce((s, r) => s + parseFloat(r.openingBalanceDebit || "0"), 0).toFixed(2),
+        openingBalanceCredit: filtered.reduce((s, r) => s + parseFloat(r.openingBalanceCredit || "0"), 0).toFixed(2),
         turnoverDebit: filtered.reduce((s, r) => s + parseFloat(r.turnoverDebit || "0"), 0).toFixed(2),
         turnoverCredit: filtered.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0).toFixed(2),
         balanceDebit: filtered.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0).toFixed(2),
@@ -1492,15 +1500,20 @@ function TrialBalanceTab() {
                   <th className="text-left px-3 py-2 font-semibold w-24">Šifra</th>
                   <th className="text-left px-3 py-2 font-semibold">Naziv konta</th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
+                    Začetni saldo
+                  </th>
+                  <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
                     Promet v obdobju
                   </th>
                   <th colSpan={2} className="text-center px-3 py-2 font-semibold border-l border-border/50">
-                    Saldo (kumulativno)
+                    Zaključni saldo
                   </th>
                 </tr>
                 <tr className="bg-muted/30 text-muted-foreground">
                   <th className="px-3 py-1"></th>
                   <th className="px-3 py-1"></th>
+                  <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
+                  <th className="text-right px-3 py-1 font-medium">Dobro</th>
                   <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
                   <th className="text-right px-3 py-1 font-medium">Dobro</th>
                   <th className="text-right px-3 py-1 border-l border-border/50 font-medium">Breme</th>
@@ -1522,6 +1535,12 @@ function TrialBalanceTab() {
                         {ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType}
                       </span>
                     </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-muted-foreground">
+                      {parseFloat(row.openingBalanceDebit ?? "0") !== 0 ? fmtZ(row.openingBalanceDebit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                      {parseFloat(row.openingBalanceCredit ?? "0") !== 0 ? fmtZ(row.openingBalanceCredit) : ""}
+                    </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-blue-700 dark:text-blue-400">
                       {parseFloat(row.turnoverDebit) !== 0 ? fmtZ(row.turnoverDebit) : ""}
                     </td>
@@ -1538,7 +1557,7 @@ function TrialBalanceTab() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                       Ni podatkov za izbrano obdobje.
                     </td>
                   </tr>
@@ -1549,6 +1568,12 @@ function TrialBalanceTab() {
                   <tr className="bg-muted/60 font-semibold border-t-2 border-border">
                     <td className="px-3 py-2 text-xs uppercase tracking-wide" colSpan={2}>
                       Skupaj
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 text-muted-foreground">
+                      {fmt(totals.openingBalanceDebit)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                      {fmt(totals.openingBalanceCredit)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums border-l border-border/50 text-blue-700 dark:text-blue-400">
                       {fmt(totals.turnoverDebit)}

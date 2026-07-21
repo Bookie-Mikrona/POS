@@ -737,6 +737,8 @@ interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
   accountType: string;
+  openingBalanceDebit: string;
+  openingBalanceCredit: string;
   turnoverDebit: string;
   turnoverCredit: string;
   balanceDebit: string;
@@ -747,10 +749,22 @@ interface TrialBalanceResponse {
   dateFrom?: string | null;
   dateTo?: string | null;
   rows: TrialBalanceRow[];
+  totalOpeningBalanceDebit: string;
+  totalOpeningBalanceCredit: string;
   totalTurnoverDebit: string;
   totalTurnoverCredit: string;
   totalBalanceDebit: string;
   totalBalanceCredit: string;
+}
+
+/**
+ * Returns the date string for the day before the given ISO date string.
+ * Used to compute opening balance (entries strictly before dateFrom).
+ */
+function dayBefore(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /**
@@ -825,25 +839,31 @@ router.get(
     const dateFrom = dfRaw ?? undefined;
     const dateTo = dtRaw ?? undefined;
 
+    // Opening balance: all posted entries strictly before dateFrom (if dateFrom given)
     // Turnover: entries in [dateFrom, dateTo]
-    // Balance: cumulative all posted entries up to dateTo
-    const [turnoverMap, balanceMap] = await Promise.all([
+    // Balance (closing): cumulative all posted entries up to dateTo
+    const openingDateTo = dateFrom ? dayBefore(dateFrom) : undefined;
+    const [openingMap, turnoverMap, balanceMap] = await Promise.all([
+      openingDateTo ? aggregateRaw(companyId, undefined, openingDateTo) : Promise.resolve(new Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>()),
       aggregateRaw(companyId, dateFrom, dateTo),
       aggregateRaw(companyId, undefined, dateTo),
     ]);
 
-    const allIds = new Set([...turnoverMap.keys(), ...balanceMap.keys()]);
+    const allIds = new Set([...openingMap.keys(), ...turnoverMap.keys(), ...balanceMap.keys()]);
 
     const rows: TrialBalanceRow[] = Array.from(allIds)
       .map((accountId) => {
+        const o = openingMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
         const t = turnoverMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
         const b = balanceMap.get(accountId) ?? { accountCode: t.accountCode, accountName: t.accountName, accountType: t.accountType, debit: 0, credit: 0 };
-        const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId)!;
+        const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId) ?? openingMap.get(accountId)!;
         return {
           accountId,
           accountCode: meta.accountCode,
           accountName: meta.accountName,
           accountType: meta.accountType,
+          openingBalanceDebit: o.debit.toFixed(2),
+          openingBalanceCredit: o.credit.toFixed(2),
           turnoverDebit: t.debit.toFixed(2),
           turnoverCredit: t.credit.toFixed(2),
           balanceDebit: b.debit.toFixed(2),
@@ -852,13 +872,15 @@ router.get(
       })
       .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
 
-    const sumField = (field: keyof Pick<TrialBalanceRow, "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
+    const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
       rows.reduce((s, r) => s + parseFloat(r[field]), 0).toFixed(2);
 
     const response: TrialBalanceResponse = {
       dateFrom: dateFrom ?? null,
       dateTo: dateTo ?? null,
       rows,
+      totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
+      totalOpeningBalanceCredit: sumField("openingBalanceCredit"),
       totalTurnoverDebit: sumField("turnoverDebit"),
       totalTurnoverCredit: sumField("turnoverCredit"),
       totalBalanceDebit: sumField("balanceDebit"),
@@ -964,21 +986,26 @@ router.post(
         });
 
       } else if (reportType === "trial-balance") {
-        const [turnoverMap, balanceMap] = await Promise.all([
+        const openingDateTo = dateFrom ? dayBefore(dateFrom) : undefined;
+        const [openingMap, turnoverMap, balanceMap] = await Promise.all([
+          openingDateTo ? aggregateRaw(companyId, undefined, openingDateTo) : Promise.resolve(new Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>()),
           aggregateRaw(companyId, dateFrom, dateTo),
           aggregateRaw(companyId, undefined, dateTo),
         ]);
-        const allIds = new Set([...turnoverMap.keys(), ...balanceMap.keys()]);
+        const allIds = new Set([...openingMap.keys(), ...turnoverMap.keys(), ...balanceMap.keys()]);
         const rows = Array.from(allIds)
           .map((accountId) => {
+            const o = openingMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
             const t = turnoverMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
             const b = balanceMap.get(accountId) ?? { accountCode: t.accountCode, accountName: t.accountName, accountType: t.accountType, debit: 0, credit: 0 };
-            const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId)!;
+            const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId) ?? openingMap.get(accountId)!;
             return {
               accountId,
               accountCode: meta.accountCode,
               accountName: meta.accountName,
               accountType: meta.accountType,
+              openingBalanceDebit: o.debit.toFixed(2),
+              openingBalanceCredit: o.credit.toFixed(2),
               turnoverDebit: t.debit.toFixed(2),
               turnoverCredit: t.credit.toFixed(2),
               balanceDebit: b.debit.toFixed(2),
@@ -986,13 +1013,15 @@ router.post(
             };
           })
           .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
-        const sumField = (field: "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit") =>
+        const sumField = (field: "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit") =>
           rows.reduce((s, r) => s + parseFloat(r[field]), 0).toFixed(2);
         reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
         subtitle = `Obdobje: ${dateFrom ?? ""} – ${dateTo ?? ""}`;
         filename = `bruto-bilanca-${dateFrom ?? "brez"}-${dateTo ?? "brez"}.pdf`;
         pdfBuffer = await generateTrialBalancePdf({
           companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "", rows,
+          totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
+          totalOpeningBalanceCredit: sumField("openingBalanceCredit"),
           totalTurnoverDebit: sumField("turnoverDebit"),
           totalTurnoverCredit: sumField("turnoverCredit"),
           totalBalanceDebit: sumField("balanceDebit"),
