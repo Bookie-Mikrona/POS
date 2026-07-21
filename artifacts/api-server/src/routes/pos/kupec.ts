@@ -428,10 +428,10 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     : (obstojecKupec.eRacunBic ?? null);
 
   const surowiTrr = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
-  // Samodejno dopolni BIC za SI5601... podračune (Banka Slovenije = BSLJSI2X)
+  // SI5601 podračuni gredo vedno skozi Banko Slovenije → BIC je vedno BSLJSI2X
   const trrji = surowiTrr
     ? (surowiTrr as Array<{ iban: string; bic: string }>).map(t =>
-        (!t.bic && t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601"))
+        t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
           ? { ...t, bic: "BSLJSI2X" }
           : t)
     : surowiTrr;
