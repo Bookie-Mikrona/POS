@@ -1458,13 +1458,23 @@ export default function Settings() {
     navigateTo(`/nastavitve?aktiven=${vrednost}`, { replace: true });
   };
 
+  // Pre-selekcija zavihka iz URL parametra ?tab= (npr. /nastavitve?tab=uporabniki)
+  useEffect(() => {
+    const params = new URLSearchParams(rawSearch);
+    const tab = params.get("tab");
+    if (tab && tab !== aktivniZavihek) {
+      setAktivniZavihek(tab);
+    }
+  }, [rawSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // When navigating to the "uporabniki" tab, ensure the URL has the aktiven param set.
   // If the param is missing, restore the last-used filter from sessionStorage (default: "true").
   useEffect(() => {
     if (aktivniZavihek !== "uporabniki" || !jeAdmin) return;
-    if (!new URLSearchParams(rawSearch).has("aktiven")) {
+    const params = new URLSearchParams(rawSearch);
+    if (!params.has("aktiven")) {
       const shranjeni = sessionStorage.getItem("settings.aktivenFilter") ?? "true";
-      navigateTo(`/nastavitve?aktiven=${shranjeni}`, { replace: true });
+      navigateTo(`/nastavitve?tab=uporabniki&aktiven=${shranjeni}`, { replace: true });
     }
   }, [aktivniZavihek, jeAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 

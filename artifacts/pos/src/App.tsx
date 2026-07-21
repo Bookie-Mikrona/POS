@@ -12,7 +12,7 @@ import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext"
 import { NapravaProvider } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays } from "lucide-react";
+import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
@@ -265,6 +265,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/izmene", label: "Izmene" },
       { href: "/partnerji", label: "Partnerji" },
       { href: "/nastavitve", label: "Nastavitve" },
+      { href: "/nastavitve?tab=uporabniki", label: "Uporabniki" },
       { href: "/narocilo/", label: "Naročilo" },
       { href: "/admin/testi", label: "Testi" },
       { href: "/superadmin/eposta", label: "E-pošta" },
@@ -301,6 +302,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { href: "/izmene", label: "Izmene", icon: Clock },
     { href: "/partnerji", label: "Partnerji", icon: BookUser },
     ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
+    ...(isAdmin ? [{ href: "/nastavitve?tab=uporabniki&aktiven=true", label: "Uporabniki", icon: Users }] : []),
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
     ...(isAdmin ? [{ href: "/admin/testi", label: "Testi", icon: FlaskConical }] : []),
   ];
@@ -314,9 +316,14 @@ function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   const isActive = (href: string) => {
+    const [hrefPath] = href.split("?");
     if (href === "/") return location === "/";
     if (href === "/superadmin") return location === "/superadmin";
-    return location.startsWith(href);
+    // "Uporabniki" link: aktiven samo ko smo na /nastavitve z ?tab=uporabniki
+    if (href.includes("tab=uporabniki")) {
+      return location === "/nastavitve" && window.location.search.includes("tab=uporabniki");
+    }
+    return location.startsWith(hrefPath);
   };
 
   const isOrderPage = location.startsWith("/narocilo/");
