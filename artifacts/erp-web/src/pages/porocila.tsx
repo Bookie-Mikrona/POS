@@ -1172,6 +1172,7 @@ function TrialBalanceTab() {
   const [dateTo, setDateTo] = useState(todayStr());
   const [queried, setQueried] = useState(false);
   const [search, setSearch] = useState("");
+  const [classFilter, setClassFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
 
   const [appliedFrom, setAppliedFrom] = useState(yearStart());
@@ -1198,12 +1199,18 @@ function TrialBalanceTab() {
 
   const filtered: TrialBalanceRow[] = React.useMemo(() => {
     if (!data) return [];
+    let rows = data.rows;
+    if (classFilter !== "all") {
+      rows = rows.filter((r) => r.accountCode.startsWith(classFilter));
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return data.rows;
-    return data.rows.filter(
-      (r) => r.accountCode.toLowerCase().includes(q) || r.accountName.toLowerCase().includes(q),
-    );
-  }, [data, search]);
+    if (q) {
+      rows = rows.filter(
+        (r) => r.accountCode.toLowerCase().includes(q) || r.accountName.toLowerCase().includes(q),
+      );
+    }
+    return rows;
+  }, [data, search, classFilter]);
 
   async function handleExportPdf() {
     if (!data || !activeCompany) return;
@@ -1253,13 +1260,13 @@ function TrialBalanceTab() {
 
   const fmtZ = (v: string) => fmt(v) === "—" ? "—" : fmt(v);
 
-  // Totals from data (unfiltered for accuracy)
-  const totals = data
+  // Totals computed from the filtered rows so they reflect the active class/search filter
+  const totals = filtered.length > 0 || (queried && data)
     ? {
-        turnoverDebit: data.totalTurnoverDebit,
-        turnoverCredit: data.totalTurnoverCredit,
-        balanceDebit: data.totalBalanceDebit,
-        balanceCredit: data.totalBalanceCredit,
+        turnoverDebit: filtered.reduce((s, r) => s + parseFloat(r.turnoverDebit || "0"), 0).toFixed(2),
+        turnoverCredit: filtered.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0).toFixed(2),
+        balanceDebit: filtered.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0).toFixed(2),
+        balanceCredit: filtered.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0).toFixed(2),
       }
     : null;
 
@@ -1297,6 +1304,20 @@ function TrialBalanceTab() {
         {queried && data && (
           <>
             <div className="flex flex-col gap-1 ml-auto">
+              <Label className="text-xs">Razred konta</Label>
+              <Select value={classFilter} onValueChange={setClassFilter}>
+                <SelectTrigger className="w-32 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Vsi razredi</SelectItem>
+                  {["0","1","2","3","4","5","6","7","8","9"].map((d) => (
+                    <SelectItem key={d} value={d}>Razred {d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
               <Label htmlFor="tb-search" className="text-xs">Iskanje konta</Label>
               <Input
                 id="tb-search"
@@ -1371,7 +1392,7 @@ function TrialBalanceTab() {
             )}
             <span className="text-xs text-muted-foreground ml-auto">
               {filtered.length} kontov
-              {search ? ` (filter: ${data.rows.length} skupaj)` : ""}
+              {(search || classFilter !== "all") ? ` (skupaj: ${data.rows.length})` : ""}
             </span>
           </div>
 
