@@ -38,7 +38,7 @@ interface AdminUser {
   lastName: string;
   imageUrl: string;
   createdAt: string;
-  companies: { companyId: string; naziv: string; role: string; createdAt: string }[];
+  companies: { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: string }[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -915,12 +915,25 @@ function UporabnikiAdminTab() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {hasAccess ? (
-                    u.companies.map((c) => (
-                      <Badge key={c.companyId} variant="outline" className="text-xs gap-1">
-                        <Building2 className="h-3 w-3" />
-                        {c.naziv} · {ROLE_LABELS[c.role] ?? c.role}
-                      </Badge>
-                    ))
+                    u.companies.map((c) => {
+                      const isPos = c.sistem === "pos";
+                      const roleLabel = isPos
+                        ? (POS_VLOGA_LABELS[c.role] ?? c.role)
+                        : (ROLE_LABELS[c.role] ?? c.role);
+                      const colorClass = isPos
+                        ? (POS_VLOGA_COLORS[c.role] ?? "bg-amber-100 text-amber-800 border-amber-200")
+                        : "bg-blue-50 text-blue-800 border-blue-200";
+                      return (
+                        <Badge key={`${c.sistem}-${c.companyId}`} variant="outline" className={`text-xs gap-1 ${colorClass}`}>
+                          <Building2 className="h-3 w-3" />
+                          {c.naziv}
+                          <span className="opacity-60">·</span>
+                          <span className="font-normal opacity-75">{isPos ? "POS" : "ERP"}</span>
+                          <span className="opacity-40">·</span>
+                          {roleLabel}
+                        </Badge>
+                      );
+                    })
                   ) : (
                     <p className="text-xs text-muted-foreground">Uporabnik nima dostopa do nobenega podjetja.</p>
                   )}

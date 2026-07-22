@@ -154,10 +154,10 @@ router.delete("/companies/:id/modules/:module", async (req: Request, res: Respon
 
 // ── Uporabniki ────────────────────────────────────────────────────────────────
 
-// GET /admin/users — VSI Clerk uporabniki + njihove vloge v podjetjih
+// GET /admin/users — VSI Clerk uporabniki + njihove vloge v podjetjih (ERP + POS)
 router.get("/users", async (_req: Request, res: Response): Promise<void> => {
-  // 1. Hkrati pridobimo Clerk userje in vloge iz DB
-  const [clerkResponse, dbRows] = await Promise.all([
+  // 1. Hkrati pridobimo Clerk userje, ERP vloge in POS vloge
+  const [clerkResponse, erpRows, posRows] = await Promise.all([
     clerkClient.users.getUserList({ limit: 500, orderBy: "-created_at" }),
     db
       .select({
@@ -169,18 +169,48 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
       })
       .from(accountingRolesTable)
       .innerJoin(companiesTable, eq(companiesTable.id, accountingRolesTable.companyId)),
+    db
+      .select({
+        clerkUserId: posUporabnikiTable.clerkUserId,
+        companyId: posUporabnikiTable.companyId,
+        companyNaziv: companiesTable.naziv,
+        vloga: posUporabnikiTable.vloga,
+        aktiven: posUporabnikiTable.aktiven,
+        ustvarjeno: posUporabnikiTable.ustvarjeno,
+      })
+      .from(posUporabnikiTable)
+      .innerJoin(companiesTable, eq(companiesTable.id, posUporabnikiTable.companyId))
+      .where(eq(posUporabnikiTable.aktiven, true)),
   ]);
 
   // 2. Grupiraj vloge po Clerk userju
-  const rolesMap = new Map<string, { companyId: string; naziv: string; role: string; createdAt: Date }[]>();
-  for (const row of dbRows) {
+  const rolesMap = new Map<string, { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: Date }[]>();
+
+  for (const row of erpRows) {
     if (!rolesMap.has(row.clerkUserId)) rolesMap.set(row.clerkUserId, []);
     rolesMap.get(row.clerkUserId)!.push({
       companyId: row.companyId,
       naziv: row.companyNaziv,
       role: row.role,
+      sistem: "erp",
       createdAt: row.createdAt,
     });
+  }
+
+  for (const row of posRows) {
+    if (!rolesMap.has(row.clerkUserId)) rolesMap.set(row.clerkUserId, []);
+    // Prepreči podvojene vnose (isti user, isto podjetje, isti sistem)
+    const obstoječi = rolesMap.get(row.clerkUserId)!;
+    const jeŽe = obstoječi.some((r) => r.companyId === String(row.companyId) && r.sistem === "pos");
+    if (!jeŽe) {
+      obstoječi.push({
+        companyId: String(row.companyId),
+        naziv: row.companyNaziv,
+        role: row.vloga ?? "blagajnik",
+        sistem: "pos",
+        createdAt: row.ustvarjeno ?? new Date(),
+      });
+    }
   }
 
   // 3. Sestavi seznam iz vseh Clerk userjev
