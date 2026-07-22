@@ -194,9 +194,13 @@ function MizaCard({ miza, aktivnoNarocilo, onCreateNarocilo, onCancelNarocilo, o
 export default function Home() {
   const { naprava } = useNaprava();
   const { data: vseMize, isLoading: loadingMize } = useListMize();
-  const mize = naprava?.dovoljeneMize?.length
-    ? vseMize?.filter(m => naprava.dovoljeneMize!.includes(m.id))
-    : vseMize;
+  const mize = (() => {
+    if (!naprava?.dovoljeneMize?.length) return vseMize;
+    const filtered = vseMize?.filter(m => naprava.dovoljeneMize!.includes(m.id));
+    // Če filter vrne 0 miz, a vseMize ima mize — naprava ima napačne ID-je → pokaži vse
+    if (filtered !== undefined && filtered.length === 0 && vseMize!.length > 0) return vseMize;
+    return filtered;
+  })();
   const { data: narocila, isLoading: loadingNarocila, isFetching: narocilaFetching } = useListAktivnaNarocila();
   const { data: prostori } = useListProstori();
   const createNarocilo = useCreateNarocilo();

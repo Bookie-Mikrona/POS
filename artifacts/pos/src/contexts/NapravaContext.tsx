@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
 import { getAuthToken, getEnotaId } from "@workspace/api-client-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface NapravaTerminalConfig {
   terminalAktiven?: boolean;
@@ -85,19 +86,24 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
   });
   const [napravaLoading, setNapravaLoading] = useState(false);
 
+  // Sledimo enotaId iz AuthContext, da sprožimo re-registracijo ko postane dostopen
+  const { user } = useAuth();
+  const enotaId = user?.enotaId;
+  const prevEnotaIdRef = useRef<number | undefined>(undefined);
+
   const registriraj = useCallback(async () => {
     setNapravaLoading(true);
     try {
       const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
       const token = await getAuthToken();
-      const enotaId = getEnotaId();
-      if (!token || !enotaId) return; // čakamo na prijavo
+      const enotaIdStr = getEnotaId();
+      if (!token || !enotaIdStr) return; // čakamo na prijavo
       const res = await fetch(`${base}/api/naprave/registracija`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "X-Enota-Id": enotaId,
+          "X-Enota-Id": enotaIdStr,
         },
         body: JSON.stringify({ napravaKljuc, ime: defaultDeviceIme() }),
       });
@@ -124,9 +130,13 @@ export function NapravaProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Registriraj ob prvem mountu in ob vsaki spremembi enotaId (vklj. ko se prvič nastavi)
   useEffect(() => {
+    if (enotaId === undefined) return; // čakamo na auth
+    if (enotaId === prevEnotaIdRef.current) return; // ni spremembe
+    prevEnotaIdRef.current = enotaId;
     registriraj();
-  }, [registriraj]);
+  }, [enotaId, registriraj]);
 
   return (
     <NapravaContext.Provider value={{ naprava, napravaKljuc, napravaLoading, refreshNaprava: registriraj, updateTerminalConfig }}>

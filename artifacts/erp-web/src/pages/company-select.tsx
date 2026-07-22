@@ -66,44 +66,14 @@ export default function CompanySelectPage() {
   const noAccess = !isLoading && !error && companies.length === 0 && !isSuperAdmin;
   const hasCompanies = !isLoading && !error && companies.length > 0;
 
-  // POS-only uporabnik: pokaži ločen zaslon (brez auto-redirect, ki bi povzročil zanko)
+  // POS-only uporabnik: samodejno preusmeri na POS
   if (posOnlyUser) {
+    window.location.replace("/pos/");
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4 py-12">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-neutral-200/50 overflow-hidden">
-          <div className="p-6 text-center">
-            <div className="flex justify-center mb-6">
-              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-amber-100">
-                <Building2 className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-2">POS sistem</h1>
-            <p className="text-sm text-neutral-500 mb-6">
-              Vaš dostop je do sistema POS gostinstvo. Kliknite spodaj, da odprete aplikacijo.
-            </p>
-            <div className="space-y-3 mb-6">
-              {companies.map(company => (
-                <button
-                  key={company.id}
-                  onClick={() => { window.location.href = "/pos/"; }}
-                  className="w-full flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors group"
-                >
-                  <div className="text-left">
-                    <div className="font-medium text-neutral-900">{company.naziv}</div>
-                    <div className="text-xs text-neutral-500 mt-0.5">{company.podjetjeDavcna} · {roleLabel(company.role)}</div>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-amber-500 shrink-0" />
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-neutral-400 hover:text-neutral-600 flex items-center gap-1.5 mx-auto transition-colors"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Odjava
-            </button>
-          </div>
+      <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50">
+        <div className="flex flex-col items-center gap-3 text-neutral-500">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+          <span className="text-sm">Preusmerjam na POS…</span>
         </div>
       </div>
     );
