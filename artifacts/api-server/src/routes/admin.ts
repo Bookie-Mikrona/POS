@@ -243,34 +243,45 @@ router.post("/users/:clerkUserId/unban", async (req: Request, res: Response): Pr
   res.json({ ok: true });
 });
 
+// ── Pomožna funkcija: pretvori latestActivity v prijazen objekt ───────────────
+function mapActivity(s: { id: string; clientId: string; userId: string; status: string; lastActiveAt: number; expireAt: number; createdAt: number; latestActivity?: { isMobile?: boolean; browserName?: string; browserVersion?: string; deviceType?: string; ipAddress?: string; city?: string; country?: string } | null }) {
+  const a = s.latestActivity;
+  return {
+    sessionId: s.id,
+    clientId: s.clientId,
+    userId: s.userId,
+    status: s.status,
+    lastActiveAt: new Date(s.lastActiveAt).toISOString(),
+    expireAt: new Date(s.expireAt).toISOString(),
+    createdAt: new Date(s.createdAt).toISOString(),
+    brskalnik: a?.browserName ?? null,
+    brskalnikVerzija: a?.browserVersion ?? null,
+    naprava: a?.deviceType ?? null,
+    jeMobilen: a?.isMobile ?? false,
+    ip: a?.ipAddress ?? null,
+    mesto: a?.city ?? null,
+    drzava: a?.country ?? null,
+  };
+}
+
 // GET /admin/sessions — vse aktivne seje
-// Clerk getSessionList zahteva userId ali clientId — pridobimo userje najprej,
-// nato vzporedno seje za vsakega in združimo rezultate.
 router.get("/sessions", async (_req: Request, res: Response): Promise<void> => {
-  // 1. Vse Clerk userje
   const usersResp = await clerkClient.users.getUserList({ limit: 500 });
 
-  // 2. Vzporedno seje za vsakega userja (samo aktivne)
   const perUserSessions = await Promise.all(
     usersResp.data.map((u) =>
       clerkClient.sessions
         .getSessionList({ userId: u.id, status: "active", limit: 100 })
         .then((r) => r.data.map((s) => ({
-          sessionId: s.id,
-          userId: u.id,
+          ...mapActivity(s),
           email: u.emailAddresses[0]?.emailAddress ?? "",
           firstName: u.firstName ?? "",
           lastName: u.lastName ?? "",
-          status: s.status,
-          lastActiveAt: new Date(s.lastActiveAt).toISOString(),
-          expireAt: new Date(s.expireAt).toISOString(),
-          createdAt: new Date(s.createdAt).toISOString(),
         })))
-        .catch(() => []) // posamezna napaka ne poruši celotnega klica
+        .catch(() => [])
     )
   );
 
-  // 3. Združi in uredi po zadnji aktivnosti (najprej najnovejše)
   const sessions = perUserSessions
     .flat()
     .sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime());
@@ -278,11 +289,105 @@ router.get("/sessions", async (_req: Request, res: Response): Promise<void> => {
   res.json({ sessions });
 });
 
-// DELETE /admin/sessions/:sessionId — prekini sejo
+// DELETE /admin/sessions/:sessionId — prekini eno sejo
 router.delete("/sessions/:sessionId", async (req: Request, res: Response): Promise<void> => {
   const { sessionId } = req.params;
   await clerkClient.sessions.revokeSession(sessionId);
   res.json({ ok: true });
+});
+
+// GET /admin/devices — vse naprave (aktivne + nedavne) grupirane po clientId
+router.get("/devices", async (_req: Request, res: Response): Promise<void> => {
+  const usersResp = await clerkClient.users.getUserList({ limit: 500 });
+
+  // Pridobimo vse nedavne seje za vsakega userja (brez filtra statusa → zadnjih 50)
+  const perUserSessions = await Promise.all(
+    usersResp.data.map(async (u) => {
+      const [activeSessions, recentSessions] = await Promise.all([
+        clerkClient.sessions
+          .getSessionList({ userId: u.id, status: "active", limit: 50 })
+          .then((r) => r.data)
+          .catch(() => []),
+        clerkClient.sessions
+          .getSessionList({ userId: u.id, limit: 50 })
+          .then((r) => r.data)
+          .catch(() => []),
+      ]);
+      // Združi, odstranjuj podvojene
+      const all = [...activeSessions];
+      for (const s of recentSessions) {
+        if (!all.find((a) => a.id === s.id)) all.push(s);
+      }
+      return all.map((s) => ({
+        ...mapActivity(s),
+        email: u.emailAddresses[0]?.emailAddress ?? "",
+        firstName: u.firstName ?? "",
+        lastName: u.lastName ?? "",
+      }));
+    })
+  );
+
+  const allSessions = perUserSessions.flat();
+
+  // Grupiraj po clientId
+  const deviceMap = new Map<string, typeof allSessions>();
+  for (const s of allSessions) {
+    if (!deviceMap.has(s.clientId)) deviceMap.set(s.clientId, []);
+    deviceMap.get(s.clientId)!.push(s);
+  }
+
+  const devices = Array.from(deviceMap.entries()).map(([clientId, seje]) => {
+    // Vzemi podatke naprave iz najnovejše seje z latestActivity podatki
+    const najNovejsa = seje.sort((a, b) =>
+      new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+    )[0];
+    const aktivneSeje = seje.filter((s) => s.status === "active");
+    const jeAktivna = aktivneSeje.length > 0;
+
+    return {
+      clientId,
+      jeAktivna,
+      brskalnik: najNovejsa.brskalnik,
+      brskalnikVerzija: najNovejsa.brskalnikVerzija,
+      naprava: najNovejsa.naprava,
+      jeMobilen: najNovejsa.jeMobilen,
+      ip: najNovejsa.ip,
+      mesto: najNovejsa.mesto,
+      drzava: najNovejsa.drzava,
+      zadnjaAktivnost: najNovejsa.lastActiveAt,
+      prvaPrijava: seje.reduce((min, s) =>
+        new Date(s.createdAt) < new Date(min) ? s.createdAt : min, seje[0].createdAt
+      ),
+      // Uporabniki, ki so imeli seje na tej napravi
+      uporabniki: Array.from(
+        new Map(seje.map((s) => [s.userId, { userId: s.userId, email: s.email, firstName: s.firstName, lastName: s.lastName }])).values()
+      ),
+      // Vse aktivne sejeId-ji za to napravo
+      aktivneSejeId: aktivneSeje.map((s) => s.sessionId),
+    };
+  }).sort((a, b) =>
+    new Date(b.zadnjaAktivnost).getTime() - new Date(a.zadnjaAktivnost).getTime()
+  );
+
+  res.json({ devices });
+});
+
+// DELETE /admin/clients/:clientId/sessions — prekini vse aktivne seje naprave
+router.delete("/clients/:clientId/sessions", async (req: Request, res: Response): Promise<void> => {
+  const { clientId } = req.params;
+
+  // Poiščemo vse aktivne seje za ta clientId
+  const sessionsResp = await clerkClient.sessions
+    .getSessionList({ clientId, status: "active", limit: 100 })
+    .catch(() => ({ data: [] }));
+
+  await Promise.all(
+    sessionsResp.data.map((s) =>
+      clerkClient.sessions.revokeSession(s.id).catch(() => {})
+    )
+  );
+
+  res.json({ ok: true, razveljavljenoSej: sessionsResp.data.length });
 });
 
 // POST /admin/companies/:id/roles — dodeli dostop do podjetja kateremukoli userju

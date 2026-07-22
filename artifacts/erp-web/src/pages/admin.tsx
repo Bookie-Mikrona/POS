@@ -3,6 +3,7 @@ import {
   Building2, Users, Plus, ShieldCheck, Loader2, AlertCircle,
   CheckCircle2, ChevronDown, ChevronRight, Trash2, Package, X, TriangleAlert,
   RefreshCw, Save, Ban, Unlock, MonitorX, Clock, LogOut,
+  Laptop, Smartphone, Monitor, Wifi, WifiOff, MapPin,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ interface AdminUser {
 
 interface AdminSession {
   sessionId: string;
+  clientId: string;
   userId: string;
   email: string;
   firstName: string;
@@ -53,6 +55,29 @@ interface AdminSession {
   lastActiveAt: string;
   expireAt: string;
   createdAt: string;
+  brskalnik: string | null;
+  brskalnikVerzija: string | null;
+  naprava: string | null;
+  jeMobilen: boolean;
+  ip: string | null;
+  mesto: string | null;
+  drzava: string | null;
+}
+
+interface AdminDevice {
+  clientId: string;
+  jeAktivna: boolean;
+  brskalnik: string | null;
+  brskalnikVerzija: string | null;
+  naprava: string | null;
+  jeMobilen: boolean;
+  ip: string | null;
+  mesto: string | null;
+  drzava: string | null;
+  zadnjaAktivnost: string;
+  prvaPrijava: string;
+  uporabniki: { userId: string; email: string; firstName: string; lastName: string }[];
+  aktivneSejeId: string[];
 }
 
 /** Uporabnik je "online" če je bil aktiven v zadnjih 5 minutah */
@@ -1172,6 +1197,159 @@ function SejeAdminTab() {
   );
 }
 
+// ── Naprave tab ───────────────────────────────────────────────────────────────
+
+function napravaIkona(d: AdminDevice) {
+  if (d.jeMobilen) return <Smartphone className="h-4 w-4 shrink-0" />;
+  if (d.naprava?.toLowerCase().includes("tablet")) return <Laptop className="h-4 w-4 shrink-0" />;
+  return <Monitor className="h-4 w-4 shrink-0" />;
+}
+
+function napravaIme(d: AdminDevice): string {
+  const b = d.brskalnik ?? "Neznan brskalnik";
+  const v = d.brskalnikVerzija ? ` ${d.brskalnikVerzija.split(".")[0]}` : "";
+  const n = d.jeMobilen ? "Mobilna naprava" : (d.naprava ?? "Namizni računalnik");
+  return `${b}${v} · ${n}`;
+}
+
+function NapraveAdminTab() {
+  const qc = useQueryClient();
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["admin", "devices"],
+    queryFn: () => apiFetch<{ devices: AdminDevice[] }>("/api/admin/devices"),
+    refetchInterval: 60_000,
+  });
+  const devices = data?.devices ?? [];
+  const [blockConfirm, setBlockConfirm] = useState<string | null>(null);
+
+  const blockMutation = useMutation({
+    mutationFn: (clientId: string) =>
+      apiFetch(`/api/admin/clients/${encodeURIComponent(clientId)}/sessions`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "devices"] });
+      qc.invalidateQueries({ queryKey: ["admin", "sessions"] });
+      setBlockConfirm(null);
+    },
+  });
+
+  const aktivnih = devices.filter((d) => d.jeAktivna).length;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {devices.length} {devices.length === 1 ? "naprava" : devices.length < 5 ? "naprave" : "naprav"}
+          {aktivnih > 0 && <span className="text-green-600 font-medium"> · {aktivnih} aktivnih</span>}
+        </p>
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+          onClick={() => refetch()} disabled={isFetching}>
+          {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Osveži
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+      ) : devices.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground text-sm">
+          <Monitor className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          Ni zabeleženih naprav.
+        </div>
+      ) : (
+        <div className="divide-y border rounded-lg bg-card">
+          {devices.map((d) => {
+            const isBlocking = blockMutation.isPending && blockConfirm === d.clientId;
+            return (
+              <div key={d.clientId} className={`p-4 ${d.jeAktivna ? "" : "opacity-70"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  {/* Leva stran — naprava info */}
+                  <div className="flex items-start gap-3 min-w-0">
+                    {/* Indikator aktivnosti */}
+                    <div className="relative mt-0.5 shrink-0">
+                      <div className={`h-2 w-2 rounded-full ${d.jeAktivna ? "bg-green-500" : "bg-gray-300"}`} />
+                      {d.jeAktivna && (
+                        <div className="absolute inset-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-60" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      {/* Ime naprave */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {napravaIkona(d)}
+                        <span className="text-sm font-medium text-neutral-900">{napravaIme(d)}</span>
+                        {d.jeAktivna
+                          ? <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 py-0 gap-1"><Wifi className="h-2.5 w-2.5" /> Aktivna</Badge>
+                          : <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200 py-0 gap-1"><WifiOff className="h-2.5 w-2.5" /> Neaktivna</Badge>
+                        }
+                      </div>
+
+                      {/* Meta podatki */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
+                        {(d.mesto || d.drzava) && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {[d.mesto, d.drzava].filter(Boolean).join(", ")}
+                          </span>
+                        )}
+                        {d.ip && (
+                          <span className="text-xs text-muted-foreground font-mono">{d.ip}</span>
+                        )}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {d.jeAktivna ? "Zdaj aktivna" : `Zadnja aktivnost: ${zadnjaAktivnost(d.zadnjaAktivnost)}`}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Prva prijava: {new Date(d.prvaPrijava).toLocaleDateString("sl-SI", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+
+                      {/* Uporabniki na tej napravi */}
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {d.uporabniki.map((u) => {
+                          const ime = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
+                          return (
+                            <Badge key={u.userId} variant="outline" className="text-xs gap-1 bg-blue-50 text-blue-800 border-blue-200">
+                              <Users className="h-2.5 w-2.5" /> {ime}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desna stran — akcija */}
+                  <div className="shrink-0">
+                    {d.jeAktivna && (
+                      blockConfirm === d.clientId ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-destructive whitespace-nowrap">Res blokiraj?</span>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs"
+                            disabled={isBlocking}
+                            onClick={() => blockMutation.mutate(d.clientId)}>
+                            {isBlocking ? <Loader2 className="h-3 w-3 animate-spin" /> : "Da"}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs"
+                            onClick={() => setBlockConfirm(null)}>Ne</Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="ghost"
+                          className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setBlockConfirm(d.clientId)}>
+                          <Ban className="h-3 w-3" /> Blokiraj napravo
+                        </Button>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page root ─────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -1198,10 +1376,14 @@ export default function AdminPage() {
           <TabsTrigger value="seje" className="gap-2">
             <MonitorX className="h-3.5 w-3.5" /> Aktivne seje
           </TabsTrigger>
+          <TabsTrigger value="naprave" className="gap-2">
+            <Monitor className="h-3.5 w-3.5" /> Naprave
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="podjetja" className="mt-0"><PodjetjaTab /></TabsContent>
         <TabsContent value="uporabniki" className="mt-0"><UporabnikiAdminTab /></TabsContent>
         <TabsContent value="seje" className="mt-0"><SejeAdminTab /></TabsContent>
+        <TabsContent value="naprave" className="mt-0"><NapraveAdminTab /></TabsContent>
       </Tabs>
     </div>
   );
