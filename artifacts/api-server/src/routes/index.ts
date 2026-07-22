@@ -21,6 +21,7 @@ import posRouter from "./pos/index";
 import adminRouter from "./admin";
 import superadminRouter from "./superadmin";
 import ujpRouter from "./ujp";
+import ajpesRouter from "./ajpes";
 
 const router: IRouter = Router();
 
@@ -45,6 +46,7 @@ router.use(importConfigRouter);
 router.use("/admin", adminRouter);
 router.use(superadminRouter);
 router.use(ujpRouter);
+router.use(ajpesRouter);
 router.use(posRouter);
 
 export default router;

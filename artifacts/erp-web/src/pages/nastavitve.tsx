@@ -505,6 +505,117 @@ function UporabnikiTab({ companyId, isOwner }: { companyId: string; isOwner: boo
   );
 }
 
+// ── AJPES PRS sinhronizacija ──────────────────────────────────────────────────
+
+interface AjpesStatus { skupaj: number; zadnjiUvoz: string | null; }
+
+function AjpesTab() {
+  const qc = useQueryClient();
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncRezultat, setSyncRezultat] = useState<{ uvozenih: number; datum: string } | null>(null);
+  const [syncNapaka, setSyncNapaka] = useState<string | null>(null);
+
+  const { data: status, isLoading: statusLoading } = useQuery<AjpesStatus>({
+    queryKey: ["ajpes-status"],
+    queryFn: () => apiFetch<AjpesStatus>("/api/ajpes/status"),
+    staleTime: 60_000,
+  });
+
+  const handleSync = async () => {
+    setSyncLoading(true);
+    setSyncRezultat(null);
+    setSyncNapaka(null);
+    try {
+      const r = await apiFetch<{ uvozenih: number; datum: string }>("/api/ajpes/sync", { method: "POST" });
+      setSyncRezultat(r);
+      void qc.invalidateQueries({ queryKey: ["ajpes-status"] });
+    } catch (err) {
+      setSyncNapaka(err instanceof Error ? err.message : "Neznana napaka");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const formatDatum = (iso: string | null | undefined) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Poslovni register Slovenije (AJPES PRS)
+          </CardTitle>
+          <CardDescription>
+            Javni register podjetij in samostojnih podjetnikov. Vir:{" "}
+            <a href="https://podatki.gov.si/dataset/poslovni-register-slovenije" target="_blank" rel="noopener noreferrer" className="underline">
+              podatki.gov.si
+            </a>{" "}(licenca CC BY 4.0)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status */}
+          <div className="rounded-lg border bg-muted/30 px-4 py-3 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">
+                {statusLoading ? (
+                  <span className="text-muted-foreground">Nalagam…</span>
+                ) : (status?.skupaj ?? 0) > 0 ? (
+                  <span>{(status!.skupaj).toLocaleString("sl-SI")} subjektov</span>
+                ) : (
+                  <span className="text-muted-foreground">Register ni bil še uvožen</span>
+                )}
+              </p>
+              {!statusLoading && status?.zadnjiUvoz && (
+                <p className="text-xs text-muted-foreground">Zadnji uvoz: {formatDatum(status.zadnjiUvoz)}</p>
+              )}
+            </div>
+            <Button onClick={() => void handleSync()} disabled={syncLoading} className="gap-2 shrink-0">
+              {syncLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {syncLoading ? "Uvažam…" : "Osveži register"}
+            </Button>
+          </div>
+
+          {/* Rezultat */}
+          {syncRezultat && (
+            <Alert className="border-green-200 bg-green-50 text-green-800">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>
+                Uvoz uspešen: {syncRezultat.uvozenih.toLocaleString("sl-SI")} subjektov ({syncRezultat.datum})
+              </AlertDescription>
+            </Alert>
+          )}
+          {syncNapaka && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{syncNapaka}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Navodilo */}
+          <div className="rounded-lg border px-4 py-3 space-y-2 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Kako deluje</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>Ko iščete ali osvežite poslovnega partnerja, sistem samodejno preveri AJPES register in zapolni naslov, poštno številko in kraj.</li>
+              <li>Kjer podjetje javno objavi e-naslov v registru, bo sistem ta e-naslov samodejno zapolnil v polje <strong>E-mail</strong>.</li>
+              <li>Javni izvoz (OPSI) vsebuje: naziv, naslov, pravna oblika. <strong>E-mail</strong> je v polnem izvozu AJPES FTP — na voljo subjektom, ki so ga registrirali.</li>
+              <li>Register posodobite mesečno (AJPES posodablja podatke dnevno/tedensko).</li>
+              <li><strong>Opozorilo:</strong> uvoz traja 2–5 minut (prenos ~127 MB).</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── UJP sinhronizacija ────────────────────────────────────────────────────────
 
 interface UjpStatus { skupaj: number; zadnjiUvoz: string | null; }
@@ -653,6 +764,10 @@ export default function Nastavitve() {
             <Database className="h-3.5 w-3.5" />
             UJP e-računi
           </TabsTrigger>
+          <TabsTrigger value="ajpes" className="gap-2">
+            <Database className="h-3.5 w-3.5" />
+            AJPES PRS
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="podatki" className="mt-0">
@@ -665,6 +780,10 @@ export default function Nastavitve() {
 
         <TabsContent value="ujp" className="mt-0">
           <UjpTab />
+        </TabsContent>
+
+        <TabsContent value="ajpes" className="mt-0">
+          <AjpesTab />
         </TabsContent>
       </Tabs>
     </div>

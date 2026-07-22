@@ -22,3 +22,4 @@ export * from "./system-settings";
 export * from "./pos/index";
 // ── Skupni registri ──────────────────────────────────────────────────────────
 export * from "./ujp-prejemniki";
+export * from "./ajpes-subjekti";

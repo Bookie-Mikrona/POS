@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { artikliTable, db, kategorijeTable, partnerCenikiTable, shranjeniKupciTable } from "@workspace/db";
 import { poisciVUjp } from "../ujp";
+import { poisciVAjpes } from "../ajpes";
 
 /**
  * Pretvori 15-mestno slovensko TRR številko (UJP format) v IBAN.
@@ -398,7 +399,7 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     return;
   }
 
-  // INETIS najprej (dobi naziv), nato vzporedno BizBox + UJP
+  // INETIS najprej (dobi naziv), nato vzporedno BizBox + UJP + AJPES
   const svezi = await poisciNaInetis(davcna);
 
   if (!svezi) {
@@ -407,9 +408,10 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   }
 
   const maticnaZaUjp = normalizeMaticnaZaUjp(svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka);
-  const [eReg, ujpVnosi] = await Promise.all([
+  const [eReg, ujpVnosi, ajpesSub] = await Promise.all([
     poisciNaBizBox(davcna, svezi.naziv),
     poisciVUjp(davcna, maticnaZaUjp),
+    poisciVAjpes(svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka),
   ]);
 
   // UJP ima prednost pred BizBox za javni sektor
@@ -449,6 +451,10 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
         ...(eReg.naslov ? { eRacunNaslov: eReg.naslov } : {})}
     : {};
 
+  // AJPES: zapolni email in spletno stran, če ni že vnešeno
+  const ajpesEmail = (ajpesSub?.email && !obstojecKupec.email) ? ajpesSub.email : undefined;
+  const ajpesWww = (ajpesSub?.www && !obstojecKupec.email) ? ajpesSub.www : undefined;
+
   const [posodobljen] = await db
     .update(shranjeniKupciTable)
     .set({
@@ -465,6 +471,8 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
       maticnaStevilka: svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka,
       trr: trrji,
       ...(novaVrsta !== null ? { vrstaPartnerja: novaVrsta } : {}),
+      ...(ajpesEmail ? { email: ajpesEmail } : {}),
+      ...(ajpesWww ? { telefon: ajpesWww } : {}),
       ...eRacunPosodobitev,
     })
     .where(and(
@@ -490,10 +498,11 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
     return;
   }
 
-  // Vzporedno preverimo bizBox eImenik + UJP seznam (eRacunPrejemnik)
-  const [eReg, ujpVnosi] = await Promise.all([
+  // Vzporedno preverimo bizBox eImenik + UJP + AJPES
+  const [eReg, ujpVnosi, ajpesSub] = await Promise.all([
     poisciNaBizBox(davcna, r.naziv),
     poisciVUjp(davcna, normalizeMaticnaZaUjp(r.maticnaStevilka)),
+    poisciVAjpes(r.maticnaStevilka),
   ]);
 
   // UJP ima prednost pred BizBox za javni sektor — trrSt pretvorimo v SI IBAN
@@ -526,6 +535,9 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
               ? { ...t, bic: "BSLJSI2X" } : t)
         : r.trr;
 
+      // AJPES: zapolni email, če je na voljo in kupec ga še nima
+      const ajpesEmailPoisci = ajpesSub?.email || null;
+
       if (existing) {
         shranjeniId = existing.id;
         await db.update(shranjeniKupciTable).set({
@@ -542,6 +554,7 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           maticnaStevilka: r.maticnaStevilka,
           trr: trr_popravljeni,
           zadnjaUporaba: new Date(),
+          ...(ajpesEmailPoisci ? { email: ajpesEmailPoisci } : {}),
           ...(vrstaIzPoisci !== null ? { vrstaPartnerja: vrstaIzPoisci } : {}),
           ...(eRacunPrejemnik !== null ? {
             eRacunPrejemnik,
@@ -565,6 +578,7 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
           idZaDdv: r.idZaDdv,
           maticnaStevilka: r.maticnaStevilka,
           trr: trr_popravljeni,
+          email: ajpesEmailPoisci,
           steviloUpor: 0,
           zadnjaUporaba: new Date(),
           ...(vrstaIzPoisci !== null ? { vrstaPartnerja: vrstaIzPoisci } : {}),
@@ -585,6 +599,7 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
   res.json({
     ...r,
     id: shranjeniId,
+    email: (r as any).email ?? ajpesSub?.email ?? null,
     eRacunPrejemnik,
     eRacunOmrezje,
     eRacunNaslov,
