@@ -221,6 +221,7 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
     lastName: u.lastName ?? "",
     imageUrl: u.imageUrl ?? "",
     createdAt: new Date(u.createdAt).toISOString(),
+    lastActiveAt: u.lastActiveAt ? new Date(u.lastActiveAt).toISOString() : null,
     companies: rolesMap.get(u.id) ?? [],
   }));
 

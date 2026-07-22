@@ -38,7 +38,27 @@ interface AdminUser {
   lastName: string;
   imageUrl: string;
   createdAt: string;
+  lastActiveAt: string | null;
   companies: { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: string }[];
+}
+
+/** Uporabnik je "online" če je bil aktiven v zadnjih 5 minutah */
+function jeOnline(lastActiveAt: string | null): boolean {
+  if (!lastActiveAt) return false;
+  return Date.now() - new Date(lastActiveAt).getTime() < 5 * 60 * 1000;
+}
+
+/** Prijazni prikaz časa zadnje aktivnosti */
+function zadnjaAktivnost(lastActiveAt: string | null): string {
+  if (!lastActiveAt) return "Nikoli";
+  const diff = Date.now() - new Date(lastActiveAt).getTime();
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "Pravkar";
+  if (min < 60) return `pred ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `pred ${h} h`;
+  const d = Math.floor(h / 24);
+  return `pred ${d} d`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -898,14 +918,27 @@ function UporabnikiAdminTab() {
           {users.map((u) => {
             const displayName = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
             const hasAccess = u.companies.length > 0;
+            const online = jeOnline(u.lastActiveAt);
             return (
               <div key={u.clerkUserId} className={`p-4 ${!hasAccess ? "bg-amber-50/50" : ""}`}>
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900">{displayName}</p>
-                    {displayName !== u.email && (
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    )}
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    {/* Indikator prisotnosti */}
+                    <div className="relative mt-1 shrink-0">
+                      <div className={`h-2 w-2 rounded-full ${online ? "bg-green-500" : "bg-gray-300"}`} />
+                      {online && (
+                        <div className="absolute inset-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-60" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-neutral-900 leading-tight">{displayName}</p>
+                      {displayName !== u.email && (
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      )}
+                      <p className={`text-xs mt-0.5 ${online ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+                        {online ? "Povezano" : zadnjaAktivnost(u.lastActiveAt)}
+                      </p>
+                    </div>
                   </div>
                   {!hasAccess && (
                     <span className="text-xs text-amber-600 flex items-center gap-1 shrink-0 mt-0.5">
@@ -913,7 +946,7 @@ function UporabnikiAdminTab() {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 pl-4">
                   {hasAccess ? (
                     u.companies.map((c) => {
                       const isPos = c.sistem === "pos";
