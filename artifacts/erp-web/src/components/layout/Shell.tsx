@@ -25,7 +25,7 @@ import {
   PieChart,
   UtensilsCrossed,
 } from "lucide-react";
-import { useClerk, useUser } from "@clerk/react";
+import { useClerk, useUser, useAuth } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
 
 // Extend UserProfile to include isSuperAdmin from our /me endpoint
@@ -275,9 +275,44 @@ export function AppSidebar() {
 export function Topbar() {
   const { activeCompany } = useCompany();
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const { user, isLoaded } = useUser();
   const { data: dbUser } = useGetMe({ query: { enabled: isLoaded && !!user, queryKey: ["/api/me"] } });
+
+  // ── Ob zapiranju brskalnika/zavihka prekini Clerk sejo ────────────────────
+  const tokenRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    // Predpomni žeton in ga osvežuj vsakih 55 sekund (žeton velja ~60s)
+    const osveziZeton = async () => {
+      try {
+        tokenRef.current = await getToken();
+      } catch {
+        tokenRef.current = null;
+      }
+    };
+
+    osveziZeton();
+    const interval = setInterval(osveziZeton, 55_000);
+
+    const obZapiranju = () => {
+      const token = tokenRef.current;
+      if (!token) return;
+      // keepalive: true zagotovi, da zahteva doseže strežnik tudi po zaprtju strani
+      fetch("/api/auth/end-session", {
+        method: "POST",
+        keepalive: true,
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    };
+
+    window.addEventListener("beforeunload", obZapiranju);
+    return () => {
+      window.removeEventListener("beforeunload", obZapiranju);
+      clearInterval(interval);
+    };
+  }, [getToken]);
   
   const [location] = useLocation();
   const { toggleSidebar, state } = useSidebar();

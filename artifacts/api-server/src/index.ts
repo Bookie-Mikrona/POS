@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { zaženiNočnoČiščenje } from "./lib/sessionScheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Nočno čiščenje sej ob 4:00 zjutraj (slovenskega časa)
+  zaženiNočnoČiščenje();
 });
