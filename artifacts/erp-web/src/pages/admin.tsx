@@ -180,6 +180,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
   const { data: enoteData } = useQuery({
     queryKey: ["admin", "enote", companyId],
     queryFn: () => apiFetch<{ enote: Enota[] }>(`/api/admin/companies/${companyId}/enote`),
+    staleTime: 0,
   });
 
   // Blagajne za izbrano enoto — naloži samo ko je enota izbrana
