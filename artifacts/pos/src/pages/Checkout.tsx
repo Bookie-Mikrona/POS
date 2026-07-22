@@ -2134,10 +2134,7 @@ ${linije.map(vrHtml).join("\n")}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Zaključek računa</h2>
           <Card className="sticky top-8">
-            <CardHeader>
-              <CardTitle>Podrobnosti plačila</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="pt-4 space-y-3">
               {selectedOrder ? (
                 <>
                   {/* Banner: druga odprta naročila na isti mizi */}
@@ -2236,8 +2233,8 @@ ${linije.map(vrHtml).join("\n")}
                   )}
 
                   {/* Natakar — 1. mesto */}
-                  <div className="space-y-2">
-                    <Label className="text-base flex items-center gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-sm flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Natakar
                     </Label>
@@ -2260,14 +2257,13 @@ ${linije.map(vrHtml).join("\n")}
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground">Prikazano na računu in posredovano FURS-u.</p>
                       </>
                     )}
                   </div>
 
                   <Separator />
 
-                  <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                  <div className="rounded-lg bg-muted/50 p-2 space-y-0.5">
                     <div className="flex justify-between text-sm font-medium">
                       <span>{selectedOrder.mizaIme ?? (selectedOrder.mizaStevilka != null ? `Miza ${selectedOrder.mizaStevilka}` : "Direktna prodaja")}</span>
                       <span className="text-primary font-bold">
@@ -2497,8 +2493,8 @@ ${linije.map(vrHtml).join("\n")}
                   <Separator />
 
                   {/* Kupec (davčna številka) */}
-                  <div className="space-y-2">
-                    <Label className="text-base flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-sm flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <Building2 className="h-4 w-4" />
                         Kupec (neobvezno)
@@ -2659,8 +2655,8 @@ ${linije.map(vrHtml).join("\n")}
 
                   {/* Bon za pico — prikaži samo, če so pice na naročilu */}
                   {showBonZaPico && (
-                    <div className="space-y-3">
-                      <Label className="text-base flex items-center gap-2">
+                    <div className="space-y-2">
+                      <Label className="text-sm flex items-center gap-2">
                         <Pizza className="h-4 w-4 text-orange-500" />
                         Bon za pico
                         <span className="text-xs font-normal text-muted-foreground ml-1">
@@ -2728,8 +2724,8 @@ ${linije.map(vrHtml).join("\n")}
                   {showBonZaPico && steviloBonovDejanski > 0 && <Separator />}
 
                   {!vsePlacanoZBoni && (
-                    <div className="space-y-3">
-                      <Label className="text-base">
+                    <div className="space-y-2">
+                      <Label className="text-sm">
                         {steviloBonovDejanski > 0
                           ? <>Način plačila za preostalo <span className="text-primary font-bold">{znesekPreostalega.toFixed(2)} €</span></>
                           : "Način plačila"
@@ -3017,22 +3013,6 @@ ${linije.map(vrHtml).join("\n")}
                     </Alert>
                   )}
 
-                  {/* Razčlenitev plačil */}
-                  {zneskiZaPrikaz.length > 0 && (
-                    <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5" data-testid="razclenitvePlacil">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Razčlenitev plačila</p>
-                      {zneskiZaPrikaz.map((item, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{item.oznaka}:</span>
-                          <span className="font-mono font-medium">{item.znesek.toFixed(2)} €</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
-                        <span>Skupaj:</span>
-                        <span className="font-mono">{vsotaPlacil.toFixed(2)} €</span>
-                      </div>
-                    </div>
-                  )}
 
                 </>
               ) : (
