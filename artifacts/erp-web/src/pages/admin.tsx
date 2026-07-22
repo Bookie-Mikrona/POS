@@ -40,6 +40,7 @@ interface AdminUser {
   imageUrl: string;
   createdAt: string;
   lastActiveAt: string | null;
+  imaAktivnoSejo: boolean;
   banned: boolean;
   isSuperAdmin: boolean;
   companies: { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: string }[];
@@ -1137,7 +1138,9 @@ function UporabnikiAdminTab() {
           {users.map((u) => {
             const displayName = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
             const hasAccess = u.companies.length > 0;
-            const online = jeOnline(u.lastActiveAt);
+            // imaAktivnoSejo = ima vsaj eno aktivno Clerk sejo (zanesljiv vir)
+            // jeOnline kot rezerva, če bi bili podatki o seji nedostopni
+            const online = u.imaAktivnoSejo || jeOnline(u.lastActiveAt);
             const isBanning = banMutation.isPending && banConfirm === u.clerkUserId;
             const isUnbanning = unbanMutation.isPending;
             return (

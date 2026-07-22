@@ -217,19 +217,47 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
     (process.env["SUPER_ADMIN_IDS"] ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   );
 
-  // 3. Sestavi seznam iz vseh Clerk userjev
-  const users = clerkResponse.data.map((u) => ({
-    clerkUserId: u.id,
-    email: u.emailAddresses[0]?.emailAddress ?? "",
-    firstName: u.firstName ?? "",
-    lastName: u.lastName ?? "",
-    imageUrl: u.imageUrl ?? "",
-    createdAt: new Date(u.createdAt).toISOString(),
-    lastActiveAt: u.lastActiveAt ? new Date(u.lastActiveAt).toISOString() : null,
-    banned: u.banned ?? false,
-    isSuperAdmin: superAdminIds.has(u.id),
-    companies: rolesMap.get(u.id) ?? [],
-  }));
+  // 3. Vzporedno pridobi aktivne seje za vsakega userja (za natančen online status)
+  //    user.lastActiveAt se posodablja redko; session.lastActiveAt je zanesljivejši vir.
+  const aktivneSeje = await Promise.all(
+    clerkResponse.data.map((u) =>
+      clerkClient.sessions
+        .getSessionList({ userId: u.id, status: "active", limit: 10 })
+        .then((r) => ({
+          userId: u.id,
+          imaAktivnoSejo: r.data.length > 0,
+          // Najnovejša lastActiveAt med vsemi aktivnimi sejami
+          sejaLastActiveAt: r.data.length > 0
+            ? Math.max(...r.data.map((s) => s.lastActiveAt))
+            : null,
+        }))
+        .catch(() => ({ userId: u.id, imaAktivnoSejo: false, sejaLastActiveAt: null }))
+    )
+  );
+
+  const sejeMap = new Map(aktivneSeje.map((s) => [s.userId, s]));
+
+  // 4. Sestavi seznam iz vseh Clerk userjev
+  const users = clerkResponse.data.map((u) => {
+    const seja = sejeMap.get(u.id);
+    // Uporabi session.lastActiveAt če je novejši od user.lastActiveAt
+    const userLastActive = u.lastActiveAt ?? 0;
+    const sejaLastActive = seja?.sejaLastActiveAt ?? 0;
+    const effectiveLastActiveAt = Math.max(userLastActive, sejaLastActive);
+    return {
+      clerkUserId: u.id,
+      email: u.emailAddresses[0]?.emailAddress ?? "",
+      firstName: u.firstName ?? "",
+      lastName: u.lastName ?? "",
+      imageUrl: u.imageUrl ?? "",
+      createdAt: new Date(u.createdAt).toISOString(),
+      lastActiveAt: effectiveLastActiveAt > 0 ? new Date(effectiveLastActiveAt).toISOString() : null,
+      imaAktivnoSejo: seja?.imaAktivnoSejo ?? false,
+      banned: u.banned ?? false,
+      isSuperAdmin: superAdminIds.has(u.id),
+      companies: rolesMap.get(u.id) ?? [],
+    };
+  });
 
   res.json({ users });
 });
