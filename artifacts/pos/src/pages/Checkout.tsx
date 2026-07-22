@@ -2288,21 +2288,6 @@ ${linije.map(vrHtml).join("\n")}
                     </p>
                   </div>
 
-                  {/* DDV razčlenitev pred izdajo */}
-                  {ddvPoStopnjahDisplay.length > 0 && (
-                    <div className="rounded-lg border bg-background px-3 py-2 space-y-1 text-xs">
-                      {ddvPoStopnjahDisplay.map(d => (
-                        <div key={d.stopnja} className="flex justify-between text-muted-foreground">
-                          <span>DDV {d.stopnja.toFixed(1).replace(".", ",")} % &nbsp;(osnova {d.osnova.toFixed(2)} €)</span>
-                          <span className="font-mono">{d.ddvZnesek.toFixed(2)} €</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between font-semibold border-t pt-1 text-foreground">
-                        <span>Skupaj z DDV</span>
-                        <span className="font-mono">{(jeBrezplacno ? (effectiveSkupajSCenikom ?? effectiveSkupaj) : displaySkupaj).toFixed(2)} €</span>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Seštevek po gostih */}
                   {prikaziGostSestevek && (() => {
@@ -2502,32 +2487,12 @@ ${linije.map(vrHtml).join("\n")}
 
                   {/* Kupec (davčna številka) */}
                   <div className="space-y-1">
-                    <Label className="text-sm flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Kupec (neobvezno)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setKupecRocniVnos(v => !v);
-                          setKupecDavcna("");
-                          setKupecNaziv(null);
-                          setKupecNaslov(null);
-                          setKupecNapaka(null);
-                          setKupecId(null);
-                          setKupecZavezanecDdv(false);
-                        }}
-                        className={`text-xs px-2 py-0.5 rounded border transition-colors font-normal ${kupecRocniVnos ? "bg-primary text-primary-foreground border-primary" : "border-input text-muted-foreground hover:border-primary hover:text-primary"}`}
-                      >
-                        Ročni vnos
-                      </button>
-                    </Label>
                     {!kupecRocniVnos ? (
                       <>
                         <div className="flex gap-2 items-center">
+                          <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <KlavijaturaInput
-                            placeholder="Davčna številka (8 številk)"
+                            placeholder="Davčna številka kupca"
                             value={kupecDavcna}
                             maxLength={8}
                             inputMode="numeric"
@@ -2556,33 +2521,48 @@ ${linije.map(vrHtml).join("\n")}
                                   .finally(() => setKupecIscemo(false));
                               }
                             }}
-                            className="h-9"
+                            className="h-8 flex-1"
                           />
                           {kupecIscemo && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKupecRocniVnos(v => !v);
+                              setKupecDavcna("");
+                              setKupecNaziv(null);
+                              setKupecNaslov(null);
+                              setKupecNapaka(null);
+                              setKupecId(null);
+                              setKupecZavezanecDdv(false);
+                            }}
+                            className="text-xs px-2 py-0.5 rounded border transition-colors font-normal shrink-0 border-input text-muted-foreground hover:border-primary hover:text-primary"
+                          >
+                            Ročni vnos
+                          </button>
                         </div>
                         {kupecNapaka && <p className="text-xs text-amber-600">{kupecNapaka}</p>}
                         {kupecDavcna.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="space-y-1">
-                              <Label htmlFor="kupec-naziv" className="text-xs text-muted-foreground">Naziv kupca</Label>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor="kupec-naziv" className="text-xs text-muted-foreground shrink-0 w-14">Naziv</Label>
                               <KlavijaturaInput
                                 id="kupec-naziv"
                                 placeholder="Naziv podjetja ali osebe"
                                 value={kupecNaziv ?? ""}
                                 onChange={v => setKupecNaziv(v || null)}
                                 naslov="Naziv kupca"
-                                className="h-8 text-sm"
+                                className="h-8 text-sm flex-1"
                               />
                             </div>
-                            <div className="space-y-1">
-                              <Label htmlFor="kupec-naslov" className="text-xs text-muted-foreground">Naslov (neobvezno)</Label>
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor="kupec-naslov" className="text-xs text-muted-foreground shrink-0 w-14">Naslov</Label>
                               <KlavijaturaInput
                                 id="kupec-naslov"
                                 placeholder="Ulica, kraj"
                                 value={kupecNaslov ?? ""}
                                 onChange={v => setKupecNaslov(v || null)}
                                 naslov="Naslov kupca"
-                                className="h-8 text-sm"
+                                className="h-8 text-sm flex-1"
                               />
                             </div>
                             <button
@@ -2602,31 +2582,42 @@ ${linije.map(vrHtml).join("\n")}
                         )}
                       </>
                     ) : (
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <Label htmlFor="kupec-naziv-rocni" className="text-xs text-muted-foreground">Naziv kupca</Label>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground flex-1">Ročni vnos kupca</span>
+                          <button
+                            type="button"
+                            onClick={() => { setKupecRocniVnos(false); setKupecDavcna(""); setKupecNaziv(null); setKupecNaslov(null); setKupecNapaka(null); setKupecId(null); setKupecZavezanecDdv(false); }}
+                            className="text-xs px-2 py-0.5 rounded border transition-colors font-normal shrink-0 bg-primary text-primary-foreground border-primary"
+                          >
+                            Ročni vnos
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="kupec-naziv-rocni" className="text-xs text-muted-foreground shrink-0 w-14">Naziv</Label>
                           <KlavijaturaInput
                             id="kupec-naziv-rocni"
                             placeholder="Naziv podjetja ali osebe"
                             value={kupecNaziv ?? ""}
                             onChange={v => setKupecNaziv(v || null)}
                             naslov="Naziv kupca"
-                            className="h-8 text-sm"
+                            className="h-8 text-sm flex-1"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="kupec-naslov-rocni" className="text-xs text-muted-foreground">Naslov (neobvezno)</Label>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="kupec-naslov-rocni" className="text-xs text-muted-foreground shrink-0 w-14">Naslov</Label>
                           <KlavijaturaInput
                             id="kupec-naslov-rocni"
                             placeholder="Ulica, kraj"
                             value={kupecNaslov ?? ""}
                             onChange={v => setKupecNaslov(v || null)}
                             naslov="Naslov kupca"
-                            className="h-8 text-sm"
+                            className="h-8 text-sm flex-1"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="kupec-davcna-rocni" className="text-xs text-muted-foreground">Davčna številka (neobvezno)</Label>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="kupec-davcna-rocni" className="text-xs text-muted-foreground shrink-0 w-14">Davčna</Label>
                           <KlavijaturaInput
                             id="kupec-davcna-rocni"
                             placeholder="npr. 12345678"
@@ -2635,7 +2626,7 @@ ${linije.map(vrHtml).join("\n")}
                             inputMode="numeric"
                             naslov="Davčna številka"
                             onChange={v => setKupecDavcna(v.replace(/\D/g, "").slice(0, 8))}
-                            className="h-8 text-sm"
+                            className="h-8 text-sm flex-1"
                           />
                         </div>
                         <div className="flex items-center gap-2">
