@@ -11,6 +11,9 @@ import { db } from "@workspace/db";
 import { enoteTable, posUporabnikiTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
 
+const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+
 export interface PosRequest extends Request {
   enotaId: number;
   clerkUserId: string;
@@ -40,6 +43,26 @@ export async function requireEnota(
 
   if (!enotaId || isNaN(enotaId)) {
     res.status(400).json({ napaka: "Manjka X-Enota-Id glava" });
+    return;
+  }
+
+  // Superadmin bypass — superadmin sme dostopati do katerekoli enote
+  if (SUPER_ADMIN_IDS.includes(userId)) {
+    const [enota] = await db
+      .select({ id: enoteTable.id, companyId: enoteTable.companyId })
+      .from(enoteTable)
+      .where(eq(enoteTable.id, enotaId))
+      .limit(1);
+    if (!enota) {
+      res.status(403).json({ napaka: "Poslovna enota ne obstaja", koda: "ENOTA_NEDOSTOPNA" });
+      return;
+    }
+    (req as PosRequest).enotaId = enotaId;
+    (req as PosRequest).clerkUserId = userId;
+    (req as PosRequest).companyId = enota.companyId;
+    (req as PosRequest).vloga = "superadmin";
+    (req as any).companyId = enota.companyId;
+    next();
     return;
   }
 
@@ -102,6 +125,15 @@ export async function requirePosCompany(
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ napaka: "Prijava je obvezna" });
+    return;
+  }
+
+  // Superadmin bypass
+  if (SUPER_ADMIN_IDS.includes(userId)) {
+    (req as PosRequest).clerkUserId = userId;
+    (req as PosRequest).companyId = "";
+    (req as any).companyId = "";
+    next();
     return;
   }
 
