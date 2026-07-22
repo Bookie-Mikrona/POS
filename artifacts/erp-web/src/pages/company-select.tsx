@@ -66,8 +66,9 @@ export default function CompanySelectPage() {
   const noAccess = !isLoading && !error && companies.length === 0 && !isSuperAdmin;
   const hasCompanies = !isLoading && !error && companies.length > 0;
 
-  // POS-only uporabnik: samodejno preusmeri na POS
+  // POS-only uporabnik: nastavi hint in preusmeri direktno na POS
   if (posOnlyUser) {
+    localStorage.setItem("pos_user_hint", "1");
     window.location.replace("/pos/");
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50">

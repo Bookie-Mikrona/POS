@@ -150,23 +150,44 @@ function SignUpPage() {
 
 function HomeRedirect() {
   const { isSuperAdmin, isLoading } = useIsSuperAdminState();
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded, user } = useUser();
 
-  // Clerk se inicializira — prikaži pristajalno stran takoj da ni praznega zaslona
-  if (!isLoaded) return <LandingPage />;
-
-  // Prijavljen — počakaj na /api/me (da super admin ne pristane na /dashboard)
-  if (isSignedIn && isLoading) return (
+  const spinner = (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-3 text-muted-foreground">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <span className="text-sm">Nalaganje…</span>
-      </div>
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
     </div>
   );
 
-  // Prijavljen → preusmeri
-  if (isSignedIn) return <Redirect to={isSuperAdmin ? "/admin" : "/dashboard"} />;
+  // Clerk se inicializira — nevtralni spinner (ne ERP landing page)
+  if (!isLoaded) return spinner;
+
+  if (isSignedIn) {
+    // POS-only hint: preusmeri takoj, preden se naloži karkoli ERP
+    if (localStorage.getItem("pos_user_hint") === "1") {
+      window.location.replace("/pos/");
+      return spinner;
+    }
+
+    // Počakaj na /api/me da super admin ne pristane napačno
+    if (isLoading) return spinner;
+
+    if (isSuperAdmin) return <Redirect to="/admin" />;
+
+    // ERP uporabnik z obstoječim podjetjem → direktno na dashboard
+    const userId = user?.id;
+    const storedCompany = userId ? localStorage.getItem(`erp_active_company_${userId}`) : null;
+    if (storedCompany) {
+      try {
+        const parsed = JSON.parse(storedCompany) as { role?: string };
+        if (parsed?.role && !(parsed.role as string).startsWith("pos_")) {
+          return <Redirect to="/dashboard" />;
+        }
+      } catch { /* napačen JSON — ignoriraj */ }
+    }
+
+    // Brez shranjenega podjetja → company-select (tam se zazna POS-only)
+    return <Redirect to="/company-select" />;
+  }
 
   // Odjavljen → pristajalna stran
   return <LandingPage />;

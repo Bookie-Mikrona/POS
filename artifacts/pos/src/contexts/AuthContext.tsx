@@ -117,6 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem(POS_ENOTA_ID_KEY, String(enotaId));
         }
 
+        // Počisti ERP-jev POS hint — smo v POS aplikaciji
+        localStorage.removeItem("pos_user_hint");
+
         setPosUser({
           id: data.id,
           username: clerkUser?.emailAddresses[0]?.emailAddress ?? "",
