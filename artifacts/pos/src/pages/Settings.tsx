@@ -362,7 +362,7 @@ export default function Settings() {
   // Admin: vse blagajne podjetja (brez filtra registracije) za upravljanje
   const { data: vseBlagajne, refetch: refetchVseBlagajne } = useQuery<BlagajnaPogled[]>({
     queryKey: ["admin-blagajne-vse"],
-    queryFn: () => customFetch<BlagajnaPogled[]>(`${base}/api/blagajne?all=true`),
+    queryFn: () => customFetch<BlagajnaPogled[]>(`/api/blagajne?all=true`),
     enabled: jeAdmin,
   });
 

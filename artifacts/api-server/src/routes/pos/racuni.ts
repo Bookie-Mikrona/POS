@@ -144,6 +144,7 @@ router.get("/racuni", async (req, res): Promise<void> => {
 
 router.post("/racuni", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const companyId = (req as any).companyId as string;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
@@ -312,7 +313,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
     const [natakar] = await db
       .select()
       .from(natakariTable)
-      .where(and(eq(natakariTable.id, parsed.data.natakariId), sql`true`, eq(natakariTable.enotaId, tenotaId)));
+      .where(and(eq(natakariTable.id, parsed.data.natakariId), eq(natakariTable.companyId, companyId)));
     if (natakar) {
       natakarIme = `${natakar.ime} ${natakar.priimek}`;
       natakarDavcna = natakar.davcnaStevilka ?? null;
