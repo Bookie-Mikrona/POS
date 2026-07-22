@@ -43,6 +43,7 @@ import {
   getListEnoteQueryKey,
   getListBlagajneQueryKey,
   getListNapraveQueryKey,
+  customFetch,
 } from "@workspace/api-client-react";
 import type { TestniZagonPogled, Enota, BlagajnaPogled, Naprava } from "@workspace/api-client-react";
 import { useNaprava } from "@/contexts/NapravaContext";
@@ -349,22 +350,34 @@ export default function Settings() {
   const [bPpId, setBPpId] = useState("");
   const [bBId, setBBId] = useState("");
   const [bIme, setBIme] = useState("");
+  const [bEnotaId, setBEnotaId] = useState<number | "">("");  // admin: enota za novo blagajno
   const [bDialogOpen, setBDialogOpen] = useState(false);
   const [editingBlagajna, setEditingBlagajna] = useState<BlagajnaPogled | null>(null);
   const [editBPpId, setEditBPpId] = useState("");
   const [editBBId, setEditBBId] = useState("");
   const [editBIme, setEditBIme] = useState("");
   const [editBAktivna, setEditBAktivna] = useState(true);
+  const [editBEnotaId, setEditBEnotaId] = useState<number | "">("");  // admin: enota pri urejanju
+
+  // Admin: vse blagajne podjetja (brez filtra registracije) za upravljanje
+  const { data: vseBlagajne, refetch: refetchVseBlagajne } = useQuery<BlagajnaPogled[]>({
+    queryKey: ["admin-blagajne-vse"],
+    queryFn: () => customFetch<BlagajnaPogled[]>(`${base}/api/blagajne?all=true`),
+    enabled: jeAdmin,
+  });
 
   const handleCreateBlagajna = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bIme.trim()) { toast({ title: "Vnesite naziv blagajne", variant: "destructive" }); return; }
     if (!bPpId.trim()) { toast({ title: "Vnesite ID poslovnega prostora", variant: "destructive" }); return; }
     if (!bBId.trim()) { toast({ title: "Vnesite ID elektronske naprave", variant: "destructive" }); return; }
+    if (jeAdmin && !bEnotaId) { toast({ title: "Izberite enoto za blagajno", variant: "destructive" }); return; }
     try {
-      await createBlagajna.mutateAsync({ data: { ppId: bPpId.trim(), bId: bBId.trim(), ime: bIme.trim() } });
-      setBPpId(""); setBBId(""); setBIme("");
+      const extraData = jeAdmin && bEnotaId ? { enotaId: bEnotaId } : {};
+      await createBlagajna.mutateAsync({ data: { ppId: bPpId.trim(), bId: bBId.trim(), ime: bIme.trim(), ...extraData } as any });
+      setBPpId(""); setBBId(""); setBIme(""); setBEnotaId("");
       queryClient.invalidateQueries({ queryKey: getListBlagajneQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["admin-blagajne-vse"] });
       toast({ title: "Blagajna dodana" });
     } catch { toast({ title: "Napaka pri dodajanju blagajne", variant: "destructive" }); }
   };
@@ -375,6 +388,7 @@ export default function Settings() {
     setEditBBId(b.bId);
     setEditBIme(b.ime);
     setEditBAktivna(b.aktivna);
+    setEditBEnotaId((b as any).enotaId ?? "");
     setBDialogOpen(true);
   };
 
@@ -382,9 +396,11 @@ export default function Settings() {
     e.preventDefault();
     if (!editingBlagajna) return;
     try {
-      await updateBlagajnaMut.mutateAsync({ id: editingBlagajna.id, data: { ppId: editBPpId.trim(), bId: editBBId.trim(), ime: editBIme.trim(), aktivna: editBAktivna } });
+      const extraData = jeAdmin && editBEnotaId ? { enotaId: editBEnotaId } : {};
+      await updateBlagajnaMut.mutateAsync({ id: editingBlagajna.id, data: { ppId: editBPpId.trim(), bId: editBBId.trim(), ime: editBIme.trim(), aktivna: editBAktivna, ...extraData } as any });
       setBDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: getListBlagajneQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["admin-blagajne-vse"] });
       toast({ title: "Blagajna posodobljena" });
     } catch { toast({ title: "Napaka pri posodabljanju blagajne", variant: "destructive" }); }
   };
@@ -393,7 +409,9 @@ export default function Settings() {
     try {
       await deleteBlagajnaMut.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListBlagajneQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["admin-blagajne-vse"] });
       refetchBlagajne();
+      refetchVseBlagajne?.();
       toast({ title: "Blagajna izbrisana" });
     } catch { toast({ title: "Blagajne ni mogoče izbrisati", variant: "destructive" }); }
   };
@@ -479,6 +497,7 @@ export default function Settings() {
 
   const [ppDialogOpen, setPpDialogOpen] = useState(false);
   const [editingPp, setEditingPp] = useState<PoslovniProstor | null>(null);
+  const [ppEnotaId, setPpEnotaId] = useState<number | "">("");  // admin: enota za prostor
   const [ppRegResult, setPpRegResult] = useState<{ uspeh: boolean; napaka?: string | null; surovOdgovor?: string } | null>(null);
   const [ppRegDialogOpen, setPpRegDialogOpen] = useState(false);
   const [ppRegTarget, setPpRegTarget] = useState<PoslovniProstor | null>(null);
@@ -1029,6 +1048,7 @@ export default function Settings() {
       setPpVeljavnost(pp.veljavnostOd ?? new Date().toISOString().slice(0, 10));
       setPpCertPot(pp.certifikatPot ?? "");
       setPpCertGeslo(pp.certifikatGeslo ?? "");
+      setPpEnotaId((pp as any).enotaId ?? "");
     } else {
       setEditingPp(null);
       setPpProstorId(""); setPpNaziv(""); setPpTip("nepremicnina");
@@ -1038,6 +1058,7 @@ export default function Settings() {
       setPpTablica(""); setPpVin(""); setPpPremicninaTip("C");
       setPpVeljavnost(new Date().toISOString().slice(0, 10));
       setPpCertPot(""); setPpCertGeslo("");
+      setPpEnotaId("");
     }
     setPpDialogOpen(true);
   };
@@ -1061,6 +1082,7 @@ export default function Settings() {
     veljavnostOd: ppVeljavnost || null,
     certifikatPot: ppCertPot || null,
     certifikatGeslo: ppCertGeslo || null,
+    ...(jeAdmin && ppEnotaId ? { enotaId: ppEnotaId } : {}),
   });
 
   const handleSavePp = () => {
@@ -2879,13 +2901,15 @@ export default function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(blagajne?.length ?? 0) === 0 ? (
+          {/* Admin vidi vse blagajne podjetja, ostali le blagajne trenutne enote */}
+          {(jeAdmin ? (vseBlagajne?.length ?? 0) : (blagajne?.length ?? 0)) === 0 ? (
             <p className="text-sm text-muted-foreground">Ni dodanih blagajn. Dodajte vsaj eno za ločeno sledenje zaporednih številk računov.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Naziv</TableHead>
+                  {jeAdmin && <TableHead className="hidden sm:table-cell">Enota</TableHead>}
                   <TableHead>PP ID</TableHead>
                   <TableHead>B ID</TableHead>
                   <TableHead>Status</TableHead>
@@ -2893,9 +2917,14 @@ export default function Settings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {blagajne!.map(b => (
+                {(jeAdmin ? vseBlagajne! : blagajne!).map(b => (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.ime}</TableCell>
+                    {jeAdmin && (
+                      <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+                        {enote?.find(e => e.id === (b as any).enotaId)?.ime ?? `Enota ${(b as any).enotaId}`}
+                      </TableCell>
+                    )}
                     <TableCell><code className="text-xs bg-muted px-1 py-0.5 rounded">{b.ppId}</code></TableCell>
                     <TableCell><code className="text-xs bg-muted px-1 py-0.5 rounded">{b.bId}</code></TableCell>
                     <TableCell>
@@ -2915,6 +2944,19 @@ export default function Settings() {
           <Separator />
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dodaj blagajno</p>
           <form onSubmit={handleCreateBlagajna} className="space-y-3">
+            {jeAdmin && (
+              <div className="space-y-1">
+                <Label>Enota <span className="text-destructive">*</span></Label>
+                <Select value={bEnotaId === "" ? "" : String(bEnotaId)} onValueChange={v => setBEnotaId(v ? Number(v) : "")}>
+                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
+                  <SelectContent>
+                    {(enote ?? []).map(e => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>Naziv blagajne</Label>
@@ -2944,6 +2986,19 @@ export default function Settings() {
         <DialogContent>
           <DialogHeader><DialogTitle>Uredi blagajno</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdateBlagajna} className="space-y-4">
+            {jeAdmin && (
+              <div className="space-y-1">
+                <Label>Enota</Label>
+                <Select value={editBEnotaId === "" ? "" : String(editBEnotaId)} onValueChange={v => setEditBEnotaId(v ? Number(v) : "")}>
+                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
+                  <SelectContent>
+                    {(enote ?? []).map(e => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Naziv blagajne</Label>
               <Input value={editBIme} onChange={e => setEditBIme(e.target.value)} placeholder="Blagajna 1" />
@@ -3273,6 +3328,7 @@ export default function Settings() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID prostora</TableHead>
+                  {jeAdmin && <TableHead className="hidden sm:table-cell">Enota</TableHead>}
                   <TableHead className="hidden sm:table-cell">Tip</TableHead>
                   <TableHead className="hidden md:table-cell">Naslov / identifikator</TableHead>
                   <TableHead>Status</TableHead>
@@ -3283,6 +3339,11 @@ export default function Settings() {
                 {poslovniProstori.map(pp => (
                   <TableRow key={pp.id}>
                     <TableCell className="font-mono font-semibold">{pp.prostorId}</TableCell>
+                    {jeAdmin && (
+                      <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+                        {enote?.find(e => e.id === (pp as any).enotaId)?.ime ?? `Enota ${(pp as any).enotaId}`}
+                      </TableCell>
+                    )}
                     <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline" className="text-xs">
                         {pp.tipProstora === "nepremicnina" ? "Nepremičnina"
@@ -4461,6 +4522,19 @@ export default function Settings() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2 overflow-y-auto max-h-[75vh] pr-1">
+            {jeAdmin && (
+              <div className="space-y-2">
+                <Label>Enota <span className="text-destructive">*</span></Label>
+                <Select value={ppEnotaId === "" ? "" : String(ppEnotaId)} onValueChange={v => setPpEnotaId(v ? Number(v) : "")}>
+                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
+                  <SelectContent>
+                    {(enote ?? []).map(e => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>ID prostora <span className="text-destructive">*</span></Label>
@@ -4615,7 +4689,7 @@ export default function Settings() {
             <Button
               className="w-full gap-2"
               onClick={handleSavePp}
-              disabled={!ppProstorId || createPp.isPending || updatePp.isPending}
+              disabled={!ppProstorId || (jeAdmin && !ppEnotaId) || createPp.isPending || updatePp.isPending}
             >
               {(createPp.isPending || updatePp.isPending) ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Shranjujem...</>

@@ -1,83 +1,158 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, poslovniProstoriTable, enoteTable, companiesTable } from "@workspace/db";
-import { requireEnota } from "../../middlewares/pos";
+import { requireEnota, type PosRequest } from "../../middlewares/pos";
 import { readAll, toResponse } from "./nastavitve";
 import { registrirajPoslovniProstor } from "../../lib/pos-furs";
 
-const requireAdmin = requireEnota;
-
 const router: IRouter = Router();
 
-router.get("/poslovni-prostori", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+/**
+ * GET /poslovni-prostori
+ * - admin → vse prostore podjetja (vse enote)
+ * - admin_enote / uporabnik → samo prostore lastne enote
+ */
+router.get("/poslovni-prostori", async (req: Request, res: Response): Promise<void> => {
+  const posReq = req as PosRequest;
+  const vloga = posReq.vloga;
+  const companyId = posReq.companyId;
+
+  if (vloga === "admin") {
+    const enotaIds = db.select({ id: enoteTable.id }).from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    const rows = await db.select().from(poslovniProstoriTable)
+      .where(inArray(poslovniProstoriTable.enotaId, enotaIds))
+      .orderBy(poslovniProstoriTable.enotaId, poslovniProstoriTable.id);
+    res.json(rows);
+    return;
+  }
+
+  const enotaId = posReq.enotaId;
   const rows = await db.select().from(poslovniProstoriTable)
-    .where(and(eq(poslovniProstoriTable.enotaId, tenotaId)))
+    .where(eq(poslovniProstoriTable.enotaId, enotaId))
     .orderBy(poslovniProstoriTable.id);
   res.json(rows);
 });
 
-router.post("/poslovni-prostori", requireAdmin, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+/**
+ * POST /poslovni-prostori
+ * - admin → enotaId iz body (obvezno); ostali → req.enotaId
+ */
+router.post("/poslovni-prostori", requireEnota, async (req: Request, res: Response): Promise<void> => {
+  const posReq = req as PosRequest;
+  const vloga = posReq.vloga;
+  const companyId = posReq.companyId;
 
+  let effectiveEnotaId = posReq.enotaId;
+  if (vloga === "admin") {
+    const bodyEnotaId = req.body.enotaId ? Number(req.body.enotaId) : null;
+    if (!bodyEnotaId) { res.status(400).json({ error: "Admin mora določiti enotaId" }); return; }
+    const [enota] = await db.select({ id: enoteTable.id }).from(enoteTable)
+      .where(and(eq(enoteTable.id, bodyEnotaId), eq(enoteTable.companyId, companyId)));
+    if (!enota) { res.status(403).json({ error: "Enota ne obstaja ali ne pripada podjetju" }); return; }
+    effectiveEnotaId = enota.id;
+  }
+
+  const { enotaId: _omit, ...bodyBrezEnote } = req.body as Record<string, unknown>;
   const [row] = await db
     .insert(poslovniProstoriTable)
-    .values({ ...parsed.data,
- enotaId: tenotaId })
+    .values({ ...bodyBrezEnote, enotaId: effectiveEnotaId } as typeof poslovniProstoriTable.$inferInsert)
     .returning();
   res.status(201).json(row);
 });
 
-router.put("/poslovni-prostori/:id", requireAdmin, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+/**
+ * PUT /poslovni-prostori/:id
+ * - admin → preveri lastništvo prek companyId, ne filtrira po enotaId
+ * - ostali → preveri enotaId
+ */
+router.put("/poslovni-prostori/:id", requireEnota, async (req: Request, res: Response): Promise<void> => {
+  const posReq = req as PosRequest;
+  const vloga = posReq.vloga;
+  const companyId = posReq.companyId;
   const id = Number(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  const { enotaId: _omit, ...bodyBrezEnote } = req.body as Record<string, unknown>;
 
+  if (vloga === "admin") {
+    const enotaIds = db.select({ id: enoteTable.id }).from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    const [row] = await db
+      .update(poslovniProstoriTable)
+      .set(bodyBrezEnote as typeof poslovniProstoriTable.$inferInsert)
+      .where(and(eq(poslovniProstoriTable.id, id), inArray(poslovniProstoriTable.enotaId, enotaIds)))
+      .returning();
+    if (!row) { res.status(404).json({ error: "Prostor ni najden" }); return; }
+    res.json(row);
+    return;
+  }
+
+  const enotaId = posReq.enotaId;
   const [row] = await db
     .update(poslovniProstoriTable)
-    .set(parsed.data)
-    .where(and(eq(poslovniProstoriTable.id, id), sql`true`, eq(poslovniProstoriTable.enotaId, tenotaId)))
+    .set(bodyBrezEnote as typeof poslovniProstoriTable.$inferInsert)
+    .where(and(eq(poslovniProstoriTable.id, id), eq(poslovniProstoriTable.enotaId, enotaId)))
     .returning();
   if (!row) { res.status(404).json({ error: "Prostor ni najden" }); return; }
   res.json(row);
 });
 
-router.delete("/poslovni-prostori/:id", requireAdmin, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+/**
+ * DELETE /poslovni-prostori/:id
+ */
+router.delete("/poslovni-prostori/:id", requireEnota, async (req: Request, res: Response): Promise<void> => {
+  const posReq = req as PosRequest;
+  const vloga = posReq.vloga;
+  const companyId = posReq.companyId;
   const id = Number(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
+  if (vloga === "admin") {
+    const enotaIds = db.select({ id: enoteTable.id }).from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    await db.delete(poslovniProstoriTable)
+      .where(and(eq(poslovniProstoriTable.id, id), inArray(poslovniProstoriTable.enotaId, enotaIds)));
+    res.status(204).send();
+    return;
+  }
+
+  const enotaId = posReq.enotaId;
   await db.delete(poslovniProstoriTable)
-    .where(and(eq(poslovniProstoriTable.id, id), sql`true`, eq(poslovniProstoriTable.enotaId, tenotaId)));
+    .where(and(eq(poslovniProstoriTable.id, id), eq(poslovniProstoriTable.enotaId, enotaId)));
   res.status(204).send();
 });
 
-router.post("/poslovni-prostori/:id/registriraj", requireAdmin, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+/**
+ * POST /poslovni-prostori/:id/registriraj
+ * Za nastavitve lookup vedno uporabi prostor.enotaId (ne req.enotaId),
+ * da admin, ki je na drugačni enoti kot prostor, dobi pravilne nastavitve.
+ */
+router.post("/poslovni-prostori/:id/registriraj", requireEnota, async (req: Request, res: Response): Promise<void> => {
+  const posReq = req as PosRequest;
+  const vloga = posReq.vloga;
+  const companyId = posReq.companyId;
   const id = Number(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const bodyParsed = { success: true, data: req.body };
-  const jeFursNacin: "simulacija" | "testno" | "produkcija" = bodyParsed.success ? (bodyParsed.data.fursNacin ?? "simulacija") : "simulacija";
+  const jeFursNacin: "simulacija" | "testno" | "produkcija" = req.body?.fursNacin ?? "simulacija";
 
-  const [prostor] = await db
-    .select()
-    .from(poslovniProstoriTable)
-    .where(and(eq(poslovniProstoriTable.id, id), sql`true`, eq(poslovniProstoriTable.enotaId, tenotaId)));
+  // Poišči prostor — admin sme dostopati do prostora katere koli enote podjetja
+  let whereClause;
+  if (vloga === "admin") {
+    const enotaIds = db.select({ id: enoteTable.id }).from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    whereClause = and(eq(poslovniProstoriTable.id, id), inArray(poslovniProstoriTable.enotaId, enotaIds));
+  } else {
+    whereClause = and(eq(poslovniProstoriTable.id, id), eq(poslovniProstoriTable.enotaId, posReq.enotaId));
+  }
+
+  const [prostor] = await db.select().from(poslovniProstoriTable).where(whereClause);
   if (!prostor) { res.status(404).json({ error: "Prostor ni najden" }); return; }
 
-  const nastavitveMap = await readAll("", tenotaId);
+  // Nastavitve lookup z DEJANSKE enote prostora (ne nujno req.enotaId)
+  const nastavitveMap = await readAll("", prostor.enotaId);
   const nastavitve = toResponse(nastavitveMap);
 
-  // Fallback za davcnaStevilka: nastavitve → companies tabela prek enote
   let davcna = nastavitve.davcnaStevilka;
   if (!davcna) {
-    const [en] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, tenotaId));
+    const [en] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, prostor.enotaId));
     if (en?.companyId) {
       const [co] = await db.select({ podjetjeDavcna: companiesTable.podjetjeDavcna }).from(companiesTable).where(eq(companiesTable.id, en.companyId));
       davcna = co?.podjetjeDavcna?.replace(/^SI/i, "") ?? "";
@@ -113,7 +188,8 @@ router.post("/poslovni-prostori/:id/registriraj", requireAdmin, async (req, res)
       certifikatGeslo: (prostor.certifikatGeslo ?? nastavitve.certifikatGeslo) || undefined,
       certPem: nastavitveMap["certifikatPem"] || undefined,
       certKljuc: nastavitveMap["certifikatKljuc"] || undefined,
-      proxyUrl: nastavitve.fursProxyUrl || undefined},
+      proxyUrl: nastavitve.fursProxyUrl || undefined,
+    },
     jeFursNacin
   );
 
@@ -121,50 +197,57 @@ router.post("/poslovni-prostori/:id/registriraj", requireAdmin, async (req, res)
     await db
       .update(poslovniProstoriTable)
       .set({ zadnjaRegistracija: new Date() })
-      .where(and(eq(poslovniProstoriTable.id, id), sql`true`, eq(poslovniProstoriTable.enotaId, tenotaId)));
+      .where(eq(poslovniProstoriTable.id, id));
   }
 
   res.json({ ...odgovor, poslovniProstorId: prostor.prostorId });
 });
 
-router.post("/poslovni-prostori/:id/zapri", requireAdmin, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+/**
+ * POST /poslovni-prostori/:id/zapri
+ */
+router.post("/poslovni-prostori/:id/zapri", requireEnota, async (req: Request, res: Response): Promise<void> => {
+  const posReq = req as PosRequest;
+  const vloga = posReq.vloga;
+  const companyId = posReq.companyId;
   const id = Number(req.params.id);
   if (!id) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const bodyParsed = { success: true, data: req.body };
-  const jeFursNacin: "simulacija" | "testno" | "produkcija" = bodyParsed.success ? (bodyParsed.data.fursNacin ?? "simulacija") : "simulacija";
+  const jeFursNacin: "simulacija" | "testno" | "produkcija" = req.body?.fursNacin ?? "simulacija";
 
-  const [prostor] = await db
-    .select()
-    .from(poslovniProstoriTable)
-    .where(and(eq(poslovniProstoriTable.id, id), sql`true`, eq(poslovniProstoriTable.enotaId, tenotaId)));
-  if (!prostor) { res.status(404).json({ error: "Prostor ni najden" }); return; }
-
-  const nastavitveMap = await readAll("", tenotaId);
-  const nastavitve = toResponse(nastavitveMap);
-
-  // Fallback: če davcnaStevilka ni v nastavitvah, jo preberemo iz companies prek enote
-  let davcnaStevilkaZapri = nastavitve.davcnaStevilka;
-  if (!davcnaStevilkaZapri) {
-    const [enotaZapri] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, tenotaId));
-    if (enotaZapri?.companyId) {
-      const [co] = await db.select({ podjetjeDavcna: companiesTable.podjetjeDavcna }).from(companiesTable).where(eq(companiesTable.id, enotaZapri.companyId));
-      davcnaStevilkaZapri = co?.podjetjeDavcna?.replace(/^SI/i, "") ?? "";
-    }
+  let whereClause;
+  if (vloga === "admin") {
+    const enotaIds = db.select({ id: enoteTable.id }).from(enoteTable).where(eq(enoteTable.companyId, companyId));
+    whereClause = and(eq(poslovniProstoriTable.id, id), inArray(poslovniProstoriTable.enotaId, enotaIds));
+  } else {
+    whereClause = and(eq(poslovniProstoriTable.id, id), eq(poslovniProstoriTable.enotaId, posReq.enotaId));
   }
 
-  if (!davcnaStevilkaZapri) {
+  const [prostor] = await db.select().from(poslovniProstoriTable).where(whereClause);
+  if (!prostor) { res.status(404).json({ error: "Prostor ni najden" }); return; }
+
+  const nastavitveMap = await readAll("", prostor.enotaId);
+  const nastavitve = toResponse(nastavitveMap);
+
+  let davcnaStevilka = nastavitve.davcnaStevilka;
+  if (!davcnaStevilka) {
+    const [en] = await db.select({ companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, prostor.enotaId));
+    if (en?.companyId) {
+      const [co] = await db.select({ podjetjeDavcna: companiesTable.podjetjeDavcna }).from(companiesTable).where(eq(companiesTable.id, en.companyId));
+      davcnaStevilka = co?.podjetjeDavcna?.replace(/^SI/i, "") ?? "";
+    }
+  }
+  if (!davcnaStevilka) {
     res.status(400).json({ error: "Davčna številka ni nastavljena. Vnesite jo v Nastavitvah → Davčni podatki." });
     return;
   }
 
-  const ponudnikDavcnaZapri = nastavitve.ponudnikDavcna || process.env.ERP_PONUDNIK_DAVCNA || undefined;
+  const ponudnik = nastavitve.ponudnikDavcna || process.env.ERP_PONUDNIK_DAVCNA || undefined;
 
   const odgovor = await registrirajPoslovniProstor(
     {
-      davcnaStevilka: davcnaStevilkaZapri,
-      ponudnikDavcna: ponudnikDavcnaZapri,
+      davcnaStevilka,
+      ponudnikDavcna: ponudnik,
       poslovniProstorId: prostor.prostorId,
       tipProstora: (prostor.tipProstora as import('../../lib/pos-furs').FursTipProstora) ?? "nepremicnina",
       ulica: prostor.ulica ?? undefined,
@@ -185,7 +268,8 @@ router.post("/poslovni-prostori/:id/zapri", requireAdmin, async (req, res): Prom
       certPem: nastavitveMap["certifikatPem"] || undefined,
       certKljuc: nastavitveMap["certifikatKljuc"] || undefined,
       proxyUrl: nastavitve.fursProxyUrl || undefined,
-      zapri: true},
+      zapri: true,
+    },
     jeFursNacin
   );
 
@@ -193,7 +277,7 @@ router.post("/poslovni-prostori/:id/zapri", requireAdmin, async (req, res): Prom
     await db
       .update(poslovniProstoriTable)
       .set({ zaprt: true, zadnjaRegistracija: new Date() })
-      .where(and(eq(poslovniProstoriTable.id, id), sql`true`, eq(poslovniProstoriTable.enotaId, tenotaId)));
+      .where(eq(poslovniProstoriTable.id, id));
   }
 
   res.json({ ...odgovor, poslovniProstorId: prostor.prostorId });

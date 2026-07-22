@@ -15,6 +15,7 @@ export interface PosRequest extends Request {
   enotaId: number;
   clerkUserId: string;
   companyId: string;
+  vloga: string; // "admin" | "admin_enote" | "uporabnik"
 }
 
 /**
@@ -80,6 +81,7 @@ export async function requireEnota(
   (req as PosRequest).enotaId = enotaId;
   (req as PosRequest).clerkUserId = userId;
   (req as PosRequest).companyId = enota.companyId;
+  (req as PosRequest).vloga = posUser.vloga;
   (req as any).companyId = enota.companyId; // za kompatibilnost z enote.ts ki bere (req as any).companyId
 
   next();
