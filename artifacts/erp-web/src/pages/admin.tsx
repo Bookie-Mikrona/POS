@@ -144,6 +144,8 @@ interface PosUserRow {
   aktiven: boolean;
   enotaId: number | null;
   enotaIme: string | null;
+  blagajnaId: number | null;
+  blagajnaIme: string | null;
 }
 
 interface Enota {
@@ -152,11 +154,19 @@ interface Enota {
   aktiven: boolean;
 }
 
+interface AdminBlagajna {
+  id: number;
+  ime: string;
+  bId: string;
+  enotaId: number;
+  aktivna: boolean;
+}
+
 // ── POS Roles Section ─────────────────────────────────────────────────────────
 
 function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers: AdminUser[] }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ clerkUserId: "", vloga: "admin", enotaId: "" });
+  const [form, setForm] = useState({ clerkUserId: "", vloga: "uporabnik", enotaId: "", blagajnaId: "" });
   const [feedback, setFeedback] = useState<"ok" | "">("");
 
   const { data: posData, isLoading: posLoading } = useQuery({
@@ -169,12 +179,24 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
     queryFn: () => apiFetch<{ enote: Enota[] }>(`/api/admin/companies/${companyId}/enote`),
   });
 
+  // Blagajne za izbrano enoto — naloži samo ko je enota izbrana
+  const { data: blagajneData } = useQuery({
+    queryKey: ["admin", "blagajne", companyId, form.enotaId],
+    queryFn: () =>
+      apiFetch<{ blagajne: AdminBlagajna[] }>(
+        `/api/admin/companies/${companyId}/blagajne?enotaId=${form.enotaId}`,
+      ),
+    enabled: !!form.enotaId,
+  });
+
   const needsEnota = form.vloga === "admin_enote" || form.vloga === "uporabnik";
+  const needsBlagajna = form.vloga === "uporabnik";
   const enote = enoteData?.enote ?? [];
+  const blagajne = blagajneData?.blagajne ?? [];
   const posUsers = posData?.users ?? [];
 
   const assignMutation = useMutation({
-    mutationFn: (body: { clerkUserId: string; vloga: string; enotaId?: number | null }) =>
+    mutationFn: (body: { clerkUserId: string; vloga: string; enotaId?: number | null; blagajnaId?: number | null }) =>
       apiFetch(`/api/admin/companies/${companyId}/pos-roles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,7 +204,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "pos-roles", companyId] });
-      setForm({ clerkUserId: "", vloga: "uporabnik", enotaId: "" });
+      setForm({ clerkUserId: "", vloga: "uporabnik", enotaId: "", blagajnaId: "" });
       setFeedback("ok");
       setTimeout(() => setFeedback(""), 3000);
     },
@@ -194,7 +216,10 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "pos-roles", companyId] }),
   });
 
-  const canSubmit = form.clerkUserId && (!needsEnota || form.enotaId);
+  const canSubmit =
+    form.clerkUserId &&
+    (!needsEnota || form.enotaId) &&
+    (!needsBlagajna || form.blagajnaId);
 
   return (
     <div>
@@ -215,6 +240,9 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
                 </Badge>
                 {u.enotaIme && (
                   <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">· {u.enotaIme}</span>
+                )}
+                {u.blagajnaIme && (
+                  <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline font-mono">· {u.blagajnaIme}</span>
                 )}
                 <button
                   className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
@@ -252,7 +280,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
         {/* Vloga */}
         <Select
           value={form.vloga}
-          onValueChange={(v) => setForm((f) => ({ ...f, vloga: v, enotaId: "" }))}
+          onValueChange={(v) => setForm((f) => ({ ...f, vloga: v, enotaId: "", blagajnaId: "" }))}
         >
           <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -264,7 +292,10 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
 
         {/* Enota (samo za admin_enote / uporabnik) */}
         {needsEnota && (
-          <Select value={form.enotaId} onValueChange={(v) => setForm((f) => ({ ...f, enotaId: v }))}>
+          <Select
+            value={form.enotaId}
+            onValueChange={(v) => setForm((f) => ({ ...f, enotaId: v, blagajnaId: "" }))}
+          >
             <SelectTrigger className="h-8 w-40 text-xs">
               <SelectValue placeholder={enote.length ? "Izberi enoto…" : "Ni enot"} />
             </SelectTrigger>
@@ -276,6 +307,31 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
           </Select>
         )}
 
+        {/* Blagajna (samo za vloga === "uporabnik" in ko je enota izbrana) */}
+        {needsBlagajna && form.enotaId && (
+          <Select
+            value={form.blagajnaId}
+            onValueChange={(v) => setForm((f) => ({ ...f, blagajnaId: v }))}
+          >
+            <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectValue placeholder={blagajne.length ? "Izberi blagajno…" : "Ni blagajn"} />
+            </SelectTrigger>
+            <SelectContent>
+              {blagajne.map((b) => (
+                <SelectItem key={b.id} value={String(b.id)}>
+                  <span className="font-mono">{b.bId}</span>
+                  {b.ime !== b.bId && <span className="text-muted-foreground ml-1.5">{b.ime}</span>}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* Opozorilo: čakamo na izbiro enote za prikaz blagajn */}
+        {needsBlagajna && !form.enotaId && (
+          <span className="text-xs text-muted-foreground self-center">← najprej enoto</span>
+        )}
+
         <Button
           size="sm"
           className="h-8 text-xs"
@@ -285,6 +341,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
               clerkUserId: form.clerkUserId,
               vloga: form.vloga,
               enotaId: needsEnota && form.enotaId ? Number(form.enotaId) : null,
+              blagajnaId: needsBlagajna && form.blagajnaId ? Number(form.blagajnaId) : null,
             })
           }
         >
@@ -303,6 +360,9 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
 
       {needsEnota && enote.length === 0 && (
         <p className="text-xs text-amber-600 mt-1.5">⚠ Podjetje nima poslovnih enot. Najprej jih ustvari v POS sistemu.</p>
+      )}
+      {needsBlagajna && form.enotaId && blagajne.length === 0 && (
+        <p className="text-xs text-amber-600 mt-1.5">⚠ Izbrana enota nima registriranih blagajn.</p>
       )}
     </div>
   );

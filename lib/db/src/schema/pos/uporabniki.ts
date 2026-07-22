@@ -1,11 +1,13 @@
 import { pgTable, text, serial, integer, boolean, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 import { companiesTable } from "../companies";
 import { enoteTable } from "./enote";
+import { blagajneTable } from "./blagajne";
 
 /**
  * POS uporabniki — Clerk računi z vlogo v POS sistemu.
  * Hierarhija: superadmin (env) > admin (podjetje) > admin_enote (ena enota) > uporabnik (ena enota)
  * companyId je vedno obvezen; enotaId je obvezen za admin_enote in uporabnik, null za admin.
+ * blagajnaId je obvezen za vlogo "uporabnik" — določa blagajno, na kateri dela.
  */
 export const posUporabnikiTable = pgTable("pos_uporabniki", {
   id: serial("id").primaryKey(),
@@ -15,6 +17,8 @@ export const posUporabnikiTable = pgTable("pos_uporabniki", {
     .references(() => companiesTable.id, { onDelete: "cascade" }),
   enotaId: integer("enota_id")
     .references(() => enoteTable.id, { onDelete: "cascade" }),
+  blagajnaId: integer("blagajna_id")
+    .references(() => blagajneTable.id, { onDelete: "set null" }),
   vloga: text("vloga").notNull(), // "admin" | "admin_enote" | "uporabnik"
   ime: text("ime").notNull(),
   priimek: text("priimek").notNull(),

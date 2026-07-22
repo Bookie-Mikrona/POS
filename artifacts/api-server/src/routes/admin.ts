@@ -4,7 +4,7 @@
  */
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, desc, and } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable } from "@workspace/db";
+import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable, blagajneTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { CreateCompanyBody, AssignRoleBody } from "@workspace/api-zod";
@@ -619,6 +619,40 @@ router.get("/companies/:id/enote", async (req: Request, res: Response): Promise<
   res.json({ enote: rows });
 });
 
+// GET /admin/companies/:id/blagajne — seznam blagajn za podjetje (opcijsko filtrirano po enoti)
+router.get("/companies/:id/blagajne", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const enotaIdParam = req.query.enotaId ? Number(req.query.enotaId) : null;
+
+  // Pridobi enote tega podjetja, da zagotovimo, da blagajne spadajo k podjetju
+  const enote = await db
+    .select({ id: enoteTable.id })
+    .from(enoteTable)
+    .where(eq(enoteTable.companyId, companyId));
+
+  const enotaIds = enote.map((e) => e.id);
+  if (enotaIds.length === 0) { res.json({ blagajne: [] }); return; }
+
+  const rows = await db
+    .select({
+      id: blagajneTable.id,
+      ime: blagajneTable.ime,
+      bId: blagajneTable.bId,
+      enotaId: blagajneTable.enotaId,
+      aktivna: blagajneTable.aktivna,
+    })
+    .from(blagajneTable)
+    .where(
+      enotaIdParam
+        ? and(eq(blagajneTable.enotaId, enotaIdParam), eq(blagajneTable.aktivna, true))
+        : eq(blagajneTable.aktivna, true),
+    );
+
+  // Filtriraj samo blagajne, ki spadajo k temu podjetju
+  const filtered = rows.filter((b) => enotaIds.includes(b.enotaId));
+  res.json({ blagajne: filtered });
+});
+
 // GET /admin/companies/:id/pos-roles — seznam POS uporabnikov za podjetje
 router.get("/companies/:id/pos-roles", async (req: Request, res: Response): Promise<void> => {
   const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -632,9 +666,12 @@ router.get("/companies/:id/pos-roles", async (req: Request, res: Response): Prom
       aktiven: posUporabnikiTable.aktiven,
       enotaId: posUporabnikiTable.enotaId,
       enotaIme: enoteTable.ime,
+      blagajnaId: posUporabnikiTable.blagajnaId,
+      blagajnaIme: blagajneTable.ime,
     })
     .from(posUporabnikiTable)
     .leftJoin(enoteTable, eq(posUporabnikiTable.enotaId, enoteTable.id))
+    .leftJoin(blagajneTable, eq(posUporabnikiTable.blagajnaId, blagajneTable.id))
     .where(eq(posUporabnikiTable.companyId, companyId));
   res.json({ users: rows });
 });
@@ -642,12 +679,20 @@ router.get("/companies/:id/pos-roles", async (req: Request, res: Response): Prom
 // POST /admin/companies/:id/pos-roles — dodeli POS vlogo
 router.post("/companies/:id/pos-roles", async (req: Request, res: Response): Promise<void> => {
   const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { clerkUserId, vloga, enotaId } = req.body as { clerkUserId: string; vloga: string; enotaId?: number | null };
+  const { clerkUserId, vloga, enotaId, blagajnaId } = req.body as {
+    clerkUserId: string;
+    vloga: string;
+    enotaId?: number | null;
+    blagajnaId?: number | null;
+  };
 
   if (!clerkUserId || !vloga) { res.status(400).json({ error: "Manjkata clerkUserId ali vloga." }); return; }
   if (!["admin", "admin_enote", "uporabnik"].includes(vloga)) { res.status(400).json({ error: "Neveljavna vloga." }); return; }
   if ((vloga === "admin_enote" || vloga === "uporabnik") && !enotaId) {
     res.status(400).json({ error: "Za to vlogo je enota obvezna." }); return;
+  }
+  if (vloga === "uporabnik" && !blagajnaId) {
+    res.status(400).json({ error: "Za vlogo Uporabnik je blagajna obvezna." }); return;
   }
 
   // Pridobi ime in priimek iz Clerk
@@ -663,20 +708,31 @@ router.post("/companies/:id/pos-roles", async (req: Request, res: Response): Pro
     }
   } catch { /* pustimo prazno če Clerk ne vrne */ }
 
+  const effectiveBlagajnaId = vloga === "uporabnik" ? (blagajnaId ?? null) : null;
+  const effectiveEnotaId = vloga === "admin" ? null : (enotaId ?? null);
+
   const [row] = await db
     .insert(posUporabnikiTable)
     .values({
       clerkUserId,
       companyId,
       vloga,
-      enotaId: vloga === "admin" ? null : (enotaId ?? null),
+      enotaId: effectiveEnotaId,
+      blagajnaId: effectiveBlagajnaId,
       ime,
       priimek,
       aktiven: true,
     })
     .onConflictDoUpdate({
       target: [posUporabnikiTable.clerkUserId, posUporabnikiTable.companyId],
-      set: { vloga, enotaId: vloga === "admin" ? null : (enotaId ?? null), ime, priimek, aktiven: true },
+      set: {
+        vloga,
+        enotaId: effectiveEnotaId,
+        blagajnaId: effectiveBlagajnaId,
+        ime,
+        priimek,
+        aktiven: true,
+      },
     })
     .returning();
 
