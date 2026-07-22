@@ -222,10 +222,67 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
     imageUrl: u.imageUrl ?? "",
     createdAt: new Date(u.createdAt).toISOString(),
     lastActiveAt: u.lastActiveAt ? new Date(u.lastActiveAt).toISOString() : null,
+    banned: u.banned ?? false,
     companies: rolesMap.get(u.id) ?? [],
   }));
 
   res.json({ users });
+});
+
+// POST /admin/users/:clerkUserId/ban — blokiraj prijavo uporabnika
+router.post("/users/:clerkUserId/ban", async (req: Request, res: Response): Promise<void> => {
+  const { clerkUserId } = req.params;
+  await clerkClient.users.banUser(clerkUserId);
+  res.json({ ok: true });
+});
+
+// POST /admin/users/:clerkUserId/unban — odblokiraj prijavo uporabnika
+router.post("/users/:clerkUserId/unban", async (req: Request, res: Response): Promise<void> => {
+  const { clerkUserId } = req.params;
+  await clerkClient.users.unbanUser(clerkUserId);
+  res.json({ ok: true });
+});
+
+// GET /admin/sessions — vse aktivne seje
+router.get("/sessions", async (_req: Request, res: Response): Promise<void> => {
+  // Pridobimo vse aktivne seje + seznam userjev za imena
+  const [sessionsResp, usersResp] = await Promise.all([
+    clerkClient.sessions.getSessionList({ status: "active", limit: 500 }),
+    clerkClient.users.getUserList({ limit: 500 }),
+  ]);
+
+  // Mapa userId → osnovni podatki
+  const userMap = new Map(
+    usersResp.data.map((u) => [u.id, {
+      email: u.emailAddresses[0]?.emailAddress ?? "",
+      firstName: u.firstName ?? "",
+      lastName: u.lastName ?? "",
+    }])
+  );
+
+  const sessions = sessionsResp.data.map((s) => {
+    const u = userMap.get(s.userId);
+    return {
+      sessionId: s.id,
+      userId: s.userId,
+      email: u?.email ?? "",
+      firstName: u?.firstName ?? "",
+      lastName: u?.lastName ?? "",
+      status: s.status,
+      lastActiveAt: new Date(s.lastActiveAt).toISOString(),
+      expireAt: new Date(s.expireAt).toISOString(),
+      createdAt: new Date(s.createdAt).toISOString(),
+    };
+  });
+
+  res.json({ sessions });
+});
+
+// DELETE /admin/sessions/:sessionId — prekini sejo
+router.delete("/sessions/:sessionId", async (req: Request, res: Response): Promise<void> => {
+  const { sessionId } = req.params;
+  await clerkClient.sessions.revokeSession(sessionId);
+  res.json({ ok: true });
 });
 
 // POST /admin/companies/:id/roles — dodeli dostop do podjetja kateremukoli userju

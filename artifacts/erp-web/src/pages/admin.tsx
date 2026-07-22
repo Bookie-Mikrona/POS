@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   Building2, Users, Plus, ShieldCheck, Loader2, AlertCircle,
   CheckCircle2, ChevronDown, ChevronRight, Trash2, Package, X, TriangleAlert,
-  RefreshCw, Save,
+  RefreshCw, Save, Ban, Unlock, MonitorX, Clock, LogOut,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,20 @@ interface AdminUser {
   imageUrl: string;
   createdAt: string;
   lastActiveAt: string | null;
+  banned: boolean;
   companies: { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: string }[];
+}
+
+interface AdminSession {
+  sessionId: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+  lastActiveAt: string;
+  expireAt: string;
+  createdAt: string;
 }
 
 /** Uporabnik je "online" če je bil aktiven v zadnjih 5 minutah */
@@ -900,11 +913,25 @@ function PodjetjaTab() {
 // ── Uporabniki tab ────────────────────────────────────────────────────────────
 
 function UporabnikiAdminTab() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "users"],
     queryFn: () => apiFetch<{ users: AdminUser[] }>("/api/admin/users"),
   });
   const users = data?.users ?? [];
+
+  const [banConfirm, setBanConfirm] = useState<string | null>(null);
+
+  const banMutation = useMutation({
+    mutationFn: (clerkUserId: string) =>
+      apiFetch(`/api/admin/users/${clerkUserId}/ban`, { method: "POST" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "users"] }); setBanConfirm(null); },
+  });
+  const unbanMutation = useMutation({
+    mutationFn: (clerkUserId: string) =>
+      apiFetch(`/api/admin/users/${clerkUserId}/unban`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
 
   return (
     <div className="space-y-3">
@@ -919,33 +946,82 @@ function UporabnikiAdminTab() {
             const displayName = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
             const hasAccess = u.companies.length > 0;
             const online = jeOnline(u.lastActiveAt);
+            const isBanning = banMutation.isPending && banConfirm === u.clerkUserId;
+            const isUnbanning = unbanMutation.isPending;
             return (
-              <div key={u.clerkUserId} className={`p-4 ${!hasAccess ? "bg-amber-50/50" : ""}`}>
+              <div key={u.clerkUserId} className={`p-4 ${u.banned ? "bg-red-50/40" : !hasAccess ? "bg-amber-50/50" : ""}`}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-start gap-2.5 min-w-0">
                     {/* Indikator prisotnosti */}
                     <div className="relative mt-1 shrink-0">
-                      <div className={`h-2 w-2 rounded-full ${online ? "bg-green-500" : "bg-gray-300"}`} />
-                      {online && (
+                      <div className={`h-2 w-2 rounded-full ${u.banned ? "bg-red-400" : online ? "bg-green-500" : "bg-gray-300"}`} />
+                      {online && !u.banned && (
                         <div className="absolute inset-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-60" />
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-neutral-900 leading-tight">{displayName}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={`text-sm font-medium leading-tight ${u.banned ? "text-red-700" : "text-neutral-900"}`}>{displayName}</p>
+                        {u.banned && (
+                          <Badge variant="outline" className="text-xs gap-1 bg-red-100 text-red-700 border-red-200 py-0">
+                            <Ban className="h-2.5 w-2.5" /> Blokiran
+                          </Badge>
+                        )}
+                      </div>
                       {displayName !== u.email && (
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       )}
-                      <p className={`text-xs mt-0.5 ${online ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                        {online ? "Povezano" : zadnjaAktivnost(u.lastActiveAt)}
+                      <p className={`text-xs mt-0.5 ${u.banned ? "text-red-500" : online ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+                        {u.banned ? "Prijava blokirana" : online ? "Povezano" : zadnjaAktivnost(u.lastActiveAt)}
                       </p>
                     </div>
                   </div>
-                  {!hasAccess && (
-                    <span className="text-xs text-amber-600 flex items-center gap-1 shrink-0 mt-0.5">
-                      <AlertCircle className="h-3 w-3" /> Čaka na dostop
-                    </span>
-                  )}
+
+                  {/* Akcije desno */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!hasAccess && !u.banned && (
+                      <span className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Čaka na dostop
+                      </span>
+                    )}
+                    {u.banned ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-700 border-green-300 hover:bg-green-50"
+                        disabled={isUnbanning}
+                        onClick={() => unbanMutation.mutate(u.clerkUserId)}
+                      >
+                        {isUnbanning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
+                        Odblokiraj
+                      </Button>
+                    ) : banConfirm === u.clerkUserId ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-destructive">Res blokiraj?</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs"
+                          disabled={isBanning}
+                          onClick={() => banMutation.mutate(u.clerkUserId)}
+                        >
+                          {isBanning ? <Loader2 className="h-3 w-3 animate-spin" /> : "Da"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setBanConfirm(null)}>Ne</Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setBanConfirm(u.clerkUserId)}
+                      >
+                        <Ban className="h-3 w-3" /> Blokiraj
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
                 <div className="flex flex-wrap gap-1.5 pl-4">
                   {hasAccess ? (
                     u.companies.map((c) => {
@@ -957,7 +1033,7 @@ function UporabnikiAdminTab() {
                         ? (POS_VLOGA_COLORS[c.role] ?? "bg-amber-100 text-amber-800 border-amber-200")
                         : "bg-blue-50 text-blue-800 border-blue-200";
                       return (
-                        <Badge key={`${c.sistem}-${c.companyId}`} variant="outline" className={`text-xs gap-1 ${colorClass}`}>
+                        <Badge key={`${c.sistem}-${c.companyId}`} variant="outline" className={`text-xs gap-1 ${colorClass} ${u.banned ? "opacity-50" : ""}`}>
                           <Building2 className="h-3 w-3" />
                           {c.naziv}
                           <span className="opacity-60">·</span>
@@ -969,6 +1045,122 @@ function UporabnikiAdminTab() {
                     })
                   ) : (
                     <p className="text-xs text-muted-foreground">Uporabnik nima dostopa do nobenega podjetja.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Seje tab ──────────────────────────────────────────────────────────────────
+
+function SejeAdminTab() {
+  const qc = useQueryClient();
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["admin", "sessions"],
+    queryFn: () => apiFetch<{ sessions: AdminSession[] }>("/api/admin/sessions"),
+    refetchInterval: 30_000, // osveži vsakih 30s
+  });
+  const sessions = data?.sessions ?? [];
+
+  const [revokeConfirm, setRevokeConfirm] = useState<string | null>(null);
+
+  const revokeMutation = useMutation({
+    mutationFn: (sessionId: string) =>
+      apiFetch(`/api/admin/sessions/${sessionId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "sessions"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      setRevokeConfirm(null);
+    },
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {sessions.length} {sessions.length === 1 ? "aktivna seja" : sessions.length < 5 ? "aktivne seje" : "aktivnih sej"}
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs gap-1.5"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Osveži
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+      ) : sessions.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground text-sm">
+          <MonitorX className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          Ni aktivnih sej.
+        </div>
+      ) : (
+        <div className="divide-y border rounded-lg bg-card">
+          {sessions.map((s) => {
+            const displayName = [s.firstName, s.lastName].filter(Boolean).join(" ") || s.email;
+            const isRevoking = revokeMutation.isPending && revokeConfirm === s.sessionId;
+            const expireDate = new Date(s.expireAt);
+            const diffMin = Math.round((new Date(s.lastActiveAt).getTime() - Date.now()) / 60_000);
+            const lastActive = zadnjaAktivnost(s.lastActiveAt);
+            return (
+              <div key={s.sessionId} className="p-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  {/* Zeleni kroglec — seja je aktivna */}
+                  <div className="relative mt-1 shrink-0">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <div className="absolute inset-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-50" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-neutral-900 leading-tight">{displayName}</p>
+                    {displayName !== s.email && (
+                      <p className="text-xs text-muted-foreground">{s.email}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Zadnja aktivnost: {lastActive}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Poteče: {expireDate.toLocaleDateString("sl-SI", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prekini sejo */}
+                <div className="shrink-0">
+                  {revokeConfirm === s.sessionId ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-destructive whitespace-nowrap">Res prekini?</span>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 text-xs"
+                        disabled={isRevoking}
+                        onClick={() => revokeMutation.mutate(s.sessionId)}
+                      >
+                        {isRevoking ? <Loader2 className="h-3 w-3 animate-spin" /> : "Da"}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRevokeConfirm(null)}>Ne</Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setRevokeConfirm(s.sessionId)}
+                    >
+                      <LogOut className="h-3 w-3" /> Prekini
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1003,9 +1195,13 @@ export default function AdminPage() {
           <TabsTrigger value="uporabniki" className="gap-2">
             <Users className="h-3.5 w-3.5" /> Uporabniki
           </TabsTrigger>
+          <TabsTrigger value="seje" className="gap-2">
+            <MonitorX className="h-3.5 w-3.5" /> Aktivne seje
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="podjetja" className="mt-0"><PodjetjaTab /></TabsContent>
         <TabsContent value="uporabniki" className="mt-0"><UporabnikiAdminTab /></TabsContent>
+        <TabsContent value="seje" className="mt-0"><SejeAdminTab /></TabsContent>
       </Tabs>
     </div>
   );
