@@ -244,36 +244,36 @@ router.post("/users/:clerkUserId/unban", async (req: Request, res: Response): Pr
 });
 
 // GET /admin/sessions — vse aktivne seje
+// Clerk getSessionList zahteva userId ali clientId — pridobimo userje najprej,
+// nato vzporedno seje za vsakega in združimo rezultate.
 router.get("/sessions", async (_req: Request, res: Response): Promise<void> => {
-  // Pridobimo vse aktivne seje + seznam userjev za imena
-  const [sessionsResp, usersResp] = await Promise.all([
-    clerkClient.sessions.getSessionList({ status: "active", limit: 500 }),
-    clerkClient.users.getUserList({ limit: 500 }),
-  ]);
+  // 1. Vse Clerk userje
+  const usersResp = await clerkClient.users.getUserList({ limit: 500 });
 
-  // Mapa userId → osnovni podatki
-  const userMap = new Map(
-    usersResp.data.map((u) => [u.id, {
-      email: u.emailAddresses[0]?.emailAddress ?? "",
-      firstName: u.firstName ?? "",
-      lastName: u.lastName ?? "",
-    }])
+  // 2. Vzporedno seje za vsakega userja (samo aktivne)
+  const perUserSessions = await Promise.all(
+    usersResp.data.map((u) =>
+      clerkClient.sessions
+        .getSessionList({ userId: u.id, status: "active", limit: 100 })
+        .then((r) => r.data.map((s) => ({
+          sessionId: s.id,
+          userId: u.id,
+          email: u.emailAddresses[0]?.emailAddress ?? "",
+          firstName: u.firstName ?? "",
+          lastName: u.lastName ?? "",
+          status: s.status,
+          lastActiveAt: new Date(s.lastActiveAt).toISOString(),
+          expireAt: new Date(s.expireAt).toISOString(),
+          createdAt: new Date(s.createdAt).toISOString(),
+        })))
+        .catch(() => []) // posamezna napaka ne poruši celotnega klica
+    )
   );
 
-  const sessions = sessionsResp.data.map((s) => {
-    const u = userMap.get(s.userId);
-    return {
-      sessionId: s.id,
-      userId: s.userId,
-      email: u?.email ?? "",
-      firstName: u?.firstName ?? "",
-      lastName: u?.lastName ?? "",
-      status: s.status,
-      lastActiveAt: new Date(s.lastActiveAt).toISOString(),
-      expireAt: new Date(s.expireAt).toISOString(),
-      createdAt: new Date(s.createdAt).toISOString(),
-    };
-  });
+  // 3. Združi in uredi po zadnji aktivnosti (najprej najnovejše)
+  const sessions = perUserSessions
+    .flat()
+    .sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime());
 
   res.json({ sessions });
 });
