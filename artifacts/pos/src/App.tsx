@@ -327,6 +327,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const isOrderPage = location.startsWith("/narocilo/");
+  const isCheckoutPage = location === "/blagajna";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background font-sans text-foreground">
@@ -421,7 +422,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       <main className={`flex-1 flex flex-col overflow-hidden ${!isOrderPage ? "pb-16 md:pb-0" : ""}`}>
         <CertExpiryBanner />
         <FursNapakaRetryBanner />
-        {!isSuperAdmin && nastavitve?.nazivRestavracije && (
+        {!isSuperAdmin && nastavitve?.nazivRestavracije && !isCheckoutPage && (
           <div className="flex items-center justify-center px-4 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border/40">
             <Link href="/nastavitve" className="text-xs font-medium text-muted-foreground/70 tracking-wide truncate hover:text-foreground hover:underline transition-colors">
               {nastavitve.nazivRestavracije}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearch, useLocation } from "wouter";
+import { useSearch, useLocation, Link } from "wouter";
 import {
   useListAktivnaNarocila,
   useCreateRacun,
@@ -1794,7 +1794,7 @@ ${linije.map(vrHtml).join("\n")}
 
   // ── Main checkout form ─────────────────────────────────────
   return (
-    <div className="p-8 space-y-6 flex-1 overflow-auto bg-muted/10">
+    <div className="flex-1 overflow-auto bg-muted/10">
       {/* ── PIN dialog za izredno izdajo ─────────────────────── */}
       <Dialog open={pinDialogOpen} onOpenChange={(open) => { if (!open) { setPinDialogOpen(false); setPinInput(""); setPinNapaka(null); } }}>
         <DialogContent className="sm:max-w-sm" data-testid="dialog-izredni-pin">
@@ -2064,11 +2064,18 @@ ${linije.map(vrHtml).join("\n")}
         </DialogContent>
       </Dialog>
 
-      <h1 className="text-3xl font-bold tracking-tight">Blagajna</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2">
         {/* Left: open orders */}
-        <div className="space-y-4">
+        <div className="flex flex-col md:border-r">
+          {nastavitve?.nazivRestavracije && (
+            <div className="flex items-center justify-center px-4 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border/40">
+              <Link href="/nastavitve" className="text-xs font-medium text-muted-foreground/70 tracking-wide truncate hover:text-foreground hover:underline transition-colors">
+                {nastavitve.nazivRestavracije}
+              </Link>
+            </div>
+          )}
+          <div className="p-8 space-y-4">
+          <h1 className="text-3xl font-bold tracking-tight">Blagajna</h1>
           <h2 className="text-xl font-semibold">Odprta naročila</h2>
           {odprta.length === 0 ? (
             <Card>
@@ -2122,10 +2129,11 @@ ${linije.map(vrHtml).join("\n")}
               </Card>
             ))
           )}
-        </div>
+          </div>{/* /p-8 space-y-4 */}
+        </div>{/* /flex-col md:border-r */}
 
         {/* Right: payment */}
-        <div className="space-y-2">
+        <div className="p-8 space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Zaključek računa</h2>
             <Button variant="outline" size="sm" onClick={() => setIzpisPrometaOpen(true)}>
@@ -2133,7 +2141,7 @@ ${linije.map(vrHtml).join("\n")}
               Izpis prometa
             </Button>
           </div>
-          <Card className="sticky top-8">
+          <Card className="sticky top-0">
             <CardContent className="pt-4 space-y-3">
               {selectedOrder ? (
                 <>
