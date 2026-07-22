@@ -152,6 +152,8 @@ interface Enota {
   id: number;
   ime: string;
   aktiven: boolean;
+  prostorId: string | null;
+  prostorNaziv: string | null;
 }
 
 interface AdminBlagajna {
@@ -313,6 +315,15 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
             </SelectContent>
           </Select>
         )}
+        {/* Poslovni prostor — samodejno iz enote (1:1 razmerje) */}
+        {needsEnota && form.enotaId && (() => {
+          const en = enote.find(e => String(e.id) === form.enotaId);
+          return en?.prostorId ? (
+            <span className="text-xs text-muted-foreground shrink-0">
+              Prostor: <span className="font-mono font-medium text-foreground">{en.prostorId}</span>
+            </span>
+          ) : null;
+        })()}
 
         {/* Blagajna (samo za vloga === "uporabnik" in ko je enota izbrana) */}
         {needsBlagajna && form.enotaId && (
@@ -333,15 +344,6 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
             </SelectContent>
           </Select>
         )}
-        {/* Poslovni prostor — samodejno iz blagajne */}
-        {needsBlagajna && form.blagajnaId && (() => {
-          const sel = blagajne.find(b => String(b.id) === form.blagajnaId);
-          return sel?.ppId ? (
-            <span className="text-xs text-muted-foreground shrink-0">
-              Prostor: <span className="font-mono font-medium text-foreground">{sel.ppId}</span>
-            </span>
-          ) : null;
-        })()}
 
         {/* Opozorilo: čakamo na izbiro enote za prikaz blagajn */}
         {needsBlagajna && !form.enotaId && (

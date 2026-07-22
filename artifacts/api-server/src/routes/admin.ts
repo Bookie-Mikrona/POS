@@ -4,7 +4,7 @@
  */
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, desc, and } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable, blagajneTable } from "@workspace/db";
+import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable, blagajneTable, poslovniProstoriTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { CreateCompanyBody, AssignRoleBody } from "@workspace/api-zod";
@@ -609,12 +609,20 @@ function razclenitNaslov(naslov: string): { ulica: string | null; postnaStevilka
 
 // ── POS uporabniki (admin panel) ──────────────────────────────────────────────
 
-// GET /admin/companies/:id/enote — seznam enot za podjetje (za dropdown)
+// GET /admin/companies/:id/enote — seznam enot za podjetje (za dropdown), vključno s poslovnim prostorom
 router.get("/companies/:id/enote", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rows = await db
-    .select({ id: enoteTable.id, ime: enoteTable.ime, aktiven: enoteTable.aktiven })
+    .select({
+      id: enoteTable.id,
+      ime: enoteTable.ime,
+      aktiven: enoteTable.aktiven,
+      prostorId: poslovniProstoriTable.prostorId,
+      prostorNaziv: poslovniProstoriTable.naziv,
+    })
     .from(enoteTable)
+    .leftJoin(poslovniProstoriTable, eq(poslovniProstoriTable.enotaId, enoteTable.id))
     .where(eq(enoteTable.companyId, companyId));
   res.json({ enote: rows });
 });
