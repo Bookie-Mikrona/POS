@@ -637,6 +637,7 @@ router.get("/companies/:id/blagajne", async (req: Request, res: Response): Promi
     .select({
       id: blagajneTable.id,
       ime: blagajneTable.ime,
+      ppId: blagajneTable.ppId,
       bId: blagajneTable.bId,
       enotaId: blagajneTable.enotaId,
       aktivna: blagajneTable.aktivna,

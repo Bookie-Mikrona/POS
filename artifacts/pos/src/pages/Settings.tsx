@@ -1562,6 +1562,20 @@ export default function Settings() {
   const [uDavcna, setUDavcna] = useState("");
   const [uEnotaId, setUEnotaId] = useState<number | "">("");
   const [uBlagajnaId, setUBlagajnaId] = useState<number | "">("");
+
+  // Ko se enota spremeni: počisti blagajno, ki ne pripada enoti, ali jo samodejno izberi
+  const handleEnotaChange = useCallback((newEnotaId: number | "") => {
+    setUEnotaId(newEnotaId);
+    if (newEnotaId === "") { setUBlagajnaId(""); return; }
+    const blagajneZaEnoto = (vseBlagajne ?? []).filter(b => b.enotaId === newEnotaId && b.aktivna);
+    // Počisti obstoječo blagajno, če ne pripada novi enoti
+    setUBlagajnaId(prev => {
+      const veljavna = blagajneZaEnoto.find(b => b.id === Number(prev));
+      if (veljavna) return prev; // obstoječa je veljavna za to enoto
+      if (blagajneZaEnoto.length === 1) return blagajneZaEnoto[0].id; // samodejno izberi edino
+      return ""; // počisti
+    });
+  }, [vseBlagajne]);
   const [uGeslo, setUGeslo] = useState("");
   const [uPokaziGeslo, setUPokaziGeslo] = useState(false);
   const [uNapaka, setUNapaka] = useState("");
@@ -4903,7 +4917,7 @@ export default function Settings() {
                   <Label>Enota <span className="text-destructive">*</span></Label>
                   <select
                     value={uEnotaId}
-                    onChange={e => setUEnotaId(e.target.value === "" ? "" : Number(e.target.value))}
+                    onChange={e => handleEnotaChange(e.target.value === "" ? "" : Number(e.target.value))}
                     disabled={uLoading}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   >
@@ -4921,15 +4935,18 @@ export default function Settings() {
                   <select
                     value={uBlagajnaId}
                     onChange={e => setUBlagajnaId(e.target.value === "" ? "" : Number(e.target.value))}
-                    disabled={uLoading}
+                    disabled={uLoading || !uEnotaId}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   >
-                    <option value="">— izberite blagajno —</option>
-                    {(blagajne ?? []).filter(b => b.aktivna).map(b => (
+                    <option value="">{uEnotaId ? "— izberite blagajno —" : "— najprej izberite enoto —"}</option>
+                    {(vseBlagajne ?? []).filter(b => b.aktivna && (!uEnotaId || b.enotaId === Number(uEnotaId))).map(b => (
                       <option key={b.id} value={b.id}>{b.ppId}-{b.bId} {b.ime}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-muted-foreground">FURS blagajna, ki jo bo ta uporabnik uporabljal pri izdaji računov.</p>
+                  {uBlagajnaId !== "" && (() => { const b = (vseBlagajne ?? []).find(x => x.id === Number(uBlagajnaId)); return b ? <p className="text-xs text-muted-foreground">Poslovni prostor: <span className="font-medium text-foreground">{b.ppId}</span></p> : null; })()}
+                  {!uBlagajnaId && uEnotaId && (vseBlagajne ?? []).filter(b => b.aktivna && b.enotaId === Number(uEnotaId)).length === 0 && (
+                    <p className="text-xs text-amber-600">Za to enoto ni nastavljenih blagajn.</p>
+                  )}
                 </div>
               )}
               {uVloga === "admin" && (
@@ -5063,7 +5080,7 @@ export default function Settings() {
                   <Label>Enota <span className="text-destructive">*</span></Label>
                   <select
                     value={uEnotaId}
-                    onChange={e => setUEnotaId(e.target.value === "" ? "" : Number(e.target.value))}
+                    onChange={e => handleEnotaChange(e.target.value === "" ? "" : Number(e.target.value))}
                     disabled={uLoading}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   >
@@ -5081,15 +5098,18 @@ export default function Settings() {
                   <select
                     value={uBlagajnaId}
                     onChange={e => setUBlagajnaId(e.target.value === "" ? "" : Number(e.target.value))}
-                    disabled={uLoading}
+                    disabled={uLoading || !uEnotaId}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   >
-                    <option value="">— izberite blagajno —</option>
-                    {(blagajne ?? []).filter(b => b.aktivna).map(b => (
+                    <option value="">{uEnotaId ? "— izberite blagajno —" : "— najprej izberite enoto —"}</option>
+                    {(vseBlagajne ?? []).filter(b => b.aktivna && (!uEnotaId || b.enotaId === Number(uEnotaId))).map(b => (
                       <option key={b.id} value={b.id}>{b.ppId}-{b.bId} {b.ime}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-muted-foreground">FURS blagajna, ki jo bo ta uporabnik uporabljal pri izdaji računov.</p>
+                  {uBlagajnaId !== "" && (() => { const b = (vseBlagajne ?? []).find(x => x.id === Number(uBlagajnaId)); return b ? <p className="text-xs text-muted-foreground">Poslovni prostor: <span className="font-medium text-foreground">{b.ppId}</span></p> : null; })()}
+                  {!uBlagajnaId && uEnotaId && (vseBlagajne ?? []).filter(b => b.aktivna && b.enotaId === Number(uEnotaId)).length === 0 && (
+                    <p className="text-xs text-amber-600">Za to enoto ni nastavljenih blagajn.</p>
+                  )}
                 </div>
               )}
               {(uVloga === "admin" || uVloga === "superadmin") && (

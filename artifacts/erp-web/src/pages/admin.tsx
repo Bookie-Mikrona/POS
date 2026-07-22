@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2, Users, Plus, ShieldCheck, Loader2, AlertCircle,
   CheckCircle2, ChevronDown, ChevronRight, Trash2, Package, X, TriangleAlert,
@@ -157,6 +157,7 @@ interface Enota {
 interface AdminBlagajna {
   id: number;
   ime: string;
+  ppId: string;
   bId: string;
   enotaId: number;
   aktivna: boolean;
@@ -193,6 +194,12 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
   const needsBlagajna = form.vloga === "uporabnik";
   const enote = enoteData?.enote ?? [];
   const blagajne = blagajneData?.blagajne ?? [];
+
+  // Ko se blagajne naložijo za izbrano enoto, samodejno izberi, če je samo ena
+  useEffect(() => {
+    if (!needsBlagajna || !form.enotaId || blagajne.length !== 1) return;
+    setForm((f) => f.blagajnaId ? f : { ...f, blagajnaId: String(blagajne[0].id) });
+  }, [blagajne, needsBlagajna, form.enotaId]);
   const posUsers = posData?.users ?? [];
 
   const assignMutation = useMutation({
@@ -313,19 +320,28 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
             value={form.blagajnaId}
             onValueChange={(v) => setForm((f) => ({ ...f, blagajnaId: v }))}
           >
-            <SelectTrigger className="h-8 w-36 text-xs">
+            <SelectTrigger className="h-8 w-48 text-xs">
               <SelectValue placeholder={blagajne.length ? "Izberi blagajno…" : "Ni blagajn"} />
             </SelectTrigger>
             <SelectContent>
               {blagajne.map((b) => (
                 <SelectItem key={b.id} value={String(b.id)}>
-                  <span className="font-mono">{b.bId}</span>
-                  {b.ime !== b.bId && <span className="text-muted-foreground ml-1.5">{b.ime}</span>}
+                  <span className="font-mono">{b.ppId}-{b.bId}</span>
+                  {b.ime && <span className="text-muted-foreground ml-1.5">{b.ime}</span>}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
+        {/* Poslovni prostor — samodejno iz blagajne */}
+        {needsBlagajna && form.blagajnaId && (() => {
+          const sel = blagajne.find(b => String(b.id) === form.blagajnaId);
+          return sel ? (
+            <span className="text-xs text-muted-foreground self-center">
+              Prostor: <span className="font-mono font-medium text-foreground">{sel.ppId}</span>
+            </span>
+          ) : null;
+        })()}
 
         {/* Opozorilo: čakamo na izbiro enote za prikaz blagajn */}
         {needsBlagajna && !form.enotaId && (
