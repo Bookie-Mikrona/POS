@@ -81,17 +81,17 @@ router.post("/naprave/registracija", async (req, res): Promise<void> => {
     naprava = created;
   }
 
-  (req as any).session.napravaKljuc = napravaKljuc;
   const isNew = existing.length === 0;
   res.status(isNew ? 201 : 200).json(napravaToResponse(naprava));
 });
 
 router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const napravaKljuc = (req as any).session.napravaKljuc;
+  // Naprava se identificira prek X-Naprava-Id headerja (nastavi ga frontend z getNapravaId())
+  const napravaKljuc = req.headers["x-naprava-id"] as string | undefined;
 
   if (!napravaKljuc) {
-    res.status(404).json({ error: "Naprava ni registrirana za to sejo. Osvežite stran." });
+    res.status(404).json({ error: "Naprava ni registrirana. Osvežite stran." });
     return;
   }
 
