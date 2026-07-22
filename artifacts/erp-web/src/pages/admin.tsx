@@ -336,7 +336,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
         {/* Poslovni prostor — samodejno iz blagajne */}
         {needsBlagajna && form.blagajnaId && (() => {
           const sel = blagajne.find(b => String(b.id) === form.blagajnaId);
-          return sel ? (
+          return sel?.ppId ? (
             <span className="text-xs text-muted-foreground shrink-0">
               Prostor: <span className="font-mono font-medium text-foreground">{sel.ppId}</span>
             </span>
