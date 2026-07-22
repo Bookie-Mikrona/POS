@@ -1,33 +1,41 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useBlagajna } from "@/contexts/BlagajnaContext";
-import { Building2, Monitor, AlertTriangle } from "lucide-react";
+import { Building2, MonitorCheck, AlertTriangle } from "lucide-react";
 
-interface Enota { id: number; ime: string; }
-
+/**
+ * Prikaz dodeljene enote in blagajne za vlogo "uporabnik".
+ * Blagajna je fiksno dodeljena — ni možnosti preklapljanja.
+ */
 export function UporabnikSidebarInfo() {
   const { user } = useAuth();
   const { activeBlagajnaId } = useBlagajna();
 
-  // Ime enote dobimo direktno iz user.enote (vrnjeno ob auth/me) — brez extra fetch
-  const enotaIme = user?.enote?.find((e: Enota) => e.id === user.enotaId)?.ime ?? null;
+  const enotaIme = user?.enotaIme ?? null;
+  // Ime blagajne pride direktno iz auth/me — ni treba dodatnega fetch-a
+  const blagajnaIme = user?.blagajnaIme ?? null;
 
   return (
-    <div className="px-4 py-2 space-y-1.5">
+    <div className="space-y-0.5">
+      {/* Enota */}
       {enotaIme && (
-        <div className="flex items-center gap-2 text-xs text-sidebar-foreground/60">
-          <Building2 className="h-3 w-3 shrink-0" />
-          <span className="truncate">{enotaIme}</span>
+        <div className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-sidebar-foreground/80 border border-sidebar-border/40">
+          <Building2 className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60" />
+          <span className="flex-1 text-left truncate">{enotaIme}</span>
         </div>
       )}
+
+      {/* Blagajna */}
       {activeBlagajnaId ? (
-        <div className="flex items-center gap-2 text-xs text-sidebar-foreground/60">
-          <Monitor className="h-3 w-3 shrink-0" />
-          <span className="font-mono">Blagajna #{activeBlagajnaId}</span>
+        <div className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-sidebar-foreground/80 border border-sidebar-border/40">
+          <MonitorCheck className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60" />
+          <span className="flex-1 text-left truncate">
+            {blagajnaIme ?? `Blagajna #${activeBlagajnaId}`}
+          </span>
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-xs text-amber-500">
-          <AlertTriangle className="h-3 w-3 shrink-0" />
-          <span>Blagajna ni dodeljena</span>
+        <div className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-amber-600 border border-amber-300/60 bg-amber-50/50">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1 text-left truncate">Blagajna ni dodeljena</span>
         </div>
       )}
     </div>

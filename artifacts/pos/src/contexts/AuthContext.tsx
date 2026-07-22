@@ -13,10 +13,14 @@ export interface Uporabnik {
   ime: string;
   vloga: string;
   podjetjeDavcna: string;
+  companyNaziv?: string | null;
+  companyNaslov?: string | null;
   moraZamenjatiGeslo?: boolean;
   email?: string | null;
   enotaId?: number;
+  enotaIme?: string | null;
   blagajnaId?: number | null;
+  blagajnaIme?: string | null;
   companyId?: string;
   enote?: Array<{ id: number; ime: string }>;
 }
@@ -28,8 +32,13 @@ interface PosAuthMeResponse {
   ime: string;
   priimek: string;
   companyId: string | null;
+  companyNaziv: string | null;
+  companyNaslov: string | null;
   podjetjeDavcna: string;
   enotaId: number | null;
+  enotaIme: string | null;
+  blagajnaId: number | null;
+  blagajnaIme: string | null;
   enote: Array<{ id: number; ime: string }>;
   aktiven: boolean;
 }
@@ -111,7 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ime: `${data.ime} ${data.priimek}`.trim(),
           vloga: data.vloga,
           podjetjeDavcna: data.podjetjeDavcna ?? "",
+          companyNaziv: data.companyNaziv ?? null,
+          companyNaslov: data.companyNaslov ?? null,
           enotaId,
+          enotaIme: data.enotaIme ?? null,
+          blagajnaId: data.blagajnaId ?? null,
+          blagajnaIme: data.blagajnaIme ?? null,
           companyId: data.companyId ?? undefined,
           enote: data.enote,
         });

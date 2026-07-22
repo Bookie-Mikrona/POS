@@ -5,7 +5,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { and, eq } from "drizzle-orm";
-import { db, posUporabnikiTable, enoteTable, companiesTable } from "@workspace/db";
+import { db, posUporabnikiTable, enoteTable, blagajneTable, companiesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -40,22 +40,28 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  // Poišči POS uporabniški zapis
+  // Poišči POS uporabniški zapis (z JOIN na podjetje, enoto in blagajno)
   const rows = await db
     .select({
       id: posUporabnikiTable.id,
       clerkUserId: posUporabnikiTable.clerkUserId,
       companyId: posUporabnikiTable.companyId,
       enotaId: posUporabnikiTable.enotaId,
+      blagajnaId: posUporabnikiTable.blagajnaId,
       vloga: posUporabnikiTable.vloga,
       ime: posUporabnikiTable.ime,
       priimek: posUporabnikiTable.priimek,
       aktiven: posUporabnikiTable.aktiven,
-      companyIme: companiesTable.naziv,
+      companyNaziv: companiesTable.naziv,
+      companyNaslov: companiesTable.naslov,
       companyDavcna: companiesTable.podjetjeDavcna,
+      enotaIme: enoteTable.ime,
+      blagajnaIme: blagajneTable.ime,
     })
     .from(posUporabnikiTable)
     .innerJoin(companiesTable, eq(posUporabnikiTable.companyId, companiesTable.id))
+    .leftJoin(enoteTable, eq(posUporabnikiTable.enotaId, enoteTable.id))
+    .leftJoin(blagajneTable, eq(posUporabnikiTable.blagajnaId, blagajneTable.id))
     .where(
       and(
         eq(posUporabnikiTable.clerkUserId, clerkUserId),
@@ -88,9 +94,13 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     ime: uporabnik.ime,
     priimek: uporabnik.priimek,
     companyId: uporabnik.companyId,
-    companyIme: uporabnik.companyIme,
+    companyNaziv: uporabnik.companyNaziv ?? null,
+    companyNaslov: uporabnik.companyNaslov ?? null,
     podjetjeDavcna: uporabnik.companyDavcna ?? "",
     enotaId: uporabnik.enotaId,
+    enotaIme: uporabnik.enotaIme ?? null,
+    blagajnaId: uporabnik.blagajnaId ?? null,
+    blagajnaIme: uporabnik.blagajnaIme ?? null,
     enote,
     aktiven: uporabnik.aktiven,
   });

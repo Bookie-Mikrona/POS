@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
 import { UporabnikSidebarInfo } from "@/components/UporabnikSidebarInfo";
+import { AdminEnotaStaticInfo } from "@/components/AdminEnotaStaticInfo";
 import { BlagajnaProvider } from "@/contexts/BlagajnaContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -345,8 +346,10 @@ function Layout({ children }: { children: React.ReactNode }) {
               {!isSuperAdmin && (() => {
                 // Davčna: iz nastavitev ali pa iz prijavljenega uporabnika (companies tabela)
                 const davcna = nastavitve?.davcnaStevilka || user?.podjetjeDavcna;
-                const naziv = nastavitve?.nazivPodjetja || nastavitve?.nazivRestavracije;
-                const naslov = nastavitve?.naslovPodjetja || nastavitve?.naslovRestavracije;
+                const naziv = nastavitve?.nazivPodjetja || nastavitve?.nazivRestavracije || user?.companyNaziv;
+                const naslov = nastavitve?.naslovPodjetja || nastavitve?.naslovRestavracije || user?.companyNaslov;
+                // Enota — prikaži samo za admin_enote in uporabnik (admin preklaplja v nogi)
+                const enotaIme = (isAdminEnote || (!isAdmin && !isAdminEnote)) ? user?.enotaIme : null;
                 if (!davcna && !naziv) return null;
                 return (
                   <div className="mt-1 space-y-0.5">
@@ -358,6 +361,11 @@ function Layout({ children }: { children: React.ReactNode }) {
                     )}
                     {naslov && (
                       <p className="text-[10px] text-sidebar-foreground/50 leading-snug">{naslov}</p>
+                    )}
+                    {enotaIme && (
+                      <p className="text-[10px] text-sidebar-foreground/70 leading-snug border-t border-sidebar-border/30 pt-1 mt-1 font-medium">
+                        {enotaIme}
+                      </p>
                     )}
                   </div>
                 );
@@ -376,6 +384,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             </nav>
             <div className="p-2 border-t border-sidebar-border/50 space-y-0.5 text-red-600">
               {isAdmin && !isSuperAdmin && <EnotaSwitcher />}
+              {isAdminEnote && !isSuperAdmin && <AdminEnotaStaticInfo />}
               {(isAdmin || isAdminEnote) && !isSuperAdmin && <BlagajnaSwitcher />}
               {!isAdmin && !isAdminEnote && !isSuperAdmin && <UporabnikSidebarInfo />}
               <button
