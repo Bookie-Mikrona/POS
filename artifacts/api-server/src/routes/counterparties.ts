@@ -12,7 +12,7 @@ import {
   UpdateCounterpartyBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
-import { ajpesLookup } from "../lib/ajpesSim";
+import { ajpesLookup, viesLookup, VIES_COUNTRIES } from "../lib/ajpesSim";
 
 const router: IRouter = Router();
 
@@ -59,7 +59,23 @@ router.post(
       return;
     }
 
-    const result = await ajpesLookup(taxId);
+    const cleaned = taxId.trim().toUpperCase().replace(/\s/g, "");
+    const prefix = cleaned.match(/^([A-Z]{2})/)?.[1] ?? null;
+
+    let result;
+    if (!prefix || prefix === "SI") {
+      // Slovenska davčna številka → AJPES
+      result = await ajpesLookup(taxId);
+    } else if (VIES_COUNTRIES.has(prefix)) {
+      // EU tuji DDV zavezanec → VIES
+      const vatNumber = cleaned.slice(2);
+      result = await viesLookup(prefix, vatNumber);
+    } else {
+      // Zunaj-EU / neznana predpona — ni samodejne poizvedbe
+      res.status(422).json({ error: `Samodejno iskanje za predpono "${prefix}" ni podprto. Podatke vnesite ročno.` });
+      return;
+    }
+
     res.json(result);
   },
 );

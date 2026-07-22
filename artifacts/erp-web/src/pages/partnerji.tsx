@@ -248,7 +248,36 @@ interface AjpesResult {
   country: string;
   vatPayer: boolean;
   iban: string | null;
-  source: "ajpes_sim";
+  source: "ajpes_sim" | "vies";
+}
+
+/** EU države z VIES sistemom (isti seznam kot na backendu) */
+const VIES_PREFIKSI = new Set([
+  "AT","BE","BG","CY","CZ","DE","DK","EE","EL","ES",
+  "FI","FR","HR","HU","IE","IT","LT","LU","LV","MT",
+  "NL","PL","PT","RO","SE","SK",
+]);
+
+/** Vrne ISO kodo države iz DDV prefiksa številke */
+function drzavaIzDavcne(taxId: string): string | null {
+  const c = taxId.trim().toUpperCase().replace(/\s/g, "");
+  if (!c) return null;
+  const prefix = c.match(/^([A-Z]{2})/)?.[1];
+  if (!prefix) return null;
+  // EL (grški DDV prefiks) → GR (ISO)
+  if (prefix === "EL") return "GR";
+  return prefix;
+}
+
+/** Vrne tip poizvedbe glede na DDV številko */
+function tipPoizvedbe(taxId: string): "ajpes" | "vies" | "none" {
+  const c = taxId.trim().toUpperCase().replace(/\s/g, "");
+  if (!c) return "none";
+  const prefix = c.match(/^([A-Z]{2})/)?.[1];
+  if (!prefix) return /^\d{8}$/.test(c) ? "ajpes" : "none";
+  if (prefix === "SI") return "ajpes";
+  if (VIES_PREFIKSI.has(prefix)) return "vies";
+  return "none";
 }
 
 // ─── PartnerSheet ─────────────────────────────────────────────────────────────
@@ -293,7 +322,17 @@ function PartnerSheet({
   const isPending = createMut.isPending || updateMut.isPending;
 
   const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      // Ko se tipka davčna številka, samodejno nastavi državo iz prefiksa
+      if (field === "taxId") {
+        const detected = drzavaIzDavcne(value as string);
+        if (detected) next.country = detected;
+        // Brez prefiksa (samo številke) → privzeto SI
+        else if (/^\d/.test((value as string).trim())) next.country = "SI";
+      }
+      return next;
+    });
   };
 
   // ── AJPES poizvedba ──────────────────────────────────────────────────────
@@ -385,7 +424,7 @@ function PartnerSheet({
           <SheetDescription>
             {partner
               ? "Uredite podatke o poslovnem partnerju."
-              : "Vnesite podatke ali poiščite podjetje po davčni številki (AJPES)."}
+              : "Vnesite podatke ali poiščite podjetje po davčni številki (AJPES za SI, VIES za EU)."}
           </SheetDescription>
         </SheetHeader>
 
@@ -403,70 +442,84 @@ function PartnerSheet({
             </Select>
           </div>
 
-          {/* Davčna številka + AJPES */}
-          <div className="space-y-2">
-            <Label>Davčna številka</Label>
-            <div className="flex gap-2">
-              <Input
-                value={formData.taxId}
-                onChange={(e) => handleChange("taxId", e.target.value)}
-                placeholder="SI12345678"
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAjpesLookup}
-                disabled={!formData.taxId.trim() || ajpesLoading}
-                className="shrink-0 gap-1.5"
-              >
-                {ajpesLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-3.5 w-3.5" />
+          {/* Davčna številka + AJPES / VIES */}
+          {(() => {
+            const lookup = tipPoizvedbe(formData.taxId);
+            const btnLabel = lookup === "ajpes" ? "AJPES" : lookup === "vies" ? "VIES" : null;
+            return (
+              <div className="space-y-2">
+                <Label>Davčna številka</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.taxId}
+                    onChange={(e) => handleChange("taxId", e.target.value)}
+                    placeholder="SI12345678 · DE123456789 · HR12345678901"
+                    className="flex-1"
+                  />
+                  {btnLabel && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAjpesLookup}
+                      disabled={!formData.taxId.trim() || ajpesLoading}
+                      className="shrink-0 gap-1.5"
+                    >
+                      {ajpesLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      )}
+                      {btnLabel}
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {lookup === "ajpes" && "Slovenska davčna številka — iskanje prek AJPES."}
+                  {lookup === "vies" && "Tuja EU davčna številka — preverjanje prek sistema VIES."}
+                  {lookup === "none" && formData.taxId.trim() && "Davčna številka izven EU — samodejno iskanje ni na voljo."}
+                </p>
+
+                {/* Napaka */}
+                {ajpesError && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {ajpesError}
+                  </p>
                 )}
-                AJPES
-              </Button>
-            </div>
 
-            {/* AJPES napaka */}
-            {ajpesError && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" /> {ajpesError}
-              </p>
-            )}
-
-            {/* AJPES rezultat */}
-            {ajpesResult && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Najdeno v AJPES registru
-                    <span className="text-xs font-normal text-emerald-600">(simulacija)</span>
-                  </div>
-                </div>
-                <div className="text-sm space-y-0.5 text-emerald-900">
-                  <div className="font-medium">{ajpesResult.name}</div>
-                  {ajpesResult.registrationNumber && (
-                    <div className="text-xs text-emerald-700">MŠ: {ajpesResult.registrationNumber}</div>
-                  )}
-                  {ajpesResult.address && (
-                    <div className="text-xs text-emerald-700">
-                      {ajpesResult.address}, {ajpesResult.postCode} {ajpesResult.city}
+                {/* Rezultat (AJPES ali VIES) */}
+                {ajpesResult && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                      <CheckCircle2 className="h-4 w-4" />
+                      {ajpesResult.source === "ajpes_sim"
+                        ? <>Najdeno v AJPES registru <span className="text-xs font-normal text-emerald-600">(simulacija)</span></>
+                        : "Preverjeno v sistemu VIES (EU)"
+                      }
                     </div>
-                  )}
-                  <div className="text-xs text-emerald-700">
-                    Zavezanec za DDV: <strong>{ajpesResult.vatPayer ? "Da" : "Ne"}</strong>
+                    <div className="text-sm space-y-0.5 text-emerald-900">
+                      <div className="font-medium">{ajpesResult.name || <span className="italic text-emerald-600">Ime ni na voljo</span>}</div>
+                      {ajpesResult.registrationNumber && (
+                        <div className="text-xs text-emerald-700">MŠ: {ajpesResult.registrationNumber}</div>
+                      )}
+                      {ajpesResult.address && (
+                        <div className="text-xs text-emerald-700">
+                          {ajpesResult.address}{ajpesResult.postCode || ajpesResult.city ? `, ${[ajpesResult.postCode, ajpesResult.city].filter(Boolean).join(" ")}` : ""}
+                        </div>
+                      )}
+                      <div className="text-xs text-emerald-700">
+                        Država: <strong>{ajpesResult.country}</strong>
+                        {" · "}Zavezanec za DDV: <strong>{ajpesResult.vatPayer ? "Da" : "Ne"}</strong>
+                      </div>
+                    </div>
+                    <Button size="sm" className="w-full mt-1 bg-emerald-600 hover:bg-emerald-700" onClick={applyAjpes}>
+                      Uporabi te podatke
+                    </Button>
                   </div>
-                </div>
-                <Button size="sm" className="w-full mt-1 bg-emerald-600 hover:bg-emerald-700" onClick={applyAjpes}>
-                  Uporabi te podatke
-                </Button>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Naziv */}
           <div className="space-y-2">
@@ -504,7 +557,7 @@ function PartnerSheet({
           <div className="flex items-center justify-between rounded-lg border px-4 py-3 bg-muted/20">
             <div>
               <Label htmlFor="vatPayer" className="cursor-pointer font-medium">Zavezanec za DDV</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">Partner je identificiran za namene DDV (ima SI davčno številko)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Partner je identificiran za namene DDV (SI ali tuja DDV številka)</p>
             </div>
             <Switch
               id="vatPayer"
@@ -525,7 +578,7 @@ function PartnerSheet({
                 <Input
                   value={formData.address}
                   onChange={(e) => handleChange("address", e.target.value)}
-                  placeholder="Slovenska cesta 1"
+                  placeholder="Ulica in hišna številka"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -570,7 +623,7 @@ function PartnerSheet({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange("email", e.target.value)}
-                  placeholder="info@podjetje.si"
+                  placeholder="info@podjetje.com"
                 />
               </div>
               <div className="space-y-2">
@@ -586,7 +639,7 @@ function PartnerSheet({
                 <Input
                   value={formData.iban}
                   onChange={(e) => handleChange("iban", e.target.value)}
-                  placeholder="SI56 0000 0000 0000 000"
+                  placeholder="SI56 … / DE89 …"
                 />
               </div>
             </div>

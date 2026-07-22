@@ -18,7 +18,112 @@ export interface AjpesResult {
   country: string;
   vatPayer: boolean;
   iban: string | null;
-  source: "ajpes_sim";
+  source: "ajpes_sim" | "vies";
+}
+
+// ── VIES EU DDV poizvedba ─────────────────────────────────────────────────────
+
+/** EU države z VIES sistemom (VAT prefiks → ISO 3166-1 alpha-2) */
+const VIES_VAT_TO_ISO: Record<string, string> = {
+  AT: "AT", BE: "BE", BG: "BG", CY: "CY", CZ: "CZ",
+  DE: "DE", DK: "DK", EE: "EE", EL: "GR", ES: "ES",
+  FI: "FI", FR: "FR", HR: "HR", HU: "HU", IE: "IE",
+  IT: "IT", LT: "LT", LU: "LU", LV: "LV", MT: "MT",
+  NL: "NL", PL: "PL", PT: "PT", RO: "RO", SE: "SE",
+  SK: "SK",
+};
+
+export const VIES_COUNTRIES = new Set(Object.keys(VIES_VAT_TO_ISO));
+
+/**
+ * Poizvedba v EU VIES sistemu za preverjanje DDV zavezancev.
+ * @param vatPrefix - 2-črkovna DDV predpona (npr. "DE", "AT", "EL")
+ * @param vatNumber - DDV številka BREZ predpone
+ */
+export async function viesLookup(vatPrefix: string, vatNumber: string): Promise<AjpesResult> {
+  const fullTaxId = `${vatPrefix}${vatNumber}`;
+  const isoCountry = VIES_VAT_TO_ISO[vatPrefix] ?? vatPrefix;
+
+  try {
+    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${vatPrefix}/vat/${vatNumber}`;
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(8_000),
+      headers: { Accept: "application/json" },
+    });
+
+    if (!resp.ok) {
+      return notFoundVies(fullTaxId, isoCountry);
+    }
+
+    const data = await resp.json() as {
+      isValid: boolean;
+      name?: string;
+      address?: string;
+      vatNumber?: string;
+      countryCode?: string;
+    };
+
+    if (!data.isValid) {
+      return notFoundVies(fullTaxId, isoCountry);
+    }
+
+    // VIES vrne naslov kot eno polje z \n ločili — razbijemo kar znamo
+    const addrLines = (data.address ?? "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const streetLine = addrLines[0] ?? null;
+    const restLines = addrLines.slice(1);
+
+    // Poskusimo razpoznati poštno številko in kraj iz preostalih vrstic
+    let postCode: string | null = null;
+    let city: string | null = null;
+    if (restLines.length > 0) {
+      // Pogosta oblika: "12345 Berlin" ali "1010 Vienna"
+      const m = restLines[0].match(/^(\d[\d\s\-]+)\s+(.+)$/);
+      if (m) {
+        postCode = m[1].trim();
+        city = m[2].trim();
+      } else {
+        city = restLines.join(", ");
+      }
+    }
+
+    const name = data.name && data.name !== "---" ? data.name : "";
+
+    return {
+      found: true,
+      taxId: fullTaxId,
+      registrationNumber: null,
+      name,
+      address: streetLine,
+      postCode,
+      city,
+      country: isoCountry,
+      vatPayer: true, // Partner je v VIES ⟹ je DDV zavezanec
+      iban: null,
+      source: "vies",
+    };
+  } catch {
+    return notFoundVies(fullTaxId, isoCountry);
+  }
+}
+
+function notFoundVies(taxId: string, country: string): AjpesResult {
+  return {
+    found: false,
+    taxId,
+    registrationNumber: null,
+    name: "",
+    address: null,
+    postCode: null,
+    city: null,
+    country,
+    vatPayer: false,
+    iban: null,
+    source: "vies",
+  };
 }
 
 /** Normalizira davčno številko: odstrani "SI" prefix in presledke */
