@@ -268,10 +268,10 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
       )}
 
       {/* Obrazec za dodelitev */}
-      <div className="flex flex-wrap gap-2 items-end">
+      <div className="flex flex-wrap gap-2 items-center">
         {/* Uporabnik */}
         <Select value={form.clerkUserId} onValueChange={(v) => setForm((f) => ({ ...f, clerkUserId: v }))}>
-          <SelectTrigger className="h-8 w-52 text-xs"><SelectValue placeholder="Izberi uporabnika…" /></SelectTrigger>
+          <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Uporabnik…" /></SelectTrigger>
           <SelectContent>
             {allUsers.map((u) => (
               <SelectItem key={u.clerkUserId} value={u.clerkUserId}>
@@ -289,7 +289,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
           value={form.vloga}
           onValueChange={(v) => setForm((f) => ({ ...f, vloga: v, enotaId: "", blagajnaId: "" }))}
         >
-          <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="admin">Admin podjetja</SelectItem>
             <SelectItem value="admin_enote">Admin enote</SelectItem>
@@ -303,8 +303,8 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
             value={form.enotaId}
             onValueChange={(v) => setForm((f) => ({ ...f, enotaId: v, blagajnaId: "" }))}
           >
-            <SelectTrigger className="h-8 w-40 text-xs">
-              <SelectValue placeholder={enote.length ? "Izberi enoto…" : "Ni enot"} />
+            <SelectTrigger className="h-8 w-32 text-xs">
+              <SelectValue placeholder={enote.length ? "Enota…" : "Ni enot"} />
             </SelectTrigger>
             <SelectContent>
               {enote.map((e) => (
@@ -320,8 +320,8 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
             value={form.blagajnaId}
             onValueChange={(v) => setForm((f) => ({ ...f, blagajnaId: v }))}
           >
-            <SelectTrigger className="h-8 w-48 text-xs">
-              <SelectValue placeholder={blagajne.length ? "Izberi blagajno…" : "Ni blagajn"} />
+            <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectValue placeholder={blagajne.length ? "Blagajna…" : "Ni blagajn"} />
             </SelectTrigger>
             <SelectContent>
               {blagajne.map((b) => (
@@ -337,7 +337,7 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
         {needsBlagajna && form.blagajnaId && (() => {
           const sel = blagajne.find(b => String(b.id) === form.blagajnaId);
           return sel ? (
-            <span className="text-xs text-muted-foreground self-center">
+            <span className="text-xs text-muted-foreground shrink-0">
               Prostor: <span className="font-mono font-medium text-foreground">{sel.ppId}</span>
             </span>
           ) : null;
@@ -345,12 +345,12 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
 
         {/* Opozorilo: čakamo na izbiro enote za prikaz blagajn */}
         {needsBlagajna && !form.enotaId && (
-          <span className="text-xs text-muted-foreground self-center">← najprej enoto</span>
+          <span className="text-xs text-muted-foreground shrink-0">← najprej enoto</span>
         )}
 
         <Button
           size="sm"
-          className="h-8 text-xs"
+          className="h-8 text-xs shrink-0"
           disabled={assignMutation.isPending || !canSubmit}
           onClick={() =>
             assignMutation.mutate({
