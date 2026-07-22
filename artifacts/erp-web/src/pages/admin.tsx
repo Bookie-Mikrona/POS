@@ -1142,28 +1142,37 @@ function UporabnikiAdminTab() {
             return (
               <div key={u.clerkUserId} className={`p-4 ${u.banned ? "bg-red-50/40" : !hasAccess ? "bg-amber-50/50" : ""}`}>
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    {/* Indikator prisotnosti */}
-                    <div className="relative mt-1 shrink-0">
-                      <div className={`h-2 w-2 rounded-full ${u.banned ? "bg-red-400" : online ? "bg-green-500" : "bg-gray-300"}`} />
-                      {online && !u.banned && (
-                        <div className="absolute inset-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-60" />
-                      )}
-                    </div>
+                  <div className="flex items-start gap-3 min-w-0">
+                    {/* Status pill */}
+                    {u.banned ? (
+                      <span className="inline-flex items-center gap-1.5 shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700 border border-red-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                        Blokiran
+                      </span>
+                    ) : online ? (
+                      <span className="inline-flex items-center gap-1.5 shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200">
+                        <span className="relative flex h-1.5 w-1.5 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+                        </span>
+                        Aktiven
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 shrink-0" />
+                        Neaktiven
+                      </span>
+                    )}
+
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className={`text-sm font-medium leading-tight ${u.banned ? "text-red-700" : "text-neutral-900"}`}>{displayName}</p>
-                        {u.banned && (
-                          <Badge variant="outline" className="text-xs gap-1 bg-red-100 text-red-700 border-red-200 py-0">
-                            <Ban className="h-2.5 w-2.5" /> Blokiran
-                          </Badge>
-                        )}
                       </div>
                       {displayName !== u.email && (
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       )}
-                      <p className={`text-xs mt-0.5 ${u.banned ? "text-red-500" : online ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                        {u.banned ? "Prijava blokirana" : online ? "Povezano" : zadnjaAktivnost(u.lastActiveAt)}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {u.banned ? "Prijava blokirana" : online ? "Pravkar aktiven" : zadnjaAktivnost(u.lastActiveAt)}
                       </p>
                     </div>
                   </div>
