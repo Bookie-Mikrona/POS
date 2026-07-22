@@ -213,6 +213,10 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
     }
   }
 
+  const superAdminIds = new Set(
+    (process.env["SUPER_ADMIN_IDS"] ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  );
+
   // 3. Sestavi seznam iz vseh Clerk userjev
   const users = clerkResponse.data.map((u) => ({
     clerkUserId: u.id,
@@ -223,6 +227,7 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
     createdAt: new Date(u.createdAt).toISOString(),
     lastActiveAt: u.lastActiveAt ? new Date(u.lastActiveAt).toISOString() : null,
     banned: u.banned ?? false,
+    isSuperAdmin: superAdminIds.has(u.id),
     companies: rolesMap.get(u.id) ?? [],
   }));
 

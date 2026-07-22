@@ -41,6 +41,7 @@ interface AdminUser {
   createdAt: string;
   lastActiveAt: string | null;
   banned: boolean;
+  isSuperAdmin: boolean;
   companies: { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: string }[];
 }
 
@@ -1179,12 +1180,14 @@ function UporabnikiAdminTab() {
 
                   {/* Akcije desno */}
                   <div className="flex items-center gap-2 shrink-0">
-                    {!hasAccess && !u.banned && (
+                    {!hasAccess && !u.banned && !u.isSuperAdmin && (
                       <span className="text-xs text-amber-600 flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" /> Čaka na dostop
                       </span>
                     )}
-                    {u.banned ? (
+                    {u.isSuperAdmin ? (
+                      <span className="text-xs text-muted-foreground/60 italic">Super admin</span>
+                    ) : u.banned ? (
                       <Button
                         size="sm"
                         variant="outline"
