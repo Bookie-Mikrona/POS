@@ -382,11 +382,31 @@ function Layout({ children }: { children: React.ReactNode }) {
                 />
               ))}
             </nav>
-            <div className="p-2 border-t border-sidebar-border/50 space-y-0.5 text-red-600">
-              {isAdmin && !isSuperAdmin && <EnotaSwitcher />}
-              {isAdminEnote && !isSuperAdmin && <AdminEnotaStaticInfo />}
-              {(isAdmin || isAdminEnote) && !isSuperAdmin && <BlagajnaSwitcher />}
-              {!isAdmin && !isAdminEnote && !isSuperAdmin && <UporabnikSidebarInfo />}
+            <div className="p-2 border-t border-sidebar-border/50 text-red-600">
+              {/* Admin podjetja: enota → blagajna (vizualno povezano) */}
+              {isAdmin && !isSuperAdmin && (
+                <div className="space-y-1 mb-1">
+                  <p className="px-3 text-[9px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">Enota</p>
+                  <EnotaSwitcher />
+                  <p className="px-3 pt-0.5 text-[9px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">Blagajna</p>
+                  <BlagajnaSwitcher />
+                </div>
+              )}
+              {/* Admin enote: fiksna enota + izbira blagajne */}
+              {isAdminEnote && !isSuperAdmin && (
+                <div className="space-y-1 mb-1">
+                  <p className="px-3 text-[9px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">Enota</p>
+                  <AdminEnotaStaticInfo />
+                  <p className="px-3 pt-0.5 text-[9px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">Blagajna</p>
+                  <BlagajnaSwitcher />
+                </div>
+              )}
+              {/* Uporabnik: fiksna enota + fiksna blagajna */}
+              {!isAdmin && !isAdminEnote && !isSuperAdmin && (
+                <div className="mb-1">
+                  <UporabnikSidebarInfo />
+                </div>
+              )}
               <button
                 onClick={logout}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-sidebar-accent/50 hover:text-red-700 transition-all"

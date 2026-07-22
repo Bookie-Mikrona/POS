@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!token) return null;
         return fetch(`/api/pos/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
       })
       .then(r => (r && r.ok ? r.json() : null))
