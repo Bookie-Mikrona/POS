@@ -57,6 +57,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
       companyDavcna: companiesTable.podjetjeDavcna,
       enotaIme: enoteTable.ime,
       blagajnaIme: blagajneTable.ime,
+      blagajnaPpId: blagajneTable.ppId,
     })
     .from(posUporabnikiTable)
     .innerJoin(companiesTable, eq(posUporabnikiTable.companyId, companiesTable.id))
@@ -115,6 +116,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     enotaIme: uporabnik.enotaIme ?? null,
     blagajnaId: uporabnik.blagajnaId ?? null,
     blagajnaIme: uporabnik.blagajnaIme ?? null,
+    blagajnaPpId: uporabnik.blagajnaPpId ?? null,
     natakariId,
     enote,
     aktiven: uporabnik.aktiven,

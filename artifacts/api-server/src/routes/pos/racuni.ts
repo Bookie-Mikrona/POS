@@ -40,10 +40,10 @@ function prevediFursNapako(napaka: string): string {
   return `Fiskalizacija ni uspela: ${napaka}`;
 }
 
-async function nextStevilkaRacun(poslovniProstor: string, blagajnaId: string, _davcna: string, tenotaId: number): Promise<string> {
+async function nextStevilkaRacun(poslovniProstor: string, blagajnaId: string, tenotaId: number): Promise<string> {
   const prefix = `${poslovniProstor}-${blagajnaId}-`;
   const result = await db.execute(
-    sql`SELECT COALESCE(MAX(CAST(SUBSTRING(stevilka_racuna, ${sql.raw(String(prefix.length + 1))}) AS INTEGER)), 0) + 1 AS next FROM racuni WHERE LEFT(stevilka_racuna, ${sql.raw(String(prefix.length))}) = ${prefix} AND podjetje_davcna = ${""} AND enota_id = ${tenotaId}`
+    sql`SELECT COALESCE(MAX(CAST(SUBSTRING(stevilka_racuna, ${sql.raw(String(prefix.length + 1))}) AS INTEGER)), 0) + 1 AS next FROM racuni WHERE LEFT(stevilka_racuna, ${sql.raw(String(prefix.length))}) = ${prefix} AND enota_id = ${tenotaId}`
   );
   const nextSeq = Number((result.rows[0] as { next: string })?.next ?? 1);
   return `${prefix}${String(nextSeq).padStart(6, "0")}`;
@@ -305,7 +305,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
 
   const effectiveFursNacin: "simulacija" | "testno" | "produkcija" = opozoriloNastavljeno ? "simulacija" : fursNacin;
 
-  const stevilkaRacuna = await nextStevilkaRacun(activePP, activeBId, "", tenotaId);
+  const stevilkaRacuna = await nextStevilkaRacun(activePP, activeBId, tenotaId);
 
   let natakarIme: string | null = null;
   let natakarDavcna: string | null = null;
@@ -893,7 +893,7 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
     return;
   }
 
-  const stornoStevilka = await nextStevilkaRacun(activePP, activeBId, "", tenotaId);
+  const stornoStevilka = await nextStevilkaRacun(activePP, activeBId, tenotaId);
 
   // Negativni zneski za FURS
   const stornoSkupaj = round2(-Number(racun.skupaj));
