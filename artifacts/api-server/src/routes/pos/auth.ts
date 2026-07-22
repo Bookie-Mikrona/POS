@@ -5,7 +5,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { and, eq } from "drizzle-orm";
-import { db, posUporabnikiTable, enoteTable, blagajneTable, companiesTable } from "@workspace/db";
+import { db, posUporabnikiTable, enoteTable, blagajneTable, companiesTable, natakariTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -77,6 +77,21 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
 
   const uporabnik = rows[0];
 
+  // Poišči natakarjev profil vezan na tega Clerk uporabnika (po clerkUserId)
+  let natakariId: number | null = null;
+  if (uporabnik.enotaId) {
+    const [nat] = await db
+      .select({ id: natakariTable.id })
+      .from(natakariTable)
+      .where(and(
+        eq(natakariTable.clerkUserId, clerkUserId),
+        eq(natakariTable.enotaId, uporabnik.enotaId),
+        eq(natakariTable.aktiven, true),
+      ))
+      .limit(1);
+    natakariId = nat?.id ?? null;
+  }
+
   // Za admin vloge: seznam vseh enot podjetja
   let enote: Array<{ id: number; ime: string }> = [];
   if (uporabnik.vloga === "admin") {
@@ -101,6 +116,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     enotaIme: uporabnik.enotaIme ?? null,
     blagajnaId: uporabnik.blagajnaId ?? null,
     blagajnaIme: uporabnik.blagajnaIme ?? null,
+    natakariId,
     enote,
     aktiven: uporabnik.aktiven,
   });

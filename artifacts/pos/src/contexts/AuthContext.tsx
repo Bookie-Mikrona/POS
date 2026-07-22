@@ -21,6 +21,7 @@ export interface Uporabnik {
   enotaIme?: string | null;
   blagajnaId?: number | null;
   blagajnaIme?: string | null;
+  natakariId?: number | null;
   companyId?: string;
   enote?: Array<{ id: number; ime: string }>;
 }
@@ -39,6 +40,7 @@ interface PosAuthMeResponse {
   enotaIme: string | null;
   blagajnaId: number | null;
   blagajnaIme: string | null;
+  natakariId: number | null;
   enote: Array<{ id: number; ime: string }>;
   aktiven: boolean;
 }
@@ -127,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           enotaIme: data.enotaIme ?? null,
           blagajnaId: data.blagajnaId ?? null,
           blagajnaIme: data.blagajnaIme ?? null,
+          natakariId: data.natakariId ?? null,
           companyId: data.companyId ?? undefined,
           enote: data.enote,
         });
