@@ -77,20 +77,19 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
 
   const uporabnik = rows[0];
 
-  // Poišči natakarjev profil vezan na tega Clerk uporabnika (po clerkUserId)
+  // Poišči natakarjev profil vezan na tega Clerk uporabnika (po clerkUserId + companyId).
+  // Natakarji so na nivoju podjetja — ni vezave na posamezno enoto.
   let natakariId: number | null = null;
-  if (uporabnik.enotaId) {
-    const [nat] = await db
-      .select({ id: natakariTable.id })
-      .from(natakariTable)
-      .where(and(
-        eq(natakariTable.clerkUserId, clerkUserId),
-        eq(natakariTable.enotaId, uporabnik.enotaId),
-        eq(natakariTable.aktiven, true),
-      ))
-      .limit(1);
-    natakariId = nat?.id ?? null;
-  }
+  const [nat] = await db
+    .select({ id: natakariTable.id })
+    .from(natakariTable)
+    .where(and(
+      eq(natakariTable.clerkUserId, clerkUserId),
+      eq(natakariTable.companyId, uporabnik.companyId),
+      eq(natakariTable.aktiven, true),
+    ))
+    .limit(1);
+  natakariId = nat?.id ?? null;
 
   // Za admin vloge: seznam vseh enot podjetja
   let enote: Array<{ id: number; ime: string }> = [];
