@@ -452,6 +452,148 @@ router.delete("/companies/:id/pos-roles/:clerkUserId", async (req: Request, res:
   res.status(204).send();
 });
 
+// GET /admin/companies/:id — podrobnosti podjetja (za admin panel)
+router.get("/companies/:id", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+  if (!company) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
+  const modules = await db.select({ module: companyModulesTable.module }).from(companyModulesTable).where(eq(companyModulesTable.companyId, companyId));
+  res.json({ ...company, modules: modules.map((m) => m.module) });
+});
+
+// PATCH /admin/companies/:id — posodobi podatke podjetja (super admin)
+router.patch("/companies/:id", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const data: Partial<typeof companiesTable.$inferInsert> = {};
+
+  if ("naziv" in b) {
+    if (typeof b.naziv !== "string" || b.naziv.trim() === "") { res.status(400).json({ error: "naziv mora biti neprazen niz" }); return; }
+    data.naziv = b.naziv.trim();
+  }
+  const stringFields = [
+    "kratekNaziv", "naslov", "ulica", "postnaStevika", "kraj", "drzava", "kodaDrzave",
+    "maticnaStevilka", "idZaDdv", "email", "telefon", "www",
+    "eRacunOmrezje", "eRacunEmail", "eRacunNaslov", "eRacunSifraPu", "eRacunBic",
+  ] as const;
+  for (const f of stringFields) {
+    if (f in b) {
+      if (b[f] !== null && typeof b[f] !== "string") { res.status(400).json({ error: `${f} mora biti niz ali null` }); return; }
+      (data as Record<string, unknown>)[f] = b[f] as string | null;
+    }
+  }
+  for (const f of ["zavezanecDdv", "eRacunPrejemnik"] as const) {
+    if (f in b) {
+      if (b[f] !== null && typeof b[f] !== "boolean") { res.status(400).json({ error: `${f} mora biti boolean ali null` }); return; }
+      (data as Record<string, unknown>)[f] = b[f] as boolean | null;
+    }
+  }
+  if ("trr" in b) {
+    if (b.trr === null) { data.trr = null; }
+    else if (Array.isArray(b.trr)) { data.trr = b.trr as Array<{ iban: string; bic: string }>; }
+    else { res.status(400).json({ error: "trr mora biti seznam ali null" }); return; }
+  }
+
+  data.updatedAt = new Date();
+  const [updated] = await db.update(companiesTable).set(data).where(eq(companiesTable.id, companyId)).returning();
+  if (!updated) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
+  res.json(updated);
+});
+
+// POST /admin/companies/:id/osvezi — osveži podatke iz Inetis + UJP + AJPES
+router.post("/companies/:id/osvezi", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+  if (!company) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
+
+  const davcna = company.podjetjeDavcna.replace(/^SI/i, "");
+  if (!/^\d{8}$/.test(davcna)) { res.status(400).json({ error: "Neveljavna davčna številka." }); return; }
+
+  const inetisRes = await fetch(
+    `https://ddv.inetis.com/Ajax.aspx?a=isci&niz=${encodeURIComponent(davcna)}`,
+    { signal: AbortSignal.timeout(8000) }
+  ).catch(() => null);
+  if (!inetisRes?.ok) { res.status(502).json({ error: "Register Inetis ni dosegljiv." }); return; }
+
+  const inetisData = await inetisRes.json() as {
+    status: string;
+    list: Array<{
+      Naziv?: string; NazivKratek?: string; Naslov?: string;
+      DavcnaStevilka?: string; MaticnaStevilka?: string; ZavezanecZaDDV?: boolean;
+      TransakcijskiRacuni?: Array<{ TRRSurovi?: string; Banka?: string; Zaprt?: boolean }>;
+    }> | null;
+  };
+  if (inetisData.status !== "ok" || !inetisData.list?.length) {
+    res.status(404).json({ error: "Podjetje ni najdeno v registru." }); return;
+  }
+
+  const p = inetisData.list[0]!;
+  const rawNaslov = p.Naslov ?? null;
+  const adresni = rawNaslov ? razclenitNaslov(rawNaslov) : { ulica: null, postnaStevilka: null, kraj: null };
+
+  const BANCNI_BIC: Record<string, string> = {
+    "NLB": "LJBASI2X", "Nova KBM": "KBMASI2X", "SKB": "SKBASI2X",
+    "Addiko": "HAABSI22", "OTP banka": "OTPVSI2X", "UniCredit Banka": "BACXSI22",
+    "Banka Intesa Sanpaolo": "BISISI22", "Gorenjska banka": "GBKPSI2X",
+  };
+  function trrIban(surovi: string) {
+    const mod = BigInt(surovi + "281800") % 97n;
+    const check = String(98n - mod).padStart(2, "0");
+    return `SI${check}${surovi}`;
+  }
+  const trrji = (p.TransakcijskiRacuni ?? [])
+    .filter((t) => !t.Zaprt && t.TRRSurovi && /^\d{15}$/.test(t.TRRSurovi))
+    .map((t) => {
+      const iban = trrIban(t.TRRSurovi!);
+      const bic = iban.startsWith("SI5601") ? "BSLJSI2X" : ((t.Banka && BANCNI_BIC[t.Banka]) ? BANCNI_BIC[t.Banka]! : "");
+      return { iban, bic };
+    });
+
+  const maticna = p.MaticnaStevilka ?? company.maticnaStevilka ?? null;
+  const [ujpRes, ajpesRes] = await Promise.all([
+    fetch(`https://storitve.ujp.gov.si/b2b/cl/isci?format=json&tip=1&davcna=${davcna}`, { signal: AbortSignal.timeout(8000) })
+      .then((r) => r.ok ? r.json() : null).catch(() => null),
+    (async () => {
+      if (!maticna) return null;
+      try { const { poisciVAjpes } = await import("./ajpes"); return await poisciVAjpes(maticna); }
+      catch { return null; }
+    })(),
+  ]);
+
+  let eRacunPosodobitev: Partial<typeof companiesTable.$inferInsert> = {};
+  if (ujpRes && Array.isArray((ujpRes as { seznam?: unknown[] }).seznam) && (ujpRes as { seznam: unknown[] }).seznam.length > 0) {
+    const u = (ujpRes as { seznam: Array<{ trrSt?: string; sifraPu?: string }> }).seznam[0]!;
+    const surovi = u.trrSt ?? "";
+    const ujpIban = /^\d{15}$/.test(surovi) ? trrIban(surovi) : surovi;
+    eRacunPosodobitev = {
+      eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov: ujpIban || null,
+      eRacunSifraPu: u.sifraPu || null,
+      eRacunBic: ujpIban.replace(/\s/g, "").toUpperCase().startsWith("SI5601") ? "BSLJSI2X" : null,
+    };
+  }
+
+  const updateData: Partial<typeof companiesTable.$inferInsert> = {
+    naziv: p.Naziv ?? p.NazivKratek ?? company.naziv,
+    kratekNaziv: p.NazivKratek ?? company.kratekNaziv,
+    naslov: rawNaslov ?? company.naslov,
+    ulica: adresni.ulica ?? company.ulica,
+    postnaStevika: adresni.postnaStevilka ?? company.postnaStevika,
+    kraj: adresni.kraj ?? company.kraj,
+    drzava: company.drzava ?? "Slovenija",
+    kodaDrzave: company.kodaDrzave ?? "SI",
+    maticnaStevilka: maticna,
+    idZaDdv: p.DavcnaStevilka ?? company.idZaDdv,
+    zavezanecDdv: p.ZavezanecZaDDV ?? company.zavezanecDdv,
+    trr: trrji.length > 0 ? trrji : (company.trr ?? null),
+    ...(ajpesRes?.email && !company.email ? { email: ajpesRes.email } : {}),
+    ...eRacunPosodobitev,
+    updatedAt: new Date(),
+  };
+
+  const [updated] = await db.update(companiesTable).set(updateData).where(eq(companiesTable.id, companyId)).returning();
+  res.json(updated);
+});
+
 // ── Iskanje podjetja po davčni številki ──────────────────────────────────────
 
 // GET /admin/podjetje/poisci?davcna=XXXXXXXX

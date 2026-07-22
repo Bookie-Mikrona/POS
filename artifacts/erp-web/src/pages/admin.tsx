@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   Building2, Users, Plus, ShieldCheck, Loader2, AlertCircle,
   CheckCircle2, ChevronDown, ChevronRight, Trash2, Package, X, TriangleAlert,
+  RefreshCw, Save,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -247,6 +248,303 @@ function PosRolesSection({ companyId, allUsers }: { companyId: string; allUsers:
   );
 }
 
+// ── Urejanje podatkov podjetja (admin) ───────────────────────────────────────
+
+interface TrrVrstica { iban: string; bic: string; }
+
+interface AdminCompanyDetail {
+  id: string; podjetjeDavcna: string; naziv: string; kratekNaziv?: string | null;
+  naslov?: string | null; ulica?: string | null; postnaStevika?: string | null;
+  kraj?: string | null; drzava?: string | null; kodaDrzave?: string | null;
+  maticnaStevilka?: string | null; idZaDdv?: string | null; zavezanecDdv?: boolean | null;
+  trr?: TrrVrstica[] | null;
+  email?: string | null; telefon?: string | null; www?: string | null;
+  eRacunPrejemnik?: boolean | null; eRacunOmrezje?: string | null;
+  eRacunEmail?: string | null; eRacunNaslov?: string | null;
+  eRacunSifraPu?: string | null; eRacunBic?: string | null;
+  modules?: string[];
+}
+
+function PodatkiPodjetjaSection({ companyId }: { companyId: string }) {
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery<AdminCompanyDetail>({
+    queryKey: ["admin", "company-detail", companyId],
+    queryFn: () => apiFetch<AdminCompanyDetail>(`/api/admin/companies/${companyId}`),
+  });
+
+  const emptyForm = {
+    naziv: "", kratekNaziv: "", naslov: "", ulica: "", postnaStevika: "", kraj: "",
+    drzava: "", kodaDrzave: "", maticnaStevilka: "", idZaDdv: "",
+    zavezanecDdv: false,
+    email: "", telefon: "", www: "",
+    eRacunPrejemnik: false, eRacunOmrezje: "", eRacunEmail: "",
+    eRacunNaslov: "", eRacunSifraPu: "", eRacunBic: "",
+  };
+
+  const [form, setForm] = useState(emptyForm);
+  const [trr, setTrr] = useState<TrrVrstica[]>([]);
+  const [saved, setSaved] = useState(false);
+  const [osvezujem, setOsvezujem] = useState(false);
+  const [napaka, setNapaka] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!data) return;
+    setForm({
+      naziv: data.naziv ?? "",
+      kratekNaziv: data.kratekNaziv ?? "",
+      naslov: data.naslov ?? "",
+      ulica: data.ulica ?? "",
+      postnaStevika: data.postnaStevika ?? "",
+      kraj: data.kraj ?? "",
+      drzava: data.drzava ?? "",
+      kodaDrzave: data.kodaDrzave ?? "",
+      maticnaStevilka: data.maticnaStevilka ?? "",
+      idZaDdv: data.idZaDdv ?? "",
+      zavezanecDdv: data.zavezanecDdv ?? false,
+      email: data.email ?? "",
+      telefon: data.telefon ?? "",
+      www: data.www ?? "",
+      eRacunPrejemnik: data.eRacunPrejemnik ?? false,
+      eRacunOmrezje: data.eRacunOmrezje ?? "",
+      eRacunEmail: data.eRacunEmail ?? "",
+      eRacunNaslov: data.eRacunNaslov ?? "",
+      eRacunSifraPu: data.eRacunSifraPu ?? "",
+      eRacunBic: data.eRacunBic ?? "",
+    });
+    setTrr(data.trr ?? []);
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch<AdminCompanyDetail>(`/api/admin/companies/${companyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (updated) => {
+      qc.setQueryData(["admin", "company-detail", companyId], updated);
+      qc.invalidateQueries({ queryKey: ["admin", "companies"] });
+      setNapaka(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: (err) => setNapaka((err as Error).message),
+  });
+
+  async function handleOsvezi() {
+    setOsvezujem(true);
+    setNapaka(null);
+    try {
+      const updated = await apiFetch<AdminCompanyDetail>(`/api/admin/companies/${companyId}/osvezi`, { method: "POST" });
+      qc.setQueryData(["admin", "company-detail", companyId], updated);
+      qc.invalidateQueries({ queryKey: ["admin", "companies"] });
+      setForm({
+        naziv: updated.naziv ?? "", kratekNaziv: updated.kratekNaziv ?? "",
+        naslov: updated.naslov ?? "", ulica: updated.ulica ?? "",
+        postnaStevika: updated.postnaStevika ?? "", kraj: updated.kraj ?? "",
+        drzava: updated.drzava ?? "", kodaDrzave: updated.kodaDrzave ?? "",
+        maticnaStevilka: updated.maticnaStevilka ?? "", idZaDdv: updated.idZaDdv ?? "",
+        zavezanecDdv: updated.zavezanecDdv ?? false,
+        email: updated.email ?? "", telefon: updated.telefon ?? "", www: updated.www ?? "",
+        eRacunPrejemnik: updated.eRacunPrejemnik ?? false,
+        eRacunOmrezje: updated.eRacunOmrezje ?? "", eRacunEmail: updated.eRacunEmail ?? "",
+        eRacunNaslov: updated.eRacunNaslov ?? "", eRacunSifraPu: updated.eRacunSifraPu ?? "",
+        eRacunBic: updated.eRacunBic ?? "",
+      });
+      setTrr(updated.trr ?? []);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setNapaka((err as Error).message);
+    } finally {
+      setOsvezujem(false);
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    saveMutation.mutate({
+      naziv: form.naziv || undefined,
+      kratekNaziv: form.kratekNaziv || null,
+      naslov: form.naslov || null,
+      ulica: form.ulica || null,
+      postnaStevika: form.postnaStevika || null,
+      kraj: form.kraj || null,
+      drzava: form.drzava || null,
+      kodaDrzave: form.kodaDrzave || null,
+      maticnaStevilka: form.maticnaStevilka || null,
+      idZaDdv: form.idZaDdv || null,
+      zavezanecDdv: form.zavezanecDdv,
+      trr: trr.length > 0 ? trr : null,
+      email: form.email || null,
+      telefon: form.telefon || null,
+      www: form.www || null,
+      eRacunPrejemnik: form.eRacunPrejemnik,
+      eRacunOmrezje: form.eRacunOmrezje || null,
+      eRacunEmail: form.eRacunEmail || null,
+      eRacunNaslov: form.eRacunNaslov || null,
+      eRacunSifraPu: form.eRacunSifraPu || null,
+      eRacunBic: form.eRacunBic || null,
+    });
+  }
+
+  if (isLoading) return <div className="space-y-2">{[0,1,2].map(i=><div key={i} className="h-8 bg-muted animate-pulse rounded"/>)}</div>;
+
+  return (
+    <form onSubmit={(e) => { handleSubmit(e); }} className="space-y-4">
+      {/* Gumb osvezi */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Podatki podjetja</p>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => void handleOsvezi()} disabled={osvezujem}>
+          {osvezujem ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Osveži iz registra
+        </Button>
+      </div>
+
+      {/* Identifikacija */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Davčna številka</label>
+          <Input value={data?.podjetjeDavcna ?? ""} disabled className="h-8 text-xs bg-muted" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Matična številka</label>
+          <Input value={form.maticnaStevilka} onChange={(e) => setForm((f) => ({ ...f, maticnaStevilka: e.target.value }))} className="h-8 text-xs" placeholder="1234567000" />
+        </div>
+        <div className="space-y-1 col-span-2">
+          <label className="text-xs text-muted-foreground">Polni naziv *</label>
+          <Input value={form.naziv} onChange={(e) => setForm((f) => ({ ...f, naziv: e.target.value }))} className="h-8 text-xs" required />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Kratek naziv</label>
+          <Input value={form.kratekNaziv} onChange={(e) => setForm((f) => ({ ...f, kratekNaziv: e.target.value }))} className="h-8 text-xs" placeholder="ABC d.o.o." />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">ID za DDV</label>
+          <Input value={form.idZaDdv} onChange={(e) => setForm((f) => ({ ...f, idZaDdv: e.target.value }))} className="h-8 text-xs" placeholder="SI12345678" />
+        </div>
+        <div className="col-span-2 flex items-center gap-2">
+          <input type="checkbox" id={`zavezanec-${companyId}`} checked={form.zavezanecDdv} onChange={(e) => setForm((f) => ({ ...f, zavezanecDdv: e.target.checked }))} className="h-3.5 w-3.5 rounded border-input" />
+          <label htmlFor={`zavezanec-${companyId}`} className="text-xs cursor-pointer">Zavezanec za DDV</label>
+        </div>
+      </div>
+
+      {/* Naslov */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1 col-span-3">
+          <label className="text-xs text-muted-foreground">Ulica in hišna številka</label>
+          <Input value={form.ulica} onChange={(e) => setForm((f) => ({ ...f, ulica: e.target.value }))} className="h-8 text-xs" placeholder="Slovenska cesta 1" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Poštna</label>
+          <Input value={form.postnaStevika} onChange={(e) => setForm((f) => ({ ...f, postnaStevika: e.target.value }))} className="h-8 text-xs" placeholder="1000" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Kraj</label>
+          <Input value={form.kraj} onChange={(e) => setForm((f) => ({ ...f, kraj: e.target.value }))} className="h-8 text-xs" placeholder="Ljubljana" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Država</label>
+          <Input value={form.drzava} onChange={(e) => setForm((f) => ({ ...f, drzava: e.target.value }))} className="h-8 text-xs" placeholder="Slovenija" />
+        </div>
+      </div>
+
+      {/* Kontakt */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">E-mail</label>
+          <Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="h-8 text-xs" placeholder="info@podjetje.si" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Telefon</label>
+          <Input value={form.telefon} onChange={(e) => setForm((f) => ({ ...f, telefon: e.target.value }))} className="h-8 text-xs" placeholder="+386 1 234 56 78" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Spletna stran</label>
+          <Input value={form.www} onChange={(e) => setForm((f) => ({ ...f, www: e.target.value }))} className="h-8 text-xs" placeholder="https://www.podjetje.si" />
+        </div>
+      </div>
+
+      {/* Bančni računi */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-xs text-muted-foreground">Bančni računi (TRR)</label>
+          <button type="button" onClick={() => setTrr(t => [...t, { iban: "", bic: "" }])} className="text-xs text-primary hover:underline flex items-center gap-1">
+            <Plus className="h-3 w-3" /> Dodaj
+          </button>
+        </div>
+        {trr.map((t, i) => (
+          <div key={i} className="flex gap-1.5">
+            <Input value={t.iban} onChange={(e) => setTrr(arr => arr.map((x,j)=>j===i?{...x,iban:e.target.value.toUpperCase()}:x))} className="h-8 text-xs flex-1" placeholder="SI56…" />
+            <Input value={t.bic} onChange={(e) => setTrr(arr => arr.map((x,j)=>j===i?{...x,bic:e.target.value.toUpperCase()}:x))} className="h-8 text-xs w-28" placeholder="BSLJSI2X" />
+            <button type="button" onClick={() => setTrr(arr=>arr.filter((_,j)=>j!==i))} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button>
+          </div>
+        ))}
+      </div>
+
+      {/* e-Račun */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id={`eracun-${companyId}`} checked={form.eRacunPrejemnik} onChange={(e) => setForm((f) => ({ ...f, eRacunPrejemnik: e.target.checked }))} className="h-3.5 w-3.5 rounded border-input" />
+          <label htmlFor={`eracun-${companyId}`} className="text-xs cursor-pointer">Registriran prejemnik e-računov</label>
+        </div>
+        {form.eRacunPrejemnik && (
+          <div className="grid grid-cols-3 gap-2 pl-1">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Omrežje</label>
+              <Select value={form.eRacunOmrezje} onValueChange={(v) => setForm((f) => ({ ...f, eRacunOmrezje: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Izberi…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UJP">UJP</SelectItem>
+                  <SelectItem value="BizBox">BizBox</SelectItem>
+                  <SelectItem value="PEPPOL">PEPPOL</SelectItem>
+                  <SelectItem value="ZZI">ZZI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 col-span-2">
+              <label className="text-xs text-muted-foreground">IBAN / naslov prejemnika</label>
+              <Input value={form.eRacunNaslov} onChange={(e) => setForm((f) => ({ ...f, eRacunNaslov: e.target.value }))} className="h-8 text-xs" placeholder="SI56…" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">e-Račun e-mail</label>
+              <Input value={form.eRacunEmail} onChange={(e) => setForm((f) => ({ ...f, eRacunEmail: e.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Šifra PU</label>
+              <Input value={form.eRacunSifraPu} onChange={(e) => setForm((f) => ({ ...f, eRacunSifraPu: e.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">BIC banke</label>
+              <Input value={form.eRacunBic} onChange={(e) => setForm((f) => ({ ...f, eRacunBic: e.target.value.toUpperCase() }))} className="h-8 text-xs" placeholder="BSLJSI2X" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Napake / uspeh */}
+      {napaka && (
+        <Alert variant="destructive" className="py-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">{napaka}</AlertDescription>
+        </Alert>
+      )}
+      {saved && (
+        <Alert className="py-2 border-green-200 bg-green-50 text-green-800">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertDescription className="text-xs">Shranjeno.</AlertDescription>
+        </Alert>
+      )}
+
+      <Button type="submit" size="sm" className="h-8 text-xs gap-1.5" disabled={saveMutation.isPending}>
+        {saveMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+        Shrani
+      </Button>
+    </form>
+  );
+}
+
 // ── Podjetja tab ──────────────────────────────────────────────────────────────
 
 function PodjetjaTab() {
@@ -451,8 +749,13 @@ function PodjetjaTab() {
 
               {expanded === c.id && (
                 <div className="px-4 pb-4 space-y-4 bg-muted/20 border-t">
+                  {/* Podatki podjetja */}
+                  <div className="pt-4 border-b pb-4">
+                    <PodatkiPodjetjaSection companyId={c.id} />
+                  </div>
+
                   {/* Moduli */}
-                  <div className="pt-4">
+                  <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Aktivni moduli</p>
                     <div className="flex flex-wrap gap-2">
                       {(["erp", "pos"] as const).map((m) => {

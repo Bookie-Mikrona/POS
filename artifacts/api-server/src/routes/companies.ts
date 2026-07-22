@@ -12,10 +12,24 @@ interface UpdateCompanyFields {
   naziv?: string;
   kratekNaziv?: string | null;
   naslov?: string | null;
+  ulica?: string | null;
   postnaStevika?: string | null;
   kraj?: string | null;
+  drzava?: string | null;
+  kodaDrzave?: string | null;
   maticnaStevilka?: string | null;
+  idZaDdv?: string | null;
+  zavezanecDdv?: boolean | null;
   trr?: TrrEntry[] | null;
+  email?: string | null;
+  telefon?: string | null;
+  www?: string | null;
+  eRacunPrejemnik?: boolean | null;
+  eRacunOmrezje?: string | null;
+  eRacunEmail?: string | null;
+  eRacunNaslov?: string | null;
+  eRacunSifraPu?: string | null;
+  eRacunBic?: string | null;
 }
 
 function parseUpdateCompany(body: unknown): { ok: true; data: UpdateCompanyFields } | { ok: false; error: string } {
@@ -26,10 +40,22 @@ function parseUpdateCompany(body: unknown): { ok: true; data: UpdateCompanyField
     if (typeof b.naziv !== "string" || b.naziv.trim() === "") return { ok: false, error: "naziv mora biti neprazen niz" };
     data.naziv = b.naziv.trim();
   }
-  for (const field of ["kratekNaziv", "naslov", "postnaStevika", "kraj", "maticnaStevilka"] as const) {
+  const stringNullFields = [
+    "kratekNaziv", "naslov", "ulica", "postnaStevika", "kraj",
+    "drzava", "kodaDrzave", "maticnaStevilka", "idZaDdv",
+    "email", "telefon", "www",
+    "eRacunOmrezje", "eRacunEmail", "eRacunNaslov", "eRacunSifraPu", "eRacunBic",
+  ] as const;
+  for (const field of stringNullFields) {
     if (field in b) {
       if (b[field] !== null && typeof b[field] !== "string") return { ok: false, error: `${field} mora biti niz ali null` };
-      data[field] = b[field] as string | null;
+      (data as Record<string, unknown>)[field] = b[field] as string | null;
+    }
+  }
+  for (const field of ["zavezanecDdv", "eRacunPrejemnik"] as const) {
+    if (field in b) {
+      if (b[field] !== null && typeof b[field] !== "boolean") return { ok: false, error: `${field} mora biti boolean ali null` };
+      data[field] = b[field] as boolean | null;
     }
   }
   if ("trr" in b) {
@@ -184,8 +210,24 @@ router.get(
         naziv: companiesTable.naziv,
         kratekNaziv: companiesTable.kratekNaziv,
         naslov: companiesTable.naslov,
+        ulica: companiesTable.ulica,
         postnaStevika: companiesTable.postnaStevika,
         kraj: companiesTable.kraj,
+        drzava: companiesTable.drzava,
+        kodaDrzave: companiesTable.kodaDrzave,
+        maticnaStevilka: companiesTable.maticnaStevilka,
+        idZaDdv: companiesTable.idZaDdv,
+        zavezanecDdv: companiesTable.zavezanecDdv,
+        trr: companiesTable.trr,
+        email: companiesTable.email,
+        telefon: companiesTable.telefon,
+        www: companiesTable.www,
+        eRacunPrejemnik: companiesTable.eRacunPrejemnik,
+        eRacunOmrezje: companiesTable.eRacunOmrezje,
+        eRacunEmail: companiesTable.eRacunEmail,
+        eRacunNaslov: companiesTable.eRacunNaslov,
+        eRacunSifraPu: companiesTable.eRacunSifraPu,
+        eRacunBic: companiesTable.eRacunBic,
         createdAt: companiesTable.createdAt,
         role: accountingRolesTable.role,
       })
@@ -250,6 +292,151 @@ router.patch(
 
     if (!updated) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
 
+    res.json({ ...updated, role: callerRole.role });
+  },
+);
+
+// POST /companies/:id/osvezi — osveži podatke podjetja iz Inetis + UJP + AJPES
+router.post(
+  "/companies/:id/osvezi",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    const [callerRole] = await db
+      .select({ role: accountingRolesTable.role })
+      .from(accountingRolesTable)
+      .where(and(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId), eq(accountingRolesTable.companyId, companyId)))
+      .limit(1);
+    if (!callerRole) { res.status(403).json({ error: "Dostop ni dovoljen" }); return; }
+    if (callerRole.role !== "owner") { res.status(403).json({ error: "Za osvežitev podatkov potrebujete vlogo lastnik" }); return; }
+
+    const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+    if (!company) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
+
+    const davcna = company.podjetjeDavcna.replace(/^SI/i, "");
+    if (!/^\d{8}$/.test(davcna)) { res.status(400).json({ error: "Podjetje nima veljavne davčne številke za iskanje." }); return; }
+
+    // Inetis — osnovni podatki
+    const inetisRes = await fetch(
+      `https://ddv.inetis.com/Ajax.aspx?a=isci&niz=${encodeURIComponent(davcna)}`,
+      { signal: AbortSignal.timeout(8000) }
+    ).catch(() => null);
+
+    if (!inetisRes?.ok) { res.status(502).json({ error: "Register Inetis ni dosegljiv." }); return; }
+
+    const inetisData = await inetisRes.json() as {
+      status: string;
+      list: Array<{
+        Naziv?: string; NazivKratek?: string; Naslov?: string;
+        DavcnaStevilka?: string; DavcnaStevilkaKratka?: string;
+        MaticnaStevilka?: string; ZavezanecZaDDV?: boolean;
+        TransakcijskiRacuni?: Array<{ TRRSurovi?: string; Banka?: string; Zaprt?: boolean }>;
+      }> | null;
+    };
+
+    if (inetisData.status !== "ok" || !inetisData.list?.length) {
+      res.status(404).json({ error: "Podjetje ni bilo najdeno v registru Inetis." }); return;
+    }
+
+    const p = inetisData.list[0]!;
+    const rawNaslov = p.Naslov ?? null;
+
+    function razclenitNaslov(naslov: string) {
+      const idx = naslov.lastIndexOf(", ");
+      if (idx === -1) return { ulica: naslov.trim() || null, postnaStevilka: null, kraj: null };
+      const ulica = naslov.slice(0, idx).trim();
+      const rest = naslov.slice(idx + 2).trim();
+      const spaceIdx = rest.indexOf(" ");
+      if (spaceIdx === -1) return { ulica: ulica || null, postnaStevilka: rest || null, kraj: null };
+      return { ulica: ulica || null, postnaStevilka: rest.slice(0, spaceIdx), kraj: rest.slice(spaceIdx + 1).trim() || null };
+    }
+
+    const adresni = rawNaslov ? razclenitNaslov(rawNaslov) : { ulica: null, postnaStevilka: null, kraj: null };
+
+    const BANCNI_BIC: Record<string, string> = {
+      "NLB": "LJBASI2X", "Nova KBM": "KBMASI2X", "SKB": "SKBASI2X",
+      "Addiko": "HAABSI22", "OTP banka": "OTPVSI2X", "UniCredit Banka": "BACXSI22",
+      "Banka Intesa Sanpaolo": "BISISI22", "Gorenjska banka": "GBKPSI2X",
+    };
+
+    function trrSuroviVIban(surovi: string) {
+      const rearranged = surovi + "281800";
+      const mod = BigInt(rearranged) % 97n;
+      const check = String(98n - mod).padStart(2, "0");
+      return `SI${check}${surovi}`;
+    }
+
+    const trrji = (p.TransakcijskiRacuni ?? [])
+      .filter((t) => !t.Zaprt && t.TRRSurovi && /^\d{15}$/.test(t.TRRSurovi))
+      .map((t) => {
+        const iban = trrSuroviVIban(t.TRRSurovi!);
+        return {
+          iban: iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
+            ? iban : iban,
+          bic: (t.Banka && BANCNI_BIC[t.Banka]) ? BANCNI_BIC[t.Banka]! : "",
+        };
+      })
+      .map((t) => t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601") ? { ...t, bic: "BSLJSI2X" } : t);
+
+    const maticna = p.MaticnaStevilka ?? company.maticnaStevilka ?? null;
+
+    // Vzporedno: UJP + AJPES
+    const [ujpRes, ajpesRes] = await Promise.all([
+      fetch(
+        `https://storitve.ujp.gov.si/b2b/cl/isci?format=json&tip=1&davcna=${davcna}`,
+        { signal: AbortSignal.timeout(8000) }
+      ).then((r) => r.ok ? r.json() : null).catch(() => null),
+      // AJPES poisci — poiščemo po matični
+      (async () => {
+        if (!maticna) return null;
+        try {
+          const { poisciVAjpes } = await import("./ajpes");
+          return await poisciVAjpes(maticna);
+        } catch { return null; }
+      })(),
+    ]);
+
+    // UJP obdelava
+    let eRacunPrejemnik: boolean | null = null;
+    let eRacunOmrezje: string | null = null;
+    let eRacunNaslov: string | null = null;
+    let eRacunSifraPu: string | null = null;
+    let eRacunBic: string | null = null;
+
+    if (ujpRes && Array.isArray((ujpRes as { seznam?: unknown[] }).seznam) && (ujpRes as { seznam: unknown[] }).seznam.length > 0) {
+      const u = (ujpRes as { seznam: Array<{ trrSt?: string; sifraPu?: string }> }).seznam[0]!;
+      const surovi = u.trrSt ?? "";
+      const ujpIban = /^\d{15}$/.test(surovi) ? trrSuroviVIban(surovi) : surovi;
+      eRacunPrejemnik = true;
+      eRacunOmrezje = "UJP";
+      eRacunNaslov = ujpIban || null;
+      eRacunSifraPu = u.sifraPu || null;
+      eRacunBic = ujpIban.replace(/\s/g, "").toUpperCase().startsWith("SI5601") ? "BSLJSI2X" : null;
+    }
+
+    const updateData: Partial<typeof companiesTable.$inferInsert> = {
+      naziv: p.Naziv ?? p.NazivKratek ?? company.naziv,
+      kratekNaziv: p.NazivKratek ?? company.kratekNaziv,
+      naslov: rawNaslov ?? company.naslov,
+      ulica: adresni.ulica ?? company.ulica,
+      postnaStevika: adresni.postnaStevilka ?? company.postnaStevika,
+      kraj: adresni.kraj ?? company.kraj,
+      drzava: company.drzava ?? "Slovenija",
+      kodaDrzave: company.kodaDrzave ?? "SI",
+      maticnaStevilka: maticna ?? company.maticnaStevilka,
+      idZaDdv: p.DavcnaStevilka ?? company.idZaDdv,
+      zavezanecDdv: p.ZavezanecZaDDV ?? company.zavezanecDdv,
+      trr: trrji.length > 0 ? trrji : (company.trr ?? null),
+      ...(ajpesRes?.email && !company.email ? { email: ajpesRes.email } : {}),
+      ...(eRacunPrejemnik !== null ? {
+        eRacunPrejemnik, eRacunOmrezje, eRacunNaslov, eRacunSifraPu, eRacunBic,
+      } : {}),
+      updatedAt: new Date(),
+    };
+
+    const [updated] = await db.update(companiesTable).set(updateData).where(eq(companiesTable.id, companyId)).returning();
     res.json({ ...updated, role: callerRole.role });
   },
 );

@@ -46,10 +46,24 @@ interface UpdateCompanyBody {
   naziv?: string;
   kratekNaziv?: string | null;
   naslov?: string | null;
+  ulica?: string | null;
   postnaStevika?: string | null;
   kraj?: string | null;
+  drzava?: string | null;
+  kodaDrzave?: string | null;
   maticnaStevilka?: string | null;
+  idZaDdv?: string | null;
+  zavezanecDdv?: boolean | null;
   trr?: TrrEntry[] | null;
+  email?: string | null;
+  telefon?: string | null;
+  www?: string | null;
+  eRacunPrejemnik?: boolean | null;
+  eRacunOmrezje?: string | null;
+  eRacunEmail?: string | null;
+  eRacunNaslov?: string | null;
+  eRacunSifraPu?: string | null;
+  eRacunBic?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -68,35 +82,55 @@ const ROLE_COLORS: Record<string, string> = {
 
 // ── Podatki o podjetju ────────────────────────────────────────────────────────
 
+type AnyCompany = Record<string, unknown>;
+
 function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
   const qc = useQueryClient();
   const { setActiveCompany, activeCompany } = useCompany();
 
   const { data, isLoading } = useGetCompany(companyId);
 
-  const [form, setForm] = useState({
-    naziv: "",
-    kratekNaziv: "",
-    naslov: "",
-    postnaStevika: "",
-    kraj: "",
-    maticnaStevilka: "",
-  });
+  const emptyForm = {
+    naziv: "", kratekNaziv: "", naslov: "", ulica: "", postnaStevika: "", kraj: "",
+    drzava: "", kodaDrzave: "", maticnaStevilka: "", idZaDdv: "",
+    zavezanecDdv: false,
+    email: "", telefon: "", www: "",
+    eRacunPrejemnik: false, eRacunOmrezje: "", eRacunEmail: "",
+    eRacunNaslov: "", eRacunSifraPu: "", eRacunBic: "",
+  };
+
+  const [form, setForm] = useState(emptyForm);
   const [trr, setTrr] = useState<TrrEntry[]>([]);
   const [saved, setSaved] = useState(false);
+  const [osvezujem, setOsvezujem] = useState(false);
+  const [osvezaNapaka, setOsvezaNapaka] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) {
-      const d = data as typeof data & { maticnaStevilka?: string | null; trr?: TrrEntry[] | null };
+      const d = data as AnyCompany;
       setForm({
-        naziv: d.naziv ?? "",
-        kratekNaziv: d.kratekNaziv ?? "",
-        naslov: d.naslov ?? "",
-        postnaStevika: d.postnaStevika ?? "",
-        kraj: d.kraj ?? "",
-        maticnaStevilka: d.maticnaStevilka ?? "",
+        naziv: (d.naziv as string) ?? "",
+        kratekNaziv: (d.kratekNaziv as string) ?? "",
+        naslov: (d.naslov as string) ?? "",
+        ulica: (d.ulica as string) ?? "",
+        postnaStevika: (d.postnaStevika as string) ?? "",
+        kraj: (d.kraj as string) ?? "",
+        drzava: (d.drzava as string) ?? "",
+        kodaDrzave: (d.kodaDrzave as string) ?? "",
+        maticnaStevilka: (d.maticnaStevilka as string) ?? "",
+        idZaDdv: (d.idZaDdv as string) ?? "",
+        zavezanecDdv: (d.zavezanecDdv as boolean) ?? false,
+        email: (d.email as string) ?? "",
+        telefon: (d.telefon as string) ?? "",
+        www: (d.www as string) ?? "",
+        eRacunPrejemnik: (d.eRacunPrejemnik as boolean) ?? false,
+        eRacunOmrezje: (d.eRacunOmrezje as string) ?? "",
+        eRacunEmail: (d.eRacunEmail as string) ?? "",
+        eRacunNaslov: (d.eRacunNaslov as string) ?? "",
+        eRacunSifraPu: (d.eRacunSifraPu as string) ?? "",
+        eRacunBic: (d.eRacunBic as string) ?? "",
       });
-      setTrr(d.trr ?? []);
+      setTrr((d.trr as TrrEntry[]) ?? []);
     }
   }, [data]);
 
@@ -109,7 +143,6 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
       }),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["companies", companyId] });
-      // Posodobi aktivno podjetje v kontekstu
       if (activeCompany?.id === companyId) {
         setActiveCompany({ ...activeCompany, ...updated });
       }
@@ -118,25 +151,76 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
     },
   });
 
+  async function handleOsvezi() {
+    setOsvezujem(true);
+    setOsvezaNapaka(null);
+    try {
+      const updated = await apiFetch<AnyCompany>(`/api/companies/${companyId}/osvezi`, { method: "POST" });
+      qc.invalidateQueries({ queryKey: ["companies", companyId] });
+      if (activeCompany?.id === companyId) {
+        setActiveCompany({ ...activeCompany, ...updated } as typeof activeCompany);
+      }
+      setForm({
+        naziv: (updated.naziv as string) ?? "",
+        kratekNaziv: (updated.kratekNaziv as string) ?? "",
+        naslov: (updated.naslov as string) ?? "",
+        ulica: (updated.ulica as string) ?? "",
+        postnaStevika: (updated.postnaStevika as string) ?? "",
+        kraj: (updated.kraj as string) ?? "",
+        drzava: (updated.drzava as string) ?? "",
+        kodaDrzave: (updated.kodaDrzave as string) ?? "",
+        maticnaStevilka: (updated.maticnaStevilka as string) ?? "",
+        idZaDdv: (updated.idZaDdv as string) ?? "",
+        zavezanecDdv: (updated.zavezanecDdv as boolean) ?? false,
+        email: (updated.email as string) ?? "",
+        telefon: (updated.telefon as string) ?? "",
+        www: (updated.www as string) ?? "",
+        eRacunPrejemnik: (updated.eRacunPrejemnik as boolean) ?? false,
+        eRacunOmrezje: (updated.eRacunOmrezje as string) ?? "",
+        eRacunEmail: (updated.eRacunEmail as string) ?? "",
+        eRacunNaslov: (updated.eRacunNaslov as string) ?? "",
+        eRacunSifraPu: (updated.eRacunSifraPu as string) ?? "",
+        eRacunBic: (updated.eRacunBic as string) ?? "",
+      });
+      setTrr((updated.trr as TrrEntry[]) ?? []);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setOsvezaNapaka(err instanceof Error ? err.message : "Napaka pri osveževanju");
+    } finally {
+      setOsvezujem(false);
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     updateMutation.mutate({
       naziv: form.naziv || undefined,
       kratekNaziv: form.kratekNaziv || null,
       naslov: form.naslov || null,
+      ulica: form.ulica || null,
       postnaStevika: form.postnaStevika || null,
       kraj: form.kraj || null,
+      drzava: form.drzava || null,
+      kodaDrzave: form.kodaDrzave || null,
       maticnaStevilka: form.maticnaStevilka || null,
+      idZaDdv: form.idZaDdv || null,
+      zavezanecDdv: form.zavezanecDdv,
       trr: trr.length > 0 ? trr : null,
+      email: form.email || null,
+      telefon: form.telefon || null,
+      www: form.www || null,
+      eRacunPrejemnik: form.eRacunPrejemnik,
+      eRacunOmrezje: form.eRacunOmrezje || null,
+      eRacunEmail: form.eRacunEmail || null,
+      eRacunNaslov: form.eRacunNaslov || null,
+      eRacunSifraPu: form.eRacunSifraPu || null,
+      eRacunBic: form.eRacunBic || null,
     });
   }
 
-  function addTrr() {
-    setTrr(t => [...t, { iban: "", bic: "" }]);
-  }
-  function removeTrr(i: number) {
-    setTrr(t => t.filter((_, idx) => idx !== i));
-  }
+  function addTrr() { setTrr(t => [...t, { iban: "", bic: "" }]); }
+  function removeTrr(i: number) { setTrr(t => t.filter((_, idx) => idx !== i)); }
   function updateTrr(i: number, field: keyof TrrEntry, val: string) {
     setTrr(t => t.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
   }
@@ -144,92 +228,108 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
   if (isLoading) {
     return (
       <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
-      <div className="space-y-1.5">
-        <Label htmlFor="davcna">Davčna številka</Label>
-        <Input
-          id="davcna"
-          value={data?.podjetjeDavcna ?? ""}
-          disabled
-          className="bg-muted text-muted-foreground"
-        />
-        <p className="text-xs text-muted-foreground">Davčna številka je nespremenljiva.</p>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="naziv">Polni naziv podjetja *</Label>
-        <Input
-          id="naziv"
-          value={form.naziv}
-          onChange={(e) => setForm((f) => ({ ...f, naziv: e.target.value }))}
-          disabled={!isOwner}
-          required
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="kratekNaziv">Kratek naziv</Label>
-        <Input
-          id="kratekNaziv"
-          value={form.kratekNaziv}
-          onChange={(e) => setForm((f) => ({ ...f, kratekNaziv: e.target.value }))}
-          disabled={!isOwner}
-          placeholder="npr. ABC d.o.o."
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="naslov">Naslov</Label>
-        <Input
-          id="naslov"
-          value={form.naslov}
-          onChange={(e) => setForm((f) => ({ ...f, naslov: e.target.value }))}
-          disabled={!isOwner}
-          placeholder="Ulica 1"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="postna">Poštna številka</Label>
-          <Input
-            id="postna"
-            value={form.postnaStevika}
-            onChange={(e) => setForm((f) => ({ ...f, postnaStevika: e.target.value }))}
-            disabled={!isOwner}
-            placeholder="1000"
-          />
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
+      {/* Gumb za osvežitev */}
+      {isOwner && (
+        <div className="flex items-center justify-between pb-1 border-b">
+          <p className="text-xs text-muted-foreground">Podatki se samodejno dopolnijo iz registrov Inetis, UJP in AJPES.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void handleOsvezi()} disabled={osvezujem} className="gap-1.5 shrink-0">
+            {osvezujem ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Osveži iz registra
+          </Button>
         </div>
+      )}
+
+      {/* Identifikacija */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Identifikacija</p>
         <div className="space-y-1.5">
-          <Label htmlFor="kraj">Kraj</Label>
-          <Input
-            id="kraj"
-            value={form.kraj}
-            onChange={(e) => setForm((f) => ({ ...f, kraj: e.target.value }))}
+          <Label htmlFor="davcna">Davčna številka</Label>
+          <Input id="davcna" value={data?.podjetjeDavcna ?? ""} disabled className="bg-muted text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Davčna številka je nespremenljiva.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5 col-span-2 sm:col-span-1">
+            <Label htmlFor="naziv">Polni naziv *</Label>
+            <Input id="naziv" value={form.naziv} onChange={(e) => setForm((f) => ({ ...f, naziv: e.target.value }))} disabled={!isOwner} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="kratekNaziv">Kratek naziv</Label>
+            <Input id="kratekNaziv" value={form.kratekNaziv} onChange={(e) => setForm((f) => ({ ...f, kratekNaziv: e.target.value }))} disabled={!isOwner} placeholder="ABC d.o.o." />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="maticna">Matična številka</Label>
+            <Input id="maticna" value={form.maticnaStevilka} onChange={(e) => setForm((f) => ({ ...f, maticnaStevilka: e.target.value }))} disabled={!isOwner} placeholder="1234567000" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="idZaDdv">ID za DDV</Label>
+            <Input id="idZaDdv" value={form.idZaDdv} onChange={(e) => setForm((f) => ({ ...f, idZaDdv: e.target.value }))} disabled={!isOwner} placeholder="SI12345678" />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="zavezanecDdv"
+            checked={form.zavezanecDdv}
+            onChange={(e) => setForm((f) => ({ ...f, zavezanecDdv: e.target.checked }))}
             disabled={!isOwner}
-            placeholder="Ljubljana"
+            className="h-4 w-4 rounded border-input"
           />
+          <Label htmlFor="zavezanecDdv" className="font-normal cursor-pointer">Zavezanec za DDV</Label>
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="maticna">Matična številka</Label>
-        <Input
-          id="maticna"
-          value={form.maticnaStevilka}
-          onChange={(e) => setForm((f) => ({ ...f, maticnaStevilka: e.target.value }))}
-          disabled={!isOwner}
-          placeholder="1234567000"
-        />
-        <p className="text-xs text-muted-foreground">Se samodejno prenese v POS negotovinsko plačilo.</p>
+      {/* Naslov */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Naslov</p>
+        <div className="space-y-1.5">
+          <Label htmlFor="ulica">Ulica in hišna številka</Label>
+          <Input id="ulica" value={form.ulica} onChange={(e) => setForm((f) => ({ ...f, ulica: e.target.value }))} disabled={!isOwner} placeholder="Slovenska cesta 1" />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="postna">Poštna</Label>
+            <Input id="postna" value={form.postnaStevika} onChange={(e) => setForm((f) => ({ ...f, postnaStevika: e.target.value }))} disabled={!isOwner} placeholder="1000" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="kraj">Kraj</Label>
+            <Input id="kraj" value={form.kraj} onChange={(e) => setForm((f) => ({ ...f, kraj: e.target.value }))} disabled={!isOwner} placeholder="Ljubljana" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="drzava">Država</Label>
+            <Input id="drzava" value={form.drzava} onChange={(e) => setForm((f) => ({ ...f, drzava: e.target.value }))} disabled={!isOwner} placeholder="Slovenija" />
+          </div>
+        </div>
+      </div>
+
+      {/* Kontakt */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kontakt</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="email">E-mail</Label>
+            <Input id="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} disabled={!isOwner} placeholder="info@podjetje.si" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="telefon">Telefon</Label>
+            <Input id="telefon" value={form.telefon} onChange={(e) => setForm((f) => ({ ...f, telefon: e.target.value }))} disabled={!isOwner} placeholder="+386 1 234 56 78" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="www">Spletna stran</Label>
+          <Input id="www" value={form.www} onChange={(e) => setForm((f) => ({ ...f, www: e.target.value }))} disabled={!isOwner} placeholder="https://www.podjetje.si" />
+        </div>
       </div>
 
       {/* Bančni računi (TRR) */}
@@ -247,26 +347,14 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
             </Button>
           )}
         </div>
-        {trr.length === 0 && (
-          <p className="text-xs text-muted-foreground italic">Ni dodanih bančnih računov.</p>
-        )}
+        {trr.length === 0 && <p className="text-xs text-muted-foreground italic">Ni dodanih bančnih računov.</p>}
         {trr.map((entry, i) => (
           <div key={i} className="flex gap-2 items-start">
             <div className="flex-1 space-y-1.5">
-              <Input
-                value={entry.iban}
-                onChange={(e) => updateTrr(i, "iban", e.target.value.toUpperCase())}
-                disabled={!isOwner}
-                placeholder="SI56 1234 5678 9012 345"
-              />
+              <Input value={entry.iban} onChange={(e) => updateTrr(i, "iban", e.target.value.toUpperCase())} disabled={!isOwner} placeholder="SI56 1234 5678 9012 345" />
             </div>
             <div className="w-36 space-y-1.5">
-              <Input
-                value={entry.bic}
-                onChange={(e) => updateTrr(i, "bic", e.target.value.toUpperCase())}
-                disabled={!isOwner}
-                placeholder="BSLJSI2X"
-              />
+              <Input value={entry.bic} onChange={(e) => updateTrr(i, "bic", e.target.value.toUpperCase())} disabled={!isOwner} placeholder="BSLJSI2X" />
             </div>
             {isOwner && (
               <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeTrr(i)}>
@@ -284,21 +372,76 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
         )}
       </div>
 
+      {/* e-Račun nastavitve */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">e-Račun</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="eRacunPrejemnik"
+            checked={form.eRacunPrejemnik}
+            onChange={(e) => setForm((f) => ({ ...f, eRacunPrejemnik: e.target.checked }))}
+            disabled={!isOwner}
+            className="h-4 w-4 rounded border-input"
+          />
+          <Label htmlFor="eRacunPrejemnik" className="font-normal cursor-pointer">Registriran prejemnik e-računov</Label>
+        </div>
+        {form.eRacunPrejemnik && (
+          <div className="space-y-3 pl-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="eRacunOmrezje">Omrežje</Label>
+                <Select value={form.eRacunOmrezje} onValueChange={(v) => setForm((f) => ({ ...f, eRacunOmrezje: v }))} disabled={!isOwner}>
+                  <SelectTrigger id="eRacunOmrezje"><SelectValue placeholder="Izberi…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UJP">UJP (javni sektor)</SelectItem>
+                    <SelectItem value="BizBox">BizBox</SelectItem>
+                    <SelectItem value="PEPPOL">PEPPOL</SelectItem>
+                    <SelectItem value="ZZI">ZZI</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eRacunNaslov">Naslov / IBAN prejemnika</Label>
+                <Input id="eRacunNaslov" value={form.eRacunNaslov} onChange={(e) => setForm((f) => ({ ...f, eRacunNaslov: e.target.value }))} disabled={!isOwner} placeholder="SI56…" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="eRacunEmail">e-Račun e-mail</Label>
+                <Input id="eRacunEmail" value={form.eRacunEmail} onChange={(e) => setForm((f) => ({ ...f, eRacunEmail: e.target.value }))} disabled={!isOwner} placeholder="eracun@podjetje.si" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eRacunSifraPu">Šifra PU</Label>
+                <Input id="eRacunSifraPu" value={form.eRacunSifraPu} onChange={(e) => setForm((f) => ({ ...f, eRacunSifraPu: e.target.value }))} disabled={!isOwner} placeholder="001" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eRacunBic">BIC banke</Label>
+                <Input id="eRacunBic" value={form.eRacunBic} onChange={(e) => setForm((f) => ({ ...f, eRacunBic: e.target.value.toUpperCase() }))} disabled={!isOwner} placeholder="BSLJSI2X" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {!isOwner && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Samo lastnik podjetja lahko ureja podatke o podjetju.
-          </AlertDescription>
+          <AlertDescription>Samo lastnik podjetja lahko ureja podatke o podjetju.</AlertDescription>
+        </Alert>
+      )}
+
+      {osvezaNapaka && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{osvezaNapaka}</AlertDescription>
         </Alert>
       )}
 
       {updateMutation.isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {(updateMutation.error as Error)?.message ?? "Napaka pri shranjevanju."}
-          </AlertDescription>
+          <AlertDescription>{(updateMutation.error as Error)?.message ?? "Napaka pri shranjevanju."}</AlertDescription>
         </Alert>
       )}
 
@@ -311,11 +454,7 @@ function PodatkiTab({ companyId, isOwner }: { companyId: string; isOwner: boolea
 
       {isOwner && (
         <Button type="submit" disabled={updateMutation.isPending} className="gap-2">
-          {updateMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
+          {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Shrani spremembe
         </Button>
       )}
