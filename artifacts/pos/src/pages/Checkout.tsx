@@ -2064,13 +2064,7 @@ ${linije.map(vrHtml).join("\n")}
         </DialogContent>
       </Dialog>
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Blagajna</h1>
-        <Button variant="outline" size="sm" onClick={() => setIzpisPrometaOpen(true)}>
-          <FileText className="h-4 w-4 mr-2" />
-          Izpis prometa
-        </Button>
-      </div>
+      <h1 className="text-3xl font-bold tracking-tight">Blagajna</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left: open orders */}
@@ -2131,8 +2125,14 @@ ${linije.map(vrHtml).join("\n")}
         </div>
 
         {/* Right: payment */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Zaključek računa</h2>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Zaključek računa</h2>
+            <Button variant="outline" size="sm" onClick={() => setIzpisPrometaOpen(true)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Izpis prometa
+            </Button>
+          </div>
           <Card className="sticky top-8">
             <CardContent className="pt-4 space-y-3">
               {selectedOrder ? (
