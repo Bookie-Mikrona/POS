@@ -15,8 +15,9 @@ export function BlagajnaSwitcher() {
   const { activeBlagajnaId, setActiveBlagajnaId } = useBlagajna();
   const jeAdminAliEnote = user?.vloga === "admin" || user?.vloga === "admin_enote";
 
+  // enotaId v query ključu zagotovi, da menjava enote vedno prinese svež seznam blagajn
   const { data: blagajne } = useListBlagajne({
-    query: { enabled: jeAdminAliEnote, queryKey: getListBlagajneQueryKey() },
+    query: { enabled: jeAdminAliEnote, queryKey: [...getListBlagajneQueryKey(), user?.enotaId ?? null] },
   });
 
   // Auto-selekcija: ob nalaganju blagajn preveri veljavnost shranjene vrednosti

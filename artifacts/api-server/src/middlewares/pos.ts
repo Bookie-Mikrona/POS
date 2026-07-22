@@ -42,15 +42,25 @@ export async function requireEnota(
     return;
   }
 
-  // 3. Poišči POS uporabnika → pridobi companyId
+  // 3. Poišči POS uporabnika → pridobi companyId, vlogo in dodeljeno enoto
   const [posUser] = await db
-    .select({ companyId: posUporabnikiTable.companyId, vloga: posUporabnikiTable.vloga })
+    .select({
+      companyId: posUporabnikiTable.companyId,
+      vloga: posUporabnikiTable.vloga,
+      dodeljenaEnotaId: posUporabnikiTable.enotaId,
+    })
     .from(posUporabnikiTable)
     .where(and(eq(posUporabnikiTable.clerkUserId, userId), eq(posUporabnikiTable.aktiven, true)))
     .limit(1);
 
   if (!posUser) {
     res.status(403).json({ napaka: "Nimate dostopa do POS sistema" });
+    return;
+  }
+
+  // admin_enote sme dostopati samo do svoje dodeljene enote
+  if (posUser.vloga === "admin_enote" && posUser.dodeljenaEnotaId !== enotaId) {
+    res.status(403).json({ napaka: "Admin enote sme dostopati samo do svoje dodeljene enote", koda: "ENOTA_NEDOSTOPNA" });
     return;
   }
 
