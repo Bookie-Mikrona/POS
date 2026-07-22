@@ -264,6 +264,23 @@ function mapActivity(s: { id: string; clientId: string; userId: string; status: 
   };
 }
 
+// GET /admin/users/:clerkUserId/sessions — vse seje (vsa stanja) enega uporabnika
+router.get("/users/:clerkUserId/sessions", async (req: Request, res: Response): Promise<void> => {
+  const { clerkUserId } = req.params;
+
+  // Pridobi vse seje (brez filtra statusa = aktivne + historične)
+  const resp = await clerkClient.sessions.getSessionList({
+    userId: clerkUserId,
+    limit: 100,
+  }).catch(() => ({ data: [] }));
+
+  const sessions = resp.data
+    .map((s) => mapActivity(s))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ sessions });
+});
+
 // GET /admin/sessions — vse aktivne seje
 router.get("/sessions", async (_req: Request, res: Response): Promise<void> => {
   const usersResp = await clerkClient.users.getUserList({ limit: 500 });
