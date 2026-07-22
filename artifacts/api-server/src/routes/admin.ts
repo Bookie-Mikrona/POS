@@ -621,6 +621,7 @@ router.get("/companies/:id/enote", async (req: Request, res: Response): Promise<
 
 // GET /admin/companies/:id/blagajne — seznam blagajn za podjetje (opcijsko filtrirano po enoti)
 router.get("/companies/:id/blagajne", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const enotaIdParam = req.query.enotaId ? Number(req.query.enotaId) : null;
 
