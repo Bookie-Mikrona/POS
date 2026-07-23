@@ -4,7 +4,8 @@ import { blagajneTable, db, izmeneTable, mizeTable, modNormativiTable, narocilaT
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
-import { buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
+import { type PrintRacunData } from "../../lib/pos-escpos";
+import QRCode from "qrcode";
 import { logger } from "../../lib/logger";
 import { readAll, toResponse } from "./nastavitve";
 import { upsertPogostKupec } from "./kupec";
@@ -1359,43 +1360,289 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
     sumupCheckoutId: racun.sumupCheckoutId ?? null,
   };
 
-  // Uporabi obstoječo logiko buildTextReceipt (enaka vsebina kot ESC/POS tisk)
-  const { linee, formati, qrUrl } = buildTextReceipt(printData, 42);
+  // ── HTML generacija ─────────────────────────────────────────────────────────
+  const h = (s: string | null | undefined) =>
+    (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  // HTML escape
-  const h = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const fnt = (n: number | null | undefined) =>
+    n != null ? Number(n).toFixed(2) + " €" : "";
 
-  // Vsako vrstico pretvorimo v <div> — krepko kadar formati[i] === "B"
-  const vrsticeHtml = linee.map((l, i) => {
-    const bold = formati[i] === "B";
-    const txt = l === "" ? "&nbsp;" : h(l);
-    return bold ? `<div class="b">${txt}</div>` : `<div>${txt}</div>`;
-  }).join("\n");
+  const d = printData;
+  const datum = d.datum.toLocaleString("sl-SI", {
+    timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit",
+    year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+  const datumSamo = d.datum.toLocaleDateString("sl-SI", {
+    timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit", year: "numeric",
+  });
+  const dniOdloga = d.dniOdloga ?? 8;
+  const datumValute = (() => {
+    const dv = new Date(d.datum);
+    dv.setDate(dv.getDate() + dniOdloga);
+    return dv.toLocaleDateString("sl-SI", { timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit", year: "numeric" });
+  })();
 
-  // QR koda kot img (data URL prek Google Charts — brez odvisnosti)
-  const qrHtml = qrUrl
-    ? `<div class="c"><img src="https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(qrUrl)}&choe=UTF-8" width="150" height="150" alt="QR koda FURS"></div>`
-    : "";
+  // QR koda server-side kot data URL
+  let qrDataUrl: string | null = null;
+  if (d.fursQrUrl) {
+    try { qrDataUrl = await QRCode.toDataURL(d.fursQrUrl, { width: 160, margin: 1, color: { dark: "#000000", light: "#ffffff" } }); } catch { /* preskoči */ }
+  }
+
+  // Okrajšave DDV stopenj
+  const uniqueRates = [...new Set(d.postavke.map(p => p.davek))].sort((a, b) => b - a);
+  const davekOkr = new Map<number, string>(uniqueRates.map((r, i) => [r, `T${i + 1}`]));
+
+  // DDV razrez po stopnjah
+  const ddvPoSt = new Map<number, { osnova: number; ddv: number }>();
+  for (const p of d.postavke) {
+    const ddvZ = Math.round(p.skupaj * p.davek / (100 + p.davek) * 100) / 100;
+    const ex = ddvPoSt.get(p.davek) ?? { osnova: 0, ddv: 0 };
+    ddvPoSt.set(p.davek, { osnova: ex.osnova + p.skupaj - ddvZ, ddv: ex.ddv + ddvZ });
+  }
+  const ddvVrstice = Array.from(ddvPoSt.entries()).sort(([a], [b]) => a - b);
+
+  // Prihranek (popust skupaj)
+  const skupniPrihranek = d.postavke.reduce((acc, p) => {
+    const ori = p.cenaKosOriginalna;
+    if (ori != null && ori > p.cenaKos + 0.001) acc += (ori - p.cenaKos) * p.kolicina;
+    return acc;
+  }, 0);
+
+  const jeBrezplacno = d.placilnaNacin === "reprezentanca" || d.placilnaNacin === "lastna_poraba";
+  const skupajIzPostavk = d.postavke.reduce((s, p) => s + p.skupaj, 0);
+  const brezDDV = jeBrezplacno ? skupajIzPostavk - d.ddv : d.skupaj - d.ddv;
+
+  // Boni
+  const bonPicaZn = d.znesekBonPica ?? 0;
+  const bonZn = d.znesekBon ?? 0;
+  const imaBone = bonPicaZn > 0 || bonZn > 0;
+  const ostaneZaPlacilo = d.skupaj - bonPicaZn - bonZn;
+
+  // Plačilni zneski
+  const gotZn = d.znesekGotovina ?? 0;
+  const kartZn = d.znesekKartica ?? 0;
+  const negotZn = d.znesekNegotovinsko ?? 0;
+  const placilniNacinLabels: Record<string, string> = {
+    gotovina: "Gotovina", kartica: "Kartica", bon: "Bon", bon_pica: "Bon za pico",
+    negotovinsko: "Negotovinsko (TRR)", reprezentanca: "Reprezentanca", lastna_poraba: "Lastna poraba",
+  };
+
+  // Registrski vpis (za negotovinsko)
+  const registrskiVpisDeli: string[] = [];
+  if (d.racunSodisce) registrskiVpisDeli.push(d.racunSodisce);
+  if (d.racunMaticna) registrskiVpisDeli.push(`Mat.št.: ${d.racunMaticna}`);
+  if (d.racunKapital) registrskiVpisDeli.push(d.racunKapital);
+  const registrskiVpis = registrskiVpisDeli.join(". ");
+
+  // Postavke HTML — grupiranje dodatkov pod starš artikel
+  const dodatekMap = new Map<number, typeof d.postavke>();
+  for (const p of d.postavke) {
+    if (p.parentPostavkaId != null) {
+      const arr = dodatekMap.get(p.parentPostavkaId) ?? [];
+      arr.push(p);
+      dodatekMap.set(p.parentPostavkaId, arr);
+    }
+  }
+  const topPostavkeIds = new Set(d.postavke.filter(p => p.parentPostavkaId == null && p.postavkaId != null).map(p => p.postavkaId as number));
+  const topPostavke = d.postavke.filter(p => p.parentPostavkaId == null);
+  const orphanDodatki = d.postavke.filter(p => p.parentPostavkaId != null && !topPostavkeIds.has(p.parentPostavkaId ?? -1));
+
+  const renderPostavka = (p: (typeof d.postavke)[0], isOrphan = false): string => {
+    const okr = davekOkr.get(p.davek) ?? "";
+    const hasPopust = p.cenaKosOriginalna != null && p.cenaKosOriginalna > p.cenaKos + 0.001;
+    const dodatki = !isOrphan && p.postavkaId != null ? (dodatekMap.get(p.postavkaId) ?? []).filter(dd => dd.skupaj !== 0 || dd.cenaKos !== 0) : [];
+    const skupajArtikla = p.skupaj + dodatki.reduce((s, dd) => s + dd.skupaj, 0);
+
+    let out = `<tr><td class="art" colspan="3">${h(p.ime)}${okr ? ` <span class="okr">${h(okr)}</span>` : ""}</td></tr>`;
+    if (p.opomba) out += `<tr><td class="opomba" colspan="3">&nbsp;&nbsp;${h(p.opomba)}</td></tr>`;
+    if (hasPopust && p.cenaKosOriginalna != null) {
+      const popustPct = Math.round((1 - p.cenaKos / p.cenaKosOriginalna) * 100);
+      out += `<tr><td class="popust-txt" colspan="2">&nbsp;&nbsp;Redna cena: ${p.cenaKosOriginalna.toFixed(2)} €/kos</td><td></td></tr>`;
+      out += `<tr><td class="popust-txt" colspan="2">&nbsp;&nbsp;Popust ${popustPct}%: -${(p.cenaKosOriginalna - p.cenaKos).toFixed(2)} €/kos</td><td></td></tr>`;
+    }
+    out += `<tr><td class="kol">${p.kolicina}&nbsp;×&nbsp;${p.cenaKos.toFixed(2)}&nbsp;€</td><td class="num">${h(okr)}</td><td class="num bold">${p.skupaj.toFixed(2)}&nbsp;€</td></tr>`;
+
+    for (const dd of dodatki) {
+      const ddOkr = davekOkr.get(dd.davek) ?? "";
+      out += `<tr><td class="art add" colspan="3">+&nbsp;${h(dd.ime)}</td></tr>`;
+      out += `<tr><td class="kol add">${dd.kolicina}&nbsp;×&nbsp;${dd.cenaKos.toFixed(2)}&nbsp;€</td><td class="num">${h(ddOkr)}</td><td class="num">${dd.skupaj.toFixed(2)}&nbsp;€</td></tr>`;
+    }
+    if (dodatki.length > 0) {
+      out += `<tr><td class="skupaj-art" colspan="2">Skupaj artikel:</td><td class="num bold">${skupajArtikla.toFixed(2)}&nbsp;€</td></tr>`;
+    }
+    return out;
+  };
+
+  const postavkeHtml = [
+    ...topPostavke.map(p => renderPostavka(p, false)),
+    ...orphanDodatki.map(p => renderPostavka(p, true)),
+  ].join("");
+
+  // DDV tabela HTML
+  const ddvHtml = ddvVrstice.map(([st, { osnova: o, ddv: dv }]) => {
+    const okr = davekOkr.get(st) ?? "";
+    return `<tr><td>${h(okr)}&nbsp;DDV&nbsp;${st}%</td><td class="num">${o.toFixed(2)}&nbsp;€</td><td class="num">${dv.toFixed(2)}&nbsp;€</td></tr>`;
+  }).join("");
 
   const html = `<!DOCTYPE html>
 <html lang="sl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Račun ${h(racun.stevilkaRacuna)}</title>
+<title>Račun&nbsp;${h(d.stevilkaRacuna)}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Courier New',Courier,monospace;font-size:11.5px;line-height:1.35;width:72mm;max-width:72mm;padding:4mm 3mm;color:#000;background:#fff;word-break:break-word}
-div{white-space:pre-wrap}
-.b{font-weight:bold}
-.c{text-align:center}
-@media print{body{width:72mm;padding:2mm 3mm}@page{margin:0;size:72mm auto}}
+body{font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.4;
+     width:72mm;max-width:72mm;padding:3mm 4mm 6mm;color:#000;background:#fff}
+.c{text-align:center} .r{text-align:right} .bold{font-weight:bold}
+.big{font-size:15px;font-weight:bold;text-align:center}
+.sep{border:none;border-top:1px dashed #000;margin:3px 0;width:100%}
+.sep2{border:none;border-top:1px solid #000;margin:3px 0;width:100%}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:1px 1px;vertical-align:top}
+.num{text-align:right;white-space:nowrap}
+.kol{font-size:11px;color:#333;padding-left:6px}
+.art{font-weight:bold;padding-top:3px}
+.art.add{font-weight:normal;font-size:11px;padding-left:10px}
+.kol.add{padding-left:16px}
+.okr{font-weight:normal;font-size:10px;border:1px solid #999;padding:0 2px}
+.opomba{font-size:10px;color:#444;font-style:italic}
+.popust-txt{font-size:10px;color:#555;text-decoration:none}
+.skupaj-art{font-size:11px;color:#555;padding-left:6px;font-style:italic}
+.glava-vrstica td{padding:1px 2px}
+.ddv-hdr th{font-size:10px;font-weight:bold;border-bottom:1px solid #ccc;padding-bottom:2px}
+.ddv-hdr th.num{text-align:right}
+.storno-warn{background:#ffeeee;border:1px solid #cc0000;padding:3px 5px;text-align:center;font-weight:bold;font-size:11px;margin:3px 0}
+.testni-warn{background:#fff3cd;border:1px solid #ffc107;padding:3px 5px;text-align:center;font-size:11px;margin:3px 0}
+.kopija-warn{text-align:center;font-weight:bold;font-size:12px;margin:2px 0}
+.furs-blok{font-size:10px;word-break:break-all;margin:2px 0}
+.klavzula{font-size:9.5px;margin:2px 0;color:#222}
+.qr{text-align:center;margin:4px 0}
+.pozdrav{text-align:center;font-size:11px;margin:2px 0}
+@media print{
+  body{width:72mm;padding:2mm 3mm 4mm}
+  @page{margin:0;size:72mm auto}
+}
 </style>
 </head>
 <body>
-${vrsticeHtml}
-${qrHtml}
-<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),500));</script>
+
+<!-- GLAVA -->
+<p class="big">${h(d.nazivRestvracije ?? "RESTAVRACIJA")}</p>
+${d.naslovRestvracije ? `<p class="c">${h(d.naslovRestvracije)}</p>` : ""}
+${d.davcnaStevilka ? `<p class="c">ID za DDV: SI${h(d.davcnaStevilka)}</p>` : ""}
+${d.enotaOpis ? `<p class="c">${h(d.enotaOpis)}</p>` : ""}
+${d.placilnaNacin === "negotovinsko" && d.prodajalecIban ? `<p class="c">TRR: ${h(d.prodajalecIban)}</p>` : ""}
+${d.placilnaNacin === "negotovinsko" && d.prodajalecBic ? `<p class="c">BIC: ${h(d.prodajalecBic)}</p>` : ""}
+<hr class="sep">
+
+${d.steviloPrintov && d.steviloPrintov > 1 ? `<p class="kopija-warn">*** KOPIJA ${d.steviloPrintov - 1} ***</p>` : ""}
+${d.status === "testni" ? `<div class="testni-warn">*** TESTNI RAČUN ***</div>` : ""}
+${d.jeStorno || (d.stornoIzvornaRacunStevilka != null) ? `<div class="storno-warn">&#9888; STORNO RAČUN</div>` : ""}
+
+<!-- IDENTIFIKACIJA -->
+<table class="glava-vrstica">
+  <tr><td class="bold">Račun:</td><td class="r bold">${h(d.stevilkaRacuna)}</td></tr>
+  <tr><td>Datum:</td><td class="r">${datum}</td></tr>
+  <tr><td>Datum opr.&nbsp;storitve:</td><td class="r">${datumSamo}</td></tr>
+  ${d.placilnaNacin === "negotovinsko" ? `<tr><td>Datum valute:</td><td class="r">${datumValute}</td></tr>` : ""}
+  ${d.natakarIme ? `<tr><td>Natakar:</td><td class="r">${h(d.natakarIme)}</td></tr>` : ""}
+  ${d.mizaStevilka != null ? `<tr><td>Miza:</td><td class="r">${d.mizaStevilka}</td></tr>` : ""}
+</table>
+
+${d.stornoIzvornaRacunStevilka ? `<hr class="sep"><p class="bold">Storno računa:</p><p>${h(d.stornoIzvornaRacunStevilka)}</p>` : ""}
+
+${d.kupecNaziv || d.kupecDavcnaStevilka ? `
+<hr class="sep">
+<p class="bold">KUPEC:</p>
+${d.kupecNaziv ? `<p>${h(d.kupecNaziv)}</p>` : ""}
+${d.kupecDavcnaStevilka ? `<p>${d.kupecZavezanecDdv ? `ID za DDV: SI${h(d.kupecDavcnaStevilka)}` : `Davčna št.: ${h(d.kupecDavcnaStevilka)}`}</p>` : ""}
+${d.kupecNaslov ? `<p>${h(d.kupecNaslov)}</p>` : ""}` : ""}
+
+${d.vivaTerminalSessionId ? `<hr class="sep"><p class="bold">Viva terminal:</p><p class="furs-blok">${h(d.vivaTerminalSessionId)}</p>` : ""}
+${d.sumupCheckoutId ? `<hr class="sep"><p class="bold">SumUp checkout:</p><p class="furs-blok">${h(d.sumupCheckoutId)}</p>` : ""}
+
+<hr class="sep">
+
+<!-- POSTAVKE -->
+<table>
+  <thead><tr>
+    <th style="text-align:left">Artikel</th>
+    <th class="num" style="font-size:10px">DDV</th>
+    <th class="num">Skupaj</th>
+  </tr></thead>
+  <tbody>
+    ${postavkeHtml}
+  </tbody>
+</table>
+<hr class="sep">
+
+<!-- SEŠTEVKI -->
+<table>
+  ${skupniPrihranek > 0.001 ? `<tr><td>Popust skupaj:</td><td class="num">-${skupniPrihranek.toFixed(2)}&nbsp;€</td></tr>` : ""}
+  ${jeBrezplacno ? `
+  <tr><td>${d.placilnaNacin === "reprezentanca" ? "Reprezentanca:" : "Lastna poraba:"}</td><td></td></tr>
+  <tr><td>100% popust:</td><td class="num">-${skupajIzPostavk.toFixed(2)}&nbsp;€</td></tr>` : ""}
+  <tr><td>Osnova (brez DDV):</td><td class="num">${brezDDV.toFixed(2)}&nbsp;€</td></tr>
+  <tr><td>DDV skupaj:</td><td class="num">${d.ddv.toFixed(2)}&nbsp;€</td></tr>
+</table>
+<hr class="sep2">
+<table><tr><td class="bold" style="font-size:14px">SKUPAJ:</td><td class="num bold" style="font-size:14px">${d.skupaj.toFixed(2)}&nbsp;€</td></tr></table>
+<hr class="sep">
+
+<!-- DDV RAZREZ -->
+${ddvVrstice.length > 0 ? `
+<table>
+  <thead class="ddv-hdr"><tr><th>Stopnja</th><th class="num">Osnova</th><th class="num">DDV</th></tr></thead>
+  <tbody>${ddvHtml}</tbody>
+</table>
+<hr class="sep">` : ""}
+
+<!-- MIZA / NATAKAR (pod DDV razrezom — kot pri ESC/POS) -->
+<table>
+  ${d.mizaStevilka != null ? `<tr><td>Miza:</td><td class="r">${d.mizaStevilka}</td></tr>` : ""}
+  ${d.natakarIme ? `<tr><td>Natakar:</td><td class="r">${h(d.natakarIme)}</td></tr>` : ""}
+</table>
+
+<!-- BONI -->
+${imaBone ? `
+<table>
+  ${bonPicaZn > 0 ? `<tr><td>Bon za pico${d.steviloBonov ? ` (${d.steviloBonov}×)` : ""}:</td><td class="num">-${bonPicaZn.toFixed(2)}&nbsp;€</td></tr>` : ""}
+  ${bonZn > 0 ? `<tr><td>Darilni bon:</td><td class="num">-${bonZn.toFixed(2)}&nbsp;€</td></tr>` : ""}
+</table>
+<hr class="sep2">
+<table><tr><td class="bold">Ostane za plačilo:</td><td class="num bold">${ostaneZaPlacilo.toFixed(2)}&nbsp;€</td></tr></table>
+<hr class="sep">` : ""}
+
+<!-- PLAČILA -->
+<table>
+  ${gotZn > 0 ? `<tr><td>Gotovina:</td><td class="num">${gotZn.toFixed(2)}&nbsp;€</td></tr>` : ""}
+  ${kartZn > 0 ? `<tr><td>Kartica:</td><td class="num">${kartZn.toFixed(2)}&nbsp;€</td></tr>` : ""}
+  ${negotZn > 0 ? `<tr><td>Negotovinsko:</td><td class="num">${negotZn.toFixed(2)}&nbsp;€</td></tr>` : ""}
+  ${gotZn === 0 && kartZn === 0 && negotZn === 0 && !imaBone
+    ? `<tr><td>${h(placilniNacinLabels[d.placilnaNacin] ?? d.placilnaNacin)}:</td><td class="num">${d.skupaj.toFixed(2)}&nbsp;€</td></tr>`
+    : ""}
+</table>
+<hr class="sep">
+
+<!-- FURS -->
+${d.zoi ? `
+<p class="c bold">DAVČNA POTRDITEV (FURS)</p>
+<p class="furs-blok">ZOI: ${h(d.zoi)}</p>
+${d.eor ? `<p class="furs-blok">EOR: ${h(d.eor)}</p>` : ""}
+${qrDataUrl ? `<div class="qr"><img src="${qrDataUrl}" width="160" height="160" alt="QR FURS"></div>` : ""}
+<hr class="sep">` : ""}
+
+<!-- REGISTRSKI PODATKI (negotovinsko) -->
+${d.placilnaNacin === "negotovinsko" && registrskiVpis ? `<p class="klavzula">${h(registrskiVpis)}</p><hr class="sep">` : ""}
+${d.placilnaNacin === "negotovinsko" && d.racunDdvKlavzula ? `<p class="klavzula">${h(d.racunDdvKlavzula)}</p><hr class="sep">` : ""}
+${d.placilnaNacin === "negotovinsko" && d.racunPravnaKlavzula ? `<p class="klavzula">${h(d.racunPravnaKlavzula)}</p><hr class="sep">` : ""}
+
+<!-- FOOTER -->
+${d.racunPozdrav1 ? `<p class="pozdrav">${h(d.racunPozdrav1)}</p>` : ""}
+${d.racunPozdrav2 ? `<p class="pozdrav">${h(d.racunPozdrav2)}</p>` : ""}
+
+<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),600));</script>
 </body>
 </html>`;
 
