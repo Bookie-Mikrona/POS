@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { zaženiNočnoČiščenje } from "./lib/sessionScheduler";
+import { zaženiZapiranjeIzmene } from "./lib/izmeneScheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,7 @@ app.listen(port, (err) => {
 
   // Nočno čiščenje sej ob 4:00 zjutraj (slovenskega časa)
   zaženiNočnoČiščenje();
+
+  // Samodejno zapiranje izmene ob začetku novega delovnega dne (per-enota ura)
+  zaženiZapiranjeIzmene();
 });
