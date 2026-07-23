@@ -3,7 +3,8 @@ import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
 import { blagajneTable, db, izmeneTable, mizeTable, modNormativiTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
-import { izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
+import { fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
+import { buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
 import { logger } from "../../lib/logger";
 import { readAll, toResponse } from "./nastavitve";
 import { upsertPogostKupec } from "./kupec";
@@ -1229,9 +1230,11 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).send("Neveljaven ID"); return; }
 
+  // Naloži račun — vsa polja enaka kot pri ESC/POS tiskanju
   const [racun] = await db
     .select({
       id: racuniTable.id,
+      narociloId: racuniTable.narociloId,
       stevilkaRacuna: racuniTable.stevilkaRacuna,
       skupaj: racuniTable.skupaj,
       ddv: racuniTable.ddv,
@@ -1245,15 +1248,21 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       opomba: racuniTable.opomba,
       jeDelni: racuniTable.jeDelni,
       jeStorno: racuniTable.jeStorno,
+      izvorniRacunId: racuniTable.izvorniRacunId,
+      steviloPrintov: racuniTable.steviloPrintov,
       znesekGotovina: racuniTable.znesekGotovina,
       znesekKartica: racuniTable.znesekKartica,
       znesekBon: racuniTable.znesekBon,
       steviloBonov: racuniTable.steviloBonov,
       znesekBonPica: racuniTable.znesekBonPica,
       znesekNegotovinsko: racuniTable.znesekNegotovinsko,
+      dniOdloga: racuniTable.dniOdloga,
       kupecDavcnaStevilka: racuniTable.kupecDavcnaStevilka,
       kupecNaziv: racuniTable.kupecNaziv,
       kupecNaslov: racuniTable.kupecNaslov,
+      kupecZavezanecDdv: racuniTable.kupecZavezanecDdv,
+      sumupCheckoutId: racuniTable.sumupCheckoutId,
+      vivaTerminalSessionId: racuniTable.vivaTerminalSessionId,
       mizaStevilka: mizeTable.stevilka,
     })
     .from(racuniTable)
@@ -1264,8 +1273,9 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
 
   if (!racun) { res.status(404).send("Račun ni najden"); return; }
 
-  const postavke = await db
-    .select({
+  // Naloži postavke in nastavitve vzporedno
+  const [postavke, nastavitveMap] = await Promise.all([
+    db.select({
       id: postavkeTable.id,
       ime: postavkeTable.ime,
       kolicina: postavkeTable.kolicina,
@@ -1273,94 +1283,99 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       cenaKosOriginalna: postavkeTable.cenaKosOriginalna,
       skupaj: postavkeTable.skupaj,
       davek: postavkeTable.davek,
+      opomba: postavkeTable.opomba,
       parentPostavkaId: postavkeTable.parentPostavkaId,
-    })
-    .from(postavkeTable)
-    .where(eq(postavkeTable.racunId, id))
-    .orderBy(postavkeTable.id);
-
-  const nastavitveMap = await readAll("", tenotaId);
+    }).from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
+    readAll("", tenotaId),
+  ]);
   const nav = toResponse(nastavitveMap);
 
-  // Pomožne funkcije
-  const h = (s: string | null | undefined) =>
-    (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  const skupaj = Number(racun.skupaj);
-  const ddv = Number(racun.ddv);
-  const osnova = skupaj - ddv;
-
-  const datum = (() => {
-    const d = racun.datumCas ?? racun.ustvarjeno;
-    return d ? new Date(d).toLocaleString("sl-SI", {
-      timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit",
-      year: "numeric", hour: "2-digit", minute: "2-digit",
-    }) : "";
-  })();
-
-  // DDV razrez po stopnjah
-  const ddvPoStopnji = new Map<number, { osnova: number; ddv: number }>();
-  for (const p of postavke) {
-    const st = Number(p.davek);
-    const ps = Number(p.skupaj);
-    const dz = Math.round(ps * st / (100 + st) * 100) / 100;
-    const ex = ddvPoStopnji.get(st) ?? { osnova: 0, ddv: 0 };
-    ddvPoStopnji.set(st, { osnova: ex.osnova + ps - dz, ddv: ex.ddv + dz });
-  }
-  const ddvVrstice = Array.from(ddvPoStopnji.entries()).sort(([a], [b]) => a - b);
-
-  // Plačila
-  const placila: string[] = [];
-  const nG = racun.znesekGotovina != null ? Number(racun.znesekGotovina) : 0;
-  const nK = racun.znesekKartica != null ? Number(racun.znesekKartica) : 0;
-  const nB = racun.znesekBon != null ? Number(racun.znesekBon) : 0;
-  const nBP = racun.znesekBonPica != null ? Number(racun.znesekBonPica) : 0;
-  const nN = racun.znesekNegotovinsko != null ? Number(racun.znesekNegotovinsko) : 0;
-  if (nG > 0) placila.push(`Gotovina: ${nG.toFixed(2)} €`);
-  if (nK > 0) placila.push(`Kartica: ${nK.toFixed(2)} €`);
-  if (nB > 0) placila.push(`Bon: ${nB.toFixed(2)} €${racun.steviloBonov ? ` (${racun.steviloBonov}×)` : ""}`);
-  if (nBP > 0) placila.push(`Bon Pica: ${nBP.toFixed(2)} €`);
-  if (nN > 0) placila.push(`Negotovinsko: ${nN.toFixed(2)} €`);
-  if (racun.placilnaNacin === "reprezentanca") placila.push("Reprezentanca (brezplačno)");
-  if (racun.placilnaNacin === "lastna_poraba") placila.push("Lastna poraba (brezplačno)");
-  if (placila.length === 0) {
-    const imena: Record<string, string> = { gotovina: "Gotovina", kartica: "Kartica", bon: "Bon", bon_pica: "Bon Pica", negotovinsko: "Negotovinsko" };
-    placila.push(imena[racun.placilnaNacin] ?? racun.placilnaNacin);
+  // Izvorni račun za storno — prikazano v glavi
+  let stornoIzvornaRacunStevilka: string | null = null;
+  if (racun.jeStorno && racun.izvorniRacunId) {
+    const [izv] = await db
+      .select({ stevilkaRacuna: racuniTable.stevilkaRacuna })
+      .from(racuniTable)
+      .where(eq(racuniTable.id, racun.izvorniRacunId))
+      .limit(1);
+    stornoIzvornaRacunStevilka = izv?.stevilkaRacuna ?? null;
   }
 
-  // Postavke HTML
-  const postavkeHtml = postavke
-    .filter(p => p.parentPostavkaId == null)
-    .map(p => {
-      const cena = Number(p.cenaKos);
-      const ps = Number(p.skupaj);
-      const orig = p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null;
-      const hasPopust = orig != null && orig > cena + 0.001;
-      const children = postavke.filter(c => c.parentPostavkaId === p.id && (Number(c.skupaj) !== 0 || Number(c.cenaKos) !== 0));
-      let rows = `<tr>
-        <td class="ime">${h(p.ime)}</td>
-        <td class="num">${p.kolicina}</td>
-        <td class="num">${cena.toFixed(2)}</td>
-        <td class="num">${ps.toFixed(2)}</td>
-      </tr>`;
-      if (hasPopust && orig != null) {
-        const popustPct = Math.round((1 - cena / orig) * 100);
-        rows += `<tr class="popust"><td colspan="2" class="ime">  Popust ${popustPct}% (${orig.toFixed(2)} €/kos)</td><td></td><td></td></tr>`;
-      }
-      for (const c of children) {
-        rows += `<tr class="dodatek">
-          <td class="ime">+ ${h(c.ime)}</td>
-          <td class="num">${c.kolicina}</td>
-          <td class="num">${Number(c.cenaKos).toFixed(2)}</td>
-          <td class="num">${Number(c.skupaj).toFixed(2)}</td>
-        </tr>`;
-      }
-      return rows;
-    }).join("");
+  const datumCas = new Date(racun.datumCas ?? racun.ustvarjeno);
 
-  const ddvHtml = ddvVrstice.map(([st, { osnova: o, ddv: d }]) =>
-    `<tr><td>DDV ${st}%</td><td class="num">${o.toFixed(2)} €</td><td class="num">${d.toFixed(2)} €</td></tr>`
-  ).join("");
+  // Sestavi PrintRacunData — enako kot pri ESC/POS tiskalniku
+  const printData: PrintRacunData = {
+    stevilkaRacuna: racun.stevilkaRacuna,
+    datum: datumCas,
+    mizaStevilka: racun.mizaStevilka ?? null,
+    natakarIme: racun.natakarIme ?? null,
+    postavke: postavke.map(p => ({
+      postavkaId: p.id,
+      ime: p.ime,
+      kolicina: p.kolicina,
+      cenaKos: Number(p.cenaKos),
+      cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
+      skupaj: Number(p.skupaj),
+      davek: Number(p.davek),
+      opomba: p.opomba ?? null,
+      parentPostavkaId: p.parentPostavkaId ?? null,
+    })),
+    skupaj: Number(racun.skupaj),
+    ddv: Number(racun.ddv),
+    placilnaNacin: racun.placilnaNacin as PrintRacunData["placilnaNacin"],
+    zoi: racun.zoi ?? null,
+    eor: racun.eor ?? null,
+    fursQrUrl: (racun.zoi && nav.davcnaStevilka)
+      ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas)
+      : null,
+    status: racun.status as "poslan" | "napaka" | "testni",
+    nazivRestvracije: nav.nazivRestavracije ?? undefined,
+    naslovRestvracije: nav.naslovRestavracije ?? undefined,
+    davcnaStevilka: nav.davcnaStevilka ?? undefined,
+    enotaOpis: null,
+    racunPozdrav1: nav.racunPozdrav1 || undefined,
+    racunPozdrav2: nav.racunPozdrav2 || undefined,
+    steviloPrintov: racun.steviloPrintov ?? 0,
+    kupecDavcnaStevilka: racun.kupecDavcnaStevilka ?? null,
+    kupecNaziv: racun.kupecNaziv ?? null,
+    kupecNaslov: racun.kupecNaslov ?? null,
+    kupecZavezanecDdv: racun.kupecZavezanecDdv ?? null,
+    stornoIzvornaRacunStevilka,
+    racunMaticna: nav.racunMaticna || null,
+    racunSodisce: nav.racunSodisce || null,
+    racunKapital: nav.racunKapital || null,
+    racunDdvKlavzula: nav.racunDdvKlavzula || null,
+    racunPravnaKlavzula: nav.racunPravnaKlavzula || null,
+    prodajalecIban: nav.prodajalecIban || null,
+    prodajalecBic: nav.prodajalecBic || null,
+    dniOdloga: racun.dniOdloga ?? null,
+    znesekGotovina: racun.znesekGotovina != null ? Number(racun.znesekGotovina) : null,
+    znesekKartica: racun.znesekKartica != null ? Number(racun.znesekKartica) : null,
+    znesekBon: racun.znesekBon != null ? Number(racun.znesekBon) : null,
+    steviloBonov: racun.steviloBonov ?? null,
+    znesekBonPica: racun.znesekBonPica != null ? Number(racun.znesekBonPica) : null,
+    znesekNegotovinsko: racun.znesekNegotovinsko != null ? Number(racun.znesekNegotovinsko) : null,
+    vivaTerminalSessionId: racun.vivaTerminalSessionId ?? null,
+    sumupCheckoutId: racun.sumupCheckoutId ?? null,
+  };
+
+  // Uporabi obstoječo logiko buildTextReceipt (enaka vsebina kot ESC/POS tisk)
+  const { linee, formati, qrUrl } = buildTextReceipt(printData, 42);
+
+  // HTML escape
+  const h = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // Vsako vrstico pretvorimo v <div> — krepko kadar formati[i] === "B"
+  const vrsticeHtml = linee.map((l, i) => {
+    const bold = formati[i] === "B";
+    const txt = l === "" ? "&nbsp;" : h(l);
+    return bold ? `<div class="b">${txt}</div>` : `<div>${txt}</div>`;
+  }).join("\n");
+
+  // QR koda kot img (data URL prek Google Charts — brez odvisnosti)
+  const qrHtml = qrUrl
+    ? `<div class="c"><img src="https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(qrUrl)}&choe=UTF-8" width="150" height="150" alt="QR koda FURS"></div>`
+    : "";
 
   const html = `<!DOCTYPE html>
 <html lang="sl">
@@ -1370,59 +1385,17 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
 <title>Račun ${h(racun.stevilkaRacuna)}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Courier New',Courier,monospace;font-size:12px;width:72mm;max-width:72mm;padding:4mm;color:#000;background:#fff}
-.c{text-align:center}.r{text-align:right}
-h1{font-size:14px;font-weight:bold;text-align:center;margin-bottom:2px}
-.sep{border:none;border-top:1px dashed #000;margin:4px 0}
-table{width:100%;border-collapse:collapse}
-td,th{padding:1px 2px;vertical-align:top}
-.num{text-align:right;white-space:nowrap}
-.ime{word-break:break-word}
-.dodatek td{font-size:11px}
-.popust td{font-size:10px;color:#555}
-.skupaj-row td{font-weight:bold;font-size:14px;border-top:1px solid #000;padding-top:3px}
-.zoi{font-size:9px;word-break:break-all;margin-top:2px}
-.footer{text-align:center;font-size:10px;margin-top:6px}
-@media print{body{width:72mm}@page{margin:0;size:72mm auto}}
+body{font-family:'Courier New',Courier,monospace;font-size:11.5px;line-height:1.35;width:72mm;max-width:72mm;padding:4mm 3mm;color:#000;background:#fff;word-break:break-word}
+div{white-space:pre-wrap}
+.b{font-weight:bold}
+.c{text-align:center}
+@media print{body{width:72mm;padding:2mm 3mm}@page{margin:0;size:72mm auto}}
 </style>
 </head>
 <body>
-${nav.nazivRestavracije ? `<h1>${h(nav.nazivRestavracije)}</h1>` : ""}
-${nav.naslovRestavracije ? `<p class="c">${h(nav.naslovRestavracije)}</p>` : ""}
-${nav.davcnaStevilka ? `<p class="c">ID DDV: ${h(nav.davcnaStevilka)}</p>` : ""}
-<hr class="sep">
-<table>
-  <tr><td>Račun:</td><td class="r">${h(racun.stevilkaRacuna)}</td></tr>
-  <tr><td>Datum:</td><td class="r">${datum}</td></tr>
-  ${racun.natakarIme ? `<tr><td>Natakar:</td><td class="r">${h(racun.natakarIme)}</td></tr>` : ""}
-  ${racun.mizaStevilka != null ? `<tr><td>Miza:</td><td class="r">${racun.mizaStevilka}</td></tr>` : ""}
-  ${racun.jeDelni ? `<tr><td colspan="2"><em>Delni račun</em></td></tr>` : ""}
-  ${racun.jeStorno ? `<tr><td colspan="2"><strong>⚠ STORNO RAČUN</strong></td></tr>` : ""}
-</table>
-${racun.kupecNaziv ? `<hr class="sep"><p>${h(racun.kupecNaziv)}${racun.kupecNaslov ? `<br>${h(racun.kupecNaslov)}` : ""}${racun.kupecDavcnaStevilka ? `<br>ID DDV: ${h(racun.kupecDavcnaStevilka)}` : ""}</p>` : ""}
-<hr class="sep">
-<table>
-  <thead><tr><th class="ime">Artikel</th><th class="num">Kol.</th><th class="num">Cena</th><th class="num">Skup.</th></tr></thead>
-  <tbody>${postavkeHtml}</tbody>
-</table>
-<hr class="sep">
-<table>
-  <tr><td>Osnova (brez DDV):</td><td class="num">${osnova.toFixed(2)} €</td></tr>
-  <tr><td>DDV skupaj:</td><td class="num">${ddv.toFixed(2)} €</td></tr>
-  <tr class="skupaj-row"><td>SKUPAJ:</td><td class="num">${skupaj.toFixed(2)} €</td></tr>
-</table>
-${ddvVrstice.length > 0 ? `<hr class="sep"><table>
-  <tr><th class="ime">DDV stopnja</th><th class="num">Osnova</th><th class="num">DDV</th></tr>
-  ${ddvHtml}
-</table>` : ""}
-<hr class="sep">
-<table>${placila.map(p => `<tr><td colspan="2">${h(p)}</td></tr>`).join("")}</table>
-${racun.opomba ? `<hr class="sep"><p class="ime">Opomba: ${h(racun.opomba)}</p>` : ""}
-${racun.zoi ? `<hr class="sep"><p class="zoi">ZOI: ${h(racun.zoi)}</p>` : ""}
-${racun.eor ? `<p class="zoi">EOR: ${h(racun.eor)}</p>` : ""}
-<hr class="sep">
-<p class="footer">Hvala za obisk!</p>
-<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),400));</script>
+${vrsticeHtml}
+${qrHtml}
+<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),500));</script>
 </body>
 </html>`;
 
