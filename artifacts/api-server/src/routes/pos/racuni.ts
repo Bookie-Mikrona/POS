@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
-import { blagajneTable, db, izmeneTable, mizeTable, modNormativiTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
+import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
