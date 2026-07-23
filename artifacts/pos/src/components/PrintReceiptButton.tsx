@@ -231,9 +231,10 @@ export function PrintReceiptButton({
     setPrinting(true);
     try {
       await onBeforePrint?.();
-      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       const qs = zbirni ? "?zbirni=1" : "";
-      popupWin.location.href = `${base}/api/print/racun/${racunId}/html${qs}`;
+      // Popup gre direktno na /api/... (brez /pos prefiksa) — Vite proxy bi spremenil
+      // host na localhost:8080, Clerk handshake bi potem preusmeril na localhost:8080.
+      popupWin.location.href = `/api/print/racun/${racunId}/html${qs}`;
       onAfterPrint?.();
     } catch (err) {
       popupWin.close();

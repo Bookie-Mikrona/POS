@@ -296,9 +296,10 @@ export function printReceiptViaBrowser(racunId: number, zbirni?: boolean): void 
   // the session cookie automatically. Calling window.open() synchronously (no
   // preceding await) keeps us inside the user-gesture handler so Chrome/Edge on
   // Windows cannot block the popup.
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const qs = zbirni ? "?zbirni=1" : "";
-  const url = `${base}/api/print/racun/${racunId}/html${qs}`;
+  // Popup gre direktno na /api/... (ne skozi Vite proxy /pos/api → localhost:8080),
+  // ker bi Vite proxy spremenil host header in Clerk handshake bi preusmeril na localhost:8080.
+  const url = `/api/print/racun/${racunId}/html${qs}`;
 
   const win = window.open(url, "_blank", "width=340,height=800,left=100,top=50");
   if (!win) throw new Error("Pojavno okno je blokirano. Dovolite pojavna okna za to stran.");
