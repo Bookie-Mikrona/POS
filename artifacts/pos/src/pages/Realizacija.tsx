@@ -139,8 +139,8 @@ function groupByMesec(grps: { datum: string; rows: RealizacijaRacun[] }[]) {
   return [...map.values()];
 }
 
-const COL_CLASS = "px-2 py-1 text-right tabular-nums";
-const COL_LEFT = "px-2 py-1 text-left";
+const COL_CLASS = "px-1 py-0.5 text-right tabular-nums";
+const COL_LEFT = "px-1 py-0.5 text-left";
 
 const COLS = 30;
 
@@ -405,34 +405,35 @@ export default function Realizacija() {
   const hasBonPica = data ? data.skupaj.bonPica > 0 : false;
   const hasReprezentanca = data ? data.racuni.some(r => r.placilnaNacin === "reprezentanca") : false;
   const hasLastnaPoraba = data ? data.racuni.some(r => r.placilnaNacin === "lastna_poraba") : false;
-  const skupajTh = <th className={`${COL_CLASS} font-semibold`}>Skupaj</th>;
+  const TH = `${COL_CLASS} font-semibold whitespace-nowrap`;
+  const skupajTh = <th className={TH}>Skupaj</th>;
   const hasKuponi = data ? (data.skupaj.izdaniKuponi > 0 || data.skupaj.prejetiKuponi > 0) : false;
   const has22 = data ? data.ddvPoStopnjah.some(d => d.stopnja === 22) : false;
   const has95 = data ? data.ddvPoStopnjah.some(d => d.stopnja === 9.5) : false;
   const has5  = data ? data.ddvPoStopnjah.some(d => d.stopnja === 5) : false;
   const ddvTh = (
     <>
-      {has22 && <><th className={`${COL_CLASS} font-semibold`}>Osnova 22 %</th><th className={`${COL_CLASS} font-semibold`}>DDV 22 %</th></>}
-      {has95 && <><th className={`${COL_CLASS} font-semibold`}>Osnova 9,5 %</th><th className={`${COL_CLASS} font-semibold`}>DDV 9,5 %</th></>}
-      {has5  && <><th className={`${COL_CLASS} font-semibold`}>Osnova 5 %</th><th className={`${COL_CLASS} font-semibold`}>DDV 5 %</th></>}
+      {has22 && <><th className={TH}>Osn. 22%</th><th className={TH}>DDV 22%</th></>}
+      {has95 && <><th className={TH}>Osn. 9,5%</th><th className={TH}>DDV 9,5%</th></>}
+      {has5  && <><th className={TH}>Osn. 5%</th><th className={TH}>DDV 5%</th></>}
     </>
   );
   const blagoStoritevTh = (
     <>
-      <th className={`${COL_CLASS} font-semibold`}>Blago</th>
-      <th className={`${COL_CLASS} font-semibold`}>Storitev</th>
+      <th className={TH}>Blago</th>
+      <th className={TH}>Storitev</th>
     </>
   );
   const placilniTh = (
     <>
-      <th className={`${COL_CLASS} font-semibold`}>Gotovina</th>
-      <th className={`${COL_CLASS} font-semibold`}>Kartica</th>
-      {hasLastnaPoraba && <th className={`${COL_CLASS} font-semibold`}>Lastna raba</th>}
-      {hasReprezentanca && <th className={`${COL_CLASS} font-semibold`}>Reprezentanca</th>}
-      <th className={`${COL_CLASS} font-semibold`}>Darilni bon</th>
-      {hasBonPica && <th className={`${COL_CLASS} font-semibold`}>Bon pica</th>}
-      {hasKuponi && <th className={`${COL_CLASS} font-semibold`}>Izd. kup.</th>}
-      {hasKuponi && <th className={`${COL_CLASS} font-semibold`}>Prej. kup.</th>}
+      <th className={TH}>Gotovina</th>
+      <th className={TH}>Kartica</th>
+      {hasLastnaPoraba && <th className={TH}>L. raba</th>}
+      {hasReprezentanca && <th className={TH}>Repr.</th>}
+      <th className={TH}>D. bon</th>
+      {hasBonPica && <th className={TH}>Bon 🍕</th>}
+      {hasKuponi && <th className={TH}>Kup.↑</th>}
+      {hasKuponi && <th className={TH}>Kup.↓</th>}
     </>
   );
 
@@ -567,12 +568,12 @@ export default function Realizacija() {
               <div className="overflow-x-auto">
                 {zbirPoDnevih ? (
                   /* ── ZBIR PO DNEVIH ─────────────────────────────── */
-                  <table className="w-full text-xs border-collapse min-w-[600px]">
+                  <table className="w-full text-[10px] border-collapse">
                     <thead>
                       <tr className="bg-muted/60 border-b-2 border-border">
-                        <th className={`${COL_LEFT} font-semibold`}>Datum</th>
-                        <th className={`${COL_CLASS} font-semibold`}>Računi</th>
-                        <th className={`${COL_LEFT} font-semibold`}>Od – Do</th>
+                        <th className={`${COL_LEFT} font-semibold whitespace-nowrap`}>Datum</th>
+                        <th className={`${COL_CLASS} font-semibold`}>Rač.</th>
+                        <th className={`${COL_LEFT} font-semibold whitespace-nowrap`}>Od – Do</th>
                         {skupajTh}
                         {blagoStoritevTh}
                         {ddvTh}
@@ -608,7 +609,7 @@ export default function Realizacija() {
                               <tr className="month-total bg-blue-100/60 border-t-2 border-blue-300/60 font-semibold">
                                 <td className={COL_LEFT} colSpan={2}>
                                   <span className="uppercase tracking-wide text-blue-800">Skupaj {label}</span>
-                                  <span className="ml-2 text-xs font-normal text-blue-600">({allMRows.length} računov)</span>
+                                  <span className="ml-1 font-normal text-blue-600">({allMRows.length})</span>
                                 </td>
                                 <td className={COL_LEFT} />
                                 {skupajTd(mt.skupaj)}
@@ -621,10 +622,10 @@ export default function Realizacija() {
                         );
                       })}
                       {/* Grand total */}
-                      <tr className="grand-total bg-muted border-t-2 border-primary/40 font-bold text-sm">
+                      <tr className="grand-total bg-muted border-t-2 border-primary/40 font-bold">
                         <td className={COL_LEFT} colSpan={2}>
                           <span className="uppercase tracking-wide">SKUPAJ</span>
-                          <span className="ml-2 text-xs font-normal text-muted-foreground">({data.racuni.length} računov)</span>
+                          <span className="ml-1 font-normal text-muted-foreground">({data.racuni.length})</span>
                         </td>
                         <td className={COL_LEFT} />
                         {skupajTd(data.skupaj.skupaj, true)}
@@ -636,10 +637,10 @@ export default function Realizacija() {
                   </table>
                 ) : (
                   /* ── PO RAČUNIH ─────────────────────────────────── */
-                  <table className="w-full text-xs border-collapse min-w-[700px]">
+                  <table className="w-full text-[10px] border-collapse">
                     <thead>
                       <tr className="bg-muted/60 border-b-2 border-border">
-                        <th className={`${COL_LEFT} font-semibold`}>Datum</th>
+                        <th className={`${COL_LEFT} font-semibold whitespace-nowrap`}>Datum</th>
                         <th className={`${COL_LEFT} font-semibold`}>Ura</th>
                         <th className={`${COL_LEFT} font-semibold`}>Račun</th>
                         <th className={`${COL_LEFT} font-semibold`}>Natakar</th>
@@ -688,7 +689,7 @@ export default function Realizacija() {
                                   <tr className="day-subtotal bg-muted/50 border-b-2 border-border font-semibold">
                                     <td className={COL_LEFT} colSpan={4}>
                                       <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Skupaj {datum}</span>
-                                      <span className="ml-2 text-muted-foreground font-normal">({rows.length} računov)</span>
+                                      <span className="ml-2 text-muted-foreground font-normal">({rows.length})</span>
                                     </td>
                                     {skupajTd(dt.skupaj)}
                                     {blagoStoritevTd(sumBS(rows))}
@@ -702,7 +703,7 @@ export default function Realizacija() {
                               <tr className="month-total bg-blue-100/60 border-t-2 border-blue-300/60 font-semibold">
                                 <td className={COL_LEFT} colSpan={4}>
                                   <span className="uppercase tracking-wide text-blue-800">Skupaj {label}</span>
-                                  <span className="ml-2 text-xs font-normal text-blue-600">({allMRows.length} računov)</span>
+                                  <span className="ml-1 font-normal text-blue-600">({allMRows.length})</span>
                                 </td>
                                 {skupajTd(mt.skupaj)}
                                 {blagoStoritevTd(sumBS(allMRows))}
@@ -714,10 +715,10 @@ export default function Realizacija() {
                         );
                       })}
                       {/* Grand total */}
-                      <tr className="grand-total bg-muted border-t-2 border-primary/40 font-bold text-sm">
+                      <tr className="grand-total bg-muted border-t-2 border-primary/40 font-bold">
                         <td className={COL_LEFT} colSpan={4}>
-                          <span className="uppercase tracking-wide">SKUPAJ REALIZACIJA</span>
-                          <span className="ml-2 text-xs font-normal text-muted-foreground">({data.racuni.length} računov)</span>
+                          <span className="uppercase tracking-wide">SKUPAJ</span>
+                          <span className="ml-1 font-normal text-muted-foreground">({data.racuni.length})</span>
                         </td>
                         {skupajTd(data.skupaj.skupaj, true)}
                         {blagoStoritevTd(sumBS(data.racuni))}
