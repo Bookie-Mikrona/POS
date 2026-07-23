@@ -296,9 +296,14 @@ export function printReceiptViaBrowser(racunId: number, zbirni?: boolean): void 
   // the session cookie automatically. Calling window.open() synchronously (no
   // preceding await) keeps us inside the user-gesture handler so Chrome/Edge on
   // Windows cannot block the popup.
-  const qs = zbirni ? "?zbirni=1" : "";
   // Popup gre direktno na /api/... (ne skozi Vite proxy /pos/api → localhost:8080),
   // ker bi Vite proxy spremenil host header in Clerk handshake bi preusmeril na localhost:8080.
+  // window.open() ne more pošiljati custom headerjev, zato enota_id dodamo kot query param.
+  const enotaId = localStorage.getItem("pos_enota_id");
+  const params = new URLSearchParams();
+  if (zbirni) params.set("zbirni", "1");
+  if (enotaId) params.set("enota_id", enotaId);
+  const qs = params.size ? `?${params.toString()}` : "";
   const url = `/api/print/racun/${racunId}/html${qs}`;
 
   const win = window.open(url, "_blank", "width=340,height=800,left=100,top=50");

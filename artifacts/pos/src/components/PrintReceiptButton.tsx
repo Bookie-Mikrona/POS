@@ -231,9 +231,14 @@ export function PrintReceiptButton({
     setPrinting(true);
     try {
       await onBeforePrint?.();
-      const qs = zbirni ? "?zbirni=1" : "";
       // Popup gre direktno na /api/... (brez /pos prefiksa) — Vite proxy bi spremenil
       // host na localhost:8080, Clerk handshake bi potem preusmeril na localhost:8080.
+      // window.open() ne more pošiljati custom headerjev, zato enota_id dodamo kot query param.
+      const enotaId = localStorage.getItem("pos_enota_id");
+      const params = new URLSearchParams();
+      if (zbirni) params.set("zbirni", "1");
+      if (enotaId) params.set("enota_id", enotaId);
+      const qs = params.size ? `?${params.toString()}` : "";
       popupWin.location.href = `/api/print/racun/${racunId}/html${qs}`;
       onAfterPrint?.();
     } catch (err) {

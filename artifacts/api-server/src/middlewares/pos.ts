@@ -37,8 +37,8 @@ export async function requireEnota(
     return;
   }
 
-  // 2. Pridobi enota_id iz headerja
-  const enotaIdRaw = req.headers["x-enota-id"];
+  // 2. Pridobi enota_id — iz headerja (fetch klici) ali query parametra (window.open popup)
+  const enotaIdRaw = req.headers["x-enota-id"] ?? req.query["enota_id"];
   const enotaId = enotaIdRaw ? parseInt(String(enotaIdRaw), 10) : NaN;
 
   if (!enotaId || isNaN(enotaId)) {
