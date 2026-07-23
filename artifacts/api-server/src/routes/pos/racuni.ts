@@ -9,7 +9,7 @@ import * as net from "net";
 import iconv from "iconv-lite";
 import QRCode from "qrcode";
 import { logger } from "../../lib/logger";
-import { readAllWithFallback, toResponse } from "./nastavitve";
+import { readAll, readAllWithFallback, toResponse } from "./nastavitve";
 import { upsertPogostKupec } from "./kupec";
 // bcrypt: use (await import('bcryptjs')).default for hashing
 import { posljiEmailRacun } from "../../lib/pos-email";
