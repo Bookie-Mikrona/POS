@@ -67,8 +67,20 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
   const [bonPicaRes] = await db.select({ skupaj: sum(racuniTable.znesekBonPica), steviloBonov: sum(racuniTable.steviloBonov) }).from(racuniTable).where(podmeje);
 
   const [kuponRes] = await db.select({
-    prejetiKuponi: sql<number>`COALESCE(SUM(${racuniTable.steviloBonov}) * 10, 0)::int`,
-    izdaniKuponi: sql<number>`COALESCE(SUM(${racuniTable.izdaniKuponi}), 0)::int`}).from(racuniTable).where(podmeje);
+    prejetiKuponi: sql<number>`COALESCE(SUM(${racuniTable.steviloBonov}) * 10, 0)::int`}).from(racuniTable).where(podmeje);
+
+  // izdani kuponi = število glavnih to-go postavk (to_go=true direktno, brez otrok)
+  // vsaka prodana to-go pica izda en kupon stranki
+  const izdaniKuponiRaw = await db.execute(sql`
+    SELECT COUNT(p.id)::int AS izdani
+    FROM postavke p
+    JOIN racuni r ON r.id = p.racun_id
+    WHERE p.to_go = true
+      AND r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
+      AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz
+      AND r.enota_id = ${tenotaId}
+  `);
+  const izdaniKuponi = Number((izdaniKuponiRaw.rows[0] as { izdani: number } | undefined)?.izdani ?? 0);
 
   // ── po blagajni (PP-BB koda iz stevilke racuna) ──────────
   const poBlagajnahRaw = await db.execute(sql`
