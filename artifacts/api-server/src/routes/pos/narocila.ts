@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { artModSkupineTable, artikliTable, db, kategorijeTable, mizeTable, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable, prenosiNarocilTable, racuniTable, zacetneZalogeTable } from "@workspace/db";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcast, broadcastTo } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
 
 function izracunajDDVNeskladje(postavke: { kolicina: number; cenaKos: number; skupaj: number; davek: number }[]): { imaNeskladje: boolean; razlika: number } {
@@ -700,7 +700,7 @@ router.patch("/narocila/:id/postavke/:postavkaId/pripravljeno", async (req, res)
       mizaStevilka,
       vir: parsed.data.vir ?? null};
     if (postavka.napravaId) {
-      broadcast("postavkaPripravljena", payload);
+      broadcastTo(postavka.napravaId, "postavkaPripravljena", payload);
     } else {
       broadcast("postavkaPripravljena", payload);
     }
