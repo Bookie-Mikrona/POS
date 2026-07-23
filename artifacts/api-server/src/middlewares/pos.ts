@@ -10,7 +10,6 @@ import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { enoteTable, posUporabnikiTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
-import { logger } from "../lib/logger";
 
 const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
@@ -79,11 +78,9 @@ export async function requireEnota(
     .limit(1);
 
   if (!posUser) {
-    logger.warn({ userId, enotaId, isSuperAdmin: SUPER_ADMIN_IDS.includes(userId) }, "[requireEnota] 403 posUser NOT FOUND");
-    res.status(403).json({ napaka: "Nimate dostopa do POS sistema", _debug: { userId, enotaId, isSuperAdmin: SUPER_ADMIN_IDS.includes(userId) } });
+    res.status(403).json({ napaka: "Nimate dostopa do POS sistema" });
     return;
   }
-  logger.info({ userId, enotaId, vloga: posUser.vloga }, "[requireEnota] OK");
 
   // admin_enote sme dostopati samo do svoje dodeljene enote
   if (posUser.vloga === "admin_enote" && posUser.dodeljenaEnotaId !== enotaId) {

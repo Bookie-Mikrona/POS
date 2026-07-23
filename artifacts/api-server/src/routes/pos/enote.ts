@@ -15,8 +15,8 @@ import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
-// GET /pos/enote — vse enote tega podjetja (company_id iz ERP middleware)
-router.get("/enote", async (req: Request, res: Response): Promise<void> => {
+// GET /enote — vse enote tega podjetja (company_id iz ERP middleware)
+router.get("/", async (req: Request, res: Response): Promise<void> => {
   const companyId = (req as any).companyId as string | undefined;
   if (!companyId) { res.status(400).json({ napaka: "Manjka X-Company-Id" }); return; }
   const rows = await db.select().from(enoteTable)
@@ -25,8 +25,8 @@ router.get("/enote", async (req: Request, res: Response): Promise<void> => {
   res.json(rows);
 });
 
-// POST /pos/enote — ustvari novo enoto
-router.post("/enote", async (req: Request, res: Response): Promise<void> => {
+// POST /enote — ustvari novo enoto
+router.post("/", async (req: Request, res: Response): Promise<void> => {
   const companyId = (req as any).companyId as string | undefined;
   if (!companyId) { res.status(400).json({ napaka: "Manjka X-Company-Id" }); return; }
   const { ime, opis, aktiven, zacetekDnevaUra } = req.body as { ime?: string; opis?: string; aktiven?: boolean; zacetekDnevaUra?: string };
@@ -41,8 +41,8 @@ router.post("/enote", async (req: Request, res: Response): Promise<void> => {
   res.status(201).json(row);
 });
 
-// PUT /pos/enote/:id
-router.put("/enote/:id", async (req: Request, res: Response): Promise<void> => {
+// PUT /enote/:id
+router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   const companyId = (req as any).companyId as string | undefined;
   if (!companyId) { res.status(400).json({ napaka: "Manjka X-Company-Id" }); return; }
   const id = parseInt(String(req.params.id), 10);
@@ -60,8 +60,8 @@ router.put("/enote/:id", async (req: Request, res: Response): Promise<void> => {
   res.json(row);
 });
 
-// DELETE /pos/enote/:id
-router.delete("/enote/:id", async (req: Request, res: Response): Promise<void> => {
+// DELETE /enote/:id
+router.delete("/:id", async (req: Request, res: Response): Promise<void> => {
   const companyId = (req as any).companyId as string | undefined;
   if (!companyId) { res.status(400).json({ napaka: "Manjka X-Company-Id" }); return; }
   const id = parseInt(String(req.params.id), 10);
