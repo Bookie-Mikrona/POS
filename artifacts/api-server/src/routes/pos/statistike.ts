@@ -124,6 +124,28 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     steviloBonov: Number(r.stevilo_bonov_pica),
     steviloRacunov: Number(r.stevilo_racunov)}));
 
+  // ── prihodki po vrsti (storitve vs blago) ────────────────
+  // storitve = postavke kjer to_go = false, blago = to_go = true; oba neto (brez DDV)
+  const prihodkiVrstaRaw = await db.execute(sql`
+    SELECT
+      SUM(CASE WHEN p.to_go = false
+               THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
+               ELSE 0 END) AS storitve,
+      SUM(CASE WHEN p.to_go = true
+               THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
+               ELSE 0 END) AS blago
+    FROM postavke p
+    JOIN racuni r ON r.id = p.racun_id
+    WHERE r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
+      AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz
+      AND r.enota_id = ${tenotaId}
+  `);
+  type PrihodkiVrstaRow = { storitve: string | null; blago: string | null };
+  const pvRow = prihodkiVrstaRaw.rows[0] as PrihodkiVrstaRow | undefined;
+  const prihodkiPoVrsti = {
+    storitve: Number(pvRow?.storitve ?? 0),
+    blago: Number(pvRow?.blago ?? 0)};
+
   // ── DDV po stopnjah (iz postavk) ─────────────────────────
   const ddvPoStopnjahRaw = await db.execute(sql`
     SELECT
@@ -188,6 +210,7 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     prometPoBlagajnah,
     prometPoNatakarjih,
     ddvPoStopnjah,
+    prihodkiPoVrsti,
     izdaniKuponi: Number(kuponRes?.izdaniKuponi ?? 0),
     prejetiKuponi: Number(kuponRes?.prejetiKuponi ?? 0),
     odZap,
