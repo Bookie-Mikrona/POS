@@ -270,7 +270,7 @@ router.post("/superadmin/podjetja/osvezi-inetis", ...superAdminStack, async (_re
 // Dodeli POS vlogo Clerk uporabniku.
 
 router.post("/superadmin/podjetja/:davcna/uporabniki", ...superAdminStack, async (req: Request, res: Response): Promise<void> => {
-  const davcna = (req.params.davcna ?? "").replace(/^SI/i, "").trim();
+  const davcna = (String(req.params.davcna ?? "")).replace(/^SI/i, "").trim();
   const { clerkUserId, ime, vloga } = req.body as { clerkUserId?: string; ime?: string; vloga?: string };
 
   if (!clerkUserId?.trim()) { res.status(400).json({ error: "Clerk user ID je obvezen." }); return; }

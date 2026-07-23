@@ -21,7 +21,7 @@ async function requirePosAdmin(req: Request, res: Response, next: () => void): P
   if (SUPER_ADMIN_IDS.includes(clerkUserId)) { next(); return; }
 
   // Preveri admin vlogo v POS
-  const companyId = req.params.companyId ?? (req.body as Record<string, unknown>)?.companyId as string;
+  const companyId = String(req.params.companyId ?? (req.body as Record<string, unknown>)?.companyId ?? "");
   if (!companyId) { res.status(400).json({ napaka: "Manjka companyId" }); return; }
 
   const [admin] = await db
@@ -47,7 +47,7 @@ router.get(
   "/pos/admin/podjetja/:companyId/uporabniki",
   (req, res, next) => requirePosAdmin(req, res, next),
   async (req: Request, res: Response): Promise<void> => {
-    const { companyId } = req.params;
+    const companyId = String(req.params.companyId);
     const rows = await db
       .select({
         id: posUporabnikiTable.id,
@@ -73,7 +73,7 @@ router.post(
   "/pos/admin/podjetja/:companyId/uporabniki",
   (req, res, next) => requirePosAdmin(req, res, next),
   async (req: Request, res: Response): Promise<void> => {
-    const { companyId } = req.params;
+    const companyId = String(req.params.companyId);
     const { clerkUserId, enotaId, vloga, ime, priimek } = req.body as {
       clerkUserId?: string; enotaId?: number; vloga?: string; ime?: string; priimek?: string;
     };
@@ -106,7 +106,8 @@ router.put(
   "/pos/admin/podjetja/:companyId/uporabniki/:id",
   (req, res, next) => requirePosAdmin(req, res, next),
   async (req: Request, res: Response): Promise<void> => {
-    const { companyId, id } = req.params;
+    const companyId = String(req.params.companyId);
+    const id = String(req.params.id);
     const { enotaId, vloga, ime, priimek, aktiven } = req.body as {
       enotaId?: number | null; vloga?: string; ime?: string; priimek?: string; aktiven?: boolean;
     };
@@ -134,7 +135,8 @@ router.delete(
   "/pos/admin/podjetja/:companyId/uporabniki/:id",
   (req, res, next) => requirePosAdmin(req, res, next),
   async (req: Request, res: Response): Promise<void> => {
-    const { companyId, id } = req.params;
+    const companyId = String(req.params.companyId);
+    const id = String(req.params.id);
     const [row] = await db
       .update(posUporabnikiTable)
       .set({ aktiven: false })

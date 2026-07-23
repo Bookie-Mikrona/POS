@@ -42,6 +42,7 @@ import zacetneZalogeRouter from "./zacetne-zaloge";
 import zalogeRouter from "./zaloge";
 import posAuthRouter from "./auth";
 import posAdminUporabnikiRouter from "./admin-uporabniki";
+import terminalRouter from "./terminal";
 
 const router: IRouter = Router();
 
@@ -104,5 +105,6 @@ router.use(requireEnota, inventureRouter);
 router.use(requireEnota, prejemniceRouter);
 router.use(requireEnota, zacetneZalogeRouter);
 router.use(requireEnota, zalogeRouter);
+router.use(requireEnota, terminalRouter);
 
 export default router;

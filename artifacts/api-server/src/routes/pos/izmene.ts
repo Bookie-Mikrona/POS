@@ -46,7 +46,8 @@ function baseQuery() {
     .leftJoin(blagajneTable, eq(izmeneTable.blagajnaId, blagajneTable.id));
 }
 
-function rowToObj(r: typeof izmenaSelect & Record<string, unknown>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToObj(r: any) {
   return {
     id: r.id as number,
     natakariId: r.natakariId as number,
@@ -144,7 +145,7 @@ router.post("/izmene", async (req, res): Promise<void> => {
 });
 
 router.post("/izmene/:id/zapri", async (req, res): Promise<void> => {
-  const enotaId = (req as PosRequest).enotaId;
+  const enotaId = (req as unknown as PosRequest).enotaId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 

@@ -805,7 +805,7 @@ router.post("/racuni/:id/ponovi-furs", async (req, res): Promise<void> => {
 
 router.post("/racuni/:id/poslji-email", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const { prejemnik } = req.body as { prejemnik?: string };
@@ -1196,7 +1196,7 @@ router.get("/racuni/:id", async (req, res): Promise<void> => {
 
 router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID računa" }); return; }
 
   const racun = await db.select({ id: racuniTable.id })
@@ -1231,7 +1231,7 @@ router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
 // ZCS Z92 ima 30 kolon. APK na localhost:8090 sprejme JSON in tiska prek ZCS SDK.
 router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const zbirni = req.query.zbirni === "1";
@@ -1353,7 +1353,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
 // ── GET /print/racun/:id/html — brskalniški tisk računa ──────────────────────
 router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).send("Neveljaven ID"); return; }
 
   // Naloži račun — vsa polja enaka kot pri ESC/POS tiskanju
@@ -1646,7 +1646,7 @@ function buildEscPosBytes(d: NonNullable<Awaited<ReturnType<typeof buildEscPosDa
 /** ESC/POS binarni izpis — za USB Serial in Bluetooth tiskanje */
 router.get("/print/racun/:id", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const d = await buildEscPosData(id, tenotaId);
@@ -1661,7 +1661,7 @@ router.get("/print/racun/:id", async (req: Request, res: Response): Promise<void
 /** Proxy ESC/POS bajte na Wi-Fi/omrežni tiskalnik (TCP port 9100) */
 router.post("/print/racun/:id/network", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const body = req.body as { naslov?: string };
@@ -1706,7 +1706,7 @@ router.post("/print/racun/:id/network", async (req: Request, res: Response): Pro
 /** Windows tiskalni agent — ustvari tiskalno nalogo v bazi (polling) */
 router.post("/print/racun/:id/agent", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const d = await buildEscPosData(id, tenotaId);

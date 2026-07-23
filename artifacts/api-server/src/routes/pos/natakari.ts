@@ -45,7 +45,7 @@ router.post("/natakari", async (req, res): Promise<void> => {
 
 /** Posodobi natakarja — preveri da pripada istemu podjetju. */
 router.put("/natakari/:id", async (req, res): Promise<void> => {
-  const companyId = (req as PosRequest).companyId;
+  const companyId = (req as unknown as PosRequest).companyId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -85,7 +85,7 @@ router.put("/natakari/:id", async (req, res): Promise<void> => {
 
 /** Izbriše natakarja — preveri da pripada istemu podjetju. */
 router.delete("/natakari/:id", async (req, res): Promise<void> => {
-  const companyId = (req as PosRequest).companyId;
+  const companyId = (req as unknown as PosRequest).companyId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
