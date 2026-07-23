@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Receipt, CreditCard, Banknote, Gift, CheckCircle2,
-  XCircle, Loader2, Monitor, User, AlertTriangle,
+  XCircle, Loader2, Monitor, User, AlertTriangle, AlertCircle,
   Pizza, Plus, Minus, ShieldAlert, KeyRound, ArrowLeft,
   Scissors, GitMerge, Users, Building2, QrCode,
   Copy, ExternalLink, Check, Mail, FileText, Printer, Landmark,
