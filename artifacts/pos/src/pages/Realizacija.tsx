@@ -403,8 +403,8 @@ export default function Realizacija() {
   const monthGroups = groupByMesec(groups);
   const showMonthlyTotals = monthGroups.length > 1;
   const hasBonPica = data ? data.skupaj.bonPica > 0 : false;
-  const hasReprezentanca = data ? data.racuni.some(r => r.placilnaNacin === "reprezentanca") : false;
-  const hasLastnaPoraba = data ? data.racuni.some(r => r.placilnaNacin === "lastna_poraba") : false;
+  const hasReprezentanca = data ? data.racuni.some(r => r.reprezentanca > 0) : false;
+  const hasLastnaPoraba = data ? data.racuni.some(r => r.lastna_poraba > 0) : false;
   const TH = `${COL_CLASS} font-semibold whitespace-nowrap`;
   const skupajTh = <th className={TH}>Skupaj</th>;
   const hasKuponi = data ? (data.skupaj.izdaniKuponi > 0 || data.skupaj.prejetiKuponi > 0) : false;
