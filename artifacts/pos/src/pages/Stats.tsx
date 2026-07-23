@@ -74,13 +74,19 @@ export default function Stats() {
   }));
 
   const placila = stats.prometPoNacinuPlacila as unknown as Record<string, number>;
-  const skupajPlacila = NACINI.reduce((acc, n) => acc + (placila[n.kljuc] ?? 0), 0);
+
+  const NAVIDEZNI = new Set(["reprezentanca", "lastna_poraba"]);
+  const skupajPlacila = NACINI
+    .filter(n => !NAVIDEZNI.has(n.kljuc))
+    .reduce((acc, n) => acc + (placila[n.kljuc] ?? 0), 0);
 
   const pieData = NACINI
+    .filter(n => !NAVIDEZNI.has(n.kljuc))
     .map(n => ({ ...n, znesek: placila[n.kljuc] ?? 0 }))
     .filter(n => n.znesek > 0);
 
   const barData = NACINI
+    .filter(n => !NAVIDEZNI.has(n.kljuc))
     .map(n => ({ ime: n.ime, znesek: placila[n.kljuc] ?? 0, barva: n.barva }))
     .filter(n => n.znesek > 0);
 
@@ -201,6 +207,27 @@ export default function Stats() {
                     <span className="text-xs text-muted-foreground w-10 text-right">100%</span>
                     <span className="font-bold text-sm w-24 text-right tabular-nums">{fmt(skupajPlacila)}</span>
                   </div>
+
+                  {/* Navidezni promet — reprezentanca & lastna poraba */}
+                  {NACINI.filter(n => NAVIDEZNI.has(n.kljuc) && (placila[n.kljuc] ?? 0) > 0).length > 0 && (
+                    <>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground px-3 pt-3 pb-1 font-semibold">
+                        Navidezni promet (ni vključen v skupaj)
+                      </p>
+                      {NACINI.filter(n => NAVIDEZNI.has(n.kljuc)).map(n => {
+                        const znesek = placila[n.kljuc] ?? 0;
+                        if (znesek === 0) return null;
+                        return (
+                          <div key={n.kljuc} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors opacity-70">
+                            <span className="flex-shrink-0">{n.ikona}</span>
+                            <span className="flex-1 text-sm font-medium">{n.ime}</span>
+                            <span className="text-xs text-muted-foreground w-10 text-right">—</span>
+                            <span className="font-bold text-sm w-24 text-right tabular-nums">{fmt(znesek)}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
 
                 {/* Bon za pico note */}
