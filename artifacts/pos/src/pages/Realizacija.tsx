@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Printer, Search, FileText, List, AlignJustify } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
+import { getEnotaId } from "@workspace/api-client-react";
 
 interface DdvStopnja {
   stopnja: number;
@@ -311,7 +312,11 @@ export default function Realizacija() {
   async function naloziPodatke() {
     setLoading(true); setError(null);
     try {
-      const r = await fetch(`/api/statistike/realizacija?od=${od}&do=${doParam}`, { credentials: "include" });
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const enotaId = getEnotaId();
+      const headers: Record<string, string> = {};
+      if (enotaId) headers["X-Enota-Id"] = enotaId;
+      const r = await fetch(`${base}/api/statistike/realizacija?od=${od}&do=${doParam}`, { credentials: "include", headers });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { error?: string }).error ?? r.statusText); }
       setData(await r.json());
     } catch (e) {
