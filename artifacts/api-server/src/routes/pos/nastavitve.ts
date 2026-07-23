@@ -386,4 +386,48 @@ router.post("/nastavitve/furs-echo", requireAdmin, async (req, res): Promise<voi
 });
 
 export default router;
-export { readAll, toResponse };
+/**
+ * Naloži nastavitve + samodejno dopolni prazna polja iz podatkov podjetja.
+ * Enaka logika kot GET /nastavitve handler — za uporabo v tiskovnih endpointih.
+ */
+async function readAllWithFallback(enotaId: number): Promise<Record<string, string>> {
+  const map = await readAll("", enotaId);
+
+  const [enota] = await db
+    .select({ companyId: enoteTable.companyId })
+    .from(enoteTable)
+    .where(eq(enoteTable.id, enotaId));
+
+  if (enota?.companyId) {
+    const [company] = await db.select({
+      naziv: companiesTable.naziv,
+      podjetjeDavcna: companiesTable.podjetjeDavcna,
+      naslov: companiesTable.naslov,
+      postnaStevika: companiesTable.postnaStevika,
+      kraj: companiesTable.kraj,
+      maticnaStevilka: companiesTable.maticnaStevilka,
+      trr: companiesTable.trr,
+    }).from(companiesTable).where(eq(companiesTable.id, enota.companyId));
+
+    if (company) {
+      if (!map["davcnaStevilka"]) map["davcnaStevilka"] = company.podjetjeDavcna.replace(/^SI/i, "");
+      if (!map["nazivRestavracije"]) map["nazivRestavracije"] = company.naziv;
+      if (!map["nazivPodjetja"]) map["nazivPodjetja"] = company.naziv;
+      if (!map["naslovUlica"] && company.naslov) map["naslovUlica"] = company.naslov;
+      if (!map["naslovPostna"] && company.postnaStevika) map["naslovPostna"] = company.postnaStevika;
+      if (!map["naslovKraj"] && company.kraj) map["naslovKraj"] = company.kraj;
+      if (!map["naslovRestavracije"]) {
+        const deli = [company.naslov, company.postnaStevika && company.kraj ? `${company.postnaStevika} ${company.kraj}` : (company.kraj ?? "")].filter(Boolean);
+        if (deli.length) map["naslovRestavracije"] = deli.join(", ");
+      }
+      const prvTrr = company.trr?.[0];
+      if (!map["prodajalecIban"] && prvTrr?.iban) map["prodajalecIban"] = prvTrr.iban;
+      if (!map["prodajalecBic"] && prvTrr?.bic)  map["prodajalecBic"]  = prvTrr.bic;
+      if (!map["racunMaticna"] && company.maticnaStevilka) map["racunMaticna"] = company.maticnaStevilka;
+    }
+  }
+
+  return map;
+}
+
+export { readAll, readAllWithFallback, toResponse };

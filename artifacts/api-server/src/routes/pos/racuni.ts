@@ -7,7 +7,7 @@ import { fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno
 import { buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
 import QRCode from "qrcode";
 import { logger } from "../../lib/logger";
-import { readAll, toResponse } from "./nastavitve";
+import { readAllWithFallback, toResponse } from "./nastavitve";
 import { upsertPogostKupec } from "./kupec";
 // bcrypt: use (await import('bcryptjs')).default for hashing
 import { posljiEmailRacun } from "../../lib/pos-email";
@@ -1252,7 +1252,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
       skupaj: postavkeTable.skupaj, davek: postavkeTable.davek,
       opomba: postavkeTable.opomba, parentPostavkaId: postavkeTable.parentPostavkaId,
     }).from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
-    readAll("", tenotaId),
+    readAllWithFallback(tenotaId),
     db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
   ]);
   const nav = toResponse(nastavitveMap);
@@ -1265,6 +1265,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
   }
 
   const datumCas = new Date(racun.datumCas ?? racun.ustvarjeno);
+  const fursQrUrl = (racun.zoi && nav.davcnaStevilka) ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas) : null;
   const printData: PrintRacunData = {
     stevilkaRacuna: racun.stevilkaRacuna,
     datum: datumCas,
@@ -1282,11 +1283,11 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     placilnaNacin: racun.placilnaNacin as PrintRacunData["placilnaNacin"],
     zoi: racun.zoi ?? null,
     eor: racun.eor ?? null,
-    fursQrUrl: (racun.zoi && nav.davcnaStevilka) ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas) : null,
+    fursQrUrl,
     status: racun.status as "poslan" | "napaka" | "testni",
-    nazivRestvracije: nav.nazivRestavracije ?? undefined,
-    naslovRestvracije: nav.naslovRestavracije ?? undefined,
-    davcnaStevilka: nav.davcnaStevilka ?? undefined,
+    nazivRestvracije: nav.nazivRestavracije || undefined,
+    naslovRestvracije: nav.naslovRestavracije || undefined,
+    davcnaStevilka: nav.davcnaStevilka || undefined,
     enotaOpis: enota[0]?.opis ?? null,
     racunPozdrav1: nav.racunPozdrav1 || undefined,
     racunPozdrav2: nav.racunPozdrav2 || undefined,
@@ -1314,8 +1315,18 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     sumupCheckoutId: racun.sumupCheckoutId ?? null,
   };
 
-  const { linee, formati, qrUrl } = buildTextReceipt(printData, 32);
-  res.json({ linee, formati, qrUrl });
+  const { linee, formati } = buildTextReceipt(printData, 32);
+
+  // Generiraj QR kodo kot base64 PNG — APK jo potrebuje za tisk slike
+  let qrBase64: string | null = null;
+  if (fursQrUrl) {
+    try {
+      const dataUrl = await QRCode.toDataURL(fursQrUrl, { width: 200, margin: 1, errorCorrectionLevel: "M" });
+      qrBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+    } catch { /* preskoči */ }
+  }
+
+  res.json({ linee, formati, qrUrl: fursQrUrl, qrBase64 });
 });
 
 // ── GET /print/racun/:id/html — brskalniški tisk računa ──────────────────────
@@ -1380,7 +1391,7 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       opomba: postavkeTable.opomba,
       parentPostavkaId: postavkeTable.parentPostavkaId,
     }).from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
-    readAll("", tenotaId),
+    readAllWithFallback(tenotaId),
     db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
   ]);
   const nav = toResponse(nastavitveMap);
@@ -1425,9 +1436,9 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas)
       : null,
     status: racun.status as "poslan" | "napaka" | "testni",
-    nazivRestvracije: nav.nazivRestavracije ?? undefined,
-    naslovRestvracije: nav.naslovRestavracije ?? undefined,
-    davcnaStevilka: nav.davcnaStevilka ?? undefined,
+    nazivRestvracije: nav.nazivRestavracije || undefined,
+    naslovRestvracije: nav.naslovRestavracije || undefined,
+    davcnaStevilka: nav.davcnaStevilka || undefined,
     enotaOpis: enotaOpis,
     racunPozdrav1: nav.racunPozdrav1 || undefined,
     racunPozdrav2: nav.racunPozdrav2 || undefined,
