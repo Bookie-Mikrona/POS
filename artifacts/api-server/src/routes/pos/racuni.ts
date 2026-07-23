@@ -1315,7 +1315,8 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     sumupCheckoutId: racun.sumupCheckoutId ?? null,
   };
 
-  const { linee, formati } = buildTextReceipt(printData, 32);
+  // ZCS Z92 ima 30 kolon (ne 32 kot 58mm tiskalniki)
+  const { linee, formati } = buildTextReceipt(printData, 30);
 
   // Generiraj QR kodo kot base64 PNG — APK jo potrebuje za tisk slike
   let qrBase64: string | null = null;
