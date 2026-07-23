@@ -69,6 +69,26 @@ router.get("/events", requireEnota, (req: Request, res: Response) => {
   });
 });
 
+// ZAČASNI DEBUG — odstrani po odpravi napake
+router.get("/debug-auth", async (req: Request, res: Response) => {
+  const { getAuth } = await import("@clerk/express");
+  const { db, posUporabnikiTable, enoteTable } = await import("@workspace/db");
+  const { eq, and } = await import("drizzle-orm");
+  const { userId } = getAuth(req);
+  const enotaIdRaw = req.headers["x-enota-id"];
+  const enotaId = enotaIdRaw ? parseInt(String(enotaIdRaw), 10) : NaN;
+  let posUser = null;
+  let enota = null;
+  if (userId) {
+    [posUser] = await db.select({ id: posUporabnikiTable.id, companyId: posUporabnikiTable.companyId, vloga: posUporabnikiTable.vloga, aktiven: posUporabnikiTable.aktiven, enotaId: posUporabnikiTable.enotaId }).from(posUporabnikiTable).where(eq(posUporabnikiTable.clerkUserId, userId)).limit(1);
+    if (!isNaN(enotaId)) {
+      [enota] = await db.select({ id: enoteTable.id, companyId: enoteTable.companyId }).from(enoteTable).where(eq(enoteTable.id, enotaId)).limit(1);
+    }
+  }
+  const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  res.json({ userId, enotaIdHeader: enotaIdRaw, enotaIdParsed: enotaId, isSuperAdmin: userId ? SUPER_ADMIN_IDS.includes(userId) : false, superAdminIds: SUPER_ADMIN_IDS, posUser, enota });
+});
+
 // Auth ruta — ostane na /pos/ ker jo AuthContext kliče direktno z /api/pos/auth/me
 router.use("/pos", posAuthRouter);
 
