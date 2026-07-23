@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, count, desc, eq, gte, isNotNull, lte, ne, sql, sum } from "drizzle-orm";
-import { artikliTable, db, enoteTable, narocilaTable, nastavitveTable, postavkeTable, racuniTable } from "@workspace/db";
+import { artikliTable, companiesTable, db, enoteTable, narocilaTable, nastavitveTable, postavkeTable, racuniTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -159,17 +159,17 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
   const odZap = zapRow?.od_zap ?? null;
   const doZap = zapRow?.do_zap ?? null;
 
-  // ── podatki podjetja iz nastavitev ──────────────────────
-  const [ns] = await db.select({
-    naziv: nastavitveTable.vrednost}).from(nastavitveTable).where(
-    and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "nazivRestavracije"))
-  );
-  const [ns2] = await db.select({ vrednost: nastavitveTable.vrednost }).from(nastavitveTable).where(
-    and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "naslovRestavracije"))
-  );
-  const [ns3] = await db.select({ vrednost: nastavitveTable.vrednost }).from(nastavitveTable).where(
-    and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "davcnaStevilka"))
-  );
+  // ── podatki podjetja iz companies prek enote ────────────
+  const [podjetje] = await db
+    .select({ naziv: companiesTable.naziv, naslov: companiesTable.naslov,
+              ulica: companiesTable.ulica, postnaStevika: companiesTable.postnaStevika,
+              kraj: companiesTable.kraj, idZaDdv: companiesTable.idZaDdv })
+    .from(enoteTable)
+    .innerJoin(companiesTable, eq(enoteTable.companyId, companiesTable.id))
+    .where(eq(enoteTable.id, tenotaId));
+  const podjetjeNaslov = podjetje?.naslov
+    ?? [podjetje?.ulica, podjetje?.postnaStevika, podjetje?.kraj].filter(Boolean).join(", ")
+    ?? "";
 
   res.json({
     skupajPromet: Number(skupni?.skupaj ?? 0),
@@ -193,9 +193,9 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     odZap,
     doZap,
     podjetje: {
-      naziv: ns?.naziv ?? "",
-      naslov: ns2?.vrednost ?? "",
-      davcnaStevilka: ns3?.vrednost ?? ""}});
+      naziv: podjetje?.naziv ?? "",
+      naslov: podjetjeNaslov,
+      davcnaStevilka: podjetje?.idZaDdv ?? ""}});
 });
 
 router.get("/statistike", async (req, res): Promise<void> => {
@@ -395,9 +395,16 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     jeStorno: racuniTable.jeStorno,
     status: racuniTable.status}).from(racuniTable).where(podmeje).orderBy(asc(racuniTable.ustvarjeno));
 
-  const [ns]  = await db.select({ vrednost: nastavitveTable.vrednost }).from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "nazivRestavracije")));
-  const [ns2] = await db.select({ vrednost: nastavitveTable.vrednost }).from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "naslovRestavracije")));
-  const [ns3] = await db.select({ vrednost: nastavitveTable.vrednost }).from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "davcnaStevilka")));
+  const [podjetje] = await db
+    .select({ naziv: companiesTable.naziv, naslov: companiesTable.naslov,
+              ulica: companiesTable.ulica, postnaStevika: companiesTable.postnaStevika,
+              kraj: companiesTable.kraj, idZaDdv: companiesTable.idZaDdv })
+    .from(enoteTable)
+    .innerJoin(companiesTable, eq(enoteTable.companyId, companiesTable.id))
+    .where(eq(enoteTable.id, tenotaId));
+  const podjetjeNaslov = podjetje?.naslov
+    ?? [podjetje?.ulica, podjetje?.postnaStevika, podjetje?.kraj].filter(Boolean).join(", ")
+    ?? "";
 
   // Face value (znesek postavk pred popustom) za lastna_poraba/reprezentanca račune
   const specialIds = rows
@@ -564,9 +571,9 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     ddv: Number(r.ddv)}));
 
   res.json({ racuni: racuniZDdv, skupaj, ddvPoStopnjah: ddvPoStopnjahSkupaj, artikli, zacetekUra, podjetje: {
-    naziv: ns?.vrednost ?? "",
-    naslov: ns2?.vrednost ?? "",
-    davcnaStevilka: ns3?.vrednost ?? ""}});
+    naziv: podjetje?.naziv ?? "",
+    naslov: podjetjeNaslov,
+    davcnaStevilka: podjetje?.idZaDdv ?? ""}});
 });
 
 export default router;
