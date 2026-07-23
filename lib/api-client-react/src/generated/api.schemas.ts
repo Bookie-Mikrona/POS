@@ -504,6 +504,8 @@ export interface Natakari {
   davcnaStevilka?: string | null;
   aktiven: boolean;
   ustvarjeno?: string;
+  /** @nullable — Clerk User ID za avtomatsko vezavo izmene */
+  clerkUserId?: string | null;
 }
 
 export interface NatakariInput {
@@ -512,6 +514,8 @@ export interface NatakariInput {
   /** @nullable */
   davcnaStevilka?: string | null;
   aktiven: boolean;
+  /** @nullable — poveže natakarja s Clerk računom */
+  clerkUserId?: string | null;
 }
 
 export type RacunPlacilnaNacin = typeof RacunPlacilnaNacin[keyof typeof RacunPlacilnaNacin];

@@ -49,18 +49,38 @@ router.put("/natakari/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const { ime, priimek, davcnaStevilka, aktiven } = req.body as {
+  const { ime, priimek, davcnaStevilka, aktiven, clerkUserId } = req.body as {
     ime: string; priimek: string; davcnaStevilka?: string | null; aktiven: boolean;
+    clerkUserId?: string | null;
   };
+
+  // clerkUserId mora biti unikaten — preverimo da ga ne uporablja drug natakar
+  if (clerkUserId) {
+    const [existing] = await db
+      .select({ id: natakariTable.id })
+      .from(natakariTable)
+      .where(and(eq(natakariTable.clerkUserId, clerkUserId), eq(natakariTable.companyId, companyId)))
+      .limit(1);
+    if (existing && existing.id !== id) {
+      res.status(409).json({ error: "Ta Clerk račun je že vezan na drugega natakarja." });
+      return;
+    }
+  }
+
+  const patch: Partial<typeof natakariTable.$inferInsert> = {
+    ime, priimek, davcnaStevilka: davcnaStevilka ?? null, aktiven,
+  };
+  // clerkUserId: null odveže, string poveže, undefined ne spremeni
+  if (clerkUserId !== undefined) patch.clerkUserId = clerkUserId ?? null;
 
   const [row] = await db
     .update(natakariTable)
-    .set({ ime, priimek, davcnaStevilka: davcnaStevilka ?? null, aktiven })
+    .set(patch)
     .where(and(eq(natakariTable.id, id), eq(natakariTable.companyId, companyId)))
     .returning();
 
   if (!row) { res.status(404).json({ error: "Natakar ni najden" }); return; }
-  res.json({ ...row, davcnaStevilka: row.davcnaStevilka ?? null, ustvarjeno: row.ustvarjeno.toISOString() });
+  res.json({ ...row, davcnaStevilka: row.davcnaStevilka ?? null, clerkUserId: row.clerkUserId ?? null, ustvarjeno: row.ustvarjeno.toISOString() });
 });
 
 /** Izbriše natakarja — preveri da pripada istemu podjetju. */

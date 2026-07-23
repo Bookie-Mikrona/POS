@@ -486,6 +486,8 @@ export default function Settings() {
   const [editNPriimek, setEditNPriimek] = useState("");
   const [editNDavcna, setEditNDavcna] = useState("");
   const [editNAktiven, setEditNAktiven] = useState(true);
+  const [editNClerkUserId, setEditNClerkUserId] = useState<string | null>(null);
+  const [posUporabniki, setPosUporabniki] = useState<Array<{ id: number; clerkUserId: string; ime: string; priimek: string; enotaIme?: string | null }>>([]);
 
   // ── Poslovni prostori ──────────────────────────────────────
   const { data: poslovniProstori } = useListPoslovniProstori();
@@ -998,6 +1000,17 @@ export default function Settings() {
     setEditNPriimek(n.priimek);
     setEditNDavcna(n.davcnaStevilka ?? "");
     setEditNAktiven(n.aktiven);
+    setEditNClerkUserId(n.clerkUserId ?? null);
+    // Naloži seznam POS uporabnikov (za dropdown vezave)
+    if (prijavljen?.companyId) {
+      const companyId = prijavljen.companyId;
+      fetch(`/api/pos/admin/podjetja/${companyId}/uporabniki`, { credentials: "include" })
+        .then(r => r.ok ? r.json() : [])
+        .then((data: Array<{ id: number; clerkUserId: string; ime: string; priimek: string; enotaIme?: string | null }>) => {
+          setPosUporabniki(data.filter(u => u.clerkUserId));
+        })
+        .catch(() => setPosUporabniki([]));
+    }
     setEditNatakarOpen(true);
   };
 
@@ -1006,7 +1019,13 @@ export default function Settings() {
     updateNatakar.mutate(
       {
         id: editingNatakar.id,
-        data: { ime: editNIme, priimek: editNPriimek, davcnaStevilka: editNDavcna || null, aktiven: editNAktiven },
+        data: {
+          ime: editNIme,
+          priimek: editNPriimek,
+          davcnaStevilka: editNDavcna || null,
+          aktiven: editNAktiven,
+          clerkUserId: editNClerkUserId,
+        },
       },
       {
         onSuccess: () => {
@@ -1014,7 +1033,7 @@ export default function Settings() {
           setEditNatakarOpen(false);
           toast({ title: "Natakar posodobljen" });
         },
-        onError: () => toast({ title: "Napaka", variant: "destructive" }),
+        onError: (err: Error) => toast({ title: "Napaka", description: err.message, variant: "destructive" }),
       }
     );
   };
@@ -1950,13 +1969,14 @@ export default function Settings() {
                 <TableHead>Ime in priimek</TableHead>
                 <TableHead className="hidden sm:table-cell">Davčna št.</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="hidden md:table-cell">POS račun</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {natakari?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
                     Ni dodanih natakarjev.
                   </TableCell>
                 </TableRow>
@@ -1969,6 +1989,12 @@ export default function Settings() {
                     {n.aktiven
                       ? <Badge className="bg-green-100 text-green-800 border-green-200"><UserCheck className="w-3 h-3 mr-1" />Aktiven</Badge>
                       : <Badge variant="outline" className="text-muted-foreground"><UserX className="w-3 h-3 mr-1" />Neaktiven</Badge>
+                    }
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {n.clerkUserId
+                      ? <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs"><Shield className="w-3 h-3 mr-1" />Vezan</Badge>
+                      : <span className="text-xs text-muted-foreground">—</span>
                     }
                   </TableCell>
                   <TableCell className="text-right">
@@ -4519,6 +4545,38 @@ export default function Settings() {
               <Switch checked={editNAktiven} onCheckedChange={setEditNAktiven} />
               <Label className="cursor-pointer" onClick={() => setEditNAktiven(v => !v)}>Aktiven</Label>
             </div>
+
+            {/* ── Vezava na POS račun (za izmene) ─────────────────── */}
+            <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+              <Label className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Poveži s POS računom <span className="font-normal text-muted-foreground text-xs">(za izmene)</span>
+              </Label>
+              {posUporabniki.length > 0 ? (
+                <Select
+                  value={editNClerkUserId ?? "__none__"}
+                  onValueChange={v => setEditNClerkUserId(v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Izberi POS račun..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Brez vezave —</SelectItem>
+                    {posUporabniki.map(u => (
+                      <SelectItem key={u.clerkUserId} value={u.clerkUserId}>
+                        {u.ime} {u.priimek}{u.enotaIme ? ` (${u.enotaIme})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nalaganje POS računov…</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Vezan račun bo natakarjev profil samodejno prepoznal in mu omogočil odpiranje izmene.
+              </p>
+            </div>
+
             <Button className="w-full" onClick={handleUpdateNatakar} disabled={updateNatakar.isPending}>
               {updateNatakar.isPending ? "Shranjujem..." : "Posodobi natakarja"}
             </Button>
