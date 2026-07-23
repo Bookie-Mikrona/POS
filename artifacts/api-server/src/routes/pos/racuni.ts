@@ -1225,6 +1225,99 @@ router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
     ustvarjeno: v.ustvarjeno instanceof Date ? v.ustvarjeno.toISOString() : v.ustvarjeno})));
 });
 
+// ── GET /print/racun/:id/zcs — JSON za ZCS Android tiskalni most ─────────────
+// Vrne { linee, formati, qrUrl } — isti format kot buildTextReceipt(32).
+// APK na localhost:8090 sprejme ta JSON in ga natisne prek ZCS SDK.
+router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
+
+  const zbirni = req.query.zbirni === "1";
+
+  const [racun] = await db
+    .select({ ...baseSelect, kupecZavezanecDdv: racuniTable.kupecZavezanecDdv })
+    .from(racuniTable)
+    .leftJoin(narocilaTable, eq(racuniTable.narociloId, narocilaTable.id))
+    .leftJoin(mizeTable, eq(narocilaTable.mizaId, mizeTable.id))
+    .where(and(eq(racuniTable.id, id), eq(racuniTable.enotaId, tenotaId)))
+    .limit(1);
+
+  if (!racun) { res.status(404).json({ error: "Račun ni najden" }); return; }
+
+  const [postavke, nastavitveMap, enota] = await Promise.all([
+    db.select({
+      id: postavkeTable.id, ime: postavkeTable.ime, kolicina: postavkeTable.kolicina,
+      cenaKos: postavkeTable.cenaKos, cenaKosOriginalna: postavkeTable.cenaKosOriginalna,
+      skupaj: postavkeTable.skupaj, davek: postavkeTable.davek,
+      opomba: postavkeTable.opomba, parentPostavkaId: postavkeTable.parentPostavkaId,
+    }).from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
+    readAll("", tenotaId),
+    db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
+  ]);
+  const nav = toResponse(nastavitveMap);
+
+  let stornoIzvornaRacunStevilka: string | null = null;
+  if (racun.jeStorno && racun.izvorniRacunId) {
+    const [izv] = await db.select({ stevilkaRacuna: racuniTable.stevilkaRacuna })
+      .from(racuniTable).where(eq(racuniTable.id, racun.izvorniRacunId)).limit(1);
+    stornoIzvornaRacunStevilka = izv?.stevilkaRacuna ?? null;
+  }
+
+  const datumCas = new Date(racun.datumCas ?? racun.ustvarjeno);
+  const printData: PrintRacunData = {
+    stevilkaRacuna: racun.stevilkaRacuna,
+    datum: datumCas,
+    mizaStevilka: racun.mizaStevilka ?? null,
+    natakarIme: racun.natakarIme ?? null,
+    postavke: postavke.map(p => ({
+      postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
+      cenaKos: Number(p.cenaKos),
+      cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
+      skupaj: Number(p.skupaj), davek: Number(p.davek),
+      opomba: p.opomba ?? null, parentPostavkaId: p.parentPostavkaId ?? null,
+    })),
+    skupaj: Number(racun.skupaj),
+    ddv: Number(racun.ddv),
+    placilnaNacin: racun.placilnaNacin as PrintRacunData["placilnaNacin"],
+    zoi: racun.zoi ?? null,
+    eor: racun.eor ?? null,
+    fursQrUrl: (racun.zoi && nav.davcnaStevilka) ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas) : null,
+    status: racun.status as "poslan" | "napaka" | "testni",
+    nazivRestvracije: nav.nazivRestavracije ?? undefined,
+    naslovRestvracije: nav.naslovRestavracije ?? undefined,
+    davcnaStevilka: nav.davcnaStevilka ?? undefined,
+    enotaOpis: enota[0]?.opis ?? null,
+    racunPozdrav1: nav.racunPozdrav1 || undefined,
+    racunPozdrav2: nav.racunPozdrav2 || undefined,
+    steviloPrintov: racun.steviloPrintov ?? 0,
+    kupecDavcnaStevilka: racun.kupecDavcnaStevilka ?? null,
+    kupecNaziv: racun.kupecNaziv ?? null,
+    kupecNaslov: racun.kupecNaslov ?? null,
+    kupecZavezanecDdv: racun.kupecZavezanecDdv ?? null,
+    stornoIzvornaRacunStevilka,
+    racunMaticna: nav.racunMaticna || null,
+    racunSodisce: nav.racunSodisce || null,
+    racunKapital: nav.racunKapital || null,
+    racunDdvKlavzula: nav.racunDdvKlavzula || null,
+    racunPravnaKlavzula: nav.racunPravnaKlavzula || null,
+    prodajalecIban: nav.prodajalecIban || null,
+    prodajalecBic: nav.prodajalecBic || null,
+    dniOdloga: racun.dniOdloga ?? null,
+    znesekGotovina: racun.znesekGotovina != null ? Number(racun.znesekGotovina) : null,
+    znesekKartica: racun.znesekKartica != null ? Number(racun.znesekKartica) : null,
+    znesekBon: racun.znesekBon != null ? Number(racun.znesekBon) : null,
+    steviloBonov: racun.steviloBonov ?? null,
+    znesekBonPica: racun.znesekBonPica != null ? Number(racun.znesekBonPica) : null,
+    znesekNegotovinsko: racun.znesekNegotovinsko != null ? Number(racun.znesekNegotovinsko) : null,
+    vivaTerminalSessionId: racun.vivaTerminalSessionId ?? null,
+    sumupCheckoutId: racun.sumupCheckoutId ?? null,
+  };
+
+  const { linee, formati, qrUrl } = buildTextReceipt(printData, 32);
+  res.json({ linee, formati, qrUrl });
+});
+
 // ── GET /print/racun/:id/html — brskalniški tisk računa ──────────────────────
 router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;

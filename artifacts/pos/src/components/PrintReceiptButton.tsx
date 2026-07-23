@@ -193,7 +193,11 @@ export function PrintReceiptButton({
       toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} poslan na ZCS tiskalnik.` });
       onAfterPrint?.();
     } catch (err) {
-      await handleDirectBrowserPrint();
+      toast({
+        title: "Napaka pri ZCS tiskanju",
+        description: err instanceof Error ? err.message : "Neznana napaka",
+        variant: "destructive",
+      });
     } finally {
       setPrinting(false);
     }

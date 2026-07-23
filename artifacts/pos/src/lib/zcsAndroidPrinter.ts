@@ -76,7 +76,12 @@ export async function printZcsReceipt(
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
-    const apiUrl = `${base}/api/print/racun/${racunId}/zcs${zbirni ? "?zbirni=1" : ""}`;
+    const enotaId = localStorage.getItem("pos_enota_id");
+    const params = new URLSearchParams();
+    if (zbirni) params.set("zbirni", "1");
+    if (enotaId) params.set("enota_id", enotaId);
+    const qs = params.size ? `?${params.toString()}` : "";
+    const apiUrl = `${base}/api/print/racun/${racunId}/zcs${qs}`;
 
     const apiRes = await fetch(apiUrl, { credentials: "include" });
     if (!apiRes.ok) {
