@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
 import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
-import { fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
+import { fursQrKoda, fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
 import { buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
 import QRCode from "qrcode";
 import { logger } from "../../lib/logger";
@@ -1226,8 +1226,7 @@ router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
 });
 
 // ── GET /print/racun/:id/zcs — JSON za ZCS Android tiskalni most ─────────────
-// Vrne { linee, formati, qrUrl } — isti format kot buildTextReceipt(32).
-// APK na localhost:8090 sprejme ta JSON in ga natisne prek ZCS SDK.
+// ZCS Z92 ima 30 kolon. APK na localhost:8090 sprejme JSON in tiska prek ZCS SDK.
 router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const id = parseInt(req.params.id, 10);
@@ -1235,7 +1234,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
 
   const zbirni = req.query.zbirni === "1";
 
-  const [racun] = await db
+  const [racunRaw] = await db
     .select({ ...baseSelect, kupecZavezanecDdv: racuniTable.kupecZavezanecDdv })
     .from(racuniTable)
     .leftJoin(narocilaTable, eq(racuniTable.narociloId, narocilaTable.id))
@@ -1243,9 +1242,18 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     .where(and(eq(racuniTable.id, id), eq(racuniTable.enotaId, tenotaId)))
     .limit(1);
 
-  if (!racun) { res.status(404).json({ error: "Račun ni najden" }); return; }
+  if (!racunRaw) { res.status(404).json({ error: "Račun ni najden" }); return; }
 
-  const [postavke, nastavitveMap, enota] = await Promise.all([
+  // ── 1. Inkrement steviloPrintov — atomično, pred vsem ostalim ──────────────
+  const [updated] = await db
+    .update(racuniTable)
+    .set({ steviloPrintov: sql`${racuniTable.steviloPrintov} + 1` })
+    .where(and(eq(racuniTable.id, id), eq(racuniTable.enotaId, tenotaId)))
+    .returning({ steviloPrintov: racuniTable.steviloPrintov });
+  const steviloPrintov = updated?.steviloPrintov ?? 1;
+
+  // ── 2. Vzporedne poizvedbe ──────────────────────────────────────────────────
+  const [postavke, nastavitveMap, enotaRow] = await Promise.all([
     db.select({
       id: postavkeTable.id, ime: postavkeTable.ime, kolicina: postavkeTable.kolicina,
       cenaKos: postavkeTable.cenaKos, cenaKosOriginalna: postavkeTable.cenaKosOriginalna,
@@ -1256,46 +1264,48 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
   ]);
   const nav = toResponse(nastavitveMap);
+  const enotaOpis = enotaRow[0]?.opis ?? null;
 
+  // ── 3. Storno referenca ─────────────────────────────────────────────────────
   let stornoIzvornaRacunStevilka: string | null = null;
-  if (racun.jeStorno && racun.izvorniRacunId) {
+  if (racunRaw.jeStorno && racunRaw.izvorniRacunId) {
     const [izv] = await db.select({ stevilkaRacuna: racuniTable.stevilkaRacuna })
-      .from(racuniTable).where(eq(racuniTable.id, racun.izvorniRacunId)).limit(1);
+      .from(racuniTable).where(eq(racuniTable.id, racunRaw.izvorniRacunId)).limit(1);
     stornoIzvornaRacunStevilka = izv?.stevilkaRacuna ?? null;
   }
 
-  const datumCas = new Date(racun.datumCas ?? racun.ustvarjeno);
-  const fursQrUrl = (racun.zoi && nav.davcnaStevilka) ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas) : null;
-  const printData: PrintRacunData = {
-    stevilkaRacuna: racun.stevilkaRacuna,
+  // ── 4. FURS QR URL — vedno generiraj (z "12345678" rezervo) ────────────────
+  const datumCas = new Date(racunRaw.datumCas ?? racunRaw.ustvarjeno);
+  const qrVsebina = racunRaw.zoi
+    ? fursQrKoda(racunRaw.zoi, nav.davcnaStevilka ?? "12345678", datumCas, Number(racunRaw.skupaj))
+    : null;
+
+  // ── 5. Sestavi tiskalne podatke — enako kot original FURS-POS ──────────────
+  const rezultat = buildTextReceipt({
+    stevilkaRacuna: racunRaw.stevilkaRacuna,
     datum: datumCas,
-    mizaStevilka: racun.mizaStevilka ?? null,
-    natakarIme: racun.natakarIme ?? null,
-    postavke: postavke.map(p => ({
-      postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
-      cenaKos: Number(p.cenaKos),
-      cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
-      skupaj: Number(p.skupaj), davek: Number(p.davek),
-      opomba: p.opomba ?? null, parentPostavkaId: p.parentPostavkaId ?? null,
-    })),
-    skupaj: Number(racun.skupaj),
-    ddv: Number(racun.ddv),
-    placilnaNacin: racun.placilnaNacin as PrintRacunData["placilnaNacin"],
-    zoi: racun.zoi ?? null,
-    eor: racun.eor ?? null,
-    fursQrUrl,
-    status: racun.status as "poslan" | "napaka" | "testni",
-    nazivRestvracije: nav.nazivRestavracije || undefined,
-    naslovRestvracije: nav.naslovRestavracije || undefined,
-    davcnaStevilka: nav.davcnaStevilka || undefined,
-    enotaOpis: enota[0]?.opis ?? null,
-    racunPozdrav1: nav.racunPozdrav1 || undefined,
-    racunPozdrav2: nav.racunPozdrav2 || undefined,
-    steviloPrintov: racun.steviloPrintov ?? 0,
-    kupecDavcnaStevilka: racun.kupecDavcnaStevilka ?? null,
-    kupecNaziv: racun.kupecNaziv ?? null,
-    kupecNaslov: racun.kupecNaslov ?? null,
-    kupecZavezanecDdv: racun.kupecZavezanecDdv ?? null,
+    mizaStevilka: racunRaw.mizaStevilka ?? null,
+    skupaj: Number(racunRaw.skupaj),
+    ddv: Number(racunRaw.ddv),
+    placilnaNacin: racunRaw.placilnaNacin as "gotovina" | "kartica" | "bon" | "bon_pica" | "negotovinsko" | "reprezentanca" | "lastna_poraba",
+    status: racunRaw.status as "poslan" | "napaka" | "testni",
+    zoi: racunRaw.zoi ?? null,
+    eor: racunRaw.eor ?? null,
+    fursQrUrl: qrVsebina,
+    nazivRestvracije: nav.nazivRestavracije ?? "Restavracija",
+    naslovRestvracije: nav.naslovRestavracije ?? "",
+    enotaOpis,
+    davcnaStevilka: nav.davcnaStevilka ?? "12345678",
+    racunPozdrav1: nav.racunPozdrav1 ?? "Hvala za obisk!",
+    racunPozdrav2: nav.racunPozdrav2 ?? "Vracamo se — se vidimo.",
+    steviloPrintov,
+    kupecDavcnaStevilka: racunRaw.kupecDavcnaStevilka ?? null,
+    kupecNaziv: racunRaw.kupecNaziv ?? null,
+    kupecNaslov: racunRaw.kupecNaslov ?? null,
+    kupecZavezanecDdv: racunRaw.kupecZavezanecDdv ?? null,
+    vivaTerminalSessionId: racunRaw.vivaTerminalSessionId ?? null,
+    sumupCheckoutId: racunRaw.sumupCheckoutId ?? null,
+    natakarIme: racunRaw.natakarIme ?? null,
     stornoIzvornaRacunStevilka,
     racunMaticna: nav.racunMaticna || null,
     racunSodisce: nav.racunSodisce || null,
@@ -1304,30 +1314,38 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     racunPravnaKlavzula: nav.racunPravnaKlavzula || null,
     prodajalecIban: nav.prodajalecIban || null,
     prodajalecBic: nav.prodajalecBic || null,
-    dniOdloga: racun.dniOdloga ?? null,
-    znesekGotovina: racun.znesekGotovina != null ? Number(racun.znesekGotovina) : null,
-    znesekKartica: racun.znesekKartica != null ? Number(racun.znesekKartica) : null,
-    znesekBon: racun.znesekBon != null ? Number(racun.znesekBon) : null,
-    steviloBonov: racun.steviloBonov ?? null,
-    znesekBonPica: racun.znesekBonPica != null ? Number(racun.znesekBonPica) : null,
-    znesekNegotovinsko: racun.znesekNegotovinsko != null ? Number(racun.znesekNegotovinsko) : null,
-    vivaTerminalSessionId: racun.vivaTerminalSessionId ?? null,
-    sumupCheckoutId: racun.sumupCheckoutId ?? null,
-  };
+    dniOdloga: racunRaw.dniOdloga ?? null,
+    znesekGotovina: racunRaw.znesekGotovina != null ? Number(racunRaw.znesekGotovina) : null,
+    znesekKartica: racunRaw.znesekKartica != null ? Number(racunRaw.znesekKartica) : null,
+    znesekBon: racunRaw.znesekBon != null ? Number(racunRaw.znesekBon) : null,
+    steviloBonov: racunRaw.steviloBonov ?? null,
+    znesekBonPica: racunRaw.znesekBonPica != null ? Number(racunRaw.znesekBonPica) : null,
+    znesekNegotovinsko: racunRaw.znesekNegotovinsko != null ? Number(racunRaw.znesekNegotovinsko) : null,
+    postavke: postavke.map(p => ({
+      postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
+      cenaKos: Number(p.cenaKos),
+      cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
+      skupaj: Number(p.skupaj), davek: Number(p.davek),
+      opomba: p.opomba ?? null, parentPostavkaId: p.parentPostavkaId ?? null,
+    })),
+  }, 30); // ZCS Z92 = 30 kolon
 
-  // ZCS Z92 ima 30 kolon (ne 32 kot 58mm tiskalniki)
-  const { linee, formati } = buildTextReceipt(printData, 30);
-
-  // Generiraj QR kodo kot base64 PNG — APK jo potrebuje za tisk slike
-  let qrBase64: string | null = null;
-  if (fursQrUrl) {
+  // ── 6. QR koda kot PNG base64 — APK jo natisne kot sliko ───────────────────
+  if (qrVsebina) {
     try {
-      const dataUrl = await QRCode.toDataURL(fursQrUrl, { width: 200, margin: 1, errorCorrectionLevel: "M" });
-      qrBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
-    } catch { /* preskoči */ }
+      const qrPng = await QRCode.toBuffer(qrVsebina, {
+        type: "png",
+        width: 250,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      });
+      rezultat.qrBase64 = qrPng.toString("base64");
+    } catch (qrErr) {
+      // QR PNG ni uspel — APK bo izpustil sliko
+    }
   }
 
-  res.json({ linee, formati, qrUrl: fursQrUrl, qrBase64 });
+  res.json(rezultat);
 });
 
 // ── GET /print/racun/:id/html — brskalniški tisk računa ──────────────────────
