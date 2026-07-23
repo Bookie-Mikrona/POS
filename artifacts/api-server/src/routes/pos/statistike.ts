@@ -83,8 +83,8 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
       AND ustvarjeno <= ${doDate.toISOString()}::timestamptz
       AND podjetje_davcna = ${""}
       AND enota_id = ${tenotaId}
-    GROUP BY blagajna_koda
-    ORDER BY blagajna_koda
+    GROUP BY SPLIT_PART(stevilka_racuna, '-', 1) || '-' || SPLIT_PART(stevilka_racuna, '-', 2)
+    ORDER BY SPLIT_PART(stevilka_racuna, '-', 1) || '-' || SPLIT_PART(stevilka_racuna, '-', 2)
   `);
   type BlagajnaRow = { blagajna_koda: string; skupaj: string; stevilo_racunov: number; od_zap: string; do_zap: string };
   const prometPoBlagajnah = (poBlagajnahRaw.rows as BlagajnaRow[]).map(r => ({
