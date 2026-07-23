@@ -2247,9 +2247,13 @@ ${linije.map(vrHtml).join("\n")}
                       Natakar
                     </Label>
                     {aktivniOperaterji.length === 0 ? (
-                      <p className="text-sm text-muted-foreground italic">
-                        Ni aktivnih izmen. Odprite izmeno v razdelku Izmene.
-                      </p>
+                      <Alert className="border-red-300 bg-red-50 text-red-900 py-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <AlertTitle className="text-red-900 font-semibold text-sm">Ni odprtih izmen</AlertTitle>
+                        <AlertDescription className="text-red-800 text-xs mt-0.5">
+                          Pred izdajo računa mora biti na tej enoti odprta vsaj ena delovna izmena. Pojdite v razdelek <strong>Izmene</strong> in odprite izmeno.
+                        </AlertDescription>
+                      </Alert>
                     ) : (
                       <>
                         <Select value={selectedNatakarId} onValueChange={handleNatakarChange}>
@@ -3024,7 +3028,7 @@ ${linije.map(vrHtml).join("\n")}
               <Button
                 className="w-full h-14 text-lg"
                 size="lg"
-                disabled={!selectedNarocilo || createRacun.isPending || (aktivniOperaterji.length > 0 && selectedNatakarId === "none") || imaNeskladjePostavk || (splitMode && splitPostavkeIds.size === 0)}
+                disabled={!selectedNarocilo || createRacun.isPending || aktivniOperaterji.length === 0 || (aktivniOperaterji.length > 0 && selectedNatakarId === "none") || imaNeskladjePostavk || (splitMode && splitPostavkeIds.size === 0)}
                 onClick={handleIzdajRacun}
                 data-testid="button-izdaj-racun"
               >
