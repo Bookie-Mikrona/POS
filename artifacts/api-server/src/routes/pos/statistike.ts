@@ -81,7 +81,6 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     FROM racuni
     WHERE ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND ustvarjeno <= ${doDate.toISOString()}::timestamptz
-      AND podjetje_davcna = ${""}
       AND enota_id = ${tenotaId}
     GROUP BY SPLIT_PART(stevilka_racuna, '-', 1) || '-' || SPLIT_PART(stevilka_racuna, '-', 2)
     ORDER BY SPLIT_PART(stevilka_racuna, '-', 1) || '-' || SPLIT_PART(stevilka_racuna, '-', 2)
@@ -109,7 +108,6 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     FROM racuni
     WHERE ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND ustvarjeno <= ${doDate.toISOString()}::timestamptz
-      AND podjetje_davcna = ${""}
       AND enota_id = ${tenotaId}
     GROUP BY natakar_ime
     ORDER BY skupaj DESC
@@ -136,7 +134,6 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     JOIN racuni r ON r.id = p.racun_id
     WHERE r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz
-      AND r.podjetje_davcna = ${""}
       AND r.enota_id = ${tenotaId}
     GROUP BY p.davek
     ORDER BY p.davek
@@ -155,7 +152,6 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     FROM racuni
     WHERE ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND ustvarjeno <= ${doDate.toISOString()}::timestamptz
-      AND podjetje_davcna = ${""}
       AND enota_id = ${tenotaId}
   `);
   type ZapRow = { od_zap?: string | null; do_zap?: string | null };
@@ -294,7 +290,6 @@ router.get("/statistike", async (req, res): Promise<void> => {
     sql`SELECT EXTRACT(HOUR FROM ustvarjeno)::int AS ura, SUM(skupaj::numeric) AS znesek
         FROM racuni
         WHERE ustvarjeno >= ${startOfDay}
-          AND podjetje_davcna = ${""}
           AND enota_id = ${tenotaId}
         GROUP BY EXTRACT(HOUR FROM ustvarjeno)
         ORDER BY ura`
@@ -316,8 +311,7 @@ router.get("/statistike", async (req, res): Promise<void> => {
         FROM izmene i
         JOIN natakari n ON n.id = i.natakari_id
         LEFT JOIN racuni r ON r.izmena_id = i.id
-        WHERE i.podjetje_davcna = ${""}
-          AND i.enota_id = ${tenotaId}
+        WHERE i.enota_id = ${tenotaId}
           AND (
             i.zacetek >= ${startOfDayIso}::timestamptz
             OR i.konec >= ${startOfDayIso}::timestamptz
