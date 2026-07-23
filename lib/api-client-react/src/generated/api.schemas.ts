@@ -458,6 +458,10 @@ export interface Izmena {
   skupajZnesek: number;
   /** Število računov v izmeni */
   steviloRacunov: number;
+  /** Enota, na kateri je bila izmena odprta */
+  enotaId?: number;
+  /** @nullable */
+  enotaIme?: string | null;
 }
 
 export interface IzmenaInput {

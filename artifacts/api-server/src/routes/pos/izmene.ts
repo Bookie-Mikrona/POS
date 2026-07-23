@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
 import { and, count, eq, isNull, sum } from "drizzle-orm";
-import { db, izmeneTable, natakariTable, racuniTable } from "@workspace/db";
+import { db, enoteTable, izmeneTable, natakariTable, racuniTable } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
 
 const router: IRouter = Router();
 
-function toResponse(row: typeof izmeneTable.$inferSelect & { natakarIme: string }) {
+function toResponse(row: typeof izmeneTable.$inferSelect & { natakarIme: string; enotaIme?: string | null }) {
   return {
     id: row.id,
     natakariId: row.natakariId,
@@ -14,6 +14,8 @@ function toResponse(row: typeof izmeneTable.$inferSelect & { natakarIme: string 
     konec: row.konec ? row.konec.toISOString() : null,
     skupajZnesek: Number(row.skupajZnesek),
     steviloRacunov: row.steviloRacunov,
+    enotaId: row.enotaId,
+    enotaIme: row.enotaIme ?? null,
   };
 }
 
@@ -22,8 +24,10 @@ async function getWithNatakar(id: number, enotaId: number) {
     .select({
       id: izmeneTable.id,
       natakariId: izmeneTable.natakariId,
+      enotaId: izmeneTable.enotaId,
       natakarIme: natakariTable.ime,
       natakarPriimek: natakariTable.priimek,
+      enotaIme: enoteTable.ime,
       zacetek: izmeneTable.zacetek,
       konec: izmeneTable.konec,
       skupajZnesek: izmeneTable.skupajZnesek,
@@ -31,6 +35,7 @@ async function getWithNatakar(id: number, enotaId: number) {
     })
     .from(izmeneTable)
     .leftJoin(natakariTable, eq(izmeneTable.natakariId, natakariTable.id))
+    .leftJoin(enoteTable, eq(izmeneTable.enotaId, enoteTable.id))
     .where(and(eq(izmeneTable.id, id), eq(izmeneTable.enotaId, enotaId)));
   return row;
 }
@@ -41,13 +46,16 @@ router.get("/izmene/aktivne", async (req, res): Promise<void> => {
     .select({
       id: izmeneTable.id,
       natakariId: izmeneTable.natakariId,
+      enotaId: izmeneTable.enotaId,
       natakarIme: natakariTable.ime,
       natakarPriimek: natakariTable.priimek,
+      enotaIme: enoteTable.ime,
       zacetek: izmeneTable.zacetek,
       konec: izmeneTable.konec,
     })
     .from(izmeneTable)
     .leftJoin(natakariTable, eq(izmeneTable.natakariId, natakariTable.id))
+    .leftJoin(enoteTable, eq(izmeneTable.enotaId, enoteTable.id))
     .where(and(isNull(izmeneTable.konec), eq(izmeneTable.enotaId, enotaId)))
     .orderBy(izmeneTable.zacetek);
 
@@ -64,6 +72,8 @@ router.get("/izmene/aktivne", async (req, res): Promise<void> => {
       konec: null,
       skupajZnesek: Number(agg?.skupaj ?? 0),
       steviloRacunov: Number(agg?.stevilo ?? 0),
+      enotaId: r.enotaId,
+      enotaIme: r.enotaIme ?? null,
     };
   }));
 
@@ -80,15 +90,18 @@ router.get("/izmene", async (req, res): Promise<void> => {
     .select({
       id: izmeneTable.id,
       natakariId: izmeneTable.natakariId,
+      enotaId: izmeneTable.enotaId,
       natakarIme: natakariTable.ime,
       natakarPriimek: natakariTable.priimek,
+      enotaIme: enoteTable.ime,
       zacetek: izmeneTable.zacetek,
       konec: izmeneTable.konec,
       skupajZnesek: izmeneTable.skupajZnesek,
       steviloRacunov: izmeneTable.steviloRacunov,
     })
     .from(izmeneTable)
-    .leftJoin(natakariTable, eq(izmeneTable.natakariId, natakariTable.id));
+    .leftJoin(natakariTable, eq(izmeneTable.natakariId, natakariTable.id))
+    .leftJoin(enoteTable, eq(izmeneTable.enotaId, enoteTable.id));
 
   const rows = aktivneOnly
     ? await query.where(and(isNull(izmeneTable.konec), baseCondition)).orderBy(izmeneTable.zacetek)
@@ -102,6 +115,8 @@ router.get("/izmene", async (req, res): Promise<void> => {
     konec: r.konec ? r.konec.toISOString() : null,
     skupajZnesek: Number(r.skupajZnesek),
     steviloRacunov: r.steviloRacunov,
+    enotaId: r.enotaId,
+    enotaIme: r.enotaIme ?? null,
   })));
 });
 
@@ -168,6 +183,7 @@ router.post("/izmene/:id/zapri", async (req, res): Promise<void> => {
   res.json(toResponse({
     ...updated!,
     natakarIme: `${row.natakarIme ?? ""} ${row.natakarPriimek ?? ""}`.trim(),
+    enotaIme: row.enotaIme ?? null,
   }));
 });
 

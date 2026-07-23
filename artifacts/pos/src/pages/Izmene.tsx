@@ -21,7 +21,7 @@ import type { Izmena } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Clock, Play, Square, User, Euro, Receipt,
-  CheckCircle2, TimerOff, TimerReset, AlertCircle,
+  CheckCircle2, TimerOff, TimerReset, AlertCircle, Building2,
 } from "lucide-react";
 
 function elapsed(zacetek: string): string {
@@ -100,6 +100,18 @@ function CloseSummaryDialog({ izmena, open, onClose }: CloseSummaryDialogProps) 
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Pomožna komponenta: značka enote ────────────────────────────────────────
+
+function EnotaBadge({ enotaIme }: { enotaIme?: string | null }) {
+  if (!enotaIme) return null;
+  return (
+    <Badge variant="outline" className="text-xs font-normal gap-1 border-blue-200 text-blue-700 bg-blue-50">
+      <Building2 className="h-3 w-3" />
+      {enotaIme}
+    </Badge>
   );
 }
 
@@ -195,10 +207,13 @@ function UporabnikIzmenePage() {
                   <User className="h-5 w-5 text-muted-foreground" />
                   {mojaAktivna.natakarIme}
                 </CardTitle>
-                <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Aktivna
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <EnotaBadge enotaIme={mojaAktivna.enotaIme ?? user?.enotaIme} />
+                  <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Aktivna
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -240,13 +255,18 @@ function UporabnikIzmenePage() {
           /* Ni aktivne izmene — gumb za odpiranje */
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Play className="h-5 w-5 text-green-600" />
-                Začni izmeno
-              </CardTitle>
-              <CardDescription>
-                Odprite svojo delovno izmeno. Vsi računi, izdani med izmeno, bodo pripisani vam.
-              </CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Play className="h-5 w-5 text-green-600" />
+                    Začni izmeno
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Odprite svojo delovno izmeno. Vsi računi, izdani med izmeno, bodo pripisani vam.
+                  </CardDescription>
+                </div>
+                {user?.enotaIme && <EnotaBadge enotaIme={user.enotaIme} />}
+              </div>
             </CardHeader>
             <CardContent>
               <Button
@@ -384,6 +404,7 @@ export default function IzmenePage() {
 function AdminIzmenePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: aktivne, isLoading: aktivneLoading } = useListAktivneIzmene();
   const { data: vse, isLoading: vseLoading } = useListIzmene({ aktivne: false });
@@ -452,17 +473,22 @@ function AdminIzmenePage() {
       {/* Open new shift */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Play className="h-5 w-5 text-green-600" />
-            Odpri novo izmeno
-          </CardTitle>
-          <CardDescription>
-            Izberi natakarja in odpri izmeno. Vsi računi, izdani med izmeno, bodo samodejno pripisani tej izmeni.
-          </CardDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-green-600" />
+                Odpri novo izmeno
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Izberi natakarja in odpri izmeno za{user?.enotaIme ? ` enoto "${user.enotaIme}"` : " trenutno enoto"}. Vsi računi, izdani med izmeno, bodo samodejno pripisani tej izmeni.
+              </CardDescription>
+            </div>
+            {user?.enotaIme && <EnotaBadge enotaIme={user.enotaIme} />}
+          </div>
         </CardHeader>
         <CardContent>
           {razpolozljivi.length === 0 && aktivniNatakari.length > 0 ? (
-            <p className="text-sm text-muted-foreground">Vsi aktivni natakarji imajo odprto izmeno.</p>
+            <p className="text-sm text-muted-foreground">Vsi aktivni natakarji imajo odprto izmeno na tej enoti.</p>
           ) : aktivniNatakari.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Ni aktivnih natakarjev. Dodajte jih v <strong>Nastavitvah</strong>.
@@ -518,15 +544,18 @@ function AdminIzmenePage() {
             {aktivne?.map(izmena => (
               <Card key={izmena.id} className="border-orange-200 bg-orange-50/40">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <User className="h-5 w-5 text-muted-foreground" />
                       {izmena.natakarIme}
                     </CardTitle>
-                    <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Aktivna
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className="bg-orange-100 text-orange-800 border-orange-200 shrink-0">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Aktivna
+                      </Badge>
+                      <EnotaBadge enotaIme={izmena.enotaIme} />
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
