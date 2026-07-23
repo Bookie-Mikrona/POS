@@ -125,16 +125,19 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     steviloRacunov: Number(r.stevilo_racunov)}));
 
   // ── prihodki po vrsti (storitve vs blago) ────────────────
-  // storitve = postavke kjer to_go = false, blago = to_go = true; oba neto (brez DDV)
+  // blago  = postavke kjer to_go=true ALI kjer je starš (parent_postavka_id) to_go=true
+  //          (npr. škatla za pico se avtomatsko doda k to-go pici — davek starša se ohrani)
+  // storitve = vse ostale postavke
   const prihodkiVrstaRaw = await db.execute(sql`
     SELECT
-      SUM(CASE WHEN p.to_go = false
+      SUM(CASE WHEN p.to_go = true OR parent.to_go = true
                THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-               ELSE 0 END) AS storitve,
-      SUM(CASE WHEN p.to_go = true
+               ELSE 0 END) AS blago,
+      SUM(CASE WHEN p.to_go = false AND (parent.id IS NULL OR parent.to_go = false)
                THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-               ELSE 0 END) AS blago
+               ELSE 0 END) AS storitve
     FROM postavke p
+    LEFT JOIN postavke parent ON parent.id = p.parent_postavka_id
     JOIN racuni r ON r.id = p.racun_id
     WHERE r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz
