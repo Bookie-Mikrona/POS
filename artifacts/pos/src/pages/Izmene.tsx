@@ -151,7 +151,7 @@ function UporabnikIzmenePage() {
 
   const handleOpen = (nId: number) => {
     openIzmena.mutate(
-      { data: { natakariId: nId } },
+      { data: { natakariId: nId, blagajnaId: user?.blagajnaId ?? null } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListAktivneIzmeneQueryKey() });
@@ -190,69 +190,15 @@ function UporabnikIzmenePage() {
   return (
     <div className="p-8 space-y-6 flex-1 overflow-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Moja izmena</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Izmene</h1>
         <p className="text-muted-foreground mt-1">Odprite in zaprite svojo delovno izmeno</p>
       </div>
 
-      {/* Glavni blok — odpri / aktivna izmena */}
+      {/* Gumb za odpiranje izmene */}
       {aktivneLoading ? (
         <Skeleton className="h-40 rounded-xl" />
       ) : natakariId ? (
-        mojaAktivna ? (
-          /* Aktivna izmena — prikaži info in gumb za zapiranje */
-          <Card className="border-orange-200 bg-orange-50/40">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  {mojaAktivna.natakarIme}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <EnotaBadge enotaIme={mojaAktivna.enotaIme ?? user?.enotaIme} />
-                  <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Aktivna
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-muted-foreground text-xs">Začetek</p>
-                  <p className="font-medium">{formatTime(mojaAktivna.zacetek)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Trajanje</p>
-                  <p className="font-medium">{elapsed(mojaAktivna.zacetek)}</p>
-                </div>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center text-sm">
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Receipt className="h-3.5 w-3.5" />
-                  {mojaAktivna.steviloRacunov} računov
-                </span>
-                <span className="flex items-center gap-1 font-semibold text-primary">
-                  <Euro className="h-3.5 w-3.5" />
-                  {mojaAktivna.skupajZnesek.toFixed(2)} €
-                </span>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="destructive"
-                className="w-full gap-2"
-                onClick={() => handleClose(mojaAktivna.id)}
-                disabled={zapriIzmeno.isPending}
-              >
-                <Square className="h-4 w-4" />
-                Zaključi izmeno
-              </Button>
-            </CardFooter>
-          </Card>
-        ) : (
-          /* Ni aktivne izmene — gumb za odpiranje */
+        !mojaAktivna && (
           <Card>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
@@ -262,7 +208,7 @@ function UporabnikIzmenePage() {
                     Začni izmeno
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Odprite svojo delovno izmeno. Vsi računi, izdani med izmeno, bodo pripisani vam.
+                    Odprite svojo delovno izmeno{user?.enotaIme ? ` za enoto "${user.enotaIme}"` : ""}. Vsi računi, izdani med izmeno, bodo pripisani vam.
                   </CardDescription>
                 </div>
                 {user?.enotaIme && <EnotaBadge enotaIme={user.enotaIme} />}
@@ -322,6 +268,89 @@ function UporabnikIzmenePage() {
         </Card>
       )}
 
+      {/* VSE aktivne izmene na tej enoti */}
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Clock className="h-5 w-5 text-orange-500" />
+          Aktivne izmene
+        </h2>
+        {aktivneLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-28 rounded-xl" />
+          </div>
+        ) : aktivne?.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center text-muted-foreground text-sm">
+              <TimerOff className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              Ni odprtih izmen na tej enoti.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {aktivne?.map(izmena => {
+              const jeMoja = izmena.natakariId === natakariId;
+              return (
+                <Card key={izmena.id} className={jeMoja ? "border-orange-200 bg-orange-50/40" : "border-muted"}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        {izmena.natakarIme}
+                        {jeMoja && <span className="text-xs font-normal text-muted-foreground">(jaz)</span>}
+                      </CardTitle>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className={jeMoja ? "bg-orange-100 text-orange-800 border-orange-200 shrink-0 text-xs" : "bg-muted text-muted-foreground shrink-0 text-xs"}>
+                          <Clock className="h-3 w-3 mr-1" />
+                          Aktivna
+                        </Badge>
+                        {izmena.blagajnaIme && (
+                          <span className="text-xs text-muted-foreground">{izmena.blagajnaIme}</span>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Začetek</p>
+                        <p className="font-medium">{formatTime(izmena.zacetek)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Trajanje</p>
+                        <p className="font-medium">{elapsed(izmena.zacetek)}</p>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Receipt className="h-3.5 w-3.5" />
+                        {izmena.steviloRacunov} računov
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold text-primary">
+                        <Euro className="h-3.5 w-3.5" />
+                        {izmena.skupajZnesek.toFixed(2)} €
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      variant={jeMoja ? "destructive" : "outline"}
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => handleClose(izmena.id)}
+                      disabled={zapriIzmeno.isPending}
+                    >
+                      <Square className="h-4 w-4" />
+                      Zaključi izmeno
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Moja zgodovina izmen */}
       <div className="space-y-3">
         <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -346,6 +375,7 @@ function UporabnikIzmenePage() {
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Datum</th>
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Začetek</th>
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Konec</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Enota / Blagajna</th>
                   <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Računi</th>
                   <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Promet</th>
                 </tr>
@@ -365,6 +395,13 @@ function UporabnikIzmenePage() {
                       <td className="px-4 py-3">
                         {izmena.konec ? formatTime(izmena.konec) : "—"}
                         {izmena.konec && <span className="ml-1.5 text-xs text-muted-foreground">({trajanje})</span>}
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <div className="flex flex-col gap-0.5">
+                          {izmena.enotaIme && <span className="text-xs font-medium">{izmena.enotaIme}</span>}
+                          {izmena.blagajnaIme && <span className="text-xs text-muted-foreground">{izmena.blagajnaIme}</span>}
+                          {!izmena.enotaIme && !izmena.blagajnaIme && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">{izmena.steviloRacunov}</td>
                       <td className="px-4 py-3 text-right font-semibold text-primary">
@@ -425,7 +462,7 @@ function AdminIzmenePage() {
   const handleOpen = () => {
     if (!selectedNatakarId) return;
     openIzmena.mutate(
-      { data: { natakariId: parseInt(selectedNatakarId) } },
+      { data: { natakariId: parseInt(selectedNatakarId), blagajnaId: user?.blagajnaId ?? null } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListAktivneIzmeneQueryKey() });
@@ -621,6 +658,7 @@ function AdminIzmenePage() {
                 <tr>
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Datum</th>
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Natakar</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Enota / Blagajna</th>
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Začetek</th>
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Konec</th>
                   <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Računi</th>
@@ -640,6 +678,13 @@ function AdminIzmenePage() {
                     <tr key={izmena.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 text-muted-foreground">{formatDate(izmena.zacetek)}</td>
                       <td className="px-4 py-3 font-medium">{izmena.natakarIme}</td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <div className="flex flex-col gap-0.5">
+                          {izmena.enotaIme && <span className="text-xs font-medium">{izmena.enotaIme}</span>}
+                          {izmena.blagajnaIme && <span className="text-xs text-muted-foreground">{izmena.blagajnaIme}</span>}
+                          {!izmena.enotaIme && !izmena.blagajnaIme && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{formatTime(izmena.zacetek)}</td>
                       <td className="px-4 py-3">
                         {izmena.konec ? formatTime(izmena.konec) : "—"}

@@ -462,10 +462,16 @@ export interface Izmena {
   enotaId?: number;
   /** @nullable */
   enotaIme?: string | null;
+  /** @nullable — blagajna, na kateri je natakar izvajal izmeno */
+  blagajnaId?: number | null;
+  /** @nullable */
+  blagajnaIme?: string | null;
 }
 
 export interface IzmenaInput {
   natakariId: number;
+  /** @nullable — blagajna, na kateri natakar odpira izmeno */
+  blagajnaId?: number | null;
 }
 
 export interface Enota {
