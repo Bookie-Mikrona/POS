@@ -1,10 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
-import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
+import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, tiskalneNalogeTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { fursQrKoda, fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
-import { buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
+import { buildEscPosReceipt, buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
+import * as net from "net";
+import iconv from "iconv-lite";
 import QRCode from "qrcode";
 import { logger } from "../../lib/logger";
 import { readAllWithFallback, toResponse } from "./nastavitve";
@@ -1397,6 +1399,14 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
 
   if (!racun) { res.status(404).send("Račun ni najden"); return; }
 
+  // Inkrement steviloPrintov — atomično pred vsem ostalim
+  const [updatedHtml] = await db
+    .update(racuniTable)
+    .set({ steviloPrintov: sql`${racuniTable.steviloPrintov} + 1` })
+    .where(and(eq(racuniTable.id, id), eq(racuniTable.enotaId, tenotaId)))
+    .returning({ steviloPrintov: racuniTable.steviloPrintov });
+  const steviloPrintovHtml = updatedHtml?.steviloPrintov ?? 1;
+
   // Naloži postavke, nastavitve in enoto vzporedno
   const [postavke, nastavitveMap, enota] = await Promise.all([
     db.select({
@@ -1451,17 +1461,15 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
     placilnaNacin: racun.placilnaNacin as PrintRacunData["placilnaNacin"],
     zoi: racun.zoi ?? null,
     eor: racun.eor ?? null,
-    fursQrUrl: (racun.zoi && nav.davcnaStevilka)
-      ? buildFursQrUrl(racun.zoi, nav.davcnaStevilka, datumCas)
-      : null,
+    fursQrUrl: racun.zoi ? fursQrKoda(racun.zoi, nav.davcnaStevilka ?? "12345678", datumCas, Number(racun.skupaj)) : null,
     status: racun.status as "poslan" | "napaka" | "testni",
-    nazivRestvracije: nav.nazivRestavracije || undefined,
-    naslovRestvracije: nav.naslovRestavracije || undefined,
-    davcnaStevilka: nav.davcnaStevilka || undefined,
+    nazivRestvracije: nav.nazivRestavracije ?? "Restavracija",
+    naslovRestvracije: nav.naslovRestavracije ?? "",
+    davcnaStevilka: nav.davcnaStevilka ?? "12345678",
     enotaOpis: enotaOpis,
-    racunPozdrav1: nav.racunPozdrav1 || undefined,
-    racunPozdrav2: nav.racunPozdrav2 || undefined,
-    steviloPrintov: racun.steviloPrintov ?? 0,
+    racunPozdrav1: nav.racunPozdrav1 ?? "Hvala za obisk!",
+    racunPozdrav2: nav.racunPozdrav2 ?? "Vracamo se — se vidimo.",
+    steviloPrintov: steviloPrintovHtml,
     kupecDavcnaStevilka: racun.kupecDavcnaStevilka ?? null,
     kupecNaziv: racun.kupecNaziv ?? null,
     kupecNaslov: racun.kupecNaslov ?? null,
@@ -1536,6 +1544,196 @@ ${qrDataUrl ? `<div class="qr"><img src="${qrDataUrl}" width="180" height="180" 
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(html);
+});
+
+// ── Pomožna funkcija za izgradnjo ESC/POS podatkov (deljeno med endpointi) ────
+async function buildEscPosData(id: number, tenotaId: number) {
+  const [racunRaw] = await db
+    .select({ ...baseSelect, kupecZavezanecDdv: racuniTable.kupecZavezanecDdv })
+    .from(racuniTable)
+    .leftJoin(narocilaTable, eq(racuniTable.narociloId, narocilaTable.id))
+    .leftJoin(mizeTable, eq(narocilaTable.mizaId, mizeTable.id))
+    .where(and(eq(racuniTable.id, id), eq(racuniTable.enotaId, tenotaId)))
+    .limit(1);
+  if (!racunRaw) return null;
+
+  const [updatedEsc] = await db
+    .update(racuniTable)
+    .set({ steviloPrintov: sql`${racuniTable.steviloPrintov} + 1` })
+    .where(and(eq(racuniTable.id, id), eq(racuniTable.enotaId, tenotaId)))
+    .returning({ steviloPrintov: racuniTable.steviloPrintov });
+  const steviloPrintov = updatedEsc?.steviloPrintov ?? 1;
+
+  const [postavke, nastavitveMap, enotaRow] = await Promise.all([
+    db.select().from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
+    readAllWithFallback(tenotaId),
+    db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
+  ]);
+  const nav = toResponse(nastavitveMap);
+
+  let stornoIzvornaRacunStevilka: string | null = null;
+  if (racunRaw.jeStorno && racunRaw.izvorniRacunId) {
+    const [izv] = await db.select({ stevilkaRacuna: racuniTable.stevilkaRacuna })
+      .from(racuniTable).where(eq(racuniTable.id, racunRaw.izvorniRacunId)).limit(1);
+    stornoIzvornaRacunStevilka = izv?.stevilkaRacuna ?? null;
+  }
+
+  const datumCas = new Date(racunRaw.datumCas ?? racunRaw.ustvarjeno);
+
+  return {
+    racunRaw,
+    steviloPrintov,
+    postavke,
+    nav,
+    enotaOpis: enotaRow[0]?.opis ?? null,
+    stornoIzvornaRacunStevilka,
+    datumCas,
+  };
+}
+
+function buildEscPosBytes(d: NonNullable<Awaited<ReturnType<typeof buildEscPosData>>>, cols: number): Uint8Array {
+  const { racunRaw, steviloPrintov, postavke, nav, enotaOpis, stornoIzvornaRacunStevilka, datumCas } = d;
+  return buildEscPosReceipt({
+    stevilkaRacuna: racunRaw.stevilkaRacuna,
+    datum: datumCas,
+    mizaStevilka: racunRaw.mizaStevilka ?? null,
+    skupaj: Number(racunRaw.skupaj),
+    ddv: Number(racunRaw.ddv),
+    placilnaNacin: racunRaw.placilnaNacin as "gotovina" | "kartica" | "bon" | "bon_pica" | "negotovinsko" | "reprezentanca" | "lastna_poraba",
+    status: racunRaw.status as "poslan" | "napaka" | "testni",
+    zoi: racunRaw.zoi ?? null,
+    eor: racunRaw.eor ?? null,
+    fursQrUrl: racunRaw.zoi ? fursQrKoda(racunRaw.zoi, nav.davcnaStevilka ?? "12345678", datumCas, Number(racunRaw.skupaj)) : null,
+    nazivRestvracije: nav.nazivRestavracije ?? "Restavracija",
+    naslovRestvracije: nav.naslovRestavracije ?? "",
+    enotaOpis,
+    davcnaStevilka: nav.davcnaStevilka ?? "12345678",
+    racunPozdrav1: nav.racunPozdrav1 ?? "Hvala za obisk!",
+    racunPozdrav2: nav.racunPozdrav2 ?? "Vracamo se — se vidimo.",
+    steviloPrintov,
+    kupecDavcnaStevilka: racunRaw.kupecDavcnaStevilka ?? null,
+    kupecNaziv: racunRaw.kupecNaziv ?? null,
+    kupecNaslov: racunRaw.kupecNaslov ?? null,
+    kupecZavezanecDdv: racunRaw.kupecZavezanecDdv ?? null,
+    vivaTerminalSessionId: racunRaw.vivaTerminalSessionId ?? null,
+    sumupCheckoutId: racunRaw.sumupCheckoutId ?? null,
+    natakarIme: racunRaw.natakarIme ?? null,
+    stornoIzvornaRacunStevilka,
+    racunMaticna: nav.racunMaticna || null,
+    racunSodisce: nav.racunSodisce || null,
+    racunKapital: nav.racunKapital || null,
+    racunDdvKlavzula: nav.racunDdvKlavzula || null,
+    racunPravnaKlavzula: nav.racunPravnaKlavzula || null,
+    prodajalecIban: nav.prodajalecIban || null,
+    prodajalecBic: nav.prodajalecBic || null,
+    dniOdloga: racunRaw.dniOdloga ?? null,
+    znesekGotovina: racunRaw.znesekGotovina != null ? Number(racunRaw.znesekGotovina) : null,
+    znesekKartica: racunRaw.znesekKartica != null ? Number(racunRaw.znesekKartica) : null,
+    znesekBon: racunRaw.znesekBon != null ? Number(racunRaw.znesekBon) : null,
+    steviloBonov: racunRaw.steviloBonov ?? null,
+    znesekBonPica: racunRaw.znesekBonPica != null ? Number(racunRaw.znesekBonPica) : null,
+    znesekNegotovinsko: racunRaw.znesekNegotovinsko != null ? Number(racunRaw.znesekNegotovinsko) : null,
+    postavke: postavke.map(p => ({
+      postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
+      cenaKos: Number(p.cenaKos),
+      cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
+      skupaj: Number(p.skupaj), davek: Number(p.davek),
+      opomba: p.opomba ?? null, parentPostavkaId: p.parentPostavkaId ?? null,
+    })),
+  }, cols);
+}
+
+/** ESC/POS binarni izpis — za USB Serial in Bluetooth tiskanje */
+router.get("/print/racun/:id", async (req: Request, res: Response): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
+
+  const d = await buildEscPosData(id, tenotaId);
+  if (!d) { res.status(404).json({ error: "Račun ni najden" }); return; }
+
+  const bytes = buildEscPosBytes(d, 32);
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Content-Disposition", `attachment; filename="racun-${d.racunRaw.stevilkaRacuna}.bin"`);
+  res.send(Buffer.from(bytes));
+});
+
+/** Proxy ESC/POS bajte na Wi-Fi/omrežni tiskalnik (TCP port 9100) */
+router.post("/print/racun/:id/network", async (req: Request, res: Response): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
+
+  const body = req.body as { naslov?: string };
+  const naslov = body.naslov?.trim() ?? "";
+  if (!naslov) { res.status(400).json({ error: "Naslov tiskalnika je obvezen" }); return; }
+
+  const parts = naslov.split(":");
+  const tcpHost = parts[0];
+  const tcpPort = parts[1] ? parseInt(parts[1], 10) : 9100;
+  if (!tcpHost || isNaN(tcpPort) || tcpPort < 1 || tcpPort > 65535) {
+    res.status(400).json({ error: "Neveljaven naslov tiskalnika (npr. 192.168.1.100 ali 192.168.1.100:9100)" });
+    return;
+  }
+
+  const d = await buildEscPosData(id, tenotaId);
+  if (!d) { res.status(404).json({ error: "Račun ni najden" }); return; }
+
+  const bytes = buildEscPosBytes(d, 32);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const socket = new net.Socket();
+      socket.setTimeout(5000);
+      socket.connect(tcpPort, tcpHost, () => {
+        socket.write(Buffer.from(bytes), (writeErr) => {
+          if (writeErr) { socket.destroy(); reject(writeErr); }
+          else { socket.end(); resolve(); }
+        });
+      });
+      socket.on("error", reject);
+      socket.on("timeout", () => {
+        socket.destroy();
+        reject(new Error(`Timeout — tiskalnik ${tcpHost}:${tcpPort} ne odgovori`));
+      });
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : "Napaka pri pošiljanju na tiskalnik" });
+  }
+});
+
+/** Windows tiskalni agent — ustvari tiskalno nalogo v bazi (polling) */
+router.post("/print/racun/:id/agent", async (req: Request, res: Response): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
+
+  const d = await buildEscPosData(id, tenotaId);
+  if (!d) { res.status(404).json({ error: "Račun ni najden" }); return; }
+
+  // Preberi tiskalnikSirina iz naprave (58mm → 32, 80mm → 40 kolon)
+  let tiskalniCols = 32;
+  const napravaKljuc = (req as any).napravaKljuc as string | undefined;
+  if (napravaKljuc) {
+    const [napravRow] = await db.select({ nastavitveJson: napraveTable.nastavitveJson })
+      .from(napraveTable)
+      .where(and(eq(napraveTable.enotaId, tenotaId), eq(napraveTable.napravaKljuc, napravaKljuc)))
+      .limit(1);
+    if (napravRow?.nastavitveJson) {
+      try {
+        const rawNap = JSON.parse(napravRow.nastavitveJson) as Record<string, unknown>;
+        if (Number(rawNap.tiskalnikSirina) === 80) tiskalniCols = 40;
+      } catch { /* nič */ }
+    }
+  }
+
+  const bytes = buildEscPosBytes(d, tiskalniCols);
+  const bajti = Buffer.from(bytes).toString("base64");
+  await db.insert(tiskalneNalogeTable).values({ enotaId: tenotaId, racunId: id, bajti });
+
+  logger.info({ racunId: id, tenotaId }, "agent-print: naloga ustvarjena");
+  res.json({ ok: true });
 });
 
 export default router;
