@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import type { RacunInputPlacilnaNacin } from "@workspace/api-client-react";
+import { getEnotaId } from "@workspace/api-client-react";
 import { PrintReceiptButton } from "@/components/PrintReceiptButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -182,14 +183,28 @@ export default function Checkout() {
   const [izpisLoading, setIzpisLoading] = useState(false);
   const [izpisNapaka, setIzpisNapaka] = useState<string | null>(null);
 
+  const datumRe = /^\d{4}-\d{2}-\d{2}$/;
+  const izpisVeljavenOd = datumRe.test(izpisOd);
+  const izpisVeljavenDo = datumRe.test(izpisDo);
+
   const handleIzpisPromet = async () => {
+    if (!izpisVeljavenOd || !izpisVeljavenDo) {
+      setIzpisNapaka("Vnesite veljavna datuma v obliki LLLL-MM-DD."); return;
+    }
     setIzpisLoading(true); setIzpisNapaka(null); setIzpisData(null);
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const r = await fetch(`${base}/api/statistike/promet-obdobja?od=${izpisOd}&do=${izpisDo}`, { credentials: "include" });
-      if (!r.ok) { setIzpisNapaka("Napaka pri pridobivanju podatkov"); return; }
+      const enotaId = getEnotaId();
+      const headers: Record<string, string> = {};
+      if (enotaId) headers["X-Enota-Id"] = enotaId;
+      const r = await fetch(`${base}/api/statistike/promet-obdobja?od=${encodeURIComponent(izpisOd.trim())}&do=${encodeURIComponent(izpisDo.trim())}`, { credentials: "include", headers });
+      if (!r.ok) {
+        let msg = "Napaka pri pridobivanju podatkov.";
+        try { const j = await r.json(); msg = j?.error ?? j?.napaka ?? msg; } catch { /* ignore */ }
+        setIzpisNapaka(msg); return;
+      }
       setIzpisData(await r.json() as IzpisPrometaData);
-    } catch { setIzpisNapaka("Napaka pri pridobivanju podatkov"); }
+    } catch { setIzpisNapaka("Napaka pri pridobivanju podatkov."); }
     finally { setIzpisLoading(false); }
   };
 
