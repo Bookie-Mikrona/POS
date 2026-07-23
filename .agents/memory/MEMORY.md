@@ -1,3 +1,4 @@
 - [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
+- [FURS POS Web GitHub](furs-pos-web-github.md) — izvorni POS projekt na GitHubu; referenca za logiko
 - [Super admin sistem](super-admin.md) — env var SUPER_ADMIN_IDS, company_modules tabela, admin panel na /admin
 - [Komunikacija](komunikacija.md) — izključno slovenščina
