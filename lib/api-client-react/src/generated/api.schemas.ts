@@ -113,6 +113,8 @@ export interface Artikel {
   toGo?: boolean;
   /** Ali ima artikel vsaj en vnos v normativu (receptura) */
   hasNormativ?: boolean;
+  /** Vrsta artikla: blago, material ali storitev */
+  vrstaArtikla?: string;
   /** Modifikatorske skupine prirejene artiklu */
   modSkupine?: ModSkupinaFull[];
 }
@@ -154,6 +156,8 @@ export interface ArtikelInput {
   toGoArtikli?: number[];
   /** Ali je artikel označen kot "To Go" */
   toGo?: boolean;
+  /** Vrsta artikla: blago, material ali storitev */
+  vrstaArtikla?: string;
 }
 
 export interface Normativ {
