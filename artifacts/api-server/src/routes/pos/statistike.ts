@@ -160,6 +160,7 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     WHERE r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz
       AND r.enota_id = ${tenotaId}
+      AND r.placilna_nacin NOT IN ('reprezentanca', 'lastna_poraba')
   `);
   type PrihodkiVrstaRow = { storitve: string | null; blago: string | null; material: string | null };
   const pvRow = prihodkiVrstaRaw.rows[0] as PrihodkiVrstaRow | undefined;
