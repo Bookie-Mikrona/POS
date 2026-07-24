@@ -143,30 +143,41 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     steviloBonov: Number(r.stevilo_bonov_pica),
     steviloRacunov: Number(r.stevilo_racunov)}));
 
-  // ── prihodki po vrsti (storitve vs blago) ────────────────
-  // blago  = postavke kjer to_go=true ALI kjer je starš (parent_postavka_id) to_go=true
-  //          (npr. škatla za pico se avtomatsko doda k to-go pici — davek starša se ohrani)
-  // storitve = vse ostale postavke
+  // ── prihodki po vrsti (storitve / blago / material) ─────
+  // Vrsta se določa iz šifranta artiklov (vrsta_artikla).
+  // Pravilo parent-child: če ima postavka starša (parent_postavka_id),
+  // se upošteva vrsta staršev artikla; sicer vrsta lastnega artikla.
+  // (npr. modifikator pice sledi vrsti starševske pice)
   const prihodkiVrstaRaw = await db.execute(sql`
     SELECT
-      SUM(CASE WHEN p.to_go = true OR parent.to_go = true
-               THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-               ELSE 0 END) AS blago,
-      SUM(CASE WHEN p.to_go = false AND (parent.id IS NULL OR parent.to_go = false)
-               THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-               ELSE 0 END) AS storitve
+      SUM(CASE
+        WHEN COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) = 'blago'
+        THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
+        ELSE 0 END) AS blago,
+      SUM(CASE
+        WHEN COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) = 'material'
+        THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
+        ELSE 0 END) AS material,
+      SUM(CASE
+        WHEN COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) = 'storitev'
+             OR COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) IS NULL
+        THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
+        ELSE 0 END) AS storitve
     FROM postavke p
-    LEFT JOIN postavke parent ON parent.id = p.parent_postavka_id
+    LEFT JOIN postavke parent_p ON parent_p.id = p.parent_postavka_id
+    LEFT JOIN artikli art       ON art.id = p.artikel_id
+    LEFT JOIN artikli art_parent ON art_parent.id = parent_p.artikel_id
     JOIN racuni r ON r.id = p.racun_id
     WHERE r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz
       AND r.enota_id = ${tenotaId}
   `);
-  type PrihodkiVrstaRow = { storitve: string | null; blago: string | null };
+  type PrihodkiVrstaRow = { storitve: string | null; blago: string | null; material: string | null };
   const pvRow = prihodkiVrstaRaw.rows[0] as PrihodkiVrstaRow | undefined;
   const prihodkiPoVrsti = {
     storitve: Number(pvRow?.storitve ?? 0),
-    blago: Number(pvRow?.blago ?? 0)};
+    blago: Number(pvRow?.blago ?? 0),
+    material: Number(pvRow?.material ?? 0)};
 
   // ── DDV po stopnjah (iz postavk) ─────────────────────────
   const ddvPoStopnjahRaw = await db.execute(sql`

@@ -157,7 +157,7 @@ export default function Checkout() {
     prometPoBlagajnah: { blagajnaKoda: string; skupaj: number; steviloRacunov: number; odZap: string | null; doZap: string | null }[];
     prometPoNatakarjih: { natakarIme: string; skupaj: number; gotovina: number; kartica: number; sumup: number; bon: number; bonPica: number; steviloBonov: number; steviloRacunov: number }[];
     ddvPoStopnjah: { stopnja: number; ddvZnesek: number; osnova: number }[];
-    prihodkiPoVrsti: { storitve: number; blago: number };
+    prihodkiPoVrsti: { storitve: number; blago: number; material: number };
     izdaniKuponi: number; prejetiKuponi: number;
     odZap: string | null; doZap: string | null;
     podjetje: { naziv: string; naslov: string; davcnaStevilka: string };
@@ -272,8 +272,9 @@ export default function Checkout() {
       SEP,
       vr("Prihodki po vrsti (neto)", ""),
       vr("Storitve :", EUR(izpisData.prihodkiPoVrsti.storitve)),
-      vr("Blago(to go):", EUR(izpisData.prihodkiPoVrsti.blago)),
-      vr("Sk.neto  :", EUR(izpisData.prihodkiPoVrsti.storitve + izpisData.prihodkiPoVrsti.blago)),
+      vr("Blago    :", EUR(izpisData.prihodkiPoVrsti.blago)),
+      vr("Material :", EUR(izpisData.prihodkiPoVrsti.material)),
+      vr("Sk.neto  :", EUR(izpisData.prihodkiPoVrsti.storitve + izpisData.prihodkiPoVrsti.blago + izpisData.prihodkiPoVrsti.material)),
     ];
 
     const kuponskiBlok = (izpisData.izdaniKuponi > 0 || izpisData.prejetiKuponi > 0) ? [
@@ -2055,8 +2056,9 @@ ${linije.map(vrHtml).join("\n")}
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Prihodki po vrsti (neto)</p>
                     <div className="rounded-md border divide-y text-sm">
                       <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Storitve</span><span className="font-medium">{izpisData.prihodkiPoVrsti.storitve.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Blago (to go)</span><span className="font-medium">{izpisData.prihodkiPoVrsti.blago.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj neto</span><span>{(izpisData.prihodkiPoVrsti.storitve + izpisData.prihodkiPoVrsti.blago).toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Blago</span><span className="font-medium">{izpisData.prihodkiPoVrsti.blago.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Material</span><span className="font-medium">{izpisData.prihodkiPoVrsti.material.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj neto</span><span>{(izpisData.prihodkiPoVrsti.storitve + izpisData.prihodkiPoVrsti.blago + izpisData.prihodkiPoVrsti.material).toFixed(2)} €</span></div>
                     </div>
                   </div>
                 )}
