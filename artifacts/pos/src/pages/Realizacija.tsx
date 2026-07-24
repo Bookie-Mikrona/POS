@@ -682,6 +682,7 @@ export default function Realizacija() {
                                       {ddvTd(r.ddvPoStopnjah)}
                                       <td className={COL_CLASS}>{eur(r.gotovina)}</td>
                                       <td className={COL_CLASS}>{eur(r.kartica)}</td>
+                                      {hasNegotovinsko && <td className={COL_CLASS}>{eur(r.negotovinsko)}</td>}
                                       {hasLastnaPoraba && <td className={COL_CLASS}>{eur(r.lastna_poraba)}</td>}
                                       {hasReprezentanca && <td className={COL_CLASS}>{eur(r.reprezentanca)}</td>}
                                       <td className={COL_CLASS}>{eur(r.bon)}</td>
