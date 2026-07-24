@@ -98,7 +98,7 @@ export default function Menu() {
   const [artPrivzetiModGrpIds, setArtPrivzetiModGrpIds] = useState<number[]>([]);
   const [artToGoArtikli, setArtToGoArtikli] = useState<number[]>([]);
   const [artToGo, setArtToGo] = useState(false);
-  const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("storitev");
+  const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("material");
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
   const [uskladiOpen, setUskladiOpen] = useState(false);
@@ -330,6 +330,17 @@ export default function Menu() {
   }, [artDialogOpen]);
 
 
+  // Avtomatski preklop na "blago" ko je normativ 1:1 (artikel = svoja sestavina, količina = 1)
+  useEffect(() => {
+    if (!artDialogOpen) return;
+    const is1to1 =
+      normativItems.length === 1 &&
+      (normativItems[0]!.vhodniArtikelId === -1 ||
+        (editingArt != null && normativItems[0]!.vhodniArtikelId === editingArt.id)) &&
+      parseFloat(normativItems[0]!.kolicina) === 1;
+    if (is1to1) setArtVrstaArtikla("blago");
+  }, [normativItems, artDialogOpen, editingArt]);
+
   // Auto-populate self-normativ when both checkboxes are checked in "nov" mode
   useEffect(() => {
     if (artMode !== "nov" || !artDialogOpen) return;
@@ -411,7 +422,7 @@ export default function Menu() {
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli([]);
     setArtToGo(false);
-    setArtVrstaArtikla("storitev");
+    setArtVrstaArtikla("material");
     setArtImeZaNabavo(""); setArtEnotaMere(null);
     setNormativItems([]);
     setNormativNapaka(null);

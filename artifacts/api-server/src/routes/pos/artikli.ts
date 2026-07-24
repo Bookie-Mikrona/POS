@@ -53,7 +53,7 @@ function mapRow(r: Record<string, unknown>) {
     privzetiModifikatorji: (r.privzetiModifikatorji as number[] | null) ?? [],
     toGoArtikli: (r.toGoArtikli as number[] | null) ?? [],
     toGo: Boolean(r.toGo),
-    vrstaArtikla: (r.vrstaArtikla as string | null) ?? "storitev",
+    vrstaArtikla: (r.vrstaArtikla as string | null) ?? "material",
     hasNormativ: Boolean(r.hasNormativ),
     modSkupine: [] as Array<{
       id: number; ime: string; obvezna: boolean; minIzbir: number; maxIzbir: number; vrstniRed: number;
@@ -196,7 +196,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     privzetiModifikatorji: (parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji ?? [],
     toGoArtikli: (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [],
     toGo: (parsed.data as { toGo?: boolean }).toGo ?? false,
-    vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "storitev"}).returning();
+    vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "material"}).returning();
 
   const [withKat] = await db
     .select(SELECT_FIELDS)
