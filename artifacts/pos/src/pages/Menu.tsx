@@ -733,6 +733,15 @@ export default function Menu() {
                             {a.prodajniArtikel && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">prodajni</Badge>}
                             {a.nabavniArtikel && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-300 text-blue-700">nabavni</Badge>}
                             {a.hasNormativ && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-amber-400 text-amber-700 bg-amber-50">normativ</Badge>}
+                            {(() => {
+                              const vrsta = (a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "material";
+                              const cfg = vrsta === "blago"
+                                ? "border-green-300 text-green-700 bg-green-50"
+                                : vrsta === "material"
+                                  ? "border-sky-300 text-sky-700 bg-sky-50"
+                                  : "border-slate-300 text-slate-600 bg-slate-50";
+                              return <Badge variant="outline" className={`text-[10px] px-1 py-0 h-4 ${cfg}`}>{vrsta}</Badge>;
+                            })()}
                             {(a as typeof a & { modSkupine?: ModSkupinaFull[] }).modSkupine?.map(s => (
                               <Badge key={s.id} variant="outline" className={`text-[10px] px-1 py-0 h-4 ${s.obvezna ? "border-red-300 text-red-700 bg-red-50" : "border-purple-300 text-purple-700 bg-purple-50"}`}>
                                 {s.ime}
