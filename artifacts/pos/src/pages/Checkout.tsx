@@ -256,7 +256,7 @@ export default function Checkout() {
       ...(izpisData.prometPoNacinuPlacila.negotovinsko > 0 ? [vr("TRR      :", EUR(izpisData.prometPoNacinuPlacila.negotovinsko))] : []),
       ...(repr > 0 || lastnaPoraba > 0 ? [
         SEP,
-        vr("Navidezni promet:", ""),
+        vr("Navidezni promet", ""),
         ...(repr > 0 ? [vr("Reprez.  :", EUR(repr))] : []),
         ...(lastnaPoraba > 0 ? [vr("Last.por.:", EUR(lastnaPoraba))] : []),
       ] : []),
@@ -1998,7 +1998,7 @@ ${linije.map(vrHtml).join("\n")}
                     <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj</span><span>{izpisData.skupajPromet.toFixed(2)} €</span></div>
                     {(izpisData.prometPoNacinuPlacila.reprezentanca > 0 || izpisData.prometPoNacinuPlacila.lastna_poraba > 0) && (
                       <>
-                        <div className="px-3 py-1 bg-muted/20"><span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Navidezni promet (ni v skupaj)</span></div>
+                        <div className="px-3 py-1 bg-muted/20"><span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Navidezni promet</span></div>
                         {izpisData.prometPoNacinuPlacila.reprezentanca > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Reprezentanca</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.reprezentanca.toFixed(2)} €</span></div>}
                         {izpisData.prometPoNacinuPlacila.lastna_poraba > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Lastna poraba</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.lastna_poraba.toFixed(2)} €</span></div>}
                       </>
