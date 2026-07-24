@@ -727,23 +727,44 @@ export default function Zaloge() {
   // ── Prejemnica create ──────────────────────────────────────────────
   const [prejDialogOpen, setPrejDialogOpen] = useState(false);
   const [prejDatum, setPrejDatum] = useState("");
+  const [prejDobavitelj, setPrejDobavitelj] = useState("");
+  const [prejStevilkaDobavnice, setPrejStevilkaDobavnice] = useState("");
+  const [prejDatumDobavnice, setPrejDatumDobavnice] = useState("");
   const [prejOpomba, setPrejOpomba] = useState("");
   const [prejRows, setPrejRows] = useState<PrejemnicaRow[]>([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
+  // Dropdown state za artikel combobox
+  const [dropdownOpenIdx, setDropdownOpenIdx] = useState<number | null>(null);
+  const [dropdownFilter, setDropdownFilter] = useState("");
+  const [dropdownHighlight, setDropdownHighlight] = useState(0);
+  // Refs za focus management
+  const artInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const koliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const addBtnRef = useRef<HTMLButtonElement>(null);
   const createPrejemnica = useCreatePrejemnica();
 
   const openPrejDialog = () => {
     setPrejDatum(new Date().toISOString().slice(0, 10));
+    setPrejDobavitelj("");
+    setPrejStevilkaDobavnice("");
+    setPrejDatumDobavnice("");
     setPrejOpomba("");
     setPrejRows([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setDropdownOpenIdx(null);
+    setDropdownFilter("");
+    setDropdownHighlight(0);
     setPrejDialogOpen(true);
   };
   const handleSavePrejemnica = () => {
     const validRows = prejRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    const prefixParts = [prejDobavitelj, prejStevilkaDobavnice, prejDatumDobavnice].filter(Boolean);
+    const prefix = prefixParts.length > 0 ? `(${prefixParts.join(", ")})` : "";
+    const fullOpomba = [prefix, prejOpomba].filter(Boolean).join(" ");
     createPrejemnica.mutate({
       data: {
         datum: prejDatum || undefined,
-        opomba: prejOpomba || undefined,
+        opomba: fullOpomba || undefined,
         postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseFloat(r.kolicina), cenaKos: parseFloat(r.cenaKos) || 0 })),
       },
     }, {
@@ -756,10 +777,21 @@ export default function Zaloge() {
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
     });
   };
-  const addPrejRow = () => setPrejRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+  const addPrejRow = () => {
+    const newIdx = prejRows.length;
+    setPrejRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setTimeout(() => artInputRefs.current.get(newIdx)?.focus(), 30);
+  };
   const removePrejRow = (i: number) => setPrejRows(r => r.filter((_, j) => j !== i));
   const updatePrejRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
     setPrejRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+  const selectArtikelInRow = (rowIdx: number, artikelId: number) => {
+    updatePrejRow(rowIdx, "artikelId", artikelId);
+    const zadnjaCena = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
+    updatePrejRow(rowIdx, "cenaKos", zadnjaCena != null ? String(zadnjaCena) : "");
+    setDropdownOpenIdx(null);
+    setDropdownFilter("");
+  };
 
   // ── Prejemnica edit ────────────────────────────────────────────────
   const [editPrejId, setEditPrejId] = useState<number | null>(null);
@@ -1213,57 +1245,128 @@ export default function Zaloge() {
       )}
 
       {/* ── Prejemnica create dialog ─────────────────────────────────── */}
-      <Dialog open={prejDialogOpen} onOpenChange={setPrejDialogOpen}>
+      <Dialog open={prejDialogOpen} onOpenChange={v => { setPrejDialogOpen(v); if (!v) setDropdownOpenIdx(null); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nova prejemnica</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {/* Datum + Dobavitelj */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Datum</Label>
-                <Input type="date" value={prejDatum} onChange={e => setPrejDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+                <Input type="date" value={prejDatum} onChange={e => setPrejDatum(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label>Opomba</Label>
-                <Input value={prejOpomba} onChange={e => setPrejOpomba(e.target.value)} placeholder="Dobavitelj, referenca..." onKeyDown={handleEnterAsTab} />
+              <div className="space-y-1.5">
+                <Label>Dobavitelj</Label>
+                <Input value={prejDobavitelj} onChange={e => setPrejDobavitelj(e.target.value)} placeholder="npr. Mercator" />
               </div>
             </div>
+            {/* Številka + Datum dobavnice */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Številka dobavnice</Label>
+                <Input value={prejStevilkaDobavnice} onChange={e => setPrejStevilkaDobavnice(e.target.value)} placeholder="npr. DOB-2026-001" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Datum dobavnice</Label>
+                <Input value={prejDatumDobavnice} onChange={e => setPrejDatumDobavnice(e.target.value)} placeholder="npr. 24. 7. 2026" />
+              </div>
+            </div>
+            {/* Opomba */}
+            <div className="space-y-1.5">
+              <Label>Opomba <span className="text-xs text-muted-foreground">(neobvezno)</span></Label>
+              <Input value={prejOpomba} onChange={e => setPrejOpomba(e.target.value)} placeholder="Dodatna opomba..." />
+            </div>
+            {/* Postavke */}
             <div className="space-y-2">
               <Label>Postavke</Label>
               <div className="space-y-2">
-                {prejRows.map((row, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <select className="flex-1 border rounded-md px-3 py-2 text-sm bg-background" value={row.artikelId}
-                      onChange={e => {
-                        const aid = parseInt(e.target.value);
-                        updatePrejRow(i, "artikelId", aid);
-                        if (aid > 0) {
-                          const zadnjaCena = (zaloge ?? []).find(z => z.artikelId === aid)?.zadnjaCena;
-                          if (zadnjaCena != null) updatePrejRow(i, "cenaKos", String(zadnjaCena));
-                        }
-                      }}>
-                      <option value={0}>— Izberi artikel —</option>
-                      {nabavniArtikli.map(a => (
-                        <option key={a.id} value={a.id}>{a.imeZaNabavo || a.ime} {a.enotaMere ? `(${a.enotaMere})` : ""}</option>
-                      ))}
-                    </select>
-                    <Input type="number" step="0.001" placeholder="Količina" value={row.kolicina}
-                      onChange={e => updatePrejRow(i, "kolicina", e.target.value)} onKeyDown={handleEnterAsTab} className="w-28" />
-                    <Input type="number" min="0" step="0.01" placeholder="Cena/enoto" value={row.cenaKos}
-                      onChange={e => updatePrejRow(i, "cenaKos", e.target.value)} onKeyDown={handleEnterAsTab} className="w-28" />
-                    <Button variant="ghost" size="icon" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
+                {prejRows.map((row, i) => {
+                  const isOpen = dropdownOpenIdx === i;
+                  const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
+                  const filtered = dropdownFilter
+                    ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(dropdownFilter.toLowerCase()))
+                    : nabavniArtikli;
+                  return (
+                    <div key={i} className="flex gap-2 items-center">
+                      {/* Artikel combobox */}
+                      <div className="relative flex-1">
+                        <input
+                          ref={el => { if (el) artInputRefs.current.set(i, el); else artInputRefs.current.delete(i); }}
+                          className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="Izberi artikel"
+                          value={isOpen ? dropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
+                          onChange={e => { if (isOpen) { setDropdownFilter(e.target.value); setDropdownHighlight(0); } }}
+                          readOnly={!!selectedArtikel && !isOpen}
+                          onFocus={() => {
+                            if (!selectedArtikel) { setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0); }
+                          }}
+                          onKeyDown={e => {
+                            if (selectedArtikel && !isOpen) {
+                              if (e.key === "Enter") { e.preventDefault(); koliInputRefs.current.get(i)?.focus(); }
+                              if (e.key === "Backspace" || e.key === "Delete") {
+                                e.preventDefault();
+                                updatePrejRow(i, "artikelId", 0); updatePrejRow(i, "cenaKos", "");
+                                setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0);
+                              }
+                              return;
+                            }
+                            if (e.key === "Escape") { e.preventDefault(); setDropdownOpenIdx(null); return; }
+                            if (e.key === "ArrowDown") { e.preventDefault(); setDropdownHighlight(h => Math.min(h + 1, filtered.length - 1)); return; }
+                            if (e.key === "ArrowUp") { e.preventDefault(); setDropdownHighlight(h => Math.max(h - 1, 0)); return; }
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isOpen) { setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0); return; }
+                              const art = filtered[dropdownHighlight];
+                              if (art) selectArtikelInRow(i, art.id);
+                            }
+                          }}
+                        />
+                        {isOpen && (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
+                            {filtered.length === 0
+                              ? <div className="px-3 py-2 text-sm text-muted-foreground">Ni zadetkov</div>
+                              : filtered.map((a, j) => (
+                                <div key={a.id}
+                                  className={`px-3 py-1.5 text-sm cursor-pointer ${j === dropdownHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
+                                  onMouseDown={e => { e.preventDefault(); selectArtikelInRow(i, a.id); }}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </div>
+                              ))
+                            }
+                          </div>
+                        )}
+                      </div>
+                      {/* Količina */}
+                      <Input
+                        ref={el => { if (el) koliInputRefs.current.set(i, el); else koliInputRefs.current.delete(i); }}
+                        type="number" step="0.001" placeholder="Količina" value={row.kolicina}
+                        onChange={e => updatePrejRow(i, "kolicina", e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cenaInputRefs.current.get(i)?.focus(); } }}
+                        className="w-28" />
+                      {/* Nabavna cena brez DDV */}
+                      <Input
+                        ref={el => { if (el) cenaInputRefs.current.set(i, el); else cenaInputRefs.current.delete(i); }}
+                        type="number" min="0" step="0.01" placeholder="Cena brez DDV" value={row.cenaKos}
+                        onChange={e => updatePrejRow(i, "cenaKos", e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); } }}
+                        className="w-32" />
+                      <Button variant="ghost" size="icon" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
-              <Button variant="outline" size="sm" onClick={addPrejRow}>
+              <Button
+                ref={addBtnRef}
+                variant="outline" size="sm"
+                onClick={addPrejRow}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addPrejRow(); } }}>
                 <Plus className="w-4 h-4 mr-1" />Dodaj postavko
               </Button>
               {prejRows.some(r => r.kolicina && r.cenaKos) && (
                 <p className="text-sm text-muted-foreground text-right">
-                  Skupaj: <strong>
-                    {fmt(prejRows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0))} €
-                  </strong>
+                  Skupaj: <strong>{fmt(prejRows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0))} €</strong>
                 </p>
               )}
             </div>
