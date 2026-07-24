@@ -477,6 +477,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     let kartica  = r.znesekKartica  != null ? Number(r.znesekKartica)  : 0;
     let bon      = r.znesekBon      != null ? Number(r.znesekBon)      : 0;
     let bonPica  = r.znesekBonPica  != null ? Number(r.znesekBonPica)  : 0;
+    let negotovinsko = 0;
     let reprezentanca = 0;
     let lastna_poraba = 0;
     if (gotovina === 0 && kartica === 0 && bon === 0 && bonPica === 0) {
@@ -484,6 +485,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
       else if (r.placilnaNacin === "kartica") kartica = skupajN;
       else if (r.placilnaNacin === "bon") bon = skupajN;
       else if (r.placilnaNacin === "bon_pica") bonPica = skupajN;
+      else if (r.placilnaNacin === "negotovinsko") negotovinsko = skupajN;
       else if (r.placilnaNacin === "reprezentanca") reprezentanca = faceValueMap.get(r.id) ?? skupajN;
       else if (r.placilnaNacin === "lastna_poraba") lastna_poraba = faceValueMap.get(r.id) ?? skupajN;
     }
@@ -501,6 +503,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
       kartica,
       bon,
       bonPica,
+      negotovinsko,
       reprezentanca,
       lastna_poraba,
       steviloBonov: r.steviloBonov ?? null,
@@ -518,10 +521,11 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     kartica:  acc.kartica  + r.kartica,
     bon:      acc.bon      + r.bon,
     bonPica:  acc.bonPica  + r.bonPica,
+    negotovinsko: acc.negotovinsko + r.negotovinsko,
     reprezentanca: acc.reprezentanca + r.reprezentanca,
     lastna_poraba: acc.lastna_poraba + r.lastna_poraba,
     izdaniKuponi:  acc.izdaniKuponi  + r.izdaniKuponi,
-    prejetiKuponi: acc.prejetiKuponi + r.prejetiKuponi}), { osnova: 0, ddv: 0, skupaj: 0, gotovina: 0, kartica: 0, bon: 0, bonPica: 0, reprezentanca: 0, lastna_poraba: 0, izdaniKuponi: 0, prejetiKuponi: 0 });
+    prejetiKuponi: acc.prejetiKuponi + r.prejetiKuponi}), { osnova: 0, ddv: 0, skupaj: 0, gotovina: 0, kartica: 0, bon: 0, bonPica: 0, negotovinsko: 0, reprezentanca: 0, lastna_poraba: 0, izdaniKuponi: 0, prejetiKuponi: 0 });
 
   // DDV razčlenjen po stopnjah za vsak račun posebej
   const racunIds = mapped.map(r => r.id);

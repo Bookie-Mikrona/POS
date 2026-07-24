@@ -28,6 +28,7 @@ interface RealizacijaRacun {
   kartica: number;
   bon: number;
   bonPica: number;
+  negotovinsko: number;
   reprezentanca: number;
   lastna_poraba: number;
   steviloBonov: number | null;
@@ -55,7 +56,7 @@ interface RealizacijaData {
   skupaj: {
     osnova: number; ddv: number; skupaj: number;
     gotovina: number; kartica: number; bon: number; bonPica: number;
-    reprezentanca: number; lastna_poraba: number;
+    negotovinsko: number; reprezentanca: number; lastna_poraba: number;
     izdaniKuponi: number; prejetiKuponi: number;
   };
   ddvPoStopnjah: DdvStopnja[];
@@ -110,11 +111,12 @@ function dayTotal(rows: RealizacijaRacun[]) {
     skupaj: a.skupaj + r.skupaj,
     gotovina: a.gotovina + r.gotovina, kartica: a.kartica + r.kartica,
     bon: a.bon + r.bon, bonPica: a.bonPica + r.bonPica,
+    negotovinsko: a.negotovinsko + r.negotovinsko,
     reprezentanca: a.reprezentanca + r.reprezentanca,
     lastna_poraba: a.lastna_poraba + r.lastna_poraba,
     izdaniKuponi: a.izdaniKuponi + r.izdaniKuponi,
     prejetiKuponi: a.prejetiKuponi + r.prejetiKuponi,
-  }), { skupaj: 0, gotovina: 0, kartica: 0, bon: 0, bonPica: 0, reprezentanca: 0, lastna_poraba: 0, izdaniKuponi: 0, prejetiKuponi: 0 });
+  }), { skupaj: 0, gotovina: 0, kartica: 0, bon: 0, bonPica: 0, negotovinsko: 0, reprezentanca: 0, lastna_poraba: 0, izdaniKuponi: 0, prejetiKuponi: 0 });
 }
 
 
@@ -403,6 +405,7 @@ export default function Realizacija() {
   const monthGroups = groupByMesec(groups);
   const showMonthlyTotals = monthGroups.length > 1;
   const hasBonPica = data ? data.skupaj.bonPica > 0 : false;
+  const hasNegotovinsko = data ? data.skupaj.negotovinsko > 0 : false;
   const hasReprezentanca = data ? data.racuni.some(r => r.reprezentanca > 0) : false;
   const hasLastnaPoraba = data ? data.racuni.some(r => r.lastna_poraba > 0) : false;
   const TH = `${COL_CLASS} font-semibold whitespace-nowrap`;
@@ -428,6 +431,7 @@ export default function Realizacija() {
     <>
       <th className={TH}>Gotovina</th>
       <th className={TH}>Kartica</th>
+      {hasNegotovinsko && <th className={TH}>TRR</th>}
       {hasLastnaPoraba && <th className={TH}>L. raba</th>}
       {hasReprezentanca && <th className={TH}>Repr.</th>}
       <th className={TH}>D. bon</th>
@@ -482,11 +486,12 @@ export default function Realizacija() {
     );
   }
 
-  function placilniTd(dt: { gotovina: number; kartica: number; bon: number; bonPica: number; reprezentanca: number; lastna_poraba: number; izdaniKuponi: number; prejetiKuponi: number }) {
+  function placilniTd(dt: { gotovina: number; kartica: number; bon: number; bonPica: number; negotovinsko: number; reprezentanca: number; lastna_poraba: number; izdaniKuponi: number; prejetiKuponi: number }) {
     return (
       <>
         <td className={COL_CLASS}>{eurSkupaj(dt.gotovina)}</td>
         <td className={COL_CLASS}>{eurSkupaj(dt.kartica)}</td>
+        {hasNegotovinsko && <td className={COL_CLASS}>{eurSkupaj(dt.negotovinsko)}</td>}
         {hasLastnaPoraba && <td className={COL_CLASS}>{eurSkupaj(dt.lastna_poraba)}</td>}
         {hasReprezentanca && <td className={COL_CLASS}>{eurSkupaj(dt.reprezentanca)}</td>}
         <td className={COL_CLASS}>{eurSkupaj(dt.bon)}</td>
@@ -735,6 +740,7 @@ export default function Realizacija() {
                     { label: "Skupaj z DDV", value: data.skupaj.skupaj, bold: true },
                     { label: "Gotovina", value: data.skupaj.gotovina },
                     { label: "Kartica", value: data.skupaj.kartica },
+                    ...(hasNegotovinsko ? [{ label: "TRR", value: data.skupaj.negotovinsko }] : []),
                     { label: "Darilni bon", value: data.skupaj.bon },
                     ...(hasBonPica ? [{ label: "Bon za pico", value: data.skupaj.bonPica }] : []),
                   ].map(({ label, value, bold }) => (
