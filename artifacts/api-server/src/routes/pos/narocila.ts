@@ -442,13 +442,16 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
 
   // DDV dedovanje: ko je postavka child (npr. To Go embalaža pod pico), prevzame DDV stopnjo
   // nadrejene postavke (PZDDV — pomožna dobava sledi DDV stopnji glavne dobave).
+  // vrsta_artikla dedovanje: child prevzame vrsto starševskega artikla (blago → blago, material → material).
   let davekZaPostavko = String(artikel.davek);
+  let vrstaArtiklaZaPostavko: string = artikel.vrstaArtikla ?? "material";
   if (parentPostavkaId != null) {
-    const [parentPostavka] = await db.select({ davek: postavkeTable.davek })
+    const [parentPostavka] = await db.select({ davek: postavkeTable.davek, vrstaArtikla: postavkeTable.vrstaArtikla })
       .from(postavkeTable)
       .where(eq(postavkeTable.id, parentPostavkaId));
     if (parentPostavka) {
       davekZaPostavko = String(parentPostavka.davek);
+      if (parentPostavka.vrstaArtikla) vrstaArtiklaZaPostavko = parentPostavka.vrstaArtikla;
     }
   }
 
@@ -537,6 +540,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       opomba: parsed.data.opomba ?? null,
       gostStevilka,
       parentPostavkaId,
+      vrstaArtikla: vrstaArtiklaZaPostavko,
       napravaId}).returning({ id: postavkeTable.id });
 
     // Insert modifier child rows using pre-validated authoritative DB values
@@ -554,6 +558,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
         davek: String(artikel.davek),
         opomba: null,
         gostStevilka,
+        vrstaArtikla: vrstaArtiklaZaPostavko,
         parentPostavkaId: inserted.id});
     }
 

@@ -144,29 +144,17 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     steviloRacunov: Number(r.stevilo_racunov)}));
 
   // ── prihodki po vrsti (storitve / blago / material) ─────
-  // Vrsta se določa iz šifranta artiklov (vrsta_artikla).
-  // Pravilo parent-child: če ima postavka starša (parent_postavka_id),
-  // se upošteva vrsta staršev artikla; sicer vrsta lastnega artikla.
-  // (npr. modifikator pice sledi vrsti starševske pice)
+  // Vrsta je shranjena direktno v postavkah (vrsta_artikla) ob vpisu naročila.
+  // Parent-child logika je upoštevana že pri shranjevanju postavke.
   const prihodkiVrstaRaw = await db.execute(sql`
     SELECT
-      SUM(CASE
-        WHEN COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) = 'blago'
-        THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-        ELSE 0 END) AS blago,
-      SUM(CASE
-        WHEN COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) = 'material'
-        THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-        ELSE 0 END) AS material,
-      SUM(CASE
-        WHEN COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) = 'storitev'
-             OR COALESCE(art_parent.vrsta_artikla, art.vrsta_artikla) IS NULL
-        THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric)
-        ELSE 0 END) AS storitve
+      SUM(CASE WHEN COALESCE(p.vrsta_artikla, 'material') = 'blago'
+          THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric) ELSE 0 END) AS blago,
+      SUM(CASE WHEN COALESCE(p.vrsta_artikla, 'material') = 'material'
+          THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric) ELSE 0 END) AS material,
+      SUM(CASE WHEN COALESCE(p.vrsta_artikla, 'material') = 'storitev'
+          THEN p.skupaj::numeric * 100.0 / (100 + p.davek::numeric) ELSE 0 END) AS storitve
     FROM postavke p
-    LEFT JOIN postavke parent_p ON parent_p.id = p.parent_postavka_id
-    LEFT JOIN artikli art       ON art.id = p.artikel_id
-    LEFT JOIN artikli art_parent ON art_parent.id = parent_p.artikel_id
     JOIN racuni r ON r.id = p.racun_id
     WHERE r.ustvarjeno >= ${odDate.toISOString()}::timestamptz
       AND r.ustvarjeno <= ${doDate.toISOString()}::timestamptz

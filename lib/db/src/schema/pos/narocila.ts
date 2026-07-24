@@ -31,6 +31,7 @@ export const postavkeTable = pgTable("postavke", {
   gostStevilka: smallint("gost_stevilka"),
   parentPostavkaId: integer("parent_postavka_id"),
   toGo: boolean("to_go").notNull().default(false),
+  vrstaArtikla: text("vrsta_artikla"),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
   pripravljeno: timestamp("pripravljeno", { withTimezone: true }),
   napravaId: text("naprava_id"),

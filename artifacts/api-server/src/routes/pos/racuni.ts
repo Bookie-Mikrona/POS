@@ -997,7 +997,8 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
             davek: p.davek,
             opomba: p.opomba,
             racunId: stornoRacun.id,
-            gostStevilka: p.gostStevilka};
+            gostStevilka: p.gostStevilka,
+            vrstaArtikla: p.vrstaArtikla ?? null};
         })
       );
     }
