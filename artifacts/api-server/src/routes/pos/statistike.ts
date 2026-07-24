@@ -393,6 +393,7 @@ router.get("/statistike", async (req, res): Promise<void> => {
 });
 
 router.get("/statistike/realizacija", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const tenotaId = (req as any).enotaId ?? 1;
 
   const { od, do: doParam } = req.query as { od?: string; do?: string };
@@ -540,14 +541,12 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
       SELECT
         p.racun_id,
         p.davek::numeric                                                            AS stopnja,
-        CASE WHEN p.to_go = true OR pp.to_go = true THEN 'blago' ELSE 'storitev' END AS vrsta,
+        COALESCE(p.vrsta_artikla, 'material')                                      AS vrsta,
         SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100.0))                    AS osnova,
         SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))     AS ddv
       FROM postavke p
-      LEFT JOIN postavke pp ON pp.id = p.parent_postavka_id
       WHERE p.racun_id = ANY(${sql.raw(`ARRAY[${racunIds.join(",")}]::int[]`)})
-      GROUP BY p.racun_id, p.davek,
-               CASE WHEN p.to_go = true OR pp.to_go = true THEN 'blago' ELSE 'storitev' END
+      GROUP BY p.racun_id, p.davek, COALESCE(p.vrsta_artikla, 'material')
       ORDER BY p.racun_id, p.davek, vrsta DESC
     `);
     for (const row of ddvRaw.rows as DdvR[]) {
@@ -562,28 +561,24 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     ...r,
     ddvPoStopnjah: ddvMap.get(r.id) ?? []}));
 
-  // Skupni DDV po stopnjah in vrsti (blago/storitev) — samo aktivni računi
-  // blago = p.to_go=true ALI pp.to_go=true (starš je To Go — modif./embalaža sledijo starševski klasifikaciji)
-  // storitev = vse ostalo (vključno z modifikatorji na ne-To-Go artiklih)
+  // Skupni DDV po stopnjah in vrsti (material/blago/storitev) — samo aktivni računi
   type DdvSkupajR = { stopnja: string; vrsta: string; osnova: string; ddv: string };
   const ddvPoStopnjahSkupaj = await (async () => {
     if (aktivniRacunIds.length === 0) return [];
     const raw = await db.execute(sql`
       SELECT
         p.davek::numeric AS stopnja,
-        CASE WHEN p.to_go = true OR pp.to_go = true THEN 'blago' ELSE 'storitev' END AS vrsta,
+        COALESCE(p.vrsta_artikla, 'material')                                      AS vrsta,
         SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100.0))                   AS osnova,
         SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))    AS ddv
       FROM postavke p
-      LEFT JOIN postavke pp ON pp.id = p.parent_postavka_id
       WHERE p.racun_id = ANY(${sql.raw(`ARRAY[${aktivniRacunIds.join(",")}]::int[]`)})
-      GROUP BY p.davek,
-               CASE WHEN p.to_go = true OR pp.to_go = true THEN 'blago' ELSE 'storitev' END
+      GROUP BY p.davek, COALESCE(p.vrsta_artikla, 'material')
       ORDER BY p.davek, vrsta DESC
     `);
     return (raw.rows as DdvSkupajR[]).map(r => ({
       stopnja: Number(r.stopnja),
-      vrsta: r.vrsta as "blago" | "storitev",
+      vrsta: r.vrsta as "blago" | "storitev" | "material",
       osnova: Number(r.osnova),
       ddv: Number(r.ddv)}));
   })();
@@ -597,17 +592,15 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
           COALESCE(a.enota_mere, 'KOS') AS enota,
           SUM(p.kolicina)::int AS kolicina,
           p.davek::numeric AS ddv_stopnja,
-          CASE WHEN p.to_go = true OR pp.to_go = true THEN 'blago' ELSE 'storitev' END AS vrsta,
+          COALESCE(p.vrsta_artikla, 'material')                                                                          AS vrsta,
           SUM(CASE WHEN r.placilna_nacin IN ('lastna_poraba','reprezentanca') THEN 0::numeric ELSE p.skupaj::numeric END) AS skupaj,
-          SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100)) AS osnova,
-          SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric)) AS ddv
+          SUM(p.skupaj::numeric / (1 + p.davek::numeric / 100))                                                          AS osnova,
+          SUM(p.skupaj::numeric * p.davek::numeric / (100.0 + p.davek::numeric))                                         AS ddv
         FROM postavke p
-        LEFT JOIN postavke pp ON pp.id = p.parent_postavka_id
         JOIN artikli a ON a.id = p.artikel_id
         JOIN racuni r ON r.id = p.racun_id
         WHERE p.racun_id = ANY(${sql.raw(`ARRAY[${aktivniRacunIds.join(",")}]::int[]`)})
-        GROUP BY p.ime, a.enota_mere, p.davek,
-                 CASE WHEN p.to_go = true OR pp.to_go = true THEN 'blago' ELSE 'storitev' END
+        GROUP BY p.ime, a.enota_mere, p.davek, COALESCE(p.vrsta_artikla, 'material')
         ORDER BY p.ime, p.davek, vrsta DESC
       `)
     : { rows: [] as ArtikelR[] };
@@ -616,7 +609,7 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     enota: r.enota,
     kolicina: Number(r.kolicina),
     ddvStopnja: Number(r.ddv_stopnja),
-    vrsta: r.vrsta as "blago" | "storitev",
+    vrsta: r.vrsta as "blago" | "storitev" | "material",
     skupaj: Number(r.skupaj),
     osnova: Number(r.osnova),
     ddv: Number(r.ddv)}));

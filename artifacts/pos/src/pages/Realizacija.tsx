@@ -12,7 +12,7 @@ interface DdvStopnja {
   stopnja: number;
   osnova: number;
   ddv: number;
-  vrsta?: "blago" | "storitev";
+  vrsta?: "blago" | "storitev" | "material";
 }
 
 interface RealizacijaRacun {
@@ -44,7 +44,7 @@ interface ArtikelZbir {
   enota: string;
   kolicina: number;
   ddvStopnja: number;
-  vrsta?: "blago" | "storitev";
+  vrsta?: "blago" | "storitev" | "material";
   skupaj: number;
   osnova: number;
   ddv: number;
@@ -423,6 +423,7 @@ export default function Realizacija() {
   );
   const blagoStoritevTh = (
     <>
+      <th className={TH}>Material</th>
       <th className={TH}>Blago</th>
       <th className={TH}>Storitev</th>
     </>
@@ -464,22 +465,24 @@ export default function Realizacija() {
 
   function blagoStoritevRacun(r: RealizacijaRacun) {
     if (r.placilnaNacin === "lastna_poraba" || r.placilnaNacin === "reprezentanca")
-      return { blago: 0, storitev: 0 };
+      return { material: 0, blago: 0, storitev: 0 };
+    const material = r.ddvPoStopnjah.filter(d => d.vrsta === "material").reduce((a, d) => a + d.osnova + d.ddv, 0);
     const blago = r.ddvPoStopnjah.filter(d => d.vrsta === "blago").reduce((a, d) => a + d.osnova + d.ddv, 0);
     const storitev = r.ddvPoStopnjah.filter(d => d.vrsta === "storitev").reduce((a, d) => a + d.osnova + d.ddv, 0);
-    return { blago, storitev };
+    return { material, blago, storitev };
   }
 
   function sumBS(rows: RealizacijaRacun[]) {
     return rows.reduce((a, r) => {
       const bs = blagoStoritevRacun(r);
-      return { blago: a.blago + bs.blago, storitev: a.storitev + bs.storitev };
-    }, { blago: 0, storitev: 0 });
+      return { material: a.material + bs.material, blago: a.blago + bs.blago, storitev: a.storitev + bs.storitev };
+    }, { material: 0, blago: 0, storitev: 0 });
   }
 
-  function blagoStoritevTd(bs: { blago: number; storitev: number }) {
+  function blagoStoritevTd(bs: { material: number; blago: number; storitev: number }) {
     return (
       <>
+        <td className={COL_CLASS}>{eurSkupaj(bs.material)}</td>
         <td className={COL_CLASS}>{eurSkupaj(bs.blago)}</td>
         <td className={COL_CLASS}>{eurSkupaj(bs.storitev)}</td>
       </>
@@ -758,15 +761,17 @@ export default function Realizacija() {
                   // Grupiraj po (ime, ddvStopnja) — združi blago in storitev v eno vrstico
                   interface ArtGrupa {
                     ime: string; enota: string; kolicina: number;
-                    blagoSkupaj: number; storitevSkupaj: number; skupaj: number;
+                    materialSkupaj: number; blagoSkupaj: number; storitevSkupaj: number; skupaj: number;
                     ddvPoStopnjah: Map<number, { osnova: number; ddv: number }>;
                   }
                   const artMap = new Map<string, ArtGrupa>();
                   for (const a of artList) {
-                    if (!artMap.has(a.ime)) artMap.set(a.ime, { ime: a.ime, enota: a.enota, kolicina: 0, blagoSkupaj: 0, storitevSkupaj: 0, skupaj: 0, ddvPoStopnjah: new Map() });
+                    if (!artMap.has(a.ime)) artMap.set(a.ime, { ime: a.ime, enota: a.enota, kolicina: 0, materialSkupaj: 0, blagoSkupaj: 0, storitevSkupaj: 0, skupaj: 0, ddvPoStopnjah: new Map() });
                     const g = artMap.get(a.ime)!;
                     g.kolicina += a.kolicina;
-                    if (a.vrsta === "blago") g.blagoSkupaj += a.skupaj; else g.storitevSkupaj += a.skupaj;
+                    if (a.vrsta === "blago") g.blagoSkupaj += a.skupaj;
+                    else if (a.vrsta === "storitev") g.storitevSkupaj += a.skupaj;
+                    else g.materialSkupaj += a.skupaj;
                     g.skupaj += a.skupaj;
                     const ds = g.ddvPoStopnjah.get(a.ddvStopnja) ?? { osnova: 0, ddv: 0 };
                     ds.osnova += a.osnova; ds.ddv += a.ddv;
@@ -774,7 +779,7 @@ export default function Realizacija() {
                   }
                   const artGrupe = [...artMap.values()].sort((a, b) => a.ime.localeCompare(b.ime, "sl"));
                   const artStopnje = [...new Set(artGrupe.flatMap(a => [...a.ddvPoStopnjah.keys()]))].sort((a, b) => a - b);
-                  const artSkupaj = artGrupe.reduce((acc, a) => ({ skupaj: acc.skupaj + a.skupaj, blago: acc.blago + a.blagoSkupaj, storitev: acc.storitev + a.storitevSkupaj }), { skupaj: 0, blago: 0, storitev: 0 });
+                  const artSkupaj = artGrupe.reduce((acc, a) => ({ skupaj: acc.skupaj + a.skupaj, material: acc.material + a.materialSkupaj, blago: acc.blago + a.blagoSkupaj, storitev: acc.storitev + a.storitevSkupaj }), { skupaj: 0, material: 0, blago: 0, storitev: 0 });
                   const artDdvSkupaj = new Map<number, { osnova: number; ddv: number }>();
                   for (const g of artGrupe) for (const [s, v] of g.ddvPoStopnjah) {
                     const cur = artDdvSkupaj.get(s) ?? { osnova: 0, ddv: 0 };
@@ -800,6 +805,7 @@ export default function Realizacija() {
                             <th className={`${COL_CLASS} font-semibold`}>Količina</th>
                             <th className={`${COL_CLASS} font-semibold`}>Enota</th>
                             <th className={`${COL_CLASS} font-semibold`}>Skupaj</th>
+                            <th className={`${COL_CLASS} font-semibold text-orange-700`}>Material</th>
                             <th className={`${COL_CLASS} font-semibold text-green-700`}>Blago</th>
                             <th className={`${COL_CLASS} font-semibold text-blue-700`}>Storitev</th>
                             {artStopnje.map(s => (
@@ -817,6 +823,7 @@ export default function Realizacija() {
                               <td className={COL_CLASS}>{a.kolicina}</td>
                               <td className={COL_CLASS}>{a.enota}</td>
                               <td className={`${COL_CLASS} font-medium`}>{eurSkupaj(a.skupaj)}</td>
+                              <td className={`${COL_CLASS} text-orange-700`}>{a.materialSkupaj > 0 ? eurSkupaj(a.materialSkupaj) : ""}</td>
                               <td className={`${COL_CLASS} text-green-700`}>{a.blagoSkupaj > 0 ? eurSkupaj(a.blagoSkupaj) : ""}</td>
                               <td className={`${COL_CLASS} text-blue-600`}>{a.storitevSkupaj > 0 ? eurSkupaj(a.storitevSkupaj) : ""}</td>
                               {artStopnje.map(s => {
@@ -835,6 +842,7 @@ export default function Realizacija() {
                             <td className={COL_CLASS} />
                             <td className={COL_CLASS} />
                             <td className={`${COL_CLASS} font-bold`}>{eurSkupaj(artSkupaj.skupaj)}</td>
+                            <td className={`${COL_CLASS} text-orange-700`}>{eurSkupaj(artSkupaj.material)}</td>
                             <td className={`${COL_CLASS} text-green-700`}>{eurSkupaj(artSkupaj.blago)}</td>
                             <td className={`${COL_CLASS} text-blue-600`}>{eurSkupaj(artSkupaj.storitev)}</td>
                             {artStopnje.map(s => {
