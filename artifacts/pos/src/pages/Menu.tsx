@@ -98,6 +98,7 @@ export default function Menu() {
   const [artPrivzetiModGrpIds, setArtPrivzetiModGrpIds] = useState<number[]>([]);
   const [artToGoArtikli, setArtToGoArtikli] = useState<number[]>([]);
   const [artToGo, setArtToGo] = useState(false);
+  const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("storitev");
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
   const [uskladiOpen, setUskladiOpen] = useState(false);
@@ -410,6 +411,7 @@ export default function Menu() {
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli([]);
     setArtToGo(false);
+    setArtVrstaArtikla("storitev");
     setArtImeZaNabavo(""); setArtEnotaMere(null);
     setNormativItems([]);
     setNormativNapaka(null);
@@ -428,6 +430,7 @@ export default function Menu() {
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli((a as typeof a & { toGoArtikli?: number[] }).toGoArtikli ?? []);
     setArtToGo((a as typeof a & { toGo?: boolean }).toGo ?? false);
+    setArtVrstaArtikla(((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev");
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
     setNormativItems([]);
@@ -478,6 +481,7 @@ export default function Menu() {
       toGo: !isOnlyNabavni ? artToGo : false,
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
+      vrstaArtikla: artVrstaArtikla,
     };
 
     const afterSave = (artikelId: number, label: string) => {
@@ -1117,6 +1121,27 @@ export default function Menu() {
                   )}
                 </div>
               )}
+
+              {/* Vrsta artikla */}
+              <div className="space-y-2 rounded-lg border p-3">
+                <Label className="font-semibold">Vrsta artikla</Label>
+                <div className="flex gap-2">
+                  {(["blago", "material", "storitev"] as const).map(vrsta => (
+                    <button
+                      key={vrsta}
+                      type="button"
+                      onClick={() => setArtVrstaArtikla(vrsta)}
+                      className={`flex-1 py-1.5 px-2 rounded-md text-sm font-medium border transition-colors ${
+                        artVrstaArtikla === vrsta
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-input hover:bg-muted/70 text-muted-foreground"
+                      }`}
+                    >
+                      {vrsta.charAt(0).toUpperCase() + vrsta.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Modifikatorske skupine — samo za prodajne artikle */}
               {artProdajniArtikel && (

@@ -25,6 +25,7 @@ export const artikliTable = pgTable("artikli", {
   privzetiModifikatorji: json("privzeti_modifikatorji").$type<number[]>().notNull().default([]),
   toGoArtikli: json("to_go_artikli").$type<number[]>().notNull().default([]),
   toGo: boolean("to_go").notNull().default(false),
+  vrstaArtikla: text("vrsta_artikla").notNull().default("storitev"),
 });
 
 export const artikliRelations = relations(artikliTable, ({ one }) => ({

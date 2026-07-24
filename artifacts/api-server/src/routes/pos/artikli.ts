@@ -27,6 +27,7 @@ const SELECT_FIELDS = {
   privzetiModifikatorji: artikliTable.privzetiModifikatorji,
   toGoArtikli: artikliTable.toGoArtikli,
   toGo: artikliTable.toGo,
+  vrstaArtikla: artikliTable.vrstaArtikla,
   hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`};
 
 function mapRow(r: Record<string, unknown>) {
@@ -52,6 +53,7 @@ function mapRow(r: Record<string, unknown>) {
     privzetiModifikatorji: (r.privzetiModifikatorji as number[] | null) ?? [],
     toGoArtikli: (r.toGoArtikli as number[] | null) ?? [],
     toGo: Boolean(r.toGo),
+    vrstaArtikla: (r.vrstaArtikla as string | null) ?? "storitev",
     hasNormativ: Boolean(r.hasNormativ),
     modSkupine: [] as Array<{
       id: number; ime: string; obvezna: boolean; minIzbir: number; maxIzbir: number; vrstniRed: number;
@@ -193,7 +195,8 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     jeModifikator: (parsed.data as { jeModifikator?: boolean }).jeModifikator ?? false,
     privzetiModifikatorji: (parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji ?? [],
     toGoArtikli: (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [],
-    toGo: (parsed.data as { toGo?: boolean }).toGo ?? false}).returning();
+    toGo: (parsed.data as { toGo?: boolean }).toGo ?? false,
+    vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "storitev"}).returning();
 
   const [withKat] = await db
     .select(SELECT_FIELDS)
@@ -317,6 +320,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if ((parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji !== undefined) updateData.privzetiModifikatorji = (parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji ?? [];
   if ((parsed.data as { toGoArtikli?: number[] }).toGoArtikli !== undefined) updateData.toGoArtikli = (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [];
   if ((parsed.data as { toGo?: boolean }).toGo !== undefined) updateData.toGo = (parsed.data as { toGo?: boolean }).toGo;
+  if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) updateData.vrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla;
 
   if ("kategorijaId" in parsed.data && parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })
