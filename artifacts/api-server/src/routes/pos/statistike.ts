@@ -473,14 +473,15 @@ router.get("/statistike/realizacija", async (req, res): Promise<void> => {
     const ddvN = Number(r.ddv);
     const osnova = r.osnova != null ? Number(r.osnova) : skupajN - ddvN;
     // resolve per-nacin amounts (fallback to skupaj if not split)
-    let gotovina = r.znesekGotovina != null ? Number(r.znesekGotovina) : 0;
-    let kartica  = r.znesekKartica  != null ? Number(r.znesekKartica)  : 0;
-    let bon      = r.znesekBon      != null ? Number(r.znesekBon)      : 0;
-    let bonPica  = r.znesekBonPica  != null ? Number(r.znesekBonPica)  : 0;
-    let negotovinsko = 0;
+    let gotovina     = r.znesekGotovina     != null ? Number(r.znesekGotovina)     : 0;
+    let kartica      = r.znesekKartica      != null ? Number(r.znesekKartica)      : 0;
+    let bon          = r.znesekBon          != null ? Number(r.znesekBon)          : 0;
+    let bonPica      = r.znesekBonPica      != null ? Number(r.znesekBonPica)      : 0;
+    let negotovinsko = r.znesekNegotovinsko != null ? Number(r.znesekNegotovinsko) : 0;
     let reprezentanca = 0;
     let lastna_poraba = 0;
-    if (gotovina === 0 && kartica === 0 && bon === 0 && bonPica === 0) {
+    // Kadar ni nobenega eksplicitnega zneska, razberemo iz placilnaNacin
+    if (gotovina === 0 && kartica === 0 && bon === 0 && bonPica === 0 && negotovinsko === 0) {
       if (r.placilnaNacin === "gotovina") gotovina = skupajN;
       else if (r.placilnaNacin === "kartica") kartica = skupajN;
       else if (r.placilnaNacin === "bon") bon = skupajN;
