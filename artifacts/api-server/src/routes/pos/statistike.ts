@@ -62,8 +62,26 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
   const [krtSumup] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "kartica"), isNotNull(racuniTable.sumupCheckoutId)));
   const [krtBrez] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "kartica"), sql`${racuniTable.sumupCheckoutId} IS NULL`));
   const [negot] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "negotovinsko")));
-  const [repr] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "reprezentanca")));
-  const [lastna] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "lastna_poraba")));
+
+  // Reprezentanca in lastna_poraba imata skupaj=0 (brezplačni računi) —
+  // pravi znesek je face value iz postavk
+  const faceValueSql = async (nacin: string): Promise<number> => {
+    const ids = await db.select({ id: racuniTable.id })
+      .from(racuniTable)
+      .where(and(podmeje, eq(racuniTable.placilnaNacin, nacin)));
+    if (ids.length === 0) return 0;
+    const idList = ids.map(r => r.id);
+    const [fv] = await db.execute(sql`
+      SELECT COALESCE(SUM(skupaj::numeric), 0) AS face
+      FROM postavke
+      WHERE racun_id = ANY(${sql.raw(`ARRAY[${idList.join(",")}]::int[]`)})
+    `) as unknown as [{ face: string }];
+    return Number(fv?.face ?? 0);
+  };
+  const [reprZnesek, lastnaZnesek] = await Promise.all([
+    faceValueSql("reprezentanca"),
+    faceValueSql("lastna_poraba"),
+  ]);
   const [bonPicaRes] = await db.select({ skupaj: sum(racuniTable.znesekBonPica), steviloBonov: sum(racuniTable.steviloBonov) }).from(racuniTable).where(podmeje);
 
   const [kuponRes] = await db.select({
@@ -208,8 +226,8 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
       bonPica: Number(bonPicaRes?.skupaj ?? 0),
       steviloBonov: Number(bonPicaRes?.steviloBonov ?? 0),
       negotovinsko: Number(negot?.skupaj ?? 0),
-      reprezentanca: Number(repr?.skupaj ?? 0),
-      lastna_poraba: Number(lastna?.skupaj ?? 0)},
+      reprezentanca: reprZnesek,
+      lastna_poraba: lastnaZnesek},
     prometPoBlagajnah,
     prometPoNatakarjih,
     ddvPoStopnjah,
