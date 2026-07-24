@@ -245,10 +245,9 @@ export default function Checkout() {
 
     const repr = izpisData.prometPoNacinuPlacila.reprezentanca;
     const lastnaPoraba = izpisData.prometPoNacinuPlacila.lastna_poraba;
-    const praviSkupaj = izpisData.skupajPromet - repr - lastnaPoraba;
     const skupajVrstice = [
       vr("Skupaj   :", ""),
-      vr("Sk.promet:", EUR(praviSkupaj)),
+      vr("Sk.promet:", EUR(izpisData.skupajPromet)),
       vr("Gotovina :", EUR(izpisData.prometPoNacinuPlacila.gotovina)),
       vr("Kartica  :", EUR(izpisData.prometPoNacinuPlacila.kartica)),
       ...(izpisData.prometPoNacinuPlacila.sumup > 0 ? [vr("SumUp    :", EUR(izpisData.prometPoNacinuPlacila.sumup))] : []),
@@ -1996,7 +1995,7 @@ ${linije.map(vrHtml).join("\n")}
                     <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.bon.toFixed(2)} €</span></div>
                     {izpisData.prometPoNacinuPlacila.bonPica > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon za pico ({izpisData.prometPoNacinuPlacila.steviloBonov}×)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.bonPica.toFixed(2)} €</span></div>}
                     {izpisData.prometPoNacinuPlacila.negotovinsko > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">TRR</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.negotovinsko.toFixed(2)} €</span></div>}
-                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj</span><span>{(izpisData.skupajPromet - izpisData.prometPoNacinuPlacila.reprezentanca - izpisData.prometPoNacinuPlacila.lastna_poraba).toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj</span><span>{izpisData.skupajPromet.toFixed(2)} €</span></div>
                     {(izpisData.prometPoNacinuPlacila.reprezentanca > 0 || izpisData.prometPoNacinuPlacila.lastna_poraba > 0) && (
                       <>
                         <div className="px-3 py-1 bg-muted/20"><span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Navidezni promet (ni v skupaj)</span></div>

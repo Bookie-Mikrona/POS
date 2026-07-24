@@ -71,11 +71,12 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
       .where(and(podmeje, eq(racuniTable.placilnaNacin, nacin)));
     if (ids.length === 0) return 0;
     const idList = ids.map(r => r.id);
-    const [fv] = await db.execute(sql`
+    const fvResult = await db.execute(sql`
       SELECT COALESCE(SUM(skupaj::numeric), 0) AS face
       FROM postavke
       WHERE racun_id = ANY(${sql.raw(`ARRAY[${idList.join(",")}]::int[]`)})
-    `) as unknown as [{ face: string }];
+    `);
+    const fv = fvResult.rows[0] as { face: string } | undefined;
     return Number(fv?.face ?? 0);
   };
   const [reprZnesek, lastnaZnesek] = await Promise.all([
