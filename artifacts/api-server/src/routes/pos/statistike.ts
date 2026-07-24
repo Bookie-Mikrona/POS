@@ -18,6 +18,7 @@ function izracunajZacetekDneva(zacetekDnevaUra: string): Date {
 }
 
 router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const tenotaId = (req as any).enotaId ?? 1;
 
   const { od, do: doParam } = req.query as { od?: string; do?: string };
