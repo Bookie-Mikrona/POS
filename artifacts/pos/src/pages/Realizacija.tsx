@@ -466,9 +466,9 @@ export default function Realizacija() {
   function blagoStoritevRacun(r: RealizacijaRacun) {
     if (r.placilnaNacin === "lastna_poraba" || r.placilnaNacin === "reprezentanca")
       return { material: 0, blago: 0, storitev: 0 };
-    const material = r.ddvPoStopnjah.filter(d => d.vrsta === "material").reduce((a, d) => a + d.osnova + d.ddv, 0);
-    const blago = r.ddvPoStopnjah.filter(d => d.vrsta === "blago").reduce((a, d) => a + d.osnova + d.ddv, 0);
-    const storitev = r.ddvPoStopnjah.filter(d => d.vrsta === "storitev").reduce((a, d) => a + d.osnova + d.ddv, 0);
+    const material = r.ddvPoStopnjah.filter(d => d.vrsta === "material").reduce((a, d) => a + d.osnova, 0);
+    const blago = r.ddvPoStopnjah.filter(d => d.vrsta === "blago").reduce((a, d) => a + d.osnova, 0);
+    const storitev = r.ddvPoStopnjah.filter(d => d.vrsta === "storitev").reduce((a, d) => a + d.osnova, 0);
     return { material, blago, storitev };
   }
 
