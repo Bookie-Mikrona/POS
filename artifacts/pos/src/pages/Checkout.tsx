@@ -2055,10 +2055,10 @@ ${linije.map(vrHtml).join("\n")}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Prihodki po vrsti (neto)</p>
                     <div className="rounded-md border divide-y text-sm">
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Storitve</span><span className="font-medium">{izpisData.prihodkiPoVrsti.storitve.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Blago</span><span className="font-medium">{izpisData.prihodkiPoVrsti.blago.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Material</span><span className="font-medium">{izpisData.prihodkiPoVrsti.material.toFixed(2)} €</span></div>
-                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj neto</span><span>{(izpisData.prihodkiPoVrsti.storitve + izpisData.prihodkiPoVrsti.blago + izpisData.prihodkiPoVrsti.material).toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Storitve</span><span className="font-medium">{(izpisData.prihodkiPoVrsti.storitve ?? 0).toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Blago</span><span className="font-medium">{(izpisData.prihodkiPoVrsti.blago ?? 0).toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Material</span><span className="font-medium">{(izpisData.prihodkiPoVrsti.material ?? 0).toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj neto</span><span>{((izpisData.prihodkiPoVrsti.storitve ?? 0) + (izpisData.prihodkiPoVrsti.blago ?? 0) + (izpisData.prihodkiPoVrsti.material ?? 0)).toFixed(2)} €</span></div>
                     </div>
                   </div>
                 )}
