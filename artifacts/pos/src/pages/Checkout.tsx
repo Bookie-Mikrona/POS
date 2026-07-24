@@ -198,7 +198,7 @@ export default function Checkout() {
       const enotaId = getEnotaId();
       const headers: Record<string, string> = {};
       if (enotaId) headers["X-Enota-Id"] = enotaId;
-      const r = await fetch(`${base}/api/statistike/promet-obdobja?od=${encodeURIComponent(izpisOd.trim())}&do=${encodeURIComponent(izpisDo.trim())}`, { credentials: "include", headers });
+      const r = await fetch(`${base}/api/statistike/promet-obdobja?od=${encodeURIComponent(izpisOd.trim())}&do=${encodeURIComponent(izpisDo.trim())}&_t=${Date.now()}`, { credentials: "include", headers });
       if (!r.ok) {
         let msg = "Napaka pri pridobivanju podatkov.";
         try { const j = await r.json(); msg = j?.error ?? j?.napaka ?? msg; } catch { /* ignore */ }
