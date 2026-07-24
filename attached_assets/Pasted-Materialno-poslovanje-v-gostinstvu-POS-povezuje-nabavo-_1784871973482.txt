@@ -1,0 +1,98 @@
+Materialno poslovanje v gostinstvu (POS) povezuje nabavo, skladiščenje, strežbo in končno finančno knjiženje. Gre za sledenje vsakemu gramu in mililitru blaga od trenutka, ko vstopi v lokal, do trenutka, ko je prodano gostu ali odpisan.
+
+Sodobni slovenski gostinski programi (npr. Vasco, Birokrat, Vasco POS, MetaKocka, Pantallon) temeljijo na povezanem modulu materialnega poslovanja (skladišče) in blagajne (POS).
+
+1. Vnos začetnih zalog
+Preden gostinski obrat začne z delom ali ob prehodu v novo obračunsko obdobje (npr. koledarsko leto), je treba v sistem vnesti začetno stanje zalog.
+
+Kako poteka: Na podlagi letne popisne liste (inventure) se v program vnesejo vsi artikli (surovine, pijače, trgovsko blago), ki so na zalogi na določen dan.
+
+Vrednotenje: Vsak artikel mora imeti določeno količino in nabavno ceno (običajno zadnja nabavna cena ali povprečna nabavna cena).
+
+Primer: Na dan 31. 12. se popiše 50 steklenic vina X po nabavni ceni 5,00 EUR. V sistem se vnese začetna zaloga: Količina = 50, Cena = 5,00 EUR, Vrednost = 250,00 EUR.
+
+2. Prejemnice od dobavitelja (Sprejem blaga)
+Prejemnica je temeljni dokument, s katerim blago vstopi v skladišče in se zaloga poveča.
+
+Kako poteka: Ko dobavitelj dostavi blago in račun/dobavnico, se v programu odpre nova prejemnica. Vnese se dobavitelj, številka računa in specifikacija artiklov.
+
+Podatki na prejemnici: Količina, nabavna cena brez DDV, stopnja DDV in maloprodajna cena (če gre za maloprodajno skladišče pijač).
+
+Avtomatizacija (Dobra praksa): Mnogi slovenski programi omogočajo uvoz e-računov (XML) ali uvoz dobavnic preko skeniranja QR kode oz. XML zapisa dobavitelja (npr. Pingo, Mercator, Spar HoReCa), kar preprečuje napake pri ročnem prepisovanju.
+
+3. Poraba artiklov po normativih (Recepture)
+To je srce gostinskega materialnega poslovanja. Večina prodanih artiklov v gostinstvu ni enaka tistim, ki se kupijo na prejemnici.
+
+Kako deluje: Gost natakneju naroči "Beli kava" ali "Goveji zrezek v omaki". Natakar to potrdi na POS blagajni. Program na ozadju preko normativa (recepture) samodejno razknjiži sestavine iz skladišča.
+
+Primer normativa:
+
+1x Bela kava = 7 g kave (surovina), 1,5 dl mleka (surovina), 1 kos sladkorja (trgovsko blago), 1 kos serviete (reprezentanca/režijski material).
+
+Avtomatsko razknjiževanje: Ob zaključku blagajne (zapisnik zaključka dneva) program zmanjša zaloge vseh teh surovin natančno za toliko, kolikor belih kav je bilo prodanih tisti dan.
+
+4. Poraba ostalih artiklov, ki niso v normativih
+Vsi artikli v gostinstvu ne gredo skozi POS blagajno in normative. Nekateri se porabijo za režijo ali splošne potrebe obrata.
+
+Kako poteka: Uporablja se dokument interna izdaja ali izdatnica materiala.
+
+Primeri:
+
+Čistila, wc papir, papirnate brisače za kuhinjo.
+
+Hrana ali pijača za osebje (topli obroki za natakarje in kuharje).
+
+Reprezentanca (pijača, ki jo šef postreže poslovnim partnerjem brez računa).
+
+Knjiženje: Ti materiali se izločijo iz skladišča kot neposredni strošek materiala ali strošek reprezentance, ključno pa je, da se ne zaračunajo gostu preko blagajne.
+
+5. Kalo, lito in tehnološke izgube
+V gostinstvu so izgube neizogibne (kvarjenje, razlivanje, čiščenje mesa, lupljenje zelenjave, pena pri točenju pijač).
+
+Normirani kalo: Fiziološke ali tehnološke izgube, ki so vnaprej predvidene in zakonsko ali interno določene (npr. kalo na mesu pri peki, kalo pri točenju točenega pijače zaradi pene). Programi omogočajo vnos odstotka kala, ki se avtomatsko odpiše.
+
+Nenormirani kalo (izredni odpadi): Če pade gajba steklenic na tla ali se pokvari večja količina mesa zaradi izpada hladilnika, se izda zapisnik o odpisu/kalu, s katerim se blago razknjiži iz zaloge in opredeli kot izredni odpadek.
+
+6. Inventure
+Inventura je postopek usklajevanja knjižnega stanja v računalniku z dejanskim stanjem v skladišču in na šanku.
+
+Kako poteka:
+
+Zapre se blagajna, izpiše se knjižno stanje.
+
+Izvede se fizični popis vseh zalog (štetje steklenic, teže mesa, količine piva v sodih).
+
+Podatki se vnesejo v program.
+
+Rezultat (Razlike): Program primerja knjižno in dejansko stanje ter izpiše inventurni primanjkljaj (manjka) ali inventurni višek (viška).
+
+Obravnava razlik: Primanjkljaji se obdavčijo ali knjižijo v breme podjetja/odgovorne osebe (če presežejo zakonsko dovoljene meje kala), viški pa se vnesejo kot pozitivna korekcija zaloge.
+
+7. Prenosi med skladišči
+Gostinski obrati imajo pogosto več skladiščnih mest (npr. Centralno skladišče / klet -> Šank -> Kuhinja).
+
+Kako poteka: S prenosnico se blago premakne iz enega skladišča v drugega. Količina v centralnem skladišču se zmanjša, v šanku pa poveča, pri čemer se cena (nabavna ali maloprodajna) ohrani. To omogoča natančen nadzor, kateri del lokacije ima kakšne zaloge.
+
+8. Povezava z dvostavnim knjigovodstvom
+Materialno poslovanje in finančno (dvostavno) knjigovodstvo sta tesno povezana, vendar delujeta na različnih nivojih. Prenos podatkov se zgodi preko knjižb (temeljnic):
+
+Prejem blaga (Nabava):
+
+Prejemnica od dobavitelja ustvari obveznost do dobavitelja (Konto 220) in povečanje zalog blaga/surovin (Konto 31/66) ter vstopni DDV (Konto 160).
+
+Poraba in razknjiževanje (po zaključku dneva/meseca):
+
+Ko program preko normativov ali inventurnih izidov razknjiži blago, se vrednost porabljenega materiala prenese iz zalog v stroške poslovanja (Konto 400 - Stroški materiala / blaga).
+
+Inventurne razlike:
+
+Primanjkljaji se knjižijo v breme izrednih odpisov ali stroškov (Konto 48/5), viški pa med prihodke.
+
+Primeri dobrih praks slovenske programske opreme
+Slovenski ponudniki gostinske programske opreme rešujejo te procese z visoko stopnjo avtomatizacije:
+
+Vasco / Vasco POS: Velja za enega najbolj razširjenih sistemov v slovenskem gostinstvu. Odlikuje ga neposredna sinhrone povezava med POS blagajno in materialnim knjigovodstvom (materialnimi skladišči). Omogoča enostaven vnos normativov v več nivojih (npr. sestavljene jedi, kjer je priloga del normativa) in avtomatski obračun razlike v ceni za maloprodajna skladišča.
+
+Birokrat / BiroCRM: Ponuja rešitve, kjer gostinec z mobilnim terminalom (inventurni reader) enostavno poskenira črtne kode ali vnese stanja, program pa sam izračuna inventurne razlike ter avtomatsko generira temeljnico za glavno knjigo.
+
+MetaKocka / Pantallon: Sodobne spletne (cloud) rešitve, ki omogočajo, da gostinec spremlja zaloge v realnem času preko tablice ali telefona, nudijo pa tudi napredno analitiko marž po posameznih artiklih in avtomatski uvoz e-faktur dobaviteljev s prepoznavo artiklov.
