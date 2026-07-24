@@ -729,7 +729,7 @@ export default function Menu() {
                         {a.barva && <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a.barva }} />}
                         <div>
                           <div>{a.ime}</div>
-                          <div className="flex flex-wrap gap-1 mt-0.5">
+                          <div className="flex flex-nowrap gap-1 mt-0.5 overflow-hidden">
                             {a.prodajniArtikel && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">prodajni</Badge>}
                             {a.nabavniArtikel && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-300 text-blue-700">nabavni</Badge>}
                             {a.hasNormativ && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-amber-400 text-amber-700 bg-amber-50">normativ</Badge>}
