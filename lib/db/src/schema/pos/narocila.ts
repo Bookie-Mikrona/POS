@@ -11,6 +11,7 @@ export const narocilaTable = pgTable("narocila", {
   status: text("status", { enum: ["odprto", "zakljuceno", "preklicano"] }).notNull().default("odprto"),
   skupaj: numeric("skupaj", { precision: 10, scale: 2 }).notNull().default("0"),
   opomba: text("opomba"),
+  stevilkaNarocila: integer("stevilka_narocila"),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
   posodobljeno: timestamp("posodobljeno", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

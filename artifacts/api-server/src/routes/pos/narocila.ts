@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, kategorijeTable, mizeTable, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable, prenosiNarocilTable, racuniTable, zacetneZalogeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, enoteTable, kategorijeTable, mizeTable, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable, prenosiNarocilTable, racuniTable, zacetneZalogeTable } from "@workspace/db";
 import { broadcast, broadcastTo } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
 
@@ -113,6 +113,7 @@ async function getNarociloById(id: number, _davcna: string, tenotaId: number) {
   const [narocilo] = await db
     .select({
       id: narocilaTable.id,
+      stevilkaNarocila: narocilaTable.stevilkaNarocila,
       mizaId: narocilaTable.mizaId,
       mizaStevilka: mizeTable.stevilka,
       mizaIme: mizeTable.ime,
@@ -155,6 +156,7 @@ router.get("/narocila/aktivna", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       id: narocilaTable.id,
+      stevilkaNarocila: narocilaTable.stevilkaNarocila,
       mizaId: narocilaTable.mizaId,
       mizaStevilka: mizeTable.stevilka,
       mizaIme: mizeTable.ime,
@@ -199,6 +201,7 @@ router.get("/narocila", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       id: narocilaTable.id,
+      stevilkaNarocila: narocilaTable.stevilkaNarocila,
       mizaId: narocilaTable.mizaId,
       mizaStevilka: mizeTable.stevilka,
       mizaIme: mizeTable.ime,
@@ -257,12 +260,22 @@ router.post("/narocila", async (req, res): Promise<void> => {
     if (!miza) { res.status(404).json({ error: "Miza ni najdena" }); return; }
   }
 
+  // Izračunaj naslednjo zaporedno številko naročila za to podjetje
+  const companyId = (req as any).companyId as string;
+  const [maxRow] = await db
+    .select({ maxSt: sql<number>`COALESCE(MAX(${narocilaTable.stevilkaNarocila}), 0)` })
+    .from(narocilaTable)
+    .innerJoin(enoteTable, eq(narocilaTable.enotaId, enoteTable.id))
+    .where(eq(enoteTable.companyId, companyId));
+  const nextStevilka = (maxRow?.maxSt ?? 0) + 1;
+
   const [row] = await db.insert(narocilaTable).values({
     enotaId: tenotaId,
     mizaId: parsed.data.mizaId ?? null,
     opomba: parsed.data.opomba ?? null,
     status: "odprto",
-    skupaj: "0"}).returning();
+    skupaj: "0",
+    stevilkaNarocila: nextStevilka}).returning();
 
   if (parsed.data.mizaId != null) {
     await db.update(mizeTable).set({ status: "zasedena" }).where(eq(mizeTable.id, parsed.data.mizaId));

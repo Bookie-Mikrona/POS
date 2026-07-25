@@ -1916,7 +1916,7 @@ ${linije.map(vrHtml).join("\n")}
                   />
                   <div className="flex-1 min-w-0">
                     <label htmlFor={`združi-narocilo-${n.id}`} className="font-semibold text-sm cursor-pointer">
-                      Naročilo #{n.id} — {Number(n.skupaj).toFixed(2)} €
+                      Naročilo #{n.stevilkaNarocila ?? n.id} — {Number(n.skupaj).toFixed(2)} €
                     </label>
                     {(() => { const gl = (n.postavke ?? []).filter(p => p.racunId === null && p.parentPostavkaId == null); return gl.length > 0 && (
                       <ul className="mt-0.5 space-y-0 text-xs text-muted-foreground">
@@ -2260,7 +2260,7 @@ ${linije.map(vrHtml).join("\n")}
                                   onClick={() => { setSelectedNarocilo(n.id); setDdvNapaka(null); }}
                                   data-testid={`button-odpri-narocilo-${n.id}`}
                                 >
-                                  Odpri naročilo #{n.id}
+                                  Odpri naročilo #{n.stevilkaNarocila ?? n.id}
                                 </Button>
                               </div>
                             </div>

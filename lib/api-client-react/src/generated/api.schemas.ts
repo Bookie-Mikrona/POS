@@ -398,6 +398,8 @@ export const NarociloStatus = {
 
 export interface Narocilo {
   id: number;
+  /** Zaporedna številka naročila znotraj podjetja */
+  stevilkaNarocila?: number | null;
   /** @nullable */
   mizaId?: number | null;
   /** @nullable */

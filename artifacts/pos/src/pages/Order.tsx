@@ -1949,7 +1949,7 @@ export default function Order() {
           <div className="flex items-center gap-1 min-w-0">
             <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
               <h2 className="min-w-0 text-lg md:text-xl font-bold leading-tight truncate">{narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}</h2>
-              <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">#{narocilo.id}</span>
+              <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
             </div>
             {narocilo.status === "odprto" && (
               <Button
@@ -2561,7 +2561,7 @@ export default function Order() {
             Prestavi na mizo
           </DialogTitle>
           <DialogDescription>
-            Izberi ciljno mizo za naročilo #{narocilo.id}. Prikazane so le proste mize.
+            Izberi ciljno mizo za naročilo #{narocilo.stevilkaNarocila ?? narocilo.id}. Prikazane so le proste mize.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 pt-1">
@@ -2966,7 +2966,7 @@ export default function Order() {
           {drugaNarocila.map(n => (
             <div key={n.id} className="flex items-center justify-between rounded-lg border p-3 gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium">Naročilo #{n.id}</p>
+                <p className="text-sm font-medium">Naročilo #{n.stevilkaNarocila ?? n.id}</p>
                 <p className="text-xs text-muted-foreground">
                   {(n.postavke?.filter(p => p.racunId === null && p.parentPostavkaId == null).length ?? 0)} artiklov •{" "}
                   {Number(n.skupaj).toFixed(2)} €
@@ -2982,7 +2982,7 @@ export default function Order() {
                     onSuccess: (u) => {
                       setSpojiDialogOpen(false);
                       queryClient.setQueryData(getGetNarociloQueryKey(id), u);
-                      toast({ title: "Združeno", description: `Naročilo #${n.id} je bilo uspešno združeno.` });
+                      toast({ title: "Združeno", description: `Naročilo #${n.stevilkaNarocila ?? n.id} je bilo uspešno združeno.` });
                     },
                     onError: () => toast({ title: "Napaka", description: "Združevanje ni uspelo", variant: "destructive" }),
                   });
