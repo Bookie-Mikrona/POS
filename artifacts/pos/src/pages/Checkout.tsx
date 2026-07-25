@@ -17,6 +17,7 @@ import {
   getGetNarociloQueryKey,
 } from "@workspace/api-client-react";
 import { useNastavitve } from "@/contexts/NastavitveContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useBlagajna } from "@/contexts/BlagajnaContext";
 import { useNaprava } from "@/contexts/NapravaContext";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -77,6 +78,8 @@ interface TerminalRezultat {
 }
 
 export default function Checkout() {
+  const { user } = useAuth();
+  const imaTrr = user?.imaTrr ?? false;
   const { data: narocila, isLoading } = useListAktivnaNarocila({ query: { refetchOnMount: "always", queryKey: getListAktivnaNarocilaQueryKey() } });
   const { nastavitve } = useNastavitve();
   const { data: aktivneIzmene } = useListAktivneIzmene();
@@ -2797,7 +2800,7 @@ ${linije.map(vrHtml).join("\n")}
                           { value: "gotovina",     label: "Gotovina",       Icon: Banknote },
                           { value: "kartica",      label: "Kartica",        Icon: CreditCard },
                           { value: "bon",          label: "Bon",            Icon: Gift },
-                          ...(kupecNaziv || kupecDavcna ? [{ value: "negotovinsko", label: "TRR", Icon: Landmark }] : []),
+                          ...(imaTrr && (kupecNaziv || kupecDavcna) ? [{ value: "negotovinsko", label: "TRR", Icon: Landmark }] : []),
                           { value: "reprezentanca", label: "Reprezentanca", Icon: Landmark },
                           { value: "lastna_poraba", label: "Lastna poraba", Icon: Banknote },
                         ].map(({ value, label, Icon }) => (

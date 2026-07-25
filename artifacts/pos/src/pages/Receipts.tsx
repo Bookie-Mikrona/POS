@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useListRacuni, usePonoviPosiljanjeRacuna, useStornirajRacun, getListRacuniQueryKey, useUpdateRacunPlacilnaNacin, useVivaTerminalRefund, useListVivaVracila, getListVivaVracilaQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
@@ -636,6 +637,9 @@ type PrintDialog = {
 };
 
 export default function Receipts() {
+  const { user } = useAuth();
+  const imaTrr = user?.imaTrr ?? false;
+  const nacinIPlacila = NACINI_PLACILA.filter(n => n.value !== "negotovinsko" || imaTrr);
   const search = useSearch();
   const poudarjenaStevilka = new URLSearchParams(search).get("stevilka") ?? null;
   const poudarjenRef = useRef<HTMLDivElement | null>(null);
@@ -1147,7 +1151,7 @@ export default function Receipts() {
                     }}
                     className="grid grid-cols-3 gap-4"
                   >
-                    {NACINI_PLACILA.map(({ value, label, Icon }) => (
+                    {nacinIPlacila.map(({ value, label, Icon }) => (
                       <div key={value}>
                         <RadioGroupItem value={value} id={`print-nacin-${value}`} className="peer sr-only" />
                         <Label

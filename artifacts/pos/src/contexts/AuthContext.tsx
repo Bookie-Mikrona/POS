@@ -25,6 +25,9 @@ export interface Uporabnik {
   natakariId?: number | null;
   companyId?: string;
   enote?: Array<{ id: number; ime: string }>;
+  idZaDdv?: string | null;
+  jeDdvZavezanec?: boolean;
+  imaTrr?: boolean;
 }
 
 interface PosAuthMeResponse {
@@ -37,6 +40,9 @@ interface PosAuthMeResponse {
   companyNaziv: string | null;
   companyNaslov: string | null;
   podjetjeDavcna: string;
+  idZaDdv: string | null;
+  jeDdvZavezanec: boolean;
+  imaTrr: boolean;
   enotaId: number | null;
   enotaIme: string | null;
   blagajnaId: number | null;
@@ -138,6 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           natakariId: data.natakariId ?? null,
           companyId: data.companyId ?? undefined,
           enote: data.enote,
+          idZaDdv: data.idZaDdv ?? null,
+          jeDdvZavezanec: data.jeDdvZavezanec ?? false,
+          imaTrr: data.imaTrr ?? false,
         });
       })
       .catch(() => setPosUser(null))
