@@ -12,7 +12,8 @@ export function useRealtimeSync() {
 
     const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
     const napravaId = getNapravaId();
-    const es = new EventSource(`${base}/api/events?napravaId=${encodeURIComponent(napravaId)}`);
+    const enotaId = user.enotaId ?? "";
+    const es = new EventSource(`${base}/api/events?napravaId=${encodeURIComponent(napravaId)}&enota_id=${encodeURIComponent(enotaId)}`);
 
     es.addEventListener("update", () => {
       void queryClient.invalidateQueries({ queryKey: ["/api/narocila"] });
