@@ -2798,7 +2798,7 @@ ${linije.map(vrHtml).join("\n")}
                       >
                         {[
                           { value: "gotovina",     label: "Gotovina",       Icon: Banknote },
-                          { value: "kartica",      label: "Kartica",        Icon: CreditCard },
+                          ...(imaTrr ? [{ value: "kartica", label: "Kartica", Icon: CreditCard }] : []),
                           { value: "bon",          label: "Bon",            Icon: Gift },
                           ...(imaTrr && (kupecNaziv || kupecDavcna) ? [{ value: "negotovinsko", label: "TRR", Icon: Landmark }] : []),
                           { value: "reprezentanca", label: "Reprezentanca", Icon: Landmark },

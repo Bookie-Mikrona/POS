@@ -639,7 +639,10 @@ type PrintDialog = {
 export default function Receipts() {
   const { user } = useAuth();
   const imaTrr = user?.imaTrr ?? false;
-  const nacinIPlacila = NACINI_PLACILA.filter(n => n.value !== "negotovinsko" || imaTrr);
+  const nacinIPlacila = NACINI_PLACILA.filter(n => {
+    if (n.value === "kartica" || n.value === "negotovinsko") return imaTrr;
+    return true;
+  });
   const search = useSearch();
   const poudarjenaStevilka = new URLSearchParams(search).get("stevilka") ?? null;
   const poudarjenRef = useRef<HTMLDivElement | null>(null);
