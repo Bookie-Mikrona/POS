@@ -81,11 +81,11 @@ export function GotovToastSystem() {
             <button
               key={t.id}
               onClick={() => reopenToast(t.id)}
-              className="flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full shadow-md hover:bg-emerald-600 transition-colors max-w-[160px]"
+              className="flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full shadow-md hover:bg-emerald-600 transition-colors max-w-[220px]"
               title={`${mizaLabel(t)}: ${t.ime}`}
             >
               {t.vir === "tocilnica" ? <GlassWater className="h-3.5 w-3.5 shrink-0" /> : <ChefHat className="h-3.5 w-3.5 shrink-0" />}
-              <span className="truncate">{mizaLabel(t)}</span>
+              <span className="truncate">{mizaLabel(t)}: {t.ime}</span>
             </button>
           ))}
         </div>
