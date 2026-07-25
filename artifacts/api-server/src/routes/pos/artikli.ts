@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, count, desc, eq, inArray, ne, sql, sum } from "drizzle-orm";
 import { artModSkupineTable, artikliTable, db, kategorijeTable, modSkupineTable, modifikatorjiTable, nastavitveTable, normativiTable, postavkeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 const router: IRouter = Router();
 
@@ -279,9 +279,11 @@ router.post("/artikli/uskladi-ddv", requireEnota, async (req, res): Promise<void
 router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
 
-  const [artikli, normativi] = await Promise.all([
+  const ENOTE_MERE = ["kom", "kos", "par", "set", "porcija", "kg", "dag", "g", "l", "dl", "ml", "m", "m²", "m³"];
+  const MAX_VRSTIC = 500; // skupaj vrstic s podatki + praznih
+
+  const [artikli, normativi, kategorije] = await Promise.all([
     db.select({
-      id: artikliTable.id,
       ime: artikliTable.ime,
       opis: artikliTable.opis,
       cena: artikliTable.cena,
@@ -293,7 +295,6 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       prodajniArtikel: artikliTable.prodajniArtikel,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
-      vrstniRed: artikliTable.vrstniRed,
     })
       .from(artikliTable)
       .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, tenotaId)))
@@ -310,40 +311,126 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       JOIN artikli v ON n.vhodni_artikel_id = v.id AND v.enota_id = ${tenotaId}
       ORDER BY a.ime, n.vrstni_red
     `),
+    db.select({ ime: kategorijeTable.ime })
+      .from(kategorijeTable)
+      .where(eq(kategorijeTable.enotaId, tenotaId))
+      .orderBy(asc(kategorijeTable.ime)),
   ]);
 
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "POS Gostinstvo";
+
+  // ── Skrit list: Šifranti (kategorije + enote mere) ────────────────────────
+  const katImena = kategorije.map(k => k.ime);
+  const wsSif = wb.addWorksheet("Sifranti", { state: "veryHidden" });
+  wsSif.columns = [{ width: 30 }, { width: 15 }];
+  const maxSifVrstic = Math.max(katImena.length, ENOTE_MERE.length);
+  for (let i = 0; i < maxSifVrstic; i++) {
+    wsSif.addRow([katImena[i] ?? "", ENOTE_MERE[i] ?? ""]);
+  }
 
   // ── List 1: Artikli ────────────────────────────────────────────────────────
-  const artHeaders = ["ime", "cena", "ddv", "kategorija", "opis", "barva", "aktiven", "nabavniArtikel", "prodajniArtikel", "imeZaNabavo", "enotaMere"];
-  const artVrstice = artikli.map(a => [
-    a.ime,
-    Number(a.cena),
-    Number(a.davek),
-    a.kategorijaIme ?? "",
-    a.opis ?? "",
-    a.barva ?? "",
-    a.aktiven ? "da" : "ne",
-    a.nabavniArtikel ? "da" : "ne",
-    a.prodajniArtikel ? "da" : "ne",
-    a.imeZaNabavo ?? "",
-    a.enotaMere ?? "",
-  ]);
-  const wsArt = XLSX.utils.aoa_to_sheet([artHeaders, ...artVrstice]);
-  wsArt["!cols"] = [24, 10, 6, 18, 30, 10, 8, 14, 14, 20, 12].map(w => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, wsArt, "Artikli");
+  // Stolpci: A=ime B=cena C=ddv D=kategorija E=opis F=barva G=aktiven H=nabavniArtikel I=prodajniArtikel J=imeZaNabavo K=enotaMere
+  const wsArt = wb.addWorksheet("Artikli");
+  wsArt.columns = [
+    { header: "ime",             key: "ime",             width: 28 },
+    { header: "cena",            key: "cena",            width: 10 },
+    { header: "ddv",             key: "ddv",             width: 7  },
+    { header: "kategorija",      key: "kategorija",      width: 20 },
+    { header: "opis",            key: "opis",            width: 32 },
+    { header: "barva",           key: "barva",           width: 10 },
+    { header: "aktiven",         key: "aktiven",         width: 9  },
+    { header: "nabavniArtikel",  key: "nabavniArtikel",  width: 15 },
+    { header: "prodajniArtikel", key: "prodajniArtikel", width: 15 },
+    { header: "imeZaNabavo",     key: "imeZaNabavo",     width: 22 },
+    { header: "enotaMere",       key: "enotaMere",       width: 13 },
+  ];
+
+  // Glava — krepko + ozadje
+  const headerRow = wsArt.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
+  headerRow.alignment = { vertical: "middle" };
+  wsArt.views = [{ state: "frozen", ySplit: 1 }]; // zamrznjena glava
+
+  // Obstoječi artikli
+  for (const a of artikli) {
+    wsArt.addRow({
+      ime:             a.ime,
+      cena:            Number(a.cena),
+      ddv:             Number(a.davek),
+      kategorija:      a.kategorijaIme ?? "",
+      opis:            a.opis ?? "",
+      barva:           a.barva ?? "",
+      aktiven:         a.aktiven ? "DA" : "NE",
+      nabavniArtikel:  a.nabavniArtikel ? "DA" : "NE",
+      prodajniArtikel: a.prodajniArtikel ? "DA" : "NE",
+      imeZaNabavo:     a.imeZaNabavo ?? "",
+      enotaMere:       a.enotaMere ?? "",
+    });
+  }
+
+  // Prazne vrstice s privzetimi vrednostmi in formulami
+  const prvaVrsticaZaVnos = artikli.length + 2; // +1 za glavo, +1 za 1-based
+  for (let r = prvaVrsticaZaVnos; r <= MAX_VRSTIC + 1; r++) {
+    const row = wsArt.getRow(r);
+    row.getCell("G").value = "DA"; // aktiven
+    row.getCell("I").value = "DA"; // prodajniArtikel
+    // imeZaNabavo: avtomatično iz imena ko je nabavniArtikel=DA
+    row.getCell("J").value = { formula: `IF(H${r}="DA",A${r},"")` };
+  }
+
+  // Validacija podatkov (dropdowni) — za vse vrstice s podatki
+  const dataRange = `2:${MAX_VRSTIC + 1}`;
+
+  // Kategorija (D)
+  if (katImena.length > 0) {
+    wsArt.dataValidations.add(`D${dataRange}`, {
+      type: "list",
+      allowBlank: true,
+      formulae: [`Sifranti!$A$1:$A$${katImena.length}`],
+      showErrorMessage: false,
+    });
+  }
+
+  // DA/NE polja
+  for (const col of ["G", "H", "I"]) {
+    wsArt.dataValidations.add(`${col}${dataRange}`, {
+      type: "list",
+      allowBlank: false,
+      formulae: ['"DA,NE"'],
+      showErrorMessage: true,
+      errorStyle: "stop",
+      error: 'Vnesite "DA" ali "NE"',
+    });
+  }
+
+  // Enota mere (K)
+  wsArt.dataValidations.add(`K${dataRange}`, {
+    type: "list",
+    allowBlank: true,
+    formulae: [`Sifranti!$B$1:$B$${ENOTE_MERE.length}`],
+    showErrorMessage: false,
+  });
 
   // ── List 2: Normativi ──────────────────────────────────────────────────────
   const normRows = normativi.rows as { artikelIme: string; sestavinaIme: string; kolicina: string; enotaMere: string | null }[];
-  if (normRows.length > 0) {
-    const normHeaders = ["artikelIme", "sestavinaIme", "kolicina", "enotaMere"];
-    const normVrstice = normRows.map(n => [n.artikelIme, n.sestavinaIme, Number(n.kolicina), n.enotaMere ?? ""]);
-    const wsNorm = XLSX.utils.aoa_to_sheet([normHeaders, ...normVrstice]);
-    wsNorm["!cols"] = [24, 24, 10, 12].map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, wsNorm, "Normativi");
+  const wsNorm = wb.addWorksheet("Normativi");
+  wsNorm.columns = [
+    { header: "artikelIme",   key: "artikelIme",   width: 28 },
+    { header: "sestavinaIme", key: "sestavinaIme", width: 28 },
+    { header: "kolicina",     key: "kolicina",     width: 12 },
+    { header: "enotaMere",    key: "enotaMere",    width: 13 },
+  ];
+  const normHeader = wsNorm.getRow(1);
+  normHeader.font = { bold: true };
+  normHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
+  wsNorm.views = [{ state: "frozen", ySplit: 1 }];
+  for (const n of normRows) {
+    wsNorm.addRow({ artikelIme: n.artikelIme, sestavinaIme: n.sestavinaIme, kolicina: Number(n.kolicina), enotaMere: n.enotaMere ?? "" });
   }
 
-  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const buf = await wb.xlsx.writeBuffer() as Buffer;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", 'attachment; filename="artikli.xlsx"');
   res.send(buf);
