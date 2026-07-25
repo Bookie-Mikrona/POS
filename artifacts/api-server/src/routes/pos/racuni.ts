@@ -1324,6 +1324,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     steviloBonov: racunRaw.steviloBonov ?? null,
     znesekBonPica: racunRaw.znesekBonPica != null ? Number(racunRaw.znesekBonPica) : null,
     znesekNegotovinsko: racunRaw.znesekNegotovinsko != null ? Number(racunRaw.znesekNegotovinsko) : null,
+    jeDdvZavezanec: (req as any).jeDdvZavezanec ?? true,
     postavke: postavke.map(p => ({
       postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
       cenaKos: Number(p.cenaKos),
