@@ -288,6 +288,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       opis: artikliTable.opis,
       cena: artikliTable.cena,
       davek: artikliTable.davek,
+      vrstaArtikla: artikliTable.vrstaArtikla,
       kategorijaIme: kategorijeTable.ime,
       barva: artikliTable.barva,
       aktiven: artikliTable.aktiven,
@@ -295,6 +296,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       prodajniArtikel: artikliTable.prodajniArtikel,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
+      toGo: artikliTable.toGo,
     })
       .from(artikliTable)
       .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, tenotaId)))
@@ -330,12 +332,13 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   }
 
   // ── List 1: Artikli ────────────────────────────────────────────────────────
-  // Stolpci: A=ime B=cena C=ddv D=kategorija E=opis F=barva G=aktiven H=nabavniArtikel I=prodajniArtikel J=imeZaNabavo K=enotaMere
+  // Stolpci: A=ime B=cena C=ddv D=vrstaArtikla E=kategorija F=opis G=barva H=aktiven I=nabavniArtikel J=prodajniArtikel K=imeZaNabavo L=enotaMere M=toGo
   const wsArt = wb.addWorksheet("Artikli");
   wsArt.columns = [
     { header: "ime",             key: "ime",             width: 28 },
     { header: "cena",            key: "cena",            width: 10 },
     { header: "ddv",             key: "ddv",             width: 7  },
+    { header: "vrstaArtikla",    key: "vrstaArtikla",    width: 13 },
     { header: "kategorija",      key: "kategorija",      width: 20 },
     { header: "opis",            key: "opis",            width: 32 },
     { header: "barva",           key: "barva",           width: 10 },
@@ -344,6 +347,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     { header: "prodajniArtikel", key: "prodajniArtikel", width: 15 },
     { header: "imeZaNabavo",     key: "imeZaNabavo",     width: 22 },
     { header: "enotaMere",       key: "enotaMere",       width: 13 },
+    { header: "toGo",            key: "toGo",            width: 9  },
   ];
 
   // Glava — krepko + ozadje
@@ -359,6 +363,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       ime:             a.ime,
       cena:            Number(a.cena),
       ddv:             Number(a.davek),
+      vrstaArtikla:    a.vrstaArtikla ?? "material",
       kategorija:      a.kategorijaIme ?? "",
       opis:            a.opis ?? "",
       barva:           a.barva ?? "",
@@ -367,25 +372,39 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       prodajniArtikel: a.prodajniArtikel ? "DA" : "NE",
       imeZaNabavo:     a.imeZaNabavo ?? "",
       enotaMere:       a.enotaMere ?? "",
+      toGo:            a.toGo ? "DA" : "NE",
     });
   }
 
   // Prazne vrstice s privzetimi vrednostmi in formulami
+  // Stolpci: H=aktiven I=nabavniArtikel J=prodajniArtikel K=imeZaNabavo M=toGo
   const prvaVrsticaZaVnos = artikli.length + 2; // +1 za glavo, +1 za 1-based
   for (let r = prvaVrsticaZaVnos; r <= MAX_VRSTIC + 1; r++) {
     const row = wsArt.getRow(r);
-    row.getCell("G").value = "DA"; // aktiven
-    row.getCell("I").value = "DA"; // prodajniArtikel
+    row.getCell("D").value = "material"; // vrstaArtikla
+    row.getCell("H").value = "DA";       // aktiven
+    row.getCell("J").value = "DA";       // prodajniArtikel
+    row.getCell("M").value = "NE";       // toGo
     // imeZaNabavo: avtomatično iz imena ko je nabavniArtikel=DA
-    row.getCell("J").value = { formula: `IF(H${r}="DA",A${r},"")` };
+    row.getCell("K").value = { formula: `IF(I${r}="DA",A${r},"")` };
   }
 
   // Validacija podatkov (dropdowni) — za vse vrstice s podatki
   const dataRange = `2:${MAX_VRSTIC + 1}`;
 
-  // Kategorija (D)
+  // Vrsta artikla (D)
+  wsArt.dataValidations.add(`D${dataRange}`, {
+    type: "list",
+    allowBlank: false,
+    formulae: ['"blago,material,storitev"'],
+    showErrorMessage: true,
+    errorStyle: "stop",
+    error: 'Veljavne vrednosti: blago, material, storitev',
+  });
+
+  // Kategorija (E)
   if (katImena.length > 0) {
-    wsArt.dataValidations.add(`D${dataRange}`, {
+    wsArt.dataValidations.add(`E${dataRange}`, {
       type: "list",
       allowBlank: true,
       formulae: [`Sifranti!$A$1:$A$${katImena.length}`],
@@ -393,8 +412,8 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     });
   }
 
-  // DA/NE polja
-  for (const col of ["G", "H", "I"]) {
+  // DA/NE polja: H=aktiven, I=nabavniArtikel, J=prodajniArtikel, M=toGo
+  for (const col of ["H", "I", "J", "M"]) {
     wsArt.dataValidations.add(`${col}${dataRange}`, {
       type: "list",
       allowBlank: false,
@@ -405,8 +424,8 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     });
   }
 
-  // Enota mere (K)
-  wsArt.dataValidations.add(`K${dataRange}`, {
+  // Enota mere (L)
+  wsArt.dataValidations.add(`L${dataRange}`, {
     type: "list",
     allowBlank: true,
     formulae: [`Sifranti!$B$1:$B$${ENOTE_MERE.length}`],
