@@ -260,22 +260,27 @@ router.post("/narocila", async (req, res): Promise<void> => {
     if (!miza) { res.status(404).json({ error: "Miza ni najdena" }); return; }
   }
 
-  // Izračunaj naslednjo zaporedno številko naročila za to podjetje
   const companyId = (req as any).companyId as string;
-  const [maxRow] = await db
-    .select({ maxSt: sql<number>`COALESCE(MAX(${narocilaTable.stevilkaNarocila}), 0)` })
-    .from(narocilaTable)
-    .innerJoin(enoteTable, eq(narocilaTable.enotaId, enoteTable.id))
-    .where(eq(enoteTable.companyId, companyId));
-  const nextStevilka = (maxRow?.maxSt ?? 0) + 1;
 
   const [row] = await db.insert(narocilaTable).values({
     enotaId: tenotaId,
     mizaId: parsed.data.mizaId ?? null,
     opomba: parsed.data.opomba ?? null,
     status: "odprto",
-    skupaj: "0",
-    stevilkaNarocila: nextStevilka}).returning();
+    skupaj: "0"}).returning();
+
+  // Nastavi stevilka_narocila z raw SQL — Drizzle schema morda nima stolpca v runtime
+  await db.execute(sql`
+    UPDATE narocila
+    SET stevilka_narocila = (
+      SELECT COALESCE(MAX(n2.stevilka_narocila), 0) + 1
+      FROM narocila n2
+      JOIN enote e ON e.id = n2.enota_id
+      WHERE e.company_id = ${companyId}
+        AND n2.id != ${row.id}
+    )
+    WHERE id = ${row.id}
+  `);
 
   if (parsed.data.mizaId != null) {
     await db.update(mizeTable).set({ status: "zasedena" }).where(eq(mizeTable.id, parsed.data.mizaId));
