@@ -204,6 +204,7 @@ export default function Menu() {
         method: "POST",
         body: fd,
         credentials: "include",
+        headers: user?.enotaId ? { "X-Enota-Id": String(user.enotaId) } : {},
       });
       const data = await r.json() as { napaka?: string; predogled?: UvozPredogled[]; napake?: UvozNapaka[]; skupaj?: number; veljavnih?: number; normativov?: number };
       if (!r.ok) {
@@ -232,6 +233,7 @@ export default function Menu() {
         method: "POST",
         body: fd,
         credentials: "include",
+        headers: user?.enotaId ? { "X-Enota-Id": String(user.enotaId) } : {},
       });
       const data = await r.json() as { napaka?: string; uvozenih?: number; preskocenih?: number; napake?: UvozNapaka[]; normativiUvozenih?: number };
       if (!r.ok) {
@@ -262,6 +264,7 @@ export default function Menu() {
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}api/artikli/izvozi-excel`, {
         credentials: "include",
+        headers: user?.enotaId ? { "X-Enota-Id": String(user.enotaId) } : {},
       });
       if (!r.ok) {
         toast({ title: "Napaka pri izvozu", variant: "destructive" });
