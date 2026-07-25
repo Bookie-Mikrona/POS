@@ -1284,7 +1284,6 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     : null;
 
   // ── 5. Sestavi tiskalne podatke — enako kot original FURS-POS ──────────────
-  console.log("[ZCS DEBUG] jeDdvZavezanec:", (req as any).jeDdvZavezanec, "| enotaId:", tenotaId, "| naslovRestavracije:", nav.naslovRestavracije, "| davcnaStevilka:", nav.davcnaStevilka);
   const rezultat = buildTextReceipt({
     stevilkaRacuna: racunRaw.stevilkaRacuna,
     datum: datumCas,
