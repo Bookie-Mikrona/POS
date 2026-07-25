@@ -1492,6 +1492,7 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
     znesekNegotovinsko: racun.znesekNegotovinsko != null ? Number(racun.znesekNegotovinsko) : null,
     vivaTerminalSessionId: racun.vivaTerminalSessionId ?? null,
     sumupCheckoutId: racun.sumupCheckoutId ?? null,
+    jeDdvZavezanec: (req as any).jeDdvZavezanec ?? true,
   };
 
   // ── HTML generacija — buildTextReceipt(32) → <pre> ─────────────────────────
@@ -1548,7 +1549,7 @@ ${qrDataUrl ? `<div class="qr"><img src="${qrDataUrl}" width="180" height="180" 
 });
 
 // ── Pomožna funkcija za izgradnjo ESC/POS podatkov (deljeno med endpointi) ────
-async function buildEscPosData(id: number, tenotaId: number) {
+async function buildEscPosData(id: number, tenotaId: number, jeDdvZavezanec = true) {
   const [racunRaw] = await db
     .select({ ...baseSelect, kupecZavezanecDdv: racuniTable.kupecZavezanecDdv })
     .from(racuniTable)
@@ -1589,11 +1590,12 @@ async function buildEscPosData(id: number, tenotaId: number) {
     enotaOpis: enotaRow[0]?.opis ?? null,
     stornoIzvornaRacunStevilka,
     datumCas,
+    jeDdvZavezanec,
   };
 }
 
 function buildEscPosBytes(d: NonNullable<Awaited<ReturnType<typeof buildEscPosData>>>, cols: number): Uint8Array {
-  const { racunRaw, steviloPrintov, postavke, nav, enotaOpis, stornoIzvornaRacunStevilka, datumCas } = d;
+  const { racunRaw, steviloPrintov, postavke, nav, enotaOpis, stornoIzvornaRacunStevilka, datumCas, jeDdvZavezanec } = d;
   return buildEscPosReceipt({
     stevilkaRacuna: racunRaw.stevilkaRacuna,
     datum: datumCas,
@@ -1634,6 +1636,7 @@ function buildEscPosBytes(d: NonNullable<Awaited<ReturnType<typeof buildEscPosDa
     steviloBonov: racunRaw.steviloBonov ?? null,
     znesekBonPica: racunRaw.znesekBonPica != null ? Number(racunRaw.znesekBonPica) : null,
     znesekNegotovinsko: racunRaw.znesekNegotovinsko != null ? Number(racunRaw.znesekNegotovinsko) : null,
+    jeDdvZavezanec,
     postavke: postavke.map(p => ({
       postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
       cenaKos: Number(p.cenaKos),
@@ -1650,7 +1653,7 @@ router.get("/print/racun/:id", async (req: Request, res: Response): Promise<void
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const d = await buildEscPosData(id, tenotaId);
+  const d = await buildEscPosData(id, tenotaId, (req as any).jeDdvZavezanec ?? true);
   if (!d) { res.status(404).json({ error: "Račun ni najden" }); return; }
 
   const bytes = buildEscPosBytes(d, 32);
@@ -1677,7 +1680,7 @@ router.post("/print/racun/:id/network", async (req: Request, res: Response): Pro
     return;
   }
 
-  const d = await buildEscPosData(id, tenotaId);
+  const d = await buildEscPosData(id, tenotaId, (req as any).jeDdvZavezanec ?? true);
   if (!d) { res.status(404).json({ error: "Račun ni najden" }); return; }
 
   const bytes = buildEscPosBytes(d, 32);
@@ -1710,7 +1713,7 @@ router.post("/print/racun/:id/agent", async (req: Request, res: Response): Promi
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const d = await buildEscPosData(id, tenotaId);
+  const d = await buildEscPosData(id, tenotaId, (req as any).jeDdvZavezanec ?? true);
   if (!d) { res.status(404).json({ error: "Račun ni najden" }); return; }
 
   // Preberi tiskalnikSirina iz naprave (58mm → 32, 80mm → 40 kolon)

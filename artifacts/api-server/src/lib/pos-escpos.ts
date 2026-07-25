@@ -161,6 +161,7 @@ export interface PrintRacunData {
   naslovRestvracije?: string;
   enotaOpis?: string | null;
   davcnaStevilka?: string;
+  jeDdvZavezanec?: boolean;
   racunPozdrav1?: string;
   racunPozdrav2?: string;
   steviloPrintov?: number;
@@ -226,10 +227,12 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
     return d.toLocaleDateString("sl-SI", { timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit", year: "numeric" });
   })();
 
+  const jeDdv = data.jeDdvZavezanec !== false;
+
   // HEADER
   for (const l of centerTextLines(data.nazivRestvracije ?? "RESTAVRACIJA", cols)) line(l, true);
   if (data.naslovRestvracije) for (const l of centerTextLines(data.naslovRestvracije, cols)) line(l, true);
-  if (data.davcnaStevilka) for (const l of centerTextLines(`ID za DDV: SI${data.davcnaStevilka}`, cols)) line(l, true);
+  if (data.davcnaStevilka) for (const l of centerTextLines(jeDdv ? `ID za DDV: SI${data.davcnaStevilka}` : `Davčna št.: ${data.davcnaStevilka}`, cols)) line(l, true);
   if (data.enotaOpis) for (const l of centerTextLines(data.enotaOpis, cols)) line(l, true);
   if (data.placilnaNacin === "negotovinsko" && data.prodajalecIban) for (const l of centerTextLines(`TRR: ${data.prodajalecIban}`, cols)) line(l, true);
   if (data.placilnaNacin === "negotovinsko" && data.prodajalecBic) line(centerText(`BIC: ${data.prodajalecBic}`, cols), true);
@@ -277,7 +280,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
   line(dashedLine(cols));
 
   const uniqueRates = [...new Set(data.postavke.map((p) => p.davek))].sort((a, b) => b - a);
-  const davekOkrajsava = new Map<number, string>(uniqueRates.map((r, i) => [r, `T${i + 1}`]));
+  const davekOkrajsava = new Map<number, string>(uniqueRates.map((r, i) => [r, jeDdv ? `T${i + 1}` : ""]));
 
   // ITEMS — 4 kolone, desno poravnane, ločene z enim presledkom
   const kolW = 4, cenaW = 9, skupajW = 9;
@@ -356,27 +359,31 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
     line(twoColumns(data.placilnaNacin === "reprezentanca" ? "Reprezentanca:" : "Lastna poraba:", "", cols));
     line(twoColumns("100% popust:", `-${skupajIzPostavk.toFixed(2)} €`, cols));
   }
-  line(twoColumns("Osnova (brez DDV):", `${brezDDV.toFixed(2)} €`, cols));
-  line(twoColumns("DDV skupaj:", `${data.ddv.toFixed(2)} €`, cols));
+  if (jeDdv) {
+    line(twoColumns("Osnova (brez DDV):", `${brezDDV.toFixed(2)} €`, cols));
+    line(twoColumns("DDV skupaj:", `${data.ddv.toFixed(2)} €`, cols));
+  }
   line("");
   line(twoColumns("SKUPAJ:", `${data.skupaj.toFixed(2)} €`, cols), true);
 
-  // DDV razrez po stopnjah
-  const ddvPoStopnji = new Map<number, { skupajPostavke: number; ddvZnesek: number }>();
-  for (const p of data.postavke) {
-    const ddvZnesek = Math.round(p.skupaj * p.davek / (100 + p.davek) * 100) / 100;
-    const ex = ddvPoStopnji.get(p.davek) ?? { skupajPostavke: 0, ddvZnesek: 0 };
-    ddvPoStopnji.set(p.davek, { skupajPostavke: ex.skupajPostavke + p.skupaj, ddvZnesek: ex.ddvZnesek + ddvZnesek });
-  }
-  const ddvVrstice = Array.from(ddvPoStopnji.entries()).sort(([a], [b]) => a - b)
-    .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }));
-  if (ddvVrstice.length > 0) {
-    line(dashedLine(cols));
-    const dC3 = 10, dC2 = Math.floor((cols - dC3) / 2), dC1 = cols - dC2 - dC3;
-    line(padEnd("Stopnja", dC1) + padStart("Osnova", dC2) + padStart("DDV", dC3));
-    for (const { stopnja, osnova, ddvZnesek } of ddvVrstice) {
-      const okr = davekOkrajsava.get(stopnja) ?? "";
-      line(padEnd(`${okr} DDV ${stopnja}%:`, dC1) + padStart(`${osnova.toFixed(2)} €`, dC2) + padStart(`${ddvZnesek.toFixed(2)} €`, dC3));
+  // DDV razrez po stopnjah — samo za zavezance
+  if (jeDdv) {
+    const ddvPoStopnji = new Map<number, { skupajPostavke: number; ddvZnesek: number }>();
+    for (const p of data.postavke) {
+      const ddvZnesek = Math.round(p.skupaj * p.davek / (100 + p.davek) * 100) / 100;
+      const ex = ddvPoStopnji.get(p.davek) ?? { skupajPostavke: 0, ddvZnesek: 0 };
+      ddvPoStopnji.set(p.davek, { skupajPostavke: ex.skupajPostavke + p.skupaj, ddvZnesek: ex.ddvZnesek + ddvZnesek });
+    }
+    const ddvVrstice = Array.from(ddvPoStopnji.entries()).sort(([a], [b]) => a - b)
+      .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }));
+    if (ddvVrstice.length > 0) {
+      line(dashedLine(cols));
+      const dC3 = 10, dC2 = Math.floor((cols - dC3) / 2), dC1 = cols - dC2 - dC3;
+      line(padEnd("Stopnja", dC1) + padStart("Osnova", dC2) + padStart("DDV", dC3));
+      for (const { stopnja, osnova, ddvZnesek } of ddvVrstice) {
+        const okr = davekOkrajsava.get(stopnja) ?? "";
+        line(padEnd(`${okr} DDV ${stopnja}%:`, dC1) + padStart(`${osnova.toFixed(2)} €`, dC2) + padStart(`${ddvZnesek.toFixed(2)} €`, dC3));
+      }
     }
   }
 
@@ -434,14 +441,15 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
       line(dashedLine(cols));
       for (const l of wrapText(vpis, cols)) line(l);
     }
-    if (data.racunDdvKlavzula) {
-      line(dashedLine(cols));
-      for (const l of wrapText(data.racunDdvKlavzula, cols)) line(l);
-    }
-    if (data.racunPravnaKlavzula && data.placilnaNacin === "negotovinsko") {
+    if (data.racunPravnaKlavzula) {
       line(dashedLine(cols));
       for (const l of wrapText(data.racunPravnaKlavzula, cols)) line(l);
     }
+  }
+  // DDV klavzula — za nezavezance vedno, za zavezance samo pri negotovinskem
+  if (data.racunDdvKlavzula && (!jeDdv || data.placilnaNacin === "negotovinsko")) {
+    line(dashedLine(cols));
+    for (const l of wrapText(data.racunDdvKlavzula, cols)) line(l);
   }
 
   // FOOTER
@@ -504,6 +512,8 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
     return d.toLocaleDateString("sl-SI", { timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit", year: "numeric" });
   })();
 
+  const jeDdv = data.jeDdvZavezanec !== false;
+
   // --- HEADER ---
   bytes(CMD.INIT);
   bytes(CMD.DISABLE_CHINESE); // izklopi GB2312 kitajski način (Xprinter, POS-58 ipd.)
@@ -512,7 +522,7 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
   bytes(CMD.BOLD_ON);
   for (const l of wrapText(data.nazivRestvracije ?? "RESTAVRACIJA", cols)) line(l);
   if (data.naslovRestvracije) for (const l of wrapText(data.naslovRestvracije, cols)) line(l);
-  if (data.davcnaStevilka) for (const l of wrapText(`ID za DDV: SI${data.davcnaStevilka}`, cols)) line(l);
+  if (data.davcnaStevilka) for (const l of wrapText(jeDdv ? `ID za DDV: SI${data.davcnaStevilka}` : `Davčna št.: ${data.davcnaStevilka}`, cols)) line(l);
   if (data.enotaOpis) for (const l of wrapText(data.enotaOpis, cols)) line(l);
   if (data.placilnaNacin === "negotovinsko" && data.prodajalecIban) for (const l of wrapText(`TRR: ${data.prodajalecIban}`, cols)) line(l);
   if (data.placilnaNacin === "negotovinsko" && data.prodajalecBic) line(`BIC: ${data.prodajalecBic}`);
@@ -588,9 +598,9 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
 
   line(dashedLine(cols));
 
-  // Okrajšave DDV stopenj: T1 = najvišja stopnja, T2 = naslednja, itd.
+  // Okrajšave DDV stopenj: T1 = najvišja stopnja, T2 = naslednja (samo za zavezance)
   const uniqueRates = [...new Set(data.postavke.map((p) => p.davek))].sort((a, b) => b - a);
-  const davekOkrajsava = new Map<number, string>(uniqueRates.map((r, i) => [r, `T${i + 1}`]));
+  const davekOkrajsava = new Map<number, string>(uniqueRates.map((r, i) => [r, jeDdv ? `T${i + 1}` : ""]));
 
   // --- ITEMS — 4 kolone, desno poravnane, ločene z enim presledkom ---
   const kolW = 4, cenaW = 9, skupajW = 9;
@@ -669,30 +679,34 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
     line(twoColumns(data.placilnaNacin === "reprezentanca" ? "Reprezentanca:" : "Lastna poraba:", "", cols));
     line(twoColumns("100% popust:", `-${skupajIzPostavkEsc.toFixed(2)} €`, cols));
   }
-  line(twoColumns("Osnova (brez DDV):", `${brezDDV.toFixed(2)} €`, cols));
-  line(twoColumns("DDV skupaj:", `${data.ddv.toFixed(2)} €`, cols));
+  if (jeDdv) {
+    line(twoColumns("Osnova (brez DDV):", `${brezDDV.toFixed(2)} €`, cols));
+    line(twoColumns("DDV skupaj:", `${data.ddv.toFixed(2)} €`, cols));
+  }
   empty();
   bytes(CMD.BOLD_ON);
   line(twoColumns("SKUPAJ:", `${data.skupaj.toFixed(2)} €`, cols));
   bytes(CMD.BOLD_OFF);
 
-  // DDV razrez po stopnjah
-  const ddvPoStopnji = new Map<number, { skupajPostavke: number; ddvZnesek: number }>();
-  for (const p of data.postavke) {
-    const ddvZnesek = Math.round(p.skupaj * p.davek / (100 + p.davek) * 100) / 100;
-    const ex = ddvPoStopnji.get(p.davek) ?? { skupajPostavke: 0, ddvZnesek: 0 };
-    ddvPoStopnji.set(p.davek, { skupajPostavke: ex.skupajPostavke + p.skupaj, ddvZnesek: ex.ddvZnesek + ddvZnesek });
-  }
-  const ddvVrstice = Array.from(ddvPoStopnji.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }));
-  if (ddvVrstice.length > 0) {
-    line(dashedLine(cols));
-    const dC3 = 10, dC2 = Math.floor((cols - dC3) / 2), dC1 = cols - dC2 - dC3;
-    line(padEnd("Stopnja", dC1) + padStart("Osnova", dC2) + padStart("DDV", dC3));
-    for (const { stopnja, osnova, ddvZnesek } of ddvVrstice) {
-      const okr = davekOkrajsava.get(stopnja) ?? "";
-      line(padEnd(`${okr} DDV ${stopnja}%:`, dC1) + padStart(`${osnova.toFixed(2)} €`, dC2) + padStart(`${ddvZnesek.toFixed(2)} €`, dC3));
+  // DDV razrez po stopnjah — samo za zavezance
+  if (jeDdv) {
+    const ddvPoStopnji = new Map<number, { skupajPostavke: number; ddvZnesek: number }>();
+    for (const p of data.postavke) {
+      const ddvZnesek = Math.round(p.skupaj * p.davek / (100 + p.davek) * 100) / 100;
+      const ex = ddvPoStopnji.get(p.davek) ?? { skupajPostavke: 0, ddvZnesek: 0 };
+      ddvPoStopnji.set(p.davek, { skupajPostavke: ex.skupajPostavke + p.skupaj, ddvZnesek: ex.ddvZnesek + ddvZnesek });
+    }
+    const ddvVrstice = Array.from(ddvPoStopnji.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }));
+    if (ddvVrstice.length > 0) {
+      line(dashedLine(cols));
+      const dC3 = 10, dC2 = Math.floor((cols - dC3) / 2), dC1 = cols - dC2 - dC3;
+      line(padEnd("Stopnja", dC1) + padStart("Osnova", dC2) + padStart("DDV", dC3));
+      for (const { stopnja, osnova, ddvZnesek } of ddvVrstice) {
+        const okr = davekOkrajsava.get(stopnja) ?? "";
+        line(padEnd(`${okr} DDV ${stopnja}%:`, dC1) + padStart(`${osnova.toFixed(2)} €`, dC2) + padStart(`${ddvZnesek.toFixed(2)} €`, dC3));
+      }
     }
   }
 
@@ -771,18 +785,19 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
       for (const l of wrapText(vpis, cols)) line(l);
       bytes(CMD.FONT_A);
     }
-    if (data.racunDdvKlavzula) {
-      line(dashedLine(cols));
-      bytes(CMD.FONT_B);
-      for (const l of wrapText(data.racunDdvKlavzula, cols)) line(l);
-      bytes(CMD.FONT_A);
-    }
-    if (data.racunPravnaKlavzula && data.placilnaNacin === "negotovinsko") {
+    if (data.racunPravnaKlavzula) {
       line(dashedLine(cols));
       bytes(CMD.FONT_B);
       for (const l of wrapText(data.racunPravnaKlavzula, cols)) line(l);
       bytes(CMD.FONT_A);
     }
+  }
+  // DDV klavzula — za nezavezance vedno, za zavezance samo pri negotovinskem
+  if (data.racunDdvKlavzula && (!jeDdv || data.placilnaNacin === "negotovinsko")) {
+    line(dashedLine(cols));
+    bytes(CMD.FONT_B);
+    for (const l of wrapText(data.racunDdvKlavzula, cols)) line(l);
+    bytes(CMD.FONT_A);
   }
 
   // --- FOOTER ---
