@@ -8,8 +8,13 @@
 import type { Request, Response, NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { enoteTable, posUporabnikiTable } from "@workspace/db";
+import { enoteTable, posUporabnikiTable, companiesTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
+
+/** Podjetje je DDV zavezanec, ko ima id_za_ddv ki se začne s "SI" (case-insensitive). */
+function jeZavezanecDdv(idZaDdv: string | null | undefined): boolean {
+  return typeof idZaDdv === "string" && idZaDdv.toUpperCase().startsWith("SI");
+}
 
 const SUPER_ADMIN_IDS = (process.env.SUPER_ADMIN_IDS ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
@@ -19,6 +24,8 @@ export interface PosRequest extends Request {
   clerkUserId: string;
   companyId: string;
   vloga: string; // "admin" | "admin_enote" | "uporabnik"
+  jeDdvZavezanec: boolean;
+  idZaDdv: string | null;
 }
 
 /**
@@ -49,8 +56,9 @@ export async function requireEnota(
   // Superadmin bypass — superadmin sme dostopati do katerekoli enote
   if (SUPER_ADMIN_IDS.includes(userId)) {
     const [enota] = await db
-      .select({ id: enoteTable.id, companyId: enoteTable.companyId })
+      .select({ id: enoteTable.id, companyId: enoteTable.companyId, idZaDdv: companiesTable.idZaDdv })
       .from(enoteTable)
+      .innerJoin(companiesTable, eq(enoteTable.companyId, companiesTable.id))
       .where(eq(enoteTable.id, enotaId))
       .limit(1);
     if (!enota) {
@@ -61,6 +69,8 @@ export async function requireEnota(
     (req as PosRequest).clerkUserId = userId;
     (req as PosRequest).companyId = enota.companyId;
     (req as PosRequest).vloga = "superadmin";
+    (req as PosRequest).idZaDdv = enota.idZaDdv ?? null;
+    (req as PosRequest).jeDdvZavezanec = jeZavezanecDdv(enota.idZaDdv);
     (req as any).companyId = enota.companyId;
     next();
     return;
@@ -88,10 +98,11 @@ export async function requireEnota(
     return;
   }
 
-  // 4. Preveri da enota obstaja IN pripada uporabnikovemu podjetju
+  // 4. Preveri da enota obstaja IN pripada uporabnikovemu podjetju; pridobi DDV status
   const [enota] = await db
-    .select({ id: enoteTable.id, companyId: enoteTable.companyId })
+    .select({ id: enoteTable.id, companyId: enoteTable.companyId, idZaDdv: companiesTable.idZaDdv })
     .from(enoteTable)
+    .innerJoin(companiesTable, eq(enoteTable.companyId, companiesTable.id))
     .where(and(eq(enoteTable.id, enotaId), eq(enoteTable.companyId, posUser.companyId)))
     .limit(1);
 
@@ -105,6 +116,8 @@ export async function requireEnota(
   (req as PosRequest).clerkUserId = userId;
   (req as PosRequest).companyId = enota.companyId;
   (req as PosRequest).vloga = posUser.vloga;
+  (req as PosRequest).idZaDdv = enota.idZaDdv ?? null;
+  (req as PosRequest).jeDdvZavezanec = jeZavezanecDdv(enota.idZaDdv);
   (req as any).companyId = enota.companyId; // za kompatibilnost z enote.ts ki bere (req as any).companyId
 
   next();

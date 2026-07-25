@@ -440,17 +440,20 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   const gostStevilka = (parsed.data as { gostStevilka?: number | null }).gostStevilka ?? null;
   const parentPostavkaId = (parsed.data as { parentPostavkaId?: number | null }).parentPostavkaId ?? null;
 
+  // DDV zavezanec — ko podjetje ni DDV zavezanec (id_za_ddv ne začne s "SI"), je davek vedno 0.
+  const jeDdvZavezanec: boolean = (req as any).jeDdvZavezanec ?? true;
+
   // DDV dedovanje: ko je postavka child (npr. To Go embalaža pod pico), prevzame DDV stopnjo
   // nadrejene postavke (PZDDV — pomožna dobava sledi DDV stopnji glavne dobave).
   // vrsta_artikla dedovanje: child prevzame vrsto starševskega artikla (blago → blago, material → material).
-  let davekZaPostavko = String(artikel.davek);
+  let davekZaPostavko = jeDdvZavezanec ? String(artikel.davek) : "0";
   let vrstaArtiklaZaPostavko: string = artikel.vrstaArtikla ?? "material";
   if (parentPostavkaId != null) {
     const [parentPostavka] = await db.select({ davek: postavkeTable.davek, vrstaArtikla: postavkeTable.vrstaArtikla })
       .from(postavkeTable)
       .where(eq(postavkeTable.id, parentPostavkaId));
     if (parentPostavka) {
-      davekZaPostavko = String(parentPostavka.davek);
+      davekZaPostavko = jeDdvZavezanec ? String(parentPostavka.davek) : "0";
       if (parentPostavka.vrstaArtikla) vrstaArtiklaZaPostavko = parentPostavka.vrstaArtikla;
     }
   }
@@ -555,7 +558,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
         cenaKos: String(cenaMod.toFixed(2)),
         cenaKosOriginalna: String(cenaMod.toFixed(2)),
         skupaj: String(cenaMod.toFixed(2)),
-        davek: String(artikel.davek),
+        davek: jeDdvZavezanec ? String(artikel.davek) : "0",
         opomba: null,
         gostStevilka,
         vrstaArtikla: vrstaArtiklaZaPostavko,
