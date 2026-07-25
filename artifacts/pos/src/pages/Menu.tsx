@@ -481,7 +481,7 @@ export default function Menu() {
     const data = {
       ime: artName,
       cena: isOnlyNabavni ? 0 : parseDecimal(artPrice),
-      davek: isOnlyNabavni ? 0 : parseFloat(artTax),
+      davek: artTax ? parseFloat(artTax) : 0,
       kategorijaId: isOnlyNabavni ? null : (artCat ? parseInt(artCat) : null),
       aktiven: isOnlyNabavni ? false : artAktiven,
       barva: isOnlyNabavni ? null : (artColor ?? null),
@@ -973,28 +973,33 @@ export default function Menu() {
                 </div>
               )}
 
-              {/* Cena + DDV — samo za prodajne artikle */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
-                <div className="grid grid-cols-2 gap-4">
+              {/* Cena + DDV */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Cena — samo za prodajne artikle */}
+                {!(artNabavniArtikel && !artProdajniArtikel) ? (
                   <div className="space-y-2">
                     <Label>Cena (€)</Label>
                     <KlavijaturaInput value={artPrice} onChange={setArtPrice} placeholder="2.50" naslov="Cena (€)" inputMode="decimal" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>DDV (%)</Label>
-                    <Select value={artTax} onValueChange={setArtTax}>
-                      <SelectTrigger className={!artTax ? "border-destructive text-muted-foreground" : ""}>
-                        <SelectValue placeholder="— izberite stopnjo —" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={String(ddvStopnje.znizanaSt)}>{ddvStopnje.znizanaSt}% (znižana stopnja)</SelectItem>
-                        <SelectItem value={String(ddvStopnje.nizjaSt)}>{ddvStopnje.nizjaSt}% (nižja stopnja)</SelectItem>
-                        <SelectItem value={String(ddvStopnje.splosnaSt)}>{ddvStopnje.splosnaSt}% (splošna stopnja)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                ) : (
+                  <div /> /* prazen prostor da DDV ostane desno */
+                )}
+                {/* DDV — vedno vidno */}
+                <div className="space-y-2">
+                  <Label>DDV (%)</Label>
+                  <Select value={artTax} onValueChange={setArtTax}>
+                    <SelectTrigger className={!artTax && !(artNabavniArtikel && !artProdajniArtikel) ? "border-destructive text-muted-foreground" : ""}>
+                      <SelectValue placeholder="— izberite stopnjo —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0% (brez DDV)</SelectItem>
+                      <SelectItem value={String(ddvStopnje.znizanaSt)}>{ddvStopnje.znizanaSt}% (znižana stopnja)</SelectItem>
+                      <SelectItem value={String(ddvStopnje.nizjaSt)}>{ddvStopnje.nizjaSt}% (nižja stopnja)</SelectItem>
+                      <SelectItem value={String(ddvStopnje.splosnaSt)}>{ddvStopnje.splosnaSt}% (splošna stopnja)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+              </div>
 
               {/* Je pica — bon za pico */}
               {!(artNabavniArtikel && !artProdajniArtikel) && (
