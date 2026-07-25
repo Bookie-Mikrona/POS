@@ -275,6 +275,80 @@ router.post("/artikli/uskladi-ddv", requireEnota, async (req, res): Promise<void
   res.json({ posodobljeno, splosnaSt, nizjaSt, znizanaSt });
 });
 
+// ── GET /artikli/izvozi-excel — izvoz vseh artiklov in normativov v .xlsx ──────
+router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+
+  const [artikli, normativi] = await Promise.all([
+    db.select({
+      id: artikliTable.id,
+      ime: artikliTable.ime,
+      opis: artikliTable.opis,
+      cena: artikliTable.cena,
+      davek: artikliTable.davek,
+      kategorijaIme: kategorijeTable.ime,
+      barva: artikliTable.barva,
+      aktiven: artikliTable.aktiven,
+      nabavniArtikel: artikliTable.nabavniArtikel,
+      prodajniArtikel: artikliTable.prodajniArtikel,
+      imeZaNabavo: artikliTable.imeZaNabavo,
+      enotaMere: artikliTable.enotaMere,
+      vrstniRed: artikliTable.vrstniRed,
+    })
+      .from(artikliTable)
+      .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, tenotaId)))
+      .where(eq(artikliTable.enotaId, tenotaId))
+      .orderBy(asc(kategorijeTable.ime), asc(artikliTable.vrstniRed), asc(artikliTable.ime)),
+    db.execute(sql`
+      SELECT
+        a.ime        AS "artikelIme",
+        v.ime        AS "sestavinaIme",
+        n.kolicina   AS "kolicina",
+        v.enota_mere AS "enotaMere"
+      FROM normativi n
+      JOIN artikli a ON n.artikel_id = a.id AND a.enota_id = ${tenotaId}
+      JOIN artikli v ON n.vhodni_artikel_id = v.id AND v.enota_id = ${tenotaId}
+      ORDER BY a.ime, n.vrstni_red
+    `),
+  ]);
+
+  const wb = XLSX.utils.book_new();
+
+  // ── List 1: Artikli ────────────────────────────────────────────────────────
+  const artHeaders = ["ime", "cena", "ddv", "kategorija", "opis", "barva", "aktiven", "nabavniArtikel", "prodajniArtikel", "imeZaNabavo", "enotaMere"];
+  const artVrstice = artikli.map(a => [
+    a.ime,
+    Number(a.cena),
+    Number(a.davek),
+    a.kategorijaIme ?? "",
+    a.opis ?? "",
+    a.barva ?? "",
+    a.aktiven ? "da" : "ne",
+    a.nabavniArtikel ? "da" : "ne",
+    a.prodajniArtikel ? "da" : "ne",
+    a.imeZaNabavo ?? "",
+    a.enotaMere ?? "",
+  ]);
+  const wsArt = XLSX.utils.aoa_to_sheet([artHeaders, ...artVrstice]);
+  wsArt["!cols"] = [24, 10, 6, 18, 30, 10, 8, 14, 14, 20, 12].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, wsArt, "Artikli");
+
+  // ── List 2: Normativi ──────────────────────────────────────────────────────
+  const normRows = normativi.rows as { artikelIme: string; sestavinaIme: string; kolicina: string; enotaMere: string | null }[];
+  if (normRows.length > 0) {
+    const normHeaders = ["artikelIme", "sestavinaIme", "kolicina", "enotaMere"];
+    const normVrstice = normRows.map(n => [n.artikelIme, n.sestavinaIme, Number(n.kolicina), n.enotaMere ?? ""]);
+    const wsNorm = XLSX.utils.aoa_to_sheet([normHeaders, ...normVrstice]);
+    wsNorm["!cols"] = [24, 24, 10, 12].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, wsNorm, "Normativi");
+  }
+
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", 'attachment; filename="artikli.xlsx"');
+  res.send(buf);
+});
+
 router.get("/artikli/:id", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
@@ -500,81 +574,6 @@ router.put("/artikli/:id/normativi", requireEnota, async (req, res): Promise<voi
   }
 
   res.sendStatus(204);
-});
-
-// ── GET /artikli/izvozi-excel — izvoz vseh artiklov in normativov v .xlsx ──────
-router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
-
-  const [artikli, normativi] = await Promise.all([
-    db.select({
-      id: artikliTable.id,
-      ime: artikliTable.ime,
-      opis: artikliTable.opis,
-      cena: artikliTable.cena,
-      davek: artikliTable.davek,
-      kategorijaIme: kategorijeTable.ime,
-      barva: artikliTable.barva,
-      aktiven: artikliTable.aktiven,
-      nabavniArtikel: artikliTable.nabavniArtikel,
-      prodajniArtikel: artikliTable.prodajniArtikel,
-      imeZaNabavo: artikliTable.imeZaNabavo,
-      enotaMere: artikliTable.enotaMere,
-      vrstniRed: artikliTable.vrstniRed,
-    })
-      .from(artikliTable)
-      .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, tenotaId)))
-      .where(eq(artikliTable.enotaId, tenotaId))
-      .orderBy(asc(kategorijeTable.ime), asc(artikliTable.vrstniRed), asc(artikliTable.ime)),
-    db.execute(sql`
-      SELECT
-        a.ime        AS "artikelIme",
-        v.ime        AS "sestavinaIme",
-        n.kolicina   AS "kolicina",
-        v.enota_mere AS "enotaMere"
-      FROM normativi n
-      JOIN artikli a ON n.artikel_id = a.id AND a.enota_id = ${tenotaId}
-      JOIN artikli v ON n.vhodni_artikel_id = v.id AND v.enota_id = ${tenotaId}
-      ORDER BY a.ime, n.vrstni_red
-    `),
-  ]);
-
-  const wb = XLSX.utils.book_new();
-
-  // ── List 1: Artikli ────────────────────────────────────────────────────────
-  const artHeaders = ["ime", "cena", "ddv", "kategorija", "opis", "barva", "aktiven", "nabavniArtikel", "prodajniArtikel", "imeZaNabavo", "enotaMere"];
-  const artVrstice = artikli.map(a => [
-    a.ime,
-    Number(a.cena),
-    Number(a.davek),
-    a.kategorijaIme ?? "",
-    a.opis ?? "",
-    a.barva ?? "",
-    a.aktiven ? "da" : "ne",
-    a.nabavniArtikel ? "da" : "ne",
-    a.prodajniArtikel ? "da" : "ne",
-    a.imeZaNabavo ?? "",
-    a.enotaMere ?? "",
-  ]);
-  const wsArt = XLSX.utils.aoa_to_sheet([artHeaders, ...artVrstice]);
-  // Širine stolpcev
-  wsArt["!cols"] = [24, 10, 6, 18, 30, 10, 8, 14, 14, 20, 12].map(w => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, wsArt, "Artikli");
-
-  // ── List 2: Normativi ──────────────────────────────────────────────────────
-  const normRows = normativi.rows as { artikelIme: string; sestavinaIme: string; kolicina: string; enotaMere: string | null }[];
-  if (normRows.length > 0) {
-    const normHeaders = ["artikelIme", "sestavinaIme", "kolicina", "enotaMere"];
-    const normVrstice = normRows.map(n => [n.artikelIme, n.sestavinaIme, Number(n.kolicina), n.enotaMere ?? ""]);
-    const wsNorm = XLSX.utils.aoa_to_sheet([normHeaders, ...normVrstice]);
-    wsNorm["!cols"] = [24, 24, 10, 12].map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, wsNorm, "Normativi");
-  }
-
-  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
-  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", 'attachment; filename="artikli.xlsx"');
-  res.send(buf);
 });
 
 export default router;
