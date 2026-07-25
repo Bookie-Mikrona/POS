@@ -390,10 +390,11 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   }
 
   // Validacija podatkov (dropdowni) — za vse vrstice s podatki
-  const dataRange = `2:${MAX_VRSTIC + 1}`;
+  const r1 = 2;
+  const r2 = MAX_VRSTIC + 1;
 
   // Vrsta artikla (D)
-  wsArt.dataValidations.add(`D${dataRange}`, {
+  wsArt.dataValidations.add(`D${r1}:D${r2}`, {
     type: "list",
     allowBlank: false,
     formulae: ['"blago,material,storitev"'],
@@ -404,7 +405,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
 
   // Kategorija (E)
   if (katImena.length > 0) {
-    wsArt.dataValidations.add(`E${dataRange}`, {
+    wsArt.dataValidations.add(`E${r1}:E${r2}`, {
       type: "list",
       allowBlank: true,
       formulae: [`Sifranti!$A$1:$A$${katImena.length}`],
@@ -414,7 +415,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
 
   // DA/NE polja: H=aktiven, I=nabavniArtikel, J=prodajniArtikel, M=toGo
   for (const col of ["H", "I", "J", "M"]) {
-    wsArt.dataValidations.add(`${col}${dataRange}`, {
+    wsArt.dataValidations.add(`${col}${r1}:${col}${r2}`, {
       type: "list",
       allowBlank: false,
       formulae: ['"DA,NE"'],
@@ -425,7 +426,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   }
 
   // Enota mere (L)
-  wsArt.dataValidations.add(`L${dataRange}`, {
+  wsArt.dataValidations.add(`L${r1}:L${r2}`, {
     type: "list",
     allowBlank: true,
     formulae: [`Sifranti!$B$1:$B$${ENOTE_MERE.length}`],
