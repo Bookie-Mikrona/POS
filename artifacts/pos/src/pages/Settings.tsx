@@ -51,6 +51,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -685,9 +686,9 @@ export default function Settings() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          splosnaSt: parseFloat(ddvSplosnaSt),
-          nizjaSt: parseFloat(ddvNizjaSt),
-          znizanaSt: parseFloat(ddvZnizanaSt),
+          splosnaSt: parseDecimal(ddvSplosnaSt),
+          nizjaSt: parseDecimal(ddvNizjaSt),
+          znizanaSt: parseDecimal(ddvZnizanaSt),
         }),
       });
       if (!r.ok) {
@@ -4190,24 +4191,21 @@ export default function Settings() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Splošna stopnja (%)</Label>
-                    <Input
-                      type="number" step="0.1" min="0" max="100"
+                    <DecimalInput
                       value={ddvSplosnaSt} onChange={e => setDdvSplosnaSt(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Privzeto: 22% — pijača, ostalo</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Nižja stopnja (%)</Label>
-                    <Input
-                      type="number" step="0.1" min="0" max="100"
+                    <DecimalInput
                       value={ddvNizjaSt} onChange={e => setDdvNizjaSt(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Privzeto: 9,5% — hrana v gostinstvu</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Znižana stopnja (%)</Label>
-                    <Input
-                      type="number" step="0.1" min="0" max="100"
+                    <DecimalInput
                       value={ddvZnizanaSt} onChange={e => setDdvZnizanaSt(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Privzeto: 5% — znižana stopnja</p>

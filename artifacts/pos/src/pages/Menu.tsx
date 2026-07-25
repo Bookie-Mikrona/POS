@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
@@ -394,7 +395,7 @@ export default function Menu() {
   };
 
   const savePriceInline = (a: Artikel) => {
-    const newCena = parseFloat(editingPriceVal);
+    const newCena = parseDecimal(editingPriceVal);
     setEditingPriceId(null);
     if (isNaN(newCena) || newCena === a.cena) return;
     updateArtikel.mutate({ id: a.id, data: {
@@ -471,12 +472,12 @@ export default function Menu() {
 
     // -1 is a self-reference placeholder (replaced with real ID in afterSave)
     const validNormativItems = normativItems
-      .filter(n => (n.vhodniArtikelId === -1 || n.vhodniArtikelId > 0) && parseFloat(n.kolicina) > 0)
-      .map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseFloat(n.kolicina) }));
+      .filter(n => (n.vhodniArtikelId === -1 || n.vhodniArtikelId > 0) && parseDecimal(n.kolicina) > 0)
+      .map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseDecimal(n.kolicina) }));
 
     const data = {
       ime: artName,
-      cena: isOnlyNabavni ? 0 : parseFloat(artPrice),
+      cena: isOnlyNabavni ? 0 : parseDecimal(artPrice),
       davek: isOnlyNabavni ? 0 : parseFloat(artTax),
       kategorijaId: isOnlyNabavni ? null : (artCat ? parseInt(artCat) : null),
       aktiven: isOnlyNabavni ? false : artAktiven,
@@ -765,8 +766,7 @@ export default function Menu() {
                     <TableCell className="hidden xl:table-cell">{a.davek}%</TableCell>
                     <TableCell className="text-right font-bold whitespace-nowrap">
                       {a.prodajniArtikel && editingPriceId === a.id ? (
-                        <Input
-                          type="number" step="0.01" min="0"
+                        <DecimalInput
                           value={editingPriceVal}
                           autoFocus
                           className="w-24 text-right h-7 px-1 text-sm"
@@ -1116,10 +1116,7 @@ export default function Menu() {
                             <span className="text-sm text-muted-foreground text-center font-mono">
                               {isSelf ? (artEnotaMere ?? "—") : (vhodni?.enotaMere ?? "—")}
                             </span>
-                            <Input
-                              type="number"
-                              step="0.0001"
-                              min="0.0001"
+                            <DecimalInput
                               className="h-8 text-sm text-right"
                               value={item.kolicina}
                               placeholder="0"

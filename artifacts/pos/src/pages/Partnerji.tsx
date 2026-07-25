@@ -19,6 +19,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1016,12 +1017,9 @@ export default function Partnerji() {
                             {v.kategorijaIme && <span className="text-muted-foreground">{v.kategorijaIme}</span>}
                           </div>
                           <span className="text-muted-foreground line-through whitespace-nowrap">{(v.originalCena ?? 0).toFixed(2)} €</span>
-                          <Input
-                            type="number"
+                          <DecimalInput
                             className="w-24 h-7 text-xs text-right"
-                            step="0.01"
-                            min="0"
-                            defaultValue={v.cena.toFixed(2)}
+                            defaultValue={v.cena.toFixed(2).replace(".", ",")}
                             onBlur={e => {
                               const nova = parseFloat(e.currentTarget.value.replace(",", "."));
                               if (!isNaN(nova) && nova >= 0 && nova !== v.cena) {
@@ -1060,12 +1058,9 @@ export default function Partnerji() {
                     </div>
                     <div className="w-24">
                       <Label className="text-xs">Cena (€)</Label>
-                      <Input
-                        type="number"
+                      <DecimalInput
                         className="h-8 text-xs"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
+                        placeholder="0,00"
                         value={cenikDodajCena}
                         onChange={e => setCenikDodajCena(e.currentTarget.value)}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void handleCenikUpsert(); } }}

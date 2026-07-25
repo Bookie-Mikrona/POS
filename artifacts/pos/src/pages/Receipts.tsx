@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -1092,10 +1093,10 @@ export default function Receipts() {
               className="w-full"
               zbirni={true}
               onBeforePrint={async () => {
-                const gotovina = dialogGotovina !== "" ? parseFloat(dialogGotovina) : null;
-                const kartica = dialogKartica !== "" ? parseFloat(dialogKartica) : null;
-                const bon = dialogBon !== "" ? parseFloat(dialogBon) : null;
-                const bonPica = dialogBonPica !== "" ? parseFloat(dialogBonPica) : null;
+                const gotovina = dialogGotovina !== "" ? parseDecimal(dialogGotovina) : null;
+                const kartica = dialogKartica !== "" ? parseDecimal(dialogKartica) : null;
+                const bon = dialogBon !== "" ? parseDecimal(dialogBon) : null;
+                const bonPica = dialogBonPica !== "" ? parseDecimal(dialogBonPica) : null;
                 const steviloBonov = dialogSteviloBonov !== "" ? parseInt(dialogSteviloBonov) : null;
                 await updatePlacilnaNacin.mutateAsync({
                   id: printDialog.id,
@@ -1174,12 +1175,9 @@ export default function Receipts() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label htmlFor="dlg-gotovina" className="text-xs">Gotovina (€)</Label>
-                      <Input
+                      <DecimalInput
                         id="dlg-gotovina"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
+                        placeholder="0,00"
                         value={dialogGotovina}
                         onChange={(e) => setDialogGotovina(e.target.value)}
                         className="h-8 text-sm"
@@ -1187,12 +1185,9 @@ export default function Receipts() {
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="dlg-kartica" className="text-xs">Kartica (€)</Label>
-                      <Input
+                      <DecimalInput
                         id="dlg-kartica"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
+                        placeholder="0,00"
                         value={dialogKartica}
                         onChange={(e) => setDialogKartica(e.target.value)}
                         className="h-8 text-sm"
@@ -1200,12 +1195,9 @@ export default function Receipts() {
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="dlg-bon" className="text-xs">Darilni bon (€)</Label>
-                      <Input
+                      <DecimalInput
                         id="dlg-bon"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
+                        placeholder="0,00"
                         value={dialogBon}
                         onChange={(e) => setDialogBon(e.target.value)}
                         className="h-8 text-sm"
@@ -1213,12 +1205,9 @@ export default function Receipts() {
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="dlg-bon-pica" className="text-xs">Bon za pico (€)</Label>
-                      <Input
+                      <DecimalInput
                         id="dlg-bon-pica"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
+                        placeholder="0,00"
                         value={dialogBonPica}
                         onChange={(e) => setDialogBonPica(e.target.value)}
                         className="h-8 text-sm"

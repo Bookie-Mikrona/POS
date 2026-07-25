@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -98,9 +99,9 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   };
 
   const saveNormativiForMod = (modId: number, onDone?: () => void) => {
-    const validVrstice = modNormativi.filter(n => n.vhodniArtikelId > 0 && n.kolicina !== "" && !isNaN(parseFloat(n.kolicina)));
+    const validVrstice = modNormativi.filter(n => n.vhodniArtikelId > 0 && n.kolicina !== "" && !isNaN(parseDecimal(n.kolicina)));
     setNormativi.mutate(
-      { id: modId, data: { normativi: validVrstice.map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseFloat(n.kolicina) })) } },
+      { id: modId, data: { normativi: validVrstice.map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseDecimal(n.kolicina) })) } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getGetModifikatorNormativiQueryKey(modId) });
@@ -179,7 +180,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
     if (!modForm.ime) return;
     const data = {
       ime: modForm.ime,
-      cenaDodatek: parseFloat(modForm.cenaDodatek) || 0,
+      cenaDodatek: parseDecimal(modForm.cenaDodatek) || 0,
       aktiven: modForm.aktiven,
     };
     if (modMode === "uredi" && editingMod) {
@@ -429,12 +430,11 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
             </div>
             <div className="space-y-2">
               <Label>Doplačilo (€)</Label>
-              <Input
-                type="number"
-                step="0.01"
+              <DecimalInput
+                allowNegative
                 value={modForm.cenaDodatek}
                 onChange={e => setModForm(f => ({ ...f, cenaDodatek: e.target.value }))}
-                placeholder="0.00"
+                placeholder="0,00"
               />
               <p className="text-xs text-muted-foreground">0 = brezplačno · pozitivno = doplačilo · negativno = popust</p>
             </div>
@@ -474,9 +474,8 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                             <option key={a.id} value={a.id}>{a.ime}</option>
                           ))}
                         </select>
-                        <Input
-                          type="number"
-                          step="0.0001"
+                        <DecimalInput
+                          allowNegative
                           className="w-24"
                           placeholder="Kol."
                           value={vrstica.kolicina}

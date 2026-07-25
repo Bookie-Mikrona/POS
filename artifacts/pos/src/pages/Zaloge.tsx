@@ -31,6 +31,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -229,7 +230,7 @@ function EditPrejemnicaDialog({
   const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
 
-  const skupajVrednost = rows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0);
+  const skupajVrednost = rows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0);
 
   const handleSave = () => {
     const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
@@ -241,8 +242,8 @@ function EditPrejemnicaDialog({
         opomba: opomba || null,
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
-          kolicina: parseFloat(r.kolicina),
-          cenaKos: parseFloat(r.cenaKos) || 0,
+          kolicina: parseDecimal(r.kolicina),
+          cenaKos: parseDecimal(r.cenaKos) || 0,
         })),
       },
     }, {
@@ -286,7 +287,7 @@ function EditPrejemnicaDialog({
                   <TableBody>
                     {rows.map((row, i) => {
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
-                      const skupaj = (parseFloat(row.kolicina) || 0) * (parseFloat(row.cenaKos) || 0);
+                      const skupaj = (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                       return (
                         <TableRow key={i}>
                           <TableCell>
@@ -303,13 +304,13 @@ function EditPrejemnicaDialog({
                             </select>
                           </TableCell>
                           <TableCell>
-                            <Input type="number" step="0.001" value={row.kolicina}
+                            <DecimalInput value={row.kolicina}
                               onChange={e => updateRow(i, "kolicina", e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell>
-                            <Input type="number" min="0" step="0.01" value={row.cenaKos}
+                            <DecimalInput value={row.cenaKos}
                               onChange={e => updateRow(i, "cenaKos", e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
@@ -404,7 +405,7 @@ function EditInventuraDialog({
         opomba: opomba || null,
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
-          steviloNajdeno: parseFloat(r.steviloNajdeno) || 0,
+          steviloNajdeno: parseDecimal(r.steviloNajdeno) || 0,
         })),
       },
     }, {
@@ -453,9 +454,9 @@ function EditInventuraDialog({
                     {rows.map((row, i) => {
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
-                      const cena = parseFloat(row.cenaKos) || null;
+                      const cena = parseDecimal(row.cenaKos) || null;
                       const knjizno = Number(zalogaInfo?.kolicina ?? 0);
-                      const dejansko = parseFloat(row.steviloNajdeno) || 0;
+                      const dejansko = parseDecimal(row.steviloNajdeno) || 0;
                       const razlikaKol = dejansko - knjizno;
                       const razlikaVrednost = cena != null ? razlikaKol * cena : null;
                       return (
@@ -479,7 +480,7 @@ function EditInventuraDialog({
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell>
-                            <Input type="number" min="0" step="0.001" value={row.steviloNajdeno}
+                            <DecimalInput value={row.steviloNajdeno}
                               onChange={e => updateRow(i, e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
@@ -556,7 +557,7 @@ function EditZacetnaZalogaDialog({
     }
   }, [data]);
 
-  const skupajVrednost = rows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0);
+  const skupajVrednost = rows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0);
 
   const addRow = () => {
     const usedIds = new Set(rows.map(r => r.artikelId));
@@ -577,8 +578,8 @@ function EditZacetnaZalogaDialog({
         opomba: opomba || null,
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
-          kolicina: parseFloat(r.kolicina) || 0,
-          cenaKos: parseFloat(r.cenaKos) || 0,
+          kolicina: parseDecimal(r.kolicina) || 0,
+          cenaKos: parseDecimal(r.cenaKos) || 0,
         })),
       },
     }, {
@@ -620,7 +621,7 @@ function EditZacetnaZalogaDialog({
                   </TableHeader>
                   <TableBody>
                     {rows.map((row, i) => {
-                      const vrednost = (parseFloat(row.kolicina) || 0) * (parseFloat(row.cenaKos) || 0);
+                      const vrednost = (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                       return (
                         <TableRow key={i}>
                           <TableCell>
@@ -637,13 +638,13 @@ function EditZacetnaZalogaDialog({
                             </select>
                           </TableCell>
                           <TableCell>
-                            <Input type="number" step="0.001" value={row.kolicina}
+                            <DecimalInput value={row.kolicina}
                               onChange={e => updateRow(i, "kolicina", e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell>
-                            <Input type="number" min="0" step="0.01" value={row.cenaKos}
+                            <DecimalInput value={row.cenaKos}
                               onChange={e => updateRow(i, "cenaKos", e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
@@ -765,7 +766,7 @@ export default function Zaloge() {
       data: {
         datum: prejDatum || undefined,
         opomba: fullOpomba || undefined,
-        postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseFloat(r.kolicina), cenaKos: parseFloat(r.cenaKos) || 0 })),
+        postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseDecimal(r.kolicina), cenaKos: parseDecimal(r.cenaKos) || 0 })),
       },
     }, {
       onSuccess: () => {
@@ -835,7 +836,7 @@ export default function Zaloge() {
       data: {
         datum: invDatum || undefined,
         opomba: invOpomba || undefined,
-        postavke: validRows.map(r => ({ artikelId: r.artikelId, steviloNajdeno: parseFloat(r.steviloNajdeno) || 0 })),
+        postavke: validRows.map(r => ({ artikelId: r.artikelId, steviloNajdeno: parseDecimal(r.steviloNajdeno) || 0 })),
       },
     }, {
       onSuccess: () => {
@@ -853,9 +854,9 @@ export default function Zaloge() {
   const invTotals = invRows.reduce((acc, row) => {
     const art = nabavniArtikli.find(a => a.id === row.artikelId);
     const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
-    const cena = parseFloat(row.cenaKos) || (zalogaInfo?.zadnjaCena ?? null);
+    const cena = parseDecimal(row.cenaKos) || (zalogaInfo?.zadnjaCena ?? null);
     const knjizno = Number(zalogaInfo?.kolicina ?? 0);
-    const dejansko = parseFloat(row.steviloNajdeno) || 0;
+    const dejansko = parseDecimal(row.steviloNajdeno) || 0;
     if (!art) return acc;
     acc.knjizna += cena != null ? knjizno * cena : 0;
     acc.dejanska += cena != null ? dejansko * cena : 0;
@@ -901,8 +902,8 @@ export default function Zaloge() {
         opomba: zzOpomba || null,
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
-          kolicina: parseFloat(r.kolicina) || 0,
-          cenaKos: parseFloat(r.cenaKos) || 0,
+          kolicina: parseDecimal(r.kolicina) || 0,
+          cenaKos: parseDecimal(r.cenaKos) || 0,
         })),
       },
     }, {
@@ -918,7 +919,7 @@ export default function Zaloge() {
       },
     });
   };
-  const zzSkupajVrednost = zzRows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0);
+  const zzSkupajVrednost = zzRows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0);
 
   const addZzRow = () => {
     const usedIds = new Set(zzRows.map(r => r.artikelId));
@@ -1337,16 +1338,16 @@ export default function Zaloge() {
                         )}
                       </div>
                       {/* Količina */}
-                      <Input
+                      <DecimalInput
                         ref={el => { if (el) koliInputRefs.current.set(i, el); else koliInputRefs.current.delete(i); }}
-                        type="number" step="0.001" placeholder="Količina" value={row.kolicina}
+                        placeholder="Količina" value={row.kolicina}
                         onChange={e => updatePrejRow(i, "kolicina", e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cenaInputRefs.current.get(i)?.focus(); } }}
                         className="w-28" />
                       {/* Nabavna cena brez DDV */}
-                      <Input
+                      <DecimalInput
                         ref={el => { if (el) cenaInputRefs.current.set(i, el); else cenaInputRefs.current.delete(i); }}
-                        type="number" min="0" step="0.01" placeholder="Cena brez DDV" value={row.cenaKos}
+                        placeholder="Cena brez DDV" value={row.cenaKos}
                         onChange={e => updatePrejRow(i, "cenaKos", e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); } }}
                         className="w-32" />
@@ -1366,7 +1367,7 @@ export default function Zaloge() {
               </Button>
               {prejRows.some(r => r.kolicina && r.cenaKos) && (
                 <p className="text-sm text-muted-foreground text-right">
-                  Skupaj: <strong>{fmt(prejRows.reduce((s, r) => s + (parseFloat(r.kolicina) || 0) * (parseFloat(r.cenaKos) || 0), 0))} €</strong>
+                  Skupaj: <strong>{fmt(prejRows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0))} €</strong>
                 </p>
               )}
             </div>
@@ -1453,7 +1454,7 @@ export default function Zaloge() {
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
                       const cena = zalogaInfo?.zadnjaCena ?? null;
                       const knjizno = Number(zalogaInfo?.kolicina ?? 0);
-                      const dejansko = parseFloat(row.steviloNajdeno) || 0;
+                      const dejansko = parseDecimal(row.steviloNajdeno) || 0;
                       const razlikaKol = dejansko - knjizno;
                       const knj = cena != null ? knjizno * cena : null;
                       const dej = cena != null ? dejansko * cena : null;
@@ -1468,7 +1469,7 @@ export default function Zaloge() {
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell className="text-right">
-                            <Input type="number" min="0" step="0.001" value={row.steviloNajdeno}
+                            <DecimalInput value={row.steviloNajdeno}
                               onChange={e => updateInvRow(i, e.target.value)} onKeyDown={handleEnterAsTab} className="w-24 text-right ml-auto h-8" />
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
@@ -1581,7 +1582,7 @@ export default function Zaloge() {
                   </TableHeader>
                   <TableBody>
                     {zzRows.map((row, i) => {
-                      const vrednost = (parseFloat(row.kolicina) || 0) * (parseFloat(row.cenaKos) || 0);
+                      const vrednost = (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                       return (
                         <TableRow key={i}>
                           <TableCell>
@@ -1596,13 +1597,13 @@ export default function Zaloge() {
                             </select>
                           </TableCell>
                           <TableCell>
-                            <Input type="number" step="0.001" value={row.kolicina}
+                            <DecimalInput value={row.kolicina}
                               onChange={e => updateZzRow(i, "kolicina", e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell>
-                            <Input type="number" min="0" step="0.01" value={row.cenaKos}
+                            <DecimalInput value={row.cenaKos}
                               onChange={e => updateZzRow(i, "cenaKos", e.target.value)}
                               onKeyDown={handleEnterAsTab}
                               className="text-right h-8" />
