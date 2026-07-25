@@ -1,9 +1,9 @@
 import { pgTable, text, serial, integer, timestamp, unique } from "drizzle-orm/pg-core";
-import { enoteTable } from "./enote";
 
 export const nastavitveTable = pgTable("nastavitve", {
   id: serial("id").primaryKey(),
-  enotaId: integer("enota_id").notNull().references(() => enoteTable.id, { onDelete: "cascade" }),
+  // enotaId=0 pomeni sistemski/podjetniški nivo — brez FK constraint po namenu
+  enotaId: integer("enota_id").notNull(),
   kljuc: text("kljuc").notNull(),
   vrednost: text("vrednost").notNull(),
   posodobljeno: timestamp("posodobljeno", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
