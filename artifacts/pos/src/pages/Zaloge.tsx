@@ -1710,7 +1710,23 @@ export default function Zaloge() {
   };
   const removePrejRow = (i: number) => setPrejRows(r => r.filter((_, j) => j !== i));
   const updatePrejRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
-    setPrejRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+    setPrejRows(r => r.map((row, j) => {
+      if (j !== i) return row;
+      const posodobljena = { ...row, [key]: val };
+      // Ko se spremeni enotVPaketu in artikel je že izbran → posodobi predlagano ceno
+      if (key === "enotVPaketu" && row.artikelId > 0) {
+        const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === row.artikelId)?.zadnjaCena;
+        if (zadnjaCenaNeto != null) {
+          const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
+          const cenaNaEnoto = vrstaCen === "bruto" && davek
+            ? Math.round(zadnjaCenaNeto * (1 + davek / 100) * 10000) / 10000
+            : zadnjaCenaNeto;
+          const novaEnot = parseDecimal(String(val)) || 1;
+          posodobljena.cenaKos = String(Math.round(cenaNaEnoto * novaEnot * 10000) / 10000);
+        }
+      }
+      return posodobljena;
+    }));
   const selectArtikelInRow = (rowIdx: number, artikelId: number) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
     const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
