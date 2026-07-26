@@ -2550,7 +2550,7 @@ export default function Zaloge() {
                   <TableHead>Ime za nabavo</TableHead>
                   <TableHead className="text-right">Zaloga</TableHead>
                   <TableHead>Enota</TableHead>
-                  <TableHead className="text-right">Zad. nab. cena</TableHead>
+                  <TableHead className="text-right">Povpr. nab. cena</TableHead>
                   <TableHead className="text-right">Vrednost</TableHead>
                   <TableHead className="hidden sm:table-cell text-right text-muted-foreground text-xs">Posodobljeno</TableHead>
                 </TableRow>
