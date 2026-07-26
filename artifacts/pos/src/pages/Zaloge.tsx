@@ -858,14 +858,23 @@ function EditPrejemnicaDialog({
       setDatum(new Date(data.datum).toISOString().slice(0, 10));
       setOpomba(data.opomba ?? "");
       setDobaviteljId((data as any).dobaviteljId ?? null);
-      setRows(data.postavke.map(p => ({
-        artikelId: p.artikelId,
-        kolicina: String(p.kolicina),
-        cenaKos: String(p.cenaKos),
-        enotVPaketu: "",
-      })));
+      const vrstaCenLoaded = (((data as any).vrstaCen as string) === "bruto" ? "bruto" : "neto") as "neto" | "bruto";
+      setEditVrstaCen(vrstaCenLoaded);
+      setRows(data.postavke.map(p => {
+        // cenaKos v bazi je vedno neto; pri bruto načinu jo pretvorimo nazaj v bruto za prikaz
+        const davek = nabavniArtikli.find(a => a.id === p.artikelId)?.davek ?? 0;
+        const prikazCena = vrstaCenLoaded === "bruto" && davek
+          ? Math.round(Number(p.cenaKos) * (1 + davek / 100) * 10000) / 10000
+          : Number(p.cenaKos);
+        return {
+          artikelId: p.artikelId,
+          kolicina: String(p.kolicina),
+          cenaKos: String(prikazCena),
+          enotVPaketu: "",
+        };
+      }));
     }
-  }, [data]);
+  }, [data, nabavniArtikli]);
 
   const addRow = () => {
     const newIdx = rows.length;
@@ -900,6 +909,7 @@ function EditPrejemnicaDialog({
         datum,
         dobaviteljId: dobaviteljId ?? null,
         opomba: opomba || null,
+        vrstaCen: editVrstaCen,
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
           kolicina: parseDecimal(r.kolicina),

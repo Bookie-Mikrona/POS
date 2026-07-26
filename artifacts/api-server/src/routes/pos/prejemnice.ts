@@ -44,7 +44,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
-  const { datum, opomba, postavke, dobaviteljId } = parsed.data;
+  const { datum, opomba, postavke, dobaviteljId, vrstaCen } = parsed.data;
   if (!postavke || postavke.length === 0) {
     res.status(400).json({ error: "Prejemnica mora imeti vsaj eno postavko" }); return;
   }
@@ -73,6 +73,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
       stevilka,
       datum: docDatum,
       opomba: opomba ?? null,
+      vrstaCen: (vrstaCen === "bruto" ? "bruto" : "neto") as "neto" | "bruto",
       skupajVrednost: String(skupajVrednost.toFixed(2))}).returning();
 
     const postavkeResult = [];
@@ -118,6 +119,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     stevilka: prejemnica.stevilka,
     datum: prejemnica.datum,
     opomba: prejemnica.opomba,
+    vrstaCen: prejemnica.vrstaCen,
     skupajVrednost,
     ustvarjeno: prejemnica.ustvarjeno,
     postavke: postavkeResult});
@@ -163,6 +165,7 @@ router.get("/prejemnice/:id", async (req, res): Promise<void> => {
     stevilka: prejemnica.stevilka,
     datum: prejemnica.datum,
     opomba: prejemnica.opomba,
+    vrstaCen: prejemnica.vrstaCen ?? "neto",
     skupajVrednost: Number(prejemnica.skupajVrednost),
     ustvarjeno: prejemnica.ustvarjeno,
     dobaviteljId: prejemnica.dobaviteljId ?? null,
@@ -211,6 +214,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     if (parsed.data.datum !== undefined) txUpdates.datum = new Date(parsed.data.datum);
     if (parsed.data.opomba !== undefined) txUpdates.opomba = parsed.data.opomba;
     if (parsed.data.dobaviteljId !== undefined) txUpdates.dobaviteljId = parsed.data.dobaviteljId ?? null;
+    if (parsed.data.vrstaCen !== undefined) txUpdates.vrstaCen = parsed.data.vrstaCen === "bruto" ? "bruto" : "neto";
 
     if (parsed.data.postavke !== undefined) {
       const novaPostavke = parsed.data.postavke;
@@ -279,6 +283,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     stevilka: updated.stevilka,
     datum: updated.datum,
     opomba: updated.opomba,
+    vrstaCen: updated.vrstaCen ?? "neto",
     skupajVrednost: Number(updated.skupajVrednost),
     ustvarjeno: updated.ustvarjeno,
     postavke: postavke.map((p: any) => ({

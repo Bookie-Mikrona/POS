@@ -11,6 +11,7 @@ export const prejemniceTable = pgTable("prejemnice", {
   stevilka: text("stevilka"),
   datum: timestamp("datum").notNull().defaultNow(),
   opomba: text("opomba"),
+  vrstaCen: text("vrsta_cen").notNull().default("neto"),
   skupajVrednost: numeric("skupaj_vrednost", { precision: 10, scale: 2 }).notNull().default("0"),
   ustvarjeno: timestamp("ustvarjeno").notNull().defaultNow(),
 });
