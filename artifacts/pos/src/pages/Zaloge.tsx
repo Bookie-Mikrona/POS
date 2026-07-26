@@ -842,6 +842,7 @@ function EditPrejemnicaDialog({
   const [rows, setRows] = useState<PrejemnicaRow[]>([]);
   const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const initializedId = useRef<number | null>(null);
+  const initializedVrstaCen = useRef<string | null>(null);
   const editArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editKoliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editCenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -854,27 +855,39 @@ function EditPrejemnicaDialog({
   const [editVrstaCen, setEditVrstaCen] = useState<"neto" | "bruto">("neto");
 
   useEffect(() => {
-    if (data && initializedId.current !== data.id) {
+    if (!data) return;
+    const isNewId = initializedId.current !== data.id;
+    // data.vrstaCen je lahko undefined v starem React Query cache-u (pred dodanim SELECT poljem);
+    // ko pride sveži fetch z dejansko vrednostjo, jo posodobimo tudi če je ID enak
+    const serverVrstaCen = data.vrstaCen ?? null;
+    const vrstaCenChanged = serverVrstaCen !== null && serverVrstaCen !== initializedVrstaCen.current;
+
+    if (!isNewId && !vrstaCenChanged) return;
+
+    const vrstaCenLoaded = serverVrstaCen === "bruto" ? "bruto" : "neto";
+
+    if (isNewId) {
       initializedId.current = data.id;
       setDatum(new Date(data.datum).toISOString().slice(0, 10));
       setOpomba(data.opomba ?? "");
       setDobaviteljId((data as any).dobaviteljId ?? null);
-      const vrstaCenLoaded = (((data as any).vrstaCen as string) === "bruto" ? "bruto" : "neto") as "neto" | "bruto";
-      setEditVrstaCen(vrstaCenLoaded);
-      setRows(data.postavke.map(p => {
-        // cenaKos v bazi je vedno neto; pri bruto načinu jo pretvorimo nazaj v bruto za prikaz
-        const davek = nabavniArtikli.find(a => a.id === p.artikelId)?.davek ?? 0;
-        const prikazCena = vrstaCenLoaded === "bruto" && davek
-          ? Math.round(Number(p.cenaKos) * (1 + davek / 100) * 10000) / 10000
-          : Number(p.cenaKos);
-        return {
-          artikelId: p.artikelId,
-          kolicina: String(p.kolicina),
-          cenaKos: String(prikazCena),
-          enotVPaketu: "",
-        };
-      }));
     }
+
+    initializedVrstaCen.current = vrstaCenLoaded;
+    setEditVrstaCen(vrstaCenLoaded as "neto" | "bruto");
+    setRows(data.postavke.map(p => {
+      // cenaKos v bazi je vedno neto; pri bruto načinu jo pretvorimo nazaj v bruto za prikaz
+      const davek = nabavniArtikli.find(a => a.id === p.artikelId)?.davek ?? 0;
+      const prikazCena = vrstaCenLoaded === "bruto" && davek
+        ? Math.round(Number(p.cenaKos) * (1 + davek / 100) * 10000) / 10000
+        : Number(p.cenaKos);
+      return {
+        artikelId: p.artikelId,
+        kolicina: String(p.kolicina),
+        cenaKos: String(prikazCena),
+        enotVPaketu: "",
+      };
+    }));
   }, [data, nabavniArtikli]);
 
   const addRow = () => {

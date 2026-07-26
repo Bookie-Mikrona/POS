@@ -136,6 +136,7 @@ router.get("/prejemnice/:id", async (req, res): Promise<void> => {
       stevilka: prejemniceTable.stevilka,
       datum: prejemniceTable.datum,
       opomba: prejemniceTable.opomba,
+      vrstaCen: prejemniceTable.vrstaCen,
       skupajVrednost: prejemniceTable.skupajVrednost,
       ustvarjeno: prejemniceTable.ustvarjeno,
       dobaviteljId: prejemniceTable.dobaviteljId,
