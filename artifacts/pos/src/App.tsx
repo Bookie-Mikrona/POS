@@ -331,6 +331,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { href: "/izmene", label: "Izmene", icon: Clock },
     { href: "/partnerji", label: "Partnerji", icon: BookUser },
     ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
+    ...(isAdmin || isAdminEnote ? [{ href: "/simulacija", label: "Simulacija", icon: FlaskConical }] : []),
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
     ...(isAdmin ? [{ href: "/admin/testi", label: "Testi", icon: FlaskConical }] : []),
   ];
