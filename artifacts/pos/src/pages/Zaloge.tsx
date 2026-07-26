@@ -848,6 +848,26 @@ function EditPrejemnicaDialog({
   const editCenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editEnotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editDodajRef = useRef<HTMLButtonElement>(null);
+
+  const navEdit = (rowIdx: number, col: "art" | "enot" | "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
+    const cols = ["art", "enot", "koli", "cena"] as const;
+    const refs: Record<string, React.MutableRefObject<Map<number, HTMLInputElement>>> = {
+      art: editArtInputRefs, enot: editEnotInputRefs, koli: editKoliInputRefs, cena: editCenaInputRefs,
+    };
+    if (dir === "up" || dir === "down") {
+      const nextRow = dir === "down" ? rowIdx + 1 : rowIdx - 1;
+      const el = refs[col].current.get(nextRow);
+      if (el) { el.focus(); el.select(); }
+    } else {
+      const step = dir === "right" ? 1 : -1;
+      let c = cols.indexOf(col) + step;
+      while (c >= 0 && c < cols.length) {
+        const el = refs[cols[c]].current.get(rowIdx);
+        if (el) { el.focus(); el.select(); return; }
+        c += step;
+      }
+    }
+  };
   const editShraniRef = useRef<HTMLButtonElement>(null);
   const [ddOpenIdx, setDdOpenIdx] = useState<number | null>(null);
   const [ddFilter, setDdFilter] = useState("");
@@ -1069,6 +1089,7 @@ function EditPrejemnicaDialog({
                               if (e.key === "Escape") { e.preventDefault(); setDdOpenIdx(null); return; }
                               if (e.key === "ArrowDown") { e.preventDefault(); setDdHighlight(h => Math.min(h + 1, Math.max(0, filtered.length - 1))); return; }
                               if (e.key === "ArrowUp") { e.preventDefault(); setDdHighlight(h => Math.max(h - 1, 0)); return; }
+                              if (e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "art", "right"); return; }
                               if (e.key === "Enter") {
                                 e.preventDefault();
                                 const art = filtered[ddHighlight];
@@ -1122,7 +1143,12 @@ function EditPrejemnicaDialog({
                             value={row.enotVPaketu}
                             placeholder="enot/pak"
                             onChange={e => updateRow(i, "enotVPaketu", e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); editKoliInputRefs.current.get(i)?.focus(); } }}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "enot", "right"); }
+                              else if (e.key === "ArrowLeft") { e.preventDefault(); navEdit(i, "enot", "left"); }
+                              else if (e.key === "ArrowUp") { e.preventDefault(); navEdit(i, "enot", "up"); }
+                              else if (e.key === "ArrowDown") { e.preventDefault(); navEdit(i, "enot", "down"); }
+                            }}
                             className="w-16 text-xs h-7 text-center"
                           />
                         )}
@@ -1134,7 +1160,12 @@ function EditPrejemnicaDialog({
                           placeholder={row.enotVPaketu ? "Paketov" : "Količina"}
                           value={row.kolicina}
                           onChange={e => updateRow(i, "kolicina", e.target.value)}
-                          onKeyDown={handleEnterAsTab}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "koli", "right"); }
+                            else if (e.key === "ArrowLeft") { e.preventDefault(); navEdit(i, "koli", "left"); }
+                            else if (e.key === "ArrowUp") { e.preventDefault(); navEdit(i, "koli", "up"); }
+                            else if (e.key === "ArrowDown") { e.preventDefault(); navEdit(i, "koli", "down"); }
+                          }}
                           className="w-24" />
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.kolicina) > 0 && (
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -1149,11 +1180,10 @@ function EditPrejemnicaDialog({
                           onChange={e => updateRow(i, "cenaKos", e.target.value)}
                           ref={el => { if (el) editCenaInputRefs.current.set(i, el as any); else editCenaInputRefs.current.delete(i); }}
                           onKeyDown={e => {
-                            if (e.key !== "Enter") return;
-                            e.preventDefault();
-                            const nextKoli = editKoliInputRefs.current.get(i + 1);
-                            if (nextKoli) { nextKoli.focus(); }
-                            else { editDodajRef.current?.focus(); }
+                            if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "cena", "right"); }
+                            else if (e.key === "ArrowLeft") { e.preventDefault(); navEdit(i, "cena", "left"); }
+                            else if (e.key === "ArrowUp") { e.preventDefault(); navEdit(i, "cena", "up"); }
+                            else if (e.key === "ArrowDown") { e.preventDefault(); navEdit(i, "cena", "down"); }
                           }}
                           className="w-28" />
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.cenaKos) > 0 && (
@@ -1259,6 +1289,7 @@ function EditInventuraDialog({
   const [opomba, setOpomba] = useState("");
   const [rows, setRows] = useState<InventuraRow[]>([]);
   const initializedId = useRef<number | null>(null);
+  const invEditNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
@@ -1370,8 +1401,12 @@ function EditInventuraDialog({
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell>
                             <DecimalInput value={row.steviloNajdeno}
+                              ref={el => { if (el) invEditNajdenoRefs.current.set(i, el as any); else invEditNajdenoRefs.current.delete(i); }}
                               onChange={e => updateRow(i, e.target.value)}
-                              onKeyDown={handleEnterAsTab}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const el = invEditNajdenoRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = invEditNajdenoRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                              }}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
@@ -1432,6 +1467,19 @@ function EditZacetnaZalogaDialog({
   const [opomba, setOpomba] = useState("");
   const [rows, setRows] = useState<ZacetnaZalogaRow[]>([]);
   const initializedId = useRef<number | null>(null);
+  const zzEditKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const zzEditCenaRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const navZZEdit = (i: number, col: "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
+    const focus = (ref: Map<number, HTMLInputElement>, row: number) => { const el = ref.get(row); if (el) { el.focus(); el.select(); } };
+    if (dir === "up") focus(col === "koli" ? zzEditKoliRefs.current : zzEditCenaRefs.current, i - 1);
+    else if (dir === "down") focus(col === "koli" ? zzEditKoliRefs.current : zzEditCenaRefs.current, i + 1);
+    else if (dir === "right" || (dir === "right" && col === "koli")) {
+      if (col === "koli") focus(zzEditCenaRefs.current, i);
+      else focus(zzEditKoliRefs.current, i + 1);
+    } else if (dir === "left") {
+      if (col === "cena") focus(zzEditKoliRefs.current, i);
+    }
+  };
 
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
@@ -1528,14 +1576,25 @@ function EditZacetnaZalogaDialog({
                           </TableCell>
                           <TableCell>
                             <DecimalInput value={row.kolicina}
+                              ref={el => { if (el) zzEditKoliRefs.current.set(i, el as any); else zzEditKoliRefs.current.delete(i); }}
                               onChange={e => updateRow(i, "kolicina", e.target.value)}
-                              onKeyDown={handleEnterAsTab}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); const el = zzEditCenaRefs.current.get(i); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = zzEditKoliRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowDown") { e.preventDefault(); const el = zzEditKoliRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                              }}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell>
                             <DecimalInput value={row.cenaKos}
+                              ref={el => { if (el) zzEditCenaRefs.current.set(i, el as any); else zzEditCenaRefs.current.delete(i); }}
                               onChange={e => updateRow(i, "cenaKos", e.target.value)}
-                              onKeyDown={handleEnterAsTab}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); const el = zzEditKoliRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowLeft") { e.preventDefault(); const el = zzEditKoliRefs.current.get(i); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = zzEditCenaRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowDown") { e.preventDefault(); const el = zzEditCenaRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                              }}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm font-medium">
@@ -1641,6 +1700,9 @@ export default function Zaloge() {
   const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const enotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const addBtnRef = useRef<HTMLButtonElement>(null);
+  const invNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const zzKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const zzCenaRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
   // Navigacija s puščicami po mreži polj: art → enot → koli → cena (levo/desno), vrstice gor/dol
   const navPrej = (rowIdx: number, col: "art" | "enot" | "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
@@ -2646,7 +2708,13 @@ export default function Zaloge() {
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell className="text-right">
                             <DecimalInput value={row.steviloNajdeno}
-                              onChange={e => updateInvRow(i, e.target.value)} onKeyDown={handleEnterAsTab} className="w-24 text-right ml-auto h-8" />
+                              ref={el => { if (el) invNajdenoRefs.current.set(i, el as any); else invNajdenoRefs.current.delete(i); }}
+                              onChange={e => updateInvRow(i, e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const el = invNajdenoRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = invNajdenoRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                              }}
+                              className="w-24 text-right ml-auto h-8" />
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
                             {razlikaKol < 0 ? fmt(razlikaKol, 3) : <span className="text-muted-foreground/40">–</span>}
@@ -2774,14 +2842,25 @@ export default function Zaloge() {
                           </TableCell>
                           <TableCell>
                             <DecimalInput value={row.kolicina}
+                              ref={el => { if (el) zzKoliRefs.current.set(i, el as any); else zzKoliRefs.current.delete(i); }}
                               onChange={e => updateZzRow(i, "kolicina", e.target.value)}
-                              onKeyDown={handleEnterAsTab}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); const el = zzCenaRefs.current.get(i); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = zzKoliRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowDown") { e.preventDefault(); const el = zzKoliRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                              }}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell>
                             <DecimalInput value={row.cenaKos}
+                              ref={el => { if (el) zzCenaRefs.current.set(i, el as any); else zzCenaRefs.current.delete(i); }}
                               onChange={e => updateZzRow(i, "cenaKos", e.target.value)}
-                              onKeyDown={handleEnterAsTab}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); const el = zzKoliRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowLeft") { e.preventDefault(); const el = zzKoliRefs.current.get(i); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = zzCenaRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                                else if (e.key === "ArrowDown") { e.preventDefault(); const el = zzCenaRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                              }}
                               className="text-right h-8" />
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm font-medium">

@@ -3,4 +3,5 @@
 - [FURS POS Web GitHub](furs-pos-web-github.md) — izvorni POS projekt na GitHubu; referenca za logiko
 - [Super admin sistem](super-admin.md) — env var SUPER_ADMIN_IDS, company_modules tabela, admin panel na /admin
 - [Komunikacija](komunikacija.md) — izključno slovenščina
+- [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
