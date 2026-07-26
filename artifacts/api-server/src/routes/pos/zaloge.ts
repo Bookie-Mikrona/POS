@@ -107,12 +107,14 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
         CASE WHEN zg.tip = 'prejemnica' THEN p.datum END,
         CASE WHEN zg.opomba LIKE 'Začetne zaloge%' THEN zz.datum END,
         CASE WHEN zg.tip = 'inventura' THEN inv.datum END,
+        CASE WHEN zg.tip = 'izdajnica' THEN izd.datum END,
         zg.ustvarjeno
       ) >= ${datumOd}::date` : sql``;
   const datumDoFilter = datumDo ? sql` AND COALESCE(
         CASE WHEN zg.tip = 'prejemnica' THEN p.datum END,
         CASE WHEN zg.opomba LIKE 'Začetne zaloge%' THEN zz.datum END,
         CASE WHEN zg.tip = 'inventura' THEN inv.datum END,
+        CASE WHEN zg.tip = 'izdajnica' THEN izd.datum END,
         zg.ustvarjeno
       ) < (${datumDo}::date + INTERVAL '1 day')` : sql``;
 
@@ -125,6 +127,7 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
         CASE WHEN zg.tip = 'prejemnica' THEN p.datum END,
         CASE WHEN zg.opomba LIKE 'Začetne zaloge%' THEN zz.datum END,
         CASE WHEN zg.tip = 'inventura' THEN inv.datum END,
+        CASE WHEN zg.tip = 'izdajnica' THEN izd.datum END,
         zg.ustvarjeno
       ) AS "datumDokumenta"
     FROM zaloga_gibi zg
@@ -132,6 +135,7 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
     LEFT JOIN prejemnice p ON p.id = zg.referenca_id AND zg.tip = 'prejemnica'
     LEFT JOIN zacetne_zaloge zz ON zz.id = zg.referenca_id AND zg.opomba LIKE 'Začetne zaloge%'
     LEFT JOIN inventure inv ON inv.id = zg.referenca_id AND zg.tip = 'inventura'
+    LEFT JOIN izdajnice izd ON izd.id = zg.referenca_id AND zg.tip = 'izdajnica'
     WHERE zg.artikel_id = ${artikelId}
     ${datumOdFilter}
     ${datumDoFilter}

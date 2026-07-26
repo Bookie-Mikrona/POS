@@ -174,7 +174,9 @@ const fmtCas = (d: string | Date) =>
 function TipBadge({ tip }: { tip: string }) {
   if (tip === "prejemnica") return <Badge className="bg-green-100 text-green-800 border-green-200">↑ Prejemnica</Badge>;
   if (tip === "poraba") return <Badge className="bg-red-100 text-red-800 border-red-200">↓ Poraba</Badge>;
-  return <Badge className="bg-blue-100 text-blue-800 border-blue-200">≡ Inventura</Badge>;
+  if (tip === "izdajnica") return <Badge className="bg-orange-100 text-orange-800 border-orange-200">↓ Izdajnica</Badge>;
+  if (tip === "inventura") return <Badge className="bg-blue-100 text-blue-800 border-blue-200">≡ Inventura</Badge>;
+  return <Badge variant="outline">{tip}</Badge>;
 }
 
 // ── Dobavitelj combobox ────────────────────────────────────────────────────
