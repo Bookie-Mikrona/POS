@@ -1745,6 +1745,7 @@ export default function Zaloge() {
     }
     setDropdownOpenIdx(null);
     setDropdownFilter("");
+    setTimeout(() => enotInputRefs.current.get(rowIdx)?.focus(), 30);
   };
 
   // ── Prejemnica edit ────────────────────────────────────────────────
@@ -2328,7 +2329,7 @@ export default function Zaloge() {
                           }}
                           onKeyDown={e => {
                             if (selectedArtikel && !isOpen) {
-                              if (e.key === "Enter") { e.preventDefault(); koliInputRefs.current.get(i)?.focus(); }
+                              if (e.key === "Enter") { e.preventDefault(); enotInputRefs.current.get(i)?.focus(); }
                               if (e.key === "Backspace" || e.key === "Delete") {
                                 e.preventDefault();
                                 updatePrejRow(i, "artikelId", 0); updatePrejRow(i, "cenaKos", "");
