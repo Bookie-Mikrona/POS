@@ -1096,6 +1096,30 @@ function EditPrejemnicaDialog({
                           </div>
                         )}
                       </div>
+                      {/* Pakiranje gumb + enot-v-paketu polje */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
+                          title="Pakiranje (vez, karton, …)"
+                          onClick={() => {
+                            if (row.enotVPaketu) {
+                              updateRow(i, "enotVPaketu", "");
+                            } else {
+                              setTimeout(() => editEnotInputRefs.current.get(i)?.focus(), 30);
+                            }
+                          }}>
+                          <Package className="w-3.5 h-3.5" />
+                        </Button>
+                        {(row.enotVPaketu !== undefined) && (
+                          <DecimalInput
+                            ref={el => { if (el) editEnotInputRefs.current.set(i, el as any); else editEnotInputRefs.current.delete(i); }}
+                            value={row.enotVPaketu}
+                            placeholder="enot/pak"
+                            onChange={e => updateRow(i, "enotVPaketu", e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); editKoliInputRefs.current.get(i)?.focus(); } }}
+                            className="w-16 text-xs h-7 text-center"
+                          />
+                        )}
+                      </div>
                       {/* Količina / Paketov */}
                       <div className="flex flex-col items-end gap-0.5">
                         <DecimalInput
@@ -1149,30 +1173,6 @@ function EditPrejemnicaDialog({
                           />
                         );
                       })()}
-                      {/* Pakiranje gumb + enot-v-paketu polje */}
-                      <div className="flex flex-col items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
-                          title="Pakiranje (vez, karton, …)"
-                          onClick={() => {
-                            if (row.enotVPaketu) {
-                              updateRow(i, "enotVPaketu", "");
-                            } else {
-                              setTimeout(() => editEnotInputRefs.current.get(i)?.focus(), 30);
-                            }
-                          }}>
-                          <Package className="w-3.5 h-3.5" />
-                        </Button>
-                        {(row.enotVPaketu !== undefined) && (
-                          <DecimalInput
-                            ref={el => { if (el) editEnotInputRefs.current.set(i, el as any); else editEnotInputRefs.current.delete(i); }}
-                            value={row.enotVPaketu}
-                            placeholder="enot/pak"
-                            onChange={e => updateRow(i, "enotVPaketu", e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); editKoliInputRefs.current.get(i)?.focus(); } }}
-                            className="w-16 text-xs h-7 text-center"
-                          />
-                        )}
-                      </div>
                       <Button variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => removeRow(i)}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -2354,6 +2354,31 @@ export default function Zaloge() {
                           </div>
                         )}
                       </div>
+                      {/* Pakiranje gumb + enot-v-paketu polje */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
+                          title="Pakiranje (vez, karton, …)"
+                          onClick={() => {
+                            if (row.enotVPaketu) {
+                              updatePrejRow(i, "enotVPaketu", "");
+                            } else {
+                              updatePrejRow(i, "enotVPaketu", "");
+                              setTimeout(() => enotInputRefs.current.get(i)?.focus(), 30);
+                            }
+                          }}>
+                          <Package className="w-3.5 h-3.5" />
+                        </Button>
+                        {(row.enotVPaketu !== undefined) && (
+                          <DecimalInput
+                            ref={el => { if (el) enotInputRefs.current.set(i, el); else enotInputRefs.current.delete(i); }}
+                            value={row.enotVPaketu}
+                            placeholder="enot/pak"
+                            onChange={e => updatePrejRow(i, "enotVPaketu", e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); koliInputRefs.current.get(i)?.focus(); } }}
+                            className="w-16 text-xs h-7 text-center"
+                          />
+                        )}
+                      </div>
                       {/* Količina / Paketov */}
                       <div className="flex flex-col items-end gap-0.5">
                         <DecimalInput
@@ -2400,31 +2425,6 @@ export default function Zaloge() {
                           />
                         );
                       })()}
-                      {/* Pakiranje gumb + enot-v-paketu polje */}
-                      <div className="flex flex-col items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
-                          title="Pakiranje (vez, karton, …)"
-                          onClick={() => {
-                            if (row.enotVPaketu) {
-                              updatePrejRow(i, "enotVPaketu", "");
-                            } else {
-                              updatePrejRow(i, "enotVPaketu", "");
-                              setTimeout(() => enotInputRefs.current.get(i)?.focus(), 30);
-                            }
-                          }}>
-                          <Package className="w-3.5 h-3.5" />
-                        </Button>
-                        {(row.enotVPaketu !== undefined) && (
-                          <DecimalInput
-                            ref={el => { if (el) enotInputRefs.current.set(i, el); else enotInputRefs.current.delete(i); }}
-                            value={row.enotVPaketu}
-                            placeholder="enot/pak"
-                            onChange={e => updatePrejRow(i, "enotVPaketu", e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); koliInputRefs.current.get(i)?.focus(); } }}
-                            className="w-16 text-xs h-7 text-center"
-                          />
-                        )}
-                      </div>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
