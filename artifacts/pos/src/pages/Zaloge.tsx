@@ -38,6 +38,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNastavitve } from "@/contexts/NastavitveContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
@@ -541,8 +542,6 @@ function NovDobaviteljKartica({
 }
 
 // ── DDV pretvorba ──────────────────────────────────────────────────────────
-const LS_DDV_KEY = "zaloge_jeDdvZavezanec";
-
 /**
  * Pretvori vneseno ceno z dobavnice v ceno, ki se shrani v bazo.
  * Zavezanec shranjuje neto (brez DDV); nezavezanec shranjuje bruto (z DDV).
@@ -800,10 +799,11 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
 
 // ── Edit Prejemnica dialog ─────────────────────────────────────────────────
 function EditPrejemnicaDialog({
-  id, nabavniArtikli, onClose, onSaved,
+  id, nabavniArtikli, jeDdvZavezanec, onClose, onSaved,
 }: {
   id: number;
   nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null; davek: number }[];
+  jeDdvZavezanec: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -825,14 +825,6 @@ function EditPrejemnicaDialog({
   const [ddFilter, setDdFilter] = useState("");
   const [ddHighlight, setDdHighlight] = useState(0);
   const [editNovArtikelRowIdx, setEditNovArtikelRowIdx] = useState<number | null>(null);
-  // DDV nastavitev + vrsta cen (localStorage-backed)
-  const [editJeDdvZavezanec, setEditJeDdvZavezanecState] = useState(() =>
-    localStorage.getItem(LS_DDV_KEY) !== "false"
-  );
-  const setEditDdvZavezanec = (v: boolean) => {
-    setEditJeDdvZavezanecState(v);
-    localStorage.setItem(LS_DDV_KEY, String(v));
-  };
   const [editVrstaCen, setEditVrstaCen] = useState<"neto" | "bruto">("neto");
 
   useEffect(() => {
@@ -863,7 +855,15 @@ function EditPrejemnicaDialog({
   const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
 
-  const skupajVrednost = rows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0);
+  const skupajTotals = rows.reduce((acc, r) => {
+    const kol = parseDecimal(r.kolicina) || 0;
+    const vnos = parseDecimal(r.cenaKos) || 0;
+    const davek = nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0;
+    const shranjeno = konvertirajCeno(vnos, davek, editVrstaCen, jeDdvZavezanec);
+    const neto = jeDdvZavezanec ? shranjeno : (davek ? shranjeno / (1 + davek / 100) : shranjeno);
+    const bruto = jeDdvZavezanec ? (davek ? shranjeno * (1 + davek / 100) : shranjeno) : shranjeno;
+    return { neto: acc.neto + kol * neto, bruto: acc.bruto + kol * bruto };
+  }, { neto: 0, bruto: 0 });
 
   const handleSave = () => {
     const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
@@ -881,7 +881,7 @@ function EditPrejemnicaDialog({
             parseDecimal(r.cenaKos) || 0,
             nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
             editVrstaCen,
-            editJeDdvZavezanec,
+            jeDdvZavezanec,
           ),
         })),
       } as any,
@@ -932,36 +932,17 @@ function EditPrejemnicaDialog({
               <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Referenca, opomba..." onKeyDown={handleEnterAsTab} />
             </div>
 
-            {/* DDV nastavitev + vrsta cen */}
-            <div className="rounded-md border bg-muted/30 p-3 space-y-2.5">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs font-medium text-muted-foreground">Podjetje:</span>
-                <div className="flex rounded-md border overflow-hidden text-xs">
-                  <button type="button"
-                    className={`px-3 py-1 transition-colors ${editJeDdvZavezanec ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setEditDdvZavezanec(true)}>Zavezanec za DDV</button>
-                  <button type="button"
-                    className={`px-3 py-1 border-l transition-colors ${!editJeDdvZavezanec ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setEditDdvZavezanec(false)}>Ni zavezanec</button>
-                </div>
+            {/* Vrsta cen na dobavnici */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium text-muted-foreground">Cene na dobavnici:</span>
+              <div className="flex rounded-md border overflow-hidden text-xs">
+                <button type="button"
+                  className={`px-3 py-1.5 transition-colors ${editVrstaCen === "neto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
+                  onClick={() => setEditVrstaCen("neto")}>Neto (brez DDV)</button>
+                <button type="button"
+                  className={`px-3 py-1.5 border-l transition-colors ${editVrstaCen === "bruto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
+                  onClick={() => setEditVrstaCen("bruto")}>Bruto (maloprodajne)</button>
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs font-medium text-muted-foreground">Cene na dobavnici:</span>
-                <div className="flex rounded-md border overflow-hidden text-xs">
-                  <button type="button"
-                    className={`px-3 py-1 transition-colors ${editVrstaCen === "neto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setEditVrstaCen("neto")}>Neto (brez DDV)</button>
-                  <button type="button"
-                    className={`px-3 py-1 border-l transition-colors ${editVrstaCen === "bruto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setEditVrstaCen("bruto")}>Bruto (maloprodajne)</button>
-                </div>
-              </div>
-              {((editJeDdvZavezanec && editVrstaCen === "bruto") || (!editJeDdvZavezanec && editVrstaCen === "neto")) && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  ⟳ Cene bodo preračunane pri shranjevanju
-                  {editJeDdvZavezanec ? " (bruto → neto brez DDV)" : " (neto → bruto z DDV)"}
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <Label>Postavke</Label>
@@ -1057,7 +1038,23 @@ function EditPrejemnicaDialog({
                         placeholder={editVrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena"}
                         onChange={e => updateRow(i, "cenaKos", e.target.value)}
                         onKeyDown={handleEnterAsTab}
-                        className="w-32" />
+                        className="w-28" />
+                      {/* Preračunana cena (readonly) */}
+                      {(() => {
+                        const vnos = parseDecimal(row.cenaKos) || 0;
+                        const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
+                        const shranjeno = konvertirajCeno(vnos, davek, editVrstaCen, jeDdvZavezanec);
+                        return (
+                          <input
+                            readOnly
+                            tabIndex={-1}
+                            value={vnos ? fmt(shranjeno) : ""}
+                            placeholder={jeDdvZavezanec ? "Neto" : "Bruto"}
+                            title={jeDdvZavezanec ? "Cena, ki se shrani (brez DDV)" : "Cena, ki se shrani (z DDV)"}
+                            className="w-24 border rounded-md px-2 py-2 text-sm bg-muted text-muted-foreground text-right cursor-default select-none"
+                          />
+                        );
+                      })()}
                       <Button variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => removeRow(i)} disabled={rows.length === 1}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -1082,9 +1079,10 @@ function EditPrejemnicaDialog({
                 <Button variant="outline" size="sm" onClick={addRow}>
                   <Plus className="w-4 h-4 mr-1" />Dodaj postavko
                 </Button>
-                <p className="text-sm text-muted-foreground">
-                  Skupaj: <strong className="text-foreground">{fmt(skupajVrednost)} €</strong>
-                </p>
+                <div className="text-sm text-muted-foreground text-right space-y-0.5">
+                  <div>Skupaj brez DDV: <strong className="text-foreground">{fmt(skupajTotals.neto)} €</strong></div>
+                  <div>Skupaj z DDV: <strong className="text-foreground">{fmt(skupajTotals.bruto)} €</strong></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1474,14 +1472,9 @@ export default function Zaloge() {
 
   const nabavniArtikli = (artikli ?? []).filter(a => a.nabavniArtikel);
 
-  // ── DDV nastavitev (localStorage) ─────────────────────────────────
-  const [jeDdvZavezanec, setJeDdvZavezanecState] = useState(() =>
-    localStorage.getItem(LS_DDV_KEY) !== "false"
-  );
-  const setDdvZavezanec = (v: boolean) => {
-    setJeDdvZavezanecState(v);
-    localStorage.setItem(LS_DDV_KEY, String(v));
-  };
+  // ── DDV zavezanec: bere se iz davčne številke v nastavitvah ────────
+  const { nastavitve } = useNastavitve();
+  const jeDdvZavezanec = (nastavitve?.davcnaStevilka?.toUpperCase().startsWith("SI")) ?? true;
 
   // ── Kartica ────────────────────────────────────────────────────────
   const [karticeArtikelId, setKarticeArtikelId] = useState<number | null>(null);
@@ -2100,36 +2093,17 @@ export default function Zaloge() {
               <Label>Opomba <span className="text-xs text-muted-foreground">(neobvezno)</span></Label>
               <Input value={prejOpomba} onChange={e => setPrejOpomba(e.target.value)} placeholder="Dodatna opomba..." />
             </div>
-            {/* DDV nastavitev + vrsta cen */}
-            <div className="rounded-md border bg-muted/30 p-3 space-y-2.5">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs font-medium text-muted-foreground">Podjetje:</span>
-                <div className="flex rounded-md border overflow-hidden text-xs">
-                  <button type="button"
-                    className={`px-3 py-1 transition-colors ${jeDdvZavezanec ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setDdvZavezanec(true)}>Zavezanec za DDV</button>
-                  <button type="button"
-                    className={`px-3 py-1 border-l transition-colors ${!jeDdvZavezanec ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setDdvZavezanec(false)}>Ni zavezanec</button>
-                </div>
+            {/* Vrsta cen na dobavnici */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium text-muted-foreground">Cene na dobavnici:</span>
+              <div className="flex rounded-md border overflow-hidden text-xs">
+                <button type="button"
+                  className={`px-3 py-1.5 transition-colors ${vrstaCen === "neto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
+                  onClick={() => setVrstaCen("neto")}>Neto (brez DDV)</button>
+                <button type="button"
+                  className={`px-3 py-1.5 border-l transition-colors ${vrstaCen === "bruto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
+                  onClick={() => setVrstaCen("bruto")}>Bruto (maloprodajne)</button>
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs font-medium text-muted-foreground">Cene na dobavnici:</span>
-                <div className="flex rounded-md border overflow-hidden text-xs">
-                  <button type="button"
-                    className={`px-3 py-1 transition-colors ${vrstaCen === "neto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setVrstaCen("neto")}>Neto (brez DDV)</button>
-                  <button type="button"
-                    className={`px-3 py-1 border-l transition-colors ${vrstaCen === "bruto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                    onClick={() => setVrstaCen("bruto")}>Bruto (maloprodajne)</button>
-                </div>
-              </div>
-              {((jeDdvZavezanec && vrstaCen === "bruto") || (!jeDdvZavezanec && vrstaCen === "neto")) && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  ⟳ Cene bodo preračunane pri shranjevanju
-                  {jeDdvZavezanec ? " (bruto → neto brez DDV)" : " (neto → bruto z DDV)"}
-                </p>
-              )}
             </div>
             {/* Postavke */}
             <div className="space-y-2">
@@ -2228,7 +2202,23 @@ export default function Zaloge() {
                         placeholder={vrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena"} value={row.cenaKos}
                         onChange={e => updatePrejRow(i, "cenaKos", e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); } }}
-                        className="w-32" />
+                        className="w-28" />
+                      {/* Preračunana cena (readonly) */}
+                      {(() => {
+                        const vnos = parseDecimal(row.cenaKos) || 0;
+                        const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
+                        const shranjeno = konvertirajCeno(vnos, davek, vrstaCen, jeDdvZavezanec);
+                        return (
+                          <input
+                            readOnly
+                            tabIndex={-1}
+                            value={vnos ? fmt(shranjeno) : ""}
+                            placeholder={jeDdvZavezanec ? "Neto" : "Bruto"}
+                            title={jeDdvZavezanec ? "Cena, ki se shrani (brez DDV)" : "Cena, ki se shrani (z DDV)"}
+                            className="w-24 border rounded-md px-2 py-2 text-sm bg-muted text-muted-foreground text-right cursor-default select-none"
+                          />
+                        );
+                      })()}
                       <Button variant="ghost" size="icon" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -2255,11 +2245,23 @@ export default function Zaloge() {
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addPrejRow(); } }}>
                 <Plus className="w-4 h-4 mr-1" />Dodaj postavko
               </Button>
-              {prejRows.some(r => r.kolicina && r.cenaKos) && (
-                <p className="text-sm text-muted-foreground text-right">
-                  Skupaj: <strong>{fmt(prejRows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0))} €</strong>
-                </p>
-              )}
+              {prejRows.some(r => r.kolicina && r.cenaKos) && (() => {
+                const totals = prejRows.reduce((acc, r) => {
+                  const kol = parseDecimal(r.kolicina) || 0;
+                  const vnos = parseDecimal(r.cenaKos) || 0;
+                  const davek = nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0;
+                  const shranjeno = konvertirajCeno(vnos, davek, vrstaCen, jeDdvZavezanec);
+                  const neto = jeDdvZavezanec ? shranjeno : (davek ? shranjeno / (1 + davek / 100) : shranjeno);
+                  const bruto = jeDdvZavezanec ? (davek ? shranjeno * (1 + davek / 100) : shranjeno) : shranjeno;
+                  return { neto: acc.neto + kol * neto, bruto: acc.bruto + kol * bruto };
+                }, { neto: 0, bruto: 0 });
+                return (
+                  <div className="text-sm text-muted-foreground text-right space-y-0.5">
+                    <div>Skupaj brez DDV: <strong className="text-foreground">{fmt(totals.neto)} €</strong></div>
+                    <div>Skupaj z DDV: <strong className="text-foreground">{fmt(totals.bruto)} €</strong></div>
+                  </div>
+                );
+              })()}
             </div>
             <Button className="w-full" onClick={handleSavePrejemnica} disabled={createPrejemnica.isPending}>
               {createPrejemnica.isPending ? "Shranjujem..." : "Shrani prejemnico"}
@@ -2273,6 +2275,7 @@ export default function Zaloge() {
         <EditPrejemnicaDialog
           id={editPrejId}
           nabavniArtikli={nabavniArtikli}
+          jeDdvZavezanec={jeDdvZavezanec}
           onClose={() => setEditPrejId(null)}
           onSaved={() => {
             const savedId = editPrejId;
