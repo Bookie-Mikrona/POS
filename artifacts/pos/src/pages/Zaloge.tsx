@@ -846,6 +846,7 @@ function EditPrejemnicaDialog({
   const editArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editKoliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editCenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const editEnotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editDodajRef = useRef<HTMLButtonElement>(null);
   const editShraniRef = useRef<HTMLButtonElement>(null);
   const [ddOpenIdx, setDdOpenIdx] = useState<number | null>(null);
@@ -918,10 +919,12 @@ function EditPrejemnicaDialog({
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
 
   const skupajTotals = rows.reduce((acc, r) => {
-    const kol = parseDecimal(r.kolicina) || 0;
+    const enot = parseDecimal(r.enotVPaketu) || 1;
+    const kol = (parseDecimal(r.kolicina) || 0) * enot;
     const vnos = parseDecimal(r.cenaKos) || 0;
+    const cenaNaEnoto = enot > 1 ? vnos / enot : vnos;
     const davek = nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0;
-    const shranjeno = konvertirajCeno(vnos, davek, editVrstaCen, jeDdvZavezanec);
+    const shranjeno = konvertirajCeno(cenaNaEnoto, davek, editVrstaCen, jeDdvZavezanec);
     const neto = jeDdvZavezanec ? shranjeno : (davek ? shranjeno / (1 + davek / 100) : shranjeno);
     const bruto = jeDdvZavezanec ? (davek ? shranjeno * (1 + davek / 100) : shranjeno) : shranjeno;
     return { neto: acc.neto + kol * neto, bruto: acc.bruto + kol * bruto };
@@ -937,16 +940,20 @@ function EditPrejemnicaDialog({
         dobaviteljId: dobaviteljId ?? null,
         opomba: opomba || null,
         vrstaCen: editVrstaCen,
-        postavke: validRows.map(r => ({
-          artikelId: r.artikelId,
-          kolicina: parseDecimal(r.kolicina),
-          cenaKos: konvertirajCeno(
-            parseDecimal(r.cenaKos) || 0,
-            nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
-            editVrstaCen,
-            jeDdvZavezanec,
-          ),
-        })),
+        postavke: validRows.map(r => {
+          const enot = parseDecimal(r.enotVPaketu) || 1;
+          const cenaNaEnoto = enot > 1 ? (parseDecimal(r.cenaKos) || 0) / enot : (parseDecimal(r.cenaKos) || 0);
+          return {
+            artikelId: r.artikelId,
+            kolicina: parseDecimal(r.kolicina) * enot,
+            cenaKos: konvertirajCeno(
+              cenaNaEnoto,
+              nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
+              editVrstaCen,
+              jeDdvZavezanec,
+            ),
+          };
+        }),
       } as any,
     }, {
       onSuccess: () => { toast({ title: "Prejemnica posodobljena" }); onSaved(); },
@@ -1089,42 +1096,83 @@ function EditPrejemnicaDialog({
                           </div>
                         )}
                       </div>
-                      {/* Količina */}
-                      <DecimalInput
-                        ref={el => { if (el) editKoliInputRefs.current.set(i, el as any); else editKoliInputRefs.current.delete(i); }}
-                        value={row.kolicina}
-                        onChange={e => updateRow(i, "kolicina", e.target.value)}
-                        onKeyDown={handleEnterAsTab}
-                        className="w-28" />
-                      {/* Cena */}
-                      <DecimalInput value={row.cenaKos}
-                        placeholder={editVrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena"}
-                        onChange={e => updateRow(i, "cenaKos", e.target.value)}
-                        ref={el => { if (el) editCenaInputRefs.current.set(i, el as any); else editCenaInputRefs.current.delete(i); }}
-                        onKeyDown={e => {
-                          if (e.key !== "Enter") return;
-                          e.preventDefault();
-                          const nextKoli = editKoliInputRefs.current.get(i + 1);
-                          if (nextKoli) { nextKoli.focus(); }
-                          else { editDodajRef.current?.focus(); }
-                        }}
-                        className="w-28" />
+                      {/* Količina / Paketov */}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <DecimalInput
+                          ref={el => { if (el) editKoliInputRefs.current.set(i, el as any); else editKoliInputRefs.current.delete(i); }}
+                          placeholder={row.enotVPaketu ? "Paketov" : "Količina"}
+                          value={row.kolicina}
+                          onChange={e => updateRow(i, "kolicina", e.target.value)}
+                          onKeyDown={handleEnterAsTab}
+                          className="w-24" />
+                        {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.kolicina) > 0 && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            = {fmt(parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1))} {nabavniArtikli.find(a => a.id === row.artikelId)?.enotaMere ?? "enot"}
+                          </span>
+                        )}
+                      </div>
+                      {/* Cena / Cena na paket */}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <DecimalInput value={row.cenaKos}
+                          placeholder={row.enotVPaketu ? "Cena/paket" : (editVrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena")}
+                          onChange={e => updateRow(i, "cenaKos", e.target.value)}
+                          ref={el => { if (el) editCenaInputRefs.current.set(i, el as any); else editCenaInputRefs.current.delete(i); }}
+                          onKeyDown={e => {
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            const nextKoli = editKoliInputRefs.current.get(i + 1);
+                            if (nextKoli) { nextKoli.focus(); }
+                            else { editDodajRef.current?.focus(); }
+                          }}
+                          className="w-28" />
+                        {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.cenaKos) > 0 && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            = {fmt(parseDecimal(row.cenaKos) / (parseDecimal(row.enotVPaketu) || 1))} €/enoto
+                          </span>
+                        )}
+                      </div>
                       {/* Preračunana cena (readonly) */}
                       {(() => {
+                        const enot = parseDecimal(row.enotVPaketu) || 1;
                         const vnos = parseDecimal(row.cenaKos) || 0;
+                        const cenaNaEnoto = enot > 1 ? vnos / enot : vnos;
                         const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
-                        const shranjeno = konvertirajCeno(vnos, davek, editVrstaCen, jeDdvZavezanec);
+                        const shranjeno = konvertirajCeno(cenaNaEnoto, davek, editVrstaCen, jeDdvZavezanec);
                         return (
                           <input
                             readOnly
                             tabIndex={-1}
                             value={vnos ? fmt(shranjeno) : ""}
                             placeholder={jeDdvZavezanec ? "Neto" : "Bruto"}
-                            title={jeDdvZavezanec ? "Cena, ki se shrani (brez DDV)" : "Cena, ki se shrani (z DDV)"}
+                            title={jeDdvZavezanec ? "Cena/enoto, ki se shrani (brez DDV)" : "Cena/enoto, ki se shrani (z DDV)"}
                             className="w-24 border rounded-md px-2 py-2 text-sm bg-muted text-muted-foreground text-right cursor-default select-none"
                           />
                         );
                       })()}
+                      {/* Pakiranje gumb + enot-v-paketu polje */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
+                          title="Pakiranje (vez, karton, …)"
+                          onClick={() => {
+                            if (row.enotVPaketu) {
+                              updateRow(i, "enotVPaketu", "");
+                            } else {
+                              setTimeout(() => editEnotInputRefs.current.get(i)?.focus(), 30);
+                            }
+                          }}>
+                          <Package className="w-3.5 h-3.5" />
+                        </Button>
+                        {(row.enotVPaketu !== undefined) && (
+                          <DecimalInput
+                            ref={el => { if (el) editEnotInputRefs.current.set(i, el as any); else editEnotInputRefs.current.delete(i); }}
+                            value={row.enotVPaketu}
+                            placeholder="enot/pak"
+                            onChange={e => updateRow(i, "enotVPaketu", e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); editKoliInputRefs.current.get(i)?.focus(); } }}
+                            className="w-16 text-xs h-7 text-center"
+                          />
+                        )}
+                      </div>
                       <Button variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => removeRow(i)}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
