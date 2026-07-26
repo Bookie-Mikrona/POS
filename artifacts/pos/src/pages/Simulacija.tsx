@@ -129,7 +129,7 @@ export default function Simulacija() {
   const minDatum = sim.datum ?? "2000-01-01";
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6 overflow-y-auto h-full">
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -219,9 +219,9 @@ export default function Simulacija() {
             Ko spremenite datum, se samodejno zapro odprte izmene (zaključek dneva).
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {sim.active && (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm mb-4">
               <CalendarDays className="w-4 h-4 text-purple-600" />
               <span className="font-medium">Trenutni datum:</span>
               <Badge variant="outline" className="border-purple-300 text-purple-700">
@@ -230,25 +230,35 @@ export default function Simulacija() {
             </div>
           )}
           {!sim.active && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Info className="w-4 h-4" />
+            <p className="text-sm text-gray-500 mb-4">
               Ni aktiven — sistem uporablja pravi datum in čas.
-            </div>
+            </p>
           )}
-          <div className="pt-1 flex items-end gap-3 flex-wrap">
-            <div className="space-y-1.5">
-              <Label htmlFor="sim-datum" className="text-sm font-medium">
-                {sim.active ? "Nov datum (mora biti ≥ trenutnega)" : "Začetni datum simulacije"}
-              </Label>
-              <Input
-                id="sim-datum"
-                type="text"
-                placeholder="LLLL-MM-DD"
-                value={novDatum}
-                onChange={e => setNovDatum(e.target.value)}
-                className="w-44 font-mono"
-              />
-            </div>
+          <div className="mb-2">
+            <label htmlFor="sim-datum" className="block text-sm font-medium mb-1">
+              {sim.active ? "Nov datum (mora biti ≥ trenutnega)" : "Začetni datum simulacije"}
+            </label>
+            <input
+              id="sim-datum"
+              type="text"
+              placeholder="LLLL-MM-DD"
+              value={novDatum}
+              onChange={e => setNovDatum(e.target.value)}
+              style={{
+                display: "block",
+                width: "180px",
+                padding: "6px 12px",
+                fontSize: "14px",
+                fontFamily: "monospace",
+                border: "1px solid #d1d5db",
+                borderRadius: "6px",
+                color: "#111827",
+                backgroundColor: "#ffffff",
+                outline: "none",
+              }}
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap mt-3">
             <Button
               disabled={loadingSim || !novDatum || novDatum < minDatum}
               onClick={handleSetDatum}
@@ -265,9 +275,9 @@ export default function Simulacija() {
             )}
           </div>
           {sim.active && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
+            <p className="text-xs text-gray-500 flex items-center gap-1 mt-3">
               <ChevronRight className="w-3 h-3" />
-              Nov datum mora biti večji ali enak {fmtDatum(sim.datum!)} — ni mogoče iti nazaj v preteklost.
+              Nov datum mora biti večji ali enak {fmtDatum(sim.datum!)}.
             </p>
           )}
         </CardContent>
