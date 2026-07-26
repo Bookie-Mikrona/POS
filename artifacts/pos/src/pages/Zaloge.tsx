@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment, forwardRef } from "react";
 import {
   useListZaloge,
   useListPrejemnice,
@@ -67,6 +67,81 @@ const ENOTE_MERE = ["kom", "kg", "g", "l", "dl", "ml", "m", "m²", "m³", "par",
 type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string; enotVPaketu: string };
 type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
 type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
+
+// ── Datum helpers ──────────────────────────────────────────────────────────
+const formatDateSlo = (iso: string): string => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+};
+
+const parseDatumInput = (raw: string, defaultYear: number): string | null => {
+  const s = raw.trim();
+  if (!s) return null;
+  let mt: RegExpMatchArray | null;
+  // D.M.YYYY
+  mt = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (mt) return `${mt[3]}-${mt[2].padStart(2, "0")}-${mt[1].padStart(2, "0")}`;
+  // D.M.YY → 20xx
+  mt = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
+  if (mt) return `${2000 + parseInt(mt[3])}-${mt[2].padStart(2, "0")}-${mt[1].padStart(2, "0")}`;
+  // D.M ali D.M. → privzeto leto
+  mt = s.match(/^(\d{1,2})\.(\d{1,2})\.?$/);
+  if (mt) return `${defaultYear}-${mt[2].padStart(2, "0")}-${mt[1].padStart(2, "0")}`;
+  // ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return null;
+};
+
+/** Datum input, ki sprejme DD.MM, DD.MM.LL ali DD.MM.LLLL in dopolni leto. */
+const SmartDateInput = forwardRef<HTMLInputElement, {
+  value: string;
+  onChange: (v: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  defaultYear?: number;
+  className?: string;
+  placeholder?: string;
+}>(function SmartDateInput(
+  { value, onChange, onKeyDown, defaultYear = new Date().getFullYear(), className, placeholder = "DD.MM.LLLL" },
+  ref
+) {
+  const [raw, setRaw] = useState(() => formatDateSlo(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setRaw(formatDateSlo(value));
+  }, [value, focused]);
+
+  const commit = (input: string) => {
+    const parsed = parseDatumInput(input, defaultYear);
+    if (parsed) {
+      onChange(parsed);
+      setRaw(formatDateSlo(parsed));
+    } else if (!input.trim()) {
+      onChange("");
+      setRaw("");
+    }
+  };
+
+  return (
+    <input
+      ref={ref}
+      className={`flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50${className ? ` ${className}` : ""}`}
+      placeholder={placeholder}
+      value={raw}
+      onChange={e => setRaw(e.target.value)}
+      onFocus={() => { setFocused(true); setRaw(value ? formatDateSlo(value) : ""); }}
+      onBlur={() => { setFocused(false); commit(raw); }}
+      onKeyDown={e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit(raw);
+        }
+        onKeyDown?.(e);
+      }}
+    />
+  );
+});
 
 const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
   if (e.key !== "Enter") return;
@@ -755,17 +830,15 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                 <p className="text-sm font-semibold shrink-0">Gibanje zalog</p>
                 <div className="flex items-center gap-2 text-sm">
                   <Label className="text-xs text-muted-foreground shrink-0">Od</Label>
-                  <Input
-                    type="date"
+                  <SmartDateInput
                     value={datumOd}
-                    onChange={e => setDatumOd(e.target.value)}
+                    onChange={setDatumOd}
                     className="h-7 text-xs w-36"
                   />
                   <Label className="text-xs text-muted-foreground shrink-0">Do</Label>
-                  <Input
-                    type="date"
+                  <SmartDateInput
                     value={datumDo}
-                    onChange={e => setDatumDo(e.target.value)}
+                    onChange={setDatumDo}
                     className="h-7 text-xs w-36"
                   />
                   {(datumOd || datumDo) && (
@@ -999,7 +1072,7 @@ function EditPrejemnicaDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Datum</Label>
-                <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+                <SmartDateInput value={datum} onChange={setDatum} onKeyDown={handleEnterAsTab as (e: React.KeyboardEvent<HTMLInputElement>) => void} />
               </div>
               <div className="space-y-2">
                 <Label>Dobavitelj</Label>
@@ -1345,7 +1418,7 @@ function EditInventuraDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Datum</Label>
-                <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+                <SmartDateInput value={datum} onChange={setDatum} onKeyDown={handleEnterAsTab as (e: React.KeyboardEvent<HTMLInputElement>) => void} />
               </div>
               <div className="space-y-2">
                 <Label>Opomba</Label>
@@ -1536,7 +1609,7 @@ function EditZacetnaZalogaDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Datum</Label>
-                <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+                <SmartDateInput value={datum} onChange={setDatum} onKeyDown={handleEnterAsTab as (e: React.KeyboardEvent<HTMLInputElement>) => void} />
               </div>
               <div className="space-y-2">
                 <Label>Opomba</Label>
@@ -2306,7 +2379,7 @@ export default function Zaloge() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Datum</Label>
-                <Input ref={prejDatumRef} type="date" value={prejDatum} onChange={e => setPrejDatum(e.target.value)}
+                <SmartDateInput ref={prejDatumRef} value={prejDatum} onChange={setPrejDatum} defaultYear={currentYear}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); prejDobaviteljInputRef.current?.focus(); } }} />
               </div>
               <div className="space-y-1.5">
@@ -2357,7 +2430,7 @@ export default function Zaloge() {
               </div>
               <div className="space-y-1.5">
                 <Label>Datum dobavnice</Label>
-                <Input ref={prejDatumDobavniceRef} type="date" value={prejDatumDobavnice} onChange={e => setPrejDatumDobavnice(e.target.value)}
+                <SmartDateInput ref={prejDatumDobavniceRef} value={prejDatumDobavnice} onChange={setPrejDatumDobavnice} defaultYear={currentYear}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); prejOpombaRef.current?.focus(); } }} />
               </div>
             </div>
@@ -2670,7 +2743,7 @@ export default function Zaloge() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Datum</Label>
-                <Input type="date" value={invDatum} onChange={e => setInvDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+                <SmartDateInput value={invDatum} onChange={setInvDatum} defaultYear={currentYear} onKeyDown={handleEnterAsTab as (e: React.KeyboardEvent<HTMLInputElement>) => void} />
               </div>
               <div className="space-y-2">
                 <Label>Opomba</Label>
@@ -2813,7 +2886,7 @@ export default function Zaloge() {
               </div>
               <div className="space-y-2">
                 <Label>Datum</Label>
-                <Input type="date" value={zzDatum} onChange={e => setZzDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
+                <SmartDateInput value={zzDatum} onChange={setZzDatum} defaultYear={currentYear} onKeyDown={handleEnterAsTab as (e: React.KeyboardEvent<HTMLInputElement>) => void} />
               </div>
               <div className="space-y-2">
                 <Label>Opomba</Label>
