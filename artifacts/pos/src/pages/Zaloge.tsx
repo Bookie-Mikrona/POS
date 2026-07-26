@@ -990,6 +990,7 @@ function EditPrejemnicaDialog({
   const editCenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editEnotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editNovArtBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const editPakBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const editDodajRef = useRef<HTMLButtonElement>(null);
   const editDatumRef = useRef<HTMLInputElement>(null);
   const editDobavInputRef = useRef<HTMLInputElement>(null);
@@ -1292,7 +1293,8 @@ function EditPrejemnicaDialog({
                       </div>
                       {/* Pakiranje gumb + enot-v-paketu polje */}
                       <div className="flex flex-col items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
+                        <Button ref={el => { if (el) editPakBtnRefs.current.set(i, el); else editPakBtnRefs.current.delete(i); }}
+                          variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
                           title="Pakiranje (vez, karton, …)"
                           onClick={() => {
                             if (row.enotVPaketu) {
@@ -1389,7 +1391,7 @@ function EditPrejemnicaDialog({
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setEditNovArtikelRowIdx(null);
-                          setTimeout(() => { selectArtikelInEditRow(i, id); editEnotInputRefs.current.get(i)?.focus(); }, 150);
+                          setTimeout(() => { selectArtikelInEditRow(i, id); editPakBtnRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
