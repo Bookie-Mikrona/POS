@@ -1691,6 +1691,15 @@ export default function Zaloge() {
   const [dropdownOpenIdx, setDropdownOpenIdx] = useState<number | null>(null);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [dropdownHighlight, setDropdownHighlight] = useState(0);
+
+  // Ko se odpre dropdown za artikel, porinemo vrstico na vrh dialoga, da ima spodaj prostor za seznam
+  useEffect(() => {
+    if (dropdownOpenIdx !== null) {
+      setTimeout(() => {
+        artInputRefs.current.get(dropdownOpenIdx)?.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 30);
+    }
+  }, [dropdownOpenIdx]);
   const [novArtikelRowIdx, setNovArtikelRowIdx] = useState<number | null>(null);
   // Vrsta cen na dobavnici (neto/bruto) — per-form, ponastavi ob odprtju
   const [vrstaCen, setVrstaCen] = useState<"neto" | "bruto">("neto");
