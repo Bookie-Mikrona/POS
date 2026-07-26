@@ -1270,18 +1270,23 @@ export interface ZalogaPogled {
   /** @nullable */
   enotaMere: string | null;
   kolicina: number;
-  /** @nullable */
+  /** Drseča tehtana povprečna nabavna cena (WAC) @nullable */
+  povprecnaCena?: number | null;
+  /** Skupna vrednost zaloge = kolicina × WAC @nullable */
+  skupnaVrednost?: number | null;
+  /** @deprecated use povprecnaCena @nullable */
   zadnjaCena?: number | null;
   zadnjaPosodobitev: string;
 }
 
 export type ZalogaGibPogledTip = typeof ZalogaGibPogledTip[keyof typeof ZalogaGibPogledTip];
 
-
 export const ZalogaGibPogledTip = {
   prejemnica: 'prejemnica',
   inventura: 'inventura',
   poraba: 'poraba',
+  izdajnica: 'izdajnica',
+  storno: 'storno',
 } as const;
 
 export interface ZalogaGibPogled {
@@ -1290,11 +1295,22 @@ export interface ZalogaGibPogled {
   artikelIme: string;
   tip: ZalogaGibPogledTip;
   kolicina: number;
+  /** Povprečna nabavna cena na enoto v trenutku gibanja @nullable */
+  cenaKos?: number | null;
+  /** Vrednost gibanja = kolicina × cenaKos @nullable */
+  vrednost?: number | null;
+  /** Tekoča zaloga v količini po tem gibanju */
+  stanjeKolicina?: number;
+  /** Tekoča vrednost zaloge po tem gibanju @nullable */
+  stanjeVrednost?: number | null;
+  /** Tekoča povprečna cena po tem gibanju @nullable */
+  stanjePovprecnaCena?: number | null;
   /** @nullable */
   opomba?: string | null;
   /** @nullable */
   referencaId?: number | null;
   ustvarjeno: string;
+  datumDokumenta?: string;
 }
 
 export interface KarticaArtikla {
@@ -1306,11 +1322,14 @@ export interface KarticaArtikla {
   enotaMere?: string | null;
   /** @nullable */
   cena?: number | null;
-  /** @nullable */
+  /** Drseča tehtana povprečna nabavna cena (WAC) @nullable */
+  povprecnaCena?: number | null;
+  /** @deprecated use povprecnaCena @nullable */
   zadnjaCena?: number | null;
   kolicina: number;
-  /** @nullable */
+  /** Skupna vrednost zaloge @nullable */
   vrednost?: number | null;
+  skupnaVrednost?: number | null;
   gibi: ZalogaGibPogled[];
 }
 

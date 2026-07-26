@@ -1,4 +1,5 @@
 - [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
+- [WAC inventory valuation](wac-implementation.md) — drseča tehtana povprečna cena: schema, recompute algo, edge cases
 - [POS plačilni zneski](pos-placilni-zneski.md) — mešana plačila: vedno beri znesek_* stolpce; repr/lastna face value iz postavk; db.execute vrne .rows[0]
 - [FURS POS Web GitHub](furs-pos-web-github.md) — izvorni POS projekt na GitHubu; referenca za logiko
 - [Super admin sistem](super-admin.md) — env var SUPER_ADMIN_IDS, company_modules tabela, admin panel na /admin

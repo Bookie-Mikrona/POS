@@ -1,62 +1,43 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { artikliTable, db, zalogaGibiTable } from "@workspace/db";
+import { Router, type IRouter } from "express";
+import { and, eq, sql } from "drizzle-orm";
+import { artikliTable, db, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 
 const router: IRouter = Router();
 
-const zadnjaCenaSql = (artikelIdRef: typeof artikliTable.id) =>
-  sql<string | null>`(
-    SELECT cena_kos FROM (
-      SELECT pp.cena_kos, p.datum
-      FROM prejemnice_postavke pp
-      JOIN prejemnice p ON p.id = pp.prejemnica_id
-      WHERE pp.artikel_id = ${artikelIdRef}
-      UNION ALL
-      SELECT zzp.cena_kos, zz.datum
-      FROM zacetne_zaloge_postavke zzp
-      JOIN zacetne_zaloge zz ON zz.id = zzp.zacetna_zaloga_id
-      WHERE zzp.artikel_id = ${artikelIdRef}
-    ) combined
-    ORDER BY datum DESC
-    LIMIT 1
-  )`;
-
+// ── GET /zaloge ─────────────────────────────────────────────────────────────
 router.get("/zaloge", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+
+  // Join artikli → zaloge to get the cached WAC and value
   const rows = await db
     .select({
-      artikelId: artikliTable.id,
-      artikelIme: artikliTable.ime,
-      imeZaNabavo: artikliTable.imeZaNabavo,
-      enotaMere: artikliTable.enotaMere,
-      kolicina: sql<string>`COALESCE(SUM(${zalogaGibiTable.kolicina}), '0')`,
-      zadnjaCena: zadnjaCenaSql(artikliTable.id),
-      zadnjaPosodobitev: sql<string>`COALESCE((
-        SELECT MAX(datum)::text FROM (
-          SELECT p.datum FROM prejemnice_postavke pp JOIN prejemnice p ON p.id = pp.prejemnica_id
-            WHERE pp.artikel_id = ${artikliTable.id}
-          UNION ALL
-          SELECT zz.datum FROM zacetne_zaloge_postavke zzp JOIN zacetne_zaloge zz ON zz.id = zzp.zacetna_zaloga_id
-            WHERE zzp.artikel_id = ${artikliTable.id}
-          UNION ALL
-          SELECT inv.datum FROM inventure_postavke ip JOIN inventure inv ON inv.id = ip.inventura_id
-            WHERE ip.artikel_id = ${artikliTable.id}
-        ) src
-      ), NOW()::text)`})
+      artikelId:      artikliTable.id,
+      artikelIme:     artikliTable.ime,
+      imeZaNabavo:    artikliTable.imeZaNabavo,
+      enotaMere:      artikliTable.enotaMere,
+      kolicina:       sql<string>`COALESCE(${zalogeTable.kolicina}, '0')`,
+      povprecnaCena:  zalogeTable.povprecnaCena,
+      skupnaVrednost: zalogeTable.skupnaVrednost,
+      zadnjaPosodobitev: sql<string>`COALESCE(${zalogeTable.zadnjaPosodobitev}::text, NOW()::text)`,
+    })
     .from(artikliTable)
-    .leftJoin(zalogaGibiTable, eq(zalogaGibiTable.artikelId, artikliTable.id))
-    .where(and(eq(artikliTable.nabavniArtikel, true), sql`true`, eq(artikliTable.enotaId, tenotaId)))
-    .groupBy(artikliTable.id, artikliTable.ime, artikliTable.imeZaNabavo, artikliTable.enotaMere)
+    .leftJoin(zalogeTable, eq(zalogeTable.artikelId, artikliTable.id))
+    .where(and(eq(artikliTable.nabavniArtikel, true), eq(artikliTable.enotaId, tenotaId)))
     .orderBy(artikliTable.ime);
 
   res.json(rows.map(r => ({
     ...r,
-    kolicina: Number(r.kolicina),
-    zadnjaCena: r.zadnjaCena != null ? Number(r.zadnjaCena) : null})));
+    kolicina:       Number(r.kolicina),
+    povprecnaCena:  r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
+    skupnaVrednost: r.skupnaVrednost != null ? Number(r.skupnaVrednost) : null,
+    // backward-compat alias so existing UI code that reads zadnjaCena still works
+    zadnjaCena:     r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
+  })));
 });
 
+// ── GET /zaloge/kartica/:artikelId ──────────────────────────────────────────
 router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const artikelId = parseInt(req.params.artikelId);
@@ -66,43 +47,32 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
 
   const [artikel] = await db
     .select({
-      id: artikliTable.id,
-      ime: artikliTable.ime,
+      id:          artikliTable.id,
+      ime:         artikliTable.ime,
       imeZaNabavo: artikliTable.imeZaNabavo,
-      enotaMere: artikliTable.enotaMere,
-      cena: artikliTable.cena})
+      enotaMere:   artikliTable.enotaMere,
+      cena:        artikliTable.cena,
+    })
     .from(artikliTable)
-    .where(and(eq(artikliTable.id, artikelId), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, tenotaId)));
 
   if (!artikel) { res.status(404).json({ error: "Artikel ni najden" }); return; }
 
+  // Read WAC from the cached zaloge row
   const [zalogaRow] = await db
     .select({
-      kolicina: sql<string>`COALESCE(SUM(${zalogaGibiTable.kolicina}), '0')`})
-    .from(zalogaGibiTable)
-    .where(eq(zalogaGibiTable.artikelId, artikelId));
+      kolicina:       zalogeTable.kolicina,
+      povprecnaCena:  zalogeTable.povprecnaCena,
+      skupnaVrednost: zalogeTable.skupnaVrednost,
+    })
+    .from(zalogeTable)
+    .where(eq(zalogeTable.artikelId, artikelId));
 
-  const kolicina = Number(zalogaRow?.kolicina ?? 0);
+  const kolicina       = Number(zalogaRow?.kolicina       ?? 0);
+  const povprecnaCena  = zalogaRow?.povprecnaCena  != null ? Number(zalogaRow.povprecnaCena)  : null;
+  const skupnaVrednost = zalogaRow?.skupnaVrednost != null ? Number(zalogaRow.skupnaVrednost) : null;
 
-  const lastPriceResult = await db.execute(
-    sql`SELECT cena_kos FROM (
-      SELECT pp.cena_kos, p.datum
-      FROM prejemnice_postavke pp
-      JOIN prejemnice p ON p.id = pp.prejemnica_id
-      WHERE pp.artikel_id = ${artikelId}
-      UNION ALL
-      SELECT zzp.cena_kos, zz.datum
-      FROM zacetne_zaloge_postavke zzp
-      JOIN zacetne_zaloge zz ON zz.id = zzp.zacetna_zaloga_id
-      WHERE zzp.artikel_id = ${artikelId}
-    ) combined
-    ORDER BY datum DESC
-    LIMIT 1`
-  );
-  const zadnjaCena = lastPriceResult.rows[0]
-    ? Number((lastPriceResult.rows[0] as { cena_kos: string }).cena_kos)
-    : null;
-
+  // Date range filters
   const datumOdFilter = datumOd ? sql` AND COALESCE(
         CASE WHEN zg.tip = 'prejemnica' THEN p.datum END,
         CASE WHEN zg.opomba LIKE 'Začetne zaloge%' THEN zz.datum END,
@@ -120,22 +90,29 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
 
   const gibiResult = await db.execute(
     sql`SELECT
-      zg.id, zg.artikel_id AS "artikelId", a.ime AS "artikelIme",
-      zg.tip, zg.kolicina, zg.opomba, zg.referenca_id AS "referencaId",
+      zg.id,
+      zg.artikel_id   AS "artikelId",
+      a.ime           AS "artikelIme",
+      zg.tip,
+      zg.kolicina::float8  AS kolicina,
+      zg.cena_kos::float8  AS "cenaKos",
+      zg.vrednost::float8  AS vrednost,
+      zg.opomba,
+      zg.referenca_id AS "referencaId",
       zg.ustvarjeno,
       COALESCE(
-        CASE WHEN zg.tip = 'prejemnica' THEN p.datum END,
-        CASE WHEN zg.opomba LIKE 'Začetne zaloge%' THEN zz.datum END,
-        CASE WHEN zg.tip = 'inventura' THEN inv.datum END,
-        CASE WHEN zg.tip = 'izdajnica' THEN izd.datum END,
+        CASE WHEN zg.tip = 'prejemnica'                                    THEN p.datum END,
+        CASE WHEN zg.opomba LIKE 'Začetne zaloge%'                        THEN zz.datum END,
+        CASE WHEN zg.tip = 'inventura'                                     THEN inv.datum END,
+        CASE WHEN zg.tip = 'izdajnica'                                     THEN izd.datum END,
         zg.ustvarjeno
       ) AS "datumDokumenta"
     FROM zaloga_gibi zg
-    LEFT JOIN artikli a ON a.id = zg.artikel_id
-    LEFT JOIN prejemnice p ON p.id = zg.referenca_id AND zg.tip = 'prejemnica'
-    LEFT JOIN zacetne_zaloge zz ON zz.id = zg.referenca_id AND zg.opomba LIKE 'Začetne zaloge%'
-    LEFT JOIN inventure inv ON inv.id = zg.referenca_id AND zg.tip = 'inventura'
-    LEFT JOIN izdajnice izd ON izd.id = zg.referenca_id AND zg.tip = 'izdajnica'
+    LEFT JOIN artikli a   ON a.id  = zg.artikel_id
+    LEFT JOIN prejemnice p         ON p.id   = zg.referenca_id AND zg.tip = 'prejemnica'
+    LEFT JOIN zacetne_zaloge zz    ON zz.id  = zg.referenca_id AND zg.opomba LIKE 'Začetne zaloge%'
+    LEFT JOIN inventure inv        ON inv.id  = zg.referenca_id AND zg.tip = 'inventura'
+    LEFT JOIN izdajnice izd        ON izd.id  = zg.referenca_id AND zg.tip = 'izdajnica'
     WHERE zg.artikel_id = ${artikelId}
     ${datumOdFilter}
     ${datumDoFilter}
@@ -143,57 +120,84 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
     LIMIT 500`
   );
 
-  type GibRow = { id: number; artikelId: number; artikelIme: string | null; tip: string; kolicina: string; opomba: string | null; referencaId: number | null; ustvarjeno: string; datumDokumenta: string };
+  type GibRow = {
+    id: number; artikelId: number; artikelIme: string | null;
+    tip: string; kolicina: number; cenaKos: number | null; vrednost: number | null;
+    opomba: string | null; referencaId: number | null; ustvarjeno: string; datumDokumenta: string;
+  };
   const gibi = gibiResult.rows as GibRow[];
 
-  res.json({
-    artikelId: artikel.id,
-    artikelIme: artikel.ime,
-    imeZaNabavo: artikel.imeZaNabavo,
-    enotaMere: artikel.enotaMere,
-    cena: Number(artikel.cena),
-    zadnjaCena,
-    kolicina,
-    vrednost: zadnjaCena != null ? kolicina * zadnjaCena : null,
-    gibi: gibi.map(g => ({
+  // Compute running balance for display
+  let runQty   = 0;
+  let runValue = 0;
+  const gibiWithBalance = gibi.map(g => {
+    runQty   += g.kolicina;
+    runValue += g.vrednost ?? 0;
+    const runAvg = runQty > 0.00001 ? runValue / runQty : null;
+    return {
       ...g,
-      kolicina: Number(g.kolicina),
-      artikelIme: g.artikelIme ?? artikel.ime}))});
+      artikelIme:     g.artikelIme ?? artikel.ime,
+      stanjeKolicina: runQty,
+      stanjeVrednost: runQty > 0 ? runValue : 0,
+      stanjePovprecnaCena: runAvg,
+    };
+  });
+
+  res.json({
+    artikelId:      artikel.id,
+    artikelIme:     artikel.ime,
+    imeZaNabavo:    artikel.imeZaNabavo,
+    enotaMere:      artikel.enotaMere,
+    cena:           Number(artikel.cena),
+    // WAC fields (use zadnjaCena alias for backward compat)
+    zadnjaCena:     povprecnaCena,
+    povprecnaCena,
+    kolicina,
+    vrednost:       skupnaVrednost,
+    skupnaVrednost,
+    gibi:           gibiWithBalance,
+  });
 });
 
+// ── GET /zaloge/gibi ────────────────────────────────────────────────────────
 router.get("/zaloge/gibi", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const query = { success: true as const, data: req.query };
-  if (!query.success) { res.status(400).json({ error: (query as any).error.message }); return; }
 
   let q = db
     .select({
-      id: zalogaGibiTable.id,
-      artikelId: zalogaGibiTable.artikelId,
+      id:         zalogaGibiTable.id,
+      artikelId:  zalogaGibiTable.artikelId,
       artikelIme: artikliTable.ime,
-      tip: zalogaGibiTable.tip,
-      kolicina: zalogaGibiTable.kolicina,
-      opomba: zalogaGibiTable.opomba,
+      tip:        zalogaGibiTable.tip,
+      kolicina:   zalogaGibiTable.kolicina,
+      cenaKos:    zalogaGibiTable.cenaKos,
+      vrednost:   zalogaGibiTable.vrednost,
+      opomba:     zalogaGibiTable.opomba,
       referencaId: zalogaGibiTable.referencaId,
-      ustvarjeno: zalogaGibiTable.ustvarjeno})
+      ustvarjeno: zalogaGibiTable.ustvarjeno,
+    })
     .from(zalogaGibiTable)
     .leftJoin(artikliTable, eq(zalogaGibiTable.artikelId, artikliTable.id))
     .$dynamic();
 
   const conditions = [sql`true`, eq(artikliTable.enotaId, tenotaId)];
-  if (query.data.artikelId) {
-    conditions.push(eq(zalogaGibiTable.artikelId, Number(query.data.artikelId)));
+  if (req.query.artikelId) {
+    conditions.push(eq(zalogaGibiTable.artikelId, Number(req.query.artikelId)));
   }
   q = q.where(and(...conditions));
 
-  const rows = await q.orderBy(desc(zalogaGibiTable.ustvarjeno)).limit(500);
+  const rows = await q.orderBy(zalogaGibiTable.ustvarjeno).limit(500);
 
   res.json(rows.map(r => ({
     ...r,
     kolicina: Number(r.kolicina),
-    artikelIme: r.artikelIme ?? "–"})));
+    cenaKos:  r.cenaKos  != null ? Number(r.cenaKos)  : null,
+    vrednost: r.vrednost != null ? Number(r.vrednost) : null,
+    artikelIme: r.artikelIme ?? "–",
+  })));
 });
 
+// ── POST /zaloge/reconcile ──────────────────────────────────────────────────
 router.post("/zaloge/reconcile", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
 

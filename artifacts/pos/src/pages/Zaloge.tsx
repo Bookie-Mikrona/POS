@@ -892,18 +892,18 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                 <p className="text-xs text-muted-foreground mt-1">{data.enotaMere ?? "–"}</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Zadnja nab. cena</p>
+                <p className="text-xs text-muted-foreground mb-1">Povpr. nab. cena (WAC)</p>
                 <p className="text-2xl font-bold tabular-nums">
-                  {data.zadnjaCena != null ? `${fmt(data.zadnjaCena)} €` : "–"}
+                  {(data.povprecnaCena ?? data.zadnjaCena) != null ? `${fmt(data.povprecnaCena ?? data.zadnjaCena!, 6)} €` : "–"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">/ {data.enotaMere ?? "enoto"}</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Vrednost zaloge</p>
                 <p className="text-2xl font-bold tabular-nums">
-                  {data.vrednost != null ? `${fmt(data.vrednost)} €` : "–"}
+                  {(data.skupnaVrednost ?? data.vrednost) != null ? `${fmt(data.skupnaVrednost ?? data.vrednost!)} €` : "–"}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">po nab. ceni</p>
+                <p className="text-xs text-muted-foreground mt-1">po povpr. nab. ceni</p>
               </div>
             </div>
             <Separator />
@@ -942,7 +942,11 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                     <TableHeader>
                       <TableRow>
                         <TableHead>Vrsta</TableHead>
-                        <TableHead className="text-right">Količina</TableHead>
+                        <TableHead className="text-right">Kol.</TableHead>
+                        <TableHead className="text-right">Cena/en.</TableHead>
+                        <TableHead className="text-right">Vrednost</TableHead>
+                        <TableHead className="text-right text-xs text-muted-foreground">St. kol.</TableHead>
+                        <TableHead className="text-right text-xs text-muted-foreground">St. vred.</TableHead>
                         <TableHead>Opomba</TableHead>
                         <TableHead className="text-right text-xs">Datum/čas</TableHead>
                       </TableRow>
@@ -956,9 +960,25 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                               {g.kolicina >= 0 ? "+" : ""}{fmt(g.kolicina, 3)}
                             </span>
                           </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
+                            {g.cenaKos != null ? `${fmt(g.cenaKos, 4)} €` : "–"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm font-medium">
+                            {g.vrednost != null ? (
+                              <span className={g.vrednost >= 0 ? "text-green-700" : "text-red-600"}>
+                                {g.vrednost >= 0 ? "+" : ""}{fmt(Math.abs(g.vrednost))} €
+                              </span>
+                            ) : "–"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                            {g.stanjeKolicina != null ? fmt(g.stanjeKolicina, 3) : "–"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-xs text-muted-foreground" title={g.stanjePovprecnaCena != null ? `WAC: ${fmt(g.stanjePovprecnaCena, 6)} €/en.` : ""}>
+                            {g.stanjeVrednost != null ? `${fmt(g.stanjeVrednost)} €` : "–"}
+                          </TableCell>
                           <TableCell className="text-muted-foreground text-sm">{g.opomba ?? "–"}</TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
-                            {fmtCas((g as unknown as { datumDokumenta?: string }).datumDokumenta ?? g.ustvarjeno)}
+                            {fmtCas(g.datumDokumenta ?? g.ustvarjeno)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -2556,10 +2576,10 @@ export default function Zaloge() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{z.enotaMere ?? "–"}</TableCell>
                     <TableCell className="text-right text-sm tabular-nums">
-                      {z.zadnjaCena != null ? `${fmt(z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
+                      {(z.povprecnaCena ?? z.zadnjaCena) != null ? `${fmt((z.povprecnaCena ?? z.zadnjaCena)!, 4)} €` : <span className="text-muted-foreground">–</span>}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-sm tabular-nums">
-                      {z.zadnjaCena != null ? `${fmt(z.kolicina * z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
+                      {z.skupnaVrednost != null ? `${fmt(z.skupnaVrednost)} €` : z.zadnjaCena != null ? `${fmt(z.kolicina * z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-right text-muted-foreground text-xs">{fmtDatum(z.zadnjaPosodobitev)}</TableCell>
                   </TableRow>
@@ -2570,7 +2590,7 @@ export default function Zaloge() {
               <div className="border-t px-4 py-2 flex justify-end text-sm text-muted-foreground">
                 Skupaj vrednost zalog:&nbsp;
                 <strong className="text-foreground">
-                  {fmt(filteredZaloge.reduce((s, z) => s + (z.zadnjaCena != null ? z.kolicina * z.zadnjaCena : 0), 0))} €
+                  {fmt(filteredZaloge.reduce((s, z) => s + (z.skupnaVrednost != null ? z.skupnaVrednost : z.zadnjaCena != null ? z.kolicina * z.zadnjaCena : 0), 0))} €
                 </strong>
               </div>
             )}
