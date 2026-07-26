@@ -2150,10 +2150,11 @@ export default function Zaloge() {
           nabavniArtikli={nabavniArtikli}
           onClose={() => setEditPrejId(null)}
           onSaved={() => {
+            const savedId = editPrejId;
             setEditPrejId(null);
+            queryClient.resetQueries({ queryKey: getGetPrejemnicaQueryKey(savedId) });
             queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
             queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
-            queryClient.invalidateQueries({ queryKey: getGetPrejemnicaQueryKey(editPrejId) });
           }}
         />
       )}
