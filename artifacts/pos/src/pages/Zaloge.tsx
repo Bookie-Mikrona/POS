@@ -788,6 +788,7 @@ function EditPrejemnicaDialog({
   const [ddOpenIdx, setDdOpenIdx] = useState<number | null>(null);
   const [ddFilter, setDdFilter] = useState("");
   const [ddHighlight, setDdHighlight] = useState(0);
+  const [editNovArtikelRowIdx, setEditNovArtikelRowIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
@@ -891,7 +892,8 @@ function EditPrejemnicaDialog({
                     ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(ddFilter.toLowerCase()))
                     : nabavniArtikli;
                   return (
-                    <div key={i} className="flex gap-2 items-center">
+                    <Fragment key={i}>
+                    <div className="flex gap-2 items-center">
                       {/* Artikel combobox */}
                       <div className="relative flex-1">
                         {selectedArtikel ? (
@@ -939,7 +941,19 @@ function EditPrejemnicaDialog({
                         {isOpen && !selectedArtikel && (
                           <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
                             {filtered.length === 0 ? (
-                              <p className="px-3 py-2 text-xs text-muted-foreground">Ni zadetkov za „{ddFilter}"</p>
+                              <div className="px-3 py-2 space-y-1.5">
+                                <p className="text-xs text-muted-foreground">Ni zadetkov za „{ddFilter}"</p>
+                                <button
+                                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                  onMouseDown={e => {
+                                    e.preventDefault();
+                                    setDdOpenIdx(null);
+                                    setEditNovArtikelRowIdx(i);
+                                  }}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />Nov artikel v šifrant
+                                </button>
+                              </div>
                             ) : filtered.map((a, j) => (
                               <div key={a.id}
                                 className={`px-3 py-1.5 text-sm cursor-pointer ${j === ddHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
@@ -965,6 +979,18 @@ function EditPrejemnicaDialog({
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     </div>
+                    {editNovArtikelRowIdx === i && (
+                      <NovArtikelKartica
+                        imePredlog={ddFilter}
+                        onClose={() => setEditNovArtikelRowIdx(null)}
+                        onCreated={id => {
+                          void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+                          setEditNovArtikelRowIdx(null);
+                          setTimeout(() => selectArtikelInEditRow(i, id), 100);
+                        }}
+                      />
+                    )}
+                    </Fragment>
                   );
                 })}
               </div>
