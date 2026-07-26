@@ -820,6 +820,9 @@ function EditPrejemnicaDialog({
   const initializedId = useRef<number | null>(null);
   const editArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editKoliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const editCenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const editDodajRef = useRef<HTMLButtonElement>(null);
+  const editShraniRef = useRef<HTMLButtonElement>(null);
   const [ddOpenIdx, setDdOpenIdx] = useState<number | null>(null);
   const [ddFilter, setDdFilter] = useState("");
   const [ddHighlight, setDdHighlight] = useState(0);
@@ -1036,7 +1039,14 @@ function EditPrejemnicaDialog({
                       <DecimalInput value={row.cenaKos}
                         placeholder={editVrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena"}
                         onChange={e => updateRow(i, "cenaKos", e.target.value)}
-                        onKeyDown={handleEnterAsTab}
+                        ref={el => { if (el) editCenaInputRefs.current.set(i, el as any); else editCenaInputRefs.current.delete(i); }}
+                        onKeyDown={e => {
+                          if (e.key !== "Enter") return;
+                          e.preventDefault();
+                          const nextKoli = editKoliInputRefs.current.get(i + 1);
+                          if (nextKoli) { nextKoli.focus(); }
+                          else { editDodajRef.current?.focus(); }
+                        }}
                         className="w-28" />
                       {/* Preračunana cena (readonly) */}
                       {(() => {
@@ -1075,7 +1085,13 @@ function EditPrejemnicaDialog({
                 })}
               </div>
               <div className="flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={addRow}>
+                <Button ref={editDodajRef} variant="outline" size="sm" onClick={addRow}
+                  onKeyDown={e => {
+                    if (e.key === "Tab" && !e.shiftKey) {
+                      e.preventDefault();
+                      editShraniRef.current?.focus();
+                    }
+                  }}>
                   <Plus className="w-4 h-4 mr-1" />Dodaj postavko
                 </Button>
                 <div className="text-sm text-muted-foreground text-right space-y-0.5">
@@ -1100,7 +1116,7 @@ function EditPrejemnicaDialog({
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Prekliči</Button>
-          <Button onClick={handleSave} disabled={updatePrejemnica.isPending || rows.length === 0}>
+          <Button ref={editShraniRef} onClick={handleSave} disabled={updatePrejemnica.isPending || rows.length === 0}>
             {updatePrejemnica.isPending ? "Shranjujem..." : "Shrani"}
           </Button>
         </DialogFooter>
