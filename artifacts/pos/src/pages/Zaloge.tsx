@@ -821,10 +821,11 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
 
 // ── Edit Prejemnica dialog ─────────────────────────────────────────────────
 function EditPrejemnicaDialog({
-  id, nabavniArtikli, jeDdvZavezanec, onClose, onSaved,
+  id, nabavniArtikli, zaloge, jeDdvZavezanec, onClose, onSaved,
 }: {
   id: number;
   nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null; davek: number }[];
+  zaloge: { artikelId: number; zadnjaCena?: number | null }[] | undefined;
   jeDdvZavezanec: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -882,9 +883,19 @@ function EditPrejemnicaDialog({
     setTimeout(() => editArtInputRefs.current.get(newIdx)?.focus(), 30);
   };
   const selectArtikelInEditRow = (rowIdx: number, artikelId: number) => {
-    updateRow(rowIdx, "artikelId", artikelId);
+    const zadnjaCenaNeto = zaloge?.find(z => z.artikelId === artikelId)?.zadnjaCena ?? null;
+    const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
+    const prikazCena = zadnjaCenaNeto != null
+      ? (editVrstaCen === "bruto" && davek
+          ? Math.round(zadnjaCenaNeto * (1 + davek / 100) * 10000) / 10000
+          : zadnjaCenaNeto)
+      : null;
+    setRows(r => r.map((row, j) => j === rowIdx
+      ? { ...row, artikelId, cenaKos: prikazCena != null ? String(prikazCena) : row.cenaKos }
+      : row));
     setDdOpenIdx(null);
     setDdFilter("");
+    setTimeout(() => editKoliInputRefs.current.get(rowIdx)?.focus(), 30);
   };
   const removeRow = (i: number) => setRows(r => {
     const next = r.filter((_, j) => j !== i);
@@ -2411,6 +2422,7 @@ export default function Zaloge() {
         <EditPrejemnicaDialog
           id={editPrejId}
           nabavniArtikli={nabavniArtikli}
+          zaloge={zaloge}
           jeDdvZavezanec={jeDdvZavezanec}
           onClose={() => setEditPrejId(null)}
           onSaved={() => {
