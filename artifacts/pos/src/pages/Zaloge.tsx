@@ -53,7 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
-  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon,
+  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown,
 } from "lucide-react";
 
 const DDV_OPCIJE = [
