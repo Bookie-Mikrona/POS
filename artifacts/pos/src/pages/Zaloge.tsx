@@ -1613,8 +1613,17 @@ export default function Zaloge() {
     setPrejRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
   const selectArtikelInRow = (rowIdx: number, artikelId: number) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
-    const zadnjaCena = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
-    updatePrejRow(rowIdx, "cenaKos", zadnjaCena != null ? String(zadnjaCena) : "");
+    const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
+    if (zadnjaCenaNeto != null) {
+      // zadnjaCena je vedno neto; pri bruto načinu jo preračunamo v bruto za prikaz v vnosnem polju
+      const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
+      const prikazCena = vrstaCen === "bruto" && davek
+        ? Math.round(zadnjaCenaNeto * (1 + davek / 100) * 10000) / 10000
+        : zadnjaCenaNeto;
+      updatePrejRow(rowIdx, "cenaKos", String(prikazCena));
+    } else {
+      updatePrejRow(rowIdx, "cenaKos", "");
+    }
     setDropdownOpenIdx(null);
     setDropdownFilter("");
   };
