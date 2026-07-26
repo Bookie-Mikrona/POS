@@ -95,16 +95,18 @@ function TipBadge({ tip }: { tip: string }) {
 
 // ── Dobavitelj combobox ────────────────────────────────────────────────────
 function DobaviteljCombobox({
-  value, kupci, onChange, onEnterAfterSelect, _inputRef,
+  value, kupci, onChange, onEnterAfterSelect, onNoResults, _inputRef,
 }: {
   value: number | null;
   kupci: ShranjenKupec[];
   onChange: (id: number | null, naziv: string) => void;
   onEnterAfterSelect?: () => void;
+  onNoResults?: () => void;
   _inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const [highlight, setHighlight] = useState(0);
   const ownInputRef = useRef<HTMLInputElement>(null);
   const inputRef = (_inputRef ?? ownInputRef) as React.RefObject<HTMLInputElement>;
   const selected = value != null ? kupci.find(k => k.id === value) ?? null : null;
@@ -116,6 +118,15 @@ function DobaviteljCombobox({
       )
     : kupci;
 
+  const selectItem = (k: ShranjenKupec) => {
+    onChange(k.id, k.naziv);
+    setOpen(false);
+    setFilter("");
+    setHighlight(0);
+    // premakni fokus na naslednje polje po kratki zakasnitvi (da se stanje posodobi)
+    setTimeout(() => onEnterAfterSelect?.(), 0);
+  };
+
   return (
     <div className="relative">
       <div className="relative">
@@ -124,17 +135,25 @@ function DobaviteljCombobox({
           className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring pr-8"
           placeholder="Išči dobavitelja..."
           value={open ? filter : (selected?.naziv ?? "")}
-          onChange={e => { if (open) { setFilter(e.target.value); } }}
+          onChange={e => { if (open) { setFilter(e.target.value); setHighlight(0); } }}
           readOnly={!!selected && !open}
-          onFocus={() => { if (!selected) { setOpen(true); setFilter(""); } }}
-          onClick={() => { if (selected) { setOpen(true); setFilter(""); } }}
+          onFocus={() => { if (!selected) { setOpen(true); setFilter(""); setHighlight(0); } }}
+          onClick={() => { if (selected) { setOpen(true); setFilter(""); setHighlight(0); } }}
           onKeyDown={e => {
             if (selected && !open) {
               if (e.key === "Enter") { e.preventDefault(); onEnterAfterSelect?.(); return; }
               if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); onChange(null, ""); }
               return;
             }
-            if (e.key === "Escape") { setOpen(false); }
+            if (e.key === "Escape") { e.preventDefault(); setOpen(false); return; }
+            if (e.key === "ArrowDown") { e.preventDefault(); setHighlight(h => Math.min(h + 1, filtered.length - 1)); return; }
+            if (e.key === "ArrowUp") { e.preventDefault(); setHighlight(h => Math.max(h - 1, 0)); return; }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (filtered.length === 0) { onNoResults?.(); return; }
+              const k = filtered[highlight] ?? filtered[0];
+              if (k) selectItem(k);
+            }
           }}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
@@ -151,11 +170,11 @@ function DobaviteljCombobox({
       </div>
       {open && filtered.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
-          {filtered.map(k => (
+          {filtered.map((k, j) => (
             <div
               key={k.id}
-              className="px-3 py-1.5 text-sm cursor-pointer hover:bg-muted"
-              onMouseDown={e => { e.preventDefault(); onChange(k.id, k.naziv); setOpen(false); setFilter(""); }}
+              className={`px-3 py-1.5 text-sm cursor-pointer ${j === highlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
+              onMouseDown={e => { e.preventDefault(); selectItem(k); }}
             >
               <div className="font-medium">{k.naziv}</div>
               {k.davcnaStevilka && <div className="text-xs text-muted-foreground">ID: {k.davcnaStevilka}</div>}
@@ -165,7 +184,7 @@ function DobaviteljCombobox({
       )}
       {open && filtered.length === 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg px-3 py-2 text-sm text-muted-foreground">
-          Ni zadetkov
+          Ni zadetkov — pritisnite Enter za dodajanje novega
         </div>
       )}
     </div>
@@ -1530,6 +1549,7 @@ export default function Zaloge() {
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const prejDatumRef = useRef<HTMLInputElement>(null);
   const prejDobaviteljInputRef = useRef<HTMLInputElement>(null);
+  const prejDodajDobaviteljaRef = useRef<HTMLButtonElement>(null);
   const prejStevilkaRef = useRef<HTMLInputElement>(null);
   const prejDatumDobavniceRef = useRef<HTMLInputElement>(null);
   const prejOpombaRef = useRef<HTMLInputElement>(null);
@@ -2077,10 +2097,12 @@ export default function Zaloge() {
                       kupci={kupci ?? []}
                       onChange={(id, naziv) => { setPrejDobaviteljId(id); setPrejDobaviteljNaziv(naziv); }}
                       onEnterAfterSelect={() => prejStevilkaRef.current?.focus()}
+                      onNoResults={() => { setNovDobaviteljOpen(true); setTimeout(() => prejDodajDobaviteljaRef.current?.focus(), 50); }}
                       _inputRef={prejDobaviteljInputRef}
                     />
                   </div>
                   <Button
+                    ref={prejDodajDobaviteljaRef}
                     type="button"
                     variant="outline"
                     size="icon"
