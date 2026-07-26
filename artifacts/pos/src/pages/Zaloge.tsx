@@ -95,15 +95,18 @@ function TipBadge({ tip }: { tip: string }) {
 
 // ── Dobavitelj combobox ────────────────────────────────────────────────────
 function DobaviteljCombobox({
-  value, kupci, onChange,
+  value, kupci, onChange, onEnterAfterSelect, _inputRef,
 }: {
   value: number | null;
   kupci: ShranjenKupec[];
   onChange: (id: number | null, naziv: string) => void;
+  onEnterAfterSelect?: () => void;
+  _inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const ownInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = (_inputRef ?? ownInputRef) as React.RefObject<HTMLInputElement>;
   const selected = value != null ? kupci.find(k => k.id === value) ?? null : null;
   const filtered = filter
     ? kupci.filter(k =>
@@ -127,6 +130,7 @@ function DobaviteljCombobox({
           onClick={() => { if (selected) { setOpen(true); setFilter(""); } }}
           onKeyDown={e => {
             if (selected && !open) {
+              if (e.key === "Enter") { e.preventDefault(); onEnterAfterSelect?.(); return; }
               if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); onChange(null, ""); }
               return;
             }
@@ -1524,6 +1528,13 @@ export default function Zaloge() {
   const koliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const addBtnRef = useRef<HTMLButtonElement>(null);
+  const prejDatumRef = useRef<HTMLInputElement>(null);
+  const prejDobaviteljInputRef = useRef<HTMLInputElement>(null);
+  const prejStevilkaRef = useRef<HTMLInputElement>(null);
+  const prejDatumDobavniceRef = useRef<HTMLInputElement>(null);
+  const prejOpombaRef = useRef<HTMLInputElement>(null);
+  const prejNetoRef = useRef<HTMLButtonElement>(null);
+  const prejBrutoRef = useRef<HTMLButtonElement>(null);
   const createPrejemnica = useCreatePrejemnica();
 
   const openPrejDialog = () => {
@@ -2054,7 +2065,8 @@ export default function Zaloge() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Datum</Label>
-                <Input type="date" value={prejDatum} onChange={e => setPrejDatum(e.target.value)} />
+                <Input ref={prejDatumRef} type="date" value={prejDatum} onChange={e => setPrejDatum(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); prejDobaviteljInputRef.current?.focus(); } }} />
               </div>
               <div className="space-y-1.5">
                 <Label>Dobavitelj</Label>
@@ -2064,6 +2076,8 @@ export default function Zaloge() {
                       value={prejDobaviteljId}
                       kupci={kupci ?? []}
                       onChange={(id, naziv) => { setPrejDobaviteljId(id); setPrejDobaviteljNaziv(naziv); }}
+                      onEnterAfterSelect={() => prejStevilkaRef.current?.focus()}
+                      _inputRef={prejDobaviteljInputRef}
                     />
                   </div>
                   <Button
@@ -2095,28 +2109,39 @@ export default function Zaloge() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Številka dobavnice</Label>
-                <Input value={prejStevilkaDobavnice} onChange={e => setPrejStevilkaDobavnice(e.target.value)} placeholder="npr. DOB-2026-001" />
+                <Input ref={prejStevilkaRef} value={prejStevilkaDobavnice} onChange={e => setPrejStevilkaDobavnice(e.target.value)} placeholder="npr. DOB-2026-001"
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); prejDatumDobavniceRef.current?.focus(); } }} />
               </div>
               <div className="space-y-1.5">
                 <Label>Datum dobavnice</Label>
-                <Input type="date" value={prejDatumDobavnice} onChange={e => setPrejDatumDobavnice(e.target.value)} />
+                <Input ref={prejDatumDobavniceRef} type="date" value={prejDatumDobavnice} onChange={e => setPrejDatumDobavnice(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); prejOpombaRef.current?.focus(); } }} />
               </div>
             </div>
             {/* Opomba */}
             <div className="space-y-1.5">
               <Label>Opomba <span className="text-xs text-muted-foreground">(neobvezno)</span></Label>
-              <Input value={prejOpomba} onChange={e => setPrejOpomba(e.target.value)} placeholder="Dodatna opomba..." />
+              <Input ref={prejOpombaRef} value={prejOpomba} onChange={e => setPrejOpomba(e.target.value)} placeholder="Dodatna opomba..."
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); (vrstaCen === "neto" ? prejNetoRef : prejBrutoRef).current?.focus(); } }} />
             </div>
             {/* Vrsta cen na dobavnici */}
             <div className="flex items-center gap-3">
               <span className="text-xs font-medium text-muted-foreground">Cene na dobavnici:</span>
               <div className="flex rounded-md border overflow-hidden text-xs">
-                <button type="button"
+                <button ref={prejNetoRef} type="button"
                   className={`px-3 py-1.5 transition-colors ${vrstaCen === "neto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                  onClick={() => setVrstaCen("neto")}>Neto (brez DDV)</button>
-                <button type="button"
+                  onClick={() => setVrstaCen("neto")}
+                  onKeyDown={e => {
+                    if (e.key === "ArrowRight") { e.preventDefault(); setVrstaCen("bruto"); prejBrutoRef.current?.focus(); }
+                    if (e.key === "Enter") { e.preventDefault(); artInputRefs.current.get(0)?.focus(); }
+                  }}>Neto (brez DDV)</button>
+                <button ref={prejBrutoRef} type="button"
                   className={`px-3 py-1.5 border-l transition-colors ${vrstaCen === "bruto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                  onClick={() => setVrstaCen("bruto")}>Bruto (maloprodajne)</button>
+                  onClick={() => setVrstaCen("bruto")}
+                  onKeyDown={e => {
+                    if (e.key === "ArrowLeft") { e.preventDefault(); setVrstaCen("neto"); prejNetoRef.current?.focus(); }
+                    if (e.key === "Enter") { e.preventDefault(); artInputRefs.current.get(0)?.focus(); }
+                  }}>Bruto (maloprodajne)</button>
               </div>
             </div>
             {/* Postavke */}
