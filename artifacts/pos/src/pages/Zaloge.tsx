@@ -920,6 +920,7 @@ function EditPrejemnicaDialog({
   const editKoliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editCenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editEnotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const editNovArtBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const editDodajRef = useRef<HTMLButtonElement>(null);
 
   const navEdit = (rowIdx: number, col: "art" | "enot" | "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
@@ -1165,6 +1166,7 @@ function EditPrejemnicaDialog({
                               if (e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "art", "right"); return; }
                               if (e.key === "Enter") {
                                 e.preventDefault();
+                                if (filtered.length === 0) { editNovArtBtnRefs.current.get(i)?.focus(); return; }
                                 const art = filtered[ddHighlight];
                                 if (art) selectArtikelInEditRow(i, art.id);
                               }
@@ -1177,7 +1179,15 @@ function EditPrejemnicaDialog({
                               <div className="px-3 py-2 space-y-1.5">
                                 <p className="text-xs text-muted-foreground">Ni zadetkov za „{ddFilter}"</p>
                                 <button
-                                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                  ref={el => { if (el) editNovArtBtnRefs.current.set(i, el); else editNovArtBtnRefs.current.delete(i); }}
+                                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline focus:outline-none focus:ring-1 focus:ring-ring rounded"
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setDdOpenIdx(null);
+                                      setEditNovArtikelRowIdx(i);
+                                    }
+                                  }}
                                   onMouseDown={e => {
                                     e.preventDefault();
                                     setDdOpenIdx(null);
