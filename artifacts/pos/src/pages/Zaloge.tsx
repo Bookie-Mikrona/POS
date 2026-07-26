@@ -1090,7 +1090,7 @@ function EditPrejemnicaDialog({
       : row));
     setDdOpenIdx(null);
     setDdFilter("");
-    if (!skipFocus) setTimeout(() => editKoliInputRefs.current.get(rowIdx)?.focus(), 30);
+    if (!skipFocus) setTimeout(() => editPakBtnRefs.current.get(rowIdx)?.focus(), 30);
   };
   const removeRow = (i: number) => setRows(r => {
     const next = r.filter((_, j) => j !== i);
@@ -1879,6 +1879,7 @@ export default function Zaloge() {
   const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const enotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const novArtBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const pakBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const invNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const zzKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -1991,7 +1992,7 @@ export default function Zaloge() {
       }
       return posodobljena;
     }));
-  const selectArtikelInRow = (rowIdx: number, artikelId: number) => {
+  const selectArtikelInRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
     const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
     if (zadnjaCenaNeto != null) {
@@ -2009,7 +2010,7 @@ export default function Zaloge() {
     }
     setDropdownOpenIdx(null);
     setDropdownFilter("");
-    setTimeout(() => enotInputRefs.current.get(rowIdx)?.focus(), 30);
+    if (!skipFocus) setTimeout(() => pakBtnRefs.current.get(rowIdx)?.focus(), 30);
   };
 
   // ── Prejemnica edit ────────────────────────────────────────────────
@@ -2593,7 +2594,7 @@ export default function Zaloge() {
                           }}
                           onKeyDown={e => {
                             if (selectedArtikel && !isOpen) {
-                              if (e.key === "Enter") { e.preventDefault(); enotInputRefs.current.get(i)?.focus(); }
+                              if (e.key === "Enter") { e.preventDefault(); pakBtnRefs.current.get(i)?.focus(); }
                               if (e.key === "ArrowUp") { e.preventDefault(); navPrej(i, "art", "up"); return; }
                               if (e.key === "ArrowDown") { e.preventDefault(); navPrej(i, "art", "down"); return; }
                               if (e.key === "ArrowRight") { e.preventDefault(); navPrej(i, "art", "right"); return; }
@@ -2665,7 +2666,8 @@ export default function Zaloge() {
                       </div>
                       {/* Pakiranje gumb + enot-v-paketu polje */}
                       <div className="flex flex-col items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
+                        <Button ref={el => { if (el) pakBtnRefs.current.set(i, el); else pakBtnRefs.current.delete(i); }}
+                          variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
                           title="Pakiranje (vez, karton, …)"
                           onClick={() => {
                             if (row.enotVPaketu) {
@@ -2761,7 +2763,7 @@ export default function Zaloge() {
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setNovArtikelRowIdx(null);
-                          setTimeout(() => { selectArtikelInRow(i, id); enotInputRefs.current.get(i)?.focus(); }, 150);
+                          setTimeout(() => { selectArtikelInRow(i, id, true); pakBtnRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
