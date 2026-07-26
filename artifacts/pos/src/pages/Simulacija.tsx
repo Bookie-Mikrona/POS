@@ -242,11 +242,11 @@ export default function Simulacija() {
               </Label>
               <Input
                 id="sim-datum"
-                type="date"
+                type="text"
+                placeholder="LLLL-MM-DD"
                 value={novDatum}
-                min={minDatum}
                 onChange={e => setNovDatum(e.target.value)}
-                className="w-44"
+                className="w-44 font-mono"
               />
             </div>
             <Button
