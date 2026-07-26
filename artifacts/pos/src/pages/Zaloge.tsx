@@ -160,8 +160,8 @@ function DobaviteljCombobox({
   );
 }
 
-// ── Nov dobavitelj mini-dialog ─────────────────────────────────────────────
-function NovDobaviteljDialog({
+// ── Nov dobavitelj inline kartica ─────────────────────────────────────────
+function NovDobaviteljKartica({
   onClose, onCreated,
 }: {
   onClose: () => void;
@@ -181,40 +181,38 @@ function NovDobaviteljDialog({
   }
 
   return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" />Nov dobavitelj
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Naziv <span className="text-destructive text-xs">*</span></Label>
-            <Input
-              value={naziv} onChange={e => setNaziv(e.target.value)}
-              placeholder="npr. Mercator d.o.o."
-              autoFocus
-              onKeyDown={e => e.key === "Enter" && handleShrani()}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Davčna številka <span className="text-muted-foreground text-xs">(neobvezno)</span></Label>
-            <Input
-              value={davcna} onChange={e => setDavcna(e.target.value)}
-              placeholder="npr. 12345678"
-              onKeyDown={e => e.key === "Enter" && handleShrani()}
-            />
-          </div>
+    <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+      <p className="text-sm font-semibold flex items-center gap-1.5">
+        <Building2 className="w-4 h-4 shrink-0" />Nov dobavitelj
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Naziv <span className="text-destructive">*</span></Label>
+          <Input
+            value={naziv} onChange={e => setNaziv(e.target.value)}
+            placeholder="npr. Mercator d.o.o."
+            className="h-8 text-sm"
+            autoFocus
+            onKeyDown={e => e.key === "Enter" && handleShrani()}
+          />
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
-          <Button onClick={handleShrani} disabled={createMutation.isPending || !naziv.trim()}>
-            {createMutation.isPending ? "Shranjujem..." : "Dodaj dobavitelja"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="space-y-1">
+          <Label className="text-xs">Davčna <span className="text-muted-foreground">(neobvezno)</span></Label>
+          <Input
+            value={davcna} onChange={e => setDavcna(e.target.value)}
+            placeholder="npr. 12345678"
+            className="h-8 text-sm"
+            onKeyDown={e => e.key === "Enter" && handleShrani()}
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onClose}>Prekliči</Button>
+        <Button size="sm" onClick={handleShrani} disabled={createMutation.isPending || !naziv.trim()}>
+          {createMutation.isPending ? "Shranjujem..." : "Dodaj"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -403,7 +401,6 @@ function EditPrejemnicaDialog({
   };
 
   return (
-    <>
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Uredi prejemnico</DialogTitle></DialogHeader>
@@ -501,6 +498,18 @@ function EditPrejemnicaDialog({
             </div>
           </div>
         )}
+        {novDobaviteljOpen && (
+          <div className="px-6 pb-2">
+            <NovDobaviteljKartica
+              onClose={() => setNovDobaviteljOpen(false)}
+              onCreated={(id, naziv) => {
+                setDobaviteljId(id);
+                void naziv;
+                queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+              }}
+            />
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Prekliči</Button>
           <Button onClick={handleSave} disabled={updatePrejemnica.isPending || rows.length === 0}>
@@ -509,17 +518,6 @@ function EditPrejemnicaDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    {novDobaviteljOpen && (
-      <NovDobaviteljDialog
-        onClose={() => setNovDobaviteljOpen(false)}
-        onCreated={(id, naziv) => {
-          setDobaviteljId(id);
-          queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
-          void naziv;
-        }}
-      />
-    )}
-    </>
   );
 }
 
@@ -1425,18 +1423,6 @@ export default function Zaloge() {
       {/* ── Kartica dialog ──────────────────────────────────────────── */}
       {karticeArtikelId != null && (
         <KarticaDialog artikelId={karticeArtikelId} onClose={() => setKarticeArtikelId(null)} />
-      )}
-
-      {/* ── Nov dobavitelj (iz create dialog) ────────────────────────── */}
-      {novDobaviteljOpen && (
-        <NovDobaviteljDialog
-          onClose={() => setNovDobaviteljOpen(false)}
-          onCreated={(id, naziv) => {
-            setPrejDobaviteljId(id);
-            setPrejDobaviteljNaziv(naziv);
-            queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
-          }}
-        />
       )}
 
       {/* ── Prejemnica create dialog ─────────────────────────────────── */}
