@@ -886,7 +886,10 @@ function EditPrejemnicaDialog({
     setDdOpenIdx(null);
     setDdFilter("");
   };
-  const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
+  const removeRow = (i: number) => setRows(r => {
+    const next = r.filter((_, j) => j !== i);
+    return next.length > 0 ? next : [{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "" }];
+  });
   const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
 
@@ -1099,7 +1102,7 @@ function EditPrejemnicaDialog({
                         );
                       })()}
                       <Button variant="ghost" size="icon" className="h-8 w-8"
-                        onClick={() => removeRow(i)} disabled={rows.length === 1}>
+                        onClick={() => removeRow(i)}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     </div>
