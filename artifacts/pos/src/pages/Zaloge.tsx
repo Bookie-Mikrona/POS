@@ -664,6 +664,79 @@ function konvertirajCeno(
 }
 
 // ── Nov artikel kartica (inline v postavkah) ───────────────────────────────
+function EnotaMereDropdown({
+  value, onChange, onConfirm, triggerRef: externalTriggerRef,
+}: { value: string; onChange: (v: string) => void; onConfirm: () => void; triggerRef?: React.RefObject<HTMLButtonElement | null> }) {
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const ownBtnRef = useRef<HTMLButtonElement>(null);
+  const btnRef = (externalTriggerRef ?? ownBtnRef) as React.RefObject<HTMLButtonElement>;
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const selectedIdx = value ? ENOTE_MERE.indexOf(value) : -1;
+
+  const select = (e: string) => { onChange(e); setOpen(false); setTimeout(() => { onConfirm(); }, 0); };
+
+  const scrollTo = (idx: number) =>
+    listRef.current?.querySelector<HTMLElement>(`[data-idx="${idx}"]`)?.scrollIntoView({ block: "nearest" });
+
+  useEffect(() => {
+    if (open) {
+      const startIdx = selectedIdx >= 0 ? selectedIdx : 0;
+      setHi(startIdx);
+      setTimeout(() => scrollTo(startIdx), 0);
+    }
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        className={`w-full h-8 rounded-md border border-input bg-background px-2 text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-ring ${!value ? "text-muted-foreground" : ""}`}
+        onClick={() => setOpen(v => !v)}
+        onKeyDown={e => {
+          if (e.key === "Escape") { e.preventDefault(); setOpen(false); return; }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (!open) { setOpen(true); return; }
+            setHi(h => { const n = Math.min(h + 1, ENOTE_MERE.length - 1); scrollTo(n); return n; }); return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!open) { setOpen(true); return; }
+            setHi(h => { const n = Math.max(h - 1, 0); scrollTo(n); return n; }); return;
+          }
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (open) { select(ENOTE_MERE[hi]); return; }
+            // zaprt + vrednost že izbrana → takoj na nasled. polje
+            if (value) { onConfirm(); return; }
+            // zaprt + brez vrednosti → odpri
+            setOpen(true); return;
+          }
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      >
+        <span>{value || "— izberite —"}</span>
+        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+      </button>
+      {open && (
+        <div ref={listRef} className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {ENOTE_MERE.map((e, j) => (
+            <div
+              key={e}
+              data-idx={j}
+              className={`px-3 py-1.5 text-sm cursor-pointer ${j === hi ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
+              onMouseDown={ev => { ev.preventDefault(); select(e); }}
+            >{e}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NovArtikelKartica({
   imePredlog,
   onClose,
@@ -678,7 +751,7 @@ function NovArtikelKartica({
   const [davek, setDavek] = useState<number>(22);
   const createArtikel = useCreateArtikel();
   const { toast } = useToast();
-  const enotaRef = useRef<HTMLSelectElement>(null);
+  const enotaTriggerRef = useRef<HTMLButtonElement>(null);
   const davekRef = useRef<HTMLSelectElement>(null);
   const dodajRef = useRef<HTMLButtonElement>(null);
 
@@ -724,7 +797,7 @@ function NovArtikelKartica({
           placeholder="npr. Moka T550"
           className="h-8 text-sm"
           autoFocus
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); enotaRef.current?.focus(); } }}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); enotaTriggerRef.current?.focus(); } }}
         />
         {imeZaNabavo.trim() && (
           <p className="text-xs text-muted-foreground">Ime za prodajo bo enako: „{imeZaNabavo.trim()}"</p>
@@ -733,16 +806,12 @@ function NovArtikelKartica({
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
           <Label className="text-xs">Enota mere <span className="text-destructive">*</span></Label>
-          <select
-            ref={enotaRef}
+          <EnotaMereDropdown
             value={enotaMere}
-            onChange={e => setEnotaMere(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); davekRef.current?.focus(); } }}
-            className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">— izberite —</option>
-            {ENOTE_MERE.map(e => <option key={e} value={e}>{e}</option>)}
-          </select>
+            onChange={setEnotaMere}
+            onConfirm={() => davekRef.current?.focus()}
+            triggerRef={enotaTriggerRef}
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">DDV stopnja <span className="text-destructive">*</span></Label>
@@ -1180,7 +1249,7 @@ function EditPrejemnicaDialog({
                               if (e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "art", "right"); return; }
                               if (e.key === "Enter") {
                                 e.preventDefault();
-                                if (filtered.length === 0) { editNovArtBtnRefs.current.get(i)?.focus(); return; }
+                                if (filtered.length === 0) { setDdOpenIdx(null); setEditNovArtikelRowIdx(i); return; }
                                 const art = filtered[ddHighlight];
                                 if (art) selectArtikelInEditRow(i, art.id);
                               }
@@ -1320,7 +1389,7 @@ function EditPrejemnicaDialog({
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setEditNovArtikelRowIdx(null);
-                          setTimeout(() => { selectArtikelInEditRow(i, id); editKoliInputRefs.current.get(i)?.focus(); }, 150);
+                          setTimeout(() => { selectArtikelInEditRow(i, id); editEnotInputRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
@@ -1331,6 +1400,7 @@ function EditPrejemnicaDialog({
               <div className="flex items-center justify-between">
                 <Button ref={editDodajRef} variant="outline" size="sm" onClick={addRow}
                   onKeyDown={e => {
+                    if (e.key === "Enter") { e.preventDefault(); addRow(); return; }
                     if (e.key === "Tab" && !e.shiftKey) {
                       e.preventDefault();
                       editShraniRef.current?.focus();
@@ -2546,7 +2616,7 @@ export default function Zaloge() {
                             if (e.key === "Enter") {
                               e.preventDefault();
                               if (!isOpen) { setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0); return; }
-                              if (filtered.length === 0) { novArtBtnRefs.current.get(i)?.focus(); return; }
+                              if (filtered.length === 0) { setDropdownOpenIdx(null); setNovArtikelRowIdx(i); return; }
                               const art = filtered[dropdownHighlight];
                               if (art) selectArtikelInRow(i, art.id);
                             }
@@ -2689,7 +2759,7 @@ export default function Zaloge() {
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setNovArtikelRowIdx(null);
-                          setTimeout(() => { selectArtikelInRow(i, id); koliInputRefs.current.get(i)?.focus(); }, 150);
+                          setTimeout(() => { selectArtikelInRow(i, id); enotInputRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
