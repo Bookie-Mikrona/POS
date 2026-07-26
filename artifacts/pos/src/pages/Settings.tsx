@@ -540,6 +540,7 @@ export default function Settings() {
   const [naslovPostna, setNaslovPostna] = useState("");
   const [naslovKraj, setNaslovKraj] = useState("");
   const [davcnaStevilka, setDavcnaStevilka] = useState("");
+  const [idZaDdv, setIdZaDdv] = useState("");
   const [poslovniProstor, setPoslovniProstor] = useState("PP001");
   const [elektronskaNaprava, setElektronskaNaprava] = useState("B001");
   const [ponudnikDavcna, setPonudnikDavcna] = useState("");
@@ -712,6 +713,7 @@ export default function Settings() {
       setNaslovPostna((nastavitve as any).naslovPostna ?? "");
       setNaslovKraj((nastavitve as any).naslovKraj ?? "");
       setDavcnaStevilka(nastavitve.davcnaStevilka ?? "");
+      setIdZaDdv((nastavitve as any).idZaDdv ?? "");
       setPoslovniProstor(nastavitve.poslovniProstor ?? "PP001");
       setElektronskaNaprava(nastavitve.elektronskaNaprava ?? "B001");
       setPonudnikDavcna(nastavitve.ponudnikDavcna ?? "");
@@ -1224,6 +1226,7 @@ export default function Settings() {
       naslovRestavracije,
       ...(naslovUlica || naslovPostna || naslovKraj ? { naslovUlica, naslovPostna, naslovKraj } as any : {}),
       davcnaStevilka,
+      ...(({ idZaDdv }) => ({ idZaDdv }) as any)({ idZaDdv }),
       poslovniProstor,
       elektronskaNaprava,
       ponudnikDavcna,
@@ -2653,7 +2656,17 @@ export default function Settings() {
                     onChange={e => setDavcnaStevilka(e.target.value)}
                     className="max-w-xs"
                   />
-                  <p className="text-xs text-muted-foreground">Brez predpone SI</p>
+                  <p className="text-xs text-muted-foreground">8-mestna davčna številka, brez predpone SI</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>ID za DDV <span className="text-xs text-muted-foreground font-normal">(samo zavezanci)</span></Label>
+                  <Input
+                    placeholder="SI12345678"
+                    value={idZaDdv}
+                    onChange={e => setIdZaDdv(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">Prazno = podjetje ni DDV zavezanec. Zavezanci vpišejo SI + davčna številka.</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">

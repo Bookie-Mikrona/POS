@@ -1472,9 +1472,9 @@ export default function Zaloge() {
 
   const nabavniArtikli = (artikli ?? []).filter(a => a.nabavniArtikel);
 
-  // ── DDV zavezanec: bere se iz davčne številke v nastavitvah ────────
+  // ── DDV zavezanec: neprazno idZaDdv = zavezanec (SI + davčna), prazno = ni zavezanec ──
   const { nastavitve } = useNastavitve();
-  const jeDdvZavezanec = (nastavitve?.davcnaStevilka?.toUpperCase().startsWith("SI")) ?? true;
+  const jeDdvZavezanec = !!((nastavitve as any)?.idZaDdv);
 
   // ── Kartica ────────────────────────────────────────────────────────
   const [karticeArtikelId, setKarticeArtikelId] = useState<number | null>(null);
