@@ -1641,6 +1641,27 @@ export default function Zaloge() {
   const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const enotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const addBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Navigacija s puščicami po mreži polj: art → enot → koli → cena (levo/desno), vrstice gor/dol
+  const navPrej = (rowIdx: number, col: "art" | "enot" | "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
+    const cols = ["art", "enot", "koli", "cena"] as const;
+    const refs: Record<string, React.MutableRefObject<Map<number, HTMLInputElement>>> = {
+      art: artInputRefs, enot: enotInputRefs, koli: koliInputRefs, cena: cenaInputRefs,
+    };
+    if (dir === "up" || dir === "down") {
+      const nextRow = dir === "down" ? rowIdx + 1 : rowIdx - 1;
+      const el = refs[col].current.get(nextRow);
+      if (el) { el.focus(); el.select(); }
+    } else {
+      const step = dir === "right" ? 1 : -1;
+      let c = cols.indexOf(col) + step;
+      while (c >= 0 && c < cols.length) {
+        const el = refs[cols[c]].current.get(rowIdx);
+        if (el) { el.focus(); el.select(); return; }
+        c += step;
+      }
+    }
+  };
   const prejDatumRef = useRef<HTMLInputElement>(null);
   const prejDobaviteljInputRef = useRef<HTMLInputElement>(null);
   const prejDodajDobaviteljaRef = useRef<HTMLButtonElement>(null);
@@ -2330,6 +2351,9 @@ export default function Zaloge() {
                           onKeyDown={e => {
                             if (selectedArtikel && !isOpen) {
                               if (e.key === "Enter") { e.preventDefault(); enotInputRefs.current.get(i)?.focus(); }
+                              if (e.key === "ArrowUp") { e.preventDefault(); navPrej(i, "art", "up"); return; }
+                              if (e.key === "ArrowDown") { e.preventDefault(); navPrej(i, "art", "down"); return; }
+                              if (e.key === "ArrowRight") { e.preventDefault(); navPrej(i, "art", "right"); return; }
                               if (e.key === "Backspace" || e.key === "Delete") {
                                 e.preventDefault();
                                 updatePrejRow(i, "artikelId", 0); updatePrejRow(i, "cenaKos", "");
@@ -2338,8 +2362,16 @@ export default function Zaloge() {
                               return;
                             }
                             if (e.key === "Escape") { e.preventDefault(); setDropdownOpenIdx(null); return; }
-                            if (e.key === "ArrowDown") { e.preventDefault(); setDropdownHighlight(h => Math.min(h + 1, filtered.length - 1)); return; }
-                            if (e.key === "ArrowUp") { e.preventDefault(); setDropdownHighlight(h => Math.max(h - 1, 0)); return; }
+                            if (e.key === "ArrowDown") {
+                              if (isOpen) { e.preventDefault(); setDropdownHighlight(h => Math.min(h + 1, filtered.length - 1)); }
+                              else { e.preventDefault(); navPrej(i, "art", "down"); }
+                              return;
+                            }
+                            if (e.key === "ArrowUp") {
+                              if (isOpen) { e.preventDefault(); setDropdownHighlight(h => Math.max(h - 1, 0)); }
+                              else { e.preventDefault(); navPrej(i, "art", "up"); }
+                              return;
+                            }
                             if (e.key === "Enter") {
                               e.preventDefault();
                               if (!isOpen) { setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0); return; }
@@ -2399,7 +2431,12 @@ export default function Zaloge() {
                             value={row.enotVPaketu}
                             placeholder="enot/pak"
                             onChange={e => updatePrejRow(i, "enotVPaketu", e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); koliInputRefs.current.get(i)?.focus(); } }}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navPrej(i, "enot", "right"); }
+                              else if (e.key === "ArrowLeft") { e.preventDefault(); navPrej(i, "enot", "left"); }
+                              else if (e.key === "ArrowUp") { e.preventDefault(); navPrej(i, "enot", "up"); }
+                              else if (e.key === "ArrowDown") { e.preventDefault(); navPrej(i, "enot", "down"); }
+                            }}
                             className="w-16 text-xs h-7 text-center"
                           />
                         )}
@@ -2410,7 +2447,12 @@ export default function Zaloge() {
                           ref={el => { if (el) koliInputRefs.current.set(i, el); else koliInputRefs.current.delete(i); }}
                           placeholder={row.enotVPaketu ? "Paketov" : "Količina"} value={row.kolicina}
                           onChange={e => updatePrejRow(i, "kolicina", e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cenaInputRefs.current.get(i)?.focus(); } }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navPrej(i, "koli", "right"); }
+                            else if (e.key === "ArrowLeft") { e.preventDefault(); navPrej(i, "koli", "left"); }
+                            else if (e.key === "ArrowUp") { e.preventDefault(); navPrej(i, "koli", "up"); }
+                            else if (e.key === "ArrowDown") { e.preventDefault(); navPrej(i, "koli", "down"); }
+                          }}
                           className="w-24" />
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.kolicina) > 0 && (
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -2424,7 +2466,13 @@ export default function Zaloge() {
                           ref={el => { if (el) cenaInputRefs.current.set(i, el); else cenaInputRefs.current.delete(i); }}
                           placeholder={row.enotVPaketu ? "Cena/paket" : (vrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena")} value={row.cenaKos}
                           onChange={e => updatePrejRow(i, "cenaKos", e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); } }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); }
+                            else if (e.key === "ArrowRight") { e.preventDefault(); navPrej(i, "cena", "right"); }
+                            else if (e.key === "ArrowLeft") { e.preventDefault(); navPrej(i, "cena", "left"); }
+                            else if (e.key === "ArrowUp") { e.preventDefault(); navPrej(i, "cena", "up"); }
+                            else if (e.key === "ArrowDown") { e.preventDefault(); navPrej(i, "cena", "down"); }
+                          }}
                           className="w-28" />
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.cenaKos) > 0 && (
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
