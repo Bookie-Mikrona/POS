@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import {
   FlaskConical, CalendarDays, Trash2, Loader2, CheckCircle2,
   AlertTriangle, RefreshCw, Shuffle, Info, ChevronRight,
@@ -150,14 +149,16 @@ export default function Simulacija() {
 
       {/* Status message */}
       {statusMsg && (
-        <Alert className={statusMsg.type === "ok"
-          ? "border-green-200 bg-green-50 text-green-800"
-          : "border-red-200 bg-red-50 text-red-800"}>
+        <div className={`flex items-start gap-2 rounded-md border px-4 py-3 text-sm ${
+          statusMsg.type === "ok"
+            ? "border-green-200 bg-green-50 text-green-800"
+            : "border-red-200 bg-red-50 text-red-800"
+        }`}>
           {statusMsg.type === "ok"
-            ? <CheckCircle2 className="h-4 w-4" />
-            : <AlertTriangle className="h-4 w-4" />}
-          <AlertDescription>{statusMsg.text}</AlertDescription>
-        </Alert>
+            ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+            : <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />}
+          <span>{statusMsg.text}</span>
+        </div>
       )}
 
       {/* ── KORAK 1: Počisti podatke ── */}
@@ -234,19 +235,18 @@ export default function Simulacija() {
               Ni aktiven — sistem uporablja pravi datum in čas.
             </div>
           )}
-          <Separator />
-          <div className="flex items-end gap-3 flex-wrap">
+          <div className="pt-1 flex items-end gap-3 flex-wrap">
             <div className="space-y-1.5">
               <Label htmlFor="sim-datum" className="text-sm font-medium">
                 {sim.active ? "Nov datum (mora biti ≥ trenutnega)" : "Začetni datum simulacije"}
               </Label>
-              <input
+              <Input
                 id="sim-datum"
                 type="date"
                 value={novDatum}
                 min={minDatum}
                 onChange={e => setNovDatum(e.target.value)}
-                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-44"
               />
             </div>
             <Button
@@ -265,7 +265,7 @@ export default function Simulacija() {
             )}
           </div>
           {sim.active && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
               <ChevronRight className="w-3 h-3" />
               Nov datum mora biti večji ali enak {fmtDatum(sim.datum!)} — ni mogoče iti nazaj v preteklost.
             </p>
