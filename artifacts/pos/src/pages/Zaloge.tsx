@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment, forwardRef } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import {
   useListZaloge,
   useListPrejemnice,
@@ -452,6 +453,7 @@ function NovDobaviteljKartica({
       });
     }
   }
+  useF2Save(handleShrani, !createMutation.isPending && !!naziv.trim());
 
   // Posodobi obstoječega in ga izberi
   async function handleObstajaPosodobi(partner: ShranjenKupec) {
@@ -629,7 +631,7 @@ function NovDobaviteljKartica({
               onClick={handleShrani}
               disabled={jeZaseden || !naziv.trim() || stanje.tip === "loading"}
             >
-              {createMutation.isPending ? "Shranjujem…" : "Dodaj dobavitelja"}
+              {createMutation.isPending ? "Shranjujem…" : <>Dodaj dobavitelja <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </>
@@ -782,6 +784,7 @@ function NovArtikelKartica({
       onError: () => toast({ title: "Napaka pri dodajanju artikla", variant: "destructive" }),
     });
   }
+  useF2Save(handleDodaj, !createArtikel.isPending && !!imeZaNabavo.trim() && !!enotaMere);
 
   return (
     <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
@@ -836,7 +839,7 @@ function NovArtikelKartica({
         >
           {createArtikel.isPending
             ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Dodajam…</>
-            : "Dodaj artikel"}
+            : <>Dodaj artikel <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
         </Button>
       </div>
     </div>
@@ -1142,6 +1145,7 @@ function EditPrejemnicaDialog({
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
     });
   };
+  useF2Save(handleSave, !updatePrejemnica.isPending && rows.length > 0);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -1433,7 +1437,7 @@ function EditPrejemnicaDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Prekliči</Button>
           <Button ref={editShraniRef} onClick={handleSave} disabled={updatePrejemnica.isPending || rows.length === 0}>
-            {updatePrejemnica.isPending ? "Shranjujem..." : "Shrani"}
+            {updatePrejemnica.isPending ? "Shranjujem..." : <>Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1503,6 +1507,7 @@ function EditInventuraDialog({
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
     });
   };
+  useF2Save(handleSave, !updateInventura.isPending && rows.length > 0);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -1612,7 +1617,7 @@ function EditInventuraDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Prekliči</Button>
           <Button onClick={handleSave} disabled={updateInventura.isPending || rows.length === 0}>
-            {updateInventura.isPending ? "Shranjujem..." : "Shrani"}
+            {updateInventura.isPending ? "Shranjujem..." : <>Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1694,6 +1699,7 @@ function EditZacetnaZalogaDialog({
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
     });
   };
+  useF2Save(handleSave, !updateZacetnaZaloga.isPending && rows.length > 0);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -1796,7 +1802,7 @@ function EditZacetnaZalogaDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Prekliči</Button>
           <Button onClick={handleSave} disabled={updateZacetnaZaloga.isPending || rows.length === 0}>
-            {updateZacetnaZaloga.isPending ? "Shranjujem..." : "Shrani"}
+            {updateZacetnaZaloga.isPending ? "Shranjujem..." : <>Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2138,6 +2144,9 @@ export default function Zaloge() {
       },
     });
   };
+  useF2Save(handleSavePrejemnica, prejDialogOpen && !createPrejemnica.isPending);
+  useF2Save(handleSaveInventura, invDialogOpen && !createInventura.isPending);
+  useF2Save(handleSaveZacetnaZaloga, zzDialogOpen && !createZacetnaZaloga.isPending);
   const zzSkupajVrednost = zzRows.reduce((s, r) => s + (parseDecimal(r.kolicina) || 0) * (parseDecimal(r.cenaKos) || 0), 0);
 
   const addZzRow = () => {
@@ -2799,7 +2808,7 @@ export default function Zaloge() {
               })()}
             </div>
             <Button className="w-full" onClick={handleSavePrejemnica} disabled={createPrejemnica.isPending}>
-              {createPrejemnica.isPending ? "Shranjujem..." : "Shrani prejemnico"}
+              {createPrejemnica.isPending ? "Shranjujem..." : <>Shrani prejemnico <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </DialogContent>
@@ -2939,7 +2948,7 @@ export default function Zaloge() {
               </div>
             </div>
             <Button className="w-full" onClick={handleSaveInventura} disabled={createInventura.isPending}>
-              {createInventura.isPending ? "Shranjujem..." : "Potrdi inventuro"}
+              {createInventura.isPending ? "Shranjujem..." : <>Potrdi inventuro <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </DialogContent>
@@ -3080,7 +3089,7 @@ export default function Zaloge() {
               </div>
             </div>
             <Button className="w-full" onClick={handleSaveZacetnaZaloga} disabled={createZacetnaZaloga.isPending}>
-              {createZacetnaZaloga.isPending ? "Shranjujem..." : `Shrani začetne zaloge (${zzLeto})`}
+              {createZacetnaZaloga.isPending ? "Shranjujem..." : <>Shrani začetne zaloge ({zzLeto}) <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </DialogContent>

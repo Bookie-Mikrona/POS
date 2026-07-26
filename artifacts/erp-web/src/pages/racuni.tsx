@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -406,6 +407,7 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
   };
 
   const canSave = formData.counterpartyId && formData.periodId && formData.invoiceNumber && formData.arApAccountId && lines.some(l => l.description && l.accountId);
+  useF2Save(handleSave, !!canSave && !createMut.isPending);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -598,7 +600,7 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
           <Button variant="outline" onClick={() => onOpenChange(false)}>Prekliči</Button>
           <Button onClick={handleSave} disabled={!canSave || createMut.isPending}>
             {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Shrani račun
+            Shrani račun <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd>
           </Button>
         </SheetFooter>
       </SheetContent>

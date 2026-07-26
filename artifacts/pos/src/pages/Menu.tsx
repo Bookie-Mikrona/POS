@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import {
   useListKategorije,
   useListArtikli,
@@ -588,6 +589,8 @@ export default function Menu() {
 
   const isPendingCat = createKategorija.isPending || updateKategorija.isPending;
   const isPendingArt = createArtikel.isPending || updateArtikel.isPending || updateNormativi.isPending;
+  useF2Save(handleSaveCat, catDialogOpen && !isPendingCat && !!catName);
+  useF2Save(handleSaveArt, artDialogOpen && !isPendingArt && !!artName);
 
   return (
     <div className="p-4 sm:p-8 space-y-8 flex-1 overflow-auto">
@@ -873,7 +876,7 @@ export default function Menu() {
               </div>
             </label>
             <Button className="w-full" onClick={handleSaveCat} disabled={isPendingCat || !catName}>
-              {isPendingCat ? "Shranjujem..." : catMode === "uredi" ? "Posodobi" : "Dodaj kategorijo"}
+              {isPendingCat ? "Shranjujem..." : <>{catMode === "uredi" ? "Posodobi" : "Dodaj kategorijo"} <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </DialogContent>
@@ -1335,7 +1338,7 @@ export default function Menu() {
               </div>
             )}
             <Button className="w-full" onClick={handleSaveArt} disabled={isPendingArt || !artName || (!(artNabavniArtikel && !artProdajniArtikel) && (!artPrice || !artCat))}>
-              {isPendingArt ? "Shranjujem..." : artMode === "uredi" ? "Posodobi" : "Dodaj artikel"}
+              {isPendingArt ? "Shranjujem..." : <>{artMode === "uredi" ? "Posodobi" : "Dodaj artikel"} <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </DialogContent>

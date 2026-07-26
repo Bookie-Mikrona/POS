@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users } from "lucide-react";
@@ -484,6 +485,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
       }
     });
   };
+  useF2Save(handleSave, canSave && !createMut.isPending);
 
   // set default period if open periods exist
   useEffect(() => {
@@ -737,7 +739,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
           <Button variant="outline" onClick={() => onOpenChange(false)}>Prekliči</Button>
           <Button onClick={handleSave} disabled={!canSave || createMut.isPending}>
             {createMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Shrani temeljnico
+            Shrani temeljnico <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd>
           </Button>
         </SheetFooter>
       </SheetContent>

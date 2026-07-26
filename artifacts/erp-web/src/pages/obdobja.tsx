@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, AlertCircle, Calendar as CalendarIcon, Lock, Unlock, Loader2 } from "lucide-react";
 
@@ -88,6 +89,7 @@ export default function Obdobja() {
       }
     });
   };
+  useF2Save(handleSave, !createMut.isPending && !!formData.name && !!formData.startDate && !!formData.endDate);
 
   const handleToggleLock = (period: PeriodRecord) => {
     if (!activeCompany) return;
@@ -254,7 +256,7 @@ export default function Obdobja() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Prekliči</Button>
             <Button onClick={handleSave} disabled={createMut.isPending || !formData.name || !formData.startDate || !formData.endDate}>
               {createMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Shrani
+              Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd>
             </Button>
           </DialogFooter>
         </DialogContent>

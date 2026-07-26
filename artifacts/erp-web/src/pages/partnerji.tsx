@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -415,6 +416,7 @@ function PartnerSheet({
       createMut.mutate({ companyId: activeCompany.id, data: payload as any }, { onSuccess });
     }
   };
+  useF2Save(handleSave, !(!formData.name || isPending));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -676,7 +678,7 @@ function PartnerSheet({
           <Button variant="outline" onClick={onOpenChange}>Prekliči</Button>
           <Button onClick={handleSave} disabled={!formData.name || isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Shrani partnerja
+            Shrani partnerja <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd>
           </Button>
         </SheetFooter>
       </SheetContent>

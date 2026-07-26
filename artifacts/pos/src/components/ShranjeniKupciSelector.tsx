@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useF2Save } from "@/hooks/useF2Save";
 import {
   useGetKupciPogosti,
   useListShranjeniKupci,
@@ -210,6 +211,7 @@ export function ShranjeniKupciSelector({ naziv, naslov, davcnaStevilka, onSelect
       setSavingEdit(false);
     }
   };
+  useF2Save(handleShraniUredi, editOpen && !savingEdit && !!form.naziv.trim());
 
   const handleSelect = (k: ShranjenKupec) => {
     const sestavljenNaslov = sestaviNaslov(k) ?? k.naslov ?? null;
@@ -463,7 +465,7 @@ export function ShranjeniKupciSelector({ naziv, naslov, davcnaStevilka, onSelect
             <Button variant="outline" onClick={() => setEditOpen(false)}>Prekliči</Button>
             <Button onClick={() => { void handleShraniUredi(); }} disabled={savingEdit}>
               {savingEdit ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Shrani
+              Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd>
             </Button>
           </div>
         </DialogContent>
