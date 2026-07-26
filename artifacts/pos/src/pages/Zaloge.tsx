@@ -555,6 +555,9 @@ function NovArtikelKartica({
   const [davek, setDavek] = useState<number>(22);
   const createArtikel = useCreateArtikel();
   const { toast } = useToast();
+  const enotaRef = useRef<HTMLSelectElement>(null);
+  const davekRef = useRef<HTMLSelectElement>(null);
+  const dodajRef = useRef<HTMLButtonElement>(null);
 
   function handleDodaj() {
     if (!imeZaNabavo.trim()) {
@@ -598,7 +601,7 @@ function NovArtikelKartica({
           placeholder="npr. Moka T550"
           className="h-8 text-sm"
           autoFocus
-          onKeyDown={e => e.key === "Enter" && handleDodaj()}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); enotaRef.current?.focus(); } }}
         />
         {imeZaNabavo.trim() && (
           <p className="text-xs text-muted-foreground">Ime za prodajo bo enako: „{imeZaNabavo.trim()}"</p>
@@ -608,8 +611,10 @@ function NovArtikelKartica({
         <div className="space-y-1">
           <Label className="text-xs">Enota mere <span className="text-destructive">*</span></Label>
           <select
+            ref={enotaRef}
             value={enotaMere}
             onChange={e => setEnotaMere(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); davekRef.current?.focus(); } }}
             className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">— izberite —</option>
@@ -619,8 +624,10 @@ function NovArtikelKartica({
         <div className="space-y-1">
           <Label className="text-xs">DDV stopnja <span className="text-destructive">*</span></Label>
           <select
+            ref={davekRef}
             value={davek}
             onChange={e => setDavek(Number(e.target.value))}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); dodajRef.current?.click(); } }}
             className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {DDV_OPCIJE.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -630,6 +637,7 @@ function NovArtikelKartica({
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onClose}>Prekliči</Button>
         <Button
+          ref={dodajRef}
           size="sm"
           onClick={handleDodaj}
           disabled={createArtikel.isPending || !imeZaNabavo.trim() || !enotaMere}
@@ -785,6 +793,7 @@ function EditPrejemnicaDialog({
   const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const initializedId = useRef<number | null>(null);
   const editArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const editKoliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const [ddOpenIdx, setDdOpenIdx] = useState<number | null>(null);
   const [ddFilter, setDdFilter] = useState("");
   const [ddHighlight, setDdHighlight] = useState(0);
@@ -965,7 +974,9 @@ function EditPrejemnicaDialog({
                         )}
                       </div>
                       {/* Količina */}
-                      <DecimalInput value={row.kolicina}
+                      <DecimalInput
+                        ref={el => { if (el) editKoliInputRefs.current.set(i, el as any); else editKoliInputRefs.current.delete(i); }}
+                        value={row.kolicina}
                         onChange={e => updateRow(i, "kolicina", e.target.value)}
                         onKeyDown={handleEnterAsTab}
                         className="w-28" />
@@ -986,7 +997,7 @@ function EditPrejemnicaDialog({
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setEditNovArtikelRowIdx(null);
-                          setTimeout(() => selectArtikelInEditRow(i, id), 100);
+                          setTimeout(() => { selectArtikelInEditRow(i, id); editKoliInputRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
@@ -2104,7 +2115,7 @@ export default function Zaloge() {
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setNovArtikelRowIdx(null);
-                          setTimeout(() => selectArtikelInRow(i, id), 100);
+                          setTimeout(() => { selectArtikelInRow(i, id); koliInputRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
