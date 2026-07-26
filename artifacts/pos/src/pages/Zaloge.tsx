@@ -877,16 +877,22 @@ function EditPrejemnicaDialog({
     initializedVrstaCen.current = vrstaCenLoaded;
     setEditVrstaCen(vrstaCenLoaded as "neto" | "bruto");
     setRows(data.postavke.map(p => {
-      // cenaKos v bazi je vedno neto; pri bruto načinu jo pretvorimo nazaj v bruto za prikaz
+      // cenaKos v bazi je vedno neto/enoto; pri bruto načinu pretvorimo nazaj v bruto
       const davek = nabavniArtikli.find(a => a.id === p.artikelId)?.davek ?? 0;
-      const prikazCena = vrstaCenLoaded === "bruto" && davek
-        ? Math.round(Number(p.cenaKos) * (1 + davek / 100) * 10000) / 10000
-        : Number(p.cenaKos);
+      const cenaNetoEnoto = Number(p.cenaKos);
+      const prikazCenaEnoto = vrstaCenLoaded === "bruto" && davek
+        ? Math.round(cenaNetoEnoto * (1 + davek / 100) * 10000) / 10000
+        : cenaNetoEnoto;
+      // Če je bil vnos v paketih, razpakiramo: paketov = kolicina / enot, cena/paket = cena/enoto * enot
+      const enot = Number((p as any).enotVPaketu ?? 1);
+      const jeVPaketih = enot > 1;
+      const prikazKolicina = jeVPaketih ? Math.round(Number(p.kolicina) / enot * 10000) / 10000 : Number(p.kolicina);
+      const prikazCena = jeVPaketih ? Math.round(prikazCenaEnoto * enot * 10000) / 10000 : prikazCenaEnoto;
       return {
         artikelId: p.artikelId,
-        kolicina: String(p.kolicina),
+        kolicina: String(prikazKolicina),
         cenaKos: String(prikazCena),
-        enotVPaketu: "",
+        enotVPaketu: jeVPaketih ? String(enot) : "",
       };
     }));
   }, [data, nabavniArtikli]);

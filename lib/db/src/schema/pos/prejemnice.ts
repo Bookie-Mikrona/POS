@@ -23,6 +23,7 @@ export const prejemnicePostavkeTable = pgTable("prejemnice_postavke", {
   kolicina: numeric("kolicina", { precision: 10, scale: 4 }).notNull(),
   cenaKos: numeric("cena_kos", { precision: 10, scale: 4 }).notNull().default("0"),
   skupaj: numeric("skupaj", { precision: 10, scale: 2 }).notNull().default("0"),
+  enotVPaketu: numeric("enot_v_paketu", { precision: 10, scale: 4 }).notNull().default("1"),
 });
 
 export const prejemniceRelations = relations(prejemniceTable, ({ many }) => ({

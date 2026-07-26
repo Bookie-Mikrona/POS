@@ -1318,6 +1318,7 @@ export interface PrejemnicaPostavkaInput {
   artikelId: number;
   kolicina: number;
   cenaKos?: number;
+  enotVPaketu?: number;
 }
 
 export interface PrejemnicaUrediVnos {
@@ -1363,6 +1364,7 @@ export interface PrejemnicaPostavkaPogled {
   kolicina: number;
   cenaKos: number;
   skupaj: number;
+  enotVPaketu?: number;
 }
 
 export interface PrejemnicaFull {

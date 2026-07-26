@@ -82,12 +82,14 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
       const cenaKos = p.cenaKos ?? 0;
       const skupaj = kolicina * cenaKos;
 
+      const enotVPaketu = p.enotVPaketu && Number(p.enotVPaketu) > 1 ? Number(p.enotVPaketu) : 1;
       const [pp] = await tx.insert(prejemnicePostavkeTable).values({
         prejemnicaId: prejemnica.id,
         artikelId: p.artikelId,
         kolicina: String(kolicina),
         cenaKos: String(cenaKos),
-        skupaj: String(skupaj.toFixed(2))}).returning();
+        skupaj: String(skupaj.toFixed(2)),
+        enotVPaketu: String(enotVPaketu)}).returning();
 
       await tx.insert(zalogaGibiTable).values({
         artikelId: p.artikelId,
@@ -105,7 +107,8 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
         enotaMere: art?.enotaMere ?? null,
         kolicina,
         cenaKos,
-        skupaj});
+        skupaj,
+        enotVPaketu});
     }
 
     await recomputeZaloge(artikelIds, tx);
@@ -156,7 +159,8 @@ router.get("/prejemnice/:id", async (req, res): Promise<void> => {
       enotaMere: artikliTable.enotaMere,
       kolicina: prejemnicePostavkeTable.kolicina,
       cenaKos: prejemnicePostavkeTable.cenaKos,
-      skupaj: prejemnicePostavkeTable.skupaj})
+      skupaj: prejemnicePostavkeTable.skupaj,
+      enotVPaketu: prejemnicePostavkeTable.enotVPaketu})
     .from(prejemnicePostavkeTable)
     .leftJoin(artikliTable, eq(prejemnicePostavkeTable.artikelId, artikliTable.id))
     .where(eq(prejemnicePostavkeTable.prejemnicaId, id));
@@ -176,7 +180,8 @@ router.get("/prejemnice/:id", async (req, res): Promise<void> => {
       artikelIme: p.artikelIme ?? "–",
       kolicina: Number(p.kolicina),
       cenaKos: Number(p.cenaKos),
-      skupaj: Number(p.skupaj)}))});
+      skupaj: Number(p.skupaj),
+      enotVPaketu: Number(p.enotVPaketu ?? 1)}))});
 });
 
 router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
@@ -233,12 +238,14 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
         const cenaKos = p.cenaKos ?? 0;
         skupajVrednost += kolicina * cenaKos;
 
+        const enotVPaketu = p.enotVPaketu && Number(p.enotVPaketu) > 1 ? Number(p.enotVPaketu) : 1;
         await tx.insert(prejemnicePostavkeTable).values({
           prejemnicaId: id,
           artikelId: p.artikelId,
           kolicina: String(kolicina),
           cenaKos: String(cenaKos),
-          skupaj: String((kolicina * cenaKos).toFixed(2))});
+          skupaj: String((kolicina * cenaKos).toFixed(2)),
+          enotVPaketu: String(enotVPaketu)});
 
         await tx.insert(zalogaGibiTable).values({
           artikelId: p.artikelId,
@@ -273,7 +280,8 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       enotaMere: artikliTable.enotaMere,
       kolicina: prejemnicePostavkeTable.kolicina,
       cenaKos: prejemnicePostavkeTable.cenaKos,
-      skupaj: prejemnicePostavkeTable.skupaj})
+      skupaj: prejemnicePostavkeTable.skupaj,
+      enotVPaketu: prejemnicePostavkeTable.enotVPaketu})
     .from(prejemnicePostavkeTable)
     .leftJoin(artikliTable, eq(prejemnicePostavkeTable.artikelId, artikliTable.id))
     .where(eq(prejemnicePostavkeTable.prejemnicaId, id));
@@ -292,7 +300,8 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       artikelIme: p.artikelIme ?? "–",
       kolicina: Number(p.kolicina),
       cenaKos: Number(p.cenaKos),
-      skupaj: Number(p.skupaj)}))});
+      skupaj: Number(p.skupaj),
+      enotVPaketu: Number(p.enotVPaketu ?? 1)}))});
 });
 
 router.delete("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
