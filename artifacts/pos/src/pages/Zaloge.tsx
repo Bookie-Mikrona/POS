@@ -922,6 +922,10 @@ function EditPrejemnicaDialog({
   const editEnotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const editNovArtBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const editDodajRef = useRef<HTMLButtonElement>(null);
+  const editDatumRef = useRef<HTMLInputElement>(null);
+  const editDobavInputRef = useRef<HTMLInputElement>(null);
+  const editOpombaRef = useRef<HTMLInputElement>(null);
+  const editFocusedOnOpen = useRef(false);
 
   const navEdit = (rowIdx: number, col: "art" | "enot" | "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
     const cols = ["art", "enot", "koli", "cena"] as const;
@@ -948,6 +952,13 @@ function EditPrejemnicaDialog({
   const [ddHighlight, setDdHighlight] = useState(0);
   const [editNovArtikelRowIdx, setEditNovArtikelRowIdx] = useState<number | null>(null);
   const [editVrstaCen, setEditVrstaCen] = useState<"neto" | "bruto">("neto");
+
+  useEffect(() => {
+    if (isLoading || rows.length === 0) return;
+    if (editFocusedOnOpen.current) return;
+    editFocusedOnOpen.current = true;
+    setTimeout(() => editDatumRef.current?.focus(), 50);
+  }, [isLoading, rows.length]);
 
   useEffect(() => {
     if (!data) return;
@@ -1073,7 +1084,8 @@ function EditPrejemnicaDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Datum</Label>
-                <SmartDateInput value={datum} onChange={setDatum} onKeyDown={handleEnterAsTab as (e: React.KeyboardEvent<HTMLInputElement>) => void} />
+                <SmartDateInput ref={editDatumRef} value={datum} onChange={setDatum}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); editDobavInputRef.current?.focus(); } }} />
               </div>
               <div className="space-y-2">
                 <Label>Dobavitelj</Label>
@@ -1083,6 +1095,8 @@ function EditPrejemnicaDialog({
                       value={dobaviteljId}
                       kupci={kupci ?? []}
                       onChange={(id) => setDobaviteljId(id)}
+                      _inputRef={editDobavInputRef}
+                      onEnterAfterSelect={() => editOpombaRef.current?.focus()}
                     />
                   </div>
                   <Button
@@ -1100,7 +1114,7 @@ function EditPrejemnicaDialog({
             </div>
             <div className="space-y-2">
               <Label>Opomba</Label>
-              <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Referenca, opomba..." onKeyDown={handleEnterAsTab} />
+              <Input ref={editOpombaRef} value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Referenca, opomba..." onKeyDown={handleEnterAsTab} />
             </div>
 
             {/* Vrsta cen na dobavnici */}
@@ -1263,7 +1277,8 @@ function EditPrejemnicaDialog({
                           onChange={e => updateRow(i, "cenaKos", e.target.value)}
                           ref={el => { if (el) editCenaInputRefs.current.set(i, el as any); else editCenaInputRefs.current.delete(i); }}
                           onKeyDown={e => {
-                            if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "cena", "right"); }
+                            if (e.key === "Enter") { e.preventDefault(); editDodajRef.current?.focus(); return; }
+                            if (e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "cena", "right"); }
                             else if (e.key === "ArrowLeft") { e.preventDefault(); navEdit(i, "cena", "left"); }
                             else if (e.key === "ArrowUp") { e.preventDefault(); navEdit(i, "cena", "up"); }
                             else if (e.key === "ArrowDown") { e.preventDefault(); navEdit(i, "cena", "down"); }
@@ -1844,7 +1859,8 @@ export default function Zaloge() {
   const handleSavePrejemnica = () => {
     const validRows = prejRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
-    const refParts = [prejStevilkaDobavnice, prejDatumDobavnice].filter(Boolean);
+    const datumDobavniceSlo = prejDatumDobavnice ? formatDateSlo(prejDatumDobavnice) : "";
+    const refParts = [prejStevilkaDobavnice, datumDobavniceSlo].filter(Boolean);
     const refPrefix = refParts.length > 0 ? `(${refParts.join(", ")})` : "";
     const fullOpomba = [refPrefix, prejOpomba].filter(Boolean).join(" ");
     createPrejemnica.mutate({
