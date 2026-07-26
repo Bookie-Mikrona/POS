@@ -1955,10 +1955,17 @@ export default function Zaloge() {
                           className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                           placeholder="Izberi artikel"
                           value={isOpen ? dropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
-                          onChange={e => { if (isOpen) { setDropdownFilter(e.target.value); setDropdownHighlight(0); } }}
+                          onChange={e => {
+                            if (selectedArtikel) return;
+                            setDropdownFilter(e.target.value);
+                            setDropdownHighlight(0);
+                            if (dropdownOpenIdx !== i) setDropdownOpenIdx(i);
+                          }}
                           readOnly={!!selectedArtikel && !isOpen}
                           onFocus={() => {
-                            if (!selectedArtikel) { setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0); }
+                            if (!selectedArtikel && dropdownOpenIdx !== i) {
+                              setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0);
+                            }
                           }}
                           onKeyDown={e => {
                             if (selectedArtikel && !isOpen) {
