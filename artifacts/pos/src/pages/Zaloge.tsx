@@ -893,6 +893,7 @@ function EditPrejemnicaDialog({
                               value={row.artikelId}
                               onChange={e => updateRow(i, "artikelId", parseInt(e.target.value))}
                             >
+                              <option value={0} disabled>— izberi artikel —</option>
                               {nabavniArtikli.map(a => (
                                 <option key={a.id} value={a.id}>
                                   {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
