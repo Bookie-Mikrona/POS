@@ -64,7 +64,7 @@ const DDV_OPCIJE = [
 ];
 const ENOTE_MERE = ["kom", "kg", "g", "l", "dl", "ml", "m", "m²", "m³", "par", "pak", "šk", "pal", "set"];
 
-type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string };
+type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string; enotVPaketu: string };
 type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
 type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
 
@@ -862,13 +862,14 @@ function EditPrejemnicaDialog({
         artikelId: p.artikelId,
         kolicina: String(p.kolicina),
         cenaKos: String(p.cenaKos),
+        enotVPaketu: "",
       })));
     }
   }, [data]);
 
   const addRow = () => {
     const newIdx = rows.length;
-    setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "" }]);
     setTimeout(() => editArtInputRefs.current.get(newIdx)?.focus(), 30);
   };
   const selectArtikelInEditRow = (rowIdx: number, artikelId: number) => {
@@ -1534,7 +1535,7 @@ export default function Zaloge() {
   const [prejStevilkaDobavnice, setPrejStevilkaDobavnice] = useState("");
   const [prejDatumDobavnice, setPrejDatumDobavnice] = useState("");
   const [prejOpomba, setPrejOpomba] = useState("");
-  const [prejRows, setPrejRows] = useState<PrejemnicaRow[]>([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
+  const [prejRows, setPrejRows] = useState<PrejemnicaRow[]>([{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "" }]);
   // Dropdown state za artikel combobox
   const [dropdownOpenIdx, setDropdownOpenIdx] = useState<number | null>(null);
   const [dropdownFilter, setDropdownFilter] = useState("");
@@ -1546,6 +1547,7 @@ export default function Zaloge() {
   const artInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const koliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const enotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const prejDatumRef = useRef<HTMLInputElement>(null);
   const prejDobaviteljInputRef = useRef<HTMLInputElement>(null);
@@ -1565,7 +1567,7 @@ export default function Zaloge() {
     setPrejStevilkaDobavnice("");
     setPrejDatumDobavnice("");
     setPrejOpomba("");
-    setPrejRows([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setPrejRows([{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "" }]);
     setDropdownOpenIdx(null);
     setDropdownFilter("");
     setDropdownHighlight(0);
@@ -1582,16 +1584,21 @@ export default function Zaloge() {
         datum: prejDatum || undefined,
         dobaviteljId: prejDobaviteljId ?? undefined,
         opomba: fullOpomba || undefined,
-        postavke: validRows.map(r => ({
-          artikelId: r.artikelId,
-          kolicina: parseDecimal(r.kolicina),
-          cenaKos: konvertirajCeno(
-            parseDecimal(r.cenaKos) || 0,
-            nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
-            vrstaCen,
-            jeDdvZavezanec,
-          ),
-        })),
+        postavke: validRows.map(r => {
+          const enot = parseDecimal(r.enotVPaketu) || 1;
+          const kolicinaPaketov = parseDecimal(r.kolicina);
+          const cenaNaPaket = parseDecimal(r.cenaKos) || 0;
+          return {
+            artikelId: r.artikelId,
+            kolicina: kolicinaPaketov * enot,
+            cenaKos: konvertirajCeno(
+              enot > 1 ? cenaNaPaket / enot : cenaNaPaket,
+              nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
+              vrstaCen,
+              jeDdvZavezanec,
+            ),
+          };
+        }),
       } as any,
     }, {
       onSuccess: () => {
@@ -1605,7 +1612,7 @@ export default function Zaloge() {
   };
   const addPrejRow = () => {
     const newIdx = prejRows.length;
-    setPrejRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setPrejRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "" }]);
     setTimeout(() => artInputRefs.current.get(newIdx)?.focus(), 30);
   };
   const removePrejRow = (i: number) => setPrejRows(r => r.filter((_, j) => j !== i));
@@ -1615,11 +1622,14 @@ export default function Zaloge() {
     updatePrejRow(rowIdx, "artikelId", artikelId);
     const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
     if (zadnjaCenaNeto != null) {
-      // zadnjaCena je vedno neto; pri bruto načinu jo preračunamo v bruto za prikaz v vnosnem polju
       const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
-      const prikazCena = vrstaCen === "bruto" && davek
+      // zadnjaCena je vedno neto/enoto; pretvorimo v ceno za prikaz v vnosnem polju
+      const enotVPaketu = parseDecimal(prejRows[rowIdx]?.enotVPaketu) || 1;
+      // najprej neto → bruto če je bruto način, potem × enot v paketu za ceno/paket
+      const cenaNaEnoto = vrstaCen === "bruto" && davek
         ? Math.round(zadnjaCenaNeto * (1 + davek / 100) * 10000) / 10000
         : zadnjaCenaNeto;
+      const prikazCena = Math.round(cenaNaEnoto * enotVPaketu * 10000) / 10000;
       updatePrejRow(rowIdx, "cenaKos", String(prikazCena));
     } else {
       updatePrejRow(rowIdx, "cenaKos", "");
@@ -2259,38 +2269,79 @@ export default function Zaloge() {
                           </div>
                         )}
                       </div>
-                      {/* Količina */}
-                      <DecimalInput
-                        ref={el => { if (el) koliInputRefs.current.set(i, el); else koliInputRefs.current.delete(i); }}
-                        placeholder="Količina" value={row.kolicina}
-                        onChange={e => updatePrejRow(i, "kolicina", e.target.value)}
-                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cenaInputRefs.current.get(i)?.focus(); } }}
-                        className="w-28" />
-                      {/* Nabavna cena */}
-                      <DecimalInput
-                        ref={el => { if (el) cenaInputRefs.current.set(i, el); else cenaInputRefs.current.delete(i); }}
-                        placeholder={vrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena"} value={row.cenaKos}
-                        onChange={e => updatePrejRow(i, "cenaKos", e.target.value)}
-                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); } }}
-                        className="w-28" />
+                      {/* Količina / Paketov */}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <DecimalInput
+                          ref={el => { if (el) koliInputRefs.current.set(i, el); else koliInputRefs.current.delete(i); }}
+                          placeholder={row.enotVPaketu ? "Paketov" : "Količina"} value={row.kolicina}
+                          onChange={e => updatePrejRow(i, "kolicina", e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cenaInputRefs.current.get(i)?.focus(); } }}
+                          className="w-24" />
+                        {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.kolicina) > 0 && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            = {fmt(parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1))} {nabavniArtikli.find(a => a.id === row.artikelId)?.enotaMere ?? "enot"}
+                          </span>
+                        )}
+                      </div>
+                      {/* Nabavna cena / Cena na paket */}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <DecimalInput
+                          ref={el => { if (el) cenaInputRefs.current.set(i, el); else cenaInputRefs.current.delete(i); }}
+                          placeholder={row.enotVPaketu ? "Cena/paket" : (vrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena")} value={row.cenaKos}
+                          onChange={e => updatePrejRow(i, "cenaKos", e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addBtnRef.current?.focus(); } }}
+                          className="w-28" />
+                        {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.cenaKos) > 0 && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            = {fmt(parseDecimal(row.cenaKos) / (parseDecimal(row.enotVPaketu) || 1))} €/enoto
+                          </span>
+                        )}
+                      </div>
                       {/* Preračunana cena (readonly) */}
                       {(() => {
+                        const enot = parseDecimal(row.enotVPaketu) || 1;
                         const vnos = parseDecimal(row.cenaKos) || 0;
+                        const cenaNaEnoto = enot > 1 ? vnos / enot : vnos;
                         const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
-                        const shranjeno = konvertirajCeno(vnos, davek, vrstaCen, jeDdvZavezanec);
+                        const shranjeno = konvertirajCeno(cenaNaEnoto, davek, vrstaCen, jeDdvZavezanec);
                         return (
                           <input
                             readOnly
                             tabIndex={-1}
                             value={vnos ? fmt(shranjeno) : ""}
                             placeholder={jeDdvZavezanec ? "Neto" : "Bruto"}
-                            title={jeDdvZavezanec ? "Cena, ki se shrani (brez DDV)" : "Cena, ki se shrani (z DDV)"}
+                            title={jeDdvZavezanec ? "Cena/enoto, ki se shrani (brez DDV)" : "Cena/enoto, ki se shrani (z DDV)"}
                             className="w-24 border rounded-md px-2 py-2 text-sm bg-muted text-muted-foreground text-right cursor-default select-none"
                           />
                         );
                       })()}
-                      <Button variant="ghost" size="icon" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                      {/* Pakiranje gumb + enot-v-paketu polje */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className={`h-8 w-8 ${row.enotVPaketu ? "text-primary" : "text-muted-foreground"}`}
+                          title="Pakiranje (vez, karton, …)"
+                          onClick={() => {
+                            if (row.enotVPaketu) {
+                              updatePrejRow(i, "enotVPaketu", "");
+                            } else {
+                              updatePrejRow(i, "enotVPaketu", "");
+                              setTimeout(() => enotInputRefs.current.get(i)?.focus(), 30);
+                            }
+                          }}>
+                          <Package className="w-3.5 h-3.5" />
+                        </Button>
+                        {(row.enotVPaketu !== undefined) && (
+                          <DecimalInput
+                            ref={el => { if (el) enotInputRefs.current.set(i, el); else enotInputRefs.current.delete(i); }}
+                            value={row.enotVPaketu}
+                            placeholder="enot/pak"
+                            onChange={e => updatePrejRow(i, "enotVPaketu", e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); koliInputRefs.current.get(i)?.focus(); } }}
+                            className="w-16 text-xs h-7 text-center"
+                          />
+                        )}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removePrejRow(i)} disabled={prejRows.length === 1}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     </div>
                     {novArtikelRowIdx === i && (
@@ -2317,10 +2368,12 @@ export default function Zaloge() {
               </Button>
               {prejRows.some(r => r.kolicina && r.cenaKos) && (() => {
                 const totals = prejRows.reduce((acc, r) => {
-                  const kol = parseDecimal(r.kolicina) || 0;
+                  const enot = parseDecimal(r.enotVPaketu) || 1;
+                  const kol = (parseDecimal(r.kolicina) || 0) * enot;
                   const vnos = parseDecimal(r.cenaKos) || 0;
+                  const cenaNaEnoto = enot > 1 ? vnos / enot : vnos;
                   const davek = nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0;
-                  const shranjeno = konvertirajCeno(vnos, davek, vrstaCen, jeDdvZavezanec);
+                  const shranjeno = konvertirajCeno(cenaNaEnoto, davek, vrstaCen, jeDdvZavezanec);
                   const neto = jeDdvZavezanec ? shranjeno : (davek ? shranjeno / (1 + davek / 100) : shranjeno);
                   const bruto = jeDdvZavezanec ? (davek ? shranjeno * (1 + davek / 100) : shranjeno) : shranjeno;
                   return { neto: acc.neto + kol * neto, bruto: acc.bruto + kol * bruto };
