@@ -1781,6 +1781,7 @@ export default function Zaloge() {
   const koliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const cenaInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const enotInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const novArtBtnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const invNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const zzKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -2519,6 +2520,7 @@ export default function Zaloge() {
                             if (e.key === "Enter") {
                               e.preventDefault();
                               if (!isOpen) { setDropdownOpenIdx(i); setDropdownFilter(""); setDropdownHighlight(0); return; }
+                              if (filtered.length === 0) { novArtBtnRefs.current.get(i)?.focus(); return; }
                               const art = filtered[dropdownHighlight];
                               if (art) selectArtikelInRow(i, art.id);
                             }
@@ -2533,7 +2535,15 @@ export default function Zaloge() {
                                     {dropdownFilter ? `Ni zadetkov za „${dropdownFilter}"` : "Ni artiklov v šifrantu"}
                                   </p>
                                   <button
-                                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                    ref={el => { if (el) novArtBtnRefs.current.set(i, el); else novArtBtnRefs.current.delete(i); }}
+                                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline focus:outline-none focus:ring-1 focus:ring-ring rounded"
+                                    onKeyDown={e => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        setDropdownOpenIdx(null);
+                                        setNovArtikelRowIdx(i);
+                                      }
+                                    }}
                                     onMouseDown={e => {
                                       e.preventDefault();
                                       setDropdownOpenIdx(null);
