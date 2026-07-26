@@ -47,11 +47,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
-  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon,
+  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, CalendarIcon,
 } from "lucide-react";
 
 type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string };
@@ -71,6 +73,15 @@ const handleEnterAsTab = (e: React.KeyboardEvent<HTMLElement>) => {
 };
 
 const fmt = (n: number, d = 2) => n.toLocaleString("sl-SI", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/** Razčleni slovensko obliko datuma "24. 7. 2026" v objekt Date */
+function parseSlovenskaDate(s: string): Date | undefined {
+  if (!s) return undefined;
+  const m = s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})$/);
+  if (!m) return undefined;
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return isNaN(d.getTime()) ? undefined : d;
+}
 const fmtDatum = (d: string | Date) =>
   new Date(d).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
 const fmtCas = (d: string | Date) =>
@@ -1192,6 +1203,7 @@ export default function Zaloge() {
   const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const [prejStevilkaDobavnice, setPrejStevilkaDobavnice] = useState("");
   const [prejDatumDobavnice, setPrejDatumDobavnice] = useState("");
+  const [datumDobavniceOpen, setDatumDobavniceOpen] = useState(false);
   const [prejOpomba, setPrejOpomba] = useState("");
   const [prejRows, setPrejRows] = useState<PrejemnicaRow[]>([{ artikelId: 0, kolicina: "", cenaKos: "" }]);
   // Dropdown state za artikel combobox
@@ -1768,7 +1780,34 @@ export default function Zaloge() {
               </div>
               <div className="space-y-1.5">
                 <Label>Datum dobavnice</Label>
-                <Input value={prejDatumDobavnice} onChange={e => setPrejDatumDobavnice(e.target.value)} placeholder="npr. 24. 7. 2026" />
+                <Popover open={datumDobavniceOpen} onOpenChange={setDatumDobavniceOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal h-9"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                      {prejDatumDobavnice
+                        ? prejDatumDobavnice
+                        : <span className="text-muted-foreground">Izberite datum</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      captionLayout="dropdown"
+                      selected={parseSlovenskaDate(prejDatumDobavnice)}
+                      onSelect={date => {
+                        setPrejDatumDobavnice(
+                          date
+                            ? date.toLocaleDateString("sl-SI", { day: "numeric", month: "numeric", year: "numeric" })
+                            : ""
+                        );
+                        setDatumDobavniceOpen(false);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             {/* Opomba */}
