@@ -784,7 +784,10 @@ function EditPrejemnicaDialog({
   const [rows, setRows] = useState<PrejemnicaRow[]>([]);
   const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const initializedId = useRef<number | null>(null);
-  const editArtSelectRefs = useRef<Map<number, HTMLSelectElement>>(new Map());
+  const editArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const [ddOpenIdx, setDdOpenIdx] = useState<number | null>(null);
+  const [ddFilter, setDdFilter] = useState("");
+  const [ddHighlight, setDdHighlight] = useState(0);
 
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
@@ -803,7 +806,12 @@ function EditPrejemnicaDialog({
   const addRow = () => {
     const newIdx = rows.length;
     setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
-    setTimeout(() => editArtSelectRefs.current.get(newIdx)?.focus(), 30);
+    setTimeout(() => editArtInputRefs.current.get(newIdx)?.focus(), 30);
+  };
+  const selectArtikelInEditRow = (rowIdx: number, artikelId: number) => {
+    updateRow(rowIdx, "artikelId", artikelId);
+    setDdOpenIdx(null);
+    setDdFilter("");
   };
   const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
   const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
@@ -875,64 +883,90 @@ function EditPrejemnicaDialog({
 
             <div className="space-y-2">
               <Label>Postavke</Label>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Artikel</TableHead>
-                      <TableHead className="text-right w-28">Količina</TableHead>
-                      <TableHead className="text-right w-28">Cena/enoto</TableHead>
-                      <TableHead className="text-right w-24">Skupaj</TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row, i) => {
-                      const art = nabavniArtikli.find(a => a.id === row.artikelId);
-                      const skupaj = (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
-                      return (
-                        <TableRow key={i}>
-                          <TableCell>
-                            <select
-                              ref={el => { if (el) editArtSelectRefs.current.set(i, el); else editArtSelectRefs.current.delete(i); }}
-                              className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
-                              value={row.artikelId}
-                              onChange={e => updateRow(i, "artikelId", parseInt(e.target.value))}
-                            >
-                              <option value={0} disabled>— izberi artikel —</option>
-                              {nabavniArtikli.map(a => (
-                                <option key={a.id} value={a.id}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </TableCell>
-                          <TableCell>
-                            <DecimalInput value={row.kolicina}
-                              onChange={e => updateRow(i, "kolicina", e.target.value)}
-                              onKeyDown={handleEnterAsTab}
-                              className="text-right h-8" />
-                          </TableCell>
-                          <TableCell>
-                            <DecimalInput value={row.cenaKos}
-                              onChange={e => updateRow(i, "cenaKos", e.target.value)}
-                              onKeyDown={handleEnterAsTab}
-                              className="text-right h-8" />
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm font-medium">
-                            {skupaj > 0 ? `${fmt(skupaj)} €` : "–"}
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon" className="h-7 w-7"
-                              onClick={() => removeRow(i)} disabled={rows.length === 1}>
-                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+              <div className="space-y-2">
+                {rows.map((row, i) => {
+                  const isOpen = ddOpenIdx === i;
+                  const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
+                  const filtered = ddFilter
+                    ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(ddFilter.toLowerCase()))
+                    : nabavniArtikli;
+                  return (
+                    <div key={i} className="flex gap-2 items-center">
+                      {/* Artikel combobox */}
+                      <div className="relative flex-1">
+                        {selectedArtikel ? (
+                          <div
+                            className="w-full border rounded-md px-3 py-2 text-sm bg-background flex items-center gap-1"
+                            tabIndex={0}
+                            onKeyDown={e => {
+                              if (e.key === "Backspace" || e.key === "Delete") {
+                                e.preventDefault();
+                                updateRow(i, "artikelId", 0);
+                                setTimeout(() => editArtInputRefs.current.get(i)?.focus(), 10);
+                              }
+                            }}
+                          >
+                            <span className="flex-1 truncate">
+                              {selectedArtikel.imeZaNabavo || selectedArtikel.ime}
+                              {selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}
+                            </span>
+                            <button type="button" tabIndex={-1}
+                              className="text-muted-foreground hover:text-foreground shrink-0"
+                              onClick={() => { updateRow(i, "artikelId", 0); setTimeout(() => editArtInputRefs.current.get(i)?.focus(), 10); }}>
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <input
+                            ref={el => { if (el) editArtInputRefs.current.set(i, el); else editArtInputRefs.current.delete(i); }}
+                            className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="Išči artikel..."
+                            onFocus={() => { setDdOpenIdx(i); setDdFilter(""); setDdHighlight(0); }}
+                            onBlur={() => setDdOpenIdx(null)}
+                            onChange={e => { setDdFilter(e.target.value); setDdHighlight(0); }}
+                            onKeyDown={e => {
+                              if (e.key === "Escape") { e.preventDefault(); setDdOpenIdx(null); return; }
+                              if (e.key === "ArrowDown") { e.preventDefault(); setDdHighlight(h => Math.min(h + 1, Math.max(0, filtered.length - 1))); return; }
+                              if (e.key === "ArrowUp") { e.preventDefault(); setDdHighlight(h => Math.max(h - 1, 0)); return; }
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                const art = filtered[ddHighlight];
+                                if (art) selectArtikelInEditRow(i, art.id);
+                              }
+                            }}
+                          />
+                        )}
+                        {isOpen && !selectedArtikel && (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
+                            {filtered.length === 0 ? (
+                              <p className="px-3 py-2 text-xs text-muted-foreground">Ni zadetkov za „{ddFilter}"</p>
+                            ) : filtered.map((a, j) => (
+                              <div key={a.id}
+                                className={`px-3 py-1.5 text-sm cursor-pointer ${j === ddHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
+                                onMouseDown={e => { e.preventDefault(); selectArtikelInEditRow(i, a.id); }}>
+                                {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {/* Količina */}
+                      <DecimalInput value={row.kolicina}
+                        onChange={e => updateRow(i, "kolicina", e.target.value)}
+                        onKeyDown={handleEnterAsTab}
+                        className="w-28" />
+                      {/* Cena */}
+                      <DecimalInput value={row.cenaKos}
+                        onChange={e => updateRow(i, "cenaKos", e.target.value)}
+                        onKeyDown={handleEnterAsTab}
+                        className="w-32" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8"
+                        onClick={() => removeRow(i)} disabled={rows.length === 1}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
               <div className="flex items-center justify-between">
                 <Button variant="outline" size="sm" onClick={addRow}>
