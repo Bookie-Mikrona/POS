@@ -217,8 +217,9 @@ function zaznajVrstoDobavitelja(naziv?: string | null, zavezanecDdv?: boolean | 
 type DobaviteljLookupStanje =
   | { tip: "idle" }
   | { tip: "loading" }
-  | { tip: "obstaja"; partner: ShranjenKupec }
-  | { tip: "najden_nov"; data: InetisRezultat }
+  | { tip: "obstaja"; partner: ShranjenKupec }          // bil v šifrantu pred iskanjem
+  | { tip: "shranjen"; id: number; data: InetisRezultat } // /poisci ga je ravno shranil
+  | { tip: "najden_nov"; data: InetisRezultat }          // DB-save spodletel, ročno ustvarjanje
   | { tip: "ni_najden" }
   | { tip: "napaka" };
 
@@ -268,7 +269,7 @@ function NovDobaviteljKartica({
   }
 
   async function poisciPoReg(davcnaNum: string) {
-    // 1. Preveri lokalni šifrant
+    // 1. Preveri lokalni šifrant PRED klicem API-ja
     const obstojecKupec = (kupci ?? []).find(
       k => (k.davcnaStevilka ?? "").trim() === davcnaNum
     );
@@ -287,15 +288,17 @@ function NovDobaviteljKartica({
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json() as InetisRezultat;
-      // Če register vrne id — partner je že v šifrantu (rub primer)
+
       if (data.id) {
-        const vLokalu = (kupci ?? []).find(k => k.id === data.id);
-        if (vLokalu) {
-          setStanje({ tip: "obstaja", partner: vLokalu });
-          setNaziv(vLokalu.naziv ?? "");
-          return;
-        }
+        // /api/kupec/poisci je samodejno shranil partnerja v šifrant in vrnil id.
+        // NE smemo klicati POST /kupec/shranjeni še enkrat — to bi ustvarilo duplikat.
+        // Invalidiramo cache, da se seznam posodobi z novim zapisom.
+        void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+        setStanje({ tip: "shranjen", id: data.id, data });
+        setNaziv(data.naziv ?? "");
+        return;
       }
+      // data.id je null — DB-shranitev je spodletela (redek primer), dovolimo ročno ustvarjanje
       setStanje({ tip: "najden_nov", data });
       setNaziv(data.naziv ?? "");
     } catch (err: unknown) {
@@ -407,6 +410,12 @@ function NovDobaviteljKartica({
             <Loader2 className="w-3 h-3 animate-spin" />Iščem v registru…
           </p>
         )}
+        {stanje.tip === "shranjen" && (
+          <p className="text-xs text-green-700 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            Najden in shranjen v šifrant — samo ga izberite.
+          </p>
+        )}
         {stanje.tip === "najden_nov" && (
           <p className="text-xs text-green-700 flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -422,6 +431,34 @@ function NovDobaviteljKartica({
           <p className="text-xs text-destructive">Napaka pri iskanju v registru.</p>
         )}
       </div>
+
+      {/* ── Partner ravno shranjen s strani /poisci ── */}
+      {stanje.tip === "shranjen" && (
+        <div className="rounded-md border border-green-200 bg-green-50 p-3 space-y-2">
+          <p className="text-xs font-semibold text-green-800 flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            Partner uvožen iz registra in dodan v šifrant
+          </p>
+          <p className="text-sm font-medium">{stanje.data.naziv}</p>
+          {(stanje.data.ulica || stanje.data.kraj) && (
+            <p className="text-xs text-muted-foreground">
+              {[stanje.data.ulica, stanje.data.postnaStevilka, stanje.data.kraj]
+                .filter(Boolean).join(", ")}
+            </p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={onClose}>
+              Prekliči
+            </Button>
+            <Button
+              size="sm" className="flex-1 h-8 text-xs"
+              onClick={() => { onCreated(stanje.id, stanje.data.naziv ?? ""); onClose(); }}
+            >
+              Izberi
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ── Partner že v šifrantu ── */}
       {stanje.tip === "obstaja" && (
@@ -460,8 +497,8 @@ function NovDobaviteljKartica({
         </div>
       )}
 
-      {/* ── Naziv (prikaži ko ni v šifrantu) ── */}
-      {stanje.tip !== "obstaja" && (
+      {/* ── Naziv (prikaži ko ni v šifrantu in ni ravno shranjen) ── */}
+      {stanje.tip !== "obstaja" && stanje.tip !== "shranjen" && (
         <>
           <div className="space-y-1">
             <Label className="text-xs">
