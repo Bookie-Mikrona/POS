@@ -958,6 +958,7 @@ function EditPrejemnicaDialog({
               editVrstaCen,
               jeDdvZavezanec,
             ),
+            enotVPaketu: enot,
           };
         }),
       } as any,
@@ -1688,6 +1689,7 @@ export default function Zaloge() {
               vrstaCen,
               jeDdvZavezanec,
             ),
+            enotVPaketu: enot,
           };
         }),
       } as any,
