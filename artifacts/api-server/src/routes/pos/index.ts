@@ -41,6 +41,7 @@ import prejemniceRouter from "./prejemnice";
 import izdajniceRouter from "./izdajnice";
 import zacetneZalogeRouter from "./zacetne-zaloge";
 import zalogeRouter from "./zaloge";
+import simRouter from "./sim";
 import posAuthRouter from "./auth";
 import posAdminUporabnikiRouter from "./admin-uporabniki";
 import terminalRouter from "./terminal";
@@ -108,5 +109,6 @@ router.use(requireEnota, izdajniceRouter);
 router.use(requireEnota, zacetneZalogeRouter);
 router.use(requireEnota, zalogeRouter);
 router.use(requireEnota, terminalRouter);
+router.use(simRouter); // sim: GET /sim is open; POST/DELETE use requireEnota internally
 
 export default router;

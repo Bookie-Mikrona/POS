@@ -42,6 +42,7 @@ import KitchenPage from "@/pages/Kitchen";
 import TocilnicaPage from "@/pages/Tocilnica";
 import IzmenePage from "@/pages/Izmene";
 import ZalogePage from "@/pages/Zaloge";
+import SimulacijaPage from "@/pages/Simulacija";
 import TestniZagoniPage from "@/pages/TestniZagoni";
 import PartnerjiPage from "@/pages/Partnerji";
 import DnevniMeniPage from "@/pages/DnevniMeni";
@@ -91,6 +92,7 @@ const secondaryNav = [
   { href: "/realizacija", label: "Realizacija", icon: FileText },
   { href: "/izmene", label: "Izmene", icon: Clock },
   { href: "/partnerji", label: "Partnerji", icon: BookUser },
+  { href: "/simulacija", label: "Simulacija", icon: FlaskConical },
   { href: "/nastavitve", label: "Nastavitve", icon: Settings },
 ];
 
@@ -526,6 +528,7 @@ function ProtectedRouter() {
         <Route path="/tocilnica" component={TocilnicaPage} />
         <Route path="/izmene" component={IzmenePage} />
         <Route path="/zaloge" component={ZalogePage} />
+        <Route path="/simulacija" component={SimulacijaPage} />
         <Route path="/partnerji" component={PartnerjiPage} />
         <Route path="/dnevni-meni" component={DnevniMeniPage} />
         <Route path="/nastavitve" component={SettingsPage} />

@@ -3,6 +3,7 @@ import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from
 import { artModSkupineTable, artikliTable, db, enoteTable, kategorijeTable, mizeTable, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable, prenosiNarocilTable, racuniTable, zacetneZalogeTable } from "@workspace/db";
 import { broadcast, broadcastTo } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
+import { getSimDatumOrNow } from "../../lib/sim-datum";
 
 function izracunajDDVNeskladje(postavke: { kolicina: number; cenaKos: number; skupaj: number; davek: number }[]): { imaNeskladje: boolean; razlika: number } {
   if (postavke.length === 0) return { imaNeskladje: false, razlika: 0 };
@@ -261,13 +262,16 @@ router.post("/narocila", async (req, res): Promise<void> => {
   }
 
   const companyId = (req as any).companyId as string;
+  const simDatumNarocilo = await getSimDatumOrNow(tenotaId);
 
   const [row] = await db.insert(narocilaTable).values({
     enotaId: tenotaId,
     mizaId: parsed.data.mizaId ?? null,
     opomba: parsed.data.opomba ?? null,
     status: "odprto",
-    skupaj: "0"}).returning();
+    skupaj: "0",
+    ustvarjeno: simDatumNarocilo,
+  }).returning();
 
   // Nastavi stevilka_narocila z raw SQL — Drizzle schema morda nima stolpca v runtime
   await db.execute(sql`

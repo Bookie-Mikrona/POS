@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
 import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, tiskalneNalogeTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { getSimDatumOrNow } from "../../lib/sim-datum";
 import { fursQrKoda, fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
 import { buildEscPosReceipt, buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
 import * as net from "net";
@@ -338,7 +339,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
     if (openShift) izmenaId = openShift.id;
   }
 
-  const datumCas = new Date();
+  const datumCas = await getSimDatumOrNow(tenotaId);
 
   // ZOI izračunamo lokalno PRED klicem FURS — zagotovi ZOI na izpisu tudi ko FURS ni dosegljiv
   const zoiLokalno = izracunajZOILokalno(
@@ -913,7 +914,7 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
   }));
 
   const fursNacin: "simulacija" | "testno" | "produkcija" = racun.status === "poslan" ? "produkcija" : nastavitve.fursNacin;
-  const datumCas = new Date();
+  const datumCas = await getSimDatumOrNow(tenotaId);
 
   let fursOdgovor: Awaited<ReturnType<typeof posljiNaFURS>>;
   try {
