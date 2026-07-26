@@ -4219,3 +4219,55 @@ export type RegisterDocumentBody = {
   fileSizeBytes?: number;
 };
 
+export interface IzdajnicaPostavkaInput {
+  artikelId: number;
+  kolicina: number;
+}
+
+export interface IzdajnicaInput {
+  datum?: string;
+  /** @nullable */
+  opomba?: string | null;
+  postavke: IzdajnicaPostavkaInput[];
+}
+
+export interface IzdajnicaUrediVnos {
+  datum?: string;
+  /** @nullable */
+  opomba?: string | null;
+  postavke?: IzdajnicaPostavkaInput[];
+}
+
+export interface IzdajnicaPostavkaPogled {
+  id: number;
+  artikelId: number;
+  artikelIme: string;
+  /** @nullable */
+  imeZaNabavo?: string | null;
+  /** @nullable */
+  enotaMere?: string | null;
+  kolicina: number;
+}
+
+export interface IzdajnicaGlava {
+  id: number;
+  /** @nullable */
+  stevilka?: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  steviloPostavk: number;
+}
+
+export interface IzdajnicaFull {
+  id: number;
+  /** @nullable */
+  stevilka?: string | null;
+  datum: string;
+  /** @nullable */
+  opomba?: string | null;
+  ustvarjeno: string;
+  postavke: IzdajnicaPostavkaPogled[];
+}
+

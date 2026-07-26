@@ -20,6 +20,7 @@ export * from "./nastavitve";
 export * from "./naprave";
 export * from "./zaloge";
 export * from "./prejemnice";
+export * from "./izdajnice";
 export * from "./inventure";
 export * from "./zacetne-zaloge";
 export * from "./shranjeni-kupci";

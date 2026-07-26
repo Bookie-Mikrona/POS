@@ -85,6 +85,10 @@ import type {
   InventuraGlava,
   InventuraInput,
   InventuraUrediVnos,
+  IzdajnicaFull,
+  IzdajnicaGlava,
+  IzdajnicaInput,
+  IzdajnicaUrediVnos,
   InvoiceWithLines,
   Izmena,
   IzmenaInput,
@@ -15723,3 +15727,156 @@ export const useCreateAnthropicConversation = <TError = ErrorType<unknown>,
       return useMutation(getCreateAnthropicConversationMutationOptions(options));
     }
 
+
+// ── Izdajnice ──────────────────────────────────────────────────────────────
+
+export const getListIzdajniceUrl = () => `/api/izdajnice`;
+
+export const listIzdajnice = async (options?: RequestInit): Promise<IzdajnicaGlava[]> => {
+  return customFetch<IzdajnicaGlava[]>(getListIzdajniceUrl(), { ...options, method: 'GET' });
+};
+
+export const getListIzdajniceQueryKey = () => [getListIzdajniceUrl()] as const;
+
+export const getListIzdajniceQueryOptions = <TData = Awaited<ReturnType<typeof listIzdajnice>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listIzdajnice>>, TError, TData>, request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListIzdajniceQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listIzdajnice>>> = ({ signal }) => listIzdajnice({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof listIzdajnice>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export type ListIzdajniceQueryResult = NonNullable<Awaited<ReturnType<typeof listIzdajnice>>>;
+export type ListIzdajniceQueryError = ErrorType<unknown>;
+
+export function useListIzdajnice<TData = Awaited<ReturnType<typeof listIzdajnice>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listIzdajnice>>, TError, TData>, request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListIzdajniceQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getCreateIzdajnicaUrl = () => `/api/izdajnice`;
+
+export const createIzdajnica = async (izdajnicaInput: IzdajnicaInput, options?: RequestInit): Promise<IzdajnicaFull> => {
+  return customFetch<IzdajnicaFull>(getCreateIzdajnicaUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(izdajnicaInput),
+  });
+};
+
+export const getCreateIzdajnicaMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof createIzdajnica>>, TError, { data: BodyType<IzdajnicaInput> }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof createIzdajnica>>, TError, { data: BodyType<IzdajnicaInput> }, TContext> => {
+  const mutationKey = ['createIzdajnica'];
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIzdajnica>>, { data: BodyType<IzdajnicaInput> }> = (props) => {
+    const { data } = props ?? {};
+    return createIzdajnica(data, requestOptions);
+  };
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export type CreateIzdajnicaMutationResult = NonNullable<Awaited<ReturnType<typeof createIzdajnica>>>;
+export type CreateIzdajnicaMutationBody = BodyType<IzdajnicaInput>;
+export type CreateIzdajnicaMutationError = ErrorType<unknown>;
+
+export const useCreateIzdajnica = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof createIzdajnica>>, TError, { data: BodyType<IzdajnicaInput> }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof createIzdajnica>>, TError, { data: BodyType<IzdajnicaInput> }, TContext> => {
+  return useMutation(getCreateIzdajnicaMutationOptions(options));
+};
+
+export const getGetIzdajnicaUrl = (id: number) => `/api/izdajnice/${id}`;
+
+export const getIzdajnica = async (id: number, options?: RequestInit): Promise<IzdajnicaFull> => {
+  return customFetch<IzdajnicaFull>(getGetIzdajnicaUrl(id), { ...options, method: 'GET' });
+};
+
+export const getGetIzdajnicaQueryKey = (id: number) => [getGetIzdajnicaUrl(id)] as const;
+
+export const getGetIzdajnicaQueryOptions = <TData = Awaited<ReturnType<typeof getIzdajnica>>, TError = ErrorType<unknown>>(
+  id: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getIzdajnica>>, TError, TData>, request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetIzdajnicaQueryKey(id);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getIzdajnica>>> = ({ signal }) => getIzdajnica(id, { signal, ...requestOptions });
+  return { queryKey, queryFn, enabled: id != null, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getIzdajnica>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export type GetIzdajnicaQueryResult = NonNullable<Awaited<ReturnType<typeof getIzdajnica>>>;
+export type GetIzdajnicaQueryError = ErrorType<unknown>;
+
+export function useGetIzdajnica<TData = Awaited<ReturnType<typeof getIzdajnica>>, TError = ErrorType<unknown>>(
+  id: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getIzdajnica>>, TError, TData>, request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetIzdajnicaQueryOptions(id, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getUpdateIzdajnicaUrl = (id: number) => `/api/izdajnice/${id}`;
+
+export const updateIzdajnica = async (id: number, izdajnicaUrediVnos: IzdajnicaUrediVnos, options?: RequestInit): Promise<IzdajnicaFull> => {
+  return customFetch<IzdajnicaFull>(getUpdateIzdajnicaUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(izdajnicaUrediVnos),
+  });
+};
+
+export const getUpdateIzdajnicaMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateIzdajnica>>, TError, { id: number; data: BodyType<IzdajnicaUrediVnos> }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof updateIzdajnica>>, TError, { id: number; data: BodyType<IzdajnicaUrediVnos> }, TContext> => {
+  const mutationKey = ['updateIzdajnica'];
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateIzdajnica>>, { id: number; data: BodyType<IzdajnicaUrediVnos> }> = (props) => {
+    const { id, data } = props ?? {};
+    return updateIzdajnica(id, data, requestOptions);
+  };
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export type UpdateIzdajnicaMutationResult = NonNullable<Awaited<ReturnType<typeof updateIzdajnica>>>;
+export type UpdateIzdajnicaMutationBody = BodyType<IzdajnicaUrediVnos>;
+export type UpdateIzdajnicaMutationError = ErrorType<unknown>;
+
+export const useUpdateIzdajnica = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateIzdajnica>>, TError, { id: number; data: BodyType<IzdajnicaUrediVnos> }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof updateIzdajnica>>, TError, { id: number; data: BodyType<IzdajnicaUrediVnos> }, TContext> => {
+  return useMutation(getUpdateIzdajnicaMutationOptions(options));
+};
+
+export const getDeleteIzdajnicaUrl = (id: number) => `/api/izdajnice/${id}`;
+
+export const deleteIzdajnica = async (id: number, options?: RequestInit): Promise<void> => {
+  return customFetch<void>(getDeleteIzdajnicaUrl(id), { ...options, method: 'DELETE' });
+};
+
+export const getDeleteIzdajnicaMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteIzdajnica>>, TError, { id: number }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof deleteIzdajnica>>, TError, { id: number }, TContext> => {
+  const mutationKey = ['deleteIzdajnica'];
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteIzdajnica>>, { id: number }> = (props) => {
+    const { id } = props ?? {};
+    return deleteIzdajnica(id, requestOptions);
+  };
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export type DeleteIzdajnicaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteIzdajnica>>>;
+export type DeleteIzdajnicaMutationError = ErrorType<unknown>;
+
+export const useDeleteIzdajnica = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteIzdajnica>>, TError, { id: number }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof deleteIzdajnica>>, TError, { id: number }, TContext> => {
+  return useMutation(getDeleteIzdajnicaMutationOptions(options));
+};

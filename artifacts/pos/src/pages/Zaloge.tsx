@@ -9,6 +9,13 @@ import {
   useCreateInventura,
   useUpdatePrejemnica,
   useDeletePrejemnica,
+  useListIzdajnice,
+  useCreateIzdajnica,
+  useUpdateIzdajnica,
+  useDeleteIzdajnica,
+  useGetIzdajnica,
+  getListIzdajniceQueryKey,
+  getGetIzdajnicaQueryKey,
   useUpdateInventura,
   useDeleteInventura,
   useGetKarticaArtikla,
@@ -68,6 +75,7 @@ const ENOTE_MERE = ["kom", "kg", "g", "l", "dl", "ml", "m", "m²", "m³", "par",
 type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string; enotVPaketu: string };
 type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
 type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
+type IzdajnicaRow = { artikelId: number; kolicina: string };
 
 // ── Datum helpers ──────────────────────────────────────────────────────────
 const formatDateSlo = (iso: string): string => {
@@ -965,6 +973,175 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
 }
 
 // ── Edit Prejemnica dialog ─────────────────────────────────────────────────
+// ── Edit Izdajnica dialog ──────────────────────────────────────────────────
+function EditIzdajnicaDialog({
+  id, nabavniArtikli, onClose, onSaved,
+}: {
+  id: number;
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data, isLoading } = useGetIzdajnica(id);
+  const updateIzdajnica = useUpdateIzdajnica();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [datum, setDatum] = useState("");
+  const [opomba, setOpomba] = useState("");
+  const [rows, setRows] = useState<IzdajnicaRow[]>([]);
+  const initializedId = useRef<number | null>(null);
+  const izdEditKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const [izdEditDdOpenIdx, setIzdEditDdOpenIdx] = useState<number | null>(null);
+  const [izdEditDdFilter, setIzdEditDdFilter] = useState("");
+  const [izdEditDdHighlight, setIzdEditDdHighlight] = useState(0);
+  const izdEditArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+
+  useEffect(() => {
+    if (!data) return;
+    if (initializedId.current === data.id) return;
+    initializedId.current = data.id;
+    setDatum(new Date(data.datum).toISOString().slice(0, 10));
+    setOpomba(data.opomba ?? "");
+    setRows(data.postavke.map((p: { artikelId: number; kolicina: number }) => ({ artikelId: p.artikelId, kolicina: String(p.kolicina) })));
+  }, [data]);
+
+  const updateArtikel = (i: number, artikelId: number) => {
+    setRows(r => r.map((row, j) => j === i ? { ...row, artikelId } : row));
+    setIzdEditDdOpenIdx(null);
+    setIzdEditDdFilter("");
+    setTimeout(() => izdEditKoliRefs.current.get(i)?.focus(), 30);
+  };
+  const addRow = () => setRows(r => [...r, { artikelId: 0, kolicina: "" }]);
+  const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
+
+  const handleSave = () => {
+    const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    updateIzdajnica.mutate({
+      id,
+      data: {
+        datum: datum || undefined,
+        opomba: opomba || null,
+        postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseDecimal(r.kolicina) || 0 })),
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListIzdajniceQueryKey() });
+        toast({ title: "Izdajnica posodobljena" });
+        onSaved();
+      },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+  useF2Save(handleSave, !updateIzdajnica.isPending && rows.length > 0);
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Uredi izdajnico</DialogTitle></DialogHeader>
+        {isLoading || rows.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Datum</Label>
+                <SmartDateInput value={datum} onChange={setDatum} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opomba</Label>
+                <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Opomba..." />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Postavke</Label>
+              <div className="space-y-2">
+                {rows.map((row, i) => {
+                  const isOpen = izdEditDdOpenIdx === i;
+                  const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
+                  const filtered = izdEditDdFilter
+                    ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdEditDdFilter.toLowerCase()))
+                    : nabavniArtikli;
+                  return (
+                    <div key={i} className="flex gap-2 items-center">
+                      <div className="relative flex-1">
+                        <input
+                          ref={el => { if (el) izdEditArtInputRefs.current.set(i, el); else izdEditArtInputRefs.current.delete(i); }}
+                          className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="Izberi artikel"
+                          value={isOpen ? izdEditDdFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
+                          onChange={e => { if (selectedArtikel) return; setIzdEditDdFilter(e.target.value); setIzdEditDdHighlight(0); if (!isOpen) setIzdEditDdOpenIdx(i); }}
+                          readOnly={!!selectedArtikel && !isOpen}
+                          onFocus={() => { if (!selectedArtikel) { setIzdEditDdOpenIdx(i); setIzdEditDdFilter(""); setIzdEditDdHighlight(0); } }}
+                          onKeyDown={e => {
+                            if (selectedArtikel && !isOpen) {
+                              if (e.key === "Enter") { e.preventDefault(); izdEditKoliRefs.current.get(i)?.focus(); return; }
+                              if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); setRows(r => r.map((row, j) => j === i ? { ...row, artikelId: 0 } : row)); setIzdEditDdOpenIdx(i); setIzdEditDdFilter(""); return; }
+                              return;
+                            }
+                            if (e.key === "Escape") { e.preventDefault(); setIzdEditDdOpenIdx(null); return; }
+                            if (e.key === "ArrowDown") { e.preventDefault(); setIzdEditDdHighlight(h => Math.min(h + 1, filtered.length - 1)); return; }
+                            if (e.key === "ArrowUp") { e.preventDefault(); setIzdEditDdHighlight(h => Math.max(h - 1, 0)); return; }
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isOpen) { setIzdEditDdOpenIdx(i); setIzdEditDdFilter(""); setIzdEditDdHighlight(0); return; }
+                              const art = filtered[izdEditDdHighlight];
+                              if (art) updateArtikel(i, art.id);
+                            }
+                          }}
+                        />
+                        {isOpen && (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
+                            {filtered.length === 0
+                              ? <div className="px-3 py-2 text-xs text-muted-foreground">Ni zadetkov</div>
+                              : filtered.map((a, j) => (
+                                <div key={a.id}
+                                  className={`px-3 py-1.5 text-sm cursor-pointer ${j === izdEditDdHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
+                                  onMouseDown={e => { e.preventDefault(); updateArtikel(i, a.id); }}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </div>
+                              ))
+                            }
+                          </div>
+                        )}
+                      </div>
+                      <DecimalInput
+                        ref={el => { if (el) izdEditKoliRefs.current.set(i, el); else izdEditKoliRefs.current.delete(i); }}
+                        placeholder="Količina"
+                        value={row.kolicina}
+                        onChange={e => setRows(r => r.map((row, j) => j === i ? { ...row, kolicina: e.target.value } : row))}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const el = izdEditKoliRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                          else if (e.key === "ArrowUp") { e.preventDefault(); const el = izdEditKoliRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                        }}
+                        className="w-28"
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeRow(i)} disabled={rows.length === 1}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+              <Button variant="outline" size="sm" onClick={addRow}>
+                <Plus className="w-4 h-4 mr-1" />Dodaj postavko
+              </Button>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button onClick={handleSave} disabled={updateIzdajnica.isPending || rows.length === 0}>
+            {updateIzdajnica.isPending ? "Shranjujem..." : <>Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EditPrejemnicaDialog({
   id, nabavniArtikli, zaloge, jeDdvZavezanec, onClose, onSaved,
 }: {
@@ -1648,7 +1825,7 @@ function EditZacetnaZalogaDialog({
     const focus = (ref: Map<number, HTMLInputElement>, row: number) => { const el = ref.get(row); if (el) { el.focus(); el.select(); } };
     if (dir === "up") focus(col === "koli" ? zzEditKoliRefs.current : zzEditCenaRefs.current, i - 1);
     else if (dir === "down") focus(col === "koli" ? zzEditKoliRefs.current : zzEditCenaRefs.current, i + 1);
-    else if (dir === "right" || (dir === "right" && col === "koli")) {
+    else if (dir === "right") {
       if (col === "koli") focus(zzEditCenaRefs.current, i);
       else focus(zzEditKoliRefs.current, i + 1);
     } else if (dir === "left") {
@@ -1816,6 +1993,7 @@ export default function Zaloge() {
   const { data: prejemnice, isLoading: loadingP } = useListPrejemnice();
   const { data: inventure, isLoading: loadingI } = useListInventure();
   const { data: zacetneZaloge, isLoading: loadingZZ } = useListZacetneZaloge();
+  const { data: izdajnice, isLoading: loadingIzd } = useListIzdajnice();
   const { data: artikli } = useListArtikli();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -2019,6 +2197,86 @@ export default function Zaloge() {
     if (!skipFocus) setTimeout(() => pakBtnRefs.current.get(rowIdx)?.focus(), 30);
   };
 
+  // ── Izdajnica create ───────────────────────────────────────────────
+  const [izdDialogOpen, setIzdDialogOpen] = useState(false);
+  const [izdDatum, setIzdDatum] = useState("");
+  const [izdOpomba, setIzdOpomba] = useState("");
+  const [izdRows, setIzdRows] = useState<IzdajnicaRow[]>([{ artikelId: 0, kolicina: "" }]);
+  const [izdDropdownOpenIdx, setIzdDropdownOpenIdx] = useState<number | null>(null);
+  const [izdDropdownFilter, setIzdDropdownFilter] = useState("");
+  const [izdDropdownHighlight, setIzdDropdownHighlight] = useState(0);
+  const [izdNovArtikelRowIdx, setIzdNovArtikelRowIdx] = useState<number | null>(null);
+  const izdArtInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const izdKoliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const izdAddBtnRef = useRef<HTMLButtonElement>(null);
+  const izdDatumRef = useRef<HTMLInputElement>(null);
+  const izdOpombaRef = useRef<HTMLInputElement>(null);
+  const createIzdajnica = useCreateIzdajnica();
+
+  const openIzdDialog = () => {
+    setIzdDatum(new Date().toISOString().slice(0, 10));
+    setIzdOpomba("");
+    setIzdRows([{ artikelId: 0, kolicina: "" }]);
+    setIzdDropdownOpenIdx(null);
+    setIzdDropdownFilter("");
+    setIzdDropdownHighlight(0);
+    setIzdNovArtikelRowIdx(null);
+    setIzdDialogOpen(true);
+    setTimeout(() => izdDatumRef.current?.focus(), 50);
+  };
+  const handleSaveIzdajnica = () => {
+    const validRows = izdRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    createIzdajnica.mutate({
+      data: {
+        datum: izdDatum || undefined,
+        opomba: izdOpomba || null,
+        postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseDecimal(r.kolicina) || 0 })),
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListIzdajniceQueryKey() });
+        setIzdDialogOpen(false);
+        toast({ title: "Izdajnica shranjena" });
+      },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  };
+  const addIzdRow = () => {
+    const newIdx = izdRows.length;
+    setIzdRows(r => [...r, { artikelId: 0, kolicina: "" }]);
+    setTimeout(() => izdArtInputRefs.current.get(newIdx)?.focus(), 30);
+  };
+  const removeIzdRow = (i: number) => setIzdRows(r => r.filter((_, j) => j !== i));
+  const updateIzdRow = <K extends keyof IzdajnicaRow>(i: number, key: K, val: IzdajnicaRow[K]) =>
+    setIzdRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+  const selectIzdArtikelInRow = (rowIdx: number, artikelId: number) => {
+    updateIzdRow(rowIdx, "artikelId", artikelId);
+    setIzdDropdownOpenIdx(null);
+    setIzdDropdownFilter("");
+    setTimeout(() => izdKoliInputRefs.current.get(rowIdx)?.focus(), 30);
+  };
+
+  // ── Izdajnica edit ─────────────────────────────────────────────────
+  const [editIzdId, setEditIzdId] = useState<number | null>(null);
+
+  // ── Izdajnica delete ───────────────────────────────────────────────
+  const [deleteIzdId, setDeleteIzdId] = useState<number | null>(null);
+  const deleteIzdajnica = useDeleteIzdajnica();
+  const handleDeleteIzdajnica = () => {
+    if (!deleteIzdId) return;
+    deleteIzdajnica.mutate({ id: deleteIzdId }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListIzdajniceQueryKey() });
+        setDeleteIzdId(null);
+        toast({ title: "Izdajnica izbrisana, zaloge povrnjene" });
+      },
+      onError: () => toast({ title: "Napaka pri brisanju", variant: "destructive" }),
+    });
+  };
+
   // ── Prejemnica edit ────────────────────────────────────────────────
   const [editPrejId, setEditPrejId] = useState<number | null>(null);
 
@@ -2144,6 +2402,7 @@ export default function Zaloge() {
       },
     });
   };
+  useF2Save(handleSaveIzdajnica, izdDialogOpen && !createIzdajnica.isPending);
   useF2Save(handleSavePrejemnica, prejDialogOpen && !createPrejemnica.isPending);
   useF2Save(handleSaveInventura, invDialogOpen && !createInventura.isPending);
   useF2Save(handleSaveZacetnaZaloga, zzDialogOpen && !createZacetnaZaloga.isPending);
@@ -2202,6 +2461,7 @@ export default function Zaloge() {
         <TabsList>
           <TabsTrigger value="zaloge">Trenutne zaloge</TabsTrigger>
           <TabsTrigger value="prejemnice">Prejemnice</TabsTrigger>
+          <TabsTrigger value="izdajnice">Izdajnice</TabsTrigger>
           <TabsTrigger value="inventure">Inventure</TabsTrigger>
           <TabsTrigger value="zacetne-zaloge">Začetne zaloge</TabsTrigger>
         </TabsList>
@@ -2371,6 +2631,52 @@ export default function Zaloge() {
           </Card>
         </TabsContent>
 
+        {/* ── Izdajnice ─────────────────────────────────────────────── */}
+        <TabsContent value="izdajnice" className="space-y-4 mt-4">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={openIzdDialog}>
+              <Plus className="w-4 h-4 mr-2" />Nova izdajnica
+            </Button>
+          </div>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-32">Številka</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Opomba</TableHead>
+                  <TableHead className="text-center">Postavke</TableHead>
+                  <TableHead className="w-20"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loadingIzd ? (
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
+                ) : (izdajnice ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Ni izdajnic</TableCell></TableRow>
+                ) : (izdajnice ?? []).map((iz: { id: number; stevilka?: string | null; datum: string; opomba?: string | null; steviloPostavk: number }) => (
+                  <TableRow key={iz.id}>
+                    <TableCell className="font-mono text-sm font-medium text-primary">{iz.stevilka ?? "–"}</TableCell>
+                    <TableCell className="font-medium">{fmtDatum(iz.datum)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{iz.opomba ?? "–"}</TableCell>
+                    <TableCell className="text-center"><Badge variant="outline">{iz.steviloPostavk ?? 0}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditIzdId(iz.id)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteIzdId(iz.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
         {/* ── Inventure ─────────────────────────────────────────────── */}
         <TabsContent value="inventure" className="space-y-4 mt-4">
           <div className="flex justify-end">
@@ -2478,6 +2784,153 @@ export default function Zaloge() {
       {karticeArtikelId != null && (
         <KarticaDialog artikelId={karticeArtikelId} onClose={() => setKarticeArtikelId(null)} />
       )}
+
+      {/* ── Izdajnica create dialog ──────────────────────────────────── */}
+      <Dialog open={izdDialogOpen} onOpenChange={v => { setIzdDialogOpen(v); if (!v) setIzdDropdownOpenIdx(null); }}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingDown className="w-5 h-5" />Nova izdajnica
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Datum</Label>
+                <SmartDateInput ref={izdDatumRef} value={izdDatum} onChange={setIzdDatum} defaultYear={currentYear}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); izdOpombaRef.current?.focus(); } }} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Opomba <span className="text-xs text-muted-foreground">(neobvezno)</span></Label>
+                <Input ref={izdOpombaRef} value={izdOpomba} onChange={e => setIzdOpomba(e.target.value)} placeholder="Dodatna opomba..."
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); izdArtInputRefs.current.get(0)?.focus(); } }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Postavke</Label>
+              <div className="space-y-2">
+                {izdRows.map((row, i) => {
+                  const isOpen = izdDropdownOpenIdx === i;
+                  const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
+                  const filtered = izdDropdownFilter
+                    ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(izdDropdownFilter.toLowerCase()))
+                    : nabavniArtikli;
+                  return (
+                    <Fragment key={i}>
+                    <div className="flex gap-2 items-center">
+                      <div className="relative flex-1">
+                        <input
+                          ref={el => { if (el) izdArtInputRefs.current.set(i, el); else izdArtInputRefs.current.delete(i); }}
+                          className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="Izberi artikel"
+                          value={isOpen ? izdDropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
+                          onChange={e => {
+                            if (selectedArtikel) return;
+                            setIzdDropdownFilter(e.target.value);
+                            setIzdDropdownHighlight(0);
+                            if (izdDropdownOpenIdx !== i) setIzdDropdownOpenIdx(i);
+                          }}
+                          readOnly={!!selectedArtikel && !isOpen}
+                          onFocus={() => {
+                            if (!selectedArtikel && izdDropdownOpenIdx !== i) {
+                              setIzdDropdownOpenIdx(i); setIzdDropdownFilter(""); setIzdDropdownHighlight(0);
+                            }
+                          }}
+                          onKeyDown={e => {
+                            if (selectedArtikel && !isOpen) {
+                              if (e.key === "Enter") { e.preventDefault(); izdKoliInputRefs.current.get(i)?.focus(); return; }
+                              if (e.key === "ArrowDown") { e.preventDefault(); const el = izdKoliInputRefs.current.get(i + 1) ?? izdArtInputRefs.current.get(i + 1); el?.focus(); return; }
+                              if (e.key === "ArrowUp") { e.preventDefault(); const el = izdArtInputRefs.current.get(i - 1); el?.focus(); return; }
+                              if (e.key === "Backspace" || e.key === "Delete") {
+                                e.preventDefault();
+                                updateIzdRow(i, "artikelId", 0);
+                                setIzdDropdownOpenIdx(i); setIzdDropdownFilter(""); setIzdDropdownHighlight(0);
+                              }
+                              return;
+                            }
+                            if (e.key === "Escape") { e.preventDefault(); setIzdDropdownOpenIdx(null); return; }
+                            if (e.key === "ArrowDown") { e.preventDefault(); if (isOpen) setIzdDropdownHighlight(h => Math.min(h + 1, filtered.length - 1)); return; }
+                            if (e.key === "ArrowUp") { e.preventDefault(); if (isOpen) setIzdDropdownHighlight(h => Math.max(h - 1, 0)); return; }
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isOpen) { setIzdDropdownOpenIdx(i); setIzdDropdownFilter(""); setIzdDropdownHighlight(0); return; }
+                              if (filtered.length === 0) { setIzdDropdownOpenIdx(null); setIzdNovArtikelRowIdx(i); return; }
+                              const art = filtered[izdDropdownHighlight];
+                              if (art) selectIzdArtikelInRow(i, art.id);
+                            }
+                          }}
+                        />
+                        {isOpen && (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
+                            {filtered.length === 0
+                              ? (
+                                <div className="px-3 py-2 space-y-1.5">
+                                  <p className="text-xs text-muted-foreground">
+                                    {izdDropdownFilter ? `Ni zadetkov za „${izdDropdownFilter}"` : "Ni artiklov v šifrantu"}
+                                  </p>
+                                  <button
+                                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline focus:outline-none focus:ring-1 focus:ring-ring rounded"
+                                    onMouseDown={e => { e.preventDefault(); setIzdDropdownOpenIdx(null); setIzdNovArtikelRowIdx(i); }}>
+                                    <Plus className="w-3.5 h-3.5" />Nov artikel v šifrant
+                                  </button>
+                                </div>
+                              )
+                              : filtered.map((a, j) => (
+                                <div key={a.id}
+                                  className={`px-3 py-1.5 text-sm cursor-pointer ${j === izdDropdownHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
+                                  onMouseDown={e => { e.preventDefault(); selectIzdArtikelInRow(i, a.id); }}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                </div>
+                              ))
+                            }
+                          </div>
+                        )}
+                      </div>
+                      <DecimalInput
+                        ref={el => { if (el) izdKoliInputRefs.current.set(i, el); else izdKoliInputRefs.current.delete(i); }}
+                        placeholder="Količina"
+                        value={row.kolicina}
+                        onChange={e => updateIzdRow(i, "kolicina", e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") { e.preventDefault(); izdAddBtnRef.current?.focus(); }
+                          else if (e.key === "ArrowUp") { e.preventDefault(); const el = izdKoliInputRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                          else if (e.key === "ArrowDown") { e.preventDefault(); const el = izdKoliInputRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                        }}
+                        className="w-28"
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeIzdRow(i)} disabled={izdRows.length === 1}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                    {izdNovArtikelRowIdx === i && (
+                      <NovArtikelKartica
+                        imePredlog={izdDropdownFilter}
+                        onClose={() => setIzdNovArtikelRowIdx(null)}
+                        onCreated={id => {
+                          void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+                          setIzdNovArtikelRowIdx(null);
+                          setTimeout(() => { selectIzdArtikelInRow(i, id); }, 150);
+                        }}
+                      />
+                    )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+              <Button
+                ref={izdAddBtnRef}
+                variant="outline" size="sm"
+                onClick={addIzdRow}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addIzdRow(); } }}>
+                <Plus className="w-4 h-4 mr-1" />Dodaj postavko
+              </Button>
+            </div>
+            <Button className="w-full" onClick={handleSaveIzdajnica} disabled={createIzdajnica.isPending}>
+              {createIzdajnica.isPending ? "Shranjujem..." : <>Shrani izdajnico <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Prejemnica create dialog ─────────────────────────────────── */}
       <Dialog open={prejDialogOpen} onOpenChange={v => { setPrejDialogOpen(v); if (!v) setDropdownOpenIdx(null); }}>
@@ -2813,6 +3266,40 @@ export default function Zaloge() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Izdajnica edit dialog ─────────────────────────────────────── */}
+      {editIzdId != null && (
+        <EditIzdajnicaDialog
+          id={editIzdId}
+          nabavniArtikli={nabavniArtikli}
+          onClose={() => setEditIzdId(null)}
+          onSaved={() => {
+            const savedId = editIzdId;
+            setEditIzdId(null);
+            queryClient.resetQueries({ queryKey: getGetIzdajnicaQueryKey(savedId) });
+            queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getListIzdajniceQueryKey() });
+          }}
+        />
+      )}
+
+      {/* ── Izdajnica delete confirm ───────────────────────────────────── */}
+      <AlertDialog open={!!deleteIzdId} onOpenChange={v => !v && setDeleteIzdId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Izbriši izdajnico?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Izdajnica bo izbrisana in <strong>zaloge bodo povrnjene</strong> za količino iz te izdajnice. Tega dejanja ni mogoče razveljaviti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Prekliči</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteIzdajnica} disabled={deleteIzdajnica.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteIzdajnica.isPending ? "Brišem..." : "Potrdi"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Prejemnica edit dialog ────────────────────────────────────── */}
       {editPrejId != null && (
