@@ -799,7 +799,7 @@ function EditPrejemnicaDialog({
     }
   }, [data]);
 
-  const addRow = () => setRows(r => [...r, { artikelId: nabavniArtikli[0]?.id ?? 0, kolicina: "", cenaKos: "" }]);
+  const addRow = () => setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
   const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
   const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
