@@ -81,12 +81,11 @@ function TipBadge({ tip }: { tip: string }) {
 
 // ── Dobavitelj combobox ────────────────────────────────────────────────────
 function DobaviteljCombobox({
-  value, kupci, onChange, onDodajNovega,
+  value, kupci, onChange,
 }: {
   value: number | null;
   kupci: ShranjenKupec[];
   onChange: (id: number | null, naziv: string) => void;
-  onDodajNovega: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -132,11 +131,8 @@ function DobaviteljCombobox({
           </button>
         )}
       </div>
-      {open && (
+      {open && filtered.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
-          {filtered.length === 0 && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">Ni zadetkov</div>
-          )}
           {filtered.map(k => (
             <div
               key={k.id}
@@ -147,13 +143,11 @@ function DobaviteljCombobox({
               {k.davcnaStevilka && <div className="text-xs text-muted-foreground">ID: {k.davcnaStevilka}</div>}
             </div>
           ))}
-          <div
-            className="px-3 py-2 text-sm cursor-pointer hover:bg-primary/10 text-primary font-medium border-t flex items-center gap-1.5"
-            onMouseDown={e => { e.preventDefault(); setOpen(false); onDodajNovega(); }}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            Dodaj novega dobavitelja
-          </div>
+        </div>
+      )}
+      {open && filtered.length === 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg px-3 py-2 text-sm text-muted-foreground">
+          Ni zadetkov
         </div>
       )}
     </div>
@@ -415,12 +409,25 @@ function EditPrejemnicaDialog({
               </div>
               <div className="space-y-2">
                 <Label>Dobavitelj</Label>
-                <DobaviteljCombobox
-                  value={dobaviteljId}
-                  kupci={kupci ?? []}
-                  onChange={(id) => setDobaviteljId(id)}
-                  onDodajNovega={() => setNovDobaviteljOpen(true)}
-                />
+                <div className="flex gap-1.5">
+                  <div className="flex-1">
+                    <DobaviteljCombobox
+                      value={dobaviteljId}
+                      kupci={kupci ?? []}
+                      onChange={(id) => setDobaviteljId(id)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-9 w-9"
+                    title="Dodaj novega dobavitelja"
+                    onClick={() => setNovDobaviteljOpen(v => !v)}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -1438,14 +1445,39 @@ export default function Zaloge() {
               </div>
               <div className="space-y-1.5">
                 <Label>Dobavitelj</Label>
-                <DobaviteljCombobox
-                  value={prejDobaviteljId}
-                  kupci={kupci ?? []}
-                  onChange={(id, naziv) => { setPrejDobaviteljId(id); setPrejDobaviteljNaziv(naziv); }}
-                  onDodajNovega={() => setNovDobaviteljOpen(true)}
-                />
+                <div className="flex gap-1.5">
+                  <div className="flex-1">
+                    <DobaviteljCombobox
+                      value={prejDobaviteljId}
+                      kupci={kupci ?? []}
+                      onChange={(id, naziv) => { setPrejDobaviteljId(id); setPrejDobaviteljNaziv(naziv); }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-9 w-9"
+                    title="Dodaj novega dobavitelja"
+                    onClick={() => setNovDobaviteljOpen(v => !v)}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
+            {/* Nov dobavitelj inline */}
+            {novDobaviteljOpen && (
+              <NovDobaviteljKartica
+                onClose={() => setNovDobaviteljOpen(false)}
+                onCreated={(id, naziv) => {
+                  setPrejDobaviteljId(id);
+                  setPrejDobaviteljNaziv(naziv);
+                  setNovDobaviteljOpen(false);
+                  queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+                }}
+              />
+            )}
             {/* Številka + Datum dobavnice */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
