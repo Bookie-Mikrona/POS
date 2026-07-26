@@ -1077,7 +1077,7 @@ function EditPrejemnicaDialog({
     setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "" }]);
     setTimeout(() => editArtInputRefs.current.get(newIdx)?.focus(), 30);
   };
-  const selectArtikelInEditRow = (rowIdx: number, artikelId: number) => {
+  const selectArtikelInEditRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
     const zadnjaCenaNeto = zaloge?.find(z => z.artikelId === artikelId)?.zadnjaCena ?? null;
     const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
     const prikazCena = zadnjaCenaNeto != null
@@ -1090,7 +1090,7 @@ function EditPrejemnicaDialog({
       : row));
     setDdOpenIdx(null);
     setDdFilter("");
-    setTimeout(() => editKoliInputRefs.current.get(rowIdx)?.focus(), 30);
+    if (!skipFocus) setTimeout(() => editKoliInputRefs.current.get(rowIdx)?.focus(), 30);
   };
   const removeRow = (i: number) => setRows(r => {
     const next = r.filter((_, j) => j !== i);
@@ -1391,7 +1391,7 @@ function EditPrejemnicaDialog({
                         onCreated={id => {
                           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
                           setEditNovArtikelRowIdx(null);
-                          setTimeout(() => { selectArtikelInEditRow(i, id); editPakBtnRefs.current.get(i)?.focus(); }, 150);
+                          setTimeout(() => { selectArtikelInEditRow(i, id, true); editPakBtnRefs.current.get(i)?.focus(); }, 150);
                         }}
                       />
                     )}
