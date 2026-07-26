@@ -28,6 +28,8 @@ import {
   useReconcileZaloge,
   useListShranjeniKupci,
   useCreateShranjenKupec,
+  useOsveziShranjenKupec,
+  useUpdateShranjenKupec,
   getListShranjeniKupciQueryKey,
   getEnotaId,
   type ShranjenKupec,
@@ -168,11 +170,47 @@ interface InetisRezultat {
   davcnaStevilka?: string | null;
   idZaDdv?: string | null;
   maticnaStevilka?: string | null;
+  trr?: { iban: string; bic: string }[] | null;
   email?: string | null;
   telefon?: string | null;
+  eRacunPrejemnik?: boolean | null;
+  eRacunOmrezje?: string | null;
+  eRacunEmail?: string | null;
+  eRacunNaslov?: string | null;
+  eRacunSifraPu?: string | null;
+  eRacunBic?: string | null;
+}
+
+type VrstaDobavitelja = "obcan" | "sp" | "podjetje" | "kmet" | "javni_sektor" | null;
+
+function popravljTrrBic(trr: { iban: string; bic: string }[]): { iban: string; bic: string }[] {
+  return trr.map(t =>
+    t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
+      ? { ...t, bic: "BSLJSI2X" }
+      : t
+  );
+}
+
+function zaznajVrstoDobavitelja(naziv?: string | null, zavezanecDdv?: boolean | null, maticnaStevilka?: string | null): VrstaDobavitelja {
+  if (!naziv) return null;
+  if (/\bd\.\s*o\.\s*o\.|\bd\.\s*d\.|\bk\.\s*d\.|\bz\.\s*o\.\s*o\.|\bd\.\s*n\.\s*o\.|\be\.\s*s\.\s*p\.|\bk\.\s*d\.\s*d\.|\bs\.\s*k\.\s*e\./i.test(naziv)) return "podjetje";
+  if (/\bs\.\s*p\.(\s|$|,)/i.test(naziv)) return "sp";
+  if (/\bkmetij|\bkmet\b|\bkgz\b/i.test(naziv)) return "kmet";
+  if (/\bšola\b|\bvrtec\b|\bgimnazija\b|\blicej\b|\buniverzit|\bfakultet|\binštitut\b|\bzavod\b|\bobčina\b|\bministrstvo\b|\bagencija\b|\buprava\b|\bsodišče\b|\bbolnica\b|\bdom\s+zdravja\b|\bzdravstveni\s+dom\b|\bdom\s+starejših\b|\bdom\s+upokojencev\b|\bjavni\s+sklad\b|\bkrajevna\s+skupnost\b|\bmestna\s+občina\b/i.test(naziv)) return "javni_sektor";
+  if (maticnaStevilka?.trim()) return "podjetje";
+  if (!zavezanecDdv) return "obcan";
+  return null;
 }
 
 // ── Nov dobavitelj inline kartica ─────────────────────────────────────────
+type DobaviteljLookupStanje =
+  | { tip: "idle" }
+  | { tip: "loading" }
+  | { tip: "obstaja"; partner: ShranjenKupec }
+  | { tip: "najden_nov"; data: InetisRezultat }
+  | { tip: "ni_najden" }
+  | { tip: "napaka" };
+
 function NovDobaviteljKartica({
   onClose, onCreated,
 }: {
@@ -181,20 +219,55 @@ function NovDobaviteljKartica({
 }) {
   const [naziv, setNaziv] = useState("");
   const [davcna, setDavcna] = useState("");
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupNajden, setLookupNajden] = useState(false);
-  const [lookupNapaka, setLookupNapaka] = useState(false);
-  const [registriranData, setRegistriranData] = useState<InetisRezultat | null>(null);
+  const [stanje, setStanje] = useState<DobaviteljLookupStanje>({ tip: "idle" });
+  const { data: kupci } = useListShranjeniKupci();
   const createMutation = useCreateShranjenKupec();
+  const updateMutation = useUpdateShranjenKupec();
+  const osveziMutation = useOsveziShranjenKupec();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+  // Zgradi popoln payload iz registrskih podatkov — enako kot Partnerji.tsx
+  function sestavljPayload(reg: InetisRezultat, nazivOverride: string) {
+    return {
+      vrstaPartnerja: zaznajVrstoDobavitelja(reg.naziv, reg.zavezanecDdv, reg.maticnaStevilka) ?? null,
+      naziv: nazivOverride.trim() || reg.naziv?.trim() || "",
+      kratkiNaziv: reg.kratkiNaziv?.trim() || null,
+      ulica: reg.ulica?.trim() || null,
+      postnaStevilka: reg.postnaStevilka?.trim() || null,
+      kraj: reg.kraj?.trim() || null,
+      drzava: reg.drzava?.trim() || "Slovenija",
+      kodaDrzave: reg.kodaDrzave?.trim() || "SI",
+      zavezanecDdv: reg.zavezanecDdv ?? null,
+      davcnaStevilka: reg.davcnaStevilka?.trim() || davcna.trim() || null,
+      idZaDdv: reg.idZaDdv?.trim() || null,
+      maticnaStevilka: reg.maticnaStevilka?.trim() || null,
+      kmgMid: null,
+      eRacunPrejemnik: reg.eRacunPrejemnik ?? null,
+      eRacunOmrezje: reg.eRacunOmrezje?.trim() || null,
+      eRacunEmail: reg.eRacunEmail?.trim() || null,
+      eRacunNaslov: reg.eRacunNaslov?.trim() || null,
+      eRacunSifraPu: reg.eRacunSifraPu?.trim() || null,
+      eRacunBic: reg.eRacunBic?.trim() || null,
+      trr: reg.trr?.length ? popravljTrrBic(reg.trr) : [],
+      email: reg.email?.trim() || null,
+      telefon: reg.telefon?.trim() || null,
+    };
+  }
+
   async function poisciPoReg(davcnaNum: string) {
-    setLookupLoading(true);
-    setLookupNajden(false);
-    setLookupNapaka(false);
-    setRegistriranData(null);
+    // 1. Preveri lokalni šifrant
+    const obstojecKupec = (kupci ?? []).find(
+      k => (k.davcnaStevilka ?? "").trim() === davcnaNum
+    );
+    if (obstojecKupec) {
+      setStanje({ tip: "obstaja", partner: obstojecKupec });
+      setNaziv(obstojecKupec.naziv ?? "");
+      return;
+    }
+    // 2. Iskanje v registru
+    setStanje({ tip: "loading" });
     try {
       const enotaId = getEnotaId();
       const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcnaNum}`, {
@@ -203,23 +276,30 @@ function NovDobaviteljKartica({
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json() as InetisRezultat;
-      setRegistriranData(data);
-      setLookupNajden(true);
-      if (data.naziv) setNaziv(data.naziv);
-    } catch {
-      setLookupNapaka(true);
-    } finally {
-      setLookupLoading(false);
+      // Če register vrne id — partner je že v šifrantu (rub primer)
+      if (data.id) {
+        const vLokalu = (kupci ?? []).find(k => k.id === data.id);
+        if (vLokalu) {
+          setStanje({ tip: "obstaja", partner: vLokalu });
+          setNaziv(vLokalu.naziv ?? "");
+          return;
+        }
+      }
+      setStanje({ tip: "najden_nov", data });
+      setNaziv(data.naziv ?? "");
+    } catch (err: unknown) {
+      const status = (err as { message?: string })?.message ?? "";
+      if (status.includes("404")) setStanje({ tip: "ni_najden" });
+      else setStanje({ tip: "napaka" });
     }
   }
 
-  // Avtomatsko iskanje ko je vnesenih točno 8 črt (slovenška davčna)
+  // Samodejno iskanje ko je vnesenih točno 8 cifr
   useEffect(() => {
     const trimmed = davcna.trim();
     if (!/^\d{8}$/.test(trimmed)) {
-      setLookupNajden(false);
-      setLookupNapaka(false);
-      setRegistriranData(null);
+      setStanje({ tip: "idle" });
+      setNaziv("");
       return;
     }
     const t = setTimeout(() => { void poisciPoReg(trimmed); }, 600);
@@ -227,30 +307,58 @@ function NovDobaviteljKartica({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [davcna]);
 
+  // Shrani novega dobavitelja z vsemi polji iz registra
   function handleShrani() {
-    if (!naziv.trim()) { toast({ title: "Naziv je obvezen", variant: "destructive" }); return; }
-    const payload: Record<string, unknown> = {
-      naziv: naziv.trim(),
-      davcnaStevilka: davcna.trim() || null,
-    };
-    if (registriranData) {
-      if (registriranData.kratkiNaziv) payload.kratkiNaziv = registriranData.kratkiNaziv;
-      if (registriranData.ulica) payload.ulica = registriranData.ulica;
-      if (registriranData.postnaStevilka) payload.postnaStevilka = registriranData.postnaStevilka;
-      if (registriranData.kraj) payload.kraj = registriranData.kraj;
-      if (registriranData.drzava) payload.drzava = registriranData.drzava;
-      if (registriranData.kodaDrzave) payload.kodaDrzave = registriranData.kodaDrzave;
-      if (registriranData.maticnaStevilka) payload.maticnaStevilka = registriranData.maticnaStevilka;
-      if (registriranData.idZaDdv) payload.idZaDdv = registriranData.idZaDdv;
-      if (registriranData.zavezanecDdv != null) payload.zavezanecDdv = registriranData.zavezanecDdv;
-      if (registriranData.email) payload.email = registriranData.email;
-      if (registriranData.telefon) payload.telefon = registriranData.telefon;
+    if (!naziv.trim()) {
+      toast({ title: "Naziv je obvezen", variant: "destructive" });
+      return;
     }
-    createMutation.mutate({ data: payload as any }, {
-      onSuccess: data => { onCreated(data.id, data.naziv); onClose(); },
-      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
-    });
+    if (stanje.tip === "najden_nov") {
+      const payload = sestavljPayload(stanje.data, naziv);
+      createMutation.mutate({ data: payload as any }, {
+        onSuccess: d => {
+          void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+          onCreated(d.id, d.naziv);
+          onClose();
+        },
+        onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+      });
+    } else {
+      // Brez registrskih podatkov — minimalen vnos (le naziv + davčna)
+      createMutation.mutate({
+        data: {
+          naziv: naziv.trim(),
+          davcnaStevilka: davcna.trim() || null,
+        } as any,
+      }, {
+        onSuccess: d => {
+          void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+          onCreated(d.id, d.naziv);
+          onClose();
+        },
+        onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+      });
+    }
   }
+
+  // Posodobi obstoječega in ga izberi
+  async function handleObstajaPosodobi(partner: ShranjenKupec) {
+    try {
+      // Osvezi iz registra (pridobi sveže podatke iz AJPES/INETIS)
+      const updated = await osveziMutation.mutateAsync({ id: partner.id });
+      void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+      toast({ title: "Partner posodobljen", description: `„${updated.naziv}" je bil osveži iz registra.` });
+      onCreated(updated.id, updated.naziv);
+      onClose();
+    } catch {
+      // Osveževanje ni uspelo — samo izberi obstoječega
+      toast({ title: "Osveževanje registra ni uspelo", description: "Partner je bil izbran brez osvežitve.", variant: "destructive" });
+      onCreated(partner.id, partner.naziv ?? "");
+      onClose();
+    }
+  }
+
+  const jeZaseden = createMutation.isPending || updateMutation.isPending || osveziMutation.isPending;
 
   return (
     <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
@@ -258,7 +366,7 @@ function NovDobaviteljKartica({
         <Building2 className="w-4 h-4 shrink-0" />Nov dobavitelj
       </p>
 
-      {/* Davčna številka — primarna vstopna točka */}
+      {/* ── Davčna številka ── */}
       <div className="space-y-1">
         <Label className="text-xs">Davčna številka</Label>
         <div className="flex gap-1.5">
@@ -271,65 +379,115 @@ function NovDobaviteljKartica({
             maxLength={8}
           />
           <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2 shrink-0"
-            disabled={!/^\d{8}$/.test(davcna.trim()) || lookupLoading}
+            variant="outline" size="sm" className="h-8 px-2 shrink-0"
+            disabled={!/^\d{8}$/.test(davcna.trim()) || stanje.tip === "loading"}
             onClick={() => void poisciPoReg(davcna.trim())}
             title="Poišči v registru"
           >
-            {lookupLoading
+            {stanje.tip === "loading"
               ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <SearchIcon className="w-4 h-4" />
-            }
+              : <SearchIcon className="w-4 h-4" />}
           </Button>
         </div>
-        {lookupNajden && registriranData && (
-          <p className="text-xs text-green-700 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            Najden v registru — podatki so bili samodejno uvoženi.
+
+        {/* Statusna vrstica */}
+        {stanje.tip === "loading" && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />Iščem v registru…
           </p>
         )}
-        {lookupNapaka && (
+        {stanje.tip === "najden_nov" && (
+          <p className="text-xs text-green-700 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            Najden v registru — vsi podatki bodo uvoženi.
+          </p>
+        )}
+        {stanje.tip === "ni_najden" && (
           <p className="text-xs text-amber-700">
             Podjetja s to davčno ni v registru — vnesite naziv ročno.
           </p>
         )}
+        {stanje.tip === "napaka" && (
+          <p className="text-xs text-destructive">Napaka pri iskanju v registru.</p>
+        )}
       </div>
 
-      {/* Naziv */}
-      <div className="space-y-1">
-        <Label className="text-xs">
-          Naziv <span className="text-destructive">*</span>
-          {lookupNajden && <span className="text-muted-foreground font-normal"> (samodejno izpolnjen — po potrebi popravite)</span>}
-        </Label>
-        <Input
-          value={naziv}
-          onChange={e => setNaziv(e.target.value)}
-          placeholder="npr. Mercator d.o.o."
-          className="h-8 text-sm"
-          onKeyDown={e => e.key === "Enter" && handleShrani()}
-        />
-      </div>
-
-      {/* Naslov (samo ko je bil uvoz iz registra) */}
-      {lookupNajden && registriranData && (registriranData.ulica || registriranData.kraj) && (
-        <p className="text-xs text-muted-foreground px-0.5">
-          {[registriranData.ulica, registriranData.postnaStevilka, registriranData.kraj]
-            .filter(Boolean).join(", ")}
-        </p>
+      {/* ── Partner že v šifrantu ── */}
+      {stanje.tip === "obstaja" && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
+          <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            Ta partner je že v šifrantu
+          </p>
+          <p className="text-sm font-medium">{stanje.partner.naziv}</p>
+          {(stanje.partner.ulica || stanje.partner.kraj) && (
+            <p className="text-xs text-muted-foreground">
+              {[stanje.partner.ulica, stanje.partner.postnaStevilka, stanje.partner.kraj]
+                .filter(Boolean).join(", ")}
+            </p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={onClose}>
+              Prekliči
+            </Button>
+            <Button
+              variant="outline" size="sm" className="flex-1 h-8 text-xs"
+              onClick={() => { onCreated(stanje.partner.id, stanje.partner.naziv ?? ""); onClose(); }}
+            >
+              Samo izberi
+            </Button>
+            <Button
+              size="sm" className="flex-1 h-8 text-xs"
+              disabled={jeZaseden}
+              onClick={() => void handleObstajaPosodobi(stanje.partner)}
+            >
+              {osveziMutation.isPending
+                ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Osvežujem…</>
+                : "Osveži in izberi"}
+            </Button>
+          </div>
+        </div>
       )}
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onClose}>Prekliči</Button>
-        <Button
-          size="sm"
-          onClick={handleShrani}
-          disabled={createMutation.isPending || !naziv.trim() || lookupLoading}
-        >
-          {createMutation.isPending ? "Shranjujem..." : "Dodaj dobavitelja"}
-        </Button>
-      </div>
+      {/* ── Naziv (prikaži ko ni v šifrantu) ── */}
+      {stanje.tip !== "obstaja" && (
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              Naziv <span className="text-destructive">*</span>
+              {stanje.tip === "najden_nov" && (
+                <span className="text-muted-foreground font-normal"> (iz registra — po potrebi popravite)</span>
+              )}
+            </Label>
+            <Input
+              value={naziv}
+              onChange={e => setNaziv(e.target.value)}
+              placeholder="npr. Mercator d.o.o."
+              className="h-8 text-sm"
+              onKeyDown={e => e.key === "Enter" && handleShrani()}
+            />
+          </div>
+
+          {/* Naslov iz registra */}
+          {stanje.tip === "najden_nov" && (stanje.data.ulica || stanje.data.kraj) && (
+            <p className="text-xs text-muted-foreground">
+              {[stanje.data.ulica, stanje.data.postnaStevilka, stanje.data.kraj]
+                .filter(Boolean).join(", ")}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>Prekliči</Button>
+            <Button
+              size="sm"
+              onClick={handleShrani}
+              disabled={jeZaseden || !naziv.trim() || stanje.tip === "loading"}
+            >
+              {createMutation.isPending ? "Shranjujem…" : "Dodaj dobavitelja"}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
