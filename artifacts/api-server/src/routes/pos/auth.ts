@@ -116,7 +116,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     companyNaslov: uporabnik.companyNaslov ?? null,
     podjetjeDavcna: uporabnik.companyDavcna ?? "",
     idZaDdv: uporabnik.companyIdZaDdv ?? null,
-    jeDdvZavezanec: typeof uporabnik.companyIdZaDdv === "string" && uporabnik.companyIdZaDdv.toUpperCase().startsWith("SI"),
+    jeDdvZavezanec: uporabnik.companyZavezanecDdv ?? false,
     imaTrr: Array.isArray(uporabnik.companyTrr) && (uporabnik.companyTrr as Array<{ iban?: string }>).some(t => typeof t.iban === "string" && t.iban.trim().length > 0),
     enotaId: uporabnik.enotaId,
     enotaIme: uporabnik.enotaIme ?? null,

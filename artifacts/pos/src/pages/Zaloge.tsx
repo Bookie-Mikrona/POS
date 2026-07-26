@@ -38,7 +38,6 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNastavitve } from "@/contexts/NastavitveContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
@@ -1472,9 +1471,8 @@ export default function Zaloge() {
 
   const nabavniArtikli = (artikli ?? []).filter(a => a.nabavniArtikel);
 
-  // ── DDV zavezanec: neprazno idZaDdv = zavezanec (SI + davčna), prazno = ni zavezanec ──
-  const { nastavitve } = useNastavitve();
-  const jeDdvZavezanec = !!((nastavitve as any)?.idZaDdv);
+  // ── DDV zavezanec: bere se iz companiesTable.zavezanecDdv prek user profila ──
+  const jeDdvZavezanec = user?.jeDdvZavezanec ?? false;
 
   // ── Kartica ────────────────────────────────────────────────────────
   const [karticeArtikelId, setKarticeArtikelId] = useState<number | null>(null);
