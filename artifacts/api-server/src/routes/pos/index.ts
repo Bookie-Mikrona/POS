@@ -75,6 +75,9 @@ router.get("/events", requireEnota, (req: Request, res: Response) => {
 // Auth ruta — ostane na /pos/ ker jo AuthContext kliče direktno z /api/pos/auth/me
 router.use("/pos", posAuthRouter);
 
+// Simulacijski način — GET /sim brez X-Enota-Id, POST/DELETE z requireEnota interno
+router.use(simRouter);
+
 // POS admin — upravljanje uporabnikov (brez X-Enota-Id)
 router.use(posAdminUporabnikiRouter);
 
@@ -109,6 +112,5 @@ router.use(requireEnota, izdajniceRouter);
 router.use(requireEnota, zacetneZalogeRouter);
 router.use(requireEnota, zalogeRouter);
 router.use(requireEnota, terminalRouter);
-router.use(simRouter); // sim: GET /sim is open; POST/DELETE use requireEnota internally
 
 export default router;

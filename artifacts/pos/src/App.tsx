@@ -96,8 +96,8 @@ const secondaryNav = [
   { href: "/nastavitve", label: "Nastavitve", icon: Settings },
 ];
 
-function NavLink({ href, label, icon: Icon, active, className = "" }: {
-  href: string; label: string; icon: React.ElementType; active: boolean; className?: string;
+function NavLink({ href, label, icon: Icon, active, dot, className = "" }: {
+  href: string; label: string; icon: React.ElementType; active: boolean; dot?: boolean; className?: string;
 }) {
   return (
     <Link
@@ -108,7 +108,12 @@ function NavLink({ href, label, icon: Icon, active, className = "" }: {
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       } ${className}`}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <div className="relative shrink-0">
+        <Icon className="h-5 w-5" />
+        {dot && (
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-sidebar" />
+        )}
+      </div>
       <span>{label}</span>
     </Link>
   );
@@ -218,9 +223,29 @@ function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { nastavitve } = useNastavitve();
   const [sidebarScale, setSidebarScale] = useState(1);
+  const [simDatum, setSimDatum] = useState<string | null>(null);
   const asideRef = useRef<HTMLElement>(null);
   const sidebarContentRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const fetchSim = () => {
+      fetch(`${base}/api/sim`, { credentials: "include" })
+        .then(r => r.json())
+        .then((d: { active: boolean; datum: string | null }) => setSimDatum(d.active ? d.datum : null))
+        .catch(() => {});
+    };
+    fetchSim();
+    const interval = setInterval(fetchSim, 30_000);
+    window.addEventListener("focus", fetchSim);
+    window.addEventListener("pos:sim-changed", fetchSim);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", fetchSim);
+      window.removeEventListener("pos:sim-changed", fetchSim);
+    };
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -270,6 +295,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/nastavitve", label: "Nastavitve" },
       { href: "/nastavitve?tab=uporabniki", label: "Uporabniki" },
       { href: "/narocilo/", label: "Naročilo" },
+      { href: "/simulacija", label: "Simulacija" },
       { href: "/admin/testi", label: "Testi" },
       { href: "/superadmin/eposta", label: "E-pošta" },
       { href: "/superadmin/backup", label: "Varnostne kopije" },
@@ -314,6 +340,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { href: "/superadmin", label: "Super-admin", icon: ShieldCheck },
   ] : [
     ...secondaryNav,
+    ...(isAdmin || isAdminEnote ? [{ href: "/simulacija", label: "Simulacija", icon: FlaskConical }] : []),
     ...(isAdmin ? [{ href: "/admin/testi", label: "Testi", icon: FlaskConical }] : []),
   ];
 
@@ -381,6 +408,7 @@ function Layout({ children }: { children: React.ReactNode }) {
                   label={item.label}
                   icon={item.icon}
                   active={isActive(item.href)}
+                  dot={item.href === "/simulacija" && simDatum !== null}
                 />
               ))}
             </nav>
@@ -424,6 +452,20 @@ function Layout({ children }: { children: React.ReactNode }) {
       <main className={`flex-1 flex flex-col overflow-hidden ${!isOrderPage ? "pb-16 md:pb-0" : ""}`}>
         <CertExpiryBanner />
         <FursNapakaRetryBanner />
+        {simDatum && !isCheckoutPage && (
+          <Link href="/simulacija" className="block">
+            <div className="flex items-center justify-between px-4 py-2 bg-purple-700 text-white text-xs font-medium hover:bg-purple-800 transition-colors cursor-pointer">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  Simulacijski način —{" "}
+                  {new Intl.DateTimeFormat("sl-SI", { day: "numeric", month: "long", year: "numeric" }).format(new Date(simDatum))}
+                </span>
+              </div>
+              <span className="opacity-70 text-[10px] tracking-wide">Klikni za upravljanje →</span>
+            </div>
+          </Link>
+        )}
         {!isSuperAdmin && nastavitve?.nazivRestavracije && !isCheckoutPage && (
           <div className="flex items-center justify-center px-4 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border/40">
             <Link href="/nastavitve" className="text-xs font-medium text-muted-foreground/70 tracking-wide truncate hover:text-foreground hover:underline transition-colors">
