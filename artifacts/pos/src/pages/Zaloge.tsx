@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import {
   useListZaloge,
   useListPrejemnice,
@@ -31,6 +31,8 @@ import {
   useOsveziShranjenKupec,
   useUpdateShranjenKupec,
   getListShranjeniKupciQueryKey,
+  useCreateArtikel,
+  getListArtikliQueryKey,
   getEnotaId,
   type ShranjenKupec,
 } from "@workspace/api-client-react";
@@ -53,6 +55,14 @@ import {
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
   Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon,
 } from "lucide-react";
+
+const DDV_OPCIJE = [
+  { label: "22 % (splošna)", value: 22 },
+  { label: "9,5 % (znižana)", value: 9.5 },
+  { label: "5 % (znižana)", value: 5 },
+  { label: "0 % (oproščeno)", value: 0 },
+];
+const ENOTE_MERE = ["kom", "kg", "g", "l", "dl", "ml", "m", "m²", "m³", "par", "pak", "šk", "pal", "set"];
 
 type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string };
 type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
@@ -526,6 +536,109 @@ function NovDobaviteljKartica({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Nov artikel kartica (inline v postavkah) ───────────────────────────────
+function NovArtikelKartica({
+  imePredlog,
+  onClose,
+  onCreated,
+}: {
+  imePredlog: string;
+  onClose: () => void;
+  onCreated: (id: number) => void;
+}) {
+  const [imeZaNabavo, setImeZaNabavo] = useState(imePredlog);
+  const [enotaMere, setEnotaMere] = useState("");
+  const [davek, setDavek] = useState<number>(22);
+  const createArtikel = useCreateArtikel();
+  const { toast } = useToast();
+
+  function handleDodaj() {
+    if (!imeZaNabavo.trim()) {
+      toast({ title: "Ime za nabavo je obvezno", variant: "destructive" }); return;
+    }
+    if (!enotaMere) {
+      toast({ title: "Enota mere je obvezna", variant: "destructive" }); return;
+    }
+    createArtikel.mutate({
+      data: {
+        ime: imeZaNabavo.trim(),
+        imeZaNabavo: imeZaNabavo.trim(),
+        enotaMere,
+        davek,
+        nabavniArtikel: true,
+        prodajniArtikel: false,
+        vrstaArtikla: "material",
+        cena: 0,
+        aktiven: true,
+      } as any,
+    }, {
+      onSuccess: d => {
+        toast({ title: "Artikel dodan", description: `„${d.imeZaNabavo || d.ime}" je bil dodan v šifrant.` });
+        onCreated(d.id);
+      },
+      onError: () => toast({ title: "Napaka pri dodajanju artikla", variant: "destructive" }),
+    });
+  }
+
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+      <p className="text-sm font-semibold flex items-center gap-1.5">
+        <Package className="w-4 h-4 shrink-0" />Nov artikel
+        <span className="text-xs text-muted-foreground font-normal ml-1">· nabavni · material</span>
+      </p>
+      <div className="space-y-1">
+        <Label className="text-xs">Ime za nabavo <span className="text-destructive">*</span></Label>
+        <Input
+          value={imeZaNabavo}
+          onChange={e => setImeZaNabavo(e.target.value)}
+          placeholder="npr. Moka T550"
+          className="h-8 text-sm"
+          autoFocus
+          onKeyDown={e => e.key === "Enter" && handleDodaj()}
+        />
+        {imeZaNabavo.trim() && (
+          <p className="text-xs text-muted-foreground">Ime za prodajo bo enako: „{imeZaNabavo.trim()}"</p>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Enota mere <span className="text-destructive">*</span></Label>
+          <select
+            value={enotaMere}
+            onChange={e => setEnotaMere(e.target.value)}
+            className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">— izberite —</option>
+            {ENOTE_MERE.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">DDV stopnja <span className="text-destructive">*</span></Label>
+          <select
+            value={davek}
+            onChange={e => setDavek(Number(e.target.value))}
+            className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {DDV_OPCIJE.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onClose}>Prekliči</Button>
+        <Button
+          size="sm"
+          onClick={handleDodaj}
+          disabled={createArtikel.isPending || !imeZaNabavo.trim() || !enotaMere}
+        >
+          {createArtikel.isPending
+            ? <><Loader2 className="w-3 h-3 animate-spin mr-1" />Dodajam…</>
+            : "Dodaj artikel"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1236,6 +1349,7 @@ export default function Zaloge() {
   const [dropdownOpenIdx, setDropdownOpenIdx] = useState<number | null>(null);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [dropdownHighlight, setDropdownHighlight] = useState(0);
+  const [novArtikelRowIdx, setNovArtikelRowIdx] = useState<number | null>(null);
   // Refs za focus management
   const artInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const koliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -1825,7 +1939,8 @@ export default function Zaloge() {
                     ? nabavniArtikli.filter(a => (a.imeZaNabavo || a.ime).toLowerCase().includes(dropdownFilter.toLowerCase()))
                     : nabavniArtikli;
                   return (
-                    <div key={i} className="flex gap-2 items-center">
+                    <Fragment key={i}>
+                    <div className="flex gap-2 items-center">
                       {/* Artikel combobox */}
                       <div className="relative flex-1">
                         <input
@@ -1862,7 +1977,23 @@ export default function Zaloge() {
                         {isOpen && (
                           <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
                             {filtered.length === 0
-                              ? <div className="px-3 py-2 text-sm text-muted-foreground">Ni zadetkov</div>
+                              ? (
+                                <div className="px-3 py-2 space-y-1.5">
+                                  <p className="text-xs text-muted-foreground">
+                                    {dropdownFilter ? `Ni zadetkov za „${dropdownFilter}"` : "Ni artiklov v šifrantu"}
+                                  </p>
+                                  <button
+                                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                    onMouseDown={e => {
+                                      e.preventDefault();
+                                      setDropdownOpenIdx(null);
+                                      setNovArtikelRowIdx(i);
+                                    }}
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />Nov artikel v šifrant
+                                  </button>
+                                </div>
+                              )
                               : filtered.map((a, j) => (
                                 <div key={a.id}
                                   className={`px-3 py-1.5 text-sm cursor-pointer ${j === dropdownHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
@@ -1892,6 +2023,18 @@ export default function Zaloge() {
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </div>
+                    {novArtikelRowIdx === i && (
+                      <NovArtikelKartica
+                        imePredlog={dropdownFilter}
+                        onClose={() => setNovArtikelRowIdx(null)}
+                        onCreated={id => {
+                          void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+                          setNovArtikelRowIdx(null);
+                          setTimeout(() => selectArtikelInRow(i, id), 100);
+                        }}
+                      />
+                    )}
+                    </Fragment>
                   );
                 })}
               </div>
