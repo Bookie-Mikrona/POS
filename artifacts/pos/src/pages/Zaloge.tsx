@@ -29,6 +29,7 @@ import {
   useListShranjeniKupci,
   useCreateShranjenKupec,
   getListShranjeniKupciQueryKey,
+  getEnotaId,
   type ShranjenKupec,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,7 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
-  Building2, UserPlus,
+  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon,
 } from "lucide-react";
 
 type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string };
@@ -154,6 +155,23 @@ function DobaviteljCombobox({
   );
 }
 
+interface InetisRezultat {
+  id?: number | null;
+  naziv?: string | null;
+  kratkiNaziv?: string | null;
+  ulica?: string | null;
+  postnaStevilka?: string | null;
+  kraj?: string | null;
+  drzava?: string | null;
+  kodaDrzave?: string | null;
+  zavezanecDdv?: boolean | null;
+  davcnaStevilka?: string | null;
+  idZaDdv?: string | null;
+  maticnaStevilka?: string | null;
+  email?: string | null;
+  telefon?: string | null;
+}
+
 // ── Nov dobavitelj inline kartica ─────────────────────────────────────────
 function NovDobaviteljKartica({
   onClose, onCreated,
@@ -163,12 +181,72 @@ function NovDobaviteljKartica({
 }) {
   const [naziv, setNaziv] = useState("");
   const [davcna, setDavcna] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupNajden, setLookupNajden] = useState(false);
+  const [lookupNapaka, setLookupNapaka] = useState(false);
+  const [registriranData, setRegistriranData] = useState<InetisRezultat | null>(null);
   const createMutation = useCreateShranjenKupec();
   const { toast } = useToast();
 
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  async function poisciPoReg(davcnaNum: string) {
+    setLookupLoading(true);
+    setLookupNajden(false);
+    setLookupNapaka(false);
+    setRegistriranData(null);
+    try {
+      const enotaId = getEnotaId();
+      const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcnaNum}`, {
+        credentials: "include",
+        headers: enotaId ? { "X-Enota-Id": enotaId } : {},
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json() as InetisRezultat;
+      setRegistriranData(data);
+      setLookupNajden(true);
+      if (data.naziv) setNaziv(data.naziv);
+    } catch {
+      setLookupNapaka(true);
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
+  // Avtomatsko iskanje ko je vnesenih točno 8 črt (slovenška davčna)
+  useEffect(() => {
+    const trimmed = davcna.trim();
+    if (!/^\d{8}$/.test(trimmed)) {
+      setLookupNajden(false);
+      setLookupNapaka(false);
+      setRegistriranData(null);
+      return;
+    }
+    const t = setTimeout(() => { void poisciPoReg(trimmed); }, 600);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [davcna]);
+
   function handleShrani() {
     if (!naziv.trim()) { toast({ title: "Naziv je obvezen", variant: "destructive" }); return; }
-    createMutation.mutate({ data: { naziv: naziv.trim(), davcnaStevilka: davcna.trim() || null } as any }, {
+    const payload: Record<string, unknown> = {
+      naziv: naziv.trim(),
+      davcnaStevilka: davcna.trim() || null,
+    };
+    if (registriranData) {
+      if (registriranData.kratkiNaziv) payload.kratkiNaziv = registriranData.kratkiNaziv;
+      if (registriranData.ulica) payload.ulica = registriranData.ulica;
+      if (registriranData.postnaStevilka) payload.postnaStevilka = registriranData.postnaStevilka;
+      if (registriranData.kraj) payload.kraj = registriranData.kraj;
+      if (registriranData.drzava) payload.drzava = registriranData.drzava;
+      if (registriranData.kodaDrzave) payload.kodaDrzave = registriranData.kodaDrzave;
+      if (registriranData.maticnaStevilka) payload.maticnaStevilka = registriranData.maticnaStevilka;
+      if (registriranData.idZaDdv) payload.idZaDdv = registriranData.idZaDdv;
+      if (registriranData.zavezanecDdv != null) payload.zavezanecDdv = registriranData.zavezanecDdv;
+      if (registriranData.email) payload.email = registriranData.email;
+      if (registriranData.telefon) payload.telefon = registriranData.telefon;
+    }
+    createMutation.mutate({ data: payload as any }, {
       onSuccess: data => { onCreated(data.id, data.naziv); onClose(); },
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
     });
@@ -179,31 +257,77 @@ function NovDobaviteljKartica({
       <p className="text-sm font-semibold flex items-center gap-1.5">
         <Building2 className="w-4 h-4 shrink-0" />Nov dobavitelj
       </p>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <Label className="text-xs">Naziv <span className="text-destructive">*</span></Label>
+
+      {/* Davčna številka — primarna vstopna točka */}
+      <div className="space-y-1">
+        <Label className="text-xs">Davčna številka</Label>
+        <div className="flex gap-1.5">
           <Input
-            value={naziv} onChange={e => setNaziv(e.target.value)}
-            placeholder="npr. Mercator d.o.o."
-            className="h-8 text-sm"
+            value={davcna}
+            onChange={e => setDavcna(e.target.value.replace(/\D/g, "").slice(0, 8))}
+            placeholder="8-mestna številka"
+            className="h-8 text-sm font-mono"
             autoFocus
-            onKeyDown={e => e.key === "Enter" && handleShrani()}
+            maxLength={8}
           />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 shrink-0"
+            disabled={!/^\d{8}$/.test(davcna.trim()) || lookupLoading}
+            onClick={() => void poisciPoReg(davcna.trim())}
+            title="Poišči v registru"
+          >
+            {lookupLoading
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <SearchIcon className="w-4 h-4" />
+            }
+          </Button>
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Davčna <span className="text-muted-foreground">(neobvezno)</span></Label>
-          <Input
-            value={davcna} onChange={e => setDavcna(e.target.value)}
-            placeholder="npr. 12345678"
-            className="h-8 text-sm"
-            onKeyDown={e => e.key === "Enter" && handleShrani()}
-          />
-        </div>
+        {lookupNajden && registriranData && (
+          <p className="text-xs text-green-700 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            Najden v registru — podatki so bili samodejno uvoženi.
+          </p>
+        )}
+        {lookupNapaka && (
+          <p className="text-xs text-amber-700">
+            Podjetja s to davčno ni v registru — vnesite naziv ročno.
+          </p>
+        )}
       </div>
+
+      {/* Naziv */}
+      <div className="space-y-1">
+        <Label className="text-xs">
+          Naziv <span className="text-destructive">*</span>
+          {lookupNajden && <span className="text-muted-foreground font-normal"> (samodejno izpolnjen — po potrebi popravite)</span>}
+        </Label>
+        <Input
+          value={naziv}
+          onChange={e => setNaziv(e.target.value)}
+          placeholder="npr. Mercator d.o.o."
+          className="h-8 text-sm"
+          onKeyDown={e => e.key === "Enter" && handleShrani()}
+        />
+      </div>
+
+      {/* Naslov (samo ko je bil uvoz iz registra) */}
+      {lookupNajden && registriranData && (registriranData.ulica || registriranData.kraj) && (
+        <p className="text-xs text-muted-foreground px-0.5">
+          {[registriranData.ulica, registriranData.postnaStevilka, registriranData.kraj]
+            .filter(Boolean).join(", ")}
+        </p>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onClose}>Prekliči</Button>
-        <Button size="sm" onClick={handleShrani} disabled={createMutation.isPending || !naziv.trim()}>
-          {createMutation.isPending ? "Shranjujem..." : "Dodaj"}
+        <Button
+          size="sm"
+          onClick={handleShrani}
+          disabled={createMutation.isPending || !naziv.trim() || lookupLoading}
+        >
+          {createMutation.isPending ? "Shranjujem..." : "Dodaj dobavitelja"}
         </Button>
       </div>
     </div>
