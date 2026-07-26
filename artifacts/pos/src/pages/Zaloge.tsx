@@ -26,6 +26,10 @@ import {
   getListZacetneZalogeQueryKey,
   getGetZacetnaZalogaQueryKey,
   useReconcileZaloge,
+  useListShranjeniKupci,
+  useCreateShranjenKupec,
+  getListShranjeniKupciQueryKey,
+  type ShranjenKupec,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,6 +48,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
+  Building2, UserPlus,
 } from "lucide-react";
 
 type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string };
@@ -72,6 +77,145 @@ function TipBadge({ tip }: { tip: string }) {
   if (tip === "prejemnica") return <Badge className="bg-green-100 text-green-800 border-green-200">↑ Prejemnica</Badge>;
   if (tip === "poraba") return <Badge className="bg-red-100 text-red-800 border-red-200">↓ Poraba</Badge>;
   return <Badge className="bg-blue-100 text-blue-800 border-blue-200">≡ Inventura</Badge>;
+}
+
+// ── Dobavitelj combobox ────────────────────────────────────────────────────
+function DobaviteljCombobox({
+  value, kupci, onChange, onDodajNovega,
+}: {
+  value: number | null;
+  kupci: ShranjenKupec[];
+  onChange: (id: number | null, naziv: string) => void;
+  onDodajNovega: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selected = value != null ? kupci.find(k => k.id === value) ?? null : null;
+  const filtered = filter
+    ? kupci.filter(k =>
+        k.naziv.toLowerCase().includes(filter.toLowerCase()) ||
+        (k.kratkiNaziv ?? "").toLowerCase().includes(filter.toLowerCase()) ||
+        (k.davcnaStevilka ?? "").includes(filter)
+      )
+    : kupci;
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <input
+          ref={inputRef}
+          className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring pr-8"
+          placeholder="Išči dobavitelja..."
+          value={open ? filter : (selected?.naziv ?? "")}
+          onChange={e => { if (open) { setFilter(e.target.value); } }}
+          readOnly={!!selected && !open}
+          onFocus={() => { if (!selected) { setOpen(true); setFilter(""); } }}
+          onClick={() => { if (selected) { setOpen(true); setFilter(""); } }}
+          onKeyDown={e => {
+            if (selected && !open) {
+              if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); onChange(null, ""); }
+              return;
+            }
+            if (e.key === "Escape") { setOpen(false); }
+          }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+        {selected && (
+          <button
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onMouseDown={e => { e.preventDefault(); onChange(null, ""); setFilter(""); }}
+            tabIndex={-1}
+            type="button"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg max-h-52 overflow-y-auto">
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-sm text-muted-foreground">Ni zadetkov</div>
+          )}
+          {filtered.map(k => (
+            <div
+              key={k.id}
+              className="px-3 py-1.5 text-sm cursor-pointer hover:bg-muted"
+              onMouseDown={e => { e.preventDefault(); onChange(k.id, k.naziv); setOpen(false); setFilter(""); }}
+            >
+              <div className="font-medium">{k.naziv}</div>
+              {k.davcnaStevilka && <div className="text-xs text-muted-foreground">ID: {k.davcnaStevilka}</div>}
+            </div>
+          ))}
+          <div
+            className="px-3 py-2 text-sm cursor-pointer hover:bg-primary/10 text-primary font-medium border-t flex items-center gap-1.5"
+            onMouseDown={e => { e.preventDefault(); setOpen(false); onDodajNovega(); }}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Dodaj novega dobavitelja
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Nov dobavitelj mini-dialog ─────────────────────────────────────────────
+function NovDobaviteljDialog({
+  onClose, onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (id: number, naziv: string) => void;
+}) {
+  const [naziv, setNaziv] = useState("");
+  const [davcna, setDavcna] = useState("");
+  const createMutation = useCreateShranjenKupec();
+  const { toast } = useToast();
+
+  function handleShrani() {
+    if (!naziv.trim()) { toast({ title: "Naziv je obvezen", variant: "destructive" }); return; }
+    createMutation.mutate({ data: { naziv: naziv.trim(), davcnaStevilka: davcna.trim() || null } as any }, {
+      onSuccess: data => { onCreated(data.id, data.naziv); onClose(); },
+      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Building2 className="w-5 h-5" />Nov dobavitelj
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Naziv <span className="text-destructive text-xs">*</span></Label>
+            <Input
+              value={naziv} onChange={e => setNaziv(e.target.value)}
+              placeholder="npr. Mercator d.o.o."
+              autoFocus
+              onKeyDown={e => e.key === "Enter" && handleShrani()}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Davčna številka <span className="text-muted-foreground text-xs">(neobvezno)</span></Label>
+            <Input
+              value={davcna} onChange={e => setDavcna(e.target.value)}
+              placeholder="npr. 12345678"
+              onKeyDown={e => e.key === "Enter" && handleShrani()}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button onClick={handleShrani} disabled={createMutation.isPending || !naziv.trim()}>
+            {createMutation.isPending ? "Shranjujem..." : "Dodaj dobavitelja"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ── Kartica artikla dialog ─────────────────────────────────────────────────
@@ -205,11 +349,15 @@ function EditPrejemnicaDialog({
 }) {
   const { data, isLoading } = useGetPrejemnica(id);
   const updatePrejemnica = useUpdatePrejemnica();
+  const { data: kupci } = useListShranjeniKupci();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [datum, setDatum] = useState("");
   const [opomba, setOpomba] = useState("");
+  const [dobaviteljId, setDobaviteljId] = useState<number | null>(null);
   const [rows, setRows] = useState<PrejemnicaRow[]>([]);
+  const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const initializedId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -217,6 +365,7 @@ function EditPrejemnicaDialog({
       initializedId.current = data.id;
       setDatum(new Date(data.datum).toISOString().slice(0, 10));
       setOpomba(data.opomba ?? "");
+      setDobaviteljId((data as any).dobaviteljId ?? null);
       setRows(data.postavke.map(p => ({
         artikelId: p.artikelId,
         kolicina: String(p.kolicina),
@@ -239,13 +388,14 @@ function EditPrejemnicaDialog({
       id,
       data: {
         datum,
+        dobaviteljId: dobaviteljId ?? null,
         opomba: opomba || null,
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
           kolicina: parseDecimal(r.kolicina),
           cenaKos: parseDecimal(r.cenaKos) || 0,
         })),
-      },
+      } as any,
     }, {
       onSuccess: () => { toast({ title: "Prejemnica posodobljena" }); onSaved(); },
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
@@ -253,6 +403,7 @@ function EditPrejemnicaDialog({
   };
 
   return (
+    <>
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Uredi prejemnico</DialogTitle></DialogHeader>
@@ -266,9 +417,18 @@ function EditPrejemnicaDialog({
                 <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} onKeyDown={handleEnterAsTab} />
               </div>
               <div className="space-y-2">
-                <Label>Opomba</Label>
-                <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Dobavitelj, referenca..." onKeyDown={handleEnterAsTab} />
+                <Label>Dobavitelj</Label>
+                <DobaviteljCombobox
+                  value={dobaviteljId}
+                  kupci={kupci ?? []}
+                  onChange={(id) => setDobaviteljId(id)}
+                  onDodajNovega={() => setNovDobaviteljOpen(true)}
+                />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Opomba</Label>
+              <Input value={opomba} onChange={e => setOpomba(e.target.value)} placeholder="Referenca, opomba..." onKeyDown={handleEnterAsTab} />
             </div>
 
             <div className="space-y-2">
@@ -349,6 +509,17 @@ function EditPrejemnicaDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {novDobaviteljOpen && (
+      <NovDobaviteljDialog
+        onClose={() => setNovDobaviteljOpen(false)}
+        onCreated={(id, naziv) => {
+          setDobaviteljId(id);
+          queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+          void naziv;
+        }}
+      />
+    )}
+    </>
   );
 }
 
@@ -726,9 +897,12 @@ export default function Zaloge() {
   const negativneZaloge = (zaloge ?? []).filter(z => z.kolicina < 0);
 
   // ── Prejemnica create ──────────────────────────────────────────────
+  const { data: kupci } = useListShranjeniKupci();
   const [prejDialogOpen, setPrejDialogOpen] = useState(false);
   const [prejDatum, setPrejDatum] = useState("");
-  const [prejDobavitelj, setPrejDobavitelj] = useState("");
+  const [prejDobaviteljId, setPrejDobaviteljId] = useState<number | null>(null);
+  const [prejDobaviteljNaziv, setPrejDobaviteljNaziv] = useState("");
+  const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const [prejStevilkaDobavnice, setPrejStevilkaDobavnice] = useState("");
   const [prejDatumDobavnice, setPrejDatumDobavnice] = useState("");
   const [prejOpomba, setPrejOpomba] = useState("");
@@ -746,7 +920,8 @@ export default function Zaloge() {
 
   const openPrejDialog = () => {
     setPrejDatum(new Date().toISOString().slice(0, 10));
-    setPrejDobavitelj("");
+    setPrejDobaviteljId(null);
+    setPrejDobaviteljNaziv("");
     setPrejStevilkaDobavnice("");
     setPrejDatumDobavnice("");
     setPrejOpomba("");
@@ -759,15 +934,16 @@ export default function Zaloge() {
   const handleSavePrejemnica = () => {
     const validRows = prejRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
-    const prefixParts = [prejDobavitelj, prejStevilkaDobavnice, prejDatumDobavnice].filter(Boolean);
-    const prefix = prefixParts.length > 0 ? `(${prefixParts.join(", ")})` : "";
-    const fullOpomba = [prefix, prejOpomba].filter(Boolean).join(" ");
+    const refParts = [prejStevilkaDobavnice, prejDatumDobavnice].filter(Boolean);
+    const refPrefix = refParts.length > 0 ? `(${refParts.join(", ")})` : "";
+    const fullOpomba = [refPrefix, prejOpomba].filter(Boolean).join(" ");
     createPrejemnica.mutate({
       data: {
         datum: prejDatum || undefined,
+        dobaviteljId: prejDobaviteljId ?? undefined,
         opomba: fullOpomba || undefined,
         postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseDecimal(r.kolicina), cenaKos: parseDecimal(r.cenaKos) || 0 })),
-      },
+      } as any,
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
@@ -1100,6 +1276,7 @@ export default function Zaloge() {
                 <TableRow>
                   <TableHead className="w-28">Številka</TableHead>
                   <TableHead>Datum</TableHead>
+                  <TableHead>Dobavitelj</TableHead>
                   <TableHead>Opomba</TableHead>
                   <TableHead className="text-center">Postavke</TableHead>
                   <TableHead className="text-right">Vrednost</TableHead>
@@ -1115,6 +1292,11 @@ export default function Zaloge() {
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-sm font-medium text-primary">{p.stevilka ?? "–"}</TableCell>
                     <TableCell className="font-medium">{fmtDatum(p.datum)}</TableCell>
+                    <TableCell className="text-sm">
+                      {(p as any).dobaviteljNaziv
+                        ? <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />{(p as any).dobaviteljNaziv}</span>
+                        : <span className="text-muted-foreground">–</span>}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{p.opomba ?? "–"}</TableCell>
                     <TableCell className="text-center"><Badge variant="outline">{p.steviloPostavk ?? 0}</Badge></TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{fmt(Number(p.skupajVrednost))} €</TableCell>
@@ -1245,6 +1427,18 @@ export default function Zaloge() {
         <KarticaDialog artikelId={karticeArtikelId} onClose={() => setKarticeArtikelId(null)} />
       )}
 
+      {/* ── Nov dobavitelj (iz create dialog) ────────────────────────── */}
+      {novDobaviteljOpen && (
+        <NovDobaviteljDialog
+          onClose={() => setNovDobaviteljOpen(false)}
+          onCreated={(id, naziv) => {
+            setPrejDobaviteljId(id);
+            setPrejDobaviteljNaziv(naziv);
+            queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+          }}
+        />
+      )}
+
       {/* ── Prejemnica create dialog ─────────────────────────────────── */}
       <Dialog open={prejDialogOpen} onOpenChange={v => { setPrejDialogOpen(v); if (!v) setDropdownOpenIdx(null); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1258,7 +1452,12 @@ export default function Zaloge() {
               </div>
               <div className="space-y-1.5">
                 <Label>Dobavitelj</Label>
-                <Input value={prejDobavitelj} onChange={e => setPrejDobavitelj(e.target.value)} placeholder="npr. Mercator" />
+                <DobaviteljCombobox
+                  value={prejDobaviteljId}
+                  kupci={kupci ?? []}
+                  onChange={(id, naziv) => { setPrejDobaviteljId(id); setPrejDobaviteljNaziv(naziv); }}
+                  onDodajNovega={() => setNovDobaviteljOpen(true)}
+                />
               </div>
             </div>
             {/* Številka + Datum dobavnice */}

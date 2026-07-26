@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
-import { artikliTable, db, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, db, prejemnicePostavkeTable, prejemniceTable, shranjeniKupciTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
@@ -26,11 +26,14 @@ router.get("/prejemnice", async (req, res): Promise<void> => {
       opomba: prejemniceTable.opomba,
       skupajVrednost: prejemniceTable.skupajVrednost,
       ustvarjeno: prejemniceTable.ustvarjeno,
+      dobaviteljId: prejemniceTable.dobaviteljId,
+      dobaviteljNaziv: shranjeniKupciTable.naziv,
       steviloPostavk: count(prejemnicePostavkeTable.id)})
     .from(prejemniceTable)
     .leftJoin(prejemnicePostavkeTable, eq(prejemnicePostavkeTable.prejemnicaId, prejemniceTable.id))
+    .leftJoin(shranjeniKupciTable, eq(shranjeniKupciTable.id, prejemniceTable.dobaviteljId))
     .where(and(eq(prejemniceTable.enotaId, tenotaId)))
-    .groupBy(prejemniceTable.id)
+    .groupBy(prejemniceTable.id, shranjeniKupciTable.naziv)
     .orderBy(desc(prejemniceTable.datum));
 
   res.json(rows.map(r => ({ ...r, skupajVrednost: Number(r.skupajVrednost) })));
@@ -41,7 +44,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
-  const { datum, opomba, postavke } = parsed.data;
+  const { datum, opomba, postavke, dobaviteljId } = parsed.data;
   if (!postavke || postavke.length === 0) {
     res.status(400).json({ error: "Prejemnica mora imeti vsaj eno postavko" }); return;
   }
@@ -66,6 +69,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   const { prejemnica, postavkeResult } = await db.transaction(async (tx) => {
     const [prejemnica] = await tx.insert(prejemniceTable).values({
       enotaId: tenotaId,
+      dobaviteljId: dobaviteljId ?? null,
       stevilka,
       datum: docDatum,
       opomba: opomba ?? null,
@@ -124,7 +128,19 @@ router.get("/prejemnice/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const [prejemnica] = await db.select().from(prejemniceTable)
+  const [prejemnica] = await db
+    .select({
+      id: prejemniceTable.id,
+      stevilka: prejemniceTable.stevilka,
+      datum: prejemniceTable.datum,
+      opomba: prejemniceTable.opomba,
+      skupajVrednost: prejemniceTable.skupajVrednost,
+      ustvarjeno: prejemniceTable.ustvarjeno,
+      dobaviteljId: prejemniceTable.dobaviteljId,
+      dobaviteljNaziv: shranjeniKupciTable.naziv,
+    })
+    .from(prejemniceTable)
+    .leftJoin(shranjeniKupciTable, eq(shranjeniKupciTable.id, prejemniceTable.dobaviteljId))
     .where(and(eq(prejemniceTable.id, id), sql`true`, eq(prejemniceTable.enotaId, tenotaId)));
   if (!prejemnica) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
 
@@ -149,6 +165,8 @@ router.get("/prejemnice/:id", async (req, res): Promise<void> => {
     opomba: prejemnica.opomba,
     skupajVrednost: Number(prejemnica.skupajVrednost),
     ustvarjeno: prejemnica.ustvarjeno,
+    dobaviteljId: prejemnica.dobaviteljId ?? null,
+    dobaviteljNaziv: prejemnica.dobaviteljNaziv ?? null,
     postavke: postavke.map((p: any) => ({
       ...p,
       artikelIme: p.artikelIme ?? "–",
@@ -192,6 +210,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     const txUpdates: Partial<typeof existing> = {};
     if (parsed.data.datum !== undefined) txUpdates.datum = new Date(parsed.data.datum);
     if (parsed.data.opomba !== undefined) txUpdates.opomba = parsed.data.opomba;
+    if (parsed.data.dobaviteljId !== undefined) txUpdates.dobaviteljId = parsed.data.dobaviteljId ?? null;
 
     if (parsed.data.postavke !== undefined) {
       const novaPostavke = parsed.data.postavke;

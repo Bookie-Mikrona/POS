@@ -2,10 +2,12 @@ import { pgTable, serial, text, timestamp, numeric, integer } from "drizzle-orm/
 import { relations } from "drizzle-orm";
 import { enoteTable } from "./enote";
 import { artikliTable } from "./artikli";
+import { shranjeniKupciTable } from "./shranjeni-kupci";
 
 export const prejemniceTable = pgTable("prejemnice", {
   id: serial("id").primaryKey(),
   enotaId: integer("enota_id").notNull().references(() => enoteTable.id, { onDelete: "cascade" }),
+  dobaviteljId: integer("dobavitelj_id").references(() => shranjeniKupciTable.id, { onDelete: "set null" }),
   stevilka: text("stevilka"),
   datum: timestamp("datum").notNull().defaultNow(),
   opomba: text("opomba"),
