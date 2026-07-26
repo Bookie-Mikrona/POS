@@ -1324,6 +1324,7 @@ export interface PrejemnicaUrediVnos {
   datum?: string;
   /** @nullable */
   opomba?: string | null;
+  vrstaCen?: 'neto' | 'bruto';
   postavke?: PrejemnicaPostavkaInput[];
 }
 
@@ -1371,6 +1372,7 @@ export interface PrejemnicaFull {
   datum: string;
   /** @nullable */
   opomba?: string | null;
+  vrstaCen: 'neto' | 'bruto';
   skupajVrednost: number;
   ustvarjeno: string;
   postavke: PrejemnicaPostavkaPogled[];
@@ -1379,6 +1381,7 @@ export interface PrejemnicaFull {
 export interface PrejemnicaInput {
   datum?: string;
   opomba?: string;
+  vrstaCen?: 'neto' | 'bruto';
   postavke: PrejemnicaPostavkaInput[];
 }
 
