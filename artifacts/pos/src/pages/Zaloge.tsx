@@ -784,6 +784,7 @@ function EditPrejemnicaDialog({
   const [rows, setRows] = useState<PrejemnicaRow[]>([]);
   const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const initializedId = useRef<number | null>(null);
+  const editArtSelectRefs = useRef<Map<number, HTMLSelectElement>>(new Map());
 
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
@@ -799,7 +800,11 @@ function EditPrejemnicaDialog({
     }
   }, [data]);
 
-  const addRow = () => setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+  const addRow = () => {
+    const newIdx = rows.length;
+    setRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "" }]);
+    setTimeout(() => editArtSelectRefs.current.get(newIdx)?.focus(), 30);
+  };
   const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
   const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
@@ -889,6 +894,7 @@ function EditPrejemnicaDialog({
                         <TableRow key={i}>
                           <TableCell>
                             <select
+                              ref={el => { if (el) editArtSelectRefs.current.set(i, el); else editArtSelectRefs.current.delete(i); }}
                               className="w-full border rounded-md px-2 py-1.5 text-sm bg-background"
                               value={row.artikelId}
                               onChange={e => updateRow(i, "artikelId", parseInt(e.target.value))}
