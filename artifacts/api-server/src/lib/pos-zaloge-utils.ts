@@ -193,12 +193,14 @@ export async function recomputeZaloge(
       kolicina: number;
       opomba: string | null;
       source_cena_kos: number | null;
+      datum_dokumenta: string | Date | null;
     };
     const movements = movementsResult.rows as MovRow[];
 
     // ── iterate and compute WAC ────────────────────────────────────────────
     let runQty   = 0;  // running quantity
     let runValue = 0;  // running value (qty * WAC)
+    let lastDatum: Date | null = null;  // datum zadnjega gibanja
 
     const updates: { id: number; cenaKos: number; vrednost: number }[] = [];
 
@@ -214,7 +216,7 @@ export async function recomputeZaloge(
         runQty   = qty;
         runValue = qty * unitCost;
       } else if (qty >= 0) {
-        // Navaden pritok: tehtano povprečje s tekočim WAC
+        // Navadan pritok: tehtano povprečje s tekočim WAC
         unitCost = m.source_cena_kos ?? (runQty > 0 ? runValue / runQty : 0);
         runQty   += qty;
         runValue += qty * unitCost;
@@ -228,6 +230,7 @@ export async function recomputeZaloge(
       // Prepreči plovečo vejico pod nič po uravnoteženih gibanjih
       if (runQty < 0.000001 && runQty > -0.000001) { runQty = 0; runValue = 0; }
 
+      if (m.datum_dokumenta) lastDatum = new Date(m.datum_dokumenta as string);
       updates.push({ id: m.id, cenaKos: unitCost, vrednost: qty * unitCost });
     }
 
@@ -245,6 +248,8 @@ export async function recomputeZaloge(
     const finalQty   = runQty;
     const finalValue = runQty > 0 ? runValue : 0;
     const finalAvg   = runQty > 0 ? runValue / runQty : null;
+    // zadnja_posodobitev = datum zadnjega gibanja (ne sistemski čas)
+    const zadnjaPosodobitev = lastDatum ?? new Date();
 
     await executor
       .insert(zalogeTable)
@@ -253,7 +258,7 @@ export async function recomputeZaloge(
         kolicina:       String(finalQty),
         povprecnaCena:  finalAvg != null ? String(finalAvg) : null,
         skupnaVrednost: String(finalValue),
-        zadnjaPosodobitev: new Date(),
+        zadnjaPosodobitev,
       })
       .onConflictDoUpdate({
         target: zalogeTable.artikelId,
@@ -261,7 +266,7 @@ export async function recomputeZaloge(
           kolicina:       String(finalQty),
           povprecnaCena:  finalAvg != null ? String(finalAvg) : null,
           skupnaVrednost: String(finalValue),
-          zadnjaPosodobitev: new Date(),
+          zadnjaPosodobitev,
         },
       });
   }
