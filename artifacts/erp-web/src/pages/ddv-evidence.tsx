@@ -9,14 +9,19 @@
  *  - Opozorila/napake po D.4 pravilih
  *  - Gumb "Izvozi XML" (placeholder)
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "@/contexts/CompanyContext";
 import {
   useGetVatLedgerReport,
+  useListVatSubmissions,
+  useCreateVatSubmission,
+  vatSubmissionsQueryKey,
   type KirRow,
   type KprRow,
   type VatWarning,
   type ReconRow,
+  type VatSubmission,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Download, FileText, ChevronRight,
+  Clock, CheckCheck, XCircle, Loader2,
 } from "lucide-react";
 
 // ─── Konstante ───────────────────────────────────────────────────────────────
@@ -401,10 +407,125 @@ function OpozorilaPanel({ warnings }: { warnings: VatWarning[] }) {
   );
 }
 
+// ─── Repozitorij oddaj ────────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Osnutek",
+  submitted: "Oddano",
+  accepted: "Sprejeto",
+  rejected: "Zavrnjeno",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  draft: "bg-slate-100 text-slate-700",
+  submitted: "bg-blue-100 text-blue-700",
+  accepted: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-red-100 text-red-700",
+};
+
+function SubmissionsPanel({
+  companyId,
+  currentYear,
+  currentPeriod,
+}: {
+  companyId: string;
+  currentYear: number;
+  currentPeriod: string;
+}) {
+  const { data, isLoading } = useListVatSubmissions(companyId);
+
+  const handleDownload = useCallback(
+    (s: VatSubmission) => {
+      const url = `/api/companies/${companyId}/vat-submissions/${s.id}/download`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `KIR_KPR_${s.periodYear}_${s.period}_${s.kind}.xml`;
+      a.click();
+    },
+    [companyId],
+  );
+
+  const forCurrentPeriod = data?.submissions.filter(
+    s => s.periodYear === currentYear && s.period === currentPeriod,
+  ) ?? [];
+
+  const rest = data?.submissions.filter(
+    s => !(s.periodYear === currentYear && s.period === currentPeriod),
+  ) ?? [];
+
+  const all = [...forCurrentPeriod, ...rest];
+
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  if (all.length === 0) return null;
+
+  return (
+    <div className="border rounded-lg bg-card overflow-hidden">
+      <div className="bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        Repozitorij XML oddaj
+      </div>
+      <Table className="text-xs">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Obdobje</TableHead>
+            <TableHead>Vsebina</TableHead>
+            <TableHead>KIR</TableHead>
+            <TableHead>KPR</TableHead>
+            <TableHead>Shema</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Ustvarjeno</TableHead>
+            <TableHead className="text-right w-24">Prenos</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {all.map(s => {
+            const isCurrent = s.periodYear === currentYear && s.period === currentPeriod;
+            return (
+              <TableRow key={s.id} className={isCurrent ? "bg-primary/5" : ""}>
+                <TableCell className="font-mono font-medium">
+                  {s.periodYear}/{s.period}
+                  {isCurrent && <span className="ml-1 text-primary text-xs">◀ trenutno</span>}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">{s.kind}</Badge>
+                </TableCell>
+                <TableCell className="text-center">{s.kirCount}</TableCell>
+                <TableCell className="text-center">{s.kprCount}</TableCell>
+                <TableCell className="text-muted-foreground font-mono">{s.schemaVersion}</TableCell>
+                <TableCell>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_COLOR[s.status] ?? ""}`}>
+                    {STATUS_LABEL[s.status] ?? s.status}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground whitespace-nowrap">
+                  {new Date(s.createdAt).toLocaleString("sl-SI", { timeZone: "UTC",
+                    day: "2-digit", month: "2-digit", year: "numeric",
+                    hour: "2-digit", minute: "2-digit" })}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2"
+                    onClick={() => handleDownload(s)}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    XML
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 // ─── Glavna komponenta ────────────────────────────────────────────────────────
 
 export function KirKprEvidenceTab() {
   const { activeCompany } = useCompany();
+  const queryClient = useQueryClient();
 
   const [year, setYear] = useState<number>(CURRENT_YEAR);
   const [periodMode, setPeriodMode] = useState<"mesecno" | "trimesecno">("mesecno");
@@ -412,6 +533,7 @@ export function KirKprEvidenceTab() {
     const m = new Date().getMonth() + 1; // 1-12
     return `07${String(m).padStart(2, "0")}`;
   });
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Ko se zamenja mode, nastavi privzeto obdobje
   const handleModeChange = (mode: "mesecno" | "trimesecno") => {
@@ -434,8 +556,32 @@ export function KirKprEvidenceTab() {
     { query: { enabled: !!(activeCompany?.id && period) } },
   );
 
+  const createSubmission = useCreateVatSubmission(activeCompany?.id ?? "");
+
+  const handleExport = useCallback(async () => {
+    if (!activeCompany?.id) return;
+    setExportError(null);
+    try {
+      const result = await createSubmission.mutateAsync({ year, period });
+      // Sproži download takoj
+      const a = document.createElement("a");
+      a.href = result.downloadUrl;
+      a.download = `KIR_KPR_${year}_${period}_${result.kind}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Osveži seznam oddaj
+      queryClient.invalidateQueries({ queryKey: vatSubmissionsQueryKey(activeCompany.id) });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Napaka pri izvozu XML";
+      setExportError(msg);
+    }
+  }, [activeCompany, year, period, createSubmission, queryClient]);
+
   const hasErrors = data?.hasErrors ?? false;
   const totalWarnings = (data?.errorCount ?? 0) + (data?.warningCount ?? 0);
+  const isEmpty = (data?.kirCount ?? 0) + (data?.kprCount ?? 0) === 0;
+  const canExport = !hasErrors && !isEmpty && !!data;
 
   return (
     <div className="space-y-5">
@@ -497,15 +643,30 @@ export function KirKprEvidenceTab() {
         )}
 
         <Button
-          variant="outline"
-          disabled={hasErrors || !data || data.kirCount + data.kprCount === 0}
+          onClick={handleExport}
+          disabled={!canExport || createSubmission.isPending}
           className="shrink-0"
-          title={hasErrors ? "Odpravite napake preden izvozite XML" : "Izvoz KIR/KPR XML za FURS (kmalu)"}
+          title={
+            hasErrors ? "Odpravite napake preden izvozite XML"
+            : isEmpty ? "V tem obdobju ni vpisov za izvoz"
+            : "Generiraj in prenesi KIR/KPR XML za FURS"
+          }
         >
-          <Download className="h-4 w-4 mr-2" />
+          {createSubmission.isPending
+            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            : <Download className="h-4 w-4 mr-2" />}
           Izvozi XML
         </Button>
       </div>
+
+      {/* Napaka pri izvozu */}
+      {exportError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka pri izvozu</AlertTitle>
+          <AlertDescription>{exportError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Vsebina */}
       {!activeCompany ? (
@@ -581,6 +742,17 @@ export function KirKprEvidenceTab() {
           )}
         </div>
       ) : null}
+
+      {/* Repozitorij XML oddaj */}
+      {activeCompany && (
+        <section>
+          <SubmissionsPanel
+            companyId={activeCompany.id}
+            currentYear={year}
+            currentPeriod={period}
+          />
+        </section>
+      )}
     </div>
   );
 }
