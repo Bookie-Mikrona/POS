@@ -26,6 +26,7 @@ import ajpesRouter from "./ajpes";
 import posBookingSettingsRouter from "./posBookingSettings";
 import vatLedgerReportRouter from "./vatLedgerReport";
 import vatSubmissionsRouter from "./vatSubmissions";
+import goodsReceiptsRouter from "./goodsReceipts";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,7 @@ router.use(ajpesRouter);
 router.use(posBookingSettingsRouter);
 router.use(vatLedgerReportRouter);
 router.use(vatSubmissionsRouter);
+router.use(goodsReceiptsRouter);
 router.use(posRouter);
 
 export default router;

@@ -24,6 +24,7 @@ import {
   Layers,
   PieChart,
   UtensilsCrossed,
+  PackageOpen,
 } from "lucide-react";
 import { useClerk, useUser, useAuth } from "@clerk/react";
 import { useGetMe, useListCompanies } from "@workspace/api-client-react";
@@ -67,6 +68,7 @@ const MODULES: { name: string; path: string; icon: React.ElementType; requires: 
   { name: "Glavna knjiga", path: "/glavna-knjiga", icon: BookMarked, requires: "erp" },
   { name: "Partnerji", path: "/partnerji", icon: Users, requires: "erp" },
   { name: "Računi", path: "/racuni", icon: Receipt, requires: "erp" },
+  { name: "Prejemnice", path: "/prejemnice", icon: PackageOpen, requires: "erp" },
   { name: "AI Dokumenti", path: "/dokumenti", icon: ScanLine, requires: "erp" },
   { name: "Plačila", path: "/placila", icon: CreditCard, requires: "erp" },
   { name: "Uvoz izpiskov", path: "/bancni-izpis", icon: Banknote, requires: "erp" },

@@ -23,6 +23,7 @@ export * from "./system-settings";
 // ── POS: Gostinstvo ──────────────────────────────────────────────────────────
 export * from "./pos/index";
 export * from "./vat-submissions";
+export * from "./goods-receipts";
 // ── Skupni registri ──────────────────────────────────────────────────────────
 export * from "./ujp-prejemniki";
 export * from "./ajpes-subjekti";
