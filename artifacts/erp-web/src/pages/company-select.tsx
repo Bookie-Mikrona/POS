@@ -8,7 +8,7 @@ import { useUser, useClerk } from "@clerk/react";
 export default function CompanySelectPage() {
   const [, setLocation] = useLocation();
   const { setActiveCompany } = useCompany();
-  const { data, isLoading: companiesLoading, isFetching: companiesFetching, error } = useListCompanies();
+  const { data, isLoading: companiesLoading, isFetching: companiesFetching, error } = useListCompanies({ query: { staleTime: 0 } });
   const createCompany = useCreateCompany();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -40,10 +40,10 @@ export default function CompanySelectPage() {
   const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0;
 
   // Samodejni prehod za čiste ERP uporabnike (brez POS dostopa):
-  // Če je shranjeno podjetje v localStorage in se ujema z enim od ERP podjetij → takoj na dashboard.
-  // Ko ima uporabnik tudi POS dostop, prikažemo izbiro (ne skočimo).
+  // Čakamo na konec fetchanja (companiesFetching = false), da ne reagiramo na zastarele
+  // keširane podatke iz prejšnje seje (npr. ko je bil uporabnik takrat le ERP-računovodja).
   React.useEffect(() => {
-    if (isLoading || isSuperAdmin) return;
+    if (isLoading || companiesFetching || isSuperAdmin) return;
     if (posCompanies.length > 0) return; // dual-role → prikaži izbiro
     if (erpCompanies.length === 0) return; // brez dostopa → počakaj na prikaz
 
@@ -58,7 +58,7 @@ export default function CompanySelectPage() {
         setLocation("/dashboard");
       }
     } catch { /* napačen JSON — ignoriraj */ }
-  }, [isLoading, isSuperAdmin, posCompanies.length, erpCompanies.length, user?.id]);
+  }, [isLoading, companiesFetching, isSuperAdmin, posCompanies.length, erpCompanies.length, user?.id]);
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
