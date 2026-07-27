@@ -2794,7 +2794,7 @@ export default function Zaloge() {
                 ) : (izdajnice ?? []).map((iz: { id: number; stevilka?: string | null; datum: string; opomba?: string | null; steviloPostavk: number }) => (
                   <TableRow key={iz.id}>
                     <TableCell className="font-mono text-sm font-medium text-primary">{iz.stevilka ?? "–"}</TableCell>
-                    <TableCell className="font-medium">{fmtDatum(iz.datum)}</TableCell>
+                    <TableCell className="font-medium">{fmtDatumDoc(iz.datum)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{iz.opomba ?? "–"}</TableCell>
                     <TableCell className="text-center"><Badge variant="outline">{iz.steviloPostavk ?? 0}</Badge></TableCell>
                     <TableCell>
