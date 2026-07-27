@@ -27,18 +27,21 @@ if (!basePath) {
   );
 }
 
-// Plugin ki ujame requests brez /pos/ prefiksa in jih preusmeri
-// (Clerk med sign-out procesira interno navigacijo na root '/')
+// Plugin ki ujame VSE requests brez /pos/ prefiksa in jih preusmeri na /pos/.
+// Clerk med sign-out procesira navigacijo na poti kot /sign-in, /clerk-sync itd.
+// ki nimajo /pos/ prefiksa — Vite 7 base middleware jih vrne z "did you mean /pos/?"
 const rootRedirectPlugin = {
   name: 'pos-root-redirect',
   configureServer(server: import('vite').ViteDevServer) {
     server.middlewares.use((req, res, next) => {
-      if (req.url === '/' || req.url === '') {
-        res.writeHead(302, { Location: basePath });
-        res.end();
-        return;
+      const url = req.url ?? '/';
+      // Preskoči WebSocket upgrade in Vite interne poti (začnejo z /@)
+      if (url.startsWith(basePath) || url.startsWith('/@') || url.startsWith('/node_modules')) {
+        return next();
       }
-      next();
+      // Vse ostale poti brez /pos/ → preusmeri na /pos/
+      res.writeHead(302, { Location: basePath });
+      res.end();
     });
   },
 };
