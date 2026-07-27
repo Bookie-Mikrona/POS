@@ -76,6 +76,7 @@ type PrejemnicaRow = { artikelId: number; kolicina: string; cenaKos: string; eno
 type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
 type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
 type IzdajnicaRow = { artikelId: number; kolicina: string };
+type IzdDiffRow = { artikelId: number; knjizno: number; dejansko: string };
 
 // ── Datum helpers ──────────────────────────────────────────────────────────
 const formatDateSlo = (iso: string): string => {
@@ -2239,6 +2240,10 @@ export default function Zaloge() {
   const izdAddBtnRef = useRef<HTMLButtonElement>(null);
   const izdDatumRef = useRef<HTMLInputElement>(null);
   const izdOpombaRef = useRef<HTMLInputElement>(null);
+  // ── Razlika zalog (ne-normativni artikli) ──────────────────────────
+  const [izdDiffOpen, setIzdDiffOpen] = useState(false);
+  const [izdDiffRows, setIzdDiffRows] = useState<IzdDiffRow[]>([]);
+  const izdDiffDejanRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const createIzdajnica = useCreateIzdajnica();
 
   const openIzdDialog = () => {
@@ -2249,17 +2254,39 @@ export default function Zaloge() {
     setIzdDropdownFilter("");
     setIzdDropdownHighlight(0);
     setIzdNovArtikelRowIdx(null);
+    setIzdDiffOpen(false);
+    setIzdDiffRows([]);
     setIzdDialogOpen(true);
     setTimeout(() => izdDatumRef.current?.focus(), 50);
   };
+
+  const openIzdDiff = () => {
+    const neNormativni = nabavniArtikli.filter(a => !a.vNormativih);
+    setIzdDiffRows(neNormativni.map(a => {
+      const z = zaloge?.find(z => z.artikelId === a.id);
+      const knjizno = Number(z?.kolicina ?? 0);
+      return { artikelId: a.id, knjizno, dejansko: fmt(knjizno, 3) };
+    }));
+    setIzdDiffOpen(true);
+  };
   const handleSaveIzdajnica = () => {
     const validRows = izdRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
-    if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    // Razlika zalog: poraba = knjizno − dejansko, samo kjer poraba > 0
+    const diffPostavke = izdDiffOpen
+      ? izdDiffRows
+          .map(r => ({ artikelId: r.artikelId, kolicina: r.knjizno - (parseDecimal(r.dejansko) || 0) }))
+          .filter(r => r.kolicina > 0.0001)
+      : [];
+    const vsePostavke = [
+      ...validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseDecimal(r.kolicina) || 0 })),
+      ...diffPostavke,
+    ];
+    if (!vsePostavke.length) { toast({ title: "Ni porabe za shraniti — preverite vnešene količine", variant: "destructive" }); return; }
     createIzdajnica.mutate({
       data: {
         datum: izdDatum || undefined,
         opomba: izdOpomba || null,
-        postavke: validRows.map(r => ({ artikelId: r.artikelId, kolicina: parseDecimal(r.kolicina) || 0 })),
+        postavke: vsePostavke,
       },
     }, {
       onSuccess: () => {
@@ -2960,6 +2987,75 @@ export default function Zaloge() {
                 <Plus className="w-4 h-4 mr-1" />Dodaj postavko
               </Button>
             </div>
+            {/* ── Razlika zalog ─────────────────────────────────────── */}
+            {!izdDiffOpen ? (
+              <Button variant="outline" size="sm" className="w-full border-dashed text-muted-foreground hover:text-foreground"
+                onClick={openIzdDiff}>
+                <Plus className="w-4 h-4 mr-1" />Vnos porabe po razliki zalog (ne-normativni artikli)
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Poraba po razliki zalog</Label>
+                  <button type="button" onClick={() => setIzdDiffOpen(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground underline">Skrij</button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Knjižno = trenutna zaloga. Vpišite dejansko (fizično) zalogo — poraba se izračuna samodejno. Vrstice z nično porabo se preskočijo.
+                </p>
+                <div className="rounded-md border overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Artikel</TableHead>
+                        <TableHead className="text-right w-28">Knjižno</TableHead>
+                        <TableHead className="text-right w-32">Dejansko</TableHead>
+                        <TableHead className="text-right w-28">Poraba</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {izdDiffRows.map((row, i) => {
+                        const art = nabavniArtikli.find(a => a.id === row.artikelId);
+                        const dejansko = parseDecimal(row.dejansko) ?? row.knjizno;
+                        const poraba = row.knjizno - dejansko;
+                        return (
+                          <TableRow key={row.artikelId} className={poraba > 0.0001 ? "bg-orange-50/60" : ""}>
+                            <TableCell className="text-sm font-medium whitespace-nowrap py-1.5">
+                              {art?.imeZaNabavo || art?.ime}
+                              {art?.enotaMere && <span className="text-muted-foreground text-xs ml-1">({art.enotaMere})</span>}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-sm py-1.5">{fmt(row.knjizno, 3)}</TableCell>
+                            <TableCell className="text-right py-1.5">
+                              <DecimalInput
+                                ref={el => { if (el) izdDiffDejanRefs.current.set(i, el as any); else izdDiffDejanRefs.current.delete(i); }}
+                                value={row.dejansko}
+                                onChange={e => setIzdDiffRows(r => r.map((dr, j) => j === i ? { ...dr, dejansko: e.target.value } : dr))}
+                                onKeyDown={e => {
+                                  if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const el = izdDiffDejanRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
+                                  else if (e.key === "ArrowUp") { e.preventDefault(); const el = izdDiffDejanRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                                }}
+                                className="w-24 text-right ml-auto h-8"
+                              />
+                            </TableCell>
+                            <TableCell className={`text-right tabular-nums text-sm font-semibold py-1.5 ${poraba > 0.0001 ? "text-orange-700" : "text-muted-foreground/40"}`}>
+                              {poraba > 0.0001 ? `−${fmt(poraba, 3)}` : "–"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                {izdDiffRows.some(r => r.knjizno - (parseDecimal(r.dejansko) ?? r.knjizno) > 0.0001) && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Skupna poraba: <strong className="text-orange-700">
+                      {fmt(izdDiffRows.reduce((s, r) => { const p = r.knjizno - (parseDecimal(r.dejansko) ?? r.knjizno); return s + (p > 0 ? p : 0); }, 0), 3)}
+                    </strong> enot
+                  </p>
+                )}
+              </div>
+            )}
+
             <Button className="w-full" onClick={handleSaveIzdajnica} disabled={createIzdajnica.isPending}>
               {createIzdajnica.isPending ? "Shranjujem..." : <>Shrani izdajnico <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
