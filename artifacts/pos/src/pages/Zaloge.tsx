@@ -916,7 +916,8 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
       const agg = dnevnaMap.get(dayKey);
       if (!agg || vstavljena.has(dayKey)) continue;
       if (g === agg.zadnji) {
-        result.push({ ...agg.zadnji, id: -(new Date(dayKey).getTime()), kolicina: agg.sumKol, vrednost: agg.sumVred, cenaKos: null, zbranoStevilo: agg.stevilo });
+        const avgCena = agg.sumKol !== 0 ? agg.sumVred / agg.sumKol : null;
+        result.push({ ...agg.zadnji, id: -(new Date(dayKey).getTime()), kolicina: agg.sumKol, vrednost: agg.sumVred, cenaKos: avgCena, zbranoStevilo: agg.stevilo });
         vstavljena.add(dayKey);
       }
     }
