@@ -2333,6 +2333,8 @@ export default function Zaloge() {
   const createInventura = useCreateInventura();
 
   const openInvDialog = () => {
+    // Prisilno osveži artikle, da je vNormativih polje vedno sveže
+    queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
     setInvDatum(new Date().toISOString().slice(0, 10));
     setInvOpomba("");
     setInvRows(nabavniArtikli.map(a => {
