@@ -173,10 +173,12 @@ function HomeRedirect() {
 
     if (isSuperAdmin) return <Redirect to="/admin" />;
 
-    // ERP uporabnik z obstoječim podjetjem → direktno na dashboard
+    // ERP uporabnik z obstoječim podjetjem → direktno na dashboard,
+    // RAZEN ko ima hkrati POS dostop — takrat naj sam izbere kam gre.
     const userId = user?.id;
     const storedCompany = userId ? localStorage.getItem(`erp_active_company_${userId}`) : null;
-    if (storedCompany) {
+    const hasDualRole = localStorage.getItem("dual_role_hint") === "1";
+    if (storedCompany && !hasDualRole) {
       try {
         const parsed = JSON.parse(storedCompany) as { role?: string };
         if (parsed?.role && !(parsed.role as string).startsWith("pos_")) {
@@ -185,7 +187,7 @@ function HomeRedirect() {
       } catch { /* napačen JSON — ignoriraj */ }
     }
 
-    // Brez shranjenega podjetja → company-select (tam se zazna POS-only)
+    // Brez shranjenega podjetja ali dual-role → company-select (tam se zazna POS-only)
     return <Redirect to="/company-select" />;
   }
 

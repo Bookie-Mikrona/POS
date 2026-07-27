@@ -36,7 +36,18 @@ export default function CompanySelectPage() {
   // Zaznaj POS podjetje po vlogi (role začne z "pos_")
   const isPosOnly = (company: CompanyWithRole) => (company.role as string).startsWith("pos_");
   const erpCompanies = companies.filter(c => !isPosOnly(c));
+  const posCompanies = companies.filter(c => isPosOnly(c));
   const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0;
+
+  // Nastavi/pobriši dual_role_hint — ERP HomeRedirect ga bere, da ne preskoči company-select
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (erpCompanies.length > 0 && posCompanies.length > 0) {
+      localStorage.setItem("dual_role_hint", "1");
+    } else {
+      localStorage.removeItem("dual_role_hint");
+    }
+  }, [isLoading, erpCompanies.length, posCompanies.length]);
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
