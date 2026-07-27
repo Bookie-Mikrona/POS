@@ -66,10 +66,10 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
 
   const artikelIds = postavke.map((p: any) => p.artikelId);
 
+  // Inventura se vedno beleži ob 23:59:59 — izvaja se na koncu dneva
   const docDatum = datum ? new Date(datum) : new Date();
-  // Stanje zalog ob koncu inventurnega dne (23:59:59.999)
+  docDatum.setHours(23, 59, 59, 0);
   const cutoff = new Date(docDatum);
-  cutoff.setHours(23, 59, 59, 999);
 
   const [zalogaObDatumu, zadnjeCene, artikliRows] = await Promise.all([
     getZalogeObDatumu(artikelIds, cutoff),
@@ -221,7 +221,11 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
 
   const [updated] = await db.transaction(async (tx) => {
     const txUpdates: Partial<typeof existing> = {};
-    if (parsed.data.datum !== undefined) txUpdates.datum = new Date(parsed.data.datum);
+    if (parsed.data.datum !== undefined) {
+      const d = new Date(parsed.data.datum);
+      d.setHours(23, 59, 59, 0);
+      txUpdates.datum = d;
+    }
     if (parsed.data.opomba !== undefined) txUpdates.opomba = parsed.data.opomba;
 
     if (parsed.data.postavke !== undefined) {
