@@ -57,17 +57,18 @@ router.post("/sim/datum", requireEnota, async (req, res): Promise<void> => {
     : new Date();
 
   for (const izmena of openIzmene) {
-    const [agg] = await db.execute(sql`
+    const aggResult = await db.execute(sql`
       SELECT COALESCE(SUM(CAST(skupaj AS NUMERIC)), 0)::text AS skupaj_znesek,
              COUNT(*)::integer AS stevilo_racunov
       FROM racuni
       WHERE izmena_id = ${izmena.id} AND enota_id = ${enotaId}
     `);
+    const agg = aggResult.rows[0] as any;
     await db.update(izmeneTable)
       .set({
         konec: konecDatum,
-        skupajZnesek: String((agg as any)?.skupaj_znesek ?? "0"),
-        steviloRacunov: Number((agg as any)?.stevilo_racunov ?? 0),
+        skupajZnesek: String(agg?.skupaj_znesek ?? "0"),
+        steviloRacunov: Number(agg?.stevilo_racunov ?? 0),
       })
       .where(eq(izmeneTable.id, izmena.id));
   }
