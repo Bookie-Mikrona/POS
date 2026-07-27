@@ -56,6 +56,37 @@ function uuidOrNull(v: unknown): string | null {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : null;
 }
 
+// ── Vsa polja s kontnimi nastavitvami ─────────────────────────────────────────
+
+const ACCOUNT_FIELDS = [
+  // T1 debet — plačila
+  "cashAccountId",
+  "cardAccountId",
+  "voucherAccountId",
+  "otherPaymentAccountId",
+  // T1 kredit — prihodki po vrsti × DDV
+  "revenueMaterial95AccountId",
+  "revenueMaterial22AccountId",
+  "revenueGoods22AccountId",
+  "revenueGoods95AccountId",
+  "revenueServiceAccountId",
+  // T1 kredit — DDV
+  "vat95AccountId",
+  "vat22AccountId",
+  // T2 — prejemnice
+  "inventoryMaterialAccountId",
+  "inventoryGoodsAccountId",
+  "payablesAccountId",
+  // T3 — COGS
+  "cogsMaterialAccountId",
+  "cogsGoodsAccountId",
+  // ← zastareli fallback konti (ohranjeni za nazaj)
+  "revenueAccountId",
+  "vatLiabilityAccountId",
+  "inventoryAccountId",
+  "cogsAccountId",
+] as const;
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 router.get(
@@ -93,17 +124,6 @@ router.get(
 
 // ── PUT ───────────────────────────────────────────────────────────────────────
 
-const ACCOUNT_FIELDS = [
-  "revenueAccountId",
-  "cashAccountId",
-  "cardAccountId",
-  "otherPaymentAccountId",
-  "vatLiabilityAccountId",
-  "inventoryAccountId",
-  "payablesAccountId",
-  "cogsAccountId",
-] as const;
-
 router.put(
   "/companies/:companyId/pos-booking-settings",
   requireAuth,
@@ -116,7 +136,6 @@ router.put(
 
     const body = req.body as Record<string, unknown>;
 
-    // Zgradi patch object — samo polja ki so prisotna v body
     const patch: Record<string, string | null> = {};
     for (const field of ACCOUNT_FIELDS) {
       if (field in body) {
@@ -130,11 +149,7 @@ router.put(
       const found = await db
         .select({ id: accountsTable.id })
         .from(accountsTable)
-        .where(
-          and(
-            eq(accountsTable.companyId, companyId),
-          ),
-        );
+        .where(eq(accountsTable.companyId, companyId));
       const foundSet = new Set(found.map(r => r.id));
       const missing = nonNullIds.filter(id => !foundSet.has(id));
       if (missing.length > 0) {
@@ -143,7 +158,6 @@ router.put(
       }
     }
 
-    // Upsert
     const [upserted] = await db
       .insert(posBookingSettingsTable)
       .values({
@@ -174,7 +188,6 @@ router.post(
     const companyId = extractParam(req.params.companyId);
     const datum = extractParam(req.params.datum);
 
-    // Preveri datum format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
       res.status(400).json({ error: "Neveljaven datum — pričakujem YYYY-MM-DD" });
       return;

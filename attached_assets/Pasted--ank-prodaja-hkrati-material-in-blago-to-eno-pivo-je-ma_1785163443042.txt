@@ -1,0 +1,260 @@
+Šank prodaja hkrati material in blago: točeno pivo je material, ker se v šanku dobiva iz sodčka in nato pretakja v kozarec (proces), medtem ko je pivo v steklenici trgovsko blago (prodaja "kot je"). Enako velja za točeno vino iz kartona proti steklenici, kavo iz zrn proti steklenici hladne kave itd. To razlikovanje je bistveno tudi za normativ (točenju se lahko meri kalo, steklenici ne).
+Izdajnica ni samo pomožni material: meso, krompir, moka ipd. so osnovni material, ki gre lahko po normativih (če je v recepturi) ali po izdajnici (če se porabi izven receptur — npr. dnevna juha, priprava vnaprej, priprava za dogodek). En material torej lahko gre skozi oba kanala razknjiževanja.
+
+Analitika 7-mestna, konvencija: KKK-PP-VV (3 SIR + 2 poslovni prostor + 2 vrsta/kategorija). Ker gre za en prostor, uporabljam poslovni prostor 01 povsod.
+
+Prilagojeni šifrant kontov
+Konto	Naziv
+1000110	Blagajna EUR — prostor 01, gotovina
+1000120	Prehodni konto POS terminal — prostor 01
+1100110	TRR NLB
+1200110	Terjatve do kupcev — pravne osebe, domači
+1210110	Terjatev do Sodexo (prehranski boni)
+1600195	Vstopni DDV 9,5 %
+1600122	Vstopni DDV 22 %
+2200110	Obveznosti do dobaviteljev, domači
+2300110	Prejeti predujmi — izdani darilni boni
+2600195	Obračunani DDV 9,5 %
+2600122	Obračunani DDV 22 %
+Material — razred 3	
+3100110	Material — meso, ribe, mesnine (kuhinja)
+3100120	Material — zelenjava, sadje, krompir
+3100130	Material — moka, testenine, kruh, jajca
+3100140	Material — mlečni izdelki, maščobe
+3100210	Material — točene alkoholne pijače (pivo v sodčkih, točeno vino)
+3100220	Material — točene brezalkoholne pijače (točeni sok, ledeni čaj)
+3100230	Material — kava, čaj v zrnu/vrečkah
+3100310	Material — pomožni (začimbe, olje za cvrenje, čistila)
+Blago — razred 6	
+6600110	Blago — pivo v steklenicah/pločevinkah
+6600120	Blago — vino v steklenicah
+6600130	Blago — žgane pijače v steklenicah
+6600210	Blago — voda, sokovi v steklenicah/pločevinkah
+6600220	Blago — energijske pijače, hladen čaj v steklenicah
+Stroški — razred 4	
+4000110	Poraba materiala po normativih — kuhinja (jedi)
+4000120	Poraba materiala po normativih — šank (točene pijače)
+4000210	Poraba materiala po izdajnici — osnovni
+4000220	Poraba materiala po izdajnici — pomožni
+4000310	Inventurni manjko materiala — v mejah kalo
+4170110	Stroški reprezentance
+4650110	Provizija POS terminala (banka)
+4650120	Provizija izdajateljev bonov (Sodexo)
+4830110	Odhodki iz naslova lastne porabe
+Odhodki blaga — razred 7	
+7020110	Nabavna vrednost prodanega blaga — alkohol steklenice
+7020120	Nabavna vrednost prodanega blaga — brezalkoholne steklenice
+Prihodki — razred 7	
+7600110	Prihodki od storitev postrežbe (22 %)
+7620110	Prihodki od prodaje hrane iz kuhinje (9,5 %)
+7620210	Prihodki od prodaje točenih alkoholnih pijač (22 %)
+7620220	Prihodki od prodaje točenih brezalkoholnih (9,5 %)
+7620310	Prihodki od prodaje blaga — alkohol steklenice (22 %)
+7620320	Prihodki od prodaje blaga — brezalkoholne steklenice (9,5 %)
+Popravljeni vhodni podatki
+
+Dnevni promet z ločitvijo šanka na točeno (material) in stekleničeno (blago):
+
+Vrsta prometa	Neto	DDV	Bruto	Konto
+Hrana kuhinja (9,5 %)	800,00	76,00	876,00	7620110
+Točene alkoholne (22 %) — sodčki	250,00	55,00	305,00	7620210
+Točene brezalkoholne (9,5 %)	120,00	11,40	131,40	7620220
+Steklenice alkohol (22 %) — blago	150,00	33,00	183,00	7620310
+Steklenice brezalkoholne (9,5 %) — blago	80,00	7,60	87,60	7620320
+Storitev postrežbe (22 %)	100,00	22,00	122,00	7600110
+Skupaj	1.500,00	205,00	1.705,00	
+
+Poraba po virih:
+
+Normativi kuhinja: 320,00 € (skladno z izdanimi jedmi)
+Normativi šank — točeno: alkoholne 90,00 €, brezalkoholne 45,00 € (kalkulacija na osnovi točenih količin)
+Nabavna vrednost blaga: steklenice alkohol 95,00 €, steklenice brezalkoholne 48,00 €
+Izdajnica osnovnega materiala (meso in krompir za dnevno juho, ki ni v normativih): 60,00 €
+Izdajnica pomožnega materiala (začimbe, olje, čistila): 45,00 €
+Reprezentanca (podarjena steklenica žgane pijače poslovnemu partnerju): nabavna vrednost 40,00 € iz zaloge blaga
+Lastna poraba (obrok zaposlenega izven pogodbene malice): 15,00 €
+Inventurni manjko materiala v mejah kalo: 25,00 €
+
+Prejemnica materiala (Živila d.o.o., račun 2026-1500):
+
+Postavka	Znesek
+Material hrana (meso, zelenjava)	330,00
+Material šank — točeno pivo (sodček)	90,00
+Blago — pivo v steklenicah	60,00
+Blago — brezalkoholne v steklenicah	30,00
+DDV 9,5 % od (330 + 30) = 360 × 9,5 %	34,20
+DDV 22 % od (90 + 60) = 150 × 22 %	33,00
+Bruto	577,20
+
+Plačilna sredstva: gotovina 555,00 + kartice 600,00 + darilni boni 100,00 + Sodexo 300,00 + TRR pravna oseba 150,00 = 1.705,00.
+
+Temeljnica 1 — Prejemnica materiala in blaga (PRE-2026-000234)
+
+Zaloga materiala in blaga se knjižita ločeno, ker imata različen odhodkovni tretma.
+
+#	Konto	Opis	Breme	Dobro
+1	3100110	Material — meso, ribe	200,00	
+2	3100120	Material — zelenjava, krompir	130,00	
+3	3100210	Material — pivo v sodčkih (točeno)	90,00	
+4	6600110	Blago — pivo v steklenicah	60,00	
+5	6600210	Blago — voda, sokovi v steklenicah	30,00	
+6	1600195	Vstopni DDV 9,5 %	34,20	
+7	1600122	Vstopni DDV 22 %	33,00	
+8	2200110	Obveznost do Živila d.o.o.		577,20
+		Kontrolna vsota	577,20	577,20
+
+DDV-O: polje 31 → 510,00; polje 41 → 33,00; polje 42 → 34,20.
+KPR: en zapis, P8 = 510,00, P18 = 33,00, P19 = 34,20.
+
+Temeljnica 2 — Dnevni zaključek POS (POS-Z-2026-208)
+#	Konto	Opis	Breme	Dobro
+1	1000110	Blagajna EUR — gotovina	555,00	
+2	1000120	Prehodni konto POS — kartice	600,00	
+3	2300110	Razknjiženje predujma — darilni boni	100,00	
+4	1210110	Terjatev do Sodexo	300,00	
+5	1200110	Terjatev do X d.o.o. (R-2026-1287)	150,00	
+6	7620110	Prihodki — hrana kuhinja		800,00
+7	2600195	Obračunani DDV 9,5 % — hrana		76,00
+8	7620210	Prihodki — točene alkoholne		250,00
+9	2600122	Obračunani DDV 22 % — točene alkoholne		55,00
+10	7620220	Prihodki — točene brezalkoholne		120,00
+11	2600195	Obračunani DDV 9,5 % — točene brezalkoholne		11,40
+12	7620310	Prihodki — steklenice alkohol (blago)		150,00
+13	2600122	Obračunani DDV 22 % — steklenice alkohol		33,00
+14	7620320	Prihodki — steklenice brezalkoholne (blago)		80,00
+15	2600195	Obračunani DDV 9,5 % — steklenice brezalkoholne		7,60
+16	7600110	Prihodki — postrežba		100,00
+17	2600122	Obračunani DDV 22 % — postrežba		22,00
+		Kontrolna vsota	1.705,00	1.705,00
+
+DDV-O agregat prometa: polje 11 → 1.500,00; polje 21 → 110,00; polje 22 → 95,00.
+KIR: agregatni zapis za paragone (P7 = 1.350,00 razen individualno poročanega računa), individualni zapis za R-2026-1287 pravni osebi (P7 = 150 osnove, glede na razmerje stopenj razdeljeno).
+
+Praktični nasvet za ERP: POS naj v exportu za zaključek pošlje že ločene vsote po kombinaciji vrsta artikla × DDV stopnja × konto prihodkov, ne le agregat po DDV stopnjah. Sicer se točeno pivo in stekleničeno pivo (obe 22 %) po napaki združita — kar razbije analitiko marže po vrstah artiklov, ki je za gostinstvo ključna KPI.
+
+Temeljnica 3 — Razknjiženje po normativih (RAZ-NORM-2026-208)
+
+Ločena postavka za kuhinjo in šank, ker gresta na različna analitika stroška materiala.
+
+#	Konto	Opis	Breme	Dobro
+1	4000110	Poraba materiala po normativih — kuhinja	320,00	
+2	3100110	Material — meso, ribe (delež)		180,00
+3	3100120	Material — zelenjava, krompir (delež)		100,00
+4	3100130	Material — moka, testenine (delež)		30,00
+5	3100140	Material — mlečni, maščobe (delež)		10,00
+6	4000120	Poraba materiala po normativih — šank	135,00	
+7	3100210	Material — točene alkoholne		90,00
+8	3100220	Material — točene brezalkoholne		45,00
+		Kontrolna vsota	455,00	455,00
+
+Razdelitev znotraj kuhinje (vrstice 2–5) izhaja iz normativov posameznih prodanih jedi — ERP jih zbere po BOM (bill of materials) iz receptur.
+
+Temeljnica 4 — Razknjiženje blaga (RAZ-BLAG-2026-208)
+
+Blago se razknjižuje po nabavni vrednosti (FIFO ali povprečna, glede na politiko podjetja).
+
+#	Konto	Opis	Breme	Dobro
+1	7020110	Nabavna vrednost — alkohol steklenice	95,00	
+2	6600110	Blago — pivo v steklenicah		60,00
+3	6600120	Blago — vino v steklenicah		20,00
+4	6600130	Blago — žgane pijače		15,00
+5	7020120	Nabavna vrednost — brezalkoholne steklenice	48,00	
+6	6600210	Blago — voda, sokovi		30,00
+7	6600220	Blago — energijske, hladen čaj		18,00
+		Kontrolna vsota	143,00	143,00
+Temeljnica 5 — Izdajnica osnovnega materiala (IZD-OSN-2026-018)
+
+Meso in krompir za dnevno juho, ki ni v normativih. Konto porabe je ločen od normativov, ker se to ne odraža v prodanih jedeh na POS.
+
+#	Konto	Opis	Breme	Dobro
+1	4000210	Poraba materiala po izdajnici — osnovni	60,00	
+2	3100110	Material — meso (za dnevno juho)		35,00
+3	3100120	Material — krompir (za dnevno juho)		25,00
+		Kontrolna vsota	60,00	60,00
+
+Pomembno za ERP dizajn: isti material (npr. meso) lahko zapušča zalogo skozi dva kanala — prek normativov (jedi na POS-u) ali prek izdajnice. Šifrant materiala mora dovoljevati oba načina razknjiženja. Kar NI dovoljeno: dvojno razknjiženje istega dogodka (če je meso porabljeno za jed, ki je bila na POS-u, gre po normativu, ne po izdajnici).
+
+Priporočena kontrola: ERP naj primerja skupno porabo materiala (normativi + izdajnice + reprezentanca + lastna poraba + manjko) proti (začetna zaloga + prevzemi − končna zaloga) po posameznem artiklu. Če je razlika večja od določenega odstotka, prikaži opozorilo — indikator, da normativi ne držijo (najpogostejši vzrok razlike med pričakovano in dejansko marže v gostinstvu).
+
+Temeljnica 6 — Izdajnica pomožnega materiala (IZD-POM-2026-045)
+
+Začimbe, olje za cvrenje, čistila — se ne pripišejo posameznim jedeem, ampak splošni porabi kuhinje.
+
+#	Konto	Opis	Breme	Dobro
+1	4000220	Poraba materiala po izdajnici — pomožni	45,00	
+2	3100310	Material — pomožni		45,00
+		Kontrolna vsota	45,00	45,00
+Temeljnica 7 — Reprezentanca (REP-2026-012)
+
+Podarjena steklenica žgane pijače (blago, ne material). Prvotno odbiti vstopni DDV se stornira in prišteje strošku. Nabavna vrednost 40,00 € × 22 % = 8,80 € neodbiten DDV.
+
+#	Konto	Opis	Breme	Dobro
+1	4170110	Stroški reprezentance (nabavna vrednost)	40,00	
+2	4170110	Stroški reprezentance (neodbiten DDV)	8,80	
+3	6600130	Blago — žgane pijače		40,00
+4	1600122	Vstopni DDV 22 % — storno odbitka		8,80
+		Kontrolna vsota	48,80	48,80
+
+Za DDPO: 60 % priznano, 40 % (19,52 €) na koncu leta prišteto davčni osnovi. V ERP naj bo posebna oznaka na kontu (tax_deductibility = 60%) za avtomatski izračun davčno nepriznanih odhodkov.
+
+Temeljnica 8 — Lastna poraba (LP-2026-018)
+
+Obrok zaposlenega izven pogodbene malice, nabavna vrednost hrane 15,00 €, DDV 9,5 % = 1,43 €.
+
+#	Konto	Opis	Breme	Dobro
+1	4830110	Odhodki iz lastne porabe (osnova)	15,00	
+2	3100110	Material — meso, ribe		8,00
+3	3100120	Material — zelenjava		7,00
+4	4830110	Odhodki iz lastne porabe (DDV)	1,43	
+5	2600195	Obračunani DDV 9,5 % — lastna poraba		1,43
+		Kontrolna vsota	16,43	16,43
+
+KIR: ločen zapis, P7 = 15,00, P15 = 1,43, listina LP-2026-018.
+
+Temeljnica 9 — Inventurni manjko v mejah kalo (INV-2026-07)
+
+25,00 € kvarljivega materiala, znotraj mej normalnega kalo → brez izstopnega DDV.
+
+#	Konto	Opis	Breme	Dobro
+1	4000310	Inventurni manjko — v mejah kalo	25,00	
+2	3100120	Material — zelenjava, krompir		20,00
+3	3100110	Material — meso, ribe		5,00
+		Kontrolna vsota	25,00	25,00
+Temeljnice naslednjega delovnega dne
+Priliv POS (banka)
+
+Provizija 1,5 % od 600 € = 9,00 € (oproščena DDV po 44. členu).
+
+#	Konto	Opis	Breme	Dobro
+1	1100110	TRR NLB	591,00	
+2	4650110	Provizija POS terminala	9,00	
+3	1000120	Prehodni konto POS		600,00
+Priliv Sodexo
+
+Provizija 5 % × 300 = 15,00 €, DDV 22 % = 3,30 €, priliv 300 − 15 − 3,30 = 281,70.
+
+#	Konto	Opis	Breme	Dobro
+1	1100110	TRR NLB	281,70	
+2	4650120	Provizija Sodexo	15,00	
+3	1600122	Vstopni DDV 22 % (Sodexo račun)	3,30	
+4	1210110	Terjatev do Sodexo		300,00
+Priliv kupca
+#	Konto	Opis	Breme	Dobro
+1	1100110	TRR NLB	150,00	
+2	1200110	Terjatev do X d.o.o.		150,00
+Kontrolne vsote za dan 26. 7. 2026
+
+Prihodki (razred 76): 1.500,00 €
+Odhodki materiala in blaga: 320 + 135 + 60 + 45 + 25 + 15 (lastna poraba) + 143 (NVPB) = 743,00 €
+Stroški reprezentance: 48,80 €
+DDV izstopni: 205,00 + 1,43 = 206,43 €
+DDV vstopni: 34,20 + 33,00 − 8,80 (storno reprezentanca) = 58,40 €
+Vpliv na TRR (naslednji dan): priliv 591,00 + 281,70 + 150,00 = 1.022,70 €
+
+Analiza marže (izračun na hitro za kontrolo):
+
+Kuhinja: prihodek 800, materialni strošek normativi 320, marža 60 %
+Šank točeno: prihodek 370, materialni strošek 135, marža 63,5 %
+Šank blago (steklenice): prihodek 230, NVPB 143, marža 37,8 %
+
+Marža blaga je bistveno nižja od točenega — to je normalno v gostinstvu in razlog, zakaj ločeno spremljanje material/blago v šanku sploh potrebuješ. Če šef vidi samo agregat "pijača 63 % marža", ne bo ugotovil, da mu steklenice požirajo maržo. Ta ločnica je ena od najpomembnejših poslovnih koristi ločenega knjiženja, ki jo tvoj ERP prinaša — vredna izpostavitve v prodajni prezentaciji.

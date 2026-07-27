@@ -3,18 +3,30 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Za vsak dan generira do 3 osnutke temeljnic:
  *   1. POS:PRODAJA:YYYY-MM-DD   — dnevna prodaja (Z-poročilo)
+ *      Debet:  gotovina / kartica / darilni boni / ostalo
+ *      Kredit: prihodki po vrsti artikla × DDV stopnji + DDV po stopnji
+ *
  *   2. POS:PREJEMNICA:YYYY-MM-DD — prejemnice blaga
+ *      Debet:  zaloga materiala + zaloga blaga
+ *      Kredit: obveznosti do dobaviteljev
+ *
  *   3. POS:PORABA:YYYY-MM-DD    — razknjižba zalog (COGS)
+ *      Debet:  stroški materiala + NVPB blaga
+ *      Kredit: zmanjšanje ustrezne zalogе
+ *
+ * Analitika:
+ *   - vrsta_artikla: 'material' | 'blago' | 'storitev'
+ *   - davek: 9.5 | 22 | 0  (DDV stopnja v %)
+ *
+ * Fallback: če analitični konti niso nastavljeni, se uporabi zastareli splošni
+ * konto (revenueAccountId / vatLiabilityAccountId / inventoryAccountId / cogsAccountId).
  *
  * Funkcija je idempotentna: obstoječe osnutke z istim ref pobriše in ustvari
  * nove. Potrjene temeljnice (status='posted') nikoli ne briše.
- *
- * Klic je async-fire-and-forget iz POS routov. Napake se zabeležijo samo
- * v konzolo — ne vplivajo na POS odgovor.
  */
 
 import Decimal from "decimal.js";
-import { and, eq, inArray, lte, gte, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, gte, notInArray, sql } from "drizzle-orm";
 import {
   db,
   posBookingSettingsTable,
@@ -22,6 +34,8 @@ import {
   enoteTable,
   racuniTable,
   prejemniceTable,
+  prejemnicePostavkeTable,
+  postavkeTable,
   zalogaGibiTable,
   artikliTable,
   journalEntriesTable,
@@ -53,6 +67,24 @@ function isBalanced(lines: SyncLine[]): boolean {
   const debit = lines.filter(l => l.side === "debit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
   const credit = lines.filter(l => l.side === "credit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
   return debit.minus(credit).abs().lt("0.01");
+}
+
+/** Sešteje vrstice z istim accountId in stranjo v eno vrstico */
+function mergeLines(lines: SyncLine[]): SyncLine[] {
+  const map = new Map<string, SyncLine>();
+  for (const l of lines) {
+    const key = `${l.accountId}|${l.side}`;
+    const ex = map.get(key);
+    if (ex) {
+      ex.amount = ex.amount.plus(l.amount);
+      if (l.desc && ex.desc && !ex.desc.includes(l.desc)) {
+        ex.desc = `${ex.desc}, ${l.desc}`;
+      }
+    } else {
+      map.set(key, { ...l });
+    }
+  }
+  return [...map.values()].filter(l => l.amount.gt("0.005"));
 }
 
 async function deleteExistingDrafts(companyId: string, ref: string): Promise<void> {
@@ -87,6 +119,7 @@ async function insertEntry(
         reference: ref,
         status: "draft",
         sourceType: "document",
+        createdBy: "pos-sync",
       })
       .returning({ id: journalEntriesTable.id });
 
@@ -158,18 +191,15 @@ export async function syncPosBookingForDay(
   // ── TEMELJNICA 1: PRODAJA ────────────────────────────────────────────────────
   const prodajaRef = `POS:PRODAJA:${datum}`;
   await (async () => {
-    if (!settings.revenueAccountId) {
-      skipped.push({ ref: prodajaRef, reason: "Konto prihodkov ni nastavljen" });
-      return;
-    }
-
+    // 1a. Dnevni seštevki plačil (iz glave računa)
     const [sales] = await db
       .select({
-        gotovina: sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekGotovina} AS numeric)), 0)`,
-        kartica: sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekKartica} AS numeric)), 0)`,
-        osnova: sql<string>`COALESCE(SUM(CAST(${racuniTable.osnova} AS numeric)), 0)`,
-        ddv: sql<string>`COALESCE(SUM(CAST(${racuniTable.ddv} AS numeric)), 0)`,
-        skupaj: sql<string>`COALESCE(SUM(CAST(${racuniTable.skupaj} AS numeric)), 0)`,
+        gotovina:      sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekGotovina} AS numeric)), 0)`,
+        kartica:       sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekKartica} AS numeric)), 0)`,
+        bon:           sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekBon} AS numeric)), 0)`,
+        bonPica:       sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekBonPica} AS numeric)), 0)`,
+        negotovinsko:  sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekNegotovinsko} AS numeric)), 0)`,
+        skupaj:        sql<string>`COALESCE(SUM(CAST(${racuniTable.skupaj} AS numeric)), 0)`,
       })
       .from(racuniTable)
       .where(
@@ -182,20 +212,38 @@ export async function syncPosBookingForDay(
 
     const skupaj = dec(sales.skupaj);
     if (skupaj.lte(0)) {
-      // Brez prodaje — pobriši morebitni obstoječi osnutek
       await deleteExistingDrafts(companyId, prodajaRef);
       return;
     }
 
-    const gotovina = dec(sales.gotovina);
-    const kartica = dec(sales.kartica);
-    const osnova = dec(sales.osnova);
-    const ddv = dec(sales.ddv);
-    const ostalo = skupaj.minus(gotovina).minus(kartica);
+    // 1b. Prihodki in DDV po vrsti artikla × DDV stopnji (iz postavk)
+    const prodajaVrstice = await db
+      .select({
+        vrstaArtikla: postavkeTable.vrstaArtikla,
+        davek:        postavkeTable.davek,
+        bruto:        sql<string>`COALESCE(SUM(CAST(${postavkeTable.skupaj} AS numeric)), 0)`,
+      })
+      .from(postavkeTable)
+      .innerJoin(racuniTable, eq(racuniTable.id, postavkeTable.racunId))
+      .where(
+        and(
+          inArray(racuniTable.enotaId, enotaIds),
+          sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date = ${datum}::date`,
+          notInArray(racuniTable.status, ["storniran", "testni"]),
+          isNull(postavkeTable.parentPostavkaId),
+        ),
+      )
+      .groupBy(postavkeTable.vrstaArtikla, postavkeTable.davek);
+
+    // ── Debet: plačilni načini ───────────────────────────────────────────────
 
     const lines: SyncLine[] = [];
 
-    // Debet — plačilni načini
+    const gotovina     = dec(sales.gotovina);
+    const kartica      = dec(sales.kartica);
+    const boni         = dec(sales.bon).plus(dec(sales.bonPica));
+    const negotovinsko = dec(sales.negotovinsko);
+
     if (gotovina.gt(0)) {
       if (!settings.cashAccountId) {
         skipped.push({ ref: prodajaRef, reason: `Gotovina (${gotovina.toFixed(2)} €): konto blagajne ni nastavljen` });
@@ -205,92 +253,211 @@ export async function syncPosBookingForDay(
     }
     if (kartica.gt(0)) {
       if (!settings.cardAccountId) {
-        skipped.push({ ref: prodajaRef, reason: `Kartica (${kartica.toFixed(2)} €): konto terjatev do processorja ni nastavljen` });
+        skipped.push({ ref: prodajaRef, reason: `Kartica (${kartica.toFixed(2)} €): konto POS terminala ni nastavljen` });
         return;
       }
-      lines.push({ accountId: settings.cardAccountId, side: "debit", amount: kartica, desc: "Kartica" });
+      lines.push({ accountId: settings.cardAccountId, side: "debit", amount: kartica, desc: "Kartica / POS terminal" });
     }
-    if (ostalo.gt("0.005")) {
+    if (boni.gt("0.005")) {
+      if (!settings.voucherAccountId) {
+        skipped.push({ ref: prodajaRef, reason: `Darilni boni (${boni.toFixed(2)} €): konto bonov ni nastavljen` });
+        return;
+      }
+      lines.push({ accountId: settings.voucherAccountId, side: "debit", amount: boni, desc: "Darilni boni" });
+    }
+    if (negotovinsko.gt("0.005")) {
       if (!settings.otherPaymentAccountId) {
-        skipped.push({ ref: prodajaRef, reason: `Ostala plačila (${ostalo.toFixed(2)} €): konto za ostala plačila ni nastavljen` });
+        skipped.push({ ref: prodajaRef, reason: `Ostala negotovinska plačila (${negotovinsko.toFixed(2)} €): konto ni nastavljen` });
         return;
       }
-      lines.push({ accountId: settings.otherPaymentAccountId, side: "debit", amount: ostalo, desc: "Ostala plačila (boni, negotovinsko …)" });
+      lines.push({ accountId: settings.otherPaymentAccountId, side: "debit", amount: negotovinsko, desc: "Ostala negot. plačila (Sodexo, TRR…)" });
     }
 
-    // Kredit — prihodki + DDV
-    if (osnova.gt(0)) {
-      lines.push({ accountId: settings.revenueAccountId!, side: "credit", amount: osnova, desc: "Prihodki od prodaje (neto)" });
-    }
-    if (ddv.gt("0.005")) {
-      if (!settings.vatLiabilityAccountId) {
-        skipped.push({ ref: prodajaRef, reason: `DDV (${ddv.toFixed(2)} €): konto DDV obveznosti ni nastavljen` });
+    // ── Kredit: prihodki in DDV ─────────────────────────────────────────────
+
+    // Mapa vrsta × davek → konto prihodkov
+    const revenueMap: Record<string, string | null | undefined> = {
+      "material|9.50":  settings.revenueMaterial95AccountId,
+      "material|22.00": settings.revenueMaterial22AccountId,
+      "blago|9.50":     settings.revenueGoods95AccountId,
+      "blago|22.00":    settings.revenueGoods22AccountId,
+      "storitev|22.00": settings.revenueServiceAccountId,
+      "storitev|9.50":  settings.revenueServiceAccountId,
+      "storitev|0.00":  settings.revenueServiceAccountId,
+      "material|0.00":  settings.revenueMaterial95AccountId,
+      "blago|0.00":     settings.revenueGoods95AccountId,
+    };
+    const vatMap: Record<string, string | null | undefined> = {
+      "9.50":  settings.vat95AccountId,
+      "22.00": settings.vat22AccountId,
+    };
+
+    // Skupaj DDV po stopnji (za balanciranje)
+    const ddvPo: Record<string, Decimal> = {};
+
+    let skupajBruto = new Decimal(0);
+    for (const row of prodajaVrstice) {
+      const bruto    = dec(row.bruto);
+      const davekPct = dec(row.davek); // npr. 9.50
+      if (bruto.lte("0.005")) continue;
+
+      // neto = bruto * 100 / (100 + davek)
+      const neto = davekPct.gt(0)
+        ? bruto.times(100).div(davekPct.plus(100)).toDecimalPlaces(2)
+        : bruto;
+      const ddv  = bruto.minus(neto);
+
+      skupajBruto = skupajBruto.plus(bruto);
+
+      // Vrsta → konto prihodkov
+      const vrsta   = row.vrstaArtikla ?? "material";
+      const davekKey = davekPct.toFixed(2);
+      const mapKey  = `${vrsta}|${davekKey}`;
+      const revAcc  = revenueMap[mapKey] ?? settings.revenueAccountId;
+
+      if (!revAcc) {
+        skipped.push({
+          ref: prodajaRef,
+          reason: `Prihodki (${vrsta} ${davekPct.toFixed(1)}%, ${bruto.toFixed(2)} €): konto ni nastavljen`,
+        });
         return;
       }
-      lines.push({ accountId: settings.vatLiabilityAccountId, side: "credit", amount: ddv, desc: "Izhodni DDV" });
+      lines.push({
+        accountId: revAcc,
+        side: "credit",
+        amount: neto,
+        desc: `Prihodki ${vrsta} ${davekPct.eq(0) ? "0 %" : davekPct.toFixed(1) + " %"}`,
+      });
+
+      // DDV
+      if (ddv.gt("0.005")) {
+        ddvPo[davekKey] = (ddvPo[davekKey] ?? new Decimal(0)).plus(ddv);
+      }
     }
 
-    if (lines.length === 0) return;
+    // Kredit DDV po stopnji
+    for (const [davekKey, ddvZnesek] of Object.entries(ddvPo)) {
+      const vatAcc = vatMap[davekKey] ?? settings.vatLiabilityAccountId;
+      if (!vatAcc) {
+        skipped.push({
+          ref: prodajaRef,
+          reason: `DDV ${davekKey}% (${ddvZnesek.toFixed(2)} €): konto DDV obveznosti ni nastavljen`,
+        });
+        return;
+      }
+      lines.push({
+        accountId: vatAcc,
+        side: "credit",
+        amount: ddvZnesek,
+        desc: `Izhodni DDV ${davekKey.replace(".00", "")}%`,
+      });
+    }
 
-    if (!isBalanced(lines)) {
-      const d = lines.filter(l => l.side === "debit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
-      const c = lines.filter(l => l.side === "credit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+    // Fallback: če ni postavk, uporabi skupaj iz glave računa (stara logika)
+    if (prodajaVrstice.length === 0 || skupajBruto.lte("0.005")) {
+      const fallbackAcc = settings.revenueAccountId;
+      if (!fallbackAcc) {
+        skipped.push({ ref: prodajaRef, reason: "Ni postavk in splošni konto prihodkov ni nastavljen" });
+        return;
+      }
+      const skupajDDV = skupaj.minus(dec(sales.gotovina).plus(kartica).plus(boni).plus(negotovinsko))
+                              .abs();
+      const skupajNeto = skupaj.minus(skupajDDV);
+      lines.push({ accountId: fallbackAcc, side: "credit", amount: skupajNeto.gt(0) ? skupajNeto : skupaj, desc: "Prihodki od prodaje (neto)" });
+      if (skupajDDV.gt("0.005") && settings.vatLiabilityAccountId) {
+        lines.push({ accountId: settings.vatLiabilityAccountId, side: "credit", amount: skupajDDV, desc: "Izhodni DDV" });
+      }
+    }
+
+    const merged = mergeLines(lines);
+    if (merged.length === 0) return;
+
+    if (!isBalanced(merged)) {
+      const d = merged.filter(l => l.side === "debit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+      const c = merged.filter(l => l.side === "credit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
       skipped.push({ ref: prodajaRef, reason: `Temeljnica ni uravnotežena: debet ${d.toFixed(2)} ≠ kredit ${c.toFixed(2)}` });
       return;
     }
 
     await deleteExistingDrafts(companyId, prodajaRef);
-    await insertEntry(companyId, period.id, datum, `Dnevna prodaja POS — ${datum}`, prodajaRef, lines);
+    await insertEntry(companyId, period.id, datum, `Dnevna prodaja POS — ${datum}`, prodajaRef, merged);
     created.push(prodajaRef);
   })();
 
   // ── TEMELJNICA 2: PREJEMNICE ─────────────────────────────────────────────────
   const prejemnicaRef = `POS:PREJEMNICA:${datum}`;
   await (async () => {
-    if (!settings.inventoryAccountId || !settings.payablesAccountId) {
-      skipped.push({ ref: prejemnicaRef, reason: "Konto zalog ali dobaviteljev ni nastavljen" });
+    const payablesAcc = settings.payablesAccountId;
+    if (!payablesAcc) {
+      skipped.push({ ref: prejemnicaRef, reason: "Konto obveznosti do dobaviteljev ni nastavljen" });
       return;
     }
 
-    const [pResult] = await db
+    // Vsota prejemnic po vrsti artikla (za ločitev material/blago)
+    const prejRows = await db
       .select({
-        skupaj: sql<string>`COALESCE(SUM(CAST(${prejemniceTable.skupajVrednost} AS numeric)), 0)`,
+        vrstaArtikla: artikliTable.vrstaArtikla,
+        skupaj: sql<string>`COALESCE(SUM(CAST(${prejemnicePostavkeTable.skupaj} AS numeric)), 0)`,
       })
-      .from(prejemniceTable)
+      .from(prejemnicePostavkeTable)
+      .innerJoin(prejemniceTable, eq(prejemniceTable.id, prejemnicePostavkeTable.prejemnicaId))
+      .innerJoin(artikliTable, eq(artikliTable.id, prejemnicePostavkeTable.artikelId))
       .where(
         and(
           inArray(prejemniceTable.enotaId, enotaIds),
           sql`${prejemniceTable.datum}::date = ${datum}::date`,
         ),
-      );
+      )
+      .groupBy(artikliTable.vrstaArtikla);
 
-    const skupaj = dec(pResult.skupaj);
-    if (skupaj.lte(0)) {
+    const skupajAll = prejRows.reduce((s, r) => s.plus(dec(r.skupaj)), new Decimal(0));
+    if (skupajAll.lte(0)) {
       await deleteExistingDrafts(companyId, prejemnicaRef);
       return;
     }
 
-    const lines: SyncLine[] = [
-      { accountId: settings.inventoryAccountId!, side: "debit", amount: skupaj, desc: "Prejeto blago — zaloge" },
-      { accountId: settings.payablesAccountId!, side: "credit", amount: skupaj, desc: "Obveznosti do dobaviteljev" },
-    ];
+    const lines: SyncLine[] = [];
+
+    for (const row of prejRows) {
+      const znesek = dec(row.skupaj);
+      if (znesek.lte("0.005")) continue;
+      const vrsta = row.vrstaArtikla ?? "material";
+
+      let invAcc: string | null | undefined;
+      if (vrsta === "material") {
+        invAcc = settings.inventoryMaterialAccountId ?? settings.inventoryAccountId;
+      } else if (vrsta === "blago") {
+        invAcc = settings.inventoryGoodsAccountId ?? settings.inventoryAccountId;
+      } else {
+        invAcc = settings.inventoryAccountId; // storitev — redko
+      }
+
+      if (!invAcc) {
+        skipped.push({
+          ref: prejemnicaRef,
+          reason: `Konto zalog za vrsto '${vrsta}' (${znesek.toFixed(2)} €) ni nastavljen`,
+        });
+        return;
+      }
+      lines.push({ accountId: invAcc, side: "debit", amount: znesek, desc: `Prevzem ${vrsta}` });
+    }
+
+    lines.push({ accountId: payablesAcc, side: "credit", amount: skupajAll, desc: "Obveznosti do dobaviteljev" });
+
+    const merged = mergeLines(lines);
 
     await deleteExistingDrafts(companyId, prejemnicaRef);
-    await insertEntry(companyId, period.id, datum, `POS prejemnice blaga — ${datum}`, prejemnicaRef, lines);
+    await insertEntry(companyId, period.id, datum, `POS prejemnice blaga — ${datum}`, prejemnicaRef, merged);
     created.push(prejemnicaRef);
   })();
 
-  // ── TEMELJNICA 3: PORABA BLAGA ───────────────────────────────────────────────
+  // ── TEMELJNICA 3: PORABA BLAGA (COGS) ────────────────────────────────────────
   const porabaRef = `POS:PORABA:${datum}`;
   await (async () => {
-    if (!settings.cogsAccountId || !settings.inventoryAccountId) {
-      skipped.push({ ref: porabaRef, reason: "Konto stroškov blaga ali zalog ni nastavljen" });
-      return;
-    }
-
-    // vrednost je negativna za 'poraba' (kolicina < 0), vzamemo absolutno vrednost
-    const [cResult] = await db
+    // Porabljeno po vrsti artikla
+    const porabaRows = await db
       .select({
+        vrstaArtikla: artikliTable.vrstaArtikla,
         porabljeno: sql<string>`COALESCE(SUM(ABS(CAST(${zalogaGibiTable.vrednost} AS numeric))), 0)`,
       })
       .from(zalogaGibiTable)
@@ -301,21 +468,60 @@ export async function syncPosBookingForDay(
           eq(zalogaGibiTable.tip, "poraba"),
           sql`${zalogaGibiTable.ustvarjeno}::date = ${datum}::date`,
         ),
-      );
+      )
+      .groupBy(artikliTable.vrstaArtikla);
 
-    const porabljeno = dec(cResult.porabljeno);
-    if (porabljeno.lte(0)) {
+    const skupajPorabljeno = porabaRows.reduce((s, r) => s.plus(dec(r.porabljeno)), new Decimal(0));
+    if (skupajPorabljeno.lte(0)) {
       await deleteExistingDrafts(companyId, porabaRef);
       return;
     }
 
-    const lines: SyncLine[] = [
-      { accountId: settings.cogsAccountId!, side: "debit", amount: porabljeno, desc: "Stroški prodanega blaga (COGS)" },
-      { accountId: settings.inventoryAccountId!, side: "credit", amount: porabljeno, desc: "Zmanjšanje zalog blaga" },
-    ];
+    const lines: SyncLine[] = [];
+
+    for (const row of porabaRows) {
+      const znesek = dec(row.porabljeno);
+      if (znesek.lte("0.005")) continue;
+      const vrsta = row.vrstaArtikla ?? "material";
+
+      let cogsAcc: string | null | undefined;
+      let invAcc:  string | null | undefined;
+
+      if (vrsta === "material") {
+        cogsAcc = settings.cogsMaterialAccountId ?? settings.cogsAccountId;
+        invAcc  = settings.inventoryMaterialAccountId ?? settings.inventoryAccountId;
+      } else if (vrsta === "blago") {
+        cogsAcc = settings.cogsGoodsAccountId ?? settings.cogsAccountId;
+        invAcc  = settings.inventoryGoodsAccountId ?? settings.inventoryAccountId;
+      } else {
+        cogsAcc = settings.cogsAccountId;
+        invAcc  = settings.inventoryAccountId;
+      }
+
+      if (!cogsAcc || !invAcc) {
+        skipped.push({
+          ref: porabaRef,
+          reason: `Konto COGS ali zalog za vrsto '${vrsta}' (${znesek.toFixed(2)} €) ni nastavljen`,
+        });
+        return;
+      }
+
+      lines.push({ accountId: cogsAcc, side: "debit",  amount: znesek, desc: `Stroški ${vrsta === "blago" ? "prodanega blaga" : "materiala"}` });
+      lines.push({ accountId: invAcc,  side: "credit", amount: znesek, desc: `Zmanjšanje zalog ${vrsta}` });
+    }
+
+    const merged = mergeLines(lines);
+    if (merged.length === 0) return;
+
+    if (!isBalanced(merged)) {
+      const d = merged.filter(l => l.side === "debit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+      const c = merged.filter(l => l.side === "credit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+      skipped.push({ ref: porabaRef, reason: `COGS temeljnica ni uravnotežena: debet ${d.toFixed(2)} ≠ kredit ${c.toFixed(2)}` });
+      return;
+    }
 
     await deleteExistingDrafts(companyId, porabaRef);
-    await insertEntry(companyId, period.id, datum, `POS poraba blaga — ${datum}`, porabaRef, lines);
+    await insertEntry(companyId, period.id, datum, `POS poraba blaga/materiala — ${datum}`, porabaRef, merged);
     created.push(porabaRef);
   })();
 

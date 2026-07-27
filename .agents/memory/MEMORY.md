@@ -8,3 +8,4 @@
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
 - [POS dnevne temeljnice](pos-dnevne-temeljnice.md) — samodejno POS→ERP knjiženje: 3 osnutki na dan, konfiguracija v ERP nastavitve, fire-and-forget trigger v racuni+prejemnice
+- [POS booking analitika](pos-booking-analitika.md) — pos_booking_settings razširjen na 24 stolpcev; prihodki po vrsti_artikla×davek iz postavke tabele; fallback na stare konte

@@ -878,24 +878,54 @@ interface AccountOption {
 }
 
 interface PosBookingSettingsData {
-  revenueAccountId: string | null;
+  // T1 debet — plačila
   cashAccountId: string | null;
   cardAccountId: string | null;
+  voucherAccountId: string | null;
   otherPaymentAccountId: string | null;
+  // T1 kredit — prihodki
+  revenueMaterial95AccountId: string | null;
+  revenueMaterial22AccountId: string | null;
+  revenueGoods22AccountId: string | null;
+  revenueGoods95AccountId: string | null;
+  revenueServiceAccountId: string | null;
+  // T1 kredit — DDV
+  vat95AccountId: string | null;
+  vat22AccountId: string | null;
+  // T2 — prejemnice
+  inventoryMaterialAccountId: string | null;
+  inventoryGoodsAccountId: string | null;
+  payablesAccountId: string | null;
+  // T3 — COGS
+  cogsMaterialAccountId: string | null;
+  cogsGoodsAccountId: string | null;
+  // zastareli fallback konti
+  revenueAccountId: string | null;
   vatLiabilityAccountId: string | null;
   inventoryAccountId: string | null;
-  payablesAccountId: string | null;
   cogsAccountId: string | null;
 }
 
 const EMPTY_PBS: PosBookingSettingsData = {
-  revenueAccountId: null,
   cashAccountId: null,
   cardAccountId: null,
+  voucherAccountId: null,
   otherPaymentAccountId: null,
+  revenueMaterial95AccountId: null,
+  revenueMaterial22AccountId: null,
+  revenueGoods22AccountId: null,
+  revenueGoods95AccountId: null,
+  revenueServiceAccountId: null,
+  vat95AccountId: null,
+  vat22AccountId: null,
+  inventoryMaterialAccountId: null,
+  inventoryGoodsAccountId: null,
+  payablesAccountId: null,
+  cogsMaterialAccountId: null,
+  cogsGoodsAccountId: null,
+  revenueAccountId: null,
   vatLiabilityAccountId: null,
   inventoryAccountId: null,
-  payablesAccountId: null,
   cogsAccountId: null,
 };
 
@@ -1059,25 +1089,46 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
         </p>
       </div>
 
-      {/* Temeljnica 1: Prodaja */}
+      {/* Temeljnica 1: Prodaja — Debet (plačila) */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Temeljnica 1 — Dnevna prodaja (Z-poročilo)</CardTitle>
+          <CardTitle className="text-base">Temeljnica 1 — Dnevna prodaja · Plačilni načini (debet)</CardTitle>
           <CardDescription>
             Referenca: <code className="text-xs bg-muted px-1 rounded">POS:PRODAJA:YYYY-MM-DD</code>
-            {" · "}Debet = blagajna po načinih plačila · Kredit = neto prihodki + DDV
+            {" · "}Vsak plačilni način se knjiži na ločen konto.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <AccountSelect label="Prihodki od prodaje" field="revenueAccountId" description="Kredit — npr. 760 Prihodki od prodaje blaga" />
-          <AccountSelect label="DDV obveznost" field="vatLiabilityAccountId" description="Kredit — npr. 260 Obveznosti za DDV" />
-          <AccountSelect label="Blagajna — gotovina" field="cashAccountId" description="Debet — npr. 100 Blagajna" />
-          <AccountSelect label="Kartica (terjatve do procesorja)" field="cardAccountId" description="Debet — npr. 120 ali 165" />
-          <AccountSelect
-            label="Ostala plačila (boni, negotovinsko…)"
-            field="otherPaymentAccountId"
-            description="Debet — neobvezno; zajame vse plačilne načine brez zgornjega konta"
-          />
+          <AccountSelect label="Blagajna — gotovina" field="cashAccountId" description="Debet — npr. 1000110 Blagajna EUR" />
+          <AccountSelect label="Kartica / POS terminal" field="cardAccountId" description="Debet — npr. 1000120 Prehodni konto POS" />
+          <AccountSelect label="Darilni boni" field="voucherAccountId" description="Debet — razknjiženje predujma, npr. 2300110" />
+          <AccountSelect label="Ostalo (Sodexo, TRR kupci…)" field="otherPaymentAccountId" description="Debet — catch-all za negotovinska plačila" />
+        </CardContent>
+      </Card>
+
+      {/* Temeljnica 1: Prodaja — Kredit (prihodki) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Temeljnica 1 — Dnevna prodaja · Prihodki po vrsti × DDV (kredit)</CardTitle>
+          <CardDescription>
+            Prihodki se razdelijo po <strong>vrsti artikla</strong> in <strong>DDV stopnji</strong>.
+            Fallback: če konto za kombinacijo ni nastavljen, se uporabi splošni konto.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AccountSelect label="Material 9,5 % — hrana kuhinja" field="revenueMaterial95AccountId" description="Kredit — npr. 7620110" />
+            <AccountSelect label="Material 22 % — točene alkoholne pijače" field="revenueMaterial22AccountId" description="Kredit — npr. 7620210" />
+            <AccountSelect label="Blago 9,5 % — steklenice brezalkoh." field="revenueGoods95AccountId" description="Kredit — npr. 7620320" />
+            <AccountSelect label="Blago 22 % — steklenice alkohol" field="revenueGoods22AccountId" description="Kredit — npr. 7620310" />
+            <AccountSelect label="Storitev (postrežba) 22 %" field="revenueServiceAccountId" description="Kredit — npr. 7600110" />
+            <AccountSelect label="Splošni prihodki (fallback)" field="revenueAccountId" description="Kredit — rezerva, če analitika ni nastavljena" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t">
+            <AccountSelect label="DDV 9,5 % — obveznost" field="vat95AccountId" description="Kredit — npr. 2600195" />
+            <AccountSelect label="DDV 22 % — obveznost" field="vat22AccountId" description="Kredit — npr. 2600122" />
+            <AccountSelect label="Splošni DDV (fallback)" field="vatLiabilityAccountId" description="Kredit — rezerva, če DDV po stopnji ni nastavljeno" />
+          </div>
         </CardContent>
       </Card>
 
@@ -1087,28 +1138,32 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
           <CardTitle className="text-base">Temeljnica 2 — Prejemnice blaga</CardTitle>
           <CardDescription>
             Referenca: <code className="text-xs bg-muted px-1 rounded">POS:PREJEMNICA:YYYY-MM-DD</code>
-            {" · "}Debet = zaloge · Kredit = obveznosti do dobaviteljev
+            {" · "}Debet = zaloge po vrsti · Kredit = obveznosti do dobaviteljev
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <AccountSelect label="Zaloge blaga" field="inventoryAccountId" description="Debet/Kredit — npr. 310 Zaloge blaga in materiala" />
-          <AccountSelect label="Obveznosti do dobaviteljev" field="payablesAccountId" description="Kredit — npr. 220 Obveznosti do dobaviteljev" />
+          <AccountSelect label="Zaloga materiala (razred 3)" field="inventoryMaterialAccountId" description="Debet — npr. 3100110 Material — meso, ribe…" />
+          <AccountSelect label="Zaloga blaga (razred 6)" field="inventoryGoodsAccountId" description="Debet — npr. 6600110 Blago — pivo v steklenicah" />
+          <AccountSelect label="Splošna zaloga (fallback)" field="inventoryAccountId" description="Debet — rezerva" />
+          <AccountSelect label="Obveznosti do dobaviteljev" field="payablesAccountId" description="Kredit — npr. 2200110" />
         </CardContent>
       </Card>
 
       {/* Temeljnica 3: Poraba */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Temeljnica 3 — Poraba blaga (COGS)</CardTitle>
+          <CardTitle className="text-base">Temeljnica 3 — Poraba materiala / NVPB (COGS)</CardTitle>
           <CardDescription>
             Referenca: <code className="text-xs bg-muted px-1 rounded">POS:PORABA:YYYY-MM-DD</code>
-            {" · "}Debet = stroški · Kredit = zmanjšanje zalog (isti konto kot T2)
+            {" · "}Debet = stroški · Kredit = zmanjšanje ustrezne zaloge
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <AccountSelect label="Stroški prodanega blaga" field="cogsAccountId" description="Debet — npr. 400 Stroški blaga ali 402 Nabavna vrednost" />
+          <AccountSelect label="Stroški materiala po normativih" field="cogsMaterialAccountId" description="Debet — npr. 4000110 Poraba materiala" />
+          <AccountSelect label="Nabavna vrednost prod. blaga (NVPB)" field="cogsGoodsAccountId" description="Debet — npr. 7020110 NVPB alkohol" />
+          <AccountSelect label="Splošni COGS (fallback)" field="cogsAccountId" description="Debet — rezerva" />
           <div className="flex items-center text-xs text-muted-foreground rounded-lg border bg-muted/20 px-3 py-2 self-end">
-            Kredit = konto zalog iz Temeljnice 2
+            Kredit = konto zalog iz Temeljnice 2 (material ali blago)
           </div>
         </CardContent>
       </Card>
