@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { artikliTable, db, zacetneZalogePostavkeTable, zacetneZalogeTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
+import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 
 const router: IRouter = Router();
 
@@ -79,17 +80,12 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
         cenaKos: String(cenaKos),
         steviloPrejsnje: String(steviloPrejsnje)});
 
-      await tx.insert(zalogeTable).values({
-        artikelId: p.artikelId,
-        kolicina: String(kolicina),
-        zadnjaPosodobitev: new Date()}).onConflictDoUpdate({
-        target: zalogeTable.artikelId,
-        set: { kolicina: String(kolicina), zadnjaPosodobitev: new Date() }});
-
       await tx.insert(zalogaGibiTable).values({
         artikelId: p.artikelId,
         tip: "inventura",
         kolicina: String(kolicina),
+        cenaKos: String(cenaKos),
+        vrednost: String(kolicina * cenaKos),
         opomba: `Začetne zaloge ${leto}`,
         referencaId: zacetnaZaloga.id});
 
@@ -105,6 +101,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
         steviloPrejsnje});
     }
 
+    await recomputeZaloge(postavke.map((p: any) => p.artikelId), tx);
     return { zacetnaZaloga, postavkeResult };
   });
 
@@ -202,47 +199,36 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       const oldPostavke = await tx.select().from(zacetneZalogePostavkeTable)
         .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
 
-      for (const p of oldPostavke) {
-        await tx.update(zalogeTable).set({
-          kolicina: String(Number(p.steviloPrejsnje)),
-          zadnjaPosodobitev: new Date()}).where(eq(zalogeTable.artikelId, p.artikelId));
-      }
-
+      // Pobriši stare gibi in postavke (zaloge bomo recompute-ali na koncu)
       await tx.delete(zalogaGibiTable).where(
         sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.opomba} LIKE ${'Začetne zaloge%'}`
       );
       await tx.delete(zacetneZalogePostavkeTable).where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
 
-      const currentZaloge = await tx.select({ artikelId: zalogeTable.artikelId, kolicina: zalogeTable.kolicina })
-        .from(zalogeTable).where(inArray(zalogeTable.artikelId, artikelIds));
-      const zalogeMap = new Map(currentZaloge.map(z => [z.artikelId, Number(z.kolicina)]));
-
+      // Vstavi nove postavke in gibi
       for (const p of novaPostavke) {
         const kolicina = p.kolicina;
         const cenaKos = p.cenaKos;
-        const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
 
         await tx.insert(zacetneZalogePostavkeTable).values({
           zacetnaZalogaId: id,
           artikelId: p.artikelId,
           kolicina: String(kolicina),
           cenaKos: String(cenaKos),
-          steviloPrejsnje: String(steviloPrejsnje)});
-
-        await tx.insert(zalogeTable).values({
-          artikelId: p.artikelId,
-          kolicina: String(kolicina),
-          zadnjaPosodobitev: new Date()}).onConflictDoUpdate({
-          target: zalogeTable.artikelId,
-          set: { kolicina: String(kolicina), zadnjaPosodobitev: new Date() }});
+          steviloPrejsnje: "0"});
 
         await tx.insert(zalogaGibiTable).values({
           artikelId: p.artikelId,
           tip: "inventura",
           kolicina: String(kolicina),
+          cenaKos: String(cenaKos),
+          vrednost: String(kolicina * cenaKos),
           opomba: `Začetne zaloge ${existing.leto}`,
           referencaId: id});
       }
+
+      // Posodobi zaloge z WAC recomputom
+      await recomputeZaloge(artikelIds, tx);
 
       await tx.update(zacetneZalogeTable).set(updates)
         .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
