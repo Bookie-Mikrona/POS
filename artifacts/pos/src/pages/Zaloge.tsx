@@ -1061,7 +1061,9 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                                 {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
                                 {!g.prejStevilka && !g.dobaviteljNaziv && !g.opomba && <span className="text-muted-foreground">–</span>}
                               </div>
-                            ) : g.tip === "izdajnica" ? (
+                            ) : g.tip === "poraba" && (g as GibVrstica).zbranoStevilo != null ? (
+                              <span className="text-xs text-muted-foreground">{(g as GibVrstica).zbranoStevilo} računov</span>
+                            ) : g.tip === "izdajnica" || g.tip === "poraba" ? (
                               <div className="space-y-0.5">
                                 {g.izdStevilka && (
                                   <div className="font-mono text-xs font-medium text-primary">{g.izdStevilka}</div>
