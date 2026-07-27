@@ -61,7 +61,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
-  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown,
+  Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 const DDV_OPCIJE = [
@@ -891,11 +891,19 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
 
   // Agregacija porabe po dnevu
   type GibVrstica = NonNullable<typeof data>["gibi"][number] & { zbranoStevilo?: number };
-  const gibiPrikaz: GibVrstica[] = useMemo(() => {
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const toggleDay = (id: number) => setExpandedDays(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const { gibiPrikaz, dnevniDetail } = useMemo(() => {
     const gibi = data?.gibi ?? [];
-    if (!zbirPorabe) return gibi;
+    if (!zbirPorabe) return { gibiPrikaz: gibi as GibVrstica[], dnevniDetail: new Map<number, GibVrstica[]>() };
     const result: GibVrstica[] = [];
-    const dnevnaMap = new Map<string, { sumKol: number; sumVred: number; zadnji: GibVrstica; stevilo: number }>();
+    const detail = new Map<number, GibVrstica[]>();
+    const dnevnaMap = new Map<string, { sumKol: number; sumVred: number; zadnji: GibVrstica; stevilo: number; gibi: GibVrstica[] }>();
     for (const g of gibi) {
       if (g.tip !== "poraba") { result.push(g); continue; }
       const dayKey = (g.datumDokumenta ?? g.ustvarjeno).slice(0, 10);
@@ -905,8 +913,9 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
         obs.sumVred += (g.vrednost ?? 0);
         obs.zadnji = g;
         obs.stevilo += 1;
+        obs.gibi.push(g);
       } else {
-        dnevnaMap.set(dayKey, { sumKol: g.kolicina, sumVred: g.vrednost ?? 0, zadnji: g, stevilo: 1 });
+        dnevnaMap.set(dayKey, { sumKol: g.kolicina, sumVred: g.vrednost ?? 0, zadnji: g, stevilo: 1, gibi: [g] });
       }
     }
     const vstavljena = new Set<string>();
@@ -916,8 +925,10 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
       const agg = dnevnaMap.get(dayKey);
       if (!agg || vstavljena.has(dayKey)) continue;
       if (g === agg.zadnji) {
+        const synId = -(new Date(dayKey).getTime());
         const avgCena = agg.sumKol !== 0 ? agg.sumVred / agg.sumKol : null;
-        result.push({ ...agg.zadnji, id: -(new Date(dayKey).getTime()), kolicina: agg.sumKol, vrednost: agg.sumVred, cenaKos: avgCena, zbranoStevilo: agg.stevilo });
+        result.push({ ...agg.zadnji, id: synId, kolicina: agg.sumKol, vrednost: agg.sumVred, cenaKos: avgCena, zbranoStevilo: agg.stevilo });
+        detail.set(synId, agg.gibi);
         vstavljena.add(dayKey);
       }
     }
@@ -926,7 +937,7 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
       const db2 = b.datumDokumenta ?? b.ustvarjeno;
       return da < db2 ? -1 : da > db2 ? 1 : 0;
     });
-    return result;
+    return { gibiPrikaz: result, dnevniDetail: detail };
   }, [data?.gibi, zbirPorabe]);
 
   return (
@@ -1025,61 +1036,103 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {gibiPrikaz.map(g => (
-                        <TableRow key={g.id}>
-                          <TableCell><TipBadge tip={g.tip} /></TableCell>
-                          <TableCell className="text-right font-bold tabular-nums">
-                            <span className={g.kolicina >= 0 ? "text-green-700" : "text-red-600"}>
-                              {g.kolicina >= 0 ? "+" : ""}{fmt(g.kolicina, 3)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-                            {g.cenaKos != null ? `${fmt(g.cenaKos, 4)} €` : "–"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm font-medium">
-                            {g.vrednost != null ? (
-                              <span className={g.vrednost >= 0 ? "text-green-700" : "text-red-600"}>
-                                {g.vrednost >= 0 ? "+" : ""}{fmt(Math.abs(g.vrednost))} €
+                      {gibiPrikaz.flatMap(g => {
+                        const isZbir = g.tip === "poraba" && (g as GibVrstica).zbranoStevilo != null;
+                        const isExpanded = isZbir && expandedDays.has(g.id);
+                        const subGibi = isZbir ? (dnevniDetail.get(g.id) ?? []) : [];
+
+                        const mainRow = (
+                          <TableRow
+                            key={g.id}
+                            className={isZbir ? "cursor-pointer hover:bg-muted/60 select-none" : undefined}
+                            onClick={isZbir ? () => toggleDay(g.id) : undefined}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {isZbir && (
+                                  isExpanded
+                                    ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+                                    : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                                )}
+                                <TipBadge tip={g.tip} />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-bold tabular-nums">
+                              <span className={g.kolicina >= 0 ? "text-green-700" : "text-red-600"}>
+                                {g.kolicina >= 0 ? "+" : ""}{fmt(g.kolicina, 3)}
                               </span>
-                            ) : "–"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
-                            {g.stanjeKolicina != null ? fmt(g.stanjeKolicina, 3) : "–"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-xs text-muted-foreground" title={g.stanjePovprecnaCena != null ? `WAC: ${fmt(g.stanjePovprecnaCena, 6)} €/en.` : ""}>
-                            {g.stanjeVrednost != null ? `${fmt(g.stanjeVrednost)} €` : "–"}
-                          </TableCell>
-                          <TableCell className="text-sm max-w-[220px]">
-                            {g.tip === "prejemnica" ? (
-                              <div className="space-y-0.5">
-                                {g.prejStevilka && (
-                                  <div className="font-mono text-xs font-medium text-primary">{g.prejStevilka}</div>
-                                )}
-                                {g.dobaviteljNaziv && (
-                                  <div className="truncate text-xs font-medium">{g.dobaviteljNaziv}</div>
-                                )}
-                                {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
-                                {!g.prejStevilka && !g.dobaviteljNaziv && !g.opomba && <span className="text-muted-foreground">–</span>}
-                              </div>
-                            ) : g.tip === "poraba" && (g as GibVrstica).zbranoStevilo != null ? (
-                              <span className="text-xs text-muted-foreground">{(g as GibVrstica).zbranoStevilo} računov</span>
-                            ) : g.tip === "izdajnica" || g.tip === "poraba" ? (
-                              <div className="space-y-0.5">
-                                {g.izdStevilka && (
-                                  <div className="font-mono text-xs font-medium text-primary">{g.izdStevilka}</div>
-                                )}
-                                {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
-                                {!g.izdStevilka && !g.opomba && <span className="text-muted-foreground">–</span>}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">{g.opomba ?? "–"}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
-                            {fmtCas(g.datumDokumenta ?? g.ustvarjeno)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
+                              {g.cenaKos != null ? `${fmt(g.cenaKos, 4)} €` : "–"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-sm font-medium">
+                              {g.vrednost != null ? (
+                                <span className={g.vrednost >= 0 ? "text-green-700" : "text-red-600"}>
+                                  {g.vrednost >= 0 ? "+" : ""}{fmt(Math.abs(g.vrednost))} €
+                                </span>
+                              ) : "–"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                              {g.stanjeKolicina != null ? fmt(g.stanjeKolicina, 3) : "–"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-xs text-muted-foreground" title={g.stanjePovprecnaCena != null ? `WAC: ${fmt(g.stanjePovprecnaCena, 6)} €/en.` : ""}>
+                              {g.stanjeVrednost != null ? `${fmt(g.stanjeVrednost)} €` : "–"}
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[220px]">
+                              {g.tip === "prejemnica" ? (
+                                <div className="space-y-0.5">
+                                  {g.prejStevilka && <div className="font-mono text-xs font-medium text-primary">{g.prejStevilka}</div>}
+                                  {g.dobaviteljNaziv && <div className="truncate text-xs font-medium">{g.dobaviteljNaziv}</div>}
+                                  {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
+                                  {!g.prejStevilka && !g.dobaviteljNaziv && !g.opomba && <span className="text-muted-foreground">–</span>}
+                                </div>
+                              ) : isZbir ? (
+                                <span className="text-xs text-muted-foreground">{(g as GibVrstica).zbranoStevilo} računov</span>
+                              ) : g.tip === "izdajnica" || g.tip === "poraba" ? (
+                                <div className="space-y-0.5">
+                                  {g.izdStevilka && <div className="font-mono text-xs font-medium text-primary">{g.izdStevilka}</div>}
+                                  {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
+                                  {!g.izdStevilka && !g.opomba && <span className="text-muted-foreground">–</span>}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">{g.opomba ?? "–"}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                              {isZbir
+                                ? (g.datumDokumenta ?? g.ustvarjeno).slice(0, 10)
+                                : fmtCas(g.datumDokumenta ?? g.ustvarjeno)}
+                            </TableCell>
+                          </TableRow>
+                        );
+
+                        const subRows = isExpanded ? subGibi.map(sg => (
+                          <TableRow key={sg.id} className="bg-muted/30 text-xs">
+                            <TableCell className="pl-8"><TipBadge tip={sg.tip} /></TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              <span className="text-red-600">{fmt(sg.kolicina, 3)}</span>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {sg.cenaKos != null ? `${fmt(sg.cenaKos, 4)} €` : "–"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {sg.vrednost != null ? `${fmt(Math.abs(sg.vrednost))} €` : "–"}
+                            </TableCell>
+                            <TableCell />
+                            <TableCell />
+                            <TableCell className="max-w-[220px]">
+                              {sg.izdStevilka && <div className="font-mono text-xs font-medium text-primary">{sg.izdStevilka}</div>}
+                              {sg.opomba && <div className="truncate text-muted-foreground">{sg.opomba}</div>}
+                              {!sg.izdStevilka && !sg.opomba && <span className="text-muted-foreground">–</span>}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">
+                              {fmtCas(sg.datumDokumenta ?? sg.ustvarjeno)}
+                            </TableCell>
+                          </TableRow>
+                        )) : [];
+
+                        return [mainRow, ...subRows];
+                      })}
                     </TableBody>
                   </Table>
                 </div>
