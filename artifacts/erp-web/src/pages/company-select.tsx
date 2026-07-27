@@ -39,15 +39,26 @@ export default function CompanySelectPage() {
   const posCompanies = companies.filter(c => isPosOnly(c));
   const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0;
 
-  // Nastavi/pobriši dual_role_hint — ERP HomeRedirect ga bere, da ne preskoči company-select
+  // Samodejni prehod za čiste ERP uporabnike (brez POS dostopa):
+  // Če je shranjeno podjetje v localStorage in se ujema z enim od ERP podjetij → takoj na dashboard.
+  // Ko ima uporabnik tudi POS dostop, prikažemo izbiro (ne skočimo).
   React.useEffect(() => {
-    if (isLoading) return;
-    if (erpCompanies.length > 0 && posCompanies.length > 0) {
-      localStorage.setItem("dual_role_hint", "1");
-    } else {
-      localStorage.removeItem("dual_role_hint");
-    }
-  }, [isLoading, erpCompanies.length, posCompanies.length]);
+    if (isLoading || isSuperAdmin) return;
+    if (posCompanies.length > 0) return; // dual-role → prikaži izbiro
+    if (erpCompanies.length === 0) return; // brez dostopa → počakaj na prikaz
+
+    const userId = user?.id;
+    const raw = userId ? localStorage.getItem(`erp_active_company_${userId}`) : null;
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as { id?: string; role?: string };
+      const match = erpCompanies.find(c => c.id === parsed.id);
+      if (match) {
+        setActiveCompany(match);
+        setLocation("/dashboard");
+      }
+    } catch { /* napačen JSON — ignoriraj */ }
+  }, [isLoading, isSuperAdmin, posCompanies.length, erpCompanies.length, user?.id]);
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",

@@ -173,21 +173,8 @@ function HomeRedirect() {
 
     if (isSuperAdmin) return <Redirect to="/admin" />;
 
-    // ERP uporabnik z obstoječim podjetjem → direktno na dashboard,
-    // RAZEN ko ima hkrati POS dostop — takrat naj sam izbere kam gre.
-    const userId = user?.id;
-    const storedCompany = userId ? localStorage.getItem(`erp_active_company_${userId}`) : null;
-    const hasDualRole = localStorage.getItem("dual_role_hint") === "1";
-    if (storedCompany && !hasDualRole) {
-      try {
-        const parsed = JSON.parse(storedCompany) as { role?: string };
-        if (parsed?.role && !(parsed.role as string).startsWith("pos_")) {
-          return <Redirect to="/dashboard" />;
-        }
-      } catch { /* napačen JSON — ignoriraj */ }
-    }
-
-    // Brez shranjenega podjetja ali dual-role → company-select (tam se zazna POS-only)
+    // Vedno na company-select — ta stran sama odloči ali avtomatično
+    // preusmeri (čisti ERP) ali prikaže izbiro (dual-role ERP+POS).
     return <Redirect to="/company-select" />;
   }
 
