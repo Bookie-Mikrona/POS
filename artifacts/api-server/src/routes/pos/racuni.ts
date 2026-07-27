@@ -483,7 +483,8 @@ router.post("/racuni", async (req, res): Promise<void> => {
           tip: "poraba",
           kolicina: String(-porabljeno),
           opomba: `Račun ${stevilkaRacuna}`,
-          referencaId: racun.id});
+          referencaId: racun.id,
+          ustvarjeno: datumCas});
         if (!prizadetiArtikelIds.includes(normativ.vhodniArtikelId)) {
           prizadetiArtikelIds.push(normativ.vhodniArtikelId);
         }
@@ -501,7 +502,8 @@ router.post("/racuni", async (req, res): Promise<void> => {
           tip: "poraba",
           kolicina: String(-porabljeno),
           opomba: `Račun ${stevilkaRacuna}`,
-          referencaId: racun.id});
+          referencaId: racun.id,
+          ustvarjeno: datumCas});
         if (!prizadetiArtikelIds.includes(mn.vhodniArtikelId)) {
           prizadetiArtikelIds.push(mn.vhodniArtikelId);
         }
@@ -1020,7 +1022,8 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
         tip: "storno",
         kolicina: String(-Number(poraba.kolicina)),
         opomba: `Storno računa ${racun.stevilkaRacuna}`,
-        referencaId: stornoRacun.id});
+        referencaId: stornoRacun.id,
+        ustvarjeno: datumCas});
       if (!prizadetiArtikelIds.includes(poraba.artikelId)) {
         prizadetiArtikelIds.push(poraba.artikelId);
       }
