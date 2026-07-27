@@ -174,7 +174,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearReturnUrl();
     localStorage.removeItem(POS_ENOTA_ID_KEY);
     setPosUser(null);
-    await signOut({ redirectUrl: "/pos/" });
+    await signOut();
+    // Eksplicitna preusmeritev — Clerk z routing="hash" ne spoštuje redirectUrl zanesljivo
+    window.location.href = "/pos/";
   }, [queryClient, signOut]);
 
   return (
