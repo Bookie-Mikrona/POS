@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { KirKprEvidenceTab } from "./ddv-evidence";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   useListVatCodes, 
@@ -608,10 +609,15 @@ export default function Ddv() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
+          <TabsTrigger value="kir_kpr">KIR/KPR Evidenca</TabsTrigger>
           <TabsTrigger value="vat_register">Knjiga IR/PR</TabsTrigger>
           <TabsTrigger value="vat_return">DDV-O Obračun</TabsTrigger>
           <TabsTrigger value="vat_codes">DDV Šifranti</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="kir_kpr" className="mt-0">
+          <KirKprEvidenceTab />
+        </TabsContent>
 
         <TabsContent value="vat_register" className="mt-0">
           <VatRegisterTab />
