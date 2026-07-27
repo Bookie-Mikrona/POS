@@ -13,6 +13,7 @@ import { accountingPeriodsTable } from "./accounting-periods";
 import { accountsTable } from "./accounts";
 import { counterpartiesTable } from "./counterparties";
 import { costCentersTable, projectsTable, departmentsTable } from "./dimensions";
+import { vatCodeTable } from "./vat-code";
 
 export const journalEntryStatusEnum = pgEnum("journal_entry_status", [
   "draft",
@@ -110,6 +111,16 @@ export const journalEntryLinesTable = pgTable("journal_entry_lines", {
   projectId: uuid("project_id").references(() => projectsTable.id, { onDelete: "set null" }),
   /** Oddelek */
   departmentId: uuid("department_id").references(() => departmentsTable.id, { onDelete: "set null" }),
+  /**
+   * FURS DDV koda (FK na vat_code.id, globalni šifrant).
+   * Ko je nastavljeno, vrstica nosi DDV informacijo za KIR/KPR evidenco.
+   * amount = osnova brez DDV; vatAmount = znesek DDV.
+   */
+  vatCodeId: uuid("vat_code_id").references(() => vatCodeTable.id),
+  /** Znesek DDV za to vrstico — 0 pri oproščenih */
+  vatAmount: numeric("vat_amount", { precision: 18, scale: 2 }).default("0"),
+  /** Odbitni delež v % (0–100); 100 = polna pravica do odbitka */
+  vatDeductionPercent: numeric("vat_deduction_percent", { precision: 5, scale: 2 }).default("100.00"),
 });
 
 export type JournalEntry = typeof journalEntriesTable.$inferSelect;

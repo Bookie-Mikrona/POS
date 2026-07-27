@@ -4164,7 +4164,10 @@ export const CreateJournalEntryBody = zod.object({
   "partnerId": zod.string().nullish().describe('Poslovni partner (zahtevano, če konto zahteva partnerja)'),
   "costCenterId": zod.string().nullish().describe('Stroškovno mesto (zahtevano, če konto zahteva)'),
   "projectId": zod.string().nullish().describe('Projekt (zahtevano, če konto zahteva)'),
-  "departmentId": zod.string().nullish().describe('Oddelek (opcijsko)')
+  "departmentId": zod.string().nullish().describe('Oddelek (opcijsko)'),
+  "vatCodeId": zod.string().nullish().describe('FURS DDV koda (FK na vat_code.id) — za KIR/KPR evidenco'),
+  "vatAmount": zod.number().nullish().describe('Znesek DDV za to vrstico (0 pri oproščenih)'),
+  "vatDeductionPercent": zod.number().min(0).max(100).nullish().describe('Odbitni delež DDV v % (0-100); privzeto 100')
 })).min(createJournalEntryBodyLinesMin),
   "autoPost": zod.boolean().optional().describe('If true, post the entry immediately after creation if balanced'),
   "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).optional().describe('Izvor knjižbe (privzeto manual)')
@@ -4206,7 +4209,10 @@ export const CreateJournalEntryResponse = zod.object({
   "projectId": zod.string().nullish().describe('Projekt'),
   "projectName": zod.string().nullish(),
   "departmentId": zod.string().nullish().describe('Oddelek'),
-  "departmentName": zod.string().nullish()
+  "departmentName": zod.string().nullish(),
+  "vatCodeId": zod.string().nullish().describe('FURS DDV koda (FK na vat_code.id)'),
+  "vatAmount": zod.string().nullish().describe('Znesek DDV kot string (NUMERIC precision)'),
+  "vatDeductionPercent": zod.string().nullish().describe('Odbitni delež DDV v %')
 }))
 }))
 

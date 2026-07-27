@@ -21,6 +21,12 @@ import {
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { writeAuditLog } from "../lib/auditLog";
 import { accountingError } from "../lib/accountingErrors";
+import {
+  createVatLedgerEntries,
+  reverseVatLedgerEntries,
+  type EntryMeta,
+  type VatLine,
+} from "../lib/vatLedger";
 
 const router: IRouter = Router();
 
@@ -102,6 +108,9 @@ async function fetchEntryWithLines(entryId: string) {
       projectName: projectsTable.name,
       departmentId: journalEntryLinesTable.departmentId,
       departmentName: departmentsTable.name,
+      vatCodeId: journalEntryLinesTable.vatCodeId,
+      vatAmount: journalEntryLinesTable.vatAmount,
+      vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
     })
     .from(journalEntryLinesTable)
     .innerJoin(accountsTable, eq(accountsTable.id, journalEntryLinesTable.accountId))
@@ -468,8 +477,39 @@ router.post(
           costCenterId: l.costCenterId ?? null,
           projectId: l.projectId ?? null,
           departmentId: l.departmentId ?? null,
+          vatCodeId: l.vatCodeId ?? null,
+          vatAmount: l.vatAmount != null ? String(l.vatAmount) : null,
+          vatDeductionPercent: l.vatDeductionPercent != null ? String(l.vatDeductionPercent) : null,
         })),
       );
+
+      // ── KIR/KPR: autoPost → takoj ustvari vat_ledger vrstice ──────────────
+      if (autoPost) {
+        const vatLines: VatLine[] = lines
+          .filter((l) => l.vatCodeId != null)
+          .map((l, i) => ({
+            lineId: `line-${i}`,
+            vatCodeId: l.vatCodeId!,
+            amount: l.amount.toFixed(2),
+            vatAmount: l.vatAmount != null ? String(l.vatAmount) : null,
+            vatDeductionPercent: l.vatDeductionPercent != null ? String(l.vatDeductionPercent) : null,
+            partnerId: l.partnerId ?? null,
+            description: l.description ?? null,
+          }));
+
+        if (vatLines.length > 0) {
+          const entryMeta: EntryMeta = {
+            id: newEntry.id,
+            companyId,
+            documentDate,
+            entryDate,
+            taxDate,
+            reference: reference ?? null,
+            sourceType: (sourceType ?? "manual") as string,
+          };
+          await createVatLedgerEntries(tx, entryMeta, vatLines, authReq.clerkUserId);
+        }
+      }
 
       // Revizijski dnevnik je del transakcije — napaka povzroči rollback
       await tx.insert(auditLogTable).values({
@@ -539,6 +579,11 @@ router.post(
         id: journalEntriesTable.id,
         status: journalEntriesTable.status,
         periodId: journalEntriesTable.periodId,
+        documentDate: journalEntriesTable.documentDate,
+        entryDate: journalEntriesTable.entryDate,
+        taxDate: journalEntriesTable.taxDate,
+        reference: journalEntriesTable.reference,
+        sourceType: journalEntriesTable.sourceType,
       })
       .from(journalEntriesTable)
       .where(and(eq(journalEntriesTable.id, id), eq(journalEntriesTable.companyId, companyId)))
@@ -566,12 +611,17 @@ router.post(
 
     const lines = await db
       .select({
+        id: journalEntryLinesTable.id,
         side: journalEntryLinesTable.side,
         amount: journalEntryLinesTable.amount,
         accountId: journalEntryLinesTable.accountId,
         partnerId: journalEntryLinesTable.partnerId,
         costCenterId: journalEntryLinesTable.costCenterId,
         projectId: journalEntryLinesTable.projectId,
+        vatCodeId: journalEntryLinesTable.vatCodeId,
+        vatAmount: journalEntryLinesTable.vatAmount,
+        vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
+        description: journalEntryLinesTable.description,
       })
       .from(journalEntryLinesTable)
       .where(eq(journalEntryLinesTable.entryId, id));
@@ -623,22 +673,57 @@ router.post(
     }
 
     const now = new Date();
-    await db.transaction(async (tx) => {
-      await tx
-        .update(journalEntriesTable)
-        .set({ status: "posted", approvedBy: authReq.clerkUserId, postedAt: now })
-        .where(eq(journalEntriesTable.id, id));
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(journalEntriesTable)
+          .set({ status: "posted", approvedBy: authReq.clerkUserId, postedAt: now })
+          .where(eq(journalEntriesTable.id, id));
 
-      // Revizijski dnevnik je del transakcije
-      await tx.insert(auditLogTable).values({
-        companyId,
-        entityType: "journal_entry",
-        entityId: id,
-        action: "post",
-        changedBy: authReq.clerkUserId,
-        payload: null,
+        // Revizijski dnevnik je del transakcije
+        await tx.insert(auditLogTable).values({
+          companyId,
+          entityType: "journal_entry",
+          entityId: id,
+          action: "post",
+          changedBy: authReq.clerkUserId,
+          payload: null,
+        });
+
+        // ── KIR/KPR: Samodejno knjiženje DDV v vat_ledger ──────────────────
+        // Za vsako vrstico z vatCodeId ustvari vrstico(e) v vat_ledger.
+        // RC kode (EU pridobitve, 76.a, uvoz) → 2 vrstici s pair_id.
+        const vatLines: VatLine[] = lines
+          .filter((l) => l.vatCodeId != null)
+          .map((l) => ({
+            lineId: l.id,
+            vatCodeId: l.vatCodeId!,
+            amount: l.amount,
+            vatAmount: l.vatAmount ?? null,
+            vatDeductionPercent: l.vatDeductionPercent ?? null,
+            partnerId: l.partnerId ?? null,
+            description: l.description ?? null,
+          }));
+
+        if (vatLines.length > 0) {
+          const entryMeta: EntryMeta = {
+            id,
+            companyId,
+            documentDate: entry.documentDate ?? null,
+            entryDate: entry.entryDate,
+            taxDate: entry.taxDate ?? null,
+            reference: entry.reference ?? null,
+            sourceType: entry.sourceType,
+          };
+          await createVatLedgerEntries(tx, entryMeta, vatLines, authReq.clerkUserId);
+        }
       });
-    });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // DDV validacijska napaka (npr. manjka partner_vat_id za SEU-B)
+      res.status(400).json(accountingError("VAT_LEDGER_ERROR", msg));
+      return;
+    }
 
     const result = await fetchEntryWithLines(id);
     res.json(result);
@@ -720,6 +805,9 @@ router.post(
         costCenterId: journalEntryLinesTable.costCenterId,
         projectId: journalEntryLinesTable.projectId,
         departmentId: journalEntryLinesTable.departmentId,
+        vatCodeId: journalEntryLinesTable.vatCodeId,
+        vatAmount: journalEntryLinesTable.vatAmount,
+        vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
       })
       .from(journalEntryLinesTable)
       .where(eq(journalEntryLinesTable.entryId, id))
@@ -764,6 +852,17 @@ router.post(
         .update(journalEntriesTable)
         .set({ status: "reversed" })
         .where(eq(journalEntriesTable.id, id));
+
+      // ── KIR/KPR: Storno vat_ledger vrstic ──────────────────────────────────
+      // Kopira originalne vrstice z negiranimi zneski in linked reversed_by_id.
+      // Če so vrstice že oddane (reported_at IS NOT NULL), vrže napako.
+      await reverseVatLedgerEntries(
+        tx,
+        id,
+        newEntry.id,
+        authReq.clerkUserId,
+        reverseDate,
+      );
 
       // Revizijski dnevnik za oba vnosa — del transakcije
       await tx.insert(auditLogTable).values([

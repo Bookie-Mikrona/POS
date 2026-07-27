@@ -19,7 +19,8 @@ export type AccountingErrorCode =
   | "DUPLICATE_DOCUMENT"
   | "INVALID_TAX_CODE"
   | "COMPANY_NOT_FOUND"
-  | "ACCESS_DENIED";
+  | "ACCESS_DENIED"
+  | "VAT_LEDGER_ERROR";
 
 export interface AccountingErrorPayload {
   code: AccountingErrorCode;
