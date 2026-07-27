@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, count, eq, isNull, sum } from "drizzle-orm";
 import { db, blagajneTable, enoteTable, izmeneTable, natakariTable, racuniTable } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
+import { getSimDatumOrNow } from "../../lib/sim-datum";
 
 const router: IRouter = Router();
 
@@ -134,9 +135,10 @@ router.post("/izmene", async (req, res): Promise<void> => {
   const hasOpen = existing && !existing.konec;
   if (hasOpen) { res.status(409).json({ error: "Natakar ima že odprto izmeno v tej enoti" }); return; }
 
+  const zacetek = await getSimDatumOrNow(enotaId);
   const [row] = await db
     .insert(izmeneTable)
-    .values({ enotaId, natakariId, blagajnaId: resolvedBlagajnaId, skupajZnesek: "0", steviloRacunov: 0 })
+    .values({ enotaId, natakariId, blagajnaId: resolvedBlagajnaId, skupajZnesek: "0", steviloRacunov: 0, zacetek })
     .returning();
 
   // Pridobi enoto/blagajno za odgovor
@@ -160,7 +162,7 @@ router.post("/izmene/:id/zapri", async (req, res): Promise<void> => {
 
   const skupajZnesek = Number(agg?.skupaj ?? 0);
   const steviloRacunov = Number(agg?.stevilo ?? 0);
-  const konec = new Date();
+  const konec = await getSimDatumOrNow(enotaId);
 
   await db
     .update(izmeneTable)
