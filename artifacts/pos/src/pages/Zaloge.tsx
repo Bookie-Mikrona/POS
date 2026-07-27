@@ -2329,6 +2329,7 @@ export default function Zaloge() {
   const [invDatum, setInvDatum] = useState("");
   const [invOpomba, setInvOpomba] = useState("");
   const [invRows, setInvRows] = useState<InventuraRow[]>([]);
+  const [invFilterNormativi, setInvFilterNormativi] = useState(true);
   const createInventura = useCreateInventura();
 
   const openInvDialog = () => {
@@ -2340,8 +2341,12 @@ export default function Zaloge() {
     }));
     setInvDialogOpen(true);
   };
+  const invRowsVisible = invFilterNormativi
+    ? invRows.filter(r => (artikli ?? []).find(a => a.id === r.artikelId)?.vNormativih)
+    : invRows;
+
   const handleSaveInventura = () => {
-    const validRows = invRows.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
+    const validRows = invRowsVisible.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
     createInventura.mutate({
       data: {
@@ -2362,7 +2367,7 @@ export default function Zaloge() {
   const updateInvRow = (i: number, val: string) =>
     setInvRows(r => r.map((row, j) => j === i ? { ...row, steviloNajdeno: val } : row));
 
-  const invTotals = invRows.reduce((acc, row) => {
+  const invTotals = invRowsVisible.reduce((acc, row) => {
     const art = nabavniArtikli.find(a => a.id === row.artikelId);
     const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
     const cena = parseDecimal(row.cenaKos) || (zalogaInfo?.zadnjaCena ?? null);
@@ -3385,7 +3390,25 @@ export default function Zaloge() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Dejanske zaloge</Label>
+              <div className="flex items-center justify-between">
+                <Label>Dejanske zaloge</Label>
+                <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setInvFilterNormativi(true)}
+                    className={`px-3 py-1.5 transition-colors ${invFilterNormativi ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  >
+                    Samo normativni
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInvFilterNormativi(false)}
+                    className={`px-3 py-1.5 transition-colors ${!invFilterNormativi ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  >
+                    Vsi artikli
+                  </button>
+                </div>
+              </div>
               <div className="rounded-md border overflow-auto">
                 <Table>
                   <TableHeader>
@@ -3403,7 +3426,7 @@ export default function Zaloge() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invRows.map((row, i) => {
+                    {invRowsVisible.map((row, i) => {
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
                       const cena = zalogaInfo?.zadnjaCena ?? null;

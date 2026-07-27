@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, count, desc, eq, inArray, ne, sql, sum } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, kategorijeTable, modSkupineTable, modifikatorjiTable, nastavitveTable, normativiTable, postavkeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, kategorijeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, nastavitveTable, normativiTable, postavkeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import ExcelJS from "exceljs";
 
@@ -29,7 +29,9 @@ const SELECT_FIELDS = {
   toGoArtikli: artikliTable.toGoArtikli,
   toGo: artikliTable.toGo,
   vrstaArtikla: artikliTable.vrstaArtikla,
-  hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`};
+  hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`,
+  vNormativih: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE vhodni_artikel_id = ${artikliTable.id})
+                         OR EXISTS (SELECT 1 FROM modifikator_normativi WHERE vhodni_artikel_id = ${artikliTable.id})`};
 
 function mapRow(r: Record<string, unknown>) {
   return {
@@ -56,6 +58,7 @@ function mapRow(r: Record<string, unknown>) {
     toGo: Boolean(r.toGo),
     vrstaArtikla: (r.vrstaArtikla as string | null) ?? "material",
     hasNormativ: Boolean(r.hasNormativ),
+    vNormativih: Boolean(r.vNormativih),
     modSkupine: [] as Array<{
       id: number; ime: string; obvezna: boolean; minIzbir: number; maxIzbir: number; vrstniRed: number;
       modifikatorji: Array<{ id: number; skupinaId: number; ime: string; cenaDodatek: number; aktiven: boolean; vrstniRed: number }>;
