@@ -1,9 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
-import { artikliTable, db, inventurePostavkeTable, inventureTable, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
+import { and, count, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
+import { artikliTable, db, inventurePostavkeTable, inventureTable, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
-import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
 
 const router: IRouter = Router();
 
@@ -16,7 +16,7 @@ async function nextStevilkaInventura(year: number, _davcna: string, tenotaId: nu
   return `${yy}${String(nextSeq).padStart(6, "0")}`;
 }
 
-async function fetchZadnjeCene(artikelIds: number[]): Promise<Map<number, number>> {
+async function fetchZadnjeCene(artikelIds: number[], beforeDate?: Date): Promise<Map<number, number>> {
   if (!artikelIds.length) return new Map();
   const rows = await db
     .select({
@@ -24,7 +24,9 @@ async function fetchZadnjeCene(artikelIds: number[]): Promise<Map<number, number
       cenaKos: prejemnicePostavkeTable.cenaKos})
     .from(prejemnicePostavkeTable)
     .innerJoin(prejemniceTable, eq(prejemnicePostavkeTable.prejemnicaId, prejemniceTable.id))
-    .where(inArray(prejemnicePostavkeTable.artikelId, artikelIds))
+    .where(beforeDate
+      ? and(inArray(prejemnicePostavkeTable.artikelId, artikelIds), lte(prejemniceTable.datum, beforeDate))
+      : inArray(prejemnicePostavkeTable.artikelId, artikelIds))
     .orderBy(desc(prejemniceTable.datum), desc(prejemniceTable.id));
   const map = new Map<number, number>();
   for (const r of rows) {
@@ -63,10 +65,15 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   }
 
   const artikelIds = postavke.map((p: any) => p.artikelId);
-  const [currentZaloge, zadnjeCene, artikliRows] = await Promise.all([
-    db.select({ artikelId: zalogeTable.artikelId, kolicina: zalogeTable.kolicina })
-      .from(zalogeTable).where(inArray(zalogeTable.artikelId, artikelIds)),
-    fetchZadnjeCene(artikelIds),
+
+  const docDatum = datum ? new Date(datum) : new Date();
+  // Stanje zalog ob koncu inventurnega dne (23:59:59.999)
+  const cutoff = new Date(docDatum);
+  cutoff.setHours(23, 59, 59, 999);
+
+  const [zalogaObDatumu, zadnjeCene, artikliRows] = await Promise.all([
+    getZalogeObDatumu(artikelIds, cutoff),
+    fetchZadnjeCene(artikelIds, cutoff),
     db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere })
       .from(artikliTable)
       .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId))),
@@ -76,10 +83,8 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   if (missingInvIds.length > 0) {
     res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
   }
-  const zalogeMap = new Map(currentZaloge.map(z => [z.artikelId, Number(z.kolicina)]));
+  const zalogeMap = new Map(Array.from(zalogaObDatumu.entries()).map(([id, v]) => [id, v.kolicina]));
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
-
-  const docDatum = datum ? new Date(datum) : new Date();
   const year = docDatum.getFullYear();
   const stevilka = await nextStevilkaInventura(year, "", tenotaId);
 
@@ -95,7 +100,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
       const steviloNajdeno = p.steviloNajdeno ?? 0;
       const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
       const razlika = steviloNajdeno - steviloPrejsnje;
-      const cenaKos = zadnjeCene.get(p.artikelId) ?? 0;
+      const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCene.get(p.artikelId) ?? 0);
 
       await tx.insert(inventurePostavkeTable).values({
         inventuraId: inventura.id,
@@ -206,7 +211,10 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
     }
 
-    zadnjeCeneMap = await fetchZadnjeCene(artikelIds);
+    const putInventuraDatum = parsed.data.datum ? new Date(parsed.data.datum) : existing.datum;
+    const putCutoff = new Date(putInventuraDatum);
+    putCutoff.setHours(23, 59, 59, 999);
+    zadnjeCeneMap = await fetchZadnjeCene(artikelIds, putCutoff);
   }
 
   let didUpdatePostavke = false;
@@ -227,15 +235,18 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       await tx.delete(inventurePostavkeTable).where(eq(inventurePostavkeTable.inventuraId, id));
       await recomputeZaloge(oldArtikleIds, tx);
 
-      const currentZaloge = await tx.select({ artikelId: zalogeTable.artikelId, kolicina: zalogeTable.kolicina })
-        .from(zalogeTable).where(inArray(zalogeTable.artikelId, artikelIds2));
-      const zalogeMap = new Map(currentZaloge.map(z => [z.artikelId, Number(z.kolicina)]));
+      // Stanje zalog ob koncu inventurnega dne (brez te inventure, ker smo jo ravno izbrisali)
+      const putInventuraDatum2 = parsed.data.datum ? new Date(parsed.data.datum) : existing.datum;
+      const putCutoff2 = new Date(putInventuraDatum2);
+      putCutoff2.setHours(23, 59, 59, 999);
+      const zalogaObDatumu = await getZalogeObDatumu(artikelIds2, putCutoff2, tx);
+      const zalogeMap = new Map(Array.from(zalogaObDatumu.entries()).map(([id2, v]) => [id2, v.kolicina]));
 
       for (const p of novaPostavke) {
         const steviloNajdeno = p.steviloNajdeno ?? 0;
         const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
         const razlika = steviloNajdeno - steviloPrejsnje;
-        const cenaKos = zadnjeCeneMap!.get(p.artikelId) ?? 0;
+        const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCeneMap!.get(p.artikelId) ?? 0);
 
         await tx.insert(inventurePostavkeTable).values({
           inventuraId: id,

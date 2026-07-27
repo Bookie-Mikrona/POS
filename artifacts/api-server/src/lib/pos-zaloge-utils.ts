@@ -1,6 +1,96 @@
 import { sql, eq } from "drizzle-orm";
 import { db, zalogeTable, zalogaGibiTable } from "@workspace/db";
 
+/**
+ * Vrne stanje zaloge (kolicina + WAC cena) ob koncu danega datuma (cutoff),
+ * z enako logiko kot recomputeZaloge, toda filtrira gibanja na datum_dokumenta <= cutoff.
+ */
+export async function getZalogeObDatumu(
+  artikelIds: number[],
+  cutoff: Date,
+  tx?: Tx,
+): Promise<Map<number, { kolicina: number; cenaKos: number }>> {
+  if (!artikelIds.length) return new Map();
+
+  const executor = tx ?? db;
+  const result = new Map<number, { kolicina: number; cenaKos: number }>();
+
+  for (const artikelId of artikelIds) {
+    const movementsResult = await executor.execute(sql`
+      WITH gibi AS (
+        SELECT
+          zg.id,
+          zg.tip,
+          zg.kolicina::float8 AS kolicina,
+          zg.opomba,
+          CASE
+            WHEN zg.tip = 'prejemnica'             THEN pp.cena_kos::float8
+            WHEN zg.opomba LIKE 'Začetne zaloge%'  THEN zzp.cena_kos::float8
+            ELSE NULL
+          END AS source_cena_kos,
+          COALESCE(
+            CASE WHEN zg.tip = 'prejemnica'                                              THEN p.datum END,
+            CASE WHEN zg.opomba LIKE 'Začetne zaloge%'                                  THEN zz.datum END,
+            CASE WHEN zg.tip = 'inventura'
+                  AND (zg.opomba IS NULL OR zg.opomba NOT LIKE 'Začetne zaloge%')        THEN inv.datum END,
+            CASE WHEN zg.tip = 'izdajnica'                                               THEN izd.datum END,
+            zg.ustvarjeno
+          ) AS datum_dokumenta
+        FROM zaloga_gibi zg
+        LEFT JOIN prejemnice_postavke pp
+          ON pp.prejemnica_id = zg.referenca_id AND pp.artikel_id = ${artikelId} AND zg.tip = 'prejemnica'
+        LEFT JOIN prejemnice p
+          ON p.id = zg.referenca_id AND zg.tip = 'prejemnica'
+        LEFT JOIN zacetne_zaloge_postavke zzp
+          ON zzp.zacetna_zaloga_id = zg.referenca_id AND zzp.artikel_id = ${artikelId} AND zg.opomba LIKE 'Začetne zaloge%'
+        LEFT JOIN zacetne_zaloge zz
+          ON zz.id = zg.referenca_id AND zg.opomba LIKE 'Začetne zaloge%'
+        LEFT JOIN inventure inv
+          ON inv.id = zg.referenca_id AND zg.tip = 'inventura'
+         AND (zg.opomba IS NULL OR zg.opomba NOT LIKE 'Začetne zaloge%')
+        LEFT JOIN izdajnice izd
+          ON izd.id = zg.referenca_id AND zg.tip = 'izdajnica'
+        WHERE zg.artikel_id = ${artikelId}
+      )
+      SELECT * FROM gibi
+      WHERE datum_dokumenta <= ${cutoff}
+      ORDER BY datum_dokumenta ASC, id ASC
+    `);
+
+    type MovRow = { id: number; tip: string; kolicina: number; opomba: string | null; source_cena_kos: number | null };
+    const movements = movementsResult.rows as MovRow[];
+
+    let runQty   = 0;
+    let runValue = 0;
+
+    for (const m of movements) {
+      const qty = m.kolicina;
+      let unitCost: number;
+      const isZacetnaZaloga = m.opomba != null && String(m.opomba).startsWith('Začetne zaloge');
+
+      if (isZacetnaZaloga) {
+        unitCost = m.source_cena_kos ?? 0;
+        runQty   = qty;
+        runValue = qty * unitCost;
+      } else if (qty >= 0) {
+        unitCost = m.source_cena_kos ?? (runQty > 0 ? runValue / runQty : 0);
+        runQty   += qty;
+        runValue += qty * unitCost;
+      } else {
+        unitCost = runQty > 0 ? runValue / runQty : 0;
+        runQty   += qty;
+        runValue += qty * unitCost;
+      }
+      if (runQty < 0.000001 && runQty > -0.000001) { runQty = 0; runValue = 0; }
+    }
+
+    const wacPrice = runQty > 0 ? runValue / runQty : null;
+    result.set(artikelId, { kolicina: runQty, cenaKos: wacPrice ?? 0 });
+  }
+
+  return result;
+}
+
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
