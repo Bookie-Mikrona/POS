@@ -1000,22 +1000,22 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                           <TableCell className="text-sm max-w-[220px]">
                             {g.tip === "prejemnica" ? (
                               <div className="space-y-0.5">
-                                {(g as any).prejStevilka && (
-                                  <div className="font-mono text-xs font-medium text-primary">{(g as any).prejStevilka}</div>
+                                {g.prejStevilka && (
+                                  <div className="font-mono text-xs font-medium text-primary">{g.prejStevilka}</div>
                                 )}
-                                {(g as any).dobaviteljNaziv && (
-                                  <div className="truncate text-xs font-medium">{(g as any).dobaviteljNaziv}</div>
+                                {g.dobaviteljNaziv && (
+                                  <div className="truncate text-xs font-medium">{g.dobaviteljNaziv}</div>
                                 )}
                                 {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
-                                {!(g as any).prejStevilka && !(g as any).dobaviteljNaziv && !g.opomba && <span className="text-muted-foreground">–</span>}
+                                {!g.prejStevilka && !g.dobaviteljNaziv && !g.opomba && <span className="text-muted-foreground">–</span>}
                               </div>
                             ) : g.tip === "izdajnica" ? (
                               <div className="space-y-0.5">
-                                {(g as any).izdStevilka && (
-                                  <div className="font-mono text-xs font-medium text-primary">{(g as any).izdStevilka}</div>
+                                {g.izdStevilka && (
+                                  <div className="font-mono text-xs font-medium text-primary">{g.izdStevilka}</div>
                                 )}
                                 {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
-                                {!(g as any).izdStevilka && !g.opomba && <span className="text-muted-foreground">–</span>}
+                                {!g.izdStevilka && !g.opomba && <span className="text-muted-foreground">–</span>}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">{g.opomba ?? "–"}</span>
