@@ -45,6 +45,7 @@ import simRouter from "./sim";
 import posAuthRouter from "./auth";
 import posAdminUporabnikiRouter from "./admin-uporabniki";
 import terminalRouter from "./terminal";
+import temeljniceRouter from "./temeljnice";
 
 const router: IRouter = Router();
 
@@ -112,5 +113,6 @@ router.use(requireEnota, izdajniceRouter);
 router.use(requireEnota, zacetneZalogeRouter);
 router.use(requireEnota, zalogeRouter);
 router.use(requireEnota, terminalRouter);
+router.use(requireEnota, temeljniceRouter);
 
 export default router;

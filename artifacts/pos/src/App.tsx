@@ -12,7 +12,7 @@ import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext"
 import { NapravaProvider } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays, Users, ClipboardList } from "lucide-react";
+import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays, Users, ClipboardList, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
@@ -38,6 +38,7 @@ import ReceiptsPage from "@/pages/Receipts";
 import StatsPage from "@/pages/Stats";
 import DnevniIzkazPage from "@/pages/DnevniIzkaz";
 import RealizacijaPage from "@/pages/Realizacija";
+import TemeljnicePage from "@/pages/Temeljnice";
 import SettingsPage from "@/pages/Settings";
 import KitchenPage from "@/pages/Kitchen";
 import TocilnicaPage from "@/pages/Tocilnica";
@@ -92,6 +93,7 @@ const secondaryNav = [
   { href: "/statistike", label: "Statistike", icon: BarChart3 },
   { href: "/izkaz", label: "Dnevni izkaz", icon: ClipboardList },
   { href: "/realizacija", label: "Realizacija", icon: FileText },
+  { href: "/temeljnice", label: "Temeljnice", icon: BookOpen },
   { href: "/izmene", label: "Izmene", icon: Clock },
   { href: "/partnerji", label: "Partnerji", icon: BookUser },
   { href: "/simulacija", label: "Simulacija", icon: FlaskConical },
@@ -292,6 +294,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/racuni", label: "Računi" },
       { href: "/statistike", label: "Statistike" },
       { href: "/realizacija", label: "Realizacija" },
+      { href: "/temeljnice", label: "Temeljnice" },
       { href: "/izmene", label: "Izmene" },
       { href: "/partnerji", label: "Partnerji" },
       { href: "/nastavitve", label: "Nastavitve" },
@@ -330,6 +333,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { href: "/racuni", label: "Računi", icon: Receipt },
     { href: "/statistike", label: "Statistike", icon: BarChart3 },
     { href: "/realizacija", label: "Realizacija", icon: FileText },
+    { href: "/temeljnice", label: "Temeljnice", icon: BookOpen },
     { href: "/izmene", label: "Izmene", icon: Clock },
     { href: "/partnerji", label: "Partnerji", icon: BookUser },
     ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
@@ -570,6 +574,7 @@ function ProtectedRouter() {
         <Route path="/statistike" component={StatsPage} />
         <Route path="/izkaz" component={DnevniIzkazPage} />
         <Route path="/realizacija" component={RealizacijaPage} />
+        <Route path="/temeljnice" component={TemeljnicePage} />
         <Route path="/kuhinja" component={KitchenPage} />
         <Route path="/tocilnica" component={TocilnicaPage} />
         <Route path="/izmene" component={IzmenePage} />
