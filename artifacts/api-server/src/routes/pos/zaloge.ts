@@ -63,6 +63,32 @@ router.get("/zaloge", async (req, res): Promise<void> => {
   })));
 });
 
+// ── GET /zaloge/zadnje-nabavne ───────────────────────────────────────────────
+// Vrne zadnjo nabavno ceno za vsak artikel (prejemnice + začetne zaloge).
+// Kliče se direktno ob odprtju dialoga — brez predpomnilnika.
+router.get("/zaloge/zadnje-nabavne", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId ?? 1;
+  const result = await db.execute(sql`
+    SELECT DISTINCT ON (artikel_id)
+      artikel_id         AS "artikelId",
+      cena_kos::float8   AS "zadnjaNabavnaCena",
+      vrsta_cen          AS "zadnjaVrstaCen"
+    FROM (
+      SELECT pp.artikel_id, pp.cena_kos, p.vrsta_cen, p.datum
+      FROM prejemnice_postavke pp
+      JOIN prejemnice p ON p.id = pp.prejemnica_id
+      WHERE p.enota_id = ${enotaId}
+      UNION ALL
+      SELECT zzp.artikel_id, zzp.cena_kos, 'neto' AS vrsta_cen, zz.datum
+      FROM zacetne_zaloge_postavke zzp
+      JOIN zacetne_zaloge zz ON zz.id = zzp.zacetna_zaloga_id
+      WHERE zz.enota_id = ${enotaId}
+    ) vsi
+    ORDER BY artikel_id, datum DESC
+  `);
+  res.json(result.rows);
+});
+
 // ── GET /zaloge/kartica/:artikelId ──────────────────────────────────────────
 router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;

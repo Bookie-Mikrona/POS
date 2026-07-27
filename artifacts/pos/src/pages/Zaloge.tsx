@@ -1219,6 +1219,22 @@ function EditPrejemnicaDialog({
   const editDobavInputRef = useRef<HTMLInputElement>(null);
   const editOpombaRef = useRef<HTMLInputElement>(null);
   const editFocusedOnOpen = useRef(false);
+  type ZadnjaNabavnaEdit = { zadnjaNabavnaCena: number; zadnjaVrstaCen: string };
+  const zadnjeNabavneEditRef = useRef<Map<number, ZadnjaNabavnaEdit>>(new Map());
+
+  useEffect(() => {
+    const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+    const enotaId = localStorage.getItem("pos_enota_id") ?? "";
+    fetch(`${base}/api/zaloge/zadnje-nabavne`, {
+      credentials: "include",
+      headers: { "x-enota-id": enotaId },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: { artikelId: number; zadnjaNabavnaCena: number; zadnjaVrstaCen: string }[]) => {
+        zadnjeNabavneEditRef.current = new Map(rows.map(r => [r.artikelId, { zadnjaNabavnaCena: r.zadnjaNabavnaCena, zadnjaVrstaCen: r.zadnjaVrstaCen }]));
+      })
+      .catch(() => {});
+  }, [id]);
 
   const navEdit = (rowIdx: number, col: "art" | "enot" | "koli" | "cena", dir: "left" | "right" | "up" | "down") => {
     const cols = ["art", "enot", "koli", "cena"] as const;
@@ -1301,8 +1317,11 @@ function EditPrejemnicaDialog({
     setTimeout(() => editArtInputRefs.current.get(newIdx)?.focus(), 30);
   };
   const selectArtikelInEditRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
-    const zadnjaCenaNeto = zaloge?.find(z => z.artikelId === artikelId)?.zadnjaCena ?? null;
+    const nabavnaEntry = zadnjeNabavneEditRef.current.get(artikelId);
     const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
+    const zadnjaCenaNeto = nabavnaEntry
+      ? resolveNetoNabavnaCena(nabavnaEntry.zadnjaNabavnaCena, nabavnaEntry.zadnjaVrstaCen, davek)
+      : null;
     const prikazCena = zadnjaCenaNeto != null
       ? (editVrstaCen === "bruto" && davek
           ? Math.round(zadnjaCenaNeto * (1 + davek / 100) * 10000) / 10000
@@ -1685,6 +1704,22 @@ function EditInventuraDialog({
   const [rows, setRows] = useState<EditRow[]>([]);
   const initializedId = useRef<number | null>(null);
   const invEditNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  type ZadnjaNabavnaInv = { zadnjaNabavnaCena: number; zadnjaVrstaCen: string };
+  const zadnjeNabavneInvRef = useRef<Map<number, ZadnjaNabavnaInv>>(new Map());
+
+  useEffect(() => {
+    const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+    const enotaId = localStorage.getItem("pos_enota_id") ?? "";
+    fetch(`${base}/api/zaloge/zadnje-nabavne`, {
+      credentials: "include",
+      headers: { "x-enota-id": enotaId },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((fetched: { artikelId: number; zadnjaNabavnaCena: number; zadnjaVrstaCen: string }[]) => {
+        zadnjeNabavneInvRef.current = new Map(fetched.map(r => [r.artikelId, { zadnjaNabavnaCena: r.zadnjaNabavnaCena, zadnjaVrstaCen: r.zadnjaVrstaCen }]));
+      })
+      .catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
@@ -1707,8 +1742,12 @@ function EditInventuraDialog({
   const updateRow = (i: number, val: string) =>
     setRows(r => r.map((row, j) => j === i ? { ...row, steviloNajdeno: val } : row));
   const updateArtikel = (i: number, artikelId: number) => {
-    const zadnjaCena = zaloge?.find(z => z.artikelId === artikelId)?.zadnjaCena ?? null;
-    setRows(r => r.map((row, j) => j === i ? { ...row, artikelId, cenaKos: String(zadnjaCena ?? row.cenaKos) } : row));
+    const nabavnaEntry = zadnjeNabavneInvRef.current.get(artikelId);
+    // Inventura nima davka — cena se vedno shranjuje kot neto, davek = 0
+    const zadnjaCenaNeto = nabavnaEntry
+      ? resolveNetoNabavnaCena(nabavnaEntry.zadnjaNabavnaCena, nabavnaEntry.zadnjaVrstaCen, 0)
+      : null;
+    setRows(r => r.map((row, j) => j === i ? { ...row, artikelId, cenaKos: zadnjaCenaNeto != null ? String(zadnjaCenaNeto) : row.cenaKos } : row));
   };
 
   const handleSave = () => {
@@ -2103,6 +2142,10 @@ export default function Zaloge() {
   const [novArtikelRowIdx, setNovArtikelRowIdx] = useState<number | null>(null);
   // Vrsta cen na dobavnici (neto/bruto) — per-form, ponastavi ob odprtju
   const [vrstaCen, setVrstaCen] = useState<"neto" | "bruto">("neto");
+  // Zadnje nabavne cene — napolni se ob odprtju dialoga (svež direkten klic)
+  type ZadnjaNabavna = { zadnjaNabavnaCena: number; zadnjaVrstaCen: string };
+  const zadnjeNabavneRef = useRef<Map<number, ZadnjaNabavna>>(new Map());
+
   // Refs za focus management
   const artInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const koliInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -2145,9 +2188,18 @@ export default function Zaloge() {
   const prejBrutoRef = useRef<HTMLButtonElement>(null);
   const createPrejemnica = useCreatePrejemnica();
 
-  const openPrejDialog = () => {
-    // Prisilno osvežimo zaloge, da dobimo svežo zadnjaNabavnaCena
-    queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+  const openPrejDialog = async () => {
+    // Svež direkten klic — počakamo preden odpremo dialog
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const enotaId = localStorage.getItem("pos_enota_id") ?? "";
+      const r = await fetch(`${base}/api/zaloge/zadnje-nabavne`, {
+        credentials: "include",
+        headers: { "x-enota-id": enotaId },
+      });
+      const rows: { artikelId: number; zadnjaNabavnaCena: number; zadnjaVrstaCen: string }[] = r.ok ? await r.json() : [];
+      zadnjeNabavneRef.current = new Map(rows.map(row => [row.artikelId, { zadnjaNabavnaCena: row.zadnjaNabavnaCena, zadnjaVrstaCen: row.zadnjaVrstaCen }]));
+    } catch { /* dialog se odpre vseeno */ }
     setVrstaCen("neto");
     setPrejDatum(new Date().toISOString().slice(0, 10));
     setPrejDobaviteljId(null);
@@ -2227,11 +2279,11 @@ export default function Zaloge() {
     }));
   const selectArtikelInRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
-    const zalogaRow = (zaloge ?? []).find(z => z.artikelId === artikelId);
+    const nabavnaEntry = zadnjeNabavneRef.current.get(artikelId);
     const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
-    console.log("[prejemnica] zalogaRow za artikel", artikelId, JSON.stringify(zalogaRow));
-    const zadnjaCenaNeto = resolveNetoNabavnaCena(zalogaRow?.zadnjaNabavnaCena ?? null, zalogaRow?.zadnjaVrstaCen ?? null, davek) ?? zalogaRow?.zadnjaCena ?? null;
-    console.log("[prejemnica] zadnjaCenaNeto =", zadnjaCenaNeto);
+    const zadnjaCenaNeto = nabavnaEntry
+      ? resolveNetoNabavnaCena(nabavnaEntry.zadnjaNabavnaCena, nabavnaEntry.zadnjaVrstaCen, davek)
+      : null;
     if (zadnjaCenaNeto != null) {
       // zadnjaCenaNeto je normalizirana neto cena/enoto; pretvorimo v ceno za prikaz v vnosnem polju
       const enotVPaketu = parseDecimal(prejRows[rowIdx]?.enotVPaketu) || 1;
