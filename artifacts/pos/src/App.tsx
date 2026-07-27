@@ -12,7 +12,7 @@ import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext"
 import { NapravaProvider } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays, Users } from "lucide-react";
+import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays, Users, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
@@ -36,6 +36,7 @@ import CheckoutPage from "@/pages/Checkout";
 import MenuPage from "@/pages/Menu";
 import ReceiptsPage from "@/pages/Receipts";
 import StatsPage from "@/pages/Stats";
+import DnevniIzkazPage from "@/pages/DnevniIzkaz";
 import RealizacijaPage from "@/pages/Realizacija";
 import SettingsPage from "@/pages/Settings";
 import KitchenPage from "@/pages/Kitchen";
@@ -89,6 +90,7 @@ const secondaryNav = [
   { href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays },
   { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
   { href: "/statistike", label: "Statistike", icon: BarChart3 },
+  { href: "/izkaz", label: "Dnevni izkaz", icon: ClipboardList },
   { href: "/realizacija", label: "Realizacija", icon: FileText },
   { href: "/izmene", label: "Izmene", icon: Clock },
   { href: "/partnerji", label: "Partnerji", icon: BookUser },
@@ -566,6 +568,7 @@ function ProtectedRouter() {
         <Route path="/meni" component={MenuPage} />
         <Route path="/racuni" component={ReceiptsPage} />
         <Route path="/statistike" component={StatsPage} />
+        <Route path="/izkaz" component={DnevniIzkazPage} />
         <Route path="/realizacija" component={RealizacijaPage} />
         <Route path="/kuhinja" component={KitchenPage} />
         <Route path="/tocilnica" component={TocilnicaPage} />
@@ -739,7 +742,7 @@ function App() {
   const pubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
   if (!pubKey) throw new Error("Manjka VITE_CLERK_PUBLISHABLE_KEY");
   return (
-    <ClerkProvider publishableKey={pubKey} afterSignOutUrl="/pos/" afterSignInUrl="/pos/">
+    <ClerkProvider publishableKey={pubKey} afterSignOutUrl="/pos/" fallbackRedirectUrl="/pos/">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <GotovToastProvider>
