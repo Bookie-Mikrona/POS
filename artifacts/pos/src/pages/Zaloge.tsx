@@ -2146,6 +2146,8 @@ export default function Zaloge() {
   const createPrejemnica = useCreatePrejemnica();
 
   const openPrejDialog = () => {
+    // Prisilno osvežimo zaloge, da dobimo svežo zadnjaNabavnaCena
+    queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
     setVrstaCen("neto");
     setPrejDatum(new Date().toISOString().slice(0, 10));
     setPrejDobaviteljId(null);
@@ -2227,7 +2229,9 @@ export default function Zaloge() {
     updatePrejRow(rowIdx, "artikelId", artikelId);
     const zalogaRow = (zaloge ?? []).find(z => z.artikelId === artikelId);
     const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
+    console.log("[prejemnica] zalogaRow za artikel", artikelId, JSON.stringify(zalogaRow));
     const zadnjaCenaNeto = resolveNetoNabavnaCena(zalogaRow?.zadnjaNabavnaCena ?? null, zalogaRow?.zadnjaVrstaCen ?? null, davek) ?? zalogaRow?.zadnjaCena ?? null;
+    console.log("[prejemnica] zadnjaCenaNeto =", zadnjaCenaNeto);
     if (zadnjaCenaNeto != null) {
       // zadnjaCenaNeto je normalizirana neto cena/enoto; pretvorimo v ceno za prikaz v vnosnem polju
       const enotVPaketu = parseDecimal(prejRows[rowIdx]?.enotVPaketu) || 1;

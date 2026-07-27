@@ -27,17 +27,24 @@ router.get("/zaloge", async (req, res): Promise<void> => {
     .where(and(eq(artikliTable.nabavniArtikel, true), eq(artikliTable.enotaId, tenotaId)))
     .orderBy(artikliTable.ime);
 
-  // Ločena poizvedba: zadnja nabavna cena iz prejemnic (raw SQL — zanesljivo deluje)
-  // Vrne ceno in vrsto (neto/bruto) zadnje prejemnice za vsak artikel
+  // Ločena poizvedba: zadnja nabavna cena — prejemnice + začetne zaloge, novejša zmaga
   const zadnjeNabavneRes = await db.execute(sql`
-    SELECT DISTINCT ON (pp.artikel_id)
-      pp.artikel_id        AS "artikelId",
-      pp.cena_kos::float8  AS "zadnjaNabavnaCena",
-      p.vrsta_cen          AS "zadnjaVrstaCen"
-    FROM prejemnice_postavke pp
-    JOIN prejemnice p ON p.id = pp.prejemnica_id
-    WHERE p.enota_id = ${tenotaId}
-    ORDER BY pp.artikel_id, p.datum DESC
+    SELECT DISTINCT ON (artikel_id)
+      artikel_id          AS "artikelId",
+      cena_kos::float8    AS "zadnjaNabavnaCena",
+      vrsta_cen           AS "zadnjaVrstaCen"
+    FROM (
+      SELECT pp.artikel_id, pp.cena_kos, p.vrsta_cen, p.datum
+      FROM prejemnice_postavke pp
+      JOIN prejemnice p ON p.id = pp.prejemnica_id
+      WHERE p.enota_id = ${tenotaId}
+      UNION ALL
+      SELECT zzp.artikel_id, zzp.cena_kos, 'neto' AS vrsta_cen, zz.datum
+      FROM zacetne_zaloge_postavke zzp
+      JOIN zacetne_zaloge zz ON zz.id = zzp.zacetna_zaloga_id
+      WHERE zz.enota_id = ${tenotaId}
+    ) vsi
+    ORDER BY artikel_id, datum DESC
   `);
   const zadnjeNabavne = new Map<number, { cena: number; vrstaCen: string }>(
     (zadnjeNabavneRes.rows as { artikelId: number; zadnjaNabavnaCena: number; zadnjaVrstaCen: string }[])
