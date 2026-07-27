@@ -7,10 +7,10 @@ import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
 
 const router: IRouter = Router();
 
-async function nextStevilkaInventura(year: number, _davcna: string, tenotaId: number): Promise<string> {
+async function nextStevilkaInventura(year: number, tenotaId: number): Promise<string> {
   const yy = String(year).slice(-2);
   const result = await db.execute(
-    sql`SELECT COALESCE(MAX(CAST(SUBSTRING(stevilka, 3) AS INTEGER)), 0) + 1 AS next FROM inventure WHERE stevilka LIKE ${`${yy}%`} AND LENGTH(stevilka) = 8 AND podjetje_davcna = ${""} AND enota_id = ${tenotaId}`
+    sql`SELECT COALESCE(MAX(CAST(SUBSTRING(stevilka, 3) AS INTEGER)), 0) + 1 AS next FROM inventure WHERE stevilka LIKE ${`${yy}%`} AND LENGTH(stevilka) = 8 AND enota_id = ${tenotaId}`
   );
   const nextSeq = Number((result.rows[0] as { next: string })?.next ?? 1);
   return `${yy}${String(nextSeq).padStart(6, "0")}`;
@@ -86,7 +86,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   const zalogeMap = new Map(Array.from(zalogaObDatumu.entries()).map(([id, v]) => [id, v.kolicina]));
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
   const year = docDatum.getFullYear();
-  const stevilka = await nextStevilkaInventura(year, "", tenotaId);
+  const stevilka = await nextStevilkaInventura(year, tenotaId);
 
   const { inventura, postavkeResult } = await db.transaction(async (tx) => {
     const [inventura] = await tx.insert(inventureTable).values({
