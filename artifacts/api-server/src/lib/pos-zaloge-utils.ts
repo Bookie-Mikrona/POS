@@ -116,23 +116,29 @@ export async function recomputeZaloge(
       const qty = m.kolicina;  // positive for inflows, negative for outflows
       let unitCost: number;
 
-      if (qty >= 0) {
-        // Inflow: use source price if available, else current WAC (e.g. inventory surplus)
+      const isZacetnaZaloga = m.opomba != null && String(m.opomba).startsWith('Začetne zaloge');
+
+      if (isZacetnaZaloga) {
+        // Začetna zaloga = absolutno izhodišče leta: PONASTAVI tekoče stanje, ne seštevaj
+        unitCost = m.source_cena_kos ?? 0;
+        runQty   = qty;
+        runValue = qty * unitCost;
+      } else if (qty >= 0) {
+        // Navaden pritok: tehtano povprečje s tekočim WAC
         unitCost = m.source_cena_kos ?? (runQty > 0 ? runValue / runQty : 0);
+        runQty   += qty;
+        runValue += qty * unitCost;
       } else {
-        // Outflow: always use current WAC
+        // Odtok: vedno uporabi tekoči WAC
         unitCost = runQty > 0 ? runValue / runQty : 0;
+        runQty   += qty;
+        runValue += qty * unitCost;
       }
 
-      const lineValue = qty * unitCost;
-
-      runQty   += qty;
-      runValue += lineValue;
-
-      // Guard against floating-point drift below zero after balanced movements
+      // Prepreči plovečo vejico pod nič po uravnoteženih gibanjih
       if (runQty < 0.000001 && runQty > -0.000001) { runQty = 0; runValue = 0; }
 
-      updates.push({ id: m.id, cenaKos: unitCost, vrednost: lineValue });
+      updates.push({ id: m.id, cenaKos: unitCost, vrednost: qty * unitCost });
     }
 
     // ── batch-update zaloga_gibi rows ──────────────────────────────────────
