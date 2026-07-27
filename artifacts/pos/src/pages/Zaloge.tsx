@@ -1660,7 +1660,8 @@ function EditInventuraDialog({
 
   const [datum, setDatum] = useState("");
   const [opomba, setOpomba] = useState("");
-  const [rows, setRows] = useState<InventuraRow[]>([]);
+  type EditRow = InventuraRow & { steviloPrejsnje: string };
+  const [rows, setRows] = useState<EditRow[]>([]);
   const initializedId = useRef<number | null>(null);
   const invEditNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
@@ -1673,12 +1674,13 @@ function EditInventuraDialog({
         artikelId: p.artikelId,
         steviloNajdeno: String(p.steviloNajdeno),
         cenaKos: String(p.cenaKos),
+        steviloPrejsnje: String(p.steviloPrejsnje),
       })));
     }
   }, [data]);
 
   const addRow = () => {
-    setRows(r => [...r, { artikelId: 0, steviloNajdeno: "0", cenaKos: "0" }]);
+    setRows(r => [...r, { artikelId: 0, steviloNajdeno: "0", cenaKos: "0", steviloPrejsnje: "0" }]);
   };
   const removeRow = (i: number) => setRows(r => r.filter((_, j) => j !== i));
   const updateRow = (i: number, val: string) =>
@@ -1749,7 +1751,8 @@ function EditInventuraDialog({
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
                       const cena = parseDecimal(row.cenaKos) || null;
-                      const knjizno = Number(zalogaInfo?.kolicina ?? 0);
+                      // Knjižno = shranjeno steviloPrejsnje iz inventure (ne tekoča zaloga!)
+                      const knjizno = parseDecimal(row.steviloPrejsnje) || 0;
                       const dejansko = parseDecimal(row.steviloNajdeno) || 0;
                       const razlikaKol = dejansko - knjizno;
                       const razlikaVrednost = cena != null ? razlikaKol * cena : null;
