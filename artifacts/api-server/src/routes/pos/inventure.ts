@@ -7,6 +7,26 @@ import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
 
 const router: IRouter = Router();
 
+/**
+ * Vrne UTC Date, ki ustreza 23:59:59 po evropskem/Ljubljana časovnem pasu
+ * za dani datum (string "YYYY-MM-DD"). Intl se uporablja za izračun odmika,
+ * da deluje tako pozimi (UTC+1) kot poleti (UTC+2).
+ */
+function endOfDayLjubljana(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  // UTC polnoč tega dne
+  const midnight = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+  // Katera ura je v LJ ob UTC polnoči → dá nam odmik (1 pozimi, 2 poleti)
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Ljubljana",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(midnight);
+  const ljHour = parseInt(parts.find(p => p.type === "hour")!.value, 10);
+  // 23:59:59 Ljubljana = (23 - odmik) UTC
+  return new Date(Date.UTC(y, m - 1, d, 23 - ljHour, 59, 59, 0));
+}
+
 async function nextStevilkaInventura(year: number, tenotaId: number): Promise<string> {
   const yy = String(year).slice(-2);
   const result = await db.execute(
@@ -66,9 +86,8 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
 
   const artikelIds = postavke.map((p: any) => p.artikelId);
 
-  // Inventura se vedno beleži ob 23:59:59 — izvaja se na koncu dneva
-  const docDatum = datum ? new Date(datum) : new Date();
-  docDatum.setHours(23, 59, 59, 0);
+  // Inventura se vedno beleži ob 23:59:59 po Ljubljana času
+  const docDatum = datum ? endOfDayLjubljana(datum) : (() => { const n = new Date(); n.setSeconds(59, 0); return n; })();
   const cutoff = new Date(docDatum);
 
   const [zalogaObDatumu, zadnjeCene, artikliRows] = await Promise.all([
@@ -211,9 +230,9 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
     }
 
-    const putInventuraDatum = parsed.data.datum ? new Date(parsed.data.datum) : existing.datum;
-    const putCutoff = new Date(putInventuraDatum);
-    putCutoff.setHours(23, 59, 59, 999);
+    const putCutoff = parsed.data.datum
+      ? endOfDayLjubljana(parsed.data.datum)
+      : new Date(existing.datum);
     zadnjeCeneMap = await fetchZadnjeCene(artikelIds, putCutoff);
   }
 
@@ -222,9 +241,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
   const [updated] = await db.transaction(async (tx) => {
     const txUpdates: Partial<typeof existing> = {};
     if (parsed.data.datum !== undefined) {
-      const d = new Date(parsed.data.datum);
-      d.setHours(23, 59, 59, 0);
-      txUpdates.datum = d;
+      txUpdates.datum = endOfDayLjubljana(parsed.data.datum);
     }
     if (parsed.data.opomba !== undefined) txUpdates.opomba = parsed.data.opomba;
 
@@ -240,9 +257,9 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       await recomputeZaloge(oldArtikleIds, tx);
 
       // Stanje zalog ob koncu inventurnega dne (brez te inventure, ker smo jo ravno izbrisali)
-      const putInventuraDatum2 = parsed.data.datum ? new Date(parsed.data.datum) : existing.datum;
-      const putCutoff2 = new Date(putInventuraDatum2);
-      putCutoff2.setHours(23, 59, 59, 999);
+      const putCutoff2 = parsed.data.datum
+        ? endOfDayLjubljana(parsed.data.datum)
+        : new Date(existing.datum);
       const zalogaObDatumu = await getZalogeObDatumu(artikelIds2, putCutoff2, tx);
       const zalogeMap = new Map(Array.from(zalogaObDatumu.entries()).map(([id2, v]) => [id2, v.kolicina]));
 
