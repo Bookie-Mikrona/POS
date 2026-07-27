@@ -997,7 +997,30 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                           <TableCell className="text-right tabular-nums text-xs text-muted-foreground" title={g.stanjePovprecnaCena != null ? `WAC: ${fmt(g.stanjePovprecnaCena, 6)} €/en.` : ""}>
                             {g.stanjeVrednost != null ? `${fmt(g.stanjeVrednost)} €` : "–"}
                           </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{g.opomba ?? "–"}</TableCell>
+                          <TableCell className="text-sm max-w-[220px]">
+                            {g.tip === "prejemnica" ? (
+                              <div className="space-y-0.5">
+                                {(g as any).prejStevilka && (
+                                  <div className="font-mono text-xs font-medium text-primary">{(g as any).prejStevilka}</div>
+                                )}
+                                {(g as any).dobaviteljNaziv && (
+                                  <div className="truncate text-xs font-medium">{(g as any).dobaviteljNaziv}</div>
+                                )}
+                                {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
+                                {!(g as any).prejStevilka && !(g as any).dobaviteljNaziv && !g.opomba && <span className="text-muted-foreground">–</span>}
+                              </div>
+                            ) : g.tip === "izdajnica" ? (
+                              <div className="space-y-0.5">
+                                {(g as any).izdStevilka && (
+                                  <div className="font-mono text-xs font-medium text-primary">{(g as any).izdStevilka}</div>
+                                )}
+                                {g.opomba && <div className="truncate text-muted-foreground text-xs">{g.opomba}</div>}
+                                {!(g as any).izdStevilka && !g.opomba && <span className="text-muted-foreground">–</span>}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">{g.opomba ?? "–"}</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
                             {fmtCas(g.datumDokumenta ?? g.ustvarjeno)}
                           </TableCell>
@@ -2737,7 +2760,7 @@ export default function Zaloge() {
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
                 ) : (prejemnice ?? []).length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Ni prejemnic</TableCell></TableRow>
-                ) : (prejemnice ?? []).slice().sort((a, b) => (b.stevilka ?? 0) - (a.stevilka ?? 0)).map(p => (
+                ) : (prejemnice ?? []).slice().sort((a, b) => (b.stevilka ?? "").localeCompare(a.stevilka ?? "", "sl", { numeric: true })).map(p => (
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-sm font-medium text-primary">{p.stevilka ?? "–"}</TableCell>
                     <TableCell className="font-medium">{fmtDatum(p.datum)}</TableCell>

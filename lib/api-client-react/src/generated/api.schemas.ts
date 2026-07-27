@@ -1315,6 +1315,12 @@ export interface ZalogaGibPogled {
   referencaId?: number | null;
   ustvarjeno: string;
   datumDokumenta?: string;
+  /** Interna številka prejemnice (samo za tip='prejemnica') @nullable */
+  prejStevilka?: string | null;
+  /** Kratki naziv ali naziv dobavitelja (samo za tip='prejemnica') @nullable */
+  dobaviteljNaziv?: string | null;
+  /** Interna številka izdajnice (samo za tip='izdajnica') @nullable */
+  izdStevilka?: string | null;
 }
 
 export interface KarticaArtikla {
