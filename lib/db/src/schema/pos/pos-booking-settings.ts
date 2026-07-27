@@ -86,6 +86,26 @@ export const posBookingSettingsTable = pgTable("pos_booking_settings", {
   cogsAccountId: uuid("cogs_account_id")
     .references(() => accountsTable.id, { onDelete: "set null" }),
 
+  // ── Temeljnica 4: Lastna poraba / Reprezentanca + KIR ─────────────────────
+  /**
+   * Terjatve do kupcev za KIR (Knjigo izdanih računov) — npr. 1200110.
+   * Obvezno za ustvarjanje KIR zapisov v ERP. Če ni nastavljen, se KIR preskoči.
+   */
+  kirArAccountId: uuid("kir_ar_account_id")
+    .references(() => accountsTable.id, { onDelete: "set null" }),
+  /**
+   * Odhodki iz naslova lastne porabe — debet v T4 (npr. 4830110).
+   * Brezplačni POS računi tipa lastna_poraba: DDV se obračuna na face value.
+   */
+  lastnaPorabaAccountId: uuid("lastna_poraba_account_id")
+    .references(() => accountsTable.id, { onDelete: "set null" }),
+  /**
+   * Stroški reprezentance — debet v T4 (npr. 4861000).
+   * Brezplačni POS računi tipa reprezentanca: DDV se obračuna na face value.
+   */
+  reprezentancaAccountId: uuid("reprezentanca_account_id")
+    .references(() => accountsTable.id, { onDelete: "set null" }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

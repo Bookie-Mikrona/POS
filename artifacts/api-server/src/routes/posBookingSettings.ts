@@ -80,6 +80,10 @@ const ACCOUNT_FIELDS = [
   // T3 — COGS
   "cogsMaterialAccountId",
   "cogsGoodsAccountId",
+  // T4 — lastna poraba / reprezentanca + KIR
+  "kirArAccountId",
+  "lastnaPorabaAccountId",
+  "reprezentancaAccountId",
   // ← zastareli fallback konti (ohranjeni za nazaj)
   "revenueAccountId",
   "vatLiabilityAccountId",

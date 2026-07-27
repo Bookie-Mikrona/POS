@@ -1,10 +1,12 @@
 /**
  * POS → ERP samodejno knjiženje
  * ─────────────────────────────────────────────────────────────────────────────
- * Za vsak dan generira do 3 osnutke temeljnic:
+ * Za vsak dan generira do 4 osnutke temeljnic + KIR vrstice:
+ *
  *   1. POS:PRODAJA:YYYY-MM-DD   — dnevna prodaja (Z-poročilo)
  *      Debet:  gotovina / kartica / darilni boni / ostalo
  *      Kredit: prihodki po vrsti artikla × DDV stopnji + DDV po stopnji
+ *      ⚠ Izključuje lastna_poraba in reprezentanca račune (ti gredo v T4).
  *
  *   2. POS:PREJEMNICA:YYYY-MM-DD — prejemnice blaga
  *      Debet:  zaloga materiala + zaloga blaga
@@ -12,21 +14,30 @@
  *
  *   3. POS:PORABA:YYYY-MM-DD    — razknjižba zalog (COGS)
  *      Debet:  stroški materiala + NVPB blaga
- *      Kredit: zmanjšanje ustrezne zalogе
+ *      Kredit: zmanjšanje ustrezne zaloge
+ *
+ *   4. POS:LASTREPR:YYYY-MM-DD  — lastna poraba + reprezentanca
+ *      DDV se obračuna na face value (vrednost postavk, skupaj=0).
+ *      Debet:  odhodki lastne porabe / odhodki reprezentance (bruto)
+ *      Kredit: prihodki po vrsti × DDV (neto) + DDV po stopnji
+ *
+ *   KIR (Knjiga izdanih računov):
+ *      B2C: en zbirni ERP invoice na dan (fizične osebe)
+ *      B2B: posamičen ERP invoice za vsak račun z davčno številko ali negotovinskim plačilom
+ *      Lastna/repr: ločen ERP invoice z DDV osnovo iz face value
+ *      Pogoj: nastavljen kir_ar_account_id v pos_booking_settings
  *
  * Analitika:
  *   - vrsta_artikla: 'material' | 'blago' | 'storitev'
  *   - davek: 9.5 | 22 | 0  (DDV stopnja v %)
  *
- * Fallback: če analitični konti niso nastavljeni, se uporabi zastareli splošni
- * konto (revenueAccountId / vatLiabilityAccountId / inventoryAccountId / cogsAccountId).
- *
  * Funkcija je idempotentna: obstoječe osnutke z istim ref pobriše in ustvari
  * nove. Potrjene temeljnice (status='posted') nikoli ne briše.
+ * KIR invoices: briše stare pos-sync invoices za ta datum in ustvari nove.
  */
 
 import Decimal from "decimal.js";
-import { and, eq, inArray, isNull, lte, gte, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, gte, notInArray, sql, isNotNull } from "drizzle-orm";
 import {
   db,
   posBookingSettingsTable,
@@ -40,6 +51,9 @@ import {
   artikliTable,
   journalEntriesTable,
   journalEntryLinesTable,
+  invoicesTable,
+  invoiceLinesTable,
+  counterpartiesTable,
 } from "@workspace/db";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
@@ -136,6 +150,90 @@ async function insertEntry(
   });
 }
 
+/**
+ * Poišče poslovnega partnerja po davčni številki, nato po imenu.
+ * Če ga ni, ga ustvari.
+ */
+async function ensureCounterparty(
+  companyId: string,
+  name: string,
+  taxId: string | null | undefined,
+  address?: string | null,
+  vatPayer?: boolean,
+): Promise<string> {
+  // 1. Poišči po davčni številki
+  if (taxId?.trim()) {
+    const [found] = await db
+      .select({ id: counterpartiesTable.id })
+      .from(counterpartiesTable)
+      .where(
+        and(
+          eq(counterpartiesTable.companyId, companyId),
+          eq(counterpartiesTable.taxId, taxId.trim()),
+        ),
+      )
+      .limit(1);
+    if (found) return found.id;
+  }
+
+  // 2. Poišči po imenu
+  const [foundByName] = await db
+    .select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(
+      and(
+        eq(counterpartiesTable.companyId, companyId),
+        eq(counterpartiesTable.name, name),
+      ),
+    )
+    .limit(1);
+  if (foundByName) return foundByName.id;
+
+  // 3. Ustvari novega
+  const [created] = await db
+    .insert(counterpartiesTable)
+    .values({
+      companyId,
+      type: "customer",
+      name,
+      taxId: taxId?.trim() ?? null,
+      address: address ?? null,
+      vatPayer: vatPayer ?? false,
+    })
+    .returning({ id: counterpartiesTable.id });
+
+  return created.id;
+}
+
+// ── Prihodkovni konto za vrsta × DDV (deljeno med T1, T4, KIR) ───────────────
+
+function getRevenueAccount(
+  vrsta: string,
+  davekPct: Decimal,
+  settings: {
+    revenueMaterial95AccountId?: string | null;
+    revenueMaterial22AccountId?: string | null;
+    revenueGoods95AccountId?: string | null;
+    revenueGoods22AccountId?: string | null;
+    revenueServiceAccountId?: string | null;
+    revenueAccountId?: string | null;
+  },
+): string | null | undefined {
+  const map: Record<string, string | null | undefined> = {
+    "material|9.50":  settings.revenueMaterial95AccountId,
+    "material|22.00": settings.revenueMaterial22AccountId,
+    "blago|9.50":     settings.revenueGoods95AccountId,
+    "blago|22.00":    settings.revenueGoods22AccountId,
+    "storitev|22.00": settings.revenueServiceAccountId,
+    "storitev|9.50":  settings.revenueServiceAccountId,
+    "storitev|0.00":  settings.revenueServiceAccountId,
+    "material|0.00":  settings.revenueMaterial95AccountId,
+    "blago|0.00":     settings.revenueGoods95AccountId,
+  };
+  const key = `${vrsta}|${davekPct.toFixed(2)}`;
+  return map[key] ?? settings.revenueAccountId;
+}
+
 // ── Glavna funkcija ───────────────────────────────────────────────────────────
 
 export async function syncPosBookingForDay(
@@ -188,10 +286,15 @@ export async function syncPosBookingForDay(
     return { created: [], skipped: [{ ref: "vse", reason: "Podjetje nima POS enot" }] };
   }
 
+  // Skupni pogoji za POS datum (Ljubljana čas)
+  const datumWhere = sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date = ${datum}::date`;
+  const statusOk = notInArray(racuniTable.status, ["storniran", "testni"]);
+  const enotaOk = inArray(racuniTable.enotaId, enotaIds);
+
   // ── TEMELJNICA 1: PRODAJA ────────────────────────────────────────────────────
   const prodajaRef = `POS:PRODAJA:${datum}`;
   await (async () => {
-    // 1a. Dnevni seštevki plačil (iz glave računa)
+    // 1a. Dnevni seštevki plačil — BREZ lastna_poraba in reprezentanca
     const [sales] = await db
       .select({
         gotovina:      sql<string>`COALESCE(SUM(CAST(${racuniTable.znesekGotovina} AS numeric)), 0)`,
@@ -204,9 +307,10 @@ export async function syncPosBookingForDay(
       .from(racuniTable)
       .where(
         and(
-          inArray(racuniTable.enotaId, enotaIds),
-          sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date = ${datum}::date`,
-          notInArray(racuniTable.status, ["storniran", "testni"]),
+          enotaOk,
+          datumWhere,
+          statusOk,
+          notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
         ),
       );
 
@@ -216,7 +320,7 @@ export async function syncPosBookingForDay(
       return;
     }
 
-    // 1b. Prihodki in DDV po vrsti artikla × DDV stopnji (iz postavk)
+    // 1b. Prihodki in DDV po vrsti artikla × DDV stopnji — BREZ lastna/repr postavk
     const prodajaVrstice = await db
       .select({
         vrstaArtikla: postavkeTable.vrstaArtikla,
@@ -227,9 +331,10 @@ export async function syncPosBookingForDay(
       .innerJoin(racuniTable, eq(racuniTable.id, postavkeTable.racunId))
       .where(
         and(
-          inArray(racuniTable.enotaId, enotaIds),
-          sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date = ${datum}::date`,
-          notInArray(racuniTable.status, ["storniran", "testni"]),
+          enotaOk,
+          datumWhere,
+          statusOk,
+          notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
           isNull(postavkeTable.parentPostavkaId),
         ),
       )
@@ -275,33 +380,19 @@ export async function syncPosBookingForDay(
 
     // ── Kredit: prihodki in DDV ─────────────────────────────────────────────
 
-    // Mapa vrsta × davek → konto prihodkov
-    const revenueMap: Record<string, string | null | undefined> = {
-      "material|9.50":  settings.revenueMaterial95AccountId,
-      "material|22.00": settings.revenueMaterial22AccountId,
-      "blago|9.50":     settings.revenueGoods95AccountId,
-      "blago|22.00":    settings.revenueGoods22AccountId,
-      "storitev|22.00": settings.revenueServiceAccountId,
-      "storitev|9.50":  settings.revenueServiceAccountId,
-      "storitev|0.00":  settings.revenueServiceAccountId,
-      "material|0.00":  settings.revenueMaterial95AccountId,
-      "blago|0.00":     settings.revenueGoods95AccountId,
-    };
     const vatMap: Record<string, string | null | undefined> = {
       "9.50":  settings.vat95AccountId,
       "22.00": settings.vat22AccountId,
     };
 
-    // Skupaj DDV po stopnji (za balanciranje)
     const ddvPo: Record<string, Decimal> = {};
-
     let skupajBruto = new Decimal(0);
+
     for (const row of prodajaVrstice) {
       const bruto    = dec(row.bruto);
-      const davekPct = dec(row.davek); // npr. 9.50
+      const davekPct = dec(row.davek);
       if (bruto.lte("0.005")) continue;
 
-      // neto = bruto * 100 / (100 + davek)
       const neto = davekPct.gt(0)
         ? bruto.times(100).div(davekPct.plus(100)).toDecimalPlaces(2)
         : bruto;
@@ -309,11 +400,8 @@ export async function syncPosBookingForDay(
 
       skupajBruto = skupajBruto.plus(bruto);
 
-      // Vrsta → konto prihodkov
-      const vrsta   = row.vrstaArtikla ?? "material";
-      const davekKey = davekPct.toFixed(2);
-      const mapKey  = `${vrsta}|${davekKey}`;
-      const revAcc  = revenueMap[mapKey] ?? settings.revenueAccountId;
+      const vrsta  = row.vrstaArtikla ?? "material";
+      const revAcc = getRevenueAccount(vrsta, davekPct, settings);
 
       if (!revAcc) {
         skipped.push({
@@ -329,13 +417,12 @@ export async function syncPosBookingForDay(
         desc: `Prihodki ${vrsta} ${davekPct.eq(0) ? "0 %" : davekPct.toFixed(1) + " %"}`,
       });
 
-      // DDV
       if (ddv.gt("0.005")) {
+        const davekKey = davekPct.toFixed(2);
         ddvPo[davekKey] = (ddvPo[davekKey] ?? new Decimal(0)).plus(ddv);
       }
     }
 
-    // Kredit DDV po stopnji
     for (const [davekKey, ddvZnesek] of Object.entries(ddvPo)) {
       const vatAcc = vatMap[davekKey] ?? settings.vatLiabilityAccountId;
       if (!vatAcc) {
@@ -353,20 +440,14 @@ export async function syncPosBookingForDay(
       });
     }
 
-    // Fallback: če ni postavk, uporabi skupaj iz glave računa (stara logika)
+    // Fallback: brez postavk
     if (prodajaVrstice.length === 0 || skupajBruto.lte("0.005")) {
       const fallbackAcc = settings.revenueAccountId;
       if (!fallbackAcc) {
         skipped.push({ ref: prodajaRef, reason: "Ni postavk in splošni konto prihodkov ni nastavljen" });
         return;
       }
-      const skupajDDV = skupaj.minus(dec(sales.gotovina).plus(kartica).plus(boni).plus(negotovinsko))
-                              .abs();
-      const skupajNeto = skupaj.minus(skupajDDV);
-      lines.push({ accountId: fallbackAcc, side: "credit", amount: skupajNeto.gt(0) ? skupajNeto : skupaj, desc: "Prihodki od prodaje (neto)" });
-      if (skupajDDV.gt("0.005") && settings.vatLiabilityAccountId) {
-        lines.push({ accountId: settings.vatLiabilityAccountId, side: "credit", amount: skupajDDV, desc: "Izhodni DDV" });
-      }
+      lines.push({ accountId: fallbackAcc, side: "credit", amount: skupaj, desc: "Prihodki od prodaje (neto, fallback)" });
     }
 
     const merged = mergeLines(lines);
@@ -393,7 +474,6 @@ export async function syncPosBookingForDay(
       return;
     }
 
-    // Vsota prejemnic po vrsti artikla (za ločitev material/blago)
     const prejRows = await db
       .select({
         vrstaArtikla: artikliTable.vrstaArtikla,
@@ -429,7 +509,7 @@ export async function syncPosBookingForDay(
       } else if (vrsta === "blago") {
         invAcc = settings.inventoryGoodsAccountId ?? settings.inventoryAccountId;
       } else {
-        invAcc = settings.inventoryAccountId; // storitev — redko
+        invAcc = settings.inventoryAccountId;
       }
 
       if (!invAcc) {
@@ -454,7 +534,6 @@ export async function syncPosBookingForDay(
   // ── TEMELJNICA 3: PORABA BLAGA (COGS) ────────────────────────────────────────
   const porabaRef = `POS:PORABA:${datum}`;
   await (async () => {
-    // Porabljeno po vrsti artikla
     const porabaRows = await db
       .select({
         vrstaArtikla: artikliTable.vrstaArtikla,
@@ -523,6 +602,348 @@ export async function syncPosBookingForDay(
     await deleteExistingDrafts(companyId, porabaRef);
     await insertEntry(companyId, period.id, datum, `POS poraba blaga/materiala — ${datum}`, porabaRef, merged);
     created.push(porabaRef);
+  })();
+
+  // ── TEMELJNICA 4: LASTNA PORABA + REPREZENTANCA ───────────────────────────────
+  const lastReprRef = `POS:LASTREPR:${datum}`;
+  await (async () => {
+    // Face value: vsota postavk za lastna_poraba in reprezentanca račune
+    const lastreprVrstice = await db
+      .select({
+        placilnaNacin: racuniTable.placilnaNacin,
+        vrstaArtikla:  postavkeTable.vrstaArtikla,
+        davek:         postavkeTable.davek,
+        faceValue:     sql<string>`COALESCE(SUM(CAST(${postavkeTable.skupaj} AS numeric)), 0)`,
+      })
+      .from(postavkeTable)
+      .innerJoin(racuniTable, eq(racuniTable.id, postavkeTable.racunId))
+      .where(
+        and(
+          enotaOk,
+          datumWhere,
+          statusOk,
+          inArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
+          isNull(postavkeTable.parentPostavkaId),
+        ),
+      )
+      .groupBy(racuniTable.placilnaNacin, postavkeTable.vrstaArtikla, postavkeTable.davek);
+
+    // Seštej face value po tipu (za debet) in po vrsta×davek (za kredit)
+    const totalLastna    = lastreprVrstice.filter(r => r.placilnaNacin === "lastna_poraba")
+                            .reduce((s, r) => s.plus(dec(r.faceValue)), new Decimal(0));
+    const totalRepr      = lastreprVrstice.filter(r => r.placilnaNacin === "reprezentanca")
+                            .reduce((s, r) => s.plus(dec(r.faceValue)), new Decimal(0));
+    const skupajFace     = totalLastna.plus(totalRepr);
+
+    if (skupajFace.lte("0.005")) {
+      await deleteExistingDrafts(companyId, lastReprRef);
+      return;
+    }
+
+    const lines: SyncLine[] = [];
+
+    // Debet: odhodki po tipu
+    if (totalLastna.gt("0.005")) {
+      const acc = settings.lastnaPorabaAccountId;
+      if (!acc) {
+        skipped.push({ ref: lastReprRef, reason: `Lastna poraba (${totalLastna.toFixed(2)} €): konto odhodkov ni nastavljen` });
+        return;
+      }
+      lines.push({ accountId: acc, side: "debit", amount: totalLastna, desc: "Odhodki — lastna poraba (face value)" });
+    }
+    if (totalRepr.gt("0.005")) {
+      const acc = settings.reprezentancaAccountId;
+      if (!acc) {
+        skipped.push({ ref: lastReprRef, reason: `Reprezentanca (${totalRepr.toFixed(2)} €): konto odhodkov ni nastavljen` });
+        return;
+      }
+      lines.push({ accountId: acc, side: "debit", amount: totalRepr, desc: "Odhodki — reprezentanca (face value)" });
+    }
+
+    // Kredit: prihodki (neto) + DDV po vrsta × davek
+    const vatMap: Record<string, string | null | undefined> = {
+      "9.50":  settings.vat95AccountId,
+      "22.00": settings.vat22AccountId,
+    };
+    const ddvPo: Record<string, Decimal> = {};
+
+    for (const row of lastreprVrstice) {
+      const bruto    = dec(row.faceValue);
+      const davekPct = dec(row.davek);
+      if (bruto.lte("0.005")) continue;
+
+      const neto = davekPct.gt(0)
+        ? bruto.times(100).div(davekPct.plus(100)).toDecimalPlaces(2)
+        : bruto;
+      const ddv  = bruto.minus(neto);
+
+      const vrsta  = row.vrstaArtikla ?? "material";
+      const revAcc = getRevenueAccount(vrsta, davekPct, settings);
+
+      if (!revAcc) {
+        skipped.push({
+          ref: lastReprRef,
+          reason: `Prihodki T4 (${vrsta} ${davekPct.toFixed(1)}%, ${bruto.toFixed(2)} €): konto ni nastavljen`,
+        });
+        return;
+      }
+      lines.push({
+        accountId: revAcc,
+        side: "credit",
+        amount: neto,
+        desc: `Prihodki ${vrsta} ${davekPct.eq(0) ? "0 %" : davekPct.toFixed(1) + " %"} (lastna/repr)`,
+      });
+
+      if (ddv.gt("0.005")) {
+        const davekKey = davekPct.toFixed(2);
+        ddvPo[davekKey] = (ddvPo[davekKey] ?? new Decimal(0)).plus(ddv);
+      }
+    }
+
+    for (const [davekKey, ddvZnesek] of Object.entries(ddvPo)) {
+      const vatAcc = vatMap[davekKey] ?? settings.vatLiabilityAccountId;
+      if (!vatAcc) {
+        skipped.push({
+          ref: lastReprRef,
+          reason: `DDV T4 ${davekKey}% (${ddvZnesek.toFixed(2)} €): konto DDV ni nastavljen`,
+        });
+        return;
+      }
+      lines.push({
+        accountId: vatAcc,
+        side: "credit",
+        amount: ddvZnesek,
+        desc: `Izhodni DDV ${davekKey.replace(".00", "")}% (lastna/repr)`,
+      });
+    }
+
+    const merged = mergeLines(lines);
+    if (merged.length === 0) return;
+
+    if (!isBalanced(merged)) {
+      const d = merged.filter(l => l.side === "debit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+      const c = merged.filter(l => l.side === "credit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+      skipped.push({ ref: lastReprRef, reason: `T4 temeljnica ni uravnotežena: debet ${d.toFixed(2)} ≠ kredit ${c.toFixed(2)}` });
+      return;
+    }
+
+    await deleteExistingDrafts(companyId, lastReprRef);
+    await insertEntry(companyId, period.id, datum, `POS lastna poraba / reprezentanca — ${datum}`, lastReprRef, merged);
+    created.push(lastReprRef);
+  })();
+
+  // ── KIR: Knjiga izdanih računov ──────────────────────────────────────────────
+  await (async () => {
+    if (!settings.kirArAccountId) {
+      skipped.push({ ref: `POS:KIR:${datum}`, reason: "KIR AR konto (terjatve do kupcev) ni nastavljen — KIR preskočen" });
+      return;
+    }
+    const arAcc = settings.kirArAccountId;
+
+    // Vsi veljavni računi tega dne
+    const vsiRacuni = await db
+      .select({
+        id:                  racuniTable.id,
+        stevilkaRacuna:      racuniTable.stevilkaRacuna,
+        placilnaNacin:       racuniTable.placilnaNacin,
+        skupaj:              racuniTable.skupaj,
+        kupecDavcnaStevilka: racuniTable.kupecDavcnaStevilka,
+        kupecNaziv:          racuniTable.kupecNaziv,
+        kupecNaslov:         racuniTable.kupecNaslov,
+        kupecZavezanecDdv:   racuniTable.kupecZavezanecDdv,
+      })
+      .from(racuniTable)
+      .where(and(enotaOk, datumWhere, statusOk));
+
+    if (vsiRacuni.length === 0) return;
+
+    // Razdeli na kategorije
+    const b2cRacuni    = vsiRacuni.filter(r =>
+      r.placilnaNacin !== "lastna_poraba" &&
+      r.placilnaNacin !== "reprezentanca" &&
+      r.placilnaNacin !== "negotovinsko" &&
+      !r.kupecDavcnaStevilka,
+    );
+    const b2bRacuni    = vsiRacuni.filter(r =>
+      r.placilnaNacin !== "lastna_poraba" &&
+      r.placilnaNacin !== "reprezentanca" &&
+      (!!r.kupecDavcnaStevilka || r.placilnaNacin === "negotovinsko"),
+    );
+    const lastReprRacuni = vsiRacuni.filter(r =>
+      r.placilnaNacin === "lastna_poraba" || r.placilnaNacin === "reprezentanca",
+    );
+
+    // Pobriši stare POS KIR invoices za ta datum
+    await db
+      .delete(invoicesTable)
+      .where(
+        and(
+          eq(invoicesTable.companyId, companyId),
+          eq(invoicesTable.invoiceDate, datum),
+          eq(invoicesTable.createdBy, "pos-sync"),
+          eq(invoicesTable.type, "issued"),
+        ),
+      );
+
+    const allRacunIds = vsiRacuni.map(r => r.id);
+
+    // Vsi postavke za ta datum (za KIR vrstice)
+    const vsePostavke = allRacunIds.length > 0
+      ? await db
+          .select({
+            racunId:      postavkeTable.racunId,
+            vrstaArtikla: postavkeTable.vrstaArtikla,
+            davek:        postavkeTable.davek,
+            skupaj:       sql<string>`CAST(${postavkeTable.skupaj} AS numeric)`,
+          })
+          .from(postavkeTable)
+          .where(
+            and(
+              inArray(postavkeTable.racunId, allRacunIds),
+              isNull(postavkeTable.parentPostavkaId),
+            ),
+          )
+      : [];
+
+    // Helper: zgradi invoice lines iz seznam postavk za dano skupino računov
+    function buildInvoiceLines(
+      racunIdsFilter: number[],
+    ): Array<{ vrstaArtikla: string; davekPct: Decimal; bruto: Decimal }> {
+      const filterSet = new Set(racunIdsFilter);
+      const agg = new Map<string, Decimal>();
+      for (const p of vsePostavke) {
+        if (!filterSet.has(p.racunId ?? 0)) continue;
+        const vrsta = p.vrstaArtikla ?? "material";
+        const davek = dec(p.davek).toFixed(2);
+        const key   = `${vrsta}|${davek}`;
+        agg.set(key, (agg.get(key) ?? new Decimal(0)).plus(dec(p.skupaj)));
+      }
+      return [...agg.entries()].map(([key, bruto]) => {
+        const [vrstaArtikla, davekStr] = key.split("|");
+        return { vrstaArtikla, davekPct: new Decimal(davekStr), bruto };
+      });
+    }
+
+    // Helper: vstavi invoice + invoice_lines
+    async function insertKirInvoice(params: {
+      invoiceNumber: string;
+      invoiceDate:   string;
+      counterpartyId: string;
+      lines: Array<{ vrstaArtikla: string; davekPct: Decimal; bruto: Decimal }>;
+      notes?: string;
+    }): Promise<void> {
+      if (params.lines.length === 0) return;
+      const totalBruto = params.lines.reduce((s, l) => s.plus(l.bruto), new Decimal(0));
+      if (totalBruto.lte("0.005")) return;
+
+      const [inv] = await db
+        .insert(invoicesTable)
+        .values({
+          companyId,
+          type:           "issued",
+          counterpartyId: params.counterpartyId,
+          periodId:       period.id,
+          invoiceNumber:  params.invoiceNumber,
+          invoiceDate:    params.invoiceDate,
+          status:         "paid",
+          arApAccountId:  arAcc,
+          notes:          params.notes ?? null,
+          createdBy:      "pos-sync",
+        })
+        .returning({ id: invoicesTable.id });
+
+      const lineValues = [];
+      let seq = 0;
+      for (const l of params.lines) {
+        const revAcc = getRevenueAccount(l.vrstaArtikla, l.davekPct, settings);
+        if (!revAcc) continue; // brez konta preskočimo vrstico
+
+        const neto = l.davekPct.gt(0)
+          ? l.bruto.times(100).div(l.davekPct.plus(100)).toDecimalPlaces(2)
+          : l.bruto;
+        const ddv  = l.bruto.minus(neto);
+
+        lineValues.push({
+          invoiceId:   inv.id,
+          description: `${l.vrstaArtikla} ${l.davekPct.eq(0) ? "0 %" : l.davekPct.toFixed(1) + " %"}`,
+          quantity:    "1.000",
+          unitPrice:   neto.toFixed(4),
+          vatRate:     l.davekPct.toFixed(2),
+          accountId:   revAcc,
+          sequence:    seq++,
+          vatBase:     neto.toFixed(2),
+          vatAmount:   ddv.toFixed(2),
+        });
+      }
+
+      if (lineValues.length > 0) {
+        await db.insert(invoiceLinesTable).values(lineValues);
+      }
+    }
+
+    let kirCount = 0;
+
+    // ── B2C: zbirni invoice ──────────────────────────────────────────────────
+    if (b2cRacuni.length > 0) {
+      const b2cCounterpartyId = await ensureCounterparty(
+        companyId,
+        "Fizične osebe (dnevni promet POS)",
+        null,
+      );
+      const b2cLines = buildInvoiceLines(b2cRacuni.map(r => r.id));
+      await insertKirInvoice({
+        invoiceNumber:  `POS-B2C-${datum}`,
+        invoiceDate:    datum,
+        counterpartyId: b2cCounterpartyId,
+        lines:          b2cLines,
+        notes:          `POS dnevni zbirnik B2C — ${b2cRacuni.length} računov`,
+      });
+      kirCount++;
+    }
+
+    // ── B2B: posamični invoices ──────────────────────────────────────────────
+    for (const r of b2bRacuni) {
+      const naziv  = r.kupecNaziv?.trim() || `Kupec ${r.kupecDavcnaStevilka ?? r.id}`;
+      const taxId  = r.kupecDavcnaStevilka?.trim() || null;
+      const cpId   = await ensureCounterparty(
+        companyId,
+        naziv,
+        taxId,
+        r.kupecNaslov ?? null,
+        r.kupecZavezanecDdv ?? false,
+      );
+      const b2bLines = buildInvoiceLines([r.id]);
+      await insertKirInvoice({
+        invoiceNumber:  `POS-${r.stevilkaRacuna}`,
+        invoiceDate:    datum,
+        counterpartyId: cpId,
+        lines:          b2bLines,
+        notes:          `POS B2B — ${naziv}${taxId ? ` (${taxId})` : ""}`,
+      });
+      kirCount++;
+    }
+
+    // ── Lastna poraba / Reprezentanca ────────────────────────────────────────
+    if (lastReprRacuni.length > 0) {
+      const lrCounterpartyId = await ensureCounterparty(
+        companyId,
+        "Lastna poraba / Reprezentanca (POS)",
+        null,
+      );
+      const lrLines = buildInvoiceLines(lastReprRacuni.map(r => r.id));
+      await insertKirInvoice({
+        invoiceNumber:  `POS-LASTREPR-${datum}`,
+        invoiceDate:    datum,
+        counterpartyId: lrCounterpartyId,
+        lines:          lrLines,
+        notes:          `POS lastna poraba/reprezentanca — ${lastReprRacuni.length} računov (face value)`,
+      });
+      kirCount++;
+    }
+
+    if (kirCount > 0) {
+      created.push(`POS:KIR:${datum} (${kirCount} invoice-ov)`);
+    }
   })();
 
   return { created, skipped };

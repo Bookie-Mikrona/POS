@@ -899,6 +899,10 @@ interface PosBookingSettingsData {
   // T3 — COGS
   cogsMaterialAccountId: string | null;
   cogsGoodsAccountId: string | null;
+  // T4 — lastna poraba / reprezentanca + KIR
+  kirArAccountId: string | null;
+  lastnaPorabaAccountId: string | null;
+  reprezentancaAccountId: string | null;
   // zastareli fallback konti
   revenueAccountId: string | null;
   vatLiabilityAccountId: string | null;
@@ -923,6 +927,9 @@ const EMPTY_PBS: PosBookingSettingsData = {
   payablesAccountId: null,
   cogsMaterialAccountId: null,
   cogsGoodsAccountId: null,
+  kirArAccountId: null,
+  lastnaPorabaAccountId: null,
+  reprezentancaAccountId: null,
   revenueAccountId: null,
   vatLiabilityAccountId: null,
   inventoryAccountId: null,
@@ -1165,6 +1172,40 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
           <div className="flex items-center text-xs text-muted-foreground rounded-lg border bg-muted/20 px-3 py-2 self-end">
             Kredit = konto zalog iz Temeljnice 2 (material ali blago)
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Temeljnica 4 + KIR */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Temeljnica 4 — Lastna poraba &amp; Reprezentanca + KIR</CardTitle>
+          <CardDescription>
+            Referenca: <code className="text-xs bg-muted px-1 rounded">POS:LASTREPR:YYYY-MM-DD</code>
+            {" · "}Brezplačni računi z DDV obveznostjo. Debet = odhodek (face value), Kredit = prihodek neto + DDV.
+            <br />
+            KIR: ko je nastavljen <strong>AR konto</strong>, sync samodejno ustvari vrstice v Knjigi izdanih računov
+            (B2C zbirno · B2B posamično · lastna/repr posebej).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <AccountSelect
+            label="Terjatve do kupcev — KIR (AR)"
+            field="kirArAccountId"
+            description="Obvezno za KIR — npr. 1200110 Terjatve do kupcev"
+          />
+          <div className="flex items-center text-xs text-muted-foreground rounded-lg border bg-muted/20 px-3 py-2 self-end">
+            Če ni nastavljeno, se KIR preskoči. B2B partnerji se najdejo/ustvarijo po davčni številki.
+          </div>
+          <AccountSelect
+            label="Odhodki — lastna poraba"
+            field="lastnaPorabaAccountId"
+            description="Debet v T4 — npr. 4830110 Odhodki iz naslova lastne porabe"
+          />
+          <AccountSelect
+            label="Odhodki — reprezentanca"
+            field="reprezentancaAccountId"
+            description="Debet v T4 — npr. 4861000 Prehrana podjetnika / reprezentanca"
+          />
         </CardContent>
       </Card>
 
