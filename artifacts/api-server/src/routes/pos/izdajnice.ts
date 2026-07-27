@@ -7,6 +7,12 @@ import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 
 const router: IRouter = Router();
 
+/** Ročne izdajnice se knjižijo ob 23:58:00 UTC — pred inventuro (23:59:59). */
+function endOfDayIzdajnica(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 23, 58, 0, 0));
+}
+
 async function nextStevilkaIzdajnica(year: number, enotaId: number): Promise<string> {
   const yy = String(year).slice(-2);
   const prefix = `IZ${yy}`;
@@ -56,7 +62,7 @@ router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
   }
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
 
-  const docDatum = datum ? new Date(datum) : new Date();
+  const docDatum = datum ? endOfDayIzdajnica(datum) : new Date();
   const stevilka = await nextStevilkaIzdajnica(docDatum.getFullYear(), enotaId);
 
   const { izdajnica, postavkeResult } = await db.transaction(async (tx) => {
@@ -165,7 +171,7 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
 
   await db.transaction(async (tx) => {
     const txUpdates: Partial<typeof existing> = {};
-    if (datum !== undefined) txUpdates.datum = new Date(datum);
+    if (datum !== undefined) txUpdates.datum = endOfDayIzdajnica(datum);
     if (opomba !== undefined) txUpdates.opomba = opomba;
 
     if (postavke !== undefined) {
