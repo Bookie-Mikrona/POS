@@ -27,9 +27,26 @@ if (!basePath) {
   );
 }
 
+// Plugin ki ujame requests brez /pos/ prefiksa in jih preusmeri
+// (Clerk med sign-out procesira interno navigacijo na root '/')
+const rootRedirectPlugin = {
+  name: 'pos-root-redirect',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (req.url === '/' || req.url === '') {
+        res.writeHead(302, { Location: basePath });
+        res.end();
+        return;
+      }
+      next();
+    });
+  },
+};
+
 export default defineConfig({
   base: basePath,
   plugins: [
+    rootRedirectPlugin,
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
