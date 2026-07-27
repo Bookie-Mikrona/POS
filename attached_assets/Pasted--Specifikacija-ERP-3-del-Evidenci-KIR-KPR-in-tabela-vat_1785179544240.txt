@@ -1,0 +1,418 @@
+# Specifikacija ERP, 3. del: Evidenci KIR/KPR in tabela `vat_ledger`
+
+Nadaljevanje prejšnjih dveh dokumentov. Pravna podlaga: 85. člen ZDDV-1, tehnične specifikacije FURS (podrobnejši opis, marec 2026), XML shema `DDV_KIR_KPR_1.xsd` (verzija 1.3, 22. 7. 2024).
+
+Za tehnične podrobnosti spletnih servisov FURS glej `spletni_servis_za_sprejem_kir_kpr.docx` na strani FURS.
+
+---
+
+# A. Kaj sta KIR in KPR
+
+- **KIR** = evidenca obračunanega DDV (izdana stran)
+- **KPR** = evidenca odbitka DDV (prejeta stran)
+
+Obveznost velja od 1. 7. 2025 za vse zavezance z ID za DDV v Sloveniji. Evidenci se oddajata **v enakem ritmu kot DDV-O** (mesečno / trimesečno) do enakega roka. FURS iz oddanih evidenc predizpolni obračun DDV-O. Če evidenc ni ali so oddane po roku z izbiro obravnave 2 ali 3, predizpolnitev ne poteče in mora zavezanec DDV-O oddati sam.
+
+Pomembno pravilo za ERP: **račun se v evidenco vpiše posamično** (ne agregirano). Izjema so lahko gotovinski računi končnim potrošnikom (paragoni) — glej pojasnila FURS za miniBlagajno.
+
+---
+
+# B. Struktura dokumenta `DDV_KIR_KPR`
+
+Namespace: `http://edavki.durs.si/Documents/Schemas/DDV_KIR_KPR_1.xsd`. Koren `DDV_KIR_KPR` vsebuje:
+
+```
+DDV_KIR_KPR
+├── Glava
+├── Lista_KIR (opcijsko)  — 0..N zapisov <KIR>
+└── Lista_KPR (opcijsko)  — 0..N zapisov <KPR>
+```
+
+Ena datoteka lahko vsebuje samo KIR, samo KPR ali oboje. Kadar zavezanec za obdobje nima transakcij v eni strani, odda »prazno« evidenco: `<KIR>false</KIR>` oz. `<KPR>false</KPR>` v glavi (in ustrezne liste izpusti).
+
+## B.1 Glava — polja
+
+| Element | Tip | Obvezno | Namen |
+|---|---|---|---|
+| `TaxPayerID` | 8-mestna števka | da | Davčna številka zavezanca (ali zastopnika pri postopku 42/63) |
+| `TUJEC1` | ISO 3166 (2 znaka) | pogojno | Koda države zastopanega tujca |
+| `TUJEC2` | string | pogojno | Davčna št. zastopanega tujca (brez kode) |
+| `OBDOBJE_OD` | xs:date | da | Začetek obdobja (YYYY-MM-DD) |
+| `OBDOBJE_DO` | xs:date | da | Konec obdobja |
+| `KIR` | boolean | da | Ali evidenca vsebuje KIR zapise |
+| `KPR` | boolean | da | Ali evidenca vsebuje KPR zapise |
+| `VRACILO` | boolean | ne | Zahtevam vračilo presežka |
+| `ODBDELEZ` | boolean | da | Izračunavam odbitni delež |
+| `NACIN` | enum 1/2/3 | pogojno | Način oddaje po roku: 1 samoprijava, 2 vloga po 52. čl. ZDavP-2, 3 brez instituta samoprijave |
+| `INSPOS` | boolean | ne | Insolventni postopek |
+| `PREDLODO` | boolean | ne | Predložitev po sklepu FURS (88.a čl.) |
+| `OPOMBA` | text(250) | ne | Opombe |
+
+## B.2 KIR zapis — vsa polja
+
+Vsak zapis KIR ima `ZAPST` (zaporedna številka od 1, nepretrgano) in `OBDOBJE` v obliki `MMMM` (npr. `0707` za julij, `0709` za Q3). Znesek: `amountType` = decimal(2), lahko negativen (dobropisi), `|x| < 5.000.000.000`.
+
+| Polje | Naziv (FURS) | DDV-O polje | Vsebina |
+|---|---|---|---|
+| **Identifikacija dokumenta** |||
+| `P2` | datum knjiženja | — | Datum vpisa v evidenco (`accounting_date` v ERP) |
+| `P3` | številka listine | — | Pri davčno potrjenih računih **tridelna FURS številka**, sicer interna |
+| `P4` | datum listine | — | Datum izdaje računa |
+| `P5` | ime/sedež kupca | — | Naziv + naslov (prazno pri končnem potrošniku; pri prejeti samoobdavčitvi po 76.a in EU pridobitvah lahko prazno ali navedi dobavitelja) |
+| `P6` | koda države kupca | — | ISO 3166, dvomestno |
+| `P6DS` | ID za DDV kupca (brez kode) | — | Obvezno za EU dobave po 46. čl. in reverse charge; za tretje države cela ID (npr. `CHE123456789MWST`) |
+| **Osnove — dobave** |||
+| `P7` | v Sloveniji obdavčene dobave brez DDV | **11** | Neto osnova domačih obdavčenih dobav, oproščenih izvoznih dobav in oproščenih dobav s pravico do odbitka |
+| `P8` | dobave v SI za samoobdavčitev (76.a) | **11a** | Izdana stran 76.a člena |
+| `P9` | oproščene dobave brez pravice do odbitka | **15** | 42. člen |
+| `P10` | oproščene dobave v EU | **12** | 46. člen — poroča se v RP-O |
+| `P11` | oproščena tristranska dobava (drugi v verigi) | **12** | RP-O |
+| `P12` | prodaja blaga na daljavo | **13** | Kadar je kraj obdavčitve druga članica in ne uporabljaš OSS |
+| `P13` | dobava blaga z montažo/instaliranjem v EU | **14** | |
+| **Obračunani DDV — 21–26 v DDV-O** |||
+| `P14` | obračunani DDV 22 % | **21** | |
+| `P15` | obračunani DDV 9,5 % | **22** | |
+| `P16` | obračunani DDV 5 % | **22a** | |
+| `P17` | 22 % — pridobitev blaga iz EU | **23** | |
+| `P18` | 22 % — prejete storitve iz EU | **23a** | |
+| `P19` | 9,5 % — pridobitev blaga iz EU | **24** | |
+| `P20` | 9,5 % — prejete storitve iz EU | **24a** | |
+| `P21` | 5 % — pridobitev blaga iz EU | **24b** | |
+| `P22` | 5 % — prejete storitve iz EU | **24c** | |
+| `P23` | 22 % — samoobdavčitev (76.a in dobave tujcev v SI brez ID) | **25** | Storitve po 25. čl. iz EU tu NE! Tiste gredo v P18/P20/P22. |
+| `P24` | 9,5 % — samoobdavčitev | **25a** | |
+| `P25` | 5 % — samoobdavčitev | **25b** | |
+| `P26` | DDV od uvoza (77. čl.) — vse stopnje skupaj | **26** | |
+| **Dodatno** |||
+| `P27` | dobave s pravico do odbitka, kraj zunaj SI | — | 63. čl. — npr. storitve 25. čl. tujcem, OSS dobave, storitve tretjim državam |
+| `P28` | opomba | — | MRN, sklic na popravljeni račun, klavzula |
+| **Samoprijava / popravek** |||
+| `OBRAVNAVA` | enum 1/2/3 | — | 1 = redni obračun; 2 = samoprijava (88.b) — dodaj obresti; 3 = samo obresti (napaka je bila že popravljena v preteklosti) |
+| `OBDOBJE88` | MMMMLLLL | pogojno | Obdobje, na katero se popravek nanaša (če OBRAVNAVA ∈ {2,3}) |
+| `DAVEK88` | znesek | pogojno | Znesek DDV, ki je predmet popravka (pozitiven) |
+
+## B.3 KPR zapis — vsa polja
+
+| Polje | Naziv | DDV-O polje | Vsebina |
+|---|---|---|---|
+| `P2` | datum knjiženja | — | |
+| `P3` | številka listine | — | **Dobaviteljeva** številka računa (ne interna zaporedna PF) |
+| `P4` | **datum prejema** listine | — | Ključno za pravico do odbitka |
+| `P5` | datum listine | — | Datum izdaje |
+| `P6` | ime/sedež dobavitelja | — | Obvezno |
+| `P7` | koda države dobavitelja | — | Pri uvozu vedno prazno |
+| `P7DS` | ID za DDV / DŠ dobavitelja | — | Pri uvozu: če razpolagaš, navedi celotno z ISO kodo |
+| **Osnove — nabave** |||
+| `P8` | vrednost nabav blaga in storitev brez DDV | **31** | Vključuje domače obdavčene nabave, tuje nabave s SI DDV (samoobdavčitev) IN vrednost uvoza |
+| `P9` | nabave v SI od samoobdavčitve (76.a) | **31a** | |
+| `P10` | vrednost pridobitev blaga iz EU brez DDV | **32** | |
+| `P11` | vrednost prejetih storitev iz EU brez DDV | **32a** | |
+| `P12` | vrednost obdavčenih nabav nepremičnin | **34** | Informativno, znesek že v P8 ali P9 |
+| `P13` | vrednost obdavčenih nabav drugih OS | **35** | Informativno |
+| `P14` | oproščene nabave in pridobitve | **33** | Oproščene domače, oproščene EU, oproščen uvoz |
+| `P15` | oproščene nabave nepremičnin | **34** | Informativno |
+| `P16` | oproščene nabave drugih OS | **35** | Informativno |
+| `P17` | DDV, ki se ne odbija | — | Neodbitni del DDV (npr. 66. člen, delni odbitek) — informativno |
+| **Odbitek** |||
+| `P18` | odbitni DDV 22 % | **41** | Domači + EU + uvoz skupaj |
+| `P19` | odbitni DDV 9,5 % | **42** | |
+| `P20` | odbitni DDV 5 % | **42a** | |
+| `P21` | pavšalno nadomestilo 8 % | **43** | Odkup od pavšalistov |
+| `P22` | opomba | — | Interna oznaka, MRN, klavzula |
+| `OBRAVNAVA`, `OBDOBJE88`, `DAVEK88` | | | Kot pri KIR |
+
+---
+
+# C. Ključno mapiranje: DDV koda → KIR/KPR + DDV-O
+
+Nadgradnja šifranta iz 1. dela. Vsaka DDV koda mora imeti mapping tabelo, ki pove, katera KIR/KPR polja (osnova + davek) polni. Nekaj kod polni **več polj hkrati** (samoobdavčitev = osnova v KPR, DDV v KIR+KPR).
+
+## C.1 Šifrant kod — polna slika
+
+**Izdana stran (koda → KIR polje osnove + KIR polje DDV):**
+
+| Koda | Opis | KIR osnova | KIR DDV | RP-O |
+|---|---|---|---|---|
+| S22 / S95 / S5 | Domača prodaja | P7 | P14 / P15 / P16 | — |
+| S76A | Domača dobava 76.a | P8 | — (obračuna kupec) | — |
+| SOP | Oproščeno brez pravice (42. čl.) | P9 | — | — |
+| SEU-B | Dobava blaga v EU (46. čl.) | P10 | — | A3 |
+| SEU-TR | Tristranska dobava v EU | P11 | — | A3 |
+| SEU-S | Storitev v EU po 25. čl. | P27 | — | B3 |
+| SDIST | Prodaja na daljavo (brez OSS) | P12 | — | — |
+| SMONT | Dobava z montažo v EU | P13 | — | — |
+| SEX | Izvoz (52. čl.) | P7 | — | — |
+| SOSS | OSS dobave in storitve zunaj SI | P27 | — | — |
+
+**Prejeta stran (koda → KPR osnova + KPR DDV; pri samoobdavčitvi tudi KIR!):**
+
+| Koda | Opis | KPR osnova | KPR odbitek | KIR obračunani DDV |
+|---|---|---|---|---|
+| P22 / P95 / P5 | Domača nabava | P8 | P18 / P19 / P20 | — |
+| PN22 | Nabava brez pravice do odbitka | P8 | — (v P17: znesek DDV) | — |
+| RC76A-22 / RC76A-95 / RC76A-5 | Domača obrnjena obveznost (76.a) | P9 | P18 / P19 / P20 | P23 / P24 / P25 |
+| EUB22 / EUB95 / EUB5 | Pridobitev blaga EU | P10 | P18 / P19 / P20 | P17 / P19 / P21 |
+| EUS22 / EUS95 / EUS5 | Storitev iz EU (25. čl.) | P11 | P18 / P19 / P20 | P18 / P20 / P22 |
+| TS22 / TS95 / TS5 | Storitev iz tretjih držav | P8 | P18 / P19 / P20 | P23 / P24 / P25 |
+| UV22 / UV95 / UV5 | Uvoz — obračunski DDV (77. čl.) | P8 | P18 / P19 / P20 | P26 (skupaj vse stopnje!) |
+| UVP22 | Uvoz — DDV plačan carini | P8 | P18 | — |
+| POP | Oproščena nabava / pridobitev / uvoz | P14 | — | — |
+| PAV8 | Pavšalno nadomestilo (odkup od pavšalistov) | P8 | — | (nadomestilo v P21) |
+
+**Pozor pri storitvah 25. člena iz EU:** po pojasnilih FURS obračunani DDV od teh storitev pripada poljem P18/P20/P22 (»za prejete storitve znotraj Unije«), NE pa polju P23/P24/P25 (samoobdavčitev v ožjem pomenu — 76.a in dobave tujcev brez ID v SI). To je pogosta napaka razvijalcev.
+
+**Osnovna sredstva in nepremičnine:** dodaj **flag** na vrstici računa (`asset_type ∈ {NONE, REALESTATE, OTHER_FA}`), ki v evidenci dodatno napolni P12/P15 (nepremičnine) oz. P13/P16 (druga OS) — te vrednosti so že vštete v P8/P9/P10/P11/P14 in služijo samo informativno za polji 34/35 DDV-O.
+
+**Odbitni delež:** pri `deduction_right = partial` z odbitnim deležem `d` (npr. 0,73):
+- P18/P19/P20 = DDV × d
+- P17 = DDV × (1 − d)
+
+Pri `deduction_right = none`: P17 = celoten DDV, P18/P19/P20 = 0, celoten DDV se knjiži v strošek.
+
+---
+
+# D. Tabela `vat_ledger` — jedro DDV modula
+
+## D.1 Načelo
+
+Vse DDV kode, vse smeri, vsi tipi (redni, samoobdavčitev, uvoz) → **ena tabela** vrstic. Vsaka vrstica prispeva k eni ali več poljem v KIR/KPR in v DDV-O. Obračun, evidenci, RP-O in PD-O so agregatni pogledi nad njo. Nespremenljivost po oddaji obračuna. Vsaka vrstica ima trdno povezavo do knjižbe glavne knjige in do izvornega dokumenta.
+
+Trik pri samoobdavčitvi: en dokument (npr. pridobitev iz EU) generira **dve** vrstici v `vat_ledger`:
+- ena v smeri `IN` (osnova + odbitni DDV) → polni KPR
+- ena v smeri `OUT` (obračunani DDV) → polni KIR
+
+Povežeta se prek `pair_id` (self-reference), kar poenostavi kasnejše storne in poročila.
+
+## D.2 SQL shema (PostgreSQL)
+
+```sql
+-- Šifrant DDV kod z verzijami (nikoli spremembe obstoječih, samo nove z veljavnostnim intervalom)
+CREATE TABLE vat_code (
+    code                 VARCHAR(16)  PRIMARY KEY,     -- 'P22', 'EUS22', 'RC76A-22', ...
+    description          TEXT         NOT NULL,
+    direction            VARCHAR(3)   NOT NULL CHECK (direction IN ('IN', 'OUT')),
+    rate                 NUMERIC(5,2) NOT NULL,        -- 0.00, 5.00, 9.50, 22.00
+    valid_from           DATE         NOT NULL,
+    valid_to             DATE,                          -- NULL = odprto
+    -- kam prispeva osnova
+    kir_base_field       VARCHAR(4),                    -- npr. 'P7', 'P10', NULL
+    kpr_base_field       VARCHAR(4),                    -- npr. 'P8', 'P10', 'P11'
+    -- kam prispeva DDV (pri samoobdavčitvi so lahko oboja)
+    kir_vat_field        VARCHAR(4),                    -- npr. 'P14', 'P17', 'P23', 'P26'
+    kpr_vat_field        VARCHAR(4),                    -- npr. 'P18', 'P19', 'P20', 'P21' (pavšal)
+    -- označbe za dodatne obrazce
+    triggers_rp_o        BOOLEAN      NOT NULL DEFAULT FALSE,
+    rp_o_column          VARCHAR(2),                    -- 'A3', 'B3'
+    triggers_pd_o        BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_reverse_charge    BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_import            BOOLEAN      NOT NULL DEFAULT FALSE,
+    UNIQUE (code, valid_from)
+);
+
+-- Osrednja transakcijska tabela
+CREATE TABLE vat_ledger (
+    id                   BIGSERIAL    PRIMARY KEY,
+    -- Povezave na glavno knjigo in izvorni dokument (three-way link)
+    journal_entry_id     BIGINT       NOT NULL REFERENCES journal_entry(id),
+    document_id          BIGINT       NOT NULL REFERENCES document(id),
+    document_line_id     BIGINT       REFERENCES document_line(id),
+
+    -- Partner
+    partner_id           BIGINT       NOT NULL REFERENCES partner(id),
+    partner_country_code CHAR(2),                       -- ISO 3166, snapshot ob knjiženju
+    partner_vat_id       VARCHAR(32),                   -- brez kode države (P6DS/P7DS)
+    partner_name         VARCHAR(250),                  -- snapshot za KIR P5 / KPR P6
+
+    -- Klasifikacija
+    vat_code             VARCHAR(16)  NOT NULL REFERENCES vat_code(code),
+    direction            VARCHAR(3)   NOT NULL CHECK (direction IN ('IN', 'OUT')),
+    pair_id              BIGINT       REFERENCES vat_ledger(id),  -- self-ref za samoobdavčitev
+    asset_type           VARCHAR(16)  NOT NULL DEFAULT 'NONE'
+                         CHECK (asset_type IN ('NONE', 'REALESTATE', 'OTHER_FA')),
+
+    -- Datumi — vsi trije glavni
+    invoice_date         DATE         NOT NULL,         -- KIR P4 / KPR P5
+    service_date         DATE         NOT NULL,         -- za tax_point
+    receipt_date         DATE,                          -- KPR P4 (samo IN)
+    posting_date         DATE         NOT NULL,         -- KIR/KPR P2
+    tax_point_date       DATE         NOT NULL,         -- izračunan po pravilih iz 1. dela
+    vat_period           CHAR(4)      NOT NULL,         -- 'MMMM' → 0707, 0709 ...
+    vat_period_year      SMALLINT     NOT NULL,
+
+    -- Zneski (v EUR, dvojna vrednost za dobropise = negativna)
+    base_amount          NUMERIC(15,2) NOT NULL,
+    vat_amount           NUMERIC(15,2) NOT NULL DEFAULT 0,
+    non_deductible_vat   NUMERIC(15,2) NOT NULL DEFAULT 0,  -- gre v KPR P17
+    deduction_percent    NUMERIC(5,2)  NOT NULL DEFAULT 100.00,  -- 0-100
+
+    -- Reference in identifikacija dokumenta
+    document_no          VARCHAR(50)  NOT NULL,         -- KIR/KPR P3 (pri prejetih: dobaviteljeva!)
+    mrn                  VARCHAR(50),                   -- za uvoz
+    remarks              VARCHAR(250),                  -- KIR P28 / KPR P22
+
+    -- Popravki / samoprijava
+    treatment            SMALLINT     NOT NULL DEFAULT 1
+                         CHECK (treatment IN (1,2,3)),  -- OBRAVNAVA
+    correction_period    CHAR(8),                       -- MMMMLLLL (če treatment 2/3)
+    correction_amount    NUMERIC(15,2),                 -- pozitiven znesek popravka
+
+    -- Nespremenljivost in revizijska sled
+    reported_at          TIMESTAMPTZ,                   -- ko je bila oddana v DDV-O/evidenci
+    reported_period      CHAR(6),                       -- YYYYMM
+    created_at           TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_by           BIGINT       NOT NULL REFERENCES app_user(id),
+    reversed_by_id       BIGINT       REFERENCES vat_ledger(id)  -- povezava na storno vrstico
+);
+
+CREATE INDEX ix_vat_ledger_period ON vat_ledger (vat_period_year, vat_period);
+CREATE INDEX ix_vat_ledger_document ON vat_ledger (document_id);
+CREATE INDEX ix_vat_ledger_partner ON vat_ledger (partner_id);
+CREATE INDEX ix_vat_ledger_code ON vat_ledger (vat_code);
+CREATE INDEX ix_vat_ledger_reported ON vat_ledger (reported_period) WHERE reported_at IS NOT NULL;
+
+-- Trigger prepove UPDATE/DELETE, ko je reported_at IS NOT NULL (nespremenljivost)
+```
+
+## D.3 Kako iz `vat_ledger` sestaviš KIR/KPR/DDV-O
+
+**Ena vrstica KIR** = agregat vseh `vat_ledger.direction='OUT'` za en dokument v obdobju. **Ena vrstica KPR** = agregat vseh `vat_ledger.direction='IN'` za en dokument v obdobju. Dokument z več stopnjami DDV → ena vrstica evidence, več polj napolnjenih.
+
+Poenostavljena agregacija za KIR polje P14 (obračunani 22 %):
+
+```sql
+SELECT COALESCE(SUM(vl.vat_amount), 0) AS p14
+FROM vat_ledger vl
+JOIN vat_code vc ON vc.code = vl.vat_code
+WHERE vl.vat_period_year = 2026
+  AND vl.vat_period = '0707'
+  AND vl.direction = 'OUT'
+  AND vc.kir_vat_field = 'P14';
+```
+
+Enako za vsa druga polja. En sam parametriziran view generira celoten obračun in obe evidenci.
+
+Za polje **DDV-O f21** (obračunani DDV 22 %) velja: `f21 = KIR.P14`. Za samoobdavčitve so KIR polja P17–P26 ločena po kanalih (pridobitve blaga EU, storitve EU, 76.a, uvoz), medtem ko odbitek na strani KPR (P18) agregira vse skupaj. To pomeni: `f41 = KPR.P18` je vedno ≥ vsota vseh 22 % obračunanih na strani KIR pri polni pravici do odbitka.
+
+## D.4 Validacije
+
+Predlagane pred-oddajne kontrole:
+
+1. Vrstice s `vat_amount ≠ base × rate` (toleranca ±0,02 na vrstico) → warning.
+2. `direction='IN'` s praznim `receipt_date` → error.
+3. Reverse charge dokument brez `pair_id` → error.
+4. `is_reverse_charge = TRUE` in KIR obračunani ≠ KPR obračunani (razen odbitni delež) → warning.
+5. Za dobave po 46. čl. (SEU-B): če `partner_vat_id` ni v VIES ali `partner_country_code` je SI → error (kršitev pogojev za oprostitev).
+6. `treatment ∈ {2,3}` brez `correction_period` ali `correction_amount` → error.
+7. Obdobje že oddano (`reported_at IS NOT NULL`) in nov zapis za isto obdobje → premakni v naslednje odprto obdobje in dodaj `remarks`.
+8. `ZAPST` v izvoženem XML: renumeriraj vedno od 1 znotraj oddane liste (ne uporabljaj `id`).
+
+---
+
+# E. Primer XML — enostavni mesečni KIR + KPR
+
+Zavezanec 12345678, obdobje julij 2026, ena izdana domača prodaja, ena pridobitev blaga iz EU (samoobdavčitev). Ovojnica EDP-Common je izpuščena zaradi jedrnatosti.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<DDV_KIR_KPR xmlns="http://edavki.durs.si/Documents/Schemas/DDV_KIR_KPR_1.xsd">
+  <Glava>
+    <TaxPayerID>12345678</TaxPayerID>
+    <OBDOBJE_OD>2026-07-01</OBDOBJE_OD>
+    <OBDOBJE_DO>2026-07-31</OBDOBJE_DO>
+    <KIR>true</KIR>
+    <KPR>true</KPR>
+    <VRACILO>false</VRACILO>
+    <ODBDELEZ>false</ODBDELEZ>
+  </Glava>
+
+  <Lista_KIR>
+    <KIR>
+      <ZAPST>1</ZAPST>
+      <OBDOBJE>0707</OBDOBJE>
+      <P2>2026-07-15</P2>
+      <P3>2026-000123</P3>
+      <P4>2026-07-15</P4>
+      <P5>Kupec d.o.o., Ljubljana</P5>
+      <P6>SI</P6>
+      <P6DS>87654321</P6DS>
+      <P7>1000.00</P7>
+      <P14>220.00</P14>
+      <OBRAVNAVA>1</OBRAVNAVA>
+    </KIR>
+    <!-- Samoobdavčitev za pridobitev iz EU - obračunani DDV v KIR -->
+    <KIR>
+      <ZAPST>2</ZAPST>
+      <OBDOBJE>0707</OBDOBJE>
+      <P2>2026-07-20</P2>
+      <P3>DE-INV-9911</P3>
+      <P4>2026-07-18</P4>
+      <P5>Lieferant GmbH, München</P5>
+      <P6>DE</P6>
+      <P6DS>123456789</P6DS>
+      <P17>440.00</P17>
+      <OBRAVNAVA>1</OBRAVNAVA>
+    </KIR>
+  </Lista_KIR>
+
+  <Lista_KPR>
+    <!-- Osnova in odbitek pridobitve iz EU -->
+    <KPR>
+      <ZAPST>1</ZAPST>
+      <OBDOBJE>0707</OBDOBJE>
+      <P2>2026-07-20</P2>
+      <P3>DE-INV-9911</P3>
+      <P4>2026-07-20</P4>
+      <P5>2026-07-18</P5>
+      <P6>Lieferant GmbH, München</P6>
+      <P7>DE</P7>
+      <P7DS>123456789</P7DS>
+      <P10>2000.00</P10>
+      <P18>440.00</P18>
+      <OBRAVNAVA>1</OBRAVNAVA>
+    </KPR>
+  </Lista_KPR>
+</DDV_KIR_KPR>
+```
+
+Rezultat na strani DDV-O (predizpolnjeno):
+- f11 = 1.000,00, f21 = 220,00
+- f32 = 2.000,00, f23 = 440,00
+- f41 = 440,00
+- f51 (obveznost) = 220,00
+
+## E.1 Primer samoprijave (OBRAVNAVA = 2)
+
+Zavezanec ugotovi, da je pozabil evidentirati račun iz maja 2026 (kjer bi moral obračunati 220 € DDV). V julijskih evidencah:
+
+```xml
+<KIR>
+  <ZAPST>3</ZAPST>
+  <OBDOBJE>0707</OBDOBJE>    <!-- obdobje evidentiranja, ne izvora -->
+  <P2>2026-07-25</P2>
+  <P3>2026-000098</P3>
+  <P4>2026-05-20</P4>          <!-- pravi datum listine -->
+  <P5>Pozabljeni kupec d.o.o.</P5>
+  <P6>SI</P6>
+  <P6DS>11223344</P6DS>
+  <P7>1000.00</P7>
+  <P14>220.00</P14>
+  <OBRAVNAVA>2</OBRAVNAVA>
+  <OBDOBJE88>05002026</OBDOBJE88>   <!-- MMMMLLLL: maj 2026 -->
+  <DAVEK88>220.00</DAVEK88>
+</KIR>
+```
+
+FURS na predizpolnjenem obračunu v razdelku V. Samoprijava/popravek prikaže znesek in samodejno izračuna obresti po 88.b členu ZDDV-1.
+
+---
+
+# F. Kaj mora tvoj ERP še podpirati (checklist)
+
+1. Vpogled v evidence pred oddajo, s pregledom opozoril/napak (FURS jih vrne kot komentarje po sprejemu — beri jih iz `edp:Signatures` response).
+2. Rekonciliacijski pogled: KIR/KPR vsote proti DDV-O poljem, z označbo `Neusklajenost` (FURS ima svoj vpogled v eDavkih, ampak tvoj sistem naj to preveri pred oddajo).
+3. Podpora `KIR=false` in `KPR=false` (prazne evidence, ko v obdobju ni dokumentov na eni strani).
+4. Ločena obdobja za mesečne in trimesečne zavezance — status DDV zavezanca po partnerju v tvojem sistemu (informativno) in po zavezancu (parameter).
+5. Repozitorij oddanih XML datotek s statusi (draft, submitted, accepted, rejected) in podpisi.
+6. Rebranding polj: ko FURS izda novo verzijo sheme (DDV_KIR_KPR_2.xsd), stari XML za pretekla obdobja mora ostati veljaven — verzijo shrani v `vat_submission.schema_version`.
+7. Podpora `TUJEC1` in `TUJEC2` v glavi za primere davčnega zastopanja tujcev (če ti klienti to potrebujejo).
+8. Prevzem realnih VIES odgovorov za validacijo EU ID številk (SOAP servis EU Komisije) — cachiraj rezultat vsaj 24 ur.
