@@ -17,8 +17,22 @@ function fmtDatum(iso: string) {
   return new Intl.DateTimeFormat("sl-SI", { day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+/** ISO (2026-01-02) → evropski (02.01.2026) */
+function toEuro(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+/** Evropski (02.01.2026 ali 2.1.2026) → ISO (2026-01-02); "" če neveljaven */
+function toIso(euro: string): string {
+  const m = euro.replace(/\s/g, "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return "";
+  return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+
+function todayEuro() {
+  return toEuro(new Date().toISOString().slice(0, 10));
 }
 
 interface SimState { active: boolean; datum: string | null }
@@ -28,7 +42,7 @@ interface ZacetnaPostavka { artikelId: number; artikelIme: string; kolicina: num
 
 export default function Simulacija() {
   const [sim, setSim] = useState<SimState>({ active: false, datum: null });
-  const [novDatum, setNovDatum] = useState(todayIso());
+  const [novDatum, setNovDatum] = useState(todayEuro());
   const [loadingSim, setLoadingSim] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
   const [loadingZaloge, setLoadingZaloge] = useState(false);
@@ -40,7 +54,7 @@ export default function Simulacija() {
     try {
       const d = await customFetch<SimState>("/api/sim");
       setSim(d);
-      if (d.datum) setNovDatum(d.datum);
+      if (d.datum) setNovDatum(toEuro(d.datum));
     } catch { /* ignore */ }
   }, []);
 
@@ -55,12 +69,15 @@ export default function Simulacija() {
   async function handleSetDatum() {
     setLoadingSim(true);
     try {
+      const iso = toIso(novDatum);
+      if (!iso) { status("err", "Neveljaven datum. Uporabite obliko DD.MM.LLLL."); setLoadingSim(false); return; }
       const r = await customFetch<{ datum: string; izmeneZaprte: number }>("/api/sim/datum", {
         method: "POST",
-        body: JSON.stringify({ datum: novDatum }),
+        body: JSON.stringify({ datum: iso }),
         headers: { "Content-Type": "application/json" },
       });
       setSim({ active: true, datum: r.datum });
+      setNovDatum(toEuro(r.datum));
       setGenResult(null);
       const msg = r.izmeneZaprte > 0
         ? `Datum nastavljen. Samodejno zaprto ${r.izmeneZaprte} izmena/izmene (zaključek dneva).`
@@ -241,7 +258,7 @@ export default function Simulacija() {
             <input
               id="sim-datum"
               type="text"
-              placeholder="LLLL-MM-DD"
+              placeholder="DD.MM.LLLL"
               value={novDatum}
               onChange={e => setNovDatum(e.target.value)}
               style={{
@@ -260,7 +277,7 @@ export default function Simulacija() {
           </div>
           <div className="flex gap-2 flex-wrap mt-3">
             <Button
-              disabled={loadingSim || !novDatum || novDatum < minDatum}
+              disabled={loadingSim || !toIso(novDatum) || toIso(novDatum) < (sim.datum ?? "2000-01-01")}
               onClick={handleSetDatum}
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >
