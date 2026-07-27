@@ -39,26 +39,6 @@ export default function CompanySelectPage() {
   const posCompanies = companies.filter(c => isPosOnly(c));
   const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0;
 
-  // Samodejni prehod za čiste ERP uporabnike (brez POS dostopa):
-  // Čakamo na konec fetchanja (companiesFetching = false), da ne reagiramo na zastarele
-  // keširane podatke iz prejšnje seje (npr. ko je bil uporabnik takrat le ERP-računovodja).
-  React.useEffect(() => {
-    if (isLoading || companiesFetching || isSuperAdmin) return;
-    if (posCompanies.length > 0) return; // dual-role → prikaži izbiro
-    if (erpCompanies.length === 0) return; // brez dostopa → počakaj na prikaz
-
-    const userId = user?.id;
-    const raw = userId ? localStorage.getItem(`erp_active_company_${userId}`) : null;
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as { id?: string; role?: string };
-      const match = erpCompanies.find(c => c.id === parsed.id);
-      if (match) {
-        setActiveCompany(match);
-        setLocation("/dashboard");
-      }
-    } catch { /* napačen JSON — ignoriraj */ }
-  }, [isLoading, companiesFetching, isSuperAdmin, posCompanies.length, erpCompanies.length, user?.id]);
 
   const roleLabel = (role: string) => ({
     owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
