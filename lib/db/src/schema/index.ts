@@ -11,6 +11,8 @@ export * from "./counterparties";
 export * from "./invoices";
 export * from "./payments";
 export * from "./vat-codes";
+export * from "./vat-code";
+export * from "./vat-ledger";
 export * from "./documents";
 export * from "./counterparty-account-templates";
 export * from "./company-import-config";
