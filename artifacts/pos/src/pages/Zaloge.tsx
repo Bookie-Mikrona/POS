@@ -168,6 +168,9 @@ const fmt = (n: number, d = 2) => n.toLocaleString("sl-SI", { minimumFractionDig
 
 const fmtDatum = (d: string | Date) =>
   new Date(d).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
+// Dokumentni datumi so shranjeni kot UTC ekvivalent slovenskega časa → prikaži kot UTC datum
+const fmtDatumDoc = (d: string | Date) =>
+  new Date(d).toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 const fmtCas = (d: string | Date) =>
   new Date(d).toLocaleString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -2728,7 +2731,7 @@ export default function Zaloge() {
                 ) : (inventure ?? []).map(inv => (
                   <TableRow key={inv.id}>
                     <TableCell className="font-mono text-sm font-medium text-primary">{inv.stevilka ?? "–"}</TableCell>
-                    <TableCell className="font-medium">{fmtDatum(inv.datum)}</TableCell>
+                    <TableCell className="font-medium">{fmtDatumDoc(inv.datum)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{inv.opomba ?? "–"}</TableCell>
                     <TableCell className="text-center"><Badge variant="outline">{inv.steviloPostavk ?? 0}</Badge></TableCell>
                     <TableCell>
