@@ -2248,6 +2248,7 @@ export default function Zaloge() {
         datum: prejDatum || undefined,
         dobaviteljId: prejDobaviteljId ?? undefined,
         opomba: fullOpomba || undefined,
+        vrstaCen,
         postavke: validRows.map(r => {
           const enot = parseDecimal(r.enotVPaketu) || 1;
           const kolicinaPaketov = parseDecimal(r.kolicina);
