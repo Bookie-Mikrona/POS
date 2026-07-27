@@ -8,23 +8,13 @@ import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
 const router: IRouter = Router();
 
 /**
- * Vrne UTC Date, ki ustreza 23:59:59 po evropskem/Ljubljana časovnem pasu
- * za dani datum (string "YYYY-MM-DD"). Intl se uporablja za izračun odmika,
- * da deluje tako pozimi (UTC+1) kot poleti (UTC+2).
+ * Vrne Date z uro 23:59:59 UTC za dani datum "YYYY-MM-DD".
+ * Frontend prikazuje datum v UTC (timeZone:"UTC"), zato je prikazan datum
+ * vedno pravilen ne glede na časovni pas brskalnika.
  */
-function endOfDayLjubljana(dateStr: string): Date {
+function endOfDayUTC(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
-  // UTC polnoč tega dne
-  const midnight = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-  // Katera ura je v LJ ob UTC polnoči → dá nam odmik (1 pozimi, 2 poleti)
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Ljubljana",
-    hour: "2-digit",
-    hour12: false,
-  }).formatToParts(midnight);
-  const ljHour = parseInt(parts.find(p => p.type === "hour")!.value, 10);
-  // 23:59:59 Ljubljana = (23 - odmik) UTC
-  return new Date(Date.UTC(y, m - 1, d, 23 - ljHour, 59, 59, 0));
+  return new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 0));
 }
 
 async function nextStevilkaInventura(year: number, tenotaId: number): Promise<string> {
@@ -87,7 +77,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   const artikelIds = postavke.map((p: any) => p.artikelId);
 
   // Inventura se vedno beleži ob 23:59:59 po Ljubljana času
-  const docDatum = datum ? endOfDayLjubljana(datum) : (() => { const n = new Date(); n.setSeconds(59, 0); return n; })();
+  const docDatum = datum ? endOfDayUTC(datum) : (() => { const n = new Date(); n.setSeconds(59, 0); return n; })();
   const cutoff = new Date(docDatum);
 
   const [zalogaObDatumu, zadnjeCene, artikliRows] = await Promise.all([
@@ -231,7 +221,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
     }
 
     const putCutoff = parsed.data.datum
-      ? endOfDayLjubljana(parsed.data.datum)
+      ? endOfDayUTC(parsed.data.datum)
       : new Date(existing.datum);
     zadnjeCeneMap = await fetchZadnjeCene(artikelIds, putCutoff);
   }
@@ -241,7 +231,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
   const [updated] = await db.transaction(async (tx) => {
     const txUpdates: Partial<typeof existing> = {};
     if (parsed.data.datum !== undefined) {
-      txUpdates.datum = endOfDayLjubljana(parsed.data.datum);
+      txUpdates.datum = endOfDayUTC(parsed.data.datum);
     }
     if (parsed.data.opomba !== undefined) txUpdates.opomba = parsed.data.opomba;
 
@@ -258,7 +248,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
 
       // Stanje zalog ob koncu inventurnega dne (brez te inventure, ker smo jo ravno izbrisali)
       const putCutoff2 = parsed.data.datum
-        ? endOfDayLjubljana(parsed.data.datum)
+        ? endOfDayUTC(parsed.data.datum)
         : new Date(existing.datum);
       const zalogaObDatumu = await getZalogeObDatumu(artikelIds2, putCutoff2, tx);
       const zalogeMap = new Map(Array.from(zalogaObDatumu.entries()).map(([id2, v]) => [id2, v.kolicina]));
