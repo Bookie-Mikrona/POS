@@ -141,10 +141,9 @@ router.get(
 
     const companies = [
       ...erpRows.map((r) => ({ ...r, modules: modulesMap.get(r.id) ?? [], posOnly: false })),
-      // Dodaj POS podjetja ki niso v ERP, z oznako posOnly
+      // Dodaj VSA POS podjetja — tudi tista ki so hkrati v ERP (dual-role uporabnik)
       ...posRows
-        .filter((r) => !erpIds.has(r.id))
-        .map((r) => ({ ...r, role: `pos_${r.vloga}`, modules: modulesMap.get(r.id) ?? [], posOnly: true })),
+        .map((r) => ({ ...r, role: `pos_${r.vloga}`, modules: modulesMap.get(r.id) ?? [], posOnly: !erpIds.has(r.id) })),
     ];
 
     res.json({ companies });
