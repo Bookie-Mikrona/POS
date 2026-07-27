@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment, forwardRef } from "react";
+import { useState, useEffect, useRef, Fragment, forwardRef, useMemo } from "react";
 import { useF2Save } from "@/hooks/useF2Save";
 import {
   useListZaloge,
@@ -881,12 +881,52 @@ function NovArtikelKartica({
 function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () => void }) {
   const [datumOd, setDatumOd] = useState("");
   const [datumDo, setDatumDo] = useState("");
+  const [zbirPorabe, setZbirPorabe] = useState(true);
 
   const params = {
     ...(datumOd ? { datumOd } : {}),
     ...(datumDo ? { datumDo } : {}),
   };
   const { data, isLoading } = useGetKarticaArtikla(artikelId, params);
+
+  // Agregacija porabe po dnevu
+  type GibVrstica = NonNullable<typeof data>["gibi"][number] & { zbranoStevilo?: number };
+  const gibiPrikaz: GibVrstica[] = useMemo(() => {
+    const gibi = data?.gibi ?? [];
+    if (!zbirPorabe) return gibi;
+    const result: GibVrstica[] = [];
+    const dnevnaMap = new Map<string, { sumKol: number; sumVred: number; zadnji: GibVrstica; stevilo: number }>();
+    for (const g of gibi) {
+      if (g.tip !== "poraba") { result.push(g); continue; }
+      const dayKey = (g.datumDokumenta ?? g.ustvarjeno).slice(0, 10);
+      const obs = dnevnaMap.get(dayKey);
+      if (obs) {
+        obs.sumKol += g.kolicina;
+        obs.sumVred += (g.vrednost ?? 0);
+        obs.zadnji = g;
+        obs.stevilo += 1;
+      } else {
+        dnevnaMap.set(dayKey, { sumKol: g.kolicina, sumVred: g.vrednost ?? 0, zadnji: g, stevilo: 1 });
+      }
+    }
+    const vstavljena = new Set<string>();
+    for (const g of gibi) {
+      if (g.tip !== "poraba") continue;
+      const dayKey = (g.datumDokumenta ?? g.ustvarjeno).slice(0, 10);
+      const agg = dnevnaMap.get(dayKey);
+      if (!agg || vstavljena.has(dayKey)) continue;
+      if (g === agg.zadnji) {
+        result.push({ ...agg.zadnji, id: -(new Date(dayKey).getTime()), kolicina: agg.sumKol, vrednost: agg.sumVred, cenaKos: null, zbranoStevilo: agg.stevilo });
+        vstavljena.add(dayKey);
+      }
+    }
+    result.sort((a, b) => {
+      const da = a.datumDokumenta ?? a.ustvarjeno;
+      const db2 = b.datumDokumenta ?? b.ustvarjeno;
+      return da < db2 ? -1 : da > db2 ? 1 : 0;
+    });
+    return result;
+  }, [data?.gibi, zbirPorabe]);
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -930,7 +970,18 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-3 gap-3">
-                <p className="text-sm font-semibold shrink-0">Gibanje zalog</p>
+                <div className="flex items-center gap-3 shrink-0">
+                  <p className="text-sm font-semibold">Gibanje zalog</p>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={zbirPorabe}
+                      onChange={e => setZbirPorabe(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    Dnevni zbir porabe
+                  </label>
+                </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Label className="text-xs text-muted-foreground shrink-0">Od</Label>
                   <SmartDateInput
@@ -973,7 +1024,7 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data.gibi.map(g => (
+                      {gibiPrikaz.map(g => (
                         <TableRow key={g.id}>
                           <TableCell><TipBadge tip={g.tip} /></TableCell>
                           <TableCell className="text-right font-bold tabular-nums">
