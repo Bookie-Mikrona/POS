@@ -4,6 +4,7 @@ import { artikliTable, db, prejemnicePostavkeTable, prejemniceTable, shranjeniKu
 import { requireEnota } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { syncPosBookingForDay } from "../../lib/posSyncBooking";
 
 const router: IRouter = Router();
 
@@ -41,6 +42,7 @@ router.get("/prejemnice", async (req, res): Promise<void> => {
 
 router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const companyId = (req as any).companyId as string;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
@@ -126,6 +128,12 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     skupajVrednost,
     ustvarjeno: prejemnica.ustvarjeno,
     postavke: postavkeResult});
+
+  // POS → ERP samodejni knjižni osnutki (fire-and-forget, ne blokira odgovora)
+  setImmediate(() => {
+    const datum = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Ljubljana" }).format(docDatum);
+    syncPosBookingForDay(companyId, datum).catch(err => console.warn("[POS sync]", err));
+  });
 });
 
 router.get("/prejemnice/:id", async (req, res): Promise<void> => {

@@ -23,6 +23,7 @@ import adminRouter from "./admin";
 import superadminRouter from "./superadmin";
 import ujpRouter from "./ujp";
 import ajpesRouter from "./ajpes";
+import posBookingSettingsRouter from "./posBookingSettings";
 
 const router: IRouter = Router();
 
@@ -49,6 +50,7 @@ router.use("/admin", adminRouter);
 router.use(superadminRouter);
 router.use(ujpRouter);
 router.use(ajpesRouter);
+router.use(posBookingSettingsRouter);
 router.use(posRouter);
 
 export default router;

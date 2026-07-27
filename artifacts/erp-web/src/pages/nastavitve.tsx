@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Building2, Users, Save, UserPlus, AlertCircle, CheckCircle2, Loader2, Trash2, Plus, X, RefreshCw, Database } from "lucide-react";
+import { Building2, Users, Save, UserPlus, AlertCircle, CheckCircle2, Loader2, Trash2, Plus, X, RefreshCw, Database, Store } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useGetCompany, useGetMe, useAssignRole } from "@workspace/api-client-react";
 import type { CompanyWithRole, RoleAssignment } from "@workspace/api-client-react";
@@ -864,6 +864,299 @@ function UjpTab() {
   );
 }
 
+// ── POS Knjiženje ─────────────────────────────────────────────────────────────
+
+interface AccountOption {
+  id: string;
+  code: string;
+  name: string;
+  allowsPosting: boolean;
+  isActive: boolean;
+}
+
+interface PosBookingSettingsData {
+  revenueAccountId: string | null;
+  cashAccountId: string | null;
+  cardAccountId: string | null;
+  otherPaymentAccountId: string | null;
+  vatLiabilityAccountId: string | null;
+  inventoryAccountId: string | null;
+  payablesAccountId: string | null;
+  cogsAccountId: string | null;
+}
+
+const EMPTY_PBS: PosBookingSettingsData = {
+  revenueAccountId: null,
+  cashAccountId: null,
+  cardAccountId: null,
+  otherPaymentAccountId: null,
+  vatLiabilityAccountId: null,
+  inventoryAccountId: null,
+  payablesAccountId: null,
+  cogsAccountId: null,
+};
+
+function PosKnjizenjeTab({ companyId }: { companyId: string }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState<PosBookingSettingsData>(EMPTY_PBS);
+  const [saved, setSaved] = useState(false);
+  const [syncDatum, setSyncDatum] = useState(() => new Date().toISOString().slice(0, 10));
+  const [syncResult, setSyncResult] = useState<{ created: string[]; skipped: Array<{ ref: string; reason: string }> } | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const { data: settings, isLoading: settingsLoading } = useQuery<PosBookingSettingsData | null>({
+    queryKey: ["pos-booking-settings", companyId],
+    queryFn: () => apiFetch<PosBookingSettingsData | null>(`/api/companies/${companyId}/pos-booking-settings`),
+    staleTime: 30_000,
+  });
+
+  const { data: accountsData, isLoading: accountsLoading } = useQuery<{ accounts: AccountOption[] }>({
+    queryKey: ["accounts-list", companyId],
+    queryFn: () => apiFetch<{ accounts: AccountOption[] }>(`/api/companies/${companyId}/accounts`),
+    staleTime: 60_000,
+  });
+
+  const accounts = (accountsData?.accounts ?? []).filter(a => a.allowsPosting && a.isActive);
+
+  useEffect(() => {
+    if (settings) setForm({ ...EMPTY_PBS, ...settings });
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<PosBookingSettingsData>(`/api/companies/${companyId}/pos-booking-settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }),
+    onSuccess: () => {
+      setSaved(true);
+      void qc.invalidateQueries({ queryKey: ["pos-booking-settings", companyId] });
+      setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    setSyncError(null);
+    try {
+      const r = await apiFetch<{ created: string[]; skipped: Array<{ ref: string; reason: string }> }>(
+        `/api/companies/${companyId}/pos-booking-settings/sync/${syncDatum}`,
+        { method: "POST" },
+      );
+      setSyncResult(r);
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Neznana napaka");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const setField = (field: keyof PosBookingSettingsData, value: string | null) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  function AccountSelect({
+    label,
+    field,
+    description,
+  }: {
+    label: string;
+    field: keyof PosBookingSettingsData;
+    description?: string;
+  }) {
+    const value = form[field] ?? "";
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">{label}</Label>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        <Select
+          value={value || "__none__"}
+          onValueChange={v => setField(field, v === "__none__" ? null : v)}
+        >
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="— ni nastavljen —" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">— ni nastavljen —</SelectItem>
+            {accounts.map(a => (
+              <SelectItem key={a.id} value={a.id}>
+                <span className="font-mono">{a.code}</span>
+                <span className="text-muted-foreground mx-1">—</span>
+                {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  if (settingsLoading || accountsLoading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Info */}
+      <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground">Samodejno POS → ERP knjiženje</p>
+        <p className="text-xs">
+          Po vsakem zaključenem POS računu ali prejemnici se za tisti dan avtomatsko osvežijo osnutki treh temeljnic.
+          Računovodja jih ročno pregleda in potrdi v seznamu temeljnic.
+        </p>
+      </div>
+
+      {/* Temeljnica 1: Prodaja */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Temeljnica 1 — Dnevna prodaja (Z-poročilo)</CardTitle>
+          <CardDescription>
+            Referenca: <code className="text-xs bg-muted px-1 rounded">POS:PRODAJA:YYYY-MM-DD</code>
+            {" · "}Debet = blagajna po načinih plačila · Kredit = neto prihodki + DDV
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <AccountSelect label="Prihodki od prodaje" field="revenueAccountId" description="Kredit — npr. 760 Prihodki od prodaje blaga" />
+          <AccountSelect label="DDV obveznost" field="vatLiabilityAccountId" description="Kredit — npr. 260 Obveznosti za DDV" />
+          <AccountSelect label="Blagajna — gotovina" field="cashAccountId" description="Debet — npr. 100 Blagajna" />
+          <AccountSelect label="Kartica (terjatve do procesorja)" field="cardAccountId" description="Debet — npr. 120 ali 165" />
+          <AccountSelect
+            label="Ostala plačila (boni, negotovinsko…)"
+            field="otherPaymentAccountId"
+            description="Debet — neobvezno; zajame vse plačilne načine brez zgornjega konta"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Temeljnica 2: Prejemnice */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Temeljnica 2 — Prejemnice blaga</CardTitle>
+          <CardDescription>
+            Referenca: <code className="text-xs bg-muted px-1 rounded">POS:PREJEMNICA:YYYY-MM-DD</code>
+            {" · "}Debet = zaloge · Kredit = obveznosti do dobaviteljev
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <AccountSelect label="Zaloge blaga" field="inventoryAccountId" description="Debet/Kredit — npr. 310 Zaloge blaga in materiala" />
+          <AccountSelect label="Obveznosti do dobaviteljev" field="payablesAccountId" description="Kredit — npr. 220 Obveznosti do dobaviteljev" />
+        </CardContent>
+      </Card>
+
+      {/* Temeljnica 3: Poraba */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Temeljnica 3 — Poraba blaga (COGS)</CardTitle>
+          <CardDescription>
+            Referenca: <code className="text-xs bg-muted px-1 rounded">POS:PORABA:YYYY-MM-DD</code>
+            {" · "}Debet = stroški · Kredit = zmanjšanje zalog (isti konto kot T2)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <AccountSelect label="Stroški prodanega blaga" field="cogsAccountId" description="Debet — npr. 400 Stroški blaga ali 402 Nabavna vrednost" />
+          <div className="flex items-center text-xs text-muted-foreground rounded-lg border bg-muted/20 px-3 py-2 self-end">
+            Kredit = konto zalog iz Temeljnice 2
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Shrani */}
+      <div className="flex items-center gap-3">
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saveMutation.isPending
+            ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            : <Save className="h-4 w-4 mr-2" />}
+          Shrani nastavitve
+        </Button>
+        {saved && (
+          <span className="text-sm text-green-600 flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4" /> Shranjeno
+          </span>
+        )}
+        {saveMutation.isError && (
+          <span className="text-sm text-destructive">
+            {(saveMutation.error as Error).message}
+          </span>
+        )}
+      </div>
+
+      {/* Ročna sinhronizacija */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Ročna sinhronizacija za datum
+          </CardTitle>
+          <CardDescription>
+            Osveži osnutke temeljnic za kateri koli pretekli datum (npr. če je šlo kaj narobe).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Input
+              type="date"
+              value={syncDatum}
+              onChange={e => setSyncDatum(e.target.value)}
+              className="w-44"
+            />
+            <Button onClick={() => void handleSync()} disabled={syncing} variant="outline" className="gap-2">
+              {syncing
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <RefreshCw className="h-4 w-4" />}
+              {syncing ? "Sinhroniziram…" : "Sinhroniziraj"}
+            </Button>
+          </div>
+
+          {syncResult && (
+            <div className="space-y-2">
+              {syncResult.created.length > 0 && (
+                <Alert className="border-green-200 bg-green-50 text-green-800">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertDescription>
+                    Ustvarjeni osnutki: {syncResult.created.join(", ")}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {syncResult.skipped.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-medium mb-1">Preskočeno:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-xs">
+                      {syncResult.skipped.map((s, i) => (
+                        <li key={i}><code>{s.ref}</code>: {s.reason}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {syncResult.created.length === 0 && syncResult.skipped.length === 0 && (
+                <Alert className="border-blue-200 bg-blue-50 text-blue-800">
+                  <AlertDescription>Ni podatkov za ta dan (brez prodaje, prejemnic ali porabe).</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {syncError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{syncError}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Page root ─────────────────────────────────────────────────────────────────
 
 export default function Nastavitve() {
@@ -907,6 +1200,10 @@ export default function Nastavitve() {
             <Database className="h-3.5 w-3.5" />
             AJPES PRS
           </TabsTrigger>
+          <TabsTrigger value="pos" className="gap-2">
+            <Store className="h-3.5 w-3.5" />
+            POS Knjiženje
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="podatki" className="mt-0">
@@ -923,6 +1220,10 @@ export default function Nastavitve() {
 
         <TabsContent value="ajpes" className="mt-0">
           <AjpesTab />
+        </TabsContent>
+
+        <TabsContent value="pos" className="mt-0">
+          <PosKnjizenjeTab companyId={activeCompany.id} />
         </TabsContent>
       </Tabs>
     </div>

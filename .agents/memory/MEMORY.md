@@ -7,3 +7,4 @@
 - [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
+- [POS dnevne temeljnice](pos-dnevne-temeljnice.md) — samodejno POS→ERP knjiženje: 3 osnutki na dan, konfiguracija v ERP nastavitve, fire-and-forget trigger v racuni+prejemnice

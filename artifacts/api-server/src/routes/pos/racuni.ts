@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
 import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, tiskalneNalogeTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { syncPosBookingForDay } from "../../lib/posSyncBooking";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
 import { fursQrKoda, fursQrUrl as buildFursQrUrl, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, round2 } from "../../lib/pos-furs";
 import { buildEscPosReceipt, buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
@@ -566,6 +567,13 @@ router.post("/racuni", async (req, res): Promise<void> => {
     .where(eq(racuniTable.id, racun.id));
 
   broadcast("update", { type: "racun" });
+
+  // POS → ERP samodejni knjižni osnutki (fire-and-forget, ne blokira odgovora)
+  setImmediate(() => {
+    const datum = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Ljubljana" }).format(datumCas);
+    syncPosBookingForDay(companyId, datum).catch(err => console.warn("[POS sync]", err));
+  });
+
   res.status(201).json(({
     ...withMiza,
     skupaj: Number(withMiza!.skupaj),
