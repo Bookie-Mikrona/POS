@@ -2193,7 +2193,7 @@ export default function Zaloge() {
       const posodobljena = { ...row, [key]: val };
       // Ko se spremeni enotVPaketu in artikel je že izbran → posodobi predlagano ceno
       if (key === "enotVPaketu" && row.artikelId > 0) {
-        const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === row.artikelId)?.zadnjaCena;
+        const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === row.artikelId)?.zadnjaNabavnaCena ?? (zaloge ?? []).find(z => z.artikelId === row.artikelId)?.zadnjaCena;
         if (zadnjaCenaNeto != null) {
           const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
           const cenaNaEnoto = vrstaCen === "bruto" && davek
@@ -2207,10 +2207,11 @@ export default function Zaloge() {
     }));
   const selectArtikelInRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
-    const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === artikelId)?.zadnjaCena;
+    const zalogaRow = (zaloge ?? []).find(z => z.artikelId === artikelId);
+    const zadnjaCenaNeto = zalogaRow?.zadnjaNabavnaCena ?? zalogaRow?.zadnjaCena ?? null;
     if (zadnjaCenaNeto != null) {
       const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
-      // zadnjaCena je vedno neto/enoto; pretvorimo v ceno za prikaz v vnosnem polju
+      // zadnjaNabavnaCena je vedno neto/enoto; pretvorimo v ceno za prikaz v vnosnem polju
       const enotVPaketu = parseDecimal(prejRows[rowIdx]?.enotVPaketu) || 1;
       // najprej neto → bruto če je bruto način, potem × enot v paketu za ceno/paket
       const cenaNaEnoto = vrstaCen === "bruto" && davek

@@ -21,6 +21,15 @@ router.get("/zaloge", async (req, res): Promise<void> => {
       povprecnaCena:  zalogeTable.povprecnaCena,
       skupnaVrednost: zalogeTable.skupnaVrednost,
       zadnjaPosodobitev: sql<string>`COALESCE(${zalogeTable.zadnjaPosodobitev}::text, NOW()::text)`,
+      zadnjaNabavnaCena: sql<string | null>`(
+        SELECT pp.cena_kos::float8
+        FROM prejemnice_postavke pp
+        JOIN prejemnice p ON p.id = pp.prejemnica_id
+        WHERE pp.artikel_id = ${artikliTable.id}
+          AND p.enota_id = ${tenotaId}
+        ORDER BY p.datum DESC
+        LIMIT 1
+      )`,
     })
     .from(artikliTable)
     .leftJoin(zalogeTable, eq(zalogeTable.artikelId, artikliTable.id))
@@ -29,11 +38,12 @@ router.get("/zaloge", async (req, res): Promise<void> => {
 
   res.json(rows.map(r => ({
     ...r,
-    kolicina:       Number(r.kolicina),
-    povprecnaCena:  r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
-    skupnaVrednost: r.skupnaVrednost != null ? Number(r.skupnaVrednost) : null,
-    // backward-compat alias so existing UI code that reads zadnjaCena still works
-    zadnjaCena:     r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
+    kolicina:           Number(r.kolicina),
+    povprecnaCena:      r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
+    skupnaVrednost:     r.skupnaVrednost != null ? Number(r.skupnaVrednost) : null,
+    zadnjaNabavnaCena:  r.zadnjaNabavnaCena != null ? Number(r.zadnjaNabavnaCena) : null,
+    // backward-compat alias za prikaz v zalogah (WAC)
+    zadnjaCena:         r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
   })));
 });
 
