@@ -23,7 +23,10 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -917,7 +920,8 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
     staleTime: 60_000,
   });
 
-  const accounts = (accountsData?.accounts ?? []).filter(a => a.allowsPosting && a.isActive);
+  // Prikaži vse aktivne konte (tudi skupinske) — uporabnik mora videti celoten kontni plan
+  const accounts = (accountsData?.accounts ?? []).filter(a => a.isActive);
 
   useEffect(() => {
     if (settings) setForm({ ...EMPTY_PBS, ...settings });
@@ -967,29 +971,71 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
     field: keyof PosBookingSettingsData;
     description?: string;
   }) {
-    const value = form[field] ?? "";
+    const [open, setOpen] = React.useState(false);
+    const [query, setQuery] = React.useState("");
+    const value = form[field] ?? null;
+    const selected = accounts.find(a => a.id === value);
+
+    const filtered = query.trim() === ""
+      ? accounts
+      : accounts.filter(a =>
+          a.code.toLowerCase().includes(query.toLowerCase()) ||
+          a.name.toLowerCase().includes(query.toLowerCase())
+        );
+
     return (
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">{label}</Label>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
-        <Select
-          value={value || "__none__"}
-          onValueChange={v => setField(field, v === "__none__" ? null : v)}
-        >
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="— ni nastavljen —" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">— ni nastavljen —</SelectItem>
-            {accounts.map(a => (
-              <SelectItem key={a.id} value={a.id}>
-                <span className="font-mono">{a.code}</span>
-                <span className="text-muted-foreground mx-1">—</span>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className="w-full justify-between font-normal text-sm h-9"
+            >
+              {selected
+                ? <span><span className="font-mono">{selected.code}</span> — {selected.name}</span>
+                : <span className="text-muted-foreground">— ni nastavljen —</span>}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[420px] p-0" align="start">
+            <Command shouldFilter={false}>
+              <CommandInput
+                placeholder="Išči po kodi ali imenu…"
+                value={query}
+                onValueChange={setQuery}
+              />
+              <CommandList>
+                <CommandEmpty>Ni zadetkov.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="__none__"
+                    onSelect={() => { setField(field, null); setOpen(false); setQuery(""); }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", value === null ? "opacity-100" : "opacity-0")} />
+                    <span className="text-muted-foreground">— ni nastavljen —</span>
+                  </CommandItem>
+                  {filtered.map(a => (
+                    <CommandItem
+                      key={a.id}
+                      value={a.id}
+                      onSelect={() => { setField(field, a.id); setOpen(false); setQuery(""); }}
+                      className={!a.allowsPosting ? "opacity-60" : ""}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4 shrink-0", value === a.id ? "opacity-100" : "opacity-0")} />
+                      <span className="font-mono text-xs w-16 shrink-0">{a.code}</span>
+                      <span className="truncate">{a.name}</span>
+                      {!a.allowsPosting && <span className="ml-auto text-xs text-muted-foreground shrink-0">skupinski</span>}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
     );
   }
