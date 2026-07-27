@@ -1276,6 +1276,10 @@ export interface ZalogaPogled {
   skupnaVrednost?: number | null;
   /** @deprecated use povprecnaCena @nullable */
   zadnjaCena?: number | null;
+  /** Zadnja dejanska nabavna cena iz prejemnice (neto ali bruto, gl. zadnjaVrstaCen) @nullable */
+  zadnjaNabavnaCena?: number | null;
+  /** Vrsta cene zadnje nabavne cene: 'neto' | 'bruto' @nullable */
+  zadnjaVrstaCen?: string | null;
   zadnjaPosodobitev: string;
 }
 

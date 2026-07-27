@@ -78,6 +78,23 @@ type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string }
 type IzdajnicaRow = { artikelId: number; kolicina: string };
 type IzdDiffRow = { artikelId: number; knjizno: number; dejansko: string };
 
+// ── Nabavna cena helper ────────────────────────────────────────────────────
+/**
+ * Normalizira zadnjo nabavno ceno na neto vrednost/enoto.
+ * Če je bila shranjena kot bruto (vrsta_cen = 'bruto'), jo deli z (1 + davek/100).
+ */
+function resolveNetoNabavnaCena(
+  cena: number | null,
+  vrstaCen: string | null,
+  davek: number,
+): number | null {
+  if (cena == null) return null;
+  if (vrstaCen === "bruto" && davek > 0) {
+    return Math.round((cena / (1 + davek / 100)) * 10000) / 10000;
+  }
+  return cena;
+}
+
 // ── Datum helpers ──────────────────────────────────────────────────────────
 const formatDateSlo = (iso: string): string => {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
@@ -2193,7 +2210,8 @@ export default function Zaloge() {
       const posodobljena = { ...row, [key]: val };
       // Ko se spremeni enotVPaketu in artikel je že izbran → posodobi predlagano ceno
       if (key === "enotVPaketu" && row.artikelId > 0) {
-        const zadnjaCenaNeto = (zaloge ?? []).find(z => z.artikelId === row.artikelId)?.zadnjaNabavnaCena ?? (zaloge ?? []).find(z => z.artikelId === row.artikelId)?.zadnjaCena;
+        const zr = (zaloge ?? []).find(z => z.artikelId === row.artikelId);
+        const zadnjaCenaNeto = resolveNetoNabavnaCena(zr?.zadnjaNabavnaCena ?? null, zr?.zadnjaVrstaCen ?? null, nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0) ?? zr?.zadnjaCena ?? null;
         if (zadnjaCenaNeto != null) {
           const davek = nabavniArtikli.find(a => a.id === row.artikelId)?.davek ?? 0;
           const cenaNaEnoto = vrstaCen === "bruto" && davek
@@ -2208,10 +2226,10 @@ export default function Zaloge() {
   const selectArtikelInRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
     const zalogaRow = (zaloge ?? []).find(z => z.artikelId === artikelId);
-    const zadnjaCenaNeto = zalogaRow?.zadnjaNabavnaCena ?? zalogaRow?.zadnjaCena ?? null;
+    const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
+    const zadnjaCenaNeto = resolveNetoNabavnaCena(zalogaRow?.zadnjaNabavnaCena ?? null, zalogaRow?.zadnjaVrstaCen ?? null, davek) ?? zalogaRow?.zadnjaCena ?? null;
     if (zadnjaCenaNeto != null) {
-      const davek = nabavniArtikli.find(a => a.id === artikelId)?.davek ?? 0;
-      // zadnjaNabavnaCena je vedno neto/enoto; pretvorimo v ceno za prikaz v vnosnem polju
+      // zadnjaCenaNeto je normalizirana neto cena/enoto; pretvorimo v ceno za prikaz v vnosnem polju
       const enotVPaketu = parseDecimal(prejRows[rowIdx]?.enotVPaketu) || 1;
       // najprej neto → bruto če je bruto način, potem × enot v paketu za ceno/paket
       const cenaNaEnoto = vrstaCen === "bruto" && davek

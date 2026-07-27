@@ -10,40 +10,49 @@ const router: IRouter = Router();
 router.get("/zaloge", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
 
-  // Join artikli → zaloge to get the cached WAC and value
+  // Osnovna poizvedba: artikli + WAC iz zaloge
   const rows = await db
     .select({
-      artikelId:      artikliTable.id,
-      artikelIme:     artikliTable.ime,
-      imeZaNabavo:    artikliTable.imeZaNabavo,
-      enotaMere:      artikliTable.enotaMere,
-      kolicina:       sql<string>`COALESCE(${zalogeTable.kolicina}, '0')`,
-      povprecnaCena:  zalogeTable.povprecnaCena,
-      skupnaVrednost: zalogeTable.skupnaVrednost,
+      artikelId:         artikliTable.id,
+      artikelIme:        artikliTable.ime,
+      imeZaNabavo:       artikliTable.imeZaNabavo,
+      enotaMere:         artikliTable.enotaMere,
+      kolicina:          sql<string>`COALESCE(${zalogeTable.kolicina}, '0')`,
+      povprecnaCena:     zalogeTable.povprecnaCena,
+      skupnaVrednost:    zalogeTable.skupnaVrednost,
       zadnjaPosodobitev: sql<string>`COALESCE(${zalogeTable.zadnjaPosodobitev}::text, NOW()::text)`,
-      zadnjaNabavnaCena: sql<string | null>`(
-        SELECT pp.cena_kos::float8
-        FROM prejemnice_postavke pp
-        JOIN prejemnice p ON p.id = pp.prejemnica_id
-        WHERE pp.artikel_id = ${artikliTable.id}
-          AND p.enota_id = ${tenotaId}
-        ORDER BY p.datum DESC
-        LIMIT 1
-      )`,
     })
     .from(artikliTable)
     .leftJoin(zalogeTable, eq(zalogeTable.artikelId, artikliTable.id))
     .where(and(eq(artikliTable.nabavniArtikel, true), eq(artikliTable.enotaId, tenotaId)))
     .orderBy(artikliTable.ime);
 
+  // Ločena poizvedba: zadnja nabavna cena iz prejemnic (raw SQL — zanesljivo deluje)
+  // Vrne ceno in vrsto (neto/bruto) zadnje prejemnice za vsak artikel
+  const zadnjeNabavneRes = await db.execute(sql`
+    SELECT DISTINCT ON (pp.artikel_id)
+      pp.artikel_id        AS "artikelId",
+      pp.cena_kos::float8  AS "zadnjaNabavnaCena",
+      p.vrsta_cen          AS "zadnjaVrstaCen"
+    FROM prejemnice_postavke pp
+    JOIN prejemnice p ON p.id = pp.prejemnica_id
+    WHERE p.enota_id = ${tenotaId}
+    ORDER BY pp.artikel_id, p.datum DESC
+  `);
+  const zadnjeNabavne = new Map<number, { cena: number; vrstaCen: string }>(
+    (zadnjeNabavneRes.rows as { artikelId: number; zadnjaNabavnaCena: number; zadnjaVrstaCen: string }[])
+      .map(r => [r.artikelId, { cena: r.zadnjaNabavnaCena, vrstaCen: r.zadnjaVrstaCen }])
+  );
+
   res.json(rows.map(r => ({
     ...r,
-    kolicina:           Number(r.kolicina),
-    povprecnaCena:      r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
-    skupnaVrednost:     r.skupnaVrednost != null ? Number(r.skupnaVrednost) : null,
-    zadnjaNabavnaCena:  r.zadnjaNabavnaCena != null ? Number(r.zadnjaNabavnaCena) : null,
-    // backward-compat alias za prikaz v zalogah (WAC)
-    zadnjaCena:         r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
+    kolicina:          Number(r.kolicina),
+    povprecnaCena:     r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
+    skupnaVrednost:    r.skupnaVrednost != null ? Number(r.skupnaVrednost) : null,
+    zadnjaNabavnaCena: zadnjeNabavne.get(r.artikelId)?.cena ?? null,
+    zadnjaVrstaCen:    zadnjeNabavne.get(r.artikelId)?.vrstaCen ?? null,
+    // backward-compat alias za prikaz WAC v tabeli zalog
+    zadnjaCena:        r.povprecnaCena  != null ? Number(r.povprecnaCena)  : null,
   })));
 });
 
