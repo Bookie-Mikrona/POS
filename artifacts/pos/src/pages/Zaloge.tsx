@@ -2737,7 +2737,7 @@ export default function Zaloge() {
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
                 ) : (prejemnice ?? []).length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Ni prejemnic</TableCell></TableRow>
-                ) : (prejemnice ?? []).map(p => (
+                ) : (prejemnice ?? []).slice().sort((a, b) => (b.stevilka ?? 0) - (a.stevilka ?? 0)).map(p => (
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-sm font-medium text-primary">{p.stevilka ?? "–"}</TableCell>
                     <TableCell className="font-medium">{fmtDatum(p.datum)}</TableCell>
