@@ -753,7 +753,7 @@ export default function Settings() {
       setSmtpFrom((nastavitve as Nastavitve & { smtpFrom?: string }).smtpFrom ?? "");
       setSmtpAktiven((nastavitve as Nastavitve & { smtpAktiven?: boolean }).smtpAktiven ?? false);
     }
-  }, [nastavitve]);
+  }, [nastavitve, prijavljen]);
 
   // ── Nalaganje device-specifičnih terminalnih nastavitev ────
   useEffect(() => {
