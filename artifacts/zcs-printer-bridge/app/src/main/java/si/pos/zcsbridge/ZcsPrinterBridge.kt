@@ -388,40 +388,13 @@ class ZcsPrinterBridge(private val context: Context) {
                     val pngBytes = Base64.decode(qrBase64, Base64.DEFAULT)
                     val bmp = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
                     if (bmp != null) {
-                        val printerDots = 384
                         val qrSize = 200
-                        val xOff = (printerDots - qrSize) / 2
-                        val rowBytes = printerDots / 8
                         val scaled = Bitmap.createScaledBitmap(bmp, qrSize, qrSize, true)
                             .copy(Bitmap.Config.ARGB_8888, false)
-                        val mono = ByteArray(rowBytes * qrSize)
-                        for (y in 0 until qrSize) {
-                            for (x in 0 until qrSize) {
-                                val px = scaled.getPixel(x, y)
-                                val r = (px shr 16) and 0xFF
-                                val g = (px shr 8) and 0xFF
-                                val b = px and 0xFF
-                                val gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
-                                if (gray < 128) {
-                                    val dotX = xOff + x
-                                    val byteIdx = y * rowBytes + dotX / 8
-                                    val bitIdx = 7 - (dotX % 8)
-                                    mono[byteIdx] = (mono[byteIdx].toInt() or (1 shl bitIdx)).toByte()
-                                }
-                            }
-                        }
-                        // SDK buffer rezže bitmap po ~50 vrsticah — tiskamo v pasovih po 40.
-                        val STRIP_ROWS = 40
-                        var row = 0
-                        while (row < qrSize) {
-                            val endRow = minOf(row + STRIP_ROWS, qrSize)
-                            val strip = mono.copyOfRange(row * rowBytes, endRow * rowBytes)
-                            printer.setPrintBitmap(strip)
-                            printer.setPrintStart()
-                            Log.i(TAG, "printText: QR pas $row-$endRow natisnjeno")
-                            row = endRow
-                        }
-                        Log.i(TAG, "printText: QR bitmap ${qrSize}×${qrSize} končano")
+                        // setPrintAppendStrings(Bitmap) doda sliko v isti string buffer
+                        // kot tekst — brez ločenega bitmap bufferja in brez rezanja.
+                        printer.setPrintAppendStrings(scaled)
+                        Log.i(TAG, "printText: QR bitmap ${qrSize}×${qrSize} dodan v buffer")
                         qrOk = true
                     }
                 } catch (e: Exception) {
