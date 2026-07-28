@@ -395,8 +395,15 @@ class ZcsPrinterBridge(private val context: Context) {
             printer.setPrintStart()
 
             // QR koda ali Code 128 prek nativnih ZCS SDK metod
+            val trailerFmt = PrnStrFormat().apply {
+                setTextSize(PRINT_TEXT_SIZE)
+                setFont(PrnTextFont.MONOSPACE)
+                setAli(Layout.Alignment.ALIGN_NORMAL)
+            }
             if (!qrUrl.isNullOrBlank()) {
                 printer.setPrintAppendQRCode(qrUrl, 200, 200, Layout.Alignment.ALIGN_CENTER)
+                // 5+ mm praznega prostora po QR kodi, da se trak lahko odtrga
+                repeat(4) { printer.setPrintAppendString(" ", trailerFmt) }
                 printer.setPrintStart()
                 Log.i(TAG, "printText: QR koda natisnjena")
             } else if (!zoi.isNullOrBlank()) {
@@ -404,6 +411,7 @@ class ZcsPrinterBridge(private val context: Context) {
                     context, zoi.uppercase(), 400, 80, false,
                     Layout.Alignment.ALIGN_CENTER, BarcodeFormat.CODE_128
                 )
+                repeat(4) { printer.setPrintAppendString(" ", trailerFmt) }
                 printer.setPrintStart()
                 Log.i(TAG, "printText: Code 128 natisnjena (ZOI)")
             }
