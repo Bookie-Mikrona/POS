@@ -1,0 +1,56 @@
+$ cd D:\zcs-printer-bridge
+git init
+git remote add origin https://github.com/Bookie-Mikrona/POS.git
+git fetch origin
+git checkout main
+git add artifacts\zcs-printer-bridge\app\src\main\java\si\pos\zcsbridge\ZcsPrinterBridge.kt
+git add artifacts\zcs-printer-bridge\app\src\main\java\si\pos\zcsbridge\PrintServerService.kt
+git commit -m "ZCS Z92: nativni QR in Code 128 prek setPrintAppendQRCode/BarCode"
+git push origin main
+Initialized empty Git repository in D:/zcs-printer-bridge/.git/
+remote: Enumerating objects: 14085, done.
+remote: Counting objects: 100% (14085/14085), done.
+remote: Compressing objects: 100% (3359/3359), done.
+remote: Total 14085 (delta 10490), reused 14085 (delta 10490), pack-reused 0 (from 0)
+Receiving objects: 100% (14085/14085), 15.50 MiB | 25.89 MiB/s, done.
+Resolving deltas: 100% (10490/10490), done.
+From https://github.com/Bookie-Mikrona/POS
+ * [new branch]      main       -> origin/main
+error: The following untracked working tree files would be overwritten by checkout:
+        artifacts/zcs-printer-bridge/README.md
+        artifacts/zcs-printer-bridge/app/build.gradle.kts
+        artifacts/zcs-printer-bridge/app/libs/SmartPos_1.8.1_R231213.jar
+        artifacts/zcs-printer-bridge/app/libs/core-3.2.1.jar
+        artifacts/zcs-printer-bridge/app/src/main/AndroidManifest.xml
+        artifacts/zcs-printer-bridge/app/src/main/aidl/com/zcs/android/aidl/printer/IBasePrinter.aidl
+        artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/BootReceiver.kt
+        artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/MainActivity.kt
+        artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/PrintServerService.kt
+        artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt
+        artifacts/zcs-printer-bridge/app/src/main/res/drawable/ic_launcher.xml
+        artifacts/zcs-printer-bridge/app/src/main/res/layout/activity_main.xml
+        artifacts/zcs-printer-bridge/app/src/main/res/values/strings.xml
+        artifacts/zcs-printer-bridge/build.gradle.kts
+        artifacts/zcs-printer-bridge/gradle.properties
+        artifacts/zcs-printer-bridge/gradle/libs.versions.toml
+        artifacts/zcs-printer-bridge/gradle/wrapper/gradle-wrapper.jar
+        artifacts/zcs-printer-bridge/gradle/wrapper/gradle-wrapper.properties
+        artifacts/zcs-printer-bridge/gradlew
+        artifacts/zcs-printer-bridge/gradlew.bat
+        artifacts/zcs-printer-bridge/settings.gradle.kts
+Please move or remove them before you switch branches.
+Aborting
+fatal: pathspec 'artifactszcs-printer-bridgeappsrcmainjavasiposzcsbridgeZcsPrinterBridge.kt' did not match any files
+fatal: pathspec 'artifactszcs-printer-bridgeappsrcmainjavasiposzcsbridgePrintServerService.kt' did not match any files
+On branch master
+
+Initial commit
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        artifacts/
+
+nothing added to commit but untracked files present (use "git add" to track)
+error: src refspec main does not match any
+error: failed to push some refs to 'https://github.com/Bookie-Mikrona/POS.git'
+
