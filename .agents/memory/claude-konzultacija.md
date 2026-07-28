@@ -13,7 +13,8 @@ Za kompleksne izolirane tehnične probleme VEDNO najprej pokliči Claude za pred
 ## Kdaj poklicati Claude
 - Neznani SDK API (hardware, tiskalniki, terminali, Android)
 - Algoritmični problemi (optimizacija, matematika)
-- Regulativna vprašanja (FURS, DDV, računovodski standardi)
+- Slovenska zakonodaja in predpisi (FURS, DDV, ZGD, SRS, ZVDAGA, e-računi, delovnopravna zakonodaja)
+- Računovodski standardi in kontni okviri
 - Kadar po 2 neuspešnih poskusih ni jasne rešitve
 
 ## Kako
