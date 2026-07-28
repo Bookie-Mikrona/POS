@@ -15,6 +15,9 @@ export interface Uporabnik {
   podjetjeDavcna: string;
   companyNaziv?: string | null;
   companyNaslov?: string | null;
+  companyUlica?: string | null;
+  companyPostna?: string | null;
+  companyKraj?: string | null;
   moraZamenjatiGeslo?: boolean;
   email?: string | null;
   enotaId?: number;
@@ -136,6 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           podjetjeDavcna: data.podjetjeDavcna ?? "",
           companyNaziv: data.companyNaziv ?? null,
           companyNaslov: data.companyNaslov ?? null,
+          companyUlica: (data as any).companyUlica ?? null,
+          companyPostna: (data as any).companyPostna ?? null,
+          companyKraj: (data as any).companyKraj ?? null,
           enotaId,
           enotaIme: data.enotaIme ?? null,
           blagajnaId: data.blagajnaId ?? null,

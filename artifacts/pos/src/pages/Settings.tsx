@@ -707,13 +707,14 @@ export default function Settings() {
 
   useEffect(() => {
     if (nastavitve) {
-      setNazivRestavracije(nastavitve.nazivRestavracije ?? "");
-      setNaslovRestavracije(nastavitve.naslovRestavracije ?? "");
-      setNaslovUlica((nastavitve as any).naslovUlica ?? "");
-      setNaslovPostna((nastavitve as any).naslovPostna ?? "");
-      setNaslovKraj((nastavitve as any).naslovKraj ?? "");
-      setDavcnaStevilka(nastavitve.davcnaStevilka ?? "");
-      setIdZaDdv((nastavitve as any).idZaDdv ?? "");
+      // Auto-fill iz podatkov podjetja, kadar vrednosti še niso bile shranjene
+      setNazivRestavracije(nastavitve.nazivRestavracije || prijavljen?.companyNaziv || "");
+      setNaslovRestavracije(nastavitve.naslovRestavracije || prijavljen?.companyNaslov || "");
+      setNaslovUlica((nastavitve as any).naslovUlica || prijavljen?.companyUlica || "");
+      setNaslovPostna((nastavitve as any).naslovPostna || prijavljen?.companyPostna || "");
+      setNaslovKraj((nastavitve as any).naslovKraj || prijavljen?.companyKraj || "");
+      setDavcnaStevilka(nastavitve.davcnaStevilka || prijavljen?.podjetjeDavcna || "");
+      setIdZaDdv((nastavitve as any).idZaDdv || prijavljen?.idZaDdv || "");
       setPoslovniProstor(nastavitve.poslovniProstor ?? "PP001");
       setElektronskaNaprava(nastavitve.elektronskaNaprava ?? "B001");
       // ponudnikDavcna: auto-fill iz davčne številke podjetja, če ni bila še nastavljena
