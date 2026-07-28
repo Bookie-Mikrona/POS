@@ -903,6 +903,8 @@ interface PosBookingSettingsData {
   kirArAccountId: string | null;
   lastnaPorabaAccountId: string | null;
   reprezentancaAccountId: string | null;
+  // Začetna zaloga — otvoritvena temeljnica
+  openingBalanceAccountId: string | null;
   // zastareli fallback konti
   revenueAccountId: string | null;
   vatLiabilityAccountId: string | null;
@@ -930,6 +932,7 @@ const EMPTY_PBS: PosBookingSettingsData = {
   kirArAccountId: null,
   lastnaPorabaAccountId: null,
   reprezentancaAccountId: null,
+  openingBalanceAccountId: null,
   revenueAccountId: null,
   vatLiabilityAccountId: null,
   inventoryAccountId: null,
@@ -1206,6 +1209,29 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
             field="reprezentancaAccountId"
             description="Debet v T4 — npr. 4861000 Prehrana podjetnika / reprezentanca"
           />
+        </CardContent>
+      </Card>
+
+      {/* Začetna zaloga */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Začetna zaloga — otvoritvena temeljnica</CardTitle>
+          <CardDescription>
+            Referenca: <code className="text-xs bg-muted px-1 rounded">POS:ZZ:LLLL</code>
+            {" · "}Debet = konto zalog (iz T2) · Kredit = otvoritveni konto bilance stanja.
+            <br />
+            Temeljnica se samodejno ustvari, ko v POS vnesete začetne zaloge za novo leto.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <AccountSelect
+            label="Otvoritveni konto bilance stanja"
+            field="openingBalanceAccountId"
+            description="Kredit — npr. 990 ali 900 Otvoritveni konto"
+          />
+          <div className="flex items-center text-xs text-muted-foreground rounded-lg border bg-muted/20 px-3 py-2 self-end">
+            Debet = konto zalog iz T2 (razred 3 za material, razred 6 za blago), razčlenjen po vrsti artikla.
+          </div>
         </CardContent>
       </Card>
 

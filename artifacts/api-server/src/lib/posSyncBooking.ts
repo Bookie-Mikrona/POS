@@ -948,3 +948,123 @@ export async function syncPosBookingForDay(
 
   return { created, skipped };
 }
+
+// ── Začetna zaloga — otvoritvena temeljnica ───────────────────────────────────
+
+export interface ZZPostavka {
+  vrstaArtikla: string | null;
+  kolicina: number;
+  cenaKos: number;
+}
+
+/**
+ * Ustvari ali osveži otvoritveno temeljnico za začetne zaloge:
+ *   DR 310/300 (konto zalog) / CR 990 (otvoritveni konto)
+ *
+ * Referenca: POS:ZZ:{leto}
+ * Idempotentna — obstoječi osnutek pobriše in ustvari novega.
+ * Potrjene temeljnice ne briše.
+ */
+export async function bookZacetnaZaloga(
+  companyId: string,
+  leto: number,
+  datum: string, // YYYY-MM-DD
+  postavke: ZZPostavka[],
+): Promise<{ created: string | null; skipped: { reason: string } | null }> {
+  const ref = `POS:ZZ:${leto}`;
+
+  // Nastavitve knjiženja
+  const [settings] = await db
+    .select()
+    .from(posBookingSettingsTable)
+    .where(eq(posBookingSettingsTable.companyId, companyId))
+    .limit(1);
+
+  if (!settings) {
+    return { created: null, skipped: { reason: "POS nastavitve knjiženja niso konfigurirane" } };
+  }
+
+  if (!settings.openingBalanceAccountId) {
+    return { created: null, skipped: { reason: "Otvoritveni konto bilance stanja (990/900) ni nastavljen v POS nastavitvah" } };
+  }
+
+  // Odprto računovodsko obdobje
+  const [period] = await db
+    .select({ id: accountingPeriodsTable.id })
+    .from(accountingPeriodsTable)
+    .where(
+      and(
+        eq(accountingPeriodsTable.companyId, companyId),
+        lte(accountingPeriodsTable.startDate, datum),
+        gte(accountingPeriodsTable.endDate, datum),
+        notInArray(accountingPeriodsTable.status, ["locked"]),
+      ),
+    )
+    .limit(1);
+
+  if (!period) {
+    return { created: null, skipped: { reason: `Ni odprtega računovodskega obdobja za ${datum}` } };
+  }
+
+  // Seštej vrednost po vrsti artikla
+  const byVrsta = new Map<string, Decimal>();
+  for (const p of postavke) {
+    const vrsta = p.vrstaArtikla ?? "material";
+    const val = new Decimal(p.kolicina).times(new Decimal(p.cenaKos)).toDecimalPlaces(2);
+    byVrsta.set(vrsta, (byVrsta.get(vrsta) ?? new Decimal(0)).plus(val));
+  }
+
+  const skupaj = [...byVrsta.values()].reduce((s, v) => s.plus(v), new Decimal(0));
+  if (skupaj.lte("0.005")) {
+    await deleteExistingDrafts(companyId, ref);
+    return { created: null, skipped: null }; // nič za knjižiti
+  }
+
+  const lines: SyncLine[] = [];
+
+  for (const [vrsta, znesek] of byVrsta) {
+    if (znesek.lte("0.005")) continue;
+
+    let invAcc: string | null | undefined;
+    if (vrsta === "material") {
+      invAcc = settings.inventoryMaterialAccountId ?? settings.inventoryAccountId;
+    } else if (vrsta === "blago") {
+      invAcc = settings.inventoryGoodsAccountId ?? settings.inventoryAccountId;
+    } else {
+      invAcc = settings.inventoryAccountId;
+    }
+
+    if (!invAcc) {
+      return {
+        created: null,
+        skipped: { reason: `Konto zalog za vrsto '${vrsta}' (${znesek.toFixed(2)} €) ni nastavljen v T2` },
+      };
+    }
+
+    lines.push({
+      accountId: invAcc,
+      side: "debit",
+      amount: znesek,
+      desc: `Začetna zaloga ${vrsta} ${leto}`,
+    });
+  }
+
+  lines.push({
+    accountId: settings.openingBalanceAccountId,
+    side: "credit",
+    amount: skupaj,
+    desc: `Otvoritev bilance ${leto}`,
+  });
+
+  const merged = mergeLines(lines);
+  if (!isBalanced(merged)) {
+    const d = merged.filter(l => l.side === "debit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+    const c = merged.filter(l => l.side === "credit").reduce((s, l) => s.plus(l.amount), new Decimal(0));
+    return { created: null, skipped: { reason: `Otvoritvena temeljnica ni uravnotežena: D ${d.toFixed(2)} ≠ K ${c.toFixed(2)}` } };
+  }
+
+  await deleteExistingDrafts(companyId, ref);
+  await insertEntry(companyId, period.id, datum, `POS začetne zaloge ${leto}`, ref, merged);
+
+  return { created: ref, skipped: null };
+}

@@ -2,8 +2,10 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { artikliTable, db, zacetneZalogePostavkeTable, zacetneZalogeTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
+import type { PosRequest } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { bookZacetnaZaloga } from "../../lib/posSyncBooking";
 
 const router: IRouter = Router();
 
@@ -48,7 +50,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
   const [currentZaloge, artikliRows] = await Promise.all([
     db.select({ artikelId: zalogeTable.artikelId, kolicina: zalogeTable.kolicina })
       .from(zalogeTable).where(inArray(zalogeTable.artikelId, artikelIds)),
-    db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere })
+    db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere, vrstaArtikla: artikliTable.vrstaArtikla })
       .from(artikliTable).where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId))),
   ]);
   const foundZzIds = new Set(artikliRows.map(a => a.id));
@@ -106,6 +108,22 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
   });
 
   broadcast("update", { type: "zaloge" });
+
+  // Poskusi poknjižiti v ERP (fire-and-forget — ne blokira odgovora)
+  const companyId = (req as PosRequest).companyId;
+  const zzDatum = zacetnaZaloga.datum instanceof Date
+    ? zacetnaZaloga.datum.toISOString().slice(0, 10)
+    : String(zacetnaZaloga.datum).slice(0, 10);
+  bookZacetnaZaloga(
+    companyId,
+    zacetnaZaloga.leto,
+    zzDatum,
+    postavke.map((p: any) => ({
+      vrstaArtikla: artikelMap.get(p.artikelId)?.vrstaArtikla ?? null,
+      kolicina: p.kolicina,
+      cenaKos: p.cenaKos,
+    })),
+  ).catch(err => console.warn("[ZZ booking]", err));
 
   res.status(201).json({
     id: zacetnaZaloga.id,
@@ -235,6 +253,24 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
     });
 
     broadcast("update", { type: "zaloge" });
+
+    // Re-booking v ERP (fire-and-forget)
+    const putCompanyId = (req as PosRequest).companyId;
+    const putDatum = existing.datum instanceof Date
+      ? existing.datum.toISOString().slice(0, 10)
+      : String(existing.datum).slice(0, 10);
+    // Preberemo novo stanje postavk za booking (z vrstaArtikla)
+    const novePutPostavke = await db
+      .select({ vrstaArtikla: artikliTable.vrstaArtikla, kolicina: zacetneZalogePostavkeTable.kolicina, cenaKos: zacetneZalogePostavkeTable.cenaKos })
+      .from(zacetneZalogePostavkeTable)
+      .leftJoin(artikliTable, eq(artikliTable.id, zacetneZalogePostavkeTable.artikelId))
+      .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
+    bookZacetnaZaloga(
+      putCompanyId,
+      existing.leto,
+      putDatum,
+      novePutPostavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
+    ).catch(err => console.warn("[ZZ booking PUT]", err));
   } else {
     await db.update(zacetneZalogeTable).set(updates)
       .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
@@ -295,6 +331,12 @@ router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<voi
   );
   await db.delete(zacetneZalogePostavkeTable).where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
   await db.delete(zacetneZalogeTable).where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
+
+  // Pobriši osnutek ERP temeljnice — pokliči z [] da bookZacetnaZaloga počisti obstoječi osnutek
+  const delCompanyId = (req as PosRequest).companyId;
+  const delDatum = existing.datum instanceof Date ? existing.datum.toISOString().slice(0, 10) : String(existing.datum).slice(0, 10);
+  bookZacetnaZaloga(delCompanyId, existing.leto, delDatum, [])
+    .catch(err => console.warn("[ZZ booking DEL]", err));
 
   broadcast("update", { type: "zaloge" });
   res.status(204).send();

@@ -1,0 +1,31 @@
+Začetna zaloga na dan 1. 1. v POS gostinstvu predstavlja fizično preneseno stanje materiala, surovin in pijače z dne 31. 12. prejšnjega leta.
+
+Postopek obsega dva dela: vnos stanja v POS/materialni program (za pravilno delovanje normativov) ter knjiženje v dvostavno knjigovodstvo (glavna knjiga).
+
+1. Vnos začetne zaloge v POS / materialni program
+V POS sistemu se zaloga na dan 1. 1. ustvari na podlagi zaključne inventure z dne 31. 12.:
+
+Otvoritveni dokument (Začetno stanje): V skladiščnem delu POS programa odprite nov dokument z vrsto Začetna zaloga ali Otvoritvena inventura z datumom 1. 1..
+
+Količine in cene:
+
+Količine: Vnesete natančne količine iz popisnih listov končne inventure na dan 31. 12.
+
+Cene: Vrednotenje se izvede po drsečih povprečnih cenah (WAC) ali nabavnih cenah, ki so veljale na dan 31. 12. prejšnjega leta.
+
+Potrditev: Ob potrditvi dokumenta ima POS sistem pripravljena izhodiščna stanja za preračun normativov in prodajo v novem letu.
+
+2. Knjiženje v dvostavnem knjigovodstvu (Glavna knjiga)
+V glavni knjigi se začetna zaloga poknjiži v okviru otvoritvene temeljnice na dan 1. 1. (preko prehodnega konta otvoritve bilance 990 ali 900):
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+310 (ali 300)	Zaloge materiala in surovin (kuhinja, pijača, šank)	Skupna nabavna vrednost zaloge	
+990 (ali 900)	Otvoritveni konto bilance stanja		Skupna nabavna vrednost zaloge
+Pomembno pravilo: Skupni znesek na kontu 310 v glavni knjigi se mora do centa ujemati s skupno nabavno vrednostjo iz dokumenta Začetna zaloga v POS/materialnem programu.
+
+3. Na kaj morate biti še posebej pozorni?
+Uskladitev inventurnih manjakov/viškov prejšnjega leta: Preden ustvarite začetno zalogo za 1. 1., morajo biti v prejšnjem letu (do 31. 12.) v celoti poknjižene vse inventurne izravnave (inventurni primanjkljaji, presežki ali odpisi).
+
+Vračljiva embalaža (kavcije): Če v skladišču vodite ločeno evidenco prazne embalaže (gajbe, prazne steklenice, keg sodi), se začetna zaloga embalaže odpira ločeno na ustreznem kontu (npr. 315 ali analitiki v okviru razreda 3).
+
+Kontrola WAC cen: Ob otvoritvi preverite, da so začetne cene artiklov v POS sistemu identične končnim povprečnim cenam prejšnjega leta, saj te služijo kot osnova za prve izračunane normative v novem letu.

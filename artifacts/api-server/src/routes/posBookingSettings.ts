@@ -84,6 +84,8 @@ const ACCOUNT_FIELDS = [
   "kirArAccountId",
   "lastnaPorabaAccountId",
   "reprezentancaAccountId",
+  // Začetna zaloga — otvoritvena temeljnica
+  "openingBalanceAccountId",
   // ← zastareli fallback konti (ohranjeni za nazaj)
   "revenueAccountId",
   "vatLiabilityAccountId",

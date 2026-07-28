@@ -106,6 +106,16 @@ export const posBookingSettingsTable = pgTable("pos_booking_settings", {
   reprezentancaAccountId: uuid("reprezentanca_account_id")
     .references(() => accountsTable.id, { onDelete: "set null" }),
 
+  // ── Začetna zaloga — otvoritvena temeljnica ────────────────────────────────
+  /**
+   * Otvoritveni konto bilance stanja — kredit (npr. 990 ali 900).
+   * Debet = inventoryMaterialAccountId / inventoryGoodsAccountId (obstoječa konti zalog).
+   * Knjiženje se ustvari ob vnosu začetne zaloge v POS.
+   * Referenca: POS:ZZ:{leto}
+   */
+  openingBalanceAccountId: uuid("opening_balance_account_id")
+    .references(() => accountsTable.id, { onDelete: "set null" }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
