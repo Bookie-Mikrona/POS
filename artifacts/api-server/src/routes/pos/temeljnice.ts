@@ -8,6 +8,7 @@ import {
   accountingPeriodsTable,
 } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
+import { syncPosBookingForDay } from "../../lib/posSyncBooking";
 
 const router: IRouter = Router();
 
@@ -104,6 +105,30 @@ router.get("/temeljnice", async (req, res): Promise<void> => {
   });
 
   res.json({ temeljnice });
+});
+
+/**
+ * POST /temeljnice/sync/:datum
+ *
+ * Ročni trigger za POS→ERP knjiženje za določen datum.
+ * Zahteva requireEnota (nastavi req.companyId).
+ */
+router.post("/temeljnice/sync/:datum", async (req, res): Promise<void> => {
+  const companyId = (req as PosRequest).companyId;
+  const { datum } = req.params;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+    res.status(400).json({ error: "Neveljaven datum — pričakujem YYYY-MM-DD" });
+    return;
+  }
+
+  try {
+    const result = await syncPosBookingForDay(companyId, datum);
+    res.json(result);
+  } catch (err) {
+    console.error("[POS sync ročni]", err);
+    res.status(500).json({ error: "Napaka pri sinhronizaciji temeljnic" });
+  }
 });
 
 export default router;

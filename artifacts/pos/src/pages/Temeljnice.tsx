@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, RefreshCw } from "lucide-react";
 import { getEnotaId } from "@workspace/api-client-react";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
@@ -70,6 +70,41 @@ export default function Temeljnice() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
+  // ── Ročni sync ──────────────────────────────────────────────────────────────
+  const [syncDatum, setSyncDatum] = useState<string>(danes);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = useCallback(async () => {
+    if (!syncDatum) return;
+    setSyncing(true);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const enotaId = getEnotaId();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (enotaId) headers["X-Enota-Id"] = String(enotaId);
+      const res = await fetch(`${base}/api/temeljnice/sync/${syncDatum}`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+      const data = await res.json() as { created?: string[]; skipped?: Array<{ ref: string; reason: string }> };
+      if (!res.ok) throw new Error((data as any).error ?? "Napaka");
+      const ustvarjenih = data.created?.length ?? 0;
+      toast({
+        title: ustvarjenih > 0 ? `Sinhronizirano (${ustvarjenih})` : "Ni sprememb",
+        description: ustvarjenih > 0
+          ? `Ustvarjeni osnutki: ${data.created?.join(", ")}`
+          : `Za ${syncDatum} ni bilo nič za sinhronizirati.`,
+      });
+      // Osveži seznam če je datum v filtriranem razponu
+      if (syncDatum >= od && syncDatum <= do_) await isci();
+    } catch (e: any) {
+      toast({ title: "Napaka pri sinhronizaciji", description: e.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  }, [syncDatum, od, do_, toast]);
+
   const isci = useCallback(async () => {
     if (!od || !do_) return;
     setLoading(true);
@@ -111,7 +146,7 @@ export default function Temeljnice() {
       <h1 className="text-xl font-semibold mb-4">Temeljnice</h1>
 
       {/* Filter */}
-      <div className="flex flex-wrap gap-3 items-end mb-5">
+      <div className="flex flex-wrap gap-3 items-end mb-4">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Od</Label>
           <Input
@@ -134,6 +169,29 @@ export default function Temeljnice() {
           <Search className="w-4 h-4" />
           Pokaži
         </Button>
+      </div>
+
+      {/* Ročni sync */}
+      <div className="flex flex-wrap gap-3 items-end mb-5 p-3 bg-muted/40 rounded-lg border border-dashed">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-foreground mb-0.5">Ročna sinhronizacija</p>
+          <p className="text-xs text-muted-foreground">Ustvari ali osveži temeljnice za izbrani dan (npr. za manjkajoče dni).</p>
+        </div>
+        <div className="flex gap-2 items-end">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Datum</Label>
+            <Input
+              type="date"
+              value={syncDatum}
+              onChange={e => setSyncDatum(e.target.value)}
+              className="w-38 text-sm"
+            />
+          </div>
+          <Button onClick={handleSync} disabled={syncing} size="sm" variant="outline" className="gap-1">
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sinhroniziram…" : "Sinhroniziraj"}
+          </Button>
+        </div>
       </div>
 
       {/* Skeleton */}
