@@ -142,7 +142,7 @@ export default function Temeljnice() {
   }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div className="p-4 max-w-3xl mx-auto flex-1 overflow-auto">
       <h1 className="text-xl font-semibold mb-4">Temeljnice</h1>
 
       {/* Filter */}
