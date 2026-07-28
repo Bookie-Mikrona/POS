@@ -18,3 +18,9 @@ id = "ujUvwxuDIEqziXStl2hRY"
 uri = "file://artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/PrintServerService.kt"
 type = "unspecified"
 title = "PrintServerService.kt (bere zoi)"
+
+[[outputs]]
+id = "DE_HovpAiSYRdvdyY0Kik"
+uri = "file://memory-backup.zip"
+type = "unspecified"
+title = "Memory backup"
