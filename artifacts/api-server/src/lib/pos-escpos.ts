@@ -306,7 +306,9 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
   const orphanDodatki = data.postavke.filter(p => p.parentPostavkaId != null && !topPostavkeIds.has(p.parentPostavkaId));
 
   const printPostavkaRow = (p: PrintPostavka) => {
-    const imaPopust = p.cenaKosOriginalna != null && p.cenaKosOriginalna > p.cenaKos + 0.001;
+    // imaPopust: prikaži "Redna cena / Popust X%" samo pri delnem popustu (cenaKos > 0).
+    // Ko cenaKos=0 (100% popust z bon za pico), vrstice preskočimo — "Bon za pico" spodaj že pojasni.
+    const imaPopust = p.cenaKosOriginalna != null && p.cenaKosOriginalna > p.cenaKos + 0.001 && p.cenaKos > 0.001;
     const okr = davekOkrajsava.get(p.davek) ?? "";
     line(p.ime.slice(0, cols));
     if (p.opomba) line("  " + p.opomba.slice(0, cols - 2));
@@ -346,10 +348,11 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
   const skupajIzPostavk = data.postavke.reduce((s, p) => s + p.skupaj, 0);
   const brezDDV = jeBrezplacno ? skupajIzPostavk - data.ddv : data.skupaj - data.ddv;
 
-  // Popust (prej "Prihranili ste") — prikazan PRED osnovo
+  // Popust — prikazan PRED osnovo; preskočimo 100% bon za pico (cenaKos=0),
+  // ker je ta popust že prikazan v "Bon za pico" vrstici spodaj.
   const skupniPrihranek = data.postavke.reduce((acc, p) => {
     const ori = p.cenaKosOriginalna;
-    if (ori != null && ori > p.cenaKos + 0.001) acc += (ori - p.cenaKos) * p.kolicina;
+    if (ori != null && ori > p.cenaKos + 0.001 && p.cenaKos > 0.001) acc += (ori - p.cenaKos) * p.kolicina;
     return acc;
   }, 0);
   if (skupniPrihranek > 0.001) {
@@ -375,7 +378,8 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
       ddvPoStopnji.set(p.davek, { skupajPostavke: ex.skupajPostavke + p.skupaj, ddvZnesek: ex.ddvZnesek + ddvZnesek });
     }
     const ddvVrstice = Array.from(ddvPoStopnji.entries()).sort(([a], [b]) => a - b)
-      .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }));
+      .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }))
+      .filter(v => v.osnova > 0.001 || v.ddvZnesek > 0.001); // preskoči ničelne vrstice (bon za pico → 0 € pice)
     if (ddvVrstice.length > 0) {
       line(dashedLine(cols));
       const dC3 = 10, dC2 = Math.floor((cols - dC3) / 2), dC1 = cols - dC2 - dC3;
@@ -628,7 +632,8 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
 
   const printPostavkaRowEsc = (p: PrintPostavka) => {
     const cenaKosOriginalna = p.cenaKosOriginalna;
-    const imaPopust = cenaKosOriginalna != null && cenaKosOriginalna > p.cenaKos + 0.001;
+    // imaPopust: samo pri delnem popustu (cenaKos > 0); 100% bon za pico preskočimo
+    const imaPopust = cenaKosOriginalna != null && cenaKosOriginalna > p.cenaKos + 0.001 && p.cenaKos > 0.001;
     const okr = davekOkrajsava.get(p.davek) ?? "";
     line(p.ime.slice(0, cols));
     if (p.opomba) line("  " + p.opomba.slice(0, cols - 2));
@@ -668,10 +673,10 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
   const skupajIzPostavkEsc = data.postavke.reduce((s, p) => s + p.skupaj, 0);
   const brezDDV = jeBrezplacnoEsc ? skupajIzPostavkEsc - data.ddv : data.skupaj - data.ddv;
 
-  // Popust (prej "Prihranili ste") — prikazan PRED osnovo
+  // Popust — prikazan PRED osnovo; preskočimo 100% bon za pico (cenaKos=0)
   const skupniPrihranekEsc = data.postavke.reduce((acc, p) => {
     const ori = p.cenaKosOriginalna;
-    if (ori != null && ori > p.cenaKos + 0.001) acc += (ori - p.cenaKos) * p.kolicina;
+    if (ori != null && ori > p.cenaKos + 0.001 && p.cenaKos > 0.001) acc += (ori - p.cenaKos) * p.kolicina;
     return acc;
   }, 0);
   if (skupniPrihranekEsc > 0.001) {
@@ -700,7 +705,8 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
     }
     const ddvVrstice = Array.from(ddvPoStopnji.entries())
       .sort(([a], [b]) => a - b)
-      .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }));
+      .map(([s, v]) => ({ stopnja: s, osnova: v.skupajPostavke - v.ddvZnesek, ddvZnesek: v.ddvZnesek }))
+      .filter(v => v.osnova > 0.001 || v.ddvZnesek > 0.001); // preskoči ničelne vrstice (bon za pico → 0 € pice)
     if (ddvVrstice.length > 0) {
       line(dashedLine(cols));
       const dC3 = 10, dC2 = Math.floor((cols - dC3) / 2), dC1 = cols - dC2 - dC3;
