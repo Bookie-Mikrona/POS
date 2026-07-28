@@ -1,4 +1,4 @@
-- [GitHub repozitorij](github-repo.md) — https://github.com/Bookie-Mikrona/POS — edini GitHub remote za ves projekt + ZCS APK
+- [GitHub repozitorij](github-repo.md) — https://github.com/Bookie-Mikrona/POS — edini GitHub remote; ZCS APK koda je v `zcs-z92-print/` (ne artifacts/)
 - [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
 - [WAC inventory valuation](wac-implementation.md) — drseča tehtana povprečna cena: schema, recompute algo, edge cases
 - [POS plačilni zneski](pos-placilni-zneski.md) — mešana plačila: vedno beri znesek_* stolpce; repr/lastna face value iz postavk; db.execute vrne .rows[0]
