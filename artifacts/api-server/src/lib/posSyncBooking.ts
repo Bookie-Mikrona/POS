@@ -290,7 +290,7 @@ export async function syncPosBookingForDay(
 
   // Skupni pogoji za POS datum (Ljubljana čas)
   const datumWhere = sql`(${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')::date = ${datum}::date`;
-  const statusOk = notInArray(racuniTable.status, ["storniran", "testni"]);
+  const statusOk = notInArray(racuniTable.status, ["storniran"]);
   const enotaOk = inArray(racuniTable.enotaId, enotaIds);
 
   // ── TEMELJNICA 1: PRODAJA ────────────────────────────────────────────────────
