@@ -7373,6 +7373,9 @@ components:
           description: Sedež podjetja iz DDV registra (samo za branje)
         davcnaStevilka:
           type: string
+        idZaDdv:
+          type: string
+          description: DDV identifikacijska številka zavezanca (npr. SI11928174); prazno če ni zavezanec
         poslovniProstor:
           type: string
           description: FURS ID poslovnega prostora (npr. PP001)

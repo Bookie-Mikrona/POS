@@ -2785,6 +2785,7 @@ export const GetNastavitveResponse = zod.object({
   "nazivPodjetja": zod.string().optional().describe('Pravni naziv podjetja iz DDV registra (samo za branje)'),
   "naslovPodjetja": zod.string().optional().describe('Sedež podjetja iz DDV registra (samo za branje)'),
   "davcnaStevilka": zod.string(),
+  "idZaDdv": zod.string().optional().describe('DDV identifikacijska številka zavezanca (npr. SI11928174); prazno če ni zavezanec'),
   "poslovniProstor": zod.string().describe('FURS ID poslovnega prostora (npr. PP001)'),
   "elektronskaNaprava": zod.string().describe('FURS ID elektronske naprave\/blagajne (npr. B001)'),
   "ponudnikDavcna": zod.string().optional().describe('Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca'),
@@ -2826,6 +2827,7 @@ export const UpdateNastavitveBody = zod.object({
   "nazivPodjetja": zod.string().optional().describe('Pravni naziv podjetja iz DDV registra (samo za branje)'),
   "naslovPodjetja": zod.string().optional().describe('Sedež podjetja iz DDV registra (samo za branje)'),
   "davcnaStevilka": zod.string(),
+  "idZaDdv": zod.string().optional().describe('DDV identifikacijska številka zavezanca (npr. SI11928174); prazno če ni zavezanec'),
   "poslovniProstor": zod.string().describe('FURS ID poslovnega prostora (npr. PP001)'),
   "elektronskaNaprava": zod.string().describe('FURS ID elektronske naprave\/blagajne (npr. B001)'),
   "ponudnikDavcna": zod.string().optional().describe('Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca'),
@@ -2866,6 +2868,7 @@ export const UpdateNastavitveResponse = zod.object({
   "nazivPodjetja": zod.string().optional().describe('Pravni naziv podjetja iz DDV registra (samo za branje)'),
   "naslovPodjetja": zod.string().optional().describe('Sedež podjetja iz DDV registra (samo za branje)'),
   "davcnaStevilka": zod.string(),
+  "idZaDdv": zod.string().optional().describe('DDV identifikacijska številka zavezanca (npr. SI11928174); prazno če ni zavezanec'),
   "poslovniProstor": zod.string().describe('FURS ID poslovnega prostora (npr. PP001)'),
   "elektronskaNaprava": zod.string().describe('FURS ID elektronske naprave\/blagajne (npr. B001)'),
   "ponudnikDavcna": zod.string().optional().describe('Davčna številka ponudnika programske opreme (SoftwareSupplierTaxNumber za FURS); če prazno, se uporabi davčna številka zavezanca'),
@@ -3131,6 +3134,7 @@ export const ListPrejemniceResponse = zod.array(ListPrejemniceResponseItem)
 export const CreatePrejemnicaBody = zod.object({
   "datum": zod.string().optional(),
   "opomba": zod.string().optional(),
+  "vrstaCen": zod.enum(['neto', 'bruto']).optional(),
   "postavke": zod.array(zod.object({
   "artikelId": zod.number(),
   "kolicina": zod.number(),
@@ -3143,6 +3147,7 @@ export const CreatePrejemnicaResponse = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "vrstaCen": zod.enum(['neto', 'bruto']),
   "skupajVrednost": zod.number(),
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
@@ -3170,6 +3175,7 @@ export const GetPrejemnicaResponse = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "vrstaCen": zod.enum(['neto', 'bruto']),
   "skupajVrednost": zod.number(),
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
@@ -3195,6 +3201,7 @@ export const UpdatePrejemnicaParams = zod.object({
 export const UpdatePrejemnicaBody = zod.object({
   "datum": zod.string().optional(),
   "opomba": zod.string().nullish(),
+  "vrstaCen": zod.enum(['neto', 'bruto']).optional(),
   "postavke": zod.array(zod.object({
   "artikelId": zod.number(),
   "kolicina": zod.number(),
@@ -3207,6 +3214,7 @@ export const UpdatePrejemnicaResponse = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "vrstaCen": zod.enum(['neto', 'bruto']),
   "skupajVrednost": zod.number(),
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
@@ -4164,10 +4172,7 @@ export const CreateJournalEntryBody = zod.object({
   "partnerId": zod.string().nullish().describe('Poslovni partner (zahtevano, če konto zahteva partnerja)'),
   "costCenterId": zod.string().nullish().describe('Stroškovno mesto (zahtevano, če konto zahteva)'),
   "projectId": zod.string().nullish().describe('Projekt (zahtevano, če konto zahteva)'),
-  "departmentId": zod.string().nullish().describe('Oddelek (opcijsko)'),
-  "vatCodeId": zod.string().nullish().describe('FURS DDV koda (FK na vat_code.id) — za KIR/KPR evidenco'),
-  "vatAmount": zod.number().nullish().describe('Znesek DDV za to vrstico (0 pri oproščenih)'),
-  "vatDeductionPercent": zod.number().min(0).max(100).nullish().describe('Odbitni delež DDV v % (0-100); privzeto 100')
+  "departmentId": zod.string().nullish().describe('Oddelek (opcijsko)')
 })).min(createJournalEntryBodyLinesMin),
   "autoPost": zod.boolean().optional().describe('If true, post the entry immediately after creation if balanced'),
   "sourceType": zod.enum(['manual', 'bank_import', 'document', 'ai_suggestion']).optional().describe('Izvor knjižbe (privzeto manual)')
@@ -4209,10 +4214,7 @@ export const CreateJournalEntryResponse = zod.object({
   "projectId": zod.string().nullish().describe('Projekt'),
   "projectName": zod.string().nullish(),
   "departmentId": zod.string().nullish().describe('Oddelek'),
-  "departmentName": zod.string().nullish(),
-  "vatCodeId": zod.string().nullish().describe('FURS DDV koda (FK na vat_code.id)'),
-  "vatAmount": zod.string().nullish().describe('Znesek DDV kot string (NUMERIC precision)'),
-  "vatDeductionPercent": zod.string().nullish().describe('Odbitni delež DDV v %')
+  "departmentName": zod.string().nullish()
 }))
 }))
 

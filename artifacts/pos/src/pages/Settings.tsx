@@ -714,7 +714,7 @@ export default function Settings() {
       setNaslovPostna((nastavitve as any).naslovPostna || prijavljen?.companyPostna || "");
       setNaslovKraj((nastavitve as any).naslovKraj || prijavljen?.companyKraj || "");
       setDavcnaStevilka(nastavitve.davcnaStevilka || prijavljen?.podjetjeDavcna || "");
-      setIdZaDdv((nastavitve as any).idZaDdv || prijavljen?.idZaDdv || "");
+      setIdZaDdv(nastavitve.idZaDdv || prijavljen?.idZaDdv || "");
       setPoslovniProstor(nastavitve.poslovniProstor ?? "PP001");
       setElektronskaNaprava(nastavitve.elektronskaNaprava ?? "B001");
       // ponudnikDavcna: auto-fill iz davčne številke podjetja, če ni bila še nastavljena

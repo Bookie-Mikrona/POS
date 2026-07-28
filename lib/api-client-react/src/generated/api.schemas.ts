@@ -113,8 +113,6 @@ export interface Artikel {
   toGo?: boolean;
   /** Ali ima artikel vsaj en vnos v normativu (receptura) */
   hasNormativ?: boolean;
-  /** Vrsta artikla: blago, material ali storitev */
-  vrstaArtikla?: string;
   /** Modifikatorske skupine prirejene artiklu */
   modSkupine?: ModSkupinaFull[];
 }
@@ -156,8 +154,6 @@ export interface ArtikelInput {
   toGoArtikli?: number[];
   /** Ali je artikel označen kot "To Go" */
   toGo?: boolean;
-  /** Vrsta artikla: blago, material ali storitev */
-  vrstaArtikla?: string;
 }
 
 export interface Normativ {
@@ -398,8 +394,6 @@ export const NarociloStatus = {
 
 export interface Narocilo {
   id: number;
-  /** Zaporedna številka naročila znotraj podjetja */
-  stevilkaNarocila?: number | null;
   /** @nullable */
   mizaId?: number | null;
   /** @nullable */
@@ -464,20 +458,10 @@ export interface Izmena {
   skupajZnesek: number;
   /** Število računov v izmeni */
   steviloRacunov: number;
-  /** Enota, na kateri je bila izmena odprta */
-  enotaId?: number;
-  /** @nullable */
-  enotaIme?: string | null;
-  /** @nullable — blagajna, na kateri je natakar izvajal izmeno */
-  blagajnaId?: number | null;
-  /** @nullable */
-  blagajnaIme?: string | null;
 }
 
 export interface IzmenaInput {
   natakariId: number;
-  /** @nullable — blagajna, na kateri natakar odpira izmeno */
-  blagajnaId?: number | null;
 }
 
 export interface Enota {
@@ -520,8 +504,6 @@ export interface Natakari {
   davcnaStevilka?: string | null;
   aktiven: boolean;
   ustvarjeno?: string;
-  /** @nullable — Clerk User ID za avtomatsko vezavo izmene */
-  clerkUserId?: string | null;
 }
 
 export interface NatakariInput {
@@ -530,8 +512,6 @@ export interface NatakariInput {
   /** @nullable */
   davcnaStevilka?: string | null;
   aktiven: boolean;
-  /** @nullable — poveže natakarja s Clerk računom */
-  clerkUserId?: string | null;
 }
 
 export type RacunPlacilnaNacin = typeof RacunPlacilnaNacin[keyof typeof RacunPlacilnaNacin];
@@ -978,13 +958,9 @@ export interface Nastavitve {
   nazivPodjetja?: string;
   /** Sedež podjetja iz DDV registra (samo za branje) */
   naslovPodjetja?: string;
-  /** Ulica in hišna številka sedeža podjetja */
-  naslovUlica?: string;
-  /** Poštna številka sedeža podjetja */
-  naslovPostna?: string;
-  /** Kraj sedeža podjetja */
-  naslovKraj?: string;
   davcnaStevilka: string;
+  /** DDV identifikacijska številka zavezanca (npr. SI11928174); prazno če ni zavezanec */
+  idZaDdv?: string;
   /** FURS ID poslovnega prostora (npr. PP001) */
   poslovniProstor: string;
   /** FURS ID elektronske naprave/blagajne (npr. B001) */
@@ -1270,27 +1246,18 @@ export interface ZalogaPogled {
   /** @nullable */
   enotaMere: string | null;
   kolicina: number;
-  /** Drseča tehtana povprečna nabavna cena (WAC) @nullable */
-  povprecnaCena?: number | null;
-  /** Skupna vrednost zaloge = kolicina × WAC @nullable */
-  skupnaVrednost?: number | null;
-  /** @deprecated use povprecnaCena @nullable */
+  /** @nullable */
   zadnjaCena?: number | null;
-  /** Zadnja dejanska nabavna cena iz prejemnice (neto ali bruto, gl. zadnjaVrstaCen) @nullable */
-  zadnjaNabavnaCena?: number | null;
-  /** Vrsta cene zadnje nabavne cene: 'neto' | 'bruto' @nullable */
-  zadnjaVrstaCen?: string | null;
   zadnjaPosodobitev: string;
 }
 
 export type ZalogaGibPogledTip = typeof ZalogaGibPogledTip[keyof typeof ZalogaGibPogledTip];
 
+
 export const ZalogaGibPogledTip = {
   prejemnica: 'prejemnica',
   inventura: 'inventura',
   poraba: 'poraba',
-  izdajnica: 'izdajnica',
-  storno: 'storno',
 } as const;
 
 export interface ZalogaGibPogled {
@@ -1299,28 +1266,11 @@ export interface ZalogaGibPogled {
   artikelIme: string;
   tip: ZalogaGibPogledTip;
   kolicina: number;
-  /** Povprečna nabavna cena na enoto v trenutku gibanja @nullable */
-  cenaKos?: number | null;
-  /** Vrednost gibanja = kolicina × cenaKos @nullable */
-  vrednost?: number | null;
-  /** Tekoča zaloga v količini po tem gibanju */
-  stanjeKolicina?: number;
-  /** Tekoča vrednost zaloge po tem gibanju @nullable */
-  stanjeVrednost?: number | null;
-  /** Tekoča povprečna cena po tem gibanju @nullable */
-  stanjePovprecnaCena?: number | null;
   /** @nullable */
   opomba?: string | null;
   /** @nullable */
   referencaId?: number | null;
   ustvarjeno: string;
-  datumDokumenta?: string;
-  /** Interna številka prejemnice (samo za tip='prejemnica') @nullable */
-  prejStevilka?: string | null;
-  /** Kratki naziv ali naziv dobavitelja (samo za tip='prejemnica') @nullable */
-  dobaviteljNaziv?: string | null;
-  /** Interna številka izdajnice (samo za tip='izdajnica') @nullable */
-  izdStevilka?: string | null;
 }
 
 export interface KarticaArtikla {
@@ -1332,29 +1282,33 @@ export interface KarticaArtikla {
   enotaMere?: string | null;
   /** @nullable */
   cena?: number | null;
-  /** Drseča tehtana povprečna nabavna cena (WAC) @nullable */
-  povprecnaCena?: number | null;
-  /** @deprecated use povprecnaCena @nullable */
+  /** @nullable */
   zadnjaCena?: number | null;
   kolicina: number;
-  /** Skupna vrednost zaloge @nullable */
+  /** @nullable */
   vrednost?: number | null;
-  skupnaVrednost?: number | null;
   gibi: ZalogaGibPogled[];
 }
+
+export type PrejemnicaUrediVnosVrstaCen = typeof PrejemnicaUrediVnosVrstaCen[keyof typeof PrejemnicaUrediVnosVrstaCen];
+
+
+export const PrejemnicaUrediVnosVrstaCen = {
+  neto: 'neto',
+  bruto: 'bruto',
+} as const;
 
 export interface PrejemnicaPostavkaInput {
   artikelId: number;
   kolicina: number;
   cenaKos?: number;
-  enotVPaketu?: number;
 }
 
 export interface PrejemnicaUrediVnos {
   datum?: string;
   /** @nullable */
   opomba?: string | null;
-  vrstaCen?: 'neto' | 'bruto';
+  vrstaCen?: PrejemnicaUrediVnosVrstaCen;
   postavke?: PrejemnicaPostavkaInput[];
 }
 
@@ -1393,8 +1347,15 @@ export interface PrejemnicaPostavkaPogled {
   kolicina: number;
   cenaKos: number;
   skupaj: number;
-  enotVPaketu?: number;
 }
+
+export type PrejemnicaFullVrstaCen = typeof PrejemnicaFullVrstaCen[keyof typeof PrejemnicaFullVrstaCen];
+
+
+export const PrejemnicaFullVrstaCen = {
+  neto: 'neto',
+  bruto: 'bruto',
+} as const;
 
 export interface PrejemnicaFull {
   id: number;
@@ -1403,16 +1364,24 @@ export interface PrejemnicaFull {
   datum: string;
   /** @nullable */
   opomba?: string | null;
-  vrstaCen: 'neto' | 'bruto';
+  vrstaCen: PrejemnicaFullVrstaCen;
   skupajVrednost: number;
   ustvarjeno: string;
   postavke: PrejemnicaPostavkaPogled[];
 }
 
+export type PrejemnicaInputVrstaCen = typeof PrejemnicaInputVrstaCen[keyof typeof PrejemnicaInputVrstaCen];
+
+
+export const PrejemnicaInputVrstaCen = {
+  neto: 'neto',
+  bruto: 'bruto',
+} as const;
+
 export interface PrejemnicaInput {
   datum?: string;
   opomba?: string;
-  vrstaCen?: 'neto' | 'bruto';
+  vrstaCen?: PrejemnicaInputVrstaCen;
   postavke: PrejemnicaPostavkaInput[];
 }
 
@@ -3777,8 +3746,6 @@ export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
   accountType: string;
-  openingBalanceDebit: string;
-  openingBalanceCredit: string;
   turnoverDebit: string;
   turnoverCredit: string;
   balanceDebit: string;
@@ -4247,56 +4214,4 @@ export type RegisterDocumentBody = {
   mimeType: string;
   fileSizeBytes?: number;
 };
-
-export interface IzdajnicaPostavkaInput {
-  artikelId: number;
-  kolicina: number;
-}
-
-export interface IzdajnicaInput {
-  datum?: string;
-  /** @nullable */
-  opomba?: string | null;
-  postavke: IzdajnicaPostavkaInput[];
-}
-
-export interface IzdajnicaUrediVnos {
-  datum?: string;
-  /** @nullable */
-  opomba?: string | null;
-  postavke?: IzdajnicaPostavkaInput[];
-}
-
-export interface IzdajnicaPostavkaPogled {
-  id: number;
-  artikelId: number;
-  artikelIme: string;
-  /** @nullable */
-  imeZaNabavo?: string | null;
-  /** @nullable */
-  enotaMere?: string | null;
-  kolicina: number;
-}
-
-export interface IzdajnicaGlava {
-  id: number;
-  /** @nullable */
-  stevilka?: string | null;
-  datum: string;
-  /** @nullable */
-  opomba?: string | null;
-  ustvarjeno: string;
-  steviloPostavk: number;
-}
-
-export interface IzdajnicaFull {
-  id: number;
-  /** @nullable */
-  stevilka?: string | null;
-  datum: string;
-  /** @nullable */
-  opomba?: string | null;
-  ustvarjeno: string;
-  postavke: IzdajnicaPostavkaPogled[];
-}
 
