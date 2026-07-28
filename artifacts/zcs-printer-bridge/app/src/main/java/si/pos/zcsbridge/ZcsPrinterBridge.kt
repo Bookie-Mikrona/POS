@@ -401,7 +401,7 @@ class ZcsPrinterBridge(private val context: Context) {
                 }
             }
 
-            Log.i(TAG, "printText: zaključeno, qrBitmap=$qrOk")
+            Log.i(TAG, "printText: zaključeno")
             PrintResult.ok()
         } catch (e: Exception) {
             Log.e(TAG, "ZCS printText napaka: ${e.message}", e)
