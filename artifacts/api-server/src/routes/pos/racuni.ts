@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, isNull, ne, or, sql, sum } from "drizzle-orm";
-import { blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, tiskalneNalogeTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, blagajneTable, db, enoteTable, izmeneTable, mizeTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, partnerCenikiTable, postavkeTable, racuniTable, tiskalneNalogeTable, vivaVracilaTable, zalogaGibiTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { syncPosBookingForDay } from "../../lib/posSyncBooking";
@@ -204,18 +204,55 @@ router.post("/racuni", async (req, res): Promise<void> => {
     }
   }
 
-  // Preračunamo skupaj/ddv — za postavke s partnerskim cenikom zamenjamo ceno
-  const skupajIzPostavk = round2(selectedPostavke.reduce((acc, p) => {
+  // Bon za pico — izračun efektivnega popusta na pokrite pice (sortirano od najdražje)
+  const steviloBonov = (parsed.data as { steviloBonov?: number | null }).steviloBonov ?? 0;
+  const bonPicaPopustMap = new Map<number, { reducedAmount: number; pokriteKol: number }>();
+  if (steviloBonov > 0) {
+    const artikelIdsVPostavkah = (selectedPostavke as any[])
+      .map((p: any) => p.artikelId)
+      .filter((id: any): id is number => id != null);
+    const pizzaArtikliSet = new Set<number>();
+    if (artikelIdsVPostavkah.length > 0) {
+      const pizzaArtikli = await db.select({ id: artikliTable.id })
+        .from(artikliTable)
+        .where(and(inArray(artikliTable.id, artikelIdsVPostavkah), eq(artikliTable.jePica, true)));
+      for (const a of pizzaArtikli) pizzaArtikliSet.add(a.id);
+    }
+    type PicaUnit = { postavkaId: number; cenaKos: number };
+    const piceSeznam: PicaUnit[] = [];
+    for (const p of selectedPostavke as any[]) {
+      if (p.artikelId != null && pizzaArtikliSet.has(p.artikelId) && Number(p.kolicina) > 0) {
+        for (let i = 0; i < Number(p.kolicina); i++) {
+          piceSeznam.push({ postavkaId: p.id, cenaKos: Number(p.cenaKos) });
+        }
+      }
+    }
+    piceSeznam.sort((a, b) => b.cenaKos - a.cenaKos);
+    for (const pica of piceSeznam.slice(0, steviloBonov)) {
+      if (pica.cenaKos <= 0) continue;
+      const ex = bonPicaPopustMap.get(pica.postavkaId);
+      if (ex) { ex.reducedAmount += pica.cenaKos; ex.pokriteKol += 1; }
+      else bonPicaPopustMap.set(pica.postavkaId, { reducedAmount: pica.cenaKos, pokriteKol: 1 });
+    }
+  }
+
+  // Preračunamo skupaj/ddv — za postavke s partnerskim cenikom zamenjamo ceno;
+  // za pokrite pice upoštevamo bon za pico popust (skupaj zmanjšan za vrednost pokritih enot)
+  const jeReprezentancaAliLastna = ["reprezentanca", "lastna_poraba"].includes(parsed.data.placilnaNacin);
+  const skupajIzPostavk = round2((selectedPostavke as any[]).reduce((acc: number, p: any) => {
     const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
-    const vsota = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
+    let vsota = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
+    const bonPopust = bonPicaPopustMap.get(p.id);
+    if (bonPopust) vsota = Math.max(0, vsota - bonPopust.reducedAmount);
     return acc + vsota;
   }, 0));
   // Za reprezentanco in lastno porabo: skupaj = 0 (100% popust, brezplačno),
   // ddv in osnova pa ostaneta iz originalnih cen — za prikaz na računu in FURS TaxesPerSeller.
-  const jeReprezentancaAliLastna = ["reprezentanca", "lastna_poraba"].includes(parsed.data.placilnaNacin);
-  const ddv = round2(selectedPostavke.reduce((acc, p) => {
+  const ddv = round2((selectedPostavke as any[]).reduce((acc: number, p: any) => {
     const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
-    const vsota = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
+    let vsota = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
+    const bonPopust = bonPicaPopustMap.get(p.id);
+    if (bonPopust) vsota = Math.max(0, vsota - bonPopust.reducedAmount);
     return acc + izracunajDDVZaokrozen(vsota, Number(p.davek));
   }, 0));
   const osnova = round2(skupajIzPostavk - ddv);
@@ -226,7 +263,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
 
   // DDV consistency check — preskoči kadar je aktiven partnerski cenik ali reprezentanca/lastna_poraba
   const jeNadaljevanje = allPostavke.some(p => p.racunId !== null);
-  if (!jeDelni && !jeNadaljevanje && !partnerCenikMap && !jeReprezentancaAliLastna) {
+  if (!jeDelni && !jeNadaljevanje && !partnerCenikMap && !jeReprezentancaAliLastna && steviloBonov === 0) {
     const narociloSkupaj = Number(narocilo.skupaj);
     try {
       preveriSkupajKonsistentnost(osnova, ddv, narociloSkupaj);
@@ -369,14 +406,22 @@ router.post("/racuni", async (req, res): Promise<void> => {
         skupaj,
         ddv,
         placilnaNacin: (["negotovinsko", "reprezentanca", "lastna_poraba"].includes(parsed.data.placilnaNacin) ? "other" : parsed.data.placilnaNacin) as "gotovina" | "kartica" | "bon" | "other",
-        postavke: selectedPostavke.map((p) => {
-          const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
-          return {
-            ime: p.ime,
-            kolicina: p.kolicina,
-            cenaKos: customCena !== undefined ? customCena : Number(p.cenaKos),
-            davek: Number(p.davek)};
-        }),
+        postavke: (() => {
+          const result: Array<{ ime: string; kolicina: number; cenaKos: number; davek: number }> = [];
+          for (const p of selectedPostavke as any[]) {
+            const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+            const origCena = customCena !== undefined ? customCena : Number(p.cenaKos);
+            const bonPopust = bonPicaPopustMap.get(p.id);
+            if (bonPopust && bonPopust.reducedAmount > 0 && origCena > 0) {
+              const placaneKol = Number(p.kolicina) - bonPopust.pokriteKol;
+              if (placaneKol > 0) result.push({ ime: p.ime, kolicina: placaneKol, cenaKos: origCena, davek: Number(p.davek) });
+              result.push({ ime: p.ime, kolicina: bonPopust.pokriteKol, cenaKos: 0, davek: Number(p.davek) });
+            } else {
+              result.push({ ime: p.ime, kolicina: Number(p.kolicina), cenaKos: origCena, davek: Number(p.davek) });
+            }
+          }
+          return result;
+        })(),
         davcnaStevilka: nastavitve.davcnaStevilka,
         poslovnaProstor: activePP,
         blagajnaId: activeBId,
@@ -1271,18 +1316,22 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
   const steviloPrintov = updated?.steviloPrintov ?? 1;
 
   // ── 2. Vzporedne poizvedbe ──────────────────────────────────────────────────
-  const [postavke, nastavitveMap, enotaRow] = await Promise.all([
+  const [postavkeRawZcs, nastavitveMap, enotaRow] = await Promise.all([
     db.select({
       id: postavkeTable.id, ime: postavkeTable.ime, kolicina: postavkeTable.kolicina,
       cenaKos: postavkeTable.cenaKos, cenaKosOriginalna: postavkeTable.cenaKosOriginalna,
       skupaj: postavkeTable.skupaj, davek: postavkeTable.davek,
       opomba: postavkeTable.opomba, parentPostavkaId: postavkeTable.parentPostavkaId,
+      artikelId: postavkeTable.artikelId,
     }).from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
     readAllWithFallback(tenotaId),
     db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
   ]);
   const nav = toResponse(nastavitveMap);
   const enotaOpis = enotaRow[0]?.opis ?? null;
+
+  // Prilagodi postavke za bon za pico (pokrite pice → cenaKos=0, DDV razrez bo pravilen)
+  const postavke = await buildBonPicaAdjustedPostavke(postavkeRawZcs as any, racunRaw.steviloBonov);
 
   // ── 3. Storno referenca ─────────────────────────────────────────────────────
   let stornoIzvornaRacunStevilka: string | null = null;
@@ -1340,8 +1389,8 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     znesekBonPica: racunRaw.znesekBonPica != null ? Number(racunRaw.znesekBonPica) : null,
     znesekNegotovinsko: racunRaw.znesekNegotovinsko != null ? Number(racunRaw.znesekNegotovinsko) : null,
     jeDdvZavezanec: (req as any).jeDdvZavezanec ?? true,
-    postavke: postavke.map(p => ({
-      postavkaId: p.id, ime: p.ime, kolicina: p.kolicina,
+    postavke: (postavke as any[]).map((p: any) => ({
+      postavkaId: p.id, ime: p.ime, kolicina: Number(p.kolicina),
       cenaKos: Number(p.cenaKos),
       cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
       skupaj: Number(p.skupaj), davek: Number(p.davek),
@@ -1425,7 +1474,7 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
   const steviloPrintovHtml = updatedHtml?.steviloPrintov ?? 1;
 
   // Naloži postavke, nastavitve in enoto vzporedno
-  const [postavke, nastavitveMap, enota] = await Promise.all([
+  const [postavkeRawHtml, nastavitveMap, enota] = await Promise.all([
     db.select({
       id: postavkeTable.id,
       ime: postavkeTable.ime,
@@ -1436,12 +1485,16 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       davek: postavkeTable.davek,
       opomba: postavkeTable.opomba,
       parentPostavkaId: postavkeTable.parentPostavkaId,
+      artikelId: postavkeTable.artikelId,
     }).from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
     readAllWithFallback(tenotaId),
     db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
   ]);
   const nav = toResponse(nastavitveMap);
   const enotaOpis = enota[0]?.opis ?? null;
+
+  // Prilagodi postavke za bon za pico (pokrite pice → cenaKos=0, DDV razrez bo pravilen)
+  const postavke = await buildBonPicaAdjustedPostavke(postavkeRawHtml as any, racun.steviloBonov);
 
   // Izvorni račun za storno — prikazano v glavi
   let stornoIzvornaRacunStevilka: string | null = null;
@@ -1462,10 +1515,10 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
     datum: datumCas,
     mizaStevilka: racun.mizaStevilka ?? null,
     natakarIme: racun.natakarIme ?? null,
-    postavke: postavke.map(p => ({
+    postavke: (postavke as any[]).map((p: any) => ({
       postavkaId: p.id,
       ime: p.ime,
-      kolicina: p.kolicina,
+      kolicina: Number(p.kolicina),
       cenaKos: Number(p.cenaKos),
       cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
       skupaj: Number(p.skupaj),
@@ -1565,6 +1618,53 @@ ${qrDataUrl ? `<div class="qr"><img src="${qrDataUrl}" width="180" height="180" 
 });
 
 // ── Pomožna funkcija za izgradnjo ESC/POS podatkov (deljeno med endpointi) ────
+/**
+ * Za tiskalniške izhode: prilagodi cenaKos/skupaj postavk pokritih z bon za pico.
+ * Pokrite pice dobijo cenaKos=0, skupaj=0, cenaKosOriginalna=original →
+ * escpos izpiše "100% popust" vrstico in pravilno izračuna DDV razrez po stopnjah.
+ */
+async function buildBonPicaAdjustedPostavke(
+  postavke: Array<{ id: number; artikelId?: number | null; kolicina: number; cenaKos: unknown; skupaj: unknown; cenaKosOriginalna?: unknown; [k: string]: unknown }>,
+  steviloBonov: number | null | undefined,
+): Promise<typeof postavke> {
+  if (!steviloBonov || steviloBonov <= 0) return postavke;
+  const artikelIds = postavke.map(p => p.artikelId).filter((id): id is number => id != null);
+  const pizzaSet = new Set<number>();
+  if (artikelIds.length > 0) {
+    const pizzaArtikli = await db.select({ id: artikliTable.id })
+      .from(artikliTable)
+      .where(and(inArray(artikliTable.id, artikelIds), eq(artikliTable.jePica, true)));
+    for (const a of pizzaArtikli) pizzaSet.add(a.id);
+  }
+  type Unit = { postavkaId: number; cenaKos: number };
+  const units: Unit[] = [];
+  for (const p of postavke) {
+    if (p.artikelId != null && pizzaSet.has(p.artikelId) && Number(p.kolicina) > 0) {
+      for (let i = 0; i < Number(p.kolicina); i++) {
+        units.push({ postavkaId: p.id, cenaKos: Number(p.cenaKos) });
+      }
+    }
+  }
+  units.sort((a, b) => b.cenaKos - a.cenaKos);
+  const coveredMap = new Map<number, number>();
+  for (const u of units.slice(0, steviloBonov)) {
+    if (u.cenaKos <= 0) continue;
+    coveredMap.set(u.postavkaId, (coveredMap.get(u.postavkaId) ?? 0) + 1);
+  }
+  return postavke.map(p => {
+    const covered = coveredMap.get(p.id) ?? 0;
+    if (covered <= 0) return p;
+    const origCena = Number(p.cenaKos);
+    const paidKol = Number(p.kolicina) - covered;
+    if (covered >= Number(p.kolicina)) {
+      return { ...p, cenaKos: 0, skupaj: 0, cenaKosOriginalna: origCena };
+    } else {
+      const newSkupaj = Math.round(paidKol * origCena * 100) / 100;
+      return { ...p, skupaj: newSkupaj };
+    }
+  });
+}
+
 async function buildEscPosData(id: number, tenotaId: number, jeDdvZavezanec = true) {
   const [racunRaw] = await db
     .select({ ...baseSelect, kupecZavezanecDdv: racuniTable.kupecZavezanecDdv })
@@ -1582,12 +1682,15 @@ async function buildEscPosData(id: number, tenotaId: number, jeDdvZavezanec = tr
     .returning({ steviloPrintov: racuniTable.steviloPrintov });
   const steviloPrintov = updatedEsc?.steviloPrintov ?? 1;
 
-  const [postavke, nastavitveMap, enotaRow] = await Promise.all([
+  const [postavkeRaw, nastavitveMap, enotaRow] = await Promise.all([
     db.select().from(postavkeTable).where(eq(postavkeTable.racunId, id)).orderBy(postavkeTable.id),
     readAllWithFallback(tenotaId),
     db.select({ opis: enoteTable.opis }).from(enoteTable).where(eq(enoteTable.id, tenotaId)).limit(1),
   ]);
   const nav = toResponse(nastavitveMap);
+
+  // Prilagodi postavke za bon za pico (pokrite pice → cenaKos=0, DDV razrez bo pravilen)
+  const postavke = await buildBonPicaAdjustedPostavke(postavkeRaw as any, racunRaw.steviloBonov);
 
   let stornoIzvornaRacunStevilka: string | null = null;
   if (racunRaw.jeStorno && racunRaw.izvorniRacunId) {

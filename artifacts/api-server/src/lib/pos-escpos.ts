@@ -391,7 +391,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
   if (data.mizaStevilka) line(twoColumns("Miza:", String(data.mizaStevilka), cols));
   if (data.natakarIme) line(twoColumns("Natakar:", data.natakarIme.slice(0, 20), cols));
 
-  // Boni (z odbitkom) — samo kadar obstajajo
+  // Boni — bon za pico je informativna vrstica (skupaj je že zmanjšan za bon za pico)
   const bonPicaZn = data.znesekBonPica ?? 0;
   const bonZn = data.znesekBon ?? 0;
   const imaBone = bonPicaZn > 0 || bonZn > 0;
@@ -400,10 +400,12 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
     if (bonPicaZn > 0) line(twoColumns(`Bon za pico${data.steviloBonov ? ` (${data.steviloBonov}×)` : ""}:`, `-${bonPicaZn.toFixed(2)} €`, cols));
     if (bonZn > 0) line(twoColumns("Darilni bon:", `-${bonZn.toFixed(2)} €`, cols));
 
-    // Ostane za plačilo — samo kadar so boni
-    line("");
-    const ostaneZaPlacilo = data.skupaj - bonPicaZn - bonZn;
-    line(twoColumns("Ostane za plačilo:", `${ostaneZaPlacilo.toFixed(2)} €`, cols), true);
+    // Ostane za plačilo — samo kadar je darilni bon (skupaj je že neto, bon za pico je samo info)
+    if (bonZn > 0) {
+      line("");
+      const ostaneZaPlacilo = Math.max(0, data.skupaj - bonZn);
+      line(twoColumns("Ostane za plačilo:", `${ostaneZaPlacilo.toFixed(2)} €`, cols), true);
+    }
   }
 
   // Vrsta plačila
@@ -714,7 +716,7 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
   if (data.mizaStevilka) line(twoColumns("Miza:", String(data.mizaStevilka), cols));
   if (data.natakarIme) line(twoColumns("Natakar:", data.natakarIme.slice(0, 20), cols));
 
-  // Boni (z odbitkom)
+  // Boni — bon za pico je informativna vrstica (skupaj je že zmanjšan za bon za pico)
   const bonPicaZnEsc = data.znesekBonPica ?? 0;
   const bonZnEsc = data.znesekBon ?? 0;
   const imaBoneEsc = bonPicaZnEsc > 0 || bonZnEsc > 0;
@@ -723,12 +725,14 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
     if (bonPicaZnEsc > 0) line(twoColumns(`Bon za pico${data.steviloBonov ? ` (${data.steviloBonov}×)` : ""}:`, `-${bonPicaZnEsc.toFixed(2)} €`, cols));
     if (bonZnEsc > 0) line(twoColumns("Darilni bon:", `-${bonZnEsc.toFixed(2)} €`, cols));
 
-    // Ostane za plačilo — samo kadar so boni
-    empty();
-    const ostaneZaPlacilo = data.skupaj - bonPicaZnEsc - bonZnEsc;
-    bytes(CMD.BOLD_ON);
-    line(twoColumns("Ostane za plačilo:", `${ostaneZaPlacilo.toFixed(2)} €`, cols));
-    bytes(CMD.BOLD_OFF);
+    // Ostane za plačilo — samo kadar je darilni bon (skupaj je že neto, bon za pico je samo info)
+    if (bonZnEsc > 0) {
+      empty();
+      const ostaneZaPlacilo = Math.max(0, data.skupaj - bonZnEsc);
+      bytes(CMD.BOLD_ON);
+      line(twoColumns("Ostane za plačilo:", `${ostaneZaPlacilo.toFixed(2)} €`, cols));
+      bytes(CMD.BOLD_OFF);
+    }
   }
 
   // Vrsta plačila

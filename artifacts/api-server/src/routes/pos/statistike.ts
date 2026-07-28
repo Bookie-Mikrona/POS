@@ -57,7 +57,8 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
   const [skupni] = await db.select({ skupaj: sum(racuniTable.skupaj), stevilo: count(racuniTable.id), ddv: sum(racuniTable.ddv) })
     .from(racuniTable).where(podmeje);
 
-  const netSql = sql<string>`SUM(skupaj::numeric - COALESCE(znesek_bon_pica::numeric, 0))`;
+  // skupaj je že neto znesek (bon za pico popust je vključen v skupaj od spremembe junij 2025)
+  const netSql = sql<string>`SUM(skupaj::numeric)`;
   const [gtv] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "gotovina")));
   const [bon] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "bon")));
   const [krtSumup] = await db.select({ skupaj: netSql }).from(racuniTable).where(and(podmeje, eq(racuniTable.placilnaNacin, "kartica"), isNotNull(racuniTable.sumupCheckoutId)));
@@ -118,10 +119,10 @@ router.get("/statistike/promet-obdobja", async (req, res): Promise<void> => {
     SELECT
       COALESCE(natakar_ime, '—') AS natakar_ime,
       SUM(skupaj::numeric) AS skupaj,
-      SUM(CASE WHEN placilna_nacin = 'gotovina' THEN skupaj::numeric - COALESCE(znesek_bon_pica::numeric, 0) ELSE 0 END) AS gotovina,
-      SUM(CASE WHEN placilna_nacin = 'kartica' AND sumup_checkout_id IS NULL THEN skupaj::numeric - COALESCE(znesek_bon_pica::numeric, 0) ELSE 0 END) AS kartica,
-      SUM(CASE WHEN placilna_nacin = 'kartica' AND sumup_checkout_id IS NOT NULL THEN skupaj::numeric - COALESCE(znesek_bon_pica::numeric, 0) ELSE 0 END) AS sumup,
-      SUM(CASE WHEN placilna_nacin = 'bon' THEN skupaj::numeric - COALESCE(znesek_bon_pica::numeric, 0) ELSE 0 END) AS bon,
+      SUM(CASE WHEN placilna_nacin = 'gotovina' THEN skupaj::numeric ELSE 0 END) AS gotovina,
+      SUM(CASE WHEN placilna_nacin = 'kartica' AND sumup_checkout_id IS NULL THEN skupaj::numeric ELSE 0 END) AS kartica,
+      SUM(CASE WHEN placilna_nacin = 'kartica' AND sumup_checkout_id IS NOT NULL THEN skupaj::numeric ELSE 0 END) AS sumup,
+      SUM(CASE WHEN placilna_nacin = 'bon' THEN skupaj::numeric ELSE 0 END) AS bon,
       COALESCE(SUM(znesek_bon_pica::numeric), 0) AS bon_pica,
       COALESCE(SUM(stevilo_bonov), 0)::int AS stevilo_bonov_pica,
       COUNT(*)::int AS stevilo_racunov
@@ -278,7 +279,7 @@ router.get("/statistike", async (req, res): Promise<void> => {
     .orderBy(desc(count(postavkeTable.id)))
     .limit(5);
 
-  const netSqlDnevni = sql<string>`SUM(skupaj::numeric - COALESCE(znesek_bon_pica::numeric, 0))`;
+  const netSqlDnevni = sql<string>`SUM(skupaj::numeric)`;
   const dnevniPogoj = and(gte(racuniTable.ustvarjeno, startOfDay), sql`true`, eq(racuniTable.enotaId, tenotaId));
 
   const [gotovina] = await db
