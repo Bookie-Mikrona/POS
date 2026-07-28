@@ -1,0 +1,94 @@
+PS D:\zcs-printer-bridge\artifacts\zcs-printer-bridge> .\gradlew.bat assembleDebug --no-daemon
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+
+Daemon will be stopped at the end of the build
+
+> Task :app:compileDebugKotlin
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt:23:7 Redeclaration:
+class ZcsPrinterBridge : Any
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt:380:12 Redeclaration:
+data class PrintResult : Any
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:25:7 Redeclaration:
+class ZcsPrinterBridge : Any
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:60:9 Unresolved reference 'deviceFilePath'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:60:26 Unresolved reference 'tryFindDeviceFile'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:61:13 Unresolved reference 'deviceFilePath'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:62:65 Unresolved reference 'deviceFilePath'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:68:13 Unresolved reference 'tryInitDriverManager'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:72:17 Unresolved reference 'tryInitDriverManager'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:76:13 Unresolved reference 'tryExtractAndLoadFromInstalledApk'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:77:17 Unresolved reference 'tryInitDriverManager'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:81:9 Unresolved reference 'logDiagnostics'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:90:26 Unresolved reference 'DEVICE_FILE_PATHS'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:90:61 Overload resolution ambiguity between candidates:
+constructor(@RecentlyNonNull() p0: String!): File
+constructor(@RecentlyNonNull() p0: URI!): File
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:90:66 Unresolved reference 'it'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:90:70 Unresolved reference 'exists'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:91:75 Argument type mismatch: actual type is 'kotlin.collections.List<kotlin.String>', but 'kotlin.sequences.Sequence<T>' was expected.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:93:22 Method 'iterator()' is ambiguous for this expression. Applicable candidates:
+fun <T> Enumeration<T>.iterator(): Iterator<T>
+@InlineOnly() fun <T> Iterator<T>.iterator(): Iterator<T>
+@InlineOnly() fun <K, V> Map<out K, V>.iterator(): Iterator<Map.Entry<K, V>>
+@JvmName(...) @InlineOnly() fun <K, V> MutableMap<K, V>.iterator(): MutableIterator<MutableMap.MutableEntry<K, V>>
+fun CharSequence.iterator(): CharIterator
+fun BufferedInputStream.iterator(): ByteIterator
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:96:25 Overload resolution ambiguity between candidates:
+constructor(p0: String!, p1: Boolean): FileOutputStream
+constructor(p0: File!, p1: Boolean): FileOutputStream
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:96:54 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+@InlineOnly() fun <T : Closeable?, R> T.use(block: (T) -> R): R
+    [R|Contract description]
+     <
+        CallsInPlace(block, EXACTLY_ONCE)
+    >
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:96:58 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:271:9 Unresolved reference 'deviceFilePath'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:271:31 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:272:13 'return' is prohibited here.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:273:25 Overload resolution ambiguity between candidates:
+constructor(p0: String!, p1: Boolean): FileOutputStream
+constructor(p0: File!, p1: Boolean): FileOutputStream
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:273:54 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+@InlineOnly() fun <T : Closeable?, R> T.use(block: (T) -> R): R
+    [R|Contract description]
+     <
+        CallsInPlace(block, EXACTLY_ONCE)
+    >
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:273:58 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:273:63 Unresolved reference 'write'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:337:9 Unresolved reference 'deviceFilePath'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:337:31 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:338:13 'return' is prohibited here.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:338:20 Unresolved reference 'printTextViaDeviceFile'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:502:9 Unresolved reference 'deviceFilePath'.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:502:29 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:502:31 'return' is prohibited here.
+e: file:///D:/zcs-printer-bridge/artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridgeold.kt:586:12 Redeclaration:
+data class PrintResult : Any
+
+> Task :app:compileDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 47s
+32 actionable tasks: 1 executed, 31 up-to-date
+PS D:\zcs-printer-bridge\artifacts\zcs-printer-bridge> adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb : The term 'adb' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the s
+pelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ adb install -r app\build\outputs\apk\debug\app-debug.apk
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (adb:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
