@@ -1,8 +1,13 @@
 package si.pos.zcsbridge
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.text.Layout
 import android.util.Log
+import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import com.zcs.sdk.DriverManager
 import com.zcs.sdk.SdkResult
@@ -561,34 +566,36 @@ class ZcsPrinterBridge(private val context: Context) {
         printer.setPrintStart()
 
         val barcodeH = 40  // skupna višina črtne kode
-        val stripH   = 15  // vrstic na klic (15 × 48 B = 720 B — pod SDK limitom)
+        val stripH   = 15  // vrstic na klic
 
         for ((idx, part) in parts.withIndex()) {
-            val raw = generateCode128BBitmap(part, height = barcodeH)
-            if (raw == null) {
+            val bmp = generateCode128BBitmap(part, height = barcodeH)
+            if (bmp == null) {
                 Log.w(TAG, "ZOI Code128 pas ${idx+1}: generiranje ni uspelo")
             } else {
-                // Razreži v pasove in vsak ovij z BMP glavo (SDK pričakuje BMP format)
-                val rowB = PRINTER_DOTS / 8
+                // Razreži Bitmap v pasove; vsak pas stisni v PNG in pošlji SDK-ju
                 var y = 0
-                while (y < barcodeH) {
-                    val h     = minOf(stripH, barcodeH - y)
-                    val strip = raw.copyOfRange(y * rowB, (y + h) * rowB)
-                    printer.setPrintBitmap(wrapAsBmp(strip, PRINTER_DOTS, h))
+                while (y < bmp.height) {
+                    val h     = minOf(stripH, bmp.height - y)
+                    val strip = Bitmap.createBitmap(bmp, 0, y, bmp.width, h)
+                    val png   = ByteArrayOutputStream().also {
+                        strip.compress(Bitmap.CompressFormat.PNG, 100, it)
+                    }.toByteArray()
+                    printer.setPrintBitmap(png)
                     printer.setPrintStart()
                     y += h
                 }
-                Log.i(TAG, "ZOI Code128 pas ${idx+1}: '$part' → ${barcodeH} vrstic, ${raw.size} B")
+                Log.i(TAG, "ZOI Code128 pas ${idx+1}: '$part' → ${bmp.width}×${bmp.height}")
             }
         }
     }
 
     /**
-     * Generira Code 128B črtno kodo kot surovi monokromatski ByteArray.
+     * Generira Code 128B črtno kodo kot Android Bitmap (ARGB_8888).
      * Vsak modul je 2 pike širok (boljša čitljivost).
-     * Vrne ByteArray (printerDots/8 × height bajtov) ali null pri napaki.
+     * Vrne Bitmap (printerDots × height px) ali null pri napaki.
      */
-    private fun generateCode128BBitmap(content: String, height: Int = 40, printerDots: Int = PRINTER_DOTS): ByteArray? {
+    private fun generateCode128BBitmap(content: String, height: Int = 40, printerDots: Int = PRINTER_DOTS): Bitmap? {
         // Code 128 simbolni vzorci (6 širin: B1,S1,B2,S2,B3,S3; seštevek=11)
         val P = arrayOf(
             ia(2,1,2,2,2,2), ia(2,2,2,1,2,2), ia(2,2,2,2,2,1), ia(1,2,1,2,2,3), ia(1,2,1,3,2,2),
@@ -645,47 +652,18 @@ class ZcsPrinterBridge(private val context: Context) {
             Log.w(TAG, "Code128 pre-široko: $totalDots > $printerDots za '${content}'")
             return null
         }
-        val rowBytes = printerDots / 8
-        val xOff     = (printerDots - totalDots) / 2
-        val raw      = ByteArray(rowBytes * height)
+        val xOff = (printerDots - totalDots) / 2
+        val bmp  = Bitmap.createBitmap(printerDots, height, Bitmap.Config.ARGB_8888)
+        val cv   = Canvas(bmp)
+        val p    = Paint().apply { isAntiAlias = false }
+        cv.drawColor(Color.WHITE)
+        p.color = Color.BLACK
         for ((x, on) in bits.withIndex()) {
-            if (on) {
-                val dot = xOff + x
-                for (y in 0 until height) {
-                    val bi = y * rowBytes + dot / 8
-                    raw[bi] = (raw[bi].toInt() or (1 shl (7 - dot % 8))).toByte()
-                }
-            }
+            if (on) cv.drawRect(
+                (xOff + x).toFloat(), 0f,
+                (xOff + x + 1).toFloat(), height.toFloat(), p)
         }
-        return raw
-    }
-
-    /**
-     * Ovij surove monokromatske bajte v 1bpp BMP datoteko.
-     * ZCS SDK setPrintBitmap(ByteArray) pričakuje BMP format z glavo.
-     * Podatki so top-down (negativna višina v BMP glavi).
-     */
-    private fun wrapAsBmp(raw: ByteArray, width: Int, height: Int): ByteArray {
-        val rowStride  = (width + 7) / 8        // bajtov na vrstico (že poravnano na 4)
-        val imgSize    = rowStride * height
-        val fileSize   = 62 + imgSize            // 14 + 40 + 8 + imgSize
-        val out        = java.io.ByteArrayOutputStream(fileSize)
-        fun i4(v: Int) { out.write(v and 0xFF); out.write((v shr 8) and 0xFF)
-                         out.write((v shr 16) and 0xFF); out.write((v shr 24) and 0xFF) }
-        fun i2(v: Int) { out.write(v and 0xFF); out.write((v shr 8) and 0xFF) }
-        // BITMAPFILEHEADER (14 B)
-        out.write('B'.code); out.write('M'.code)
-        i4(fileSize); i4(0); i4(62)
-        // BITMAPINFOHEADER (40 B)
-        i4(40); i4(width); i4(-height)   // negativna višina = top-down
-        i2(1); i2(1)                     // planes=1, bpp=1
-        i4(0); i4(imgSize); i4(0); i4(0); i4(2); i4(2)
-        // ColorTable: 0=črna, 1=bela
-        out.write(byteArrayOf(0, 0, 0, 0))
-        out.write(byteArrayOf(-1, -1, -1, 0))
-        // Pixel data
-        out.write(raw)
-        return out.toByteArray()
+        return bmp
     }
 
     private fun ia(vararg v: Int) = intArrayOf(*v)
