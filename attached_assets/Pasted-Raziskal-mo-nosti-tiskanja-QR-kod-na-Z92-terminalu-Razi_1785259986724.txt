@@ -1,0 +1,86 @@
+Raziskal možnosti tiskanja QR kod na Z92 terminalu
+Raziskal možnosti tiskanja QR kod na Z92 terminalu
+
+Za tvoj ERP kontekst (davčno potrjevanje računov) sta relevantni dve poti do QR kode na Z92 — nativni Android SDK, ki ga proizvajalec ZCS priloži k terminalu, in surove ESC/POS bajte. Z92 je Android 13 terminal z vgrajenim 58 mm termičnim tiskalnikom, tako da lahko izbereš katerokoli.
+
+Pot 1 — ZCS Android SDK (priporočena)
+
+ZCS dobavi Android SDK (AAR/JAR knjižnica) z razredom Printer oz. podobno, ki abstrahira ESC/POS ukaze. QR koda se natisne z eno klicno metodo:
+
+java
+// Psevdokoda tipičnega ZCS SDK pristopa
+Printer printer = DriverManager.getInstance().getPrinter();
+printer.setPrinter(Printer.ALIGN, Printer.ALIGN_CENTER);
+printer.setPrinter(Printer.LINE_SPACE, 40);
+
+// QR koda
+printer.setPrinter(Printer.QR_CODE_SIZE, 8);      // 3–16, velikost modula v pikah
+printer.setPrinter(Printer.QR_CODE_ERRORLEVEL, Printer.ERROR_CORRECT_M);
+printer.addQrCode(qrData);                          // string vsebine QR
+
+printer.feedPaper(60);
+printer.startPrint();
+
+Točne razrede in konstante najdeš v ZCS Z92 SDK dokumentaciji (proizvajalec jo pošlje po podpisu NDA ali objavi v developer portalu; kontaktiraj ZCS podporo za Z92 Android SDK v1.x). Prednost te poti je, da SDK samodejno pravilno inicializira tiskalnik in obravnava napake (out of paper, overheating).
+
+Pot 2 — Surovi ESC/POS bajti
+
+Če ne želiš odvisnosti od SDK-ja ali gre za več različnih tiskalnikov, gradi ESC/POS zaporedje. QR koda uporablja GS ( k ukaz (funkcija 165, 167, 169, 180, 181). Zaporedje petih ukazov:
+
+# 1) Model QR kode (Function 165)
+GS ( k pL pH cn fn n1 n2 = 1D 28 6B 04 00 31 41 32 00
+   (n1=50=Model 2, n2=00)
+
+# 2) Velikost modula (Function 167)
+GS ( k pL pH cn fn n = 1D 28 6B 03 00 31 43 <size>
+   <size> = 1..16 pik, tipično 6-8 za 58mm papir
+
+# 3) Nivo napake (Function 169)
+GS ( k pL pH cn fn n = 1D 28 6B 03 00 31 45 <ec>
+   <ec>: 48=L(7%), 49=M(15%), 50=Q(25%), 51=H(30%)
+   Za fiskalizacijo priporočam M ali Q.
+
+# 4) Shrani podatke (Function 180)
+GS ( k pL pH cn fn m d1..dk = 1D 28 6B <pL> <pH> 31 50 30 <data>
+   pL + pH * 256 = dolžina podatkov + 3
+
+# 5) Natisni (Function 181)
+GS ( k pL pH cn fn m = 1D 28 6B 03 00 31 51 30
+
+Python primer za pripravo bajtov:
+
+python
+def qr_bytes(data: str, size: int = 8, ec: int = 0x31) -> bytes:
+    payload = data.encode('utf-8')
+    pL = (len(payload) + 3) & 0xFF
+    pH = (len(payload) + 3) >> 8
+    return (
+        b'\x1D(k\x04\x001A\x32\x00'                    # model 2
+        + bytes([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, size])
+        + bytes([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, ec])
+        + bytes([0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30]) + payload
+        + b'\x1D(k\x03\x001Q0'                          # natisni
+    )
+
+Bajte pošlješ v tiskalnik prek Android OutputStream ali skozi ZCS raw print API (printer.sendData(bytes), kadar SDK to dovoli).
+
+Vsebina QR kode za slovensko davčno potrjevanje
+
+Ne pozabi, da QR koda na fiskaliziranem računu ni prosto oblikovana. FURS je z ZDavPR predpisala vsebino: URL za verifikacijo z ustreznimi parametri. Struktura je:
+
+https://blagajne.fu.gov.si/v1/cash_registers/{ZOI}{taxNumber}{datetime}{control}
+
+kjer je:
+
+ZOI — 32-znakovna zaščitna oznaka izdajatelja računa (MD5 hash podatkov o računu)
+taxNumber — 8-mestna davčna številka
+datetime — datum in ura izdaje v formatu YYMMDDHHMMSS (12 znakov)
+control — Luhnovo kontrolno število čez celoten niz
+
+Modul QR kode: minimalno M (15 %) korekcija napak, prakticno pa Q (25 %), ker se na 58 mm termičnem papirju QR hitro degradira, delno naprintan pa mora ostati čitljiv za FURS verifikacijo. Priporočena velikost modula na 58 mm papirju je 6–8 pik, kar da QR ok. 20–25 mm — dovolj za skeniranje s telefonom kupca (kontrolna funkcija FURS aplikacije »Preveri račun«).
+
+Ker imaš blagajne.fu.gov.si URL v QR kodi, preveri pred produkcijo, da si na aktualnem endpointu — FURS ga je v preteklosti že prestavil, a stara URL v QR še naprej deluje za zgodovinske račune. Točno strukturo Luhn kontrole in referenčno implementacijo najdeš v FURS tehnični dokumentaciji za davčno potrjevanje (edavki.durs.si → Tehnične informacije → Davčno potrjevanje računov).
+
+Praktični nasvet za tvoj ERP
+
+Priporočam hibridni pristop: primarni tiskalni sloj v Android aplikaciji uporablja ZCS SDK (najbolj zanesljiv, testiran s strani proizvajalca), pod tem pa imej abstrakcijski vmesnik IReceiptPrinter z metodami printQrCode(String data, QrOptions options), printText(...), feed(int lines), cut(). Ta abstrakcija ti omogoča, da isti aplikacijski sloj kasneje podpre tudi druge terminale (Sunmi V2, Newland N910, PAX A920) — vsak proizvajalec ima svoj SDK, a če se držiš vmesnika, je zamenjava vprašanje ene implementacije, ne prepisovanja POS aplikacije. To je pomembno, ker imajo tvoji gostinci pogosto različne modele terminalov.
