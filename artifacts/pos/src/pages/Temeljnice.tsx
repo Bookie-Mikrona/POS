@@ -90,12 +90,31 @@ export default function Temeljnice() {
       const data = await res.json() as { created?: string[]; skipped?: Array<{ ref: string; reason: string }> };
       if (!res.ok) throw new Error((data as any).error ?? "Napaka");
       const ustvarjenih = data.created?.length ?? 0;
-      toast({
-        title: ustvarjenih > 0 ? `Sinhronizirano (${ustvarjenih})` : "Ni sprememb",
-        description: ustvarjenih > 0
-          ? `Ustvarjeni osnutki: ${data.created?.join(", ")}`
-          : `Za ${syncDatum} ni bilo nič za sinhronizirati.`,
-      });
+      const preskocenih = data.skipped?.length ?? 0;
+
+      if (ustvarjenih > 0 && preskocenih === 0) {
+        toast({
+          title: `Sinhronizirano (${ustvarjenih})`,
+          description: `Ustvarjeni osnutki: ${data.created?.join(", ")}`,
+        });
+      } else if (ustvarjenih > 0 && preskocenih > 0) {
+        toast({
+          title: `Delno sinhronizirano (${ustvarjenih} ustvarjenih, ${preskocenih} preskočenih)`,
+          description: data.skipped?.map(s => `${s.ref}: ${s.reason}`).join("\n"),
+          variant: "destructive",
+        });
+      } else if (preskocenih > 0) {
+        toast({
+          title: `Temeljnice preskočene (${preskocenih})`,
+          description: data.skipped?.map(s => `• ${s.reason}`).join("\n"),
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Ni podatkov",
+          description: `Za ${syncDatum} v POS ni računov ali prejemnic.`,
+        });
+      }
       // Osveži seznam če je datum v filtriranem razponu
       if (syncDatum >= od && syncDatum <= do_) await isci();
     } catch (e: any) {
