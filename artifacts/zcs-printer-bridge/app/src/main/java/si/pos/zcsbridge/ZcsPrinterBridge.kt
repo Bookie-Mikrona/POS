@@ -390,8 +390,8 @@ class ZcsPrinterBridge(private val context: Context) {
             }
             Log.i(TAG, "printText: besedilo natisnjeno (${lines.size} vrstic skupaj)")
 
-            // Zaključi text batch — 1 prazna vrstica (~7 mm) + print
-            printer.setPrintAppendString(" ", format)
+            // Zaključi text batch — 2 prazni vrstici (~14 mm) + print
+            repeat(2) { printer.setPrintAppendString(" ", format) }
             printer.setPrintStart()
 
             // QR koda ali Code 128 prek nativnih ZCS SDK metod
