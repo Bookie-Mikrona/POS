@@ -331,12 +331,20 @@ class ZcsPrinterBridge(private val context: Context) {
             return PrintResult.error("ZCS tiskalnik ni na voljo")
         }
 
-        // Strategija A: napiši ESC/POS bajte neposredno na device datoteko
+        // Strategija A: napiši ESC/POS bajte neposredno na device datoteko.
+        // Re-check ob vsakem klicu — device datoteka postane dostopna šele po
+        // inicializaciji ZCS SDK, zato connect() je morda ni našel.
+        if (deviceFilePath == null) {
+            deviceFilePath = tryFindDeviceFile()
+            if (deviceFilePath != null) {
+                Log.i(TAG, "printText: device datoteka najdena ob tisku: $deviceFilePath — preklop na Strategijo A")
+            }
+        }
         deviceFilePath?.let { path ->
             return printTextViaDeviceFile(path, lines, formati, qrUrl, qrBase64)
         }
 
-        // Strategija B: ZCS SDK
+        // Strategija B: ZCS SDK (21cm fiksna dolžina — zadnja možnost)
         if (driverManager == null) {
             return PrintResult.error("ZCS SDK ni inicializiran")
         }
@@ -431,17 +439,20 @@ class ZcsPrinterBridge(private val context: Context) {
                 if (isBold) writeBytes(0x1B, 0x45, 0x00) // bold off
             }
 
-            // QR koda kot besedilo (rezervno)
+            // QR koda z ESC/POS GS(k ukazi
             if (!qrUrl.isNullOrBlank()) {
-                writeLn("")
-                writeBytes(0x1B, 0x61, 0x01) // center align
-                writeLn("QR:")
-                var pos = 0
-                while (pos < qrUrl.length) {
-                    writeLn(qrUrl.substring(pos, minOf(pos + 30, qrUrl.length)))
-                    pos += 30
-                }
-                writeBytes(0x1B, 0x61, 0x00) // left align
+                val bytes = qrUrl.toByteArray(Charsets.ISO_8859_1)
+                val dataLen = bytes.size + 3
+                val pL = dataLen and 0xFF
+                val pH = (dataLen shr 8) and 0xFF
+                writeBytes(0x1B, 0x61, 0x01)                              // center
+                writeBytes(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00) // model 2
+                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06)        // module 6
+                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30)        // error L
+                writeBytes(0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30)            // store data
+                out.write(bytes)
+                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30)        // print
+                writeBytes(0x1B, 0x61, 0x00)                              // left
             }
 
             // 4 prazne vrstice + odrez
