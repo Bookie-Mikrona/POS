@@ -337,7 +337,6 @@ export async function syncPosBookingForDay(
           datumWhere,
           statusOk,
           notInArray(racuniTable.placilnaNacin, ["lastna_poraba", "reprezentanca"]),
-          isNull(postavkeTable.parentPostavkaId),
         ),
       )
       .groupBy(postavkeTable.vrstaArtikla, postavkeTable.davek);
