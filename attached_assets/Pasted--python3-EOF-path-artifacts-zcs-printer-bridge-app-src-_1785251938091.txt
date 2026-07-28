@@ -1,0 +1,59 @@
+$ python3 - << 'EOF'
+path = "artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt"
+old = """            for ((i, line) in lines.withIndex()) {
+                val isBold = formati != null && i < formati.size && formati[i] == "B"
+                printer.setPrintAppendString(line, if (isBold) boldFormat else format)
+            }
+            val r1 = printer.setPrintStart()
+            Log.i(TAG, "printText: besedilo natisnjeno (koda $r1, ${lines.size} vrstic)")"""
+new = """            // ZCS SDK ima interno mejo bufferja (~45 vrstic). Natisnemo v sklopih po 40.
+            val BATCH_SIZE = 40
+            var batchStart = 0
+            var r1 = 0
+            while (batchStart < lines.size) {
+                val batchEnd = minOf(batchStart + BATCH_SIZE, lines.size)
+                for (i in batchStart until batchEnd) {
+                    val isBold = formati != null && i < formati.size && formati[i] == "B"
+                    printer.setPrintAppendString(lines[i], if (isBold) boldFormat else format)
+                }
+                r1 = printer.setPrintStart()
+                Log.i(TAG, "printText: sklop ${batchStart + 1}-$batchEnd natisnjeno (koda $r1)")
+                batchStart = batchEnd
+            }
+            Log.i(TAG, "printText: besedilo natisnjeno (${lines.size} vrstic skupaj)")"""
+content = open(path, encoding="utf-8").read()
+assert old in content, "Blok ni najden!"
+open(path, "w", encoding="utf-8").write(content.replace(old, new, 1))
+print("OK")
+EOF
+$ python3 - << 'EOF'
+path = "artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt"
+old = """            for ((i, line) in lines.withIndex()) {
+                val isBold = formati != null && i < formati.size && formati[i] == "B"
+                printer.setPrintAppendString(line, if (isBold) boldFormat else format)
+            }
+            val r1 = printer.setPrintStart()
+            Log.i(TAG, "printText: besedilo natisnjeno (koda $r1, ${lines.size} vrstic)")"""
+new = """            // ZCS SDK ima interno mejo bufferja (~45 vrstic). Natisnemo v sklopih po 40.
+            val BATCH_SIZE = 40
+            var batchStart = 0
+            var r1 = 0
+            while (batchStart < lines.size) {
+                val batchEnd = minOf(batchStart + BATCH_SIZE, lines.size)
+                for (i in batchStart until batchEnd) {
+                    val isBold = formati != null && i < formati.size && formati[i] == "B"
+                    printer.setPrintAppendString(lines[i], if (isBold) boldFormat else format)
+                }
+                r1 = printer.setPrintStart()
+                Log.i(TAG, "printText: sklop ${batchStart + 1}-$batchEnd natisnjeno (koda $r1)")
+                batchStart = batchEnd
+            }
+            Log.i(TAG, "printText: besedilo natisnjeno (${lines.size} vrstic skupaj)")"""
+content = open(path, encoding="utf-8").read()
+assert old in content, "Blok ni najden!"
+open(path, "w", encoding="utf-8").write(content.replace(old, new, 1))
+print("OK")
+EOF
+Python ni bilo mogo
+Aco@SERVER MINGW64 ~/POS (main)
+$
