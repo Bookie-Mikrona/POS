@@ -54,6 +54,8 @@ import {
   invoicesTable,
   invoiceLinesTable,
   counterpartiesTable,
+  zacetneZalogeTable,
+  zacetneZalogePostavkeTable,
 } from "@workspace/db";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
@@ -945,6 +947,56 @@ export async function syncPosBookingForDay(
       created.push(`POS:KIR:${datum} (${kirCount} invoice-ov)`);
     }
   })();
+
+  // ── Začetne zaloge (ZZ) — samo če datum sovpada z datumom vnosa ─────────────
+  {
+    const leto = parseInt(datum.slice(0, 4));
+    // Poišči začetne zaloge za enote tega podjetja z datumom = sync datum
+    const zzDocs = await db
+      .select({ id: zacetneZalogeTable.id, leto: zacetneZalogeTable.leto, datum: zacetneZalogeTable.datum })
+      .from(zacetneZalogeTable)
+      .where(
+        and(
+          inArray(zacetneZalogeTable.enotaId, enotaIds),
+          sql`${zacetneZalogeTable.datum}::date = ${datum}::date`,
+          eq(zacetneZalogeTable.leto, leto),
+        ),
+      );
+
+    for (const zz of zzDocs) {
+      const ref = `POS:ZZ:${zz.leto}`;
+      const zzPostavke = await db
+        .select({
+          vrstaArtikla: artikliTable.vrstaArtikla,
+          kolicina: zacetneZalogePostavkeTable.kolicina,
+          cenaKos: zacetneZalogePostavkeTable.cenaKos,
+        })
+        .from(zacetneZalogePostavkeTable)
+        .leftJoin(artikliTable, eq(artikliTable.id, zacetneZalogePostavkeTable.artikelId))
+        .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, zz.id));
+
+      const zzDatum = zz.datum instanceof Date
+        ? zz.datum.toISOString().slice(0, 10)
+        : String(zz.datum).slice(0, 10);
+
+      const zzResult = await bookZacetnaZaloga(
+        companyId,
+        zz.leto,
+        zzDatum,
+        zzPostavke.map(p => ({
+          vrstaArtikla: p.vrstaArtikla ?? null,
+          kolicina: Number(p.kolicina),
+          cenaKos: Number(p.cenaKos),
+        })),
+      ).catch(err => { console.warn("[ZZ sync]", err); return null; });
+
+      if (zzResult?.created) {
+        created.push(ref);
+      } else if (zzResult?.skipped) {
+        skipped.push({ ref, reason: zzResult.skipped.reason });
+      }
+    }
+  }
 
   return { created, skipped };
 }
