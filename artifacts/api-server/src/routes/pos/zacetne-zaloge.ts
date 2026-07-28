@@ -308,6 +308,48 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       steviloPrejsnje: Number(p.steviloPrejsnje)}))});
 });
 
+/**
+ * POST /zacetne-zaloge/:id/poknjizi
+ * Ročno (re)knjiženje začetne zaloge v ERP — ustvari ali osveži POS:ZZ:{leto} temeljnico.
+ */
+router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Promise<void> => {
+  const companyId = (req as PosRequest).companyId;
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
+
+  const [zz] = await db.select().from(zacetneZalogeTable)
+    .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, (req as any).enotaId ?? 1)));
+  if (!zz) { res.status(404).json({ error: "Začetne zaloge niso najdene" }); return; }
+
+  const postavke = await db
+    .select({
+      vrstaArtikla: artikliTable.vrstaArtikla,
+      kolicina: zacetneZalogePostavkeTable.kolicina,
+      cenaKos: zacetneZalogePostavkeTable.cenaKos,
+    })
+    .from(zacetneZalogePostavkeTable)
+    .leftJoin(artikliTable, eq(artikliTable.id, zacetneZalogePostavkeTable.artikelId))
+    .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
+
+  const datum = zz.datum instanceof Date
+    ? zz.datum.toISOString().slice(0, 10)
+    : String(zz.datum).slice(0, 10);
+
+  const result = await bookZacetnaZaloga(
+    companyId,
+    zz.leto,
+    datum,
+    postavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
+  );
+
+  if (result.skipped) {
+    res.status(422).json({ error: result.skipped.reason });
+    return;
+  }
+
+  res.json({ ref: result.created ?? `POS:ZZ:${zz.leto}` });
+});
+
 router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const id = parseInt(String(req.params.id));
