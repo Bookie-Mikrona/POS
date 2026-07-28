@@ -1,11 +1,9 @@
 package si.pos.zcsbridge
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.text.Layout
-import android.util.Base64
 import android.util.Log
+import java.io.FileOutputStream
 import com.zcs.sdk.DriverManager
 import com.zcs.sdk.SdkResult
 import com.zcs.sdk.print.PrnStrFormat
@@ -382,32 +380,18 @@ class ZcsPrinterBridge(private val context: Context) {
             }
             Log.i(TAG, "printText: besedilo natisnjeno (${lines.size} vrstic skupaj)")
 
-            var qrOk = false
-            if (!qrBase64.isNullOrBlank()) {
-                try {
-                    val pngBytes = Base64.decode(qrBase64, Base64.DEFAULT)
-                    val bmp = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
-                    if (bmp != null) {
-                        val qrSize = 200
-                        val scaled = Bitmap.createScaledBitmap(bmp, qrSize, qrSize, true)
-                            .copy(Bitmap.Config.ARGB_8888, false)
-                        // setPrintAppendStrings(Bitmap) doda sliko v isti string buffer
-                        // kot tekst — brez ločenega bitmap bufferja in brez rezanja.
-                        printer.setPrintAppendStrings(scaled)
-                        Log.i(TAG, "printText: QR bitmap ${qrSize}×${qrSize} dodan v buffer")
-                        qrOk = true
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "printText: QR bitmap napaka (${e.message})")
-                }
-            }
-
-            if (!qrOk && !qrUrl.isNullOrBlank()) {
-                tiskajQrBesedilo(printer, qrUrl, format)
-            }
-
+            // Zaključi text batch — 4 prazne vrstice + print
             repeat(4) { printer.setPrintAppendString(" ", format) }
             printer.setPrintStart()
+
+            // QR koda: ESC/POS GS(k ukazi neposredno na device datoteko (brez SDK bitmap bufferja)
+            val qrContent = qrUrl ?: ""
+            if (qrContent.isNotBlank()) {
+                val qrOk = tryPrintQrViaEscPos(qrContent)
+                if (!qrOk) {
+                    tiskajQrBesedilo(printer, qrContent, format)
+                }
+            }
 
             Log.i(TAG, "printText: zaključeno, qrBitmap=$qrOk")
             PrintResult.ok()
@@ -471,6 +455,54 @@ class ZcsPrinterBridge(private val context: Context) {
             Log.e(TAG, "printTextViaDeviceFile napaka: ${e.message}", e)
             PrintResult.error("Napaka: ${e.message}")
         }
+    }
+
+    /**
+     * Poskusi natisniti QR kodo z ESC/POS GS(k ukazi neposredno na device datoteko.
+     * Deluje neodvisno od ZCS SDK — brez bitmap bufferja.
+     * Vrne true če uspešno.
+     */
+    private fun tryPrintQrViaEscPos(content: String): Boolean {
+        for (path in DEVICE_FILE_PATHS) {
+            try {
+                val f = java.io.File(path)
+                if (!f.exists() || !f.canWrite()) continue
+
+                val out = java.io.ByteArrayOutputStream()
+                fun w(vararg b: Int) = b.forEach { out.write(it) }
+
+                val bytes = content.toByteArray(Charsets.ISO_8859_1)
+                val dataLen = bytes.size + 3  // cn + fn + m + data
+                val pL = dataLen and 0xFF
+                val pH = (dataLen shr 8) and 0xFF
+
+                // center
+                w(0x1B, 0x61, 0x01)
+                // GS ( k — model 2
+                w(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00)
+                // GS ( k — module size 6 (≈6×6 dots per module, ~200px za QR v3)
+                w(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06)
+                // GS ( k — error correction L
+                w(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30)
+                // GS ( k — store data
+                w(0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30)
+                out.write(bytes)
+                // GS ( k — print
+                w(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30)
+                // 4 line feeds
+                repeat(4) { w(0x0A) }
+                // left align
+                w(0x1B, 0x61, 0x00)
+
+                FileOutputStream(path, true).use { it.write(out.toByteArray()) }
+                Log.i(TAG, "tryPrintQrViaEscPos: QR OK prek $path (${bytes.size} B vsebine)")
+                return true
+            } catch (e: Exception) {
+                Log.d(TAG, "tryPrintQrViaEscPos: $path → ${e.message}")
+            }
+        }
+        Log.w(TAG, "tryPrintQrViaEscPos: nobena device datoteka ni dostopna")
+        return false
     }
 
     private fun tiskajQrBesedilo(printer: com.zcs.sdk.Printer, qrUrl: String?, format: PrnStrFormat) {
