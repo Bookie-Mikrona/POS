@@ -205,7 +205,9 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
     const [company] = await db.select({
       naziv: companiesTable.naziv,
       podjetjeDavcna: companiesTable.podjetjeDavcna,
+      idZaDdv: companiesTable.idZaDdv,
       naslov: companiesTable.naslov,
+      ulica: companiesTable.ulica,
       postnaStevika: companiesTable.postnaStevika,
       kraj: companiesTable.kraj,
       maticnaStevilka: companiesTable.maticnaStevilka,
@@ -215,16 +217,19 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
     if (company) {
       // Davčna številka — brez predpone SI
       if (!map["davcnaStevilka"]) map["davcnaStevilka"] = company.podjetjeDavcna.replace(/^SI/i, "");
+      // ID za DDV
+      if (!map["idZaDdv"] && company.idZaDdv) map["idZaDdv"] = company.idZaDdv;
       // Naziv podjetja
       if (!map["nazivRestavracije"]) map["nazivRestavracije"] = company.naziv;
       if (!map["nazivPodjetja"]) map["nazivPodjetja"] = company.naziv;
-      // Naslov — ločena polja
-      if (!map["naslovUlica"] && company.naslov) map["naslovUlica"] = company.naslov;
+      // Naslov — ločena polja (ulica ima prednost pred starim kombiniranim naslov)
+      const ulicaVrednost = company.ulica || company.naslov;
+      if (!map["naslovUlica"] && ulicaVrednost) map["naslovUlica"] = ulicaVrednost;
       if (!map["naslovPostna"] && company.postnaStevika) map["naslovPostna"] = company.postnaStevika;
       if (!map["naslovKraj"] && company.kraj) map["naslovKraj"] = company.kraj;
       // Sestavljeni naslov za nazaj-kompatibilnost
       if (!map["naslovRestavracije"]) {
-        const deli = [company.naslov, company.postnaStevika && company.kraj ? `${company.postnaStevika} ${company.kraj}` : (company.kraj ?? "")].filter(Boolean);
+        const deli = [ulicaVrednost, company.postnaStevika && company.kraj ? `${company.postnaStevika} ${company.kraj}` : (company.kraj ?? "")].filter(Boolean);
         if (deli.length) map["naslovRestavracije"] = deli.join(", ");
       }
       // Negotovinsko plačilo — iz prvega TRR in matične številke podjetja (samo če je prazno)
@@ -234,11 +239,13 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
       if (!map["racunMaticna"] && company.maticnaStevilka) map["racunMaticna"] = company.maticnaStevilka;
       // Shrani vse TRR-je podjetja za prikaz v selektorju
       if (company.trr?.length) map["__podjetjeTrr"] = JSON.stringify(company.trr);
+      // Davčna ponudnika — fallback iz davčne podjetja (brez SI predpone)
+      if (!map["ponudnikDavcna"]) map["ponudnikDavcna"] = company.podjetjeDavcna.replace(/^SI/i, "");
     }
   }
 
-  // Samodejno izpolni davčno ERP ponudnika iz env var
-  if (!map["ponudnikDavcna"] && process.env.ERP_PONUDNIK_DAVCNA) {
+  // Samodejno izpolni davčno ERP ponudnika iz env var (ima prednost pred company fallback)
+  if (process.env.ERP_PONUDNIK_DAVCNA) {
     map["ponudnikDavcna"] = process.env.ERP_PONUDNIK_DAVCNA;
   }
 

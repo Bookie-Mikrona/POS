@@ -755,6 +755,20 @@ export default function Settings() {
     }
   }, [nastavitve, prijavljen]);
 
+  // ── Auto-fill iz podatkov podjetja, kadar nastavitve niso naložene (npr. 400) ────
+  useEffect(() => {
+    if (!prijavljen) return;
+    // Polni samo prazna polja — ne prepisuje ničesar kar je že nastavljeno
+    setNazivRestavracije(prev => prev || prijavljen.companyNaziv || "");
+    setNaslovRestavracije(prev => prev || prijavljen.companyNaslov || "");
+    setNaslovUlica(prev => prev || prijavljen.companyUlica || "");
+    setNaslovPostna(prev => prev || prijavljen.companyPostna || "");
+    setNaslovKraj(prev => prev || prijavljen.companyKraj || "");
+    setDavcnaStevilka(prev => prev || (prijavljen.podjetjeDavcna?.replace(/^SI/i, "") ?? ""));
+    setIdZaDdv(prev => prev || prijavljen.idZaDdv || "");
+    setPonudnikDavcna(prev => prev || (prijavljen.podjetjeDavcna?.replace(/^SI/i, "") ?? ""));
+  }, [prijavljen]);
+
   // ── Nalaganje device-specifičnih terminalnih nastavitev ────
   useEffect(() => {
     const c = trenutnaNaprava?.terminalConfig;

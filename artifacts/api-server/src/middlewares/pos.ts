@@ -91,7 +91,7 @@ export async function requireEnota(
     return;
   }
 
-  // Določi dejanski enotaId — iz headerja ali fallback za admin brez izbrane enote
+  // Določi dejanski enotaId — iz headerja ali fallback kadar ga ni
   let resolvedEnotaId = (!enotaId || isNaN(enotaId)) ? null : enotaId;
 
   if (!resolvedEnotaId) {
@@ -108,6 +108,9 @@ export async function requireEnota(
         return;
       }
       resolvedEnotaId = prvaEnota.id;
+    } else if (posUser.dodeljenaEnotaId) {
+      // admin_enote / uporabnik: uporabi dodeljeno enoto kot fallback
+      resolvedEnotaId = posUser.dodeljenaEnotaId;
     } else {
       res.status(400).json({ napaka: "Manjka X-Enota-Id glava" });
       return;
