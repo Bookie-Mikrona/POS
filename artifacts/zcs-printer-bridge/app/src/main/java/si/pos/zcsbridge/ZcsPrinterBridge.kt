@@ -1,6 +1,10 @@
 package si.pos.zcsbridge
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.text.Layout
 import android.util.Log
 import java.io.FileOutputStream
@@ -25,6 +29,7 @@ class ZcsPrinterBridge(private val context: Context) {
     companion object {
         private const val TAG = "ZcsPrinterBridge"
         private const val PRINT_TEXT_SIZE = 24
+        private const val PRINTER_DOTS = 384
 
         // ZCS naprave pogosto izpostavijo tiskalnik kot device datoteko
         private val DEVICE_FILE_PATHS = listOf(
@@ -539,6 +544,10 @@ class ZcsPrinterBridge(private val context: Context) {
      * Ne zahteva device datoteke — deluje v Strategy B (ZCS SDK only).
      * ZOI (32 hex znakov) je razdeljen na 3 pasove po ~11 znakov.
      */
+    /**
+     * Tiskanje ZOI Code 128B črtnih kod prek ZCS SDK setPrintBitmap().
+     * SDK buffer je ~960 B → pasovi po MAX_BMP_ROWS vrstic (brez vrzeli, enako kot tekst).
+     */
     private fun tiskajZoiCode128SDK(zoi: String, printer: com.zcs.sdk.Printer, format: PrnStrFormat) {
         val zoiUp = zoi.uppercase()
         val parts = listOf(
@@ -555,24 +564,32 @@ class ZcsPrinterBridge(private val context: Context) {
         printer.setPrintAppendString("ZOI:", labelFmt)
         printer.setPrintStart()
 
+        val barcodeH = 40   // skupna višina črtne kode v pikah
+        val stripH   = 15   // vrstice na SDK klic (konzervativno ~720 B)
+
         for ((idx, part) in parts.withIndex()) {
-            val bmp = generateCode128BBitmap(part, height = 40)
-            if (bmp != null) {
-                printer.setPrintBitmap(bmp)
-                printer.setPrintStart()
-                Log.i(TAG, "ZOI Code128 pas ${idx+1}: '${part}' → ${bmp.size} B")
-            } else {
-                Log.w(TAG, "ZOI Code128 pas ${idx+1}: generiranje ni uspelo")
+            val bmp = generateCode128BBitmap(part, height = barcodeH) ?: run {
+                Log.w(TAG, "ZOI Code128 pas ${idx+1}: generiranje ni uspelo"); continue
             }
+            // Razreži Bitmap v vodoravne pasove — SDK ne prenaša celotne višine
+            var y = 0
+            while (y < bmp.height) {
+                val h = minOf(stripH, bmp.height - y)
+                val strip = Bitmap.createBitmap(bmp, 0, y, bmp.width, h)
+                printer.setPrintBitmap(strip)
+                printer.setPrintStart()
+                y += h
+            }
+            Log.i(TAG, "ZOI Code128 pas ${idx+1}: '${part}' → ${bmp.width}×${bmp.height} px")
         }
     }
 
     /**
-     * Generira Code 128B črtno kodo kot monokromatski bitmap za ZCS SDK.
+     * Generira Code 128B črtno kodo kot Android Bitmap za ZCS SDK setPrintBitmap(Bitmap).
      * Vsak modul je 2 pike širok (boljša čitljivost).
-     * Vrne ByteArray (printerDots/8 bajtov × height vrstic) ali null pri napaki.
+     * Vrne Bitmap (printerDots × height px) ali null pri napaki.
      */
-    private fun generateCode128BBitmap(content: String, height: Int = 40, printerDots: Int = 384): ByteArray? {
+    private fun generateCode128BBitmap(content: String, height: Int = 40, printerDots: Int = PRINTER_DOTS): Bitmap? {
         // Code 128 simbolni vzorci (6 širin: B1,S1,B2,S2,B3,S3; seštevek=11)
         val P = arrayOf(
             ia(2,1,2,2,2,2), ia(2,2,2,1,2,2), ia(2,2,2,2,2,1), ia(1,2,1,2,2,3), ia(1,2,1,3,2,2),
@@ -629,19 +646,20 @@ class ZcsPrinterBridge(private val context: Context) {
             Log.w(TAG, "Code128 pre-široko: $totalDots > $printerDots za '${content}'")
             return null
         }
-        val rowBytes = printerDots / 8
         val xOff = (printerDots - totalDots) / 2
-        val bitmap = ByteArray(rowBytes * height)
-        for (y in 0 until height) {
-            for ((x, on) in bits.withIndex()) {
-                if (on) {
-                    val dot = xOff + x
-                    val bi = y * rowBytes + dot / 8
-                    bitmap[bi] = (bitmap[bi].toInt() or (1 shl (7 - dot % 8))).toByte()
-                }
-            }
+        val bmp = Bitmap.createBitmap(printerDots, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val paint  = Paint()
+        canvas.drawColor(Color.WHITE)
+        paint.color = Color.BLACK
+        for ((x, on) in bits.withIndex()) {
+            if (on) canvas.drawRect(
+                (xOff + x).toFloat(), 0f,
+                (xOff + x + 1).toFloat(), height.toFloat(),
+                paint
+            )
         }
-        return bitmap
+        return bmp
     }
 
     private fun ia(vararg v: Int) = intArrayOf(*v)
