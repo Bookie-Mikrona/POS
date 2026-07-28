@@ -392,20 +392,9 @@ class ZcsPrinterBridge(private val context: Context) {
             repeat(4) { printer.setPrintAppendString(" ", format) }
             printer.setPrintStart()
 
-            // ZOI Code 128 črtna koda prek device datoteke (brez SDK bitmap bufferja)
+            // ZOI Code 128 črtna koda prek ZCS SDK bitmap (ne zahteva device datoteke)
             if (!zoi.isNullOrBlank()) {
-                val devPath = deviceFilePath ?: tryFindDeviceFile()
-                if (devPath != null) {
-                    val buf = java.io.ByteArrayOutputStream()
-                    tiskajZoiCode128(zoi, buf)
-                    repeat(4) { buf.write(0x0A) }
-                    FileOutputStream(devPath, true).use { it.write(buf.toByteArray()) }
-                    Log.i(TAG, "printText Strategy B: ZOI Code 128 prek $devPath")
-                } else {
-                    tiskajQrBesedilo(printer, qrUrl ?: zoi, format)
-                }
-            } else if (!qrUrl.isNullOrBlank()) {
-                tiskajQrBesedilo(printer, qrUrl, format)
+                tiskajZoiCode128SDK(zoi, printer, format)
             }
 
             Log.i(TAG, "printText: zaključeno")
@@ -544,6 +533,118 @@ class ZcsPrinterBridge(private val context: Context) {
         w(0x1B, 0x61, 0x00)   // left
         Log.i(TAG, "tiskajZoiCode128: ${parts.size} črtnih kod, ZOI ${zoi.length} znakov")
     }
+
+    /**
+     * Tiskanje ZOI Code 128B črtnih kod prek ZCS SDK setPrintBitmap().
+     * Ne zahteva device datoteke — deluje v Strategy B (ZCS SDK only).
+     * ZOI (32 hex znakov) je razdeljen na 3 pasove po ~11 znakov.
+     */
+    private fun tiskajZoiCode128SDK(zoi: String, printer: com.zcs.sdk.Printer, format: PrnStrFormat) {
+        val zoiUp = zoi.uppercase()
+        val parts = listOf(
+            zoiUp.substring(0, minOf(11, zoiUp.length)),
+            zoiUp.substring(minOf(11, zoiUp.length), minOf(22, zoiUp.length)),
+            zoiUp.substring(minOf(22, zoiUp.length))
+        ).filter { it.isNotEmpty() }
+
+        val labelFmt = PrnStrFormat().apply {
+            setTextSize(18)
+            setFont(PrnTextFont.MONOSPACE)
+            setAli(Layout.Alignment.ALIGN_CENTER)
+        }
+        printer.setPrintAppendString("ZOI:", labelFmt)
+        printer.setPrintStart()
+
+        for ((idx, part) in parts.withIndex()) {
+            val bmp = generateCode128BBitmap(part, height = 40)
+            if (bmp != null) {
+                printer.setPrintBitmap(bmp)
+                printer.setPrintStart()
+                Log.i(TAG, "ZOI Code128 pas ${idx+1}: '${part}' → ${bmp.size} B")
+            } else {
+                Log.w(TAG, "ZOI Code128 pas ${idx+1}: generiranje ni uspelo")
+            }
+        }
+    }
+
+    /**
+     * Generira Code 128B črtno kodo kot monokromatski bitmap za ZCS SDK.
+     * Vsak modul je 2 pike širok (boljša čitljivost).
+     * Vrne ByteArray (printerDots/8 bajtov × height vrstic) ali null pri napaki.
+     */
+    private fun generateCode128BBitmap(content: String, height: Int = 40, printerDots: Int = 384): ByteArray? {
+        // Code 128 simbolni vzorci (6 širin: B1,S1,B2,S2,B3,S3; seštevek=11)
+        val P = arrayOf(
+            ia(2,1,2,2,2,2), ia(2,2,2,1,2,2), ia(2,2,2,2,2,1), ia(1,2,1,2,2,3), ia(1,2,1,3,2,2),
+            ia(1,3,1,2,2,2), ia(1,2,2,2,1,3), ia(1,2,2,3,1,2), ia(1,3,2,2,1,2), ia(2,2,1,2,1,3),
+            ia(2,2,1,3,1,2), ia(2,3,1,2,1,2), ia(1,1,2,2,3,2), ia(1,2,2,1,3,2), ia(1,2,2,2,3,1),
+            ia(1,1,3,2,2,2), ia(1,2,3,1,2,2), ia(1,2,3,2,2,1), ia(2,2,3,2,1,1), ia(2,2,1,1,3,2),
+            ia(2,2,1,2,3,1), ia(2,1,3,2,1,2), ia(2,2,3,1,1,2), ia(3,1,2,1,3,1), ia(3,1,1,2,2,2),
+            ia(3,2,1,1,2,2), ia(3,2,1,2,2,1), ia(3,1,2,2,1,2), ia(3,2,2,1,1,2), ia(3,2,2,2,1,1),
+            ia(2,1,2,1,2,3), ia(2,1,2,3,2,1), ia(2,3,2,1,2,1), ia(1,1,1,3,2,3), ia(1,3,1,1,2,3),
+            ia(1,3,1,3,2,1), ia(1,1,2,3,1,3), ia(1,3,2,1,1,3), ia(1,3,2,3,1,1), ia(2,1,1,3,1,3),
+            ia(2,3,1,1,1,3), ia(2,3,1,3,1,1), ia(1,1,2,1,3,3), ia(1,1,2,3,3,1), ia(1,3,2,1,3,1),
+            ia(1,1,3,1,2,3), ia(1,1,3,3,2,1), ia(1,3,3,1,2,1), ia(3,1,3,1,2,1), ia(2,1,1,3,3,1),
+            ia(2,3,1,1,3,1), ia(2,1,3,1,1,3), ia(2,1,3,3,1,1), ia(2,1,3,1,3,1), ia(3,1,1,1,2,3),
+            ia(3,1,1,3,2,1), ia(3,3,1,1,2,1), ia(3,1,2,1,1,3), ia(3,1,2,3,1,1), ia(3,3,2,1,1,1),
+            ia(3,1,4,1,1,1), ia(2,2,1,4,1,1), ia(4,3,1,1,1,1), ia(1,1,1,2,2,4), ia(1,1,1,4,2,2),
+            ia(1,2,1,1,2,4), ia(1,2,1,4,2,1), ia(1,4,1,1,2,2), ia(1,4,1,2,2,1), ia(1,1,2,2,1,4),
+            ia(1,1,2,4,1,2), ia(1,2,2,1,1,4), ia(1,2,2,4,1,1), ia(1,4,2,1,1,2), ia(1,4,2,2,1,1),
+            ia(2,4,1,2,1,1), ia(2,2,1,1,1,4), ia(4,1,3,1,1,1), ia(2,4,1,1,1,2), ia(1,3,4,1,1,1),
+            ia(1,1,1,2,4,2), ia(1,2,1,1,4,2), ia(1,2,1,2,4,1), ia(1,1,4,2,1,2), ia(1,2,4,1,1,2),
+            ia(1,2,4,2,1,1), ia(4,1,1,2,1,2), ia(4,2,1,1,1,2), ia(4,2,1,2,1,1), ia(2,1,2,1,4,1),
+            ia(2,1,4,1,2,1), ia(4,1,2,1,2,1), ia(1,1,1,1,4,3), ia(1,1,1,3,4,1), ia(1,3,1,1,4,1),
+            ia(1,1,4,1,1,3), ia(1,1,4,3,1,1), ia(4,1,1,1,1,3), ia(4,1,1,3,1,1), ia(1,1,3,1,4,1),
+            ia(1,1,4,1,3,1), ia(3,1,1,1,4,1), ia(4,1,1,1,3,1)  // 0..102
+        )
+        val START_B = ia(2,1,1,2,1,4)  // symbol 104
+        val STOP    = ia(2,3,3,1,1,1,2) // 13 modulov
+
+        val symbols = mutableListOf<Int>()
+        var checksum = 104
+        for ((i, ch) in content.withIndex()) {
+            val code = ch.code - 32
+            if (code < 0 || code > 94) return null
+            symbols.add(code)
+            checksum += code * (i + 1)
+        }
+        checksum %= 103
+
+        // Zgradimo seznam bitov (1=črna, 0=bela); modul = 2 pike za boljšo berljivost
+        val M = 2 // pike/modul
+        val bits = mutableListOf<Boolean>()
+        fun addPattern(pat: IntArray) {
+            var bar = true
+            for (w in pat) { repeat(w * M) { bits.add(bar) }; bar = !bar }
+        }
+        repeat(10 * M) { bits.add(false) }   // quiet levo
+        addPattern(START_B)
+        for (s in symbols) addPattern(P[s])
+        addPattern(P[checksum])
+        addPattern(STOP)
+        repeat(10 * M) { bits.add(false) }   // quiet desno
+
+        val totalDots = bits.size
+        if (totalDots > printerDots) {
+            Log.w(TAG, "Code128 pre-široko: $totalDots > $printerDots za '${content}'")
+            return null
+        }
+        val rowBytes = printerDots / 8
+        val xOff = (printerDots - totalDots) / 2
+        val bitmap = ByteArray(rowBytes * height)
+        for (y in 0 until height) {
+            for ((x, on) in bits.withIndex()) {
+                if (on) {
+                    val dot = xOff + x
+                    val bi = y * rowBytes + dot / 8
+                    bitmap[bi] = (bitmap[bi].toInt() or (1 shl (7 - dot % 8))).toByte()
+                }
+            }
+        }
+        return bitmap
+    }
+
+    private fun ia(vararg v: Int) = intArrayOf(*v)
 
     private fun tiskajQrBesedilo(printer: com.zcs.sdk.Printer, qrUrl: String?, format: PrnStrFormat) {
         if (qrUrl.isNullOrBlank()) return
