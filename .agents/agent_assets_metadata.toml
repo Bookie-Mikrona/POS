@@ -6,3 +6,9 @@ id = "Kad5zn33OAeyXtSU-Dh7O"
 uri = "file://attached_assets/ZcsPrinterBridge_1785252514974.kt"
 type = "unspecified"
 title = "ZcsPrinterBridge.kt (popravljen)"
+
+[[outputs]]
+id = "UpkxZvs8326OwdENLH5am"
+uri = "file://artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt (pravilna verzija)"
