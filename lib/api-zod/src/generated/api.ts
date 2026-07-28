@@ -6612,3 +6612,113 @@ export const CreateAnthropicConversationResponse = zod.object({
 })
 
 
+/**
+ * @summary Seznam izdajnic
+ */
+export const ListIzdajniceResponseItem = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "steviloPostavk": zod.number()
+})
+export const ListIzdajniceResponse = zod.array(ListIzdajniceResponseItem)
+
+
+/**
+ * @summary Ustvari novo izdajnico
+ */
+export const CreateIzdajnicaBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().nullish(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number()
+}))
+})
+
+export const CreateIzdajnicaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number()
+}))
+})
+
+
+/**
+ * @summary Posamezna izdajnica
+ */
+export const GetIzdajnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetIzdajnicaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number()
+}))
+})
+
+
+/**
+ * @summary Uredi izdajnico
+ */
+export const UpdateIzdajnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateIzdajnicaBody = zod.object({
+  "datum": zod.string().optional(),
+  "opomba": zod.string().nullish(),
+  "postavke": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "kolicina": zod.number()
+})).optional()
+})
+
+export const UpdateIzdajnicaResponse = zod.object({
+  "id": zod.number(),
+  "stevilka": zod.string().nullish(),
+  "datum": zod.string(),
+  "opomba": zod.string().nullish(),
+  "ustvarjeno": zod.string(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "artikelIme": zod.string(),
+  "imeZaNabavo": zod.string().nullish(),
+  "enotaMere": zod.string().nullish(),
+  "kolicina": zod.number()
+}))
+})
+
+
+/**
+ * @summary Izbriši izdajnico
+ */
+export const DeleteIzdajnicaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteIzdajnicaResponse = zod.void()
+
+

@@ -5981,6 +5981,96 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnthropicConversation"
+  /izdajnice:
+    get:
+      operationId: listIzdajnice
+      summary: Seznam izdajnic
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IzdajnicaGlava"
+    post:
+      operationId: createIzdajnica
+      summary: Ustvari novo izdajnico
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IzdajnicaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IzdajnicaFull"
+  /izdajnice/{id}:
+    get:
+      operationId: getIzdajnica
+      summary: Posamezna izdajnica
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IzdajnicaFull"
+    put:
+      operationId: updateIzdajnica
+      summary: Uredi izdajnico
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IzdajnicaUrediVnos"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IzdajnicaFull"
+    delete:
+      operationId: deleteIzdajnica
+      summary: Izbriši izdajnico
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: No Content
 components:
   securitySchemes:
     bearerAuth:
@@ -12043,3 +12133,107 @@ components:
           type: string
       required:
         - error
+    IzdajnicaPostavkaInput:
+      type: object
+      properties:
+        artikelId:
+          type: integer
+        kolicina:
+          type: number
+      required:
+        - artikelId
+        - kolicina
+    IzdajnicaInput:
+      type: object
+      properties:
+        datum:
+          type: string
+        opomba:
+          type: string
+          nullable: true
+        postavke:
+          type: array
+          items:
+            $ref: "#/components/schemas/IzdajnicaPostavkaInput"
+      required:
+        - postavke
+    IzdajnicaUrediVnos:
+      type: object
+      properties:
+        datum:
+          type: string
+        opomba:
+          type: string
+          nullable: true
+        postavke:
+          type: array
+          items:
+            $ref: "#/components/schemas/IzdajnicaPostavkaInput"
+    IzdajnicaPostavkaPogled:
+      type: object
+      properties:
+        id:
+          type: integer
+        artikelId:
+          type: integer
+        artikelIme:
+          type: string
+        imeZaNabavo:
+          type: string
+          nullable: true
+        enotaMere:
+          type: string
+          nullable: true
+        kolicina:
+          type: number
+      required:
+        - id
+        - artikelId
+        - artikelIme
+        - kolicina
+    IzdajnicaGlava:
+      type: object
+      properties:
+        id:
+          type: integer
+        stevilka:
+          type: string
+          nullable: true
+        datum:
+          type: string
+        opomba:
+          type: string
+          nullable: true
+        ustvarjeno:
+          type: string
+        steviloPostavk:
+          type: integer
+      required:
+        - id
+        - datum
+        - ustvarjeno
+        - steviloPostavk
+    IzdajnicaFull:
+      type: object
+      properties:
+        id:
+          type: integer
+        stevilka:
+          type: string
+          nullable: true
+        datum:
+          type: string
+        opomba:
+          type: string
+          nullable: true
+        ustvarjeno:
+          type: string
+        postavke:
+          type: array
+          items:
+            $ref: "#/components/schemas/IzdajnicaPostavkaPogled"
+      required:
+        - id
+        - datum
+        - ustvarjeno
+        - postavke

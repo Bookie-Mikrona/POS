@@ -3797,6 +3797,50 @@ export interface AnthropicError {
   error: string;
 }
 
+export interface IzdajnicaPostavkaInput {
+  artikelId: number;
+  kolicina: number;
+}
+
+export interface IzdajnicaInput {
+  datum?: string;
+  opomba?: string | null;
+  postavke: IzdajnicaPostavkaInput[];
+}
+
+export interface IzdajnicaUrediVnos {
+  datum?: string;
+  opomba?: string | null;
+  postavke?: IzdajnicaPostavkaInput[];
+}
+
+export interface IzdajnicaPostavkaPogled {
+  id: number;
+  artikelId: number;
+  artikelIme: string;
+  imeZaNabavo?: string | null;
+  enotaMere?: string | null;
+  kolicina: number;
+}
+
+export interface IzdajnicaGlava {
+  id: number;
+  stevilka?: string | null;
+  datum: string;
+  opomba?: string | null;
+  ustvarjeno: string;
+  steviloPostavk: number;
+}
+
+export interface IzdajnicaFull {
+  id: number;
+  stevilka?: string | null;
+  datum: string;
+  opomba?: string | null;
+  ustvarjeno: string;
+  postavke: IzdajnicaPostavkaPogled[];
+}
+
 /**
  * Validation error
  */
