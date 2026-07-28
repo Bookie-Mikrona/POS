@@ -1325,28 +1325,30 @@ export default function Nastavitve() {
       </div>
 
       <Tabs defaultValue="podatki" className="space-y-5">
-        <TabsList>
-          <TabsTrigger value="podatki" className="gap-2">
-            <Building2 className="h-3.5 w-3.5" />
-            Podatki o podjetju
-          </TabsTrigger>
-          <TabsTrigger value="uporabniki" className="gap-2">
-            <Users className="h-3.5 w-3.5" />
-            Uporabniki in pravice
-          </TabsTrigger>
-          <TabsTrigger value="ujp" className="gap-2">
-            <Database className="h-3.5 w-3.5" />
-            UJP e-računi
-          </TabsTrigger>
-          <TabsTrigger value="ajpes" className="gap-2">
-            <Database className="h-3.5 w-3.5" />
-            AJPES PRS
-          </TabsTrigger>
-          <TabsTrigger value="pos" className="gap-2">
-            <Store className="h-3.5 w-3.5" />
-            POS Knjiženje
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-max">
+            <TabsTrigger value="podatki" className="gap-2">
+              <Building2 className="h-3.5 w-3.5" />
+              Podjetje
+            </TabsTrigger>
+            <TabsTrigger value="uporabniki" className="gap-2">
+              <Users className="h-3.5 w-3.5" />
+              Uporabniki
+            </TabsTrigger>
+            <TabsTrigger value="ujp" className="gap-2">
+              <Database className="h-3.5 w-3.5" />
+              UJP e-računi
+            </TabsTrigger>
+            <TabsTrigger value="ajpes" className="gap-2">
+              <Database className="h-3.5 w-3.5" />
+              AJPES PRS
+            </TabsTrigger>
+            <TabsTrigger value="pos" className="gap-2">
+              <Store className="h-3.5 w-3.5" />
+              POS Knjiženje
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="podatki" className="mt-0">
           <PodatkiTab companyId={activeCompany.id} isOwner={isOwner} />
