@@ -1,10 +1,7 @@
 package si.pos.zcsbridge
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.text.Layout
-import android.util.Base64
 import android.util.Log
 import java.io.FileOutputStream
 import com.zcs.sdk.DriverManager
@@ -329,7 +326,7 @@ class ZcsPrinterBridge(private val context: Context) {
      * @param qrBase64  base64 PNG QR kode; če null → izpiše qrUrl kot besedilo
      * @param qrUrl     60-cifrna FURS vsebina (rezervno besedilo)
      */
-    fun printText(lines: List<String>, formati: List<String>? = null, qrUrl: String?, qrBase64: String? = null): PrintResult {
+    fun printText(lines: List<String>, formati: List<String>? = null, qrUrl: String?, qrBase64: String? = null, zoi: String? = null): PrintResult {
         if (!sdkAvailable) {
             return PrintResult.error("ZCS tiskalnik ni na voljo")
         }
@@ -344,7 +341,7 @@ class ZcsPrinterBridge(private val context: Context) {
             }
         }
         deviceFilePath?.let { path ->
-            return printTextViaDeviceFile(path, lines, formati, qrUrl, qrBase64)
+            return printTextViaDeviceFile(path, lines, formati, qrUrl, qrBase64, zoi)
         }
 
         // Strategija B: ZCS SDK (21cm fiksna dolžina — zadnja možnost)
@@ -395,13 +392,20 @@ class ZcsPrinterBridge(private val context: Context) {
             repeat(4) { printer.setPrintAppendString(" ", format) }
             printer.setPrintStart()
 
-            // QR koda: ESC/POS GS(k ukazi neposredno na device datoteko (brez SDK bitmap bufferja)
-            val qrContent = qrUrl ?: ""
-            if (qrContent.isNotBlank()) {
-                val qrOk = tryPrintQrViaEscPos(qrContent)
-                if (!qrOk) {
-                    tiskajQrBesedilo(printer, qrContent, format)
+            // ZOI Code 128 črtna koda prek device datoteke (brez SDK bitmap bufferja)
+            if (!zoi.isNullOrBlank()) {
+                val devPath = deviceFilePath ?: tryFindDeviceFile()
+                if (devPath != null) {
+                    val buf = java.io.ByteArrayOutputStream()
+                    tiskajZoiCode128(zoi, buf)
+                    repeat(4) { buf.write(0x0A) }
+                    FileOutputStream(devPath, true).use { it.write(buf.toByteArray()) }
+                    Log.i(TAG, "printText Strategy B: ZOI Code 128 prek $devPath")
+                } else {
+                    tiskajQrBesedilo(printer, qrUrl ?: zoi, format)
                 }
+            } else if (!qrUrl.isNullOrBlank()) {
+                tiskajQrBesedilo(printer, qrUrl, format)
             }
 
             Log.i(TAG, "printText: zaključeno")
@@ -421,7 +425,8 @@ class ZcsPrinterBridge(private val context: Context) {
         lines: List<String>,
         formati: List<String>?,
         qrUrl: String?,
-        qrBase64: String?
+        qrBase64: String?,
+        zoi: String? = null
     ): PrintResult {
         return try {
             val out = java.io.ByteArrayOutputStream()
@@ -442,60 +447,11 @@ class ZcsPrinterBridge(private val context: Context) {
                 if (isBold) writeBytes(0x1B, 0x45, 0x00) // bold off
             }
 
-            // QR koda: GS v 0 raster bitmap (ESC/POS direktno — brez SDK bufferja)
-            // ZCS Z92 ne podpira GS(k hardware QR, podpira pa GS v 0 raster.
-            if (!qrBase64.isNullOrBlank()) {
-                try {
-                    val pngBytes = Base64.decode(qrBase64, Base64.DEFAULT)
-                    val bmp = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
-                    if (bmp != null) {
-                        val printerDots = 384
-                        val rowBytes = printerDots / 8  // 48
-                        val qrSize = 150  // zadostno za QR v3, pod 384 dots
-                        val xOff = (printerDots - qrSize) / 2
-                        val scaled = Bitmap.createScaledBitmap(bmp, qrSize, qrSize, true)
-                            .copy(Bitmap.Config.ARGB_8888, false)
-                        val raster = ByteArray(rowBytes * qrSize)
-                        for (y in 0 until qrSize) {
-                            for (x in 0 until qrSize) {
-                                val px = scaled.getPixel(x, y)
-                                val gray = (0.299 * ((px shr 16) and 0xFF) +
-                                            0.587 * ((px shr 8) and 0xFF) +
-                                            0.114 * (px and 0xFF)).toInt()
-                                if (gray < 128) {
-                                    val dotX = xOff + x
-                                    val bi = y * rowBytes + dotX / 8
-                                    val bit = 7 - (dotX % 8)
-                                    raster[bi] = (raster[bi].toInt() or (1 shl bit)).toByte()
-                                }
-                            }
-                        }
-                        writeBytes(0x1B, 0x61, 0x01) // center
-                        // GS v 0: m=0 xL xH yL yH data
-                        writeBytes(0x1D, 0x76, 0x30, 0x00,
-                            rowBytes and 0xFF, (rowBytes shr 8) and 0xFF,
-                            qrSize and 0xFF, (qrSize shr 8) and 0xFF)
-                        out.write(raster)
-                        writeBytes(0x1B, 0x61, 0x00) // left
-                        Log.i(TAG, "printTextViaDeviceFile: QR raster ${qrSize}×${qrSize} OK")
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "printTextViaDeviceFile: QR raster napaka (${e.message})")
-                }
-            } else if (!qrUrl.isNullOrBlank()) {
-                // Rezervno: GS(k hardware QR (le nekateri tiskalniki)
-                val bytes = qrUrl.toByteArray(Charsets.ISO_8859_1)
-                val dataLen = bytes.size + 3
-                val pL = dataLen and 0xFF
-                val pH = (dataLen shr 8) and 0xFF
-                writeBytes(0x1B, 0x61, 0x01)
-                writeBytes(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00)
-                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06)
-                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30)
-                writeBytes(0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30)
-                out.write(bytes)
-                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30)
-                writeBytes(0x1B, 0x61, 0x00)
+            // ZOI → Code 128 črtna koda (3 vrstice po ~11 znakov)
+            // Zakon dopušča Code 128 namesto QR kode (ZDavPR).
+            if (!zoi.isNullOrBlank()) {
+                tiskajZoiCode128(zoi, out)
+                Log.i(TAG, "printTextViaDeviceFile: ZOI Code 128 OK (${zoi.length} znakov)")
             }
 
             // 4 prazne vrstice + odrez
@@ -557,6 +513,36 @@ class ZcsPrinterBridge(private val context: Context) {
         }
         Log.w(TAG, "tryPrintQrViaEscPos: nobena device datoteka ni dostopna")
         return false
+    }
+
+    /**
+     * Natisni ZOI kot 3 vrstice Code 128 črtne kode prek ESC/POS.
+     * Zakon (ZDavPR) dopušča Code 128 namesto QR, kadar tiskalnik ne podpira 2D kod.
+     */
+    private fun tiskajZoiCode128(zoi: String, out: java.io.ByteArrayOutputStream) {
+        fun w(vararg b: Int) = b.forEach { out.write(it) }
+
+        // Razreži ZOI na 3 dele (11+11+10 = 32)
+        val parts = listOf(
+            zoi.substring(0, minOf(11, zoi.length)),
+            zoi.substring(minOf(11, zoi.length), minOf(22, zoi.length)),
+            zoi.substring(minOf(22, zoi.length))
+        ).filter { it.isNotEmpty() }
+
+        w(0x1B, 0x61, 0x01)   // center
+        w(0x1D, 0x68, 0x50)   // GS h 80 — višina črtice 80 dot
+        w(0x1D, 0x77, 0x02)   // GS w 2  — širina črtice x2
+        w(0x1D, 0x48, 0x02)   // GS H 2  — HRI tekst pod črtno kodo
+
+        for (part in parts) {
+            // GS k 0x49 n {B data — Code 128, charset B
+            val data = "{B$part".toByteArray(Charsets.ISO_8859_1)
+            w(0x1D, 0x6B, 0x49, data.size)
+            out.write(data)
+        }
+
+        w(0x1B, 0x61, 0x00)   // left
+        Log.i(TAG, "tiskajZoiCode128: ${parts.size} črtnih kod, ZOI ${zoi.length} znakov")
     }
 
     private fun tiskajQrBesedilo(printer: com.zcs.sdk.Printer, qrUrl: String?, format: PrnStrFormat) {

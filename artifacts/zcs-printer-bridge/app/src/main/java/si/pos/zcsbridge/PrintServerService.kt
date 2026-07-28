@@ -243,8 +243,9 @@ class PrintServerService : Service() {
                             val formati = if (formatiArr != null) (0 until formatiArr.length()).map { formatiArr.getString(it) } else null
                             val qrUrl = if (json.isNull("qrUrl")) null else json.optString("qrUrl").ifBlank { null }
                             val qrBase64 = if (json.isNull("qrBase64")) null else json.optString("qrBase64").ifBlank { null }
-                            Log.i(TAG, "print-text: ${linee.size} vrstic, qrBase64=${qrBase64 != null}")
-                            val result = bridge.printText(linee, formati, qrUrl, qrBase64)
+                            val zoi = if (json.isNull("zoi")) null else json.optString("zoi").ifBlank { null }
+                            Log.i(TAG, "print-text: ${linee.size} vrstic, qrBase64=${qrBase64 != null}, zoi=${zoi != null}")
+                            val result = bridge.printText(linee, formati, qrUrl, qrBase64, zoi)
                             if (result.ok) {
                                 sendJson(output, 200, """{"ok":true}""")
                             } else {

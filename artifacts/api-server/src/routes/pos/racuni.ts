@@ -1413,6 +1413,9 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
     }
   }
 
+  // ZOI za Code 128 črtno kodo v APK-ju
+  (rezultat as any).zoi = racunRaw.zoi ?? null;
+
   res.json(rezultat);
 });
 

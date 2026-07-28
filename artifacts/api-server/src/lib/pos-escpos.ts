@@ -463,7 +463,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
   if (data.racunPozdrav2) line(centerText(data.racunPozdrav2, cols));
   line("");
 
-  return { linee, formati, qrUrl: data.fursQrUrl ?? null, qrBase64: null };
+  return { linee, formati, qrUrl: data.fursQrUrl ?? null, qrBase64: null, zoi: data.zoi ?? null };
 }
 
 export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array {

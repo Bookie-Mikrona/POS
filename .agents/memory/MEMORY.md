@@ -11,5 +11,6 @@
 - [POS dnevne temeljnice](pos-dnevne-temeljnice.md) — samodejno POS→ERP knjiženje: 3 osnutki na dan, konfiguracija v ERP nastavitve, fire-and-forget trigger v racuni+prejemnice
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
 - [ZCS bridge stale process](zcs-bridge-stale.md) — most "ne najde" po restartu strežnika = star proces drži port; fix: restart terminala + APK
+- [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — SDK buffer ~45 vrstic: batchi po 40; Code 128 ZOI namesto QR; Strategy A re-check ob tisku; zoi polje v JSON
 - [POS booking analitika](pos-booking-analitika.md) — pos_booking_settings razširjen na 24 stolpcev; prihodki po vrsti_artikla×davek iz postavke tabele; fallback na stare konte
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
