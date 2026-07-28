@@ -109,12 +109,12 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
 
   broadcast("update", { type: "zaloge" });
 
-  // Poskusi poknjižiti v ERP (fire-and-forget — ne blokira odgovora)
+  // Poknjižiti v ERP — počakamo na rezultat in vrnemo skupaj z odgovorom
   const companyId = (req as PosRequest).companyId;
   const zzDatum = zacetnaZaloga.datum instanceof Date
     ? zacetnaZaloga.datum.toISOString().slice(0, 10)
     : String(zacetnaZaloga.datum).slice(0, 10);
-  bookZacetnaZaloga(
+  const bookingResult = await bookZacetnaZaloga(
     companyId,
     zacetnaZaloga.leto,
     zzDatum,
@@ -123,7 +123,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
       kolicina: p.kolicina,
       cenaKos: p.cenaKos,
     })),
-  ).catch(err => console.warn("[ZZ booking]", err));
+  ).catch(err => { console.warn("[ZZ booking]", err); return null; });
 
   res.status(201).json({
     id: zacetnaZaloga.id,
@@ -132,7 +132,9 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
     datum: zacetnaZaloga.datum,
     opomba: zacetnaZaloga.opomba,
     ustvarjeno: zacetnaZaloga.ustvarjeno,
-    postavke: postavkeResult});
+    postavke: postavkeResult,
+    bookingRef: bookingResult?.created ?? null,
+    bookingSkipped: bookingResult?.skipped?.reason ?? null});
 });
 
 router.get("/zacetne-zaloge/check-leto/:leto", async (req, res): Promise<void> => {
@@ -199,6 +201,8 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
   if (parsed.data.datum !== undefined) updates.datum = new Date(parsed.data.datum);
   if (parsed.data.opomba !== undefined) updates.opomba = parsed.data.opomba;
 
+  let putBookingResult: { created: string | null; skipped: { reason: string } | null } | null = null;
+
   if (parsed.data.postavke !== undefined) {
     const novaPostavke = parsed.data.postavke;
     if (!novaPostavke.length) { res.status(400).json({ error: "Začetne zaloge morajo imeti vsaj eno postavko" }); return; }
@@ -254,23 +258,22 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
 
     broadcast("update", { type: "zaloge" });
 
-    // Re-booking v ERP (fire-and-forget)
+    // Re-booking v ERP — počakamo na rezultat
     const putCompanyId = (req as PosRequest).companyId;
     const putDatum = existing.datum instanceof Date
       ? existing.datum.toISOString().slice(0, 10)
       : String(existing.datum).slice(0, 10);
-    // Preberemo novo stanje postavk za booking (z vrstaArtikla)
     const novePutPostavke = await db
       .select({ vrstaArtikla: artikliTable.vrstaArtikla, kolicina: zacetneZalogePostavkeTable.kolicina, cenaKos: zacetneZalogePostavkeTable.cenaKos })
       .from(zacetneZalogePostavkeTable)
       .leftJoin(artikliTable, eq(artikliTable.id, zacetneZalogePostavkeTable.artikelId))
       .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
-    bookZacetnaZaloga(
+    putBookingResult = await bookZacetnaZaloga(
       putCompanyId,
       existing.leto,
       putDatum,
       novePutPostavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
-    ).catch(err => console.warn("[ZZ booking PUT]", err));
+    ).catch(err => { console.warn("[ZZ booking PUT]", err); return null; });
   } else {
     await db.update(zacetneZalogeTable).set(updates)
       .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
@@ -305,7 +308,9 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       artikelIme: p.artikelIme ?? "–",
       kolicina: Number(p.kolicina),
       cenaKos: Number(p.cenaKos),
-      steviloPrejsnje: Number(p.steviloPrejsnje)}))});
+      steviloPrejsnje: Number(p.steviloPrejsnje)})),
+    bookingRef: putBookingResult?.created ?? null,
+    bookingSkipped: putBookingResult?.skipped?.reason ?? null});
 });
 
 /**

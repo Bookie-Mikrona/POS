@@ -62,7 +62,6 @@ import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
   Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight,
-  BookOpen,
 } from "lucide-react";
 
 const DDV_OPCIJE = [
@@ -2088,7 +2087,16 @@ function EditZacetnaZalogaDialog({
         })),
       },
     }, {
-      onSuccess: () => { toast({ title: "Začetne zaloge posodobljene" }); onSaved(); },
+      onSuccess: (data: any) => {
+        if (data?.bookingRef) {
+          toast({ title: "Začetne zaloge posodobljene", description: `Poknjiženo v ERP (${data.bookingRef})` });
+        } else if (data?.bookingSkipped) {
+          toast({ title: "Začetne zaloge posodobljene", description: `⚠️ ERP knjiženje preskočeno: ${data.bookingSkipped}` });
+        } else {
+          toast({ title: "Začetne zaloge posodobljene" });
+        }
+        onSaved();
+      },
       onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
     });
   };
@@ -2659,11 +2667,17 @@ export default function Zaloge() {
         })),
       },
     }, {
-      onSuccess: () => {
+      onSuccess: (data: any) => {
         queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListZacetneZalogeQueryKey() });
         setZzDialogOpen(false);
-        toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene` });
+        if (data?.bookingRef) {
+          toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene`, description: `Poknjiženo v ERP (${data.bookingRef})` });
+        } else if (data?.bookingSkipped) {
+          toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene`, description: `⚠️ ERP knjiženje preskočeno: ${data.bookingSkipped}`, variant: "default" });
+        } else {
+          toast({ title: `Začetne zaloge za leto ${zzLeto} shranjene` });
+        }
       },
       onError: (e: unknown) => {
         const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -2688,28 +2702,6 @@ export default function Zaloge() {
 
   // ── Začetne zaloge edit ────────────────────────────────────────────
   const [editZzId, setEditZzId] = useState<number | null>(null);
-
-  // ── Začetne zaloge poknjižiti ──────────────────────────────────────
-  const [poknjizujeZzId, setPoknjizujeZzId] = useState<number | null>(null);
-  const handlePoknjizi = async (zzId: number) => {
-    setPoknjizujeZzId(zzId);
-    try {
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const enotaId = getEnotaId();
-      const headers: Record<string, string> = {};
-      if (enotaId) headers["X-Enota-Id"] = String(enotaId);
-      const res = await fetch(`${base}/api/zacetne-zaloge/${zzId}/poknjizi`, {
-        method: "POST", headers, credentials: "include",
-      });
-      const data = await res.json() as { ref?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Napaka");
-      toast({ title: "Temeljnica ustvarjena", description: `Referenca: ${data.ref}` });
-    } catch (e: any) {
-      toast({ title: "Napaka pri knjiženju", description: e.message, variant: "destructive" });
-    } finally {
-      setPoknjizujeZzId(null);
-    }
-  };
 
   // ── Začetne zaloge delete ──────────────────────────────────────────
   const [deleteZzId, setDeleteZzId] = useState<number | null>(null);
@@ -3053,14 +3045,6 @@ export default function Zaloge() {
                     <TableCell className="text-center"><Badge variant="outline">{zz.steviloPostavk ?? 0}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700"
-                          title="Poknjižiti v ERP (ustvari temeljnico POS:ZZ)"
-                          disabled={poknjizujeZzId === zz.id}
-                          onClick={() => handlePoknjizi(zz.id)}>
-                          {poknjizujeZzId === zz.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <BookOpen className="w-3.5 h-3.5" />}
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7"
                           onClick={() => setEditZzId(zz.id)}>
                           <Pencil className="w-3.5 h-3.5" />
