@@ -410,8 +410,18 @@ class ZcsPrinterBridge(private val context: Context) {
                                 }
                             }
                         }
-                        printer.setPrintBitmap(mono)
-                        Log.i(TAG, "printText: QR bitmap ${qrSize}×${qrSize}, ${mono.size} B")
+                        // SDK buffer rezže bitmap po ~50 vrsticah — tiskamo v pasovih po 40.
+                        val STRIP_ROWS = 40
+                        var row = 0
+                        while (row < qrSize) {
+                            val endRow = minOf(row + STRIP_ROWS, qrSize)
+                            val strip = mono.copyOfRange(row * rowBytes, endRow * rowBytes)
+                            printer.setPrintBitmap(strip)
+                            printer.setPrintStart()
+                            Log.i(TAG, "printText: QR pas $row-$endRow natisnjeno")
+                            row = endRow
+                        }
+                        Log.i(TAG, "printText: QR bitmap ${qrSize}×${qrSize} končano")
                         qrOk = true
                     }
                 } catch (e: Exception) {
