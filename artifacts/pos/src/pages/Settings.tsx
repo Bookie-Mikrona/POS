@@ -708,6 +708,7 @@ export default function Settings() {
   useEffect(() => {
     if (nastavitve) {
       // Auto-fill iz podatkov podjetja, kadar vrednosti še niso bile shranjene
+      console.log("[Settings] nastavitve.idZaDdv=", nastavitve.idZaDdv, "prijavljen.idZaDdv=", prijavljen?.idZaDdv);
       setNazivRestavracije(nastavitve.nazivRestavracije || prijavljen?.companyNaziv || "");
       setNaslovRestavracije(nastavitve.naslovRestavracije || prijavljen?.companyNaslov || "");
       setNaslovUlica((nastavitve as any).naslovUlica || prijavljen?.companyUlica || "");
