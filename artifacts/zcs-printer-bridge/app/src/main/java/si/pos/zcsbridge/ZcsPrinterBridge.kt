@@ -1,7 +1,10 @@
 package si.pos.zcsbridge
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.text.Layout
+import android.util.Base64
 import android.util.Log
 import java.io.FileOutputStream
 import com.zcs.sdk.DriverManager
@@ -439,20 +442,60 @@ class ZcsPrinterBridge(private val context: Context) {
                 if (isBold) writeBytes(0x1B, 0x45, 0x00) // bold off
             }
 
-            // QR koda z ESC/POS GS(k ukazi
-            if (!qrUrl.isNullOrBlank()) {
+            // QR koda: GS v 0 raster bitmap (ESC/POS direktno — brez SDK bufferja)
+            // ZCS Z92 ne podpira GS(k hardware QR, podpira pa GS v 0 raster.
+            if (!qrBase64.isNullOrBlank()) {
+                try {
+                    val pngBytes = Base64.decode(qrBase64, Base64.DEFAULT)
+                    val bmp = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
+                    if (bmp != null) {
+                        val printerDots = 384
+                        val rowBytes = printerDots / 8  // 48
+                        val qrSize = 150  // zadostno za QR v3, pod 384 dots
+                        val xOff = (printerDots - qrSize) / 2
+                        val scaled = Bitmap.createScaledBitmap(bmp, qrSize, qrSize, true)
+                            .copy(Bitmap.Config.ARGB_8888, false)
+                        val raster = ByteArray(rowBytes * qrSize)
+                        for (y in 0 until qrSize) {
+                            for (x in 0 until qrSize) {
+                                val px = scaled.getPixel(x, y)
+                                val gray = (0.299 * ((px shr 16) and 0xFF) +
+                                            0.587 * ((px shr 8) and 0xFF) +
+                                            0.114 * (px and 0xFF)).toInt()
+                                if (gray < 128) {
+                                    val dotX = xOff + x
+                                    val bi = y * rowBytes + dotX / 8
+                                    val bit = 7 - (dotX % 8)
+                                    raster[bi] = (raster[bi].toInt() or (1 shl bit)).toByte()
+                                }
+                            }
+                        }
+                        writeBytes(0x1B, 0x61, 0x01) // center
+                        // GS v 0: m=0 xL xH yL yH data
+                        writeBytes(0x1D, 0x76, 0x30, 0x00,
+                            rowBytes and 0xFF, (rowBytes shr 8) and 0xFF,
+                            qrSize and 0xFF, (qrSize shr 8) and 0xFF)
+                        out.write(raster)
+                        writeBytes(0x1B, 0x61, 0x00) // left
+                        Log.i(TAG, "printTextViaDeviceFile: QR raster ${qrSize}×${qrSize} OK")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "printTextViaDeviceFile: QR raster napaka (${e.message})")
+                }
+            } else if (!qrUrl.isNullOrBlank()) {
+                // Rezervno: GS(k hardware QR (le nekateri tiskalniki)
                 val bytes = qrUrl.toByteArray(Charsets.ISO_8859_1)
                 val dataLen = bytes.size + 3
                 val pL = dataLen and 0xFF
                 val pH = (dataLen shr 8) and 0xFF
-                writeBytes(0x1B, 0x61, 0x01)                              // center
-                writeBytes(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00) // model 2
-                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06)        // module 6
-                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30)        // error L
-                writeBytes(0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30)            // store data
+                writeBytes(0x1B, 0x61, 0x01)
+                writeBytes(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00)
+                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06)
+                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30)
+                writeBytes(0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30)
                 out.write(bytes)
-                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30)        // print
-                writeBytes(0x1B, 0x61, 0x00)                              // left
+                writeBytes(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30)
+                writeBytes(0x1B, 0x61, 0x00)
             }
 
             // 4 prazne vrstice + odrez
