@@ -249,6 +249,7 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
     map["ponudnikDavcna"] = process.env.ERP_PONUDNIK_DAVCNA;
   }
 
+  res.setHeader("Cache-Control", "no-store, max-age=0");
   res.json({ ...(toResponse(map)), zacetekDnevaUra: enota?.zacetekDnevaUra ?? "04:00" });
 });
 
