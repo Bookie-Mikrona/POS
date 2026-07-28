@@ -716,7 +716,11 @@ export default function Settings() {
       setIdZaDdv((nastavitve as any).idZaDdv ?? "");
       setPoslovniProstor(nastavitve.poslovniProstor ?? "PP001");
       setElektronskaNaprava(nastavitve.elektronskaNaprava ?? "B001");
-      setPonudnikDavcna(nastavitve.ponudnikDavcna ?? "");
+      // ponudnikDavcna: auto-fill iz davčne številke podjetja, če ni bila še nastavljena
+      setPonudnikDavcna(
+        (nastavitve.ponudnikDavcna || "") ||
+        (prijavljen?.podjetjeDavcna ?? "")
+      );
       setCertifikatPot((nastavitve as Nastavitve & { certifikatPot?: string }).certifikatPot ?? "");
       setCertifikatGeslo((nastavitve as Nastavitve & { certifikatGeslo?: string }).certifikatGeslo ?? "");
       setRacunPozdrav1(nastavitve.racunPozdrav1 ?? "Hvala za obisk!");

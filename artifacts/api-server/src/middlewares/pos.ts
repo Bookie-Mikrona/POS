@@ -48,13 +48,12 @@ export async function requireEnota(
   const enotaIdRaw = req.headers["x-enota-id"] ?? req.query["enota_id"];
   const enotaId = enotaIdRaw ? parseInt(String(enotaIdRaw), 10) : NaN;
 
-  if (!enotaId || isNaN(enotaId)) {
-    res.status(400).json({ napaka: "Manjka X-Enota-Id glava" });
-    return;
-  }
-
   // Superadmin bypass — superadmin sme dostopati do katerekoli enote
   if (SUPER_ADMIN_IDS.includes(userId)) {
+    if (!enotaId || isNaN(enotaId)) {
+      res.status(400).json({ napaka: "Manjka X-Enota-Id glava" });
+      return;
+    }
     const [enota] = await db
       .select({ id: enoteTable.id, companyId: enoteTable.companyId, idZaDdv: companiesTable.idZaDdv })
       .from(enoteTable)
@@ -92,8 +91,31 @@ export async function requireEnota(
     return;
   }
 
+  // Določi dejanski enotaId — iz headerja ali fallback za admin brez izbrane enote
+  let resolvedEnotaId = (!enotaId || isNaN(enotaId)) ? null : enotaId;
+
+  if (!resolvedEnotaId) {
+    if (posUser.vloga === "admin") {
+      // Admin podjetja brez X-Enota-Id: avtomatsko izberi prvo aktivno enoto podjetja
+      const [prvaEnota] = await db
+        .select({ id: enoteTable.id })
+        .from(enoteTable)
+        .where(and(eq(enoteTable.companyId, posUser.companyId), eq(enoteTable.aktiven, true)))
+        .orderBy(enoteTable.id)
+        .limit(1);
+      if (!prvaEnota) {
+        res.status(400).json({ napaka: "Podjetje nima aktivnih enot" });
+        return;
+      }
+      resolvedEnotaId = prvaEnota.id;
+    } else {
+      res.status(400).json({ napaka: "Manjka X-Enota-Id glava" });
+      return;
+    }
+  }
+
   // admin_enote sme dostopati samo do svoje dodeljene enote
-  if (posUser.vloga === "admin_enote" && posUser.dodeljenaEnotaId !== enotaId) {
+  if (posUser.vloga === "admin_enote" && posUser.dodeljenaEnotaId !== resolvedEnotaId) {
     res.status(403).json({ napaka: "Admin enote sme dostopati samo do svoje dodeljene enote", koda: "ENOTA_NEDOSTOPNA" });
     return;
   }
@@ -103,7 +125,7 @@ export async function requireEnota(
     .select({ id: enoteTable.id, companyId: enoteTable.companyId, idZaDdv: companiesTable.idZaDdv })
     .from(enoteTable)
     .innerJoin(companiesTable, eq(enoteTable.companyId, companiesTable.id))
-    .where(and(eq(enoteTable.id, enotaId), eq(enoteTable.companyId, posUser.companyId)))
+    .where(and(eq(enoteTable.id, resolvedEnotaId), eq(enoteTable.companyId, posUser.companyId)))
     .limit(1);
 
   if (!enota) {
@@ -112,13 +134,13 @@ export async function requireEnota(
   }
 
   // 5. Nastavi na zahtevku
-  (req as PosRequest).enotaId = enotaId;
+  (req as PosRequest).enotaId = resolvedEnotaId;
   (req as PosRequest).clerkUserId = userId;
   (req as PosRequest).companyId = enota.companyId;
   (req as PosRequest).vloga = posUser.vloga;
   (req as PosRequest).idZaDdv = enota.idZaDdv ?? null;
   (req as PosRequest).jeDdvZavezanec = jeZavezanecDdv(enota.idZaDdv);
-  (req as any).companyId = enota.companyId; // za kompatibilnost z enote.ts ki bere (req as any).companyId
+  (req as any).companyId = enota.companyId;
 
   next();
 }
