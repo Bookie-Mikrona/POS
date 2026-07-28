@@ -753,9 +753,10 @@ export default function Receipts() {
     setDialogKupecNaslov(r.kupecNaslov ?? null);
   }
 
-  const dialogVsota = [dialogGotovina, dialogKartica, dialogBon, dialogBonPica]
+  // dialogBonPica je informativna vrednost (skupaj je že neto) — ne šteje k plačilni vsoti
+  const dialogVsota = [dialogGotovina, dialogKartica, dialogBon]
     .reduce((acc, v) => acc + (v !== "" ? parseFloat(v) || 0 : 0), 0);
-  const dialogImaVnose = [dialogGotovina, dialogKartica, dialogBon, dialogBonPica].some(v => v !== "");
+  const dialogImaVnose = [dialogGotovina, dialogKartica, dialogBon].some(v => v !== "");
   const dialogSkupaj = printDialog?.skupaj ?? 0;
   // Pri negotovinskem načinu negotovinsko pokrije razliko — zadostuje, da vnosi ne presežejo skupaj
   const dialogJeTocno = !dialogImaVnose
