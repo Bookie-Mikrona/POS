@@ -697,6 +697,10 @@ router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<vo
     return;
   }
 
+  // Izbriši modifier otroke pred staršem (kaskada)
+  await db.delete(postavkeTable).where(
+    and(eq(postavkeTable.parentPostavkaId, params.data.postavkaId), eq(postavkeTable.narociloId, params.data.id))
+  );
   await db.delete(postavkeTable).where(
     and(eq(postavkeTable.id, params.data.postavkaId), eq(postavkeTable.narociloId, params.data.id))
   );
