@@ -1732,39 +1732,30 @@ export default function Order() {
     <>
     <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden bg-muted/20">
       {/* ── Mobile tab switcher ──────────────────────────────── */}
-      <div className="md:hidden flex flex-col border-b bg-background shrink-0">
-        <div className="flex items-center px-2 pt-1.5 pb-0.5 gap-2">
-          <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-semibold truncate flex-1">
-            {narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}
-          </span>
-          <span className="text-xs text-muted-foreground shrink-0">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
-        </div>
-        <div className="flex">
-          <button
-            onClick={() => setMobileTab("meni")}
-            className={`flex-1 py-1.5 text-xs font-semibold border-b-2 transition-colors ${
-              mobileTab === "meni" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-            }`}
-          >
-            Meni
-          </button>
-          <button
-            onClick={() => setMobileTab("narocilo")}
-            className={`flex-1 py-1.5 text-xs font-semibold border-b-2 transition-colors relative ${
-              mobileTab === "narocilo" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-            }`}
-          >
-            Naročilo
-            {postavkeCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold w-4 h-4">
-                {postavkeCount}
-              </span>
-            )}
-          </button>
-        </div>
+      <div className="md:hidden flex items-center border-b bg-background shrink-0 gap-1 px-1 py-1">
+        <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={handleBack}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-xs font-semibold truncate flex-1 min-w-0">
+          {narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}
+          <span className="font-normal text-muted-foreground ml-1">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
+        </span>
+        <button
+          onClick={() => setMobileTab("meni")}
+          className={`shrink-0 px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+            mobileTab === "meni" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Meni
+        </button>
+        <button
+          onClick={() => setMobileTab("narocilo")}
+          className={`shrink-0 px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+            mobileTab === "narocilo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Naročilo{postavkeCount > 0 && ` (${postavkeCount})`}
+        </button>
       </div>
 
       {/* ── Levi del — Meni ──────────────────────────────────── */}
@@ -1796,54 +1787,7 @@ export default function Order() {
           className="flex-1 flex flex-col overflow-hidden"
           onValueChange={v => { setActiveKategorija(v); setSearch(""); }}
         >
-          {/* Gostje — mobilni meni tab */}
-          <div className="md:hidden flex flex-wrap gap-1 items-center px-3 pt-2">
-            <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            {steviloGostov === 0 ? (
-              <button
-                type="button"
-                onClick={() => { void handleDodajPrvegaGosta(); }}
-                className="text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-              >
-                + Dodaj gosta
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setAktivniGostStevilka(null)}
-                  className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === null ? "bg-foreground text-background border-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
-                >
-                  Skupaj
-                </button>
-                {Array.from({ length: steviloGostov }, (_, i) => i + 1).map(g => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setAktivniGostStevilka(g)}
-                    className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === g ? `${gostBarva(g)} border-current` : "bg-background text-muted-foreground hover:text-foreground"}`}
-                  >
-                    Gost {g}
-                  </button>
-                ))}
-                {(() => {
-                  const zadnjiPrazen = steviloGostov > 0 && nezaracunaneVse.every(p => (p as typeof p & { gostStevilka?: number | null }).gostStevilka !== steviloGostov);
-                  return (
-                    <button
-                      type="button"
-                      disabled={zadnjiPrazen}
-                      onClick={() => { const n = steviloGostov + 1; setSteviloGostov(n); setAktivniGostStevilka(n); }}
-                      className="text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      title={zadnjiPrazen ? "Zadnji gost nima artiklov" : undefined}
-                    >
-                      + Gost
-                    </button>
-                  );
-                })()}
-              </>
-            )}
-          </div>
-          <div className="px-3 pt-3 pb-2 border-b space-y-2">
+          <div className="px-2 pt-1.5 pb-1.5 border-b space-y-1.5">
             <div className="relative flex gap-2 items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1882,6 +1826,40 @@ export default function Order() {
               >
                 {glasovnoAktivno ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </button>
+            </div>
+            {/* Gostje — samo mobile */}
+            <div className="md:hidden flex flex-wrap gap-1 items-center">
+              <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              {steviloGostov === 0 ? (
+                <button type="button" onClick={() => { void handleDodajPrvegaGosta(); }}
+                  className="text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors">
+                  + Dodaj gosta
+                </button>
+              ) : (
+                <>
+                  <button type="button" onClick={() => setAktivniGostStevilka(null)}
+                    className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === null ? "bg-foreground text-background border-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}>
+                    Skupaj
+                  </button>
+                  {Array.from({ length: steviloGostov }, (_, i) => i + 1).map(g => (
+                    <button key={g} type="button" onClick={() => setAktivniGostStevilka(g)}
+                      className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${aktivniGostStevilka === g ? `${gostBarva(g)} border-current` : "bg-background text-muted-foreground hover:text-foreground"}`}>
+                      Gost {g}
+                    </button>
+                  ))}
+                  {(() => {
+                    const zadnjiPrazen = steviloGostov > 0 && nezaracunaneVse.every(p => (p as typeof p & { gostStevilka?: number | null }).gostStevilka !== steviloGostov);
+                    return (
+                      <button type="button" disabled={zadnjiPrazen}
+                        onClick={() => { const n = steviloGostov + 1; setSteviloGostov(n); setAktivniGostStevilka(n); }}
+                        className="text-xs px-2 py-0.5 rounded-full border border-dashed text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={zadnjiPrazen ? "Zadnji gost nima artiklov" : undefined}>
+                        + Gost
+                      </button>
+                    );
+                  })()}
+                </>
+              )}
             </div>
             <TabsList className="h-auto flex-wrap w-full justify-start gap-1 bg-transparent p-0">
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
