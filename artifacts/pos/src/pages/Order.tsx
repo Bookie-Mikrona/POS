@@ -1898,7 +1898,7 @@ export default function Order() {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-4">
+                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-20 md:pb-4">
                       {gridItems.map(item =>
                         item.type === "artikel" ? (
                           <SortableArtikelCard
