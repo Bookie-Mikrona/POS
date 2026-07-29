@@ -26,6 +26,7 @@ import {
   getGetRacunPostavkeQueryKey,
   useAddPostavkaModifikatorji,
   useListDnevniMeni,
+  useListProstori,
   type ModSkupinaFull,
   ApiError,
 } from "@workspace/api-client-react";
@@ -765,6 +766,7 @@ export default function Order() {
   const danasStr = new Date().toISOString().slice(0, 10);
   const { data: dnevniMeniDanes } = useListDnevniMeni({ od: danasStr, do: danasStr });
   const { data: mize } = useListMize();
+  const { data: prostori } = useListProstori();
   const { naprava } = useNaprava();
   const { nastavitve } = useNastavitve();
   const grupiranjeNacin = (nastavitve as ({ grupiranjeNacin?: string } | undefined))?.grupiranjeNacin ?? "novo";
@@ -1858,6 +1860,8 @@ export default function Order() {
   if (!narocilo) return <div className="p-8">Naročilo ne obstaja.</div>;
 
   const postavkeCount = (narocilo?.postavke ?? []).filter(p => p.parentPostavkaId == null).length;
+  const currentMizaProstorId = mize?.find(m => m.id === narocilo.mizaId)?.prostorId ?? null;
+  const prostorIme = currentMizaProstorId != null ? (prostori?.find(p => p.id === currentMizaProstorId)?.ime ?? null) : null;
 
   return (
     <>
@@ -1867,9 +1871,12 @@ export default function Order() {
         <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span className="text-base font-semibold truncate flex-1 min-w-0">
-          {narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}
-          <span className="font-normal text-muted-foreground ml-1">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
+        <span className="flex flex-col leading-tight flex-1 min-w-0 truncate">
+          <span className="text-base font-semibold truncate">
+            {prostorIme && <span className="text-muted-foreground font-normal">{prostorIme} · </span>}
+            {narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}
+            <span className="font-normal text-muted-foreground ml-1">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
+          </span>
         </span>
         <button
           onClick={() => setMobileTab("meni")}
@@ -2066,7 +2073,7 @@ export default function Order() {
       </div>
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
-      <div className={`w-full md:w-[400px] flex-col md:h-full min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
+      <div className={`w-full md:w-[400px] flex-col h-full min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 md:p-4 border-b bg-card space-y-1.5">
           {/* Ime mize + ikone — samo desktop (mobile: ime je v zgornjem baru, ikone so pri gostih) */}
           <div className="hidden md:flex items-center gap-1 min-w-0">
@@ -2178,7 +2185,7 @@ export default function Order() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-1 pb-20 md:pb-1">
+        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-1 pb-2">
           {nezaracunaneVse.length === 0 ? (
             <div className="h-full flex items-center justify-center text-muted-foreground p-8 text-center text-sm">
               Ni še dodanih artiklov.
