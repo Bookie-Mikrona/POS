@@ -327,9 +327,15 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32): ZcsRacunJson 
     const pId = p.postavkaId ?? null;
     const dodatki = pId != null ? (dodatekMap.get(pId) ?? []) : [];
     const placljeniDodatki = dodatki.filter(d => d.skupaj !== 0 || d.cenaKos !== 0);
+    const brezplacniDodatki = dodatki.filter(d => d.skupaj === 0 && d.cenaKos === 0);
     for (const d of placljeniDodatki) {
       line("+ " + d.ime.slice(0, cols - 2));
+      if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
       line(padEnd("", artW) + " " + padStart(String(d.kolicina), kolW) + " " + padStart(d.cenaKos.toFixed(2) + " €", cenaW) + " " + padStart(d.skupaj.toFixed(2) + " €", skupajW));
+    }
+    for (const d of brezplacniDodatki) {
+      line("  * " + d.ime.slice(0, cols - 4));
+      if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
     }
     if (placljeniDodatki.length > 0) {
       const skupajPica = p.skupaj + placljeniDodatki.reduce((s, d) => s + d.skupaj, 0);
@@ -652,9 +658,15 @@ export function buildEscPosReceipt(data: PrintRacunData, cols = 32): Uint8Array 
     const pIdEsc = p.postavkaId ?? null;
     const dodatki = pIdEsc != null ? (dodatekMapEsc.get(pIdEsc) ?? []) : [];
     const placljeniDodatkiEsc = dodatki.filter(d => d.skupaj !== 0 || d.cenaKos !== 0);
+    const brezplacniDodatkiEsc = dodatki.filter(d => d.skupaj === 0 && d.cenaKos === 0);
     for (const d of placljeniDodatkiEsc) {
       line("+ " + d.ime.slice(0, cols - 2));
+      if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
       line(padEnd("", artW) + " " + padStart(String(d.kolicina), kolW) + " " + padStart(d.cenaKos.toFixed(2) + " €", cenaW) + " " + padStart(d.skupaj.toFixed(2) + " €", skupajW));
+    }
+    for (const d of brezplacniDodatkiEsc) {
+      line("  * " + d.ime.slice(0, cols - 4));
+      if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
     }
     if (placljeniDodatkiEsc.length > 0) {
       const skupajPica = p.skupaj + placljeniDodatkiEsc.reduce((s, d) => s + d.skupaj, 0);
