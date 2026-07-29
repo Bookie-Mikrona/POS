@@ -2053,7 +2053,7 @@ export default function Order() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-1">
+        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-1 pb-20 md:pb-1">
           {nezaracunaneVse.length === 0 ? (
             <div className="h-full flex items-center justify-center text-muted-foreground p-8 text-center text-sm">
               Ni še dodanih artiklov.
