@@ -24,3 +24,9 @@ id = "DE_HovpAiSYRdvdyY0Kik"
 uri = "file://memory-backup.zip"
 type = "unspecified"
 title = "Memory backup"
+
+[[outputs]]
+id = "AZQ44KuBjmJhUm3hRcqqN"
+uri = "file://pos-prirucnik.docx"
+type = "word_document"
+title = "POS Gostinstvo — Uporabniški priročnik"
