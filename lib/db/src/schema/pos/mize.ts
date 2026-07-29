@@ -10,6 +10,10 @@ export const mizeTable = pgTable("mize", {
   kapaciteta: integer("kapaciteta").notNull().default(4),
   status: text("status", { enum: ["prosta", "zasedena", "rezervirana"] }).notNull().default("prosta"),
   prostorId: integer("prostor_id").references(() => prostoriTable.id),
+  /** Pozicija mize na tlorisu (x os, px). NULL = ni nastavljeno. */
+  posX: integer("pos_x"),
+  /** Pozicija mize na tlorisu (y os, px). NULL = ni nastavljeno. */
+  posY: integer("pos_y"),
 });
 
 export type Miza = typeof mizeTable.$inferSelect;

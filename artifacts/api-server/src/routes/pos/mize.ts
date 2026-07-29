@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, mizeTable, narocilaTable } from "@workspace/db";
 import { broadcast } from "../../lib/pos-sse";
 
@@ -50,12 +50,39 @@ router.put("/mize/:id", async (req, res): Promise<void> => {
   if (parsed.data.kapaciteta !== undefined) updateData.kapaciteta = parsed.data.kapaciteta;
   if (parsed.data.status !== undefined) updateData.status = parsed.data.status as "prosta" | "zasedena" | "rezervirana";
   if (parsed.data.prostorId !== undefined) updateData.prostorId = parsed.data.prostorId;
+  if (parsed.data.posX !== undefined) updateData.posX = parsed.data.posX;
+  if (parsed.data.posY !== undefined) updateData.posY = parsed.data.posY;
   const [row] = await db.update(mizeTable).set(updateData)
     .where(and(eq(mizeTable.id, params.data.id), sql`true`, eq(mizeTable.enotaId, tenotaId)))
     .returning();
   if (!row) { res.status(404).json({ error: "Miza ni najdena" }); return; }
   broadcast("update", { type: "miza", id: params.data.id });
   res.json((row));
+});
+
+router.patch("/mize/bulk-pozicija", async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const { pozicije } = req.body as { pozicije: { id: number; posX: number; posY: number }[] };
+  if (!Array.isArray(pozicije) || pozicije.length === 0) {
+    res.status(400).json({ error: "Manjka seznam pozicij." });
+    return;
+  }
+  // Preveri, da vse mize spadajo k tej enoti
+  const ids = pozicije.map(p => p.id);
+  const existingRows = await db.select({ id: mizeTable.id })
+    .from(mizeTable)
+    .where(and(inArray(mizeTable.id, ids), eq(mizeTable.enotaId, tenotaId)));
+  const validIds = new Set(existingRows.map(r => r.id));
+  let updated = 0;
+  for (const p of pozicije) {
+    if (!validIds.has(p.id)) continue;
+    await db.update(mizeTable)
+      .set({ posX: Math.round(p.posX), posY: Math.round(p.posY) })
+      .where(and(eq(mizeTable.id, p.id), eq(mizeTable.enotaId, tenotaId)));
+    updated++;
+  }
+  broadcast("update", { type: "miza" });
+  res.json({ updated });
 });
 
 router.delete("/mize/:id", async (req, res): Promise<void> => {

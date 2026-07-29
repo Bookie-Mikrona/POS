@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { shouldSkipAutoStart, clearSkipAutoStart, setSkipAutoStart } from "@/lib/autoStartGuard";
 import { useAutoStart } from "@/contexts/AutoStartContext";
 import { Link, useLocation, useSearch } from "wouter";
@@ -12,6 +12,136 @@ import { Mic, MicOff, Plus, Users, UtensilsCrossed, X, CalendarClock, Unlock, Sh
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGlasovniUkaz } from "@/hooks/use-glasovni-ukaz";
+
+// ── Tloris floor-plan constants (must match TlorisEditor in Settings) ────────
+const TLORIS_W = 700;
+const TLORIS_H = 440;
+const TLORIS_CW = 88;
+const TLORIS_CH = 54;
+
+// Read-only floor plan view rendered on the Home screen
+function TlorisPregled({
+  vseMize,
+  filtriraneMize,
+  narocila,
+  cardProps,
+}: {
+  vseMize: Miza[];
+  filtriraneMize: Miza[];
+  narocila: Narocilo[];
+  cardProps: {
+    onCreateNarocilo: (mizaId?: number) => void;
+    onCancelNarocilo: (narociloId: number, mizaId: number) => void;
+    onToggleRezervirano: (miza: Miza) => void;
+    isPending: boolean;
+  };
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [tooltip, setTooltip] = useState<{ mizaId: number; x: number; y: number } | null>(null);
+
+  // Build a set of filtered IDs for dimming
+  const filteredIds = new Set(filtriraneMize.map(m => m.id));
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative border-2 border-dashed border-border rounded-xl bg-stone-50 overflow-hidden w-full"
+      style={{ aspectRatio: `${TLORIS_W}/${TLORIS_H}` }}
+      onMouseLeave={() => setTooltip(null)}
+    >
+      {/* Dot grid */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
+        <defs>
+          <pattern id="hp-tloris-dots" x="0" y="0"
+            width={`${(50 / TLORIS_W) * 100}%`}
+            height={`${(50 / TLORIS_H) * 100}%`}
+            patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="currentColor" className="text-gray-300" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#hp-tloris-dots)" />
+      </svg>
+
+      {vseMize.map(m => {
+        if (m.posX == null || m.posY == null) return null;
+        const aktivnoNarocilo = narocila.find(n => n.mizaId === m.id && n.status === "odprto");
+        const isFiltered = filteredIds.has(m.id);
+
+        const postavke = (aktivnoNarocilo?.postavke ?? []).filter((p: any) => p.parentPostavkaId == null);
+        const zaracunanoSt = postavke.filter((p: any) => p.racunId != null).length;
+        const imaDelniRacun = zaracunanoSt > 0 && zaracunanoSt < postavke.length;
+        const imaVseZaracunano = postavke.length > 0 && zaracunanoSt === postavke.length;
+
+        const borderColor =
+          !aktivnoNarocilo ? (m.status === "rezervirana" ? "border-yellow-400" : "border-green-400") :
+          imaVseZaracunano ? "border-teal-400" :
+          imaDelniRacun ? "border-orange-400" :
+          "border-red-400";
+
+        const bgColor =
+          !aktivnoNarocilo ? (m.status === "rezervirana" ? "bg-yellow-50" : "bg-green-50") :
+          imaVseZaracunano ? "bg-teal-50" :
+          imaDelniRacun ? "bg-orange-50" :
+          "bg-red-50";
+
+        return (
+          <button
+            key={m.id}
+            className={`absolute border-2 rounded-md flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary ${borderColor} ${bgColor} ${!isFiltered ? "opacity-30" : ""}`}
+            style={{
+              left: `${(m.posX / TLORIS_W) * 100}%`,
+              top: `${(m.posY / TLORIS_H) * 100}%`,
+              width: `${(TLORIS_CW / TLORIS_W) * 100}%`,
+              height: `${(TLORIS_CH / TLORIS_H) * 100}%`,
+            }}
+            onClick={() => {
+              if (!isFiltered) return;
+              if (aktivnoNarocilo && (aktivnoNarocilo.postavke ?? []).filter((p: any) => p.parentPostavkaId == null).length > 0) {
+                cardProps.onCreateNarocilo(m.id); // will navigate to existing
+              } else {
+                cardProps.onCreateNarocilo(m.id);
+              }
+            }}
+            title={m.ime || `Miza ${m.stevilka}`}
+          >
+            <span className="text-[clamp(7px,1.2vw,12px)] font-bold leading-tight px-0.5 truncate w-full text-center">
+              {m.ime || `M${m.stevilka}`}
+            </span>
+            {aktivnoNarocilo && (
+              <span className="text-[clamp(6px,0.9vw,10px)] font-medium leading-tight">
+                {aktivnoNarocilo.skupaj.toFixed(0)}€
+              </span>
+            )}
+          </button>
+        );
+      })}
+
+      {/* Mize brez pozicije — prikaži v mini mreži pod platnom */}
+      {(() => {
+        const brezPos = filtriraneMize.filter(m => m.posX == null || m.posY == null);
+        if (brezPos.length === 0) return null;
+        return (
+          <div className="absolute bottom-1 left-1 right-1 flex flex-wrap gap-1">
+            {brezPos.map(m => {
+              const aktivnoNarocilo = narocila.find(n => n.mizaId === m.id && n.status === "odprto");
+              return (
+                <button
+                  key={m.id}
+                  className="text-[clamp(7px,1vw,11px)] font-medium border rounded px-1 py-0.5 bg-white hover:bg-muted transition-colors"
+                  onClick={() => cardProps.onCreateNarocilo(m.id)}
+                  title={m.ime || `Miza ${m.stevilka}`}
+                >
+                  {m.ime || `M${m.stevilka}`}
+                  {aktivnoNarocilo && <span className="ml-0.5 text-red-600">●</span>}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
 
 function MizaCard({ miza, aktivnoNarocilo, onCreateNarocilo, onCancelNarocilo, onToggleRezervirano, isPending }: {
   miza: Miza;
@@ -488,8 +618,13 @@ export default function Home() {
       ) : hasProstori ? (
         <div className="space-y-6 md:space-y-8">
           {prostoriSeznam.map(prostor => {
-            const mizeProstora = filtriraneMize(mize?.filter(m => m.prostorId === prostor.id) ?? []);
+            const vseMizeProstora = mize?.filter(m => m.prostorId === prostor.id) ?? [];
+            const mizeProstora = filtriraneMize(vseMizeProstora);
             if (mizeProstora.length === 0) return null;
+
+            // Tlorisni prikaz: pokažemo ga, ko ima vsaj ena miza v prostoru nastavljeno pozicijo
+            const imaTloris = vseMizeProstora.some(m => m.posX != null && m.posY != null);
+
             return (
               <div key={prostor.id}>
                 <h2 className="text-base md:text-lg font-semibold text-muted-foreground mb-3 flex items-center gap-2">
@@ -497,9 +632,18 @@ export default function Home() {
                   {prostor.ime}
                   <span className="h-px flex-1 bg-border" />
                 </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                  {mizeProstora.map(renderMizaCard)}
-                </div>
+                {imaTloris ? (
+                  <TlorisPregled
+                    vseMize={vseMizeProstora}
+                    filtriraneMize={mizeProstora}
+                    narocila={narocila ?? []}
+                    cardProps={cardProps}
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                    {mizeProstora.map(renderMizaCard)}
+                  </div>
+                )}
               </div>
             );
           })}

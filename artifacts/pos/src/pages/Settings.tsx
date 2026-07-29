@@ -7,6 +7,7 @@ import {
   useCreateMiza,
   useDeleteMiza,
   useUpdateMiza,
+  useBulkPozicijaMize,
   useUpdateNastavitve,
   useUpdateNapraveTerminali,
   useListNatakari,
@@ -284,6 +285,173 @@ function GlasovniUkaziZavihek() {
   );
 }
 
+// ── TlorisEditor ─────────────────────────────────────────────────────────────
+const TLORIS_W = 700;
+const TLORIS_H = 440;
+const TLORIS_CW = 88; // card width in canvas units
+const TLORIS_CH = 54; // card height in canvas units
+
+interface TlorisEditorProps {
+  mize: Miza[];
+  onSave: (pozicije: { id: number; posX: number; posY: number }[]) => void;
+  isSaving: boolean;
+}
+
+function TlorisEditor({ mize, onSave, isSaving }: TlorisEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const initPozicije = useCallback(() => {
+    const init: Record<number, { x: number; y: number }> = {};
+    mize.forEach((m, i) => {
+      if (m.posX != null && m.posY != null) {
+        init[m.id] = { x: m.posX, y: m.posY };
+      } else {
+        const col = i % 7;
+        const row = Math.floor(i / 7);
+        init[m.id] = { x: col * 96 + 8, y: row * 70 + 8 };
+      }
+    });
+    return init;
+  }, [mize]);
+
+  const [pozicije, setPozicije] = useState<Record<number, { x: number; y: number }>>(initPozicije);
+
+  // Sync if mize prop changes (e.g. after save refreshes data)
+  useEffect(() => {
+    setPozicije(prev => {
+      const updated = { ...prev };
+      mize.forEach((m, i) => {
+        if (m.posX != null && m.posY != null) {
+          updated[m.id] = { x: m.posX, y: m.posY };
+        } else if (!updated[m.id]) {
+          const col = i % 7;
+          const row = Math.floor(i / 7);
+          updated[m.id] = { x: col * 96 + 8, y: row * 70 + 8 };
+        }
+      });
+      return updated;
+    });
+  }, [mize]);
+
+  const dragging = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    scale: number;
+  } | null>(null);
+
+  const getScale = () => {
+    if (!containerRef.current) return 1;
+    return containerRef.current.clientWidth / TLORIS_W;
+  };
+
+  const handleMouseDown = (e: React.MouseEvent, mizaId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = pozicije[mizaId] ?? { x: 0, y: 0 };
+    dragging.current = { id: mizaId, startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, scale: getScale() };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragging.current) return;
+    const { id, startX, startY, origX, origY, scale } = dragging.current;
+    const newX = Math.max(0, Math.min(TLORIS_W - TLORIS_CW, origX + (e.clientX - startX) / scale));
+    const newY = Math.max(0, Math.min(TLORIS_H - TLORIS_CH, origY + (e.clientY - startY) / scale));
+    setPozicije(prev => ({ ...prev, [id]: { x: newX, y: newY } }));
+  };
+
+  const handleUp = () => { dragging.current = null; };
+
+  const handleTouchStart = (e: React.TouchEvent, mizaId: number) => {
+    const touch = e.touches[0];
+    const pos = pozicije[mizaId] ?? { x: 0, y: 0 };
+    dragging.current = { id: mizaId, startX: touch.clientX, startY: touch.clientY, origX: pos.x, origY: pos.y, scale: getScale() };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragging.current) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const { id, startX, startY, origX, origY, scale } = dragging.current;
+    const newX = Math.max(0, Math.min(TLORIS_W - TLORIS_CW, origX + (touch.clientX - startX) / scale));
+    const newY = Math.max(0, Math.min(TLORIS_H - TLORIS_CH, origY + (touch.clientY - startY) / scale));
+    setPozicije(prev => ({ ...prev, [id]: { x: newX, y: newY } }));
+  };
+
+  const handleSave = () => {
+    onSave(mize.map(m => ({
+      id: m.id,
+      posX: Math.round(pozicije[m.id]?.x ?? 0),
+      posY: Math.round(pozicije[m.id]?.y ?? 0),
+    })));
+  };
+
+  if (mize.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4 text-center">V tem prostoru ni miz.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">Povlecite mize na željeno mesto v prostoru, nato kliknite »Shrani tloris«.</p>
+      <div
+        ref={containerRef}
+        className="relative border-2 border-dashed border-border rounded-lg bg-stone-50 overflow-hidden select-none w-full"
+        style={{ aspectRatio: `${TLORIS_W}/${TLORIS_H}`, touchAction: "none" }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleUp}
+        onMouseLeave={handleUp}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleUp}
+      >
+        {/* Subtle dot grid */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
+          <defs>
+            <pattern id="tloris-dots" x="0" y="0"
+              width={`${(50 / TLORIS_W) * 100}%`}
+              height={`${(50 / TLORIS_H) * 100}%`}
+              patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r="1" fill="currentColor" className="text-gray-300" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#tloris-dots)" />
+        </svg>
+
+        {mize.map(m => {
+          const pos = pozicije[m.id] ?? { x: 0, y: 0 };
+          return (
+            <div
+              key={m.id}
+              className="absolute cursor-grab active:cursor-grabbing rounded-md border bg-white shadow-sm flex flex-col items-center justify-center text-center select-none hover:shadow-md hover:border-primary transition-all z-10"
+              style={{
+                left: `${(pos.x / TLORIS_W) * 100}%`,
+                top: `${(pos.y / TLORIS_H) * 100}%`,
+                width: `${(TLORIS_CW / TLORIS_W) * 100}%`,
+                height: `${(TLORIS_CH / TLORIS_H) * 100}%`,
+              }}
+              onMouseDown={e => handleMouseDown(e, m.id)}
+              onTouchStart={e => handleTouchStart(e, m.id)}
+            >
+              <span className="text-[clamp(8px,1.3vw,13px)] font-semibold leading-tight px-1 truncate w-full text-center">
+                {m.ime || `M${m.stevilka}`}
+              </span>
+              <span className="text-[clamp(6px,0.9vw,10px)] text-muted-foreground leading-tight">
+                {m.kapaciteta}×
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <Button onClick={handleSave} disabled={isSaving} size="sm">
+        {isSaving
+          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Shranjujem…</>
+          : <><Save className="w-3.5 h-3.5 mr-1.5" />Shrani tloris</>}
+      </Button>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { user: prijavljen, updateUser } = useAuth();
   const jeAdmin = prijavljen?.vloga === "admin" || prijavljen?.vloga === "superadmin";
@@ -297,6 +465,8 @@ export default function Settings() {
   const createMiza = useCreateMiza();
   const deleteMiza = useDeleteMiza();
   const updateMiza = useUpdateMiza();
+  const bulkPozicija = useBulkPozicijaMize();
+  const [tlorisSelectedProstorId, setTlorisSelectedProstorId] = useState<number | null>(null);
   const { data: prostori } = useListProstori();
   const createProstor = useCreateProstor();
   const updateProstorMut = useUpdateProstor();
@@ -1999,6 +2169,68 @@ export default function Settings() {
           </Table>
         </CardContent>
       </Card>
+
+        {/* ── Tloris editor ──────────────────────────────────── */}
+        {prostori && prostori.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LayoutDashboard className="w-5 h-5" />
+                Tloris prostora
+              </CardTitle>
+              <CardDescription>
+                Povlecite mize na željeno mesto, da nastavite njihov položaj na tlorisu. Tloris se prikazuje na domačem zaslonu.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {prostori.length > 1 && (
+                <div className="flex items-center gap-3">
+                  <Label className="shrink-0">Prostor:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {prostori.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setTlorisSelectedProstorId(p.id)}
+                        className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
+                          (tlorisSelectedProstorId ?? prostori[0]?.id) === p.id
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background text-foreground border-border hover:bg-muted"
+                        }`}
+                      >
+                        {p.ime}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(() => {
+                const activeProstorId = tlorisSelectedProstorId ?? prostori[0]?.id;
+                const mizeProstora = (mize ?? []).filter(m => m.prostorId === activeProstorId);
+                const activeProstor = prostori.find(p => p.id === activeProstorId);
+                return (
+                  <TlorisEditor
+                    key={activeProstorId}
+                    mize={mizeProstora}
+                    onSave={(pozicije) => {
+                      bulkPozicija.mutate(
+                        { data: { pozicije } },
+                        {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: getListMizeQueryKey() });
+                            toast({ title: "Tloris shranjen", description: `Položaji miz za prostor »${activeProstor?.ime ?? ""}« so bili shranjeni.` });
+                          },
+                          onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče shraniti tlorisa.", variant: "destructive" }),
+                        }
+                      );
+                    }}
+                    isSaving={bulkPozicija.isPending}
+                  />
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
         </TabsContent>
 
         {/* ── Natakari ──────────────────────────────────────────── */}

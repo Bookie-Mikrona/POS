@@ -202,6 +202,10 @@ export interface Miza {
   status: MizaStatus;
   /** @nullable */
   prostorId?: number | null;
+  /** Pozicija na tlorisu — x os (px). NULL = ni nastavljeno. @nullable */
+  posX?: number | null;
+  /** Pozicija na tlorisu — y os (px). NULL = ni nastavljeno. @nullable */
+  posY?: number | null;
 }
 
 export type MizaInputStatus = typeof MizaInputStatus[keyof typeof MizaInputStatus];
@@ -221,6 +225,21 @@ export interface MizaInput {
   status?: MizaInputStatus;
   /** @nullable */
   prostorId?: number | null;
+  /** Pozicija na tlorisu — x os (px). NULL = ni nastavljeno. @nullable */
+  posX?: number | null;
+  /** Pozicija na tlorisu — y os (px). NULL = ni nastavljeno. @nullable */
+  posY?: number | null;
+}
+
+/** Vnos za skupinsko shranjevanje pozicij miz na tlorisu. */
+export interface MizaPozicijaVnos {
+  id: number;
+  posX: number;
+  posY: number;
+}
+
+export interface BulkPozicijaInput {
+  pozicije: MizaPozicijaVnos[];
 }
 
 export interface Prostor {

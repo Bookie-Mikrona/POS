@@ -131,6 +131,7 @@ import type {
   ListZalogaGibiParams,
   MatchBankTransactionsBody,
   MatchBankTransactionsResponse,
+  BulkPozicijaInput,
   Miza,
   MizaInput,
   ModNormativItem,
@@ -2892,6 +2893,57 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getDeleteMizaMutationOptions(options));
     }
+
+// ── Bulk pozicija miz na tlorisu ─────────────────────────────────────────────
+
+export const getBulkPozicijaMizeUrl = () => {
+  return `/api/mize/bulk-pozicija`
+}
+
+export const bulkPozicijaMize = async (
+  bulkPozicijaInput: BulkPozicijaInput,
+  options?: RequestInit
+): Promise<{ updated: number }> => {
+  return customFetch<{ updated: number }>(getBulkPozicijaMizeUrl(), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkPozicijaInput),
+  });
+}
+
+export const getUseBulkPozicijaMizeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof bulkPozicijaMize>>, TError, { data: BodyType<BulkPozicijaInput> }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof bulkPozicijaMize>>, TError, { data: BodyType<BulkPozicijaInput> }, TContext> => {
+  const mutationKey = ['bulkPozicijaMize'];
+  const { mutation: mutationOptions, request: requestOptions } = options ?
+    options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+    options
+    : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkPozicijaMize>>, { data: BodyType<BulkPozicijaInput> }> = (props) => {
+    const { data } = props ?? {};
+    return bulkPozicijaMize(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+}
+
+export type BulkPozicijaMizeMutationResult = NonNullable<Awaited<ReturnType<typeof bulkPozicijaMize>>>
+export type BulkPozicijaMizeMutationBody = BodyType<BulkPozicijaInput>
+export type BulkPozicijaMizeMutationError = ErrorType<unknown>
+
+export const useBulkPozicijaMize = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof bulkPozicijaMize>>, TError, { data: BodyType<BulkPozicijaInput> }, TContext>, request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<
+      Awaited<ReturnType<typeof bulkPozicijaMize>>,
+      TError,
+      { data: BodyType<BulkPozicijaInput> },
+      TContext
+    > => {
+  return useMutation(getUseBulkPozicijaMizeMutationOptions(options));
+}
 
 export const getListProstoriUrl = () => {
 
