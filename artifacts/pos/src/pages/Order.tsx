@@ -1608,10 +1608,13 @@ export default function Order() {
       setPendingArtikli(prev => new Set(prev).add(artikelId));
       const settle = () => setPendingArtikli(prev => { const s = new Set(prev); s.delete(artikelId); return s; });
       const modPayload = [{ modifikatorId, ime: modIme, cenaDodatek: Number(skupina?.modifikatorji.find(m => m.id === modifikatorId)?.cenaDodatek ?? 0) }];
-      addPostavkaModifikatorji.mutate({ id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, modifikatorji: modPayload } }, {
-        onSuccess: (updatedNarocilo) => { clearSkipAutoStart(); queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo); queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() }); setSearch(""); settle(); },
-        onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" }); settle(); },
-      });
+      addPostavka.mutate(
+        { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload } as any },
+        {
+          onSuccess: (updatedNarocilo) => { clearSkipAutoStart(); queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo); queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() }); setSearch(""); settle(); },
+          onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" }); settle(); },
+        }
+      );
     }
     // Sicer ostane dialog odprt
   };

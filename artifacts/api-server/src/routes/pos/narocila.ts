@@ -457,7 +457,8 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   if (narociloCheck.status !== "odprto") { res.status(409).json({ error: "Naročilo ni odprto" }); return; }
 
   // Happy Hour cena — preveri ali je HH aktiven in artikel ima HH ceno
-  let cenaKos = Number(artikel.cena);
+  const originalCena = Number(artikel.cena);
+  let cenaKos = originalCena;
   let jeHappyHourCena = false;
   if (artikel.happyHourCena != null) {
     const hhRows = await db.select({ kljuc: nastavitveTable.kljuc, vrednost: nastavitveTable.vrednost })
