@@ -29,6 +29,7 @@ const SELECT_FIELDS = {
   toGoArtikli: artikliTable.toGoArtikli,
   toGo: artikliTable.toGo,
   vrstaArtikla: artikliTable.vrstaArtikla,
+  happyHourCena: artikliTable.happyHourCena,
   hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`,
   vNormativih: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE vhodni_artikel_id = ${artikliTable.id})
                          OR EXISTS (SELECT 1 FROM modifikator_normativi WHERE vhodni_artikel_id = ${artikliTable.id})`};
@@ -57,6 +58,7 @@ function mapRow(r: Record<string, unknown>) {
     toGoArtikli: (r.toGoArtikli as number[] | null) ?? [],
     toGo: Boolean(r.toGo),
     vrstaArtikla: (r.vrstaArtikla as string | null) ?? "material",
+    happyHourCena: r.happyHourCena != null ? Number(r.happyHourCena) : null,
     hasNormativ: Boolean(r.hasNormativ),
     vNormativih: Boolean(r.vNormativih),
     modSkupine: [] as Array<{
@@ -506,6 +508,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if ((parsed.data as { toGoArtikli?: number[] }).toGoArtikli !== undefined) updateData.toGoArtikli = (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [];
   if ((parsed.data as { toGo?: boolean }).toGo !== undefined) updateData.toGo = (parsed.data as { toGo?: boolean }).toGo;
   if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) updateData.vrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla;
+  if ("happyHourCena" in parsed.data) updateData.happyHourCena = (parsed.data as { happyHourCena?: number | null }).happyHourCena != null ? String((parsed.data as { happyHourCena: number }).happyHourCena) : null;
 
   if ("kategorijaId" in parsed.data && parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })

@@ -100,6 +100,7 @@ export default function Menu() {
   const [artPrivzetiModGrpIds, setArtPrivzetiModGrpIds] = useState<number[]>([]);
   const [artToGoArtikli, setArtToGoArtikli] = useState<number[]>([]);
   const [artToGo, setArtToGo] = useState(false);
+  const [artHappyHourCena, setArtHappyHourCena] = useState<string>("");
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("material");
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
@@ -427,6 +428,7 @@ export default function Menu() {
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli([]);
     setArtToGo(false);
+    setArtHappyHourCena("");
     setArtVrstaArtikla("material");
     setArtImeZaNabavo(""); setArtEnotaMere(null);
     setNormativItems([]);
@@ -446,6 +448,7 @@ export default function Menu() {
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli((a as typeof a & { toGoArtikli?: number[] }).toGoArtikli ?? []);
     setArtToGo((a as typeof a & { toGo?: boolean }).toGo ?? false);
+    setArtHappyHourCena((a as typeof a & { happyHourCena?: number | null }).happyHourCena != null ? String((a as typeof a & { happyHourCena: number }).happyHourCena) : "");
     setArtVrstaArtikla(((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev");
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
@@ -498,6 +501,7 @@ export default function Menu() {
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
       vrstaArtikla: artVrstaArtikla,
+      happyHourCena: artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
     };
 
     const afterSave = (artikelId: number, label: string) => {
@@ -1262,6 +1266,32 @@ export default function Menu() {
                   </div>
                 );
               })()}
+
+              {/* Happy Hour cena — samo za prodajne artikle */}
+              {artProdajniArtikel && (
+                <div className="space-y-2 rounded-lg border p-3 border-amber-200 bg-amber-50/40">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⭐</span>
+                    <Label className="font-semibold text-amber-900">Happy Hour cena</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Cena, ki velja med Happy Hour urami. Pusti prazno, če artikel ni del Happy Hour.</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={artHappyHourCena}
+                      onChange={e => setArtHappyHourCena(e.target.value)}
+                      placeholder="npr. 2.50"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                    <span className="text-sm text-muted-foreground shrink-0">€</span>
+                    {artHappyHourCena && (
+                      <button type="button" onClick={() => setArtHappyHourCena("")} className="shrink-0 text-xs text-muted-foreground hover:text-destructive">✕</button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* To Go — samo za prodajne artikle */}
               {artProdajniArtikel && (

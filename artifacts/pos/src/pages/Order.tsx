@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useHappyHour } from "@/contexts/HappyHourContext";
 import { useGlasovniUkaz } from "@/hooks/use-glasovni-ukaz";
 import { useGlasovniSinonimi } from "@/hooks/use-glasovni-sinonimi";
 import { setSkipAutoStart, clearSkipAutoStart } from "@/lib/autoStartGuard";
@@ -120,6 +121,7 @@ interface SortableCardProps {
   pending: boolean;
   flashing: boolean;
   artikliMap?: Map<number, ArtikelLookup>;
+  isHappyHourActive?: boolean;
 }
 
 // ── Slovensko korenjenje za glasovne ukaze ────────────────────────────────────
@@ -253,7 +255,7 @@ function ujemaSeArtikel(ime: string, iskanje: string, extra: [string, string][] 
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap }: SortableCardProps) {
+function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: artikel.id });
 
@@ -296,12 +298,28 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap }: 
         >
           {artikel.ime}
         </span>
-        <span
-          className="text-sm font-bold"
-          style={{ color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}
-        >
-          {artikel.cena.toFixed(2)} €
-        </span>
+        {(() => {
+          const hhCena = (artikel as typeof artikel & { happyHourCena?: number | null }).happyHourCena;
+          const hhAktiven = isHappyHourActive && hhCena != null;
+          return (
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              {hhAktiven && (
+                <span className="text-[10px] font-bold rounded px-1 py-0" style={{ backgroundColor: "rgba(251,191,36,0.9)", color: "#000" }}>⭐ {hhCena!.toFixed(2)} €</span>
+              )}
+              <span
+                className="text-sm font-bold"
+                style={{
+                  color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))",
+                  textDecoration: hhAktiven ? "line-through" : undefined,
+                  opacity: hhAktiven ? 0.6 : 1,
+                  fontSize: hhAktiven ? "0.7rem" : undefined,
+                }}
+              >
+                {artikel.cena.toFixed(2)} €
+              </span>
+            </div>
+          );
+        })()}
 
         {privzetiImena && (
           <span
@@ -746,6 +764,8 @@ export default function Order() {
   const { naprava } = useNaprava();
   const { nastavitve } = useNastavitve();
   const grupiranjeNacin = (nastavitve as ({ grupiranjeNacin?: string } | undefined))?.grupiranjeNacin ?? "novo";
+  const { status: hhStatus } = useHappyHour();
+  const isHappyHourActive = hhStatus?.aktiven ?? false;
   const { data: racuniZaUvoz } = useListRacuni(undefined, {
     query: { enabled: uvozDialogOpen && uvozRacunId === null, queryKey: getListRacuniQueryKey() },
   });
@@ -2002,6 +2022,7 @@ export default function Order() {
                             pending={pendingArtikli.has(item.artikel.id)}
                             flashing={flashingId === item.artikel.id}
                             artikliMap={artikliMapForOrder}
+                            isHappyHourActive={isHappyHourActive}
                           />
                         ) : (
                           <div key={`grupa-${item.baseIme}`}>

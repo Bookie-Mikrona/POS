@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, enoteTable, kategorijeTable, mizeTable, modSkupineTable, modifikatorjiTable, narocilaTable, postavkeTable, prenosiNarocilTable, racuniTable, zacetneZalogeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, enoteTable, kategorijeTable, mizeTable, modSkupineTable, modifikatorjiTable, narocilaTable, nastavitveTable, postavkeTable, prenosiNarocilTable, racuniTable, zacetneZalogeTable } from "@workspace/db";
 import { broadcast, broadcastTo } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
@@ -456,7 +456,31 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   if (!narociloCheck) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
   if (narociloCheck.status !== "odprto") { res.status(409).json({ error: "Naročilo ni odprto" }); return; }
 
-  const cenaKos = Number(artikel.cena);
+  // Happy Hour cena — preveri ali je HH aktiven in artikel ima HH ceno
+  let cenaKos = Number(artikel.cena);
+  let jeHappyHourCena = false;
+  if (artikel.happyHourCena != null) {
+    const hhRows = await db.select({ kljuc: nastavitveTable.kljuc, vrednost: nastavitveTable.vrednost })
+      .from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId)));
+    const hhMap: Record<string, string> = {};
+    for (const r of hhRows) hhMap[r.kljuc] = r.vrednost;
+    const hhOd = hhMap["happyHourOd"] ?? "";
+    const hhDo = hhMap["happyHourDo"] ?? "";
+    const hhRocno = hhMap["happyHourRocnoAktiven"] ?? "auto";
+    const isHHActive = (() => {
+      if (hhRocno === "on") return true;
+      if (hhRocno === "off") return false;
+      if (!hhOd || !hhDo) return false;
+      const now = new Date();
+      const lj = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Ljubljana" }));
+      const cur = lj.getHours() * 60 + lj.getMinutes();
+      const [oh, om] = hhOd.split(":").map(Number);
+      const [dh, dm] = hhDo.split(":").map(Number);
+      const start = (oh ?? 0) * 60 + (om ?? 0), end = (dh ?? 0) * 60 + (dm ?? 0);
+      return end > start ? cur >= start && cur < end : cur >= start || cur < end;
+    })();
+    if (isHHActive) { cenaKos = Number(artikel.happyHourCena); jeHappyHourCena = true; }
+  }
   const kolicina = parsed.data.kolicina;
   const skupaj = round2(cenaKos * kolicina);
   const gostStevilka = (parsed.data as { gostStevilka?: number | null }).gostStevilka ?? null;

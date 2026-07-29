@@ -9,6 +9,7 @@ import { GotovToastSystem } from "@/components/GotovToastSystem";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useListRacuni, useRetryFursBatch, getListRacuniQueryKey } from "@workspace/api-client-react";
 import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext";
+import { HappyHourProvider, useHappyHour } from "@/contexts/HappyHourContext";
 import { NapravaProvider } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -218,6 +219,37 @@ function FursNapakaRetryBanner() {
         {retry.isPending ? "Pošiljanje…" : "Poskusi zdaj"}
       </button>
     </div>
+  );
+}
+
+function HappyHourToggle() {
+  const { status, loading, setRocno } = useHappyHour();
+  if (!status) return null;
+  const { aktiven, od, do: doo, rocno } = status;
+  const maUrnik = od && doo;
+
+  const handlePress = () => {
+    if (rocno === "on") setRocno("auto");
+    else if (rocno === "off") setRocno("auto");
+    else setRocno(aktiven ? "off" : "on");
+  };
+
+  return (
+    <button
+      type="button"
+      disabled={loading}
+      onClick={handlePress}
+      title={aktiven ? `Happy Hour AKTIVEN${rocno !== "auto" ? " (ročno)" : ""}` : `Happy Hour${maUrnik ? ` (${od}–${doo})` : " — ni urnika"}`}
+      className={`flex flex-col items-center justify-center py-2 gap-0.5 min-h-[56px] w-14 shrink-0 transition-colors ${
+        aktiven
+          ? "text-amber-600 bg-amber-50"
+          : "text-muted-foreground"
+      }`}
+      style={aktiven ? { animation: "none" } : undefined}
+    >
+      <span className="text-lg leading-none">{aktiven ? "⭐" : "☆"}</span>
+      <span className="text-[9px] font-medium leading-tight">HH</span>
+    </button>
   );
 }
 
@@ -498,6 +530,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <span className="text-[10px] font-medium">{item.shortLabel}</span>
             </Link>
           ))}
+          {!isSuperAdmin && <HappyHourToggle />}
 
           <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
             <SheetTrigger asChild>
@@ -751,9 +784,11 @@ function App() {
           <GotovToastProvider>
             <AuthProvider>
               <BlagajnaProvider>
-                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                  <AppRouter />
-                </WouterRouter>
+                <HappyHourProvider>
+                  <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                    <AppRouter />
+                  </WouterRouter>
+                </HappyHourProvider>
               </BlagajnaProvider>
             </AuthProvider>
             <Toaster />

@@ -52,7 +52,10 @@ const DEFAULTS: Record<string, string> = {
   racunKapital:               "",
   racunDdvKlavzula:           "",
   racunZbirnaKlavzula:        "false",
-  racunPravnaKlavzula:        ""};
+  racunPravnaKlavzula:        "",
+  happyHourOd:                "",
+  happyHourDo:                "",
+  happyHourRocnoAktiven:      "auto"};
 
 /**
  * Ključi, ki so shranjeni na nivoju podjetja (enota_id=0, podjetje_davcna=X).
@@ -164,6 +167,9 @@ function toResponse(map: Record<string, string>) {
     racunDdvKlavzula:           map["racunDdvKlavzula"]      ?? "",
     racunZbirnaKlavzula:        (map["racunZbirnaKlavzula"]  ?? "false") === "true",
     racunPravnaKlavzula:        map["racunPravnaKlavzula"]   ?? "",
+    happyHourOd:                map["happyHourOd"]           ?? "",
+    happyHourDo:                map["happyHourDo"]           ?? "",
+    happyHourRocnoAktiven:      (map["happyHourRocnoAktiven"] ?? "auto") as "auto" | "on" | "off",
     agentTiskalnikToken:        map["agentTiskalnikToken"]   ?? "",
     podjetjeTrr: (() => {
       try { return JSON.parse(map["__podjetjeTrr"] ?? "[]") as Array<{ iban: string; bic: string }>; }
@@ -329,6 +335,63 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
 
   const map = await readAll("", tenotaId);
   res.json((toResponse(map)));
+});
+
+// ── Happy Hour ──────────────────────────────────────────────────────────────
+function isHappyHourActiveNow(od: string, doo: string, rocno: string): boolean {
+  if (rocno === "on") return true;
+  if (rocno === "off") return false;
+  if (!od || !doo) return false;
+  // Ljubljana time (UTC+1 winter / UTC+2 summer)
+  const now = new Date();
+  const lj = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Ljubljana" }));
+  const h = lj.getHours(), m = lj.getMinutes();
+  const cur = h * 60 + m;
+  const [oh, om] = od.split(":").map(Number);
+  const [dh, dm] = doo.split(":").map(Number);
+  const start = (oh ?? 0) * 60 + (om ?? 0);
+  const end = (dh ?? 0) * 60 + (dm ?? 0);
+  return end > start ? cur >= start && cur < end : cur >= start || cur < end;
+}
+
+router.get("/happy-hour", requireEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const map = await readAll("", tenotaId);
+  const od = map["happyHourOd"] ?? "";
+  const doo = map["happyHourDo"] ?? "";
+  const rocno = map["happyHourRocnoAktiven"] ?? "auto";
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ aktiven: isHappyHourActiveNow(od, doo, rocno), od, do: doo, rocno });
+});
+
+router.patch("/nastavitve/happy-hour-urnik", requireEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const { happyHourOd, happyHourDo } = req.body as { happyHourOd?: string; happyHourDo?: string };
+  for (const [kljuc, vrednost] of Object.entries({ happyHourOd: happyHourOd ?? "", happyHourDo: happyHourDo ?? "" })) {
+    const existing = await db.select().from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+    if (existing.length > 0) {
+      await db.update(nastavitveTable).set({ vrednost }).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+    } else {
+      await db.insert(nastavitveTable).values({ enotaId: tenotaId, kljuc, vrednost });
+    }
+  }
+  res.json({ ok: true });
+});
+
+router.patch("/happy-hour", requireEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const { rocno } = req.body as { rocno?: "auto" | "on" | "off" };
+  if (!["auto", "on", "off"].includes(rocno ?? "")) { res.status(400).json({ error: "Neveljavna vrednost" }); return; }
+  const kljuc = "happyHourRocnoAktiven"; const vrednost = rocno!;
+  const existing = await db.select().from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+  if (existing.length > 0) {
+    await db.update(nastavitveTable).set({ vrednost }).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+  } else {
+    await db.insert(nastavitveTable).values({ enotaId: tenotaId, kljuc, vrednost });
+  }
+  const map = await readAll("", tenotaId);
+  const od = map["happyHourOd"] ?? ""; const doo = map["happyHourDo"] ?? "";
+  res.json({ aktiven: isHappyHourActiveNow(od, doo, vrednost), od, do: doo, rocno: vrednost });
 });
 
 router.patch("/nastavitve/grupiranje", requireAdminEnote, async (req, res): Promise<void> => {

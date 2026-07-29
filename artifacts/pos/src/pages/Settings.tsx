@@ -564,6 +564,9 @@ export default function Settings() {
   const [racunDdvKlavzula, setRacunDdvKlavzula] = useState("");
   const [racunZbirnaKlavzula, setRacunZbirnaKlavzula] = useState(false);
   const [racunPravnaKlavzula, setRacunPravnaKlavzula] = useState("");
+  const [happyHourOd, setHappyHourOd] = useState("");
+  const [happyHourDo, setHappyHourDo] = useState("");
+  const [happyHourShranjujem, setHappyHourShranjujem] = useState(false);
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("587");
   const [smtpUser, setSmtpUser] = useState("");
@@ -729,6 +732,8 @@ export default function Settings() {
       setFursProxyUrl((nastavitve as Nastavitve & { fursProxyUrl?: string }).fursProxyUrl ?? "");
       setSimulirajFursNapako((nastavitve as Nastavitve & { simulirajFursNapako?: boolean }).simulirajFursNapako ?? false);
       setGrupiranjeNacin(((nastavitve as Nastavitve & { grupiranjeNacin?: string }).grupiranjeNacin ?? "novo") as "izklopljeno" | "staro" | "novo");
+      setHappyHourOd((nastavitve as any).happyHourOd ?? "");
+      setHappyHourDo((nastavitve as any).happyHourDo ?? "");
       const fn = ((nastavitve as Nastavitve & { fursNacin?: string }).fursNacin ?? "simulacija") as "simulacija" | "testno" | "produkcija";
       setFursNacin(fn);
       setPpFursNacin(fn);
@@ -1221,6 +1226,25 @@ export default function Settings() {
   };
 
   // ── Nastavitve handlers ────────────────────────────────────
+  const handleSaveHappyHour = async () => {
+    setHappyHourShranjujem(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/nastavitve/happy-hour-urnik`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ happyHourOd, happyHourDo }),
+      });
+      if (!r.ok) throw new Error("Napaka");
+      await queryClient.invalidateQueries({ queryKey: getGetNastavitveQueryKey() });
+      toast({ title: "Happy Hour shranjen" });
+    } catch {
+      toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" });
+    } finally {
+      setHappyHourShranjujem(false);
+    }
+  };
+
   const handleSaveGrupiranje = async () => {
     setGrupiranjeNacinShranjujem(true);
     try {
@@ -2426,6 +2450,45 @@ export default function Settings() {
         <TabsContent value="nastavitve" className="space-y-6">
 
       {(jeAdmin || jeAdminEnote) && !jeSuperAdmin && (<>
+      {/* ── Happy Hour ──────────────────────────────────────────── */}
+      <Card id="ns-happy-hour">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>⭐ Happy Hour</span>
+          </CardTitle>
+          <CardDescription>Samodejno znižanje cen za označene artikle v določenem časovnem oknu.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Začetek</label>
+              <input
+                type="time"
+                value={happyHourOd}
+                onChange={e => setHappyHourOd(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Konec</label>
+              <input
+                type="time"
+                value={happyHourDo}
+                onChange={e => setHappyHourDo(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Za vsak artikel nastavi Happy Hour ceno v meniju Artikli. Ročno vklop/izklop je na voljo v POS aplikaciji (gumb v spodnji navigaciji).</p>
+        </CardContent>
+        <CardFooter className="justify-end border-t pt-4">
+          <Button size="sm" onClick={handleSaveHappyHour} disabled={happyHourShranjujem}>
+            <Save className="h-4 w-4 mr-2" />
+            {happyHourShranjujem ? "Shranjujem..." : "Shrani Happy Hour"}
+          </Button>
+        </CardFooter>
+      </Card>
+
       {/* ── Prikaz naročil ──────────────────────────────────────── */}
       <Card id="ns-prikaz">
         <CardHeader>
