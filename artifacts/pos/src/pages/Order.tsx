@@ -2328,7 +2328,7 @@ export default function Order() {
                           <Minus className="h-3 w-3" />
                         </Button>
                       )}
-                      <span className={`text-xs font-bold w-8 text-center tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : ""}`}>
+                      <span className={`text-sm font-bold w-8 text-center tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : ""}`}>
                         {postavka.kolicina}
                       </span>
                       {!jeRacunana && (
@@ -2353,7 +2353,7 @@ export default function Order() {
                         </span>
                       </span>
                       <span className="flex-1" />
-                      <span className={`text-sm font-extrabold tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : "text-foreground"}`}>
+                      <span className={`text-base font-extrabold tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : "text-foreground"}`}>
                         {postavka.skupaj.toFixed(2)} €
                       </span>
                     </div>
