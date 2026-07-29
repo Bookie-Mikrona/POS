@@ -1,0 +1,124 @@
+## 1. Matrika prodajnih stopenj DDV — POS gostinstvo
+
+Ključ za branje: odločilna ni lokacija sama po sebi, ampak ali transakcija izpolnjuje pogoje **restavracijske storitve** (postrežba, mize, pribor, prostor za zaužitje) ali gre za **dobavo blaga** (brez podpornih storitev). Restavracija z mizami je storitveni kontekst; štant in gostinsko vozilo sta po pojasnilu FURS dobava blaga, ker ni osebja za strežbo, postrežbe, zaprtih prostorov, posode, pohištva in pribora — preprosti pulti brez sedišč terjajo zanemarljiv človeški vložek. To-go iz restavracije je prav tako dobava blaga.
+
+| Artikel | Restavracija — na mestu | Restavracija — to go | Štant / premično vozilo |
+|---|---|---|---|
+| **Pica, malica, topla jed** | **9,5 %** (restavracijska storitev) | **9,5 %** (dobava blaga, KN živila) | **9,5 %** (dobava blaga) |
+| **Sok 100 % / voda / mineralna — brez dodanega sladkorja ali sladil** (KN 2009, 2201, 2202) | **22 %** (strežba pijač ni v 6. točki Priloge I) | **9,5 %** (dobava blaga po 23. t. 48. čl. Pravilnika) | **9,5 %** |
+| **Pijača z dodanim sladkorjem ali sladili** (ledeni čaj, kola, energijske …) | **22 %** | **22 %** (izključena iz 1. t. Priloge I od 1. 1. 2025) | **22 %** |
+| **Topli napitek brez sladkorja** (kava, čaj, nesladkan) | **22 %** | **9,5 %** — kot dobava blaga velja režim pijač brez dodanega sladkorja | **9,5 %** |
+| **Topli napitek, ki mu prodajalec doda sladkor/sirup** (sladkan čaj, vroča čokolada s sirupom, kava s sirupom) | **22 %** | **22 %** (pijača z dodanim sladkorjem) | **22 %** |
+| **Alkoholna pijača** (pivo, vino, žgane, tudi radler) | **22 %** | **22 %** | **22 %** — alkoholne pijače so po splošni stopnji tudi pri dobavi blaga na stojnicah in prireditvah |
+| **Meni (jed + pijača), naveden na ceniku kot meni** | **9,5 %** enotna storitev | **9,5 %** le, če se kot komplet uvršča v KN z nižjo stopnjo; sicer razčlenitev po postavkah | enako kot to-go |
+| **Sladoled, sladica (jed, ne napitek)** | **9,5 %** (hrana) | **9,5 %** | **9,5 %** |
+
+Tri opozorili k tabeli:
+
+**Topli napitki to-go so najbolj tvegana celica.** Do 2025 je veljalo stališče, da gre pri pijači, vnaprej pripravljeni v embalaži »vzemi s seboj« iz gostinskega obrata, za gostinsko storitev ne glede na to, ali jo stranka zaužije v obratu ali odnese — torej 22 %. Po novem 29.a/51.a členu je to-go dobava blaga in za nesladkano pijačo velja 9,5 %, kar potrjuje logika pojasnila FURS za stojnice. Ker pa specifičnega pojasnila FURS za »kavo to-go iz kavarne« po 2025 ni, priporočam, da sistem to celico vodi kot **konfigurabilno pravilo z izbirno konservativno vrednostjo 22 %** — zavezanec naj se odloči sam oz. pridobi zavezujočo informacijo. Za sladkor je uporabna analogija avtomatov: nižja stopnja je dopustna le, če je napitek pripravljen brez sladkorja ali sladil, kupec pa si jih doda sam — vrečka sladkorja ob lončku torej ne pokvari 9,5 %, sirup, dodan pri pripravi, jo.
+
+**Kava + rogljiček ni meni-avtomatika.** Če je rogljiček dodan h kavi in ni posebej zaračunan, gre za enotno dobavo kave z rogljičkom po 22 % — glavna transakcija je kava. Zavezanec pa lahko postavki razčleni na računu (rogljiček 9,5 %, kava 22 %) ob ustreznem ceniku. Smer pomožnosti je torej odvisna od tega, kaj je glavno — pri meniju s kosilom je glavna hrana (9,5 %), pri kavi s priboljškom je glavna kava (22 %).
+
+**Take-away kombinacije (pica + pijača kot paket):** kombinacija različnega blaga se obravnava kot enotna dobava po nižji stopnji le, če se po pravilih kombinirane nomenklature uvršča kot komplet v KN z nižjo stopnjo — v praksi varneje razčleniti: pica 9,5 %, kola 22 %.
+
+## 2. Embalaža
+
+| Scenarij | Obravnava | Stopnja |
+|---|---|---|
+| Embalaža vračunana v ceno artikla (lonček pri kavi, karton pri pici, ni ločene postavke) | Postranski strošek, del davčne osnove glavne dobave (36. čl. ZDDV-1) | stopnja glavne dobave |
+| Embalaža **posebej zaračunana ob artiklu** (»karton za pico +0,50 €«) | Pomožna dobava h glavni — sledi glavni | karton k to-go pici **9,5 %**; lonček k sladkani kavi **22 %**; lonček k nesladkanemu čaju to-go **9,5 %** |
+| Embalaža prodana **samostojno** (kupec kupi samo posodo) | Samostojna dobava blaga | **22 %** |
+| **Vračljiva embalaža s kavcijo** (vračljivi lončki, gajbe) | Kavcija ni obdavčena, če se embalaža vodi evidenčno; pri zaračunani nevrnjeni vračljivi embalaži nastane obveznost obračuna DDV v obdobju zaračunanja, ob prekinitvi sodelovanja pa najpozneje zadnji dan davčnega obdobja prekinitve | 22 % ob nevrnitvi |
+| Okoljske dajatve / embalažnina | Niso DDV, a **vstopajo v davčno osnovo** | obdavčene po stopnji dobave |
+
+Posledica za model: postavka embalaže mora imeti **referenco na nadrejeno postavko** (`parent_line_id`) in podedovati njeno razrešeno stopnjo; brez reference dobi 22 %.
+
+## 3. Programska določitev stopenj — nabavne in prodajne
+
+Temeljno načelo, potrjeno tudi z analizo konkurence: **stopnja ni podatek, ampak rezultat funkcije**. Na artiklu se hranijo samo davčno relevantni atributi, stopnjo razreši pravilnik (rules engine) glede na kontekst transakcije.
+
+**Šifrant artikla — davčni atributi:**
+
+```sql
+CREATE TABLE item_tax_profile (
+    item_id          uuid PRIMARY KEY REFERENCES item,
+    kn_code          varchar(10),          -- kombinirana nomenklatura (za blago)
+    tax_category     text NOT NULL CHECK (tax_category IN
+        ('food','beverage','alcohol','packaging','service','tobacco','other')),
+    added_sugar      boolean NOT NULL DEFAULT false,  -- dodan sladkor ali sladila PRI PRIPRAVI/V IZDELKU
+    is_prepared      boolean NOT NULL DEFAULT false,  -- pripravljeno na mestu (jed/napitek) vs. pakirano
+    notes            text
+);
+```
+
+`added_sugar` se vodi na nivoju *prodajnega artikla*, ne surovine — »čaj« in »sladkan ledeni čaj« sta dva prodajna artikla ali en artikel z modifikatorjem, ki flag preklopi (modifikator »+sirup« mora sprožiti ponovno razrešitev stopnje!).
+
+**Časovno veljavne stopnje in pravila:**
+
+```sql
+CREATE TABLE vat_rate (
+    code        text,                -- 'STD','RED','SPEC_RED'
+    rate        numeric(5,2),
+    valid_from  date NOT NULL,
+    valid_to    date,                -- NULL = odprto
+    PRIMARY KEY (code, valid_from)
+);
+-- ('STD',22.00,'2013-07-01',NULL), ('RED',9.50,'2013-07-01',NULL), ('SPEC_RED',5.00,'2020-01-01',NULL)
+
+CREATE TABLE vat_rule (
+    rule_id      uuid PRIMARY KEY,
+    priority     int NOT NULL,       -- nižja številka = prej ovrednoteno
+    -- pogoji (NULL = ne omejuje)
+    tax_category text,
+    added_sugar  boolean,
+    supply_kind  text,               -- 'restaurant_service','goods','catering'
+    rate_code    text NOT NULL,
+    valid_from   date NOT NULL,
+    valid_to     date,
+    legal_ref    text                -- npr. '6.t. Priloge I ZDDV-1; 51.a čl. P-ZDDV'
+);
+```
+
+**Razreševalnik prodajne stopnje** — dvostopenjski: najprej se določi `supply_kind`, nato stopnja.
+
+```
+resolve_supply_kind(order):
+    if order.type == 'catering_full_service':        return CATERING          # 9,5 % kontekst
+    if order.channel in ('stall','food_truck'):      return GOODS
+    if order.channel == 'restaurant':
+        if order.consumption == 'to_go':             return GOODS
+        else:                                        return RESTAURANT_SERVICE
+    if order.channel == 'delivery_only':             return GOODS             # + dostava kot ločena storitev 22 %
+
+resolve_rate(line, supply_kind, tax_point_date):
+    if line.parent_line_id is not null:              # embalaža, pomožne postavke
+        return rate_of(parent)
+    if line.is_menu_header and supply_kind == RESTAURANT_SERVICE:
+        return RED                                    # enotna restavracijska storitev
+    match first vat_rule ordered by priority
+        where conditions match (tax_category, added_sugar, supply_kind)
+          and tax_point_date between valid_from and valid_to
+    return rate from vat_rate for rule.rate_code at tax_point_date
+```
+
+Vsebina `vat_rule` za trenutno stanje (prioritete padajoče po specifičnosti):
+
+| prio | tax_category | added_sugar | supply_kind | stopnja | podlaga |
+|---|---|---|---|---|---|
+| 10 | alcohol | * | * | STD | 1. t. Priloge I |
+| 20 | beverage | true | * | STD | 1. t. Priloge I (od 1. 1. 2025) |
+| 30 | beverage | false | restaurant_service | STD | strežba pijač ni v 6. t. |
+| 40 | beverage | false | goods | RED* | 23. t. 48. čl. P-ZDDV |
+| 50 | food | * | restaurant_service | RED | 6. t. Priloge I |
+| 55 | food | * | catering | RED | 6. t. Priloge I |
+| 60 | food | * | goods | RED | 1. t. Priloge I |
+| 70 | packaging (samostojna) | * | * | STD | splošna stopnja |
+| 90 | * | * | * | STD | privzeto |
+
+\* pravilo 40 za pripravljene tople napitke to-go označi kot `configurable` s privzeto konservativno vrednostjo po izbiri zavezanca (glej opozorilo v razdelku 1).
+
+**Nabavna stran.** Nabavne stopnje ne določaš ti, ampak dobavitelj — tvoja naloga je **validacija odbitka**. Za blago je pričakovana nabavna stopnja vedno izpeljana iz narave blaga samega (KN + sladkor + alkohol), nikoli iz tvojega prodajnega konteksta: surovine in živila 9,5 %, sladke pijače/sirupi/alkohol/embalaža 22 %, storitve (najem, čiščenje) 22 %. Ob knjiženju prejetega računa (ali e-SLOG uvozu) sistem primerja stopnjo na postavki s pričakovano `expected_purchase_rate(item)` in ob neskladju blokira ali opozori — napačno visoka stopnja dobavitelja pomeni preveč odbitega DDV, kar FURS pri pregledu obrne v tvoje breme. Ključno: **en artikel, ena šifra** — razliko nabavna 9,5 % / prodajna 22 % (npr. sok) rešuje razreševalnik, ne podvojen šifrant kot pri Aplicomu; normativi (kava v zrnu 9,5 % → skodelica kave 22 %) povezujejo surovino s prodajnim artiklom brez davčne povezave med stopnjama.
+
+**POS in revizijska sled.** Blagajna potrebuje: (a) atribut prodajnega mesta `channel` (restavracija / štant / vozilo — vozilo je isto pravilo kot štant, le premično prodajno mesto s svojim EOR kontekstom fiskalizacije), (b) preklop »tukaj / s seboj« na nivoju naročila z možnostjo override po postavki, (c) modifikatorje, ki spreminjajo `added_sugar`. Na vsako postavko računa se zapiše `applied_rule_id + rate + rate_valid_from` — s tem je vsak znesek v KIR in DDV-O dokazljivo izpeljan iz konkretnega pravila s pravno referenco, sprememba zakonodaje pa je vnos nove vrstice v `vat_rule`/`vat_rate` z datumom, brez posega v kodo in brez »zaključite staro leto, preden spremenite šifrant«, kot to zahtevajo obstoječi sistemi na trgu.
+
+Pri predplačilih razreši stopnjo po datumu prejema predplačila za predplačani del in po datumu dobave za ostanek — od predplačila pred spremembo stopnje se DDV obračuna po stari stopnji, od preostalega zneska po novi — kar tvoj `vat_ledger` že podpira, če je `tax_point_date` atribut postavke in ne glave dokumenta.
