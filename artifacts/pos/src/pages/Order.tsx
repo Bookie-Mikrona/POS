@@ -2040,41 +2040,24 @@ export default function Order() {
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 md:p-4 border-b bg-card space-y-1.5">
-          <div className="flex items-center gap-1 min-w-0">
+          {/* Ime mize + ikone — samo desktop (mobile: ime je v zgornjem baru, ikone so pri gostih) */}
+          <div className="hidden md:flex items-center gap-1 min-w-0">
             <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
               <h2 className="min-w-0 text-lg md:text-xl font-bold leading-tight truncate">{narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}</h2>
               <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
             </div>
             {narocilo.status === "odprto" && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                title="Uvozi iz računa"
-                onClick={() => setUvozDialogOpen(true)}
-              >
+              <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Uvozi iz računa" onClick={() => setUvozDialogOpen(true)}>
                 <ClipboardList className="h-3.5 w-3.5" />
               </Button>
             )}
             {prosteMize.length > 0 && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                title="Prestavi na mizo"
-                onClick={() => setPrestaviDialogOpen(true)}
-              >
+              <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Prestavi na mizo" onClick={() => setPrestaviDialogOpen(true)}>
                 <ArrowLeftRight className="h-3.5 w-3.5" />
               </Button>
             )}
             {drugaNarocila.length > 0 && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                title="Združi naročili"
-                onClick={() => setSpojiDialogOpen(true)}
-              >
+              <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Združi naročili" onClick={() => setSpojiDialogOpen(true)}>
                 <GitMerge className="h-3.5 w-3.5" />
               </Button>
             )}
@@ -2082,13 +2065,7 @@ export default function Order() {
               onClick={handleGlasovnoMeni}
               disabled={aiObdeluje}
               title={glasovnoAktivno ? "Poslušam… klikni za zaustavitev" : aiObdeluje ? "AI analizira naročilo…" : "Glasovni ukaz — naroči s prostim govorom"}
-              className={`shrink-0 flex items-center justify-center h-7 w-7 rounded-md border transition-colors ${
-                glasovnoAktivno
-                  ? "bg-red-50 border-red-300 text-red-500 animate-pulse"
-                  : aiObdeluje
-                  ? "bg-blue-50 border-blue-300 text-blue-500 animate-pulse"
-                  : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"
-              }`}
+              className={`shrink-0 flex items-center justify-center h-7 w-7 rounded-md border transition-colors ${glasovnoAktivno ? "bg-red-50 border-red-300 text-red-500 animate-pulse" : aiObdeluje ? "bg-blue-50 border-blue-300 text-blue-500 animate-pulse" : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"}`}
             >
               {glasovnoAktivno ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
             </button>
@@ -2098,7 +2075,7 @@ export default function Order() {
               {glasovnoTranskript ? glasovnoTranskript : <span className="opacity-60 italic">Poslušam…</span>}
             </div>
           )}
-          {/* Gostje */}
+          {/* Gostje + mobile ikone */}
           <div className="flex flex-wrap gap-1 items-center pt-0.5">
             <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             {steviloGostov === 0 ? (
@@ -2144,6 +2121,32 @@ export default function Order() {
                 })()}
               </>
             )}
+            {/* Ikone — samo mobile */}
+            <div className="ml-auto flex items-center gap-1 md:hidden">
+              {narocilo.status === "odprto" && (
+                <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Uvozi iz računa" onClick={() => setUvozDialogOpen(true)}>
+                  <ClipboardList className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {prosteMize.length > 0 && (
+                <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Prestavi na mizo" onClick={() => setPrestaviDialogOpen(true)}>
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {drugaNarocila.length > 0 && (
+                <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Združi naročili" onClick={() => setSpojiDialogOpen(true)}>
+                  <GitMerge className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <button
+                onClick={handleGlasovnoMeni}
+                disabled={aiObdeluje}
+                title={glasovnoAktivno ? "Poslušam… klikni za zaustavitev" : aiObdeluje ? "AI analizira naročilo…" : "Glasovni ukaz — naroči s prostim govorom"}
+                className={`shrink-0 flex items-center justify-center h-7 w-7 rounded-md border transition-colors ${glasovnoAktivno ? "bg-red-50 border-red-300 text-red-500 animate-pulse" : aiObdeluje ? "bg-blue-50 border-blue-300 text-blue-500 animate-pulse" : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"}`}
+              >
+                {glasovnoAktivno ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
         </div>
 
