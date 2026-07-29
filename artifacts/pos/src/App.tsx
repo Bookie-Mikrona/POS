@@ -456,7 +456,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
-      <main className={`flex-1 flex flex-col overflow-hidden ${!isOrderPage ? "pb-16 md:pb-0" : ""}`}>
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
         <CertExpiryBanner />
         <FursNapakaRetryBanner />
         {simDatum && !isCheckoutPage && (
@@ -483,8 +483,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {!isOrderPage && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden bg-background border-t safe-area-inset-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden bg-background border-t safe-area-inset-bottom">
           {primaryNav.map(item => (
             <Link
               key={item.href}
@@ -552,7 +551,6 @@ function Layout({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
         </nav>
-      )}
     </div>
   );
 }
