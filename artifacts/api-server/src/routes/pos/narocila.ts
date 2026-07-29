@@ -584,7 +584,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       ime: artikel.ime,
       kolicina,
       cenaKos: String(cenaKos),
-      cenaKosOriginalna: String(cenaKos),
+      cenaKosOriginalna: String(originalCena),
       skupaj: String(skupaj.toFixed(2)),
       davek: davekZaPostavko,
       opomba: parsed.data.opomba ?? null,

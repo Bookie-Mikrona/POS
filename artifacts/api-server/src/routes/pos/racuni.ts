@@ -177,7 +177,18 @@ router.post("/racuni", async (req, res): Promise<void> => {
     if (invalidIds.length > 0) {
       res.status(400).json({ error: "Nekatere izbrane postavke ne pripadajo temu naročilu" }); return;
     }
-    selectedPostavke = allPostavke.filter(p => postavkeIdsReq.includes(p.id));
+    // Avtomatično dodaj modifier/child otroke izbranih staršev (unbilled).
+    // Brez tega se otroci zaračunajo ločeno na naslednjem računu brez starša →
+    // na tiskanem računu bi se pojavili kot samostojne vrstice (orphan bug).
+    const selectedIdsSet = new Set<number>(postavkeIdsReq);
+    const unbilledChildrenOfSelected = allPostavke.filter((p: any) =>
+      p.parentPostavkaId != null &&
+      selectedIdsSet.has(p.parentPostavkaId) &&
+      !selectedIdsSet.has(p.id) &&
+      p.racunId === null
+    );
+    for (const c of unbilledChildrenOfSelected) selectedIdsSet.add(c.id);
+    selectedPostavke = allPostavke.filter(p => selectedIdsSet.has(p.id));
     const alreadyCovered = selectedPostavke.filter(p => p.racunId !== null);
     if (alreadyCovered.length > 0) {
       res.status(409).json({ error: "Nekatere izbrane postavke so že pokrite z računom" }); return;
