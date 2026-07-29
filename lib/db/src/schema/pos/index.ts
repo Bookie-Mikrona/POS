@@ -31,3 +31,4 @@ export * from "./dnevni-meni";
 export * from "./partner-ceniki";
 export * from "./uporabniki";
 export * from "./pos-booking-settings";
+export * from "./vat-rules";

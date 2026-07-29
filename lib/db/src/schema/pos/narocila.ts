@@ -12,6 +12,8 @@ export const narocilaTable = pgTable("narocila", {
   skupaj: numeric("skupaj", { precision: 10, scale: 2 }).notNull().default("0"),
   opomba: text("opomba"),
   stevilkaNarocila: integer("stevilka_narocila"),
+  /** Ali je naročilo označeno kot "Za s seboj" (vpliva na DDV razreševanje novih postavk) */
+  toGo: boolean("to_go").notNull().default(false),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
   posodobljeno: timestamp("posodobljeno", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -33,6 +35,8 @@ export const postavkeTable = pgTable("postavke", {
   parentPostavkaId: integer("parent_postavka_id"),
   toGo: boolean("to_go").notNull().default(false),
   vrstaArtikla: text("vrsta_artikla"),
+  /** ID pravila iz vat_rule, ki je bilo upoštevano pri DDV razreševanju (revizija) */
+  appliedRuleId: integer("applied_rule_id"),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
   pripravljeno: timestamp("pripravljeno", { withTimezone: true }),
   napravaId: text("naprava_id"),

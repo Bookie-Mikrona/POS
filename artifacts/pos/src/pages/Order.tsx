@@ -2110,6 +2110,25 @@ export default function Order() {
               {glasovnoTranskript ? glasovnoTranskript : <span className="opacity-60 italic">Poslušam…</span>}
             </div>
           )}
+          {/* To-go preklop */}
+          {narocilo.status === "odprto" && (
+            <button
+              type="button"
+              title={(narocilo as typeof narocilo & { toGo?: boolean }).toGo ? "To-go (klikni za mizi)" : "Za mizi (klikni za to-go)"}
+              onClick={() => prestaviMutation.mutate({ id: narocilo.id, data: { toGo: !(narocilo as typeof narocilo & { toGo?: boolean }).toGo } as Parameters<typeof prestaviMutation.mutate>[0]["data"] }, {
+                onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) }),
+              })}
+              className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium transition-colors ${
+                (narocilo as typeof narocilo & { toGo?: boolean }).toGo
+                  ? "bg-sky-100 border-sky-300 text-sky-700"
+                  : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <ShoppingBag className="h-3 w-3" />
+              {(narocilo as typeof narocilo & { toGo?: boolean }).toGo ? "Za s seboj" : "Za s seboj?"}
+            </button>
+          )}
+
           {/* Gostje + mobile ikone */}
           <div className="flex flex-wrap gap-1 items-center pt-0.5">
             <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

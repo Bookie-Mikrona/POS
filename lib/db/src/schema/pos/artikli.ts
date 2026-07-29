@@ -28,6 +28,12 @@ export const artikliTable = pgTable("artikli", {
   vrstaArtikla: text("vrsta_artikla").notNull().default("material"),
   happyHourCena: numeric("happy_hour_cena", { precision: 10, scale: 2 }),
   skupina: text("skupina"),
+  /** DDV kategorija za razreševalnik: food | hot_beverage | cold_beverage | alcoholic */
+  taxCategory: text("tax_category").notNull().default("food"),
+  /** Ali artikel vsebuje dodan sladkor (relevantno za toplo pijačo za s seboj) */
+  addedSugar: boolean("added_sugar").notNull().default(false),
+  /** KN/CN carinska tarifna številka (opcijsko) */
+  knCode: text("kn_code"),
 });
 
 export const artikliRelations = relations(artikliTable, ({ one }) => ({

@@ -31,6 +31,9 @@ const SELECT_FIELDS = {
   vrstaArtikla: artikliTable.vrstaArtikla,
   happyHourCena: artikliTable.happyHourCena,
   skupina: artikliTable.skupina,
+  taxCategory: artikliTable.taxCategory,
+  addedSugar: artikliTable.addedSugar,
+  knCode: artikliTable.knCode,
   hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`,
   vNormativih: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE vhodni_artikel_id = ${artikliTable.id})
                          OR EXISTS (SELECT 1 FROM modifikator_normativi WHERE vhodni_artikel_id = ${artikliTable.id})`};
@@ -61,6 +64,9 @@ function mapRow(r: Record<string, unknown>) {
     vrstaArtikla: (r.vrstaArtikla as string | null) ?? "material",
     happyHourCena: r.happyHourCena != null ? Number(r.happyHourCena) : null,
     skupina: (r.skupina as string | null) ?? null,
+    taxCategory: (r.taxCategory as string | null) ?? "food",
+    addedSugar: Boolean(r.addedSugar),
+    knCode: (r.knCode as string | null) ?? null,
     hasNormativ: Boolean(r.hasNormativ),
     vNormativih: Boolean(r.vNormativih),
     modSkupine: [] as Array<{
@@ -206,6 +212,9 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     toGo: (parsed.data as { toGo?: boolean }).toGo ?? false,
     vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "material",
     skupina: (parsed.data as { skupina?: string | null }).skupina ?? null,
+    taxCategory: (parsed.data as { taxCategory?: string }).taxCategory ?? "food",
+    addedSugar: (parsed.data as { addedSugar?: boolean }).addedSugar ?? false,
+    knCode: (parsed.data as { knCode?: string | null }).knCode ?? null,
   }).returning();
 
   const [withKat] = await db
@@ -516,6 +525,9 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) updateData.vrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla;
   if ("happyHourCena" in parsed.data) updateData.happyHourCena = (parsed.data as { happyHourCena?: number | null }).happyHourCena != null ? String((parsed.data as { happyHourCena: number }).happyHourCena) : null;
   if ("skupina" in parsed.data) updateData.skupina = (parsed.data as { skupina?: string | null }).skupina ?? null;
+  if ("taxCategory" in parsed.data) updateData.taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
+  if ("addedSugar" in parsed.data) updateData.addedSugar = Boolean((parsed.data as { addedSugar?: boolean }).addedSugar);
+  if ("knCode" in parsed.data) updateData.knCode = (parsed.data as { knCode?: string | null }).knCode ?? null;
 
   if ("kategorijaId" in parsed.data && parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })

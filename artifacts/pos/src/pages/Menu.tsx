@@ -103,6 +103,8 @@ export default function Menu() {
   const [artHappyHourCena, setArtHappyHourCena] = useState<string>("");
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("material");
   const [artSkupina, setArtSkupina] = useState<string>("");
+  const [artTaxCategory, setArtTaxCategory] = useState<"food" | "hot_beverage" | "cold_beverage" | "alcoholic">("food");
+  const [artAddedSugar, setArtAddedSugar] = useState(false);
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
   const [uskladiOpen, setUskladiOpen] = useState(false);
@@ -432,6 +434,8 @@ export default function Menu() {
     setArtHappyHourCena("");
     setArtVrstaArtikla("material");
     setArtSkupina("");
+    setArtTaxCategory("food");
+    setArtAddedSugar(false);
     setArtImeZaNabavo(""); setArtEnotaMere(null);
     setNormativItems([]);
     setNormativNapaka(null);
@@ -453,6 +457,8 @@ export default function Menu() {
     setArtHappyHourCena((a as typeof a & { happyHourCena?: number | null }).happyHourCena != null ? String((a as typeof a & { happyHourCena: number }).happyHourCena) : "");
     setArtVrstaArtikla(((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev");
     setArtSkupina((a as typeof a & { skupina?: string | null }).skupina ?? "");
+    setArtTaxCategory(((a as typeof a & { taxCategory?: string }).taxCategory ?? "food") as "food" | "hot_beverage" | "cold_beverage" | "alcoholic");
+    setArtAddedSugar(Boolean((a as typeof a & { addedSugar?: boolean }).addedSugar));
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
     setNormativItems([]);
@@ -506,6 +512,8 @@ export default function Menu() {
       vrstaArtikla: artVrstaArtikla,
       happyHourCena: artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       skupina: artSkupina.trim() || null,
+      taxCategory: artTaxCategory,
+      addedSugar: artAddedSugar,
     };
 
     const afterSave = (artikelId: number, label: string) => {
@@ -1019,6 +1027,41 @@ export default function Menu() {
                   </Select>
                 </div>
               </div>
+
+              {/* DDV kategorija — za to-go razreševalnik */}
+              {!(artNabavniArtikel && !artProdajniArtikel) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>DDV kategorija</Label>
+                    <Select value={artTaxCategory} onValueChange={v => setArtTaxCategory(v as "food" | "hot_beverage" | "cold_beverage" | "alcoholic")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="food">Hrana</SelectItem>
+                        <SelectItem value="hot_beverage">Topla pijača</SelectItem>
+                        <SelectItem value="cold_beverage">Hladna pijača</SelectItem>
+                        <SelectItem value="alcoholic">Alkohol</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Vpliva na DDV pri to-go naročilih</p>
+                  </div>
+                  {artTaxCategory === "hot_beverage" && (
+                    <div className="flex items-center gap-3 self-end pb-6">
+                      <input
+                        type="checkbox"
+                        id="artAddedSugar"
+                        checked={artAddedSugar}
+                        onChange={e => setArtAddedSugar(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="artAddedSugar" className="cursor-pointer leading-tight">
+                        Vsebuje dodan sladkor
+                      </Label>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Je pica — bon za pico */}
               {!(artNabavniArtikel && !artProdajniArtikel) && (

@@ -4,6 +4,7 @@ import { artModSkupineTable, artikliTable, db, enoteTable, kategorijeTable, mize
 import { broadcast, broadcastTo } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
+import { loadVatRules, resolveRate, resolveSupplyKind, getNastavitveMap, type TaxCategory } from "../../lib/ddv-resolver";
 
 function izracunajDDVNeskladje(postavke: { kolicina: number; cenaKos: number; skupaj: number; davek: number }[]): { imaNeskladje: boolean; razlika: number } {
   if (postavke.length === 0) return { imaNeskladje: false, razlika: 0 };
@@ -121,6 +122,7 @@ async function getNarociloById(id: number, _davcna: string, tenotaId: number) {
       status: narocilaTable.status,
       skupaj: narocilaTable.skupaj,
       opomba: narocilaTable.opomba,
+      toGo: narocilaTable.toGo,
       ustvarjeno: narocilaTable.ustvarjeno,
       posodobljeno: narocilaTable.posodobljeno})
     .from(narocilaTable)
@@ -164,6 +166,7 @@ router.get("/narocila/aktivna", async (req, res): Promise<void> => {
       status: narocilaTable.status,
       skupaj: narocilaTable.skupaj,
       opomba: narocilaTable.opomba,
+      toGo: narocilaTable.toGo,
       ustvarjeno: narocilaTable.ustvarjeno,
       posodobljeno: narocilaTable.posodobljeno})
     .from(narocilaTable)
@@ -209,6 +212,7 @@ router.get("/narocila", async (req, res): Promise<void> => {
       status: narocilaTable.status,
       skupaj: narocilaTable.skupaj,
       opomba: narocilaTable.opomba,
+      toGo: narocilaTable.toGo,
       ustvarjeno: narocilaTable.ustvarjeno,
       posodobljeno: narocilaTable.posodobljeno})
     .from(narocilaTable)
@@ -270,6 +274,7 @@ router.post("/narocila", async (req, res): Promise<void> => {
     opomba: parsed.data.opomba ?? null,
     status: "odprto",
     skupaj: "0",
+    toGo: (parsed.data as { toGo?: boolean }).toGo ?? false,
     ustvarjeno: simDatumNarocilo,
   }).returning();
 
@@ -318,6 +323,9 @@ router.put("/narocila/:id", async (req, res): Promise<void> => {
   const updateData: Partial<typeof narocilaTable.$inferInsert> = {};
   if (parsed.data.status !== undefined) updateData.status = parsed.data.status as "odprto" | "zakljuceno" | "preklicano";
   if (parsed.data.opomba !== undefined) updateData.opomba = parsed.data.opomba;
+  const newToGo = (parsed.data as { toGo?: boolean }).toGo;
+  const toGoSpremeni = newToGo !== undefined && newToGo !== obstojeceNarocilo.toGo;
+  if (newToGo !== undefined) updateData.toGo = newToGo;
 
   const novaMizaId = (parsed.data as { mizaId?: number | null }).mizaId;
   const menjavaMize = novaMizaId !== undefined && novaMizaId !== obstojeceNarocilo.mizaId;
@@ -334,6 +342,69 @@ router.put("/narocila/:id", async (req, res): Promise<void> => {
 
   await db.update(narocilaTable).set(updateData)
     .where(and(eq(narocilaTable.id, params.data.id), sql`true`, eq(narocilaTable.enotaId, tenotaId)));
+
+  // ── DDV recalculate: ko se toGo preklopi, ponovoizvede resolver za obstoječe
+  //    nezaračunane starševske postavke (brez parentPostavkaId, brez racunId)
+  if (toGoSpremeni && newToGo !== undefined) {
+    const jeDdvZavezanec: boolean = (req as any).jeDdvZavezanec ?? true;
+    if (jeDdvZavezanec) {
+      const [vatRules, nastavitve] = await Promise.all([
+        loadVatRules(),
+        getNastavitveMap(tenotaId),
+      ]);
+      // Poberi vse nezaračunane starševske postavke naročila z artiklom
+      const starsePostavke = await db
+        .select({
+          id: postavkeTable.id,
+          artikelId: postavkeTable.artikelId,
+          davek: postavkeTable.davek,
+          appliedRuleId: postavkeTable.appliedRuleId,
+        })
+        .from(postavkeTable)
+        .where(
+          and(
+            eq(postavkeTable.narociloId, params.data.id),
+            sql`${postavkeTable.parentPostavkaId} IS NULL`,
+            sql`${postavkeTable.racunId} IS NULL`,
+            sql`${postavkeTable.artikelId} IS NOT NULL`
+          )
+        );
+
+      for (const p of starsePostavke) {
+        if (!p.artikelId) continue;
+        const [artRow] = await db
+          .select({ davek: artikliTable.davek, taxCategory: artikliTable.taxCategory, addedSugar: artikliTable.addedSugar })
+          .from(artikliTable)
+          .where(eq(artikliTable.id, p.artikelId));
+        if (!artRow) continue;
+        const supplyKind = resolveSupplyKind(newToGo, false);
+        const resolved = resolveRate({
+          supplyKind,
+          taxCategory: ((artRow as Record<string, unknown>).taxCategory ?? "food") as TaxCategory,
+          addedSugar: Boolean((artRow as Record<string, unknown>).addedSugar),
+          nastavitve,
+          fallbackRate: Number(artRow.davek),
+          jeDdvZavezanec,
+        }, vatRules);
+        const novDavek = String(resolved.rate);
+        if (novDavek === String(p.davek) && resolved.ruleId === p.appliedRuleId) continue;
+        // Posodobi starševsko postavko
+        await db.update(postavkeTable)
+          .set({ davek: novDavek, appliedRuleId: resolved.ruleId ?? undefined })
+          .where(eq(postavkeTable.id, p.id));
+        // Posodobi tudi vse child postavke (modifikatorji) — dedujejo DDV od starša
+        await db.update(postavkeTable)
+          .set({ davek: novDavek })
+          .where(
+            and(
+              eq(postavkeTable.narociloId, params.data.id),
+              eq(postavkeTable.parentPostavkaId, p.id),
+              sql`${postavkeTable.racunId} IS NULL`
+            )
+          );
+      }
+    }
+  }
 
   if (parsed.data.status === "zakljuceno" || parsed.data.status === "preklicano") {
     const mizaZaPreveritev = obstojeceNarocilo.mizaId;
@@ -495,7 +566,10 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   // vrsta_artikla dedovanje: child prevzame vrsto starševskega artikla (blago → blago, material → material).
   let davekZaPostavko = jeDdvZavezanec ? String(artikel.davek) : "0";
   let vrstaArtiklaZaPostavko: string = artikel.vrstaArtikla ?? "material";
+  let appliedRuleId: number | null = null;
+
   if (parentPostavkaId != null) {
+    // Child postavka → podeduje DDV od starša (PZDDV pravilo)
     const [parentPostavka] = await db.select({ davek: postavkeTable.davek, vrstaArtikla: postavkeTable.vrstaArtikla })
       .from(postavkeTable)
       .where(eq(postavkeTable.id, parentPostavkaId));
@@ -503,6 +577,24 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       davekZaPostavko = jeDdvZavezanec ? String(parentPostavka.davek) : "0";
       if (parentPostavka.vrstaArtikla) vrstaArtiklaZaPostavko = parentPostavka.vrstaArtikla;
     }
+  } else if (jeDdvZavezanec) {
+    // Starševska postavka → DDV razreševalnik
+    const [vatRules, nastavitve] = await Promise.all([
+      loadVatRules(),
+      getNastavitveMap(tenotaId),
+    ]);
+    const postavkaToGo = (parsed.data as { toGo?: boolean }).toGo ?? false;
+    const supplyKind = resolveSupplyKind(narociloCheck.toGo ?? false, postavkaToGo);
+    const resolved = resolveRate({
+      supplyKind,
+      taxCategory: ((artikel as Record<string, unknown>).taxCategory ?? "food") as TaxCategory,
+      addedSugar: Boolean((artikel as Record<string, unknown>).addedSugar),
+      nastavitve,
+      fallbackRate: Number(artikel.davek),
+      jeDdvZavezanec,
+    }, vatRules);
+    davekZaPostavko = String(resolved.rate);
+    appliedRuleId = resolved.ruleId;
   }
 
   // Pre-transaction: validate modifier selections and resolve authoritative DB values
@@ -591,9 +683,11 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       gostStevilka,
       parentPostavkaId,
       vrstaArtikla: vrstaArtiklaZaPostavko,
+      appliedRuleId: appliedRuleId ?? undefined,
       napravaId}).returning({ id: postavkeTable.id });
 
     // Insert modifier child rows using pre-validated authoritative DB values
+    // Modifikatorji dedujejo DDV stopnjo starša (davekZaPostavko že vsebuje razrešeno stopnjo)
     for (const mod of resolvedMods) {
       const cenaMod = round2(mod.cenaDodatek);
       await tx.insert(postavkeTable).values({
@@ -605,7 +699,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
         cenaKos: String(cenaMod.toFixed(2)),
         cenaKosOriginalna: String(cenaMod.toFixed(2)),
         skupaj: String(cenaMod.toFixed(2)),
-        davek: jeDdvZavezanec ? String(artikel.davek) : "0",
+        davek: davekZaPostavko,
         opomba: null,
         gostStevilka,
         vrstaArtikla: vrstaArtiklaZaPostavko,

@@ -20,6 +20,8 @@ export const modifikatorjiTable = pgTable("modifikatorji", {
   cenaDodatek: numeric("cena_dodatek", { precision: 10, scale: 2 }).notNull().default("0"),
   aktiven: boolean("aktiven").notNull().default(true),
   vrstniRed: integer("vrstni_red").notNull().default(0),
+  /** Ali modifikator vsebuje dodan sladkor (vpliva na DDV topele pijače za s seboj) */
+  addedSugar: boolean("added_sugar").notNull().default(false),
 });
 
 export const modNormativiTable = pgTable("modifikator_normativi", {

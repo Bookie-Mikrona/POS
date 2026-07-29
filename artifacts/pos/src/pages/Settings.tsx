@@ -600,6 +600,10 @@ export default function Settings() {
   const [vivaTapToPayAktiven, setVivaTapToPayAktiven] = useState(false);
   const [vivaTapToPaySourceCode, setVivaTapToPaySourceCode] = useState("");
 
+  // ── DDV razreševalnik nastavitve ────────────────────────────
+  const [toGoTopliNapitekStopnja, setToGoTopliNapitekStopnja] = useState<"konservativno" | "liberalno">("konservativno");
+  const [toGoTopliShranjujem, setToGoTopliShranjujem] = useState(false);
+
   // ── DDV stopnje (samo superadmin) ───────────────────────────
   const [ddvSplosnaSt, setDdvSplosnaSt] = useState("22");
   const [ddvNizjaSt, setDdvNizjaSt] = useState("9.5");
@@ -734,6 +738,7 @@ export default function Settings() {
       setGrupiranjeNacin(((nastavitve as Nastavitve & { grupiranjeNacin?: string }).grupiranjeNacin ?? "novo") as "izklopljeno" | "staro" | "novo");
       setHappyHourOd((nastavitve as any).happyHourOd ?? "");
       setHappyHourDo((nastavitve as any).happyHourDo ?? "");
+      setToGoTopliNapitekStopnja(((nastavitve as any).toGoTopliNapitekStopnja ?? "konservativno") as "konservativno" | "liberalno");
       const fn = ((nastavitve as Nastavitve & { fursNacin?: string }).fursNacin ?? "simulacija") as "simulacija" | "testno" | "produkcija";
       setFursNacin(fn);
       setPpFursNacin(fn);
@@ -1242,6 +1247,25 @@ export default function Settings() {
       toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" });
     } finally {
       setHappyHourShranjujem(false);
+    }
+  };
+
+  const handleSaveToGoTopli = async () => {
+    setToGoTopliShranjujem(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/nastavitve/ddv-razresevalnik`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ toGoTopliNapitekStopnja }),
+      });
+      if (!r.ok) throw new Error("Napaka");
+      await queryClient.invalidateQueries({ queryKey: getGetNastavitveQueryKey() });
+      toast({ title: "Nastavitev DDV shranjena" });
+    } catch {
+      toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" });
+    } finally {
+      setToGoTopliShranjujem(false);
     }
   };
 
@@ -4313,6 +4337,59 @@ export default function Settings() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── DDV razreševalnik (topla pijača to-go) ──────────────────── */}
+      {jeAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />DDV razreševalnik — topla pijača za s seboj
+            </CardTitle>
+            <CardDescription>
+              Pravilo za DDV stopnjo tople pijače brez dodanega sladkorja (npr. nesladkan čaj, kava brez sladkorja) pri naročilih "za s seboj".
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="toGoTopli"
+                    value="konservativno"
+                    checked={toGoTopliNapitekStopnja === "konservativno"}
+                    onChange={() => setToGoTopliNapitekStopnja("konservativno")}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">Konservativno (22%)</div>
+                    <div className="text-xs text-muted-foreground">Topla pijača brez sladkorja za s seboj se obdavči enako kot za mizo — 22%. Varnejša izbira, dokler FURS ne izda jasnejšega tolmačenja.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="toGoTopli"
+                    value="liberalno"
+                    checked={toGoTopliNapitekStopnja === "liberalno"}
+                    onChange={() => setToGoTopliNapitekStopnja("liberalno")}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">Liberalno (9,5%)</div>
+                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči z nižjo stopnjo 9,5% (enako kot hrana). Utemeljeno s stališčem EU/ZDavP-2, toda tvegano brez jasne domače smernice.</div>
+                  </div>
+                </label>
+              </div>
+              <Button size="sm" onClick={handleSaveToGoTopli} disabled={toGoTopliShranjujem}>
+                {toGoTopliShranjujem
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem…</>
+                  : <><Save className="h-4 w-4 mr-2" />Shrani nastavitev</>}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -170,6 +170,7 @@ function toResponse(map: Record<string, string>) {
     happyHourOd:                map["happyHourOd"]           ?? "",
     happyHourDo:                map["happyHourDo"]           ?? "",
     happyHourRocnoAktiven:      (map["happyHourRocnoAktiven"] ?? "auto") as "auto" | "on" | "off",
+    toGoTopliNapitekStopnja:    (map["toGoTopliNapitekStopnja"] ?? "konservativno") as "konservativno" | "liberalno",
     agentTiskalnikToken:        map["agentTiskalnikToken"]   ?? "",
     podjetjeTrr: (() => {
       try { return JSON.parse(map["__podjetjeTrr"] ?? "[]") as Array<{ iban: string; bic: string }>; }
@@ -413,6 +414,28 @@ router.patch("/nastavitve/grupiranje", requireAdminEnote, async (req, res): Prom
   } else {
     await db.insert(nastavitveTable).values({
  enotaId: tenotaId, kljuc, vrednost });
+  }
+  res.json({ ok: true });
+});
+
+router.patch("/nastavitve/ddv-razresevalnik", requireAdminEnote, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const { toGoTopliNapitekStopnja } = req.body as { toGoTopliNapitekStopnja?: string };
+  if (!["konservativno", "liberalno"].includes(toGoTopliNapitekStopnja ?? "")) {
+    res.status(400).json({ error: "Neveljavna vrednost toGoTopliNapitekStopnja" });
+    return;
+  }
+  const kljuc = "toGoTopliNapitekStopnja";
+  const vrednost = toGoTopliNapitekStopnja!;
+  const existing = await db.select().from(nastavitveTable).where(
+    and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc))
+  );
+  if (existing.length > 0) {
+    await db.update(nastavitveTable).set({ vrednost }).where(
+      and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc))
+    );
+  } else {
+    await db.insert(nastavitveTable).values({ enotaId: tenotaId, kljuc, vrednost });
   }
   res.json({ ok: true });
 });
