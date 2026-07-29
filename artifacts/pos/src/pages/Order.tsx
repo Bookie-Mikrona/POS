@@ -1732,31 +1732,39 @@ export default function Order() {
     <>
     <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden bg-muted/20">
       {/* ── Mobile tab switcher ──────────────────────────────── */}
-      <div className="md:hidden flex items-stretch border-b bg-background shrink-0">
-        <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 self-center ml-0.5" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <button
-          onClick={() => setMobileTab("meni")}
-          className={`flex-1 py-2 text-xs font-semibold border-b-2 transition-colors ${
-            mobileTab === "meni" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-          }`}
-        >
-          Meni
-        </button>
-        <button
-          onClick={() => setMobileTab("narocilo")}
-          className={`flex-1 py-2 text-xs font-semibold border-b-2 transition-colors relative ${
-            mobileTab === "narocilo" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-          }`}
-        >
-          Naročilo
-          {postavkeCount > 0 && (
-            <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold w-4 h-4">
-              {postavkeCount}
-            </span>
-          )}
-        </button>
+      <div className="md:hidden flex flex-col border-b bg-background shrink-0">
+        <div className="flex items-center px-2 pt-1.5 pb-0.5 gap-2">
+          <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-semibold truncate flex-1">
+            {narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
+        </div>
+        <div className="flex">
+          <button
+            onClick={() => setMobileTab("meni")}
+            className={`flex-1 py-1.5 text-xs font-semibold border-b-2 transition-colors ${
+              mobileTab === "meni" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+            }`}
+          >
+            Meni
+          </button>
+          <button
+            onClick={() => setMobileTab("narocilo")}
+            className={`flex-1 py-1.5 text-xs font-semibold border-b-2 transition-colors relative ${
+              mobileTab === "narocilo" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+            }`}
+          >
+            Naročilo
+            {postavkeCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold w-4 h-4">
+                {postavkeCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── Levi del — Meni ──────────────────────────────────── */}
