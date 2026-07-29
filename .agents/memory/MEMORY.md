@@ -16,3 +16,4 @@
 - [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — SDK buffer ~45 vrstic: batchi po 40; Code 128 ZOI namesto QR; Strategy A re-check ob tisku; zoi polje v JSON
 - [POS booking analitika](pos-booking-analitika.md) — pos_booking_settings razširjen na 24 stolpcev; prihodki po vrsti_artikla×davek iz postavke tabele; fallback na stare konte
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
+- [Checkpoint skupaj-vidnost-prostor-v1](checkpoint-skupaj-vidnost-prostor-v1.md) — git tag za povratek: kaskadni izbris otrok, proporcionalna kolicina, prostor v glavi, footer vedno viden
