@@ -643,6 +643,7 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
     return;
   }
 
+  const staraKolicina = Number(postavka.kolicina);
   const novaKolicina = parsed.data.kolicina;
   const novaCenaKos = parsed.data.cenaKos != null ? parsed.data.cenaKos : Number(postavka.cenaKos);
   const novaSkupaj = round2(novaCenaKos * novaKolicina);
@@ -669,6 +670,34 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
   await db.update(postavkeTable)
     .set(updateSet)
     .where(eq(postavkeTable.id, params.data.postavkaId));
+
+  // Proporcionalno posodobi zaračunljive otroke (npr. med pri čaju)
+  // Razmerje otrokove količine se ohrani glede na staro kolicino starša.
+  if (staraKolicina !== novaKolicina) {
+    const otroci = await db.select({
+      id: postavkeTable.id,
+      kolicina: postavkeTable.kolicina,
+      cenaKos: postavkeTable.cenaKos,
+      skupaj: postavkeTable.skupaj,
+    }).from(postavkeTable).where(
+      and(
+        eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+        eq(postavkeTable.narociloId, params.data.id)
+      )
+    );
+    for (const otrok of otroci) {
+      const otrokStaraKol = Number(otrok.kolicina);
+      // nova kolicina = ohrani razmerje; zaokroži na celo število (min 1 če je bil > 0)
+      const novaKolOtrok = staraKolicina > 0
+        ? Math.max(1, Math.round(otrokStaraKol / staraKolicina * novaKolicina))
+        : novaKolicina;
+      const otrokCenaKos = Number(otrok.cenaKos);
+      const otrokNovaSkupaj = round2(otrokCenaKos * novaKolOtrok);
+      await db.update(postavkeTable)
+        .set({ kolicina: novaKolOtrok, skupaj: String(otrokNovaSkupaj.toFixed(2)) })
+        .where(eq(postavkeTable.id, otrok.id));
+    }
+  }
 
   await updateSkupaj(params.data.id);
 
