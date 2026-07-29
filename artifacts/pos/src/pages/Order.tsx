@@ -1104,12 +1104,13 @@ export default function Order() {
   // Regex fallback za glasovne ukaze (zahteva "dodaj X" obliko)
   const tolkujTranskriptRegex = (tekst: string) => {
     const q = tekst.toLowerCase().trim();
-    const ujemanje = q.match(/dodaj\s+(.+)/);
-    if (!ujemanje) {
+    if (!q) {
       toast({ title: "Ukaz ni prepoznan", description: `Slišano: "${tekst}". Poskusite znova.`, variant: "destructive" });
       return;
     }
-    const rawDeli = ujemanje[1].split(/\s+in\s+/);
+    // Odstrani opcijsko "dodaj" na začetku
+    const brezDodaj = q.replace(/^dodaj\s+/i, "");
+    const rawDeli = brezDodaj.split(/\s+in\s+/);
     const segmenti: string[] = [];
     {
       let current = "";
