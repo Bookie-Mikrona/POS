@@ -2237,6 +2237,21 @@ export default function Order() {
                           </button>
                         );
                       })()}
+                      {!jeRacunana && (() => {
+                        const artInfo = artikliMapForOrder.get(postavka.artikelId) as { toGo?: boolean } | undefined;
+                        if (!artInfo?.toGo) return null;
+                        const jeToGoAktiven = !!(postavka as typeof postavka & { toGo?: boolean }).toGo;
+                        return (
+                          <button
+                            type="button"
+                            className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${jeToGoAktiven ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-600" : "bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-100"}`}
+                            onClick={() => handleToGo(postavka)}
+                            title={jeToGoAktiven ? "Odstrani To Go embalažo" : "Dodaj To Go embalažo"}
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                          </button>
+                        );
+                      })()}
                       {!jeRacunana && (
                         <button
                           type="button"
@@ -2272,21 +2287,6 @@ export default function Order() {
                           <Pencil className="h-4 w-4" />
                         </button>
                       )}
-                      {!jeRacunana && (() => {
-                        const artInfo = artikliMapForOrder.get(postavka.artikelId) as { toGo?: boolean } | undefined;
-                        if (!artInfo?.toGo) return null;
-                        const jeToGoAktiven = !!(postavka as typeof postavka & { toGo?: boolean }).toGo;
-                        return (
-                          <button
-                            type="button"
-                            className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${jeToGoAktiven ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-600" : "bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-100"}`}
-                            onClick={() => handleToGo(postavka)}
-                            title={jeToGoAktiven ? "Odstrani To Go embalažo" : "Dodaj To Go embalažo"}
-                          >
-                            <ShoppingBag className="h-4 w-4" />
-                          </button>
-                        );
-                      })()}
                       {!jeRacunana && (
                         <button
                           type="button"
