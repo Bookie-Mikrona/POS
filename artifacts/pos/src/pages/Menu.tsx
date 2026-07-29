@@ -102,6 +102,7 @@ export default function Menu() {
   const [artToGo, setArtToGo] = useState(false);
   const [artHappyHourCena, setArtHappyHourCena] = useState<string>("");
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("material");
+  const [artSkupina, setArtSkupina] = useState<string>("");
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
   const [uskladiOpen, setUskladiOpen] = useState(false);
@@ -430,6 +431,7 @@ export default function Menu() {
     setArtToGo(false);
     setArtHappyHourCena("");
     setArtVrstaArtikla("material");
+    setArtSkupina("");
     setArtImeZaNabavo(""); setArtEnotaMere(null);
     setNormativItems([]);
     setNormativNapaka(null);
@@ -450,6 +452,7 @@ export default function Menu() {
     setArtToGo((a as typeof a & { toGo?: boolean }).toGo ?? false);
     setArtHappyHourCena((a as typeof a & { happyHourCena?: number | null }).happyHourCena != null ? String((a as typeof a & { happyHourCena: number }).happyHourCena) : "");
     setArtVrstaArtikla(((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev");
+    setArtSkupina((a as typeof a & { skupina?: string | null }).skupina ?? "");
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
     setNormativItems([]);
@@ -502,6 +505,7 @@ export default function Menu() {
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
       vrstaArtikla: artVrstaArtikla,
       happyHourCena: artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
+      skupina: artSkupina.trim() || null,
     };
 
     const afterSave = (artikelId: number, label: string) => {
@@ -900,6 +904,14 @@ export default function Menu() {
                 <Label>Ime za prodajo</Label>
                 <KlavijaturaInput value={artName} onChange={setArtName} placeholder="Npr. Espresso" naslov="Ime artikla" />
               </div>
+
+              {/* Skupina (opcijsko) */}
+              {!(artNabavniArtikel && !artProdajniArtikel) && (
+                <div className="space-y-2">
+                  <Label>Skupina <span className="text-muted-foreground font-normal text-xs">(opcijsko — za združitev v naročilu)</span></Label>
+                  <KlavijaturaInput value={artSkupina} onChange={setArtSkupina} placeholder="Npr. Čaj" naslov="Skupina" />
+                </div>
+              )}
 
               {/* Tip artikla */}
               <div className="space-y-2">

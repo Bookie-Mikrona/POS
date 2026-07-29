@@ -30,6 +30,7 @@ const SELECT_FIELDS = {
   toGo: artikliTable.toGo,
   vrstaArtikla: artikliTable.vrstaArtikla,
   happyHourCena: artikliTable.happyHourCena,
+  skupina: artikliTable.skupina,
   hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`,
   vNormativih: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE vhodni_artikel_id = ${artikliTable.id})
                          OR EXISTS (SELECT 1 FROM modifikator_normativi WHERE vhodni_artikel_id = ${artikliTable.id})`};
@@ -59,6 +60,7 @@ function mapRow(r: Record<string, unknown>) {
     toGo: Boolean(r.toGo),
     vrstaArtikla: (r.vrstaArtikla as string | null) ?? "material",
     happyHourCena: r.happyHourCena != null ? Number(r.happyHourCena) : null,
+    skupina: (r.skupina as string | null) ?? null,
     hasNormativ: Boolean(r.hasNormativ),
     vNormativih: Boolean(r.vNormativih),
     modSkupine: [] as Array<{
@@ -202,7 +204,9 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     privzetiModifikatorji: (parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji ?? [],
     toGoArtikli: (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [],
     toGo: (parsed.data as { toGo?: boolean }).toGo ?? false,
-    vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "material"}).returning();
+    vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "material",
+    skupina: (parsed.data as { skupina?: string | null }).skupina ?? null,
+  }).returning();
 
   const [withKat] = await db
     .select(SELECT_FIELDS)
@@ -353,6 +357,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     { header: "imeZaNabavo",     key: "imeZaNabavo",     width: 22 },
     { header: "enotaMere",       key: "enotaMere",       width: 13 },
     { header: "toGo",            key: "toGo",            width: 9  },
+    { header: "skupina",         key: "skupina",         width: 20 },
   ];
 
   // Glava — krepko + ozadje
@@ -378,6 +383,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       imeZaNabavo:     a.imeZaNabavo ?? "",
       enotaMere:       a.enotaMere ?? "",
       toGo:            a.toGo ? "DA" : "NE",
+      skupina:         (a as typeof a & { skupina?: string | null }).skupina ?? "",
     });
   }
 
@@ -509,6 +515,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if ((parsed.data as { toGo?: boolean }).toGo !== undefined) updateData.toGo = (parsed.data as { toGo?: boolean }).toGo;
   if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) updateData.vrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla;
   if ("happyHourCena" in parsed.data) updateData.happyHourCena = (parsed.data as { happyHourCena?: number | null }).happyHourCena != null ? String((parsed.data as { happyHourCena: number }).happyHourCena) : null;
+  if ("skupina" in parsed.data) updateData.skupina = (parsed.data as { skupina?: string | null }).skupina ?? null;
 
   if ("kategorijaId" in parsed.data && parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })

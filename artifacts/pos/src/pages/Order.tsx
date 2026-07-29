@@ -87,6 +87,7 @@ interface ArtikelItem {
   privzetiDodatki?: number[];
   jeModifikator?: boolean;
   privzetiModifikatorji?: number[];
+  skupina?: string | null;
 }
 
 function playTapSound() {
@@ -374,35 +375,38 @@ function normalizirajSkupinaIme(ime: string): string {
 }
 
 function skupinaArtiklov(list: ArtikelItem[]): GridItem[] {
-  const normalized = list.map(a => normalizirajSkupinaIme(a.ime));
+  // Ključ za grupiranje: eksplicitna skupina (s: prefix) ali normalizirano ime
+  const getKey = (a: ArtikelItem): string =>
+    a.skupina ? `s:${a.skupina.toLowerCase()}` : normalizirajSkupinaIme(a.ime).toLowerCase();
+  const getDisplayName = (a: ArtikelItem): string =>
+    a.skupina ? a.skupina : normalizirajSkupinaIme(a.ime);
 
-  // Štej koliko artiklov ima enak normaliziran ključ
+  // Štej koliko artiklov ima enak ključ
   const groupCount = new Map<string, number>();
-  for (const n of normalized) {
-    const key = n.toLowerCase();
+  for (const a of list) {
+    const key = getKey(a);
     if (key) groupCount.set(key, (groupCount.get(key) ?? 0) + 1);
   }
 
   // Zberi otroke in ime za prikaz (iz prve pojavitve)
   const groupChildren = new Map<string, ArtikelItem[]>();
   const groupDisplayName = new Map<string, string>();
-  for (let i = 0; i < list.length; i++) {
-    const key = normalized[i].toLowerCase();
+  for (const a of list) {
+    const key = getKey(a);
     if ((groupCount.get(key) ?? 0) >= 2) {
       if (!groupChildren.has(key)) {
         groupChildren.set(key, []);
-        groupDisplayName.set(key, normalized[i]);
+        groupDisplayName.set(key, getDisplayName(a));
       }
-      groupChildren.get(key)!.push(list[i]);
+      groupChildren.get(key)!.push(a);
     }
   }
 
   // Sestavi rezultat — skupina se pojavi na mestu prvega člana
   const addedGroups = new Set<string>();
   const result: GridItem[] = [];
-  for (let i = 0; i < list.length; i++) {
-    const a = list[i];
-    const key = normalized[i].toLowerCase();
+  for (const a of list) {
+    const key = getKey(a);
     if ((groupCount.get(key) ?? 0) >= 2) {
       if (!addedGroups.has(key)) {
         addedGroups.add(key);

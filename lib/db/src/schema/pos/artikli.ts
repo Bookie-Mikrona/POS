@@ -27,6 +27,7 @@ export const artikliTable = pgTable("artikli", {
   toGo: boolean("to_go").notNull().default(false),
   vrstaArtikla: text("vrsta_artikla").notNull().default("material"),
   happyHourCena: numeric("happy_hour_cena", { precision: 10, scale: 2 }),
+  skupina: text("skupina"),
 });
 
 export const artikliRelations = relations(artikliTable, ({ one }) => ({
