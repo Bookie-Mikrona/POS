@@ -1017,17 +1017,37 @@ export default function Order() {
     return map;
   }, [dnevniMeniDanes]);
 
-  const filteredArtikli = useMemo(() => {
+  const { filteredArtikli, filteredArtikliModMatch } = useMemo(() => {
     // Only show output articles (prodajniArtikel) that have a category assigned
     let list = orderedArtikli.filter(a => a.prodajniArtikel && a.kategorijaId != null);
     if (activeKategorija !== "all") {
       list = list.filter(a => a.kategorijaId!.toString() === activeKategorija);
     }
+    const modMatch = new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>();
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter(a => ujemaSeArtikel(a.ime, q, extraSinonimi));
+      const byName = list.filter(a => ujemaSeArtikel(a.ime, q, extraSinonimi));
+      if (byName.length > 0) return { filteredArtikli: byName, filteredArtikliModMatch: modMatch };
+      // Ni zadetkov po imenu — išči po modifikatorjih
+      const byMod: typeof list = [];
+      for (const a of list) {
+        const modSkupine = (a as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
+        let found = false;
+        for (const sk of modSkupine) {
+          for (const m of sk.modifikatorji) {
+            if (m.aktiven && ujemaSeArtikel(m.ime, q, extraSinonimi)) {
+              modMatch.set(a.id, { skupinaId: sk.id, modifikatorId: m.id, modIme: m.ime });
+              byMod.push(a);
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+      return { filteredArtikli: byMod, filteredArtikliModMatch: modMatch };
     }
-    return list;
+    return { filteredArtikli: list, filteredArtikliModMatch: modMatch };
   }, [orderedArtikli, activeKategorija, search, extraSinonimi]);
 
   // ── Drag-and-drop ────────────────────────────────────────────
@@ -1136,7 +1156,45 @@ export default function Order() {
         a => a.prodajniArtikel && a.kategorijaId != null && ujemaSeArtikel(a.ime, iskanje, extraSinomiRef.current)
       );
       if (kandidati.length === 0) {
-        neznani.push(iskanje);
+        // Poskusi "artikel z modifikator" razbitje (npr. "malica ena z golaž")
+        let handled = false;
+        const zMatch = iskanje.match(/^(.+?)\s+z\s+(.+)$/i);
+        if (zMatch) {
+          const artDel = zMatch[1].trim();
+          const modDel = zMatch[2].trim();
+          const artK = orderedArtikli.filter(a => a.prodajniArtikel && a.kategorijaId != null && ujemaSeArtikel(a.ime, artDel, extraSinomiRef.current));
+          if (artK.length === 1) {
+            const modSkupine = (artK[0] as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
+            for (const sk of modSkupine) {
+              const mod = sk.modifikatorji.find(m => m.aktiven && ujemaSeArtikel(m.ime, modDel, extraSinomiRef.current));
+              if (mod) {
+                handleAddArtikelZModifikatorjem(artK[0].id, sk.id, mod.id, mod.ime, kolicina, opomba);
+                dodani.push(`${artK[0].ime} + ${mod.ime}`);
+                handled = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!handled) {
+          // Iskanje samo po modifikatorjih (npr. "golaž" → Malica 1 + Golaž)
+          const prodajni = orderedArtikli.filter(a => a.prodajniArtikel && a.kategorijaId != null);
+          let modFound = false;
+          for (const a of prodajni) {
+            const modSkupine = (a as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
+            for (const sk of modSkupine) {
+              const mod = sk.modifikatorji.find(m => m.aktiven && ujemaSeArtikel(m.ime, iskanje, extraSinomiRef.current));
+              if (mod) {
+                handleAddArtikelZModifikatorjem(a.id, sk.id, mod.id, mod.ime, kolicina, opomba);
+                dodani.push(`${a.ime} + ${mod.ime}`);
+                modFound = true;
+                break;
+              }
+            }
+            if (modFound) break;
+          }
+          if (!modFound) neznani.push(iskanje);
+        }
       } else if (kandidati.length === 1) {
         const rezultat = handleAddArtikel(kandidati[0].id, kolicina, opomba);
         if (rezultat === "direct") {
@@ -1490,6 +1548,51 @@ export default function Order() {
       },
     });
     return "direct";
+  };
+
+  // Dodaj artikel z vnaprej izbranim modifikatorjem (iz iskanja po modifikatorjih)
+  const handleAddArtikelZModifikatorjem = (artikelId: number, skupinaId: number, modifikatorId: number, modIme: string, kolicina = 1, opomba?: string) => {
+    const artInfo = artikliMapForOrder.get(artikelId);
+    const artModSkupine = (artInfo as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [];
+    setFlashingId(artikelId);
+    playTapSound();
+    setTimeout(() => setFlashingId(null), 300);
+    // Prednastavi privzete + iskani modifikator
+    const artPrivzeti: number[] = artInfo?.privzetiModifikatorji ?? [];
+    const privzetiSelected = artPrivzeti.flatMap(modId => {
+      for (const sk of artModSkupine) {
+        if (sk.modifikatorji.some(m => m.id === modId)) return [{ skupinaId: sk.id, modifikatorId: modId }];
+      }
+      return [];
+    });
+    // Dodaj iskani modifikator (če ga ni že med privzetimi)
+    const iskaničeNi = privzetiSelected.some(s => s.skupinaId === skupinaId && s.modifikatorId === modifikatorId)
+      ? privzetiSelected
+      : [...privzetiSelected, { skupinaId, modifikatorId }];
+    setModDialogArtikelId(artikelId);
+    setModDialogIzbrani(iskaničeNi);
+    setModDialogKolicina(kolicina);
+    setModDialogOpomba(opomba ?? null);
+    // Če je to edini modifikator in skupina ni obvezna z minIzbir>1 — direktno potrdi
+    const skupina = artModSkupine.find(s => s.id === skupinaId);
+    const vskeObvezne = artModSkupine.filter(s => s.obvezna);
+    const vseIzpolnjene = vskeObvezne.every(s => iskaničeNi.some(sel => sel.skupinaId === s.id));
+    if (artModSkupine.length === 1 && !skupina?.obvezna && vseIzpolnjene) {
+      // Ena neobvezna skupina — direktno dodaj brez dialoga
+      setModDialogArtikelId(null);
+      setModDialogIzbrani([]);
+      setModDialogKolicina(1);
+      setModDialogOpomba(null);
+      if (pendingArtikli.has(artikelId)) return;
+      setPendingArtikli(prev => new Set(prev).add(artikelId));
+      const settle = () => setPendingArtikli(prev => { const s = new Set(prev); s.delete(artikelId); return s; });
+      const modPayload = [{ modifikatorId, ime: modIme, cenaDodatek: Number(skupina?.modifikatorji.find(m => m.id === modifikatorId)?.cenaDodatek ?? 0) }];
+      addPostavkaModifikatorji.mutate({ id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, modifikatorji: modPayload } }, {
+        onSuccess: (updatedNarocilo) => { clearSkipAutoStart(); queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo); queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() }); setSearch(""); settle(); },
+        onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" }); settle(); },
+      });
+    }
+    // Sicer ostane dialog odprt
   };
 
   const handleSpremeniGosta = (postavkaId: number) => {
@@ -1890,7 +1993,11 @@ export default function Order() {
                           <SortableArtikelCard
                             key={item.artikel.id}
                             artikel={item.artikel}
-                            onAdd={handleAddArtikel}
+                            onAdd={(artId) => {
+                              const modM = filteredArtikliModMatch.get(artId);
+                              if (modM) handleAddArtikelZModifikatorjem(artId, modM.skupinaId, modM.modifikatorId, modM.modIme);
+                              else handleAddArtikel(artId);
+                            }}
                             pending={pendingArtikli.has(item.artikel.id)}
                             flashing={flashingId === item.artikel.id}
                             artikliMap={artikliMapForOrder}
