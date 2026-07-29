@@ -398,7 +398,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const isCheckoutPage = location === "/blagajna";
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background font-sans text-foreground">
+    <div className="flex h-dvh w-full overflow-hidden bg-background font-sans text-foreground">
       {!isOrderPage && (
         <aside ref={asideRef} className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground shadow-md overflow-hidden">
           <div

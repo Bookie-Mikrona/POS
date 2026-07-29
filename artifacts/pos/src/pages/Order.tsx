@@ -2073,8 +2073,8 @@ export default function Order() {
       </div>
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
-      <div className={`w-full md:w-[400px] flex-col h-full min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
-        <div className="p-3 md:p-4 border-b bg-card space-y-1.5">
+      <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
+        <div className="shrink-0 p-3 md:p-4 border-b bg-card space-y-1.5">
           {/* Ime mize + ikone — samo desktop (mobile: ime je v zgornjem baru, ikone so pri gostih) */}
           <div className="hidden md:flex items-center gap-1 min-w-0">
             <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
@@ -2510,7 +2510,7 @@ export default function Order() {
           </div>
         )}
 
-        <div className="p-3 md:p-4 border-t bg-card md:mt-auto space-y-2">
+        <div className="shrink-0 p-3 md:p-4 border-t bg-card space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">
               {aktivniGostStevilka !== null ? `Gost ${aktivniGostStevilka}` : "Skupaj"}
