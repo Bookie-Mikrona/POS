@@ -1,0 +1,46 @@
+## 1. Pijače in napitki z **izhodnim DDV 9,5 %**
+
+Izhodiščno pravilo: pijača ima lahko 9,5 % na izhodu **samo takrat, ko je transakcija dobava blaga** (ali izjemoma del enotne storitve — meni). Pri postrežbi kot samostojna postavka je pijača **vedno 22 %**, ker strežba pijač ni zajeta v 6. točki Priloge I.
+
+| Pijača / napitek (KN) | Primeri, ko je izhodni DDV **9,5 %** | Kdaj kljub temu 22 % |
+|---|---|---|
+| Voda, mineralna voda, sodavica, gazirane in negazirane brezalkoholne pijače **brez dodanega sladkorja/sladil** (2201, 2202) | to-go iz lokala; štant; premično vozilo; pakirana prodaja brez postrežbe; prodajni avtomat | postrežena za mizo → 22 % |
+| **100 % sokovi brez dodanega sladkorja** (2009) | isti primeri — dobava blaga | postrežen → 22 %; nektar/sok **z dodanim sladkorjem** → 22 % povsod |
+| **Nesladkana kava, čaj, zeliščni čaj — pripravljen napitek** | to-go, štant, vozilo (dobava blaga); sladkor v vrečki, ki si ga kupec doda sam, ne pokvari 9,5 % (analogija avtomatov) | postrežen v lokalu → 22 %; če prodajalec pri pripravi doda sladkor/sirup → 22 % povsod |
+| Napitek iz **prodajnega avtomata** | le če avtomat pripravi napitek brez sladkorja ali sladil, kupcu pa omogoča, da si jih doda sam | avtomat sam doda sladkor ali podatka ni → 22 % |
+| Mleko, mlečni napitki brez dodanega sladkorja; **tekoča hrana za bolnike in prehranska dopolnila** (2202 99) | dobava blaga; mleko je hrana | sladkan mlečni napitek postrežen → 22 % |
+| Brezalkoholno pivo brez dodanega sladkorja | dobava blaga (to-go, štant) | postreženo → 22 % |
+| **Katerakoli pijača (tudi sladka) kot del menija**, ki je kot meni naveden na jedilnem listu/ceniku | meni s hrano in pijačo — tudi sladko — je enotna restavracijska storitev po 9,5 %, ker je pijača pomožna h glavni dobavi hrane | pijača, naročena/zaračunana posebej → 22 %; alkohol v meniju: FURS-ovo stališče ni dokončno objavljeno — vodi konservativno 22 % |
+| **»Napitki«, ki se davčno štejejo za jed**: gosta vroča čokolada s priloženo žličko, smoothie, zamrznjeni jogurt, frape kot jed | po pojasnilu FURS gre pri teh za pripravo jedi — nižja stopnja tudi ob postrežbi v obratu — edina kategorija »pijač« z 9,5 % **tudi za mizo** | če je artikel po sestavi navadna pijača (redka čokolada za pitje) → 22 % ob postrežbi |
+
+Nikoli 9,5 % na izhodu, v nobenem primeru: **alkoholne pijače** in **pijače z dodanim sladkorjem ali sladili kot samostojna postavka** (edina izjema za sladke je meni).
+
+## 2. Artikli z **različnim izhodnim in vhodnim DDV**
+
+Vhodna stopnja je vedno funkcija narave blaga (KN uvrstitev), izhodna pa funkcija konteksta prodaje — razlika je torej sistemska in legitimna, odbitek vstopnega DDV ni omejen z izhodno stopnjo. Neskladja gredo v obe smeri:
+
+**Vhod 9,5 % → izhod 22 %** (najpogostejši vzorec v gostinstvu):
+
+| Artikel | Vhod | Izhod 22 %, kadar | Izhod ostane 9,5 %, kadar |
+|---|---|---|---|
+| Nesladkane pijače v embalaži (voda, 100 % sok, mineralna) | 9,5 % | postrežene v lokalu | to-go, štant, vozilo |
+| Kava v zrnu / mleta (0901) | 9,5 % | prodana kot skodelica postrežene kave (normativ surovina→napitek) | nesladkana kava to-go/štant; prodaja zrn kot blaga |
+| Čaj v vrečkah / listih (0902) | 9,5 % | postrežen čaj | nesladkan čaj to-go/štant; prodaja vrečk |
+| Kakav v prahu | 9,5 % | postrežen kakav-napitek | gosta vroča čokolada kot jed; to-go brez sladkorja |
+| Instant pripravki 2101–2105 (npr. kava 3v1) — nižja stopnja ne glede na vsebnost sladkorja | 9,5 % | pripravljen sladkan napitek (dodani sladkor je v pijači) ali postrežba | prodaja pripravka kot blaga |
+| Mleko | 9,5 % | v postreženem napitku (bela kava) | v jedi; prodaja mleka |
+
+**Vhod 22 % → izhod 9,5 %** (manj intuitivna smer):
+
+| Artikel | Vhod | Izhod 9,5 %, kadar | Izhod ostane 22 %, kadar |
+|---|---|---|---|
+| Embalaža (kartoni, lončki, posode) | 22 % | pomožna postavka k jedi/nesladkani pijači to-go — sledi glavni dobavi | samostojna prodaja embalaže; lonček k sladkani pijači |
+| Sladke pijače | 22 % | prodane **znotraj menija** na ceniku | vsaka samostojna prodaja |
+| Sladkorni sirupi in pripravki (2106 90 30–59, 98) | 22 % | porabljeni v **jedi/sladici** (sladica je hrana, 9,5 %) | porabljeni v pijači (pijača z dodanim sladkorjem, 22 %) |
+| Alkohol za kuhanje (vino v omaki, rum v sladici) | 22 % | porabljen kot sestavina jedi — jed je 9,5 % | prodan/postrežen kot pijača |
+
+**Časovna neskladja** (ista šifra, različni stopnji zaradi datuma): sladke pijače, nabavljene do 31. 12. 2024 po 9,5 %, prodane od 1. 1. 2025 po 22 % — v trgovinski dejavnosti je to dvignilo bruto ceno ob nespremenjeni neto, v gostinstvu pa je bila prodaja že prej po 22 %; ter predplačila čez datum spremembe stopnje (razdelitev osnove po datumu obdavčljivega dogodka).
+
+**Vhod = izhod (kontrolna skupina):** hrana in surovine za jedi (9,5 % → 9,5 %, ne glede na kanal), alkohol kot pijača (22 % → 22 %), sladke pijače samostojno (22 % → 22 % od 2025), tobak (22 % → 22 %).
+
+Za tvoj ERP iz tega sledi konkretna validacija: neskladje vhod ≠ izhod **ni napaka** in ga sistem ne sme »popravljati« — napaka je le, če se dejanska stopnja na prejetem računu razlikuje od pričakovane vhodne (`expected_purchase_rate` iz KN atributov), ali če se izhodna razlikuje od razrešene po pravilniku. To sta dve ločeni kontroli nad dvema ločenima podatkoma na isti šifri artikla.
