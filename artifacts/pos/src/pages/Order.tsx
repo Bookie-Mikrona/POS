@@ -2199,7 +2199,7 @@ export default function Order() {
                     {/* Vrstica 1: številka + ime + gost badge + gumbi */}
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground w-4 shrink-0 text-right">{idx + 1}.</span>
-                      <span className={`flex-1 text-base font-medium min-w-0 leading-snug ${jeRacunana ? "line-through text-muted-foreground" : ""}`}>{postavka.ime}</span>
+                      <span className={`flex-1 text-lg font-medium min-w-0 leading-snug ${jeRacunana ? "line-through text-muted-foreground" : ""}`}>{postavka.ime}</span>
                       {!jeRacunana && !!(postavka as typeof postavka & { toGo?: boolean }).toGo && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold border border-orange-200 shrink-0">
                           <ShoppingBag className="h-2.5 w-2.5" />
