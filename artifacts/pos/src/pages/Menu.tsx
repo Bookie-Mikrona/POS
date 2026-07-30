@@ -823,16 +823,16 @@ export default function Menu() {
                       </div>
                     </TableCell>
                     <TableCell className="hidden xl:table-cell">
-                      <div className="flex flex-col gap-0.5 text-sm">
+                      <div className="flex flex-col gap-0.5">
                         {a.prodajniArtikel && (
-                          <span className={a.nabavniArtikel ? "font-medium" : ""}>
-                            {a.nabavniArtikel && <span className="text-[10px] text-muted-foreground mr-1">prod.</span>}
+                          <span className="text-xs text-muted-foreground">
+                            {a.nabavniArtikel && <span className="mr-1">prod.</span>}
                             {a.davek} %
                           </span>
                         )}
                         {a.nabavniArtikel && (
-                          <span className={a.prodajniArtikel ? "text-muted-foreground text-xs" : ""}>
-                            {a.prodajniArtikel && <span className="text-[10px] mr-1">nab.</span>}
+                          <span className="text-xs text-muted-foreground">
+                            {a.prodajniArtikel && <span className="mr-1">nab.</span>}
                             {pricakovanaNabavnaDdv(
                               ((a as typeof a & { taxCategory?: string }).taxCategory ?? "food") as Parameters<typeof pricakovanaNabavnaDdv>[0],
                               Boolean((a as typeof a & { addedSugar?: boolean }).addedSugar)
