@@ -1013,7 +1013,7 @@ export default function Menu() {
                 </div>
               )}
 
-              {/* Cena + DDV */}
+              {/* Vrstica 1: Cena + DDV kategorija */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Cena — samo za prodajne artikle */}
                 {!(artNabavniArtikel && !artProdajniArtikel) ? (
@@ -1022,49 +1022,10 @@ export default function Menu() {
                     <KlavijaturaInput value={artPrice} onChange={setArtPrice} placeholder="2.50" naslov="Cena (€)" inputMode="decimal" />
                   </div>
                 ) : (
-                  <div /> /* prazen prostor da DDV ostane desno */
+                  <div />
                 )}
-                {/* DDV — vedno vidno */}
-                {(() => {
-                  const pricakovan = defaultDavekForCategory(artTaxCategory);
-                  const dejanskiNum = parseFloat(artTax);
-                  const neskladje = artTax !== "0" && !isNaN(dejanskiNum) && dejanskiNum !== pricakovan;
-                  return (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label>DDV (%)</Label>
-                        {neskladje && (
-                          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 leading-tight">
-                            ⚠ Ne ujema se s kategorijo ({pricakovan} %)
-                          </span>
-                        )}
-                      </div>
-                      <Select value={artTax} onValueChange={setArtTax}>
-                        <SelectTrigger className={
-                          (!artTax && !(artNabavniArtikel && !artProdajniArtikel)) ? "border-destructive text-muted-foreground"
-                          : neskladje ? "border-amber-400"
-                          : ""
-                        }>
-                          <SelectValue placeholder="— izberite stopnjo —" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0 % (brez DDV)</SelectItem>
-                          <SelectItem value={String(ddvStopnje.znizanaSt)}>{ddvStopnje.znizanaSt} % (znižana stopnja)</SelectItem>
-                          <SelectItem value={String(ddvStopnje.nizjaSt)}>{ddvStopnje.nizjaSt} % (nižja stopnja)</SelectItem>
-                          <SelectItem value={String(ddvStopnje.splosnaSt)}>{ddvStopnje.splosnaSt} % (splošna stopnja)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Rezervna stopnja — kategorija zgoraj je merodajna za dejanski DDV na naročilu
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* DDV kategorija — za to-go razreševalnik */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
-                <div className="grid grid-cols-2 gap-4">
+                {/* DDV kategorija — merodajna */}
+                {!(artNabavniArtikel && !artProdajniArtikel) && (
                   <div className="space-y-2">
                     <Label>DDV kategorija</Label>
                     <Select
@@ -1072,7 +1033,6 @@ export default function Menu() {
                       onValueChange={v => {
                         const kat = v as typeof artTaxCategory;
                         setArtTaxCategory(kat);
-                        // Samodejno uskladi DDV (%) z novo kategorijo, razen če je artikel brez DDV (0 %)
                         if (artTax !== "0") {
                           setArtTax(String(defaultDavekForCategory(kat)));
                         }
@@ -1092,6 +1052,47 @@ export default function Menu() {
                     </Select>
                     <p className="text-xs text-muted-foreground">Merodajno za DDV razreševalnik — pri mizi in za s seboj</p>
                   </div>
+                )}
+              </div>
+
+              {/* Vrstica 2: DDV (%) + dodan sladkor */}
+              {!(artNabavniArtikel && !artProdajniArtikel) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {(() => {
+                    const pricakovan = defaultDavekForCategory(artTaxCategory);
+                    const dejanskiNum = parseFloat(artTax);
+                    const neskladje = artTax !== "0" && !isNaN(dejanskiNum) && dejanskiNum !== pricakovan;
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label>DDV (%)</Label>
+                          {neskladje && (
+                            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 leading-tight">
+                              ⚠ Ne ujema se s kategorijo ({pricakovan} %)
+                            </span>
+                          )}
+                        </div>
+                        <Select value={artTax} onValueChange={setArtTax}>
+                          <SelectTrigger className={
+                            !artTax ? "border-destructive text-muted-foreground"
+                            : neskladje ? "border-amber-400"
+                            : ""
+                          }>
+                            <SelectValue placeholder="— izberite stopnjo —" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0 % (brez DDV)</SelectItem>
+                            <SelectItem value={String(ddvStopnje.znizanaSt)}>{ddvStopnje.znizanaSt} % (znižana stopnja)</SelectItem>
+                            <SelectItem value={String(ddvStopnje.nizjaSt)}>{ddvStopnje.nizjaSt} % (nižja stopnja)</SelectItem>
+                            <SelectItem value={String(ddvStopnje.splosnaSt)}>{ddvStopnje.splosnaSt} % (splošna stopnja)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Rezervna stopnja — kategorija zgoraj je merodajna za dejanski DDV na naročilu
+                        </p>
+                      </div>
+                    );
+                  })()}
                   {(artTaxCategory === "hot_beverage" || artTaxCategory === "cold_beverage") && (
                     <div className="flex items-center gap-3 self-end pb-6">
                       <input
