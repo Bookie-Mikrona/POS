@@ -10,14 +10,30 @@ Prodajna DDV kategorija (polje `taxCategory` / `artTaxCategory`) sledi **načinu
 
 Razlika med njima je **normalna in zakonita** — odbitek vstopnega DDV ni okrnjen.
 
-## Primeri
+## Referenčni primer: Radenska (KN 2201, naravna mineralna voda)
+
+```
+artikel.taxCategory  = cold_beverage
+artikel.addedSugar   = false   ← ključni podatek
+```
+
+| | Stopnja | Razlog |
+|---|---|---|
+| Nabavna (izpeljana) | 9,5 % | živilo/pijača, Priloga I / 48. člen Pravilnika |
+| Prodajna pri mizi | 22 % | strežba pijač |
+| Prodajna za s seboj | 9,5 % | cold_beverage brez sladkorja |
+
+Radenska ACE / aromatizirane z dodanim sladkorjem/sladili → `addedSugar=true` → **22 % nabavna** (od 1. 1. 2025).  
+Odločilna je deklaracija (prisotnost dodanega sladkorja), ne okus ali barva.
+
+## Ostali primeri
 
 | Artikel | Nabavna | Prodajna pri mizi | Prodajna za s seboj |
 |---|---|---|---|
-| Steklenica vode / 100 % soka | 9,5 % | 22 % (cold_beverage) | 9,5 % (cold_beverage, brez sladkorja) |
-| Kava, čaj, kakav, mleko | 9,5 % | 22 % (hot_beverage) | 22 % (hot_beverage) |
-| Embalaža (lonček, karton) | 22 % | Sledi jedi (9,5 %) | Sledi jedi (9,5 %) |
-| Sladka pijača v meniju | 22 % | 9,5 % (del menija) | — |
+| Radenska (brez sladkorja) | 9,5 % | 22 % | 9,5 % |
+| Radenska ACE (sladkor/sladila) | 22 % | 22 % | 22 % |
+| Kava, čaj, kakav, mleko | 9,5 % | 22 % | 22 % |
+| Embalaža (lonček, karton) | 22 % | Sledi jedi | Sledi jedi |
 
 En artikel ima lahko eno nabavno in dve različni prodajni stopnji (pri mizi / za s seboj).
 
