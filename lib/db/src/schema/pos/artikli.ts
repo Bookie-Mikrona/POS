@@ -30,7 +30,7 @@ export const artikliTable = pgTable("artikli", {
   skupina: text("skupina"),
   /** DDV kategorija za razreševalnik: food | hot_beverage | cold_beverage | alcoholic */
   taxCategory: text("tax_category").notNull().default("food"),
-  /** Ali artikel vsebuje dodan sladkor (relevantno za toplo pijačo za s seboj) */
+  /** Ali artikel vsebuje dodan sladkor (relevantno za toplo in hladno pijačo — vpliva na DDV pri eat_in in to_go) */
   addedSugar: boolean("added_sugar").notNull().default(false),
   /** KN/CN carinska tarifna številka (opcijsko) */
   knCode: text("kn_code"),

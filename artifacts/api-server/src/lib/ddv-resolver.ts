@@ -10,7 +10,7 @@ import { db, vatRuleTable, nastavitveTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 export type SupplyKind = "eat_in" | "to_go";
-export type TaxCategory = "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink";
+export type TaxCategory = "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "other";
 
 export interface ResolveRateInput {
   supplyKind: SupplyKind;
@@ -71,6 +71,8 @@ const DEFAULT_VAT_RULES: Omit<VatRuleRow, "id">[] = [
   { priority: 10, supplyKind: null,      taxCategory: "alcoholic",     addedSugar: null,  rate: "22.00", configurable: false, label: "Alkoholna pijača" },
   // food_drink: napitki, ki se davčno štejejo za jed (FURS: 9,5 % tudi za mizo)
   { priority: 10, supplyKind: null,      taxCategory: "food_drink",    addedSugar: null,  rate: "9.50",  configurable: false, label: "Pijača-jed (vroča čokolada, smoothie, frappé)" },
+  // other: artikli brez natančne davčne klasifikacije — privzeto 22 %
+  { priority: 10, supplyKind: null,      taxCategory: "other",         addedSugar: null,  rate: "22.00", configurable: false, label: "Ostalo (22 %)" },
 ];
 
 export async function loadVatRules(): Promise<VatRuleRow[]> {

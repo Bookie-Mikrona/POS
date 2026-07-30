@@ -103,7 +103,7 @@ export default function Menu() {
   const [artHappyHourCena, setArtHappyHourCena] = useState<string>("");
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">("material");
   const [artSkupina, setArtSkupina] = useState<string>("");
-  const [artTaxCategory, setArtTaxCategory] = useState<"food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink">("food");
+  const [artTaxCategory, setArtTaxCategory] = useState<"food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "other">("food");
   const [artAddedSugar, setArtAddedSugar] = useState(false);
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
@@ -457,7 +457,7 @@ export default function Menu() {
     setArtHappyHourCena((a as typeof a & { happyHourCena?: number | null }).happyHourCena != null ? String((a as typeof a & { happyHourCena: number }).happyHourCena) : "");
     setArtVrstaArtikla(((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev");
     setArtSkupina((a as typeof a & { skupina?: string | null }).skupina ?? "");
-    setArtTaxCategory(((a as typeof a & { taxCategory?: string }).taxCategory ?? "food") as "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink");
+    setArtTaxCategory(((a as typeof a & { taxCategory?: string }).taxCategory ?? "food") as "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "other");
     setArtAddedSugar(Boolean((a as typeof a & { addedSugar?: boolean }).addedSugar));
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
@@ -1033,19 +1033,20 @@ export default function Menu() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>DDV kategorija</Label>
-                    <Select value={artTaxCategory} onValueChange={v => setArtTaxCategory(v as "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink")}>
+                    <Select value={artTaxCategory} onValueChange={v => setArtTaxCategory(v as "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "other")}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="food">Hrana</SelectItem>
-                        <SelectItem value="hot_beverage">Topla pijača</SelectItem>
-                        <SelectItem value="cold_beverage">Hladna pijača</SelectItem>
-                        <SelectItem value="food_drink">Pijača-jed (vroča čokolada, smoothie …)</SelectItem>
-                        <SelectItem value="alcoholic">Alkohol</SelectItem>
+                        <SelectItem value="food">Hrana — 9,5 %</SelectItem>
+                        <SelectItem value="hot_beverage">Topla pijača — 22 %</SelectItem>
+                        <SelectItem value="cold_beverage">Hladna pijača — 22 %</SelectItem>
+                        <SelectItem value="food_drink">Pijača-jed (gosta čokolada, smoothie …) — 9,5 %</SelectItem>
+                        <SelectItem value="alcoholic">Alkohol — 22 %</SelectItem>
+                        <SelectItem value="other">Ostalo — 22 %</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Vpliva na DDV pri to-go naročilih</p>
+                    <p className="text-xs text-muted-foreground">Stopnja DDV pri mizi; za s seboj je odvisna od kategorije in atributa "dodan sladkor"</p>
                   </div>
                   {(artTaxCategory === "hot_beverage" || artTaxCategory === "cold_beverage") && (
                     <div className="flex items-center gap-3 self-end pb-6">
@@ -1058,6 +1059,11 @@ export default function Menu() {
                       />
                       <Label htmlFor="artAddedSugar" className="cursor-pointer leading-tight">
                         Vsebuje dodan sladkor
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {artTaxCategory === "cold_beverage"
+                            ? "22 % pri mizi in za s seboj (brez kljukice: 22 % pri mizi, 9,5 % za s seboj)"
+                            : "Za s seboj ostane 22 % (brez kljukice: odvisno od nastavitve)"}
+                        </span>
                       </Label>
                     </div>
                   )}

@@ -4597,8 +4597,8 @@ export default function Settings() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-medium text-sm">Konservativno (22%)</div>
-                    <div className="text-xs text-muted-foreground">Topla pijača brez sladkorja za s seboj se obdavči enako kot za mizo — 22%. Varnejša izbira, dokler FURS ne izda jasnejšega tolmačenja.</div>
+                    <div className="font-medium text-sm">22 % — konservativno</div>
+                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči enako kot pri mizi — 22 %. Privzeta nastavitev; varnejša do izrecnega pojasnila FURS.</div>
                   </div>
                 </label>
                 <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
@@ -4611,8 +4611,8 @@ export default function Settings() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-medium text-sm">Liberalno (9,5%)</div>
-                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči z nižjo stopnjo 9,5% (enako kot hrana). Utemeljeno s stališčem EU/ZDavP-2, toda tvegano brez jasne domače smernice.</div>
+                    <div className="font-medium text-sm">9,5 % — nova ureditev (od 2025)</div>
+                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči z 9,5 % (dobava blaga, enako kot hrana). Velja izključno za ta primer — na noben drug artikel nima vpliva.</div>
                   </div>
                 </label>
               </div>

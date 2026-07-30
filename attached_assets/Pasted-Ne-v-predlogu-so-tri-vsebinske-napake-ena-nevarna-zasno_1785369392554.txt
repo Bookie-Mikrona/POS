@@ -1,0 +1,48 @@
+Ne, v predlogu so tri vsebinske napake, ena nevarna zasnova in nekaj manjkajočih stvari. Po vrsti:
+
+**Napaka 1 — `hot_beverage`: »9,5 % pri mizi« je narobe.** Ravno obratno: postrežena topla pijača pri mizi je **vedno 22 %** (strežba pijač ni v 6. točki Priloge I). 9,5 % pride v poštev šele pri »za s seboj« in še to le za nesladkane. To je najresnejša napaka v osnutku — sistematično prenizka stopnja pri vsaki postreženi kavi.
+
+**Napaka 2 — `cold_beverage`: »22 % pri mizi in za s seboj« je narobe za polovico primerov.** Pri mizi 22 % drži. Za s seboj pa je nesladkana hladna pijača (voda, mineralna, 100 % sok) **dobava blaga po 9,5 %**. 22 % za s seboj velja le za pijače z dodanim sladkorjem/sladili in alkohol. Kategorija brez atributa »dodani sladkor« sploh ne more dati pravilnega rezultata.
+
+**Napaka 3 — `food_drink`: primer »vroča čokolada z mlekom« je narobe.** Dodano mleko ali smetana ničesar ne spremeni — FURS izrecno pravi, da so kava, čaj, kakav 22 % ne glede na dodatke mleka/smetane. V to kategorijo (»napitek, ki šteje za jed«) spada **gosta** vroča čokolada s priloženo žličko, smoothie in frape *kot jed* — merilo je konsistenca/sestava, ne mleko. Sicer je »9,5 % pri mizi in za s seboj« za to kategorijo pravilno.
+
+**Nevarna zasnova — globalno stikalo Konzervativno/Liberalno.** Kot je opisano (»liberalni način zaračuna nižjo stopnjo pri dvomljivih primerih«), je to vabilo k prekršku: za veliko večino kombinacij stopnja **ni dvomljiva** in stikalo tam ne sme imeti nobenega učinka. Odprt je en sam primer: nesladkana pripravljena pijača za s seboj / na stojnici. Stikalo preimenuj in omeji točno na to: *»Nesladkane pijače za s seboj: 9,5 % (nova ureditev) / 22 % (konservativno)«* — in v dnevniku beleži, katera izbira je veljala kdaj.
+
+**Manjkajoče:**
+1. **Kanal prodajnega mesta** (lokal / stojnica / vozilo) — stojnica in vozilo sta vedno režim dobave blaga, tam ni »pri mizi«.
+2. **Atribut »dodani sladkor«** mora biti lastnost artikla v vseh pijačnih kategorijah (ne le opomba), z jasno definicijo: šteje sladkor/sirup, ki ga **dodate vi pri pripravi** ali je v izdelku; priložena vrečka, ki si jo gost doda sam, ne šteje.
+3. **Meni (paket)** kot tip artikla: pri mizi enotno 9,5 % (pogoj: naveden na ceniku); za s seboj razčlenitev po postavkah.
+4. **Embalaža** podeduje stopnjo nadrejene postavke; samostojna 22 %.
+5. `other` naj eksplicitno piše privzeto **22 %**, ne »privzeta stopnja«.
+
+Popravljeno besedilo razdelka, ki ga lahko prevzameš:
+
+---
+
+**3.8 DDV nastavitve**
+
+DDV-razreševalnik samodejno določi stopnjo iz treh podatkov: davčne kategorije artikla, načina strežbe (pri mizi / za s seboj) in tipa prodajnega mesta (lokal / stojnica / vozilo). Nastavite ga v »Nastavitve → DDV«.
+
+| Polje | Opis |
+|---|---|
+| Tip prodajnega mesta | Lokal (omogoča »pri mizi« in »za s seboj«) ali Stojnica/Vozilo (vedno režim prodaje blaga). |
+| Nesladkane pijače za s seboj | Izbira stopnje za nesladkane pripravljene pijače pri prodaji brez postrežbe: 9,5 % (ureditev od 2025) ali 22 % (konservativno, do izrecnega pojasnila FURS). Privzeto: 22 %. Nastavitev ne vpliva na noben drug primer. |
+
+**Davčne kategorije artiklov**
+
+| Kategorija | Pri mizi | Za s seboj / stojnica / vozilo |
+|---|---|---|
+| Hrana (food) — jedi, sladice, sladoled | 9,5 % | 9,5 % |
+| Topla pijača (hot_beverage) — kava, čaj, kakav | **22 %** | brez dodanega sladkorja: po nastavitvi zgoraj; z dodanim sladkorjem: 22 % |
+| Hladna pijača (cold_beverage) — voda, sok, brezalkoholna | **22 %** | brez dodanega sladkorja: 9,5 %; z dodanim sladkorjem: 22 % |
+| Alkohol (alcohol) | 22 % | 22 % |
+| Napitek-jed (food_drink) — gosta vroča čokolada z žličko, smoothie/frape kot jed | 9,5 % | 9,5 % |
+| Meni (menu) — paket jed + pijača, naveden na ceniku | 9,5 % enotno | razčlenitev po postavkah |
+| Embalaža (packaging) | = stopnja nadrejene postavke | = stopnja nadrejene postavke; samostojno 22 % |
+| Ostalo (other) | 22 % | 22 % |
+
+ℹ️ **Dodani sladkor:** kljukica na artiklu pomeni sladkor ali sladila, ki so **v izdelku ali jih dodate vi pri pripravi** (sirup, sladkanje). Vrečka sladkorja, ki si jo gost doda sam, ne šteje — kljukica ostane prazna. Modifikator »+ sirup« na blagajni kljukico samodejno vklopi za tisto postavko.
+
+---
+
+Še terminološki popravek: v opisu `food` je »jedilnica brez sladkorne pijače« nerazumljivo — hrana je preprosto 9,5 % v vseh kanalih, sladke pijače pa sodijo v pijačne kategorije, ne v opis hrane.
