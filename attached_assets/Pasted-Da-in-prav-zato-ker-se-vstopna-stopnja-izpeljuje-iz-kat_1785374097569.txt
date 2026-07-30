@@ -1,0 +1,24 @@
+Da — in prav zato, ker se vstopna stopnja izpeljuje iz kategorije, jo potrebuje **vsak artikel v šifrantu**, tudi čisto nabavni (materiali). Sicer prejemnica za moko nima iz česa izpeljati 9,5 % in validacija dobaviteljevih računov ne deluje.
+
+Praktično to pomeni:
+
+**Materiali dobijo iste kategorije kot prodajni artikli** — razreševalnik jih le nikoli ne kliče s prodajno vejo, ker material ni prodajna postavka:
+
+| Material | Kategorija | dodani_sladkor | Vstopna stopnja |
+|---|---|---|---|
+| Moka, meso, zelenjava, olje, jajca, sladkor, začimbe | hrana (food) | — | 9,5 % |
+| Mleko, smetana | hrana | — | 9,5 % |
+| Kava v zrnu, čaj, kakav v prahu | topla pijača (surovina) ali kar hrana | NE | 9,5 % |
+| Sirupi za pijače, sladkani pripravki | topla/hladna pijača | DA | 22 % |
+| Vino, rum za kuhinjo | alkohol | — | 22 % |
+| Lončki, kartoni, folije | embalaža | — | 22 % |
+| Čistila, servieti | ostalo / režijski | — | 22 % |
+| Najem, elektrika, čiščenje (če v istem šifrantu) | storitev | — | 22 % |
+
+Dve podrobnosti:
+
+**Kava/čaj kot surovina:** vseeno je, ali surovino kategoriziraš kot »topla pijača, brez sladkorja« ali kot »hrana« — obe dasta vstopnih 9,5 %. Ker pa surovina nikoli ne gre skozi prodajni razreševalnik (prodaja se artikel »skodelica kave« z normativom), je čistejše, da imajo surovine kategorijo po svoji naravi kot blago; prodajno logiko nosi izdelek. Opomba za posebnost: instant pripravki 2101–2105 (tudi 3v1) so **9,5 % ne glede na sladkor** — če take nabavljaš, potrebuje preslikava zanje ločeno vrstico ali kljukico »instant pripravek«.
+
+**Kuhinjski alkohol:** kategorija »alkohol« na materialu pravilno da vstopnih 22 %, prodajna stopnja jedi, v katero gre, pa je stvar izdelka (sladica = hrana = 9,5 %) — normativ med njima ne prenaša nobene davčne logike, samo količine.
+
+S tem dobiš tudi lepo invarianto za kontrolo šifranta ob migraciji: **artikel brez DDV-kategorije ne sme obstajati** (NOT NULL), tip blago/material pa določa le, katera veja razreševalnika se zanj sploh kliče — material samo nabavna, blago obe, storitev-artikel prodajna z 22 %. Ena kategorija, dva neodvisna izračuna.

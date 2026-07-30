@@ -1026,61 +1026,65 @@ export default function Menu() {
                 </div>
               )}
 
-              {/* DDV kategorija + DDV % — eden pod drugim (levi stolpec); dodan sladkor desno */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
-                <div className="grid grid-cols-2 gap-4 items-start">
-                  {/* Levi stolpec: kategorija → procent */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Prodajna DDV kategorija</Label>
-                      <Select
-                        value={artTaxCategory}
-                        onValueChange={v => setArtTaxCategory(v as typeof artTaxCategory)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="food">Hrana — 9,5 %</SelectItem>
-                          <SelectItem value="hot_beverage">Topla pijača — 22 %</SelectItem>
-                          <SelectItem value="cold_beverage">Hladna pijača — 22 %</SelectItem>
-                          <SelectItem value="food_drink">Pijača-jed (gosta čokolada, smoothie …) — 9,5 %</SelectItem>
-                          <SelectItem value="alcoholic">Alkohol — 22 %</SelectItem>
-                          <SelectItem value="other">Ostalo — 22 %</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">Način prodaje — DDV razreševalnik pri mizi / za s seboj</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Pričakovana nabavna stopnja</Label>
-                      <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">
-                        {pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar)} %
-                      </div>
-                      <p className="text-xs text-muted-foreground">Izpeljano iz kategorije — dobaviteljeva stopnja na prejemu</p>
-                    </div>
+              {/* DDV kategorija + pričakovana nabavna stopnja — za VSE artikle (nabavne in prodajne) */}
+              <div className="grid grid-cols-2 gap-4 items-start">
+                {/* Levi stolpec: kategorija → procent */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>DDV kategorija</Label>
+                    <Select
+                      value={artTaxCategory}
+                      onValueChange={v => setArtTaxCategory(v as typeof artTaxCategory)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="food">Hrana — 9,5 %</SelectItem>
+                        <SelectItem value="hot_beverage">Topla pijača — 22 %</SelectItem>
+                        <SelectItem value="cold_beverage">Hladna pijača — 22 %</SelectItem>
+                        <SelectItem value="food_drink">Pijača-jed (gosta čokolada, smoothie …) — 9,5 %</SelectItem>
+                        <SelectItem value="alcoholic">Alkohol — 22 %</SelectItem>
+                        <SelectItem value="other">Ostalo — 22 %</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {(artNabavniArtikel && !artProdajniArtikel)
+                        ? "Narava blaga — za izpeljavo nabavne stopnje na prejemu"
+                        : "Narava blaga in način prodaje — razreševalnik pri mizi / za s seboj"}
+                    </p>
                   </div>
-                  {/* Desni stolpec: dodan sladkor (samo za pijače) */}
-                  {(artTaxCategory === "hot_beverage" || artTaxCategory === "cold_beverage") && (
-                    <div className="flex items-start gap-3 pt-8">
-                      <input
-                        type="checkbox"
-                        id="artAddedSugar"
-                        checked={artAddedSugar}
-                        onChange={e => setArtAddedSugar(e.target.checked)}
-                        className="w-4 h-4 mt-0.5"
-                      />
-                      <Label htmlFor="artAddedSugar" className="cursor-pointer leading-tight">
-                        Vsebuje dodan sladkor
-                        <span className="block text-xs font-normal text-muted-foreground">
-                          {artTaxCategory === "cold_beverage"
-                            ? "22 % pri mizi in za s seboj (brez kljukice: 22 % pri mizi, 9,5 % za s seboj)"
-                            : "Za s seboj ostane 22 % (brez kljukice: odvisno od nastavitve)"}
-                        </span>
-                      </Label>
+                  <div className="space-y-2">
+                    <Label>Pričakovana nabavna stopnja</Label>
+                    <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">
+                      {pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar)} %
                     </div>
-                  )}
+                    <p className="text-xs text-muted-foreground">Izpeljano iz kategorije — dobaviteljeva stopnja na prejemu</p>
+                  </div>
                 </div>
-              )}
+                {/* Desni stolpec: dodan sladkor (samo za pijače) */}
+                {(artTaxCategory === "hot_beverage" || artTaxCategory === "cold_beverage") && (
+                  <div className="flex items-start gap-3 pt-8">
+                    <input
+                      type="checkbox"
+                      id="artAddedSugar"
+                      checked={artAddedSugar}
+                      onChange={e => setArtAddedSugar(e.target.checked)}
+                      className="w-4 h-4 mt-0.5"
+                    />
+                    <Label htmlFor="artAddedSugar" className="cursor-pointer leading-tight">
+                      Vsebuje dodan sladkor
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {artTaxCategory === "cold_beverage"
+                          ? "22 % pri mizi in za s seboj (brez kljukice: 22 % pri mizi, 9,5 % za s seboj)"
+                          : (artNabavniArtikel && !artProdajniArtikel)
+                            ? "Nabavna stopnja: 22 % (z dodanim sladkorjem), 9,5 % (brez)"
+                            : "Za s seboj ostane 22 % (brez kljukice: odvisno od nastavitve)"}
+                      </span>
+                    </Label>
+                  </div>
+                )}
+              </div>
 
               {/* Je pica — bon za pico */}
               {!(artNabavniArtikel && !artProdajniArtikel) && (

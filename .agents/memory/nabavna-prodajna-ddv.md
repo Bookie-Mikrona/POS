@@ -55,3 +55,25 @@ En artikel ima lahko eno nabavno in dve različni prodajni stopnji (pri mizi / z
 - Vsaka stran se kontrolira ločeno: nabavna pri prevzemu, prodajna prek razreševalnika pri naročilu
 
 **Why:** Sporočil uporabnik 2026-07-30; arhitektura potrjena z dokumentom o gostinskem DDV sistemu.
+
+## Invarianta šifranta
+
+**Artikel brez `taxCategory` ne sme obstajati (NOT NULL)** — velja za nabavne in prodajne.
+- Nabavni (material): kategorija določa samo nabavno vejo (`pricakovanaNabavnaDdv`)
+- Prodajni (blago): kategorija določa obe veji — nabavno in prodajno prek razreševalnika
+- Storitev-artikel: prodajna stopnja je vedno 22 %, nabavna velja enako pravilo
+
+Normativ med materialom in izdelkom **ne prenaša davčne logike** — samo količine.
+
+## Primeri nabavnih materialov
+
+| Material | taxCategory | addedSugar | Nabavna stopnja |
+|---|---|---|---|
+| Moka, meso, zelenjava, olje | food | — | 9,5 % |
+| Kava v zrnu, čaj, kakav | hot_beverage | false | 9,5 % |
+| Sirupi, sladkani pripravki | hot_beverage/cold_beverage | true | 22 % |
+| Vino, rum za kuhinjo | alcoholic | — | 22 % |
+| Lončki, kartoni, folije | other | — | 22 % |
+
+Posebnost: instant pripravki 2101–2105 (vključno 3v1) → 9,5 % ne glede na sladkor —
+za te potrebuje `purchase_rate_map` ločeno vrstico ali kljukico »instant_pripravek«.
