@@ -84,17 +84,23 @@ export async function loadVatRules(): Promise<VatRuleRow[]> {
   const obstojeciLabeli = new Set(rows.map(r => r.label));
   const manjkajoca = DEFAULT_VAT_RULES.filter(r => !obstojeciLabeli.has(r.label));
   if (manjkajoca.length > 0) {
-    await db.insert(vatRuleTable).values(
-      manjkajoca.map(r => ({
-        priority: r.priority,
-        supplyKind: r.supplyKind,
-        taxCategory: r.taxCategory,
-        addedSugar: r.addedSugar,
-        rate: r.rate,
-        configurable: r.configurable,
-        label: r.label,
-      }))
-    );
+    try {
+      await db.insert(vatRuleTable).values(
+        manjkajoca.map(r => ({
+          priority: r.priority,
+          supplyKind: r.supplyKind,
+          taxCategory: r.taxCategory,
+          addedSugar: r.addedSugar,
+          rate: r.rate,
+          configurable: r.configurable,
+          label: r.label,
+        }))
+      ).onConflictDoNothing();
+    } catch (err) {
+      // Vstavljanje ni uspelo (npr. constraint) — nadaljujemo z obstoječimi pravili
+      console.error("[ddv-resolver] Vstavljanje manjkajočih VAT pravil ni uspelo:", err);
+    }
+    // Vseeno naložimo aktualna pravila iz DB (ne glede na uspeh inserta)
     const osvezeno = await db.select().from(vatRuleTable).orderBy(vatRuleTable.priority);
     rulesCache = osvezeno as VatRuleRow[];
     return rulesCache;
