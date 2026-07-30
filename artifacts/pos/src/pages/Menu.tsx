@@ -123,6 +123,23 @@ export default function Menu() {
       default:             return stopnje.nizjaSt;
     }
   };
+
+  /**
+   * Prodajna DDV stopnja pri mizi (eat_in) — privzeta prodajno stran.
+   * addedSugar ne vpliva na eat_in (pijače pri mizi so vedno 22 %).
+   * To je vrednost, ki se shrani v artikel.davek in jo POS bere pri prodaji.
+   */
+  const prodajnaDefaultDdv = (cat: typeof artTaxCategory, stopnje = ddvStopnje): number => {
+    switch (cat) {
+      case "food":          return stopnje.nizjaSt;
+      case "food_drink":    return stopnje.nizjaSt;
+      case "hot_beverage":  return stopnje.splosnaSt;   // eat_in vedno 22 %
+      case "cold_beverage": return stopnje.splosnaSt;   // eat_in vedno 22 %
+      case "alcoholic":     return stopnje.splosnaSt;
+      case "other":         return stopnje.splosnaSt;
+      default:              return stopnje.nizjaSt;
+    }
+  };
   const [uskladiOpen, setUskladiOpen] = useState(false);
   const [uskladiLoading, setUskladiLoading] = useState(false);
 
@@ -510,7 +527,11 @@ export default function Menu() {
     const data = {
       ime: artName,
       cena: isOnlyNabavni ? 0 : parseDecimal(artPrice),
-      davek: pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar),
+      // Prodajni artikli → prodajna stopnja (eat_in privzeto, POS jo bere pri prodaji)
+      // Čisto nabavni artikli → pričakovana nabavna stopnja (za validacijo na prejemu)
+      davek: artProdajniArtikel
+        ? prodajnaDefaultDdv(artTaxCategory)
+        : pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar),
       kategorijaId: isOnlyNabavni ? null : (artCat ? parseInt(artCat) : null),
       aktiven: isOnlyNabavni ? false : artAktiven,
       barva: isOnlyNabavni ? null : (artColor ?? null),
@@ -1026,9 +1047,9 @@ export default function Menu() {
                 </div>
               )}
 
-              {/* DDV kategorija + pričakovana nabavna stopnja — za VSE artikle (nabavne in prodajne) */}
+              {/* DDV kategorija + stopnje glede na tip artikla */}
               <div className="grid grid-cols-2 gap-4 items-start">
-                {/* Levi stolpec: kategorija → procent */}
+                {/* Levi stolpec: kategorija → stopnja(e) */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>DDV kategorija</Label>
@@ -1054,14 +1075,34 @@ export default function Menu() {
                         : "Narava blaga in način prodaje — razreševalnik pri mizi / za s seboj"}
                     </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Pričakovana nabavna stopnja</Label>
-                    <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">
-                      {pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar)} %
+
+                  {/* Prodajna stopnja — samo za prodajne artikle */}
+                  {artProdajniArtikel && (
+                    <div className="space-y-2">
+                      <Label>Prodajna DDV stopnja</Label>
+                      <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">
+                        {prodajnaDefaultDdv(artTaxCategory)} %
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Stopnja pri prodaji (pri mizi) — razreševalnik jo lahko prilagodi za s seboj
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">Izpeljano iz kategorije — dobaviteljeva stopnja na prejemu</p>
-                  </div>
+                  )}
+
+                  {/* Pričakovana nabavna stopnja — samo za nabavne artikle */}
+                  {artNabavniArtikel && (
+                    <div className="space-y-2">
+                      <Label>Pričakovana nabavna stopnja</Label>
+                      <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">
+                        {pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar)} %
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Dobaviteljeva stopnja na prejemu — izpeljano iz kategorije
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 {/* Desni stolpec: dodan sladkor (samo za pijače) */}
                 {(artTaxCategory === "hot_beverage" || artTaxCategory === "cold_beverage") && (
                   <div className="flex items-start gap-3 pt-8">
@@ -1077,7 +1118,7 @@ export default function Menu() {
                       <span className="block text-xs font-normal text-muted-foreground">
                         {artTaxCategory === "cold_beverage"
                           ? "22 % pri mizi in za s seboj (brez kljukice: 22 % pri mizi, 9,5 % za s seboj)"
-                          : (artNabavniArtikel && !artProdajniArtikel)
+                          : artNabavniArtikel && !artProdajniArtikel
                             ? "Nabavna stopnja: 22 % (z dodanim sladkorjem), 9,5 % (brez)"
                             : "Za s seboj ostane 22 % (brez kljukice: odvisno od nastavitve)"}
                       </span>
