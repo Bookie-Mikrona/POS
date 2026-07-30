@@ -1,0 +1,69 @@
+Tvoja kategorija »hladna pijača 22 %« je v resnici **prodajna** stopnja (postrežba pri mizi). Za prejemnico potrebuješ ločeno izpeljavo, ker je nabava vedno dobava blaga — in Radenska brez sladkorja je kot blago 9,5 %.
+
+**1. Preslikava kategorija → vstopna stopnja** (šifrant, ne koda — da jo ob spremembi zakona popraviš z vnosom):
+
+```sql
+CREATE TABLE purchase_rate_map (
+    kategorija      text NOT NULL,      -- davčna kategorija artikla
+    dodani_sladkor  boolean,            -- NULL = ni pomembno
+    vstopna_stopnja numeric(4,1) NOT NULL,
+    velja_od        date NOT NULL,
+    velja_do        date,
+    PRIMARY KEY (kategorija, COALESCE(dodani_sladkor,false), velja_od)
+);
+```
+
+| kategorija | dodani_sladkor | vstopna stopnja | opomba |
+|---|---|---|---|
+| hrana (food) | — | 9,5 | živila |
+| hladna pijača | **NE** | **9,5** | ← Radenska 1 l |
+| hladna pijača | DA | 22,0 | kola, ledeni čaj (od 1. 1. 2025) |
+| topla pijača (surovine: kava, čaj, kakav) | NE | 9,5 | |
+| topla pijača | DA | 22,0 | sirupi, sladkani pripravki |
+| alkohol | — | 22,0 | |
+| napitek-jed (food_drink) | — | 9,5 | surovine so živila |
+| embalaža | — | 22,0 | |
+| storitev (najem, čiščenje …) | — | 22,0 | |
+| ostalo | — | 22,0 | privzeto |
+
+Če kljukice »dodani sladkor« na artiklu še nimaš, jo **moraš dodati** — brez nje kategorija »hladna pijača« ne loči Radenske (9,5 %) od kole (22 %) in pravilna vstopna stopnja ni določljiva.
+
+**2. Logika ob vnosu postavke prejemnice** (psevdokoda):
+
+```
+ob_vnosu_postavke(artikel, dobavitelj, datum_prejema, stopnja_z_racuna):
+
+    pričakovana = purchase_rate_map(artikel.kategorija,
+                                    artikel.dodani_sladkor,
+                                    datum := datum_opravljene_dobave)   # ne datum vnosa!
+
+    # privzeta vrednost polja DDV na postavki
+    postavka.ddv = pričakovana                    # Radenska → 9,5 %
+
+    # validacija proti dobaviteljevemu računu (ali e-SLOG uvozu)
+    če stopnja_z_racuna == pričakovana:
+        knjiži brez opozorila
+
+    sicer če dobavitelj.tip == 'mali_zavezanec':
+        postavka.ddv = 0; brez odbitka            # legitimno, brez opozorila
+
+    sicer če dobavitelj.tip == 'pavšalist':
+        postavka.pavšalno_nadomestilo = 8 %       # ni DDV, ločeno polje
+
+    sicer če dobavitelj.država != 'SI':           # pridobitev iz EU / uvoz
+        samoobdavčitev: obračunaj IN odbij po pričakovani (9,5 %)
+
+    sicer:
+        ⚠ OPOZORILO: »Dobavitelj je zaračunal {stopnja_z_racuna} %,
+           pričakovano {pričakovana} %. Preveč odbitega DDV terja FURS od vas.
+           [Zahtevaj popravek računa] [Potrdi z razlogom]«
+        potrjeno odstopanje → zapiši razlog + uporabnika (revizijska sled)
+```
+
+**3. Tri pravila, ki jih ne izpusti:**
+
+- **Datum:** stopnjo razreši po datumu opravljene dobave z računa, ne po datumu vnosa — sicer se prejemnice, vnesene januarja za decembrske dobave, ob spremembi zakona knjižijo napačno (točno to je bil problem sladkih pijač 2024→2025).
+- **Smer opozorila ni simetrična:** dobaviteljev 22 % namesto 9,5 % je zate nevaren (preveč odbitka → FURS terja od tebe), dobaviteljev 9,5 % namesto 22 % pa je predvsem njegov problem — opozorilo prikaži v obeh smereh, a z različnim besedilom.
+- **Nikoli ne primerjaj vstopne stopnje s prodajno kategorijo artikla.** 9,5 % nabava proti »22 %« na kategoriji ni napaka, ampak pravilno stanje — kontrola vstopa teče izključno proti `purchase_rate_map`, kontrola izstopa izključno proti prodajnemu razreševalniku.
+
+Za obstoječe podatke še migracija: vsem artiklom v pijačnih kategorijah nastavi `dodani_sladkor` po deklaracijah (enkratni ročni pregled šifranta — pri gaziranih aromatiziranih vodah preveri, ali vsebujejo sladila) in nato masovno preveri zadnje prejemnice proti novi preslikavi, da odkriješ dobavitelje, ki že zdaj račune izstavljajo z napačno stopnjo.
