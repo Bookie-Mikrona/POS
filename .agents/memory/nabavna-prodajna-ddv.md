@@ -21,13 +21,21 @@ Razlika med njima je **normalna in zakonita** — odbitek vstopnega DDV ni okrnj
 
 En artikel ima lahko eno nabavno in dve različni prodajni stopnji (pri mizi / za s seboj).
 
+## Pravilna arhitektura (3 elementi)
+
+1. **Dejanska nabavna stopnja** — živi na postavki prevzema/prejetega računa, ne na artiklu
+2. **Pričakovana nabavna stopnja** — izpeljana iz `taxCategory` + `addedSugar` s funkcijo `pricakovanaNabavnaDdv()`:
+   - `food`, `food_drink` → 9,5 %
+   - `hot/cold_beverage`, brez dodanega sladkorja → 9,5 %
+   - `hot/cold_beverage`, z dodanim sladkorjem → 22 %
+   - `alcoholic`, `other` → 22 %
+3. **Validacija ob prevzemu** — primerjaj dejansko z izpeljano; opozorilo z možnostjo potrditve (ne blokada); potrjeno odstopanje zabeleži z razlogom (pavšalist, samoobdavčitev, mali zavezanec)
+
 ## Posledica za kodo
 
-- **Nikoli ne primerjaj `davek` z `defaultDavekForCategory(taxCategory)`** — razlika je pričakovana.
-- **Nikoli ne auto-sync** nabavne stopnje na osnovi prodajne kategorije.
-- **Nikoli ne prikazuj opozorila** »Ne ujema se s kategorijo« na osnovi primerjave med `davek` in `taxCategory`.
-- Vsaka stran se kontrolira **ločeno**:
-  - Nabavna: `davek` vs. pričakovana stopnja za naravo blaga (preveri pri uvozu ali ročno)
-  - Prodajna: `taxCategory` vs. DDV razreševalnik pri naročilu
+- Polje `davek` na artiklu je **samo shranjeno izpeljano vrednost** (samodejno iz `pricakovanaNabavnaDdv()`), ni ročno vnosno
+- **Nikoli ne primerjaj `davek` z `taxCategory`** — razlika je pričakovana in zakonita
+- **Nikoli ne prikazuj opozorila** med `davek` in `taxCategory` na artiklu
+- Vsaka stran se kontrolira ločeno: nabavna pri prevzemu, prodajna prek razreševalnika pri naročilu
 
-**Why:** Sporočil uporabnik 2026-07-30 z jasno razlago gostinskega DDV sistema.
+**Why:** Sporočil uporabnik 2026-07-30; arhitektura potrjena z dokumentom o gostinskem DDV sistemu.

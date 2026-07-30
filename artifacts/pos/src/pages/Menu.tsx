@@ -86,7 +86,6 @@ export default function Menu() {
   const [artName, setArtName] = useState("");
   const [artPrice, setArtPrice] = useState("");
   const [artCat, setArtCat] = useState("");
-  const [artTax, setArtTax] = useState("");
   const [artAktiven, setArtAktiven] = useState(true);
   const [artColor, setArtColor] = useState<string | null>(null);
   const [artNabavniArtikel, setArtNabavniArtikel] = useState(false);
@@ -108,15 +107,19 @@ export default function Menu() {
 
   const [ddvStopnje, setDdvStopnje] = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
 
-  /** Privzeta stopnja DDV pri mizi za dano DDV kategorijo */
-  const defaultDavekForCategory = (cat: typeof artTaxCategory, stopnje = ddvStopnje): number => {
+  /**
+   * Izpeljana pričakovana nabavna DDV stopnja (dobaviteljeva stran = dobava blaga).
+   * Nabava blaga je vedno obravnavana kot dobava blaga, zato addedSugar vpliva na stopnjo.
+   * hot/cold_beverage brez sladkorja → nižja st. (9,5 %); z sladkorjem → splošna (22 %)
+   */
+  const pricakovanaNabavnaDdv = (cat: typeof artTaxCategory, addedSugar: boolean, stopnje = ddvStopnje): number => {
     switch (cat) {
-      case "food":         return stopnje.nizjaSt;   // 9,5 %
-      case "food_drink":   return stopnje.nizjaSt;   // 9,5 %
-      case "hot_beverage": return stopnje.splosnaSt; // 22 %
-      case "cold_beverage":return stopnje.splosnaSt; // 22 %
-      case "alcoholic":    return stopnje.splosnaSt; // 22 %
-      case "other":        return stopnje.splosnaSt; // 22 %
+      case "food":         return stopnje.nizjaSt;
+      case "food_drink":   return stopnje.nizjaSt;
+      case "hot_beverage": return addedSugar ? stopnje.splosnaSt : stopnje.nizjaSt;
+      case "cold_beverage":return addedSugar ? stopnje.splosnaSt : stopnje.nizjaSt;
+      case "alcoholic":    return stopnje.splosnaSt;
+      case "other":        return stopnje.splosnaSt;
       default:             return stopnje.nizjaSt;
     }
   };
@@ -439,7 +442,7 @@ export default function Menu() {
   // ── Artikel handlers ─────────────────────────────────────────
   const openNewArt = () => {
     setArtMode("nov"); setEditingArt(null);
-    setArtName(""); setArtPrice(""); setArtCat(""); setArtTax(String(ddvStopnje.nizjaSt)); setArtAktiven(true); setArtColor(null);
+    setArtName(""); setArtPrice(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
     setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtJePica(false);
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli([]);
@@ -459,7 +462,7 @@ export default function Menu() {
   const openEditArt = (a: Artikel) => {
     setArtMode("uredi"); setEditingArt(a);
     setArtName(a.ime); setArtPrice(String(a.cena));
-    setArtCat(a.kategorijaId != null ? String(a.kategorijaId) : ""); setArtTax(String(a.davek)); setArtAktiven(a.aktiven);
+    setArtCat(a.kategorijaId != null ? String(a.kategorijaId) : ""); setArtAktiven(a.aktiven);
     setArtColor(a.barva ?? null);
     setArtNabavniArtikel(a.nabavniArtikel ?? false);
     setArtProdajniArtikel(a.prodajniArtikel ?? true);
@@ -497,7 +500,7 @@ export default function Menu() {
   const handleSaveArt = () => {
     const isOnlyNabavni = artNabavniArtikel && !artProdajniArtikel;
     if (!artName) return;
-    if (!isOnlyNabavni && (!artPrice || !artCat || !artTax)) return;
+    if (!isOnlyNabavni && (!artPrice || !artCat)) return;
 
     // -1 is a self-reference placeholder (replaced with real ID in afterSave)
     const validNormativItems = normativItems
@@ -507,7 +510,7 @@ export default function Menu() {
     const data = {
       ime: artName,
       cena: isOnlyNabavni ? 0 : parseDecimal(artPrice),
-      davek: artTax ? parseFloat(artTax) : 0,
+      davek: pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar),
       kategorijaId: isOnlyNabavni ? null : (artCat ? parseInt(artCat) : null),
       aktiven: isOnlyNabavni ? false : artAktiven,
       barva: isOnlyNabavni ? null : (artColor ?? null),
@@ -1049,19 +1052,11 @@ export default function Menu() {
                       <p className="text-xs text-muted-foreground">Način prodaje — DDV razreševalnik pri mizi / za s seboj</p>
                     </div>
                     <div className="space-y-2">
-                      <Label>Nabavna DDV stopnja (%)</Label>
-                      <Select value={artTax} onValueChange={setArtTax}>
-                        <SelectTrigger className={!artTax ? "border-destructive text-muted-foreground" : ""}>
-                          <SelectValue placeholder="— izberite stopnjo —" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0 % (brez DDV)</SelectItem>
-                          <SelectItem value={String(ddvStopnje.znizanaSt)}>{ddvStopnje.znizanaSt} % (znižana stopnja)</SelectItem>
-                          <SelectItem value={String(ddvStopnje.nizjaSt)}>{ddvStopnje.nizjaSt} % (nižja stopnja)</SelectItem>
-                          <SelectItem value={String(ddvStopnje.splosnaSt)}>{ddvStopnje.splosnaSt} % (splošna stopnja)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">Narava blaga — stopnja na nabavnem računu dobavitelja</p>
+                      <Label>Pričakovana nabavna stopnja</Label>
+                      <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm font-medium">
+                        {pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar)} %
+                      </div>
+                      <p className="text-xs text-muted-foreground">Izpeljano iz kategorije — dobaviteljeva stopnja na prejemu</p>
                     </div>
                   </div>
                   {/* Desni stolpec: dodan sladkor (samo za pijače) */}
