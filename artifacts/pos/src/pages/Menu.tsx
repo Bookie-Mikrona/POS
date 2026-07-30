@@ -822,7 +822,25 @@ export default function Menu() {
                         {a.kategorijaIme}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell">{a.davek}%</TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <div className="flex flex-col gap-0.5 text-sm">
+                        {a.prodajniArtikel && (
+                          <span className={a.nabavniArtikel ? "font-medium" : ""}>
+                            {a.nabavniArtikel && <span className="text-[10px] text-muted-foreground mr-1">prod.</span>}
+                            {a.davek} %
+                          </span>
+                        )}
+                        {a.nabavniArtikel && (
+                          <span className={a.prodajniArtikel ? "text-muted-foreground text-xs" : ""}>
+                            {a.prodajniArtikel && <span className="text-[10px] mr-1">nab.</span>}
+                            {pricakovanaNabavnaDdv(
+                              ((a as typeof a & { taxCategory?: string }).taxCategory ?? "food") as Parameters<typeof pricakovanaNabavnaDdv>[0],
+                              Boolean((a as typeof a & { addedSugar?: boolean }).addedSugar)
+                            )} %
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-bold whitespace-nowrap">
                       {a.prodajniArtikel && editingPriceId === a.id ? (
                         <DecimalInput
