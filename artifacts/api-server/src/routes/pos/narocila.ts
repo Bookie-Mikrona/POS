@@ -764,9 +764,43 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
     updateSet.toGo = parsedToGo;
   }
 
+  // Ko se toGo preklopi na starševski postavki, preračunaj DDV
+  const jeStarsevskaPostavka = postavka.parentPostavkaId == null && postavka.artikelId != null;
+  if (parsedToGo !== undefined && parsedToGo !== (postavka as typeof postavka & { toGo?: boolean }).toGo && jeStarsevskaPostavka) {
+    const jeDdvZavezanec: boolean = (req as any).jeDdvZavezanec ?? true;
+    if (jeDdvZavezanec && postavka.artikelId != null) {
+      const [vatRules, nastavitve] = await Promise.all([loadVatRules(), getNastavitveMap(tenotaId)]);
+      const [artRow] = await db.select({ davek: artikliTable.davek, taxCategory: artikliTable.taxCategory, addedSugar: artikliTable.addedSugar })
+        .from(artikliTable).where(eq(artikliTable.id, postavka.artikelId));
+      if (artRow) {
+        const supplyKind = resolveSupplyKind(false, parsedToGo);
+        const resolved = resolveRate({
+          supplyKind,
+          taxCategory: ((artRow as Record<string, unknown>).taxCategory ?? "food") as TaxCategory,
+          addedSugar: Boolean((artRow as Record<string, unknown>).addedSugar),
+          nastavitve,
+          fallbackRate: Number(artRow.davek),
+          jeDdvZavezanec,
+        }, vatRules);
+        updateSet.davek = String(resolved.rate);
+        if (resolved.ruleId != null) (updateSet as Record<string, unknown>).appliedRuleId = resolved.ruleId;
+      }
+    }
+  }
+
   await db.update(postavkeTable)
     .set(updateSet)
     .where(eq(postavkeTable.id, params.data.postavkaId));
+
+  // Otroci (modifikatorji) dedujejo novo DDV stopnjo starša
+  if (updateSet.davek !== undefined) {
+    await db.update(postavkeTable)
+      .set({ davek: updateSet.davek })
+      .where(and(
+        eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+        eq(postavkeTable.narociloId, params.data.id)
+      ));
+  }
 
   // Proporcionalno posodobi zaračunljive otroke (npr. med pri čaju)
   // Razmerje otrokove količine se ohrani glede na staro kolicino starša.

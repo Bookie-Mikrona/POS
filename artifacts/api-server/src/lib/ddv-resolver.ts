@@ -106,6 +106,26 @@ export async function loadVatRules(): Promise<VatRuleRow[]> {
     return rulesCache;
   }
 
+  // Popravi nekonfiguriabilna pravila, kjer je rate v DB napačen glede na DEFAULT_VAT_RULES
+  // (zgodi se, če je bilo pravilo vstavljeno z napačno vrednostjo in ga loadVatRules ni
+  //  nadomeščal, ker preverjamo samo po label-u, ne po rate-u)
+  const defaultByLabel = new Map(DEFAULT_VAT_RULES.map(r => [r.label, r]));
+  const popravljamo = (rows as VatRuleRow[]).filter(r => {
+    const def = defaultByLabel.get(r.label);
+    return def && !def.configurable && def.rate !== r.rate;
+  });
+  if (popravljamo.length > 0) {
+    for (const r of popravljamo) {
+      const def = defaultByLabel.get(r.label)!;
+      await db.update(vatRuleTable)
+        .set({ rate: def.rate })
+        .where(eq(vatRuleTable.id, r.id));
+    }
+    const osvezeno = await db.select().from(vatRuleTable).orderBy(vatRuleTable.priority);
+    rulesCache = osvezeno as VatRuleRow[];
+    return rulesCache;
+  }
+
   rulesCache = rows as VatRuleRow[];
   return rulesCache;
 }
