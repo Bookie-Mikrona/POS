@@ -377,7 +377,9 @@ router.put("/narocila/:id", async (req, res): Promise<void> => {
           .from(artikliTable)
           .where(eq(artikliTable.id, p.artikelId));
         if (!artRow) continue;
-        const supplyKind = resolveSupplyKind(newToGo, false);
+        // narocilo.toGo recalculation je ohranjena za morebitne API klice,
+        // a UI gumba ni več — supplyKind temelji samo na postavka.toGo
+        const supplyKind = resolveSupplyKind(false, false);
         const resolved = resolveRate({
           supplyKind,
           taxCategory: ((artRow as Record<string, unknown>).taxCategory ?? "food") as TaxCategory,
@@ -583,8 +585,9 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       loadVatRules(),
       getNastavitveMap(tenotaId),
     ]);
+    // narocilo.toGo se ne upošteva več — DDV določa samo postavka.toGo (oranžni gumb)
     const postavkaToGo = (parsed.data as { toGo?: boolean }).toGo ?? false;
-    const supplyKind = resolveSupplyKind(narociloCheck.toGo ?? false, postavkaToGo);
+    const supplyKind = resolveSupplyKind(false, postavkaToGo);
     const resolved = resolveRate({
       supplyKind,
       taxCategory: ((artikel as Record<string, unknown>).taxCategory ?? "food") as TaxCategory,
