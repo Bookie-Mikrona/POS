@@ -542,7 +542,7 @@ router.get(
   requireEnota,
   async (req: PosRequest, res) => {
     const { rows: vrstice } = await db.execute(sql`
-      SELECT pp.id, pp.zap_st, pp.izv_gtin, pp.izv_sifra, pp.izv_naziv,
+      SELECT pp.id, pp.izv_gtin, pp.izv_sifra, pp.izv_naziv,
              pp.izv_enota, pp.izv_kolicina, pp.izv_cena,
              pp.enot_v_paketu, pp.uparjanje_zaupanje, pp.uparjanje_kandidati,
              pp.opozorila
@@ -551,7 +551,7 @@ router.get(
        WHERE pp.prejemnica_id = ${req.params.id}
          AND p.enota_id = ${req.enotaId}
          AND pp.artikel_id IS NULL
-       ORDER BY pp.zap_st
+       ORDER BY pp.id
     `);
 
     return posljiJson(res, 200, { vsebina: vrstice, skupaj: vrstice.length });
