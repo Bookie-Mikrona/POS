@@ -322,7 +322,7 @@ router.delete("/prejemnice/:id", requireEnota, async (req, res): Promise<void> =
   if (!existing) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
 
   const postavke = await db.select().from(prejemnicePostavkeTable).where(eq(prejemnicePostavkeTable.prejemnicaId, id));
-  const artikelIds = postavke.map((p: any) => p.artikelId);
+  const artikelIds = postavke.map((p: any) => p.artikelId).filter((aid: any) => aid != null) as number[];
 
   if (artikelIds.length > 0) {
     const negativni: { artikelId: number; artikelIme: string | null; projiciranKolicina: number }[] = [];
