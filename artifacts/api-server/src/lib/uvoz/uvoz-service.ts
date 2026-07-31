@@ -26,6 +26,7 @@ import { CsvRazclenjevalnik, type UvozProfilKonfig } from './parser-csv';
 import { razcleniXml, zaznajOblikoXml } from './parser-eslog';
 import { razcleniEslog161 } from './parser-eslog161';
 import { upariPrejemnico } from './uparjanje';
+import { getSimDatumOrNow } from '../sim-datum';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
@@ -488,14 +489,15 @@ export async function ustvariOsnutek(
     );
   }
 
+  // Datum prejema = danes ali simulacijski datum (NE datum na dokumentu)
+  const datumPrejema = await getSimDatumOrNow(enotaId);
+  const datumPrejemaStr = datumPrejema.toISOString().slice(0, 10); // YYYY-MM-DD
+
   let prejemnicaId: number;
   try {
     prejemnicaId = await db.transaction(async (tx) => {
-    // Stevilka: YYNNNNNN — enako kot ročna prejemnica
-    const year = dto.datumDokumenta
-      ? Number(dto.datumDokumenta.slice(0, 4))
-      : new Date().getFullYear();
-    const yy = String(year).slice(-2);
+    // Stevilka: YYNNNNNN — po letu prejema (ne letu dokumenta)
+    const yy = String(datumPrejema.getFullYear()).slice(-2);
     const [seq] = (await tx.execute<{ next: string }>(sql`
       SELECT COALESCE(MAX(CAST(SUBSTRING(stevilka, 3) AS INTEGER)), 0) + 1 AS next
         FROM prejemnice
@@ -505,8 +507,8 @@ export async function ustvariOsnutek(
     `)).rows;
     const stevilka = `${yy}${String(Number(seq?.next ?? 1)).padStart(6, '0')}`;
 
-    // BOOKIE stolpci: enota_id, dobavitelj_id, datum, vrsta_cen, opomba,
-    // st_dokumenta, datum_dokumenta, uvoz_seja_id (dodani z migracijo 0009)
+    // datum       = datum prejema (danes / sim datum)
+    // datum_dokumenta = datum na skeniranem dokumentu (dobavnica)
     const [glava] = (await tx.execute<{ id: number }>(sql`
       INSERT INTO prejemnice (
         enota_id, dobavitelj_id, datum,
@@ -514,7 +516,7 @@ export async function ustvariOsnutek(
         st_dokumenta, datum_dokumenta, uvoz_seja_id)
       VALUES (
         ${enotaId}, ${dobaviteljId},
-        ${dto.datumDokumenta ?? sql`CURRENT_DATE`},
+        ${datumPrejemaStr},
         ${dto.ceneBruto ? 'bruto' : 'neto'},
         ${dto.stDokumenta ? `Uvoz: ${dto.stDokumenta}` : 'Uvoz'},
         ${stevilka},
