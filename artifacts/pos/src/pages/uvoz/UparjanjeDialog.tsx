@@ -317,9 +317,12 @@ export function UparjanjeDialog(l: Lastnosti) {
             })}
 
             <div className="border-t px-3 py-2">
+              <p className="mb-1 text-xs text-neutral-400">
+                Išči po imenu med vsemi artikli <kbd className="rounded border px-1 text-[10px]">Tab</kbd>
+              </p>
               <input ref={iskalnoPolje} value={iskanje}
                      onChange={(e) => setIskanje(e.target.value)}
-                     placeholder="Poišči drug artikel…  (Tab)"
+                     placeholder="Vtipkaj 2+ znake…"
                      className="w-full rounded border px-2 py-1 text-sm outline-none
                                 focus:border-orange-500" />
             </div>
