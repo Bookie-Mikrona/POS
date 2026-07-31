@@ -13,6 +13,7 @@ import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@workspace/db';
+import { anthropic } from '@workspace/integrations-anthropic-ai';
 import { requireEnota, type PosRequest } from '../../middlewares/pos';
 import {
   dolociDobavitelja,
@@ -22,8 +23,109 @@ import {
   zajemi,
   zaznajFormat,
 } from '../../lib/uvoz/uvoz-service';
+import { prazenDto, dodajNapako } from '../../lib/uvoz/dto';
 import { potrdiUparjanje, upariPrejemnico } from '../../lib/uvoz/uparjanje';
 import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
+
+// =====================================================================
+// OCR helper — Claude Vision → PrejemDTO
+// =====================================================================
+
+async function ocrSlikaVDto(base64: string, mimeTip: string) {
+  const msg = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8192,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mimeTip as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+            data: base64,
+          },
+        },
+        {
+          type: 'text',
+          text: `Analiziraj sliko računa ali dobavnice in vrni SAMO veljavni JSON (brez razlage ali markdown) s to strukturo:
+{
+  "dobaviteljNaziv": "ime podjetja dobavitelja ali null",
+  "dobaviteljDavcna": "davčna številka - samo 8 cifer brez SI predpone ali null",
+  "stDokumenta": "številka dokumenta/računa ali null",
+  "datumDokumenta": "datum v obliki YYYY-MM-DD ali null",
+  "ceneBruto": true ali false (ali so cene z DDV),
+  "postavke": [
+    {
+      "naziv": "polni naziv artikla/storitve",
+      "kolicina": "količina kot decimalni niz (pika kot ločilo)",
+      "cena": "cena na enoto brez DDV kot decimalni niz",
+      "davek": stopnja DDV kot število (22, 9.5, 5 ali 0) ali null,
+      "enota": "enota mere: kom, kg, l, m, pak itd. ali null",
+      "gtin": "EAN/črtna koda če vidna ali null",
+      "sifra": "šifra artikla dobavitelja če vidna ali null"
+    }
+  ]
+}
+
+PRAVILA: Vrni SAMO JSON. Davčna: 8 cifer brez SI. Datum: YYYY-MM-DD. Decimalno ločilo: pika. Cene neto razen če ceneBruto=true.`,
+        },
+      ],
+    }],
+  });
+
+  const tb = msg.content.find(b => b.type === 'text');
+  if (!tb || tb.type !== 'text') throw new Error('Claude ni vrnil odgovora.');
+
+  let jsonStr = tb.text.trim();
+  const md = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (md) jsonStr = md[1].trim();
+
+  const raw = JSON.parse(jsonStr) as Record<string, unknown>;
+  const dto = prazenDto();
+
+  dto.dobaviteljNaziv   = (raw.dobaviteljNaziv  as string)  ?? null;
+  dto.stDokumenta       = (raw.stDokumenta       as string)  ?? null;
+  dto.ceneBruto         = !!(raw.ceneBruto);
+
+  const davcna = raw.dobaviteljDavcna as string ?? '';
+  if (/^\d{8}$/.test(davcna)) dto.dobaviteljDavcna = davcna;
+
+  const datum = raw.datumDokumenta as string ?? '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) dto.datumDokumenta = datum;
+
+  if (Array.isArray(raw.postavke)) {
+    (raw.postavke as Record<string, unknown>[]).forEach((p, i) => {
+      try {
+        dto.postavke.push({
+          zap:           i + 1,
+          izvNaziv:      String(p.naziv   ?? 'Artikel'),
+          izvGtin:       (p.gtin   as string) ?? null,
+          izvSifra:      (p.sifra  as string) ?? null,
+          izvEnota:      (p.enota  as string) ?? null,
+          izvKolicina:   new Decimal(String(p.kolicina ?? '1')),
+          izvCena:       new Decimal(String(p.cena ?? '0')),
+          izvVrednost:   null,
+          enotVPaketu:   new Decimal(1),
+          rabat1Odst:    new Decimal(0),
+          rabat2Odst:    new Decimal(0),
+          ddvStopnja:    p.davek != null ? new Decimal(String(p.davek)) : null,
+          ddvKategorija: null,
+          lot:           null,
+          rokUporabe:    null,
+          opozorila:     [],
+        });
+      } catch { /* preskoči pokvarjeno vrstico */ }
+    });
+  }
+
+  if (dto.postavke.length === 0) {
+    dodajNapako(dto, 'ZAJ032', 'O',
+      'OCR ni prepoznal nobene postavke. Poskusite s boljšo osvetlitvijo ali večjo ločljivostjo slike.');
+  }
+
+  return dto;
+}
 
 const router = Router();
 
@@ -46,6 +148,89 @@ const jsonVarno = (v: unknown): string =>
 function posljiJson(res: Response, koda: number, telo: unknown): void {
   res.status(koda).type('application/json').send(jsonVarno(telo));
 }
+
+// =====================================================================
+// POST /api/pos/uvoz/datoteka
+// =====================================================================
+
+// =====================================================================
+// POST /api/pos/uvoz/ocr
+// Sprejme base64 sliko, jo pošlje Claude Vision, ustvari osnutek prejemnice.
+// =====================================================================
+
+const ocrTelo = z.object({
+  slika:       z.string().min(50),
+  mimeTip:     z.enum(['image/jpeg', 'image/png', 'image/webp']).default('image/jpeg'),
+  dobaviteljId: z.coerce.number().int().positive().optional(),
+});
+
+router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
+  const vhod = ocrTelo.safeParse(req.body);
+  if (!vhod.success) {
+    return posljiJson(res, 400, { koda: 'ZAJ030', sporocilo: 'Neveljavni parametri.' });
+  }
+
+  try {
+    // 1. Claude Vision → PrejemDTO
+    const dto = await ocrSlikaVDto(vhod.data.slika, vhod.data.mimeTip);
+
+    // 2. Shrani sliko v uvoz_seja (idempotenca prek SHA256)
+    const imgBuf = Buffer.from(vhod.data.slika, 'base64');
+    const zajem = await zajemi(db, {
+      enotaId:    req.enotaId,
+      kanal:      'ROCNI_NALOG',
+      raw:        imgBuf,
+      imeDatoteke: `ocr.${vhod.data.mimeTip === 'image/png' ? 'png' : 'jpg'}`,
+      mimeTip:    vhod.data.mimeTip,
+      metapodatki: { vir: 'OCR_KAMERA', model: 'claude-sonnet-4-6' },
+    });
+
+    if (zajem.status === 'PODVOJENO') {
+      return posljiJson(res, 409, {
+        status: 'PODVOJENO',
+        sejaId: zajem.sejaId,
+        sporocilo: 'Ta slika je bila že uvožena.',
+      });
+    }
+
+    // 3. Določi dobavitelja
+    const dob = await dolociDobavitelja(
+      db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
+    );
+
+    if (!dob.dobaviteljId) {
+      return posljiJson(res, 422, {
+        status:              'MANJKA_DOBAVITELJ',
+        sejaId:              zajem.sejaId,
+        predlogDobavitelja:  dob.predlogNovega,
+        dobaviteljNazivOcr:  dto.dobaviteljNaziv,
+        napake:              dto.napake,
+      });
+    }
+
+    // 4. Ustvari osnutek
+    const osnutek = await ustvariOsnutek(db, {
+      enotaId:      req.enotaId,
+      sejaId:       zajem.sejaId,
+      dobaviteljId: dob.dobaviteljId,
+      dto,
+      uporabnikId:  0,
+    });
+
+    return posljiJson(res, 201, {
+      status:  'OSNUTEK_USTVARJEN',
+      sejaId:  zajem.sejaId,
+      napake:  dto.napake,
+      ...osnutek,
+    });
+  } catch (e) {
+    req.log?.error({ err: e }, 'OCR uvoz napaka');
+    return posljiJson(res, 500, {
+      koda:     'ZAJ031',
+      sporocilo: `OCR uvoz ni uspel: ${(e as Error).message}`,
+    });
+  }
+});
 
 // =====================================================================
 // POST /api/pos/uvoz/datoteka
