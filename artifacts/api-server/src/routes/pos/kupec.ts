@@ -3,6 +3,7 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { artikliTable, db, kategorijeTable, partnerCenikiTable, shranjeniKupciTable } from "@workspace/db";
 import { poisciVUjp } from "../ujp";
 import { poisciVAjpes } from "../ajpes";
+import { preveriVies, drzavaIzKode } from "../../lib/vies.js";
 
 /**
  * Pretvori 15-mestno slovensko TRR številko (UJP format) v IBAN.
@@ -394,11 +395,42 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   if (!obstojecKupec) { res.status(404).json({ napaka: "Kupec ni najden" }); return; }
 
   const davcna = obstojecKupec.davcnaStevilka?.trim();
-  if (!davcna || !/^\d{8}$/.test(davcna)) {
-    res.status(400).json({ napaka: "Kupec nima veljavne 8-mestne davčne številke — iskanje v registrih ni mogoče." });
+  const idZaDdv = obstojecKupec.idZaDdv?.trim();
+  const jeTuji = !davcna || !/^\d{8}$/.test(davcna);
+
+  // ── Tuji partner (EU VAT ID, ne SI davčna) → osveži prek VIES ─────────────
+  if (jeTuji) {
+    if (!idZaDdv || !/^[A-Z]{2}.+$/i.test(idZaDdv)) {
+      res.status(400).json({ napaka: "Partner nima EU VAT ID — osveževanje ni mogoče." });
+      return;
+    }
+    const vies = await preveriVies(idZaDdv);
+    if (!vies) {
+      res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje." });
+      return;
+    }
+    const kodaDrzave = obstojecKupec.kodaDrzave ?? vies.kodaDrzave;
+    const [posodobljen] = await db
+      .update(shranjeniKupciTable)
+      .set({
+        ...(vies.naziv ? { naziv: vies.naziv } : {}),
+        ...(vies.ulica ? { ulica: vies.ulica } : {}),
+        ...(vies.postnaStevilka ? { postnaStevilka: vies.postnaStevilka } : {}),
+        ...(vies.kraj ? { kraj: vies.kraj } : {}),
+        drzava: obstojecKupec.drzava || vies.drzavaNaziv || drzavaIzKode(kodaDrzave),
+        kodaDrzave: kodaDrzave,
+        zavezanecDdv: vies.veljaven ? true : (obstojecKupec.zavezanecDdv ?? null),
+      })
+      .where(and(
+        eq(shranjeniKupciTable.id, id),
+        eq(shranjeniKupciTable.enotaId, tenotaId),
+      ))
+      .returning();
+    res.json(mapKupec(posodobljen!));
     return;
   }
 
+  // ── Domači partner (SI davčna) → AJPES / INETIS / BizBox / UJP ───────────
   // INETIS najprej (dobi naziv), nato vzporedno BizBox + UJP + AJPES
   const svezi = await poisciNaInetis(davcna);
 
