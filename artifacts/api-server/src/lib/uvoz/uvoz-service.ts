@@ -13,7 +13,7 @@ import { Decimal } from 'decimal.js';
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-import { preveriVies } from '../vies.js';
+import { preveriVies, drzavaIzKode } from '../vies.js';
 
 import {
   type PrejemDTO,
@@ -340,16 +340,31 @@ export async function resolveOrCreateDobavitelja(
   const davcnaStevilka = jeSi8 ? pred.davcna : null;
 
   const vies = await preveriVies(idZaDdv);
-  const naziv      = vies?.naziv    ?? pred.naziv    ?? `Uvoz ${pred.davcna}`;
-  const naslov     = vies?.naslov   ?? null;
+
+  // Naziv: VIES > OCR > fallback
+  const naziv = vies?.naziv ?? pred.naziv ?? `Uvoz ${pred.davcna}`;
+
+  // Država
   const kodaDrzave = dto.dobaviteljDrzava ?? vies?.kodaDrzave ?? (jeSi8 ? 'SI' : null);
+  const drzavaNaziv = vies?.drzavaNaziv ?? drzavaIzKode(kodaDrzave);
+
+  // Naslov: VIES strukturiran > OCR > VIES polni niz
+  const ulica           = vies?.ulica          ?? dto.dobaviteljUlica          ?? null;
+  const postnaStevilka  = vies?.postnaStevilka  ?? dto.dobaviteljPostnaStevilka ?? null;
+  const kraj            = vies?.kraj            ?? dto.dobaviteljKraj           ?? null;
+
+  // Polni naslov (za `naslov` stolpec) — sestavi iz delov ali vzemi iz VIES
+  const naslovDeli = [ulica, postnaStevilka && kraj ? `${postnaStevilka} ${kraj}` : (kraj ?? postnaStevilka)].filter(Boolean);
+  const naslov = naslovDeli.length ? naslovDeli.join(', ') : (vies?.naslov ?? null);
 
   const [novDob] = (await db.execute<{ id: number }>(sql`
-    INSERT INTO shranjeni_kupci
-      (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, naslov, zavezanec_ddv)
-    VALUES (
-      ${enotaId}, ${naziv}, ${davcnaStevilka},
-      ${idZaDdv}, ${kodaDrzave}, ${naslov},
+    INSERT INTO shranjeni_kupci (
+      enota_id, naziv, davcna_stevilka, id_za_ddv,
+      koda_drzave, drzava, naslov, ulica, postna_stevilka, kraj,
+      zavezanec_ddv
+    ) VALUES (
+      ${enotaId}, ${naziv}, ${davcnaStevilka}, ${idZaDdv},
+      ${kodaDrzave}, ${drzavaNaziv}, ${naslov}, ${ulica}, ${postnaStevilka}, ${kraj},
       true
     )
     RETURNING id

@@ -57,10 +57,13 @@ async function ocrSlikaVDto(base64: string, mimeTip: string) {
           type: 'text',
           text: `Analiziraj sliko računa ali dobavnice in vrni SAMO veljavni JSON (brez razlage ali markdown) s to strukturo:
 {
-  "dobaviteljNaziv": "ime podjetja dobavitelja ali null",
+  "dobaviteljNaziv": "polno ime podjetja dobavitelja ali null",
   "dobaviteljDavcna": "davčna številka - samo 8 cifer brez SI predpone (slovensko podjetje) ali null",
-  "dobaviteljIdDdv": "DDV identifikacijska številka z državo (npr. SI12345678, DE123456789, AT12345678) ali null - zapolni za tuja podjetja",
-  "dobaviteljDrzava": "dvočrkovna ISO koda države dobavitelja (npr. DE, AT, HR, IT) ali null",
+  "dobaviteljIdDdv": "DDV identifikacijska številka z državo (npr. SI12345678, DE123456789, AT12345678) ali null",
+  "dobaviteljDrzava": "dvočrkovna ISO koda države dobavitelja (npr. DE, AT, HR, IT, SI) ali null",
+  "dobaviteljUlica": "ulica in hišna številka sedeža dobavitelja ali null",
+  "dobaviteljPostnaStevilka": "poštna številka sedeža dobavitelja ali null",
+  "dobaviteljKraj": "kraj/mesto sedeža dobavitelja ali null",
   "stDokumenta": "številka dokumenta/računa ali null",
   "datumDokumenta": "datum v obliki YYYY-MM-DD ali null",
   "ceneBruto": true ali false (ali so cene z DDV),
@@ -77,7 +80,7 @@ async function ocrSlikaVDto(base64: string, mimeTip: string) {
   ]
 }
 
-PRAVILA: Vrni SAMO JSON. Za slovensko podjetje: dobaviteljDavcna = 8 cifer brez SI, dobaviteljIdDdv = "SI" + 8 cifer. Za tuje podjetje: dobaviteljDavcna = null, dobaviteljIdDdv = koda+številka. Datum: YYYY-MM-DD. Decimalno ločilo: pika. Cene neto razen če ceneBruto=true.`,
+PRAVILA: Vrni SAMO JSON. Za slovensko podjetje: dobaviteljDavcna = 8 cifer brez SI, dobaviteljIdDdv = "SI" + 8 cifer. Za tuje: dobaviteljDavcna = null, dobaviteljIdDdv = koda+številka. Datum: YYYY-MM-DD. Decimalno ločilo: pika. Cene neto razen če ceneBruto=true.`,
         },
       ],
     }],
@@ -105,6 +108,10 @@ PRAVILA: Vrni SAMO JSON. Za slovensko podjetje: dobaviteljDavcna = 8 cifer brez 
 
   const drzava = (raw.dobaviteljDrzava as string) ?? '';
   if (/^[A-Za-z]{2}$/.test(drzava)) dto.dobaviteljDrzava = drzava.toUpperCase();
+
+  dto.dobaviteljUlica           = (raw.dobaviteljUlica           as string) || null;
+  dto.dobaviteljPostnaStevilka  = (raw.dobaviteljPostnaStevilka  as string) || null;
+  dto.dobaviteljKraj            = (raw.dobaviteljKraj             as string) || null;
 
   const datum = raw.datumDokumenta as string ?? '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) dto.datumDokumenta = datum;
