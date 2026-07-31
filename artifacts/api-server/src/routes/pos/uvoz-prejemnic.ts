@@ -18,6 +18,7 @@ import { anthropic } from '@workspace/integrations-anthropic-ai';
 import { requireEnota, type PosRequest } from '../../middlewares/pos';
 import {
   dolociDobavitelja,
+  DuplicatePrejemnicaError,
   razcleniSejo,
   resolveOrCreateDobavitelja,
   ustvariOsnutek,
@@ -301,6 +302,9 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
       ...osnutek,
     });
   } catch (e) {
+    if (e instanceof DuplicatePrejemnicaError) {
+      return posljiJson(res, 409, { prejemnicaId: e.obstojeciId || undefined });
+    }
     req.log?.error({ err: e }, 'OCR uvoz napaka');
     return posljiJson(res, 500, {
       koda:     'ZAJ031',
@@ -344,6 +348,9 @@ router.post('/seja/:sejaId/s-dobaviteljem', requireEnota, async (req: PosRequest
       ...osnutek,
     });
   } catch (e) {
+    if (e instanceof DuplicatePrejemnicaError) {
+      return posljiJson(res, 409, { prejemnicaId: e.obstojeciId || undefined });
+    }
     req.log?.error({ err: e }, 'Uvoz s-dobaviteljem napaka');
     return posljiJson(res, 500, { sporocilo: `Uvoz ni uspel: ${(e as Error).message}` });
   }
@@ -474,6 +481,9 @@ router.post(
 
       return posljiJson(res, koda, izid);
     } catch (e) {
+      if (e instanceof DuplicatePrejemnicaError) {
+        return posljiJson(res, 409, { prejemnicaId: e.obstojeciId || undefined });
+      }
       req.log?.error({ err: e }, 'napaka pri uvozu datoteke');
       return posljiJson(res, 500, {
         koda: 'ZAJ015',
@@ -659,6 +669,9 @@ router.post(
 
       return posljiJson(res, 201, { status: 'OSNUTEK_USTVARJEN', ...izid });
     } catch (e) {
+      if (e instanceof DuplicatePrejemnicaError) {
+        return posljiJson(res, 409, { prejemnicaId: e.obstojeciId || undefined });
+      }
       return posljiJson(res, 500, {
         koda: 'ZAJ019',
         sporocilo: (e as Error).message,

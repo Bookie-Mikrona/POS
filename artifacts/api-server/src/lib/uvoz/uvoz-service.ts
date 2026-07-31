@@ -461,6 +461,14 @@ export interface OsnutekIzid {
   neuparjenih: number;
 }
 
+/** Vržemo, ko dokument s to kombinacijo (enota, dobavitelj, st_dokumenta, datum) že obstaja. */
+export class DuplicatePrejemnicaError extends Error {
+  constructor(public readonly obstojeciId: number) {
+    super(`Dokument je bil že uvožen (prejemnica #${obstojeciId}).`);
+    this.name = 'DuplicatePrejemnicaError';
+  }
+}
+
 export async function ustvariOsnutek(
   db: Db,
   opts: {
@@ -480,7 +488,9 @@ export async function ustvariOsnutek(
     );
   }
 
-  const prejemnicaId = await db.transaction(async (tx) => {
+  let prejemnicaId: number;
+  try {
+    prejemnicaId = await db.transaction(async (tx) => {
     // Stevilka: YYNNNNNN — enako kot ročna prejemnica
     const year = dto.datumDokumenta
       ? Number(dto.datumDokumenta.slice(0, 4))
@@ -560,9 +570,24 @@ export async function ustvariOsnutek(
 
     return Number(glava.id);
   });
+  } catch (e: unknown) {
+    // Unique constraint uq_prejemnica_dokument (enota_id, dobavitelj_id, st_dokumenta, datum_dokumenta)
+    const pgCode = (e as any)?.cause?.code ?? (e as any)?.code;
+    if (pgCode === '23505') {
+      const [obs] = (await db.execute<{ id: number }>(sql`
+        SELECT id FROM prejemnice
+         WHERE enota_id      = ${enotaId}
+           AND dobavitelj_id = ${dobaviteljId}
+           AND st_dokumenta  = ${dto.stDokumenta ?? null}
+         LIMIT 1
+      `)).rows;
+      throw new DuplicatePrejemnicaError(obs ? Number(obs.id) : 0);
+    }
+    throw e;
+  }
 
-  const izid = await upariPrejemnico(db, enotaId, prejemnicaId);
-  return { prejemnicaId, ...izid };
+  const izid = await upariPrejemnico(db, enotaId, prejemnicaId!);
+  return { prejemnicaId: prejemnicaId!, ...izid };
 }
 
 // =====================================================================
