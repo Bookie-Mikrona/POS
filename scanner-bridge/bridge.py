@@ -162,6 +162,14 @@ def _scan_sta(device_id: str | None, dpi: int, color: bool, fmt: str):
         os.remove(path)
 
     image.SaveFile(path)
+
+    # WIA lahko shrani nestandardni PNG (npr. 16-bit siva) — normaliziramo na 8-bit
+    try:
+        pil_img = PILImage.open(path).convert('L' if not color else 'RGB')
+        pil_img.save(path, 'PNG', optimize=False)
+    except Exception as e:
+        log.warning(f"PIL normalizacija slike ni uspela: {e}")
+
     return path
 
 
