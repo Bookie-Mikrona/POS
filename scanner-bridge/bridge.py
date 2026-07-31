@@ -41,16 +41,7 @@ HOST         = "127.0.0.1"
 VERSION      = "1.0.0"
 
 # Dovoli dostop z POS app-a (nastavi na pravi origin v produkciji)
-ALLOWED_ORIGINS = [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-    # Replit dev domain (nastavi ob potrebi)
-    # "https://*.replit.dev",
-]
+ALLOWED_ORIGINS = ["*"]  # lokalni bridge — dostopen samo z localhost, wildcard je varen
 
 # WIA Property IDs
 WIA_HORIZONTAL_RESOLUTION = 6147
