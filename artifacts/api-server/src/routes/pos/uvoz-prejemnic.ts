@@ -634,6 +634,28 @@ router.post(
 );
 
 // =====================================================================
+// GET /api/uvoz/vies/:idDdv
+// Preveri EU VAT ID pri VIES — za ročno preverjanje v obrazcih.
+// =====================================================================
+
+router.get(
+  '/vies/:idDdv',
+  requireEnota,
+  async (req: PosRequest, res) => {
+    const { preveriVies } = await import('../../lib/vies.js');
+    const raw = (req.params.idDdv ?? '').replace(/\s/g, '').toUpperCase();
+    if (!/^[A-Z]{2}.+$/.test(raw)) {
+      return posljiJson(res, 400, { napaka: 'Neveljaven format VAT ID (pričakovano npr. DE123456789).' });
+    }
+    const izid = await preveriVies(raw);
+    if (!izid) {
+      return posljiJson(res, 503, { napaka: 'VIES ni dosegljiv. Poskusite pozneje.' });
+    }
+    return posljiJson(res, 200, izid);
+  },
+);
+
+// =====================================================================
 // GET /api/pos/uvoz/odstopanja
 // Poročilo o odstopanjih cen — edini del modula z merljivim donosom.
 // =====================================================================

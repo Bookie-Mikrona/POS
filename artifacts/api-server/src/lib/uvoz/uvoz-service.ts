@@ -13,6 +13,8 @@ import { Decimal } from 'decimal.js';
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
+import { preveriVies } from '../vies.js';
+
 import {
   type PrejemDTO,
   imaBlokado,
@@ -568,19 +570,23 @@ export async function uvozi(
     // Samodejno ustvari dobavitelja iz OCR podatkov
     // pred.davcna je ali 8-mestna SI davčna ali tuj VAT ID (DE123456789)
     const jeSi8 = /^\d{8}$/.test(pred.davcna);
-    const naziv = pred.naziv ?? `Uvoz ${pred.davcna}`;
-    const davcnaStevilka  = jeSi8 ? pred.davcna : null;
-    const idZaDdv         = jeSi8
+    const idZaDdv = jeSi8
       ? (dto.dobaviteljIdDdv ?? `SI${pred.davcna}`)
-      : pred.davcna;  // pred.davcna je že celi VAT ID npr. DE123456789
-    const kodaDrzave      = dto.dobaviteljDrzava ?? (jeSi8 ? 'SI' : null);
+      : pred.davcna;
+    const davcnaStevilka = jeSi8 ? pred.davcna : null;
+
+    // Preveri pri VIES — uradni naziv/naslov ima prednost pred OCR ekstrakcijo
+    const vies = await preveriVies(idZaDdv);
+    const naziv    = vies?.naziv    ?? pred.naziv    ?? `Uvoz ${pred.davcna}`;
+    const naslov   = vies?.naslov   ?? null;
+    const kodaDrzave = dto.dobaviteljDrzava ?? vies?.kodaDrzave ?? (jeSi8 ? 'SI' : null);
+
     const [novDob] = (await db.execute<{ id: number }>(sql`
       INSERT INTO shranjeni_kupci
-        (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, zavezanec_ddv)
+        (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, naslov, zavezanec_ddv)
       VALUES (
         ${v.enotaId}, ${naziv}, ${davcnaStevilka},
-        ${idZaDdv},
-        ${kodaDrzave},
+        ${idZaDdv}, ${kodaDrzave}, ${naslov},
         true
       )
       RETURNING id
