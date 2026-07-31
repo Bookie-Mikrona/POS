@@ -255,14 +255,16 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
           skupaj: String((kolicina * cenaKos).toFixed(2)),
           enotVPaketu: String(enotVPaketu)});
 
-        await tx.insert(zalogaGibiTable).values({
-          artikelId: p.artikelId,
-          tip: "prejemnica",
-          kolicina: String(kolicina),
-          opomba: parsed.data.opomba ?? existing.opomba ?? null,
-          referencaId: id});
+        if (p.artikelId != null) {
+          await tx.insert(zalogaGibiTable).values({
+            artikelId: p.artikelId,
+            tip: "prejemnica",
+            kolicina: String(kolicina),
+            opomba: parsed.data.opomba ?? existing.opomba ?? null,
+            referencaId: id});
 
-        newArtikleIds.push(p.artikelId);
+          newArtikleIds.push(p.artikelId);
+        }
       }
 
       const allAffectedIds = [...new Set([...oldArtikleIds, ...newArtikleIds])];

@@ -110,7 +110,10 @@ export async function recomputeZaloge(
   artikelIds: number[],
   tx?: Tx,
 ): Promise<void> {
-  if (!artikelIds.length) return;
+  const validIds = artikelIds.filter((id): id is number => id != null && typeof id === 'number');
+  if (!validIds.length) return;
+  // shadow the parameter so the rest of the function uses filtered IDs
+  artikelIds = validIds;
 
   const executor = tx ?? db;
 
