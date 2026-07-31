@@ -32,20 +32,26 @@ import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
 // =====================================================================
 
 async function ocrSlikaVDto(base64: string, mimeTip: string) {
+  type ImgMime = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+  const isPdf = mimeTip === 'application/pdf';
+
+  const mediaBlock = isPdf
+    ? ({
+        type: 'document' as const,
+        source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64 },
+      })
+    : ({
+        type: 'image' as const,
+        source: { type: 'base64' as const, media_type: mimeTip as ImgMime, data: base64 },
+      });
+
   const msg = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 8192,
     messages: [{
       role: 'user',
       content: [
-        {
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: mimeTip as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
-            data: base64,
-          },
-        },
+        mediaBlock,
         {
           type: 'text',
           text: `Analiziraj sliko računa ali dobavnice in vrni SAMO veljavni JSON (brez razlage ali markdown) s to strukturo:
@@ -261,13 +267,66 @@ router.post(
     }
 
     try {
+      // PDF → Claude Vision OCR (zaznajFormat vrne 'PDF_PREDLOGA', ki ni razčlenljiv)
+      const format = zaznajFormat(req.file.buffer, req.file.originalname);
+      if (format === 'PDF_PREDLOGA' || format === 'PDF_OCR') {
+        const base64 = req.file.buffer.toString('base64');
+        const dto = await ocrSlikaVDto(base64, 'application/pdf');
+
+        const zajem = await zajemi(db, {
+          enotaId:     req.enotaId,
+          kanal:       'ROCNI_NALOG',
+          raw:         req.file.buffer,
+          imeDatoteke: req.file.originalname,
+          mimeTip:     req.file.mimetype,
+          metapodatki: { vir: 'OCR_PDF', model: 'claude-sonnet-4-6' },
+        });
+
+        if (zajem.status === 'PODVOJENO') {
+          return posljiJson(res, 409, {
+            status:    'PODVOJENO',
+            sejaId:    zajem.sejaId,
+            napake:    [{ koda: 'ZAJ003', resnost: 'B', sporocilo: 'Ta PDF je bil že uvožen.' }],
+            prejemnicaId: zajem.obstojecaPrejemnicaId,
+          });
+        }
+
+        const dob = await dolociDobavitelja(
+          db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
+        );
+        if (!dob.dobaviteljId) {
+          return posljiJson(res, 422, {
+            status:             'MANJKA_DOBAVITELJ',
+            sejaId:             zajem.sejaId,
+            predlogDobavitelja: dob.predlogNovega,
+            dobaviteljNazivOcr: dto.dobaviteljNaziv,
+            napake:             dto.napake,
+          });
+        }
+
+        const osnutek = await ustvariOsnutek(db, {
+          enotaId:      req.enotaId,
+          sejaId:       zajem.sejaId,
+          dobaviteljId: dob.dobaviteljId,
+          dto,
+          uporabnikId:  0,
+        });
+
+        return posljiJson(res, 201, {
+          status: 'OSNUTEK_USTVARJEN',
+          sejaId: zajem.sejaId,
+          napake: dto.napake,
+          ...osnutek,
+        });
+      }
+
+      // Ostali formati: standardni pipeline
       const izid = await uvozi(db, {
-        enotaId: req.enotaId,
-        
-        kanal: 'ROCNI_NALOG',
-        raw: req.file.buffer,
+        enotaId:     req.enotaId,
+        kanal:       'ROCNI_NALOG',
+        raw:         req.file.buffer,
         imeDatoteke: req.file.originalname,
-        mimeTip: req.file.mimetype,
+        mimeTip:     req.file.mimetype,
         dobaviteljId: vhod.data.dobaviteljId ?? null,
         uporabnikId: 0,
       });
