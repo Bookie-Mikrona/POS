@@ -28,6 +28,7 @@ import {
 import { prazenDto, dodajNapako, type PrejemDTO } from '../../lib/uvoz/dto';
 import { potrdiUparjanje, upariPrejemnico } from '../../lib/uvoz/uparjanje';
 import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
+import { poisciDobaviteljaAI } from '../../lib/uvoz/poisci-dobavitelja';
 
 // =====================================================================
 // OCR helper — Claude Vision → PrejemDTO
@@ -247,7 +248,22 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
     const dob = await dolociDobavitelja(
       db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
     );
-    const dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
+    let dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
+
+    // 3b. Če dobavitelja ni — poskusi AI iskanje (DDG Lite → bizi.si → davčna → VIES)
+    let predlogAI = null as import('../../lib/uvoz/poisci-dobavitelja').PodjetjePredlog | null;
+    if (!dobaviteljId) {
+      try {
+        predlogAI = await poisciDobaviteljaAI(dto.dobaviteljNaziv ?? '', dto.dobaviteljIban ?? null);
+        if (predlogAI?.davcna) {
+          const dtoZAI = { ...dto, dobaviteljDavcna: predlogAI.davcna, dobaviteljNaziv: predlogAI.naziv };
+          const dobZAI = await dolociDobavitelja(db, req.enotaId, dtoZAI, null, null);
+          dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dobZAI, dtoZAI);
+        }
+      } catch (aiErr) {
+        req.log?.warn({ err: aiErr }, 'AI iskanje dobavitelja ni uspelo — padamo na ročni picker');
+      }
+    }
 
     if (!dobaviteljId) {
       // Shrani DTO za kasnejši uvoz z ročno izbranim dobaviteljem
@@ -260,6 +276,7 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
       return posljiJson(res, 422, {
         status:              'MANJKA_DOBAVITELJ',
         sejaId:              zajem.sejaId,
+        predlogAI,
         predlogDobavitelja:  dob.predlogNovega,
         dobaviteljNazivOcr:  dto.dobaviteljNaziv,
         napake:              dto.napake,
@@ -390,11 +407,31 @@ router.post(
         const dob = await dolociDobavitelja(
           db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
         );
-        const dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
+        let dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
+
+        let predlogAIPdf = null as import('../../lib/uvoz/poisci-dobavitelja').PodjetjePredlog | null;
         if (!dobaviteljId) {
+          try {
+            predlogAIPdf = await poisciDobaviteljaAI(dto.dobaviteljNaziv ?? '', dto.dobaviteljIban ?? null);
+            if (predlogAIPdf?.davcna) {
+              const dtoZ = { ...dto, dobaviteljDavcna: predlogAIPdf.davcna, dobaviteljNaziv: predlogAIPdf.naziv };
+              const dobZ = await dolociDobavitelja(db, req.enotaId, dtoZ, null, null);
+              dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dobZ, dtoZ);
+            }
+          } catch { /* tiho pademo na picker */ }
+        }
+
+        if (!dobaviteljId) {
+          await db.execute(sql`
+            UPDATE uvoz_seja
+               SET razclenitev = ${JSON.stringify(dto, (_k: string, v: unknown) => v instanceof Decimal ? v.toString() : v)}::jsonb,
+                   status = 'NAPAKA'
+             WHERE id = ${zajem.sejaId}
+          `);
           return posljiJson(res, 422, {
             status:             'MANJKA_DOBAVITELJ',
             sejaId:             zajem.sejaId,
+            predlogAI:          predlogAIPdf,
             predlogDobavitelja: dob.predlogNovega,
             dobaviteljNazivOcr: dto.dobaviteljNaziv,
             napake:             dto.napake,
@@ -594,7 +631,18 @@ router.post(
       const dob = await dolociDobavitelja(
         db, req.enotaId, dto, null, vhod.dobaviteljId ?? null,
       );
-      if (!dob.dobaviteljId) {
+      let dobaviteljIdSeja = dob.dobaviteljId;
+      if (!dobaviteljIdSeja) {
+        try {
+          const predlogAISeja = await poisciDobaviteljaAI(dto.dobaviteljNaziv ?? '', dto.dobaviteljIban ?? null);
+          if (predlogAISeja?.davcna) {
+            const dtoZ = { ...dto, dobaviteljDavcna: predlogAISeja.davcna, dobaviteljNaziv: predlogAISeja.naziv };
+            const dobZ = await dolociDobavitelja(db, req.enotaId, dtoZ, null, null);
+            dobaviteljIdSeja = await resolveOrCreateDobavitelja(db, req.enotaId, dobZ, dtoZ);
+          }
+        } catch { /* tiho pademo na picker */ }
+      }
+      if (!dobaviteljIdSeja) {
         return posljiJson(res, 422, {
           status: 'MANJKA_DOBAVITELJ',
           predlogDobavitelja: dob.predlogNovega,
@@ -604,7 +652,7 @@ router.post(
       const izid = await ustvariOsnutek(db, {
         enotaId: req.enotaId,
         sejaId,
-        dobaviteljId: dob.dobaviteljId,
+        dobaviteljId: dobaviteljIdSeja,
         dto,
         uporabnikId: 0,
       });

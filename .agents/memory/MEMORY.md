@@ -21,3 +21,4 @@
 - [Checkpoint skupaj-vidnost-prostor-v1](checkpoint-skupaj-vidnost-prostor-v1.md) — git tag za povratek: kaskadni izbris otrok, proporcionalna kolicina, prostor v glavi, footer vedno viden
 - [Uvoz prejemnic — tech sklad](uvoz-prejemnic-tech.md) — drizzle/node-postgres vrača QueryResult; vsi Claudovi podjetjeId→enotaId; paketi; rute registrirane
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
+- [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
