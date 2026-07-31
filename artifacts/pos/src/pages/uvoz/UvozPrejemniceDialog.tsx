@@ -347,7 +347,7 @@ export function UvozPrejemniceDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deviceId: izbraniScanner ?? null,
-          dpi:      200,
+          dpi:      150,
           color:    false,
           format:   'jpeg',
         }),
@@ -752,7 +752,7 @@ export function UvozPrejemniceDialog({
                           {bridge?.aktiven && bridge.scanners.length > 0
                             ? bridge.scanners.find(s => s.id === izbraniScanner)?.name ?? bridge.scanners[0]?.name ?? 'HP Scanner'
                             : 'Scanner ni priključen'}
-                          {' · 300 dpi · sivinska'}
+                          {' · 150 dpi · sivinska'}
                         </p>
                       </div>
                     </>
