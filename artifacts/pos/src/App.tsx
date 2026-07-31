@@ -262,6 +262,31 @@ function Layout({ children }: { children: React.ReactNode }) {
   const [simDatum, setSimDatum] = useState<string | null>(null);
   const asideRef = useRef<HTMLElement>(null);
   const sidebarContentRef = useRef<HTMLDivElement>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const v = localStorage.getItem("pos_sidebar_w");
+    return v ? Math.max(180, Math.min(420, Number(v))) : 240;
+  });
+
+  const handleSidebarResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      setSidebarWidth(Math.max(180, Math.min(420, startW + ev.clientX - startX)));
+    };
+    const onUp = (ev: MouseEvent) => {
+      const w = Math.max(180, Math.min(420, startW + ev.clientX - startX));
+      localStorage.setItem("pos_sidebar_w", String(w));
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
   const { toast } = useToast();
 
   useEffect(() => {
@@ -400,7 +425,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-background font-sans text-foreground">
       {!isOrderPage && (
-        <aside ref={asideRef} className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground shadow-md overflow-hidden">
+        <aside ref={asideRef} className="hidden md:flex flex-col border-r bg-sidebar text-sidebar-foreground shadow-md overflow-hidden relative" style={{ width: sidebarWidth, flexShrink: 0 }}>
           <div
             ref={sidebarContentRef}
             style={sidebarScale < 1 ? {
@@ -484,6 +509,14 @@ function Layout({ children }: { children: React.ReactNode }) {
                 <span className="truncate">{user?.ime ?? user?.username}</span>
               </button>
             </div>
+          </div>
+
+          {/* ── Resize handle ─────────────────────────────────────────── */}
+          <div
+            className="absolute inset-y-0 right-0 w-2 cursor-col-resize z-20 group/rh"
+            onMouseDown={handleSidebarResizeStart}
+          >
+            <div className="absolute inset-y-0 right-0 w-px bg-sidebar-border/0 group-hover/rh:bg-sidebar-border transition-colors duration-150" />
           </div>
         </aside>
       )}
