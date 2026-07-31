@@ -30,3 +30,9 @@ id = "AZQ44KuBjmJhUm3hRcqqN"
 uri = "file://pos-prirucnik.docx"
 type = "word_document"
 title = "POS Gostinstvo — Priročnik v2.1"
+
+[[outputs]]
+id = "J1YDGzDvhqinxRkg4O1Gt"
+uri = "file://pos-prirocnik.docx"
+type = "word_document"
+title = "POS Gostinstvo — Priročnik v2.1"
