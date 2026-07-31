@@ -6,7 +6,7 @@
 //   • Kamera / Skener — Claude Vision OCR (mobilni fotoaparat)
 //   • Skeniraj — direkten zajem iz Windows HP scannerja prek lokalnega bridge-a
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, Camera, AlertTriangle, X, ScanLine, Scan, Wifi, WifiOff, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useListShranjeniKupci, type ShranjenKupec } from '@workspace/api-client-react';
 import { UparjanjeDialog, type NeuparjenaPostavka, type Kandidat } from './UparjanjeDialog';
 import { NovArtikelDialog, type NovArtikelVhod } from './NovArtikelDialog';
 
@@ -147,6 +148,14 @@ export function UvozPrejemniceDialog({
   const [izbraniScanner,   setIzbraniScanner]   = useState<string | null>(null);
   const [skeniraNalaga,    setSkeniraNalaga]    = useState(false);
 
+  // MANJKA_DOBAVITELJ stanje — picker za ročno izbiro dobavitelja
+  const [manjkaSejaId,     setManjkaSejaId]     = useState<string | null>(null);
+  const [manjkaDobIme,     setManjkaDobIme]     = useState<string>('');
+  const [manjkaIzbraniId,  setManjkaIzbraniId]  = useState<number | null>(null);
+  const [manjkaFilter,     setManjkaFilter]     = useState<string>('');
+
+  const { data: shranjeniKupci } = useListShranjeniKupci();
+
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,7 +208,22 @@ export function UvozPrejemniceDialog({
     setSlikaPreview(null);
     setSlikaMime('image/jpeg');
     setSkeniraNalaga(false);
+    setManjkaSejaId(null);
+    setManjkaDobIme('');
+    setManjkaIzbraniId(null);
+    setManjkaFilter('');
   }, []);
+
+  // Filtrirani dobavitelji za picker
+  const filtriranKupci = useMemo<ShranjenKupec[]>(() => {
+    const seznam = shranjeniKupci ?? [];
+    const q = manjkaFilter.toLowerCase().trim();
+    if (!q) return seznam;
+    return seznam.filter(k =>
+      (k.naziv ?? '').toLowerCase().includes(q) ||
+      (k.kratkiNaziv ?? '').toLowerCase().includes(q)
+    );
+  }, [shranjeniKupci, manjkaFilter]);
 
   const zapri = () => { resetState(); onClose(); };
 
@@ -230,6 +254,31 @@ export function UvozPrejemniceDialog({
     setStUparjenih((data.uparjenih as number) ?? 0);
     setKorak('uparjanje');
   }, [base, dobaviteljiMap]);
+
+  // Uvozi sejo z ročno izbranim dobaviteljem (ko OCR ne prepozna dobavitelja)
+  const uvoziBrezDobavitelja = useCallback(async () => {
+    if (!manjkaSejaId || !manjkaIzbraniId) return;
+    setNalaga(true);
+    setNapaka(null);
+    try {
+      const r = await fetch(`${base}/api/uvoz/seja/${encodeURIComponent(manjkaSejaId)}/s-dobaviteljem`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...enotaHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dobaviteljId: manjkaIzbraniId }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.status !== 'OSNUTEK_USTVARJEN') {
+        setNapaka(data.sporocilo ?? `Uvoz ni uspel (${r.status}).`); return;
+      }
+      setManjkaSejaId(null);
+      await handleUvozIzid({ ...data, dobaviteljId: manjkaIzbraniId });
+    } catch (e) {
+      setNapaka((e as Error).message ?? 'Napaka pri uvozu.');
+    } finally {
+      setNalaga(false);
+    }
+  }, [base, manjkaSejaId, manjkaIzbraniId, handleUvozIzid]);
 
   // ─── Upload datoteke ───────────────────────────────────────────────────
 
@@ -312,11 +361,11 @@ export function UvozPrejemniceDialog({
         return;
       }
       if (r.status === 422 && data.status === 'MANJKA_DOBAVITELJ') {
-        const ime = data.dobaviteljNazivOcr ?? data.predlogDobavitelja?.naziv ?? '';
-        setNapaka(
-          `OCR ni mogel določiti dobavitelja${ime ? ` (${ime})` : ''}. ` +
-          `Uvozite datoteko ali ročno dodajte prejemnico.`
-        );
+        const ime = (data.dobaviteljNazivOcr ?? data.predlogDobavitelja?.naziv ?? '') as string;
+        setManjkaSejaId(data.sejaId as string);
+        setManjkaDobIme(ime);
+        setManjkaFilter(ime); // pre-fill filter z OCR imenom
+        setManjkaIzbraniId(null);
         return;
       }
       if (!r.ok || data.status !== 'OSNUTEK_USTVARJEN') {
@@ -553,6 +602,41 @@ export function UvozPrejemniceDialog({
             </div>
           )}
 
+          {/* MANJKA_DOBAVITELJ — picker za ročno izbiro */}
+          {manjkaSejaId && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-amber-900">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span className="font-medium">
+                  Dobavitelja{manjkaDobIme ? ` „${manjkaDobIme}"` : ''} ni v šifrantu.
+                </span>
+              </div>
+              <p className="text-xs text-amber-800">Izberite obstoječega dobavitelja za ta uvoz:</p>
+              <input
+                type="text"
+                placeholder="Iskanje dobavitelja…"
+                className="w-full rounded border px-2 py-1.5 text-sm bg-white"
+                value={manjkaFilter}
+                onChange={e => { setManjkaFilter(e.target.value); setManjkaIzbraniId(null); }}
+              />
+              <div className="relative">
+                <select
+                  className="w-full rounded border bg-white px-2 py-1.5 text-sm appearance-none pr-7"
+                  value={manjkaIzbraniId ?? ''}
+                  onChange={e => setManjkaIzbraniId(Number(e.target.value) || null)}
+                  size={Math.min(filtriranKupci.length + 1, 5)}
+                >
+                  <option value="">— izberite —</option>
+                  {filtriranKupci.map(k => (
+                    <option key={k.id} value={k.id}>
+                      {k.kratkiNaziv ?? k.naziv}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* ── Datoteka tab ── */}
           {nacin === 'datoteka' && (
             <>
@@ -773,12 +857,23 @@ export function UvozPrejemniceDialog({
           </Button>
 
           {/* OCR gumb — vidno ko je slika pripravljena (kamera ali skener) */}
-          {imaSliko && (
+          {imaSliko && !manjkaSejaId && (
             <Button onClick={posljiOcr} disabled={nalaga}>
               {nalaga ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Prepoznavam…</>
               ) : (
                 <><ScanLine className="w-4 h-4 mr-2" />Uvozi z OCR</>
+              )}
+            </Button>
+          )}
+
+          {/* Gumb za uvoz z ročno izbranim dobaviteljem */}
+          {manjkaSejaId && (
+            <Button onClick={() => void uvoziBrezDobavitelja()} disabled={!manjkaIzbraniId || nalaga}>
+              {nalaga ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uvažam…</>
+              ) : (
+                <><ScanLine className="w-4 h-4 mr-2" />Uvozi z izbranim dobaviteljem</>
               )}
             </Button>
           )}

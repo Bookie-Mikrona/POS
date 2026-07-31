@@ -25,7 +25,7 @@ import {
   zajemi,
   zaznajFormat,
 } from '../../lib/uvoz/uvoz-service';
-import { prazenDto, dodajNapako } from '../../lib/uvoz/dto';
+import { prazenDto, dodajNapako, type PrejemDTO } from '../../lib/uvoz/dto';
 import { potrdiUparjanje, upariPrejemnico } from '../../lib/uvoz/uparjanje';
 import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
 
@@ -250,6 +250,13 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
     const dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
 
     if (!dobaviteljId) {
+      // Shrani DTO za kasnejši uvoz z ročno izbranim dobaviteljem
+      await db.execute(sql`
+        UPDATE uvoz_seja
+           SET razclenitev = ${JSON.stringify(dto, (_k: string, v: unknown) => v instanceof Decimal ? v.toString() : v)}::jsonb,
+               status = 'NAPAKA'
+         WHERE id = ${zajem.sejaId}
+      `);
       return posljiJson(res, 422, {
         status:              'MANJKA_DOBAVITELJ',
         sejaId:              zajem.sejaId,
@@ -282,6 +289,46 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
       koda:     'ZAJ031',
       sporocilo: `OCR uvoz ni uspel: ${(e as Error).message}`,
     });
+  }
+});
+
+// =====================================================================
+// POST /api/uvoz/seja/:sejaId/s-dobaviteljem
+// Dokonča uvoz seje kjer dobavitelja ni bilo mogoče samodejno določiti.
+// =====================================================================
+
+router.post('/seja/:sejaId/s-dobaviteljem', requireEnota, async (req: PosRequest, res: Response) => {
+  const { sejaId } = req.params;
+  const vhod = z.object({ dobaviteljId: z.coerce.number().int().positive() }).safeParse(req.body);
+  if (!vhod.success) return posljiJson(res, 400, { sporocilo: 'Manjka veljaven dobaviteljId.' });
+
+  try {
+    const [seja] = (await db.execute<{ razclenitev: unknown }>(sql`
+      SELECT razclenitev FROM uvoz_seja
+       WHERE id = ${sejaId} AND enota_id = ${req.enotaId}
+    `)).rows;
+
+    if (!seja?.razclenitev) {
+      return posljiJson(res, 404, { sporocilo: 'Seja ne obstaja ali nima shranjene razčlenitve.' });
+    }
+
+    const osnutek = await ustvariOsnutek(db, {
+      enotaId:      req.enotaId,
+      sejaId,
+      dobaviteljId: vhod.data.dobaviteljId,
+      dto:          seja.razclenitev as PrejemDTO,
+      uporabnikId:  0,
+    });
+
+    return posljiJson(res, 201, {
+      status:       'OSNUTEK_USTVARJEN',
+      sejaId,
+      dobaviteljId: vhod.data.dobaviteljId,
+      ...osnutek,
+    });
+  } catch (e) {
+    req.log?.error({ err: e }, 'Uvoz s-dobaviteljem napaka');
+    return posljiJson(res, 500, { sporocilo: `Uvoz ni uspel: ${(e as Error).message}` });
   }
 });
 
