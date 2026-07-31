@@ -38,7 +38,7 @@ async function slikaVPdfBase64(imgBase64: string, mimeTip: string): Promise<stri
   return new Promise((resolve, reject) => {
     const imgBuf = Buffer.from(imgBase64, 'base64');
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ autoFirstPage: false, compress: false });
+    const doc = new PDFDocument({ autoFirstPage: false, compress: true });
     doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
     doc.on('error', reject);
