@@ -528,28 +528,43 @@ export async function uvozi(
     db, v.enotaId, dto, v.posiljatelj, v.dobaviteljId,
   );
 
-  if (!dob.dobaviteljId) {
-    return {
-      sejaId: zajem.sejaId,
-      format: zajem.format,
-      status: 'MANJKA_DOBAVITELJ',
-      napake: [
-        {
+  let dobaviteljId = dob.dobaviteljId;
+  if (!dobaviteljId) {
+    const pred = dob.predlogNovega;
+    if (!pred) {
+      // Ni davčne številke niti e-naslova — ne moremo ustvariti partnerja
+      return {
+        sejaId: zajem.sejaId,
+        format: zajem.format,
+        status: 'MANJKA_DOBAVITELJ',
+        napake: [{
           koda: 'DOK001',
           resnost: 'B',
-          sporocilo: dob.predlogNovega
-            ? `Dobavitelj z davčno ${dob.predlogNovega.davcna} ni v šifrantu.`
-            : 'Dobavitelja ni bilo mogoče določiti iz dokumenta.',
-        },
-      ],
-      predlogDobavitelja: dob.predlogNovega,
-    };
+          sporocilo: 'Dobavitelja ni bilo mogoče določiti iz dokumenta.',
+        }],
+        predlogDobavitelja: null,
+      };
+    }
+    // Samodejno ustvari dobavitelja iz OCR podatkov
+    const naziv = pred.naziv ?? `Uvoz ${pred.davcna}`;
+    const [novDob] = (await db.execute<{ id: number }>(sql`
+      INSERT INTO shranjeni_kupci
+        (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, zavezanec_ddv)
+      VALUES (
+        ${v.enotaId}, ${naziv}, ${pred.davcna},
+        ${dto.dobaviteljIdDdv ?? null},
+        ${dto.dobaviteljDrzava ?? null},
+        ${dto.dobaviteljIdDdv != null}
+      )
+      RETURNING id
+    `)).rows;
+    dobaviteljId = Number(novDob.id);
   }
 
   const osnutek = await ustvariOsnutek(db, {
     enotaId: v.enotaId,
     sejaId: zajem.sejaId,
-    dobaviteljId: dob.dobaviteljId,
+    dobaviteljId: dobaviteljId!,
     dto,
     uporabnikId: v.uporabnikId,
   });
