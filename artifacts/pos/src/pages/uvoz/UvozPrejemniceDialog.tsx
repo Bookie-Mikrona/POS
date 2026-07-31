@@ -458,19 +458,22 @@ export function UvozPrejemniceDialog({
   }, []);
 
   const onNovArtikelShrani = useCallback(async (v: NovArtikelVhod): Promise<{ artikelId: number }> => {
+    if (!novArtikelPostavka) throw new Error('Ni označene postavke.');
     const isProdajni = v.tip === 'NABAVNO_PRODAJNI';
 
+    // 1. Ustvari artikel
     const r = await fetch(`${base}/api/artikli`, {
       method: 'POST',
       credentials: 'include',
       headers: { ...enotaHeader(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ime:             v.naziv,
-        imeZaNabavo:     v.imeZaNabavo ?? undefined,
+        // Ime za nabavo je vedno vsaj naziv — nabavni artikel brez tega polja
+        // ostane v šifrantu brez prepoznavnega nabavnega naziva.
+        imeZaNabavo:     v.imeZaNabavo || v.naziv,
         nabavniArtikel:  true,
         prodajniArtikel: isProdajni,
         enotaMere:       v.osnovnaEnota || undefined,
-        // Prodajni: davek = prodajna stopnja; nabavni: davek = pričakovana nabavna stopnja
         davek:           isProdajni ? v.prodajnaDdvStopnja : v.nabavnaDdvStopnja,
         cena:            isProdajni ? Number(v.cena) || 0 : 0,
         kategorijaId:    isProdajni ? (v.posCategoryId ?? undefined) : undefined,
@@ -491,7 +494,7 @@ export function UvozPrejemniceDialog({
     if (!r.ok) throw new Error((data as { sporocilo?: string; error?: string }).sporocilo ?? (data as { error?: string }).error ?? 'Ustvarjanje artikla ni uspelo.');
     const novId = (data as { id: number }).id;
 
-    // Nastavi normativ (samo za prodajne, in ko je vsaj en vhodni artikel določen)
+    // 2. Normativ (samo za prodajne)
     if (isProdajni && v.normativItems.length > 0) {
       const normRows = v.normativItems
         .map(n => ({
@@ -509,9 +512,40 @@ export function UvozPrejemniceDialog({
       }
     }
 
-    setKorak('uparjanje');
+    // 3. Samodejno poveži nov artikel s postavko — brez tega bi se dialog vrnil
+    //    na zaslon s kandidati in prikazal "ni podobnih artiklov".
+    const pakiranje = novArtikelPostavka.enot_v_paketu ?? '1';
+    const pr = await fetch(`${base}/api/uvoz/postavke/${novArtikelPostavka.id}/upari`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { ...enotaHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artikelId: novId, enotVPaketu: pakiranje, zapomni: false }),
+    });
+    if (!pr.ok) {
+      const err = await pr.json().catch(() => ({}));
+      throw new Error((err as { sporocilo?: string }).sporocilo ?? 'Samodejno povezovanje ni uspelo.');
+    }
+
+    // 4. Posodobi stanje
+    const ostalo = neuparjene.filter(p => p.id !== novArtikelPostavka.id);
+    const noviSt = stUparjenih + 1;
+    setNeuparjene(ostalo);
+    setStUparjenih(noviSt);
+
+    if (ostalo.length === 0) {
+      // Vse postavke so bile obdelane — zaključi uvoz
+      toast({
+        title: 'Uvoz dokončan',
+        description: `${noviSt} artikel${noviSt === 1 ? '' : 'ov'} prepoznanih`,
+      });
+      onUvozDone();
+      zapri();
+    } else {
+      setKorak('uparjanje');
+    }
+
     return { artikelId: novId };
-  }, [base]);
+  }, [base, novArtikelPostavka, neuparjene, stUparjenih, onUvozDone, zapri, toast]);
 
   const onZakljuci = useCallback(() => {
     toast({
