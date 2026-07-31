@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
-import { artikliTable, db, prejemnicePostavkeTable, prejemniceTable, shranjeniKupciTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, db, prejemnicePostavkeTable, prejemniceTable, shranjeniKupciTable, uvozSejaTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
@@ -359,6 +359,7 @@ router.delete("/prejemnice/:id", requireEnota, async (req, res): Promise<void> =
       sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.tip} = 'prejemnica'`
     );
     await tx.delete(prejemnicePostavkeTable).where(eq(prejemnicePostavkeTable.prejemnicaId, id));
+    await tx.delete(uvozSejaTable).where(eq(uvozSejaTable.prejemnicaId, id));
     await tx.delete(prejemniceTable).where(and(eq(prejemniceTable.id, id), sql`true`, eq(prejemniceTable.enotaId, tenotaId)));
 
     await recomputeZaloge(artikelIds, tx);
