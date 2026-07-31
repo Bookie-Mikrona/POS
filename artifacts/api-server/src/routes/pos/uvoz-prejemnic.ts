@@ -18,6 +18,7 @@ import { requireEnota, type PosRequest } from '../../middlewares/pos';
 import {
   dolociDobavitelja,
   razcleniSejo,
+  resolveOrCreateDobavitelja,
   ustvariOsnutek,
   uvozi,
   zajemi,
@@ -207,12 +208,13 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
       });
     }
 
-    // 3. Določi dobavitelja
+    // 3. Določi ali samodejno ustvari dobavitelja
     const dob = await dolociDobavitelja(
       db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
     );
+    const dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
 
-    if (!dob.dobaviteljId) {
+    if (!dobaviteljId) {
       return posljiJson(res, 422, {
         status:              'MANJKA_DOBAVITELJ',
         sejaId:              zajem.sejaId,
@@ -226,7 +228,7 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
     const osnutek = await ustvariOsnutek(db, {
       enotaId:      req.enotaId,
       sejaId:       zajem.sejaId,
-      dobaviteljId: dob.dobaviteljId,
+      dobaviteljId,
       dto,
       uporabnikId:  0,
     });
@@ -304,7 +306,8 @@ router.post(
         const dob = await dolociDobavitelja(
           db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
         );
-        if (!dob.dobaviteljId) {
+        const dobaviteljId = await resolveOrCreateDobavitelja(db, req.enotaId, dob, dto);
+        if (!dobaviteljId) {
           return posljiJson(res, 422, {
             status:             'MANJKA_DOBAVITELJ',
             sejaId:             zajem.sejaId,
@@ -317,7 +320,7 @@ router.post(
         const osnutek = await ustvariOsnutek(db, {
           enotaId:      req.enotaId,
           sejaId:       zajem.sejaId,
-          dobaviteljId: dob.dobaviteljId,
+          dobaviteljId,
           dto,
           uporabnikId:  0,
         });

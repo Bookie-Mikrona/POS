@@ -317,6 +317,47 @@ export interface DobaviteljIzid {
 }
 
 /**
+ * Poišče ali samodejno ustvari dobavitelja na podlagi OCR podatkov.
+ * - Če je že v šifrantu → vrne obstoječi ID.
+ * - Če ima davčno/VAT ID → pokliče VIES, vstavi v shranjeni_kupci, vrne novi ID.
+ * - Če ni nobenih identifikatorjev → vrne null (klic mora vrniti 422).
+ */
+export async function resolveOrCreateDobavitelja(
+  db: Db,
+  enotaId: number,
+  dob: DobaviteljIzid,
+  dto: PrejemDTO,
+): Promise<number | null> {
+  if (dob.dobaviteljId) return dob.dobaviteljId;
+
+  const pred = dob.predlogNovega;
+  if (!pred) return null; // ni davčne niti e-naslova
+
+  const jeSi8 = /^\d{8}$/.test(pred.davcna);
+  const idZaDdv = jeSi8
+    ? (dto.dobaviteljIdDdv ?? `SI${pred.davcna}`)
+    : pred.davcna;
+  const davcnaStevilka = jeSi8 ? pred.davcna : null;
+
+  const vies = await preveriVies(idZaDdv);
+  const naziv      = vies?.naziv    ?? pred.naziv    ?? `Uvoz ${pred.davcna}`;
+  const naslov     = vies?.naslov   ?? null;
+  const kodaDrzave = dto.dobaviteljDrzava ?? vies?.kodaDrzave ?? (jeSi8 ? 'SI' : null);
+
+  const [novDob] = (await db.execute<{ id: number }>(sql`
+    INSERT INTO shranjeni_kupci
+      (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, naslov, zavezanec_ddv)
+    VALUES (
+      ${enotaId}, ${naziv}, ${davcnaStevilka},
+      ${idZaDdv}, ${kodaDrzave}, ${naslov},
+      true
+    )
+    RETURNING id
+  `)).rows;
+  return Number(novDob.id);
+}
+
+/**
  * Davčna številka iz razčlenjenega dokumenta ima PREDNOST pred naslovom
  * pošiljatelja. Računovodski servisi pošiljajo v imenu več dobaviteljev
  * z istega naslova; zanašanje na pošiljatelja bi vse te dobavnice
@@ -550,48 +591,19 @@ export async function uvozi(
     db, v.enotaId, dto, v.posiljatelj, v.dobaviteljId,
   );
 
-  let dobaviteljId = dob.dobaviteljId;
+  const dobaviteljId = await resolveOrCreateDobavitelja(db, v.enotaId, dob, dto);
   if (!dobaviteljId) {
-    const pred = dob.predlogNovega;
-    if (!pred) {
-      // Ni davčne številke niti e-naslova — ne moremo ustvariti partnerja
-      return {
-        sejaId: zajem.sejaId,
-        format: zajem.format,
-        status: 'MANJKA_DOBAVITELJ',
-        napake: [{
-          koda: 'DOK001',
-          resnost: 'B',
-          sporocilo: 'Dobavitelja ni bilo mogoče določiti iz dokumenta.',
-        }],
-        predlogDobavitelja: null,
-      };
-    }
-    // Samodejno ustvari dobavitelja iz OCR podatkov
-    // pred.davcna je ali 8-mestna SI davčna ali tuj VAT ID (DE123456789)
-    const jeSi8 = /^\d{8}$/.test(pred.davcna);
-    const idZaDdv = jeSi8
-      ? (dto.dobaviteljIdDdv ?? `SI${pred.davcna}`)
-      : pred.davcna;
-    const davcnaStevilka = jeSi8 ? pred.davcna : null;
-
-    // Preveri pri VIES — uradni naziv/naslov ima prednost pred OCR ekstrakcijo
-    const vies = await preveriVies(idZaDdv);
-    const naziv    = vies?.naziv    ?? pred.naziv    ?? `Uvoz ${pred.davcna}`;
-    const naslov   = vies?.naslov   ?? null;
-    const kodaDrzave = dto.dobaviteljDrzava ?? vies?.kodaDrzave ?? (jeSi8 ? 'SI' : null);
-
-    const [novDob] = (await db.execute<{ id: number }>(sql`
-      INSERT INTO shranjeni_kupci
-        (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, naslov, zavezanec_ddv)
-      VALUES (
-        ${v.enotaId}, ${naziv}, ${davcnaStevilka},
-        ${idZaDdv}, ${kodaDrzave}, ${naslov},
-        true
-      )
-      RETURNING id
-    `)).rows;
-    dobaviteljId = Number(novDob.id);
+    return {
+      sejaId: zajem.sejaId,
+      format: zajem.format,
+      status: 'MANJKA_DOBAVITELJ',
+      napake: [{
+        koda: 'DOK001',
+        resnost: 'B',
+        sporocilo: 'Dobavitelja ni bilo mogoče določiti iz dokumenta.',
+      }],
+      predlogDobavitelja: null,
+    };
   }
 
   const osnutek = await ustvariOsnutek(db, {
