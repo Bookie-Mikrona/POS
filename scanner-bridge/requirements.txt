@@ -1,6 +1,6 @@
-pywin32==306
-Pillow==10.4.0
-fastapi==0.115.0
-uvicorn==0.30.6
-pystray==0.19.5
-pyinstaller==6.10.0
+pywin32
+Pillow
+fastapi
+uvicorn
+pystray
+pyinstaller
