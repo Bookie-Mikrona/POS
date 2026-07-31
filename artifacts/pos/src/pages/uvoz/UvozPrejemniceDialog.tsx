@@ -1,11 +1,12 @@
 // artifacts/pos/src/pages/uvoz/UvozPrejemniceDialog.tsx
 //
 // Adapter med REST /api/uvoz/* in UparjanjeDialog/NovArtikelDialog komponentama.
-// Podpira dva načina uvoza:
+// Podpira tri načine uvoza:
 //   • Datoteka — CSV, XLSX, XML (e-SLOG), PDF
-//   • Kamera / Skener — Claude Vision OCR
+//   • Kamera / Skener — Claude Vision OCR (mobilni fotoaparat)
+//   • Skeniraj — direkten zajem iz Windows HP scannerja prek lokalnega bridge-a
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload, Camera, AlertTriangle, X, ScanLine } from 'lucide-react';
+import { Loader2, Upload, Camera, AlertTriangle, X, ScanLine, Scan, Wifi, WifiOff, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UparjanjeDialog, type NeuparjenaPostavka, type Kandidat } from './UparjanjeDialog';
 import { NovArtikelDialog, type NovArtikelVhod } from './NovArtikelDialog';
@@ -29,6 +30,10 @@ const DDV_OPC = [
 ];
 
 const ENOTE_MERE = ['kom','kg','g','l','dl','ml','m','m²','m³','par','pak','šk','pal','set'];
+
+// Scanner bridge nastavitve
+const BRIDGE_URL    = 'http://127.0.0.1:8765';
+const BRIDGE_TIMEOUT = 800; // ms za health check
 
 // ─── Tipi ──────────────────────────────────────────────────────────────────
 
@@ -49,7 +54,7 @@ interface Props {
 }
 
 type Korak = 'upload' | 'uparjanje' | 'nov_artikel';
-type Nacin = 'datoteka' | 'kamera';
+type Nacin = 'datoteka' | 'kamera' | 'skener';
 
 interface UvozIzid {
   prejemnicaId: number;
@@ -61,29 +66,49 @@ interface UvozIzid {
   uparjenih: number;
 }
 
-// ─── Pomočnik: zmanjšaj sliko ──────────────────────────────────────────────
+interface BridgeScanner {
+  id: string;
+  name: string;
+}
 
-async function zmanjsajSliko(
-  file: File,
-  maxDim = 1600,
-  kvaliteta = 0.85,
-): Promise<{ base64: string; preview: string; mimeTip: 'image/jpeg' }> {
+interface BridgeStatus {
+  aktiven: boolean;
+  scanners: BridgeScanner[];
+}
+
+// ─── Pomožne funkcije ──────────────────────────────────────────────────────
+
+function enotaHeader(): Record<string, string> {
+  const id = localStorage.getItem('enotaId');
+  return id ? { 'X-Enota-Id': id } : {};
+}
+
+async function zmanjsajSliko(file: File): Promise<{ base64: string; preview: string; mimeTip: string }> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const razmerje = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const w = Math.round(img.width  * razmerje);
-      const h = Math.round(img.height * razmerje);
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', kvaliteta);
-      resolve({ base64: dataUrl.split(',')[1], preview: dataUrl, mimeTip: 'image/jpeg' });
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1600, maxH = 2000;
+        let w = img.width, h = img.height;
+        if (w > maxW || h > maxH) {
+          const ratio = Math.min(maxW / w, maxH / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, w, h);
+        const preview = canvas.toDataURL('image/jpeg', 0.7);
+        const base64  = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]!;
+        resolve({ base64, preview, mimeTip: 'image/jpeg' });
+      };
+      img.onerror = reject;
+      img.src = e.target!.result as string;
     };
-    img.onerror = reject;
-    img.src = url;
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
@@ -98,47 +123,87 @@ export function UvozPrejemniceDialog({
   dobaviteljiMap,
 }: Props) {
   const { toast } = useToast();
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  // ─── Dialog stanje ─────────────────────────────────────────────────────
+  const [korak,              setKorak]              = useState<Korak>('upload');
+  const [nacin,              setNacin]              = useState<Nacin>('datoteka');
+  const [nalaga,             setNalaga]             = useState(false);
+  const [napaka,             setNapaka]             = useState<string | null>(null);
+  const [izid,               setIzid]               = useState<UvozIzid | null>(null);
+  const [neuparjene,         setNeuparjene]         = useState<NeuparjenaPostavka[]>([]);
+  const [stUparjenih,        setStUparjenih]        = useState(0);
+  const [podvojenoPrejId,    setPodvojenoPrejId]    = useState<number | null>(null);
+  const [novArtikelPostavka, setNovArtikelPostavka] = useState<NeuparjenaPostavka | null>(null);
+
+  // OCR slika (kamera ali scanner)
+  const [slikaBase64,  setSlikaBase64]  = useState<string | null>(null);
+  const [slikaPreview, setSlikaPreview] = useState<string | null>(null);
+  const [slikaMime,    setSlikaMime]    = useState<string>('image/jpeg');
+
+  // Scanner bridge stanje
+  const [bridge,           setBridge]           = useState<BridgeStatus | null>(null);
+  const [bridgeNalaga,     setBridgeNalaga]     = useState(false);
+  const [izbraniScanner,   setIzbraniScanner]   = useState<string | null>(null);
+  const [skeniraNalaga,    setSkeniraNalaga]    = useState(false);
+
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const [korak,   setKorak]   = useState<Korak>('upload');
-  const [nacin,   setNacin]   = useState<Nacin>('datoteka');
-  const [nalaga,  setNalaga]  = useState(false);
-  const [napaka,  setNapaka]  = useState<string | null>(null);
-  const [podvojenoPrejId, setPodvojenoPrejId] = useState<number | null>(null);
-  const [izid,    setIzid]    = useState<UvozIzid | null>(null);
-  const [neuparjene,       setNeuparjene]       = useState<NeuparjenaPostavka[]>([]);
-  const [stUparjenih,      setStUparjenih]      = useState(0);
-  const [novArtikelPostavka, setNovArtikelPostavka] = useState<NeuparjenaPostavka | null>(null);
+  // ─── Bridge health check ───────────────────────────────────────────────
+  const preveribridge = useCallback(async () => {
+    setBridgeNalaga(true);
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), BRIDGE_TIMEOUT);
+      const r = await fetch(`${BRIDGE_URL}/health`, {
+        signal: ctrl.signal,
+        cache: 'no-store',
+      });
+      clearTimeout(timer);
+      if (r.ok) {
+        const data = await r.json() as { status: string; scanners: BridgeScanner[] };
+        setBridge({ aktiven: true, scanners: data.scanners ?? [] });
+        if (data.scanners?.length > 0 && !izbraniScanner) {
+          setIzbraniScanner(data.scanners[0]!.id);
+        }
+      } else {
+        setBridge({ aktiven: false, scanners: [] });
+      }
+    } catch {
+      setBridge({ aktiven: false, scanners: [] });
+    } finally {
+      setBridgeNalaga(false);
+    }
+  }, [izbraniScanner]);
 
-  // kamera — predogled pred pošiljanjem
-  const [slikaPreview, setSlikaPreview] = useState<string | null>(null);
-  const [slikaBase64,  setSlikaBase64]  = useState<string | null>(null);
-  const [slikaMime,    setSlikaMime]    = useState<'image/jpeg'>('image/jpeg');
+  // Preveri bridge ko se dialog odpre
+  useEffect(() => {
+    if (open) {
+      void preveribridge();
+    }
+  }, [open, preveribridge]);
 
-  // ─── Pomočniki ─────────────────────────────────────────────────────────────
-
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  const enotaHeader = (): Record<string, string> => ({
-    'x-enota-id': localStorage.getItem('pos_enota_id') ?? '',
-  });
-
-  const resetState = () => {
+  // ─── Reset stanja ──────────────────────────────────────────────────────
+  const resetState = useCallback(() => {
     setKorak('upload');
+    setNacin('datoteka');
     setNalaga(false);
     setNapaka(null);
-    setPodvojenoPrejId(null);
     setIzid(null);
     setNeuparjene([]);
     setStUparjenih(0);
+    setPodvojenoPrejId(null);
     setNovArtikelPostavka(null);
-    setSlikaPreview(null);
     setSlikaBase64(null);
-  };
+    setSlikaPreview(null);
+    setSlikaMime('image/jpeg');
+    setSkeniraNalaga(false);
+  }, []);
 
   const zapri = () => { resetState(); onClose(); };
 
-  // ─── Skupna logika po uvozu ────────────────────────────────────────────────
+  // ─── Skupna logika po uvozu ────────────────────────────────────────────
 
   const handleUvozIzid = useCallback(async (data: Record<string, unknown>) => {
     if (!data.prejemnicaId) throw new Error(data.sporocilo as string ?? 'Uvoz ni uspel.');
@@ -166,7 +231,7 @@ export function UvozPrejemniceDialog({
     setKorak('uparjanje');
   }, [base, dobaviteljiMap]);
 
-  // ─── Upload datoteke ──────────────────────────────────────────────────────
+  // ─── Upload datoteke ───────────────────────────────────────────────────
 
   const naloziDatoteko = useCallback(async (datoteka: File) => {
     setNalaga(true);
@@ -212,7 +277,7 @@ export function UvozPrejemniceDialog({
     }
   }, [base, handleUvozIzid]);
 
-  // ─── Zajem slike s kamere ─────────────────────────────────────────────────
+  // ─── Zajem slike s kamere ──────────────────────────────────────────────
 
   const onSlikaZajeta = useCallback(async (file: File) => {
     setNapaka(null);
@@ -225,6 +290,8 @@ export function UvozPrejemniceDialog({
       setNapaka('Slike ni bilo mogoče obdelati. Poskusite znova.');
     }
   }, []);
+
+  // ─── OCR pošiljanje (skupno za kamero in skener) ───────────────────────
 
   const posljiOcr = useCallback(async () => {
     if (!slikaBase64) return;
@@ -267,7 +334,39 @@ export function UvozPrejemniceDialog({
     }
   }, [base, slikaBase64, slikaMime, handleUvozIzid, toast]);
 
-  // ─── Uparjanje callbacki ──────────────────────────────────────────────────
+  // ─── Skeniranje prek bridge-a ──────────────────────────────────────────
+
+  const skenirај = useCallback(async () => {
+    setSkeniraNalaga(true);
+    setNapaka(null);
+    setSlikaPreview(null);
+    setSlikaBase64(null);
+    try {
+      const r = await fetch(`${BRIDGE_URL}/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: izbraniScanner ?? null,
+          dpi:      300,
+          color:    false,
+          format:   'png',
+        }),
+      });
+      const data = await r.json() as { image?: string; mimeType?: string; detail?: string };
+      if (!r.ok || !data.image) {
+        throw new Error(data.detail ?? 'Skeniranje ni uspelo.');
+      }
+      setSlikaBase64(data.image);
+      setSlikaMime(data.mimeType ?? 'image/png');
+      setSlikaPreview(`data:${data.mimeType ?? 'image/png'};base64,${data.image}`);
+    } catch (e) {
+      setNapaka((e as Error).message ?? 'Napaka pri skeniranju.');
+    } finally {
+      setSkeniraNalaga(false);
+    }
+  }, [izbraniScanner]);
+
+  // ─── Uparjanje callbacki ───────────────────────────────────────────────
 
   const onUpari = useCallback(async (
     postavkaId: number, artikelId: number, enotVPaketu: string, zapomni: boolean,
@@ -338,7 +437,7 @@ export function UvozPrejemniceDialog({
     zapri();
   }, [stUparjenih, onUvozDone, toast]);
 
-  // ─── Prikaz: nov artikel ───────────────────────────────────────────────────
+  // ─── Prikaz: nov artikel ───────────────────────────────────────────────
 
   if (korak === 'nov_artikel' && novArtikelPostavka && izid) {
     return (
@@ -354,7 +453,7 @@ export function UvozPrejemniceDialog({
     );
   }
 
-  // ─── Prikaz: uparjanje ────────────────────────────────────────────────────
+  // ─── Prikaz: uparjanje ─────────────────────────────────────────────────
 
   if (korak === 'uparjanje' && izid) {
     return (
@@ -375,7 +474,10 @@ export function UvozPrejemniceDialog({
     );
   }
 
-  // ─── Prikaz: upload ───────────────────────────────────────────────────────
+  // ─── Prikaz: upload ────────────────────────────────────────────────────
+
+  // Ali imamo sliko (kamera ali skener) pripravljeno za OCR
+  const imaSliko = !!(slikaBase64 && (nacin === 'kamera' || nacin === 'skener'));
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) zapri(); }}>
@@ -384,32 +486,42 @@ export function UvozPrejemniceDialog({
           <DialogTitle>Uvozi dobavnico</DialogTitle>
         </DialogHeader>
 
-        {/* Tab: Datoteka / Kamera */}
+        {/* ── Tabs: Datoteka / Kamera / Skeniraj ── */}
         <div className="flex rounded-lg border overflow-hidden text-sm font-medium">
           <button
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 transition-colors ${
               nacin === 'datoteka'
                 ? 'bg-primary text-primary-foreground'
                 : 'hover:bg-muted text-muted-foreground'
             }`}
             onClick={() => { setNacin('datoteka'); setNapaka(null); setSlikaPreview(null); setSlikaBase64(null); }}
           >
-            <Upload className="w-4 h-4" />Datoteka
+            <Upload className="w-3.5 h-3.5" />Datoteka
           </button>
           <button
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 transition-colors border-l ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 transition-colors border-l ${
               nacin === 'kamera'
                 ? 'bg-primary text-primary-foreground'
                 : 'hover:bg-muted text-muted-foreground'
             }`}
-            onClick={() => { setNacin('kamera'); setNapaka(null); }}
+            onClick={() => { setNacin('kamera'); setNapaka(null); setSlikaPreview(null); setSlikaBase64(null); }}
           >
-            <ScanLine className="w-4 h-4" />Kamera / Skener
+            <Camera className="w-3.5 h-3.5" />Kamera
+          </button>
+          <button
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 transition-colors border-l ${
+              nacin === 'skener'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted text-muted-foreground'
+            }`}
+            onClick={() => { setNacin('skener'); setNapaka(null); setSlikaPreview(null); setSlikaBase64(null); void preveribridge(); }}
+          >
+            <Scan className="w-3.5 h-3.5" />Skeniraj
           </button>
         </div>
 
         <div className="space-y-3">
-          {/* Podvojena dobavnica — direktna navigacija */}
+          {/* Podvojena dobavnica */}
           {podvojenoPrejId && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <div className="flex items-center gap-2 mb-2">
@@ -486,12 +598,11 @@ export function UvozPrejemniceDialog({
           {/* ── Kamera tab ── */}
           {nacin === 'kamera' && (
             <>
-              {/* Predogled posnete slike */}
               {slikaPreview ? (
                 <div className="relative">
                   <img
                     src={slikaPreview}
-                    alt="Predogled skeniranega dokumenta"
+                    alt="Predogled posnete slike"
                     className="w-full rounded-lg border object-contain max-h-64"
                   />
                   <button
@@ -503,9 +614,7 @@ export function UvozPrejemniceDialog({
                   </button>
                 </div>
               ) : (
-                /* Zajem slike */
                 <div className="space-y-3">
-                  {/* Gumb za mobilni fotoaparat */}
                   <button
                     className="w-full flex flex-col items-center gap-3 border-2 border-dashed rounded-lg p-8 hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => cameraInputRef.current?.click()}
@@ -518,14 +627,11 @@ export function UvozPrejemniceDialog({
                       </p>
                     </div>
                   </button>
-
                   <p className="text-center text-xs text-muted-foreground">
                     Claude Vision AI bo samodejno prepoznal postavke, dobavitelja in cene.
                   </p>
                 </div>
               )}
-
-              {/* Skrita vnosna polja za sliko */}
               <input
                 ref={cameraInputRef}
                 type="file"
@@ -539,15 +645,135 @@ export function UvozPrejemniceDialog({
               />
             </>
           )}
+
+          {/* ── Skeniraj tab ── */}
+          {nacin === 'skener' && (
+            <div className="space-y-3">
+              {/* Bridge status */}
+              <div className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${
+                bridge === null
+                  ? 'bg-muted text-muted-foreground'
+                  : bridge.aktiven
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : 'bg-amber-50 border border-amber-200 text-amber-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {bridgeNalaga ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : bridge?.aktiven ? (
+                    <Wifi className="w-4 h-4" />
+                  ) : (
+                    <WifiOff className="w-4 h-4" />
+                  )}
+                  <span>
+                    {bridgeNalaga
+                      ? 'Preverjam most…'
+                      : bridge === null
+                      ? 'Preverjam...'
+                      : bridge.aktiven
+                      ? `Most aktiven · ${bridge.scanners.length} scanner${bridge.scanners.length !== 1 ? 'jev' : ''}`
+                      : 'Scanner most ni zaznan'}
+                  </span>
+                </div>
+                <button
+                  className="text-xs underline opacity-70 hover:opacity-100"
+                  onClick={() => void preveribridge()}
+                  disabled={bridgeNalaga}
+                >
+                  Osveži
+                </button>
+              </div>
+
+              {/* Scanner ni aktiven — navodila */}
+              {bridge && !bridge.aktiven && (
+                <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">Namestite Scanner Bridge:</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    <li>Prenesite <code>ScannerBridge.exe</code> iz mape <code>scanner-bridge/dist/</code></li>
+                    <li>Zaženite <code>ScannerBridge.exe</code> (ikona v system tray-u)</li>
+                    <li>Kliknite Osveži zgoraj</li>
+                  </ol>
+                </div>
+              )}
+
+              {/* Izbira scannerja (če jih je več) */}
+              {bridge?.aktiven && bridge.scanners.length > 1 && (
+                <div className="relative">
+                  <select
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm pr-8 appearance-none"
+                    value={izbraniScanner ?? ''}
+                    onChange={e => setIzbraniScanner(e.target.value)}
+                  >
+                    {bridge.scanners.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+              )}
+
+              {/* Predogled skeniranega dokumenta */}
+              {slikaPreview ? (
+                <div className="relative">
+                  <img
+                    src={slikaPreview}
+                    alt="Predogled skeniranega dokumenta"
+                    className="w-full rounded-lg border object-contain max-h-64"
+                  />
+                  <button
+                    className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur p-1 hover:bg-background"
+                    onClick={() => { setSlikaPreview(null); setSlikaBase64(null); setNapaka(null); }}
+                    title="Odstrani sken"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                /* Gumb za skeniranje */
+                <button
+                  disabled={!bridge?.aktiven || skeniraNalaga || nalaga}
+                  className="w-full flex flex-col items-center gap-3 border-2 border-dashed rounded-lg p-8 transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-muted/50 enabled:cursor-pointer"
+                  onClick={() => void skenirај()}
+                >
+                  {skeniraNalaga ? (
+                    <>
+                      <Loader2 className="w-10 h-10 text-muted-foreground animate-spin" />
+                      <div>
+                        <p className="font-medium">Skeniram dokument…</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Položite dokument v scanner</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Scan className="w-10 h-10 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Skeniraj dokument</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {bridge?.aktiven && bridge.scanners.length > 0
+                            ? bridge.scanners.find(s => s.id === izbraniScanner)?.name ?? bridge.scanners[0]?.name ?? 'HP Scanner'
+                            : 'Scanner ni priključen'}
+                          {' · 300 dpi · sivinska'}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </button>
+              )}
+
+              <p className="text-center text-xs text-muted-foreground">
+                Claude Vision AI bo samodejno prepoznal postavke, dobavitelja in cene.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={zapri} disabled={nalaga}>
+          <Button variant="outline" onClick={zapri} disabled={nalaga || skeniraNalaga}>
             Prekliči
           </Button>
 
-          {/* Pošlji OCR gumb — vidno samo ko je slika pripravljena */}
-          {nacin === 'kamera' && slikaBase64 && (
+          {/* OCR gumb — vidno ko je slika pripravljena (kamera ali skener) */}
+          {imaSliko && (
             <Button onClick={posljiOcr} disabled={nalaga}>
               {nalaga ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Prepoznavam…</>
