@@ -282,9 +282,14 @@ export function UparjanjeDialog(l: Lastnosti) {
                       {i + 1}
                     </kbd>
                   )}
-                  <span className="flex-1 truncate">{k.naziv}</span>
+                  <span className="flex-1 truncate min-w-0">
+                    <span className="truncate">{k.naziv}</span>
+                    {kandidati.filter(c => c.naziv === k.naziv).length > 1 && (
+                      <span className="ml-1 text-xs text-neutral-400">#{k.artikelId}</span>
+                    )}
+                  </span>
                   {k.osnovnaEnota && (
-                    <span className="text-sm text-neutral-500">({k.osnovnaEnota})</span>
+                    <span className="shrink-0 text-sm text-neutral-500">({k.osnovnaEnota})</span>
                   )}
 
                   {/* Cena je močnejši signal od imena: dobavitelj piše
