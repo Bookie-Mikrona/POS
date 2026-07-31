@@ -397,18 +397,33 @@ export async function ustvariOsnutek(
   }
 
   const prejemnicaId = await db.transaction(async (tx) => {
+    // Stevilka: YYNNNNNN — enako kot ročna prejemnica
+    const year = dto.datumDokumenta
+      ? Number(dto.datumDokumenta.slice(0, 4))
+      : new Date().getFullYear();
+    const yy = String(year).slice(-2);
+    const [seq] = (await tx.execute<{ next: string }>(sql`
+      SELECT COALESCE(MAX(CAST(SUBSTRING(stevilka, 3) AS INTEGER)), 0) + 1 AS next
+        FROM prejemnice
+       WHERE stevilka LIKE ${`${yy}%`}
+         AND LENGTH(stevilka) = 8
+         AND enota_id = ${enotaId}
+    `)).rows;
+    const stevilka = `${yy}${String(Number(seq?.next ?? 1)).padStart(6, '0')}`;
+
     // BOOKIE stolpci: enota_id, dobavitelj_id, datum, vrsta_cen, opomba,
     // st_dokumenta, datum_dokumenta, uvoz_seja_id (dodani z migracijo 0009)
     const [glava] = (await tx.execute<{ id: number }>(sql`
       INSERT INTO prejemnice (
         enota_id, dobavitelj_id, datum,
-        vrsta_cen, opomba,
+        vrsta_cen, opomba, stevilka,
         st_dokumenta, datum_dokumenta, uvoz_seja_id)
       VALUES (
         ${enotaId}, ${dobaviteljId},
         ${dto.datumDokumenta ?? sql`CURRENT_DATE`},
         ${dto.ceneBruto ? 'bruto' : 'neto'},
         ${dto.stDokumenta ? `Uvoz: ${dto.stDokumenta}` : 'Uvoz'},
+        ${stevilka},
         ${dto.stDokumenta ?? null}, ${dto.datumDokumenta ?? null}, ${sejaId})
       RETURNING id
     `)).rows;
