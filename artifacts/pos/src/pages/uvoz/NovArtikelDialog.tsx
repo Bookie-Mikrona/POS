@@ -271,11 +271,11 @@ export function NovArtikelDialog(l: Lastnosti) {
   const prodajniArtikli = artikliList.filter(a => a.prodajniArtikel && a.aktiven);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-      <div className="my-8 w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
 
         {/* Glava */}
-        <div className="mb-4 flex items-start justify-between">
+        <div className="shrink-0 flex items-start justify-between border-b px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold">Nov nabavni artikel</h2>
             <p className="text-sm text-neutral-500">iz dobavnice {l.dobaviteljNaziv}</p>
@@ -283,6 +283,9 @@ export function NovArtikelDialog(l: Lastnosti) {
           <button onClick={l.onPreklici} aria-label="Zapri"
                   className="rounded p-1 text-neutral-400 hover:bg-neutral-100">✕</button>
         </div>
+
+        {/* Telo — drsi */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
 
         {/* Izvorni zapis */}
         <div className="rounded-md border bg-neutral-50 p-3 text-sm">
@@ -655,8 +658,10 @@ export function NovArtikelDialog(l: Lastnosti) {
 
         </div>{/* /space-y-5 */}
 
+        </div>{/* /telo-drsi */}
+
         {/* Noga */}
-        <div className="mt-5 flex justify-end gap-2 border-t pt-4">
+        <div className="shrink-0 flex justify-end gap-2 border-t px-6 py-4">
           <button onClick={l.onPreklici}
                   className="rounded border px-4 py-2 text-sm hover:bg-neutral-50">
             Prekliči
