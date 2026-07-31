@@ -11,6 +11,7 @@ import multer from 'multer';
 import { Decimal } from 'decimal.js';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import PDFDocument from 'pdfkit';
 
 import { db } from '@workspace/db';
 import { anthropic } from '@workspace/integrations-anthropic-ai';
@@ -32,19 +33,37 @@ import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
 // OCR helper — Claude Vision → PrejemDTO
 // =====================================================================
 
+/** Pretvori base64 PNG/JPEG sliko v enostranični PDF (Vertex AI ne sprejema image/base64). */
+async function slikaVPdfBase64(imgBase64: string, mimeTip: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const imgBuf = Buffer.from(imgBase64, 'base64');
+    const chunks: Buffer[] = [];
+    const doc = new PDFDocument({ autoFirstPage: false, compress: false });
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+    doc.on('error', reject);
+
+    // Ugotovimo dimenzije slike
+    const img = doc.openImage(imgBuf);
+    doc.addPage({ size: [img.width, img.height], margin: 0 });
+    doc.image(imgBuf, 0, 0, { width: img.width, height: img.height });
+    doc.end();
+  });
+}
+
 async function ocrSlikaVDto(base64: string, mimeTip: string) {
-  type ImgMime = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
   const isPdf = mimeTip === 'application/pdf';
 
-  const mediaBlock = isPdf
-    ? ({
-        type: 'document' as const,
-        source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64 },
-      })
-    : ({
-        type: 'image' as const,
-        source: { type: 'base64' as const, media_type: mimeTip as ImgMime, data: base64 },
-      });
+  // Vertex AI proxy ne podpira image/base64 — pretvorimo v PDF
+  let pdfBase64 = base64;
+  if (!isPdf) {
+    pdfBase64 = await slikaVPdfBase64(base64, mimeTip);
+  }
+
+  const mediaBlock = {
+    type: 'document' as const,
+    source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: pdfBase64 },
+  };
 
   const msg = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
