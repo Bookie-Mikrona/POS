@@ -458,23 +458,59 @@ export function UvozPrejemniceDialog({
   }, []);
 
   const onNovArtikelShrani = useCallback(async (v: NovArtikelVhod): Promise<{ artikelId: number }> => {
+    const isProdajni = v.tip === 'NABAVNO_PRODAJNI';
+
     const r = await fetch(`${base}/api/artikli`, {
       method: 'POST',
       credentials: 'include',
       headers: { ...enotaHeader(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ime:             v.naziv,
+        imeZaNabavo:     v.imeZaNabavo ?? undefined,
         nabavniArtikel:  true,
-        prodajniArtikel: v.tip === 'NABAVNO_PRODAJNI',
-        enotaMere:       v.osnovnaEnota,
-        davek:           Number(v.nabavnaDdvStopnja),
+        prodajniArtikel: isProdajni,
+        enotaMere:       v.osnovnaEnota || undefined,
+        // Prodajni: davek = prodajna stopnja; nabavni: davek = pričakovana nabavna stopnja
+        davek:           isProdajni ? v.prodajnaDdvStopnja : v.nabavnaDdvStopnja,
+        cena:            isProdajni ? Number(v.cena) || 0 : 0,
+        kategorijaId:    isProdajni ? (v.posCategoryId ?? undefined) : undefined,
+        aktiven:         isProdajni ? v.aktiven : false,
+        barva:           isProdajni ? (v.barva ?? undefined) : undefined,
+        jePica:          isProdajni ? v.jePica : false,
+        toGo:            isProdajni ? v.toGo : false,
+        toGoArtikli:     isProdajni ? v.toGoArtikli : [],
+        happyHourCena:   isProdajni && v.happyHourCena ? Number(v.happyHourCena) : undefined,
+        vrstaArtikla:    v.vrstaArtikla,
+        taxCategory:     v.taxCategory,
+        addedSugar:      v.addedSugar,
+        skupina:         v.skupina ?? undefined,
         gtin:            v.gtin ?? undefined,
       }),
     });
     const data = await r.json();
-    if (!r.ok) throw new Error((data as { sporocilo?: string }).sporocilo ?? 'Ustvarjanje artikla ni uspelo.');
+    if (!r.ok) throw new Error((data as { sporocilo?: string; error?: string }).sporocilo ?? (data as { error?: string }).error ?? 'Ustvarjanje artikla ni uspelo.');
+    const novId = (data as { id: number }).id;
+
+    // Nastavi normativ (samo za prodajne, in ko je vsaj en vhodni artikel določen)
+    if (isProdajni && v.normativItems.length > 0) {
+      const normRows = v.normativItems
+        .map(n => ({
+          vhodniArtikelId: n.vhodniArtikelId === -1 ? novId : n.vhodniArtikelId,
+          kolicina: parseFloat(n.kolicina) || 0,
+        }))
+        .filter(n => n.vhodniArtikelId > 0 && n.kolicina > 0);
+      if (normRows.length > 0) {
+        await fetch(`${base}/api/artikli/${novId}/normativi`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { ...enotaHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(normRows),
+        }).catch(() => {/* normativ napaka ni fatalna */});
+      }
+    }
+
     setKorak('uparjanje');
-    return { artikelId: (data as { id: number }).id };
+    return { artikelId: novId };
   }, [base]);
 
   const onZakljuci = useCallback(() => {
@@ -494,8 +530,8 @@ export function UvozPrejemniceDialog({
         postavka={novArtikelPostavka}
         dobaviteljNaziv={izid.dobaviteljNaziv}
         enote={ENOTE_MERE}
-        davcneKategorije={DDV_OPC}
-        skupine={[]}
+        apiBase={base}
+        getEnotaHeader={enotaHeader}
         onShrani={onNovArtikelShrani}
         onPreklici={() => setKorak('uparjanje')}
       />
