@@ -57,7 +57,9 @@ async function ocrSlikaVDto(base64: string, mimeTip: string) {
           text: `Analiziraj sliko računa ali dobavnice in vrni SAMO veljavni JSON (brez razlage ali markdown) s to strukturo:
 {
   "dobaviteljNaziv": "ime podjetja dobavitelja ali null",
-  "dobaviteljDavcna": "davčna številka - samo 8 cifer brez SI predpone ali null",
+  "dobaviteljDavcna": "davčna številka - samo 8 cifer brez SI predpone (slovensko podjetje) ali null",
+  "dobaviteljIdDdv": "DDV identifikacijska številka z državo (npr. SI12345678, DE123456789, AT12345678) ali null - zapolni za tuja podjetja",
+  "dobaviteljDrzava": "dvočrkovna ISO koda države dobavitelja (npr. DE, AT, HR, IT) ali null",
   "stDokumenta": "številka dokumenta/računa ali null",
   "datumDokumenta": "datum v obliki YYYY-MM-DD ali null",
   "ceneBruto": true ali false (ali so cene z DDV),
@@ -74,7 +76,7 @@ async function ocrSlikaVDto(base64: string, mimeTip: string) {
   ]
 }
 
-PRAVILA: Vrni SAMO JSON. Davčna: 8 cifer brez SI. Datum: YYYY-MM-DD. Decimalno ločilo: pika. Cene neto razen če ceneBruto=true.`,
+PRAVILA: Vrni SAMO JSON. Za slovensko podjetje: dobaviteljDavcna = 8 cifer brez SI, dobaviteljIdDdv = "SI" + 8 cifer. Za tuje podjetje: dobaviteljDavcna = null, dobaviteljIdDdv = koda+številka. Datum: YYYY-MM-DD. Decimalno ločilo: pika. Cene neto razen če ceneBruto=true.`,
         },
       ],
     }],
@@ -94,8 +96,14 @@ PRAVILA: Vrni SAMO JSON. Davčna: 8 cifer brez SI. Datum: YYYY-MM-DD. Decimalno 
   dto.stDokumenta       = (raw.stDokumenta       as string)  ?? null;
   dto.ceneBruto         = !!(raw.ceneBruto);
 
-  const davcna = raw.dobaviteljDavcna as string ?? '';
+  const davcna = (raw.dobaviteljDavcna as string) ?? '';
   if (/^\d{8}$/.test(davcna)) dto.dobaviteljDavcna = davcna;
+
+  const idDdv = ((raw.dobaviteljIdDdv as string) ?? '').trim().replace(/\s/g, '');
+  if (idDdv) dto.dobaviteljIdDdv = idDdv.toUpperCase();
+
+  const drzava = (raw.dobaviteljDrzava as string) ?? '';
+  if (/^[A-Za-z]{2}$/.test(drzava)) dto.dobaviteljDrzava = drzava.toUpperCase();
 
   const datum = raw.datumDokumenta as string ?? '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) dto.datumDokumenta = datum;

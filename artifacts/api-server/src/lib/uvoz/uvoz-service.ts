@@ -340,11 +340,31 @@ export async function dolociDobavitelja(
     `)).rows;
     if (p) return { dobaviteljId: Number(p.id), vir: 'DAVCNA', predlogNovega: null };
 
-    // Dobavitelj ni v šifrantu — ponudi vpis
+    // Dobavitelj ni v šifrantu — samodejno ustvari
     return {
       dobaviteljId: null,
       vir: null,
       predlogNovega: { davcna: dto.dobaviteljDavcna, naziv: dto.dobaviteljNaziv },
+    };
+  }
+
+  // Tuji dobavitelj — poišči po id_za_ddv (npr. DE123456789)
+  if (dto.dobaviteljIdDdv) {
+    const idDdvNorm = dto.dobaviteljIdDdv.replace(/\s/g, '').toUpperCase();
+    const [p] = (await db.execute<{ id: number }>(sql`
+      SELECT id FROM shranjeni_kupci
+       WHERE enota_id = ${enotaId}
+         AND upper(regexp_replace(coalesce(id_za_ddv,''), '\s', '', 'g'))
+             = ${idDdvNorm}
+       LIMIT 1
+    `)).rows;
+    if (p) return { dobaviteljId: Number(p.id), vir: 'DAVCNA', predlogNovega: null };
+
+    // Ni v šifrantu — samodejno ustvari
+    return {
+      dobaviteljId: null,
+      vir: null,
+      predlogNovega: { davcna: idDdvNorm, naziv: dto.dobaviteljNaziv },
     };
   }
 
@@ -546,15 +566,22 @@ export async function uvozi(
       };
     }
     // Samodejno ustvari dobavitelja iz OCR podatkov
+    // pred.davcna je ali 8-mestna SI davčna ali tuj VAT ID (DE123456789)
+    const jeSi8 = /^\d{8}$/.test(pred.davcna);
     const naziv = pred.naziv ?? `Uvoz ${pred.davcna}`;
+    const davcnaStevilka  = jeSi8 ? pred.davcna : null;
+    const idZaDdv         = jeSi8
+      ? (dto.dobaviteljIdDdv ?? `SI${pred.davcna}`)
+      : pred.davcna;  // pred.davcna je že celi VAT ID npr. DE123456789
+    const kodaDrzave      = dto.dobaviteljDrzava ?? (jeSi8 ? 'SI' : null);
     const [novDob] = (await db.execute<{ id: number }>(sql`
       INSERT INTO shranjeni_kupci
         (enota_id, naziv, davcna_stevilka, id_za_ddv, koda_drzave, zavezanec_ddv)
       VALUES (
-        ${v.enotaId}, ${naziv}, ${pred.davcna},
-        ${dto.dobaviteljIdDdv ?? null},
-        ${dto.dobaviteljDrzava ?? null},
-        ${dto.dobaviteljIdDdv != null}
+        ${v.enotaId}, ${naziv}, ${davcnaStevilka},
+        ${idZaDdv},
+        ${kodaDrzave},
+        true
       )
       RETURNING id
     `)).rows;
