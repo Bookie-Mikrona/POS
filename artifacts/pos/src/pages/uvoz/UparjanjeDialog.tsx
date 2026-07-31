@@ -327,12 +327,24 @@ export function UparjanjeDialog(l: Lastnosti) {
           </div>
 
           {/* učenje: brez tega je vsak naslednji uvoz enako ročen */}
-          <label className="mt-3 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={zapomni}
-                   onChange={(e) => setZapomni(e.target.checked)}
-                   className="accent-orange-600" />
-            Zapomni si za tega dobavitelja
-          </label>
+          {(() => {
+            const imaSidro = !!(postavka.izv_sifra?.trim() || postavka.izv_gtin?.trim());
+            return (
+              <label className={`mt-3 flex items-center gap-2 text-sm ${
+                imaSidro ? '' : 'cursor-not-allowed opacity-50'}`}>
+                <input type="checkbox" checked={zapomni && imaSidro}
+                       onChange={(e) => imaSidro && setZapomni(e.target.checked)}
+                       disabled={!imaSidro}
+                       className="accent-orange-600 disabled:cursor-not-allowed" />
+                Zapomni si za tega dobavitelja
+                {!imaSidro && (
+                  <span className="text-xs text-neutral-400">
+                    (ni šifre/EAN — uparjanje se ne more zapomniti)
+                  </span>
+                )}
+              </label>
+            );
+          })()}
 
           {napaka && (
             <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-800">{napaka}</p>

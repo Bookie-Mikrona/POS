@@ -181,7 +181,13 @@ export async function upariPostavko(
     nastavitve.dovoljenoOdstopanjeCene,
   );
 
-  const samodejno = zaupanje >= nastavitve.pragSamodejnega && cenaPotrjuje === true;
+  // cenaPotrjuje === null = ni podatka za primerjavo (prvi uvoz, brez cene).
+  // En sam kandidat na vrhu brez cenovnega nasprotja → avto-uparjanje je varno.
+  // cenaPotrjuje === false = cena nasprotuje → zahteva ročno potrditev.
+  const samodejno =
+    zaupanje >= nastavitve.pragSamodejnega &&
+    cenaPotrjuje !== false &&
+    (cenaPotrjuje === true || kandidati.length === 1);
 
   return {
     artikelId: najboljsi.artikelId,
@@ -340,6 +346,12 @@ export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
     if (v.zapomni === false) return;
 
     const gtin = gtinNorm(v.izvGtin);
+    const sifraTrimmed = v.izvSifra?.trim() || null;
+
+    // Brez šifre dobavitelja in brez GTINa ne moremo ustvariti preslikave —
+    // INSERT bi kršil ck_ad_kljuc CHECK. Preskok je varen: postavka je
+    // že uparjena (UPDATE zgoraj), le trajna preslikava manjka.
+    if (!sifraTrimmed && !gtin) return;
     const cena = v.izvCena ? v.izvCena.toString() : null;
 
     // ON CONFLICT po šifri dobavitelja; kadar šifre ni, po GTIN

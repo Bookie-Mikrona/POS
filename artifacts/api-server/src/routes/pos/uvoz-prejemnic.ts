@@ -750,21 +750,29 @@ router.post(
     const enotVPaketu = new Decimal(vhod.data.enotVPaketu);
     const cenaPaket = post.izv_cena ? new Decimal(post.izv_cena) : null;
 
-    await potrdiUparjanje(db, {
-      enotaId: req.enotaId,
-      dobaviteljId: Number(post.dobavitelj_id),
-      artikelId: vhod.data.artikelId,
-      postavkaId: Number(req.params.id),
-      uporabnikId: 0,
-      enotVPaketu,
-      izvSifra: post.izv_sifra,
-      izvGtin: post.izv_gtin,
-      izvNaziv: post.izv_naziv,
-      // v preslikavo gre cena NA ENOTO, ne cena paketa
-      izvCena: cenaPaket && enotVPaketu.gt(0) ? cenaPaket.div(enotVPaketu) : null,
-      datumPrevzema: post.datum,
-      zapomni: vhod.data.zapomni,
-    });
+    try {
+      await potrdiUparjanje(db, {
+        enotaId: req.enotaId,
+        dobaviteljId: Number(post.dobavitelj_id),
+        artikelId: vhod.data.artikelId,
+        postavkaId: Number(req.params.id),
+        uporabnikId: 0,
+        enotVPaketu,
+        izvSifra: post.izv_sifra,
+        izvGtin: post.izv_gtin,
+        izvNaziv: post.izv_naziv,
+        // v preslikavo gre cena NA ENOTO, ne cena paketa
+        izvCena: cenaPaket && enotVPaketu.gt(0) ? cenaPaket.div(enotVPaketu) : null,
+        datumPrevzema: post.datum,
+        zapomni: vhod.data.zapomni,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      return posljiJson(res, 500, {
+        koda: 'ZAJ022',
+        sporocilo: msg || 'Napaka pri shranjevanju uparjanja.',
+      });
+    }
 
     return posljiJson(res, 200, { status: 'UPARJENO' });
   },
