@@ -282,14 +282,16 @@ router.post(
           metapodatki: { vir: 'OCR_PDF', model: 'claude-sonnet-4-6' },
         });
 
-        if (zajem.status === 'PODVOJENO') {
+        if (zajem.status === 'PODVOJENO' && zajem.obstojecaPrejemnicaId != null) {
+          // Seja obstaja IN ima prejemnico → resnično podvajanje
           return posljiJson(res, 409, {
-            status:    'PODVOJENO',
-            sejaId:    zajem.sejaId,
-            napake:    [{ koda: 'ZAJ003', resnost: 'B', sporocilo: 'Ta PDF je bil že uvožen.' }],
+            status:       'PODVOJENO',
+            sejaId:       zajem.sejaId,
             prejemnicaId: zajem.obstojecaPrejemnicaId,
+            napake:       [{ koda: 'ZAJ003', resnost: 'B', sporocilo: 'Ta PDF je bil že uvožen.' }],
           });
         }
+        // Seja brez prejemnice (prejšnji uvoz je padel) → nadaljuj z enim sejaId
 
         const dob = await dolociDobavitelja(
           db, req.enotaId, dto, null, vhod.data.dobaviteljId ?? null,
