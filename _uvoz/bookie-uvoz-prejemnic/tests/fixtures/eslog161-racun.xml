@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Racun>
+  <RacunGlava>
+    <RacunSt><StevilkaDokumenta>2026-000871</StevilkaDokumenta></RacunSt>
+    <DatumiRacuna><VrstaDatuma>137</VrstaDatuma><DatumRacuna>2026-01-15</DatumRacuna></DatumiRacuna>
+    <DatumiRacuna><VrstaDatuma>13</VrstaDatuma><DatumRacuna>2026-01-30</DatumRacuna></DatumiRacuna>
+    <PartnerRacuna>
+      <VrstaPartnerja>SE</VrstaPartnerja>
+      <NazivPartnerja><Naziv>STARI DOBAVITELJ d.o.o.</Naziv></NazivPartnerja>
+      <DavcnaStevilka>SI87654321</DavcnaStevilka>
+      <MaticnaStevilka>1234567000</MaticnaStevilka>
+    </PartnerRacuna>
+    <PartnerRacuna>
+      <VrstaPartnerja>BY</VrstaPartnerja>
+      <NazivPartnerja><Naziv>Gostilna Primer d.o.o.</Naziv></NazivPartnerja>
+    </PartnerRacuna>
+    <ValutaRacuna>EUR</ValutaRacuna>
+  </RacunGlava>
+
+  <RacunPostavka>
+    <StevilkaPostavke>1</StevilkaPostavke>
+    <PostavkaArtikel>
+      <SifraArtikla>SD-1001</SifraArtikla>
+      <EanArtikla>3838800000121</EanArtikla>
+      <NazivArtikla>Caj vrecka - Kamilica 20/1</NazivArtikla>
+    </PostavkaArtikel>
+    <PostavkaKolicina><VrstaKolicine>47</VrstaKolicine><Kolicina>10</Kolicina><EnotaMere>H87</EnotaMere></PostavkaKolicina>
+    <PostavkaCena><VrstaCene>AAA</VrstaCene><Cena>5,476</Cena></PostavkaCena>
+    <PostavkaZnesek><VrstaZneska>203</VrstaZneska><Znesek>54,76</Znesek></PostavkaZnesek>
+    <PostavkaOdstotek><VrstaOdstotka>3</VrstaOdstotka><Odstotek>9,5</Odstotek></PostavkaOdstotek>
+  </RacunPostavka>
+
+  <RacunPostavka>
+    <StevilkaPostavke>2</StevilkaPostavke>
+    <PostavkaArtikel>
+      <SifraArtikla>SD-2050</SifraArtikla>
+      <NazivArtikla>Serviete papirnate bele</NazivArtikla>
+    </PostavkaArtikel>
+    <PostavkaKolicina><VrstaKolicine>47</VrstaKolicine><Kolicina>2000</Kolicina><EnotaMere>H87</EnotaMere></PostavkaKolicina>
+    <!-- PAST: cena je za 1000 kosov -->
+    <PostavkaCena><VrstaCene>AAA</VrstaCene><Cena>18,50</Cena><OsnovnaKolicina>1000</OsnovnaKolicina></PostavkaCena>
+    <PostavkaZnesek><VrstaZneska>203</VrstaZneska><Znesek>37,00</Znesek></PostavkaZnesek>
+    <PostavkaOdstotek><VrstaOdstotka>3</VrstaOdstotka><Odstotek>22</Odstotek></PostavkaOdstotek>
+  </RacunPostavka>
+
+  <RacunPostavka>
+    <StevilkaPostavke>3</StevilkaPostavke>
+    <PostavkaArtikel>
+      <SifraArtikla>SD-3300</SifraArtikla>
+      <NazivArtikla>Olje sončnično 1 l</NazivArtikla>
+    </PostavkaArtikel>
+    <PostavkaKolicina><VrstaKolicine>47</VrstaKolicine><Kolicina>12</Kolicina><EnotaMere>LTR</EnotaMere></PostavkaKolicina>
+    <PostavkaCena><VrstaCene>AAA</VrstaCene><Cena>2,40</Cena></PostavkaCena>
+    <PostavkaOdstotek><VrstaOdstotka>1</VrstaOdstotka><Odstotek>5</Odstotek></PostavkaOdstotek>
+    <PostavkaZnesek><VrstaZneska>203</VrstaZneska><Znesek>27,36</Znesek></PostavkaZnesek>
+    <PostavkaOdstotek><VrstaOdstotka>3</VrstaOdstotka><Odstotek>9,5</Odstotek></PostavkaOdstotek>
+  </RacunPostavka>
+
+  <RacunPovzetek>
+    <PovzetekZnesek><VrstaZneska>79</VrstaZneska><Znesek>119,12</Znesek></PovzetekZnesek>
+    <PovzetekZnesek><VrstaZneska>124</VrstaZneska><Znesek>15,95</Znesek></PovzetekZnesek>
+    <PovzetekZnesek><VrstaZneska>77</VrstaZneska><Znesek>135,07</Znesek></PovzetekZnesek>
+  </RacunPovzetek>
+</Racun>

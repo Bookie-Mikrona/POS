@@ -1,0 +1,1069 @@
+openapi: 3.0.3
+info:
+  title: ERP — Modul prevzema blaga
+  description: |
+    Uvoz prejemnic in dobavnic dobaviteljev za POS gostinstvo.
+    Vsi kanali uvoza (datoteka, e-pošta, Peppol, API, OCR) se stekajo
+    v isti tok obdelave: zajem → razčlenitev → uparjanje → validacija → knjiženje.
+  version: "1.0.0"
+
+# ⚠ OPOMBA: ta datoteka je bila pisana kot pogodba pred izvedbo.
+# Dejanske poti so /api/pos/uvoz/... in so definirane v
+# artifacts/api-server/src/routes/pos/uvoz-prejemnic.ts in uvoz-profili.ts.
+# Ob razhajanju velja koda. Datoteka ostaja kot pregled obsega vmesnika.
+
+servers:
+  - url: /api/pos/uvoz
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Uvoz
+    description: Zajem in razčlenitev vhodnih dokumentov
+  - name: Prejemnice
+    description: Delo s prejemnicami
+  - name: Uparjanje
+    description: Preslikava artiklov dobavitelja
+  - name: Profili
+    description: Konfiguracija uvoza po dobavitelju
+  - name: Usklajevanje
+    description: Trismerno usklajevanje in reklamacije
+
+paths:
+
+  # ==================== UVOZ ====================
+
+  /uvoz/datoteka:
+    post:
+      tags: [Uvoz]
+      summary: Naloži dokument za uvoz
+      description: |
+        Sprejme datoteko poljubnega podprtega formata. Format se zazna
+        avtomatsko, razen če je podan izrecno. Vrne ID uvozne seje.
+        Če je bila enaka datoteka (SHA-256) že obdelana, vrne 409 s
+        sklicem na obstoječo sejo.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [datoteka]
+              properties:
+                datoteka:
+                  type: string
+                  format: binary
+                poslovalnica_id:
+                  type: integer
+                  format: int64
+                dobavitelj_id:
+                  type: integer
+                  format: int64
+                  description: Neobvezno; pospeši izbiro uvoznega profila.
+                format:
+                  $ref: '#/components/schemas/UvozFormat'
+                takoj_obdelaj:
+                  type: boolean
+                  default: true
+      responses:
+        '202':
+          description: Sprejeto v obdelavo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UvozSeja'
+        '409':
+          description: Podvojen dokument
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Napaka'
+                  - type: object
+                    properties:
+                      obstojeca_seja_id: { type: string, format: uuid }
+                      obstojeci_prejem_id: { type: integer, format: int64 }
+        '415': { $ref: '#/components/responses/NepodprtFormat' }
+
+  /uvoz/seje:
+    get:
+      tags: [Uvoz]
+      summary: Seznam uvoznih sej
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/UvozStatus' } }
+        - { name: kanal, in: query, schema: { $ref: '#/components/schemas/UvozKanal' } }
+        - { name: od, in: query, schema: { type: string, format: date } }
+        - { name: do, in: query, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/Stran' }
+        - { $ref: '#/components/parameters/Velikost' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vsebina:
+                    type: array
+                    items: { $ref: '#/components/schemas/UvozSeja' }
+                  skupaj: { type: integer }
+
+  /uvoz/seje/{sejaId}:
+    get:
+      tags: [Uvoz]
+      summary: Podrobnosti uvozne seje
+      parameters: [{ $ref: '#/components/parameters/SejaId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/UvozSeja'
+                  - type: object
+                    properties:
+                      razclenitev: { $ref: '#/components/schemas/PrejemDTO' }
+        '404': { $ref: '#/components/responses/NiNajdeno' }
+
+  /uvoz/seje/{sejaId}/izvirnik:
+    get:
+      tags: [Uvoz]
+      summary: Prenos izvorne datoteke
+      description: Vrne nespremenjeno vhodno datoteko za revizijske namene.
+      parameters: [{ $ref: '#/components/parameters/SejaId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
+  /uvoz/seje/{sejaId}/ponovi:
+    post:
+      tags: [Uvoz]
+      summary: Ponovna obdelava iz izvirnika
+      description: |
+        Uporabi po popravku uvoznega profila ali preslikav artiklov.
+        Ustvari novo sejo s sklicem na prvotno.
+      parameters: [{ $ref: '#/components/parameters/SejaId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profil_id: { type: integer, format: int64 }
+                format: { $ref: '#/components/schemas/UvozFormat' }
+      responses:
+        '202':
+          description: Sprejeto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UvozSeja' }
+
+  /uvoz/predogled:
+    post:
+      tags: [Uvoz]
+      summary: Razčleni brez shranjevanja
+      description: |
+        Za nastavljanje uvoznega profila: vrne razčlenjen rezultat,
+        ne ustvari seje ne prejemnice.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                datoteka: { type: string, format: binary }
+                konfiguracija:
+                  type: string
+                  description: JSON konfiguracije profila za preizkus
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  zaznan_format: { $ref: '#/components/schemas/UvozFormat' }
+                  dto: { $ref: '#/components/schemas/PrejemDTO' }
+                  napake:
+                    type: array
+                    items: { $ref: '#/components/schemas/Opozorilo' }
+
+  # ==================== PREJEMNICE ====================
+
+  /prejemi:
+    get:
+      tags: [Prejemnice]
+      summary: Seznam prejemnic
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/PrejemStatus' } }
+        - { name: dobavitelj_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: poslovalnica_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: od, in: query, schema: { type: string, format: date } }
+        - { name: do, in: query, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/Stran' }
+        - { $ref: '#/components/parameters/Velikost' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vsebina:
+                    type: array
+                    items: { $ref: '#/components/schemas/PrejemPovzetek' }
+                  skupaj: { type: integer }
+    post:
+      tags: [Prejemnice]
+      summary: Ročno ustvari prejemnico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrejemVnos' }
+      responses:
+        '201':
+          description: Ustvarjeno
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Prejem' }
+
+  /prejemi/{prejemId}:
+    get:
+      tags: [Prejemnice]
+      summary: Prejemnica s postavkami
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Prejem' }
+        '404': { $ref: '#/components/responses/NiNajdeno' }
+    patch:
+      tags: [Prejemnice]
+      summary: Popravi prejemnico
+      description: Dovoljeno le v statusih OSNUTEK, CAKA_NA_UPARJANJE, CAKA_NA_POTRDITEV.
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrejemPopravek' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Prejem' }
+        '409': { $ref: '#/components/responses/NapacnoStanje' }
+
+  /prejemi/iz-narocilnice/{narocilnicaId}:
+    post:
+      tags: [Prejemnice]
+      summary: Ustvari prejemnico iz naročilnice
+      description: |
+        Prekopira postavke naročilnice s predlaganimi količinami.
+        Uporabnik nato popravi dejansko dobavljene količine.
+      parameters:
+        - name: narocilnicaId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                st_dokumenta: { type: string }
+                datum_dokumenta: { type: string, format: date }
+                privzemi_kolicine:
+                  type: boolean
+                  default: true
+                  description: Če false, so količine 0 in jih vpiše uporabnik.
+      responses:
+        '201':
+          description: Ustvarjeno
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Prejem' }
+
+  /prejemi/{prejemId}/uparjanje:
+    post:
+      tags: [Uparjanje]
+      summary: Zaženi samodejno uparjanje
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uparjenih: { type: integer }
+                  dvomljivih: { type: integer }
+                  neuparjenih: { type: integer }
+
+  /prejemi/{prejemId}/neuparjeno:
+    get:
+      tags: [Uparjanje]
+      summary: Postavke, ki čakajo na uparjanje
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/PrejemPostavka'
+                    - type: object
+                      properties:
+                        kandidati:
+                          type: array
+                          items: { $ref: '#/components/schemas/UparjanjeKandidat' }
+
+  /prejemi/{prejemId}/postavke/{postavkaId}/upari:
+    post:
+      tags: [Uparjanje]
+      summary: Potrdi uparjanje postavke
+      parameters:
+        - { $ref: '#/components/parameters/PrejemId' }
+        - name: postavkaId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [artikel_id]
+              properties:
+                artikel_id: { type: integer, format: int64 }
+                faktor_pretvorbe:
+                  type: number
+                  description: Če ni podan, se izpelje iz pakiranja artikla.
+                zapomni:
+                  type: boolean
+                  default: true
+                  description: Ustvari trajno preslikavo za tega dobavitelja.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrejemPostavka' }
+
+  /prejemi/{prejemId}/postavke/{postavkaId}/nov-artikel:
+    post:
+      tags: [Uparjanje]
+      summary: Ustvari nov artikel iz postavke
+      parameters:
+        - { $ref: '#/components/parameters/PrejemId' }
+        - name: postavkaId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [naziv, osnovna_enota, vrsta, davcna_skupina_id]
+              properties:
+                naziv: { type: string }
+                osnovna_enota: { type: string }
+                vrsta: { $ref: '#/components/schemas/VrstaArtikla' }
+                davcna_skupina_id: { type: integer, format: int64 }
+                skupina_id: { type: integer, format: int64 }
+                pakiranje:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      enota: { type: string }
+                      nadrejena_enota: { type: string }
+                      faktor: { type: number }
+                      gtin: { type: string }
+      responses:
+        '201':
+          description: Ustvarjeno
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artikel_id: { type: integer, format: int64 }
+                  postavka: { $ref: '#/components/schemas/PrejemPostavka' }
+
+  /prejemi/{prejemId}/preveri:
+    post:
+      tags: [Prejemnice]
+      summary: Zaženi validacijo brez spremembe statusa
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lahko_knjizi: { type: boolean }
+                  opozorila:
+                    type: array
+                    items: { $ref: '#/components/schemas/Opozorilo' }
+
+  /prejemi/{prejemId}/opozorila/{opozoriloId}/potrdi:
+    post:
+      tags: [Prejemnice]
+      summary: Potrdi opozorilo
+      description: Zahteva ustrezno pravico. Opomba je obvezna pri odstopanju cene.
+      parameters:
+        - { $ref: '#/components/parameters/PrejemId' }
+        - name: opozoriloId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                opomba: { type: string }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/NiPravice' }
+
+  /prejemi/{prejemId}/potrdi:
+    post:
+      tags: [Prejemnice]
+      summary: Prehod v status POTRJENA
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Prejem' }
+        '409': { $ref: '#/components/responses/NapacnoStanje' }
+
+  /prejemi/{prejemId}/knjizi:
+    post:
+      tags: [Prejemnice]
+      summary: Knjiži v zalogo in glavno knjigo
+      description: |
+        Idempotentno prek glave Idempotency-Key. Ponovni klic z istim
+        ključem vrne izvorni rezultat, ne podvoji knjižb.
+      parameters:
+        - { $ref: '#/components/parameters/PrejemId' }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                datum_knjizenja: { type: string, format: date }
+                preracunaj_prodajne_cene: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Knjiženo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prejem: { $ref: '#/components/schemas/Prejem' }
+                  temeljnica_id: { type: integer, format: int64 }
+                  zaloga_promet_ids:
+                    type: array
+                    items: { type: integer, format: int64 }
+                  predlogi_prodajnih_cen:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        artikel_id: { type: integer, format: int64 }
+                        stara_cena: { type: number }
+                        predlagana_cena: { type: number }
+                        marza_odstotek: { type: number }
+        '409': { $ref: '#/components/responses/NapacnoStanje' }
+        '422':
+          description: Validacija ni prestana
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  opozorila:
+                    type: array
+                    items: { $ref: '#/components/schemas/Opozorilo' }
+
+  /prejemi/{prejemId}/storno:
+    post:
+      tags: [Prejemnice]
+      summary: Storniraj knjiženo prejemnico
+      parameters: [{ $ref: '#/components/parameters/PrejemId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [razlog]
+              properties:
+                razlog: { type: string }
+                datum_storna: { type: string, format: date }
+      responses:
+        '200':
+          description: Stornirano
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  storno_prejem_id: { type: integer, format: int64 }
+                  temeljnica_id: { type: integer, format: int64 }
+
+  # ==================== PROFILI ====================
+
+  /dobavitelji/{dobaviteljId}/uvozni-profili:
+    get:
+      tags: [Profili]
+      summary: Uvozni profili dobavitelja
+      parameters: [{ $ref: '#/components/parameters/DobaviteljId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UvozProfil' }
+    post:
+      tags: [Profili]
+      summary: Ustvari uvozni profil
+      parameters: [{ $ref: '#/components/parameters/DobaviteljId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UvozProfil' }
+      responses:
+        '201':
+          description: Ustvarjeno
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UvozProfil' }
+
+  /dobavitelji/{dobaviteljId}/cenik:
+    post:
+      tags: [Profili]
+      summary: Uvozi cenik dobavitelja (PRICAT ali CSV)
+      description: |
+        Napolni preslikave artiklov vnaprej. Priporočen prvi korak
+        pri vključitvi novega dobavitelja — naslednje dobavnice so
+        praviloma uparjene v celoti samodejno.
+      parameters: [{ $ref: '#/components/parameters/DobaviteljId' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                datoteka: { type: string, format: binary }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uparjenih: { type: integer }
+                  novih: { type: integer }
+                  neuparjenih: { type: integer }
+
+  /dobavitelji/{dobaviteljId}/preslikave:
+    get:
+      tags: [Uparjanje]
+      summary: Preslikave artiklov dobavitelja
+      parameters:
+        - { $ref: '#/components/parameters/DobaviteljId' }
+        - { name: iskanje, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ArtikelDobavitelj' }
+
+  /preslikave/{preslikavaId}:
+    delete:
+      tags: [Uparjanje]
+      summary: Odstrani preslikavo
+      parameters:
+        - name: preslikavaId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204': { description: Odstranjeno }
+
+  # ==================== USKLAJEVANJE ====================
+
+  /usklajevanje/odstopanja:
+    get:
+      tags: [Usklajevanje]
+      summary: Odstopanja trismernega usklajevanja
+      parameters:
+        - { name: dobavitelj_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: od, in: query, schema: { type: string, format: date } }
+        - { name: do, in: query, schema: { type: string, format: date } }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [USKLAJENO, ODSTOPANJE_CENE, ODSTOPANJE_KOLICINE, RACUN_MANJKA, NAROCILNICA_MANJKA]
+        - { name: min_ucinek, in: query, schema: { type: number } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vsebina:
+                    type: array
+                    items: { $ref: '#/components/schemas/Odstopanje' }
+                  skupni_ucinek: { type: number }
+
+  /usklajevanje/reklamacija:
+    post:
+      tags: [Usklajevanje]
+      summary: Pripravi dokument reklamacije
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dobavitelj_id, postavke]
+              properties:
+                dobavitelj_id: { type: integer, format: int64 }
+                postavke:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      prejem_id: { type: integer, format: int64 }
+                      postavka_id: { type: integer, format: int64 }
+                      opomba: { type: string }
+      responses:
+        '201':
+          description: Ustvarjeno
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PrejemId:
+      name: prejemId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    SejaId:
+      name: sejaId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DobaviteljId:
+      name: dobaviteljId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Stran:
+      name: stran
+      in: query
+      schema: { type: integer, default: 0, minimum: 0 }
+    Velikost:
+      name: velikost
+      in: query
+      schema: { type: integer, default: 50, maximum: 500 }
+
+  responses:
+    NiNajdeno:
+      description: Vir ne obstaja
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Napaka' }
+    NapacnoStanje:
+      description: Operacija ni dovoljena v trenutnem statusu
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Napaka' }
+    NiPravice:
+      description: Uporabnik nima potrebne pravice
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Napaka' }
+    NepodprtFormat:
+      description: Format datoteke ni podprt
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Napaka' }
+
+  schemas:
+
+    UvozKanal:
+      type: string
+      enum: [ROCNI_NALOG, NADZOROVANA_MAPA, EPOSTA_IMAP, EPOT_PONUDNIK,
+             PEPPOL_AP, API_DOBAVITELJ, FOTOAPARAT, CRTNA_KODA,
+             ROCNI_VNOS, IZ_NAROCILNICE]
+
+    UvozFormat:
+      type: string
+      enum: [ESLOG_2_0_DOBAVNICA, ESLOG_2_0_RACUN, ESLOG_1_6_1,
+             UBL_2_1_DESPATCH, UBL_2_1_INVOICE, CII_D16B,
+             EDIFACT_DESADV, EDIFACT_INVOIC, EDIFACT_PRICAT, GS1_XML,
+             CSV, FIKSNA_SIRINA, XLSX, JSON_LASTNI, XML_LASTNI,
+             PDF_PREDLOGA, PDF_OCR, SLIKA_OCR, BREZ]
+
+    UvozStatus:
+      type: string
+      enum: [PREJETO, RAZCLENJENO, NAPAKA_RAZCLENITVE, PODVOJENO, OBDELANO, ZAVRZENO]
+
+    PrejemStatus:
+      type: string
+      enum: [OSNUTEK, CAKA_NA_UPARJANJE, CAKA_NA_POTRDITEV, POTRJENA,
+             KNJIZENA, ZAVRNJENA, STORNIRANA]
+
+    VrstaArtikla:
+      type: string
+      enum: [SUROVINA, TRGOVSKO_BLAGO, EMBALAZA, DROBNI_INVENTAR, STORITEV]
+
+    UparjanjeMetoda:
+      type: string
+      enum: [GTIN_TOCNO, GTIN14_RAZRESEN, SIFRA_DOBAVITELJA, INTERNA_SIFRA,
+             PODOBNOST_NAZIVA, LLM_PREDLOG, ROCNO, NOV_ARTIKEL]
+
+    UvozSeja:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kanal: { $ref: '#/components/schemas/UvozKanal' }
+        format: { $ref: '#/components/schemas/UvozFormat' }
+        ime_datoteke: { type: string }
+        velikost_b: { type: integer, format: int64 }
+        sha256: { type: string }
+        prejeto: { type: string, format: date-time }
+        obdelano: { type: string, format: date-time, nullable: true }
+        status: { $ref: '#/components/schemas/UvozStatus' }
+        prejem_id: { type: integer, format: int64, nullable: true }
+        napake:
+          type: array
+          items: { $ref: '#/components/schemas/Opozorilo' }
+
+    PrejemDTO:
+      description: Kanonični vmesni model, enak ne glede na izvorni format.
+      type: object
+      properties:
+        dobavitelj:
+          type: object
+          properties:
+            davcna: { type: string }
+            maticna: { type: string }
+            gln: { type: string }
+            naziv: { type: string }
+            drzava: { type: string }
+        dokument:
+          type: object
+          properties:
+            vrsta: { type: string, enum: [DOBAVNICA, RACUN, DOBROPIS, BREMEPIS] }
+            stevilka: { type: string }
+            datum_izdaje: { type: string, format: date }
+            datum_dobave: { type: string, format: date }
+            sklic_narocilnica: { type: string }
+            valuta: { type: string }
+            tecaj: { type: number }
+        postavke:
+          type: array
+          items: { $ref: '#/components/schemas/PrejemDTOPostavka' }
+        odvisni_stroski:
+          type: array
+          items:
+            type: object
+            properties:
+              vrsta: { type: string, enum: [PREVOZ, CARINA, MANIPULACIJA, ZAVAROVANJE, DRUGO] }
+              znesek: { type: number }
+              ddv_stopnja: { type: number }
+        povratna_embalaza:
+          type: array
+          items:
+            type: object
+            properties:
+              gtin: { type: string }
+              kolicina: { type: number }
+              kavcija: { type: number }
+        vsote:
+          type: object
+          properties:
+            osnova: { type: number }
+            ddv: { type: number }
+            skupaj: { type: number }
+
+    PrejemDTOPostavka:
+      type: object
+      properties:
+        zap: { type: integer }
+        gtin: { type: string, nullable: true }
+        sifra_dobavitelja: { type: string, nullable: true }
+        naziv: { type: string }
+        kolicina: { type: number }
+        enota: { type: string, description: UN/ECE Rec 20 ali interna koda }
+        cena_bruto: { type: number, nullable: true }
+        cena_neto: { type: number, nullable: true }
+        cena_osnova_kol: { type: number, default: 1 }
+        rabat_odstotek: { type: number, nullable: true }
+        ddv_stopnja: { type: number, nullable: true }
+        ddv_kategorija: { type: string, description: 'UNCL5305: S, Z, E, AE, K, G, O' }
+        vrednost_neto: { type: number, nullable: true }
+        lot: { type: string, nullable: true }
+        rok_uporabe: { type: string, format: date, nullable: true }
+        sscc: { type: string, nullable: true }
+        zaupanje:
+          type: number
+          description: 0..1, relevantno pri OCR/LLM viru
+
+    PrejemPovzetek:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        stevilka: { type: string }
+        dobavitelj_naziv: { type: string }
+        st_dokumenta: { type: string }
+        datum_dokumenta: { type: string, format: date }
+        status: { $ref: '#/components/schemas/PrejemStatus' }
+        vsota_nabavna: { type: number }
+        st_postavk: { type: integer }
+        st_neuparjenih: { type: integer }
+
+    Prejem:
+      allOf:
+        - $ref: '#/components/schemas/PrejemPovzetek'
+        - type: object
+          properties:
+            uvoz_seja_id: { type: string, format: uuid, nullable: true }
+            poslovalnica_id: { type: integer, format: int64 }
+            skladisce_id: { type: integer, format: int64 }
+            dobavitelj_id: { type: integer, format: int64 }
+            datum_prejema: { type: string, format: date }
+            narocilnica_id: { type: integer, format: int64, nullable: true }
+            prejeti_racun_id: { type: integer, format: int64, nullable: true }
+            valuta: { type: string }
+            tecaj: { type: number }
+            vsota_neto: { type: number }
+            vsota_rabat: { type: number }
+            vsota_odv_stroski: { type: number }
+            vsota_ddv: { type: number }
+            razpored_stroskov:
+              type: string
+              enum: [VREDNOST, MASA, KOLICINA, ROCNO]
+            temeljnica_id: { type: integer, format: int64, nullable: true }
+            knjizeno_dne: { type: string, format: date-time, nullable: true }
+            postavke:
+              type: array
+              items: { $ref: '#/components/schemas/PrejemPostavka' }
+            odvisni_stroski:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  vrsta: { type: string }
+                  znesek: { type: number }
+
+    PrejemPostavka:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        zap_st: { type: integer }
+        izv_gtin: { type: string, nullable: true }
+        izv_sifra: { type: string, nullable: true }
+        izv_naziv: { type: string }
+        izv_enota: { type: string }
+        izv_kolicina: { type: number }
+        artikel_id: { type: integer, format: int64, nullable: true }
+        artikel_naziv: { type: string, nullable: true }
+        uparjanje: { $ref: '#/components/schemas/UparjanjeMetoda' }
+        uparjanje_zaupanje: { type: number }
+        enota_prevzema: { type: string }
+        kolicina_prevzem: { type: number }
+        faktor_uporabljen: { type: number }
+        kolicina_osnovna: { type: number }
+        osnovna_enota: { type: string }
+        cena_bruto: { type: number }
+        rabat_1_odst: { type: number }
+        rabat_2_odst: { type: number }
+        cena_neto: { type: number }
+        vrednost_neto: { type: number }
+        odvisni_stroski: { type: number }
+        nabavna_vrednost: { type: number }
+        nabavna_cena_em: { type: number }
+        ddv_stopnja: { type: number }
+        ddv_znesek: { type: number }
+        lot: { type: string, nullable: true }
+        rok_uporabe: { type: string, format: date, nullable: true }
+        opozorila:
+          type: array
+          items: { $ref: '#/components/schemas/Opozorilo' }
+
+    PrejemVnos:
+      type: object
+      required: [dobavitelj_id, st_dokumenta, datum_dokumenta, skladisce_id, postavke]
+      properties:
+        dobavitelj_id: { type: integer, format: int64 }
+        poslovalnica_id: { type: integer, format: int64 }
+        skladisce_id: { type: integer, format: int64 }
+        st_dokumenta: { type: string }
+        datum_dokumenta: { type: string, format: date }
+        datum_prejema: { type: string, format: date }
+        narocilnica_id: { type: integer, format: int64 }
+        postavke:
+          type: array
+          items:
+            type: object
+            required: [artikel_id, kolicina, enota]
+            properties:
+              artikel_id: { type: integer, format: int64 }
+              kolicina: { type: number }
+              enota: { type: string }
+              cena_bruto: { type: number }
+              rabat_1_odst: { type: number }
+              lot: { type: string }
+              rok_uporabe: { type: string, format: date }
+
+    PrejemPopravek:
+      type: object
+      properties:
+        datum_prejema: { type: string, format: date }
+        narocilnica_id: { type: integer, format: int64 }
+        razpored_stroskov: { type: string }
+        opomba: { type: string }
+
+    UparjanjeKandidat:
+      type: object
+      properties:
+        artikel_id: { type: integer, format: int64 }
+        sifra: { type: string }
+        naziv: { type: string }
+        ocena: { type: number, description: 0..1 }
+        zadnja_nab_cena: { type: number, nullable: true }
+        osnovna_enota: { type: string }
+
+    ArtikelDobavitelj:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        artikel_id: { type: integer, format: int64 }
+        artikel_naziv: { type: string }
+        sifra_dobavitelja: { type: string, nullable: true }
+        gtin: { type: string, nullable: true }
+        naziv_dobavitelja: { type: string }
+        enota_dobavitelja: { type: string }
+        faktor_pretvorbe: { type: number }
+        zadnja_nab_cena: { type: number, nullable: true }
+        zadnji_prevzem: { type: string, format: date, nullable: true }
+        st_prevzemov: { type: integer }
+
+    UvozProfil:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        naziv: { type: string }
+        format: { $ref: '#/components/schemas/UvozFormat' }
+        prednost: { type: integer }
+        prepoznava:
+          type: object
+          properties:
+            ime_datoteke_regex: { type: string }
+            glava_vsebuje:
+              type: array
+              items: { type: string }
+            eposta_posiljatelj: { type: string }
+        konfiguracija:
+          type: object
+          description: Odvisna od formata; glej dokument 02, razdelek 7.
+        aktivno: { type: boolean }
+
+    Odstopanje:
+      type: object
+      properties:
+        prejem_id: { type: integer, format: int64 }
+        prejem_stevilka: { type: string }
+        dobavitelj_naziv: { type: string }
+        zap_st: { type: integer }
+        artikel_naziv: { type: string }
+        kol_narocena: { type: number, nullable: true }
+        kol_prejeta: { type: number }
+        kol_zaracunana: { type: number, nullable: true }
+        cena_narocena: { type: number, nullable: true }
+        cena_prejeta: { type: number }
+        cena_zaracunana: { type: number, nullable: true }
+        razlika_cene: { type: number }
+        razlika_kolicine: { type: number }
+        financni_ucinek: { type: number }
+        status_uskladitve: { type: string }
+
+    Opozorilo:
+      type: object
+      properties:
+        koda: { type: string, example: POS006 }
+        resnost: { type: string, enum: [B, O, I] }
+        sporocilo: { type: string }
+        polje: { type: string, nullable: true }
+        postavka_id: { type: integer, format: int64, nullable: true }
+        podatki: { type: object, additionalProperties: true }
+        potrdil_uporabnik: { type: integer, format: int64, nullable: true }
+        potrjeno_dne: { type: string, format: date-time, nullable: true }
+        opomba: { type: string, nullable: true }
+
+    Napaka:
+      type: object
+      properties:
+        koda: { type: string }
+        sporocilo: { type: string }
+        podrobnosti: { type: object, additionalProperties: true }
+        cas: { type: string, format: date-time }

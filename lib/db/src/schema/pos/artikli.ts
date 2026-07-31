@@ -34,6 +34,14 @@ export const artikliTable = pgTable("artikli", {
   addedSugar: boolean("added_sugar").notNull().default(false),
   /** KN/CN carinska tarifna številka (opcijsko) */
   knCode: text("kn_code"),
+  // --- uvozna polja (dodana z migracijo 0009) ---
+  /** GTIN (EAN-8/12/13/14) črtna koda. Napolni se ob uparjanju. */
+  gtin: text("gtin"),
+  /**
+   * Pričakovana vstopna DDV stopnja na prejemnici (LOČENA od prodajne davek).
+   * Kavna zrna: nabava 9,5 %, prodaja pri mizi 22 % — oboje pravilno.
+   */
+  nabavnaDdvStopnja: numeric("nabavna_ddv_stopnja", { precision: 5, scale: 2 }),
 });
 
 export const artikliRelations = relations(artikliTable, ({ one }) => ({

@@ -19,4 +19,4 @@
 - [POS booking analitika](pos-booking-analitika.md) — pos_booking_settings razširjen na 24 stolpcev; prihodki po vrsti_artikla×davek iz postavke tabele; fallback na stare konte
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
 - [Checkpoint skupaj-vidnost-prostor-v1](checkpoint-skupaj-vidnost-prostor-v1.md) — git tag za povratek: kaskadni izbris otrok, proporcionalna kolicina, prostor v glavi, footer vedno viden
-- [Uvoz prejemnic — tech sklad](uvoz-prejemnic-tech.md) — TypeScript + Drizzle ORM; parsers v TS; pg_trgm SQL funkcije; FK popravki za BOOKIE ERP shemo
+- [Uvoz prejemnic — tech sklad](uvoz-prejemnic-tech.md) — drizzle/node-postgres vrača QueryResult; vsi Claudovi podjetjeId→enotaId; paketi; rute registrirane
