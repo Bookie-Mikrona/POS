@@ -36,3 +36,9 @@ id = "J1YDGzDvhqinxRkg4O1Gt"
 uri = "file://pos-prirocnik.docx"
 type = "word_document"
 title = "POS Gostinstvo — Priročnik v2.1"
+
+[[outputs]]
+id = "gCLGHamMz4g5MqkOtat-d"
+uri = "file://scanner-bridge.zip"
+type = "unspecified"
+title = "scanner-bridge.zip"
