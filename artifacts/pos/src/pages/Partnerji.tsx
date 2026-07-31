@@ -320,11 +320,17 @@ export default function Partnerji() {
       await osveziMutation.mutateAsync({ id: k.id });
       await queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
       await queryClient.invalidateQueries({ queryKey: getGetKupciPogostiQueryKey() });
-      toast({ title: "Podatki osveženi", description: `„${k.naziv}" posodobljen iz registra AJPES/INETIS.` });
+      toast({ title: "Podatki osveženi", description: `„${k.naziv}" posodobljen iz registra.` });
     } catch (err: unknown) {
-      const napaka = (err as { response?: { data?: { napaka?: string } } })?.response?.data?.napaka
-        ?? "Napaka pri iskanju v registru.";
-      toast({ title: "Osveževanje ni uspelo", description: napaka, variant: "destructive" });
+      const errData = (err as { response?: { data?: { napaka?: string; kodaNapake?: string } } })?.response?.data;
+      const napaka = errData?.napaka ?? "Napaka pri iskanju v registru.";
+      if (errData?.kodaNapake === "VIES_NO_DATA") {
+        // VIES ne vrača podatkov za to državo — odpri urejevalnik za ročen vnos
+        toast({ title: "Ročni vnos potreben", description: napaka });
+        odpriUredi(k);
+      } else {
+        toast({ title: "Osveževanje ni uspelo", description: napaka, variant: "destructive" });
+      }
     } finally {
       setOsvezevanje(prev => { const s = new Set(prev); s.delete(k.id); return s; });
     }

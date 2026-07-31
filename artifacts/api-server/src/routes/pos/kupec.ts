@@ -406,10 +406,23 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
     }
     const vies = await preveriVies(idZaDdv);
     if (!vies) {
-      res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje." });
+      res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje.", kodaNapake: "VIES_NEDOSEGLJIV" });
       return;
     }
+
     const kodaDrzave = obstojecKupec.kodaDrzave ?? vies.kodaDrzave;
+    const imaPodatke = !!(vies.naziv || vies.ulica || vies.postnaStevilka || vies.kraj);
+
+    // VIES ni potrdil in nima koristnih podatkov (npr. DE pogosto vrne isValid=false + vse ---)
+    if (!vies.veljaven && !imaPodatke) {
+      const drzavaNaziv = vies.drzavaNaziv ?? drzavaIzKode(kodaDrzave) ?? kodaDrzave;
+      res.status(422).json({
+        napaka: `VIES ne vrača podatkov za ${drzavaNaziv}. Dopolnite podatke ročno.`,
+        kodaNapake: "VIES_NO_DATA",
+      });
+      return;
+    }
+
     const [posodobljen] = await db
       .update(shranjeniKupciTable)
       .set({
