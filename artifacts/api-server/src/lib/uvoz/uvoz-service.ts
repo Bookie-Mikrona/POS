@@ -574,8 +574,10 @@ export async function ustvariOsnutek(
   });
   } catch (e: unknown) {
     // Unique constraint uq_prejemnica_dokument (enota_id, dobavitelj_id, st_dokumenta, datum_dokumenta)
-    const pgCode = (e as any)?.cause?.code ?? (e as any)?.code;
-    if (pgCode === '23505') {
+    // Drizzle's _DrizzleQueryError embeds the pg error message but doesn't expose cause.code reliably.
+    const msg = (e as any)?.message ?? '';
+    const causeCode = (e as any)?.cause?.code ?? (e as any)?.code ?? '';
+    if (causeCode === '23505' || msg.includes('uq_prejemnica_dokument')) {
       const [obs] = (await db.execute<{ id: number }>(sql`
         SELECT id FROM prejemnice
          WHERE enota_id      = ${enotaId}
