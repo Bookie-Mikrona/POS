@@ -177,7 +177,15 @@ export function UvozPrejemniceDialog({
         body: fd,
       });
       const data = await r.json();
-      if (r.status === 409) { setNapaka('Ta dobavnica je bila že uvožena.'); return; }
+      if (r.status === 409) {
+        const id = (data as { prejemnicaId?: number }).prejemnicaId;
+        setNapaka(
+          id
+            ? `Ta dobavnica je bila že uvožena — poiščite prejemnico #${id} v seznamu.`
+            : 'Ta dobavnica je bila že uvožena.'
+        );
+        return;
+      }
       if (r.status === 422) {
         if (data.status === 'NAPAKA') {
           const prvaNapaka = (data.napake as { sporocilo?: string }[] | undefined)?.[0]?.sporocilo;
