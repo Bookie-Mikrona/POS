@@ -1,0 +1,39 @@
+ali pošljem datoteki direktno na replit?
+
+
+Razmotrila sigurne strategije za učitavanje datoteke bez gubljenja konfiguracije
+Razmotrila sigurne strategije za učitavanje datoteke bez gubljenja konfiguracije
+Da, a ne v obstoječi projekt neposredno. Tveganje je konkretno: če arhiv razpakirate v korenu, povozi package.json in tsconfig.json.
+
+Preizkusim postopek, ki to prepreči.
+
+
+Preispitao kompatibilnost alata i reorganizovao pristup
+Preispitao kompatibilnost alata i reorganizovao pristup
+Ukazna lupina tu ne razširja zavitih oklepajev — dobro vedeti, ker enako velja za Replitovo lupino. Popravljam.
+
+
+Razriješio problem s putanjama importa pri reorganizaciji testova
+Razriješio problem s putanjama importa pri reorganizaciji testova
+Ena stvar se pri tem pokvari: če teste vgnezdim eno raven globlje, se poti uvozov ne izidejo.
+
+
+Ran 2 commands, created a file, read a file
+Ran 2 commands, created a file, read a file
+Da, arhiv lahko povlečete neposredno v drevo datotek — le ne razpakirajte ga v korenu obstoječega Repl-a. V korenu arhiva so package.json, tsconfig.json in README.md, ki bi povozili vaše. Trije so; vse ostalo je varno.
+
+Postopek sem preizkusil na simulaciji vašega projekta, z artikli.ts, prejemnice.ts, partnerji.ts in migracijo 0008. Ukazi so v priloženem PRENOS-V-REPLIT.md.
+
+Bistvo je v drugem koraku: razpakirate v začasno mapo, preverite trke, in šele nato kopirate. Preverba trkov je preprosta zanka, ki izpiše vsako datoteko, ki bi bila povožena. Pri združitvi s simulacijo je bil izpis prazen — nobene obstoječe datoteke ni.
+
+Dve stvari sta se pri preizkusu pokazali kot pasti.
+
+Če teste vgnezdite v tests/uvoz-prejemnic/, so eno raven globlje in poti uvozov se ne izidejo. Potreben je en sed, ki je v navodilu; brez njega testi ne najdejo kode.
+
+Replitova lupina ne razširja zavitih oklepajev. Ukaz mkdir -p a/{b,c} ustvari mapo z imenom a/{b,c} namesto dveh map. Na to sem naletel sam med pripravo simulacije. Vsi ukazi v navodilu se temu izogibajo.
+
+Priporočam pot A pred potjo B. Naredite nov, prazen Node Repl, tam razpakirajte in poženite npm install in npm test. Stane pet minut in vam pove, ali paket teče, preden se dotaknete delujočega projekta. Pri tem naj bo izpis found 0 vulnerabilities, devetkrat VSI TESTI USPESNI, in pri npx tsc --noEmit natanko osem napak — to so moduli, ki obstajajo šele v BOOKIE.
+
+Če imate projekt v gitu, je namesto vlečenja arhiva bolje delati na veji. Povrnitev je potem en ukaz, ne ročno brisanje datotek.
+
+In še opozorilo, ki velja ne glede na pot: migracije ne poganjajte, dokler testi ne tečejo. Shemo spreminja in je v produkciji ni mogoče enostavno razveljaviti.
