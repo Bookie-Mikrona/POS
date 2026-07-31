@@ -3685,6 +3685,7 @@ export default function Zaloge() {
         onUvozDone={() => {
           queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
         }}
         onOdpriPrejemnico={(id) => {
           setUvozDialogOpen(false);

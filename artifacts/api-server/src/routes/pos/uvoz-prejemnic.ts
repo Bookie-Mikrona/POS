@@ -244,6 +244,8 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
       status:  'OSNUTEK_USTVARJEN',
       sejaId:  zajem.sejaId,
       napake:  dto.napake,
+      dobaviteljId,
+      dobaviteljNazivOcr: dto.dobaviteljNaziv,
       ...osnutek,
     });
   } catch (e) {
@@ -336,6 +338,8 @@ router.post(
           status: 'OSNUTEK_USTVARJEN',
           sejaId: zajem.sejaId,
           napake: dto.napake,
+          dobaviteljId,
+          dobaviteljNazivOcr: dto.dobaviteljNaziv,
           ...osnutek,
         });
       }

@@ -634,6 +634,8 @@ export async function uvozi(
     format: zajem.format,
     status: 'OSNUTEK_USTVARJEN',
     napake: dto.napake,
+    dobaviteljId,
+    dobaviteljNazivOcr: dto.dobaviteljNaziv,
     ...osnutek,
   };
 }
