@@ -3673,6 +3673,11 @@ export default function Zaloge() {
           queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
         }}
+        onOdpriPrejemnico={(id) => {
+          setUvozDialogOpen(false);
+          queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
+          setEditPrejId(id);
+        }}
         nabavniArtikli={nabavniArtikli}
         dobaviteljiMap={dobaviteljiMap}
       />

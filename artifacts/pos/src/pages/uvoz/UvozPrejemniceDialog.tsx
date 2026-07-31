@@ -43,6 +43,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onUvozDone: () => void;
+  onOdpriPrejemnico?: (id: number) => void;
   nabavniArtikli: NabavniArtikel[];
   dobaviteljiMap: Map<number, string>;
 }
@@ -92,6 +93,7 @@ export function UvozPrejemniceDialog({
   open,
   onClose,
   onUvozDone,
+  onOdpriPrejemnico,
   nabavniArtikli,
   dobaviteljiMap,
 }: Props) {
@@ -103,6 +105,7 @@ export function UvozPrejemniceDialog({
   const [nacin,   setNacin]   = useState<Nacin>('datoteka');
   const [nalaga,  setNalaga]  = useState(false);
   const [napaka,  setNapaka]  = useState<string | null>(null);
+  const [podvojenoPrejId, setPodvojenoPrejId] = useState<number | null>(null);
   const [izid,    setIzid]    = useState<UvozIzid | null>(null);
   const [neuparjene,       setNeuparjene]       = useState<NeuparjenaPostavka[]>([]);
   const [stUparjenih,      setStUparjenih]      = useState(0);
@@ -124,6 +127,7 @@ export function UvozPrejemniceDialog({
     setKorak('upload');
     setNalaga(false);
     setNapaka(null);
+    setPodvojenoPrejId(null);
     setIzid(null);
     setNeuparjene([]);
     setStUparjenih(0);
@@ -179,11 +183,7 @@ export function UvozPrejemniceDialog({
       const data = await r.json();
       if (r.status === 409) {
         const id = (data as { prejemnicaId?: number }).prejemnicaId;
-        setNapaka(
-          id
-            ? `Ta dobavnica je bila že uvožena — poiščite prejemnico #${id} v seznamu.`
-            : 'Ta dobavnica je bila že uvožena.'
-        );
+        if (id) { setPodvojenoPrejId(id); } else { setNapaka('Ta dobavnica je bila že uvožena.'); }
         return;
       }
       if (r.status === 422) {
@@ -239,7 +239,11 @@ export function UvozPrejemniceDialog({
       });
       const data = await r.json();
 
-      if (r.status === 409) { setNapaka('Ta slika je bila že uvožena.'); return; }
+      if (r.status === 409) {
+        const id = (data as { prejemnicaId?: number }).prejemnicaId;
+        if (id) { setPodvojenoPrejId(id); } else { setNapaka('Ta slika je bila že uvožena.'); }
+        return;
+      }
       if (r.status === 422 && data.status === 'MANJKA_DOBAVITELJ') {
         const ime = data.dobaviteljNazivOcr ?? data.predlogDobavitelja?.naziv ?? '';
         setNapaka(
@@ -405,7 +409,31 @@ export function UvozPrejemniceDialog({
         </div>
 
         <div className="space-y-3">
-          {/* Napaka */}
+          {/* Podvojena dobavnica — direktna navigacija */}
+          {podvojenoPrejId && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span className="font-medium">Ta dobavnica je bila že uvožena.</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full border-amber-400 text-amber-900 hover:bg-amber-100"
+                onClick={() => {
+                  if (onOdpriPrejemnico) {
+                    onOdpriPrejemnico(podvojenoPrejId);
+                    resetState();
+                    onClose();
+                  }
+                }}
+              >
+                Odpri prejemnico #{podvojenoPrejId}
+              </Button>
+            </div>
+          )}
+
+          {/* Splošna napaka */}
           {napaka && (
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 text-destructive p-3 text-sm">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
