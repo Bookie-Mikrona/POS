@@ -178,6 +178,21 @@ export function UvozPrejemniceDialog({
       });
       const data = await r.json();
       if (r.status === 409) { setNapaka('Ta dobavnica je bila že uvožena.'); return; }
+      if (r.status === 422) {
+        if (data.status === 'NAPAKA') {
+          const prvaNapaka = (data.napake as { sporocilo?: string }[] | undefined)?.[0]?.sporocilo;
+          setNapaka(prvaNapaka ?? 'Datoteka vsebuje napake in je ni mogoče uvoziti.');
+          return;
+        }
+        if (data.status === 'MANJKA_DOBAVITELJ') {
+          const ime = data.predlogDobavitelja?.naziv ?? '';
+          setNapaka(
+            `Dobavitelja${ime ? ` „${ime}"` : ''} ni v šifrantu. ` +
+            `Dodajte ga med stranke in ponovite uvoz.`
+          );
+          return;
+        }
+      }
       if (!r.ok || data.status !== 'OSNUTEK_USTVARJEN') {
         setNapaka(data.sporocilo ?? `Uvoz ni uspel (${data.status ?? r.status}).`); return;
       }
