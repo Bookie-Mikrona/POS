@@ -189,10 +189,10 @@ export function UparjanjeDialog(l: Lastnosti) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
+      <div className="flex w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl max-h-[90vh]">
 
         {/* glava */}
-        <div className="flex items-start justify-between border-b px-6 py-4">
+        <div className="flex shrink-0 items-start justify-between border-b px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold">Uvoz prejemnice — {l.dobaviteljNaziv}</h2>
             <p className="mt-0.5 text-sm text-neutral-500">
@@ -205,16 +205,16 @@ export function UparjanjeDialog(l: Lastnosti) {
         </div>
 
         {/* povzetek: prikažemo SAMO postavke, ki potrebujejo odločitev */}
-        <div className="flex items-center gap-4 border-b bg-neutral-50 px-6 py-2 text-sm">
+        <div className="flex shrink-0 items-center gap-4 border-b bg-neutral-50 px-6 py-2 text-sm">
           <span className="text-emerald-700">
-            ✓ {l.steviloUparjenih} postavk uparjenih samodejno
+            ✓ {l.steviloUparjenih} postavk samodejno prepoznanih
           </span>
           <span className="text-amber-700">
             ⚠ {skupaj} {skupaj === 1 ? 'postavka potrebuje' : 'postavk potrebuje'} vašo odločitev
           </span>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="overflow-y-auto px-6 py-4">
           <p className="mb-2 text-sm text-neutral-500">{kazalo + 1} / {skupaj}</p>
 
           {/* izvorni zapis z dobavnice */}
@@ -252,7 +252,7 @@ export function UparjanjeDialog(l: Lastnosti) {
             </div>
           ))}
 
-          <p className="my-3 text-center text-sm text-neutral-400">↓ uparim z</p>
+          <p className="my-3 text-center text-sm text-neutral-400">↓ povežem z</p>
 
           {/* kandidati */}
           <div className="rounded-md border border-neutral-200">
@@ -344,7 +344,7 @@ export function UparjanjeDialog(l: Lastnosti) {
                 Zapomni si za tega dobavitelja
                 {!imaSidro && (
                   <span className="text-xs text-neutral-400">
-                    (ni šifre/EAN — uparjanje se ne more zapomniti)
+                    (ni šifre/EAN — povezava se ne more zapomniti)
                   </span>
                 )}
               </label>
@@ -357,7 +357,7 @@ export function UparjanjeDialog(l: Lastnosti) {
         </div>
 
         {/* noga */}
-        <div className="flex items-center justify-between border-t px-6 py-3">
+        <div className="flex shrink-0 items-center justify-between border-t px-6 py-3">
           <button onClick={() => kazalo + 1 < skupaj ? setKazalo(kazalo + 1) : l.onZakljuci()}
                   className="rounded px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100">
             Preskoči <kbd className="ml-1 text-xs">Esc</kbd>
