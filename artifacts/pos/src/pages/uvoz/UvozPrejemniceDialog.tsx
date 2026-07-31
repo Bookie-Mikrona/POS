@@ -349,7 +349,7 @@ export function UvozPrejemniceDialog({
           deviceId: izbraniScanner ?? null,
           dpi:      150,
           color:    false,
-          format:   'jpeg',
+          format:   'png',
         }),
       });
       const data = await r.json() as { image?: string; mimeType?: string; detail?: string };
