@@ -19,8 +19,9 @@ Ko `resolveOrCreateDobavitelja` vrne null (ni davčne v OCR-ju), sistem NAJPREJ 
 - `poisciDobaviteljaAI(naziv, iban)` — glavi entry point; vrne `PodjetjePredlog | null`
 
 ### Ključna ugotovitev (potrjena 2026-07-31)
-- **bizi.si** direktno dostopen brez prijave, davčna je v `<div class="col-6 b-attr-value pl-1">58843302</div>`
-- **DDG Lite** (`lite.duckduckgo.com/lite/`) deluje brez API ključa, vrne bizi.si URLje v besedilu
+- **ddv.inetis.com** (inetis.si programček) — PRIMARNI vir; GET+POST ASP.NET forma; davčna v `<span id="ctl00_ContentPlaceHolder_DavcnaStevilka">SI58843302</span>`; TRR-ji v formatu `XXXXX-XXXXXXXXXX`; IBAN→TRR: strip SI56 + spaces → 15 cifer → BBAN[0:5]+"-"+BBAN[5:]
+- **bizi.si** direktno dostopen brez prijave, davčna v `<div class="col-6 b-attr-value pl-1">58843302</div>`
+- **DDG Lite** (`lite.duckduckgo.com/lite/`) — FALLBACK; deluje brez API ključa, vrne bizi.si URLje v besedilu
 - **DDG HTML** (`duckduckgo.com/html`) — ne deluje (blokiran)
 - **Google** — URLji so v JS, ne v navadnem HTML
 - **AJPES PRS** — zahteva prijavo, ni direktno dostopen
