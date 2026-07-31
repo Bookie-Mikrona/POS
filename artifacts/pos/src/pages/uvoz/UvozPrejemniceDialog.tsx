@@ -347,9 +347,9 @@ export function UvozPrejemniceDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deviceId: izbraniScanner ?? null,
-          dpi:      300,
+          dpi:      200,
           color:    false,
-          format:   'png',
+          format:   'jpeg',
         }),
       });
       const data = await r.json() as { image?: string; mimeType?: string; detail?: string };
