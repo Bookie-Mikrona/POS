@@ -167,6 +167,10 @@ export const prejemDtoSchema = z.object({
   dobaviteljUlica: z.string().nullable().default(null),
   dobaviteljPostnaStevilka: z.string().nullable().default(null),
   dobaviteljKraj: z.string().nullable().default(null),
+  dobaviteljEmail: z.string().nullable().default(null),
+  dobaviteljTelefon: z.string().nullable().default(null),
+  dobaviteljIban: z.string().nullable().default(null),
+  dobaviteljBic: z.string().nullable().default(null),
 
   // dokument
   stDokumenta: z.string().nullable().default(null),

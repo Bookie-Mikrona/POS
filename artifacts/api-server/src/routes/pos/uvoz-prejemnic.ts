@@ -64,6 +64,10 @@ async function ocrSlikaVDto(base64: string, mimeTip: string) {
   "dobaviteljUlica": "ulica in hišna številka sedeža dobavitelja ali null",
   "dobaviteljPostnaStevilka": "poštna številka sedeža dobavitelja ali null",
   "dobaviteljKraj": "kraj/mesto sedeža dobavitelja ali null",
+  "dobaviteljEmail": "e-mail naslov dobavitelja ali null",
+  "dobaviteljTelefon": "telefonska številka dobavitelja ali null",
+  "dobaviteljIban": "IBAN bančnega računa dobavitelja (brez presledkov) ali null",
+  "dobaviteljBic": "BIC/SWIFT koda banke dobavitelja ali null",
   "stDokumenta": "številka dokumenta/računa ali null",
   "datumDokumenta": "datum v obliki YYYY-MM-DD ali null",
   "ceneBruto": true ali false (ali so cene z DDV),
@@ -112,6 +116,11 @@ PRAVILA: Vrni SAMO JSON. Za slovensko podjetje: dobaviteljDavcna = 8 cifer brez 
   dto.dobaviteljUlica           = (raw.dobaviteljUlica           as string) || null;
   dto.dobaviteljPostnaStevilka  = (raw.dobaviteljPostnaStevilka  as string) || null;
   dto.dobaviteljKraj            = (raw.dobaviteljKraj             as string) || null;
+  dto.dobaviteljEmail           = (raw.dobaviteljEmail            as string) || null;
+  dto.dobaviteljTelefon         = (raw.dobaviteljTelefon          as string) || null;
+  const rawIban = ((raw.dobaviteljIban as string) ?? '').replace(/\s/g, '').toUpperCase();
+  dto.dobaviteljIban            = rawIban || null;
+  dto.dobaviteljBic             = ((raw.dobaviteljBic as string) ?? '').replace(/\s/g, '').toUpperCase() || null;
 
   const datum = raw.datumDokumenta as string ?? '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) dto.datumDokumenta = datum;

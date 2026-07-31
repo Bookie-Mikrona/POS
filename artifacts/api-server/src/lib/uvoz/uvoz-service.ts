@@ -357,15 +357,21 @@ export async function resolveOrCreateDobavitelja(
   const naslovDeli = [ulica, postnaStevilka && kraj ? `${postnaStevilka} ${kraj}` : (kraj ?? postnaStevilka)].filter(Boolean);
   const naslov = naslovDeli.length ? naslovDeli.join(', ') : (vies?.naslov ?? null);
 
+  const email    = dto.dobaviteljEmail    ?? null;
+  const telefon  = dto.dobaviteljTelefon  ?? null;
+  const trrJson  = dto.dobaviteljIban
+    ? JSON.stringify([{ iban: dto.dobaviteljIban, bic: dto.dobaviteljBic ?? '' }])
+    : null;
+
   const [novDob] = (await db.execute<{ id: number }>(sql`
     INSERT INTO shranjeni_kupci (
       enota_id, naziv, davcna_stevilka, id_za_ddv,
       koda_drzave, drzava, naslov, ulica, postna_stevilka, kraj,
-      zavezanec_ddv
+      zavezanec_ddv, email, telefon, trr
     ) VALUES (
       ${enotaId}, ${naziv}, ${davcnaStevilka}, ${idZaDdv},
       ${kodaDrzave}, ${drzavaNaziv}, ${naslov}, ${ulica}, ${postnaStevilka}, ${kraj},
-      true
+      true, ${email}, ${telefon}, ${trrJson}::jsonb
     )
     RETURNING id
   `)).rows;
