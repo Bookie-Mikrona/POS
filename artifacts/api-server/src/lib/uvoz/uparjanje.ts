@@ -407,8 +407,8 @@ export async function upariPrejemnico(
   prejemnicaId: number,
   nastavitve: UparjanjeNastavitve = PRIVZETE_NASTAVITVE,
 ): Promise<PaketniIzid> {
-  const [glava] = (await db.execute<{ dobavitelj_id: number; status: string }>(sql`
-    SELECT dobavitelj_id, status FROM prejemnice WHERE id = ${prejemnicaId}
+  const [glava] = (await db.execute<{ dobavitelj_id: number }>(sql`
+    SELECT dobavitelj_id FROM prejemnice WHERE id = ${prejemnicaId}
   `)).rows;
   if (!glava) throw new Error(`Prejemnica ${prejemnicaId} ne obstaja.`);
 
