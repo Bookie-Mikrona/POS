@@ -32,8 +32,8 @@ const DDV_OPC = [
 const ENOTE_MERE = ['kom','kg','g','l','dl','ml','m','m²','m³','par','pak','šk','pal','set'];
 
 // Scanner bridge nastavitve
-const BRIDGE_URL    = 'http://127.0.0.1:8765';
-const BRIDGE_TIMEOUT = 800; // ms za health check
+const BRIDGE_URL    = 'http://localhost:8765';
+const BRIDGE_TIMEOUT = 4000; // ms za health check
 
 // ─── Tipi ──────────────────────────────────────────────────────────────────
 
