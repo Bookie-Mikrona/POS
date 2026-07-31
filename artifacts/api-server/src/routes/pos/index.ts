@@ -116,7 +116,7 @@ router.use(requireEnota, zacetneZalogeRouter);
 router.use(requireEnota, zalogeRouter);
 router.use(requireEnota, terminalRouter);
 router.use(requireEnota, temeljniceRouter);
-router.use(requireEnota, uvozPrejemniceRouter);
-router.use(requireEnota, uvozProfiliRouter);
+router.use('/uvoz', requireEnota, uvozPrejemniceRouter);
+router.use('/uvoz', requireEnota, uvozProfiliRouter);
 
 export default router;

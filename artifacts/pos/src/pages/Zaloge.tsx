@@ -62,7 +62,9 @@ import {
   Plus, Trash2, PackageOpen, ClipboardList, TrendingDown,
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
   Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight,
+  FileUp,
 } from "lucide-react";
+import { UvozPrejemniceDialog } from "./uvoz/UvozPrejemniceDialog";
 
 const DDV_OPCIJE = [
   { label: "22 % (splošna)", value: 22 },
@@ -2256,6 +2258,13 @@ export default function Zaloge() {
 
   // ── Prejemnica create ──────────────────────────────────────────────
   const { data: kupci } = useListShranjeniKupci();
+
+  // ── Uvoz dobavnice ─────────────────────────────────────────────────
+  const [uvozDialogOpen, setUvozDialogOpen] = useState(false);
+  const dobaviteljiMap = useMemo(() =>
+    new Map((kupci ?? []).map((k: ShranjenKupec) => [k.id, k.naziv ?? ""])),
+    [kupci]
+  );
   const [prejDialogOpen, setPrejDialogOpen] = useState(false);
   const [prejDatum, setPrejDatum] = useState("");
   const [prejDobaviteljId, setPrejDobaviteljId] = useState<number | null>(null);
@@ -2860,7 +2869,10 @@ export default function Zaloge() {
 
         {/* ── Prejemnice ────────────────────────────────────────────── */}
         <TabsContent value="prejemnice" className="space-y-4 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={() => setUvozDialogOpen(true)}>
+              <FileUp className="w-4 h-4 mr-2" />Uvozi dobavnico
+            </Button>
             <Button size="sm" onClick={openPrejDialog}>
               <Plus className="w-4 h-4 mr-2" />Nova prejemnica
             </Button>
@@ -3652,6 +3664,18 @@ export default function Zaloge() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Uvoz dobavnice dialog ─────────────────────────────────────── */}
+      <UvozPrejemniceDialog
+        open={uvozDialogOpen}
+        onClose={() => setUvozDialogOpen(false)}
+        onUvozDone={() => {
+          queryClient.invalidateQueries({ queryKey: getListZalogeQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListPrejemniceQueryKey() });
+        }}
+        nabavniArtikli={nabavniArtikli}
+        dobaviteljiMap={dobaviteljiMap}
+      />
 
       {/* ── Prejemnica edit dialog ────────────────────────────────────── */}
       {editPrejId != null && (
