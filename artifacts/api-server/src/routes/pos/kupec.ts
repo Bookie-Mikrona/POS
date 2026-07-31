@@ -517,6 +517,65 @@ router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
   res.json(mapKupec(posodobljen!));
 });
 
+// ── GET /kupec/poisci-vies — išči tujega partnerja po EU VAT ID ──────────────
+router.get("/kupec/poisci-vies", async (req, res): Promise<void> => {
+  const vatId = typeof req.query.vatId === "string"
+    ? req.query.vatId.trim().toUpperCase().replace(/\s/g, "")
+    : "";
+  if (!/^[A-Z]{2}\S{2,}$/.test(vatId)) {
+    res.status(400).json({ napaka: "Neveljaven EU VAT ID (npr. DE195033395)" });
+    return;
+  }
+  const tenotaId = (req as any).enotaId ?? 1;
+  const kodaDrzave = vatId.slice(0, 2);
+
+  // 1. Že v šifrantu?
+  const [obstojecKupec] = await db
+    .select()
+    .from(shranjeniKupciTable)
+    .where(and(
+      eq(shranjeniKupciTable.enotaId, tenotaId),
+      eq(shranjeniKupciTable.idZaDdv, vatId),
+    ))
+    .limit(1);
+  if (obstojecKupec) { res.json(mapKupec(obstojecKupec)); return; }
+
+  // 2. VIES lookup
+  const vies = await preveriVies(vatId);
+  if (!vies) { res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje." }); return; }
+
+  const drzavaNaziv = vies.drzavaNaziv ?? drzavaIzKode(kodaDrzave);
+  const naziv = vies.naziv && vies.naziv !== "---" ? vies.naziv : null;
+  const ulica = vies.ulica && vies.ulica !== "---" ? vies.ulica : null;
+  const postnaStevilka = vies.postnaStevilka && vies.postnaStevilka !== "---" ? vies.postnaStevilka : null;
+  const kraj = vies.kraj && vies.kraj !== "---" ? vies.kraj : null;
+
+  // 3. VIES vrnil naziv → samodejno shrani
+  if (vies.veljaven && naziv) {
+    try {
+      const [nov] = await db.insert(shranjeniKupciTable).values({
+        enotaId: tenotaId,
+        naziv,
+        idZaDdv: vatId,
+        kodaDrzave,
+        drzava: drzavaNaziv,
+        ulica,
+        postnaStevilka,
+        kraj,
+        zavezanecDdv: true,
+        vrstaPartnerja: "podjetje" as any,
+      }).returning({ id: shranjeniKupciTable.id });
+      const [saved] = await db.select().from(shranjeniKupciTable)
+        .where(eq(shranjeniKupciTable.id, nov!.id)).limit(1);
+      res.json(mapKupec(saved!));
+      return;
+    } catch { /* spodleti → vrni brez id */ }
+  }
+
+  // 4. Brez VIES podatkov (npr. DE) → vrni metapodatke za ročen vnos
+  res.json({ naziv, idZaDdv: vatId, kodaDrzave, drzava: drzavaNaziv, zavezanecDdv: vies.veljaven ?? null, ulica, postnaStevilka, kraj });
+});
+
 router.get("/kupec/poisci", async (req, res): Promise<void> => {
   const davcna = typeof req.query.davcna === "string" ? req.query.davcna.trim() : "";
   if (!/^\d{8}$/.test(davcna)) {

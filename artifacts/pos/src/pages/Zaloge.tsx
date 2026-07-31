@@ -400,21 +400,33 @@ function NovDobaviteljKartica({
     };
   }
 
-  async function poisciPoReg(davcnaNum: string) {
-    // 1. Preveri lokalni šifrant PRED klicem API-ja
-    const obstojecKupec = (kupci ?? []).find(
-      k => (k.davcnaStevilka ?? "").trim() === davcnaNum
+  function jeVeljavenVatVnos(v: string) {
+    return /^\d{8}$/.test(v) || /^[A-Z]{2}\S{2,}$/.test(v);
+  }
+
+  async function poisciPoReg(vatInput: string) {
+    const jeSi = /^\d{8}$/.test(vatInput);
+    const enotaId = getEnotaId();
+
+    // 1. Preveri lokalni šifrant (po davcnaStevilka ali idZaDdv)
+    const obstojecKupec = (kupci ?? []).find(k =>
+      jeSi
+        ? (k.davcnaStevilka ?? "").trim() === vatInput
+        : (k.idZaDdv ?? "").trim().toUpperCase().replace(/\s/g, "") === vatInput.toUpperCase()
     );
     if (obstojecKupec) {
       setStanje({ tip: "obstaja", partner: obstojecKupec });
       setNaziv(obstojecKupec.naziv ?? "");
       return;
     }
+
     // 2. Iskanje v registru
     setStanje({ tip: "loading" });
     try {
-      const enotaId = getEnotaId();
-      const r = await fetch(`${base}/api/kupec/poisci?davcna=${davcnaNum}`, {
+      const url = jeSi
+        ? `${base}/api/kupec/poisci?davcna=${vatInput}`
+        : `${base}/api/kupec/poisci-vies?vatId=${encodeURIComponent(vatInput.toUpperCase())}`;
+      const r = await fetch(url, {
         credentials: "include",
         headers: enotaId ? { "X-Enota-Id": enotaId } : {},
       });
@@ -422,15 +434,11 @@ function NovDobaviteljKartica({
       const data = await r.json() as InetisRezultat;
 
       if (data.id) {
-        // /api/kupec/poisci je samodejno shranil partnerja v šifrant in vrnil id.
-        // NE smemo klicati POST /kupec/shranjeni še enkrat — to bi ustvarilo duplikat.
-        // Invalidiramo cache, da se seznam posodobi z novim zapisom.
         void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
         setStanje({ tip: "shranjen", id: data.id, data });
         setNaziv(data.naziv ?? "");
         return;
       }
-      // data.id je null — DB-shranitev je spodletela (redek primer), dovolimo ročno ustvarjanje
       setStanje({ tip: "najden_nov", data });
       setNaziv(data.naziv ?? "");
     } catch (err: unknown) {
@@ -440,15 +448,15 @@ function NovDobaviteljKartica({
     }
   }
 
-  // Samodejno iskanje ko je vnesenih točno 8 cifr
+  // Samodejno iskanje ko je vnos veljaven (8 cifer SI ali EU VAT)
   useEffect(() => {
-    const trimmed = davcna.trim();
-    if (!/^\d{8}$/.test(trimmed)) {
+    const trimmed = davcna.trim().toUpperCase();
+    if (!jeVeljavenVatVnos(trimmed)) {
       setStanje({ tip: "idle" });
       setNaziv("");
       return;
     }
-    const t = setTimeout(() => { void poisciPoReg(trimmed); }, 600);
+    const t = setTimeout(() => { void poisciPoReg(trimmed); }, 700);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [davcna]);
@@ -470,11 +478,17 @@ function NovDobaviteljKartica({
         onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
       });
     } else {
-      // Brez registrskih podatkov — minimalen vnos (le naziv + davčna)
+      // Brez registrskih podatkov — minimalen vnos
+      const vatTrimmed = davcna.trim().toUpperCase();
+      const jeTuji = /^[A-Z]{2}/.test(vatTrimmed) && !/^\d{8}$/.test(vatTrimmed);
       createMutation.mutate({
         data: {
           naziv: naziv.trim(),
-          davcnaStevilka: davcna.trim() || null,
+          davcnaStevilka: jeTuji ? null : (vatTrimmed || null),
+          idZaDdv: jeTuji ? vatTrimmed : null,
+          kodaDrzave: jeTuji ? vatTrimmed.slice(0, 2) : "SI",
+          drzava: jeTuji ? null : "Slovenija",
+          zavezanecDdv: jeTuji ? true : null,
         } as any,
       }, {
         onSuccess: d => {
@@ -513,22 +527,21 @@ function NovDobaviteljKartica({
         <Building2 className="w-4 h-4 shrink-0" />Nov dobavitelj
       </p>
 
-      {/* ── Davčna številka ── */}
+      {/* ── Davčna / VAT ID ── */}
       <div className="space-y-1">
-        <Label className="text-xs">Davčna številka</Label>
+        <Label className="text-xs">Davčna / VAT ID</Label>
         <div className="flex gap-1.5">
           <Input
             value={davcna}
-            onChange={e => setDavcna(e.target.value.replace(/\D/g, "").slice(0, 8))}
-            placeholder="8-mestna številka"
+            onChange={e => setDavcna(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15))}
+            placeholder="SI12345678 ali DE195033395"
             className="h-8 text-sm font-mono"
             autoFocus
-            maxLength={8}
           />
           <Button
             variant="outline" size="sm" className="h-8 px-2 shrink-0"
-            disabled={!/^\d{8}$/.test(davcna.trim()) || stanje.tip === "loading"}
-            onClick={() => void poisciPoReg(davcna.trim())}
+            disabled={!jeVeljavenVatVnos(davcna.trim()) || stanje.tip === "loading"}
+            onClick={() => void poisciPoReg(davcna.trim().toUpperCase())}
             title="Poišči v registru"
           >
             {stanje.tip === "loading"
