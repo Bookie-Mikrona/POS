@@ -12,22 +12,80 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           architecture: x64
+
       - name: Build unsigned x64 PE
         shell: pwsh
         working-directory: fiscal-service
         run: |
+          @"
+          VSVersionInfo(
+            ffi=FixedFileInfo(
+              filevers=(1, 0, 0, 0),
+              prodvers=(1, 0, 0, 0),
+              mask=0x3f,
+              flags=0x0,
+              OS=0x40004,
+              fileType=0x1,
+              subtype=0x0,
+              date=(0, 0)
+            ),
+            kids=[
+              StringFileInfo([
+                StringTable(
+                  '040904B0',
+                  [
+                    StringStruct('CompanyName', 'Bookie'),
+                    StringStruct('FileDescription', 'Bookie Local Gateway'),
+                    StringStruct('FileVersion', '1.0.0.0'),
+                    StringStruct('ProductName', 'Bookie Local Gateway'),
+                    StringStruct('ProductVersion', '1.0.0')
+                  ]
+                )
+              ]),
+              VarFileInfo([VarStruct('Translation', [1033, 1200])])
+            ]
+          )
+          "@ | Set-Content version.txt -Encoding ASCII
+
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt PyInstaller==6.11.1
-          python -m PyInstaller --noconfirm --clean --onefile --name Bookie-Local-Gateway `
-            --collect-all cryptography --collect-all lxml --hidden-import sync `
-            --add-data "contract;contract" fiscal_service.py
+
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --name Bookie-Local-Gateway `
+            --collect-all cryptography `
+            --collect-all lxml `
+            --hidden-import sync `
+            --version-file version.txt `
+            --add-data "contract;contract" `
+            fiscal_service.py
+
           $pe = Get-Item dist\Bookie-Local-Gateway.exe
-          if ($pe.Length -lt 1000000) { throw "Unexpectedly small executable." }
-          "sha256=$((Get-FileHash $pe -Algorithm SHA256).Hash.ToLowerInvariant())" | Out-File dist\BUILD-SHA256.txt
+
+          if ($pe.Length -lt 1000000) {
+            throw "Unexpectedly small executable."
+          }
+
+          $vi = [Diagnostics.FileVersionInfo]::GetVersionInfo($pe.FullName)
+
+          if ($vi.ProductVersion.Trim() -ne "1.0.0") {
+            throw "ProductVersion metadata is not 1.0.0."
+          }
+
+          if ($vi.FileVersion.Trim() -ne "1.0.0.0") {
+            throw "FileVersion metadata is not 1.0.0.0."
+          }
+
+          "sha256=$((Get-FileHash $pe -Algorithm SHA256).Hash.ToLowerInvariant())" |
+            Out-File dist\BUILD-SHA256.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: Bookie-Local-Gateway-unsigned-win-x64
