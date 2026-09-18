@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "canonicalization": "bookie-canonical-json-v1",
+  "vectors": [
+    {
+      "name": "cash-receipt-unicode",
+      "canonicalPayload": {
+        "company": {
+          "name": "Kavarna Črna Mačka d.o.o.",
+          "taxNumber": "12345678"
+        },
+        "currency": "EUR",
+        "device": {
+          "bIdentifier": "B01",
+          "id": "11111111-1111-4111-8111-111111111111"
+        },
+        "interruptionStartedAt": "2025-01-03T10:15:30+01:00",
+        "legalTimestamp": "2025-01-03T10:16:00+01:00",
+        "operationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+        "operator": {
+          "reference": "op-17"
+        },
+        "orderSnapshot": {
+          "id": 4242,
+          "immutable": true,
+          "items": [
+            {
+              "gross": "12.50",
+              "name": "Kava",
+              "quantity": "1.000",
+              "taxRate": "22.00",
+              "unitPrice": "12.50"
+            }
+          ],
+          "version": 7
+        },
+        "payments": [
+          {
+            "amount": "12.50",
+            "method": "cash"
+          }
+        ],
+        "premise": {
+          "id": 19,
+          "label": "PP01"
+        },
+        "printPayload": {
+          "footer": "Hvala za obisk",
+          "lines": [
+            "Kava  1 x 12,50  12,50 EUR"
+          ]
+        },
+        "taxLines": [
+          {
+            "rate": "22.00",
+            "tax": "2.25",
+            "taxable": "10.25"
+          }
+        ],
+        "totals": {
+          "gross": "12.50",
+          "net": "10.25",
+          "tax": "2.25"
+        },
+        "unit": {
+          "id": 3
+        }
+      },
+      "canonicalUtf8": "{\"company\":{\"name\":\"Kavarna Črna Mačka d.o.o.\",\"taxNumber\":\"12345678\"},\"currency\":\"EUR\",\"device\":{\"bIdentifier\":\"B01\",\"id\":\"11111111-1111-4111-8111-111111111111\"},\"interruptionStartedAt\":\"2025-01-03T10:15:30+01:00\",\"legalTimestamp\":\"2025-01-03T10:16:00+01:00\",\"operationId\":\"018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"operator\":{\"reference\":\"op-17\"},\"orderSnapshot\":{\"id\":4242,\"immutable\":true,\"items\":[{\"gross\":\"12.50\",\"name\":\"Kava\",\"quantity\":\"1.000\",\"taxRate\":\"22.00\",\"unitPrice\":\"12.50\"}],\"version\":7},\"payments\":[{\"amount\":\"12.50\",\"method\":\"cash\"}],\"premise\":{\"id\":19,\"label\":\"PP01\"},\"printPayload\":{\"footer\":\"Hvala za obisk\",\"lines\":[\"Kava  1 x 12,50  12,50 EUR\"]},\"taxLines\":[{\"rate\":\"22.00\",\"tax\":\"2.25\",\"taxable\":\"10.25\"}],\"totals\":{\"gross\":\"12.50\",\"net\":\"10.25\",\"tax\":\"2.25\"},\"unit\":{\"id\":3}}",
+      "payloadSha256": "180bad01af847dd6d7f3aaa8d27e2f491cb702b7273941800a3a96808e48f5d3",
+      "zoiInputUtf8": "1234567803.01.2025 10:16:001PP01B0112.50",
+      "zoiSignatureBase64": "S27V5X+j2EFANgkgD0hFlUNivODY9d8zM2cgUYrQwfr7/o/jqFPHzafG/hW2Y0lBVBtYI13ltDMBJGR85e4/DtmnVEq0X1U/xvCXLUniDpOFk6pzIa35BJtfN2EZjBucg/g9KuMMC2MUnRu95qTFD4LzXhwnTCIJGlVMfbzlRV3yYWGRznoH9U9HDNEx+1wyujs4kOgoOP7dcMJIOhsgZ/82ZfVl1JW/8IW9tyih2khhC6pkae3gIKR54QTqLAuixOLch845uKVGv/8k5zQ7cehaKpWqUmu11EabndkM7hSIWm1rPpMoxn6nW2rNGE4AvlATHLu2pobdzK+aTdPYhA==",
+      "zoi": "30656d9574887a5ae5112da5ee3fcbdb",
+      "deviceSignatureMessageUtf8": "{\"bIdentifier\":\"B01\",\"deviceId\":\"11111111-1111-4111-8111-111111111111\",\"interruptionStartedAt\":\"2025-01-03T10:15:30+01:00\",\"issuedAt\":\"2025-01-03T10:16:00+01:00\",\"operationId\":\"018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"operatorReference\":\"op-17\",\"orderId\":4242,\"payloadSha256\":\"180bad01af847dd6d7f3aaa8d27e2f491cb702b7273941800a3a96808e48f5d3\",\"paymentMethod\":\"cash\",\"paymentReference\":null,\"poslovniProstorId\":19,\"poslovniProstorOznaka\":\"PP01\",\"sequence\":1,\"zoi\":\"30656d9574887a5ae5112da5ee3fcbdb\"}",
+      "deviceSignatureBase64": "Vp7VtRVbNag+qRy+ABUrps+8EX0XJDagNjpzK7MWBuGJMn06p3T8WWU5mc9i48iAnx41/zUhrSkXwDaDa8qfmDo6xDondLYIpuwt0YS6j94O4rLGXWhpSpTd5YOYghvymZr6xP74okpF0N00TkL2NSwLB790qeXwU0xxBq4E6O0sRepuCJXLEmYn0qX81Y/VzejYHuTahx/kqMD950OxoHv9hTKDu3WOL8wbMc9mhzknMOV9dt4zxwjsVnPL22eEL8Zud7T8EL6RbemINBxoJyXg5k+qC+Tbbj4UqmPUuVqTVdS++Ouh0H+C1FglvpxgWGrQBKBcV9gajymzZ3aSJw==",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq44dT0rHs6AtfX3kyjHW\n5Q3WqAGA/Z1h+ZIAwKJtMgwFp43Ds1H6/SWDUq2e34JzVJfnuG+iI4XauLxaDyh+\ncoOxLULiEyXtBVAmdftLgXHamV72m+s9Ol52vPPpB5HOb2A+R1ob4JplV/bsb9eV\nZiObXzP22ve/MqE2Lkfx9P1A2XSbfn3kv7rVDudxVaslTQdmPvasfF8HA7kynJYm\nUd1R9tCeXjJcpYF9SHMm3vmR3aBSFKcbDoQcCCQvStP81MkAPaz8Ad017OgccjdG\nGdprPoHVmcPIA3b6nK0Dg+Rr1F0gFwa0htG4xIPcOIGyLmNJBxmxY/9SQTeiGOed\nGQIDAQAB\n-----END PUBLIC KEY-----\n",
+      "signingPublicKeyFingerprintSha256": "c76f610236fb9b9ac60f7d33bfa70fae56c8ed09290d1c56be760b3e9b87fb1e"
+    }
+  ]
+}

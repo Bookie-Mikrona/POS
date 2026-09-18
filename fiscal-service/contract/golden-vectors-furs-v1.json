@@ -1,0 +1,1054 @@
+{
+  "schema": "bookie-furs-v1-golden-v1",
+  "warning": "TEST ONLY. The checked-in private key and certificate are public test material and MUST NEVER be used in production.",
+  "canonicalization": "bookie-canonical-json-v1",
+  "goldenAttestation": {
+    "algorithm": "SHA-256",
+    "aggregationRule": "UTF-8 lines name=lowercase-hex-sha256 joined by LF, in aggregationOrder; no trailing LF.",
+    "aggregationOrder": [
+      "contractSchemaProjectionSha256",
+      "unsignedInvoiceXmlSha256",
+      "signedSoapXmlSha256",
+      "zoiInputSha256",
+      "zoiSignatureSha256",
+      "finalizationPlanSha256",
+      "certificateDerSha256",
+      "devicePublicKeySpkiDerSha256",
+      "provisioningProofInputSha256"
+    ],
+    "aggregationInputUtf8": "contractSchemaProjectionSha256=8dd74d9f689348e1f1eb1e99dbb6c30f22764c8786d454aa0d428a92e7258fbf\nunsignedInvoiceXmlSha256=3931732b6050eac3f6505cdaa6575bfcbac7bb243344b6dc2dca9ac2eb7bd1c9\nsignedSoapXmlSha256=b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9\nzoiInputSha256=542bc20d0e7939e518f2835a8477806e441ad0e7ebe57d307d5f02a53d45db6f\nzoiSignatureSha256=963481ebc4cd9833538d7ae55dcf5c3ef71883a4d1fcd25b43e68e8b118298a5\nfinalizationPlanSha256=cc16847bbf11a4170c5c27812fccedf38203582443448da0bfedf47d99e782f3\ncertificateDerSha256=63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101\ndevicePublicKeySpkiDerSha256=10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81\nprovisioningProofInputSha256=d97e91c333e8ce481bb136e3e18a787908882b458742c4b4591df40c03b312a1",
+    "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f"
+  },
+  "testAuthority": {
+    "certificatePem": "-----BEGIN CERTIFICATE-----\nMIIDnjCCAoagAwIBAgIDBnkyMA0GCSqGSIb3DQEBCwUAMGYxCzAJBgNVBAYTAlNJ\nMRkwFwYDVQQKDBBCT09LSUUgVEVTVCBPTkxZMRkwFwYDVQQLDBBORVZFUiBQUk9E\nVUNUSU9OMSEwHwYDVQQDDBhGVVJTIFYxIEdPTERFTiBURVNUIE9OTFkwIBcNMjYw\nOTA1MDAxMDIwWhgPMjEyNjA4MTIwMDEwMjBaMGYxCzAJBgNVBAYTAlNJMRkwFwYD\nVQQKDBBCT09LSUUgVEVTVCBPTkxZMRkwFwYDVQQLDBBORVZFUiBQUk9EVUNUSU9O\nMSEwHwYDVQQDDBhGVVJTIFYxIEdPTERFTiBURVNUIE9OTFkwggEiMA0GCSqGSIb3\nDQEBAQUAA4IBDwAwggEKAoIBAQC6Q1ilNAOpEoz3iBBiZ2NVYxL9sZg8VFr/y8UB\nGPSMm6hPRRncbcyk2ngPxnZN1+y5TCBOVNhlA9X3qiRvsXvn8i1ZGi0eTfb2vjjE\ntnkh4/FpJsREuyqXQp37a7eUIZ0SJUAFLg3DrPvlYlJxQuuK3MAESAWPQI0Pr84f\nIdMsn2UdjTa8AuNg2kleYruLlvJKVJxNBkXTfNW2lEaDplirIknOhRN5+ZTeJklQ\nmyJJVjv+T/QspQjk2yyew9rO9pOp58334XQRQIG1wM+MwttRnF5vHyKlDmrxtQJT\nob2sM1+KhSST8PSKzqEE1ZLwrRa7XQPZ6OaTOjq1UTFcKHilAgMBAAGjUzBRMB0G\nA1UdDgQWBBSqT7DDfDWAkR5Ddpi5QfuFL8ZV3TAfBgNVHSMEGDAWgBSqT7DDfDWA\nkR5Ddpi5QfuFL8ZV3TAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IB\nAQBiXArGI3RHa3ps6uUi29P0Ij8gxSkNPclBQJil2l2LDvbmrhLES4BGPMTzxtnH\nG/qPMitThRGfNf8PUdXTy6YU+eoMucoO77MuOUgXS+d8/cyaKlrAASzdoVRXUheG\no9GdO+4t6dHxAV7dEk7pDBPI7XwFj5Gr45Zd2WFFyBbAx7fqQ+UJL5YyA6uAtjAn\n+3zY7GW27+FuIW+2JqebcurhsQZyENITNNAGY+1NiYrWd51USgcGVcejIJ4uCLyJ\nfTJ9CX9kQLjJG8y0HJqiIJz/KiU2TyfQwRlvCJu3F58eRrZjG/j1oXxzbOUU/KLi\n5C9QEFfH7/8IgaIlaig2fs6C\n-----END CERTIFICATE-----",
+    "certificateFingerprintSha256": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n",
+    "publicKeyFingerprintSha256": "10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81",
+    "fixturePrivateKeyPath": "test-fixtures/FURS-V1-GOLDEN-TEST-ONLY-private-key.pem",
+    "fixtureCertificatePath": "test-fixtures/FURS-V1-GOLDEN-TEST-ONLY-certificate.pem"
+  },
+  "authorityBundle": {
+    "schema": "bookie-offline-authority-v1",
+    "bundleId": "33333333-3333-4333-8333-333333333333",
+    "server": {
+      "companyId": "22222222-2222-4222-8222-222222222222",
+      "enotaId": 3
+    },
+    "scope": {
+      "deviceId": "11111111-1111-4111-8111-111111111111",
+      "premiseId": 19,
+      "bIdentifier": "B01"
+    },
+    "contract": {
+      "version": "furs-v1",
+      "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f",
+      "authorityVersion": 1
+    },
+    "validity": {
+      "validFrom": "2026-09-01T00:00:00+02:00",
+      "validUntil": "2026-09-08T00:00:00+02:00",
+      "outageSubmissionBusinessDays": 2
+    },
+    "operator": {
+      "waiterId": 17,
+      "name": "Testni Operater",
+      "taxNumber": "87654321",
+      "shiftId": 23
+    },
+    "catalog": [
+      {
+        "articleId": 101,
+        "name": "Kava",
+        "unitGross": "12.50",
+        "vatRate": "22.00",
+        "articleKind": "sale",
+        "inputArticleId": 501,
+        "normativeQuantity": "0.008",
+        "unitWac": "18.750000"
+      }
+    ],
+    "modifiers": [],
+    "policies": {
+      "paymentMethods": [
+        "cash"
+      ],
+      "maxReceiptGross": "10000.00",
+      "maxLines": 250,
+      "stock": "signed-snapshot-exactly-once",
+      "kds": "signed-effects-exactly-once",
+      "accounting": "server-after-confirmation",
+      "staleOrder": "quarantine"
+    },
+    "authority": {
+      "keyId": "FURS-V1-GOLDEN-TEST-ONLY",
+      "algorithm": "RSA-SHA256",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n"
+    },
+    "bundleSha256": "857a6807b81e77b0a316215b5cf378467e6a44edd0fe4cdca941752fba8edd08",
+    "signatureBase64": "Q9A1oSm/8insKVeq4Sf4qjKt7cT/6ojIV+yZ1EenrD9SCQSWekhe7vSzFWWoB5fzaWql+QqFJVXmzPdXtw/64IulmaoA98bzys0UqL0H93+s1m5SNqFigAT+ismq3aujAtaxksNLzkAVMw10gglAPqOjaam9+PahgwOiy+oZn8cB3guCVpGs2R4t5nhxid7QJAH8tcvdocsunQGAFnW3GIyBMQJF/RF6P8d1MnI/d7HOYbmMuI1VOt63KEQdd0m5ta92pFIn3YwMiX9FuWJtxsWCtKBF5FHaF2I4VJHCN5Dws/+kUdfMMAT4ta4Q7aqt2G9Si70gUXLWJ4z7P0sGig=="
+  },
+  "provisioning": {
+    "challenge": {
+      "challengeId": "44444444-4444-4444-8444-444444444444",
+      "challenge": "RlVSUy1WMS1HT0xERU4tUFJPVklTSU9OSU5HLUNIQUxMRU5HRQ",
+      "expiresAt": "2026-09-06T10:20:00.000Z"
+    },
+    "devicePublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n",
+    "devicePublicKeyFingerprintSha256": "10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81",
+    "proofSignatureInputUtf8": "bookie-device-registration-v1\n44444444-4444-4444-8444-444444444444\nRlVSUy1WMS1HT0xERU4tUFJPVklTSU9OSU5HLUNIQUxMRU5HRQ\n10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81",
+    "proofSignatureBase64": "phDvtKh4XOKA1QITy0OmH+VsL2FVdqmUn8iQxi2Cs7N/U9KC5CDcyHUctucVa12/+5eJJ/DTaVmkC1idRmT6w3oAe8XzuZRegrwCqcljB7ZV7YNkXOM6mE692JuzXvHmjJPB1LpSAf1pOnztVgypoeJHPWrK5W+ffPJ2OWKUhr6CFWy08cjRXlXrXysqw3NEBzFcEe5iD1zcDdB22zUsPe0Pdedt1bwnBZx0pZH8PwVG9flmnPNM+vlqa80XDxeAVsFK3udO8Hs2cYYaf5RpVixNEwUMUw7SHDa18shWbrSf7v1ADR1qpyJNHuAeULvhOQr59PEBwg6n0A1T4HQrGg==",
+    "serverRegistrationRequest": {
+      "challengeId": "44444444-4444-4444-8444-444444444444",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n",
+      "proofSignatureBase64": "phDvtKh4XOKA1QITy0OmH+VsL2FVdqmUn8iQxi2Cs7N/U9KC5CDcyHUctucVa12/+5eJJ/DTaVmkC1idRmT6w3oAe8XzuZRegrwCqcljB7ZV7YNkXOM6mE692JuzXvHmjJPB1LpSAf1pOnztVgypoeJHPWrK5W+ffPJ2OWKUhr6CFWy08cjRXlXrXysqw3NEBzFcEe5iD1zcDdB22zUsPe0Pdedt1bwnBZx0pZH8PwVG9flmnPNM+vlqa80XDxeAVsFK3udO8Hs2cYYaf5RpVixNEwUMUw7SHDa18shWbrSf7v1ADR1qpyJNHuAeULvhOQr59PEBwg6n0A1T4HQrGg==",
+      "platform": "android",
+      "bIdentifier": "B01",
+      "expectedFursCertFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101",
+      "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f"
+    },
+    "unsignedBundle": {
+      "schema": "bookie-offline-provisioning-v1",
+      "bundleId": "55555555-5555-4555-8555-555555555555",
+      "version": 1,
+      "device": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "enotaId": 3,
+        "poslovniProstorId": 19,
+        "poslovniProstorOznaka": "PP01",
+        "bIdentifier": "B01",
+        "publicKeyFingerprintSha256": "10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81"
+      },
+      "authority": {
+        "keyId": "FURS-V1-GOLDEN-TEST-ONLY",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "version": 1,
+        "algorithm": "RSA-SHA256"
+      },
+      "furs": {
+        "expectedCertificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101"
+      },
+      "pos": {
+        "allowedHttpsOrigins": [
+          "https://pos.example.test"
+        ]
+      },
+      "sync": {
+        "httpsBaseUrl": "https://api.example.test",
+        "ingestPath": "/api/offline-fiscal/sync/receipts/ingest",
+        "statusPathTemplate": "/api/offline-fiscal/sync/receipts/status/{operationId}",
+        "configPath": "/api/offline-fiscal/sync/config",
+        "maxBodyBytes": 65536
+      },
+      "contract": {
+        "version": "furs-v1",
+        "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f"
+      },
+      "authentication": {
+        "timestampToleranceSeconds": 300,
+        "nonceMinBits": 128,
+        "nonceRetentionSeconds": 600,
+        "signatureInput": "METHOD\\nPATH_WITH_QUERY\\nTIMESTAMP\\nNONCE\\nLOWERCASE_HEX_SHA256_RAW_BODY"
+      },
+      "revocation": {
+        "deviceVersion": 1,
+        "minimumAcceptedVersion": 1
+      },
+      "validity": {
+        "validFrom": "2026-09-06T10:17:00.000Z",
+        "validUntil": "2026-10-06T10:17:00.000Z"
+      }
+    },
+    "bundleCanonicalUtf8": "{\"authentication\":{\"nonceMinBits\":128,\"nonceRetentionSeconds\":600,\"signatureInput\":\"METHOD\\\\nPATH_WITH_QUERY\\\\nTIMESTAMP\\\\nNONCE\\\\nLOWERCASE_HEX_SHA256_RAW_BODY\",\"timestampToleranceSeconds\":300},\"authority\":{\"algorithm\":\"RSA-SHA256\",\"keyId\":\"FURS-V1-GOLDEN-TEST-ONLY\",\"publicKeyPem\":\"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\\npQIDAQAB\\n-----END PUBLIC KEY-----\\n\",\"version\":1},\"bundleId\":\"55555555-5555-4555-8555-555555555555\",\"contract\":{\"goldenAttestationSha256\":\"2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f\",\"version\":\"furs-v1\"},\"device\":{\"bIdentifier\":\"B01\",\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"enotaId\":3,\"id\":\"11111111-1111-4111-8111-111111111111\",\"poslovniProstorId\":19,\"poslovniProstorOznaka\":\"PP01\",\"publicKeyFingerprintSha256\":\"10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81\"},\"furs\":{\"expectedCertificateFingerprint\":\"sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101\"},\"pos\":{\"allowedHttpsOrigins\":[\"https://pos.example.test\"]},\"revocation\":{\"deviceVersion\":1,\"minimumAcceptedVersion\":1},\"schema\":\"bookie-offline-provisioning-v1\",\"sync\":{\"configPath\":\"/api/offline-fiscal/sync/config\",\"httpsBaseUrl\":\"https://api.example.test\",\"ingestPath\":\"/api/offline-fiscal/sync/receipts/ingest\",\"maxBodyBytes\":65536,\"statusPathTemplate\":\"/api/offline-fiscal/sync/receipts/status/{operationId}\"},\"validity\":{\"validFrom\":\"2026-09-06T10:17:00.000Z\",\"validUntil\":\"2026-10-06T10:17:00.000Z\"},\"version\":1}",
+    "signedBundle": {
+      "schema": "bookie-offline-provisioning-v1",
+      "bundleId": "55555555-5555-4555-8555-555555555555",
+      "version": 1,
+      "device": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "enotaId": 3,
+        "poslovniProstorId": 19,
+        "poslovniProstorOznaka": "PP01",
+        "bIdentifier": "B01",
+        "publicKeyFingerprintSha256": "10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81"
+      },
+      "authority": {
+        "keyId": "FURS-V1-GOLDEN-TEST-ONLY",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "version": 1,
+        "algorithm": "RSA-SHA256"
+      },
+      "furs": {
+        "expectedCertificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101"
+      },
+      "pos": {
+        "allowedHttpsOrigins": [
+          "https://pos.example.test"
+        ]
+      },
+      "sync": {
+        "httpsBaseUrl": "https://api.example.test",
+        "ingestPath": "/api/offline-fiscal/sync/receipts/ingest",
+        "statusPathTemplate": "/api/offline-fiscal/sync/receipts/status/{operationId}",
+        "configPath": "/api/offline-fiscal/sync/config",
+        "maxBodyBytes": 65536
+      },
+      "contract": {
+        "version": "furs-v1",
+        "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f"
+      },
+      "authentication": {
+        "timestampToleranceSeconds": 300,
+        "nonceMinBits": 128,
+        "nonceRetentionSeconds": 600,
+        "signatureInput": "METHOD\\nPATH_WITH_QUERY\\nTIMESTAMP\\nNONCE\\nLOWERCASE_HEX_SHA256_RAW_BODY"
+      },
+      "revocation": {
+        "deviceVersion": 1,
+        "minimumAcceptedVersion": 1
+      },
+      "validity": {
+        "validFrom": "2026-09-06T10:17:00.000Z",
+        "validUntil": "2026-10-06T10:17:00.000Z"
+      },
+      "payloadSha256": "a76715bdf54dda949e6593e9d7e488cc56df188e2f0ccdbf36ca97074c76da6b",
+      "signatureBase64": "QrUVozL54HPIU7MAzhcE4fCQaWj3t108jRPh7SkOEekpFdn+aSJhnpWdSAQFcYXre36DbKqzLahuuZqAPygHyM5dkto49qzG4GascLcJBLXf0Yys0QKI6avLwMzhkt3m4ONeJNTOOk2hN/ySXzaNxNsLB15gB3UcfuDS3HUhpcILMJAKBcWKPI9HodJ5tsZIYQjqqsR7zNGzpGfGg0UmnRRIYCq9RL76pJEb/bHPtyGjfonf673YRqM+HlISxphkqKqB+8CK70q6tutW4ekIb8WuEZpuIwHZdBxxo7ED6W/qG1++4mUa5QNAb33AZRtKrttXnK5y0M0EO+qWUgufAQ=="
+    },
+    "attestationChecks": {
+      "registrationMatchesGoldenAttestation": true,
+      "bundleMatchesGoldenAttestation": true
+    }
+  },
+  "authorityCanonicalUtf8": "{\"authority\":{\"algorithm\":\"RSA-SHA256\",\"keyId\":\"FURS-V1-GOLDEN-TEST-ONLY\",\"publicKeyPem\":\"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\\npQIDAQAB\\n-----END PUBLIC KEY-----\\n\"},\"bundleId\":\"33333333-3333-4333-8333-333333333333\",\"catalog\":[{\"articleId\":101,\"articleKind\":\"sale\",\"inputArticleId\":501,\"name\":\"Kava\",\"normativeQuantity\":\"0.008\",\"unitGross\":\"12.50\",\"unitWac\":\"18.750000\",\"vatRate\":\"22.00\"}],\"contract\":{\"authorityVersion\":1,\"goldenAttestationSha256\":\"2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f\",\"version\":\"furs-v1\"},\"modifiers\":[],\"operator\":{\"name\":\"Testni Operater\",\"shiftId\":23,\"taxNumber\":\"87654321\",\"waiterId\":17},\"policies\":{\"accounting\":\"server-after-confirmation\",\"kds\":\"signed-effects-exactly-once\",\"maxLines\":250,\"maxReceiptGross\":\"10000.00\",\"paymentMethods\":[\"cash\"],\"staleOrder\":\"quarantine\",\"stock\":\"signed-snapshot-exactly-once\"},\"schema\":\"bookie-offline-authority-v1\",\"scope\":{\"bIdentifier\":\"B01\",\"deviceId\":\"11111111-1111-4111-8111-111111111111\",\"premiseId\":19},\"server\":{\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"enotaId\":3},\"validity\":{\"outageSubmissionBusinessDays\":2,\"validFrom\":\"2026-09-01T00:00:00+02:00\",\"validUntil\":\"2026-09-08T00:00:00+02:00\"}}",
+  "cashIssueRequest": {
+    "operationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+    "authorityBundle": {
+      "schema": "bookie-offline-authority-v1",
+      "bundleId": "33333333-3333-4333-8333-333333333333",
+      "server": {
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "enotaId": 3
+      },
+      "scope": {
+        "deviceId": "11111111-1111-4111-8111-111111111111",
+        "premiseId": 19,
+        "bIdentifier": "B01"
+      },
+      "contract": {
+        "version": "furs-v1",
+        "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f",
+        "authorityVersion": 1
+      },
+      "validity": {
+        "validFrom": "2026-09-01T00:00:00+02:00",
+        "validUntil": "2026-09-08T00:00:00+02:00",
+        "outageSubmissionBusinessDays": 2
+      },
+      "operator": {
+        "waiterId": 17,
+        "name": "Testni Operater",
+        "taxNumber": "87654321",
+        "shiftId": 23
+      },
+      "catalog": [
+        {
+          "articleId": 101,
+          "name": "Kava",
+          "unitGross": "12.50",
+          "vatRate": "22.00",
+          "articleKind": "sale",
+          "inputArticleId": 501,
+          "normativeQuantity": "0.008",
+          "unitWac": "18.750000"
+        }
+      ],
+      "modifiers": [],
+      "policies": {
+        "paymentMethods": [
+          "cash"
+        ],
+        "maxReceiptGross": "10000.00",
+        "maxLines": 250,
+        "stock": "signed-snapshot-exactly-once",
+        "kds": "signed-effects-exactly-once",
+        "accounting": "server-after-confirmation",
+        "staleOrder": "quarantine"
+      },
+      "authority": {
+        "keyId": "FURS-V1-GOLDEN-TEST-ONLY",
+        "algorithm": "RSA-SHA256",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n"
+      },
+      "bundleSha256": "857a6807b81e77b0a316215b5cf378467e6a44edd0fe4cdca941752fba8edd08",
+      "signatureBase64": "Q9A1oSm/8insKVeq4Sf4qjKt7cT/6ojIV+yZ1EenrD9SCQSWekhe7vSzFWWoB5fzaWql+QqFJVXmzPdXtw/64IulmaoA98bzys0UqL0H93+s1m5SNqFigAT+ismq3aujAtaxksNLzkAVMw10gglAPqOjaam9+PahgwOiy+oZn8cB3guCVpGs2R4t5nhxid7QJAH8tcvdocsunQGAFnW3GIyBMQJF/RF6P8d1MnI/d7HOYbmMuI1VOt63KEQdd0m5ta92pFIn3YwMiX9FuWJtxsWCtKBF5FHaF2I4VJHCN5Dws/+kUdfMMAT4ta4Q7aqt2G9Si70gUXLWJ4z7P0sGig=="
+    },
+    "orderEventSnapshot": {
+      "orderId": 4242,
+      "orderVersion": 7,
+      "eventId": 9001,
+      "capturedAt": "2026-09-06T10:16:00+02:00",
+      "lineIds": [
+        7001
+      ]
+    },
+    "finalizationPlanTemplate": {
+      "version": 2,
+      "source": "offline",
+      "sourceOperationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+      "soldLines": [
+        {
+          "id": 7001,
+          "articleId": 101,
+          "modifierId": null,
+          "name": "Kava",
+          "quantity": 1,
+          "unitGross": 12.5,
+          "gross": 12.5,
+          "vatRate": 22,
+          "normativeFactor": 1,
+          "articleKind": "sale"
+        }
+      ],
+      "normativeSnapshot": [
+        {
+          "articleId": 501,
+          "quantity": -0.008
+        }
+      ],
+      "totals": {
+        "gross": 12.5,
+        "net": 10.25,
+        "vat": 2.25,
+        "vatGroups": [
+          {
+            "rate": 22,
+            "gross": 12.5,
+            "vat": 2.25
+          }
+        ]
+      },
+      "payment": {
+        "method": "gotovina",
+        "cash": 12.5,
+        "card": 0,
+        "voucher": 0,
+        "pizzaVoucher": 0,
+        "nonCash": 0,
+        "terminalReferenceReservationId": null,
+        "cardPaymentAttemptId": null,
+        "giftVoucherRedemption": 0
+      },
+      "operator": {
+        "waiterId": 17,
+        "name": "Testni Operater",
+        "taxNumber": "87654321",
+        "shiftId": 23,
+        "actor": "offline-device:golden"
+      },
+      "closure": {
+        "allLinesCovered": true,
+        "closeOrder": true,
+        "orderId": 4242,
+        "tableId": 9,
+        "clearTipAmount": true
+      },
+      "tip": {
+        "amount": 0,
+        "mode": null,
+        "policyId": null,
+        "feeAmount": 0,
+        "netAmount": 0
+      },
+      "stockMovements": [
+        {
+          "articleId": 501,
+          "quantity": -0.008,
+          "unitWac": 18.75,
+          "value": -0.15,
+          "note": "Golden Kava",
+          "effectiveAt": "2026-09-06T10:16:00+02:00"
+        }
+      ],
+      "kds": {
+        "effects": [
+          {
+            "kind": "complete",
+            "lineId": 7001
+          }
+        ]
+      },
+      "accounting": {
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "businessDate": "2026-09-06",
+        "syncAfterCommit": true
+      },
+      "print": {
+        "receiptNumber": "PP01-B01-1",
+        "issuedAt": "2026-09-06T10:16:00+02:00",
+        "customerName": null,
+        "customerAddress": null,
+        "customerTaxNumber": null
+      },
+      "receiptContext": {
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "enotaId": 3,
+        "orderId": 4242,
+        "isPartial": false
+      }
+    },
+    "legalTimestamp": "2026-09-06T10:16:00+02:00",
+    "interruptionStartedAt": "2026-09-06T10:15:30+02:00"
+  },
+  "cashIssueRequestCanonicalSha256": "e714715818a38daacfde8298358b233b838c62b5350d1e61a30b6fb9cd3f448b",
+  "finalizationPlan": {
+    "version": 2,
+    "source": "offline",
+    "sourceOperationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+    "receipt": {
+      "localReceiptId": "64162bae-343f-59ed-a7aa-0dbef3e10be1",
+      "companyId": "22222222-2222-4222-8222-222222222222",
+      "enotaId": 3,
+      "orderId": 4242,
+      "legalNumber": "PP01-B01-1",
+      "pp": "PP01",
+      "b": "B01",
+      "ppBSequence": 1,
+      "issuedAt": "2026-09-06T10:16:00+02:00",
+      "isPartial": false
+    },
+    "soldLines": [
+      {
+        "id": 7001,
+        "articleId": 101,
+        "modifierId": null,
+        "name": "Kava",
+        "quantity": 1,
+        "unitGross": 12.5,
+        "gross": 12.5,
+        "vatRate": 22,
+        "normativeFactor": 1,
+        "articleKind": "sale"
+      }
+    ],
+    "normativeSnapshot": [
+      {
+        "articleId": 501,
+        "quantity": -0.008
+      }
+    ],
+    "totals": {
+      "gross": 12.5,
+      "net": 10.25,
+      "vat": 2.25,
+      "vatGroups": [
+        {
+          "rate": 22,
+          "gross": 12.5,
+          "vat": 2.25
+        }
+      ]
+    },
+    "payment": {
+      "method": "gotovina",
+      "cash": 12.5,
+      "card": 0,
+      "voucher": 0,
+      "pizzaVoucher": 0,
+      "nonCash": 0,
+      "terminalReferenceReservationId": null,
+      "cardPaymentAttemptId": null,
+      "giftVoucherRedemption": 0
+    },
+    "operator": {
+      "waiterId": 17,
+      "name": "Testni Operater",
+      "taxNumber": "87654321",
+      "shiftId": 23,
+      "actor": "offline-device:golden"
+    },
+    "closure": {
+      "allLinesCovered": true,
+      "closeOrder": true,
+      "orderId": 4242,
+      "tableId": 9,
+      "clearTipAmount": true
+    },
+    "tip": {
+      "amount": 0,
+      "mode": null,
+      "policyId": null,
+      "feeAmount": 0,
+      "netAmount": 0
+    },
+    "stockMovements": [
+      {
+        "articleId": 501,
+        "quantity": -0.008,
+        "unitWac": 18.75,
+        "value": -0.15,
+        "note": "Golden Kava",
+        "effectiveAt": "2026-09-06T10:16:00+02:00"
+      }
+    ],
+    "kds": {
+      "effects": [
+        {
+          "kind": "complete",
+          "lineId": 7001
+        }
+      ]
+    },
+    "accounting": {
+      "companyId": "22222222-2222-4222-8222-222222222222",
+      "businessDate": "2026-09-06",
+      "syncAfterCommit": true
+    },
+    "print": {
+      "receiptNumber": "PP01-B01-1",
+      "issuedAt": "2026-09-06T10:16:00+02:00",
+      "customerName": null,
+      "customerAddress": null,
+      "customerTaxNumber": null
+    },
+    "reservations": {
+      "issueReservationId": "56724cb9-f820-51fc-a083-6b35f89331f8"
+    },
+    "furs": {
+      "snapshotId": "433c3327-ccc7-53ca-a373-9c1548221837",
+      "requestHash": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+      "canonicalArtifactLink": "offline:018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc"
+    }
+  },
+  "finalizationPlanCanonicalUtf8": "{\"accounting\":{\"businessDate\":\"2026-09-06\",\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"syncAfterCommit\":true},\"closure\":{\"allLinesCovered\":true,\"clearTipAmount\":true,\"closeOrder\":true,\"orderId\":4242,\"tableId\":9},\"furs\":{\"canonicalArtifactLink\":\"offline:018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"requestHash\":\"sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9\",\"snapshotId\":\"433c3327-ccc7-53ca-a373-9c1548221837\"},\"kds\":{\"effects\":[{\"kind\":\"complete\",\"lineId\":7001}]},\"normativeSnapshot\":[{\"articleId\":501,\"quantity\":-0.008}],\"operator\":{\"actor\":\"offline-device:golden\",\"name\":\"Testni Operater\",\"shiftId\":23,\"taxNumber\":\"87654321\",\"waiterId\":17},\"payment\":{\"card\":0,\"cardPaymentAttemptId\":null,\"cash\":12.5,\"giftVoucherRedemption\":0,\"method\":\"gotovina\",\"nonCash\":0,\"pizzaVoucher\":0,\"terminalReferenceReservationId\":null,\"voucher\":0},\"print\":{\"customerAddress\":null,\"customerName\":null,\"customerTaxNumber\":null,\"issuedAt\":\"2026-09-06T10:16:00+02:00\",\"receiptNumber\":\"PP01-B01-1\"},\"receipt\":{\"b\":\"B01\",\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"enotaId\":3,\"isPartial\":false,\"issuedAt\":\"2026-09-06T10:16:00+02:00\",\"legalNumber\":\"PP01-B01-1\",\"localReceiptId\":\"64162bae-343f-59ed-a7aa-0dbef3e10be1\",\"orderId\":4242,\"pp\":\"PP01\",\"ppBSequence\":1},\"reservations\":{\"issueReservationId\":\"56724cb9-f820-51fc-a083-6b35f89331f8\"},\"soldLines\":[{\"articleId\":101,\"articleKind\":\"sale\",\"gross\":12.5,\"id\":7001,\"modifierId\":null,\"name\":\"Kava\",\"normativeFactor\":1,\"quantity\":1,\"unitGross\":12.5,\"vatRate\":22}],\"source\":\"offline\",\"sourceOperationId\":\"018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"stockMovements\":[{\"articleId\":501,\"effectiveAt\":\"2026-09-06T10:16:00+02:00\",\"note\":\"Golden Kava\",\"quantity\":-0.008,\"unitWac\":18.75,\"value\":-0.15}],\"tip\":{\"amount\":0,\"feeAmount\":0,\"mode\":null,\"netAmount\":0,\"policyId\":null},\"totals\":{\"gross\":12.5,\"net\":10.25,\"vat\":2.25,\"vatGroups\":[{\"gross\":12.5,\"rate\":22,\"vat\":2.25}]},\"version\":2}",
+  "finalizationPlanSha256": "cc16847bbf11a4170c5c27812fccedf38203582443448da0bfedf47d99e782f3",
+  "fursArtifact": {
+    "unsignedInvoiceXmlUtf8": "<fu:InvoiceRequest xmlns:fu='http://www.fu.gov.si/' Id='InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc'><fu:Header><fu:MessageID>78ca5778-11fd-5d8c-b6d4-dea67d8b87bb</fu:MessageID><fu:DateTime>2026-09-06T10:16:00</fu:DateTime></fu:Header><fu:Invoice><fu:TaxNumber>12345678</fu:TaxNumber><fu:IssueDateTime>2026-09-06T10:16:00</fu:IssueDateTime><fu:NumberingStructure>B</fu:NumberingStructure><fu:InvoiceIdentifier><fu:BusinessPremiseID>PP01</fu:BusinessPremiseID><fu:ElectronicDeviceID>B01</fu:ElectronicDeviceID><fu:InvoiceNumber>1</fu:InvoiceNumber></fu:InvoiceIdentifier><fu:InvoiceAmount>12.50</fu:InvoiceAmount><fu:PaymentAmount>12.50</fu:PaymentAmount><fu:TaxesPerSeller><fu:VAT><fu:TaxRate>22.00</fu:TaxRate><fu:TaxableAmount>10.25</fu:TaxableAmount><fu:TaxAmount>2.25</fu:TaxAmount></fu:VAT></fu:TaxesPerSeller><fu:OperatorTaxNumber>87654321</fu:OperatorTaxNumber><fu:ProtectedID>e0963ca24a9d914078593a1eddf3c6ee</fu:ProtectedID></fu:Invoice></fu:InvoiceRequest>",
+    "unsignedInvoiceXmlBase64": "PGZ1Okludm9pY2VSZXF1ZXN0IHhtbG5zOmZ1PSdodHRwOi8vd3d3LmZ1Lmdvdi5zaS8nIElkPSdJbnZvaWNlUmVxdWVzdC02NDE2MmJhZTM0M2Y1OWVkYTdhYTBkYmVmM2UxMGJlMS0wMThmNDdkMjQ0ZDI3YTZiOGQ3YzhmZDhlYzZhMDJjYyc+PGZ1OkhlYWRlcj48ZnU6TWVzc2FnZUlEPjc4Y2E1Nzc4LTExZmQtNWQ4Yy1iNmQ0LWRlYTY3ZDhiODdiYjwvZnU6TWVzc2FnZUlEPjxmdTpEYXRlVGltZT4yMDI2LTA5LTA2VDEwOjE2OjAwPC9mdTpEYXRlVGltZT48L2Z1OkhlYWRlcj48ZnU6SW52b2ljZT48ZnU6VGF4TnVtYmVyPjEyMzQ1Njc4PC9mdTpUYXhOdW1iZXI+PGZ1Oklzc3VlRGF0ZVRpbWU+MjAyNi0wOS0wNlQxMDoxNjowMDwvZnU6SXNzdWVEYXRlVGltZT48ZnU6TnVtYmVyaW5nU3RydWN0dXJlPkI8L2Z1Ok51bWJlcmluZ1N0cnVjdHVyZT48ZnU6SW52b2ljZUlkZW50aWZpZXI+PGZ1OkJ1c2luZXNzUHJlbWlzZUlEPlBQMDE8L2Z1OkJ1c2luZXNzUHJlbWlzZUlEPjxmdTpFbGVjdHJvbmljRGV2aWNlSUQ+QjAxPC9mdTpFbGVjdHJvbmljRGV2aWNlSUQ+PGZ1Okludm9pY2VOdW1iZXI+MTwvZnU6SW52b2ljZU51bWJlcj48L2Z1Okludm9pY2VJZGVudGlmaWVyPjxmdTpJbnZvaWNlQW1vdW50PjEyLjUwPC9mdTpJbnZvaWNlQW1vdW50PjxmdTpQYXltZW50QW1vdW50PjEyLjUwPC9mdTpQYXltZW50QW1vdW50PjxmdTpUYXhlc1BlclNlbGxlcj48ZnU6VkFUPjxmdTpUYXhSYXRlPjIyLjAwPC9mdTpUYXhSYXRlPjxmdTpUYXhhYmxlQW1vdW50PjEwLjI1PC9mdTpUYXhhYmxlQW1vdW50PjxmdTpUYXhBbW91bnQ+Mi4yNTwvZnU6VGF4QW1vdW50PjwvZnU6VkFUPjwvZnU6VGF4ZXNQZXJTZWxsZXI+PGZ1Ok9wZXJhdG9yVGF4TnVtYmVyPjg3NjU0MzIxPC9mdTpPcGVyYXRvclRheE51bWJlcj48ZnU6UHJvdGVjdGVkSUQ+ZTA5NjNjYTI0YTlkOTE0MDc4NTkzYTFlZGRmM2M2ZWU8L2Z1OlByb3RlY3RlZElEPjwvZnU6SW52b2ljZT48L2Z1Okludm9pY2VSZXF1ZXN0Pg==",
+    "signedXmlBase64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz48c29hcGVudjpFbnZlbG9wZSB4bWxuczpzb2FwZW52PSJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy9zb2FwL2VudmVsb3BlLyIgeG1sbnM6eGQ9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiPjxzb2FwZW52OkhlYWRlci8+PHNvYXBlbnY6Qm9keT48ZnU6SW52b2ljZVJlcXVlc3QgeG1sbnM6ZnU9Imh0dHA6Ly93d3cuZnUuZ292LnNpLyIgSWQ9Ikludm9pY2VSZXF1ZXN0LTY0MTYyYmFlMzQzZjU5ZWRhN2FhMGRiZWYzZTEwYmUxLTAxOGY0N2QyNDRkMjdhNmI4ZDdjOGZkOGVjNmEwMmNjIj48ZnU6SGVhZGVyPjxmdTpNZXNzYWdlSUQ+NzhjYTU3NzgtMTFmZC01ZDhjLWI2ZDQtZGVhNjdkOGI4N2JiPC9mdTpNZXNzYWdlSUQ+PGZ1OkRhdGVUaW1lPjIwMjYtMDktMDZUMTA6MTY6MDA8L2Z1OkRhdGVUaW1lPjwvZnU6SGVhZGVyPjxmdTpJbnZvaWNlPjxmdTpUYXhOdW1iZXI+MTIzNDU2Nzg8L2Z1OlRheE51bWJlcj48ZnU6SXNzdWVEYXRlVGltZT4yMDI2LTA5LTA2VDEwOjE2OjAwPC9mdTpJc3N1ZURhdGVUaW1lPjxmdTpOdW1iZXJpbmdTdHJ1Y3R1cmU+QjwvZnU6TnVtYmVyaW5nU3RydWN0dXJlPjxmdTpJbnZvaWNlSWRlbnRpZmllcj48ZnU6QnVzaW5lc3NQcmVtaXNlSUQ+UFAwMTwvZnU6QnVzaW5lc3NQcmVtaXNlSUQ+PGZ1OkVsZWN0cm9uaWNEZXZpY2VJRD5CMDE8L2Z1OkVsZWN0cm9uaWNEZXZpY2VJRD48ZnU6SW52b2ljZU51bWJlcj4xPC9mdTpJbnZvaWNlTnVtYmVyPjwvZnU6SW52b2ljZUlkZW50aWZpZXI+PGZ1Okludm9pY2VBbW91bnQ+MTIuNTA8L2Z1Okludm9pY2VBbW91bnQ+PGZ1OlBheW1lbnRBbW91bnQ+MTIuNTA8L2Z1OlBheW1lbnRBbW91bnQ+PGZ1OlRheGVzUGVyU2VsbGVyPjxmdTpWQVQ+PGZ1OlRheFJhdGU+MjIuMDA8L2Z1OlRheFJhdGU+PGZ1OlRheGFibGVBbW91bnQ+MTAuMjU8L2Z1OlRheGFibGVBbW91bnQ+PGZ1OlRheEFtb3VudD4yLjI1PC9mdTpUYXhBbW91bnQ+PC9mdTpWQVQ+PC9mdTpUYXhlc1BlclNlbGxlcj48ZnU6T3BlcmF0b3JUYXhOdW1iZXI+ODc2NTQzMjE8L2Z1Ok9wZXJhdG9yVGF4TnVtYmVyPjxmdTpQcm90ZWN0ZWRJRD5lMDk2M2NhMjRhOWQ5MTQwNzg1OTNhMWVkZGYzYzZlZTwvZnU6UHJvdGVjdGVkSUQ+PC9mdTpJbnZvaWNlPjxTaWduYXR1cmUgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiPjxTaWduZWRJbmZvPjxDYW5vbmljYWxpemF0aW9uTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvVFIvMjAwMS9SRUMteG1sLWMxNG4tMjAwMTAzMTUiLz48U2lnbmF0dXJlTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxkc2lnLW1vcmUjcnNhLXNoYTI1NiIvPjxSZWZlcmVuY2UgVVJJPSIjSW52b2ljZVJlcXVlc3QtNjQxNjJiYWUzNDNmNTllZGE3YWEwZGJlZjNlMTBiZTEtMDE4ZjQ3ZDI0NGQyN2E2YjhkN2M4ZmQ4ZWM2YTAyY2MiPjxUcmFuc2Zvcm1zPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwLzA5L3htbGRzaWcjZW52ZWxvcGVkLXNpZ25hdHVyZSIvPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy14bWwtYzE0bi0yMDAxMDMxNSIvPjwvVHJhbnNmb3Jtcz48RGlnZXN0TWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxlbmMjc2hhMjU2Ii8+PERpZ2VzdFZhbHVlPk5rR2JGZmtOTlgwN3VVV2V4MGNBY3hoVW1ubnNSVFd2ck1GWjlGam9hODQ9PC9EaWdlc3RWYWx1ZT48L1JlZmVyZW5jZT48L1NpZ25lZEluZm8+PFNpZ25hdHVyZVZhbHVlPk1mb3RHUnpOSytINVE5TlRGckswbXJUNnlvS1BGb1FPcjEvcy8rWGNLdDA2Si9OOU4vYlZ4TzRzV3BBVWVXL3lwVTNJK0VkaTlFL253Z25sZEVJYnkrNm5OamNyRDQ1RVdWcFpLOTFmV2dpVnJYS1JrQzR6YXNDdUJEU0ZFR2FWT05UdmdxTXU0b3ZZemdPZ2Vvelo4SVJmcFVoNjZyKzI3WWs4N2dlOFRNQjk2TjRmM3Z4M29oOERMWHdiZ3h3T0Fpeko0MWIzdHdFc3h6bGU2UG1yaXpZbytpcC9wU0EzYnNlamNZU0F2RGsza1M5TjhCYnZIbTBOVjVsQXdWRlNiSjJMOUZrZUZFdWVRSTlCQUU0d0wrM1pHMXFGWFNKbi9oK2x1S0hwcDMxQ3ljVElpcnpsY1ZDdElrQ0dmcTIzbnJDMjRPMG5ycDNaQW5NSEtOVTQydz09PC9TaWduYXR1cmVWYWx1ZT48S2V5SW5mbz48WDUwOURhdGE+PFg1MDlJc3N1ZXJTZXJpYWw+PFg1MDlJc3N1ZXJOYW1lPkNOPUZVUlMgVjEgR09MREVOIFRFU1QgT05MWSxPVT1ORVZFUiBQUk9EVUNUSU9OLE89Qk9PS0lFIFRFU1QgT05MWSxDPVNJPC9YNTA5SXNzdWVyTmFtZT48WDUwOVNlcmlhbE51bWJlcj40MjQyNDI8L1g1MDlTZXJpYWxOdW1iZXI+PC9YNTA5SXNzdWVyU2VyaWFsPjxYNTA5Q2VydGlmaWNhdGU+TUlJRG5qQ0NBb2FnQXdJQkFnSURCbmt5TUEwR0NTcUdTSWIzRFFFQkN3VUFNR1l4Q3pBSkJnTlZCQVlUQWxOSk1Sa3dGd1lEVlFRS0RCQkNUMDlMU1VVZ1ZFVlRWQ0JQVGt4Wk1Sa3dGd1lEVlFRTERCQk9SVlpGVWlCUVVrOUVWVU5VU1U5T01TRXdId1lEVlFRRERCaEdWVkpUSUZZeElFZFBURVJGVGlCVVJWTlVJRTlPVEZrd0lCY05Nall3T1RBMU1EQXhNREl3V2hnUE1qRXlOakE0TVRJd01ERXdNakJhTUdZeEN6QUpCZ05WQkFZVEFsTkpNUmt3RndZRFZRUUtEQkJDVDA5TFNVVWdWRVZUVkNCUFRreFpNUmt3RndZRFZRUUxEQkJPUlZaRlVpQlFVazlFVlVOVVNVOU9NU0V3SHdZRFZRUUREQmhHVlZKVElGWXhJRWRQVEVSRlRpQlVSVk5VSUU5T1RGa3dnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDNlExaWxOQU9wRW96M2lCQmlaMk5WWXhMOXNaZzhWRnIveThVQkdQU01tNmhQUlJuY2JjeWsybmdQeG5aTjEreTVUQ0JPVk5obEE5WDNxaVJ2c1h2bjhpMVpHaTBlVGZiMnZqakV0bmtoNC9GcEpzUkV1eXFYUXAzN2E3ZVVJWjBTSlVBRkxnM0RyUHZsWWxKeFF1dUszTUFFU0FXUFFJMFByODRmSWRNc24yVWRqVGE4QXVOZzJrbGVZcnVMbHZKS1ZKeE5Ca1hUZk5XMmxFYURwbGlySWtuT2hSTjUrWlRlSmtsUW15SkpWanYrVC9Rc3BRamsyeXlldzlyTzlwT3A1ODMzNFhRUlFJRzF3TStNd3R0Um5GNXZIeUtsRG1yeHRRSlRvYjJzTTErS2hTU1Q4UFNLenFFRTFaTHdyUmE3WFFQWjZPYVRPanExVVRGY0tIaWxBZ01CQUFHalV6QlJNQjBHQTFVZERnUVdCQlNxVDdERGZEV0FrUjVEZHBpNVFmdUZMOFpWM1RBZkJnTlZIU01FR0RBV2dCU3FUN0REZkRXQWtSNURkcGk1UWZ1Rkw4WlYzVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJpWEFyR0kzUkhhM3BzNnVVaTI5UDBJajhneFNrTlBjbEJRSmlsMmwyTER2Ym1yaExFUzRCR1BNVHp4dG5IRy9xUE1pdFRoUkdmTmY4UFVkWFR5NllVK2VvTXVjb083N011T1VnWFMrZDgvY3lhS2xyQUFTemRvVlJYVWhlR285R2RPKzR0NmRIeEFWN2RFazdwREJQSTdYd0ZqNUdyNDVaZDJXRkZ5QmJBeDdmcVErVUpMNVl5QTZ1QXRqQW4rM3pZN0dXMjcrRnVJVysySnFlYmN1cmhzUVp5RU5JVE5OQUdZKzFOaVlyV2Q1MVVTZ2NHVmNlaklKNHVDTHlKZlRKOUNYOWtRTGpKRzh5MEhKcWlJSnovS2lVMlR5ZlF3Umx2Q0p1M0Y1OGVSclpqRy9qMW9YeHpiT1VVL0tMaTVDOVFFRmZINy84SWdhSWxhaWcyZnM2QzwvWDUwOUNlcnRpZmljYXRlPjwvWDUwOURhdGE+PC9LZXlJbmZvPjwvU2lnbmF0dXJlPjwvZnU6SW52b2ljZVJlcXVlc3Q+PC9zb2FwZW52OkJvZHk+PC9zb2FwZW52OkVudmVsb3BlPg==",
+    "signedXmlSha256": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+    "canonicalPayloadHash": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+    "zoi": "e0963ca24a9d914078593a1eddf3c6ee",
+    "zoiInputUtf8": "1234567806.09.2026 10:16:0012.50PP01-B01-1PP01B01",
+    "zoiSignatureBase64": "YyG4YnrS+v+8FBHHHsnyOumAAami7W4BMfTLKMJ+z/g7H/kw2DlCfBUHMTetgVrdFgEZoK/pkWPKtmPDyf4Ub5kMd/Lb3qQDbqVodgH3p1MvDMBO39ekc2zFAvMYyHfeKNGOqkFL5B5nbWmizKqeYAl20uFuoLI1jn0CXlTAEM4ems3Z0S85lt2vm7CYjizaZ20SdfHM3pIP2W/AasA3LC1a9i/tadKC86Ar4qEaByfruK7h0EINXrs6J64Au21HB8mnKTCQlCj7iZ1Y7xt8rF+dgBE4YpUBJPODSB51nwNlnivlvr+QHqDBz0lfm0M/ZgytTwVRj6JA6NYyA8138g==",
+    "certificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101",
+    "canonicalFields": {
+      "messageId": "78ca5778-11fd-5d8c-b6d4-dea67d8b87bb",
+      "invoiceRequestId": "InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc",
+      "taxNumber": "12345678",
+      "issueDateTime": "2026-09-06T10:16:00",
+      "invoiceNumber": 1,
+      "businessPremiseId": "PP01",
+      "electronicDeviceId": "B01",
+      "invoiceAmount": "12.50",
+      "paymentAmount": "12.50",
+      "numberingStructure": "B",
+      "operatorTaxNumber": "87654321",
+      "taxesPerSeller": [
+        {
+          "taxRate": "22.00",
+          "taxableAmount": "10.25",
+          "taxAmount": "2.25"
+        }
+      ],
+      "zoiInput": "1234567806.09.2026 10:16:0012.50PP01-B01-1PP01B01",
+      "zoi": "e0963ca24a9d914078593a1eddf3c6ee",
+      "certificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101"
+    },
+    "xmlDsig": {
+      "signatureAlgorithm": "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      "digestAlgorithm": "http://www.w3.org/2001/04/xmlenc#sha256",
+      "canonicalizationAlgorithm": "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      "transforms": [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+      ],
+      "referenceUri": "#InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc"
+    }
+  },
+  "canonicalPayload": {
+    "envelopeVersion": "furs-v1",
+    "authorityBundle": {
+      "schema": "bookie-offline-authority-v1",
+      "bundleId": "33333333-3333-4333-8333-333333333333",
+      "server": {
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "enotaId": 3
+      },
+      "scope": {
+        "deviceId": "11111111-1111-4111-8111-111111111111",
+        "premiseId": 19,
+        "bIdentifier": "B01"
+      },
+      "contract": {
+        "version": "furs-v1",
+        "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f",
+        "authorityVersion": 1
+      },
+      "validity": {
+        "validFrom": "2026-09-01T00:00:00+02:00",
+        "validUntil": "2026-09-08T00:00:00+02:00",
+        "outageSubmissionBusinessDays": 2
+      },
+      "operator": {
+        "waiterId": 17,
+        "name": "Testni Operater",
+        "taxNumber": "87654321",
+        "shiftId": 23
+      },
+      "catalog": [
+        {
+          "articleId": 101,
+          "name": "Kava",
+          "unitGross": "12.50",
+          "vatRate": "22.00",
+          "articleKind": "sale",
+          "inputArticleId": 501,
+          "normativeQuantity": "0.008",
+          "unitWac": "18.750000"
+        }
+      ],
+      "modifiers": [],
+      "policies": {
+        "paymentMethods": [
+          "cash"
+        ],
+        "maxReceiptGross": "10000.00",
+        "maxLines": 250,
+        "stock": "signed-snapshot-exactly-once",
+        "kds": "signed-effects-exactly-once",
+        "accounting": "server-after-confirmation",
+        "staleOrder": "quarantine"
+      },
+      "authority": {
+        "keyId": "FURS-V1-GOLDEN-TEST-ONLY",
+        "algorithm": "RSA-SHA256",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n"
+      },
+      "bundleSha256": "857a6807b81e77b0a316215b5cf378467e6a44edd0fe4cdca941752fba8edd08",
+      "signatureBase64": "Q9A1oSm/8insKVeq4Sf4qjKt7cT/6ojIV+yZ1EenrD9SCQSWekhe7vSzFWWoB5fzaWql+QqFJVXmzPdXtw/64IulmaoA98bzys0UqL0H93+s1m5SNqFigAT+ismq3aujAtaxksNLzkAVMw10gglAPqOjaam9+PahgwOiy+oZn8cB3guCVpGs2R4t5nhxid7QJAH8tcvdocsunQGAFnW3GIyBMQJF/RF6P8d1MnI/d7HOYbmMuI1VOt63KEQdd0m5ta92pFIn3YwMiX9FuWJtxsWCtKBF5FHaF2I4VJHCN5Dws/+kUdfMMAT4ta4Q7aqt2G9Si70gUXLWJ4z7P0sGig=="
+    },
+    "finalizationPlan": {
+      "version": 2,
+      "source": "offline",
+      "sourceOperationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+      "receipt": {
+        "localReceiptId": "64162bae-343f-59ed-a7aa-0dbef3e10be1",
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "enotaId": 3,
+        "orderId": 4242,
+        "legalNumber": "PP01-B01-1",
+        "pp": "PP01",
+        "b": "B01",
+        "ppBSequence": 1,
+        "issuedAt": "2026-09-06T10:16:00+02:00",
+        "isPartial": false
+      },
+      "soldLines": [
+        {
+          "id": 7001,
+          "articleId": 101,
+          "modifierId": null,
+          "name": "Kava",
+          "quantity": 1,
+          "unitGross": 12.5,
+          "gross": 12.5,
+          "vatRate": 22,
+          "normativeFactor": 1,
+          "articleKind": "sale"
+        }
+      ],
+      "normativeSnapshot": [
+        {
+          "articleId": 501,
+          "quantity": -0.008
+        }
+      ],
+      "totals": {
+        "gross": 12.5,
+        "net": 10.25,
+        "vat": 2.25,
+        "vatGroups": [
+          {
+            "rate": 22,
+            "gross": 12.5,
+            "vat": 2.25
+          }
+        ]
+      },
+      "payment": {
+        "method": "gotovina",
+        "cash": 12.5,
+        "card": 0,
+        "voucher": 0,
+        "pizzaVoucher": 0,
+        "nonCash": 0,
+        "terminalReferenceReservationId": null,
+        "cardPaymentAttemptId": null,
+        "giftVoucherRedemption": 0
+      },
+      "operator": {
+        "waiterId": 17,
+        "name": "Testni Operater",
+        "taxNumber": "87654321",
+        "shiftId": 23,
+        "actor": "offline-device:golden"
+      },
+      "closure": {
+        "allLinesCovered": true,
+        "closeOrder": true,
+        "orderId": 4242,
+        "tableId": 9,
+        "clearTipAmount": true
+      },
+      "tip": {
+        "amount": 0,
+        "mode": null,
+        "policyId": null,
+        "feeAmount": 0,
+        "netAmount": 0
+      },
+      "stockMovements": [
+        {
+          "articleId": 501,
+          "quantity": -0.008,
+          "unitWac": 18.75,
+          "value": -0.15,
+          "note": "Golden Kava",
+          "effectiveAt": "2026-09-06T10:16:00+02:00"
+        }
+      ],
+      "kds": {
+        "effects": [
+          {
+            "kind": "complete",
+            "lineId": 7001
+          }
+        ]
+      },
+      "accounting": {
+        "companyId": "22222222-2222-4222-8222-222222222222",
+        "businessDate": "2026-09-06",
+        "syncAfterCommit": true
+      },
+      "print": {
+        "receiptNumber": "PP01-B01-1",
+        "issuedAt": "2026-09-06T10:16:00+02:00",
+        "customerName": null,
+        "customerAddress": null,
+        "customerTaxNumber": null
+      },
+      "reservations": {
+        "issueReservationId": "56724cb9-f820-51fc-a083-6b35f89331f8"
+      },
+      "furs": {
+        "snapshotId": "433c3327-ccc7-53ca-a373-9c1548221837",
+        "requestHash": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+        "canonicalArtifactLink": "offline:018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc"
+      }
+    },
+    "finalizationPlanSha256": "cc16847bbf11a4170c5c27812fccedf38203582443448da0bfedf47d99e782f3",
+    "fursArtifact": {
+      "signedXmlBase64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz48c29hcGVudjpFbnZlbG9wZSB4bWxuczpzb2FwZW52PSJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy9zb2FwL2VudmVsb3BlLyIgeG1sbnM6eGQ9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiPjxzb2FwZW52OkhlYWRlci8+PHNvYXBlbnY6Qm9keT48ZnU6SW52b2ljZVJlcXVlc3QgeG1sbnM6ZnU9Imh0dHA6Ly93d3cuZnUuZ292LnNpLyIgSWQ9Ikludm9pY2VSZXF1ZXN0LTY0MTYyYmFlMzQzZjU5ZWRhN2FhMGRiZWYzZTEwYmUxLTAxOGY0N2QyNDRkMjdhNmI4ZDdjOGZkOGVjNmEwMmNjIj48ZnU6SGVhZGVyPjxmdTpNZXNzYWdlSUQ+NzhjYTU3NzgtMTFmZC01ZDhjLWI2ZDQtZGVhNjdkOGI4N2JiPC9mdTpNZXNzYWdlSUQ+PGZ1OkRhdGVUaW1lPjIwMjYtMDktMDZUMTA6MTY6MDA8L2Z1OkRhdGVUaW1lPjwvZnU6SGVhZGVyPjxmdTpJbnZvaWNlPjxmdTpUYXhOdW1iZXI+MTIzNDU2Nzg8L2Z1OlRheE51bWJlcj48ZnU6SXNzdWVEYXRlVGltZT4yMDI2LTA5LTA2VDEwOjE2OjAwPC9mdTpJc3N1ZURhdGVUaW1lPjxmdTpOdW1iZXJpbmdTdHJ1Y3R1cmU+QjwvZnU6TnVtYmVyaW5nU3RydWN0dXJlPjxmdTpJbnZvaWNlSWRlbnRpZmllcj48ZnU6QnVzaW5lc3NQcmVtaXNlSUQ+UFAwMTwvZnU6QnVzaW5lc3NQcmVtaXNlSUQ+PGZ1OkVsZWN0cm9uaWNEZXZpY2VJRD5CMDE8L2Z1OkVsZWN0cm9uaWNEZXZpY2VJRD48ZnU6SW52b2ljZU51bWJlcj4xPC9mdTpJbnZvaWNlTnVtYmVyPjwvZnU6SW52b2ljZUlkZW50aWZpZXI+PGZ1Okludm9pY2VBbW91bnQ+MTIuNTA8L2Z1Okludm9pY2VBbW91bnQ+PGZ1OlBheW1lbnRBbW91bnQ+MTIuNTA8L2Z1OlBheW1lbnRBbW91bnQ+PGZ1OlRheGVzUGVyU2VsbGVyPjxmdTpWQVQ+PGZ1OlRheFJhdGU+MjIuMDA8L2Z1OlRheFJhdGU+PGZ1OlRheGFibGVBbW91bnQ+MTAuMjU8L2Z1OlRheGFibGVBbW91bnQ+PGZ1OlRheEFtb3VudD4yLjI1PC9mdTpUYXhBbW91bnQ+PC9mdTpWQVQ+PC9mdTpUYXhlc1BlclNlbGxlcj48ZnU6T3BlcmF0b3JUYXhOdW1iZXI+ODc2NTQzMjE8L2Z1Ok9wZXJhdG9yVGF4TnVtYmVyPjxmdTpQcm90ZWN0ZWRJRD5lMDk2M2NhMjRhOWQ5MTQwNzg1OTNhMWVkZGYzYzZlZTwvZnU6UHJvdGVjdGVkSUQ+PC9mdTpJbnZvaWNlPjxTaWduYXR1cmUgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiPjxTaWduZWRJbmZvPjxDYW5vbmljYWxpemF0aW9uTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvVFIvMjAwMS9SRUMteG1sLWMxNG4tMjAwMTAzMTUiLz48U2lnbmF0dXJlTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxkc2lnLW1vcmUjcnNhLXNoYTI1NiIvPjxSZWZlcmVuY2UgVVJJPSIjSW52b2ljZVJlcXVlc3QtNjQxNjJiYWUzNDNmNTllZGE3YWEwZGJlZjNlMTBiZTEtMDE4ZjQ3ZDI0NGQyN2E2YjhkN2M4ZmQ4ZWM2YTAyY2MiPjxUcmFuc2Zvcm1zPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwLzA5L3htbGRzaWcjZW52ZWxvcGVkLXNpZ25hdHVyZSIvPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy14bWwtYzE0bi0yMDAxMDMxNSIvPjwvVHJhbnNmb3Jtcz48RGlnZXN0TWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxlbmMjc2hhMjU2Ii8+PERpZ2VzdFZhbHVlPk5rR2JGZmtOTlgwN3VVV2V4MGNBY3hoVW1ubnNSVFd2ck1GWjlGam9hODQ9PC9EaWdlc3RWYWx1ZT48L1JlZmVyZW5jZT48L1NpZ25lZEluZm8+PFNpZ25hdHVyZVZhbHVlPk1mb3RHUnpOSytINVE5TlRGckswbXJUNnlvS1BGb1FPcjEvcy8rWGNLdDA2Si9OOU4vYlZ4TzRzV3BBVWVXL3lwVTNJK0VkaTlFL253Z25sZEVJYnkrNm5OamNyRDQ1RVdWcFpLOTFmV2dpVnJYS1JrQzR6YXNDdUJEU0ZFR2FWT05UdmdxTXU0b3ZZemdPZ2Vvelo4SVJmcFVoNjZyKzI3WWs4N2dlOFRNQjk2TjRmM3Z4M29oOERMWHdiZ3h3T0Fpeko0MWIzdHdFc3h6bGU2UG1yaXpZbytpcC9wU0EzYnNlamNZU0F2RGsza1M5TjhCYnZIbTBOVjVsQXdWRlNiSjJMOUZrZUZFdWVRSTlCQUU0d0wrM1pHMXFGWFNKbi9oK2x1S0hwcDMxQ3ljVElpcnpsY1ZDdElrQ0dmcTIzbnJDMjRPMG5ycDNaQW5NSEtOVTQydz09PC9TaWduYXR1cmVWYWx1ZT48S2V5SW5mbz48WDUwOURhdGE+PFg1MDlJc3N1ZXJTZXJpYWw+PFg1MDlJc3N1ZXJOYW1lPkNOPUZVUlMgVjEgR09MREVOIFRFU1QgT05MWSxPVT1ORVZFUiBQUk9EVUNUSU9OLE89Qk9PS0lFIFRFU1QgT05MWSxDPVNJPC9YNTA5SXNzdWVyTmFtZT48WDUwOVNlcmlhbE51bWJlcj40MjQyNDI8L1g1MDlTZXJpYWxOdW1iZXI+PC9YNTA5SXNzdWVyU2VyaWFsPjxYNTA5Q2VydGlmaWNhdGU+TUlJRG5qQ0NBb2FnQXdJQkFnSURCbmt5TUEwR0NTcUdTSWIzRFFFQkN3VUFNR1l4Q3pBSkJnTlZCQVlUQWxOSk1Sa3dGd1lEVlFRS0RCQkNUMDlMU1VVZ1ZFVlRWQ0JQVGt4Wk1Sa3dGd1lEVlFRTERCQk9SVlpGVWlCUVVrOUVWVU5VU1U5T01TRXdId1lEVlFRRERCaEdWVkpUSUZZeElFZFBURVJGVGlCVVJWTlVJRTlPVEZrd0lCY05Nall3T1RBMU1EQXhNREl3V2hnUE1qRXlOakE0TVRJd01ERXdNakJhTUdZeEN6QUpCZ05WQkFZVEFsTkpNUmt3RndZRFZRUUtEQkJDVDA5TFNVVWdWRVZUVkNCUFRreFpNUmt3RndZRFZRUUxEQkJPUlZaRlVpQlFVazlFVlVOVVNVOU9NU0V3SHdZRFZRUUREQmhHVlZKVElGWXhJRWRQVEVSRlRpQlVSVk5VSUU5T1RGa3dnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDNlExaWxOQU9wRW96M2lCQmlaMk5WWXhMOXNaZzhWRnIveThVQkdQU01tNmhQUlJuY2JjeWsybmdQeG5aTjEreTVUQ0JPVk5obEE5WDNxaVJ2c1h2bjhpMVpHaTBlVGZiMnZqakV0bmtoNC9GcEpzUkV1eXFYUXAzN2E3ZVVJWjBTSlVBRkxnM0RyUHZsWWxKeFF1dUszTUFFU0FXUFFJMFByODRmSWRNc24yVWRqVGE4QXVOZzJrbGVZcnVMbHZKS1ZKeE5Ca1hUZk5XMmxFYURwbGlySWtuT2hSTjUrWlRlSmtsUW15SkpWanYrVC9Rc3BRamsyeXlldzlyTzlwT3A1ODMzNFhRUlFJRzF3TStNd3R0Um5GNXZIeUtsRG1yeHRRSlRvYjJzTTErS2hTU1Q4UFNLenFFRTFaTHdyUmE3WFFQWjZPYVRPanExVVRGY0tIaWxBZ01CQUFHalV6QlJNQjBHQTFVZERnUVdCQlNxVDdERGZEV0FrUjVEZHBpNVFmdUZMOFpWM1RBZkJnTlZIU01FR0RBV2dCU3FUN0REZkRXQWtSNURkcGk1UWZ1Rkw4WlYzVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJpWEFyR0kzUkhhM3BzNnVVaTI5UDBJajhneFNrTlBjbEJRSmlsMmwyTER2Ym1yaExFUzRCR1BNVHp4dG5IRy9xUE1pdFRoUkdmTmY4UFVkWFR5NllVK2VvTXVjb083N011T1VnWFMrZDgvY3lhS2xyQUFTemRvVlJYVWhlR285R2RPKzR0NmRIeEFWN2RFazdwREJQSTdYd0ZqNUdyNDVaZDJXRkZ5QmJBeDdmcVErVUpMNVl5QTZ1QXRqQW4rM3pZN0dXMjcrRnVJVysySnFlYmN1cmhzUVp5RU5JVE5OQUdZKzFOaVlyV2Q1MVVTZ2NHVmNlaklKNHVDTHlKZlRKOUNYOWtRTGpKRzh5MEhKcWlJSnovS2lVMlR5ZlF3Umx2Q0p1M0Y1OGVSclpqRy9qMW9YeHpiT1VVL0tMaTVDOVFFRmZINy84SWdhSWxhaWcyZnM2QzwvWDUwOUNlcnRpZmljYXRlPjwvWDUwOURhdGE+PC9LZXlJbmZvPjwvU2lnbmF0dXJlPjwvZnU6SW52b2ljZVJlcXVlc3Q+PC9zb2FwZW52OkJvZHk+PC9zb2FwZW52OkVudmVsb3BlPg==",
+      "signedXmlSha256": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+      "zoi": "e0963ca24a9d914078593a1eddf3c6ee",
+      "certificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101",
+      "canonicalFields": {
+        "messageId": "78ca5778-11fd-5d8c-b6d4-dea67d8b87bb",
+        "invoiceRequestId": "InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc",
+        "taxNumber": "12345678",
+        "issueDateTime": "2026-09-06T10:16:00",
+        "invoiceNumber": 1,
+        "businessPremiseId": "PP01",
+        "electronicDeviceId": "B01",
+        "invoiceAmount": "12.50",
+        "paymentAmount": "12.50",
+        "numberingStructure": "B",
+        "operatorTaxNumber": "87654321",
+        "taxesPerSeller": [
+          {
+            "taxRate": "22.00",
+            "taxableAmount": "10.25",
+            "taxAmount": "2.25"
+          }
+        ],
+        "zoiInput": "1234567806.09.2026 10:16:0012.50PP01-B01-1PP01B01",
+        "zoi": "e0963ca24a9d914078593a1eddf3c6ee",
+        "certificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101"
+      }
+    }
+  },
+  "canonicalPayloadUtf8": "{\"authorityBundle\":{\"authority\":{\"algorithm\":\"RSA-SHA256\",\"keyId\":\"FURS-V1-GOLDEN-TEST-ONLY\",\"publicKeyPem\":\"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\\npQIDAQAB\\n-----END PUBLIC KEY-----\\n\"},\"bundleId\":\"33333333-3333-4333-8333-333333333333\",\"bundleSha256\":\"857a6807b81e77b0a316215b5cf378467e6a44edd0fe4cdca941752fba8edd08\",\"catalog\":[{\"articleId\":101,\"articleKind\":\"sale\",\"inputArticleId\":501,\"name\":\"Kava\",\"normativeQuantity\":\"0.008\",\"unitGross\":\"12.50\",\"unitWac\":\"18.750000\",\"vatRate\":\"22.00\"}],\"contract\":{\"authorityVersion\":1,\"goldenAttestationSha256\":\"2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f\",\"version\":\"furs-v1\"},\"modifiers\":[],\"operator\":{\"name\":\"Testni Operater\",\"shiftId\":23,\"taxNumber\":\"87654321\",\"waiterId\":17},\"policies\":{\"accounting\":\"server-after-confirmation\",\"kds\":\"signed-effects-exactly-once\",\"maxLines\":250,\"maxReceiptGross\":\"10000.00\",\"paymentMethods\":[\"cash\"],\"staleOrder\":\"quarantine\",\"stock\":\"signed-snapshot-exactly-once\"},\"schema\":\"bookie-offline-authority-v1\",\"scope\":{\"bIdentifier\":\"B01\",\"deviceId\":\"11111111-1111-4111-8111-111111111111\",\"premiseId\":19},\"server\":{\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"enotaId\":3},\"signatureBase64\":\"Q9A1oSm/8insKVeq4Sf4qjKt7cT/6ojIV+yZ1EenrD9SCQSWekhe7vSzFWWoB5fzaWql+QqFJVXmzPdXtw/64IulmaoA98bzys0UqL0H93+s1m5SNqFigAT+ismq3aujAtaxksNLzkAVMw10gglAPqOjaam9+PahgwOiy+oZn8cB3guCVpGs2R4t5nhxid7QJAH8tcvdocsunQGAFnW3GIyBMQJF/RF6P8d1MnI/d7HOYbmMuI1VOt63KEQdd0m5ta92pFIn3YwMiX9FuWJtxsWCtKBF5FHaF2I4VJHCN5Dws/+kUdfMMAT4ta4Q7aqt2G9Si70gUXLWJ4z7P0sGig==\",\"validity\":{\"outageSubmissionBusinessDays\":2,\"validFrom\":\"2026-09-01T00:00:00+02:00\",\"validUntil\":\"2026-09-08T00:00:00+02:00\"}},\"envelopeVersion\":\"furs-v1\",\"finalizationPlan\":{\"accounting\":{\"businessDate\":\"2026-09-06\",\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"syncAfterCommit\":true},\"closure\":{\"allLinesCovered\":true,\"clearTipAmount\":true,\"closeOrder\":true,\"orderId\":4242,\"tableId\":9},\"furs\":{\"canonicalArtifactLink\":\"offline:018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"requestHash\":\"sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9\",\"snapshotId\":\"433c3327-ccc7-53ca-a373-9c1548221837\"},\"kds\":{\"effects\":[{\"kind\":\"complete\",\"lineId\":7001}]},\"normativeSnapshot\":[{\"articleId\":501,\"quantity\":-0.008}],\"operator\":{\"actor\":\"offline-device:golden\",\"name\":\"Testni Operater\",\"shiftId\":23,\"taxNumber\":\"87654321\",\"waiterId\":17},\"payment\":{\"card\":0,\"cardPaymentAttemptId\":null,\"cash\":12.5,\"giftVoucherRedemption\":0,\"method\":\"gotovina\",\"nonCash\":0,\"pizzaVoucher\":0,\"terminalReferenceReservationId\":null,\"voucher\":0},\"print\":{\"customerAddress\":null,\"customerName\":null,\"customerTaxNumber\":null,\"issuedAt\":\"2026-09-06T10:16:00+02:00\",\"receiptNumber\":\"PP01-B01-1\"},\"receipt\":{\"b\":\"B01\",\"companyId\":\"22222222-2222-4222-8222-222222222222\",\"enotaId\":3,\"isPartial\":false,\"issuedAt\":\"2026-09-06T10:16:00+02:00\",\"legalNumber\":\"PP01-B01-1\",\"localReceiptId\":\"64162bae-343f-59ed-a7aa-0dbef3e10be1\",\"orderId\":4242,\"pp\":\"PP01\",\"ppBSequence\":1},\"reservations\":{\"issueReservationId\":\"56724cb9-f820-51fc-a083-6b35f89331f8\"},\"soldLines\":[{\"articleId\":101,\"articleKind\":\"sale\",\"gross\":12.5,\"id\":7001,\"modifierId\":null,\"name\":\"Kava\",\"normativeFactor\":1,\"quantity\":1,\"unitGross\":12.5,\"vatRate\":22}],\"source\":\"offline\",\"sourceOperationId\":\"018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"stockMovements\":[{\"articleId\":501,\"effectiveAt\":\"2026-09-06T10:16:00+02:00\",\"note\":\"Golden Kava\",\"quantity\":-0.008,\"unitWac\":18.75,\"value\":-0.15}],\"tip\":{\"amount\":0,\"feeAmount\":0,\"mode\":null,\"netAmount\":0,\"policyId\":null},\"totals\":{\"gross\":12.5,\"net\":10.25,\"vat\":2.25,\"vatGroups\":[{\"gross\":12.5,\"rate\":22,\"vat\":2.25}]},\"version\":2},\"finalizationPlanSha256\":\"cc16847bbf11a4170c5c27812fccedf38203582443448da0bfedf47d99e782f3\",\"fursArtifact\":{\"canonicalFields\":{\"businessPremiseId\":\"PP01\",\"certificateFingerprint\":\"sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101\",\"electronicDeviceId\":\"B01\",\"invoiceAmount\":\"12.50\",\"invoiceNumber\":1,\"invoiceRequestId\":\"InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc\",\"issueDateTime\":\"2026-09-06T10:16:00\",\"messageId\":\"78ca5778-11fd-5d8c-b6d4-dea67d8b87bb\",\"numberingStructure\":\"B\",\"operatorTaxNumber\":\"87654321\",\"paymentAmount\":\"12.50\",\"taxNumber\":\"12345678\",\"taxesPerSeller\":[{\"taxAmount\":\"2.25\",\"taxRate\":\"22.00\",\"taxableAmount\":\"10.25\"}],\"zoi\":\"e0963ca24a9d914078593a1eddf3c6ee\",\"zoiInput\":\"1234567806.09.2026 10:16:0012.50PP01-B01-1PP01B01\"},\"certificateFingerprint\":\"sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101\",\"signedXmlBase64\":\"PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz48c29hcGVudjpFbnZlbG9wZSB4bWxuczpzb2FwZW52PSJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy9zb2FwL2VudmVsb3BlLyIgeG1sbnM6eGQ9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiPjxzb2FwZW52OkhlYWRlci8+PHNvYXBlbnY6Qm9keT48ZnU6SW52b2ljZVJlcXVlc3QgeG1sbnM6ZnU9Imh0dHA6Ly93d3cuZnUuZ292LnNpLyIgSWQ9Ikludm9pY2VSZXF1ZXN0LTY0MTYyYmFlMzQzZjU5ZWRhN2FhMGRiZWYzZTEwYmUxLTAxOGY0N2QyNDRkMjdhNmI4ZDdjOGZkOGVjNmEwMmNjIj48ZnU6SGVhZGVyPjxmdTpNZXNzYWdlSUQ+NzhjYTU3NzgtMTFmZC01ZDhjLWI2ZDQtZGVhNjdkOGI4N2JiPC9mdTpNZXNzYWdlSUQ+PGZ1OkRhdGVUaW1lPjIwMjYtMDktMDZUMTA6MTY6MDA8L2Z1OkRhdGVUaW1lPjwvZnU6SGVhZGVyPjxmdTpJbnZvaWNlPjxmdTpUYXhOdW1iZXI+MTIzNDU2Nzg8L2Z1OlRheE51bWJlcj48ZnU6SXNzdWVEYXRlVGltZT4yMDI2LTA5LTA2VDEwOjE2OjAwPC9mdTpJc3N1ZURhdGVUaW1lPjxmdTpOdW1iZXJpbmdTdHJ1Y3R1cmU+QjwvZnU6TnVtYmVyaW5nU3RydWN0dXJlPjxmdTpJbnZvaWNlSWRlbnRpZmllcj48ZnU6QnVzaW5lc3NQcmVtaXNlSUQ+UFAwMTwvZnU6QnVzaW5lc3NQcmVtaXNlSUQ+PGZ1OkVsZWN0cm9uaWNEZXZpY2VJRD5CMDE8L2Z1OkVsZWN0cm9uaWNEZXZpY2VJRD48ZnU6SW52b2ljZU51bWJlcj4xPC9mdTpJbnZvaWNlTnVtYmVyPjwvZnU6SW52b2ljZUlkZW50aWZpZXI+PGZ1Okludm9pY2VBbW91bnQ+MTIuNTA8L2Z1Okludm9pY2VBbW91bnQ+PGZ1OlBheW1lbnRBbW91bnQ+MTIuNTA8L2Z1OlBheW1lbnRBbW91bnQ+PGZ1OlRheGVzUGVyU2VsbGVyPjxmdTpWQVQ+PGZ1OlRheFJhdGU+MjIuMDA8L2Z1OlRheFJhdGU+PGZ1OlRheGFibGVBbW91bnQ+MTAuMjU8L2Z1OlRheGFibGVBbW91bnQ+PGZ1OlRheEFtb3VudD4yLjI1PC9mdTpUYXhBbW91bnQ+PC9mdTpWQVQ+PC9mdTpUYXhlc1BlclNlbGxlcj48ZnU6T3BlcmF0b3JUYXhOdW1iZXI+ODc2NTQzMjE8L2Z1Ok9wZXJhdG9yVGF4TnVtYmVyPjxmdTpQcm90ZWN0ZWRJRD5lMDk2M2NhMjRhOWQ5MTQwNzg1OTNhMWVkZGYzYzZlZTwvZnU6UHJvdGVjdGVkSUQ+PC9mdTpJbnZvaWNlPjxTaWduYXR1cmUgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiPjxTaWduZWRJbmZvPjxDYW5vbmljYWxpemF0aW9uTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvVFIvMjAwMS9SRUMteG1sLWMxNG4tMjAwMTAzMTUiLz48U2lnbmF0dXJlTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxkc2lnLW1vcmUjcnNhLXNoYTI1NiIvPjxSZWZlcmVuY2UgVVJJPSIjSW52b2ljZVJlcXVlc3QtNjQxNjJiYWUzNDNmNTllZGE3YWEwZGJlZjNlMTBiZTEtMDE4ZjQ3ZDI0NGQyN2E2YjhkN2M4ZmQ4ZWM2YTAyY2MiPjxUcmFuc2Zvcm1zPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwLzA5L3htbGRzaWcjZW52ZWxvcGVkLXNpZ25hdHVyZSIvPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy14bWwtYzE0bi0yMDAxMDMxNSIvPjwvVHJhbnNmb3Jtcz48RGlnZXN0TWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxlbmMjc2hhMjU2Ii8+PERpZ2VzdFZhbHVlPk5rR2JGZmtOTlgwN3VVV2V4MGNBY3hoVW1ubnNSVFd2ck1GWjlGam9hODQ9PC9EaWdlc3RWYWx1ZT48L1JlZmVyZW5jZT48L1NpZ25lZEluZm8+PFNpZ25hdHVyZVZhbHVlPk1mb3RHUnpOSytINVE5TlRGckswbXJUNnlvS1BGb1FPcjEvcy8rWGNLdDA2Si9OOU4vYlZ4TzRzV3BBVWVXL3lwVTNJK0VkaTlFL253Z25sZEVJYnkrNm5OamNyRDQ1RVdWcFpLOTFmV2dpVnJYS1JrQzR6YXNDdUJEU0ZFR2FWT05UdmdxTXU0b3ZZemdPZ2Vvelo4SVJmcFVoNjZyKzI3WWs4N2dlOFRNQjk2TjRmM3Z4M29oOERMWHdiZ3h3T0Fpeko0MWIzdHdFc3h6bGU2UG1yaXpZbytpcC9wU0EzYnNlamNZU0F2RGsza1M5TjhCYnZIbTBOVjVsQXdWRlNiSjJMOUZrZUZFdWVRSTlCQUU0d0wrM1pHMXFGWFNKbi9oK2x1S0hwcDMxQ3ljVElpcnpsY1ZDdElrQ0dmcTIzbnJDMjRPMG5ycDNaQW5NSEtOVTQydz09PC9TaWduYXR1cmVWYWx1ZT48S2V5SW5mbz48WDUwOURhdGE+PFg1MDlJc3N1ZXJTZXJpYWw+PFg1MDlJc3N1ZXJOYW1lPkNOPUZVUlMgVjEgR09MREVOIFRFU1QgT05MWSxPVT1ORVZFUiBQUk9EVUNUSU9OLE89Qk9PS0lFIFRFU1QgT05MWSxDPVNJPC9YNTA5SXNzdWVyTmFtZT48WDUwOVNlcmlhbE51bWJlcj40MjQyNDI8L1g1MDlTZXJpYWxOdW1iZXI+PC9YNTA5SXNzdWVyU2VyaWFsPjxYNTA5Q2VydGlmaWNhdGU+TUlJRG5qQ0NBb2FnQXdJQkFnSURCbmt5TUEwR0NTcUdTSWIzRFFFQkN3VUFNR1l4Q3pBSkJnTlZCQVlUQWxOSk1Sa3dGd1lEVlFRS0RCQkNUMDlMU1VVZ1ZFVlRWQ0JQVGt4Wk1Sa3dGd1lEVlFRTERCQk9SVlpGVWlCUVVrOUVWVU5VU1U5T01TRXdId1lEVlFRRERCaEdWVkpUSUZZeElFZFBURVJGVGlCVVJWTlVJRTlPVEZrd0lCY05Nall3T1RBMU1EQXhNREl3V2hnUE1qRXlOakE0TVRJd01ERXdNakJhTUdZeEN6QUpCZ05WQkFZVEFsTkpNUmt3RndZRFZRUUtEQkJDVDA5TFNVVWdWRVZUVkNCUFRreFpNUmt3RndZRFZRUUxEQkJPUlZaRlVpQlFVazlFVlVOVVNVOU9NU0V3SHdZRFZRUUREQmhHVlZKVElGWXhJRWRQVEVSRlRpQlVSVk5VSUU5T1RGa3dnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDNlExaWxOQU9wRW96M2lCQmlaMk5WWXhMOXNaZzhWRnIveThVQkdQU01tNmhQUlJuY2JjeWsybmdQeG5aTjEreTVUQ0JPVk5obEE5WDNxaVJ2c1h2bjhpMVpHaTBlVGZiMnZqakV0bmtoNC9GcEpzUkV1eXFYUXAzN2E3ZVVJWjBTSlVBRkxnM0RyUHZsWWxKeFF1dUszTUFFU0FXUFFJMFByODRmSWRNc24yVWRqVGE4QXVOZzJrbGVZcnVMbHZKS1ZKeE5Ca1hUZk5XMmxFYURwbGlySWtuT2hSTjUrWlRlSmtsUW15SkpWanYrVC9Rc3BRamsyeXlldzlyTzlwT3A1ODMzNFhRUlFJRzF3TStNd3R0Um5GNXZIeUtsRG1yeHRRSlRvYjJzTTErS2hTU1Q4UFNLenFFRTFaTHdyUmE3WFFQWjZPYVRPanExVVRGY0tIaWxBZ01CQUFHalV6QlJNQjBHQTFVZERnUVdCQlNxVDdERGZEV0FrUjVEZHBpNVFmdUZMOFpWM1RBZkJnTlZIU01FR0RBV2dCU3FUN0REZkRXQWtSNURkcGk1UWZ1Rkw4WlYzVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJpWEFyR0kzUkhhM3BzNnVVaTI5UDBJajhneFNrTlBjbEJRSmlsMmwyTER2Ym1yaExFUzRCR1BNVHp4dG5IRy9xUE1pdFRoUkdmTmY4UFVkWFR5NllVK2VvTXVjb083N011T1VnWFMrZDgvY3lhS2xyQUFTemRvVlJYVWhlR285R2RPKzR0NmRIeEFWN2RFazdwREJQSTdYd0ZqNUdyNDVaZDJXRkZ5QmJBeDdmcVErVUpMNVl5QTZ1QXRqQW4rM3pZN0dXMjcrRnVJVysySnFlYmN1cmhzUVp5RU5JVE5OQUdZKzFOaVlyV2Q1MVVTZ2NHVmNlaklKNHVDTHlKZlRKOUNYOWtRTGpKRzh5MEhKcWlJSnovS2lVMlR5ZlF3Umx2Q0p1M0Y1OGVSclpqRy9qMW9YeHpiT1VVL0tMaTVDOVFFRmZINy84SWdhSWxhaWcyZnM2QzwvWDUwOUNlcnRpZmljYXRlPjwvWDUwOURhdGE+PC9LZXlJbmZvPjwvU2lnbmF0dXJlPjwvZnU6SW52b2ljZVJlcXVlc3Q+PC9zb2FwZW52OkJvZHk+PC9zb2FwZW52OkVudmVsb3BlPg==\",\"signedXmlSha256\":\"sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9\",\"zoi\":\"e0963ca24a9d914078593a1eddf3c6ee\"}}",
+  "payloadSha256": "0ed39aeb9965c64c1aaa4b2da83862fc1a95743967f2d9e7c0097525e03243af",
+  "routingFields": {
+    "operationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+    "deviceId": "11111111-1111-4111-8111-111111111111",
+    "poslovniProstorId": 19,
+    "poslovniProstorOznaka": "PP01",
+    "bIdentifier": "B01",
+    "sequence": 1,
+    "issuedAt": "2026-09-06T10:16:00+02:00",
+    "interruptionStartedAt": "2026-09-06T10:15:30+02:00",
+    "orderId": 4242,
+    "operatorReference": "17",
+    "paymentReference": null,
+    "paymentMethod": "cash"
+  },
+  "deviceSignatureMessageUtf8": "{\"bIdentifier\":\"B01\",\"deviceId\":\"11111111-1111-4111-8111-111111111111\",\"interruptionStartedAt\":\"2026-09-06T10:15:30+02:00\",\"issuedAt\":\"2026-09-06T10:16:00+02:00\",\"operationId\":\"018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc\",\"operatorReference\":\"17\",\"orderId\":4242,\"payloadSha256\":\"0ed39aeb9965c64c1aaa4b2da83862fc1a95743967f2d9e7c0097525e03243af\",\"paymentMethod\":\"cash\",\"paymentReference\":null,\"poslovniProstorId\":19,\"poslovniProstorOznaka\":\"PP01\",\"sequence\":1}",
+  "deviceSignatureMessageSha256": "a9eb2d3db5f672639404e3cd9dd04624d5f334793f43fc4670d6e5350b565f49",
+  "sealedEnvelope": {
+    "operationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+    "deviceId": "11111111-1111-4111-8111-111111111111",
+    "poslovniProstorId": 19,
+    "poslovniProstorOznaka": "PP01",
+    "bIdentifier": "B01",
+    "sequence": 1,
+    "issuedAt": "2026-09-06T10:16:00+02:00",
+    "interruptionStartedAt": "2026-09-06T10:15:30+02:00",
+    "orderId": 4242,
+    "operatorReference": "17",
+    "paymentReference": null,
+    "paymentMethod": "cash",
+    "canonicalPayload": {
+      "envelopeVersion": "furs-v1",
+      "authorityBundle": {
+        "schema": "bookie-offline-authority-v1",
+        "bundleId": "33333333-3333-4333-8333-333333333333",
+        "server": {
+          "companyId": "22222222-2222-4222-8222-222222222222",
+          "enotaId": 3
+        },
+        "scope": {
+          "deviceId": "11111111-1111-4111-8111-111111111111",
+          "premiseId": 19,
+          "bIdentifier": "B01"
+        },
+        "contract": {
+          "version": "furs-v1",
+          "goldenAttestationSha256": "2d5d0a794e5cdef6947e12b8925c97d5e06ef580372866d152199c196638312f",
+          "authorityVersion": 1
+        },
+        "validity": {
+          "validFrom": "2026-09-01T00:00:00+02:00",
+          "validUntil": "2026-09-08T00:00:00+02:00",
+          "outageSubmissionBusinessDays": 2
+        },
+        "operator": {
+          "waiterId": 17,
+          "name": "Testni Operater",
+          "taxNumber": "87654321",
+          "shiftId": 23
+        },
+        "catalog": [
+          {
+            "articleId": 101,
+            "name": "Kava",
+            "unitGross": "12.50",
+            "vatRate": "22.00",
+            "articleKind": "sale",
+            "inputArticleId": 501,
+            "normativeQuantity": "0.008",
+            "unitWac": "18.750000"
+          }
+        ],
+        "modifiers": [],
+        "policies": {
+          "paymentMethods": [
+            "cash"
+          ],
+          "maxReceiptGross": "10000.00",
+          "maxLines": 250,
+          "stock": "signed-snapshot-exactly-once",
+          "kds": "signed-effects-exactly-once",
+          "accounting": "server-after-confirmation",
+          "staleOrder": "quarantine"
+        },
+        "authority": {
+          "keyId": "FURS-V1-GOLDEN-TEST-ONLY",
+          "algorithm": "RSA-SHA256",
+          "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAukNYpTQDqRKM94gQYmdj\nVWMS/bGYPFRa/8vFARj0jJuoT0UZ3G3MpNp4D8Z2TdfsuUwgTlTYZQPV96okb7F7\n5/ItWRotHk329r44xLZ5IePxaSbERLsql0Kd+2u3lCGdEiVABS4Nw6z75WJScULr\nitzABEgFj0CND6/OHyHTLJ9lHY02vALjYNpJXmK7i5bySlScTQZF03zVtpRGg6ZY\nqyJJzoUTefmU3iZJUJsiSVY7/k/0LKUI5NssnsPazvaTqefN9+F0EUCBtcDPjMLb\nUZxebx8ipQ5q8bUCU6G9rDNfioUkk/D0is6hBNWS8K0Wu10D2ejmkzo6tVExXCh4\npQIDAQAB\n-----END PUBLIC KEY-----\n"
+        },
+        "bundleSha256": "857a6807b81e77b0a316215b5cf378467e6a44edd0fe4cdca941752fba8edd08",
+        "signatureBase64": "Q9A1oSm/8insKVeq4Sf4qjKt7cT/6ojIV+yZ1EenrD9SCQSWekhe7vSzFWWoB5fzaWql+QqFJVXmzPdXtw/64IulmaoA98bzys0UqL0H93+s1m5SNqFigAT+ismq3aujAtaxksNLzkAVMw10gglAPqOjaam9+PahgwOiy+oZn8cB3guCVpGs2R4t5nhxid7QJAH8tcvdocsunQGAFnW3GIyBMQJF/RF6P8d1MnI/d7HOYbmMuI1VOt63KEQdd0m5ta92pFIn3YwMiX9FuWJtxsWCtKBF5FHaF2I4VJHCN5Dws/+kUdfMMAT4ta4Q7aqt2G9Si70gUXLWJ4z7P0sGig=="
+      },
+      "finalizationPlan": {
+        "version": 2,
+        "source": "offline",
+        "sourceOperationId": "018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc",
+        "receipt": {
+          "localReceiptId": "64162bae-343f-59ed-a7aa-0dbef3e10be1",
+          "companyId": "22222222-2222-4222-8222-222222222222",
+          "enotaId": 3,
+          "orderId": 4242,
+          "legalNumber": "PP01-B01-1",
+          "pp": "PP01",
+          "b": "B01",
+          "ppBSequence": 1,
+          "issuedAt": "2026-09-06T10:16:00+02:00",
+          "isPartial": false
+        },
+        "soldLines": [
+          {
+            "id": 7001,
+            "articleId": 101,
+            "modifierId": null,
+            "name": "Kava",
+            "quantity": 1,
+            "unitGross": 12.5,
+            "gross": 12.5,
+            "vatRate": 22,
+            "normativeFactor": 1,
+            "articleKind": "sale"
+          }
+        ],
+        "normativeSnapshot": [
+          {
+            "articleId": 501,
+            "quantity": -0.008
+          }
+        ],
+        "totals": {
+          "gross": 12.5,
+          "net": 10.25,
+          "vat": 2.25,
+          "vatGroups": [
+            {
+              "rate": 22,
+              "gross": 12.5,
+              "vat": 2.25
+            }
+          ]
+        },
+        "payment": {
+          "method": "gotovina",
+          "cash": 12.5,
+          "card": 0,
+          "voucher": 0,
+          "pizzaVoucher": 0,
+          "nonCash": 0,
+          "terminalReferenceReservationId": null,
+          "cardPaymentAttemptId": null,
+          "giftVoucherRedemption": 0
+        },
+        "operator": {
+          "waiterId": 17,
+          "name": "Testni Operater",
+          "taxNumber": "87654321",
+          "shiftId": 23,
+          "actor": "offline-device:golden"
+        },
+        "closure": {
+          "allLinesCovered": true,
+          "closeOrder": true,
+          "orderId": 4242,
+          "tableId": 9,
+          "clearTipAmount": true
+        },
+        "tip": {
+          "amount": 0,
+          "mode": null,
+          "policyId": null,
+          "feeAmount": 0,
+          "netAmount": 0
+        },
+        "stockMovements": [
+          {
+            "articleId": 501,
+            "quantity": -0.008,
+            "unitWac": 18.75,
+            "value": -0.15,
+            "note": "Golden Kava",
+            "effectiveAt": "2026-09-06T10:16:00+02:00"
+          }
+        ],
+        "kds": {
+          "effects": [
+            {
+              "kind": "complete",
+              "lineId": 7001
+            }
+          ]
+        },
+        "accounting": {
+          "companyId": "22222222-2222-4222-8222-222222222222",
+          "businessDate": "2026-09-06",
+          "syncAfterCommit": true
+        },
+        "print": {
+          "receiptNumber": "PP01-B01-1",
+          "issuedAt": "2026-09-06T10:16:00+02:00",
+          "customerName": null,
+          "customerAddress": null,
+          "customerTaxNumber": null
+        },
+        "reservations": {
+          "issueReservationId": "56724cb9-f820-51fc-a083-6b35f89331f8"
+        },
+        "furs": {
+          "snapshotId": "433c3327-ccc7-53ca-a373-9c1548221837",
+          "requestHash": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+          "canonicalArtifactLink": "offline:018f47d2-44d2-7a6b-8d7c-8fd8ec6a02cc"
+        }
+      },
+      "finalizationPlanSha256": "cc16847bbf11a4170c5c27812fccedf38203582443448da0bfedf47d99e782f3",
+      "fursArtifact": {
+        "signedXmlBase64": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz48c29hcGVudjpFbnZlbG9wZSB4bWxuczpzb2FwZW52PSJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy9zb2FwL2VudmVsb3BlLyIgeG1sbnM6eGQ9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiPjxzb2FwZW52OkhlYWRlci8+PHNvYXBlbnY6Qm9keT48ZnU6SW52b2ljZVJlcXVlc3QgeG1sbnM6ZnU9Imh0dHA6Ly93d3cuZnUuZ292LnNpLyIgSWQ9Ikludm9pY2VSZXF1ZXN0LTY0MTYyYmFlMzQzZjU5ZWRhN2FhMGRiZWYzZTEwYmUxLTAxOGY0N2QyNDRkMjdhNmI4ZDdjOGZkOGVjNmEwMmNjIj48ZnU6SGVhZGVyPjxmdTpNZXNzYWdlSUQ+NzhjYTU3NzgtMTFmZC01ZDhjLWI2ZDQtZGVhNjdkOGI4N2JiPC9mdTpNZXNzYWdlSUQ+PGZ1OkRhdGVUaW1lPjIwMjYtMDktMDZUMTA6MTY6MDA8L2Z1OkRhdGVUaW1lPjwvZnU6SGVhZGVyPjxmdTpJbnZvaWNlPjxmdTpUYXhOdW1iZXI+MTIzNDU2Nzg8L2Z1OlRheE51bWJlcj48ZnU6SXNzdWVEYXRlVGltZT4yMDI2LTA5LTA2VDEwOjE2OjAwPC9mdTpJc3N1ZURhdGVUaW1lPjxmdTpOdW1iZXJpbmdTdHJ1Y3R1cmU+QjwvZnU6TnVtYmVyaW5nU3RydWN0dXJlPjxmdTpJbnZvaWNlSWRlbnRpZmllcj48ZnU6QnVzaW5lc3NQcmVtaXNlSUQ+UFAwMTwvZnU6QnVzaW5lc3NQcmVtaXNlSUQ+PGZ1OkVsZWN0cm9uaWNEZXZpY2VJRD5CMDE8L2Z1OkVsZWN0cm9uaWNEZXZpY2VJRD48ZnU6SW52b2ljZU51bWJlcj4xPC9mdTpJbnZvaWNlTnVtYmVyPjwvZnU6SW52b2ljZUlkZW50aWZpZXI+PGZ1Okludm9pY2VBbW91bnQ+MTIuNTA8L2Z1Okludm9pY2VBbW91bnQ+PGZ1OlBheW1lbnRBbW91bnQ+MTIuNTA8L2Z1OlBheW1lbnRBbW91bnQ+PGZ1OlRheGVzUGVyU2VsbGVyPjxmdTpWQVQ+PGZ1OlRheFJhdGU+MjIuMDA8L2Z1OlRheFJhdGU+PGZ1OlRheGFibGVBbW91bnQ+MTAuMjU8L2Z1OlRheGFibGVBbW91bnQ+PGZ1OlRheEFtb3VudD4yLjI1PC9mdTpUYXhBbW91bnQ+PC9mdTpWQVQ+PC9mdTpUYXhlc1BlclNlbGxlcj48ZnU6T3BlcmF0b3JUYXhOdW1iZXI+ODc2NTQzMjE8L2Z1Ok9wZXJhdG9yVGF4TnVtYmVyPjxmdTpQcm90ZWN0ZWRJRD5lMDk2M2NhMjRhOWQ5MTQwNzg1OTNhMWVkZGYzYzZlZTwvZnU6UHJvdGVjdGVkSUQ+PC9mdTpJbnZvaWNlPjxTaWduYXR1cmUgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyMiPjxTaWduZWRJbmZvPjxDYW5vbmljYWxpemF0aW9uTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvVFIvMjAwMS9SRUMteG1sLWMxNG4tMjAwMTAzMTUiLz48U2lnbmF0dXJlTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxkc2lnLW1vcmUjcnNhLXNoYTI1NiIvPjxSZWZlcmVuY2UgVVJJPSIjSW52b2ljZVJlcXVlc3QtNjQxNjJiYWUzNDNmNTllZGE3YWEwZGJlZjNlMTBiZTEtMDE4ZjQ3ZDI0NGQyN2E2YjhkN2M4ZmQ4ZWM2YTAyY2MiPjxUcmFuc2Zvcm1zPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwLzA5L3htbGRzaWcjZW52ZWxvcGVkLXNpZ25hdHVyZSIvPjxUcmFuc2Zvcm0gQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy14bWwtYzE0bi0yMDAxMDMxNSIvPjwvVHJhbnNmb3Jtcz48RGlnZXN0TWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxlbmMjc2hhMjU2Ii8+PERpZ2VzdFZhbHVlPk5rR2JGZmtOTlgwN3VVV2V4MGNBY3hoVW1ubnNSVFd2ck1GWjlGam9hODQ9PC9EaWdlc3RWYWx1ZT48L1JlZmVyZW5jZT48L1NpZ25lZEluZm8+PFNpZ25hdHVyZVZhbHVlPk1mb3RHUnpOSytINVE5TlRGckswbXJUNnlvS1BGb1FPcjEvcy8rWGNLdDA2Si9OOU4vYlZ4TzRzV3BBVWVXL3lwVTNJK0VkaTlFL253Z25sZEVJYnkrNm5OamNyRDQ1RVdWcFpLOTFmV2dpVnJYS1JrQzR6YXNDdUJEU0ZFR2FWT05UdmdxTXU0b3ZZemdPZ2Vvelo4SVJmcFVoNjZyKzI3WWs4N2dlOFRNQjk2TjRmM3Z4M29oOERMWHdiZ3h3T0Fpeko0MWIzdHdFc3h6bGU2UG1yaXpZbytpcC9wU0EzYnNlamNZU0F2RGsza1M5TjhCYnZIbTBOVjVsQXdWRlNiSjJMOUZrZUZFdWVRSTlCQUU0d0wrM1pHMXFGWFNKbi9oK2x1S0hwcDMxQ3ljVElpcnpsY1ZDdElrQ0dmcTIzbnJDMjRPMG5ycDNaQW5NSEtOVTQydz09PC9TaWduYXR1cmVWYWx1ZT48S2V5SW5mbz48WDUwOURhdGE+PFg1MDlJc3N1ZXJTZXJpYWw+PFg1MDlJc3N1ZXJOYW1lPkNOPUZVUlMgVjEgR09MREVOIFRFU1QgT05MWSxPVT1ORVZFUiBQUk9EVUNUSU9OLE89Qk9PS0lFIFRFU1QgT05MWSxDPVNJPC9YNTA5SXNzdWVyTmFtZT48WDUwOVNlcmlhbE51bWJlcj40MjQyNDI8L1g1MDlTZXJpYWxOdW1iZXI+PC9YNTA5SXNzdWVyU2VyaWFsPjxYNTA5Q2VydGlmaWNhdGU+TUlJRG5qQ0NBb2FnQXdJQkFnSURCbmt5TUEwR0NTcUdTSWIzRFFFQkN3VUFNR1l4Q3pBSkJnTlZCQVlUQWxOSk1Sa3dGd1lEVlFRS0RCQkNUMDlMU1VVZ1ZFVlRWQ0JQVGt4Wk1Sa3dGd1lEVlFRTERCQk9SVlpGVWlCUVVrOUVWVU5VU1U5T01TRXdId1lEVlFRRERCaEdWVkpUSUZZeElFZFBURVJGVGlCVVJWTlVJRTlPVEZrd0lCY05Nall3T1RBMU1EQXhNREl3V2hnUE1qRXlOakE0TVRJd01ERXdNakJhTUdZeEN6QUpCZ05WQkFZVEFsTkpNUmt3RndZRFZRUUtEQkJDVDA5TFNVVWdWRVZUVkNCUFRreFpNUmt3RndZRFZRUUxEQkJPUlZaRlVpQlFVazlFVlVOVVNVOU9NU0V3SHdZRFZRUUREQmhHVlZKVElGWXhJRWRQVEVSRlRpQlVSVk5VSUU5T1RGa3dnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDNlExaWxOQU9wRW96M2lCQmlaMk5WWXhMOXNaZzhWRnIveThVQkdQU01tNmhQUlJuY2JjeWsybmdQeG5aTjEreTVUQ0JPVk5obEE5WDNxaVJ2c1h2bjhpMVpHaTBlVGZiMnZqakV0bmtoNC9GcEpzUkV1eXFYUXAzN2E3ZVVJWjBTSlVBRkxnM0RyUHZsWWxKeFF1dUszTUFFU0FXUFFJMFByODRmSWRNc24yVWRqVGE4QXVOZzJrbGVZcnVMbHZKS1ZKeE5Ca1hUZk5XMmxFYURwbGlySWtuT2hSTjUrWlRlSmtsUW15SkpWanYrVC9Rc3BRamsyeXlldzlyTzlwT3A1ODMzNFhRUlFJRzF3TStNd3R0Um5GNXZIeUtsRG1yeHRRSlRvYjJzTTErS2hTU1Q4UFNLenFFRTFaTHdyUmE3WFFQWjZPYVRPanExVVRGY0tIaWxBZ01CQUFHalV6QlJNQjBHQTFVZERnUVdCQlNxVDdERGZEV0FrUjVEZHBpNVFmdUZMOFpWM1RBZkJnTlZIU01FR0RBV2dCU3FUN0REZkRXQWtSNURkcGk1UWZ1Rkw4WlYzVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJpWEFyR0kzUkhhM3BzNnVVaTI5UDBJajhneFNrTlBjbEJRSmlsMmwyTER2Ym1yaExFUzRCR1BNVHp4dG5IRy9xUE1pdFRoUkdmTmY4UFVkWFR5NllVK2VvTXVjb083N011T1VnWFMrZDgvY3lhS2xyQUFTemRvVlJYVWhlR285R2RPKzR0NmRIeEFWN2RFazdwREJQSTdYd0ZqNUdyNDVaZDJXRkZ5QmJBeDdmcVErVUpMNVl5QTZ1QXRqQW4rM3pZN0dXMjcrRnVJVysySnFlYmN1cmhzUVp5RU5JVE5OQUdZKzFOaVlyV2Q1MVVTZ2NHVmNlaklKNHVDTHlKZlRKOUNYOWtRTGpKRzh5MEhKcWlJSnovS2lVMlR5ZlF3Umx2Q0p1M0Y1OGVSclpqRy9qMW9YeHpiT1VVL0tMaTVDOVFFRmZINy84SWdhSWxhaWcyZnM2QzwvWDUwOUNlcnRpZmljYXRlPjwvWDUwOURhdGE+PC9LZXlJbmZvPjwvU2lnbmF0dXJlPjwvZnU6SW52b2ljZVJlcXVlc3Q+PC9zb2FwZW52OkJvZHk+PC9zb2FwZW52OkVudmVsb3BlPg==",
+        "signedXmlSha256": "sha256:b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+        "zoi": "e0963ca24a9d914078593a1eddf3c6ee",
+        "certificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101",
+        "canonicalFields": {
+          "messageId": "78ca5778-11fd-5d8c-b6d4-dea67d8b87bb",
+          "invoiceRequestId": "InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc",
+          "taxNumber": "12345678",
+          "issueDateTime": "2026-09-06T10:16:00",
+          "invoiceNumber": 1,
+          "businessPremiseId": "PP01",
+          "electronicDeviceId": "B01",
+          "invoiceAmount": "12.50",
+          "paymentAmount": "12.50",
+          "numberingStructure": "B",
+          "operatorTaxNumber": "87654321",
+          "taxesPerSeller": [
+            {
+              "taxRate": "22.00",
+              "taxableAmount": "10.25",
+              "taxAmount": "2.25"
+            }
+          ],
+          "zoiInput": "1234567806.09.2026 10:16:0012.50PP01-B01-1PP01B01",
+          "zoi": "e0963ca24a9d914078593a1eddf3c6ee",
+          "certificateFingerprint": "sha256:63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101"
+        }
+      }
+    },
+    "payloadSha256": "0ed39aeb9965c64c1aaa4b2da83862fc1a95743967f2d9e7c0097525e03243af",
+    "deviceSignature": "E211RNOUaLGnTChqPN24xFoJhg3oCMFkEfu8cP1uvMdktTUZveBTD8VVsT1MpF6535Tz8/gKmUTMm8yGManE7dwBrXhy3lDTI6el0j/1kneHO8UH/R/STyAFYieE8TmlYSmlJpDnldbNp1qlEIHhB83O2jka/CTjr4PiTqBp9jLh+C7gyDbLi6zkPbd6GWmvZsZzm1Oo1zOngW9Vs2P5762BNLGDbGNpV7HQZmCtRN46kkkrWgz6BYr40khlWokGbINf4d22jAMsxoxShK5t6cVmQ7c6ZHLAkjyoJuir1N2OQHeqzXtXQLheqPFKotRcrMVFBcj/LAfa5UC1xBGCJA==",
+    "signingPublicKeyFingerprintSha256": "10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81"
+  },
+  "dynamicFursIds": {
+    "messageId": "78ca5778-11fd-5d8c-b6d4-dea67d8b87bb",
+    "invoiceRequestId": "InvoiceRequest-64162bae343f59eda7aa0dbef3e10be1-018f47d244d27a6b8d7c8fd8ec6a02cc"
+  },
+  "syncRequestVector": {
+    "method": "POST",
+    "path": "/api/offline-fiscal/sync/receipts/ingest",
+    "timestamp": "2026-09-06T10:17:00.000Z",
+    "nonce": "RklSUy1WMS1HT0xERU4tTk9OQ0U",
+    "bodySha256": "d633ad12afcdd96214bc8518bc2160953ef3d0898076efb986b662b98495c7f2",
+    "deviceId": "11111111-1111-4111-8111-111111111111",
+    "signatureInputUtf8": "POST\n/api/offline-fiscal/sync/receipts/ingest\n2026-09-06T10:17:00.000Z\nRklSUy1WMS1HT0xERU4tTk9OQ0U\nd633ad12afcdd96214bc8518bc2160953ef3d0898076efb986b662b98495c7f2",
+    "signatureBase64": "TWGid7MulgV5nAREEP4QCOobyRsFd7dPGJFVfhYhhiR//TnI90CuyuVZlleCgm3jKaQwEIUrEXxRC5kSa+2c19bYMq+sCKv1vvEfgJuE1ZBnoEU05HJzBvF1rw3HOwb8BI0Nx8FSMoGnA08DP//icBwa7y0I4JeyI1cqz3wgVXyY+yqbnJN1N3Rv+kFXjqrSH6KLPp47X0rs2p/juvcaOTG6JU2YJ+NdJE42w3LEayGIwRH+B1YSMKJR2Nw81Ky3kf4vpOiRok2ToMGQ34grRFv8eji21GSbzXdnVcsiaBGrlhsD7z+JduQB4OECRrkid7xaYuj7fjMrKMgEJviuLQ=="
+  },
+  "sealedEnvelopeCanonicalSha256": "d633ad12afcdd96214bc8518bc2160953ef3d0898076efb986b662b98495c7f2",
+  "intermediateHashes": {
+    "contractSchemaProjectionSha256": "8dd74d9f689348e1f1eb1e99dbb6c30f22764c8786d454aa0d428a92e7258fbf",
+    "unsignedInvoiceXmlSha256": "3931732b6050eac3f6505cdaa6575bfcbac7bb243344b6dc2dca9ac2eb7bd1c9",
+    "signedSoapXmlSha256": "b4126d5f746eabc8987c9478c54fdec3f1c1255338197e4bb6e86463ac9940b9",
+    "zoiInputSha256": "542bc20d0e7939e518f2835a8477806e441ad0e7ebe57d307d5f02a53d45db6f",
+    "zoiSignatureSha256": "963481ebc4cd9833538d7ae55dcf5c3ef71883a4d1fcd25b43e68e8b118298a5",
+    "finalizationPlanSha256": "cc16847bbf11a4170c5c27812fccedf38203582443448da0bfedf47d99e782f3",
+    "certificateDerSha256": "63afc236de384b452d3b59128b8eb41ea63db87c4dc368396cea76149a392101",
+    "devicePublicKeySpkiDerSha256": "10df964ce6bd9e0fc1a7bed6a3b613647edfe3362839487e1389469267ad6a81",
+    "provisioningProofInputSha256": "d97e91c333e8ce481bb136e3e18a787908882b458742c4b4591df40c03b312a1"
+  }
+}
