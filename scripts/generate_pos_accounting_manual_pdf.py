@@ -51,9 +51,19 @@ def build_story(styles, doc):
         Spacer(1, 13 * mm),
         Table(
             [
-                ["Različica", "1.4"],
-                ["Obseg", "privzeti konti, tvorba temeljnic, prodaja, plačila, DDV, nabava, zaloga, kontrole in robni primeri"],
-                ["Datum izdaje", date.today().strftime("%d.%m.%Y")],
+                ["Različica", Paragraph("1.4", styles["body"])],
+                [
+                    "Obseg",
+                    Paragraph(
+                        "privzeti konti, tvorba temeljnic, prodaja, plačila, "
+                        "DDV, nabava, zaloga, kontrole in robni primeri",
+                        styles["body"],
+                    ),
+                ],
+                [
+                    "Datum izdaje",
+                    Paragraph(date.today().strftime("%d.%m.%Y"), styles["body"]),
+                ],
             ],
             colWidths=[40 * mm, 110 * mm],
             style=TableStyle([

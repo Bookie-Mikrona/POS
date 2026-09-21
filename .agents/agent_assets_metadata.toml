@@ -885,13 +885,13 @@ id = "Kj4Mlrvb2oUt4D0qfbvU5"
 uri = "file://docs/POS-Gostinstvo-racunovodski-prirocnik-v1.4.pdf"
 type = "pdf"
 title = "POS Gostinstvo — računovodski priročnik v1.4"
-description = "Celovit računovodski priročnik, 63 strani, preverjen po sledljivem inventarju 53 postopkov."
+description = "Popravljena izdaja z večvrstičnim poljem Obseg na naslovnici; besedilo ne sega več čez rob tabele."
 logical_id = "21dc579d-c9db-45b0-a5e8-f064d4be471c"
-content_hash = "sha256:20e4918f8d3c4901d7655c3f2090d75ab9176a2d9cc123a3759dfdcd9af5e079"
-size = 546529
-mtime_ms = 1790019172111
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/21dc579d-c9db-45b0-a5e8-f064d4be471c/6992e33d-b9f4-470e-a78f-8a17d525c3a3"
-storage_version_token = "1790019233677128"
+content_hash = "sha256:91b5f55b1019b5034f391dbbe68ef0df84f3f73e4038d7f9e5670103a68fa26a"
+size = 546589
+mtime_ms = 1790019578687
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/21dc579d-c9db-45b0-a5e8-f064d4be471c/eee40676-53af-4be6-999b-ddcf3ccdddcd"
+storage_version_token = "1790019593476692"
 content_type = "application/pdf"
 
 [[outputs]]
