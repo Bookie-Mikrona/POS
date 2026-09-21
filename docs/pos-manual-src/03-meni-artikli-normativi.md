@@ -2548,3 +2548,100 @@ Podrobnosti nastavitev miz, prostorov, QR oznak in pravic preverite v poglavju o
 To poglavje uporabljajte kot operativno navodilo za pravilno izbiro konteksta, ne kot nadomestek za lokalna pooblastila.
 
 Pravilni odgovor: ko se presede le del družbe.
+
+## 34. Upravljanje rezervacij v POS-u
+
+Rezervacije miz so notranji POS-postopek. Program v pregledani izvedbi nima
+javnega spletnega obrazca, javnega API-ja za rezervacije ali samopostrežnega
+potrjevanja za gosta. Gostu zato ne obljubljajte internetne rezervacije kot
+funkcije tega POS-a; uporabite odobren notranji kanal in rezervacijo vnesite v
+POS.
+
+### 34.1 Iskanje in pregled
+
+Na strani **Rezervacije miz** lahko pooblaščeni uporabnik:
+
+- omeji pregled na obdobje od in do;
+- izbere poslovno enoto;
+- prikaže samo aktivne rezervacije ali vse statuse;
+- poišče po imenu stranke, telefonu, mizi ali opombi;
+- razvrsti rezultate po začetku rezervacije.
+
+Pred delom preverite, da sta datum in enota pravilna. Uporabniški datumi v
+navodilih in na izpisih tega priročnika so vedno v obliki **dd.mm.yyyy**.
+Če se rezervacija ne prikaže, najprej razširite obdobje in preverite filter
+enote; ne ustvarjajte duplikata.
+
+### 34.2 Nova rezervacija
+
+1. Izberite **Nova rezervacija**.
+2. Odprite preverjanje razpoložljivosti miz.
+3. Izberite mizo in termin, ki nista v konfliktu.
+4. Vnesite ime stranke, telefon, začetek in opombo samo v obsegu, potrebnem za
+   izvedbo rezervacije.
+5. Pred shranjevanjem preverite mizo, termin in enoto.
+6. Po shranjevanju preverite, da je rezervacija vidna med aktivnimi.
+
+Konflikt z drugo rezervacijo ali nedosegljiva miza je razlog za spremembo
+termina oziroma izbiro druge mize, ne za obhod opozorila.
+
+### 34.3 Sprememba, preklic in samodejna sprostitev
+
+Pri spremembi odprite obstoječo rezervacijo, popravite samo potrebna polja in
+preverite nov termin. Pri preklicu uporabite ukaz za sprostitev oziroma preklic
+in počakajte na potrditveno obvestilo. Ne brišite rezervacije neposredno iz
+drugih evidenc.
+
+Po poteku rezervacijskega okna lahko strežniški razporejevalnik rezervacijo
+sprosti. Sprostitev pomeni, da miza ni več varovana zaradi te rezervacije; ne
+pomeni, da je gost prišel ali da je bilo naročilo ustvarjeno.
+
+### 34.4 Zgodovina rezervacije
+
+Pri rezervaciji uporabite **Zgodovina rezervacije**, kadar morate preveriti,
+kdo in kdaj je povzročil spremembo. Zgodovina prikazuje dogodke:
+
+- **ustvarjena**,
+- **spremenjena**,
+- **sproščena**,
+- **odstranjena**,
+
+ter čas, uporabniški identifikator in podatke dogodka, če so na voljo. Zgodovina
+je revizijski dokaz in je ne popravljajte z novo rezervacijo. Če se podatki
+rezervacije in zgodovine ne ujemajo, zabeležite ID rezervacije, mizo, čas in
+prijavljenega uporabnika ter primer predajte administratorju.
+
+## 35. Večhodni obrok in sproščanje hodov
+
+Pri večhodnem naročilu natakar ne sprosti vseh hodov samodejno. Pred oddajo
+preveri zaporedje hodov, postavke vsakega hoda in morebitne opombe za pripravo.
+
+**HOLD** pomeni, da hod ostane zadržan in se ne sprosti v pripravo. **FIRE**
+pomeni, da se izbrani hod sprosti v pripravo; preverite, da je sproščen pravi
+hod in prava postaja. Po sprostitvi preverite stanje naročila oziroma KDS.
+
+Če gost spremeni vrstni red:
+
+1. ustavite naslednje sproščanje;
+2. preverite, kateri hod je že oddan ali v pripravi;
+3. spremenite samo še dovoljene postavke;
+4. kuhinji oziroma točilnici posredujte identifikator naročila in spremembo;
+5. ne oddajajte istega hoda ponovno, če je že v KDS.
+
+Pri nejasnem stanju uporabite zgodovino oziroma stanje naročila in ne rešujte
+težave z drugo, podvojeno postavko.
+
+## 36. Omejitve spletnih funkcij
+
+Notranja rezervacija mize ni internetna rezervacija. V tej različici niso
+implementirani:
+
+- javni spletni obrazec za rezervacijo,
+- spletni nakup ali spletna izdaja darilnega bona,
+- Stripe Checkout, PaymentIntent ali Stripe webhook za plačilo.
+
+POS lahko uporablja notranje rezervacije, POS-izdajo oziroma unovčenje bonov in
+podprte terminalske načine plačila, vendar teh tokov ne predstavljajte kot
+spletne storitve. Če uporabnik zahteva eno od navedenih funkcij, zahtevo
+predajte odgovorni osebi za produkt oziroma integracije in ne ustvarjajte
+ročnega nadomestnega zapisa, ki bi bil videti kot spletna potrditev.

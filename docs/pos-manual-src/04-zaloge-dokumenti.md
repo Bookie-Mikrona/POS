@@ -2016,3 +2016,130 @@ Ali so slike, promocije in modifikatorji preverjeni kot ločene funkcije?
 Ali je odgovorna oseba podpisala obrazec pregleda?
 
 Odgovor: ne; gre za ločeni nastavitvi oziroma toku.
+
+## 39. Javna slika, AI pomoč in omejitve objave
+
+### 39.1 Kaj AI pri sliki sme in česa ne sme
+
+AI slika je pomoč pri pripravi vizualnega predloga, ne dokaz, da artikel
+vsebuje prikazane sestavine, količino ali alergene. Pred objavo mora odgovorna
+oseba primerjati sliko z dejanskim artiklom, recepturo in ponudbo.
+
+Za opis slike uporabite največ 500 znakov in navedite samo potrjene lastnosti
+izdelka. Pri **Hitrem AI urejanju** uporabite konkretno zahtevo, na primer
+»odstrani ozadje«, ne pa zahteve, ki bi lahko spremenila videz izdelka na
+zavajajoč način.
+
+Če generiranje ali urejanje vrne napako, preverite sporočilo in stanje
+trenutne slike. Ne sklepajte, da je nova različica shranjena samo zato, ker je
+bil ukaz poslan. Po uspehu preverite vir, čas nastanka, predogled in
+nadomestno besedilo.
+
+### 39.2 Varna objava in obnovitev
+
+1. Preverite, da je artikel prodajni in pripada pravi enoti.
+2. Preverite, da slika prikazuje isti artikel, velikost in način postrežbe.
+3. Preverite obrezovanje v razmerju javnega QR menija.
+4. Vnesite smiselno nadomestno besedilo, največ 250 znakov.
+5. Shranite nadomestno besedilo z ločenim dejanjem **Shrani**, kadar ga obrazec
+   tako zahteva.
+6. Odprite predogled javnega menija in preverite prikaz na telefonu.
+7. Pri obnovi iz zgodovine primerjajte datum, vir in vsebino stare različice.
+
+Brisanje trenutne slike ne pomeni, da je zgodovina izbrisana. Obnova stare
+različice je nova vsebinska sprememba javnega menija in zahteva ponovni pregled.
+Slika ne sme biti uporabljena kot nadomestek za alergenski profil ali potrjeno
+recepturo.
+
+### 39.3 Funkcije, ki jih ta meni ne zagotavlja
+
+**Upravljanje menija** ureja ponudbo in podatke, ki jih javni QR meni lahko
+prikaže. Ne zagotavlja:
+
+- javnega internetnega obrazca za rezervacijo mize,
+- spletnega nakupa ali spletne dostave darilnega bona,
+- Stripe Checkout, Stripe PaymentIntent ali Stripe spletnega plačila.
+
+Teh funkcij ne predstavljajte gostu kot razpoložljivih. Rezervacije miz,
+izdaja oziroma unovčenje bonov in plačila se izvajajo samo po postopkih, ki jih
+dejansko podpira POS oziroma drug potrjen kanal.
+
+## 40. AI svetovalec za POS
+
+AI svetovalec je pojasnjevalna pomoč pri preverjanju naročila in delovnega
+konteksta. Njegov odgovor ni odobritev, knjižba, sprememba naročila ali
+fiskalno dejanje.
+
+### 40.1 Predpogoji in kontekst
+
+Pred uporabo preverite:
+
+1. da je naprava registrirana v pravi enoti;
+2. da je na napravi omogočen dostop do AI svetovalca;
+3. da je uporabnik v veljavni POS-identitetni seji;
+4. da je odprto oziroma izbrano naročilo iz iste enote;
+5. da so podatki naročila dovolj sveži za vprašanje.
+
+Svetovalec prejme samo preverjeni POS-kontekst, ki ga program priloži
+zahtevi. Ne kopirajte vanj gesel, PIN-ov, številk kartic ali drugih osebnih
+podatkov. Če je svetovalec na napravi izklopljen ali seja ni veljavna, ne
+ustvarjajte nadomestnega uporabnika in ne obidite preverjanja naprave.
+
+### 40.2 Vprašanje, odgovor in pregled
+
+V polje **Vprašajte svetovalca ...** vnesite eno konkretno vprašanje, na
+primer: »Kateri podatki naročila še niso potrjeni?« ali »Kaj moram preveriti
+pred zaključkom?«. Pošljite vprašanje in počakajte na povzetek, priporočila
+ter morebitna kritična opozorila.
+
+Pred dejanjem:
+
+1. primerjajte odgovor z dejanskim naročilom in prikazom POS-a;
+2. preverite vsako kritično opozorilo po običajnem postopku;
+3. pri nejasnem ali nedosegljivem odgovoru uporabite normativni postopek
+   poglavja, ne ponavljajte plačila ali fiskalizacije;
+4. odločitev in morebitno eskalacijo zabeležite po internem pravilu.
+
+AI odgovor je nasvet. Endpoint svetovalca ne spreminja naročila, cen,
+normativa, zaloge, plačila ali FURS podatkov in sam ne potrdi kritične
+napake. Če so AI nasveti nedosegljivi, kritične strežniške kontrole še vedno
+veljajo; delo nadaljujte samo po preverjenem običajnem postopku.
+
+### 40.3 Napaka ali zastarel kontekst
+
+Če program javi, da AI svetovalec ni dosegljiv, odgovor ni veljaven ali
+naročilo v izbrani enoti ne obstaja:
+
+1. ne uporabljajte nepreverjenega odgovora;
+2. osvežite prikaz naročila in preverite enoto ter aktivno identiteto;
+3. ponovite vprašanje samo, če je kontekst po osvežitvi pravilen;
+4. ob ponovitvi napake shranite čas, enoto, napravo in prikazano sporočilo;
+5. nadaljujte brez AI po običajnem postopku oziroma zadevo predajte vodji.
+
+AI svetovalca ne uporabljajte kot kanal za rezervacijo, spletni nakup bona,
+plačilo ali spremembo alergenskega profila.
+
+## 41. AI slika: neuspeh, pregled in zgodovina
+
+Pred generiranjem ali urejanjem preverite, da je artikel shranjen, opis
+neprazen in omejen na potrjene lastnosti. Pri AI-urejanju navedite eno
+konkretno spremembo, na primer odstranitev ozadja. AI ne sme dodati
+nepotrjenih sestavin, velikosti, dodatkov ali alergenskih trditev.
+
+Normalni postopek:
+
+1. shranite artikel in preverite njegovo prodajno enoto;
+2. vnesite ali preglejte opis slike;
+3. izberite **Generiraj AI sliko** ali **Hitro AI urejanje**;
+4. počakajte na zaključek stanja **Generiram ...**;
+5. preglejte rezultat v razmerju javnega menija;
+6. preverite vir, čas nastanka, nadomestno besedilo in različico;
+7. objavite šele po vsebinski odobritvi.
+
+Če generiranje oziroma urejanje ne uspe, ne klikajte zaporedoma in ne
+domnevajte, da je rezultat shranjen. Preberite napako, preverite, ali je
+trenutna slika ostala nespremenjena, in po potrebi uporabite potrjeno
+nalaganje JPEG, PNG ali WebP. Če je nastala napačna različica, je ne
+objavite; uporabite **Zgodovina slike**, primerjajte vir in čas ter obnovite
+prejšnjo različico samo po odobritvi. Obnova spreminja javno vsebino, ne pa
+cene, DDV ali normativa, zato zahteva nov predogled in zapis pregleda.

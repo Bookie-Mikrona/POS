@@ -1209,3 +1209,52 @@ Udeleženec pravilno preusmeri vprašanje o zaključku na poglavje 08.
 Uspešna izvedba zahteva vse varnostne kriterije.
 
 Manjkajoč varnostni kriterij zahteva ponovitev ustrezne vaje.
+
+## 24. Kaj hitra menjava in obračun ur ne pomenita
+
+Hitra menjava natakarja na skupni napravi je opisana v poglavju 01. Odpiranje
+ali zapiranje izmene ostane osebni postopek natakarja oziroma pooblaščenega
+administratorja; izbira druge identitete na napravi ne odpre samodejno nove
+izmene in ne zapre prejšnje.
+
+### 24.1 Predaja izmene
+
+Pri predaji:
+
+1. prejšnji natakar zaključi ali jasno preda odprta naročila;
+2. vodja preveri aktivno izmeno, enoto in blagajno;
+3. prejšnji uporabnik zaklene ali zapre svojo POS identiteto;
+4. naslednji uporabnik se prijavi oziroma izvede hitro menjavo s svojim PIN-om;
+5. naslednji uporabnik preveri svoje ime, odprto izmeno in prevzeta naročila.
+
+Če je stanje izmene nejasno, ne odpirajte dodatne izmene in ne uporabljajte
+profila sodelavca. Preverite seznam aktivnih izmen in primer predate vodji.
+Zaključevanje izmene, potrditev zaključene izmene in oddaja zaključka so v
+poglavju 08.
+
+### 24.2 Odmori osebja
+
+V pregledani POS izvedbi ni dokazanega samostojnega uporabniškega postopka
+**Začni odmor** oziroma **Končaj odmor**. Prikaz aktivnih izmen ali predaja
+blagajne nista evidenca odmora.
+
+Zato:
+
+- odmora ne vpisujte kot lažno zapiranje ali odpiranje izmene;
+- ne spreminjajte začetka ali konca izmene, da bi popravili evidenco odmora;
+- uporabite odobren interni kadrovski oziroma evidenčni postopek;
+- če podjetje potrebuje obračun odmora v POS-u, mora biti ta funkcija najprej
+  uvedena in potrjena, nato pa ločeno dokumentirana.
+
+## 25. Telefonska identiteta pri predaji
+
+Telefonsko naročilo mora ostati prepoznavno kot telefonsko oziroma dostavno
+naročilo. Pri predaji navedite identifikator naročila, kanal, predvideni čas in
+naslednjega skrbnika; osebnih podatkov gosta ne ponavljajte javno.
+
+Če telefonski operater na svojem delovnem mestu ne vidi podprtega obrazca za
+identifikacijo stranke, ne nadomestite postopka z direktno prodajo ali z
+izmišljeno stranko. Zapišite prikazano napako in uporabite odobreno CTI/POS
+pot oziroma jo predajte administratorju. Podrobnosti telefonskega in
+dostavnega toka so v poglavju 05; to poglavje določa samo varno predajo pred
+začetkom dela.

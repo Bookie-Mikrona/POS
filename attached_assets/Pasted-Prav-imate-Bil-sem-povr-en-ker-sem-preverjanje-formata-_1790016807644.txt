@@ -1,0 +1,306 @@
+Prav imate. Bil sem površen, ker sem **preverjanje formata zamenjal za preverjanje celovitosti**. Različice 8.2 ne bi smel označiti kot celovit priročnik.
+
+## Glavni vzrok
+
+### 1. Ni bilo inventarja vseh funkcij
+
+Priročnik sem primerjal predvsem s trenutno spremembo povratne embalaže in z nekaj nedavnimi spremembami. Nisem najprej izdelal popolnega seznama uporabniških funkcij iz:
+
+- POS-a,
+- ERP-ja,
+- javnega QR menija,
+- API-poti,
+- plačilnih mostov,
+- nastavitev naprav,
+- poročil in računovodskih povezav.
+
+Brez takega seznama ni mogoče utemeljeno trditi, da je priročnik celovit.
+
+### 2. Iskanje izrazov ni celovit pregled
+
+Iskanje »Stripe«, »rezervacija« ali »darilni bon« pokaže samo, ali je izraz prisoten. Ne preveri:
+
+- ali je opisan celoten postopek,
+- ali so navodila skladna z dejanskim uporabniškim vmesnikom,
+- ali so opisane napake in ponovitve,
+- ali je funkcija samo omenjena, vendar neuporabna kot navodilo,
+- ali priročnik opisuje funkcijo, ki je v programu sploh ni.
+
+### 3. Priročnik nima sledljivosti do programa
+
+Trenutno ni matrike:
+
+| Funkcija programa | Zaslon/API | Poglavje priročnika | Status |
+|---|---|---|---|
+| POS PIN | Nastavitve in hitra menjava | manjka | ni opisano |
+| QR ocena gosta | javni QR meni | manjka | ni opisano |
+| POS→ERP mesečna sinhronizacija | ERP nastavitve | samo splošno | nepopolno |
+
+Zato spremembe programa ne povzročijo samodejnega opozorila, da je treba dopolniti priročnik.
+
+### 4. Struktura dokumentacije je zavajajoča
+
+Imena izvornih datotek se ne ujemajo z dejansko vsebino. Datoteka z imenom, ki nakazuje plačila, lahko vsebuje začetek izmene, datoteka z imenom nastavitev pa konec izmene in poročila. To otežuje sistematičen pregled.
+
+Poleg tega je imel generator filter, ki je zaradi izraza »kontrolni seznami« odstranil celoten 12. del. To sem odkril šele naknadno.
+
+### 5. Preverjanje PDF-ja ni preverjanje pravilnosti navodil
+
+Preveril sem:
+
+- robove,
+- prazne strani,
+- tabele,
+- datumske vzorce,
+- poškodovane znake.
+
+To potrjuje samo, da je PDF tehnično berljiv. Ne potrjuje, da vsebuje vse funkcije in pravilne postopke.
+
+---
+
+# Kaj je po celovitejšem pregledu še vedno nepopolno
+
+## Kritične manjkajoče vsebine
+
+### POS PIN in hitra menjava natakarja
+
+Program podpira:
+
+- nastavitev POS PIN-a dolžine 4–12 številk,
+- delo natakarja brez lastnega ERP računa,
+- menjavo aktivnega natakarja na skupni napravi,
+- revizijsko sled menjav.
+
+Priročnik ne opisuje nastavitve, prijave, menjave, pozabljenega PIN-a, preklica PIN-a ali preverjanja aktivne identitete.
+
+### Offline fiskalizacija
+
+Priročnik omenja offline vrsto, ne opisuje pa:
+
+- registracije in aktivacije offline naprave,
+- lokalnega prehoda,
+- dovoljenja naprave za izdajo računov,
+- prenosa čakajočih računov,
+- uskladitve konfliktov,
+- prevzema nerešenega računa,
+- preklica naprave,
+- razlike med lokalnim in strežniškim postopkom.
+
+### Obnova nejasnega kartičnega plačila
+
+Navodilo »ne kliknite ponovno« ni dovolj. Manjka dejanski postopek za:
+
+- pregled kandidatov plačilnih poskusov,
+- izbiro veljavnega poskusa,
+- preverjanje rezultata pri ponudniku,
+- nadaljevanje po prekinitvi,
+- različne postopke za SumUp, Viva, Payten in Tap to Pay,
+- potek seje oziroma časovno omejitev terminala.
+
+### Darilni boni
+
+Priročnik omenja izdajo in unovčenje, ne opisuje dovolj natančno:
+
+- izdaje bona za gotovino,
+- izdaje bona s kartico,
+- preverjanja SumUp plačila pred fiskalizacijo,
+- neuspešne ali prekinjene izdaje,
+- rezervacije izdaje,
+- preostale vrednosti,
+- razlike med darilnim bonom in bonom za pico,
+- poročanja in računovodskega učinka.
+
+### POS→ERP knjiženje
+
+Manjkajo operativna navodila za dejanski zaslon:
+
+- dnevno knjiženje,
+- knjiženje datumskega razpona,
+- mesečno knjiženje,
+- omejitev razpona na 366 dni,
+- pogoj, da mora biti mesec zaključen,
+- pregled knjiženja napitnin,
+- napredek in rezultat sinhronizacije,
+- razliko med ustvarjenim osnutkom in knjiženo temeljnico.
+
+### Kontne in DDV-preslikave
+
+Priročnik samo pravi, naj bodo konti nastavljeni. Ne opisuje dejanske matrike:
+
+- prihodki po vrsti artikla in DDV,
+- plačilne metode,
+- DDV konti,
+- zaloga in nabava,
+- povratna embalaža,
+- odpisi,
+- napitnine,
+- darilni boni,
+- odpad in kalo,
+- začetna stanja,
+- stare nadomestne nastavitve,
+- omejitve po razredu in tipu konta.
+
+## Pomembne manjkajoče vsebine
+
+### Javni QR meni
+
+Osnovno naročanje je opisano, manjkajo pa:
+
+- klic natakarja,
+- zgodovina naročil na napravi gosta,
+- izrecna vključitev zgodovine,
+- QR napitnina,
+- pogoji politike napitnin,
+- ocena hrane, ambienta, postrežbe in artiklov,
+- soglasje za komentar,
+- omejitev na eno oceno zaključenega naročila,
+- gostujoči AI pomočnik,
+- pogoji za vklop AI in njegova omejitev na podatke menija.
+
+### Napitnine
+
+Manjka:
+
+- veljavnost politike po podjetju ali enoti,
+- ločitev od prodaje, DDV in fiskalnega zneska,
+- plačilni način napitnine,
+- razdelitev prejemnikom,
+- popravek oziroma storno razdelitve,
+- ločeno poročanje v Z-poročilu,
+- računovodski profil napitnin.
+
+### Nastavitve POS naprav
+
+Manjkajo:
+
+- omejitev naprave na izbrane mize,
+- pomen praznega seznama miz,
+- prednost terminala naprave pred splošno nastavitvijo,
+- tiskalnik in širina papirja po napravi,
+- kodna stran in nadomestni zapis znakov,
+- prag glasovnega prepoznavanja,
+- vklop AI na posamezni napravi.
+
+### Rezervacije
+
+Notranje rezervacije so opisane, manjkajo pa:
+
+- iskanje in filtri po datumu, statusu, gostu, telefonu in mizi,
+- zgodovina sprememb rezervacije,
+- dogodki ustvaritve, spremembe, sprostitve in odstranitve.
+
+### Poročila
+
+Priročnik ne loči dovolj jasno med:
+
+- seznamom računov,
+- statistiko,
+- operativnimi poročili,
+- dnevnim izkazom,
+- realizacijo,
+- temeljnicami,
+- blagajniškimi premiki,
+- X- in Z-poročilom.
+
+Prav tako niso natančno opisane pravice in ločene dimenzije za napitnine, bone, bone za pico in negotovinska plačila.
+
+### Vračila, storni in več plačil
+
+Manjka jasen prikaz, kako se v ERP-ju odražajo:
+
+- razveljavljeno posamezno plačilo,
+- več plačil za isti račun,
+- storno računa,
+- dobropis,
+- povračilo,
+- knjižba in status računa po razveljavitvi.
+
+## Napačno ali zavajajoče opisano
+
+### Internetne rezervacije
+
+Te funkcije v pregledani kodi ni. Priročnik je ne opisuje, vendar tudi ne pove, da javna internetna rezervacija trenutno ni na voljo.
+
+Obstajajo samo notranje POS-rezervacije miz.
+
+### Spletni nakup bonov
+
+V pregledani kodi ni spletne trgovine ali javnega postopka za nakup bona. Obstaja izdaja bona na POS-u.
+
+Priročnik mora jasno ločiti:
+
+- izdajo bona na blagajni,
+- unovčenje bona,
+- spletni nakup bona, ki trenutno ni implementiran.
+
+### Stripe
+
+Stripe aplikacijska izvedba ni bila najdena:
+
+- ni Stripe odvisnosti,
+- ni PaymentIntent,
+- ni Checkout Session,
+- ni webhooka,
+- ni javnega plačilnega toka,
+- ni povezave s spletnim nakupom bona.
+
+Nameščena povezava Stripe sama po sebi ne pomeni, da jo aplikacija uporablja. To bi moral preveriti, preden sem priročnik označil kot celovit.
+
+### OCR prejemnic
+
+Priročnik opisuje obsežen OCR-postopek, vendar v pregledanem ERP uporabniškem vmesniku nisem našel ustreznega vidnega OCR-toka. To je lahko:
+
+- opis funkcije, ki ni dostopna,
+- zastarel postopek,
+- funkcija v drugem, še nepreverjenem vmesniku.
+
+Dokler ni najden dejanski uporabniški zaslon, je ta del priročnika vprašljiv.
+
+### Datumi
+
+Čeprav sem popravil konkretne datume, je v viru še vedno navodilo, ki dovoljuje:
+
+- `DD.MM.LL`,
+- `DD.MM`,
+- `LLLL-MM-DD`.
+
+To je v nasprotju z zahtevano prikazno obliko **dd.mm.yyyy**. Moja prejšnja kontrola je iskala samo konkretne številčne datume, zato tega besedilnega pravila ni zaznala.
+
+### Podprti ponudniki plačil
+
+Priročnik Payten, SumUp in Viva predstavlja precej splošno. Koda potrjuje konfiguracijske možnosti, ne pa nujno, da je vsak način v vsaki postavitvi produkcijsko omogočen. Posebej mora biti ločen Viva demo način od produkcijskega.
+
+### 12. del priročnika
+
+Obnovljen je, vendar je še vedno strukturno problematičen:
+
+- naslov govori o slovarju in kontrolnih seznamih,
+- vsebuje približno 1.750 vrstic dodatnih postopkov,
+- vsebuje staro zgodovino v7 in novo zgodovino v8.2,
+- podvaja številna navodila iz drugih poglavij.
+
+## Težave samega dokumenta
+
+- Veliko postopkov je podvojenih v več poglavjih.
+- Isti ukaz je zato lahko opisan na več mestih in se sčasoma razhaja.
+- Nekatere trditve uporabljajo »vedno« ali »mora«, čeprav niso povezane s preverjeno izvedbo.
+- PDF ni označen za dostopnost.
+- Dolge tabele in osamljene vrstice potrebujejo še ciljni vizualni pregled na prelomih.
+- Pravila za decimalke, tisočice, EUR, bruto/neto in prikaz storna niso določena globalno.
+
+## Sklep
+
+**Različica 8.2 ni celovit in dokončno preverjen priročnik.** Je tehnično boljša od 8.1, vendar vsebinsko še nima dokazljive pokritosti programa.
+
+Pravilna rešitev ni dodajanje posameznih odstavkov po spominu. Najprej je treba izdelati sledljiv inventar:
+
+1. vsak uporabniški zaslon in dejanje,
+2. pripadajoče API-obnašanje,
+3. vloga in predpogoji,
+4. normalen postopek,
+5. napake in varno nadaljevanje,
+6. računovodski oziroma zalogovni učinek,
+7. poglavje priročnika,
+8. status: pravilno, nepopolno, napačno ali manjka.
+
+Šele po tej matriki je utemeljeno izdelati naslednjo izdajo in jo imenovati celovito.

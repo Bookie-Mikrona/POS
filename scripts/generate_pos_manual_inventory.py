@@ -27,6 +27,7 @@ MD_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.md"
 
 AUDIT_FILES = [Path(f"/tmp/inventory-sl2-{index}.json") for index in range(1, 6)]
 REVIEW_DATE = date(2026, 9, 21)
+INVENTORY_TITLE = "POS Gostinstvo — sledljiv inventar priročnika"
 
 STATUS_MAP = {
     "CORRECT": "PRAVILNO",
@@ -100,6 +101,7 @@ HEADERS = [
     "Dokaz v uporabniškem vmesniku",
     "Dokaz v API-ju ali strežniku",
     "Dokaz v priročniku",
+    "Stanje izvedbe",
     "Pokritost priročnika",
     "Pomembnost",
     "Ugotovljena vrzel ali potreben popravek",
@@ -219,7 +221,14 @@ def import_audit_rows() -> list[dict[str, Any]]:
 
 def load_rows() -> list[dict[str, Any]]:
     if CANONICAL_JSON.exists():
-        return json.loads(CANONICAL_JSON.read_text(encoding="utf-8"))
+        rows = json.loads(CANONICAL_JSON.read_text(encoding="utf-8"))
+        for row in rows:
+            if "implementation_status" not in row:
+                if row.get("coverage_status") == "NI IMPLEMENTIRANO":
+                    row["implementation_status"] = "NI IMPLEMENTIRANO"
+                else:
+                    row["implementation_status"] = "IMPLEMENTIRANO"
+        return rows
 
     rows = import_audit_rows()
     CANONICAL_JSON.write_text(
@@ -242,6 +251,7 @@ def row_values(row: dict[str, Any], separator: str = "\n") -> list[str]:
         list_text(row.get("ui_evidence"), separator),
         list_text(row.get("api_evidence"), separator),
         list_text(row.get("manual_evidence"), separator),
+        str(row.get("implementation_status", "IMPLEMENTIRANO")),
         str(row.get("coverage_status", "")),
         str(row.get("severity", "")),
         str(row.get("gap_or_correction", "")),
@@ -251,7 +261,7 @@ def row_values(row: dict[str, Any], separator: str = "\n") -> list[str]:
 
 def write_csv(rows: list[dict[str, Any]]) -> None:
     with CSV_OUTPUT.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.writer(handle, delimiter=";")
+        writer = csv.writer(handle, delimiter=";", lineterminator="\n")
         writer.writerow(HEADERS)
         for row in rows:
             writer.writerow(row_values(row, separator=" | "))
@@ -268,7 +278,7 @@ def write_markdown(rows: list[dict[str, Any]]) -> None:
     ]
 
     lines = [
-        "# POS Gostinstvo — sledljiv inventar priročnika",
+        f"# {INVENTORY_TITLE}",
         "",
         f"**Datum pregleda:** {REVIEW_DATE.strftime('%d.%m.%Y')}  ",
         f"**Število preverjenih uporabniških postopkov:** {len(rows)}",
@@ -282,8 +292,21 @@ def write_markdown(rows: list[dict[str, Any]]) -> None:
         "| Status | Število |",
         "|---|---:|",
     ]
-    for status in ("PRAVILNO", "DELNO", "MANJKA", "NAPAČNO", "NI IMPLEMENTIRANO"):
+    for status in ("PRAVILNO", "DELNO", "MANJKA", "NAPAČNO"):
         lines.append(f"| {status} | {status_counts.get(status, 0)} |")
+
+    lines.extend(
+        [
+            "",
+            "## Stanje izvedbe",
+            "",
+            "| Stanje | Število |",
+            "|---|---:|",
+        ]
+    )
+    implementation_counts = Counter(str(row["implementation_status"]) for row in rows)
+    for status in ("IMPLEMENTIRANO", "NI IMPLEMENTIRANO", "NEPOTRJENO"):
+        lines.append(f"| {status} | {implementation_counts.get(status, 0)} |")
 
     lines.extend(
         [
@@ -320,7 +343,7 @@ def write_markdown(rows: list[dict[str, Any]]) -> None:
             "## Celoten inventar",
             "",
             "Celotna dokazila, predpogoji, postopki in reference so v preglednici "
-            "`POS-Gostinstvo-sledljiv-inventar.xlsx` ter v strojno berljivih "
+            f"`{XLSX_OUTPUT.name}` ter v strojno berljivih "
             "datotekah JSON in CSV.",
             "",
             "| ID | Področje | Funkcija | Pokritost | Pomembnost |",
@@ -340,7 +363,7 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     workbook = xlsxwriter.Workbook(XLSX_OUTPUT)
     workbook.set_properties(
         {
-            "title": "POS Gostinstvo — sledljiv inventar priročnika",
+            "title": INVENTORY_TITLE,
             "subject": "Sledljivost funkcij programa do uporabniškega priročnika",
             "author": "Bookie",
             "company": "Mikrona d.o.o.",
@@ -414,7 +437,7 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     summary.set_column("B:B", 14)
     summary.set_column("D:D", 27)
     summary.set_column("E:E", 14)
-    summary.write("A1", "POS Gostinstvo — sledljiv inventar", title_format)
+    summary.write("A1", INVENTORY_TITLE, title_format)
     summary.write(
         "A2",
         f"Pregled uporabniških postopkov in pokritosti priročnika · "
@@ -434,14 +457,14 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     summary.write_number("B6", high_gaps, metric_value)
     summary.write("A7", "Ni implementirano", metric_label)
     not_implemented = sum(
-        1 for row in rows if row["coverage_status"] == "NI IMPLEMENTIRANO"
+        1 for row in rows if row["implementation_status"] == "NI IMPLEMENTIRANO"
     )
     summary.write_number("B7", not_implemented, metric_value)
     summary.write("A9", "Pokritost priročnika", section_format)
     summary.write("A10", "Status", header_format)
     summary.write("B10", "Število", header_format)
 
-    status_order = ["PRAVILNO", "DELNO", "MANJKA", "NAPAČNO", "NI IMPLEMENTIRANO"]
+    status_order = ["PRAVILNO", "DELNO", "MANJKA", "NAPAČNO"]
     status_counts = Counter(str(row["coverage_status"]) for row in rows)
     for offset, status in enumerate(status_order, start=11):
         summary.write(offset - 1, 0, status, text_format)
@@ -473,8 +496,8 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     chart.add_series(
         {
             "name": "Pokritost",
-            "categories": "=Povzetek!$A$11:$A$15",
-            "values": "=Povzetek!$B$11:$B$15",
+            "categories": "=Povzetek!$A$11:$A$14",
+            "values": "=Povzetek!$B$11:$B$14",
             "fill": {"color": teal},
             "border": {"none": True},
         }
@@ -488,7 +511,7 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     inventory = workbook.add_worksheet("Inventar")
     inventory.freeze_panes(1, 3)
     inventory.set_row(0, 48)
-    widths = [12, 22, 34, 25, 32, 44, 44, 38, 44, 44, 44, 19, 14, 48, 14]
+    widths = [12, 22, 34, 25, 32, 44, 44, 38, 44, 44, 44, 19, 19, 14, 48, 14]
     for column, width in enumerate(widths):
         inventory.set_column(column, column, width)
     for column, header in enumerate(HEADERS):
@@ -496,37 +519,33 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
     for row_number, row in enumerate(rows, start=1):
         values = row_values(row)
         for column, value in enumerate(values):
-            fmt = center_format if column in {0, 11, 12, 14} else text_format
+            fmt = center_format if column in {0, 11, 12, 13, 15} else text_format
             inventory.write(row_number, column, value, fmt)
         inventory.set_row(row_number, 84)
 
     last_row = len(rows) + 1
     inventory.conditional_format(
-        f"L2:L{last_row}",
+        f"M2:M{last_row}",
         {"type": "text", "criteria": "containing", "value": "PRAVILNO", "format": workbook.add_format({"bg_color": pale_green})},
     )
     inventory.conditional_format(
-        f"L2:L{last_row}",
+        f"M2:M{last_row}",
         {"type": "text", "criteria": "containing", "value": "DELNO", "format": workbook.add_format({"bg_color": pale_yellow})},
     )
     inventory.conditional_format(
-        f"L2:L{last_row}",
+        f"M2:M{last_row}",
         {"type": "text", "criteria": "containing", "value": "MANJKA", "format": workbook.add_format({"bg_color": pale_red})},
     )
     inventory.conditional_format(
-        f"L2:L{last_row}",
+        f"M2:M{last_row}",
         {"type": "text", "criteria": "containing", "value": "NAPAČNO", "format": workbook.add_format({"bg_color": pale_red})},
     )
     inventory.conditional_format(
-        f"L2:L{last_row}",
-        {"type": "text", "criteria": "containing", "value": "NI IMPLEMENTIRANO", "format": workbook.add_format({"bg_color": gray})},
-    )
-    inventory.conditional_format(
-        f"M2:M{last_row}",
+        f"N2:N{last_row}",
         {"type": "text", "criteria": "containing", "value": "KRITIČNO", "format": workbook.add_format({"bg_color": "#F4CCCC", "bold": True})},
     )
     inventory.conditional_format(
-        f"M2:M{last_row}",
+        f"N2:N{last_row}",
         {"type": "text", "criteria": "containing", "value": "VISOKO", "format": workbook.add_format({"bg_color": "#FCE5CD"})},
     )
     inventory.add_table(
@@ -597,25 +616,34 @@ def write_workbook(rows: list[dict[str, Any]]) -> None:
         ("DELNO", "Funkcija je omenjena, vendar manjka del postopka, napak, posledic ali nastavitev."),
         ("MANJKA", "Implementiran uporabniški postopek v priročniku ni opisan."),
         ("NAPAČNO", "Priročnik nasprotuje preverjenemu vedenju programa."),
-        ("NI IMPLEMENTIRANO", "Pričakovana funkcija v pregledani kodi ni bila najdena; priročnik je ne sme predstavljati kot obstoječo."),
     ]
     for row_number, (status, explanation) in enumerate(status_explanations, start=3):
         legend.write(row_number, 0, status, metric_label)
         legend.write(row_number, 1, explanation, text_format)
-    legend.write("A11", "Pomembnost", section_format)
-    legend.write("B11", "Pomen", section_format)
+    legend.write("A9", "Stanje izvedbe", section_format)
+    legend.write("B9", "Pomen", section_format)
+    implementation_explanations = [
+        ("IMPLEMENTIRANO", "Funkcija je bila potrjena v pregledani kodi in uporabniškem toku."),
+        ("NI IMPLEMENTIRANO", "Pričakovana funkcija v pregledani kodi ni bila najdena; priročnik jasno pojasni omejitev."),
+        ("NEPOTRJENO", "Obstajajo delni dokazi, vendar celoten uporabniški tok ni potrjen; priročnik ne sme izmišljati korakov."),
+    ]
+    for row_number, (status, explanation) in enumerate(implementation_explanations, start=9):
+        legend.write(row_number, 0, status, metric_label)
+        legend.write(row_number, 1, explanation, text_format)
+    legend.write("A14", "Pomembnost", section_format)
+    legend.write("B14", "Pomen", section_format)
     severity_explanations = [
         ("KRITIČNO", "Napaka lahko povzroči napačen račun, plačilo, fiskalizacijo, zalogo ali knjižbo."),
         ("VISOKO", "Napaka lahko ustavi pomemben delovni tok ali povzroči težko popravljivo stanje."),
         ("SREDNJE", "Navodilo je potrebno za reden postopek, vendar napaka praviloma nima takojšnjega finančnega učinka."),
         ("NIZKO", "Dopolnitev izboljša uporabnost, razumevanje ali administracijo."),
     ]
-    for row_number, (severity, explanation) in enumerate(severity_explanations, start=11):
+    for row_number, (severity, explanation) in enumerate(severity_explanations, start=14):
         legend.write(row_number, 0, severity, metric_label)
         legend.write(row_number, 1, explanation, text_format)
-    legend.write("A17", "Vzdrževanje", section_format)
+    legend.write("A20", "Vzdrževanje", section_format)
     legend.merge_range(
-        "A18:B21",
+        "A21:B24",
         "Dokazila so workspace-relative poti z okvirnimi vrsticami. Pred spremembo "
         "priročnika je treba preveriti trenutno kodo, ker se vrstice lahko premaknejo. "
         "Ob spremembi uporabniškega vedenja se posodobijo dokaz, opis postopka in "

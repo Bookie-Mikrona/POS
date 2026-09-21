@@ -1,0 +1,1776 @@
+[
+  {
+    "id": "ACM001",
+    "domain": "nastavitev kontnega načrta",
+    "feature": "Dodajanje, urejanje, hierarhija, tip in veljavnost konta",
+    "user_roles": [
+      "lastnik podjetja",
+      "računovodja",
+      "administrator OS",
+      "uporabnik OS"
+    ],
+    "prerequisites": [
+      "izbrano mora biti pravo podjetje",
+      "uporabnik mora imeti pravico urejanja kontnega plana"
+    ],
+    "normal_flow": "V modulu Kontni plan preverite podjetje, pri novem kontu vnesete sedemmestno kodo, naziv, tip in po potrebi nadrejeni konto, nato nastavite davčno vedenje ter konto preizkusite na testni temeljnici, preden ga uporabite v Kontih za temeljnice.",
+    "exceptions_recovery": "Kode obstoječega konta ne spreminjajte, če bi s tem prekinili zgodovinske reference. Deaktiviran konto ostane v zgodovini, vendar ga ne uporabite za nove knjižbe; uvoz standardnega kontnega plana je le začetna priprava in ne potrjuje pravilnosti za konkretno podjetje.",
+    "business_effect": "Vzpostavi podjetju pripadajočo hierarhijo kontov z določenim ekonomskim tipom in nadzorovano veljavnostjo za nove knjižbe.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:58-115",
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:255-294",
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:396-459"
+    ],
+    "api_evidence": [
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:7-13",
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:92-100"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:290-322",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:304-316"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno določa postopek in omejitve; pred uporabo je treba vedno preveriti konkretno kartico konta podjetja."
+  },
+  {
+    "id": "ACM002",
+    "domain": "kontiranje",
+    "feature": "Dovoljenje za knjiženje in skupinski konto",
+    "user_roles": [
+      "računovodja",
+      "lastnik podjetja",
+      "administrator OS"
+    ],
+    "prerequisites": [
+      "konto mora biti v kontnem planu",
+      "za neposredno knjiženje mora biti konto analitičen in aktiven"
+    ],
+    "normal_flow": "Pri analitičnem kontu vključite Dovoli knjižbe, pri skupinskem oziroma sintetičnem kontu pa to možnost izključite. Pred potrditvijo preverite, da preslikava kaže na aktivni analitični konto.",
+    "exceptions_recovery": "Če je konto skupinski ali ne dovoljuje knjižb, ga zamenjajte z ustreznim aktivnim analitičnim kontom. Priročnik izrecno opozarja, da preverjanje ni na vseh poteh enako strogo, zato ročnega uvoza ali samodejnega predloga ne obravnavajte kot samodejno varnega.",
+    "business_effect": "Preprečuje neposredno knjiženje na konto, namenjen zgolj seštevanju, in zmanjšuje tveganje napačne zbirne temeljnice.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:352-357",
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:469-485"
+    ],
+    "api_evidence": [
+      "artifacts/erp-web/src/pages/dokumenti.tsx:741-742",
+      "artifacts/erp-web/src/pages/dokumenti.tsx:890-890",
+      "artifacts/erp-web/src/pages/dokumenti.tsx:1075-1091"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:013-019",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:324-341"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Dokumentacija pravilno razkrije omejitev izvedbe pri uvozih in predlogih, zato to ni zamolčana dokumentacijska vrzel."
+  },
+  {
+    "id": "ACM003",
+    "domain": "kontiranje DDV",
+    "feature": "Tip konta in vedenje izhodnega oziroma vhodnega DDV",
+    "user_roles": [
+      "računovodja",
+      "lastnik podjetja",
+      "administrator OS"
+    ],
+    "prerequisites": [
+      "konto mora obstajati v kontnem planu",
+      "za preslikavo mora biti znana ustrezna DDV-kategorija"
+    ],
+    "normal_flow": "Pri kontu nastavite ekonomski tip in davčno vedenje. Prihodkovni konto mora biti tipa prihodek, konto izhodnega DDV davčna obveznost, konto vhodnega DDV pa mora imeti vedenje vstopnega DDV; pred uporabo preverite kartico in testno temeljnico.",
+    "exceptions_recovery": "Če je za blagajno izbran prihodek ali za DDV strošek, preslikave ne popravljajte s preknjiževanjem brez sledenja izvirnemu POS-računu, temveč zamenjajte neustrezen konto in ponovite kontrolo.",
+    "business_effect": "Ohranja pravilno razmejitev prihodkov, stroškov, sredstev ter vhodnega in izhodnega DDV v knjižbah in poročilih.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:42-56",
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:433-443",
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:559-585"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/__tests__/journalVatCodeLinks.test.ts:1-55",
+      "artifacts/erp-web/src/pages/nastavitve.vat-codes.test.ts:1-25"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:013-019",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:205-211",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:365-375"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik dovolj jasno določa tipe in DDV-vedenje ter opozarja na ekonomsko napačne, čeprav tehnično veljavne UUID-je."
+  },
+  {
+    "id": "ACM004",
+    "domain": "plačilne preslikave",
+    "feature": "Konti gotovine, TRR, kartic, denarja na poti in drugih plačil",
+    "user_roles": [
+      "računovodja",
+      "lastnik podjetja",
+      "administrator OS"
+    ],
+    "prerequisites": [
+      "nastavljeni morajo biti ustrezni denarni oziroma prehodni konti",
+      "uporabljeni način plačila mora biti omogočen"
+    ],
+    "normal_flow": "V Kontih za temeljnice določite konto blagajne za gotovino, konto TRR za bančno poravnavo, konto denarja na poti za prenose, konto kartic za kartična plačila in konto drugih plačil za preostala negotovinska plačila.",
+    "exceptions_recovery": "Če ima vrsta plačila pozitiven ali negativen znesek in njen obvezni konto manjka, se konkretna zbirna temeljnica preskoči z razložljivim razlogom; manjkajoči konto pri ničelnem znesku ne ustavi drugih vrst plačila. Po popravku ponovno zaženite sinhronizacijo.",
+    "business_effect": "Plačila se knjižijo na ustrezna sredstva oziroma terjatve, ne na prihodek ali napačen konto kartičnega terminala.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:533-545",
+      "artifacts/pos/src/pages/Checkout.tsx:2717-2720",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:071-088",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:392-396"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik konkretno opredeli vsa plačilna polja, njihove računovodske vloge in ravnanje ob manjkajočem kontu."
+  },
+  {
+    "id": "ACM005",
+    "domain": "prihodkovne in DDV-preslikave",
+    "feature": "Preslikava prihodkov po kategoriji, vrsti artikla in stopnji DDV",
+    "user_roles": [
+      "računovodja",
+      "lastnik podjetja",
+      "administrator OS"
+    ],
+    "prerequisites": [
+      "artikli in kategorije morajo biti pravilno nastavljeni",
+      "za uporabljene stopnje DDV morajo biti določeni prihodkovni in DDV-konti"
+    ],
+    "normal_flow": "Program promet najprej razdeli po plačilu, nato po vrsti artikla, kategoriji in stopnji DDV. Uporabi preslikavo kategorije, če obstaja; sicer uporabi splošni prihodkovni konto, nato podrobni konto vrste artikla in stopnje DDV.",
+    "exceptions_recovery": "Podvojene preslikave, preslikave drugega podjetja ali neveljavnega ID-ja ne potrdite; popravite izvorno kategorijo in osvežite osnutek. Pri 0-odstotni ali neznani stopnji DDV preverite izrecno poslovno pravilo, saj združljivostna rešitev za material ni samodejna davčna presoja.",
+    "business_effect": "Omogoča ločeno in sledljivo knjiženje prihodkov po kategoriji, vrsti artikla in stopnji DDV ter preprečuje neopaženo napačno razčlenitev.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Menu.tsx:1-240",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:1-240",
+      "artifacts/erp-web/src/pages/dokumenti.tsx:698-741"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260",
+      "artifacts/api-server/src/__tests__/journalVatCodeLinks.test.ts:1-55"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:046-067",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:093-124",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:377-400"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik pravilno dokumentira vrstni red in omejitev pri neznani stopnji DDV; splošnega prihodkovnega konta pri novi razčlenitvi ne smete izpolniti zgolj kot varovalo."
+  },
+  {
+    "id": "ACM006",
+    "domain": "zaloge in stroški",
+    "feature": "Konti zalog, nabave, vhodnega DDV in COGS",
+    "user_roles": [
+      "računovodja",
+      "lastnik podjetja",
+      "administrator OS",
+      "skrbnik zalog"
+    ],
+    "prerequisites": [
+      "nastavljeni morajo biti nabavni artikli in normativi",
+      "za prejemnice morajo obstajati konti zalog, dobaviteljev, nabave in vhodnega DDV"
+    ],
+    "normal_flow": "Za material in blago nastavite ločena konta zaloge, po potrebi konto povratne embalaže, konto dobaviteljev in prehodni konto nabave; za vhodni DDV določite konte po stopnjah, za porabo pa ločena COGS-konta materiala in blaga.",
+    "exceptions_recovery": "Pri mešani prejemnici se vsaka stopnja vhodnega DDV obračuna ločeno. Če manjkajo konto, zaloga, normativ ali nabavna osnova, popravite konfiguracijo pred potrditvijo; zamrznjena pripravljena porcija sama po sebi ne ustvari GL-temeljnice.",
+    "business_effect": "Razmejuje kapitalizirano zalogo, obveznosti do dobaviteljev, vhodni DDV, porabo materiala, nabavno vrednost blaga in vrednost kala.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-260",
+      "artifacts/pos/src/pages/Menu.tsx:1-260",
+      "artifacts/erp-web/src/pages/prejemnice.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:125-146",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:148-164",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:365-375"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno navaja konkretne vloge kontov in združljivostne fallbake ter loči zalogo od stroška porabe."
+  },
+  {
+    "id": "ACM007",
+    "domain": "posebne plačilne preslikave",
+    "feature": "Boni, subvencionirani študentski boni in pogodbene malice",
+    "user_roles": [
+      "blagajnik",
+      "vodja",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "nastavljeni morajo biti posebni konti za bon oziroma terjatev",
+      "pri subvenciji morata obstajati konto terjatve in partner MDDSZ/ŠOS"
+    ],
+    "normal_flow": "Bon za pico preslikajte na ločeno terjatev, darilni bon na konto predplačil, študentski bon na terjatev do subvencionerja s partnerjem, pogodbeno malico pa na prehodno terjatev, ki se zapre ob mesečnem A-računu.",
+    "exceptions_recovery": "Če pri študentskem bonu manjka konto ali partner, se prodaja preskoči z razlogom. Pri negativnem saldu darilnih bonov preverite izdaje, unovčitve in stornacije; darilnega bona ne nadomeščajte s kontom bona za pico.",
+    "business_effect": "Ločuje predplačilo, terjatev do subvencionerja in prehodno terjatev pogodbenih malic od prihodka in običajnih plačil.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:2717-2720",
+      "artifacts/pos/src/pages/Checkout.tsx:2896-2900",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:083-088",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:227-239",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:350-363"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik natančno določa tri posebne tokove in pogoje, zaradi katerih je prodaja oziroma zbirna temeljnica lahko preskočena."
+  },
+  {
+    "id": "ACM008",
+    "domain": "preslikave napitnin",
+    "feature": "Obveznost, prihodek, DDV in kartična provizija napitnin",
+    "user_roles": [
+      "blagajnik",
+      "vodja",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "napitnina mora biti vključena v uporabljeni plačilni tok",
+      "za uporabljeni poslovni model morajo biti nastavljeni ustrezni konti"
+    ],
+    "normal_flow": "Za napitnino, ki pripada osebju, uporabite konto obveznosti; za napitnino pod nadzorom delodajalca pa konto prihodkov, izhodnega DDV in po potrebi stroška kartične provizije. Denarno oziroma kartično poravnavo povežite z ustreznim plačilnim kontom.",
+    "exceptions_recovery": "Pred knjiženjem preverite, ali je izbrani model napitnine tuj denar ali prihodek podjetja, ter ali je kartična provizija nastala; napačne ali manjkajoče kombinacije ne nadomeščajte z običajnim prihodkovnim kontom brez računovodske presoje.",
+    "business_effect": "Ločuje sredstva zaposlenih od prihodka podjetja ter pravilno zajame DDV in strošek kartične obdelave, kadar sta relevantna.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:2717-2720",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:079-082",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:350-363"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik sedaj izrecno našteva vse štiri vloge kontov in njihovo razmejitev."
+  },
+  {
+    "id": "ACM009",
+    "domain": "obvezne dimenzije",
+    "feature": "Partner, stroškovno mesto in projekt na knjižbeni vrstici",
+    "user_roles": [
+      "računovodja",
+      "lastnik podjetja",
+      "administrator OS"
+    ],
+    "prerequisites": [
+      "konto mora imeti določena pravila analitike",
+      "ustrezni partner, stroškovno mesto ali projekt mora obstajati"
+    ],
+    "normal_flow": "Na kartici konta nastavite, ali zahteva partnerja, stroškovno mesto ali projekt, nato prisotnost dimenzij preverite v predogledu in knjižbeni vrstici pred potrditvijo temeljnice.",
+    "exceptions_recovery": "Če zahtevana analitika manjka, temeljnice ne potrdite na silo; popravite konto ali konfiguracijo poslovne enote. Priročnik izrecno opozarja, da ročni uvoz in samodejni predlog nista na vseh poteh enako strogo preverjena.",
+    "business_effect": "Zagotavlja sledljivost knjižb po partnerjih, stroškovnih mestih in projektih ter preprečuje potrjevanje nepopolne analitike.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/kontni-plan.tsx:489-531",
+      "artifacts/erp-web/src/pages/dimenzije.tsx:1-220",
+      "artifacts/erp-web/src/pages/dokumenti.tsx:1018-1032"
+    ],
+    "api_evidence": [
+      "artifacts/erp-web/src/pages/dokumenti.confirmed-lines.test.tsx:1-55",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:1-240"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:013-019",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:247-252",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:324-341"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Dokumentacija pravilno razkrije omejeno enotnost preverjanja po poteh in poda varen uporabniški postopek; omejitev ni zamolčana."
+  },
+  {
+    "id": "ACM010",
+    "domain": "vrstni red preslikav in frekvence",
+    "feature": "Fallback precedence, pogostost knjiženja in ponovljivost sinhronizacije",
+    "user_roles": [
+      "računovodja",
+      "vodja",
+      "lastnik podjetja"
+    ],
+    "prerequisites": [
+      "preslikave morajo biti nastavljene na ravni podjetja",
+      "določen mora biti datum uveljavitve in izbrana frekvenca prodaje oziroma porabe"
+    ],
+    "normal_flow": "Za prodajo uporabite vrstni red kategorija, splošni prihodek, vrsta artikla skupaj z DDV in podprti stari fallback; za vhodni DDV velja konto po stopnji pred splošnim kontom. Ločeno izberite dnevno ali mesečno knjiženje prodaje in porabe.",
+    "exceptions_recovery": "Ob manjkajočem obveznem kontu se osnutek preskoči oziroma zadrži z razlogom; popravite preslikavo, ponovno sinhronizirajte in preverite isto referenco. Pri mesečnem načinu dnevni klic ne sme ustvariti dodatne prodajne temeljnice, potrjenih temeljnic pa sprememba ne sme prepisati.",
+    "business_effect": "Določa predvidljiv izbor konta, preprečuje podvojene knjižbe in določa, kdaj se prodaja oziroma poraba prenese v računovodstvo.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:1-240",
+      "artifacts/erp-web/src/pages/dokumenti.tsx:1018-1032"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:1-260",
+      "artifacts/api-server/src/services/pos/offline-fiscal-worker.ts:1-180"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:046-067",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:166-180",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:377-413"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik izčrpno in pravilno dokumentira precedence, frekvence, datum uveljavitve, idempotentno referenco in varno obnovo po napaki."
+  },
+  {
+    "id": "CBR-001",
+    "domain": "gotovina",
+    "feature": "Gotovinski promet, polog, dvig in izplačilo",
+    "user_roles": [
+      "blagajnik",
+      "vodja izmene",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "aktivna blagajna",
+      "nastavljeni in dovoljeni konti blagajne, banke oziroma denarja na poti",
+      "potrjen izvorni dogodek"
+    ],
+    "normal_flow": "Blagajnik v POS evidentira gotovinsko plačilo ali blagajniški premik. Po potrditvi se pripravi osnutek temeljnice; računovodja preveri konto, stran D/K, znesek, izvorno referenco in obdobje ter ga nato knjiži.",
+    "exceptions_recovery": "Če manjka obvezni konto, se dogodek preskoči z razlogom in ne nastane delna temeljnica. Napačen že evidentiran premik se popravi z namenskim stornom oziroma novim dokumentom, ne s prepisom potrjene knjižbe.",
+    "business_effect": "Postopek zagotavlja sledljivost fizične gotovine in ločuje blagajno, banko ter denar na poti od prihodkov in DDV.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:340-377",
+      "artifacts/pos/src/pages/BlagajniskiPremiki.tsx:1-221"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:1-575",
+      "artifacts/api-server/src/routes/pos/z-porocila.ts:1-674"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:64-88",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:24-40"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Aktualni priročnik pravilno pokriva nastavitve, tipe kontov, pologe, dvige, izplačila in razlikovanje med operativnim premikom ter knjiženjem v GL."
+  },
+  {
+    "id": "CBR-002",
+    "domain": "gotovina",
+    "feature": "X-poročilo in sprotna kontrola preštete gotovine",
+    "user_roles": [
+      "blagajnik",
+      "vodja izmene"
+    ],
+    "prerequisites": [
+      "aktivna blagajna",
+      "dostop do X-poročila",
+      "ločeno dokazilo o fizičnem štetju"
+    ],
+    "normal_flow": "Uporabnik odpre X-poročilo in pregleda promet ter načine plačila. Fizično štetje se evidentira oziroma podpiše na ločenem dokazilu z enoto, blagajno, uporabnikom, časom, apoeni, zneskom in razliko.",
+    "exceptions_recovery": "X-poročilo samo po sebi ne dokazuje shranjenega štetja v POS. Ob razliki se primerjajo X, Z, pologi, dvigi in odprti računi; popravek se izvede z novim blagajniškim ali izvornim dokumentom, ne s spremembo poročila.",
+    "business_effect": "Omogoča sprotno kontrolo gotovine brez zaključevanja oziroma ničeljenja prometa, hkrati pa preprečuje napačno računovodsko dokazovanje neshranjenega štetja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:340-377"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:1-575"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:731-743"
+    ],
+    "implementation_status": "NEPOTRJENO",
+    "coverage_status": "PRAVILNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Priročnik pravilno razkrije omejitev trenutne izvedbe: UI ne dokazuje, da se fizično štetje shrani v POS. To je dokumentirana produktna omejitev, ne vrzel v priročniku."
+  },
+  {
+    "id": "CBR-003",
+    "domain": "gotovina",
+    "feature": "Z-poročilo, zaključek dneva in storniranje premika",
+    "user_roles": [
+      "vodja izmene",
+      "administrator",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "zaključene odprte operacije",
+      "pregledano stanje gotovine",
+      "potrditev odgovorne osebe"
+    ],
+    "normal_flow": "Vodja pregleda X, gotovinske premike in štetje, nato izvede Z-zaključek. Polog ali dvig mora biti predhodno evidentiran in viden v kontrolni sledi.",
+    "exceptions_recovery": "Razliko je treba najprej razčleniti glede na pologe, dvige in odprte račune. Napačen premik se stornira z novim, povezanim dokumentom; potrjenega poročila ali temeljnice se ne prepisuje.",
+    "business_effect": "Z-zaključek zaključi poslovni dan in ustvari dnevno kontrolno sled prometa ter fizičnih premikov.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:365-377",
+      "artifacts/pos/src/pages/BlagajniskiPremiki.tsx:1-221"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:390-575",
+      "artifacts/api-server/src/routes/pos/z-porocila.ts:1-674"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:731-743",
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:593-604"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno loči vmesni X-izkaz od zaključnega Z-postopka ter določa varen popravek z novim dokumentom."
+  },
+  {
+    "id": "CBR-004",
+    "domain": "banka",
+    "feature": "Uvoz bančnega izpiska, dokazilo ter začetno in končno stanje",
+    "user_roles": [
+      "računovodja",
+      "lastnik",
+      "pregledovalec"
+    ],
+    "prerequisites": [
+      "odprto računovodsko obdobje",
+      "aktiven bančni konto",
+      "datoteka ali referenca bančnega izpiska"
+    ],
+    "normal_flow": "Računovodja uvozi izpisek, izbere podjetje, račun in obdobje ter pregleda banko, začetno in končno stanje, valuto, predznake, datume in število transakcij. Pred potrditvijo shrani datoteko oziroma referenco izpiska.",
+    "exceptions_recovery": "Preveri, da se začetno stanje nadaljuje iz prejšnjega potrjenega izpiska in da je končno stanje enako začetnemu stanju, povečanemu oziroma zmanjšanemu za promet. Neveljavne vrstice se obravnavajo z razlogom, ponovni uvoz iste datoteke ali reference pa ne sme ustvariti dvojnika.",
+    "business_effect": "Bančni izpisek postane dokazljiv vir za promet in stanje na računu ter podlaga za ročno uskladitev z GL.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:740-781",
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:784-892",
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:985-1013"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/bankStatements.ts:52-127",
+      "artifacts/api-server/src/routes/bankStatements.ts:162-218",
+      "artifacts/api-server/src/routes/bankStatements.ts:30-49"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:745-755"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno dokumentira dokazilo, kontrole vsebine in zaščito pred dvojniki; ne obljublja funkcije, ki je izvedba ne potrjuje."
+  },
+  {
+    "id": "CBR-005",
+    "domain": "banka",
+    "feature": "Konti 110x in bančni saldo",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "kontni načrt z aktivnim kontom skupine 110x",
+      "knjižbe ali uvožen izpisek",
+      "enako določeno obdobje in bančni račun"
+    ],
+    "normal_flow": "Računovodja izbere ustrezen 110x konto, pregleda saldo GL in ga ročno primerja z zaključnim stanjem izpiska po računu, obdobju, referenci in znesku.",
+    "exceptions_recovery": "Konto 110x brez knjižb mora imeti prikazan saldo nič oziroma mora biti manjkajoča knjižba izrecno pojasnjena. Pri razliki se preverijo preskočene knjižbe, dvojniki, obdobje, predznaki in časovni zamiki.",
+    "business_effect": "Kontrola preprečuje, da bi se konto banke prikazal kot usklajen samo zaradi obstoja konta ali napačnega salda.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:877-892",
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:765-775"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/bankStatements.ts:14-18",
+      "artifacts/api-server/src/routes/bankStatements.ts:184-193"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:757-761",
+      "docs/pos-accounting-manual-src/01-privzeti-konti.md:71-78"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik jasno določa ničelni saldo brez knjižb in ročno primerjavo; samodejna primerjava izpiska z GL je izrecno označena kot nezagotovljena produktna omejitev."
+  },
+  {
+    "id": "CBR-006",
+    "domain": "banka",
+    "feature": "Ujemanje bančnih transakcij s plačili in obveznostmi",
+    "user_roles": [
+      "računovodja"
+    ],
+    "prerequisites": [
+      "uvožene bančne transakcije",
+      "odprte terjatve ali obveznosti",
+      "razpoložljiva referenca, partner in račun"
+    ],
+    "normal_flow": "Računovodja pri predlogu ujemanja preveri znesek, referenco, partnerja, datum, račun in že porabljeni del plačila, nato potrdi samo ujemanje, ki ga lahko dokazljivo poveže z odprto postavko.",
+    "exceptions_recovery": "Delno plačilo zapre samo plačani del, preostanek ostane odprt. Pri povezavi z več dokumenti se shrani razdelitev in kontrolni seštevek; podvojeno, neznano ali dvoumno transakcijo se pusti odprto in preda odgovorni osebi.",
+    "business_effect": "Omogoča sledljivo zapiranje terjatev in obveznosti brez napačnega zapiranja celotnega računa zaradi ene delne ali že uporabljene transakcije.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:950-1045"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/bankStatements.ts:66-91",
+      "artifacts/api-server/src/routes/bankStatements.ts:216-220",
+      "artifacts/api-server/src/routes/bankStatements.matching.test.ts:1-91"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:763-774"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Aktualni priročnik neposredno pokriva merila ujemanja, delna plačila, več dokumentov, dvojnike in ročni recovery."
+  },
+  {
+    "id": "CBR-007",
+    "domain": "dobavitelji",
+    "feature": "Izplačilo dobavitelju",
+    "user_roles": [
+      "računovodja",
+      "vodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "potrjen račun dobavitelja",
+      "odprta obveznost",
+      "partner in sklic",
+      "bančni ali blagajniški dokaz"
+    ],
+    "normal_flow": "Računovodja poveže plačilo z računom oziroma sklicem dobavitelja, preveri prejemnika, znesek in plačilni konto ter priloži dokazilo banke ali blagajne. Knjiži se samo plačani del obveznosti.",
+    "exceptions_recovery": "Če samodejna pot izplačila ni potrjena, se uporabi ročna temeljnica z referenco na odprto obveznost in dokazilom. Preveri se, da bančni promet ni ponovno knjižen kot strošek ali prihodek in da plačilo ne pripada drugemu podjetju.",
+    "business_effect": "Plačilo zmanjšuje pravilno obveznost do dobavitelja in poveže račun, bančni oziroma blagajniški dokaz ter GL.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/bancni-izpis.tsx:894-920",
+      "artifacts/erp-web/src/pages/prejemnice.tsx:1-70"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/bankStatements.ts:66-91",
+      "artifacts/api-server/src/routes/payments.ts:1-1524"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:776-781",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:57-78"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik zdaj jasno določa podatke, dokazilo, delno poravnavo in ročni fallback; s tem pravilno dokumentira tudi primer, ko ločena avtomatska pot ni potrjena."
+  },
+  {
+    "id": "CBR-008",
+    "domain": "poročila",
+    "feature": "Operativna poročila, X/Z in primerjava z GL",
+    "user_roles": [
+      "vodja",
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "določeno obdobje",
+      "zaključeni POS dogodki",
+      "razpoložljivi X/Z, bančni in GL podatki"
+    ],
+    "normal_flow": "Računovodja ločeno pregleda POS račune in plačila, X/Z, bančni izpisek ter GL temeljnice. Primerja bruto prodajo, DDV, načine plačila, gotovino, pologe, dvige, bančni promet, statuse in preskočene zapise.",
+    "exceptions_recovery": "Razlika se razčleni po izvorni referenci, ne le po končnem saldu. Najprej se preverijo preskočene temeljnice, storna, delna plačila, časovni zamiki kartičnega kliringa, dobropisi in neodbitni DDV; šele nato se izvede dokumentiran popravek ali storno.",
+    "business_effect": "Omogoča dokazljivo razlikovanje med operativnim prometom, bančnim dokazom in knjiženim GL ter preprečuje tiho izravnavo napačnega salda.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/porocila.tsx:23-63",
+      "artifacts/erp-web/src/pages/porocila.tsx:109-156",
+      "artifacts/pos/src/pages/Checkout.tsx:340-377"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/ledger.ts:1-209",
+      "artifacts/api-server/src/routes/pos/z-porocila.ts:1-674"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:783-797"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik pravilno določa štiri kontrolne vire in ročni tie-out ter izrecno pove, da avtomatski tie-out ni potrjen."
+  },
+  {
+    "id": "CBR-009",
+    "domain": "mesečni zaključek",
+    "feature": "Mesečna sinhronizacija, kontrolni seznam, razlike in recovery",
+    "user_roles": [
+      "računovodja",
+      "vodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "zaključeni dnevni postopki",
+      "obravnavane izjeme in preskoki",
+      "odprto računovodsko obdobje"
+    ],
+    "normal_flow": "Pred mesečno sinhronizacijo računovodja zaključi dneve, storna, vračila, bone, subvencije, napitnine in odprte izjeme. Nato primerja mesečni zbir z dnevnimi temeljnicami, preveri D=K, preskočene reference in obdobje ter šele nato knjiži osnutke oziroma zaklene obdobje.",
+    "exceptions_recovery": "Pri ponovitvi se najprej preverijo referenca, status, obseg in obdobje; izvedba je dopustna le, če je idempotenca dokazana. Mapping napaka pomeni preskok, ki ga je treba odpraviti in ponovno ustvariti, brez tihega izravnavanja ali podvajanja potrjenih temeljnic.",
+    "business_effect": "Kontroliran mesečni zaključek preprečuje dvojno knjiženje, izgubo dogodkov, neobravnavane preskoke in napačne zaključne salde.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/porocila.tsx:109-156",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:1-1527"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/monthlyPosBookingScheduler.ts:1-391",
+      "artifacts/api-server/src/lib/posSyncBooking.monthly.test.ts:1-593",
+      "artifacts/api-server/src/routes/journalEntries.ts:1-1037"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:552-573",
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:593-604",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:783-797"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Aktualni priročnik pokriva mesečne predpogoje, dnevni kontrolni seznam, idempotenco, recovery in primerjavo POS/X/Z/banke/GL; avtomatske funkcije so opisane le v obsegu, ki je preverjen."
+  },
+  {
+    "id": "JL-001",
+    "domain": "življenjski cikel",
+    "feature": "Dnevna, razponska in mesečna sinhronizacija POS v ERP",
+    "user_roles": [
+      "lastnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "Izbrano je pravo podjetje in poslovna enota.",
+      "Konto, DDV-kode in druge nastavitve knjiženja so urejene.",
+      "Izvorni POS dogodki so zaključeni oziroma pripravljeni za obdelavo."
+    ],
+    "normal_flow": "V Nastavitve → POS knjiženje računovodja izbere dnevno ali mesečno sinhronizacijo oziroma določi datum od in do. Sistem vrne ustvarjene osnutke ter preskočene reference; ustvarjene osnutke nato pregleda na zaslonu Temeljnice.",
+    "exceptions_recovery": "Preskok ni uspešno knjiženje. Pri vsaki preskočeni referenci se ugotovi razlog, popravi izvorni dogodek ali nastavitev in sinhronizacija ponovi. Pri mesečnem postopku se preveri, da že potrjeni dnevi niso ponovno zajeti.",
+    "business_effect": "Postopek omogoča usklajen prenos POS prometa v računovodstvo in zmanjšuje tveganje dvojnega prihodka ali neobravnavanih dogodkov.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/nastavitve.tsx:1980-2014",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2328-2353",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2693-2785",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:165-183"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:177-299"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:49-73"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno določa dnevni, razponski in mesečni postopek, lokacijo funkcije ter pomen preskokov; ne potrjuje nepreverjene podrobnosti strežniške izvedbe."
+  },
+  {
+    "id": "JL-002",
+    "domain": "življenjski cikel",
+    "feature": "Osnutek, pregled in status temeljnice",
+    "user_roles": [
+      "računovodja",
+      "lastnik",
+      "gledalec"
+    ],
+    "prerequisites": [
+      "Temeljnica pripada izbranemu podjetju in obdobju.",
+      "Uporabnik ima dostop do pregleda temeljnic."
+    ],
+    "normal_flow": "Uporabnik na seznamu Temeljnice izbere obdobje, status in po potrebi dimenzijske filtre. Odpre posamezno vrstico ter primerja izvor, konto, stran D/K, znesek, opis, DDV, partnerja in dimenzije. Osnutek se pregleda pred knjiženjem.",
+    "exceptions_recovery": "Neuravnotežene ali vsebinsko napačne temeljnice se ne potrdi. Popravi se izvorni vnos oziroma nastavitev ali se osnutek ponovno pripravi; potrjene vrstice se ne prepisuje.",
+    "business_effect": "Vzpostavi preverljivo kontrolno točko med pripravo predloga in nepreklicnim knjiženjem.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:90-115",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:442-498",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:196-207"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:70-175"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:75-102",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:104-128"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik natančno opredeljuje statuse, pregled seznama in kontrolni vrstni red, zato je vsebinsko skladen z izvedenim pregledom."
+  },
+  {
+    "id": "JL-003",
+    "domain": "življenjski cikel",
+    "feature": "Knjiženje temeljnice in zaklenjeno obdobje",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "Uporabnik ni gledalec.",
+      "Obdobje je odprto.",
+      "Vrstice imajo veljavne konte in so uravnotežene."
+    ],
+    "normal_flow": "Računovodja po pregledu potrdi osnutek. Sistem ga knjiži, zabeleži čas in uporabnika ter pri samodejnem knjiženju ustvari povezane DDV evidence.",
+    "exceptions_recovery": "V zaklenjeno obdobje se ne knjiži. Če je potreben popravek, se uporabi dokumentiran popravek v odprtem obdobju z navedbo izvorne reference in razloga; datuma ali nastavitev se ne spreminja zaradi obhoda zapore.",
+    "business_effect": "Preprečuje naknadno spreminjanje zaključenih obdobij ter podpira pravilno davčno in revizijsko sled.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:196-207"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:301-345",
+      "artifacts/api-server/src/routes/journalEntries.ts:467-471",
+      "artifacts/api-server/src/routes/journalEntries.ts:486-564"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:164-174",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:192-205"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik pravilno opisuje prepoved knjiženja v zaklenjeno obdobje in dovoljeni popravek v odprtem obdobju."
+  },
+  {
+    "id": "JL-004",
+    "domain": "življenjski cikel",
+    "feature": "Reverz oziroma storno knjižene temeljnice",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "Izvorna temeljnica je knjižena.",
+      "Za popravek je določen razlog in dovoljeno obdobje.",
+      "Obstaja povezava z izvornim dokumentom."
+    ],
+    "normal_flow": "Pri napaki na potrjenem dokumentu se izvede storno oziroma dobropis. Izvorna temeljnica dobi status reversed, sistem pa ustvari ločeno nasprotno temeljnico s statusom posted, obrnjenimi stranmi D/K in povezavo na izvirnik.",
+    "exceptions_recovery": "Izvorne knjižene temeljnice se ne prepisuje. Če storno ni mogoče v prvotnem obdobju, se uporabi dovoljeno odprto obdobje in dokumentiran popravek z jasno povezavo do izvora.",
+    "business_effect": "Ohranja prvotno knjižbo, zagotavlja popolno sled popravka in pravilno izniči njen računovodski učinek.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:209-213",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:462-468"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:1-39",
+      "artifacts/api-server/src/routes/payments.void.ledger.test.ts:204-220",
+      "artifacts/api-server/src/routes/payments.void.ledger.test.ts:386-401"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:75-90",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:176-190"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik izrecno razlikuje status izvorne stornirane temeljnice od nove posted nasprotne temeljnice in je skladen z izvedbo."
+  },
+  {
+    "id": "JL-005",
+    "domain": "življenjski cikel",
+    "feature": "Brisanje osnutkov temeljnic",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "Temeljnica ima status draft.",
+      "Uporabnik ni gledalec.",
+      "Osnutek ni v zaščiteni davčni ali drugi poslovni povezavi."
+    ],
+    "normal_flow": "Računovodja preveri, da gre za napačen ali nepotreben osnutek, ga izbriše in po potrebi ponovno pripravi iz popravljenega POS vira.",
+    "exceptions_recovery": "Knjiženih ali storniranih temeljnic se ne briše. Če je osnutek že zajet v davčnem poročilu ali zaščitenem zapisu, se uporabi predpisan popravek oziroma storno, ne brisanje.",
+    "business_effect": "Omogoča varno ponovitev priprave osnutka, hkrati pa ščiti potrjene in davčno uporabljene zapise.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:215-232"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:601-641"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:81-85",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:176-184"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno usmerja uporabnika k ponovni pripravi in prepoveduje prepisovanje potrjenih temeljnic; konkretne strežniške kode napak niso potrebne za računovodsko navodilo."
+  },
+  {
+    "id": "JL-006",
+    "domain": "sledljivost",
+    "feature": "Izvorna referenca in idempotentnost ponovljene sinhronizacije",
+    "user_roles": [
+      "računovodja",
+      "lastnik",
+      "revizor"
+    ],
+    "prerequisites": [
+      "Na voljo so izvorni POS ID, referenca, podjetje, enota, datum in status.",
+      "Preverjeno je, ali je bil zapis že izvožen ali knjižen."
+    ],
+    "normal_flow": "Uporabnik poišče celotno izvorno referenco, odpre podrobnosti ter primerja vir, izvorni ID, podjetje, enoto, uporabnika, čas, status in morebitno povezavo storna. Pri obstoječem osnutku preveri, ali ponovitev predstavlja pričakovano osvežitev.",
+    "exceptions_recovery": "Če je referenca že potrjena, se novega osnutka ne potrdi. Če se pojavita dva zapisa z isto referenco, se nobenega ne briše na pamet; oba se zadržita, označi se neveljavni zapis po internem postopku in zahteva pregled administratorja ali računovodskega vodje.",
+    "business_effect": "Ročna kontrola reference zmanjšuje tveganje dvojnega prihodka, obveznosti ali DDV pri ponovljenih klicih.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:446-498"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:70-99",
+      "artifacts/api-server/src/routes/journalEntries.ts:228-247"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:207-242"
+    ],
+    "implementation_status": "NEPOTRJENO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Avtomatska unikatna omejitev za vsak ponovljeni klic ni potrjena. Priročnik to izrecno razkrije in zahteva uporabniško preverjanje, zato ne obljublja nepodprte avtomatike."
+  },
+  {
+    "id": "JL-007",
+    "domain": "kontrole",
+    "feature": "Meja podjetja, poslovna enota in dovoljenja",
+    "user_roles": [
+      "lastnik",
+      "računovodja",
+      "gledalec"
+    ],
+    "prerequisites": [
+      "Uporabnik je prijavljen.",
+      "Uporabnik ima članstvo oziroma ustrezno vlogo.",
+      "Izbrani so pravo podjetje, enota, obdobje in vir dokumenta."
+    ],
+    "normal_flow": "Strežnik preveri članstvo v podjetju. Gledalec lahko pregleduje in izvaža, ne pa ustvarja, knjiži, stornira ali briše; računovodja in lastnik lahko izvajata dovoljene računovodske postopke v okviru podjetja in obdobja.",
+    "exceptions_recovery": "Ob zavrnitvi 403 se uporabnik prijavi v pravilen kontekst ali zahteva ustrezno dodelitev pravice. Ne uporablja drugega podjetja ali druge osebe za obhod dovoljenja.",
+    "business_effect": "Preprečuje dostop do tujih podjetij ter mešanje kontov, partnerjev, dimenzij in temeljnic med podjetji.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:117-150",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:270-279"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:47-68",
+      "artifacts/api-server/src/routes/journalEntries.ts:301-315",
+      "artifacts/api-server/src/routes/journalEntries.ts:351-420"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:244-275"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik zdaj vsebuje matriko vlog, varnostno mejo podjetja in ločitev podjetja od enote; hkrati pravilno opozori, da je dejanska pravica odvisna od konfiguracije."
+  },
+  {
+    "id": "JL-008",
+    "domain": "kontrole",
+    "feature": "Konti, D/K, partnerji in dimenzije",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "Konto je aktiven, analitičen in dovoljuje knjiženje.",
+      "Obvezni partner, stroškovno mesto ali projekt je določen.",
+      "Vsi povezani ID-ji pripadajo istemu podjetju."
+    ],
+    "normal_flow": "Pri vsaki vrstici se preverijo polni konto in naziv, stran D/K, znesek, partner, stroškovno mesto, projekt, DDV ter podjetje, enota, obdobje in status. Predlog ali uvoz se pregleda tudi po ustvarjanju osnutka.",
+    "exceptions_recovery": "Manjkajoče ali nedovoljene dimenzije, skupinski konto ali neustrezen konto ustavijo postopek. Popravi se izvor ali nastavitev v istem podjetju; naključni ID se ne uporablja kot nadomestilo.",
+    "business_effect": "Preprečuje napačno analitiko po enoti, projektu ali partnerju tudi takrat, ko bi bil skupni saldo navidezno pravilen.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:359-407",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:462-486"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:143-175",
+      "artifacts/api-server/src/routes/journalEntries.ts:351-465"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:104-117",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:276-302"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik jasno loči podprte osnovne kontrole od poti, kjer enaka strogost za uvoz in samodejne predloge ni dokazana; zato ne predstavlja teh poti kot samodejno varnih."
+  },
+  {
+    "id": "JL-009",
+    "domain": "davki",
+    "feature": "DDV povezave in partnerji",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "DDV-koda in povezava podjetja oziroma FURS sta veljavni.",
+      "DDV osnova in znesek sta razvidna na vrstici.",
+      "Pri terjatvi, obveznosti, subvenciji ali dobavitelju je določen pravi partner."
+    ],
+    "normal_flow": "Uporabnik primerja DDV-kodo, osnovo in znesek z izvornim dokumentom ter preveri partnerja in plačilni konto. Pri podprtem knjiženju sistem ustvari pripadajoče DDV evidence.",
+    "exceptions_recovery": "Neveljavna ali neusklajena DDV-koda oziroma manjkajoč partner se zavrne. Popravi se izvorna vrstica ali nastavitev in pripravi nov osnutek; neodbitni DDV se obravnava po posebej dokumentirani ročni poti.",
+    "business_effect": "Podpira pravilne davčne evidence in preprečuje napačno pripisovanje DDV ali partnerja.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:28-30",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2624-2635"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:29-35",
+      "artifacts/api-server/src/routes/journalEntries.ts:421-435",
+      "artifacts/api-server/src/routes/journalEntries.ts:525-551"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:130-142",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:276-302"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik ustrezno pokriva DDV in partnerje ter omejuje neodbitni DDV na potrjeno ročno pot, brez obljube nepodprte avtomatike."
+  },
+  {
+    "id": "JL-010",
+    "domain": "izmenjava",
+    "feature": "Izvoz in omejitve uvoza temeljnic",
+    "user_roles": [
+      "računovodja",
+      "lastnik"
+    ],
+    "prerequisites": [
+      "Izbrani so pravo podjetje, enota, obdobje in status.",
+      "Uporabnik ima pravico do izvoza.",
+      "Preslikava ciljnega računovodskega programa je dogovorjena."
+    ],
+    "normal_flow": "Izvozi se posamezna temeljnica ali obdobje. Pred uporabo v drugem programu se na enem dnevnem obsegu preverijo referenca, izvorni ID, status, konto, D/K, DDV, partnerji, dimenzije in število vrstic.",
+    "exceptions_recovery": "Če cilj ne podpira vseh polj, se jih po dogovoru zapiše v opis ali pomožno preslikavo, ne pa tiho zavrže. Ob napaki se shrani datoteka, odziv in obseg; uvoz se ne ponavlja brez preverjanja, ali je cilj že ustvaril zapis.",
+    "business_effect": "Omogoča sledljiv prenos v drug glavni knjigovodski program brez nenamernega ustvarjanja novega POS vira ali izgube podatkov.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/temeljnice.tsx:55-88",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:264-278"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/externalExports.ts:1-177"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:304-329"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik potrjuje izvoz in pripravo podatkov, vendar izrecno ne potrjuje popolnega povratnega round-trip uvoza z ohranitvijo statusa in idempotentnosti."
+  },
+  {
+    "id": "JL-011",
+    "domain": "revizija",
+    "feature": "Preskočeni razlogi in revizijska sled",
+    "user_roles": [
+      "računovodja",
+      "lastnik",
+      "revizor"
+    ],
+    "prerequisites": [
+      "Na voljo je rezultat sinhronizacije.",
+      "Izvorni dokumenti in dokazila se hranijo.",
+      "Uporabnik lahko pridobi oziroma preveri revizijske zapise."
+    ],
+    "normal_flow": "Rezultat se razdeli na ustvarjene temeljnice, preskočene reference z razlogom in tehnično neuspele poskuse. Skupaj se hranijo izvorni dokument, rezultat, preskoki, izvoz, odziv napake in dokazilo o potrditvi.",
+    "exceptions_recovery": "Če posebnega poročila o celotni zgodovini sinhronizacij ni, se audit zapisov ne razlaga kot dokaz, da poskus ni bil izveden. Pregleda se zbrana dokumentacija in po potrebi zahteva dodatni pregled.",
+    "business_effect": "Omogoča dokaz popolnosti, odgovornosti in razlage razlik med POS, temeljnicami in glavno knjigo.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2720-2756",
+      "artifacts/erp-web/src/pages/temeljnice.tsx:196-205"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:554-562",
+      "artifacts/api-server/src/routes/journalEntries.ts:617-638"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:331-344",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:192-205"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno razlikuje obstoječe zapise za ustvarjanje, knjiženje in brisanje od nedokazanega posebnega poročila zgodovine sinhronizacij; omejitev izdelka je jasno navedena."
+  },
+  {
+    "id": "PUR001",
+    "domain": "nabava",
+    "feature": "Račun dobavitelja",
+    "user_roles": [
+      "računovodja",
+      "skladiščnik"
+    ],
+    "prerequisites": [
+      "izbran dobavitelj in poslovna enota",
+      "artikel ali stroškovna postavka",
+      "veljavna vhodna DDV-koda",
+      "nastavljeni konti zaloge oziroma stroška, vhodnega DDV in dobaviteljev",
+      "odprto računovodsko obdobje"
+    ],
+    "normal_flow": "Na zaslonu Zaloge → Nova prejemnica uporabnik izbere vrsto Račun, vnese dobavitelja, datum, številko dokumenta ter postavke s količinami, neto cenami, popusti in DDV. Po potrditvi v Temeljnicah pregleda pripravljeni osnutek in ga ločeno knjiži.",
+    "exceptions_recovery": "Če so prisotni blokirna napaka, neuravnotežen predogled, manjkajoč partner ali neknjižljiv konto, se dokumenta ne knjiži. Pred ponovnim poskusom se preverijo izvorni POS-ID, podjetje, enota, obdobje, partner in morebitni že obstoječi osnutek.",
+    "business_effect": "Nabava poveča zalogo ali strošek, pripozna odbitni vhodni DDV in obveznost do dobavitelja. Potrditev prejemnice sama po sebi še ne pomeni knjižbe v glavno knjigo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/erp-web/src/pages/prejemnice.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/invoices.ts:380-480",
+      "artifacts/api-server/src/lib/received-invoice-loader.ts:1-90"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:24-78"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Izvedba in priročnik sta usklajena; priročnik jasno loči operativni dokument, osnutek in knjiženo temeljnico."
+  },
+  {
+    "id": "PUR002",
+    "domain": "nabava",
+    "feature": "Dobavnica brez računa",
+    "user_roles": [
+      "skladiščnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "dobavitelj",
+      "dejansko prejete postavke",
+      "odločitev podjetja o vmesnem kontu ali obravnavi brez GL",
+      "poznejši račun, kadar je dobavnica samo operativna"
+    ],
+    "normal_flow": "Uporabnik vnese DOBAVNICO samo za fizično prejeto blago. Ko prispe račun, poišče izvorno dobavnico po dobavitelju, številki in postavkah, primerja količine, cene, DDV in datum ter preveri, da račun ne povzroči novega količinskega prevzema.",
+    "exceptions_recovery": "Če povezave ali predogleda ni mogoče dokazati, se dobavnica vodi brez GL-učinka, račun pa kot edini finančni dokument. Dvojnega giba se ne odpravlja z neposrednim brisanjem; zabeležita se oba izvorna ID-ja in odločitev odgovorne osebe.",
+    "business_effect": "Dobavnica lahko poveča operativno zalogo in po odobreni nastavitvi zapre vmesni konto, vendar brez računa ne ustvarja obveznosti do dobavitelja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/pos/src/pages/Zaloge.prejemnica.test.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/purchaseSourceDocuments.ts:1-110",
+      "artifacts/api-server/src/lib/goodsReceiptInvoiceMatch.ts:1-44"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:80-99",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:608-628"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Dopolnjeni priročnik natančno določa primerjavo dobavnice z računom in varno obnovo; pogojnost vmesnega knjiženja je razkrita omejitev izvedbe."
+  },
+  {
+    "id": "PUR003",
+    "domain": "nabava",
+    "feature": "Kombinirana dobavnica in račun",
+    "user_roles": [
+      "skladiščnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "enoten dokument dobavitelja",
+      "dobavitelj",
+      "vse fizično prejete postavke",
+      "veljavna DDV-koda in nastavljeni konti"
+    ],
+    "normal_flow": "Kombinirani dokument se vnese kot en RACUN. V opombo se lahko zapiše »dobavnica + račun«, vnese se številka dokumenta in vse prejete postavke.",
+    "exceptions_recovery": "Ne vnaša se ločena dobavnica in nato še račun za isti prevzem brez povezave. Pri ločenih listinah se uporabi dobavnica z naknadno povezanim računom.",
+    "business_effect": "Nastane en fizični prevzem, en zalogovni gib in ena obveznost do dobavitelja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/purchaseSourceDocuments.db.test.ts:1-139"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:49-55",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:100-113"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Priročnik pravilno pojasni, da kombinirana listina ni poseben dokumentni tip, temveč en račun z enim prevzemom."
+  },
+  {
+    "id": "PUR004",
+    "domain": "nabava",
+    "feature": "Dobropis in bremepis dobavitelja",
+    "user_roles": [
+      "računovodja",
+      "skladiščnik"
+    ],
+    "prerequisites": [
+      "izvirni račun in njegova referenca",
+      "dobavitelj",
+      "preverjeno fizično vračilo, če obstaja",
+      "odobrena ročna računovodska pot"
+    ],
+    "normal_flow": "DOBROPIS ali BREMEPIS se lahko vnese kot operativni dokument, vendar se končna računovodska obravnava izvede po ročni kontroli oziroma po potrjeni interni poti. Ročni dokument se poveže z izvirnim računom, dobaviteljem, fizičnim vračilom in operativno referenco.",
+    "exceptions_recovery": "Dobropisa se ne potrdi kot končne obveznosti, če predogled ne kaže zmanjšanja obveznosti, zaloge in vhodnega DDV. Breme-pisa se ne obravnava kot obveznost samo zato, ker je nastal osnutek na vmesnem kontu. Embalažnega ali zalogovnega giba se v ročnem vnosu ne ponovi.",
+    "business_effect": "Pravilno izvedena ročna pot zmanjša ali poveča obveznost, zalogo in DDV skladno z listino. Samodejna pot trenutne izvedbe ne zagotavlja pravilnega negativnega oziroma pozitivnega GL-kontiranja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/received-invoice-eslog.ts:1-140",
+      "artifacts/api-server/src/routes/invoices.ts:380-480"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:114-141",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:630-646"
+    ],
+    "implementation_status": "NEPOTRJENO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "To je razkrita omejitev samodejnega knjiženja, ne dokumentacijska vrzel; priročnik izrecno določa varen ročni postopek in prepoved napačnega osnutka."
+  },
+  {
+    "id": "PUR005",
+    "domain": "DDV",
+    "feature": "Odbitni DDV in mešane stopnje",
+    "user_roles": [
+      "računovodja"
+    ],
+    "prerequisites": [
+      "vhodna FURS DDV-koda, veljavna na datum dokumenta",
+      "DDV-stopnja na vsaki postavki",
+      "konto vhodnega DDV po stopnji ali splošni konto",
+      "ločene vrstice za različne stopnje"
+    ],
+    "normal_flow": "Za vsako nabavno stopnjo se vnese ločena vrstica z ustrezno DDV-kodo. Pred knjiženjem se preverijo kategorija, stopnja, davčna osnova, znesek DDV, seštevek vrstic in bruto znesek.",
+    "exceptions_recovery": "Neveljavne ali izhodne DDV-kode, neskladje osnove in davka ter združevanje različnih stopenj v eno vrstico se zavrnejo oziroma popravijo pred uvozom v glavno knjigo.",
+    "business_effect": "Neto vrednost bremeni zalogo ali strošek, odbitni DDV ustrezen konto 160, bruto znesek pa obveznost do dobavitelja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/pos/src/pages/Zaloge.ddv.test.ts:1-19"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/received-invoice-eslog.ts:70-140"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:143-196"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik in validator jasno določata odbitni režim, mešane stopnje in kontrole vsot; vsebina je ustrezna."
+  },
+  {
+    "id": "PUR006",
+    "domain": "DDV",
+    "feature": "Neodbitni DDV",
+    "user_roles": [
+      "računovodja"
+    ],
+    "prerequisites": [
+      "razlog in kategorija neodbitnosti",
+      "odločitev, ali DDV poveča zalogo ali strošek",
+      "konto dobavitelja",
+      "odprto obdobje",
+      "odobrena ročna temeljnica"
+    ],
+    "normal_flow": "Trenutni samodejni režim ne podpira neodbitnega DDV. Računovodja zato ne potrdi samodejnega osnutka, če ne vsebuje bruto zaloge oziroma bruto stroška, temveč po preverjanju davčne politike pripravi ročno temeljnico in preveri, da isti dokument ni zajet še samodejno.",
+    "exceptions_recovery": "Neodbitnega DDV se ne knjiži na konto 160. Če samodejni predogled uporablja odbitni režim ali ne prikaže bruto vrednosti, se postopek ustavi in nadaljuje po odobreni ročni poti.",
+    "business_effect": "DDV ostane v bruto nabavni vrednosti zaloge ali stroška, brez povečanja odbitnega vhodnega DDV.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/received-invoice-eslog.ts:70-140"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:158-179",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:648-662"
+    ],
+    "implementation_status": "NI IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Samodejni UI/API režim ni potrjen, vendar priročnik to omejitev jasno razkrije in ne obljublja nepodprte izbire; stanje je pravilno dokumentirano."
+  },
+  {
+    "id": "PUR007",
+    "domain": "nabava",
+    "feature": "Odvisni stroški nabave",
+    "user_roles": [
+      "računovodja",
+      "skladiščnik"
+    ],
+    "prerequisites": [
+      "izvorni dokument in dobavitelj",
+      "neto znesek in DDV-koda",
+      "izbira obravnave zaloga ali strošek",
+      "artikel oziroma skupina za morebitno razporeditev",
+      "ustrezen konto in stroškovno mesto"
+    ],
+    "normal_flow": "V prejemnici se doda prevoz, carina ali druga neposredna storitev, vnesejo se znesek in DDV ter izbere obravnava. Pri stroškovni obravnavi se postavka knjiži ločeno; pri zalogovni obravnavi se pred potrditvijo preveri dokazljiva razporeditev na prejete artikle.",
+    "exceptions_recovery": "Če razporeditve zalogovnega stroška ni mogoče dokazati, se formule ne ugiba in ročno izračunana vrednost ne potrdi brez odobritve. Zabeležijo se vir, obravnava, konto in stroškovno mesto.",
+    "business_effect": "Stroškovna obravnava bremeni stroškovni konto in ne poveča WAC. Zalogovna obravnava poveča nabavno vrednost oziroma WAC le za dokazano razporejeni znesek.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/generatedCompanyChartSource.ts:260-285",
+      "artifacts/api-server/src/lib/generatedCompanyChartSource.ts:380-405"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:199-214",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:664-689"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Dopolnjeni priročnik pravilno loči obe obravnavi, zahteva dokaz razporeditve in poda kontrolni izračun WAC brez trditve o nepreverjeni avtomatiki."
+  },
+  {
+    "id": "PUR008",
+    "domain": "embalaža",
+    "feature": "Povratna embalaža, vračilo in odpis",
+    "user_roles": [
+      "skladiščnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "artikel označen kot povratna embalaža",
+      "zgodovinska depozitna vrednost",
+      "dobavitelj",
+      "fizična zaloga in dobaviteljski saldo"
+    ],
+    "normal_flow": "Pri prejemu se ustvari embalažni promet in zalogovni gib. Vračilo se vnese prek funkcije za vračilo embalaže. Pri razbitju, uničenju ali nevračljivosti se uporabi namenski odpis z dobaviteljem, artiklom, pozitivno količino in razlogom.",
+    "exceptions_recovery": "Razbitja se ne evidentira kot vračilo. Odpis ne sme preseči fizične zaloge ali salda pri dobavitelju; konto 220 ostane nespremenjen, razen za dejansko priznani dobropis. Pri spremembi prejemnice v dobropis se samodejnega nasprotnega giba ne podvaja ročno.",
+    "business_effect": "Depozit lahko ustvari terjatev oziroma obveznost. Vračilo zmanjša embalažni promet in zalogo, odpis pa zmanjša zalogo in saldo embalaže ter pri pozitivni vrednosti ustvari strošek odpisa.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/zaloge/EmbalazaTab.tsx:1-260",
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/prejemnica-alergeni.ts:1-70",
+      "artifacts/api-server/src/routes/pos/prejemnice.idor.test.ts:80-107"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:215-280",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:548-568"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik podrobno loči depozit, vračilo, dobropis in odpis ter določa idempotentno sled; vsebina je pravilna."
+  },
+  {
+    "id": "PUR009",
+    "domain": "zaloga",
+    "feature": "Začetna zaloga",
+    "user_roles": [
+      "skladiščnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "leto in poslovna enota",
+      "artikel",
+      "količina in cena na enoto",
+      "otvoritvena računovodska politika in konti"
+    ],
+    "normal_flow": "V Zaloge → Začetne zaloge → Nova se vnese leto, datum, artikel, količina in cena. Za isto enoto in leto se ustvari en dokument, ki ustvari operativni gib in po nastavljenih kontih sproži ustrezno knjižno pot.",
+    "exceptions_recovery": "Drugi dokument za isto enoto in leto se zavrne. Sprememba postavk mora ustvariti nasprotne gibe in nov izračun zaloge; prazne postavke niso dovoljene.",
+    "business_effect": "Vzpostavi začetno količino in vrednost zaloge. Protikonto, na primer otvoritveni kapital ali izravnava, določa računovodska politika podjetja; POS ga ne sme določiti samovoljno.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/pos/src/pages/Zaloge.zacetne-zaloge.test.tsx:1-180"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:360-400"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:282-304"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno omeji pogojni GL-učinek in vlogo otvoritvene politike."
+  },
+  {
+    "id": "PUR010",
+    "domain": "zaloga",
+    "feature": "WAC in inventura",
+    "user_roles": [
+      "skladiščnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "prejemnice z vrednostjo",
+      "stanje na dan inventure",
+      "fizično štetje",
+      "konti za viške in manjke oziroma odobrena ročna pot"
+    ],
+    "normal_flow": "Pri inventuri se vneseta datum in dejansko prešteta količina. Sistem primerja stanje ob 23:59:59 z najdenim stanjem, vrednotenje pa izhaja iz stanja oziroma zadnje prejemnice. Pri nadaljnjih gibih se uporabi WAC, posnet ob konkretnem gibu.",
+    "exceptions_recovery": "Ob napačnem datumu ali manjkajočem računovodskem predogledu se postopek ustavi oziroma razlika obravnava po odobreni ročni poti. Popravka se ne izvaja z novo izravnalno inventuro; uporablja se nasprotni gib in dokumentirana referenca.",
+    "business_effect": "Inventurni višek poveča zalogo, manjko jo zmanjša in obremeni ustrezen konto. WAC vrednoti porabo po trenutku giba, ne po naknadno spremenjeni ceni.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/pos/src/pages/Zaloge.inventura.test.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/scripts/recompute-wac.mjs:1-89",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:377-390"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:306-336",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:664-689"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Nova sekcija formalno določa WAC, razporeditev zalogovnih odvisnih stroškov in čas posnetka; priročnik zdaj pravilno pokriva postopek."
+  },
+  {
+    "id": "PUR011",
+    "domain": "zaloga",
+    "feature": "Odpis surovin oziroma blaga in kalo",
+    "user_roles": [
+      "skladiščnik",
+      "vodja",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "artikel",
+      "količina",
+      "cena oziroma WAC",
+      "razlog odpisa",
+      "odpisni konto ali odobrena ročna pot"
+    ],
+    "normal_flow": "Na zaslonu Zaloge → Odpis se vnese artikel, količina, cena in razlog. Pri kalu pripravljene hrane se zaključi dnevna evidenca, vnese količina kala in potrdi zapisnik z razlogom, osebo, ki je kalo ugotovila oziroma predala, ter odgovorno osebo.",
+    "exceptions_recovery": "Če odpis nima GL-predogleda, se ne obravnava kot samodejna temeljnica, temveč kot operativni dogodek z odobreno ročno knjižno potjo. Zapisnika se ne uporablja za ustvarjanje prodaje ali DDV.",
+    "business_effect": "Operativna zaloga se zmanjša; kadar obstaja odobrena knjižna pot, se pripozna strošek kala oziroma odpisa in zmanjša zaloga.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/api-server/src/lib/plate-waste-pdf.ts:60-95"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/prepared-food-costing.ts:23-80"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:339-360",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:693-704"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik jasno označi samodejni GL kot pogojen ter določi zahtevane podatke in ročno obravnavo; dokumentacijske vrzeli ni."
+  },
+  {
+    "id": "PUR012",
+    "domain": "proizvodnja",
+    "feature": "Pripravljena in sestavljena hrana",
+    "user_roles": [
+      "vodja kuhinje",
+      "skladiščnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "artikel vrste prepared ali composite",
+      "normativ",
+      "vhodni artikli z WAC",
+      "dnevni ledger pripravljene hrane"
+    ],
+    "normal_flow": "Dnevni ledger vodi odtaljeno, pripravljeno, popravljeno, prodano in zamrznjeno količino ter odpad. Strošek materiala se izračuna iz normativov in vhodnih WAC-vrednosti; pri prodaji se preveri dejanski podprti normativni gib.",
+    "exceptions_recovery": "Ne dopušča se prodaja nad popravljeno količino ali neposreden popravek starega zapisa. Odtajanje, zamrzovanje in sama priprava ne smejo biti podlaga za samodejno proizvodno temeljnico, če predogled takega toka ne pokaže.",
+    "business_effect": "Operativno se porabijo surovine in določi strošek porcije ter razpoložljivost pripravljene hrane. Samodejni prenos proizvodnje v GL ni zagotovljen; po potrebi se uporabi odobrena ročna temeljnica z virom, količino, WAC in razlogom.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/ObracunUr.tsx:1-220",
+      "artifacts/pos/src/lib/normativ-eligibility.test.ts:1-32"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/prepared-food-costing.ts:23-93",
+      "artifacts/api-server/src/lib/prepared-food-costing.test.ts:1-40"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:363-405",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:706-717"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno loči operativno proizvodnjo, normativni COGS in ročno računovodsko obravnavo; omejitev izdelka je izrecno navedena."
+  },
+  {
+    "id": "PUR013",
+    "domain": "odpad",
+    "feature": "Odpad s krožnikov",
+    "user_roles": [
+      "natakar",
+      "vodja",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "datum",
+      "artikel ali porcija",
+      "količina",
+      "razlog in opomba"
+    ],
+    "normal_flow": "V Odpadki s krožnikov → Nov zapis se vnese datum, artikel oziroma porcija, količina, razlog in opomba. Zapis ostane v ločeni operativni evidenci in poročilih.",
+    "exceptions_recovery": "Odpad se ne knjiži kot negativna prodaja, dobropis, popravek DDV ali zmanjšanje blagajne. Če politika zahteva finančni odpis, se uporabi odobrena ročna temeljnica, ne samodejna POS knjižba.",
+    "business_effect": "Dogodek vpliva na operativno evidenco in poročila, ne neposredno na glavno knjigo.",
+    "ui_evidence": [
+      "artifacts/api-server/src/lib/plate-waste-pdf.ts:60-95",
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/plate-waste-pdf.ts:1-95"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:408-428",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:706-717"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Priročnik dodatno loči odpad s krožnikov od kala pripravljene hrane, COGS in negativne prodaje; vsebina je pravilna."
+  },
+  {
+    "id": "PUR014",
+    "domain": "prenosi",
+    "feature": "Prenosi med enotami, skladišči in dogodki",
+    "user_roles": [
+      "skladiščnik",
+      "vodja"
+    ],
+    "prerequisites": [
+      "izvorna in ciljna enota oziroma dogodek",
+      "artikel",
+      "količina in datum",
+      "izvorna referenca pri vračilu",
+      "odgovorni osebi"
+    ],
+    "normal_flow": "Pri prenosu se določijo izvor, cilj, artikel, količina in datum ter potrdita izdajni in prevzemni del. Vračilo z dogodka se vnese kot nasprotni prenos, vezan na izvorno referenco.",
+    "exceptions_recovery": "Delno vračilo mora pustiti odprt preostanek; celotnega vračila se ne vnaša zaradi lažjega popravka. Če neposredna knjižna pot ni potrjena, se ohrani operativna sled in uporabi odobrena ročna računovodska obravnava.",
+    "business_effect": "Prenos spremeni količino po enotah oziroma dogodkih, ne predstavlja prodaje in nima DDV ali prihodka. Pri istem kontu nima neto GL-učinka; pri različnih kontih je učinek priznan samo, če ga pokaže podprti predogled.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:120-170"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:431-457",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:719-729"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Dopolnjeni priročnik določa izvor, cilj, referenco, delna vračila in pogojni GL; dokumentacija je pravilna."
+  },
+  {
+    "id": "PUR015",
+    "domain": "poraba/COGS",
+    "feature": "Poraba surovin in COGS",
+    "user_roles": [
+      "vodja",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "podprt normativni gib ali drug knjižni vir",
+      "artikel in WAC-posnetek",
+      "količina in datum",
+      "konto porabe in konto zaloge"
+    ],
+    "normal_flow": "Poraba oziroma COGS nastane ob podprtem normativnem gibu ali drugem potrjenem knjižnem viru, ne ob samem vnosu artikla v meni. Računovodja preveri izvorni artikel, količino, normativ, WAC, konta in datum.",
+    "exceptions_recovery": "Če manjka WAC-posnetek, normativ, konto ali datum nastanka, se knjiženje zadrži. Operativnega poročila se ne knjiži še enkrat, če je bila poraba že zajeta v izvornem gibu; pri nepodprti proizvodnji se uporabi odobrena ročna temeljnica.",
+    "business_effect": "Podprti gib zmanjša zalogo in pripozna porabo oziroma COGS po normativu in WAC. Samo operativna priprava hrane brez potrjenega knjižnega vira ne ustvari samodejnega proizvodnega COGS.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-240",
+      "artifacts/pos/src/lib/normativ-eligibility.test.ts:1-32"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:360-390",
+      "artifacts/api-server/src/lib/prepared-food-costing.ts:83-93"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:693-704",
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:706-717"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Dopolnjeni priročnik dokumentira nastanek COGS, WAC-posnetek, kontrole in preprečevanje dvojnega knjiženja; nepodprta avtomatika je jasno omejena."
+  },
+  {
+    "id": "SAL001",
+    "domain": "prodaja in plačila",
+    "feature": "Gotovinska, kartična, mešana in druga plačila",
+    "user_roles": [
+      "natakar",
+      "blagajnik",
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen račun v POS-u",
+      "nastavljeni konti za gotovino, kartice in druga podprta plačila",
+      "preverjen razrez DDV po postavkah"
+    ],
+    "normal_flow": "Pri zaključku računa se plačilne vrstice seštejejo do bruto zneska. Gotovina se evidentira na blagajni, kartica kot terjatev do procesorja, pri mešanem plačilu pa je vsaka vrsta plačila ločena vrstica; prihodki in DDV ostanejo razdeljeni po artiklih in stopnjah.",
+    "exceptions_recovery": "Drugo negotovinsko plačilo se uporabi samo, če je dejansko podprto in ima določen konto. Pri pogodbenem naročniku se preveri partner in prehodna terjatev. V brez povezave so dovoljene samo gotovinske transakcije; po ponovni povezavi se preverijo lokalni račun, FURS-status in referenca, da se račun ne vnese dvakrat.",
+    "business_effect": "Plačila so razločena po načinu, kartični prilivi pa ostanejo uskladljivi z bančnim izpiskom; nepodprti načini ne ustvarijo navidezno uspešnega plačila.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:359-359",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:468-468"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:96-106",
+      "artifacts/api-server/src/services/pos/offline-authority.ts:88-88",
+      "artifacts/api-server/src/routes/pos/offline-fiscal.ts:118-120"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:454-471"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno odraža izvedbo in jasno omejuje offline način na gotovino; to je omejitev izdelka, ne dokumentacijska vrzel."
+  },
+  {
+    "id": "SAL002",
+    "domain": "prodaja in plačila",
+    "feature": "Delna plačila in odprti zneski",
+    "user_roles": [
+      "blagajnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "račun z znanim izvornim ID-jem",
+      "ugotovljena razlika med plačilom in bruto zneskom",
+      "odgovorna oseba za ročno obravnavo izjeme"
+    ],
+    "normal_flow": "Samostojen uporabniški tok za delno plačilo, odprti saldo ali samodejno razporejanje na več računov v pregledani izvedbi ni potrjen. Če račun ni v celoti poravnan, se zadrži po internem postopku, zabeležita se izvorni ID in razlika, nato se primer preda odgovorni osebi; plačilo se ne knjiži kot gotovina ali kartica brez potrjenega načina in konta.",
+    "exceptions_recovery": "Ne ustvarjajte odprte terjatve samo zaradi neusklajenih plačilnih vrstic in ne ponavljajte samodejnega knjiženja. Razliko dokumentirajte ter jo rešite po internem postopku pred knjiženjem.",
+    "business_effect": "Sistem ne prikazuje potrjenega avtomatskega odprtega salda, zato priročnik preprečuje napačno ustvarjanje terjatve ali napačno označitev računa kot poravnanega.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:359-359"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:96-106"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:473-480"
+    ],
+    "implementation_status": "NEPOTRJENO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Stanje je pravilno označeno kot nepotrjeno in priročnik daje varen ročni obvoz; ne sme se obravnavati kot podpora avtomatskim delnim plačilom."
+  },
+  {
+    "id": "SAL003",
+    "domain": "prodaja in plačila",
+    "feature": "Darilni boni, subvencije študentskih bonov in pogodbene malice",
+    "user_roles": [
+      "blagajnik",
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "ločeni konti za darilne bone, bone za pico in subvencije",
+    "skupni saldo darilnih bonov podjetja",
+      "konto terjatve in partner pri subvenciji",
+      "pogodbeni cenik in partner pri pogodbeni malici"
+    ],
+  "normal_flow": "Pri darilnem bonu se preverita izdaja kot predplačilo in znesek unovčenja proti skupnemu saldu podjetja; POS ne vodi individualnega ID-ja ali preostanka posameznega bona. Študentska subvencija uporablja ločen konto terjatve in partnerja. Pri pogodbeni malici dnevna prodaja ustvari prehodno terjatev, mesečni obračun pa jo zapre po pravilih glavne knjige.",
+    "exceptions_recovery": "Manjkajoči partner ali cenik ni dovoljenje za knjiženje na gotovino. Če pogodbeni podatki niso dokazani, se uporabi druga podprta negotovinska pot ali se račun zadrži; ne prikazuje se kot poravnana terjatev.",
+  "business_effect": "Boni, subvencije in pogodbene malice se ne pomešajo z gotovinskim prometom; skupni saldo darilnih bonov, partnerji in terjatve ostanejo sledljivi brez lažnega prikaza individualnih bonov.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2622-2624",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2517-2552"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/posBookingSettings.ts:504-504",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:605-615",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:632-649",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:661-669"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:482-493"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik ustrezno pokriva preverjeno izvedbo bonov, subvencij in pogodbenih malic; avtomatizacija je opisana le v mejah dokazljivih kontov, partnerjev in mesečnega obračuna."
+  },
+  {
+    "id": "SAL004",
+    "domain": "prodaja in plačila",
+    "feature": "Politike napitnin, provizije in poravnave",
+    "user_roles": [
+      "natakar",
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "izbrana politika napitnine",
+      "nastavljeni konti in prejemniki",
+      "znan kartični konto ter morebitna provizija"
+    ],
+    "normal_flow": "Pred knjiženjem se zabeleži politika neposredne napitnine zaposlenemu, neodvisnega sklada ali delodajalca. Pri prvih dveh se napitnina obravnava kot obveznost, pri politiki delodajalca pa kot prihodek z nastavljenim DDV. Kartična napitnina in provizija se preverita ločeno, poravnava pa vsebuje prejemnika, način, referenco in dokazilo.",
+    "exceptions_recovery": "Politike se za stare račune ne spreminja. Gotovinsko ali bančno izplačilo samo po sebi ni dokaz obračuna plače; izplačila prek plač ali študentskega servisa niso samodejno podprta. Pri stornu že izplačane napitnine se uporabi odobren popravek in ločeno uskladi obveznost.",
+    "business_effect": "Napitnine, prihodki delodajalca, obveznosti do osebja in kartične provizije so ločeni ter preverljivi brez tihega mešanja s prodajo.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/nastavitve.tsx:96-142",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:1370-1452"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/posBookingSettings.ts:39-48",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:620-657"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:495-512"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno dokumentira izvedene politike in jasno omejuje samodejno podporo izplačilom prek plač oziroma servisa."
+  },
+  {
+    "id": "SAL005",
+    "domain": "prodaja in plačila",
+    "feature": "DDV-posnetki, meniji in prodaja za s seboj",
+    "user_roles": [
+      "blagajnik",
+      "administrator",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "shranjena izvorna postavka z DDV-stopnjo in kategorijo",
+      "evidentirana oznaka To Go in povezava z embalažo",
+      "nastavljene DDV-kode"
+    ],
+    "normal_flow": "Pri knjiženju se uporabita DDV-stopnja in kategorija, shranjeni ob prodaji, zato kasnejša sprememba artikla ali menija ne spremeni starega računa. Vsaka postavka za uživanje pri mizi ali za s seboj se preveri posebej, podrejena embalaža pa sledi glavni postavki le ob shranjeni povezavi.",
+    "exceptions_recovery": "Oznake To Go se ne sklepa iz imena artikla in je ne prenaša na celotno naročilo. Če stopnja ali povezava nista jasni, se račun zadrži; DDV se ne popravlja samo v temeljnici.",
+    "business_effect": "Zgodovinski DDV ostane vezan na prodajni posnetek, različne stopnje in način postrežbe pa se ne napačno združijo.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2517-2552",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2622-2624"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:96-96",
+      "artifacts/api-server/src/routes/pos/offline-fiscal.ts:117-117",
+      "fiscal-service/fiscal_service.py:114-121"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:514-525"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik pravilno določa snapshot, postavkovno obravnavo To Go in varno ravnanje ob nejasni stopnji."
+  },
+  {
+    "id": "SAL006",
+    "domain": "prodaja in plačila",
+    "feature": "Storno in vračilo",
+    "user_roles": [
+      "blagajnik",
+      "vodja izmene",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "izvirni račun in razlog za popravek",
+      "znan FURS-status",
+      "pregled posameznih plačilnih vrstic"
+    ],
+    "normal_flow": "Pri stornu se preverijo izvirni račun, razlog, FURS-status in vse plačilne vrstice. Vračilo se obravnava glede na dejanski način plačila, pri čemer ne sme ustvariti novega prihodka; storno se poveže z izvirno temeljnico.",
+    "exceptions_recovery": "Pregledani uporabniški vmesnik ne potrjuje zanesljivega prikaza reversal-vrstic ali končnega statusa, če je razveljavljeno le eno od več plačil. Takrat se status, čas in referenca evidentirajo ločeno, račun se zadrži in zahteva pregled; ročna nasprotna temeljnica se ne ustvari pred potrditvijo FURS-a in ponudnika.",
+    "business_effect": "Popravki ne izbrišejo izvirne sledi in preprečujejo, da bi delna razveljavitev napačno razveljavila celoten račun ali ustvarila nov prihodek.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:441-444"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:503-503",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:620-654"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:527-541"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik pravilno omejuje nepreverjeni prikaz več plačil in določa ročni kontrolni postopek; ne trdi, da je ta UI-zmožnost implementirana."
+  },
+  {
+    "id": "SAL007",
+    "domain": "prodaja in plačila",
+    "feature": "Neznani, offline in neuspešni FURS-izidi",
+    "user_roles": [
+      "blagajnik",
+      "administrator",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "lokalni zapis dogodka in referenca",
+      "FURS ali offline avtorizacija",
+      "postopek ponovne sinhronizacije"
+    ],
+    "normal_flow": "Pri stanju unknown se račun začasno ne vključi v potrjeno temeljnico kot uspešna prodaja ali storno. Zabeležijo se lokalni čas, referenca, EOR, stanje tiskanja, rezultat terminala in zadnji FURS-odgovor; po povezavi se izvede le dovoljeni statusni pregled ali sinhronizacija.",
+    "exceptions_recovery": "Fiskalnega dejanja se ne ponavlja na slepo. Po potrditvi sprejema se dogodek vključi v dnevno temeljnico; ob zavrnitvi ali neizvedljivosti se izloči z razlogom in popravi izvorni dokument. Razlike med lokalnim računom, FURS-om in temeljnico se eskalirajo pred zaključkom obdobja.",
+    "business_effect": "Neznani in offline dogodki ostanejo vidni in preprečujejo dvojno fiskalizacijo, hkrati pa potrjeni računi niso izgubljeni iz dnevnega knjiženja.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:272-273",
+      "artifacts/pos/src/App.tsx:441-444"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/offline-fiscal-worker.ts:438-498",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:204-204",
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:331-340"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:543-554"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik natančno opisuje potrjene, zavrnjene in neznane izide ter offline omejitev; izvedba in dokumentacija sta usklajeni."
+  },
+  {
+    "id": "SAL008",
+    "domain": "prodaja in plačila",
+    "feature": "Dnevne in mesečne prodajne temeljnice",
+    "user_roles": [
+      "računovodja",
+      "administrator",
+      "vodja izmene"
+    ],
+    "prerequisites": [
+      "izbrana enota in poslovni datum",
+      "zaključeni računi, storna, vračila in izjeme",
+      "nastavljeni konti, DDV-kode in partnerji"
+    ],
+    "normal_flow": "Pri dnevnem postopku se zažene podprta sinhronizacija dneva, shrani seznam ustvarjenih in preskočenih referenc, pregledajo napake preslikave in preveri D = K pred knjiženjem osnutka. Mesečni postopek se izvede šele po zaključku dni in primerja z dnevnimi temeljnicami pred zaklepanjem obdobja.",
+    "exceptions_recovery": "Pred ponovitvijo se preverijo referenca, status, obseg in obdobje; ponovitev je dovoljena le, če je idempotentnost dokazana. Manjkajoči ali neveljavni konto, DDV-koda, partner ali dimenzija povzroči preskok z razlogom, popravek nastavitve ali dokumenta in ponovno izdelavo osnutka.",
+    "business_effect": "Dnevni in mesečni promet se lahko uskladi z izvorom brez tihih preskokov ali podvajanja potrjenih temeljnic.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/nastavitve.tsx:96-114",
+      "artifacts/erp-web/src/pages/nastavitve.tsx:2622-2624"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/index.ts:41-45",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:860-880",
+      "artifacts/erp-web/src/lib/posJournalReference.test.ts:8-9"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:556-575"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik pravilno pokriva dnevni, mesečni in neuspešni prenos ter varno ponavljanje; omejitev je, da je ponovitev dovoljena samo ob dokazani idempotentnosti."
+  }
+]

@@ -1246,7 +1246,7 @@ Tipka Delete ali Backspace na izbranem dobavitelju odstrani izbiro dobavitelja.
 
 Novega dobavitelja ne ustvarite samo zato, ker je OCR napačno prebral eno črko v nazivu.
 
-Datum dokumenta vnesite v obliki DD.MM.LLLL, DD.MM.LL, DD.MM ali ISO LLLL-MM-DD.
+Datum dokumenta vnesite v obliki **dd.mm.yyyy** (na primer **09.06.2026**).
 
 Pri vnosu samo dneva in meseca sistem dopolni trenutno leto; preverite ga ob prehodu leta.
 
@@ -2762,3 +2762,114 @@ Ta zadnji vnos ne spreminja zaloge pijače, mesa ali pripravljene hrane.
 8. Pripravljena hrana porabi resnične sestavine po recepturi.
 9. Odpad ima resničen razlog in količino.
 10. Dogodek ne nadomešča drugih finančnih ali zalogovnih dokumentov.
+
+## 14. Normalni vnos prejemnice in kontrola zaloge
+
+To poglavje opisuje normalen tok. Odpravljanje OCR-napak, podvojenih listin in
+popravljanje že knjiženih dogodkov je opisano v poglavju 13.
+
+### 14.1 Ročna prejemnica
+
+Pred vnosom pripravite izvirno dobavnico ali račun. Preverite dobavitelja,
+številko listine, datum dokumenta, datum prejema, valuto, bruto oziroma neto
+cene in uporabljene stopnje DDV.
+
+1. Odprite **Prejemnice** in izberite **Nova prejemnica**.
+2. Izberite dobavitelja iz obstoječega šifranta. Ne ustvarjajte novega
+   dobavitelja zaradi napačno prebranega naziva.
+3. Vnesite številko dokumenta ter datum dokumenta v obliki **dd.mm.yyyy**.
+4. Dodajte artikel, količino, osnovno enoto, ceno, popust, DDV in število enot
+   v paketu, kadar je prejeto pakiranje.
+5. Pri povratni embalaži izberite dobavitelja, vrsto embalaže in količino;
+   vračilo in odpis nista ista operacija.
+6. Primerjajte neto, DDV in bruto seštevek z izvirno listino.
+7. Odprite predogled zalogovnega in računovodskega učinka.
+8. Prejemnico potrdite šele, ko se ujemajo dobavitelj, dokument, količine,
+   enote, cene in DDV.
+
+Potrditev prejemnice poveča zalogo in ustvari sled gibanja. Ne potrjujte
+nepopolne vrstice samo zato, da bi zaključili uvoz. Če je dokument že uvožen,
+odprite obstoječo prejemnico po prikazanem ID-ju; ne ustvarjajte druge enake
+prejemnice.
+
+### 14.2 Začetna zaloga, inventura in kartica zaloge
+
+Začetno zalogo uporabite samo pri vzpostavitvi ali odobreni korekciji začetnega
+stanja. Pred vnosom določite poslovno enoto, datum stanja, artikel, osnovno
+enoto, količino in vrednost.
+
+1. Odprite **Zaloge → Začetna zaloga**.
+2. Preverite, da je izbrana prava enota in poslovni datum **dd.mm.yyyy**.
+3. Vnesite artikel in dejansko količino v osnovni enoti.
+4. Vnesite nabavno vrednost oziroma vrednost po odobreni računovodski politiki.
+5. Shranite predogled in preverite, ali se začetno gibanje pojavi na kartici.
+6. Potrdite samo enkrat; ponovitev iste operacije mora vrniti že evidentiran
+   rezultat, ne ustvariti novega gibanja.
+
+Pri inventuri najprej določite rez, preštejte fizično stanje in šele nato
+vnesite razliko. Kartico zaloge uporabite za preverjanje vseh gibanj: začetne
+zaloge, prejemnic, porabe po normativu, odpisov, dogodkov in prenosov.
+Inventure ne uporabljajte za skrivanje nepreverjene napake prejemnice ali
+normativa.
+
+### 14.3 Nabavna vrednost in WAC
+
+WAC oziroma tehtano povprečno nabavno vrednost preverjajte po potrjeni
+prejemnici, ne po prodajni ceni. V kontroli primerjajte:
+
+- začetno količino in vrednost,
+- novo prejeto količino in vrednost,
+- popust, DDV ter strošek prevoza,
+- novo količino in novo nabavno vrednost na kartici.
+
+Če se WAC ne ujema z odobreno politiko, ustavite nadaljnjo porabo. Preverite
+vrsto stroška prevoza, enote v paketu, bruto/neto razlago in ali je bil dokument
+že knjižen. Ne popravljajte WAC-a z novo prejemnico brez povezave z izvorno
+listino. Ponovni izračun je skrbniško oziroma servisno dejanje; uporabnik ga
+ne sme izvajati kot nadomestilo za popravek napačnega dokumenta.
+
+### 14.4 Pripravljena in sestavljena hrana
+
+Pri pripravljeni hrani ločite pripravo, razpoložljivost, prodajo, zamrzovanje,
+odtajanje, korekcijo in odpad. Pred izdajo preverite, da je količina za prodajo
+razpoložljiva; prodajna razpoložljivost ne pomeni samodejnega povečanja zaloge.
+
+1. Odprite modul pripravljene hrane in izberite artikel oziroma recepturo.
+2. Vnesite dejansko pripravljeno količino in enoto.
+3. Preverite porabo sestavin po veljavnem normativu.
+4. Pri odtajanju oziroma zamrzovanju uporabite namenski dogodek in opombo.
+5. Pred objavo preverite razpoložljivost v POS-u in QR meniju.
+6. Pri prodaji preverite, da je poraba sestavin vezana na pravo recepturo.
+
+Če je razpoložljivost negativna ali se sestavine ne ujemajo, ne popravljajte
+stanja z ročnim povečanjem. Preverite recepturo, začetno zalogo, prejemnice,
+porabo in dogodek priprave.
+
+### 14.5 Odpad s krožnikov
+
+Odpad s krožnikov je ločena interna evidenca. Vnesite artikel oziroma skupino,
+dejansko količino, enoto, razlog in datum **dd.mm.yyyy**. Ta vnos sam po sebi
+ne zmanjša zaloge pripravljene hrane in ne nadomešča odpisa zaloge.
+
+Če mora odpad vplivati na zalogo, izvedite odobren zalogovni odpis z ločenim
+razlogom. Pred potrditvijo preverite, ali uporabniški vmesnik prikazuje samo
+evidenco odpada ali tudi zalogovni učinek; če učinek ni prikazan, ga ne
+domnevajte.
+
+### 14.6 Dogodki in prenosi med enotami
+
+Dogodek uporabite za planirano porabo ali razporeditev zaloge za dogodek.
+Prenos uporabite za dejansko premikanje zaloge med dovoljenim izvorom in ciljem.
+
+1. Izberite **Dogodki** ali **Prenosi**.
+2. Določite izvorno enoto/skladišče, ciljno enoto/skladišče, datum **dd.mm.yyyy**
+   in odgovorno osebo.
+3. Dodajte artikle v osnovni enoti in preverite razpoložljivo zalogo izvora.
+4. Odprite predogled; opozorilo o nezadostni zalogi je razlog za ustavitev.
+5. Potrdite oddajo oziroma prenos in shranite referenco.
+6. Ciljna enota naj po prejemu preveri količine ter potrdi prejem.
+
+Isti prenos se zaradi ponovnega klika ne sme izvesti dvakrat. Če je status
+neznan, najprej poiščite isto referenco in preverite gibanje na izvoru ter
+cilju. Ne ustvarjajte novega dogodka z drugačnimi količinami samo zato, da bi
+obšli opozorilo.

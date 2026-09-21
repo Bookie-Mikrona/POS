@@ -203,3 +203,169 @@ Po zaklepanju obdobja ne spreminjajte datuma ali nastavitev zato, da bi se stari
 - [ ] Storno oziroma popravek ima povezavo na izvirni dokument.
 - [ ] Preskočeni dogodki imajo razložen in dokumentiran razlog.
 - [ ] Izvoz ali prenos vsebuje tudi referenco za kasnejšo revizijo.
+
+## 0.12 Referenca, ponovitev in preprečevanje dvojnikov
+
+### Predpogoji
+
+Pred ponovno sinhronizacijo ali ročnim ustvarjanjem temeljnice pripravite
+izvorni ID oziroma referenco POS-dokumenta, podjetje, poslovno enoto, poslovni
+datum in trenutni status morebitnega osnutka. Preverite tudi, ali je bila
+temeljnica že izvožena ali knjižena.
+
+### Običajni potek
+
+1. V pregledu **Temeljnice** poiščite celotno izvorno referenco, ne samo
+   zneska ali datuma.
+2. Odprite podrobnosti in primerjajte `sourceType`, izvorni ID, podjetje,
+   enoto, uporabnika, čas nastanka, status in morebitni `reversalOf`.
+3. Če za isto referenco že obstaja osnutek, najprej preverite, ali je to
+   pričakovana osvežitev istega dogodka.
+4. Če je referenca že potrjena, novega osnutka ne potrjujte. Popravek izvedite
+   z novim izvornim dokumentom, storno temeljnico ali drugim odobrenim
+   računovodskim dokumentom.
+5. Po ponovitvi preverite, ali se je obstoječi osnutek osvežil oziroma ali je
+   nastala nova referenca z jasno razlago. Primerjajte število dogodkov in
+   skupni znesek, ne samo stanje posamezne vrstice.
+
+API in uporabniški vmesnik hranita referenco, vir, uporabnika, čas in povezavo
+storna. V pregledani izvedbi pa ni dokazano, da vsak ponovljeni klic zunaj
+podprte sinhronizacije vedno uveljavi unikatno idempotentno omejitev. Zato
+referenca ni nadomestilo za kontrolo uporabnika: pred potrditvijo vedno
+preverite obstoječe stanje. Če se pojavita dve temeljnici z isto referenco,
+ne brišite nobene na pamet; zadržite obe, označite eno kot neveljavno po
+internem postopku in zahtevajte pregled administratorja oziroma računovodskega
+vodje.
+
+**Poslovni učinek:** kontrola preprečuje dvojni prihodek, podvojeno obveznost
+ali napačen DDV. Pri neuspešni ponovitvi je varnejši dokumentiran ponovni
+poskus z isto izvorno referenco kot ročno prepisovanje zneskov.
+
+## 0.13 Podjetje, poslovna enota in dovoljenja
+
+### Predpogoji
+
+Uporabnik mora biti prijavljen v pravo podjetje in imeti članstvo oziroma
+vlogo, ki dovoljuje računovodsko opravilo. Pred delom preverite aktivno
+podjetje, poslovno enoto, obdobje in blagajno oziroma vir dokumenta.
+
+| Vloga | Pregled temeljnic in izvoz | Ustvarjanje oziroma sinhronizacija | Knjiženje, storno ali brisanje |
+|---|---|---|---|
+| **Gledalec** | da, v dovoljenem podjetju | ne | ne |
+| **Računovodja** | da | da, če je pravica dodeljena | po dodeljeni pravici in pravilih obdobja |
+| **Lastnik oziroma administrator podjetja** | da | da | da, v okviru podjetja in revizijske sledi |
+
+To je kontrolna matrika vlog, ne obljuba dodatne pravice. Dejanska pravica je
+odvisna od konfiguracije uporabnika; če strežnik vrne **403**, ne uporabljajte
+druge osebe ali drugega podjetja, temveč zahtevajte pravilno dodelitev.
+
+### Razlika med podjetjem in enoto
+
+Podjetje je varnostna meja za konte, partnerje, dimenzije, temeljnice in
+nastavitve knjiženja. Poslovna enota je operativni vir dokumenta in običajno
+določi stroškovno mesto, blagajno, napravo ter poslovni datum. Konto ali
+partner iz drugega podjetja ni dovoljen samo zato, ker ima enako številko.
+Pri prenosu med enotami preverite izvorno in ciljno enoto; ne zamenjajte
+enote z drugim podjetjem.
+
+**Varna obnova:** pri napačnem kontekstu ustavite postopek, zabeležite
+podjetje, enoto in referenco ter se ponovno prijavite v pravilen kontekst.
+Ne popravljajte tuje temeljnice in ne spreminjajte podjetja samo zato, da bi
+obšli napako dovoljenja.
+
+## 0.14 Polja temeljnice, partner in dimenzije
+
+Pri vsaki vrstici preverite natančno naslednja polja:
+
+* `accountId` oziroma polno kodo in naziv konta;
+* `debit` ali `credit` ter znesek — vrstica ne sme biti hkrati na obeh
+  straneh;
+* `description`, `sourceType`, izvorni ID in referenco;
+* `partnerId`, kadar konto predstavlja terjatev, obveznost, subvencijo ali
+  dobavitelja;
+* `costCenterId` oziroma stroškovno mesto poslovne enote;
+* `projectId` oziroma projekt ali dogodek, kadar ga zahteva izvor;
+* DDV-kodo, osnovo in znesek DDV;
+* podjetje, poslovno enoto, obdobje in status.
+
+Konto je lahko aktiven, vendar še vedno neprimeren, če ne dovoljuje
+neposrednega knjiženja, zahteva partnerja ali zahteva dimenzijo, ki manjka.
+V pregledani izvedbi so osnovne kontrole D/K, aktivnega konta, partnerjev in
+referenc podprte, vendar ni dokazano, da vsaka pot — zlasti vsak uvoz ali
+samodejni predlog — že pred shranjevanjem enako strogo preveri vse obvezne
+dimenzije. Zato manjkajočega stroškovnega mesta ali projekta ne nadomestite z
+naključnim ID-jem in ne potrjujte opozorila brez pisne računovodske odobritve.
+
+Če validacija zavrne partnerja, konto ali dimenzijo, shranite sporočilo,
+popravite izvor ali nastavitev v istem podjetju in ponovite ustvarjanje
+osnutka. Poslovni učinek napačne dimenzije je napačna analitika po enoti,
+projektu ali partnerju, tudi če je skupni saldo navidezno pravilen.
+
+## 0.15 Izvoz, uvoz in omejitve izmenjave
+
+### Izvoz
+
+Pred izvozom preverite, da je obseg omejen na pravo podjetje, enoto, obdobje
+in status. Izvoz mora ohraniti referenco, izvorni ID, datum, status, konto,
+D/K, znesek, DDV, partnerja in dimenzije. Za poskus uporabite eno dnevno
+temeljnico, nato primerjajte število vrstic, D/K vsoto, DDV in referenco v
+ciljnem programu.
+
+### Uvoz
+
+V pregledani poti je dokazan izvoz oziroma priprava podatkov za drug glavni
+knjigovodski program; ni pa potrjen celoten povratni uvoz že izvoženih
+temeljnic v POS/ERP z ohranitvijo statusa, povezave na izvor in
+idempotentnosti. Priročnik zato ne obljublja »round-trip« uvoza.
+
+Če ciljni program podpira uvoz, ga izvedite po njegovi dokumentaciji in najprej
+na testnem ali enem dnevnem obsegu. Pred množičnim uvozom preverite, da se
+izvoz ne bo obravnaval kot nov POS-vir. Manjkajoče polje se lahko po dogovoru
+zapiše v opis ali pomožno preslikavo, vendar se ne sme tiho zavreči.
+
+**Varna obnova:** če izvoz ali uvoz vrne napako, shranite datoteko, odziv in
+obseg; ne ponavljajte uvoza brez preverjanja, ali je cilj že ustvaril
+temeljnico. Razliko rešujte z referenco in storno/popravkom, ne z ročnim
+spreminjanjem salda.
+
+## 0.16 Preskoki in revizijska sled
+
+Rezultat sinhronizacije razdelite na tri sezname: ustvarjene temeljnice,
+preskočene reference z razlogom in tehnično neuspele poskuse. Preskok ni
+ničelni znesek in ni uspeh. Za vsak preskok zabeležite referenco, podjetje,
+enoto, datum, manjkajoči konto oziroma dimenzijo, uporabnika in naslednji
+ukrep.
+
+Ustvarjanje, knjiženje in brisanje osnutka imajo revizijski zapis, vendar
+pregledana izvedba ne dokazuje posebnega uporabniškega poročila, ki bi za
+vedno prikazovalo vse poskuse sinhronizacije in njihovo zgodovino. Za revizijo
+zato skupaj shranite izvorni dokument, rezultat sinhronizacije, preskočene
+razloge, izvoz, odziv napake in dokazilo o potrditvi. Če audit zapisa ni
+viden, tega ne predstavljajte kot dokaz, da poskus ni bil izveden.
+
+## 0.17 Ročna uskladitev X/Z, operativnih poročil in GL
+
+Avtomatska primerjava operativnega poročila z GL, X-poročilom in
+Z-poročilom v pregledani izvedbi ni dokazana. Uporabite naslednji ročni
+postopek:
+
+1. Izberite isto podjetje, enoto, blagajno in poslovni datum v POS-u,
+   poročilu in pregledu temeljnic.
+2. Shranite X-poročilo oziroma vmesni pregled, Z-poročilo, seznam računov,
+   vračil, stornov, pologov in dvigov.
+3. V GL oziroma na seznamu temeljnic seštejte prihodke po DDV-stopnji,
+   plačilnih metodah, stornih in vračilih.
+4. Primerjajte bruto promet, DDV, gotovino, kartice, bone, odprte terjatve in
+   blagajniške premike. Upoštevajte, da kartica v POS-u lahko ostane terjatev
+   do procesorja, dokler bančno nakazilo ni usklajeno.
+5. Preverite, ali se vsaka razlika razloži s preskokom, časom sinhronizacije,
+   odprtim računom, storno dokumentom, zaokrožitvijo ali drugim podprtim
+   razlogom.
+6. Če razlika ostane, zadržite knjiženje, poiščite izvorno referenco in
+   odpravite izvor oziroma pripravite odobren storno. Ne popravljajte samo
+   GL-salda.
+
+**Poslovni učinek:** ročna kontrola preprečuje, da bi se pravilno seštet GL
+zamenjal za dokaz popolnosti POS-dogodkov. Dokazilo o uskladitvi mora vsebovati
+obseg, uporabljena poročila, seštevke, razlike, razlago in podpis oziroma
+uporabnika, ki je kontrolo izvedel.

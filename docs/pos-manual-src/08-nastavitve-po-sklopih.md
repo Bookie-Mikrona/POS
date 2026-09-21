@@ -42,19 +42,22 @@ izjemni postopek; skrbnik naj nato uredi povezavo profila.
 
 ### 3.2 Odmori
 
-1. Na kartici aktivne izmene izberite plačan ali neplačan odmor.
-2. Preverite, da se stanje spremeni v »Na odmoru«.
-3. Ob vrnitvi izberite zaključek odmora.
-4. Ne zaključujte izmene, dokler je odmor odprt.
+V pregledani POS izvedbi ni potrjenega samostojnega uporabniškega postopka
+**Začni odmor** oziroma **Končaj odmor**. Aktivna izmena, predaja blagajne in
+obračun ur ne dokazujejo, da je odmor mogoče začeti ali končati neposredno v
+POS-u.
+
+Odmor evidentirajte po odobrenem internem kadrovskem postopku. Ne ustvarjajte
+lažnega zapiranja oziroma ponovnega odpiranja izmene in ne spreminjajte časa
+izmene, da bi nadomestili manjkajočo evidenco odmora.
 
 ### 3.3 Zaključek izmene
 
-1. Zaključite svoj odmor, če je odprt.
-2. Preverite število računov in promet na kartici izmene.
-3. Izvedite štetje gotovine in evidentirajte nujne premike.
-4. Izberite **Zaključi izmeno**.
-5. Preglejte povzetek začetka, konca, trajanja, računov in prometa.
-6. Zaprto izmeno po potrebi pošljite v potrditev.
+1. Preverite število računov in promet na kartici izmene.
+2. Izvedite štetje gotovine in evidentirajte nujne premike.
+3. Izberite **Zaključi izmeno**.
+4. Preglejte povzetek začetka, konca, trajanja, računov in prometa.
+5. Zaprto izmeno po potrebi pošljite v potrditev.
 
 Statusi zgodovine so osnutek, v potrditvi, potrjeno ali zavrnjeno. Zavrnjen
 zapis zahteva popravek oziroma pojasnilo in ponovno pošiljanje v potrditev.
@@ -267,7 +270,7 @@ ignoriranjem. Napaka mora ostati vidna do pravilne kontne obravnave.
 
 Pred dokončnim odhodom preverite:
 
-1. odmor je zaključen;
+1. morebitna evidenca odmora je urejena po odobrenem kadrovskem postopku;
 2. izmena je zaprta in njen povzetek pregledan;
 3. gotovina je prešteta in razlika pojasnjena;
 4. vsak polog in dvig ima evidenco;
@@ -300,7 +303,7 @@ celoten poslovni dan.
 | Register | Blagajna oziroma POS naprava | Ločite register od osebne izmene. |
 | Začetek | Čas odprtja izmene | Preverite nenavadno zgodnje odprtje. |
 | Konec | Čas zaključka | Odprta izmena nima končnega časa. |
-| Odmor | Začetek, konec in trajanje odmora | Odmor ne sme ostati odprt po odhodu. |
+| Odmor | V pregledani izvedbi ni potrjen samostojen POS zapis odmora | Uporabite odobreno kadrovsko evidenco; predaje blagajne ne štejte kot evidenco odmora. |
 | Računi | Število pripisanih računov | Primerjajte z dejavnostjo izmene. |
 | Gotovina | Gotovinska plačila in premiki | Ne enačite je s kartičnim prometom. |
 | Razlika | Pričakovano proti preštetemu | Zahteva ponovni pregled in razlog. |
@@ -351,12 +354,10 @@ Pred odmorom preverite, ali lahko drug uporabnik prevzame odprta naročila.
 
 Ne puščajte svoje prijave odklenjene na skupni napravi.
 
-Odprite **Odmor**, potrdite začetek in po vrnitvi potrdite konec.
-
-Preverite trajanje odmora, kadar ga spremlja kadrovski postopek.
-
-Če ste pozabili zaključiti odmor, zabeležite dejanski čas in uporabite odobren
-postopek popravka; ne ustvarjajte izmišljene nove izmene.
+Ker v pregledani izvedbi ni potrjenega gumba oziroma postopka za začetek in
+konec odmora, uporabite odobreno kadrovsko evidenco podjetja. Če je čas odmora
+napačen ali manjka, zabeležite dejanski čas in zahtevajte popravek v tej
+evidenci; ne ustvarjajte izmišljene nove izmene.
 
 ### 12.2 Predaja med osebjem
 
@@ -751,8 +752,6 @@ vračila ali storne.
 
 ### 18.1 Izmene ni mogoče zapreti
 
-Preverite odprt odmor.
-
 Preverite odprta naročila.
 
 Preverite, ali je zahtevano štetje gotovine.
@@ -802,7 +801,7 @@ Ponovite samo neuspešni prenos in preverite rezultat.
 ### 19.1 Pred zaključkom izmene
 
 - [ ] Osebna izmena in register sta pravilno določena.
-- [ ] Odmor je zaključen.
+- [ ] Morebitna evidenca odmora je urejena po odobrenem kadrovskem postopku.
 - [ ] Odprta naročila imajo naslednji korak.
 - [ ] Nejasna plačila imajo zapis in odgovorno osebo.
 - [ ] Vsi pologi in dvigi imajo razlog ter dokazilo.
@@ -887,7 +886,7 @@ Odpre lastno izmeno na pravilni enoti.
 
 Preveri začetni menjalni denar.
 
-Zaklene prijavo pred odmorom.
+Zaklene prijavo pred predajo ali začasno odsotnostjo.
 
 Ob predaji prešteje gotovino s prevzemnikom.
 
@@ -905,7 +904,7 @@ Preveri, kdo je odgovoren za register.
 
 Odobri izjeme skladno s svojimi pravicami.
 
-Preveri odprte odmore in odprte račune.
+Preveri odprte račune in predaje; odmor se vodi po odobrenem kadrovskem postopku.
 
 Preveri nepojasnjene blagajniške razlike.
 
@@ -1009,7 +1008,7 @@ Po uspehu primerja znesek in referenco v obeh sistemih.
 
 Ali zaključujem svojo izmeno ali odgovornost registra?
 
-Ali je bil odmor res zaključen?
+Ali je morebitna evidenca odmora urejena po odobrenem kadrovskem postopku?
 
 Ali imajo vse odprte mize imenovan naslednji korak?
 
@@ -1087,15 +1086,10 @@ Znesek prometa izmene ni fizično stanje predala.
 
 Znesek prometa izmene ni nadomestilo za Z poročilo.
 
-Gumb **Plačan odmor** začne odmor vrste `placan`.
-
-Gumb **Neplačan** začne odmor vrste `neplacan`.
-
-Aktiven odmor je prikazan z oznako **Na odmoru**.
-
-Pri aktivnem odmoru je na voljo gumb **Zaključi odmor**.
-
-Pri aktivnem odmoru je gumb **Zaključi izmeno** onemogočen.
+V pregledani izvedbi niso potrjeni gumbi za začetek ali konec plačanega oziroma
+neplačanega odmora. Oznaka aktivne izmene ni evidenca odmora in iz tega
+priročnika ni dovoljeno sklepati, da je zaključek izmene zaradi odmora
+onemogočen.
 
 Po zaprtju se prikaže povzetek z začetkom in koncem.
 
@@ -1265,7 +1259,9 @@ X poročilo je vmesni, nezaklenjeni posnetek izbranega poslovnega dne.
 
 Za zahtevo je obvezen `blagajnaId`.
 
-Poslovni datum je lahko podan kot `YYYY-MM-DD`.
+Poslovni datum se uporabniku prikaže kot **dd.mm.yyyy**. Če tehnična zahteva
+uporablja tehnični ISO zapis, gre za notranji API-format; uporabniško polje ne sme
+zahtevati ISO-zapisa.
 
 Če datum ni podan, se uporabi trenutni poslovni datum enote.
 
@@ -1387,31 +1383,14 @@ Blokada vsebuje tip, število in seznam konkretnih postavk.
 
 ### 24.2 Plačan in neplačan odmor
 
-Odmor evidenčno prekine razpoložljivost osebe, ne pa poslovnega dne.
+V pregledani POS izvedbi ni dokazanega ločenega postopka za plačan ali
+neplačan odmor. Zato ta poglavja ne predstavljajo gumbov ali statusov, ki bi
+jih uporabnik lahko pričakoval v POS-u.
 
-Odmor ne zapre miz.
-
-Odmor ne zaključi naročil.
-
-Odmor ne prenese odgovornosti predala na drugo osebo.
-
-Pred odmorom predajte odprte naloge dogovorjenemu sodelavcu.
-
-Pred odmorom povejte, katere mize čakajo na plačilo.
-
-Pred odmorom povejte, ali je na terminalu nejasna transakcija.
-
-Začnite samo eno vrsto odmora naenkrat.
-
-Pri povratku najprej izberite **Zaključi odmor**.
-
-Šele nato nadaljujte z računi, če to zahteva interni režim dela.
-
-Če je odmor ostal odprt po pomoti, ga zaključite ob dejanski vrnitvi.
-
-Ne odpirajte druge izmene, da bi prikrili odprt odmor.
-
-Če se čas odmora ne ujema z dejstvi, to pojasnite v postopku potrditve ur.
+Pred začasno odsotnostjo zaklenite prijavo, predajte odprta naročila in
+nejasne transakcije dogovorjenemu sodelavcu ter uredite čas po odobrenem
+kadrovsko-evidenčnem postopku. Ne odpirajte druge izmene, da bi nadomestili
+manjkajočo evidenco odmora.
 
 ### 24.3 Predaja odprtih naročil
 
@@ -1503,7 +1482,8 @@ Dokler zadeva ni razrešena, jo vključite v dnevno predajo.
 
 Osebno izmeno zaprite šele po koncu svojega dela.
 
-Pred zaprtjem zaključite aktiven odmor.
+Pred zaprtjem uredite morebitno začasno odsotnost po odobrenem kadrovskem
+postopku; POS ne potrjuje ločenega zaključevanja odmora.
 
 Pred zaprtjem predajte odprte mize.
 
@@ -2519,7 +2499,9 @@ Pot `/temeljnice` vrne temeljnice podjetja za datum od–do.
 
 Za poizvedbo sta obvezna parametra `od` in `do`.
 
-Oba parametra uporabljata zapis `YYYY-MM-DD`.
+V uporabniškem vmesniku uporabnik izbere datum v obliki **dd.mm.yyyy**.
+Zaledna tehnična pot lahko datum serializira v tehničnem ISO zapisu; to je notranji
+API-format in ni oblika, ki jo prikazujemo uporabniku.
 
 Rezultat je brez predpomnjenja.
 
@@ -2541,11 +2523,15 @@ Vsaka vrstica vsebuje konto, naziv, stran, znesek in opis.
 
 Ročni dnevni prenos uporablja datum v poti `/temeljnice/sync/:datum`.
 
-Datum mora biti v obliki `YYYY-MM-DD`.
+V vmesniku mora biti datum prikazan kot **dd.mm.yyyy**. Če tehnična pot
+zahteva tehnični ISO zapis, pretvorbo izvede program oziroma skrbniški tehnični
+postopek; uporabnik ne vpisuje ISO-datuma v uporabniško polje.
 
 Ročni mesečni zbirnik uporablja pot `/temeljnice/sync-mesec/:mesec`.
 
-Mesec mora biti v obliki `YYYY-MM`.
+Mesec se v uporabniškem vmesniku izbere kot mesec in leto. Tehnična pot lahko
+uporabi `YYYY-MM`; uporabniku se obdobje prikaže opisno, na primer **junij
+2026**, posamezni datumi pa vedno kot **dd.mm.yyyy**.
 
 Mesečni zbirnik je namenjen že zaključenemu mesecu.
 
@@ -2769,17 +2755,16 @@ Z poročilo se izvede za blagajno in poslovni datum po vseh zapiralnih pogojih.
 
 ### 30.2 Vaja: odprt odmor
 
-Uporabnik je začel neplačan odmor.
+Uporabnik se je začasno umaknil z delovnega mesta, vendar pregledana POS
+izvedba nima potrjenega ločenega zapisa začetka odmora.
 
 Ob koncu dela želi klikniti **Zaključi izmeno**.
 
 Vprašanje: kaj se zgodi?
 
-Modelni odgovor: gumb za zaključek izmene je pri aktivnem odmoru onemogočen.
-
-Najprej mora uporabnik zaključiti odmor.
-
-Nato izvede predajo in zapiranje izmene.
+Modelni odgovor: ne sklepajte, da je zaključek izmene zaradi odmora blokiran.
+Uporabnik uredi predajo odprtih nalog in čas odsotnosti po odobrenem kadrovskem
+postopku, nato preveri pogoje za zaprtje izmene.
 
 ### 30.3 Vaja: pričakovana gotovina
 
@@ -2969,9 +2954,9 @@ Trditev: Osebna izmena in Z poročilo merita isto odgovornost.
 
 Odgovor: napačno.
 
-Trditev: Odprt odmor prepreči zaključek izmene na zaslonu.
+Trditev: Pregledana POS izvedba ima potrjen gumb za začetek in konec odmora.
 
-Odgovor: pravilno.
+Odgovor: napačno; v POS-u tak samostojen postopek ni dokazan.
 
 Trditev: FURS `failed` je lahko prezrt, če je gotovina usklajena.
 
@@ -3070,3 +3055,214 @@ Priporočena dnevna tabela razlik je organizacijski ukrep.
 Ne predstavljajte priporočila kot funkcijo, če je v uporabniškem vmesniku ni.
 
 Ne predstavljajte domnevnega čarovnika za zapiranje kot trenutno implementirane funkcije.
+
+## 32. Operativni postopek POS→ERP za skrbnika in računovodstvo
+
+Ta postopek dopolnjuje tehnični opis iz poglavja 29. Uporabniški vmesnik lahko
+prikaže nastavitve prenosa v POS, pregled temeljnic pa je lahko v zalednem ERP.
+Če vloga nima zaslona za pregled ali knjiženje, uporabnik ne sme sklepati, da je
+prenos izveden samo zato, ker je bila nastavitev shranjena.
+
+### 32.1 Nastavitev pravil in urnika
+
+Pooblaščeni skrbnik v nastavitvah preveri:
+
+1. podjetje, enoto in obseg prenosa;
+2. ali je vključen dnevni prenos, mesečni zbirnik ali oba;
+3. pravilo za zaključene oziroma odprte poslovne dni;
+4. računovodske konte za plačila, prihodke, DDV, bone, napitnine, zalogo,
+   odpis, embalažo in druge vključene kategorije;
+5. način obravnave neuspešnega prenosa in obvestil.
+
+Shranjena nastavitev ni dokaz, da je bil žurnal ustvarjen ali knjižen. Po
+spremembi zapišite čas, izvajalca, enoto in razlog spremembe.
+
+### 32.2 Dnevni prenos
+
+1. Zaključite oziroma preverite poslovni dan **dd.mm.yyyy**.
+2. Preverite, da so Z, FURS, kartična plačila in gotovinski premiki razrešeni.
+3. Če uporabniški vmesnik ne ponuja ločenega dnevnega ukaza, uporabite **Ročno
+   sinhronizacijo obsega** z istim datumom v poljih »Od« in »Do«. Obseg je
+   omejen na največ 366 dni.
+4. Shranite rezultat, referenco in status vsakega ustvarjenega oziroma
+   preskočenega vnosa.
+5. V ERP odprite nastali žurnal oziroma temeljnico, če je ta vloga uporabniku
+   na voljo.
+6. Preverite datum, referenco, opis, konto, debet, kredit, DDV in obdobje.
+7. Če je v rezultatu preskočen vnos ali napaka, ne zaženite ponovitve na slepo; najprej odpravite
+   navedeni vzrok in preverite, ali je del zapisa že nastal.
+
+Dnevni prenos je namenjen hitremu odkrivanju manjkajočega konta, zaprtega
+obdobja, napačne DDV-preslikave ali komunikacijske napake. Pri ponovitvi
+uporabite isto referenco in preverite idempotentni rezultat.
+
+### 32.3 Mesečni zbirnik
+
+Mesečni zbirnik uporabite šele, ko so vsi dnevi in enote v mesecu pregledani.
+Mesečni postopek:
+
+1. izberite mesec in leto;
+2. preverite, da je mesec zaključen za vse vključene enote;
+3. preglejte predogled obsega in opozorila;
+4. zaženite zbirnik samo enkrat;
+5. počakajte na končni status;
+6. preverite število dni, enot, vrstic in skupni debet/kredit;
+7. po koncu preverite, ali je žurnal ustvarjen ali knjižen.
+
+Mesečni zbirnik ni popravek za neurejene dnevne razlike. Če manjka en dan,
+ga najprej obravnavajte z dnevnim postopkom. Pri obsegu, daljšem od dovoljenega
+razpona, uporabite več odobrenih intervalov in ohranite reference.
+
+### 32.4 Pregled in knjiženje žurnala
+
+Za vsak žurnal preverite:
+
+- status, čas nastanka in čas knjiženja;
+- referenco POS in poslovni datum **dd.mm.yyyy**;
+- konto, naziv konta, debet, kredit in opis;
+- DDV osnovo in DDV po stopnji;
+- plačilni kanal, napitnino, bone, storna in vračila;
+- stroškovno mesto oziroma projekt, kadar ga konto zahteva;
+- pripadajočo enoto in računovodsko obdobje.
+
+Žurnal je primeren za knjiženje samo, če je debet enak kreditu, vsi obvezni
+konte obstajajo in obdobje ni zaprto. Skupinski konto, konto napačnega tipa ali
+konto z manjkajočo obvezno dimenzijo je napaka, ne razlog za ročno izravnavo.
+
+Če uporabniški vmesnik ne prikaže ločenega pregleda POS-žurnala, preverjanje
+izvedite v razpoložljivem ERP-seznamu temeljnic ali ga eskalirajte računovodski
+vlogi. Priročnik ne predpostavlja zaslona, ki ga konkretna namestitev ne
+prikazuje.
+
+### 32.5 Preslikava kontov in DDV
+
+Pred prvo uporabo in po spremembi kontnega načrta preverite matriko:
+
+| Skupina | Kontrola |
+|---|---|
+| Gotovina | konto blagajne se ujema z metodo gotovine |
+| Kartice | ločen prehodni konto po ponudniku, kadar je tako nastavljeno |
+| Negotovinsko | konto terjatve oziroma dogovorjena metoda |
+| Darilni bon | izdaja/predplačilo je ločeno od unovčitve |
+| Bon za pico | ločen kanal, kadar ga POS vodi ločeno |
+| Napitnina | ločeno poročanje in konto po politiki podjetja |
+| Prihodki | preslikava po vrsti artikla in DDV-stopnji |
+| DDV | osnova in DDV sta ločena po uporabljeni stopnji |
+| Zaloga/odpis | konto zaloge, strošek odpisa in povratna embalaža po nastavitvi |
+
+Konkretnih številk kontov ne prepisujte iz primera drugega podjetja. Če konto
+zahteva stroškovno mesto ali projekt, ga nastavite pred prenosom in preverite
+uvoz. Opozorilo o neveljavnem kontu mora ostati vidno do izbire veljavnega
+nadomestnega konta; zaprtje okna ni potrditev popravka.
+
+### 32.6 Kontrolirana ponovitev in dokaz rezultata
+
+Pri vsakem prenosu ločite **nastavitev**, **ustvarjanje osnutka** in
+**knjiženje**. Shranjena nastavitev ali prikaz napredka sama po sebi ni
+knjižba.
+
+Za dnevni oziroma datumski razpon preverite rezultat tako:
+
+1. zapišite enoto, datum oziroma razpon **dd.mm.yyyy**, izvajalca in čas;
+2. zapišite referenco vsake ustvarjene temeljnice;
+3. preštejte ustvarjene in preskočene dni oziroma temeljnice;
+4. pri preskočenem vnosu zapišite prikazano referenco in razlog;
+5. v seznamu temeljnic preverite, ali je isti vir že prisoten;
+6. ponovite samo neuspešen ali preskočen del, po odpravi vzroka;
+7. po ponovitvi preverite, da se je obstoječi zapis osvežil oziroma da je
+   nastal samo en idempotentni rezultat.
+
+Pri mesečnem zbirniku preverite še, da je mesec v celoti pretekel in da ima
+enota nastavljeno mesečno frekvenco. Obstoječi osnutki izbranega meseca se
+lahko nadomestijo, potrjene temeljnice pa se ne smejo brisati. Če samodejno
+osveževanje ustvari samo osnutke, mora računovodja knjiženje pregledati in
+izvesti z ločenim pooblaščenim dejanjem.
+
+Če konkretna namestitev ne prikaže rezultata, reference ali seznama
+preskočenih vnosov, prenosa ne označite kot uspešnega. Shranite razpoložljiv
+tehnični odziv in zadevo predajte računovodski oziroma skrbniški vlogi.
+
+## 33. Poročila, realizacija in zaključek gotovine
+
+### 33.1 Izbira pravega poročila
+
+| Potreba | Uporabite |
+|---|---|
+| vmesna kontrola med dnevom | X poročilo |
+| dokončni zaključek poslovnega dne | Z poročilo |
+| seznam posameznih računov | Računi |
+| razčlenitev prometa in plačil | Statistika oziroma Operativna poročila |
+| promet po artiklih, natakarju ali kategoriji | Realizacija oziroma ustrezno operativno poročilo |
+| računovodska sled | Temeljnice oziroma ERP žurnali |
+| fizična gotovina | Blagajniški premiki in uskladitev blagajne |
+
+Pred primerjavo shranite filtre: enota, blagajna, uporabnik, od–do, poslovni
+datum in vključitev storna/vračil. Datum v prikazu je **dd.mm.yyyy**. Če se
+filter po vrnitvi na stran ponastavi, ga ponovno preverite; ne primerjajte
+poročil z različnimi filtri.
+
+### 33.2 Realizacija in plačilne dimenzije
+
+Pri realizaciji ločite:
+
+- bruto in neto promet;
+- gotovino, kartice, bone in negotovinska plačila;
+- darilni bon in bon za pico;
+- napitnino;
+- storno, vračilo in popust;
+- odprta in zaključena naročila;
+- enoto, blagajno, natakarja in izmeno.
+
+Če se realizacija razlikuje od Z, najprej preverite poslovni datum, filter,
+storne, vračila in odprta naročila. Če se kartice razlikujejo, primerjajte
+ponudnikov zaključek s kartičnim prehodnim kontom. Če se gotovina razlikuje,
+preverite fizično štetje in blagajniške premike.
+
+### 33.3 Storno in razveljavitev plačila
+
+Storno računa, vračilo postavke in razveljavitev plačila niso isti postopki.
+Pred izvedbo zabeležite račun, plačilo, znesek, razlog in uporabnika.
+
+1. Poiščite izvorni račun v seznamu računov.
+2. Preverite vsa plačila na računu, ne samo skupnega zneska.
+3. Izberite odobren popravljalni postopek.
+4. Po potrditvi preverite nov status računa, status posameznega plačila in čas
+   razveljavitve.
+5. Preverite kartični povratek pri ponudniku, kadar je plačilo kartično.
+6. V poročilu in ERP-ju poiščite izvorno in razveljavitveno sled.
+
+Če je razveljavljeno samo eno od več plačil, račun ni samodejno v celoti
+storniran. Ne ustvarite novega računa, dokler ne preverite odprtega zneska in
+stanja vseh plačil.
+
+### 33.4 Filtri, izvoz in uskladitev poročil
+
+Pri vsakem poročilu zapišite uporabljene filtre:
+
+| Filter oziroma dimenzija | Kontrola |
+|---|---|
+| Enota in blagajna | Ujemata se z enoto oziroma registrom, za katerega usklajujete podatke. |
+| Uporabnik in izmena | Ne zamenjajte osebnega prometa s prometom registra. |
+| Od–do in poslovni datum | Prikaz je **dd.mm.yyyy**; nočni promet preverite glede na pravilo poslovnega dne. |
+| Artikli, kategorije in natakar | Enako merilo uporabite v obeh primerjanih poročilih. |
+| Plačilni kanal | Ločite gotovino, kartice, bone, bon za pico in negotovinska plačila. |
+| Storno, vračila in popusti | Zabeležite, ali so vključeni ali izključeni. |
+| Odprta in zaključena naročila | Odprta naročila ne predstavljajo nujno zaključenega prometa. |
+
+Pred izvozom preverite obdobje, enoto in obseg vrstic. Po izvozu primerjajte
+vsaj število računov, bruto oziroma neto promet, DDV po stopnjah in vsote
+plačil. Pri realizaciji dodatno primerjajte napitnine, darilne bone, bone za
+pico, storne in vračila.
+
+Če poročilo nima ločenega filtra ali izvoza v konkretni namestitvi, ga ne
+nadomeščajte z ročnim seštevanjem nepovezanih zaslonov. Shranite uporabljene
+filtre in izvoz razpoložljivega poročila, nato razliko predajte računovodstvu
+z navedbo vira, datuma, zneska in odgovorne osebe.
+
+## 34. Omejitve trenutno razpoložljivih funkcij
+
+V pregledani izvedbi niso potrjeni javna internetna rezervacija, spletni nakup
+darilnega bona ali Stripe Checkout. Notranja rezervacija mize, izdaja oziroma
+unovčenje bona na POS-u in plačila prek konfiguriranih fizičnih ponudnikov so
+ločene funkcije. Uporabniku ne obljubljajte spletnega nakupa ali Stripe
+plačila; zahtevo zabeležite kot razvojno oziroma integracijsko potrebo.

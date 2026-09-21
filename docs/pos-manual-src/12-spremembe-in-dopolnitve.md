@@ -152,9 +152,10 @@ Za podrobnost uporabite navedeno glavno poglavje.
 
 ## 8. Kratka zgodovina trenutne različice
 
-Različica 8.2 dopolnjuje postopke za povratno embalažo, povezovanje dobropisov,
-ponovni FURS prenos in čas hrambe QR zgodovine. Vsi prikazani koledarski datumi
-so zapisani v obliki dd.mm.yyyy.
+Različica 8.3 dopolnjuje postopke za povratno embalažo, povezovanje dobropisov,
+ponovni FURS prenos, čas hrambe QR zgodovine, skrbniške naprave, POS PIN,
+offline fiskalizacijo in kartične izterjave. Vsi prikazani koledarski datumi so
+zapisani v obliki dd.mm.yyyy.
 
 Trenutna dokumentacija združuje operativne postopke v poglavjih 01–08.
 Poglavje 09 je namenjeno skrbniški konfiguraciji, napravam, vlogam, FURS potrdilu in integracijam.
@@ -702,17 +703,25 @@ Nikoli:
 - ne nameščajte neuradne programske opreme za rešitev tiskanja ali povezave;
 - ne spreminjajte dokazov incidenta, da bi bil prikaz »čistejši«.
 
-## 20. Kratek povzetek različice v7
+## 20. Kratek povzetek različice v8.3
 
-Dokumentacija v7 ohranja zemljevid poglavij 01–12.
-Poglavja 01–08 opisujejo delovne tokove.
-Poglavje 09 pokriva skrbništvo, naprave in integracije.
-Poglavje 10 daje hitre postopke po vlogah.
-Poglavje 11 je referenca za simptome, varne korake, pragove ustavitve in incidente.
-To poglavje 12 je referenca izrazov, kontrol, usposabljanja, predaj in odločanja.
+Različica v8.3 je izdelana na podlagi sledljive matrike 67 uporabniških
+postopkov. Dopolnjeni so skrbniški postopki za POS PIN in hitro menjavo
+identitete, obseg naprav, revizijsko sled, tiskalne in terminalske integracije,
+offline fiskalno čakalno vrsto, kartične izterjave, redni ročni vnos prejemnic,
+administrativne predaje in omejitve javnih funkcij.
 
-Ta povzetek ni seznam vseh sprememb sistema.
-Za dejansko konfiguracijo, datume, izvajalce in spremembe uporabite revizijsko sled ter odobrene zapise sprememb.
+V priročniku je izrecno navedeno, da trenutna izvedba nima javnih internetnih
+rezervacij, spletnega nakupa darilnega bona ali Stripe spletnega plačila.
+Viva demo način ni produkcijski dokaz. Vsi datumi, prikazani uporabniku, so v
+obliki **dd.mm.yyyy**.
+
+Poglavja 01–08 opisujejo operativne delovne tokove, 09 skrbniško konfiguracijo,
+10 hitre postopke po vlogah, 11 izredne primere in 12 slovar, kontrole ter
+sledljivost. Ta zgodovina ne nadomešča revizijske sledi sistema.
+
+Za dejanski datum, izvajalca in vsebino spremembe uporabite odobren zapis
+spremembe oziroma revizijsko sled.
 
 ## 21. Referenčne kontrolne kartice
 
@@ -1475,7 +1484,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 | Polje | Vnos |
 |---|---|
-| datum in čas predaje | [YYYY-MM-DD HH:MM] |
+| datum in čas predaje | [dd.mm.yyyy HH:MM] |
 | enota in izmena | [enota / izmena] |
 | predaja od / prevzem k | [vloga ali ime po internem pravilu] |
 | odprta zadeva | [kratek dejstveni opis] |
@@ -1493,7 +1502,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | Polje | Vnos |
 |---|---|
 | šifra incidenta | [interna oznaka] |
-| zaznan čas | [YYYY-MM-DD HH:MM] |
+| zaznan čas | [dd.mm.yyyy HH:MM] |
 | prijavitelj in vloga | [po internem pravilu] |
 | prizadeti obseg | [enota, proces, čas] |
 | dejstva | [opazno brez domneve o vzroku] |
@@ -1634,12 +1643,13 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 
 ## 39. Kratka zgodovina različic
 
-- **v7:** razširjen referenčni dodatek s slovarjem, matrikami odgovornosti,
-  kontrolnimi cikli, učnimi načrti, preverjanji znanja, obrazci in pravili
-  za dokaze ter vzdrževanje dokumentacije.
 - **v8.2:** obnovljen celoten referenčni dodatek, dopolnjeni aktualni postopki
   povratne embalaže, FURS in QR zgodovine ter poenotena oblika datumov
   dd.mm.yyyy.
+- **v8.3:** dodana sledljivost uporabniških postopkov, POS PIN in hitra menjava
+  identitete, obseg naprav, varnejše skrbniške predaje, offline fiskalna
+  uskladitev, kartične izterjave in jasne meje glede internetnih rezervacij,
+  spletnih bonov ter Stripe plačil.
 
 ## 40. Kontrolne kartice po organizacijskem modelu
 

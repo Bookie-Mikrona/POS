@@ -842,14 +842,14 @@ content_type = "application/pdf"
 id = "SbldO7w1iz_D0qKrsCQVm"
 uri = "file://docs/POS-Gostinstvo-sledljiv-inventar.xlsx"
 type = "table"
-title = "POS Gostinstvo — sledljiv inventar"
-description = "Preglednica s 67 uporabniškimi postopki, dokazili v UI/API/priročniku, statusom pokritosti, pomembnostjo in prednostnim seznamom vrzeli."
+title = "Sledljiv inventar priročnika v8.3"
+description = "Preglednica z 67 postopki, ločenim stanjem izvedbe, dokumentacijsko pokritostjo in dokazili."
 logical_id = "1a800a38-9749-4515-af19-5b03751ba552"
-content_hash = "sha256:42bc90d1dc72cf217ad1db2428ea61670f2171a7eef226628f1ff29bf4ed423f"
-size = 37421
-mtime_ms = 1790016826739
-storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1a800a38-9749-4515-af19-5b03751ba552/2d6fef05-78ff-4a52-8ae5-bc9034267398"
-storage_version_token = "1790016846552875"
+content_hash = "sha256:55f36ef437a96761b1262cd67f0418385b6489a7f208d738c3b5b1a93c116858"
+size = 38129
+mtime_ms = 1790017897186
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1a800a38-9749-4515-af19-5b03751ba552/0f010c78-7310-43e0-8b68-f23aafe60430"
+storage_version_token = "1790017975020289"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 [[outputs]]
@@ -865,3 +865,45 @@ mtime_ms = 1790016826711
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/aefef59b-d149-4bbc-96be-4a8b5b310a99/d4c8c9a0-6c93-4e9a-898e-681c7698fc29"
 storage_version_token = "1790016847165722"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "zhjOddiL69zu5FFUJU9ws"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.3.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik v8.3"
+description = "Celovit uporabniški in referenčni priročnik, 482 strani, pregledan po sledljivi matriki 67 postopkov."
+logical_id = "177773d1-3d4e-4a18-8e52-b2b6bbda1cc4"
+content_hash = "sha256:91854a19715b7714b1533735e8734f1022a813dd28f9b0fddbca4769322b148e"
+size = 2396473
+mtime_ms = 1790017907943
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/177773d1-3d4e-4a18-8e52-b2b6bbda1cc4/00d2e85e-41e7-4814-bd00-d64316ef440c"
+storage_version_token = "1790017974387730"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "Kj4Mlrvb2oUt4D0qfbvU5"
+uri = "file://docs/POS-Gostinstvo-racunovodski-prirocnik-v1.4.pdf"
+type = "pdf"
+title = "POS Gostinstvo — računovodski priročnik v1.4"
+description = "Celovit računovodski priročnik, 63 strani, preverjen po sledljivem inventarju 53 postopkov."
+logical_id = "21dc579d-c9db-45b0-a5e8-f064d4be471c"
+content_hash = "sha256:20e4918f8d3c4901d7655c3f2090d75ab9176a2d9cc123a3759dfdcd9af5e079"
+size = 546529
+mtime_ms = 1790019172111
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/21dc579d-c9db-45b0-a5e8-f064d4be471c/6992e33d-b9f4-470e-a78f-8a17d525c3a3"
+storage_version_token = "1790019233677128"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "vC8bdRxntVHSfJ9LAcb-a"
+uri = "file://docs/POS-Gostinstvo-racunovodski-sledljiv-inventar.xlsx"
+type = "table"
+title = "Računovodski sledljiv inventar v1.4"
+description = "Preglednica s 53 računovodskimi postopki, stanjem izvedbe, dokumentacijsko pokritostjo ter natančnimi UI, API in priročniškimi dokazili."
+logical_id = "370bda37-9b87-4f4c-bef7-ff8cf6b46295"
+content_hash = "sha256:18baffa462c911de4e5fa2d55ac905a0dc85c9782fe0ddf652f1c0f63da0f56f"
+size = 36929
+mtime_ms = 1790019164399
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/370bda37-9b87-4f4c-bef7-ff8cf6b46295/8693219a-d3ca-4f76-bd23-b4f5f683b41b"
+storage_version_token = "1790019234406630"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

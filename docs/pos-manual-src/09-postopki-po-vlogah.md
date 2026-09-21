@@ -1799,3 +1799,216 @@ Vzorčni odgovor:
 10. Zapišem ročni postopek, ki ga osebje uporablja do popravka.
 
 Napačen odgovor je kopiranje CTI žetona iz B v A brez pregleda ponudnika in enote.
+
+## 39. POS PIN in hitra menjava identitete
+
+POS PIN je namenjen hitri izbiri natakarja na skupni POS napravi. Ni nadomestilo
+za administratorsko prijavo in ni dovoljenje za uporabo računa druge osebe.
+
+Administrator pred dodelitvijo:
+
+1. preveri podjetje in enoto;
+2. potrdi, da oseba dejansko dela na tej napravi;
+3. nastavi osebni POS PIN dolžine 4–12 številk;
+4. preveri, da PIN ni enak javno znanemu ali drugemu uporabniškemu PIN-u;
+5. zapiše dodelitev in pooblaščenega izvajalca;
+6. izvede en nadzorovan preizkus prijave in menjave;
+7. po potrebi določi datum preklica.
+
+Natakar na skupni napravi izbere svojo identiteto in vnese svoj PIN. Pred vnosom
+preveri enoto, blagajno, izmeno in prikazano ime. Po koncu dela se odjavi oziroma
+izvede menjavo po lokalnem postopku. PIN-a ne narekuje sodelavcu in ga ne
+uporablja za administratorske nastavitve.
+
+Ob napačnem ali pozabljenem PIN-u ne ugibajte in ne ustvarjajte novega uporabnika.
+Vodja preveri identiteto, administrator pa PIN ponastavi ali prekliče po
+odobrenem postopku. Vsaka hitra menjava mora ostati v revizijski sledi z
+uporabnikom, časom, enoto in napravo.
+
+## 40. Obseg naprave in prednost nastavitev
+
+Naprava lahko vidi samo dovoljene mize. Prazen seznam dovoljenih miz pomeni
+»vse mize«, ne pa »nobene mize«. Pred servisom preverite, ali prikaz ustreza
+fizičnemu območju naprave.
+
+Pri tiskanju in terminalu velja naslednji vrstni red:
+
+1. izrecno vezana nastavitev naprave;
+2. splošna prednostna nastavitev enote;
+3. odobrena rezervna pot, kadar jo določa lokalni postopek.
+
+Če je napravi izrecno vezan tiskalnik ali terminal, ga ne preglasite z naključno
+izbiro druge naprave. Pri spremembi zapišite staro in novo vezavo ter izvedite
+en kontrolni preskus. Kodna stran mora ohraniti šumnike in znak EUR; če jih
+izpis ne prikaže pravilno, ustavite objavo in uporabite postopek za tiskalni
+incident iz 11.
+
+Nastavitve praga glasovnega prepoznavanja in AI na napravi so pomožne nastavitve.
+Ne spreminjajo pravic uporabnika in ne smejo samodejno potrditi plačila, fiskalnega
+dokumenta ali alergenskega podatka.
+
+## 41. Dokaz revizije in varno zapiranje incidenta
+
+Revizijski zapis mora omogočiti odgovor na vprašanja: kdo je dejanje izvedel,
+kdaj, v katerem podjetju/enoti/blagajni, na kateri napravi, nad katerim zapisom
+in s kakšnim rezultatom. Pri hitri menjavi, spremembi naprave, spremembi pravic,
+stornu, ponovnem poskusu prenosa ali obnovi integracije ne zadošča splošna
+opomba »urejeno«.
+
+Pri predaji podpore uporabite najmanjši potreben obseg:
+
+- datum in čas v obliki **dd.mm.yyyy** ter lokalni čas;
+- enoto, blagajno, napravo in uporabniško vlogo;
+- identifikator naročila, računa ali prenosa;
+- vidno sporočilo in že preverjene varne korake;
+- lastnika naslednjega koraka in čas ponovne kontrole.
+
+Ne vključujte PIN-a, gesla, sejnega žetona, zasebnega ključa, datoteke potrdila
+ali celotne številke kartice. Če je naprava izgubljena ali obstaja sum
+nepooblaščenega dostopa, najprej omejite dostop in ohranite sled; ne popravljajte
+ali brišite zapisov zaradi videza.
+
+## 42. Meje podprtih ponudnikov in funkcij
+
+Konfiguracijska možnost še ni dokaz, da je ponudnik v posamezni namestitvi
+aktiviran. Payten, SumUp in Viva so opisane podprte integracijske poti, vendar
+administrator pred produkcijo preveri dejansko pogodbo, napravo, enoto in
+odobren preskus.
+
+Viva **demo način** je namenjen samo konfiguracijskemu ali učnemu preskusu.
+Uspešen demo rezultat ni dokaz produkcijskega plačila. Produkcijski prevzem
+mora imeti ločen dokaz ponudnika, identifikator terminala, register, čas in
+jasen rezultat v POS-u.
+
+V trenutni izvedbi ni javnega postopka za internetne rezervacije, spletni nakup
+darilnega bona ali Stripe Checkout/PaymentIntent/webhook. Teh funkcij ne
+vključujte v konfiguracijski načrt kot razpoložljive. Za rezervacije uporabljajte
+notranji POS-postopek, darilni bon pa je mogoče izdati oziroma unovčiti samo po
+opisanem POS-toku.
+
+## 43. Skrbniški kontrolni seznam pred objavo spremembe
+
+- [ ] Potrjeno je pravo podjetje, enota, blagajna in naprava.
+- [ ] Sprememba ima poslovni razlog, odobritelja in lastnika.
+- [ ] Zapisana je trenutna vrednost in načrt varne vrnitve.
+- [ ] Ni odprtega plačila, fiskalnega postopka ali množičnega prenosa.
+- [ ] Preverjene so pravice in obseg naprav.
+- [ ] Izveden je en omejen preskus z dejanskim pričakovanim rezultatom.
+- [ ] Pri ponudniku je ločen demo dokaz od produkcijskega dokaza.
+- [ ] Revizijska sled vsebuje čas v obliki dd.mm.yyyy, izvajalca in rezultat.
+- [ ] Osebje je obveščeno o vplivu in začasnih omejitvah.
+- [ ] Neimplementirane funkcije niso predstavljene kot aktivne.
+
+## 44. Preizkus vezave naprave, terminala, tiskalnika in mostu
+
+Pred spremembo zapišite podjetje, enoto, napravo, trenutno vezavo terminala,
+tiskalnika in lokalnega mostu ter osebo, ki je spremembo odobrila. Če vaša
+vloga ne vidi nastavitev naprave, ne uporabljajte administratorskega računa;
+zahtevo predajte skrbniku.
+
+V kartici oziroma nastavitvah naprave, ki so v vaši namestitvi na voljo:
+
+1. preverite, da naprava pripada pravi enoti in fizičnemu območju;
+2. preverite dovoljene mize; prazen seznam pomeni vse mize;
+3. preverite izrecno vezan tiskalnik in terminal;
+4. preverite, ali lokalni most teče na določeni napravi;
+5. shranite eno spremembo in izvedite kontrolni izpis;
+6. pri terminalu preverite identifikator, ponudnika in rezultat testnega toka;
+7. preverite šumnike in znak EUR na izpisu;
+8. zabeležite dejanski rezultat in novo vezavo.
+
+Prednost ima izrecna vezava naprave, nato splošna prednost enote in šele nato
+odobrena rezervna pot. Konfiguracijska možnost sama po sebi ni dokaz, da je
+terminal ali ponudnik v produkciji aktiven.
+
+Če kontrolni izpis, most ali terminal odpove:
+
+1. ustavite spremembo in preverite, ali je dokument že izdan;
+2. pri nejasnem plačilu ne ponavljajte transakcije;
+3. preverite omrežje, stanje mostu, cilj tiskalnika in identifikator terminala;
+4. vrnite prejšnjo vezavo samo, če je to varno in je rezultat plačila znan;
+5. zabeležite čas, napravo, staro in novo vezavo ter sporočilo;
+6. eskalirajte po poglavju 11, če rezultat ostane nejasen.
+
+Ne menjajte naprave, mostu in usmerjanja tiskanja hkrati, ker tako ni mogoče
+ugotoviti vzroka napake. Preskus ne sme spreminjati prodajnega, fiskalnega ali
+zalogovnega stanja.
+
+## 45. Uporabnik, profil, enota in pravice
+
+### 45.1 Ustvarjanje in sprememba
+
+Pred ustvarjanjem preverite identiteto osebe, podjetje, dovoljene enote,
+potrebni profil in naprave, na katerih bo oseba delala. Ustvarite uporabnika
+oziroma profil samo v skrbniškem zaslonu, ki ga vaša vloga dejansko vidi.
+Če konkretnega obrazca ali pravice ni, postopek ustavite in zahtevo predajte
+administratorju; ne uporabljajte neposrednega vpisa v bazo.
+
+Po shranitvi:
+
+1. preverite, da je uporabnik vezan na pravo podjetje in enoto;
+2. preverite vlogo, dovoljene blagajne, terminale in delovne poglede;
+3. preverite, da uporabnik vidi samo potrebne funkcije;
+4. izvedite omejen preizkus brez produkcijskega plačila;
+5. zapišite odobritelja, datum v obliki **dd.mm.yyyy** in izvajalca.
+
+Spremembo profila izvedite najmanjšemu potrebnemu obsegu. Vloga ni naziv
+delovnega mesta; pravica do terminala tudi ni pravica do ponovnega
+bremenitvenega poskusa ali administratorskih nastavitev.
+
+### 45.2 Ukinitev oziroma varen odvzem dostopa
+
+Ob odhodu ali spremembi dela:
+
+1. preverite vse aktivne vloge, enote, blagajne, naprave in terminale;
+2. odstranite nepotrebne vezave in deaktivirajte dostop po odobritvi;
+3. prekličite POS PIN oziroma hitro menjavo, če je bila dodeljena;
+4. preverite, da uporabnik ne more več začeti nove seje;
+5. ohranite zgodovinske račune, naročila in revizijske zapise;
+6. zapišite izvajalca, datum **dd.mm.yyyy**, razlog in rezultat preverjanja.
+
+Uporabnika ne brišite samo zato, da bi skrili star zapis, in ne ustvarjajte
+dvojnega računa za obhod zaklepa. Če je odvzem dostopa neuspešen, omejite
+nadaljnje delo, zabeležite napako in obvestite administratorja.
+
+## 46. Pregled revizijske sledi
+
+Revizijski zapis mora omogočiti najmanj pregled akterja, časa, podjetja,
+enote, naprave, zapisa, dejanja in rezultata. Pri hitri menjavi, spremembi
+pravic, spremembi naprave, AI dejanju, stornu ali ponovnem poskusu prenosa
+ne zadošča splošna opomba »urejeno«.
+
+Kadar vaš uporabniški vmesnik ponuja zgodovino oziroma revizijo na podrobnosti
+zapisa:
+
+1. odprite zapis v pravilni enoti;
+2. filtrirajte po datumu **dd.mm.yyyy**, akterju, dejanju ali rezultatu,
+   če so ti filtri prikazani;
+3. primerjajte čas in identifikator s primarnim zapisom;
+4. shranite dovoljeno poročilo oziroma izvoz po internem postopku;
+5. preverite, da izvoz ne vsebuje PIN-ov, gesel, sejnih žetonov ali celotnih
+   številk kartic;
+6. zapišite, kdo je pregled opravil in do kdaj mora biti zadeva ponovno
+   preverjena.
+
+V pregledani izvedbi ni potrjenega enotnega skrbniškega zaslona, ki bi
+omogočal poljuben filter, izvoz in nastavitev hrambe vseh revizijskih zapisov.
+Nekateri tokovi imajo lastno zgodovino oziroma revizijski prikaz, drugi pa
+zapis shranijo strežniško. Če zahtevanega filtra ali izvoza ne vidite, ne
+sklepajte, da zapis ne obstaja, in ne posegajte neposredno v bazo; zahtevajte
+pooblaščen izpis oziroma podporni postopek.
+
+Splošna doba hrambe revizije v POS-u ni s tem priročnikom določena. Uporabite
+odobreno politiko podjetja in zakonske roke. Revizijskih zapisov ne brišite
+zaradi popravka napačnega podatka; popravek mora ustvariti novo sled.
+
+## 47. Končna kontrola skrbniške spremembe
+
+- [ ] Sprememba je izvedena v pravem podjetju, enoti in napravi.
+- [ ] Uporabnik ima samo potrebne vloge, pravice in vezave.
+- [ ] Pri odvzemu so preklicani tudi POS PIN, naprave in terminali.
+- [ ] Izveden je omejen preskus brez ponavljanja plačila.
+- [ ] Tiskalnik, most, terminal in kodna stran so preverjeni ločeno.
+- [ ] Revizijski zapis vsebuje akterja, čas **dd.mm.yyyy**, dejanje in rezultat.
+- [ ] Za manjkajoči skupni audit UI je odprt pooblaščen zahtevek, ne neposreden
+      popravek baze.

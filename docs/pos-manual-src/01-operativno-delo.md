@@ -1131,3 +1131,87 @@ Pred začetkom rednega dela potrdite naslednje trditve.
 Če katere trditve ne morete potrditi, ne začnite poslovnega dela.
 
 Najprej odpravite nejasnost z vodjo izmene ali administratorjem.
+
+## 16. Skrbniška potrditev naprave in omejitev miz
+
+Ta postopek je namenjen administratorju pred prvo uporabo nove ali počiščene
+naprave. Vidne mize same po sebi ne dokazujejo, da je naprava pravilno
+registrirana ali da sme uporabnik delati v vseh prikazanih prostorih.
+
+### 16.1 Preverjanje naprave
+
+1. Prijavite se v pravilno podjetje in enoto.
+2. V nastavitvah poiščite napravo po imenu naprave in njeni enoti.
+3. Preverite, ali ima naprava določen tiskalnik, širino papirja, kodno stran in
+   plačilni terminal, kadar jih poslovni tok uporablja.
+4. Preverite lokalni prehod oziroma tiskalniški most, če je za napravo zahtevan.
+5. Preverite, ali je naprava aktivna in ali je bila po spremembi enote ponovno
+   registrirana.
+6. Shranite spremembo samo, če se fizična oznaka naprave ujema z nastavitvijo.
+
+Če naprava nima dodeljenega tiskalnika ali terminala, ne sklepajte, da bo
+stara nastavitev delovala. Najprej izvedite lokalni preskus brez nove prodaje.
+Pri znakih č, š, ž in EUR preverite tudi kodno stran oziroma nadomestni zapis.
+Ne nameščajte drugega tiskalniškega mostu samo zato, ker prvi ne odgovarja;
+zabeležite ime naprave, čas in prikazano napako ter vključite skrbnika.
+
+### 16.2 Dovoljene mize
+
+Administrator lahko napravi določi seznam dovoljenih miz. Prazen seznam ima
+poseben pomen: naprava nima omejitve na posamezne mize in lahko vidi vse mize,
+ki so dovoljene izbranemu kontekstu. Neprazen seznam omeji delovno postajo na
+navedene mize.
+
+Po spremembi:
+
+1. shranite nastavitev naprave;
+2. odjavite uporabnika oziroma ponovno naložite POS po navodilu;
+3. preverite pričakovano in nepričakovano mizo;
+4. preverite, da uporabnik ne vidi starega obsega samo zaradi predpomnjenega
+   zaslona.
+
+Če miza manjka, najprej preverite enoto, prostor in seznam dovoljenih miz.
+Ne ustvarjajte nadomestne mize in ne spreminjajte osebnih pravic uporabnika,
+da bi zaobšli omejitev naprave.
+
+## 17. Hitra menjava natakarja na skupni napravi
+
+Hitra menjava ne zamenja prijave v podjetje. Osnovna seja ostane prijavljena,
+poslovni izvajalec pa se na skupnem POS-u potrdi z lastnim POS PIN-om. Uporabi
+se samo za aktivnega natakarja z odprto izmeno v trenutni enoti.
+
+### 17.1 Nastavitev POS PIN-a
+
+POS PIN nastavi samo administrator, administrator enote ali
+superadministrator pri podatkih aktivnega natakarja.
+
+1. Odprite podatke aktivnega natakarja.
+2. Vnesite PIN dolžine **4 do 12 številk**.
+3. Shranite nastavitev in natakarju PIN posredujte po varnem internem kanalu.
+4. Ne zapisujte PIN-a ob skupni napravi in ga ne uporabljajte za drugo osebo.
+
+Pri napačni dolžini ali neaktivnem natakarju nastavitev ni veljavna. Ponovna
+nastavitev PIN-a ponastavi neuspele poskuse in začasno zaklenjeno stanje.
+
+### 17.2 Menjava identitete
+
+1. Na skupni napravi izberite **Izberi natakarja** oziroma
+   **Zamenjaj natakarja**.
+2. Izberite natakarja s seznama aktivnih izmen.
+3. Vnesite njegov osebni POS PIN.
+4. Izberite **Odkleni in preklopi**.
+5. Preverite prikazano ime oziroma identiteto pred prvim naročilom.
+
+Če natakarja ni na seznamu, najprej preverite, ali ima odprto izmeno v pravi
+enoti. Ne izbirajte profila druge osebe samo zato, da odklenete zaslon.
+Uspešna menjava ustvari revizijski dogodek; preklic dialoga ne sme ustvariti
+poslovnega dejanja.
+
+Po več napačnih PIN-ih se PIN začasno zaklene. Obvestilo **PIN je začasno
+zaklenjen** ni razlog za ugibanje nadaljnjih kombinacij. Obvestite administratorja
+in uporabite postopek ponastavitve PIN-a. Če se seja ne odklene, preverite tudi,
+ali je izmena še odprta; brez odprte izmene menjava ni dovoljena.
+
+POS seja hitre menjave velja največ 16 ur oziroma do zaprtja izmene. Ob menjavi
+osebe na skupnem mestu vedno zaklenite oziroma preklopite izvajalca; ne puščajte
+odprtega poslovnega konteksta naslednji osebi.

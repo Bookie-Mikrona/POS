@@ -1549,3 +1549,111 @@ Utemeljitev: aktivna priprava ima fizične posledice.
 Primer: pica je pripravljena, vendar brez zahtevane oznake.
 Dejanje: izdaja jo označi pred odlaganjem na prevzemno polico.
 Utemeljitev: oznaka preprečuje napačno predajo v konici.
+
+## 37. QR zgodovina, povratne informacije in pomoč gostu
+
+### 37.1 Zgodovina naročil na napravi gosta
+
+Zgodovina je vezana na isto QR napravo oziroma brskalnik, ne na osebni račun
+gosta. Gost jo lahko odpre samo po uspešni aktivaciji QR lokacije in po
+izrecni izbiri **Vklopi zgodovino**.
+
+Privzeto je zgodovina izklopljena. Če gost soglasja ne izbere oziroma pošlje
+`historyOptIn=false`, strežnik vrne prazno zgodovino. Osebje zato ne sme
+sklepati, da je gostova prejšnja vsebina naročil vidna ali da jo lahko poišče
+po imenu gosta.
+
+Zgodovina prikazuje povzetke naročil na tej napravi, na primer stanje, čas
+nastanka in število postavk. Ne uporablja se kot dokaz plačila, identitete gosta
+ali fizičnega prevzema. Pri izgubljeni oziroma potekli QR seji mora gost QR
+znova odpreti in lokacijo ponovno potrditi.
+
+### 37.2 Gostujoči AI pomočnik
+
+Gostujoči pomočnik je na voljo samo v aktiviranem QR meniju in samo, kadar je
+za enoto vključena nastavitev **qrAiAsistentAktiven**. Če nastavitev ni
+vključena, gostu ne obljubljajte AI pomoči; uporabite običajni klic natakarja.
+
+Pomočnik lahko odgovarja o:
+
+- artiklih, cenah in razpoložljivosti,
+- vinih in drugih podatkih, ki so v javnem meniju,
+- trenutni čakalni dobi oziroma aktivnih pripravljalnih nalogih,
+- povzetku zgodovine, vendar samo po izrecnem soglasju za zgodovino.
+
+Pomočnik ni kanal za rezervacijo mize, spletni nakup bona, plačilo ali
+spremembo naročila. Ne sme izmišljati artikla, cene, razpoložljivosti ali
+čakalnega časa. Pri neznanem vprašanju mora uporabiti varni odgovor in gosta
+usmeriti k natakarju.
+
+Pri tehnični napaki, potekli lokacijski seji ali izklopljenem pomočniku:
+
+1. gostu povejte, da pomočnik trenutno ni na voljo;
+2. ne zahtevajte ponavljanja osebnih podatkov v javnem klepetu;
+3. za servis uporabite **Pokliči natakarja**;
+4. naročilo vnesite ali popravite v POS po običajnem postopku.
+
+### 37.3 Klic natakarja
+
+Klic natakarja ni naročilo in ni dokaz, da je natakar že obiskal mizo.
+
+1. Gost pritisne **Pokliči natakarja**.
+2. Sistem ustvari zahtevek v stanju `caka`.
+3. Natakar preveri enoto, mizo, QR napravo in čas zahtevka.
+4. Po sprejemu označi zahtevek `potrjeno`.
+5. Po dejanskem obisku mize označi zahtevek `zakljuceno`.
+
+Če je zahtevek že odprt, ponovni klik ne ustvarja novega obiska. Če gost
+ponovno potrebuje pomoč po zaključku, ustvari nov zahtevek. Pri nujni zadevi
+uporabite običajni klic osebja, ker periodično osveževanje čakalne vrste ni
+zagotovilo takojšnje obravnave.
+
+### 37.4 Povratna informacija po zaključenem naročilu
+
+Povratna informacija je mogoča šele, ko je QR naročilo zaključeno, in samo za
+napravo, ki je naročilo ustvarila. Za eno naročilo je dovoljena največ ena
+oddaja.
+
+Gost lahko oceni:
+
+- hrano in pijačo,
+- ambient,
+- postrežbo,
+- posamezne postavke, kadar jih želi oceniti,
+- neobvezni komentar.
+
+Pred oddajo mora izbrati soglasje, da lokal oceno anonimno obdela za izboljšanje
+storitev. Soglasje ni dokaz plačila in ne spremeni naročila, računa ali
+fiskalizacije.
+
+Če naročilo še ni zaključeno, če QR seja ni več veljavna, če ocena pripada
+drugemu naročilu ali je bila že oddana, sistem oddajo zavrne. Osebje ne
+ustvarja povratne informacije namesto gosta in ne poskuša ponoviti oddaje z
+drugim QR identifikatorjem.
+
+### 37.5 Česa javni QR meni ne podpira
+
+Javni QR meni podpira pregled ponudbe, QR naročilo, To Go, klic natakarja,
+ločeno QR napitnino, povratno informacijo in – če je vklopljen – omejenega
+gostujočega AI pomočnika. Ne podpira pa:
+
+- javne internetne rezervacije miz,
+- spletnega nakupa darilnega bona,
+- Stripe Checkout oziroma Stripe spletnega plačila.
+
+Če gost zahteva eno od teh funkcij, mu ne obljubljajte izvedbe prek QR menija.
+Uporabite potrjen notranji POS postopek ali povejte, da funkcija trenutno ni
+na voljo. Plačilo in fiskalizacija QR naročila se še vedno obravnavata po
+sklopu 06; oddaja QR naročila sama po sebi ni dokaz plačila.
+
+### 37.6 Kontrola pred objavo QR menija
+
+- [ ] QR koda je vezana na pravo enoto in po potrebi pravo mizo.
+- [ ] Poskusna aktivacija je izvedena z dejanskim telefonom.
+- [ ] Testno naročilo je ločeno od naročila gosta in sledljivo odstranjeno.
+- [ ] To Go ima jasen kanal in oznako prevzema.
+- [ ] Klic natakarja se pojavi v stanju `caka`.
+- [ ] Zgodovina je privzeto izklopljena in zahteva izrecno soglasje.
+- [ ] Gostujoči AI je objavljen samo, če je nastavitev za enoto vključena.
+- [ ] Povratna informacija je vidna šele po zaključenem naročilu.
+- [ ] Gostu niso obljubljene internetne rezervacije, spletni boni ali Stripe.

@@ -172,7 +172,8 @@ Na dnu zaslona nastavite:
 * **Frekvenca knjiženja porabe**: `monthly` (privzeto) ali `daily`;
 * sprememba frekvence se lahko uveljavi s prvim dnem naslednjega meseca.
 
-Pri dnevni prodaji nastane referenca `POS:PRODAJA:YYYY-MM-DD:E{id}`.
+Pri dnevni prodaji nastane referenca z označenim poslovnim datumom, na primer
+`POS:PRODAJA:[dd.mm.yyyy]:E{id}` v uporabniškem prikazu.
 Pri mesečnem načinu dnevni sinhronizacijski klic ne sme izdelati dodatne
 prodajne temeljnice. Ob ponovnem zagonu se obstoječi osnutek z isto
 referenco obnovi, ne podvoji. Pri ročnem ponavljanju sinhronizacije preverite
@@ -285,3 +286,144 @@ osnutke, jih popravi z ustreznim postopkom in šele nato ponovno zažene
 sinhronizacijo. Vedno morata veljati:
 
 `vsota D = vsota K` in `znesek POS = plačilni D = prihodki brez DDV + DDV`.
+
+## 9. Kontni plan: dodajanje, hierarhija in veljavnost
+
+Kontni plan ureja skrbnik podjetja v **Kontni plan**. Računovodja pred
+spremembo preveri, da je izbrano pravo podjetje; kontni plan ni skupen vsem
+podjetjem. Za vsak konto se vodijo najmanj:
+
+* polna sedemmestna koda in naziv;
+* tip **sredstvo**, **obveznost**, **kapital**, **prihodek** ali **odhodek**;
+* nadrejeni konto (`parentId`), kadar je konto analitika pod skupino;
+* aktivnost in dovoljenje za knjiženje (`allowsPosting`);
+* davčno vedenje: brez DDV, izhodni DDV, vhodni DDV ali oproščeno;
+* oznaka denarnega oziroma odprtostavčnega konta, kadar jo uporablja proces;
+* pravila analitike: partner, stroškovno mesto in projekt.
+
+### 9.1 Običajni postopek
+
+1. Odprite **Kontni plan** in preverite podjetje.
+2. Za nov konto vnesite kodo, naziv, tip in nadrejeni konto. Pri obstoječem
+   kontu uredite samo dovoljene lastnosti; kode obstoječega konta ne
+   spreminjajte, če bi s tem prekinili zgodovinske reference.
+3. Za analitični konto vključite **Dovoli knjižbe**. Skupina oziroma sintetični
+   konto mora imeti to možnost izključeno.
+4. Nastavite davčno vedenje in pravila analitike samo, če to zahteva kontni
+   načrt podjetja.
+5. Shranite, nato na eni testni temeljnici preverite kodo, naziv, tip, D/K,
+   DDV in dimenzije.
+6. Šele po uspešnem testu konto uporabite v **Kontih za temeljnice**.
+
+Deaktiviran konto ostane v zgodovini, ni pa dovoljen za nove knjižbe. Če
+seznam vsebuje neaktivne konte, jih prikažite samo za pregled zgodovine in ne
+izberite kot nadomestilo za manjkajoči aktivni konto. Uvoz standardnega
+kontnega plana je začetna priprava, ne dokaz, da so konti pravilni za konkretno
+podjetje.
+
+### 9.2 Pravila, ki jih je treba preveriti na vseh poteh
+
+| Kontrola | Ročni vnos | POS→ERP osnutek | Uvoz oziroma predlog |
+|---|---|---|---|
+| aktivni konto | preveri pred shranjevanjem | zavrni ali preskoči z razlogom | preveri pred potrditvijo |
+| `allowsPosting=true` | obvezno za analitiko | mora biti obvezno | preverjanje je treba ponoviti |
+| skupinski konto | ni dovoljen | ne knjiži neposredno nanj | ne uporabljaj ga kot nadomestilo |
+| pravilen tip | primerjaj z ekonomsko vlogo | preveri pred knjiženjem | preveri tudi pri preslikavi |
+| davčno vedenje | primerjaj z DDV-kodo | ne mešaj vhodnega in izhodnega DDV | zavrni neskladno preslikavo |
+| obvezne dimenzije | izpolni vrstico | preveri v predogledu in knjiženju | preveri pred uvozom |
+
+Pregledani uporabniški tok filtrira aktivne sedemmestne konte, ki dovoljujejo
+knjiženje, in jih predlaga glede na razred kode. To je pomoč pri izbiri, ne
+nadomestilo za strežniško kontrolo. V pregledani izvedbi niso vse poti enako
+strogo preverjene za skupinski konto, obvezne dimenzije in tip konta. Zato
+računovodja pri ročnem uvozu ali samodejnem predlogu vedno preveri rezultat
+temeljnice; če kontrola manjka, postopka ne šteje za varnega ali avtomatsko
+potrjenega.
+
+## 10. Nastavitev kontov za knjiženje
+
+V **Nastavitve → Konti za temeljnice** se preslikave shranjujejo na ravni
+podjetja. Poslovna enota lahko doda svoje stroškovno mesto, ne sme pa
+uporabiti preslikave drugega podjetja. Za vsako polje izberite konto iz
+kontnega plana, ne vpisujte številke v opis.
+
+### 10.1 Plačila in posebni tokovi
+
+| Skupina | Polja | Računovodska vloga |
+|---|---|---|
+| plačila | gotovina, kartice, druga plačila | debet denarnega oziroma prehodnega sredstva |
+| boni | bon za pico, darilni bon | ločena terjatev oziroma predplačilo |
+| subvencije | terjatev za študentske bone + partner subvencije | terjatev in obvezna analitika partnerja |
+| pogodbene malice | prehodna terjatev | zaprtje ob mesečnem A-računu |
+| napitnine | obveznost, prihodek, DDV in morebitna provizija | ločitev tujega denarja od prihodka podjetja |
+
+Pri pozitivnem znesku mora biti ustrezen konto nastavljen. Manjkajoč konto
+lahko povzroči preskok celotne zbirne temeljnice z razlogom; delne temeljnice
+ne potrjujte. Pri študentskem bonu sta potrebna tako konto terjatve kot
+partner. Pri darilnem bonu ne uporabite konta bona za pico.
+
+### 10.2 Prihodki, DDV, zaloga in poraba
+
+Nastavite ločene konte za material, blago in storitve po stopnjah 5 %, 9,5 %
+in 22 %, kadar jih podjetje uporablja. Za prejemnice nastavite konte zaloge
+oziroma stroška, obveznosti do dobaviteljev, obračuna nabave in vhodnega DDV.
+Za porabo ločite material in blago, po potrebi pa nastavite še KIR, lastno
+porabo, reprezentanco, odpis in začetno zalogo.
+
+Prihodkovni konto mora biti ekonomskega tipa **prihodek**, konto izhodnega DDV
+pa davčna obveznost. Konto zaloge je praviloma sredstvo, konto porabe pa
+odhodek. Ujemanje kode brez pregleda tipa ni zadostna kontrola.
+
+## 11. Formalni vrstni red preslikave
+
+Za prodajni prihodek velja naslednji vrstni red trenutne izvedbe:
+
+1. preslikava kategorije artikla, če obstaja in pripada istemu podjetju;
+2. splošni `revenueAccountId`, če je nastavljen;
+3. podrobni konto po vrsti artikla in stopnji DDV;
+4. združljivostni stari fallback samo tam, kjer ga konkretni tok podpira.
+
+Kategorija ima prednost pred splošnim kontom. Zato pri novi razčlenjeni
+nastavitvi ne zapolnite splošnega prihodkovnega konta samo zato, da bi »nekaj
+delovalo«, saj lahko preglasi pričakovano razčlenitev. Za vhodni DDV velja
+ločeni konto po stopnji, nato splošni `inputVatAccountId`; vhodnega konta ne
+uporabite za izhodni DDV.
+
+Pri plačilu se najprej uporabi konto izbrane vrste plačila. Pri bonih,
+subvencijah in pogodbenih malicah se uporabijo njihova posebna polja, ne
+nadomestni konto gotovine. Če je znesek vrste plačila nič, njen manjkajoči
+konto ne ustavi drugih pozitivnih vrst; pri pozitivnem ali negativnem znesku
+pa se konkretna zbirna temeljnica preskoči, če obveznega konta ni.
+
+Če je kategorija podvojena, pripada drugemu podjetju ali vsebuje neveljaven
+ID, preslikave ne potrjujte. Napako odpravite pri izvorni kategoriji in nato
+ponovno ustvarite oziroma osvežite osnutek.
+
+## 12. Frekvenca in začetek veljavnosti
+
+Na zaslonu nastavitev sta ločeni:
+
+* **frekvenca knjiženja prodaje**: dnevno ali mesečno;
+* **frekvenca knjiženja porabe**: dnevno ali mesečno.
+
+Spremembo zapišite z datumom uveljavitve v obliki **dd.mm.yyyy** in jo
+uskladite z računovodsko politiko. Pred datumom uveljavitve ne spreminjajte
+starih potrjenih temeljnic. Pri dnevni prodaji preverite, da ponovitev istega
+poslovnega dne uporabi isto referenco in ne ustvari dvojnika. Pri mesečni
+frekvenci preverite, da dnevni klic ne ustvari dodatne prodajne temeljnice.
+
+### 12.1 Kontrola po spremembi
+
+Za vsako spremembo shranite:
+
+* podjetje in poslovno enoto;
+* datum uveljavitve **dd.mm.yyyy**;
+* staro in novo konto-preslikavo;
+* uporabnika in razlog spremembe;
+* testni račun oziroma prejemnico;
+* rezultat D/K, DDV, partnerja, dimenzij in reference.
+
+Če se po spremembi pojavi opozorilo o neveljavnem kontu, manjkajoči dimenziji
+ali preskoku, opozorila ne zapirajte brez popravka. Osnutek zadržite,
+preslikavo popravite, nato ponovno izvedite sinhronizacijo in preverite, da
+prejšnja potrjena temeljnica ni bila prepisana.

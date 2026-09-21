@@ -152,3 +152,4 @@
 - [Povratna embalaža](povratna-embalaza.md) — fizična zaloga ostane skupna, dobaviteljski kavcijski saldo pa je ločen append-only promet s snapshot vrednostjo.
 - [Alergenski posnetek prejemnice](prejemnica-alergeni.md) — običajno urejanje ohrani zgodovinski posnetek; nova potrditev velja za novo vrstico ali zamenjan artikel.
 - [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.
+- [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.

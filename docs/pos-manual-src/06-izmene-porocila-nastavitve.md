@@ -1574,3 +1574,339 @@ Utemeljitev: kopija ne sproži novega plačila.
 Primer: preostanek ni nič.
 Dejanje: računa še ne izdate.
 Utemeljitev: preveriti je treba plačilne vrstice.
+
+## 45. Izdaja 8.3: zanesljiva obnova plačil
+
+To poglavje določa enoten postopek za kartični poskus, pri katerem odgovor
+terminala, ponudnika ali POS-a ni takoj jasen. **Neznano** ni enako
+**zavrnjeno** in ni enako **uspešno**.
+
+### 45.1 Enoten postopek pred ponovitvijo
+
+1. Zaklenite nov poskus za isti znesek in ne klikajte plačila ponovno.
+2. Zapišite številko naročila, znesek, čas, ponudnika in prikazano referenco.
+3. V POS-u odprite obnovljive plačilne poskuse oziroma panel za uskladitev.
+4. Izberite samo poskus z istim naročilom, zneskom in ponudnikom.
+5. Preverite rezultat pri ponudniku ali na terminalu.
+6. Če je rezultat **uspešen**, nadaljujte z istim plačilnim poskusom in izdajo
+   računa.
+7. Če je rezultat **zavrnitve**, odklenite nov poskus samo za neplačani znesek.
+8. Če rezultat ostane **neznan**, ga ne prekrijte z novim plačilom; primer
+   predajte vodji oziroma podpori z zabeleženimi podatki.
+
+Ponovitev je dovoljena samo kot preverjanje oziroma nadaljevanje istega
+idempotentnega poskusa. Nov ključ oziroma nov terminal za isti znesek lahko
+povzroči dvojno bremenitev.
+
+### 45.2 Razlike med ponudniki
+
+| Ponudnik oziroma tok | Kaj preveri blagajnik | Varen naslednji korak |
+|---|---|---|
+| Payten TCP | odgovor istega terminala in referenco poskusa | preveri isti poskus; ne zaganjaj drugega terminala |
+| Payten Android | povratek iz Android toka in stanje rezerviranega poskusa | odpri obnovitev istega naročila |
+| Viva Cloud | stanje zahtevka in znesek na terminalu | pri `PENDING` počakaj oziroma preveri status; pri `PAID` nadaljuj |
+| Viva Android | veljaven povratek v POS | ob prekinitvi odpri isti plačilni poskus |
+| Viva Tap to Pay | povratni podatek SoftPOS-a in identifikator | preveri isti identifikator; ne ustvari nove prodaje |
+| SumUp terminal | `paymentAttemptId` in terminalsko stanje | uskladi isti poskus pred ponovitvijo |
+| SumUp QR | `checkoutId` in status QR plačila | pri `pending` ali `unknown` počakaj oziroma preveri isti checkout |
+
+Simulacija ali demo način Viva je lahko uporaben za preskus uporabniškega toka,
+ni pa dokaz produkcijskega plačila. Blagajnik uporablja ponudnika, ki ga POS
+ponudi za izbrano napravo; ponudnika ne zamenja ročno samo zato, ker je prvi tok
+počasen.
+
+## 46. Darilni bon: izdaja, unovčitev in neuspešno plačilo
+
+Darilni bon ima dva ločena postopka:
+
+* **izdaja** ustvari plačan predplačniški bon;
+* **unovčitev** porabi razpoložljivo skupno evidenco bonov pri plačilu računa.
+
+Bon za pico oziroma subvencionirana prehrana sta ločena toka in se ne smeta
+evidentirati kot splošni darilni bon.
+
+### 46.1 Izdaja bona na POS-u
+
+1. Na plačilnem zaslonu odprite dialog **Izdaja darilnega bona**.
+2. Vnesite znesek med 0,01 EUR in 10.000,00 EUR z največ dvema decimalnima
+   mestoma.
+3. Izberite samo gotovino ali kartico; izdaja bona z drugim načinom ni dovoljena.
+4. Pri gotovini preštejte prejeti znesek in preverite vračilo.
+5. Pri kartici POS najprej rezervira izdajo in zažene preverljiv SumUp tok,
+   kadar je kartica vezana na SumUp napravo.
+6. Pred fiskalizacijo preverite, da ponudnik potrjuje isti znesek in isto
+   terminalsko referenco.
+7. Potrdite izdajo šele po uspešnem plačilu in preverite številko oziroma dokaz
+   bona.
+
+Če kartično plačilo ni potrjeno, se izdaja ne fiskalizira. Ne izdajajte bona
+ročno in ne ponavljajte kartice brez preverjanja obstoječe rezervacije izdaje.
+Enak idempotentni ključ vrne isti rezultat; drugačen ključ z istimi podatki lahko
+ustvari novo izdajo in je zato prepovedan.
+
+### 46.2 Unovčitev bona
+
+1. Na plačilnem zaslonu izberite **Darilni bon**.
+2. Preverite trenutno skupno razpoložljivo evidenco.
+3. Vnesite samo znesek, ki ga bon dejansko pokriva.
+4. Pri delnem plačilu preverite preostanek in ga pokrijte z dovoljenim drugim
+   načinom.
+5. Pred izdajo preverite, da je preostanek 0,00 EUR in da sta na računu
+   prikazani obe plačilni vrstici.
+
+Evidenca je skupna in ne predstavlja nujno individualnega stanja posamezne
+kartice. Pri celotnem kritju bona se kartični tok ne zažene. Darilni bon ne
+omogoča samodejnega gotovinskega vračila; vračilo vedno vežite na izvirni
+račun in odobren postopek.
+
+## 47. Politika napitnin in računovodska sled
+
+Napitnina je ločen znesek in ni prodaja artikla. Ne povečuje osnovice računa,
+DDV ali fiskalnega zneska. Pri plačilnem toku preverite:
+
+1. ali je za podjetje in enoto veljavna politika napitnin;
+2. ali politika velja na datum in čas plačila;
+3. kateri način zajema je dovoljen za gotovino, kartico ali mešano plačilo;
+4. ali je gost pred potrditvijo videl in potrdil znesek;
+5. kateremu profilu oziroma prejemniku se napitnina razporedi.
+
+Pri kartici se lahko napitnina pošlje v terminalskem znesku, vendar mora biti
+osnovni račun in napitnina v POS-u shranjena ločeno. Pri gotovini se napitnina
+ne sme skriti v ceni artikla ali v vračilu. Pri mešanem plačilu zabeležite,
+katera oseba in kateri plačilni del vsebujeta napitnino.
+
+Napitnina se prikazuje ločeno v realizaciji, Z-poročilu in računovodskem
+zapiranju, kadar je ta dimenzija za enoto omogočena. Razveljavitev ali storno
+plačila mora razveljaviti tudi pripadajočo razporeditev napitnine; ne popravljajte
+je z neuradnim negativnim artiklom. Pri celotnem plačilu z darilnim bonom
+napitnina ni dovoljena, razen če konfiguracija izrecno pokaže drugačen podprt
+tok.
+
+## 48. Offline fiskalni tok: naprava, vrsta in uskladitev
+
+Offline fiskalni tok ni splošno dovoljenje za delo brez povezave. Skrbnik mora
+pred uporabo:
+
+1. registrirati napravo in jo povezati s pravilnim podjetjem, enoto in blagajno;
+2. pridobiti veljaven **authority bundle** z operatorjem, katalogom, DDV,
+   dovoljenimi načini in omejitvami zneskov;
+3. napravo aktivirati samo za čas in obseg, ki ga dovoljuje politika;
+4. določiti, ali je vir `CLOUD_OFFLINE` ali lokalni prehod `GATEWAY`;
+5. preveriti, da so lokalni prehod, ura naprave in dovoljenje dosegljivi.
+
+Blagajnik sme offline izdati samo račun, ki ga naprava in authority bundle
+izrecno dovolita. Po izdaji se shrani lokalni dokaz s svojim operacijskim
+ključem; isti račun se ne sme ročno ponovno vnesti.
+
+### 48.1 Po vrnitvi povezave
+
+Skrbnik v administrativnem panelu pregleda offline vrsto in za vsak zapis izvede
+ustrezen korak:
+
+* **ingest** sprejme lokalni zapis v strežniško vrsto;
+* **retry** ponovno pošlje zapis, ki ga je dovoljeno ponovno poslati;
+* **reconcile** primerja lokalni dokaz, strežniški zapis in odgovor FURS;
+* **claim** prevzame nerešen zapis v obravnavo odgovorne osebe;
+* **revoke** prekliče napravo ali authority bundle, kadar ni več zaupanja v
+  napravo.
+
+Vrsta se ne šteje za prazno samo zato, ker je uporabniški zaslon zaprt. Za
+zaključek preverite število sprejetih, potrjenih, neuspešnih in nerešenih
+zapisov, EOR pri potrjenih računih ter razlog pri vsakem neuspešnem zapisu.
+Konflikta ne rešujte z novim računom; najprej uskladite isti operacijski ključ.
+
+## 49. FURS, tisk in dokumenti po izdaji
+
+Pri vsakem računu ločite:
+
+* **potrjeno** – FURS je vrnil EOR;
+* **v obdelavi** – zahtevek še teče in se ne ponavlja ročno;
+* **neznano** – prenos ali odgovor ni zanesljivo zaključen;
+* **neuspešno** – sistem je shranil razlog in dovoljuje obravnavo oziroma retry;
+* **stornirano** – izvirni račun ima sledljiv popravek in ni navaden kandidat za
+  ponovno izdajo.
+
+FURS retry vedno uporablja obstoječi račun, njegovo vsebino in izvirni
+identifikator. Pred retry zapišite številke prizadetih računov, po retry pa
+preverite EOR, število uspešnih in neuspešnih zapisov. Manjkajoči EOR ni
+samodejno dokaz, da računa ni; pri neznanem stanju je potreben pregled.
+
+Napaka tiskalnika, lokalnega mostu ali BizBoxa ne pomeni, da račun ni izdan.
+Najprej preverite številko računa, fiskalni status, papir, pokrov, napajanje,
+izbrani tiskalnik, širino 32/58 mm in povezavo mostu. Nato uporabite **Ponatis**.
+Ponatis ne ustvarja novega računa, novo plačilo ali storno samo zaradi slabega
+izpisa pa sta napačna.
+
+## 50. Storno, vračilo in pregled plačil
+
+POS podpira sledljiv popravek celotnega izdanega računa. Posamezne postavke ali
+količine se ne stornirajo neposredno. Pri delnem vsebinskem popravku:
+
+1. poiščite izvirni račun;
+2. preverite vsa plačila, napitnino, FURS status in razlog;
+3. izvedite celotni storno z dovoljenjem;
+4. preverite povezavo storno dokumenta z izvirnikom;
+5. za veljavni preostali promet ustvarite nov pravilen račun;
+6. vračilo izvedite po prvotnem oziroma dovoljenem plačilnem toku.
+
+Pri več plačilih je treba ločeno preveriti status vsake plačilne vrstice. Če je
+razveljavljena samo ena vrstica, račun ni samodejno v celoti plačan niti v celoti
+neplačan. V računovodskem pregledu mora biti razvidno, katera vrstica je bila
+razveljavljena, kdaj, kdo jo je razveljavil in na kateri izvirni račun se nanaša.
+Kartično vračilo uporabite prek ponudnika, ki je sprejel izvirno bremenitev;
+ne nadomestite ga z novo prodajo z negativnim zneskom.
+
+## 51. X- in Z-poročilo ter blagajniški premiki
+
+**X-poročilo** je vmesni pregled brez zapiranja blagajniške izmene. Uporabite
+ga za kontrolo prometa, načinov plačila, napitnin, bonov, storna in pričakovane
+gotovine. Večkratni X ne spremeni prometa in ne sme biti uporabljen kot dokaz,
+da je izmena zaključena.
+
+Pred **Z-poročilom** vodja:
+
+1. preveri vse odprte oziroma neusklajene plačilne poskuse;
+2. pregleda gotovino, kartice, bone, TRR, napitnine, storna in vračila;
+3. vnese dejanski polog ali dvig z razlogom in dovoljenjem;
+4. preveri, da je premik viden v blagajniški evidenci;
+5. potrdi Z-poročilo šele po uskladitvi pričakovanega in dejanskega stanja;
+6. po zaključku preveri številko Z, datum poslovanja in rezultat prenosa.
+
+Polog in dvig nista nadomestilo za popravek napačnega plačila. Storno
+blagajniškega premika ohrani izvirni premik in revizijsko sled; ne brišite ga in
+ne ustvarjajte nasprotnega premika brez dovoljenja. Pri razliki zapišite
+pričakovani znesek, dejanski znesek, razliko, razlog in odgovorno osebo.
+
+## 52. Meje spletnih plačil in rezervacij
+
+Trenutna izvedba POS Gostinstvo nima:
+
+* javnega spletnega obrazca za internetne rezervacije,
+* spletne trgovine oziroma javnega nakupa darilnega bona,
+* Stripe Checkout, PaymentIntent ali Stripe webhooka.
+
+QR meni je javni kanal za ogled menija, naročilo, klic natakarja, napitnino in
+morebitno povratno informacijo; QR oddaja naročila sama po sebi ni dokaz
+plačila. Notranje POS-rezervacije miz niso internetne rezervacije. Ne obljubljajte
+gostu potrditve spletne rezervacije ali spletnega bona, če tak kanal ni
+izrecno uveden in dokumentiran v novi izdaji programa.
+
+## 53. Računovodski pregled sprememb plačil in storna računa
+
+Ta postopek uporablja vodja izmene, administrator ali računovodja, kadar je
+treba razložiti popravek računa, več plačil, razveljavitev plačil ali vračilo.
+Namen pregleda je ugotoviti dejansko stanje brez novega plačila, brisanja
+izvirnika ali sklepanja samo iz skupnega zneska.
+
+### 53.1 Predpogoji in dokazila
+
+Pripravite:
+
+* številko izvirnega računa oziroma ID računa;
+* poslovno enoto, blagajno in poslovni datum v obliki **dd.mm.yyyy**;
+* vlogo, ki dovoljuje pregled oziroma razveljavitev;
+* razlog za popravek in, kadar gre za kartico, referenco ponudnika ali
+  `paymentAttemptId`;
+* odprto računovodsko obdobje, kadar se razveljavlja že knjiženo plačilo.
+
+Če je kateri od teh podatkov neznan, najprej poiščite izvirni zapis v seznamu
+računov oziroma plačil. Ne ustvarjajte novega računa, da bi dobili drug ID za
+isti dogodek.
+
+### 53.2 Pregled avtoritativnega zapisa
+
+1. Odprite račun oziroma plačilo, ki je predmet poizvedbe. Če v vaši vlogi
+   ločen zaslon za pregled ni viden, uporabite razpoložljivi seznam računov ali
+   plačil in ID zapisa predajte računovodji oziroma skrbniku; ne ugibajte
+   imena gumba ali statusa.
+2. Zapišite številko računa, izvirni ID, poslovni datum, čas zapisa, enoto,
+   blagajno in trenutni status računa.
+3. Preglejte vsako plačilno vrstico posebej: znesek, način, status, referenco
+   ponudnika, čas in povezavo na izvirni račun.
+4. Ločite stanje **potrjeno**, **v obdelavi**, **neznano** in
+   **razveljavljeno**. Klik na plačilo ali zapis v naročilu ni dokaz, da je
+   denar prejet.
+5. Primerjajte vsoto veljavnih plačil s skupnim zneskom računa. Napitnino,
+   darilni bon, kartico in gotovino obravnavajte kot ločene evidence.
+
+Pri več plačilih razveljavitev ene vrstice ne pomeni, da je celoten račun
+plačan ali neplačan. Po razveljavitvi ene vrstice ponovno preverite preostanek
+in vse druge vrstice. Če je katera vrstica še vedno **v obdelavi** ali
+**neznana**, jo najprej razrešite po postopku za obnovo plačil; ne dodajajte
+novega plačila na slepo.
+
+### 53.3 Razveljavitev že knjiženega plačila
+
+V pregledani računovodski izvedbi je razveljavitev plačila dovoljena samo
+pooblaščenemu računovodji ali lastniku in samo za plačilo s statusom
+**knjiženo**. Postopek je:
+
+1. Odprite zapis plačila in preverite njegove poravnave z računi.
+2. Preverite, da ciljno računovodsko obdobje ni zaklenjeno.
+3. Izberite razveljavitev samo, če je izvirno plačilo napačno ali ga je treba
+   uradno obrniti; vnesite razlog.
+4. Izberite odprto ciljno obdobje, kadar program to zahteva, in potrdite
+   razveljavitev.
+5. Po potrditvi preverite, da je nastal povezani storno knjižni zapis, da so
+   poravnave sproščene in da je izvirno plačilo še vedno vidno.
+6. Zabeležite status, čas, izvajalca, razlog in ID povezane temeljnice.
+
+Razveljavitev ne sme izbrisati izvirnega plačila. Če je obdobje zaklenjeno,
+plačilo ni knjiženo ali program ne vrne potrditve, postopka ne ponavljajte z
+drugim zapisom. Shranite ID in sporočilo napake ter zadevo predate osebi, ki
+lahko odpre oziroma določi pravilno obdobje.
+
+Če uporabniški vmesnik ne pokaže statusa, časa ali izvajalca razveljavitve,
+tega podatka ne nadomestite z ročnim vnosom. Za uradni dokaz uporabite
+povezani revizijski zapis oziroma temeljnico, ki jo mora preveriti
+računovodja ali skrbnik.
+
+### 53.4 Celotni storno računa in popravek ene postavke
+
+Celotni storno se uporablja za že izdani račun, kadar je treba razveljaviti
+celoten dokument. Pred potrditvijo:
+
+1. preverite izvirni račun, vsa plačila, FURS status in razlog;
+2. zagotovite zahtevano odobritev;
+3. izvedite celotni storno, ne brisanja računa;
+4. preverite, da ima storno svojo številko in povezavo na izvirnik;
+5. preverite fiskalni rezultat storna in stanje plačil;
+6. če del prometa ostane veljaven, ustvarite novo naročilo in nov račun samo
+   za pravilno vsebino.
+
+Ločen popravek ene postavke ali količine v izdanem računu ni potrjen kot
+samostojen POS postopek. Zato ne iščite ali izmišljajte gumba za delni storno:
+uporabite celotni storno in nov pravilen račun po postopku iz tega poglavja.
+
+### 53.5 Vračilo in kartično povračilo
+
+Pri vračilu:
+
+1. preverite, ali je vračilo odobreno in na kateri račun se nanaša;
+2. uporabite prvotni oziroma za to plačilo dovoljen način vračila;
+3. pri kartici uporabite ponudnika, ki je sprejel izvirno bremenitev, in
+   shranite referenco povračila;
+4. pri neznanem rezultatu povračila preverite isti poskus oziroma referenco,
+   preden ga ponovite;
+5. preverite, da sta vračilo in morebitna razveljavitev vidna ločeno od
+   izvirne prodaje.
+
+Ne izvajajte vračila z novo negativno prodajo, ne izdajajte novega računa
+namesto povračila in ne vračajte kartičnega zneska z gotovino, če to ni
+izrecno dovoljen postopek ponudnika oziroma podjetja.
+
+### 53.6 Poslovni učinek in varna kontrola po postopku
+
+Po razveljavitvi plačila ali stornu mora računovodja preveriti:
+
+* da izvirni račun in izvirno plačilo ostaneta vidna;
+* da je storno oziroma razveljavitev povezana z izvirnikom;
+* da so poravnave in odprti znesek preračunani;
+* da se knjižbe v glavni knjigi ujemajo z učinkom popravka;
+* da so FURS, kartično povračilo, gotovina, bon in napitnina obravnavani
+  ločeno;
+* da so razlog, čas, izvajalec in uporabljena referenca dokazljivi.
+
+Če se prikaz računa, plačila in temeljnice ne ujema, primer ostane odprt.
+Ne popravljajte ga z dodatnim plačilom, nasprotnim pologom ali ročnim
+spreminjanjem zneska brez odobrenega računovodskega postopka.

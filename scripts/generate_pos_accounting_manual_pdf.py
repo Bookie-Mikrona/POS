@@ -16,7 +16,7 @@ import generate_pos_manual_pdf as base
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-accounting-manual-src"
-OUTPUT = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.3.pdf"
+OUTPUT = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.4.pdf"
 SOURCE_FILES = [
     ("I", "Računovodska sled in delo s temeljnicami", "00-uvod-in-delo-s-temeljnicami.md"),
     ("II", "Privzeti konti in preslikave", "01-privzeti-konti.md"),
@@ -35,7 +35,7 @@ class AccountingManualDocTemplate(base.ManualDocTemplate):
             canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
             canvas.setFont("Manual", 8.2)
             canvas.setFillColor(base.MUTED)
-            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — računovodski priročnik v1.3")
+            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — računovodski priročnik v1.4")
             canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
         canvas.restoreState()
 
@@ -47,11 +47,11 @@ def build_story(styles, doc):
         Paragraph("Mikrona d.o.o.", styles["cover_meta"]),
         Spacer(1, 38 * mm),
         Paragraph("POS Gostinstvo", styles["cover_title"]),
-        Paragraph("Računovodski priročnik · izdaja 1.3", styles["cover_subtitle"]),
+        Paragraph("Celovit računovodski priročnik · izdaja 1.4", styles["cover_subtitle"]),
         Spacer(1, 13 * mm),
         Table(
             [
-                ["Različica", "1.3"],
+                ["Različica", "1.4"],
                 ["Obseg", "privzeti konti, tvorba temeljnic, prodaja, plačila, DDV, nabava, zaloga, kontrole in robni primeri"],
                 ["Datum izdaje", date.today().strftime("%d.%m.%Y")],
             ],
@@ -103,7 +103,16 @@ def build_story(styles, doc):
             "](../pos-accounting-manual-images/",
             "](docs/pos-accounting-manual-images/",
         )
-        story.extend(base.markdown_to_flowables(markdown, styles, doc.width))
+        invalid_dates = sorted(set(base.NON_SLOVENIAN_DATE.findall(markdown)))
+        if invalid_dates:
+            raise ValueError(
+                f"{filename} vsebuje datume zunaj oblike dd.mm.yyyy: "
+                + ", ".join(invalid_dates)
+            )
+        flowables = base.markdown_to_flowables(markdown, styles, doc.width)
+        if not flowables:
+            raise ValueError(f"{filename} po filtriranju nima vsebine")
+        story.extend(flowables)
         story.append(PageBreak())
     story.extend([Spacer(1, 45 * mm), Paragraph("Konec računovodskega priročnika", styles["part"])])
     return story
@@ -120,7 +129,7 @@ def main() -> None:
         rightMargin=19 * mm,
         topMargin=18 * mm,
         bottomMargin=21 * mm,
-        title="POS Gostinstvo — računovodski priročnik v1.3",
+        title="POS Gostinstvo — celovit računovodski priročnik v1.4",
         author="Bookie",
         subject="Računovodski priročnik za modul POS Gostinstvo",
         creator="Bookie POS Gostinstvo",

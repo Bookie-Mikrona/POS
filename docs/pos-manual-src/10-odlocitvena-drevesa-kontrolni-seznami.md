@@ -1638,6 +1638,39 @@ Evidenca dogodka navede predajo odprtih izjem v zaključek po 08.
 Primer uspešne vrstice: »Dogodek, blagajnik, terminalski neskladni rezultat, ponovitev blokirana, 10/10.«
 Primer neustrezne vrstice: »Dogodek je bil uspešen.«
 
+## 35. Hitra kartica za POS PIN in napravo
+
+### 35.1 POS PIN
+
+- [ ] Uporabljam svoj POS PIN, ne PIN-a sodelavca.
+- [ ] Pred menjavo preverim podjetje, enoto, blagajno in izmeno.
+- [ ] Po menjavi preverim prikazano identiteto natakarja.
+- [ ] Ob napačnem PIN-u ne ugibam in ne ustvarjam novega računa.
+- [ ] Pozabljen ali preklican PIN predam vodji oziroma administratorju.
+- [ ] Hitra menjava ostane v revizijski sledi.
+
+### 35.2 Naprava
+
+- [ ] Vidim samo dovoljene mize oziroma potrjeno območje.
+- [ ] Preveril sem vezani tiskalnik in terminal.
+- [ ] Ne preglasim vezave naprave z naključno izbiro druge naprave.
+- [ ] Pri težavi s šumniki ali EUR preverim kodno stran in tiskalni most.
+- [ ] Demo Viva rezultat ni označen kot produkcijsko plačilo.
+- [ ] Sprememba ima lastnika, preskus in načrt vrnitve.
+
+## 36. Funkcije, ki jih ne smemo obljubiti
+
+V trenutni izvedbi niso na voljo:
+
+- javna internetna rezervacija mize;
+- spletni nakup ali dostava darilnega bona;
+- Stripe spletno plačilo, Stripe Checkout, PaymentIntent ali webhook.
+
+Če gost ali naročnik zahteva eno od teh funkcij, zapišite zahtevo in jo predajte
+odgovorni osebi. Ne ustvarjajte ročnega postopka, ki bi se navzven predstavljal
+kot dokončana rezervacija ali spletno plačilo. Notranja POS-rezervacija,
+izdaja/unovčenje bona na POS-u in QR naročanje so ločeni postopki.
+
 ## 35. Obnovitev usposobljenosti in končna odločitev
 
 Obnovitev se nanaša na opaženo vrzel, ne na kaznovanje osebe.

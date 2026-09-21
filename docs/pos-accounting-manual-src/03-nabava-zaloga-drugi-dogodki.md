@@ -224,11 +224,13 @@ depozitne obveznosti:
 
 | Konto | Naziv | D/K | Znesek |
 |---|---|---:|---:|
-| 1291000 | Terjatev za povratno embalažo | D | 60,00 |
+| 3107000 | Zaloga povratne embalaže | D | 60,00 |
 | 2201000 | Dobavitelji | K | 60,00 |
 
-Če depozit ni na računu ali ni nastavljen GL-konto, **ne tvorite te
-temeljnice**; preverite le evidenco embalažnega prometa.
+Debetna vrstica uporablja nastavljeni `returnablePackagingAccountId`; številka
+3107000 je samo kontrolni primer. Če depozit ni na računu ali konto ni
+nastavljen, **ne tvorite te temeljnice**; preverite le evidenco embalažnega
+prometa.
 
 ### 4.3 Vračilo embalaže
 
@@ -604,3 +606,194 @@ preveriti, da embalažni učinek ni zajet dvakrat.
    brez GL učinka.
 10. Pri uvozu v drug program uporabite stabilen ključ `(company, enota,
     sourceType, sourceId)` in zavrnite podvojitev.
+
+## 17. Dopolnilne kontrole dobavnih dokumentov
+
+### 17.1 Dobavnica brez računa in poznejši račun
+
+Dobavnica je lahko samo operativni dokument ali pa ima v podjetju določen
+vmesni računovodski tok. Pred potrditvijo preverite, katera od teh dveh poti je
+za podjetje dovoljena. Če predogled temeljnice za dobavnico ni na voljo, jo
+vodite brez GL-učinka; poznejši račun je takrat edini finančni dokument.
+
+Ko prispe račun za že prejeto dobavnico:
+
+1. poiščite izvorno dobavnico po dobavitelju, številki dokumenta in vrsticah;
+2. primerjajte artikel, količino, ceno, DDV in datum prejema;
+3. preverite, da račun ne ustvari novega količinskega prevzema;
+4. v temeljnici preverite, ali se zapira vmesni konto ali se obveznost
+   ustvari neposredno do dobavitelja;
+5. če povezave oziroma primerjave ni mogoče dokazati, zadržite knjiženje in
+   račun obravnavajte kot edini finančni dokument po odobreni politiki.
+
+Ne popravljajte dvojnega giba z neposrednim izbrisom knjižbe. Zabeležite oba
+izvorna ID-ja, razlog in odločitev računovodskega vodje.
+
+### 17.2 Dobropis in bremepis dobavitelja — omejitev izvedbe
+
+Vrsti **DOBROPIS** in **BREMEPIS** sta lahko na voljo pri operativnem vnosu,
+vendar trenutna samodejna pot ne zagotavlja pravilne negativne oziroma
+pozitivne GL-obravnave. Zato:
+
+- dobropisa ne potrjujte kot samodejne končne obveznosti, če predogled ne
+  pokaže zmanjšanja obveznosti, zaloge in vstopnega DDV;
+- bremepisa ne obravnavajte kot obveznost samo zato, ker se je ustvaril
+  osnutek na vmesnem kontu;
+- ročni računovodski dokument vedno povežite z izvirnim računom, dobaviteljem,
+  fizičnim vračilom in referenco operativnega dokumenta;
+- embalažnega ali zalogovnega giba ne ponovite še enkrat v ročnem vnosu.
+
+To je omejitev samodejne knjižne poti, ne razlog za prikrivanje dokumenta.
+Dokler namenski tok ni potrjen, je pravilen rezultat ročna, odobrena
+temeljnica z jasno sledjo.
+
+### 17.3 Neodbitni DDV — samo ročna pot
+
+Samodejna prejemniška pot je namenjena običajnemu odbitnemu vhodnemu DDV.
+Neodbitnega DDV ne knjižite na konto vstopnega DDV in ne potrjujte osnutka,
+če ne vsebuje bruto zaloge oziroma bruto stroška po davčni politiki podjetja.
+
+Računovodja pred ročnim vnosom preveri:
+
+1. razlog neodbitnosti in kategorijo stroška;
+2. ali DDV poveča nabavno vrednost zaloge ali strošek;
+3. konto dobavitelja in odprto obdobje;
+4. da se isti dokument ne pojavi še v samodejni temeljnici.
+
+Samodejni UI/API režim za neodbitni DDV ni potrjen; priročnik zato ne sme
+obljubiti izbire »neodbitni DDV« v prejemnici.
+
+## 18. Odvisni stroški, WAC in čas nastanka stroška
+
+Odvisni strošek (prevoz, carina ali druga neposredna storitev) ima v
+prejemnici določeno obravnavo **zaloga** ali **strošek**. Pred knjiženjem
+zabeležite:
+
+- izvorni dokument in dobavitelja;
+- neto znesek, DDV-kodo in obravnavo;
+- artikel oziroma skupino, na katero se strošek nanaša;
+- uporabljeni konto in stroškovno mesto.
+
+Če je obravnava **strošek**, se knjiži ločeno na stroškovni konto in ne
+povečuje WAC. Če je obravnava **zaloga**, mora predogled ali računovodska
+politika pokazati, kako je strošek razporejen na prejete artikle. Če
+razporeditve ni mogoče dokazati, ne izmišljajte formule in ne potrjujte
+ročno izračunane vrednosti brez odobritve.
+
+Kontrolni izračun WAC za en artikel je:
+
+`nova povprečna cena = (stara količina × stara cena + nova količina × nova cena
++ razporejeni zalogovni odvisni stroški) / (stara količina + nova količina)`
+
+Pri delni porabi preverite, da se WAC posname ob gibu in da se strošek
+prodanega blaga oziroma porabe ne izračuna iz današnje cene po naključju.
+Če je WAC samo v zalogovni evidenci in ni ustvarjen GL-predogled, to označite
+kot operativno vrednotenje brez samodejne temeljnice.
+
+## 19. Zaloga, pripravljena hrana, odpad in prenosi
+
+### 19.1 Inventura, odpis in COGS
+
+Inventura popravi količino; sama po sebi še ne dokazuje GL-knjižbe. Pred
+potrditvijo razlike določite razlog (višek, manjko, kalo, poškodba) in
+preverite, ali obstaja računovodski predogled. Pri odpadu surovin oziroma
+blaga mora biti v temeljnici razviden strošek odpisa in zmanjšanje zaloge;
+če predogleda ni, uporabite odobreno ročno pot z referenco inventure.
+
+COGS oziroma poraba surovin nastane ob podprtem normativnem gibu ali drugem
+knjižnem viru, ne že ob samem vnosu artikla v meni. Računovodja preveri:
+izvorni artikel, količino, normativ, WAC-posnetek, konto porabe, konto zaloge
+in datum nastanka. Ne knjižite iste porabe še enkrat iz operativnega poročila.
+
+### 19.2 Pripravljena in sestavljena hrana
+
+Priprava, odtajanje, zamrzovanje in razpoložljivost pripravljene hrane so
+operativni zapisi. V trenutni izvedbi samodejni prenos proizvodnje v GL ni
+zagotovljen. Zato:
+
+- ne ustvarite proizvodne temeljnice samo iz količine pripravljene hrane;
+- ob prodaji preverite dejanski podprti normativni gib in COGS;
+- odpad s krožnika ločite od odpisa pripravljene hrane in od negativne
+  prodaje;
+- če podjetje zahteva GL za proizvodnjo ali odpad, uporabite odobreno ročno
+  temeljnico z virom, količino, WAC in razlogom.
+
+### 19.3 Prenosi med enotami in dogodki
+
+Pri prenosu zabeležite izvorno enoto, ciljno enoto, artikel, količino,
+referenco in odgovorni osebi. Prenos z istim kontom je lahko samo operativni
+premik brez neto GL-učinka. Prenos med različnimi konti ali enotami ima GL
+učinek samo, če ga pokaže podprti predogled.
+
+Vračilo z dogodka je nasprotni prenos na izvorno referenco. Delnega vračila
+ne knjižite kot celotnega in ne ustvarjajte prihodka ali DDV, kjer ni prodaje.
+Če neposredna knjižna pot ni potrjena, ohranite operativno sled in uporabite
+odobreno ročno računovodsko obravnavo.
+
+## 20. X-poročilo, gotovinsko štetje in bančni izpiski
+
+### 20.1 X-poročilo in omejitev vnosa gotovine
+
+X-poročilo je vmesni izkaz prometa in plačilnih načinov. Sam po sebi ne
+dokazuje, da je bilo fizično štetje shranjeno v računovodskem modulu.
+Računovodja zato ob kontroli shrani oziroma podpiše ločeno dokazilo:
+poslovna enota, blagajna, uporabnik, čas štetja, apoeni, skupni znesek in
+razlika glede na X-izkaz.
+
+Ne pišite, da je štetje uspešno vneseno v POS, če UI tega ne pokaže. Ob
+razliki primerjajte X, Z, blagajniške pologe/dvige in odprte račune; popravek
+je nov blagajniški ali izvorni dokument, ne sprememba poročila.
+
+### 20.2 Uvoz bančnega izpiska in dokazilo
+
+Pri uvozu oziroma vnosu bančnega izpiska hranite datoteko ali referenco
+izpiska, banko, račun, začetno stanje, končno stanje, obdobje in število
+transakcij. Pred potrditvijo preverite:
+
+1. da pripada izpisek pravemu podjetju in računu;
+2. da se začetno stanje nadaljuje iz prejšnjega potrjenega izpiska;
+3. da je končno stanje enako začetnemu stanju plus promet po izpisku;
+4. da se valuta, predznak in datum transakcije niso spremenili;
+5. da uvoz iste datoteke oziroma iste reference ne ustvari dvojnikov.
+
+Konto skupine **110x** je kontrolni konto denarnih sredstev, ne dokaz
+usklajenosti. Če obstajajo konti 110x brez knjižb, mora biti prikazani saldo
+nič oziroma mora računovodja manjkajoče knjižbe izrecno razložiti. Samodejna
+primerjava bančnega izpiska z GL ni zagotovljena; izvedite ročno primerjavo
+po računu, obdobju, referenci in znesku.
+
+## 21. Ujemanje transakcij in izplačilo dobavitelju
+
+Pri ujemanju bančne transakcije z odprtim plačilom preverite znesek,
+referenco, partnerja, račun, datum in že uporabljeni del plačila. Delno
+plačilo lahko zapira samo del odprtega zneska; preostanek mora ostati
+razviden kot odprta postavka. Ne zapirajte celotnega računa samo zato, ker
+se ujema ena od več plačilnih transakcij.
+
+Če je ena transakcija povezana z več dokumenti, shranite razdelitev in
+kontrolni seštevek. Pri ponovnem ujemanju preverite, da ista transakcija ni
+že uporabljena. Neznan ali dvoumen bančni zapis pustite odprt in ga predajte
+računovodskemu vodji.
+
+Izplačilo dobavitelju zahteva partnerja, račun oziroma sklic, znesek,
+plačilni konto in dokazilo banke ali blagajne. Pred knjiženjem preverite, da
+ne gre za plačilo drugemu podjetju, da se obveznost zmanjša samo za plačani
+del in da bančni promet ni ponovno knjižen kot strošek ali prihodek. Če
+ločena samodejna pot izplačila ni potrjena, uporabite ročno temeljnico z
+referenco na odprto obveznost in dokazilo.
+
+## 22. Ročna primerjava POS, X/Z, banke in GL
+
+Pri zaključku obdobja uporabite štiri ločene kontrolne vsote:
+
+| Vir | Kontrola |
+|---|---|
+| POS računi in plačila | bruto prodaja, DDV po stopnjah, storna in načini plačila |
+| X/Z poročilo | promet, gotovina, pologi, dvigi in zaključeni poslovni dan |
+| Bančni izpisek | začetno/končno stanje, kartični prilivi, dobaviteljska plačila |
+| GL temeljnice | status, konto, D/K, partner, dimenzije, vir in preskočeni zapisi |
+
+Avtomatski tie-out med temi viri ni potrjen. Razliko razčlenite po izvorni
+referenci, ne po končnem saldu. Najprej preverite preskočene temeljnice,
+storna, delna plačila, časovne zamike kartičnega kliringa, dobropise in
+neodbitni DDV. Šele nato izvedite dokumentiran popravek ali storno.

@@ -24,12 +24,14 @@
       "artifacts/api-server/src/routes/pos/ai-agent-http.integration.test.ts:1-220"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:431-497",
-      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:539-540"
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:2067-2086",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:2088-2106",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:2108-2120"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "AI UI/hooki in testi poti obstajajo, vendar dokazi v priročniku opisujejo previdnost glede AI/OCR na splošno in ne celoten delovni tok AI-svetovalca."
+    "gap_or_correction": "V8.3 zdaj pokriva identiteto/enoto/sejo in svežino naročila kot predpogoje, vnos konkretnega vprašanja in pregled odgovora, prepoved občutljivih podatkov, omejitev da odgovor ne spreminja poslovnih podatkov, varno nadaljevanje ob nedosegljivosti ali zastarelem kontekstu ter poslovni učinek/omejitve.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-001",
@@ -54,11 +56,13 @@
       "artifacts/api-server/src/routes/javnoMeni.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:1493-1500"
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1489-1505",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:20-26"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Ni ugotovljenih dodatnih vrzeli."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli: priročnik pokrije predpogoje, preverjanje javnega naslova/enote/jezika/artiklov/cen/alergenov/razpoložljivosti/lokacije, varen umik objave in učinek na naročanje.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-001",
@@ -81,11 +85,13 @@
       "artifacts/api-server/src/routes/posBookingSettings.ts:180-184"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3236-3238"
     ],
-    "coverage_status": "NI IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Polja/konfiguracija bonov ne dokazujejo spletnega nakupa ali izdaje."
+    "gap_or_correction": "Priročnik izrecno navaja, da javni QR meni ne podpira spletnega nakupa darilnega bona, ter usmerja uporabnika na potrjen notranji POS postopek oziroma na obvestilo, da funkcija ni na voljo.",
+    "implementation_status": "NI IMPLEMENTIRANO"
   },
   {
     "id": "POS-002",
@@ -101,21 +107,25 @@
       "Vsi odprti nalogi in plačilne izjeme rešeni"
     ],
     "normal_flow": "Uporabnik pregleda pričakovano/prešteto gotovino, izvede X ali Z postopek ter zabeleži/nadzira zaključek delovnega dne.",
-    "exceptions_recovery": "Priročnik definira blokatorje, odklepanje in obravnavo neskladij; stran POS/dokazi API za celovit postopek Z niso bili najdeni.",
+  "exceptions_recovery": "Z-zaključek vrne operativne blokade; po odpravi se postopek ponovi. Administratorsko odklepanje je ločen, revizijsko sledljiv postopek.",
     "business_effect": "Zaključi delovni dan in določi zneske gotovine, za katere se odgovarja.",
     "ui_evidence": [
-      "artifacts/pos/src/pages/Settings.tsx:2342-2348"
+    "artifacts/pos/src/pages/Checkout.tsx:4186-4270",
+    "artifacts/pos/src/pages/Checkout.sumup-terminal.test.tsx:309-500"
     ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/reports.ts:917-987"
+    "artifacts/api-server/src/routes/pos/z-porocila.ts:1-700",
+    "artifacts/api-server/src/routes/pos/z-porocila.test.ts:189-600"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:125-180",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2030-2170"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1-290",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:545-595",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:803-819"
     ],
-    "coverage_status": "MANJKA",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Priročnik zahteva ekspliciten postopek X/Z, uskladitev in odklepanje; z iskanimi datotekami ni dokazan noben ustrezen namenski delovni proces v UI."
+  "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli; uporabniški dialog, blokade, zaklep poslovnega dne, odklepanje in strežniški postopek so potrjeni v kodi in testih.",
+  "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ERP-001",
@@ -142,12 +152,13 @@
       "artifacts/api-server/src/lib/journalEntryDeletion.ts:1-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:233-265",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2558-2588"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2514-2588",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2990-3178"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Končne točke za pregled/knjiženje v zalednem sistemu so evidentirane, vendar ni dokazov o namenski strani za pregled POS dnevnikov ali celovitem postopku popravkov."
+    "gap_or_correction": "Ni dokumentacijske vrzeli: priročnik določa predpogoje, pregled žurnala, statuse in čase, dvostavnost, knjiženje, neuspeh, varen ponovni poskus in računovodski učinek.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ERP-002",
@@ -175,11 +186,12 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2514-2576",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2678-2704"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2990-3178"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Dnevni dnevnik je podprt v zalednem sistemu, vendar v POS UI ni dokazov o jasno prepoznavnem procesu dnevne generacije/ponovnega poskusa za uporabnika."
+    "gap_or_correction": "Dnevni POS dnevnik ima opisan predpogoj zaključenega dne, ročni zagon, preverjanje statusa in referenc, obravnavo napake ter ponovitev samo neuspelega dela in učinek na ERP sled.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ERP-003",
@@ -205,11 +217,13 @@
       "artifacts/api-server/src/index.ts:1-20"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2540-2558"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2540-2558",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2990-3178"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Načrtovalnik obstaja, vendar zagon/status/nadzor ponovnega poskusa iz priročnika nista v celoti evidentirana kot administratorski delovni proces."
+    "gap_or_correction": "Mesečni zbirnik je opisan z izborom meseca, omejitvijo na zaključeni mesec, preverjanjem obstoječih referenc/statusa, varnim ponovnim zagonom in razlago, zakaj ne nadomešča dnevnega urejanja razlik.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-002",
@@ -232,10 +246,14 @@
     "api_evidence": [
       "artifacts/api-server/src/routes/pos/ai-agent.test.ts"
     ],
-    "manual_evidence": [],
-    "coverage_status": "DELNO",
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1571-1594",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647"
+    ],
+    "coverage_status": "PRAVILNO",
     "severity": "NIZKO",
-    "gap_or_correction": "UI in testni dokazi obstajajo, vendar produkcijska pot API-ja/običajen odziv in obnašanje pri napakah nista bila vzpostavljena."
+    "gap_or_correction": "Priročnik jasno določa aktiviran QR in nastavitev qrAiAsistentAktiven, dovoljene vsebine, omejitve (brez rezervacije, bona, plačila ali spreminjanja naročila), varni odgovor, nadomestni klic natakarja in učinek napake/potekle seje.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "TEL-001",
@@ -259,12 +277,13 @@
       "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:552-843"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-9",
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:519-520"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:273-320",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1249-1259"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "API/testna pokritost je močna, vendar ni bil najden noben dokaz o UI za telefonskega operaterja."
+    "gap_or_correction": "Priročnik opisuje varen telefonski postopek in jasno omejuje korake, kadar namenski operaterski obrazec ni potrjen.",
+    "implementation_status": "NEPOTRJENO"
   },
   {
     "id": "POS-003",
@@ -302,7 +321,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "UI izbira postaje, knjižnice/testi usmerjanja/dispatcha ter življenjski cikel v priročniku so usklajeni."
+    "gap_or_correction": "Pokriti so postaje, usmerjanje, HOLD/FIRE, priprava, BUMP/izdaja, ponovitev ob napaki in poslovni učinek na naročilo.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-003",
@@ -328,11 +348,13 @@
       "artifacts/api-server/src/routes/javnoMeni.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1110-1117"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1596-1609",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1507-1520"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni ugotovljenih popravkov."
+    "gap_or_correction": "Ni ugotovljene vrzeli: opisan je tok caka→potrjeno→zakljuceno, preverjanje enote/mize/naprave/časa, deduplikacija, ponovni klic in omejitev, da klic ni dokaz obiska.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAPT-001",
@@ -372,11 +394,12 @@
     "manual_evidence": [
       "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:464-476",
       "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:829-837",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1255-1263"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Osnovni zajem napitnine je opisan, manjkajo pa celotna politika, razdelitev, računovodsko zapiranje in javni QR vidik."
+    "gap_or_correction": "Manual pokriva predpogoje, zajem pri gotovini/kartici/mešanem plačilu, omejitve bona, varno popravo in ločeno poročanje; politika delitve po zaposlenih je opisana le kot pravilo postopka, ne kot podrobna računovodska politika.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAP-001",
@@ -406,11 +429,15 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:43-55",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:287-"
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:287-1259",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:730-1044",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1268-1432",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1902-1935"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Obstajajo artefakti nastavitev in integracij, vendar zahtevano preverjanje dodelitve iz priročnika ter končna obnovitev tiskalnika/terminala nista v celoti evidentirana."
+    "gap_or_correction": "Dokumentirani so predpogoji in dodelitve naprav, terminalov, tiskalnikov in mostov, normalni prevzem/preizkus, diagnostika integracij, omejitve ponudnikov in varen postopek po odpovedi.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-004",
@@ -438,11 +465,14 @@
       "artifacts/api-server/src/routes/pos/narocila.ts"
     ],
     "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:13-26",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:64-88",
       "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:143-153"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni ugotovljenih popravkov."
+    "gap_or_correction": "Priročnik pokrije predpogoje, oddajo/preverjanje shranitve in priprave, nevarnost podvajanja ter varen odziv ob izpadu oziroma nejasnem stanju in jasno loči naročilo od računa.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ERP-004",
@@ -469,11 +499,14 @@
       "artifacts/api-server/src/lib/monthlyPosBookingScheduler.ts:1-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2514-2558"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2514-2558",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2592-3178",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1540-1558"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik zahteva definirane tipe prenosa/obravnavo statusov in postopek ponovnega poskusa; dokazi v UI/API potrjujejo nastavitve, ne pa tudi celovitega delovnega procesa, vidnega operaterju."
+    "gap_or_correction": "Dokumentirani so nastavitve in vrste prenosa, statusni nadzor, kontrole referenc, dvostavnosti in DDV, obravnava napak ter ponovni zagon brez podvajanja in poslovne posledice.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-001",
@@ -502,11 +535,14 @@
       "artifacts/api-server/src/routes/payments.void.ledger.test.ts:1-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:320-361"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1799-1910",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:49-190",
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:403-477"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Vedenje zalednega sistema je močno, vendar iskani dokazi v UI ne potrjujejo, da so status/čas stornacije in vse posledice večkratnih plačil vidne računovodskim uporabnikom."
+    "gap_or_correction": "Ni dokumentacijske vrzeli: priročnik določa predpogoje in izvorno sled, normalen tok sinhronizacije/pregleda/knjiženja, statuse in čas potrditve, obravnavo več plačil, storna in neznanih izidov, varno ponovno sinhronizacijo brez dvojnikov ter poslovni učinek.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-002",
@@ -527,11 +563,13 @@
     "ui_evidence": [],
     "api_evidence": [],
     "manual_evidence": [
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3236-3238"
     ],
-    "coverage_status": "NI IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni bil najden noben Stripe SDK, pot, webhook, blagajna ali dokumentiran Stripe postopek."
+    "gap_or_correction": "Priročnik izrecno navaja odsotnost Stripe Checkout/spletnega plačila, prepoved obljube funkcije in varen nadomestni odziv; QR naročilo ni dokaz plačila.",
+    "implementation_status": "NI IMPLEMENTIRANO"
   },
   {
     "id": "POR-001",
@@ -560,11 +598,13 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/08-nastavitve-po-sklopih.md:182-216",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2172-2512"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2172-2512",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3185-3267"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik navaja številne dimenzije operativnih poročil in izvozov; razpoložljivi dokazi UI/API ne potrjujejo vseh variant dnevnih/časovnih/mesečnih poročil."
+    "gap_or_correction": "Priročnik pokriva izbiro dnevnih, časovnih in mesečnih poročil, filtre in datumske predpogoje, izvoz in kontrolo rezultatov, neskladja, omejitve ter poslovni pomen primerjave.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POR-002",
@@ -589,11 +629,13 @@
       "artifacts/api-server/src/routes/reports.ts:474-590"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2192-2340"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2192-2340",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3195-3267"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Stran Realizacija obstaja, vendar dokazi ne potrjujejo vseh filtrov, razčlenitev, izvozov in kontrol usklajevanja, ki jih zahteva priročnik."
+    "gap_or_correction": "Realizacija ima opredeljene dimenzije in filtre, primerjavo z Z, razčlenitev plačil, storne/vračila, izvoz, uskladitev ter varen postopek ob razliki in poslovni učinek.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-005",
@@ -615,11 +657,13 @@
       "artifacts/api-server/src/routes/pos/qr-feedback-report.integration.test.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:505-516"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1611-1632",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1649-1658"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Dokazi na zalednem sistemu/poročilih ne dokazujejo celovitega obrazca za povratne informacije gosta."
+    "gap_or_correction": "Dokumentacija zdaj dovolj določa zaključeno QR naročilo in isto napravo kot predpogoja, enkratno oddajo, polja ocene/komentarja/soglasje, poslovni učinek ter varno zavrnitev pri neveljavni seji, napačnem naročilu ali duplikatu.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-004",
@@ -648,12 +692,13 @@
       "artifacts/api-server/src/routes/posBookingSettings.ts:379-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2592-2638",
-      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:24-"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2592-2990",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:667-679"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Priročnik zahteva eksplicitne preslikave plačilnih kanalov in DDV; vidni POS dokazi ne potrjujejo celovitih urejevalnikov preslikav ali trajne obravnave nerešenih opozoril."
+    "gap_or_correction": "Preslikave plačilnih kanalov in DDV so razložene kot nastavitve po kontnem načrtu, z ločevanjem osnov in stopenj, kontrolno primerjavo z ERP, validacijo in varnim ravnanjem ob nerešenih ali napačnih kontih.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-006",
@@ -679,11 +724,13 @@
       "artifacts/api-server/src/routes/javnoMeni.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:1489-1505"
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1489-1505",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1649-1658"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni potrjenega delovnega toka za izbiro lokacije s strani stranke, razen preverjanja aktivacije."
+    "gap_or_correction": "Kontrolni seznam pokrije aktivacijo, javni naslov, pravo enoto/mizo, preskus na dejanskem telefonu, lokacijsko omejitev, varen umik in posledico napačne objave.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "RAC-001",
@@ -712,12 +759,14 @@
       "artifacts/api-server/src/routes/payments.ts:1083-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:283-361",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1-11"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:678-685",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:933-967",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:595-637"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Iz razpoložljivih dokazov ni vzpostavljen noben popravek."
+    "gap_or_correction": "Manual daje dovolj navodil za iskanje/pregled računov in plačil, razlikovanje poslovnega dne, filtriranje ter varno obravnavo izjem.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "REV-001",
@@ -746,11 +795,14 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:29-55",
-      "docs/pos-manual-src/07-zacetek-dela-dostop.md:1-"
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:535-585",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1850-1900",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1974-2004"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Evidentirani so revizijski primitivi in kontekst avtentikacije, vendar ni evidentiran celovit delovni proces pregleda/izvoza revizijske sledi in varnostne administracije, viden uporabniku."
+    "gap_or_correction": "Priročnik določa sejo in identiteto, najmanjše pravice, revizijski dokaz, pregled revizijske sledi, varno zapiranje incidenta, hrambo dokazov in poslovni učinek napačnega akterja ali spremembe.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "REZ-001",
@@ -772,11 +824,13 @@
       "artifacts/api-server/src/routes/pos/mize.rezervacije.test.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:124-129"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3236-3238"
     ],
-    "coverage_status": "NI IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Obstajajo le notranji/testni dokazi za rezervacijo mize; noben javni spletni UI/API tok za rezervacijo ni bil najden."
+    "gap_or_correction": "Priročnik izrecno določa, da javni QR meni ne podpira javnih internetnih rezervacij, in predpisuje, da se izvedbe ne obljublja ter uporabi potrjen notranji POS postopek oziroma pove, da funkcija ni na voljo.",
+    "implementation_status": "NI IMPLEMENTIRANO"
   },
   {
     "id": "UPR-001",
@@ -803,11 +857,14 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:29-39",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:118-146"
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:118-146",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1937-1973",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:2005-2028"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Obstajajo nastavitve, vezane na vloge, in dokazi o uvozu, vendar niso bile najdene vse UI/API komponente za CRUD operacije uporabnikov/vlog in dodeljevanje."
+    "gap_or_correction": "Dokumentirani so ustvarjanje in sprememba uporabnika/profila/enote/pravic, preverjanje dodelitve, varen odvzem dostopa, ločevanje vlog, recovery ob napačni pravici in poslovni učinek.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-007",
@@ -834,12 +891,14 @@
       "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:627-843"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-9",
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1100-1153"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:20-26",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1137-1153",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1658"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "UI dokaz prikazuje možnost 'za s seboj', vendar celoten postopek potrditve prevzema/identitete gosta v pregledanem UI ni vzpostavljen."
+    "gap_or_correction": "Priročnik pokrije To Go kot kanal, oznako prevzema, pregled priprave/predaje, nevarnost zamenjave paketa in kontrolni seznam pred objavo; dokumentira tudi, da je oddaja ločena od plačila.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "QR-008",
@@ -859,11 +918,14 @@
     ],
     "api_evidence": [],
     "manual_evidence": [
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:512-516"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1553-1569",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1571-1587",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1649-1658"
     ],
-    "coverage_status": "MANJKA",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Obstaja kljuka (hook) za soglasje za zgodovino, vendar nista bila najdena noben prepoznaven delovni tok zgodovine gosta ali API dokaz."
+    "gap_or_correction": "Zgodovina je zdaj dokumentirana kot vezana na isto napravo/brskalnik in izrecno soglasje, privzeto prazna, s povzetki in jasnimi omejitvami (ni dokaz identitete/plačila/prevzema); opisan je varen ponovni zagon seje.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-003",
@@ -890,11 +952,13 @@
       "artifacts/api-server/src/routes/payments.ts:525-579"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:369-396"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:353-386",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:369-376"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni ugotovljene vrzeli v primerjavi z navodilom."
+    "gap_or_correction": "Manual pokriva konfiguracijski predpogoj, običajen tok, neupravičenost/omejitve in poslovni učinek bonov ter subvencije.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-004",
@@ -920,12 +984,13 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:23-76",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:283-330"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:35-74",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:332-413"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni ugotovljene vrzeli v osnovnem toku."
+    "gap_or_correction": "Manual pokriva predpogoje, vse podprte načine, normalni tok, omejitve in recovery pri napačnem oziroma nedovoljenem načinu.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-005",
@@ -952,12 +1017,14 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:644-684"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:106-139",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:488-510"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:106-138",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:489-508",
+      "docs/pos-manual-src/01-operativno-delo.md:748-760"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni ugotovljene vrzeli v obravnavanem toku."
+    "gap_or_correction": "Manual izrecno določa identifikator poskusa, prepoved ponovne bremenitve, preverjanje terminala/POS, obnovitev iste transakcije in učinek dvojne bremenitve.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-006",
@@ -986,12 +1053,13 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:478-527",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:850-889"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:476-535",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:838-887"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni ugotovljene vrzeli; ponudniki so eksplicitno navedeni v UI in priročniku."
+    "gap_or_correction": "Manual za Payten, Viva in SumUp določa izbiro konfiguriranega toka, normalni postopek, pending/unknown recovery in omejitve.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-007",
@@ -1018,12 +1086,13 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:2783-2860"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:417-464",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:778-813"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:76-105",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:415-463"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni ugotovljene vrzeli v dokumentiranem in implementiranem toku."
+    "gap_or_correction": "Manual pokriva delitev po znesku/postavkah, preostanek, mešana plačila, delno potrjen poskus, preprečevanje podvajanja in učinek na račun.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "PLA-008",
@@ -1051,12 +1120,13 @@
       "artifacts/api-server/src/routes/posBookingSettings.ts:600-620"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:353-376",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:787-796"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:353-367",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:787-795"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni ugotovljene vrzeli."
+    "gap_or_correction": "Manual jasno pove, da gre za skupno evidenco, brez individualnega identifikatorja bona, ter določa unovčenje, doplačilo in omejitve.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "DOG-001",
@@ -1083,12 +1153,14 @@
       "artifacts/api-server/src/lib/eventTransferDiagnostics.ts:1-260"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:920-941",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2859-2874",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2473-2477",
       "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1513-1554"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Poti dogodkov/prenosov in diagnostika obstajajo, vendar dobavljeni priročnik ponuja usmerjanje glede incidentov in ne celotnega postopka za normalne prenose."
+    "gap_or_correction": "V8.3 vir zdaj opisuje razliko med dogodkom in dejanskim prenosom, izbor izvora/cilja, potrditev, referenco, idempotentnost, preverjanje zgodovine in varno ravnanje ob napaki.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "DOST-001",
@@ -1119,7 +1191,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "DOST-002",
@@ -1152,7 +1225,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "DOST-003",
@@ -1180,11 +1254,13 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/01-operativno-delo.md:384-483",
-      "docs/pos-manual-src/01-operativno-delo.md:485-565"
+      "docs/pos-manual-src/01-operativno-delo.md:485-565",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:732-848"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik zahteva eksplicitne kontrole za prvi zagon/napravo in obseg miz; dokazi uporabniškega vmesnika kažejo registracijo/nastavitve, vendar ne dokazujejo celotnega dokumentiranega poteka potrditve."
+    "gap_or_correction": "Manual now gives prerequisites, normal registration procedure, device/table limitations, printer/terminal limitations and recovery. The remaining issue is implementation evidence, not documentation coverage.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-005",
@@ -1213,12 +1289,14 @@
       "artifacts/api-server/src/services/pos/offline-fiscal-runner.ts:1-80"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:140-155",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:537-564"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:140-154",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:537-563",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1110-1128"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni ugotovljene vrzeli."
+    "gap_or_correction": "Manual pokriva omogočeni offline režim, omejene načine, sinhronizacijo, EOR/ZOI, retry istega računa in prepoved nove izdaje.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "HOD-001",
@@ -1246,12 +1324,14 @@
       "artifacts/pos/src/components/AgentLauncher.course-clarification.test.tsx:90-130"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-80",
-      "docs/pos-manual-src/01-operativno-delo.md:202-218"
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:198-240",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:573-697",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-218"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Dokazi kode/testov so močni, vendar navedeni priročnik ne dokumentira celotnega poteka sproščanja hodov za natakarja/KDS."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ID-001",
@@ -1278,12 +1358,14 @@
       "artifacts/pos/src/pages/Settings.tsx:1400-1458"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/01-operativno-delo.md:640-664",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:535-540"
+      "docs/pos-manual-src/01-operativno-delo.md:640-684",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1213-1258",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:535-584"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Dokazi dokazujejo konfiguracijo in UI/teste za hitro menjavo, ne pa tudi celotnega dokumentiranega poteka prijave/zaklepanja/revizije s PIN-om."
+    "gap_or_correction": "Manual covers personal identity, shared-device restrictions, handover identity, PIN/quick-switch boundaries, recovery and audit/security implications. The implementation remains only partially evidenced.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "IZM-001",
@@ -1311,12 +1393,18 @@
       "artifacts/pos/src/components/QuickSwitch.tsx:23-180"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:288-341",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:407-420"
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1-35",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:73-92",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:150-232",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:235-289",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:555-603",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:753-822",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1220-1248"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "QuickSwitch prikazuje aktivne izmene, vendar razpoložljivi dokazi ne vzpostavljajo celotnega poteka API-ja za odpiranje/zapiranje/predajo in usklajevanje."
+    "gap_or_correction": "Manual now covers personal opening, closing, handover, cash accountability, exceptions and the explicit limitation that quick identity switching is not equivalent to working-time accounting. API/UI implementation evidence remains incomplete.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "MEN-001",
@@ -1349,7 +1437,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Dokazi eksplicitno modelirajo status, vir, revizijo in podedovane alergene."
+    "gap_or_correction": "Dokumentirani so predpogoji, vnos/dedovanje, potrditev, vir/revizija ter ravnanje ob nejasnem alergenu.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "MEN-002",
@@ -1380,7 +1469,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "UI, knjižnica in priročnik eksplicitno opisujejo načrtovano in ročno obnašanje Happy Hourja."
+    "gap_or_correction": "V8.3 opisuje urnik, ceno, ročni vklop, preverjanje in omejitev ob napačni časovni nastavitvi.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "MEN-003",
@@ -1408,11 +1498,14 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/04-zaloge-dokumenti.md:930-963",
-      "docs/pos-manual-src/04-zaloge-dokumenti.md:1512-1587"
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:1512-1587",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:2020-2052",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:2122-2145"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Dokazano je obnašanje nalaganja slik/različic/referenc; zahtevani delovni tok AI slik je dokazan le posredno s strežniškimi uvozi/testi, ne s popolnim uporabniškim tokom."
+    "gap_or_correction": "V8.3 zdaj dovolj določa predpogoje shranjenega prodajnega artikla in potrjenih lastnosti, generiranje/nalaganje/AI urejanje, pregled in objavo, napake brez domneve o shranitvi, zgodovino in obnovitev ter poslovni učinek in omejitev, da slika ne dokazuje sestavin, količin ali alergenov.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "MEN-004",
@@ -1437,12 +1530,13 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/04-zaloge-dokumenti.md:37-70",
-      "docs/pos-manual-src/04-zaloge-dokumenti.md:488-526",
-      "docs/pos-manual-src/04-zaloge-dokumenti.md:413-423"
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:413-423",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:488-526"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik in UI/API podpirata delovni tok kategorij in vidnosti; iz razpoložljivih dokazov ni bilo ugotovljeno ožje neskladje."
+    "gap_or_correction": "Pokriti so kategorije, vidnost, predogled in varno preverjanje učinka na meni.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "MEN-005",
@@ -1474,7 +1568,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Dokazi pokrivajo dokumentiran delovni tok artiklov, cen in davkov; natančno obnašanje validacije je implementirano v strežniški kodi, vendar tukaj ni reproducirano."
+    "gap_or_correction": "Pokriti so artikli, nabavna/prodajna cena, DDV, predpogoji, validacija in učinek na prodajo oziroma zalogo.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "MIZ-001",
@@ -1502,12 +1597,15 @@
       "artifacts/api-server/src/routes/javnoMeni.ts:483-501"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/01-operativno-delo.md:384-430",
-      "docs/pos-manual-src/01-operativno-delo.md:202-218"
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:1-70",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:120-160",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:292-336",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:340-416"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAB-001",
@@ -1539,7 +1637,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Priročnik eksplicitno zahteva pregled OCR kot predlog; UI/API vsebujeta uvoz in poti za ujemanje embalaže."
+    "gap_or_correction": "Pokriti so predpogoji, OCR predlog, ročni pregled/ujemanje, potrditev ter varno zavračanje ali popravek negotovih vrstic in zalogovni učinek.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAB-002",
@@ -1567,11 +1666,13 @@
     ],
     "manual_evidence": [
       "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:158-179",
-      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1513-1554"
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1513-1554",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2783-2795"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Implementacija prejemnice je obsežna, vendar je navedeni ročni vir priročnik za incidente/odpravljanje težav in ne celoten postopek za normalen vnos; sledljivost za normalen potek je zato nepopolna."
+    "gap_or_correction": "V8.3 skupaj pokriva ročni vnos, dobavitelja, dokument, postavke, embalažo, potrditev, napake in učinek na zalogo; napačnega vnosa se ne prikriva novo prejemnico.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "GOT-001",
@@ -1596,12 +1697,14 @@
       "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:1-575"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:125-149",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:566-577"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:120-145",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:567-578",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:476-545"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Checkout vsebuje X/Z stanje, vendar je glavni zaključni tok v drugem modulu; preveriti celoten X endpoint/pravice v UI."
+    "gap_or_correction": "Manual celovito opiše X kot vmesni pregled, primerjavo pričakovane/preštete gotovine, izjeme in poslovni učinek; implementacija celotnega UI/pravic ni potrjena.",
+    "implementation_status": "NEPOTRJENO"
   },
   {
     "id": "GOT-002",
@@ -1626,16 +1729,18 @@
     ],
     "api_evidence": [
       "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:390-575",
-      "artifacts/api-server/src/routes/pos/racuni.ts:2998-3054"
+    "artifacts/api-server/src/routes/pos/racuni.ts:2998-3054",
+    "artifacts/api-server/src/routes/pos/z-porocila.ts:1-700"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:50-125",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:151-182",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:419-479"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:65-115",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:147-182",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:400-460"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "API in ločen modul pokrivata premike/Z, vendar Checkout sam ni dokaz glavnega uporabniškega zaključka; primerjava kaže razpršen, ne enoten workflow."
+  "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli; pologi, dvigi, storno premika in Z-zaključek so potrjeni v uporabniškem vmesniku, API-ju in testih.",
+  "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAR-001",
@@ -1664,12 +1769,15 @@
       "artifacts/pos/src/lib/gatewayClient.ts:1-180"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/01-operativno-delo.md:19-70",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1-120"
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:1-336",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:573-651",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:767-821",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:343-385"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAS-001",
@@ -1698,12 +1806,16 @@
       "artifacts/pos/src/pages/Settings.tsx:1628-1640"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1-120",
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:1-180"
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1-185",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:227-370",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:490-584",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:895-913",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1057-1072"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Nastavitve so široke in filtrirane po vlogah, vendar priročnik pokriva več kontrol kot neposredno navedeni izseki UI/API; opravite revizijo avtorizacije za vsako nastavitev."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "OSE-001",
@@ -1727,12 +1839,14 @@
       "artifacts/api-server/src/routes/pos:1-1"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:288-341",
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:1-120"
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1213-1248",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:753-822",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:14-34"
     ],
-    "coverage_status": "MANJKA",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni bilo najdenih nobenih dokazov o namenskem UI ali API-ju za začetek/konec odmora; ne obravnavajte dokazov o predaji blagajne/izmeni kot sledenja odmora."
+    "gap_or_correction": "Manual explicitly distinguishes breaks and working-time accounting from shift handover and quick identity switching, and gives the safe limitation: do not treat those mechanisms as break tracking. No dedicated break capability is implemented.",
+    "implementation_status": "NI IMPLEMENTIRANO"
   },
   {
     "id": "EMB-001",
@@ -1763,7 +1877,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Namenski UI, poti ter implementacija bilance/odpisa so prisotni, priročnik pa zajema kontrole uvoza embalaže."
+    "gap_or_correction": "Pokriti so dobavitelj/vrsta/količina, bilanca, vračilo, odpis z razlogom, kontrola in poslovni učinek na obveznost embalaže.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "RAC-002",
@@ -1791,12 +1906,14 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:2783-2860"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:156-200",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:565-604"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1-21",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:156-199",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:565-603"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Ni ugotovljene vrzeli."
+    "gap_or_correction": "Manual daje predpogoje, normalen checkout/FURS tok, EOR/ZOI, retry obstoječega računa, certifikatne omejitve in davčni učinek.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "RAC-003",
@@ -1822,12 +1939,14 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:5039-5145"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:201-230",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:370-447"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:201-229",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:614-643",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1130-1156"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni ugotovljene vrzeli."
+    "gap_or_correction": "Manual jasno loči izdajo od tiska, določa predpogoje, preverjanje tiskalnika/mostu, ponatis in prepoved novega računa ali storna zaradi tiskovne napake.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "RAC-004",
@@ -1854,12 +1973,16 @@
       "artifacts/api-server/src/routes/pos/racuni.ts:4239-4317"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:231-269",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:645-678"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:645-676",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1022-1039",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1081-1089",
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:403-424",
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:176-190"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Pri pregledu Checkout.tsx ni najden ločen uporabniški storno/vračilo tok; funkcionalnost je vidna predvsem v računskem API/arhivu, zato preveriti, ali vodja lahko izvede celoten postopek iz UI."
+    "gap_or_correction": "Ni dokumentacijske vrzeli: priročnik zdaj poda eksplicitno pot Računi → izberi račun → Storniraj, predpogoje, celotni-storno omejitev, popravek posamezne postavke prek novega računa, odobritev in razlog vračila, kartično povračilo, neznani FURS/plačilni izid, varno obnovitev ter povezavo z izvirnikom in računovodskim učinkom; koda še ne potrjuje celotnega ločenega uporabniškega toka.",
+    "implementation_status": "NEPOTRJENO"
   },
   {
     "id": "POS-006",
@@ -1893,7 +2016,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Dokazi strežniške validacije in optimistične revizije se ujemajo z ročnim grafom normativa in delovnim tokom revizij."
+    "gap_or_correction": "Normativ ima vnos, spremembo, validacijo, optimistično revizijo, popravek in učinek na porabo; omejena je uporaba napačnega normativa.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "REZ-002",
@@ -1920,12 +2044,14 @@
       "artifacts/api-server/src/index.ts:5,38"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/01-operativno-delo.md:202-218",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:250-280"
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:71-118",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:418-506",
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:767-821"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Izvedba jasno podpira CRUD in razporejanje poteka, vendar navedeni razdelki priročnika ne zagotavljajo namenskega postopka rezervacije."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-007",
@@ -1954,12 +2080,16 @@
       "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:330-413"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-220",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1-80"
+      "docs/pos-manual-src/03-meni-artikli-normativi.md:508-571",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-28",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:273-322",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1017-1061",
+      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:1429-1471"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "VHM-001",
@@ -1994,7 +2124,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Urejevalnik, validacija, cenovne/naročilne poti in priročnik identificirajo enak večhodni delovni tok."
+    "gap_or_correction": "Pokriti so nastavitev hodov, izbira jedi/vina, validacija, naročanje/izdaja in varno ravnanje ob nepopolni konfiguraciji.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ZAL-001",
@@ -2018,11 +2149,13 @@
       "artifacts/api-server/src/routes/pos/zaloge.ts:1-360"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2219-2221"
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2219-2221",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2127-2147"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Dokazi navigacije potrjujejo pogled odpada, vendar v preiskanih datotekah nismo našli celotne implementacije normalnega toka UI/API."
+    "gap_or_correction": "V8.3 določa vnos in preverjanje odpada s krožnikov, razlikovanje negativnega kala od pozabljene prodaje ter potrebo po sledljivem popravku.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ZAL-002",
@@ -2049,12 +2182,14 @@
       "artifacts/api-server/src/routes/pos/prepared-food.stocks.test.ts:1-220"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:920-941",
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-64"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-64",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2833-2846",
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:920-941"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Testi razpoložljivosti in zalog obstajajo, vendar v dobavljenih referencah UI ni mogoče identificirati celotnega delovnega toka pripravljene hrane za operaterja."
+    "gap_or_correction": "Pokriti so priprava/sestava, poraba po normativu, razpoložljivost, odtajanje/zamrzovanje, kontrola pred izdajo in učinek na zalogo.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ZAL-003",
@@ -2081,13 +2216,14 @@
       "artifacts/api-server/src/routes/pos/prejemnice.ts:1-1296"
     ],
     "manual_evidence": [
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2815-2823",
       "docs/pos-manual-src/07-zacetek-dela-dostop.md:2425-2465",
-      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2547-2565",
-      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2700-2725"
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2547-2565"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Izračun/ponovni izračun WAC je dokazan v kodi in vajah priročnika, vendar v UI dokazih POS nismo našli jasnega prikaza/nadzora WAC za uporabnika."
+    "gap_or_correction": "V8.3 opisuje WAC, zahtevani pregled nove količine/vrednosti na kartici, kontrolo nabavne cene in varno ravnanje ob anomaliji.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ZAL-004",
@@ -2115,11 +2251,13 @@
       "artifacts/api-server/src/lib/stockMovementHistory.ts:1-240"
     ],
     "manual_evidence": [
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2795-2813",
       "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:2365-2371",
       "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1739-1749"
     ],
-    "coverage_status": "DELNO",
+    "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "UI/API dokazi so prisotni, vendar dobavljeni razdelek priročnika primarno dokumentira ravnanje z incidenti in ne celotnega normalnega poteka inventure."
+    "gap_or_correction": "V8.3 pokriva začetno zalogo, inventuro, kartico, vire razlik, uskladitev in učinek na normative oziroma dokumente.",
+    "implementation_status": "IMPLEMENTIRANO"
   }
 ]

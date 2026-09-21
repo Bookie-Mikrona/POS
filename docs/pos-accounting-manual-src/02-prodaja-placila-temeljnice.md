@@ -24,7 +24,7 @@ enaki kot v predogledu temeljnice.
 4. Zaključite račun. Fiskalni račun je izvorni dokument; temeljnica se ne
    vnaša ročno po občutku.
 5. V **POS → Temeljnice** izberite datum in enoto. Pri dnevnem osnutku
-   preverite referenco `POS:PRODAJA:YYYY-MM-DD:E<enota>`.
+   preverite referenco `POS:PRODAJA:[dd.mm.yyyy]:E<enota>`.
 6. Odprite predogled, primerjajte vse D/K vrstice, nato knjižite ali izvozite.
 
 Temeljnica je praviloma zbirna za dan in enoto, ne ena temeljnica za vsak
@@ -246,8 +246,10 @@ je D 1100100; pri drugem negotovinskem načinu je D konto drugih plačil.
 ### Unovčitev, delno unovčenje in storno
 
 Pri računu 80,00 EUR, od tega 30,00 EUR darilni bon in 50,00 EUR kartica,
-izberite **Plačilo → Darilni bon**, vnesite številko bona in znesek ter razliko
-poravnajte s kartico. Temeljnica (22 %, neto 65,57, DDV 14,43):
+izberite **Plačilo → Darilni bon**, vnesite uporabljeni znesek ter razliko
+poravnajte s kartico. Trenutna izvedba vodi skupni saldo izdanih in unovčenih
+darilnih bonov podjetja; ne vodi posameznega bona s svojo številko in
+individualnim preostankom. Temeljnica (22 %, neto 65,57, DDV 14,43):
 
 | Konto | Naziv (primer) | D | K |
 |---|---|---:|---:|
@@ -257,11 +259,13 @@ poravnajte s kartico. Temeljnica (22 %, neto 65,57, DDV 14,43):
 | 2602200 | Obveznost za DDV 22 % | — | 14,43 |
 | **Skupaj** |  | **80,00** | **80,00** |
 
-Delno unovčenje zmanjša saldo konkretnega bona samo za uporabljeni znesek.
-Ponovno skeniranje istega gibanja ne sme ustvariti druge D vrstice. Pri
-stornu se ustvari nasprotna (negativna vsebinska) temeljnica: prihodek in DDV
-se obrneta na D, plačilni konti pa na K. Storno bona se ne obravnava kot nova
-izdaja.
+Delno unovčenje zmanjša skupni saldo podjetja samo za uporabljeni znesek.
+Ker ni individualnega salda, blagajnik v POS-u ne more preveriti preostanka
+posameznega fizičnega bona. Morebitno zunanjo številko bona vodite po
+odobrenem internem postopku in je ne predstavljajte kot POS-evidenco.
+Pri stornu se ustvari nasprotna (negativna vsebinska) temeljnica: prihodek in
+DDV se obrneta na D, plačilni konti pa na K. Storno unovčitve ne pomeni nove
+izdaje bona.
 
 ## Bon za pico, študentski bon in subvencija
 
@@ -293,7 +297,7 @@ Primer subvencije 4,00 EUR pri računu 9,50 EUR (preostanek 5,50 gotovina):
 | 2600950 | Obveznost za DDV 9,5 % | — | 0,82 |
 | **Skupaj** |  | **9,50** | **9,50** |
 
-POS ustvari tudi osnutek dokumenta `POS-SSP-YYYY-MM-DD-E<enota>`, povezan z
+POS ustvari tudi osnutek dokumenta `POS-SSP-[dd.mm.yyyy]-E<enota>`, povezan z
 dnevno temeljnico. Dokument ne sme dodati novega prihodka ali DDV; predstavlja
 uskladitev terjatve do partnerja.
 
@@ -346,7 +350,7 @@ ali je pričakovan izhodni DDV 0,00 in ali je račun ustrezno označen.
 
 Vnesite račun z načinom **Lastna poraba** ali **Reprezentanca**. Ta računa sta
 izločena iz redne dnevne prodaje in se združita v ločeno referenco
-`POS:LASTREPR:YYYY-MM-DD`.
+`POS:LASTREPR:[dd.mm.yyyy]`.
 
 Pri reprezentanci z obračunsko vrednostjo 100,00 EUR in stopnjo DDV 22 %
 POS uporabi bruto vrednost na odhodku ter jo na kreditni strani razdeli na
@@ -444,6 +448,134 @@ Pri izvozu v drug program prenesite najmanj: datum, številko temeljnice,
 referenco POS, konto in naziv, D/K, znesek, DDV-stopnjo in DDV-kodo, partnerja,
 stroškovno mesto/enoto ter povezavo na izvorni račun. Pred uvozom preverite
 vsoto D = vsota K in da nobena preskočena vrstica ni ostala brez obravnave.
+
+## Računovodske posebnosti plačil in uskladitev
+
+### Gotovina, kartica, mešano in druga plačila
+
+Za vsak zaključeni račun preverite, da se plačilne vrstice seštejejo do bruto
+zneska. Pri gotovini je debetni konto blagajne. Pri kartici je debetni konto
+terjatve do kartičnega procesorja; bančni priliv se uskladi šele z bančnim
+izpiskom. Pri mešanem plačilu mora biti vsaka vrsta plačila ločena vrstica,
+prihodki in DDV pa ostanejo razdeljeni po artiklu in stopnji.
+
+Drugo negotovinsko plačilo uporabite samo, kadar je način plačila dejansko
+podprt in je določen `otherPaymentAccountId`. Če je znan kupec oziroma
+pogodbeni naročnik, preverite partnerja in uporabite prehodno terjatev za
+pogodbene malice; sicer ne ustvarjajte saldakontne terjatve na pamet.
+
+**Omejitev brez povezave:** pregledana offline izvedba dovoljuje samo gotovinski
+način plačila. Kartice, boni, subvencije in druga negotovinska plačila se v
+offline načinu ne smejo obravnavati kot uspešna plačila. Po ponovni povezavi
+preverite lokalni račun, FURS status in morebitni manjkajoči prenos; istega
+računa ne vnašajte še enkrat brez preverjanja reference.
+
+### Delna plačila in odprti znesek
+
+V pregledani izvedbi ni potrjenega samostojnega uporabniškega toka za delno
+plačilo računa, odprti saldo ali njegovo samodejno razporejanje na več računov.
+Ne ustvarjajte odprte terjatve samo zato, ker se plačilne vrstice ne ujemajo.
+Če račun ni v celoti poravnan, ga zadržite po internem postopku, zabeležite
+izvorni ID in razliko ter ga pred knjiženjem predate odgovorni osebi. Plačila ne
+knjižite kot gotovino ali kartico, dokler način in konto nista potrjena.
+
+### Boni, subvencije in pogodbene malice
+
+Pri darilnem bonu preverite izdajo kot predplačilo in znesek unovčenja proti
+skupnemu saldu darilnih bonov podjetja. POS ne vodi individualnega ID-ja ali
+preostanka posameznega bona. Bon za pico, darilni bon in študentska subvencija
+imajo ločene konte. Pri subvenciji morata biti prisotna konto terjatve in
+partner; manjkajoči partner ni dovoljenje za knjiženje na gotovino.
+
+Pri pogodbeni malici preverite pogodbeni cenik, partnerja, prehodni konto in
+referenco mesečnega A-računa. Dnevna prodaja ustvari prehodno terjatev, mesečni
+obračun pa jo zapre po pravilih glavne knjige. Če partner ali cenik nista
+dokazana, uporabite drugo negotovinsko pot ali račun zadržite; ne predstavljajte
+ga kot poravnano terjatev.
+
+### Napitnine, provizije in izplačila
+
+Pred knjiženjem zabeležite izbrano politiko: `direct_employee`,
+`independent_pool` ali `employer_controlled`. Pri prvih dveh je napitnina
+obveznost do osebja oziroma sklada; pri zadnji je lahko prihodek delodajalca in
+se uporabita nastavljeni konto prihodka in DDV. Politike ne menjajte za stare
+račune.
+
+Pri kartični napitnini preverite kartični konto, bruto napitnino in morebitno
+provizijo. Provizija je ločena od prodaje in se knjiži kot strošek delodajalca
+le, če to potrjuje poslovna politika. Poravnava napitnine mora imeti prejemnika,
+način poravnave, referenco in dokazilo. Gotovinsko ali bančno izplačilo ni dokaz
+obračuna plače; izplačila prek plač ali študentskega servisa v pregledani
+izvedbi niso samodejno podprta.
+
+Ob stornu napitnine preverite, ali je bila obveznost že izplačana. Če je, ne
+ustvarite negativnega izplačila brez odobrenega popravka; povežite storno z
+izvirno temeljnico in ločeno uskladite obveznost do prejemnika.
+
+### DDV, posnetek artikla in »To Go«
+
+Računovodja uporablja DDV-stopnjo in kategorijo, shranjeni na izvorni postavki
+ob prodaji. Kasnejša sprememba artikla, menija ali konta ne sme spremeniti
+starega računa. Pri preverjanju shranite dokazilo o artiklu, kategoriji, oznaki
+»To Go«, stopnji DDV in povezani podrejeni embalaži.
+
+Pri prodaji za uživanje pri mizi in za s seboj preverite vsako postavko
+posamično. Oznaka »To Go« se ne sme sklepati iz imena artikla ali prenesti na
+celotno naročilo. Podrejena embalaža sledi glavni postavki samo, če je povezava
+dejansko shranjena. Če stopnja ali povezava ni jasna, račun zadržite in ne
+popravljajte DDV samo v temeljnici.
+
+### Storno, vračilo in več plačil
+
+Pri stornu vedno preverite izvirni račun, razlog, FURS status in posamezne
+plačilne vrstice. V pregledani izvedbi ni potrjenega uporabniškega prikaza, ki
+bi zanesljivo pokazal povezane reversal vrstice ali pravilen končni status
+računa, kadar je razveljavljena samo ena od več plačil. Zato ne sklepajte, da je
+celoten račun razveljavljen.
+
+Če je razveljavljena ena plačilna vrstica, ločeno evidentirajte njen status,
+čas in referenco ter preverite preostala plačila. Če povezava ni vidna, račun
+zadržite, izvozite izvorni dokaz in zahtevajte pregled skrbnika/računovodje.
+Ne ustvarjajte ročne nasprotne temeljnice, dokler ni potrjeno, ali je FURS in
+plačilni ponudnik transakcijo sprejel. Pri vračilu preverite, ali se vrača
+gotovina, kartica, bon ali subvencijski del; vračilo ne sme ustvariti novega
+prihodka.
+
+### FURS, offline in neznan izid
+
+Pri stanju `unknown` računovodski čas nastanka ni potrjen. Začasno ga ne
+vključite v potrjeno temeljnico kot uspešno prodajo ali uspešen storno. Zabeležite
+lokalni čas dogodka, referenco, EOR, stanje tiskanja, terminalski rezultat in
+zadnji znani FURS odgovor. Po ponovni povezavi izvedite samo dovoljeni statusni
+pregled oziroma sinhronizacijo; ne ponavljajte fiskalnega dejanja na slepo.
+
+Po potrditvi sprejema vključite dogodek v ustrezno dnevno temeljnico. Če je
+zavrnjen ali ni izvedljiv, ga izločite z dokumentiranim razlogom in uredite
+popravek izvornega dokumenta. Vse razlike med lokalnim računom, FURS in
+temeljnico eskalirajte vodji pred zaključkom obdobja.
+
+### Dnevni, mesečni in neuspešni prenosi
+
+**Dnevni postopek:** izberite poslovno enoto in datum, zaženite samo podprto
+sinhronizacijo dneva, shranite seznam ustvarjenih in preskočenih referenc,
+preglejte mapping napake, preverite D = K ter šele nato knjižite osnutek.
+
+**Mesečni postopek:** uporabite ga šele, ko so zaključeni dnevi, storna,
+vračila, boni, subvencije, napitnine in odprte izjeme obdobja. Primerjajte
+mesečni zbir z dnevnimi temeljnicami in raziščite vsako razliko pred zaklepanjem
+obdobja.
+
+**Ponovni zagon:** pred ponovitvijo preverite referenco, status, izvorni obseg
+in obdobje. Ponovitev je varna samo, če sistem obstoječi osnutek osveži
+idempotentno in ne podvoji potrjene temeljnice. Če to ni dokazano, ponovitve ne
+izvedite; shranite napako in zahtevajte pregled.
+
+**Mapping napaka:** manjkajoči ali neveljavni konto, DDV-koda, partner ali
+dimenzija pomeni preskok, ne delnega knjiženja. Zabeležite razlog, popravite
+nastavitev oziroma izvorni dokument, ponovno ustvarite osnutek in preverite, da
+prejšnji preskok ni ostal neobravnavan. Poslovni učinek je lahko manjkajoč
+prihodek, DDV, terjatev ali plačilni saldo, zato obdobja ne zapirajte s tihim
+izravnavanjem.
 
 ## Robni primeri in kontrolni seznam
 

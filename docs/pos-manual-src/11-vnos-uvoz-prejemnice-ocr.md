@@ -1770,3 +1770,68 @@ Kuhinja prejme ločeno, jasno stanje vseh naročil v pripravi.
 Računovodstvo prejme le preverjene podatke o fiskalnih ali ERP odstopanjih.
 Osebni podatki se pri predaji omejijo na nujni operativni obseg.
 Predaja se zaključi z naslednjim časom preverjanja in potjo eskalacije.
+
+## 45. Redni vnos prejemnice brez OCR
+
+OCR ni predpogoj za prejemnico in ni dokaz pravilnosti. Pri ročnem vnosu:
+
+1. izberite pravilno podjetje, enoto in skladišče;
+2. izberite dobavitelja ali ga pred potrditvijo preverite;
+3. vnesite številko dokumenta in datum v obliki **dd.mm.yyyy**;
+4. primerjajte artikel, pakiranje, enoto mere in količino z izvirnikom;
+5. preverite nabavno ceno, DDV, rabat in kontrolni seštevek;
+6. preverite, ali za istega dobavitelja in številko dokumenta že obstaja zapis;
+7. shranite osnutek, kadar katera vrstica ni preverljiva;
+8. potrdite šele po pregledu celotnega dokumenta;
+9. po potrditvi preverite učinek na zalogo in morebitno WAC vrednost;
+10. zapišite razlog in lastnika vsake izjeme.
+
+Če uporabniški vmesnik za določeno vrsto dokumenta ne pokaže OCR uvoza, uporabite
+ta ročni postopek. Ne predpostavljajte, da obstaja ločen OCR gumb, če ga v vaši
+vlogi in enoti ne vidite.
+
+## 46. Čakalna vrsta offline fiskalizacije
+
+Offline delo je dovoljeno samo na napravi z vnaprej dodeljenim in aktivnim
+pooblastilom. Administrator pred uporabo preveri napravo, veljavnost pooblastila,
+enoto in datum. Blagajnik ne aktivira offline načina sam.
+
+Po vrnitvi povezave administrator oziroma pooblaščena oseba:
+
+1. pregleda število čakajočih dokumentov in njihov fiskalni status;
+2. loči potrjene, neuspele in neznane prenose;
+3. izvede prenos oziroma ingest samo po odobrenem postopku;
+4. pri konfliktu pregleda izvirni dokument, ZOI/EOR in identiteto poskusa;
+5. ponovno poskusi samo dokument, za katerega je to dovoljeno;
+6. prevzame nerešeni zapis v obravnavo, če sistem zahteva claim;
+7. preveri, da je čakalna vrsta prazna šele po potrjenih odgovorih;
+8. zapiše čas, napravo, obseg in rezultat.
+
+Napaka ali transportno neznan status ni dovoljenje za novo izdajo računa.
+Pri nejasnem stanju ne brišite čakalne vrste in ne uporabljajte druge blagajne
+kot obvoda.
+
+## 47. Kartično plačilo: izterjava neznanega poskusa
+
+Pri neznanem rezultatu najprej poiščite kandidate plačilnega poskusa po
+identifikatorju naročila, času, znesku, terminalu in ponudniku. Izberite
+avtoritativni poskus šele po primerjavi POS-a in ponudnika. Nato:
+
+- potrjeni poskus povežite z enim računom;
+- zavrnjeni poskus pustite zavrnjen;
+- transportno neznan poskus predajte vodji oziroma ponudniku;
+- pri mešanem plačilu preverite vsak del in skupni seštevek;
+- ne ponovite bremenitve samo zato, ker se zaslon vrti;
+- po zaključku primerjajte dnevni seštevek ponudnika s POS evidenco.
+
+Različni ponudniki imajo lahko različne statuse in časovne omejitve. Navodilo za
+Payten, SumUp, Viva ali Tap-to-Pay uporabite samo, če je ta ponudnik dejansko
+vezan na napravo. Viva demo ni dokaz produkcijskega plačila.
+
+## 48. Vidnost omejitev spletnih funkcij
+
+Javni QR meni omogoča naročanje, klic natakarja in druge opisane QR funkcije,
+vendar ni spletna rezervacijska platforma. V trenutni izvedbi ni javne internetne
+rezervacije, spletnega nakupa darilnega bona ali Stripe plačila. Če se v podpori
+pojavi zahteva za te funkcije, jo zabeležite kot zahtevo za razvoj oziroma
+integracijo, ne kot incident obstoječega POS-postopka.
