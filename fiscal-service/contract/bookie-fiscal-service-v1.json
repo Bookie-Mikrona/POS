@@ -99,10 +99,10 @@
     }
   },
   "x-loopback-admin-certificate": {
-    "listen": "127.0.0.1 only; never exposed on LAN interfaces",
-    "origin": "null for the service-hosted form, or the exact configured HTTPS admin origin; all other Origin values are rejected",
-    "authentication": "OS administrator privilege plus an expiring single-use local confirmation token displayed/approved on the same machine",
-    "csrf": "POST requires a SameSite=Strict HttpOnly session cookie and matching one-time X-Bookie-Local-Confirmation header; token is consumed atomically",
+    "listen": "Administration requests MUST originate from 127.0.0.1 or ::1. In LAN mode the shared TLS listener may bind 0.0.0.0, but route authorization still rejects every non-loopback administrator request.",
+    "origin": "No service-hosted browser form exists. Origin may be absent/null for signed elevated local tooling, or exactly match a configured HTTPS admin origin; all other Origin values are rejected.",
+    "authentication": "Every status, session, and import request requires OS administrator privilege plus X-Bookie-Admin-Token. POST /admin/certificate-session returns an expiring single-use confirmation without returning the administrator token or its location.",
+    "csrf": "POST /admin/certificate requires X-Bookie-Local-Confirmation from the preceding authenticated certificate-session response. No cookie is used. The confirmation is stored hashed and consumed atomically before import.",
     "maxBodyBytes": 10485760,
     "secretHandling": "PKCS#12 bytes and password are accepted only by the loopback service, are never returned or logged, and never transit POS or cloud.",
     "response": "Only certificate fingerprint and validity metadata are returned.",
@@ -173,17 +173,66 @@
     },
     "/admin/certificate": {
       "get": {
-        "summary": "Render or describe the loopback-only certificate import flow",
+        "summary": "Describe the loopback-only certificate state",
+        "description": "Requires Windows administrator context and X-Bookie-Admin-Token. No browser form or administrator token location is exposed.",
         "responses": { "200": { "description": "No certificate secret is returned", "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalCertificateStatus" } } } } }
       },
       "post": {
         "summary": "Import PKCS#12 directly into the loopback service",
-        "description": "Requires OS administrator privilege, strict loopback/origin checks, SameSite session CSRF protection, and an expiring one-time local confirmation.",
+        "description": "Requires a loopback request, OS administrator privilege, X-Bookie-Admin-Token, strict origin checks, and the expiring one-time X-Bookie-Local-Confirmation returned by POST /admin/certificate-session. No browser form or cookie is used.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalCertificateImport" } } } },
         "responses": {
           "200": { "description": "Imported; secrets are discarded from the request path", "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalCertificateStatus" } } } },
           "409": { "description": "Fingerprint does not match installed provisioning bundle" },
           "413": { "description": "Body exceeds 10485760 bytes" }
+        }
+      }
+    },
+    "/admin/connection-code": {
+      "post": {
+        "summary": "Create a one-time POS connection code from the local administrator tool",
+        "description": "Loopback-only. Requires Windows administrator context and X-Bookie-Admin-Token. The code expires after ten minutes and is accepted once.",
+        "responses": {
+          "200": {
+            "description": "One-time connection code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["code", "expiresAt"],
+                  "properties": {
+                    "code": { "type": "string", "pattern": "^\\d{6}$" },
+                    "expiresAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "description": "Local administrator authorization is required" }
+        }
+      }
+    },
+    "/admin/certificate-session": {
+      "post": {
+        "summary": "Create an expiring one-time confirmation for certificate import",
+        "description": "Loopback-only. Requires Windows administrator context and X-Bookie-Admin-Token. Intended for signed elevated administration tooling; no administrator token or token location is returned.",
+        "responses": {
+          "200": {
+            "description": "One-time certificate import confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["confirmation", "expiresAt"],
+                  "properties": {
+                    "confirmation": { "type": "string", "minLength": 20 },
+                    "expiresAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "description": "Local administrator authorization is required" }
         }
       }
     },

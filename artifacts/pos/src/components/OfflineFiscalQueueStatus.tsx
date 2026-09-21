@@ -1,15 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CloudOff, RefreshCw } from "lucide-react";
-import { listSealedOfflineReceipts, syncOfflineFiscalReceipts, type SealedOfflineReceipt } from "@/lib/offlineFiscal";
+import {
+  isLocalFiscalServiceEnabled,
+  listSealedOfflineReceipts,
+  syncOfflineFiscalReceipts,
+  type SealedOfflineReceipt,
+} from "@/lib/offlineFiscal";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 
 export function OfflineFiscalQueueStatus() {
   const [receipts, setReceipts] = useState<SealedOfflineReceipt[]>([]);
   const [error, setError] = useState<string>();
   const gateway = useGatewayOfflineContext();
-  const refresh = useCallback(() => { void listSealedOfflineReceipts().then(setReceipts).catch(() => setReceipts([])); }, []);
+  const enabled = isLocalFiscalServiceEnabled();
+  const refresh = useCallback(() => {
+    if (!enabled) {
+      setReceipts([]);
+      setError(undefined);
+      return;
+    }
+    void listSealedOfflineReceipts().then(setReceipts).catch(() => setReceipts([]));
+  }, [enabled]);
   const sync = useCallback(async () => {
-    if (!gateway.cloudHealthy) return;
+    if (!enabled || !gateway.cloudHealthy) return;
     try {
       setReceipts(await syncOfflineFiscalReceipts());
       setError(undefined);
@@ -17,12 +30,14 @@ export function OfflineFiscalQueueStatus() {
       setError(cause instanceof Error ? cause.message : "Sinhronizacija ni uspela.");
       refresh();
     }
-  }, [refresh, gateway.cloudHealthy]);
+  }, [enabled, refresh, gateway.cloudHealthy]);
   useEffect(() => {
+    if (!enabled) return;
     refresh();
     const timer = window.setInterval(() => void sync(), 15_000);
     return () => window.clearInterval(timer);
-  }, [refresh, sync]);
+  }, [enabled, refresh, sync]);
+  if (!enabled) return null;
   const open = receipts.filter(receipt => receipt.fursState !== "confirmed");
   if (!open.length && !error) return null;
   const overdue = open.some(receipt => receipt.submissionDeadlineAt && new Date(receipt.submissionDeadlineAt) < new Date());

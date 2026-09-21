@@ -38,3 +38,9 @@ Windows gateway za znane in upravljane stranke uporablja lasten Bookie interni p
 **Why:** Omejena distribucija znanim strankam ne upraviči stroška javnega certifikata, zaupanje pa je mogoče nadzorovano vzpostaviti ob prvi namestitvi.
 
 **How to apply:** Zasebni podpisni ključ ostane na pooblaščenem signing računalniku in nikoli v paketu; installer sprejme samo pričakovani fingerprint ter javni certifikat doda med Trusted Publishers.
+
+Lokalna fiskalna izdaja je privzeto izključena, skrbniško kodo pa ustvari samo podpisano povišano Windows orodje, ki žeton prebere neposredno iz zaščitene datoteke.
+
+**Why:** Blagajnik ne sme uporabljati sistemskih ukazov, kopirati skrbniškega žetona ali prejemati opozoril za lokalno storitev, ki v enoti ni namerno vključena.
+
+**How to apply:** Orodje kliče samo loopback, prikaže le šestmestno enkratno kodo in njen rok ter podpira dejanska vrata/TLS način namestitve. POS ne preverja, izdaja ali sinhronizira lokalno, dokler skrbnik možnosti izrecno ne vključi.

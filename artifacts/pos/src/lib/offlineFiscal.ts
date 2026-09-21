@@ -7,7 +7,17 @@ import contract from "../../../../fiscal-service/contract/bookie-fiscal-service-
 export const FISCAL_SERVICE_BASE_URL = contract.servers[0].url;
 const MAX_BODY_BYTES = contract["x-authentication"].maxBodyBytes;
 const PAIRING_KEY = "bookie.fiscal.v1.pairing";
+const LOCAL_FISCAL_ENABLED_KEY = "bookie.fiscal.v1.enabled";
 const OPERATION_KEY = "bookie.fiscal.v1.operations";
+
+export function isLocalFiscalServiceEnabled(): boolean {
+  return localStorage.getItem(LOCAL_FISCAL_ENABLED_KEY) === "1";
+}
+
+export function setLocalFiscalServiceEnabled(enabled: boolean): void {
+  if (enabled) localStorage.setItem(LOCAL_FISCAL_ENABLED_KEY, "1");
+  else localStorage.removeItem(LOCAL_FISCAL_ENABLED_KEY);
+}
 
 export type OfflineFiscalState = "received" | "finalizing" | "pending" | "failed" | "unknown" | "needs_review" | "confirmed";
 export type OfflineFiscalPrintState = "not_printed" | "printed" | "failed";
@@ -554,6 +564,7 @@ function validateCapability(value: FiscalCapability): string[] {
 }
 
 export async function discoverLocalFiscalCapability(): Promise<FiscalCapability | undefined> {
+  if (!isLocalFiscalServiceEnabled()) return undefined;
   try {
     const response = await fetch(`${FISCAL_SERVICE_BASE_URL}/capabilities`, { cache: "no-store" });
     if (!response.ok) return undefined;
@@ -564,6 +575,7 @@ export async function discoverLocalFiscalCapability(): Promise<FiscalCapability 
 }
 
 export async function checkLocalFiscalCapability(): Promise<{ capability?: FiscalCapability; reason?: string }> {
+  if (!isLocalFiscalServiceEnabled()) return { reason: "Lokalna fiskalna izdaja je izključena." };
   try {
     const response = await fetch(`${FISCAL_SERVICE_BASE_URL}/capabilities`, { cache: "no-store" });
     if (!response.ok) return { reason: `Lokalna fiskalna storitev ni dosegljiva (${response.status}).` };
@@ -656,6 +668,9 @@ export class UnknownFiscalOutcomeError extends Error {
 }
 
 export async function issueOfflineCashReceipt(input: { orderId: string | number; request: CashIssueRequest }): Promise<SealedOfflineReceipt> {
+  if (!isLocalFiscalServiceEnabled()) {
+    throw new Error("Lokalna fiskalna izdaja je izključena.");
+  }
   const remembered = readOperationSafetyMap()[operationKey(input.orderId)];
   const local = (await all<LocalOperation>("localOrders")).find(item => item.orderId === input.orderId);
   const operationId = remembered ?? local?.operationId ?? input.request.operationId;
@@ -742,6 +757,7 @@ export async function listSealedOfflineReceipts(): Promise<SealedOfflineReceipt[
 
 /** Service syncs its exact durable envelopes; the browser never rebuilds one. */
 export async function syncOfflineFiscalReceipts(): Promise<SealedOfflineReceipt[]> {
+  if (!isLocalFiscalServiceEnabled()) return [];
   const response = await fiscalFetch("/sync", { method: "POST", body: "" });
   if (response.status === 409) throw new Error("Neznan FURS izid zahteva ročno uskladitev; samodejna ponovitev ni dovoljena.");
   if (!response.ok && response.status !== 202) throw new Error(await response.text() || "Sinhronizacije ni mogoče zagnati.");

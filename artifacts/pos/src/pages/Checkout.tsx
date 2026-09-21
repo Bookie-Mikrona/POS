@@ -99,6 +99,7 @@ import {
   getCachedOfflineCapability,
   isOfflineOrderLocked,
   issueOfflineCashReceipt,
+  isLocalFiscalServiceEnabled,
   legalLjubljanaTimestamp,
   reserveOfflineOperationId,
   syncOfflineFiscalReceipts,
@@ -243,9 +244,10 @@ export default function Checkout() {
     // Pairing is refreshed only while the POS is online. A failed local check
     // is intentionally silent here; checkout will explain why issuing is
     // blocked instead of guessing.
-    void discoverLocalFiscalCapability();
+    if (isLocalFiscalServiceEnabled()) void discoverLocalFiscalCapability();
   }, [nastavitve, user]);
   useEffect(() => {
+    if (!isLocalFiscalServiceEnabled()) return;
     void syncOfflineFiscalReceipts();
     const timer = window.setInterval(() => void syncOfflineFiscalReceipts(), 15_000);
     return () => window.clearInterval(timer);
@@ -1135,6 +1137,7 @@ ${linije.map(vrHtml).join("\n")}
   }, [selectedOrder, preselectedGost, gatewayCheckoutMode]);
   const aktivniOperaterji = availableShiftOperators(aktivneIzmene);
   useEffect(() => {
+    if (!isLocalFiscalServiceEnabled()) return;
     if (selectedNatakarId === "none") return;
     const selectedShift = aktivniOperaterji.find(item => String(item.natakariId) === selectedNatakarId);
     if (!selectedShift) return;

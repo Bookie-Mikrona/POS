@@ -201,6 +201,37 @@ $configuredPort = if ($portMatch.Success) { [int]$portMatch.Groups[1].Value } el
 Check "Service mode" ($lanMode -or $configuredHost -eq "127.0.0.1") $true $imagePath
 Check "Configured port" ($configuredPort -eq $Port) $true "$configuredPort"
 Check "Installed executable path" ($imagePath -match [regex]::Escape($exe)) $true $imagePath
+$helper = Join-Path $InstallPath "Show-ConnectionCode.ps1"
+Check "Administrator helper installed" (Test-Path $helper) $true $helper
+if (Test-Path $helper) {
+  $helperSignature = Signed $helper
+  Check "Administrator helper signer" (
+    $helperSignature.SignerCertificate.Thumbprint -eq $exeSignature.SignerCertificate.Thumbprint
+  ) $true "same signer as gateway"
+  Assert-StrictAcl $helper $false
+}
+$shortcut = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Bookie Fiscal\Ustvari kodo za POS.lnk"
+Check "Administrator shortcut installed" (Test-Path $shortcut) $true $shortcut
+if (Test-Path $shortcut) {
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcutInfo = $shell.CreateShortcut($shortcut)
+  $expectedPowerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+  Check "Administrator shortcut target" (
+    [IO.Path]::GetFullPath($shortcutInfo.TargetPath) -eq [IO.Path]::GetFullPath($expectedPowerShell)
+  ) $true $shortcutInfo.TargetPath
+  $expectedHelperArgument = "-File `"$helper`""
+  Check "Administrator shortcut arguments" (
+    $shortcutInfo.Arguments -match "(?i)-ExecutionPolicy\s+AllSigned" -and
+    $shortcutInfo.Arguments.Contains($expectedHelperArgument) -and
+    $shortcutInfo.Arguments -match "(?i)-Port\s+$Port(?:\s|$)" -and
+    (($lanMode -and $shortcutInfo.Arguments -match "(?i)(?:^|\s)-UseTls(?:\s|$)") -or
+     (-not $lanMode -and $shortcutInfo.Arguments -notmatch "(?i)(?:^|\s)-UseTls(?:\s|$)"))
+  ) $true $shortcutInfo.Arguments
+  $shortcutBytes = [IO.File]::ReadAllBytes($shortcut)
+  Check "Administrator shortcut elevation" (
+    $shortcutBytes.Length -gt 0x15 -and (($shortcutBytes[0x15] -band 0x20) -eq 0x20)
+  ) $true "RunAs flag set"
+}
 if ($lanMode) { Check "LAN host binding" ($configuredHost -eq "0.0.0.0") $true $configuredHost }
 else { Check "Loopback host binding" ($configuredHost -eq "127.0.0.1") $true $configuredHost }
 $certMatch = [regex]::Match($imagePath, "--ssl-cert\s+""([^""]+)""")

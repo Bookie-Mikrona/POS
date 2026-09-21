@@ -22,7 +22,8 @@ os.environ["BOOKIE_FISCAL_MOCK_PRINTER"] = "1"
 
 import fiscal_service as fiscal_module
 from fiscal_service import (BASE_URL, BackgroundSync, CashIssueIn, DPAPI, Fiscal, MockPrinter,
-                             GatewayPrimeIn, GatewayV2, ProvisioningBundleIn, SloveniaBusinessCalendar, Store, canonical_json)
+                             GatewayPrimeIn, GatewayV2, ProvisioningBundleIn, SloveniaBusinessCalendar, Store,
+                             canonical_json, create_connection_code)
 import sync as sync_worker
 
 ROOT = Path(__file__).parents[1]
@@ -88,7 +89,27 @@ def test_complete_attestation_and_contract_paths():
     assert Fiscal.has_complete_furs_golden_vector()
     contract = json.loads((ROOT / "contract/bookie-fiscal-service-v1.json").read_text())
     assert {"/provisioning/proof", "/provisioning/install", "/admin/certificate",
-            "/receipts/cash", "/receipts/{operationId}", "/queue", "/sync"} <= set(contract["paths"])
+            "/admin/connection-code", "/admin/certificate-session", "/receipts/cash",
+            "/receipts/{operationId}", "/queue", "/sync"} <= set(contract["paths"])
+    admin_contract = contract["x-loopback-admin-certificate"]
+    assert "certificate-session" in admin_contract["authentication"]
+    assert "X-Bookie-Admin-Token" in admin_contract["authentication"]
+    assert "X-Bookie-Local-Confirmation" in admin_contract["csrf"]
+    assert "No cookie" in admin_contract["csrf"]
+    assert "No service-hosted browser form" in admin_contract["origin"]
+    assert "127.0.0.1 or ::1" in admin_contract["listen"]
+
+
+def test_connection_code_is_six_digits_hashed_and_replaces_previous_code():
+    target_store = Store(Path(tempfile.mktemp()))
+    first = create_connection_code(target_store)
+    first_hash = target_store.get("pair_code_hash")
+    second = create_connection_code(target_store)
+    assert first["code"].isdigit() and len(first["code"]) == 6
+    assert second["code"].isdigit() and len(second["code"]) == 6
+    assert target_store.get("pair_code_hash") == hashlib.sha256(second["code"].encode()).digest()
+    assert target_store.get("pair_code_hash") != first_hash or first["code"] == second["code"]
+    assert int(target_store.get("pair_code_expires")) > int(time.time())
 
 
 def test_signed_provisioning_install_is_idempotent_and_restart_safe():

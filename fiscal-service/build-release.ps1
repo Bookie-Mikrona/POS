@@ -211,7 +211,7 @@ if (-not $TestOnly -and $PublicCertificatePath) {
   }
   Copy-Item $PublicCertificatePath (Join-Path $staging "bookie-internal-production.cer")
 }
-foreach ($name in "install.ps1","verify-windows-install.ps1","export-client-certificate.ps1") {
+foreach ($name in "install.ps1","verify-windows-install.ps1","export-client-certificate.ps1","Show-ConnectionCode.ps1") {
   $source = Join-Path $root $name
   if (-not (Test-Path $source)) { throw "Release script missing: $name" }
   Copy-Item $source $staging
@@ -219,7 +219,7 @@ foreach ($name in "install.ps1","verify-windows-install.ps1","export-client-cert
 }
 Assert-Signed $exe
 Assert-X64Pe $exe
-foreach ($name in "install.ps1","verify-windows-install.ps1","export-client-certificate.ps1") {
+foreach ($name in "install.ps1","verify-windows-install.ps1","export-client-certificate.ps1","Show-ConnectionCode.ps1") {
   Assert-Signed (Join-Path $staging $name)
 }
 $versionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
@@ -236,7 +236,7 @@ if (Test-Path $serviceReadme) { Copy-Item $serviceReadme $staging }
 $internalRunbook = Join-Path $root "WINDOWS-INTERNAL-PRODUCTION-RUNBOOK.md"
 if (Test-Path $internalRunbook) { Copy-Item $internalRunbook $staging }
 $allowlist = @("Bookie-Local-Gateway.exe","install.ps1","verify-windows-install.ps1",
-  "export-client-certificate.ps1","README.md","WINDOWS-RELEASE-CHECKLIST.md",
+  "export-client-certificate.ps1","Show-ConnectionCode.ps1","README.md","WINDOWS-RELEASE-CHECKLIST.md",
   "WINDOWS-INTERNAL-PRODUCTION-RUNBOOK.md")
 if (-not $TestOnly) { $allowlist += "bookie-internal-production.cer" }
 $actual = @(Get-ChildItem $staging -File | Select-Object -ExpandProperty Name)

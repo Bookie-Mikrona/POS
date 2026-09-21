@@ -412,6 +412,17 @@ if ($existingCim) {
 $wasRunning = $existing -and $existing.Status -eq "Running"
 $oldExe = Join-Path $InstallPath "Bookie-Local-Gateway.exe"
 $oldExeBackup = Join-Path $backup "Bookie-Local-Gateway.exe"
+$helperSource = Join-Path $packageRoot "Show-ConnectionCode.ps1"
+$helperTarget = Join-Path $InstallPath "Show-ConnectionCode.ps1"
+$helperBackup = Join-Path $backup "Show-ConnectionCode.ps1"
+$helperExisted = Test-Path $helperTarget
+if (-not (Test-Path $helperSource)) { throw "Signed administrator helper is missing." }
+$startMenuDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Bookie Fiscal"
+$startMenuDirExisted = Test-Path $startMenuDir
+$shortcutPath = Join-Path $startMenuDir "Ustvari kodo za POS.lnk"
+$shortcutBackup = Join-Path $backup "Ustvari kodo za POS.lnk"
+$shortcutExisted = Test-Path $shortcutPath
+if ($shortcutExisted) { Copy-Item $shortcutPath $shortcutBackup -Force }
 $oldConfig = @()
 if ($existing) { $oldConfig = @(Invoke-Native "sc.exe" @("qc","BookieFiscalService") "Read existing SCM configuration") }
 $oldBinLine = $oldConfig | Select-String "BINARY_PATH_NAME"
@@ -461,6 +472,7 @@ try {
     Set-StrictAcl $backupManifestPath $false
   }
   if (Test-Path $oldExe) { Copy-Item $oldExe $oldExeBackup -Force }
+  if ($helperExisted) { Copy-Item $helperTarget $helperBackup -Force }
   $stageExe = Join-Path $InstallPath ([IO.Path]::GetRandomFileName() + ".exe")
   Copy-Item $exeSource $stageExe -Force
   if ((Get-FileHash $stageExe -Algorithm SHA256).Hash -ne (Get-FileHash $exeSource -Algorithm SHA256).Hash) {
@@ -484,6 +496,9 @@ try {
   }
   if (-not $AllowUnsignedDevelopment) { Assert-Signed $oldExe | Out-Null }
   Assert-X64Pe $oldExe
+  Copy-Item $helperSource $helperTarget -Force
+  if (-not $AllowUnsignedDevelopment) { Assert-Signed $helperTarget | Out-Null }
+  Set-StrictAcl $helperTarget $false
   if (-not $AllowUnsignedDevelopment -and
       (Get-FileHash $oldExe -Algorithm SHA256).Hash -ne (Get-FileHash $exeSource -Algorithm SHA256).Hash) {
     throw "Installed executable hash changed after atomic replacement."
@@ -519,6 +534,9 @@ try {
     $healthHost = if ($GatewayIp) { $GatewayIp } else { "localhost" }
     if ($sanText -notmatch [regex]::Escape($healthHost)) {
       throw "TLS certificate SAN does not cover the selected health endpoint $healthHost."
+    }
+    if ($sanText -notmatch "(?i)localhost") {
+      throw "TLS certificate SAN must cover localhost for the elevated local administration helper."
     }
     Set-StrictAcl $TlsKeyPath $false
   }
@@ -556,6 +574,18 @@ try {
   $healthHost = if ($Lan -and $GatewayIp) { $GatewayIp } elseif ($Lan) { "localhost" } else { "127.0.0.1" }
   $health = Get-Health "${scheme}://$healthHost`:$Port/v1/gateway/health"
   if ($health -ne 200) { throw "Gateway health check failed." }
+  New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcut = $shell.CreateShortcut($shortcutPath)
+  $shortcut.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+  $helperTlsArgument = if ($Lan) { " -UseTls" } else { "" }
+  $shortcut.Arguments = "-NoLogo -NoProfile -ExecutionPolicy AllSigned -File `"$helperTarget`" -Port $Port$helperTlsArgument"
+  $shortcut.WorkingDirectory = $InstallPath
+  $shortcut.Description = "Ustvari enkratno kodo za povezavo Bookie POS"
+  $shortcut.Save()
+  $shortcutBytes = [IO.File]::ReadAllBytes($shortcutPath)
+  $shortcutBytes[0x15] = $shortcutBytes[0x15] -bor 0x20
+  [IO.File]::WriteAllBytes($shortcutPath, $shortcutBytes)
   Get-ChildItem $backupRoot -Directory | Sort-Object Name -Descending | Select-Object -Skip 5 | Remove-Item -Recurse -Force
   Write-Host "Bookie Local Gateway installed and healthy. ProgramData identity was preserved."
   if ($isTestPackage) { Write-Host "`n`n*** TEST ONLY / NOT FOR CUSTOMER DISTRIBUTION ***`n*** Controlled Windows lab use only; replace with a production OV-signed package. ***`n`n" }
@@ -567,6 +597,20 @@ try {
   } ([ref]$rollbackFailures)
   Invoke-RollbackPhase "restore executable" {
     if (Test-Path $oldExeBackup) { Copy-Item $oldExeBackup $oldExe -Force -ErrorAction Stop }
+  } ([ref]$rollbackFailures)
+  Invoke-RollbackPhase "restore administrator helper and shortcut" {
+    if ($helperExisted -and (Test-Path $helperBackup)) { Copy-Item $helperBackup $helperTarget -Force -ErrorAction Stop }
+    elseif (-not $helperExisted -and (Test-Path $helperTarget)) { Remove-Item $helperTarget -Force -ErrorAction Stop }
+    if ($shortcutExisted -and (Test-Path $shortcutBackup)) {
+      New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
+      Copy-Item $shortcutBackup $shortcutPath -Force -ErrorAction Stop
+    } elseif (-not $shortcutExisted -and (Test-Path $shortcutPath)) {
+      Remove-Item $shortcutPath -Force -ErrorAction Stop
+    }
+    if (-not $startMenuDirExisted -and (Test-Path $startMenuDir) -and
+        @(Get-ChildItem $startMenuDir -Force).Count -eq 0) {
+      Remove-Item $startMenuDir -Force -ErrorAction Stop
+    }
   } ([ref]$rollbackFailures)
   Invoke-RollbackPhase "restore ProgramData and ACLs" {
     if (Test-Path (Join-Path $backup "ProgramData")) {

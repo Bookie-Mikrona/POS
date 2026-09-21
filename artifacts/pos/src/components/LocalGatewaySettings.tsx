@@ -75,11 +75,11 @@ export function LocalGatewaySettings() {
 
   const pair = async () => {
     if (!managerConfirmed) {
-      setMessage("Pred seznanitvijo mora odgovorna oseba potrditi izbiro LAN avtoritete.");
+      setMessage("Pred povezavo mora odgovorna oseba potrditi izbiro LAN avtoritete.");
       return;
     }
     if (!/^\d{6}$/.test(code.trim()) || !clientName.trim() || !url.trim()) {
-      setMessage("Vnesite URL, ime naprave in šestmestno pairing kodo.");
+      setMessage("Vnesite URL, ime naprave in šestmestno povezovalno kodo.");
       return;
     }
     setBusy(true); setMessage("");
@@ -87,7 +87,7 @@ export function LocalGatewaySettings() {
       const result = await pairLocalGateway(url, code, clientName);
       setClientId(result.clientId); setCode("");
       setEnabled(true); localStorage.setItem(ENABLED_KEY, "1"); setLocalGatewayAuthorityEnabled(managerConfirmed);
-      setMessage("Naprava je seznanjena. Skrivnost je shranjena samo v zaščitenem IndexedDB.");
+      setMessage("Naprava je povezana. Skrivnost je shranjena samo v zaščitenem IndexedDB.");
       await preveri();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Seznanitev ni uspela.");
@@ -144,7 +144,7 @@ export function LocalGatewaySettings() {
   };
 
   const forget = async () => {
-    await safeRelease("Pozabljanje pairing-a");
+    await safeRelease("Odstranjevanje povezave");
   };
 
   return (
@@ -165,7 +165,7 @@ export function LocalGatewaySettings() {
              in samostojnim načinom zahteva izrecno potrditev vodje; samodejnega failoverja ni.
              Pred seznanitvijo mora biti certifikat gatewaya nameščen kot zaupanja vreden
              certifikat v OS/brskalniku in se mora ujemati s hostname/IP SAN; prstni odtis
-             v diagnostiki ni varnostna zamenjava za TLS zaupanje.
+              v diagnostiki ni varnostna zamenjava za TLS zaupanje.
           </AlertDescription>
         </Alert>
         <div className="flex items-center justify-between rounded-lg border p-3">
@@ -202,16 +202,16 @@ export function LocalGatewaySettings() {
               placeholder="Blagajna 1" autoComplete="off" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="local-gateway-code">Enkratna 6-mestna pairing koda</Label>
+            <Label htmlFor="local-gateway-code">Enkratna šestmestna povezovalna koda</Label>
             <Input id="local-gateway-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric" maxLength={6} placeholder="123456" autoComplete="one-time-code" />
           </div>
         </div>
         <Button onClick={() => void pair()} disabled={busy || !url || !clientName || code.length !== 6}>
-          Seznani ta POS
+          Poveži ta POS
         </Button>
-        {clientId && <Button variant="destructive" onClick={() => void forget()}>Pozabi pairing (izbriši poverilnice)</Button>}
-        {clientId && <p className="text-xs text-muted-foreground">Seznanjen client ID: <span className="font-mono">{clientId}</span></p>}
+        {clientId && <Button variant="destructive" onClick={() => void forget()}>Odstrani povezavo in poverilnice</Button>}
+        {clientId && <p className="text-xs text-muted-foreground">ID povezanega odjemalca: <span className="font-mono">{clientId}</span></p>}
         {message && <p role="status" className="text-sm">{message}</p>}
         {health ? (
           <div className="rounded-lg border p-3 space-y-2">

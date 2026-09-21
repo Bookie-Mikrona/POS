@@ -2121,6 +2121,8 @@ async def security(request: Request, call_next):
     body_limit = 10 * 1024 * 1024 if request.url.path == "/v1/admin/certificate" else MAX_BODY
     if len(body) > body_limit: return Response(status_code=413)
     public = request.url.path in {"/v1/capabilities", "/v1/pair", "/v1/admin/certificate",
+                                  "/v1/admin/connection-code",
+                                  "/v1/admin/certificate-session",
                                   "/v1/gateway/health", "/v1/gateway/capabilities"}
     public = public or request.url.path == "/v1/provisioning/proof"
     # Client administration is intentionally never LAN-authenticated.  The
@@ -2254,41 +2256,46 @@ def provisioning_install(req: ProvisioningBundleIn, request: Request):
         "validUntil": req.validity["validUntil"],
     }
     return response
+def create_connection_code(target_store: Store) -> dict[str, str]:
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    expires = int(time.time()) + 600
+    with target_store.lock:
+        if not target_store.get("pair_secret"):
+            target_store.put("pair_secret", DPAPI.protect(secrets.token_bytes(32)))
+        target_store.put("pair_code_hash", hashlib.sha256(code.encode()).digest())
+        target_store.put("pair_code_expires", str(expires).encode())
+    return {
+        "code": code,
+        "expiresAt": datetime.fromtimestamp(expires, timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+
 @app.get("/v1/admin/certificate")
 def certificate_admin(request: Request):
     _loopback_admin(request)
-    if "text/html" not in request.headers.get("accept", ""):
-        return service.certificate_status()
-    session, confirmation = secrets.token_urlsafe(32), secrets.token_urlsafe(24)
-    pairing_code = f"{secrets.randbelow(1_000_000):06d}"
+    return service.certificate_status()
+
+
+@app.post("/v1/admin/connection-code")
+def connection_code_admin(request: Request):
+    _loopback_admin(request)
+    return create_connection_code(store)
+
+
+@app.post("/v1/admin/certificate-session")
+def certificate_session_admin(request: Request):
+    _loopback_admin(request)
+    confirmation = secrets.token_urlsafe(24)
+    expires = int(time.time()) + 300
     with store.lock:
-        if not store.get("pair_secret"):
-            store.put("pair_secret", DPAPI.protect(secrets.token_bytes(32)))
-        store.put("pair_code_hash", hashlib.sha256(pairing_code.encode()).digest())
-        store.put("pair_code_expires", str(int(time.time()) + 600).encode())
-        store.put("certificate_admin_session", hashlib.sha256(session.encode()).digest())
         store.put("certificate_admin_confirmation", hashlib.sha256(confirmation.encode()).digest())
-        store.put("certificate_admin_expires", str(int(time.time()) + 300).encode())
-    html = f"""<!doctype html><meta charset="utf-8"><title>Bookie FURS certificate</title>
-<h1>Local FURS certificate import</h1>
-<p>This page sends the PKCS#12 and password only to the loopback fiscal service.</p>
-<p>One-time POS pairing code (10 minutes): <strong>{pairing_code}</strong></p>
-<p>Read the administrator token from {html.escape(str(ADMIN_TOKEN_PATH))}; it is never returned by this page.</p>
-<input id="token" type="password" placeholder="Administrator token"><input id="p12" type="file" accept=".p12,.pfx"><input id="pw" type="password" placeholder="PKCS#12 password">
-<button id="go">Import certificate</button><pre id="out"></pre>
-<script>
-const confirmation={json.dumps(confirmation)};
-go.onclick=async()=>{{const f=p12.files[0];if(!f)return;const b=new Uint8Array(await f.arrayBuffer());
-let s='';for(const x of b)s+=String.fromCharCode(x);
-const r=await fetch('/v1/admin/certificate',{{method:'POST',credentials:'same-origin',
-headers:{{'Content-Type':'application/json','X-Bookie-Local-Confirmation':confirmation,'X-Bookie-Admin-Token':token.value}},
-body:JSON.stringify({{pkcs12Base64:btoa(s),password:pw.value}})}});
-out.textContent=r.ok?JSON.stringify(await r.json(),null,2):await r.text();pw.value='';}};
-</script>"""
-    response = Response(html, media_type="text/html")
-    response.set_cookie("bookie_cert_admin", session, httponly=True, secure=False,
-                        samesite="strict", max_age=300, path="/v1/admin/certificate")
-    return response
+        store.put("certificate_admin_expires", str(expires).encode())
+    return {
+        "confirmation": confirmation,
+        "expiresAt": datetime.fromtimestamp(expires, timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+
 @app.post("/v1/admin/certificate")
 def certificate_import(req: CertificateImportIn, request: Request):
     origin = request.headers.get("origin")
@@ -2300,19 +2307,15 @@ def certificate_import(req: CertificateImportIn, request: Request):
             not protected_admin or not hmac.compare_digest(DPAPI.unprotect(protected_admin), admin_token.encode()) or \
             origin not in (None, "null") and origin not in allowed:
         raise HTTPException(403, "LOCAL_ADMIN_REQUIRED")
-    session = request.cookies.get("bookie_cert_admin", "")
     confirmation = request.headers.get("x-bookie-local-confirmation", "")
     with store.lock:
-        expected_session = store.get("certificate_admin_session")
         expected_confirmation = store.get("certificate_admin_confirmation")
         expires = store.get("certificate_admin_expires")
-        valid = bool(expected_session and expected_confirmation and expires and
+        valid = bool(expected_confirmation and expires and
                      int(expires) >= int(time.time()) and
-                     hmac.compare_digest(hashlib.sha256(session.encode()).digest(), expected_session) and
                      hmac.compare_digest(hashlib.sha256(confirmation.encode()).digest(), expected_confirmation))
         if not valid:
             raise HTTPException(403, "LOCAL_CONFIRMATION_INVALID")
-        store.put("certificate_admin_session", b"consumed")
         store.put("certificate_admin_confirmation", b"consumed")
         store.put("certificate_admin_expires", b"0")
     return service.import_certificate(req)
