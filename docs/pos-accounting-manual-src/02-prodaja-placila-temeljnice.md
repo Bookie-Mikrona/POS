@@ -17,8 +17,6 @@ enaki kot v predogledu temeljnice.
 
 ### Zaslon in sled dogodka
 
-![Izdaja in zaključek računa v POS](../pos-accounting-manual-images/05-izdaja-racuna.jpg)
-
 1. Odprite **POS → Računi/Naročila**, izberite enoto in delovno izmeno.
 2. Vnesite artikle, količino, popust in način plačila.
 3. Pred potrditvijo preverite bruto znesek, razrez DDV po stopnjah, kupca
@@ -28,8 +26,6 @@ enaki kot v predogledu temeljnice.
 5. V **POS → Temeljnice** izberite datum in enoto. Pri dnevnem osnutku
    preverite referenco `POS:PRODAJA:YYYY-MM-DD:E<enota>`.
 6. Odprite predogled, primerjajte vse D/K vrstice, nato knjižite ali izvozite.
-
-![Seznam in filtri temeljnic](../pos-accounting-manual-images/06-seznam-temeljnic.jpg)
 
 Temeljnica je praviloma zbirna za dan in enoto, ne ena temeljnica za vsak
 račun. Vsaka vrstica pa mora biti sledljiva na datum, enoto, DDV-stopnjo,
@@ -58,8 +54,6 @@ izvorni račun oziroma skupino računov in, kjer je relevantno, partnerja.
 **Nastavitve → POS → Knjiženje**. Manjkajoči obvezni konto ne sme biti
 nadomeščen z naključnim kontom; sinhronizacija dogodek označi kot preskočen z
 razlogom.
-
-![Nastavitve kontov za knjiženje](../pos-accounting-manual-images/07-nastavitve-kontov.jpg)
 
 ## Standardna prodaja z gotovino
 
@@ -214,8 +208,6 @@ Provizija banke ni del POS prodajne temeljnice, razen posebej izračunane
 provizije napitnine. Ob bančnem izpisku se terjatev do izdajatelja zapre z
 bančnim prometom in stroškom po pravilih glavne knjige.
 
-![Kartično plačilo in uskladitev terminala](../pos-accounting-manual-images/09-karticna-placila.jpg)
-
 ## Mešano plačilo
 
 POS razdeli plačila po dejansko vnesenih zneskih. Primer: račun 100,00 EUR,
@@ -269,8 +261,6 @@ Ponovno skeniranje istega gibanja ne sme ustvariti druge D vrstice. Pri
 stornu se ustvari nasprotna (negativna vsebinska) temeljnica: prihodek in DDV
 se obrneta na D, plačilni konti pa na K. Storno bona se ne obravnava kot nova
 izdaja.
-
-![Darilni bon, unovčitev in gibanje bona](../pos-accounting-manual-images/10-darilni-boni.jpg)
 
 ## Bon za pico, študentski bon in subvencija
 
@@ -432,11 +422,7 @@ Pri neznanem izidu primerjajte EOR, lokalni zapis, dnevnik tiskalnika in
 FURS-ov odgovor. Šele po potrditvi dejanskega stanja zaključite storno ali
 račun označite za opustitev po internem postopku.
 
-![Storno in status fiskalnega računa](../pos-accounting-manual-images/11-storno-furs.jpg)
-
 ## Dnevna in mesečna izdelava; preprečevanje dvojnikov
-
-![Predogled temeljnice z D/K vrsticami](../pos-accounting-manual-images/08-predogled-temeljnice.jpg)
 
 1. Dnevno: **Temeljnice → Sinhroniziraj dan → YYYY-MM-DD**. Sistem ustvari
    zbirne osnutke po enoti (prodaja, otvoritvena/KIR po konfiguraciji ter
@@ -448,8 +434,6 @@ račun označite za opustitev po internem postopku.
    svoj obstoječi osnutek in ga sestavi iz izvornih računov.
 4. Potrjene temeljnice se ne brišejo in ne spreminjajo. Popravek je nov
    izvorni dokument, storno ali ročna uskladitev z revizijsko sledjo.
-
-![Izvoz temeljnice](../pos-accounting-manual-images/12-dnevna-temeljnica.jpg)
 
 Pri izvozu v drug program prenesite najmanj: datum, številko temeljnice,
 referenco POS, konto in naziv, D/K, znesek, DDV-stopnjo in DDV-kodo, partnerja,

@@ -17,8 +17,6 @@ Priročnik ne predpostavlja, v katerem glavnem knjigovodskem programu se bo kon�
 
 ## 0.2 Zaslon modula in računovodska sled
 
-![Pregled računovodskih funkcij in vhodov modula POS Gostinstvo](../pos-accounting-manual-images/00-pregled-modula.jpg)
-
 Na pregledu modula si računovodja najprej določi:
 
 1. **poslovno enoto** in poslovni datum;
@@ -70,8 +68,6 @@ Mesečna sinhronizacija se uporablja za zaključeno obdobje in združi podatke p
 
 ## 0.4 Statusi temeljnic
 
-![Seznam temeljnic z obdobjem, referenco, zneskom in statusom](../pos-accounting-manual-images/13-seznam-temeljnic.jpg)
-
 V seznamu **Temeljnice** so statusi prikazani kot:
 
 | Status | Pomen | Dovoljeno ravnanje |
@@ -91,8 +87,6 @@ Status osnutka ne pomeni, da je dogodek napačen. Pomeni, da mora računovodja o
 5. Pri vsaki vrstici preverite znesek in status.
 6. Kliknite puščico temeljnice, da se prikažejo opis ter knjižne vrstice.
 7. Primerjajte kodo in naziv konta, stran D/K, znesek in opis z izvorom.
-
-![Razširjena temeljnica z nazivi kontov, stranjo in zneski](../pos-accounting-manual-images/14-predogled-temeljnice.jpg)
 
 Program pri seznamu vrne tudi naziv konta iz kontnega načrta. Računovodja zato ne sme preverjati samo prvih treh mest kode. Pomembna sta celotna aktivna sedemmestna koda in naziv, saj lahko dve enaki skupini vsebujeta različni analitiki.
 
@@ -137,8 +131,6 @@ V vrsticah preverite:
 Če konto zahteva dimenzijo, manjkajoče dimenzije ne nadomeščajte z naključnim stroškovnim mestom. Temeljnico zadržite, dopolnite izvorni vnos ali nastavitev in ponovno ustvarite oziroma popravite osnutek v skladu z internim postopkom.
 
 ## 0.8 Izvoz in uporaba v drugi glavni knjigi
-
-![Pregled podatkov za izvoz temeljnic](../pos-accounting-manual-images/15-izvoz-temeljnice.jpg)
 
 Pred izvozom oziroma ročnim prepisom v drugo glavno knjigo pripravite kontrolni seznam:
 

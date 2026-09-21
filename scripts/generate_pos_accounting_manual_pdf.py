@@ -16,7 +16,7 @@ import generate_pos_manual_pdf as base
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-accounting-manual-src"
-OUTPUT = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.1.pdf"
+OUTPUT = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.2.pdf"
 SOURCE_FILES = [
     ("I", "Računovodska sled in delo s temeljnicami", "00-uvod-in-delo-s-temeljnicami.md"),
     ("II", "Privzeti konti in preslikave", "01-privzeti-konti.md"),
@@ -35,7 +35,7 @@ class AccountingManualDocTemplate(base.ManualDocTemplate):
             canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
             canvas.setFont("Manual", 8.2)
             canvas.setFillColor(base.MUTED)
-            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — računovodski priročnik v1.1")
+            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — računovodski priročnik v1.2")
             canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
         canvas.restoreState()
 
@@ -47,11 +47,11 @@ def build_story(styles, doc):
         Paragraph("Mikrona d.o.o.", styles["cover_meta"]),
         Spacer(1, 38 * mm),
         Paragraph("POS Gostinstvo", styles["cover_title"]),
-        Paragraph("Računovodski priročnik · izdaja 1.1", styles["cover_subtitle"]),
+        Paragraph("Računovodski priročnik · izdaja 1.2", styles["cover_subtitle"]),
         Spacer(1, 13 * mm),
         Table(
             [
-                ["Različica", "1.1"],
+                ["Različica", "1.2"],
                 ["Obseg", "privzeti konti, tvorba temeljnic, prodaja, plačila, DDV, nabava, zaloga, kontrole in robni primeri"],
                 ["Datum izdaje", date.today().strftime("%d.%m.%Y")],
             ],
@@ -120,7 +120,7 @@ def main() -> None:
         rightMargin=19 * mm,
         topMargin=18 * mm,
         bottomMargin=21 * mm,
-        title="POS Gostinstvo — računovodski priročnik v1.1",
+        title="POS Gostinstvo — računovodski priročnik v1.2",
         author="Bookie",
         subject="Računovodski priročnik za modul POS Gostinstvo",
         creator="Bookie POS Gostinstvo",

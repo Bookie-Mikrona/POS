@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the new accounting edge-case pages for visual review."""
+"""Render the changed accounting edge-case pages for visual review."""
 
 from pathlib import Path
 
@@ -7,8 +7,8 @@ import fitz
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PDF = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.1.pdf"
-OUTPUT_DIR = ROOT / ".agents" / "outputs" / "pos-accounting-v11-review"
+PDF = ROOT / "docs" / "POS-Gostinstvo-racunovodski-prirocnik-v1.2.pdf"
+OUTPUT_DIR = ROOT / ".agents" / "outputs" / "pos-accounting-v12-review"
 
 
 def main() -> None:
@@ -23,13 +23,18 @@ def main() -> None:
             or "»To Go« kava z lončkom" in page.get_text()
             or "»To Go« piškot z vrečko" in page.get_text()
             or "Mešano naročilo: pri mizi" in page.get_text()
+            or "Razbita, uničena ali drugače nevračljiva embalaža" in page.get_text()
         )
     ]
     if not matching_pages:
         raise RuntimeError("New accounting examples were not found in the PDF")
-    first_page = max(min(matching_pages) - 1, 0)
-    last_page = min(max(matching_pages) + 1, len(document) - 1)
-    for page_number in range(first_page, last_page + 1):
+    pages_to_render = sorted({
+        nearby_page
+        for page_number in matching_pages
+        for nearby_page in (page_number - 1, page_number, page_number + 1)
+        if 0 <= nearby_page < len(document)
+    })
+    for page_number in pages_to_render:
         page = document[page_number]
         pixmap = page.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
         output = OUTPUT_DIR / f"page-{page_number + 1:03d}.png"

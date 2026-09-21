@@ -18,8 +18,6 @@ Pri vsakem kontu preverite tudi:
 * ali zahteva partnerja, stroškovno mesto ali projekt;
 * ali je skupinski konto. Na skupinski konto se temeljnica ne sme knjižiti.
 
-![Nastavitve knjiženja v POS](../pos-accounting-manual-images/01-nastavitve-knjizenja.jpg)
-
 *Slika 1: pot do nastavitev. Slika mora pri končnem zajemu prikazati zavihek
 Nastavitve → Konti za temeljnice in podjetje, za katerega se nastavitve
 shranjujejo.*
@@ -41,8 +39,6 @@ pravico; uporabnik brez pravice prejme napako 403. Nastavitev velja na ravni
 podjetja, zato jo je treba preveriti za vsako podjetje posebej. Poslovna
 enota lahko doda stroškovno mesto, ki se pri POS→ERP knjiženju prenese na
 vrstice.
-
-![Izbira privzetih kontov za prodajo](../pos-accounting-manual-images/02-default-konti-prodaja.jpg)
 
 *Slika 2: prikaz vnosov plačilnih, prihodkovnih in DDV kontov. Pri zajemu
 zaslona mora biti vidna oznaka vsakega polja in izbrani naziv konta.*
@@ -91,8 +87,6 @@ Program ne sme ustvariti delne temeljnice, ki bi prikazala samo del prometa.
 | **Terjatev za študentske bone** (`subsidyReceivableAccountId`) | subvencionirani študentski bon | `1650000` — *Terjatve do države za subvencije* | Ob subvenciji obvezna skupaj s partnerjem `subsidyCounterpartyId`; program izrecno preveri oboje. |
 | **Partner subvencije** (`subsidyCounterpartyId`) | analitika terjatve za študentske bone | *MDDSZ/ŠOS* — naziv partnerja v šifrantu | Brez partnerja se prodajna temeljnica preskoči, tudi če je konto nastavljen. |
 
-![Konti zalog in nabave](../pos-accounting-manual-images/03-default-konti-zaloga.jpg)
-
 *Slika 3: polja za prejemnice, vstopni DDV, nabavo in porabo. Pri zajemu naj
 bo jasno razvidna razlika med zalogo in stroškom.*
 
@@ -124,8 +118,6 @@ UUID se zavrne. Če za kategorijo ni preslikave, se najprej uporabi
 Za 0 % oziroma neznano stopnjo je treba izrecno določiti
 poslovno pravilo; program pri materialu uporablja nastavitev materiala 9,5 %
 kot združljivostno rešitev, kar mora računovodja preveriti.
-
-![Preslikave kategorij na prihodkovne konte](../pos-accounting-manual-images/04-kategorije-prihodki.jpg)
 
 *Slika 4: vsaka kategorija ima lahko svoj prihodkovni konto. Primer je
 ponazoritev; številka in naziv sta vedno podatka kartice konta podjetja.*

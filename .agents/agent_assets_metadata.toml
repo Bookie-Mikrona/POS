@@ -781,3 +781,17 @@ mtime_ms = 1790007305088
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/fa58db97-b1f9-463a-91e5-29c51634bc44/e16b064e-8a15-4065-8456-bcd2b1a56130"
 storage_version_token = "1790007366568344"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "qoH1JeVEvyml4FYP23LkT"
+uri = "file://docs/POS-Gostinstvo-racunovodski-prirocnik-v1.2.pdf"
+type = "pdf"
+title = "POS Gostinstvo — računovodski priročnik v1.2"
+description = "Računovodski priročnik brez zaslonskih slik, dopolnjen z obravnavo razbite, uničene ali nevračljive povratne embalaže."
+logical_id = "328796c4-891f-4d75-ba66-bba27caab596"
+content_hash = "sha256:ab858fcf47385944acfcac1c466c04f853c80c01dbd7505d58d214a0619fc4ae"
+size = 477118
+mtime_ms = 1790009987836
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/328796c4-891f-4d75-ba66-bba27caab596/87e67c94-d6a4-4737-9f67-ba8565b70a04"
+storage_version_token = "1790010047785663"
+content_type = "application/pdf"

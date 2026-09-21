@@ -64,3 +64,9 @@ Artikel povratne embalaže, ustvarjen med uparjanjem OCR-dokumenta, mora biti ta
 **Why:** Za isti artikel sta na dobavnici pogosto zaporedni vrstici prejema in vračila. Seznam artiklov in predhodno izračunani kandidati sicer ostanejo iz časa pred ustvarjanjem, zato vračilo novega artikla ne more najti.
 
 **How to apply:** Po uspešnem ustvarjanju dodaj artikel v lokalni iskalni seznam, osveži skupni seznam artiklov ter ponovno izračunaj in preberi neuparjene vrstice trenutne prejemnice.
+
+Razbita ali uničena povratna embalaža je ločen dogodek, ne vračilo dobavitelju. Zmanjšati mora fizično zalogo in dobaviteljski količinski saldo, knjižiti D strošek odpisa / K zalogo embalaže, ne sme pa zmanjšati obveznosti do dobavitelja.
+
+**Why:** Navidezno vračilo bi napačno ustvarilo D 220, čeprav dobavitelj embalaže ni prejel in depozita ni priznal. Sam inventurni manjko pa pusti dobaviteljski saldo napačno odprt.
+
+**How to apply:** Namenski append-only dogodek uničenja naj v eni transakciji shrani razlog, dobavitelja, količino in zgodovinsko kavcijsko vrednost, zmanjša zalogo ter pripravi D strošek / K 3107000 brez DDV in brez konta 220.

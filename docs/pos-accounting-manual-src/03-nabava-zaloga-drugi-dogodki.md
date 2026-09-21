@@ -39,7 +39,6 @@ knjiženje, zahtevani partner/stroškovno mesto pa sta prisotna.
 
 ### Zaslon za pregled dokumenta
 
-![Predogled nabavnega dokumenta in računovodskih vrstic](../pos-accounting-manual-images/16-prejemnica.jpg)
 
 Na zaslonu mora računovodja ločiti **vnos dokumenta**, **operativni gib
 zaloge** in **računovodski predogled**. Gumb `Knjiži prejemnico` ne pomeni,
@@ -194,7 +193,6 @@ Vnesite vsako stopnjo kot ločeno vrstico. Primer: 100,00 pri 9,5 % in
 Sistem lahko zahteva popravek, sicer je predogled davčno napačen in ga ne
 uvažajte v GL.
 
-![Zaslon z različnimi stopnjami DDV in vrsticami prejemnice](../pos-accounting-manual-images/17-ddv-prejemnica.jpg)
 
 ## 4. Odvisni stroški, embalaža in kavcija
 
@@ -237,7 +235,49 @@ količino. Vračilo zmanjša evidenco embalaže. Pri spremembi prejemnice v
 dobropis se nasprotni gib ustvari samodejno; ročni drugi vnos bi podvojil
 vračilo.
 
-![Evidenca povratne embalaže in vračilo](../pos-accounting-manual-images/18-embalaza-vracilo.jpg)
+### 4.4 Razbita, uničena ali drugače nevračljiva embalaža
+
+Razbitja ne evidentirajte kot vračilo dobavitelju. Pri razbitju morata biti
+usklajena dva ločena podatka:
+
+1. **dejanska zaloga** se zmanjša za število uničenih kosov;
+2. **saldo vračljive embalaže pri konkretnem dobavitelju** se zmanjša za isto
+   količino z razlogom `razbitje` oziroma `uničenje`, vendar se obveznost do
+   dobavitelja ne zmanjša, ker dobavitelj embalaže ni prejel.
+
+Primer: od 20 zabojev z depozitno vrednostjo 3,00 EUR sta se 2 zaboja razbila.
+Dobavitelju je mogoče vrniti 18 zabojev, 2 zaboja oziroma 6,00 EUR pa sta
+odpis.
+
+| Konto | Naziv | D/K | Znesek |
+|---|---|---:|---:|
+| 4802000 | Strošek uničene povratne embalaže | D | 6,00 |
+| 3107000 | Zaloga povratne embalaže | K | 6,00 |
+
+Pri tem dogodku ni vrstice D na kontu 220, saj se obveznost do dobavitelja ne
+zmanjša in dobavitelj ne izda dobropisa za uničena kosa. Obveznost se pozneje
+poravna po običajnem postopku. Če dobavitelj kljub temu prizna delni dobropis,
+se dobropis knjiži samo za dejansko priznano količino in se odpis za isti del
+ne sme podvojiti.
+
+**Trenutna omejitev programa:** obstoječa funkcija `Vračilo embalaže` v enem
+dogodku zmanjša fizično zalogo in dobaviteljski saldo ter pripravi zmanjšanje
+obveznosti do dobavitelja. Zato je pri razbitju ne uporabljajte, saj bi
+računovodsko prikazala vračilo, ki se ni zgodilo. Dokler ni na voljo ločena
+funkcija `Odpis povratne embalaže`, je treba:
+
+1. dejansko količino popraviti z dokumentiranim odpisom oziroma inventurnim
+   manjkom;
+2. knjižiti D strošek odpisa / K 3107000;
+3. voditi podpisan zapisnik z artiklom, dobaviteljem, količino, depozitno
+   vrednostjo, razlogom, datumom in odgovorno osebo;
+4. razliko v dobaviteljskem saldu embalaže označiti kot odprto uskladitev in je
+   ne zapreti z navideznim vračilom.
+
+Če po odpisu fizična zaloga kaže 18 kosov, dobaviteljski saldo pa še vedno 20,
+razlika 2 kosa ni zaloga na lokaciji, temveč programsko še nepodprt dogodek
+uničenja. Računovodja mora razliko držati na kontrolnem seznamu, dokler ni
+vnesen namenski popravek z revizijsko sledjo.
 
 ## 5. Začetna zaloga
 
@@ -262,7 +302,6 @@ kapitala.
 postavk razveljavi stare gibe z nasprotnimi gibanji in ponovno izračuna
 zalogo; prazna postavka ni dovoljena.
 
-![Vnos začetne zaloge](../pos-accounting-manual-images/19-zacetna-zaloga.jpg)
 
 ## 6. Inventura: višek in manjko
 
@@ -296,7 +335,6 @@ v GL po internem kontnem načrtu in hranite inventurni zapisnik kot prilogo.
 lahko zajame napačne prejeme/prodaje; popravek inventure ustvari nasprotne
 gibe, zato ne popravljajte z novo »izravnalno« inventuro.
 
-![Vnos inventure z razliko](../pos-accounting-manual-images/20-inventura.jpg)
 
 ## 7. Odpis, odpad in kalo
 
@@ -321,7 +359,6 @@ nato `Odpadki → Nov zapis kala`. Obvezni so razlog, oseba, ki je kalo
 ugotovila/predala, in odgovorna oseba. Potrditev ustvari podpisan zapisnik
 PDF; ne ustvarja sama po sebi prodaje ali DDV.
 
-![Zapisnik kala pripravljene hrane](../pos-accounting-manual-images/21-kalo-pripravljena-hrana.jpg)
 
 ## 8. Pripravljena hrana: proizvodnja, odtajanje, zamrzovanje in popravki
 
@@ -367,7 +404,6 @@ primer 10 porcij × 2,00 = 20,00 uporabite interno potrjen konto odpisa:
 | 4802000 | Kalo pripravljene hrane | D | 20,00 |
 | 3106000 | Zaloga pripravljene hrane | K | 20,00 |
 
-![Dnevna evidenca pripravljene hrane](../pos-accounting-manual-images/22-pripravljena-hrana-ledger.jpg)
 
 ## 9. Odpadki s krožnikov
 
@@ -391,7 +427,6 @@ evidenco in poročila, ne pa neposredno na GL.
 
 To je ročni GL primer, ne samodejna POS temeljnica.
 
-![Evidenca odpadkov s krožnikov](../pos-accounting-manual-images/23-odpadki-s-kroznikov.jpg)
 
 ## 10. Prenosi zaloge in dogodki
 
@@ -415,7 +450,6 @@ Na `Dogodki` ustvarite dogodek, uporabite zavihek `Prenosi`, določite smer,
 artikel in količino. Vračilo vnesite kot nasprotni prenos in se sklicujte na
 izvorni prenos. Prenos ni prodaja, nima DDV in ne sme ustvariti prihodka.
 
-![Prenos zaloge na dogodek in zgodovina vračil](../pos-accounting-manual-images/24-dogodek-prenos.jpg)
 
 **Robni primer:** delno vračilo 6 od 10 kosov mora pustiti odprt saldo 4
 kosov; ne vnesite celotnega vračila in ga nato popravite z drugo inventuro.
@@ -476,7 +510,6 @@ ločeni `POLOG_GOTOVINE`: `D 1001000 / K 1091000`.
 `PRILIV_TRR` knjiži `D 1101000 / K 1091000`. Vedno uporabljajte ločena konta 109 in 110; sistem
 zavrne nastavitev, kjer je TRR konto 109 ali sta konta enaka.
 
-![Blagajniški premik in predogled temeljnice](../pos-accounting-manual-images/25-blagajniski-premiki.jpg)
 
 **Robni primeri in kontrole:** znesek mora biti pozitiven, največ 2 decimalni
 mesti; uporabnik sme uporabljati samo dodeljeno blagajno; obdobje mora biti
@@ -511,7 +544,6 @@ Konta 1092000 in 1101000 sta kontrolna primera; dejanski kartični konto je
 nastavljen v POS nastavitvah. Ne knjižite bančnega priliva ponovno kot
 prihodek.
 
-![Kartično plačilo, kliring in uskladitev](../pos-accounting-manual-images/26-karticni-kliring.jpg)
 
 ## 14. Primeri, ki niso samodejna GL temeljnica
 
@@ -549,7 +581,6 @@ dejanskih knjižb.
 * ob neuspehu knjiženja je bil operativni dokument vseeno potrjen brez
   zabeleženega razloga.
 
-![Kontrolni zaslon napak in nepopolnega predogleda](../pos-accounting-manual-images/27-kontrola-napak.jpg)
 
 ## 16. Kontrolni seznam pred prenosom v glavno knjigo
 
@@ -568,5 +599,3 @@ dejanskih knjižb.
    brez GL učinka.
 10. Pri uvozu v drug program uporabite stabilen ključ `(company, enota,
     sourceType, sourceId)` in zavrnite podvojitev.
-
-![Končna kontrola temeljnic in izvoz](../pos-accounting-manual-images/28-robni-primeri.jpg)
