@@ -15,4 +15,5 @@ dependencies = [
     "reportlab>=5.0.1",
     "starlette==1.6.0",
     "uvicorn==0.52.4",
+    "xlsxwriter>=3.2.9",
 ]

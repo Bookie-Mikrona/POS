@@ -837,3 +837,31 @@ mtime_ms = 1790012850300
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/c39d6b53-fc3a-4d6a-967b-3c082d3af973/6bced043-cf46-4e36-80b0-a400c598b5f5"
 storage_version_token = "1790012882595782"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "SbldO7w1iz_D0qKrsCQVm"
+uri = "file://docs/POS-Gostinstvo-sledljiv-inventar.xlsx"
+type = "table"
+title = "POS Gostinstvo — sledljiv inventar"
+description = "Preglednica s 67 uporabniškimi postopki, dokazili v UI/API/priročniku, statusom pokritosti, pomembnostjo in prednostnim seznamom vrzeli."
+logical_id = "1a800a38-9749-4515-af19-5b03751ba552"
+content_hash = "sha256:42bc90d1dc72cf217ad1db2428ea61670f2171a7eef226628f1ff29bf4ed423f"
+size = 37421
+mtime_ms = 1790016826739
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1a800a38-9749-4515-af19-5b03751ba552/2d6fef05-78ff-4a52-8ae5-bc9034267398"
+storage_version_token = "1790016846552875"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "W3C8n3mlr9D3WK6kZ_LXp"
+uri = "file://docs/POS-Gostinstvo-sledljiv-inventar.md"
+type = "text"
+title = "Povzetek sledljivega inventarja"
+description = "Berljiv povzetek pokritosti ter seznam kritičnih in visokih dokumentacijskih vrzeli."
+logical_id = "aefef59b-d149-4bbc-96be-4a8b5b310a99"
+content_hash = "sha256:5bc35676dc54a133dd0038574561120ac3b18e7eded44069be3ce88d86724d0f"
+size = 14764
+mtime_ms = 1790016826711
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/aefef59b-d149-4bbc-96be-4a8b5b310a99/d4c8c9a0-6c93-4e9a-898e-681c7698fc29"
+storage_version_token = "1790016847165722"
+content_type = "text/markdown"

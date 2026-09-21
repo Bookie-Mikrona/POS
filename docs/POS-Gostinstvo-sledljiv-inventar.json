@@ -1,0 +1,2125 @@
+[
+  {
+    "id": "AI-001",
+    "domain": "AI",
+    "feature": "AI svetovalec za POS kontekst",
+    "user_roles": [
+      "vodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "prijava",
+      "AI nastavitev/ponudnik",
+      "izbran POS kontekst"
+    ],
+    "normal_flow": "Odpri AI svetovalca, pošlji vprašanje s kontekstom in uporabi odgovor kot predlog za preverjanje.",
+    "exceptions_recovery": "Pri napaki ponudnika ali nejasnem odgovoru ne izvajaj spremembe na slepo; preveri ročno.",
+    "business_effect": "Pospeši podporo in delo, vendar ne sme samodejno postati poslovni dokaz.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/AiSvetovalecPanel.tsx:1-260",
+      "artifacts/pos/src/hooks/use-ai-svetovalec.ts:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/ai-agent.test.ts:1-220",
+      "artifacts/api-server/src/routes/pos/ai-agent-http.integration.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:431-497",
+      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:539-540"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "AI UI/hooki in testi poti obstajajo, vendar dokazi v priročniku opisujejo previdnost glede AI/OCR na splošno in ne celoten delovni tok AI-svetovalca."
+  },
+  {
+    "id": "QR-001",
+    "domain": "Brskanje",
+    "feature": "Brskanje po javnem meniju, kategorijah, razpoložljivosti, alergenih in podrobnostih o izdelkih",
+    "user_roles": [
+      "gost"
+    ],
+    "prerequisites": [
+      "uspešna aktivacija QR"
+    ],
+    "normal_flow": "Gost si ogleda aktivirani meni, kategorije in pogovorna okna izdelkov, nato doda izbrane izdelke v košarico.",
+    "exceptions_recovery": "Napake pri nalaganju in aktivaciji so prikazane z možnostjo ponovnega poskusa/osvežitve; nedostopni izdelki niso na voljo za naročilo.",
+    "business_effect": "Objavi trenutno ponudbo prizorišča in prepreči naročanje nedostopnih izdelkov.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:33-223",
+      "artifacts/pwa-menu/src/components/item-dialog.tsx",
+      "artifacts/pwa-menu/src/components/cart-drawer.tsx"
+    ],
+    "api_evidence": [
+      "artifacts/pwa-menu/src/hooks/use-public-api.ts:239-332",
+      "artifacts/api-server/src/routes/javnoMeni.ts"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1493-1500"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Ni ugotovljenih dodatnih vrzeli."
+  },
+  {
+    "id": "POS-001",
+    "domain": "Darilni boni",
+    "feature": "Stranka kupi darilni bon na spletu",
+    "user_roles": [
+      "stranka",
+      "manager"
+    ],
+    "prerequisites": [
+      "javna blagajna",
+      "integracija izdaje/plačila bona"
+    ],
+    "normal_flow": "Ni dokazano.",
+    "exceptions_recovery": "Ni dokazano.",
+    "business_effect": "Izdalo bi plačan darilni bon; trenutni dokazi se nanašajo le na unovčenje/konfiguracijo v POS.",
+    "ui_evidence": [],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/finalization-plan.ts:102-107",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:180-184"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md"
+    ],
+    "coverage_status": "NI IMPLEMENTIRANO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Polja/konfiguracija bonov ne dokazujejo spletnega nakupa ali izdaje."
+  },
+  {
+    "id": "POS-002",
+    "domain": "Dnevni iztržek",
+    "feature": "Izvedba X/Z dnevnega zaključka in uskladitev gotovine",
+    "user_roles": [
+      "blagajnik",
+      "manager",
+      "admin"
+    ],
+    "prerequisites": [
+      "Odprta izmena/blagajna",
+      "Vsi odprti nalogi in plačilne izjeme rešeni"
+    ],
+    "normal_flow": "Uporabnik pregleda pričakovano/prešteto gotovino, izvede X ali Z postopek ter zabeleži/nadzira zaključek delovnega dne.",
+    "exceptions_recovery": "Priročnik definira blokatorje, odklepanje in obravnavo neskladij; stran POS/dokazi API za celovit postopek Z niso bili najdeni.",
+    "business_effect": "Zaključi delovni dan in določi zneske gotovine, za katere se odgovarja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2342-2348"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/reports.ts:917-987"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:125-180",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2030-2170"
+    ],
+    "coverage_status": "MANJKA",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik zahteva ekspliciten postopek X/Z, uskladitev in odklepanje; z iskanimi datotekami ni dokazan noben ustrezen namenski delovni proces v UI."
+  },
+  {
+    "id": "ERP-001",
+    "domain": "Dnevniki",
+    "feature": "Pregled in knjiženje vnosov v dnevnik",
+    "user_roles": [
+      "računovodja",
+      "admin"
+    ],
+    "prerequisites": [
+      "Osnutek dnevnika obstaja",
+      "Konti prestanejo validacijo knjiženja"
+    ],
+    "normal_flow": "Računovodja pridobi vnose v dnevnik, pregleda vrstice/status in nato knjiži ustrezen vnos.",
+    "exceptions_recovery": "API podpira pridobivanje, brisanje in knjiženje vnosov; validacija zavrne neveljavne konte ali dimenzije.",
+    "business_effect": "Premakne računovodske podatke iz POS iz pregleda v knjiženo stanje glavne knjige.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2347-2348"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/journalEntries.ts:178-302",
+      "artifacts/api-server/src/routes/journalEntries.ts:573-644",
+      "artifacts/api-server/src/routes/journalEntries.ts:871-1037",
+      "artifacts/api-server/src/lib/journalEntryDeletion.ts:1-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:233-265",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2558-2588"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Končne točke za pregled/knjiženje v zalednem sistemu so evidentirane, vendar ni dokazov o namenski strani za pregled POS dnevnikov ali celovitem postopku popravkov."
+  },
+  {
+    "id": "ERP-002",
+    "domain": "Dnevniki",
+    "feature": "Ustvarjanje dnevnega POS dnevnika",
+    "user_roles": [
+      "računovodja",
+      "admin"
+    ],
+    "prerequisites": [
+      "Računi zaključeni",
+      "Veljavne preslikave",
+      "Delovni dan zaključen ali primeren"
+    ],
+    "normal_flow": "Sistem združi podatke o POS računih/plačilih v dnevnik in prikaže status/referenco za pregled.",
+    "exceptions_recovery": "Obstajajo knjižnice za idempotentnost/referenco in validacijo knjiženja; priročnik opisuje ponovni poskus prenosa, vendar so dokazi o obnovitvi v UI nepopolni.",
+    "business_effect": "Ustvari revizijsko sledljiv dnevni računovodski vnos iz POS aktivnosti.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2756-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/posReceiptBooking.ts:1-",
+      "artifacts/api-server/src/lib/posSyncBooking.monthly.test.ts:1-",
+      "artifacts/api-server/src/routes/journalEntries.ts:178-302"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2514-2576",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2678-2704"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Dnevni dnevnik je podprt v zalednem sistemu, vendar v POS UI ni dokazov o jasno prepoznavnem procesu dnevne generacije/ponovnega poskusa za uporabnika."
+  },
+  {
+    "id": "ERP-003",
+    "domain": "Dnevniki",
+    "feature": "Ustvarjanje mesečnega POS dnevnika",
+    "user_roles": [
+      "računovodja",
+      "admin"
+    ],
+    "prerequisites": [
+      "Mesečno obdobje in veljavne preslikave",
+      "Ustrezni POS podatki"
+    ],
+    "normal_flow": "Načrtovalnik/knjižnica obdela mesečno POS knjiženje samodejno ali po konfiguriranem urniku.",
+    "exceptions_recovery": "Testi in implementacija načrtovalnika kažejo na mesečno obdelavo; obnavljanje ob neuspelih izvedbah, ki bi bilo namenjeno operaterju, ni demonstrirano.",
+    "business_effect": "Zagotavlja periodični vir knjiženja v ERP in preprečuje opustitev mesečnih POS aktivnosti.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2347-2348"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/monthlyPosBookingScheduler.ts:1-",
+      "artifacts/api-server/src/lib/posSyncBooking.monthly.test.ts:1-",
+      "artifacts/api-server/src/index.ts:1-20"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2540-2558"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Načrtovalnik obstaja, vendar zagon/status/nadzor ponovnega poskusa iz priročnika nista v celoti evidentirana kot administratorski delovni proces."
+  },
+  {
+    "id": "QR-002",
+    "domain": "Gostujoči AI",
+    "feature": "Gost vpraša AI pomočnika o meniju",
+    "user_roles": [
+      "gost"
+    ],
+    "prerequisites": [
+      "aktiviran meni",
+      "razpoložljivost pomočnika"
+    ],
+    "normal_flow": "Gost odpre predal pomočnika in izmenjuje klepet v javnem meniju.",
+    "exceptions_recovery": "Ni dokazano razen komponente predala.",
+    "business_effect": "Zagotavlja odkrivanje menija/pomoč brez posredovanja osebja.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/components/guest-assistant-drawer.tsx",
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:15"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/ai-agent.test.ts"
+    ],
+    "manual_evidence": [],
+    "coverage_status": "DELNO",
+    "severity": "NIZKO",
+    "gap_or_correction": "UI in testni dokazi obstajajo, vendar produkcijska pot API-ja/običajen odziv in obnašanje pri napakah nista bila vzpostavljena."
+  },
+  {
+    "id": "TEL-001",
+    "domain": "Identiteta telefona/stranke",
+    "feature": "Operater ustvari telefonsko naročilo in identificira stranko po telefonski identiteti",
+    "user_roles": [
+      "telefonski operater",
+      "POS operater"
+    ],
+    "prerequisites": [
+      "CTI/telefonski kanal",
+      "zapis stranke ali normaliziran telefon"
+    ],
+    "normal_flow": "Operater sprejme telefonsko naročilo, identificira/ustvari stranko, izbere prevzem ali dostavo ter zabeleži čas/naslov.",
+    "exceptions_recovery": "Testi zajemajo dostavo/prevzem, spremenjen čas priprave, označevanje 'za s seboj' in primere, povezane z naslovom.",
+    "business_effect": "Poveže identiteto ponovne stranke z operativno izpolnitvijo in dostavo.",
+    "ui_evidence": [],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/cti.ts",
+      "artifacts/api-server/src/routes/pos/kupec.ts",
+      "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:552-843"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-9",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:519-520"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "API/testna pokritost je močna, vendar ni bil najden noben dokaz o UI za telefonskega operaterja."
+  },
+  {
+    "id": "POS-003",
+    "domain": "KDS/bar/pica/dispatch",
+    "feature": "Oddaja naročila, HOLD/FIRE, usmerjanje na kuhinjo/bar/pico in BUMP",
+    "user_roles": [
+      "natakar",
+      "kuhar",
+      "barman",
+      "pica"
+    ],
+    "prerequisites": [
+      "naročilo",
+      "nastavljene postaje in usmerjanje"
+    ],
+    "normal_flow": "Oddaj naročilo, uporabi HOLD/FIRE po hodih, postavka se usmeri na ustrezno postajo, pripravljavec jo obdela in BUMP-a.",
+    "exceptions_recovery": "Pri manjkajoči ali podvojeni kartici preveri naročilo/postajo; pri prezgodnjem BUMP-u uporabi dokumentiran incidentni postopek.",
+    "business_effect": "Koordinira pripravo in preprečuje napačen oziroma podvojen izpis.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:91-103",
+      "artifacts/pos/src/hooks/use-kds.ts:1-220",
+      "artifacts/pos/src/lib/kdsDispatch.ts:1-220",
+      "artifacts/pos/src/lib/kdsBar.ts:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/kds.ts:1-420",
+      "artifacts/api-server/src/lib/kds-routing.ts:1-220",
+      "artifacts/api-server/src/lib/kds-dispatch.ts:1-260",
+      "artifacts/api-server/src/__tests__/kds-dispatch.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:64-154",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:383-456",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:917-984"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "UI izbira postaje, knjižnice/testi usmerjanja/dispatcha ter življenjski cikel v priročniku so usklajeni."
+  },
+  {
+    "id": "QR-003",
+    "domain": "Klic natakarja",
+    "feature": "Gost pokliče natakarja in vidi stanje zahteve",
+    "user_roles": [
+      "gost",
+      "natakar"
+    ],
+    "prerequisites": [
+      "aktiviran QR meni",
+      "ID QR naprave"
+    ],
+    "normal_flow": "Gost izbere 'Klic natakarja'; API ustvari zahtevo; UI prikaže stanje na čakanju/potrjeno in prepreči drugo odprto zahtevo.",
+    "exceptions_recovery": "Napake pri mutaciji prikažejo sporočilo za ponovni poskus; obstoječa odprta zahteva onemogoči podvojene klice.",
+    "business_effect": "Ustvari servisno nalogo brez ustvarjanja naročila hrane.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:35-36",
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:249-324"
+    ],
+    "api_evidence": [
+      "artifacts/pwa-menu/src/hooks/use-public-api.ts:333-368",
+      "artifacts/api-server/src/routes/javnoMeni.ts"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1110-1117"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni ugotovljenih popravkov."
+  },
+  {
+    "id": "NAPT-001",
+    "domain": "Napitnine",
+    "feature": "Napitnina pri gotovini, kartici in mešanem plačilu",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene",
+      "računovodstvo",
+      "gost",
+      "blagajnik",
+      "natakar",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "plačilni tok podpira napitnino",
+      "izbran način zajema napitnine",
+      "račun/naročilo",
+      "postopek plačila",
+      "politika/konfiguracija napitnin"
+    ],
+    "normal_flow": "UI izračuna napitnino glede na kartični/gotovinski tok in jo zajame z izbrano metodo; podatki se prenesejo v zaključke.",
+    "exceptions_recovery": "Pri celotnem darilnem bonu napitnina ni omogočena; pri kartici se uporablja terminalski znesek napitnine.",
+    "business_effect": "Napitnina se evidentira ločeno in je vključena v poročila/knjiženje.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:284-290",
+      "artifacts/pos/src/pages/Checkout.tsx:1273-1290",
+      "artifacts/pos/src/pages/Checkout.tsx:2067",
+      "artifacts/pos/src/pages/Checkout.tsx:2422-2428"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/tips.ts:1-240",
+      "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400",
+      "artifacts/api-server/src/routes/tips.ts:504-594",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:753-765"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:464-476",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:829-837",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Osnovni zajem napitnine je opisan, manjkajo pa celotna politika, razdelitev, računovodsko zapiranje in javni QR vidik."
+  },
+  {
+    "id": "NAP-001",
+    "domain": "Naprave/tiskalniki/integracije",
+    "feature": "Konfiguracija terminalov, tiskalnikov, lokalnega prehoda in integracij",
+    "user_roles": [
+      "admin",
+      "superadmin"
+    ],
+    "prerequisites": [
+      "Admin dostop",
+      "Podprta naprava/prehod ali ponudnik plačil"
+    ],
+    "normal_flow": "Admin konfigurira nastavitve terminala za napravo, tiskalniški agent in plačilne integracije; POS jih uporablja med zaključkom/tiskanjem.",
+    "exceptions_recovery": "Kontekst naprave, tiskalniški most, testi Viva/Payten in nastavitve lokalnega prehoda zagotavljajo poti povezave; obnovitev po napaki je specifična za integracijo.",
+    "business_effect": "Omogoča fiskalno tiskanje, kartična plačila in operativno usmerjanje naprav.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:1090-1090",
+      "artifacts/pos/src/pages/Settings.tsx:4816-4816",
+      "artifacts/pos/src/pages/Settings.tsx:5085-5085",
+      "artifacts/pos/src/components/LocalGatewaySettings.tsx:1-",
+      "artifacts/pos/src/components/FiscalServicePairing.tsx:1-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/terminal.viva-device.test.ts:1-",
+      "artifacts/api-server/src/assets/downloads/ZcsPrinterBridge.apk"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:43-55",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:287-"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Obstajajo artefakti nastavitev in integracij, vendar zahtevano preverjanje dodelitve iz priročnika ter končna obnovitev tiskalnika/terminala nista v celoti evidentirana."
+  },
+  {
+    "id": "QR-004",
+    "domain": "Naročanje",
+    "feature": "Oddaja naročila iz javnega menija in spremljanje rezultata",
+    "user_roles": [
+      "gost",
+      "POS operater",
+      "kuhinjsko osebje"
+    ],
+    "prerequisites": [
+      "aktiviran meni",
+      "košarica z veljavnimi izdelki"
+    ],
+    "normal_flow": "Gost odda košarico; API ustvari naročilo; stanje v realnem času/javno stanje ter POS/KDS postopek obdelajo.",
+    "exceptions_recovery": "Stanje obstoječega naročila, nalaganje/napake in osveževanje v realnem času so predstavljeni; ročna navodila prepovedujejo ponovne poskuse ob nejasnem stanju.",
+    "business_effect": "Ustvari proizvodno naročilo, povezano s pripravo in postrežbo.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:33-35",
+      "artifacts/pwa-menu/src/components/existing-order.tsx",
+      "artifacts/pwa-menu/src/components/success-view.tsx"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/javnoMeni.ts",
+      "artifacts/api-server/src/routes/pos/narocila.ts"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:143-153"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni ugotovljenih popravkov."
+  },
+  {
+    "id": "ERP-004",
+    "domain": "Nastavitve POS knjiženja",
+    "feature": "Konfiguracija pravil in urnika knjiženja iz POS v ERP",
+    "user_roles": [
+      "admin",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "Avtenticiran uporabnik podjetja",
+      "Admin dostop do nastavitev"
+    ],
+    "normal_flow": "Admin odpre Nastavitve > Knjiženje, pregleda ali shrani konfiguracijo knjiženja; zaledni sistem omogoča branje/posodabljanje nastavitev in načrtovano mesečno obdelavo.",
+    "exceptions_recovery": "Napake pri validaciji/dostopu vrača API za nastavitve; načrtovalnik opravil obstaja, vendar ni dokazov v uporabniškem vmesniku o ponovnem poskusu/popravilu.",
+    "business_effect": "Nadzira, ali se POS računi lahko pretvorijo v podatke dnevnika ERP.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2342-2350",
+      "artifacts/pos/src/pages/Settings.tsx:2756-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/posBookingSettings.ts:323-379",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:752-885",
+      "artifacts/api-server/src/lib/monthlyPosBookingScheduler.ts:1-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2514-2558"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik zahteva definirane tipe prenosa/obravnavo statusov in postopek ponovnega poskusa; dokazi v UI/API potrjujejo nastavitve, ne pa tudi celovitega delovnega procesa, vidnega operaterju."
+  },
+  {
+    "id": "PLA-001",
+    "domain": "Plačila",
+    "feature": "Knjiženje, stornacija in revizija sprememb plačil",
+    "user_roles": [
+      "blagajnik",
+      "manager",
+      "računovodja",
+      "admin"
+    ],
+    "prerequisites": [
+      "Plačilo obstaja",
+      "Avtorizacija za knjiženje/stornacijo"
+    ],
+    "normal_flow": "Plačilo je knjiženo v dnevnik; pooblaščen uporabnik ga lahko stornira, sistem pa zabeleži posledične učinke na glavno knjigo/revizijo.",
+    "exceptions_recovery": "Zaledni sistem eksplicitno implementira poti za knjiženje in stornacijo, povezane vrstice dnevnika, preverjanja statusa in revizijske vnose.",
+    "business_effect": "Vzdržuje pravilno glavno knjigo terjatev/gotovine in preprečuje tihe stornacije plačil.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:1-",
+      "artifacts/pos/src/pages/Receipts.tsx:1352-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/payments.ts:791-1082",
+      "artifacts/api-server/src/routes/payments.ts:1083-",
+      "artifacts/api-server/src/routes/payments.void.ledger.test.ts:1-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:320-361"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Vedenje zalednega sistema je močno, vendar iskani dokazi v UI ne potrjujejo, da so status/čas stornacije in vse posledice večkratnih plačil vidne računovodskim uporabnikom."
+  },
+  {
+    "id": "PLA-002",
+    "domain": "Plačila",
+    "feature": "Stranka plača na spletu preko Stripe",
+    "user_roles": [
+      "stranka",
+      "blagajnik",
+      "manager"
+    ],
+    "prerequisites": [
+      "račun/konfiguracija Stripe",
+      "javna plačilna seja/spletni kavelj (webhook)"
+    ],
+    "normal_flow": "Ni dokazano.",
+    "exceptions_recovery": "Ni dokazano.",
+    "business_effect": "Omogočilo bi spletno plačilo s kartico; pregledani plačilni dokazi uporabljajo druge terminale/ponudnike plačil.",
+    "ui_evidence": [],
+    "api_evidence": [],
+    "manual_evidence": [
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md"
+    ],
+    "coverage_status": "NI IMPLEMENTIRANO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni bil najden noben Stripe SDK, pot, webhook, blagajna ali dokumentiran Stripe postopek."
+  },
+  {
+    "id": "POR-001",
+    "domain": "Poročanje",
+    "feature": "Izvajanje dnevnih, časovnih in mesečnih operativnih poročil",
+    "user_roles": [
+      "manager",
+      "računovodja",
+      "admin"
+    ],
+    "prerequisites": [
+      "Avtenticiran uporabnik",
+      "Filtri za datum/enoto/plačilo"
+    ],
+    "normal_flow": "Uporabnik izbere časovni obseg in operativne dimenzije, pregleda vsote/razčlenitve in uskladi rezultate.",
+    "exceptions_recovery": "Poti poročil vsebujejo opozorila o klasifikaciji kontov in obravnavo nerazvrščenih kontov; natančna pokritost poročil v POS UI ni prikazana.",
+    "business_effect": "Podpira dnevni nadzor, primerjavo obdobij ter usklajevanje med managementom in računovodstvom.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Stats.tsx:1-",
+      "artifacts/pos/src/App.tsx:144-157"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/reports.ts:474-511",
+      "artifacts/api-server/src/routes/reports.ts:590-",
+      "artifacts/api-server/src/routes/reports.ts:917-1261"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:182-216",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2172-2512"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik navaja številne dimenzije operativnih poročil in izvozov; razpoložljivi dokazi UI/API ne potrjujejo vseh variant dnevnih/časovnih/mesečnih poročil."
+  },
+  {
+    "id": "POR-002",
+    "domain": "Poročanje",
+    "feature": "Pregled realizacije in razčlenitev plačil",
+    "user_roles": [
+      "manager",
+      "blagajnik",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "POS transakcije in plačila obstajajo"
+    ],
+    "normal_flow": "Uporabnik odpre Realizacijo in pregleda promet/informacije o plačilih za operativni nadzor.",
+    "exceptions_recovery": "V referenci strani ni evidentirano nobeno specifično vedenje pri obnavljanju.",
+    "business_effect": "Zagotavlja operativno realizacijo prodaje in podpira usklajevanje ob zaključku dneva.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Realizacija.tsx:302-",
+      "artifacts/pos/src/App.tsx:157-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/reports.ts:474-590"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2192-2340"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Stran Realizacija obstaja, vendar dokazi ne potrjujejo vseh filtrov, razčlenitev, izvozov in kontrol usklajevanja, ki jih zahteva priročnik."
+  },
+  {
+    "id": "QR-005",
+    "domain": "Povratne informacije",
+    "feature": "Gost pošlje povratne informacije po naročilu",
+    "user_roles": [
+      "gost",
+      "manager"
+    ],
+    "prerequisites": [
+      "QR/javno naročilo"
+    ],
+    "normal_flow": "Ni prikazano v pregledanem UI za stranke; obstaja strežniška infrastruktura za QR povratne informacije/poročanje.",
+    "exceptions_recovery": "Ni dokazano za oddajo s strani gosta.",
+    "business_effect": "Zagotovilo bi signale o kakovosti storitev; trenutni dokazi podpirajo le infrastrukturo poročanja.",
+    "ui_evidence": [],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/qr-feedback-report.ts",
+      "artifacts/api-server/src/routes/pos/qr-feedback-report.integration.test.ts"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:505-516"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Dokazi na zalednem sistemu/poročilih ne dokazujejo celovitega obrazca za povratne informacije gosta."
+  },
+  {
+    "id": "POS-004",
+    "domain": "Preslikave kontov/DDV",
+    "feature": "Preslikava plačilnih kanalov in stopenj DDV na konte ERP",
+    "user_roles": [
+      "admin",
+      "računovodja"
+    ],
+    "prerequisites": [
+      "Konfiguriran kontni načrt",
+      "Razpoložljive nastavitve knjiženja"
+    ],
+    "normal_flow": "Računovodja/admin konfigurira povezave kontov in DDV, ki jih uporablja POS knjiženje in validacija.",
+    "exceptions_recovery": "Zaledni sistem vsebuje validacijo vrst kontov, neposrednega knjiženja, stroškovnih mest in DDV povezav; neveljavne/nerazvrščene preslikave lahko povzročijo opozorila/napake.",
+    "business_effect": "Določa razvrstitev in pravilnost DDV pri knjiženih POS dnevnikih.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2347-2348",
+      "artifacts/pos/src/pages/Settings.tsx:2756-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/accounts.ts:1-",
+      "artifacts/api-server/src/lib/companyChartOfAccounts.ts:1-",
+      "artifacts/api-server/src/lib/directPostingAccountValidation.ts:1-",
+      "artifacts/api-server/src/lib/journalVatCodeLinks.ts:1-",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:379-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2592-2638",
+      "docs/pos-manual-src/12-spremembe-in-dopolnitve.md:24-"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik zahteva eksplicitne preslikave plačilnih kanalov in DDV; vidni POS dokazi ne potrjujejo celovitih urejevalnikov preslikav ali trajne obravnave nerešenih opozoril."
+  },
+  {
+    "id": "QR-006",
+    "domain": "QR meni",
+    "feature": "Aktivacija javnega QR menija in preverjanje lokacije/prizorišča",
+    "user_roles": [
+      "gost"
+    ],
+    "prerequisites": [
+      "javni žeton",
+      "identiteta QR naprave",
+      "geolokacija brskalnika ali Wi-Fi prizorišča"
+    ],
+    "normal_flow": "Stran QR pridobi ID naprave, zahteva geolokacijo, aktivira žeton in nato naloži meni.",
+    "exceptions_recovery": "Manjkajoča geolokacija, napaka pri aktivaciji ali napačna naprava prikažejo napako in ponudijo ponovni poskus; predogledne seje zaobidejo običajno aktivacijo.",
+    "business_effect": "Omeji javni meni na določeno lokacijo in poveže aktivnost z napravo QR.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:24-111",
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:194-223"
+    ],
+    "api_evidence": [
+      "artifacts/pwa-menu/src/hooks/use-public-api.ts:160-206",
+      "artifacts/api-server/src/routes/javnoMeni.ts"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1489-1505"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni potrjenega delovnega toka za izbiro lokacije s strani stranke, razen preverjanja aktivacije."
+  },
+  {
+    "id": "RAC-001",
+    "domain": "Računi",
+    "feature": "Pregled seznama računov ter vidnost računov/plačil",
+    "user_roles": [
+      "blagajnik",
+      "manager",
+      "računovodja",
+      "admin"
+    ],
+    "prerequisites": [
+      "Avtenticirana POS seja",
+      "Računi/plačila obstajajo"
+    ],
+    "normal_flow": "Uporabnik odpre Račune, filtrira/išče račune in pregleda informacije o plačilih/rezultatih.",
+    "exceptions_recovery": "Stran z računi ima filtre za napake/vračila in teste za zgodovino vračil; obravnava stanja plačil je implementirana v zaključku/zalednem sistemu.",
+    "business_effect": "Omogoča pregled fiskalnih računov in njihovih plačilnih dokazov ter podpira popravke.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Receipts.tsx:815-",
+      "artifacts/pos/src/pages/Receipts.tsx:1352-1629",
+      "artifacts/pos/src/pages/Receipts.napake-filter.test.tsx:1-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/payments.ts:1-120",
+      "artifacts/api-server/src/routes/payments.ts:1083-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:283-361",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1-11"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Iz razpoložljivih dokazov ni vzpostavljen noben popravek."
+  },
+  {
+    "id": "REV-001",
+    "domain": "Revizija/varnost",
+    "feature": "Avtentikacija sej in hramba dokazov o akterjih/reviziji",
+    "user_roles": [
+      "vsi uporabniki",
+      "admin",
+      "revizor"
+    ],
+    "prerequisites": [
+      "Veljavne poverilnice",
+      "Dodeljen kontekst podjetja/enote"
+    ],
+    "normal_flow": "Uporabnik se avtenticira, deluje v okviru imenovane seje/naprave, občutljiva POS/računovodska dejanja pa so pripisana akterju.",
+    "exceptions_recovery": "Obstajajo kontekst avtentikacije, vmesna programska oprema za revizijo zmogljivosti in pogodbe o reviziji POS akterjev; priročnik zahteva preverjanje identitete in dodelitve naprave pred delom.",
+    "business_effect": "Zagotavlja odgovornost, ločitev dolžnosti in utemeljeno revizijsko sled.",
+    "ui_evidence": [
+      "artifacts/pos/src/contexts/AuthContext.tsx:1-",
+      "artifacts/pos/src/PosAuthProblem.test.tsx:1-"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/auditLog.ts:1-",
+      "artifacts/api-server/src/lib/posActorAudit.ts:1-",
+      "artifacts/api-server/src/middlewares/pos.capability-audit.test.ts:1-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:29-55",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:1-"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Evidentirani so revizijski primitivi in kontekst avtentikacije, vendar ni evidentiran celovit delovni proces pregleda/izvoza revizijske sledi in varnostne administracije, viden uporabniku."
+  },
+  {
+    "id": "REZ-001",
+    "domain": "Rezervacije",
+    "feature": "Stranka naredi spletno rezervacijo",
+    "user_roles": [
+      "stranka",
+      "gostitelj/manager"
+    ],
+    "prerequisites": [
+      "javni rezervacijski kanal",
+      "postopek razpoložljivosti in potrditve"
+    ],
+    "normal_flow": "Ni dokazano.",
+    "exceptions_recovery": "Ni dokazano.",
+    "business_effect": "Ustvarilo/zadržalo bi rezervacijo mize; ni prikazan noben javni spletni tok.",
+    "ui_evidence": [],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/mize.rezervacije.test.ts"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:124-129"
+    ],
+    "coverage_status": "NI IMPLEMENTIRANO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Obstajajo le notranji/testni dokazi za rezervacijo mize; noben javni spletni UI/API tok za rezervacijo ni bil najden."
+  },
+  {
+    "id": "UPR-001",
+    "domain": "Uporabniki/vloge",
+    "feature": "Upravljanje POS uporabnikov, natakarskih profilov, enot in dovoljenj",
+    "user_roles": [
+      "admin",
+      "superadmin"
+    ],
+    "prerequisites": [
+      "Admin seja",
+      "Podatki o uporabniku/profilu"
+    ],
+    "normal_flow": "Admin odpre nastavitve, upravlja uporabnike/vloge in povezuje uporabnike z natakarskimi profili, enotami, blagajnami in napravami.",
+    "exceptions_recovery": "Nastavitve skrivajo zavihke glede na vlogo; obstaja končna točka za uvoz uporabnikov; manjkajoča povezava profila je prikazana z dokumentiranim vedenjem POS.",
+    "business_effect": "Nadzira odgovornost in dostop do POS operacij.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:2098-2194",
+      "artifacts/pos/src/pages/Settings.tsx:2342-2351"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/admin.roles.test.ts:1-",
+      "artifacts/api-server/src/middlewares/pos.capability-audit.test.ts:1-"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:29-39",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:118-146"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Obstajajo nastavitve, vezane na vloge, in dokazi o uvozu, vendar niso bile najdene vse UI/API komponente za CRUD operacije uporabnikov/vlog in dodeljevanje."
+  },
+  {
+    "id": "QR-007",
+    "domain": "Za s seboj",
+    "feature": "Gost odda naročilo za s seboj (prevzem)",
+    "user_roles": [
+      "gost",
+      "POS operater"
+    ],
+    "prerequisites": [
+      "aktiviran javni meni",
+      "košarica",
+      "konfigurirana pravila za 'za s seboj'/prevzem"
+    ],
+    "normal_flow": "Gost v javnem vmesniku izbere možnost 'za s seboj', odda košarico, POS/API pa to obdela kot naročilo za prevzem.",
+    "exceptions_recovery": "Priprava naročila in identifikacija prevzema sta obravnavani operativno; tveganja glede podvajanja in nalepk za prevzem so dokumentirana.",
+    "business_effect": "Ustvari ločeno prepoznavno naročilo za prevzem in usmeri pripravo/izdajo.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/pages/menu-page.tsx:400-440",
+      "artifacts/pwa-menu/src/components/cart-drawer.tsx"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/narocila.ts",
+      "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:627-843"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-9",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1100-1153"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "UI dokaz prikazuje možnost 'za s seboj', vendar celoten postopek potrditve prevzema/identitete gosta v pregledanem UI ni vzpostavljen."
+  },
+  {
+    "id": "QR-008",
+    "domain": "Zgodovina naročil",
+    "feature": "Gost si ogleda prejšnja javna naročila",
+    "user_roles": [
+      "gost"
+    ],
+    "prerequisites": [
+      "javna seja/soglasje za zgodovino, če je podprto"
+    ],
+    "normal_flow": "Ni prikazano v pregledanem UI za stranke.",
+    "exceptions_recovery": "Ni dokazano.",
+    "business_effect": "Podpiralo bi ponovne obiske in samopostrežbo strank, vendar ni potrjenega učinka.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/hooks/use-history-opt-in.ts"
+    ],
+    "api_evidence": [],
+    "manual_evidence": [
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:512-516"
+    ],
+    "coverage_status": "MANJKA",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Obstaja kljuka (hook) za soglasje za zgodovino, vendar nista bila najdena noben prepoznaven delovni tok zgodovine gosta ali API dokaz."
+  },
+  {
+    "id": "PLA-003",
+    "domain": "blagajna",
+    "feature": "Bon za pico in subvencionirana prehrana",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene",
+      "administrator"
+    ],
+    "prerequisites": [
+      "naročilo vsebuje pice oziroma subvencionirane artikle",
+      "konfigurirani konti in partner"
+    ],
+    "normal_flow": "UI zazna pico, prikaže namenski bon oziroma subvencijo, izračuna doplačilo in izvede gotovino/kartico.",
+    "exceptions_recovery": "Subvencija je ločena od darilnega bona; API preverja konfiguriranega partnerja, konto in dovoljeni račun.",
+    "business_effect": "Ločeno evidentira subvencijo/terjatev in doplačilo; ne obravnava subvencije kot popusta.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:1233-1277",
+      "artifacts/pos/src/pages/Checkout.tsx:5059-5167"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400",
+      "artifacts/api-server/src/routes/payments.ts:525-579"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:369-396"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni ugotovljene vrzeli v primerjavi z navodilom."
+  },
+  {
+    "id": "PLA-004",
+    "domain": "blagajna",
+    "feature": "Gotovina, kartica, bon, negotovinsko in posebni načini plačila",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene"
+    ],
+    "prerequisites": [
+      "izbrano naročilo",
+      "aktivna blagajna in izmena",
+      "nastavljeni načini plačila"
+    ],
+    "normal_flow": "Uporabnik izbere način, preveri znesek in izda račun; UI vsebuje izbiro gotovina/kartica/bon/negotovinsko.",
+    "exceptions_recovery": "Blokade preprečijo izdajo ob manjkajoči izmeni, neujemajočih postavkah ali aktivnem poskusu; pri nejasnem rezultatu se preveri arhiv namesto ponovitve.",
+    "business_effect": "Ustvari plačilno evidenco, račun in promet po načinu plačila.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:5180-5238",
+      "artifacts/pos/src/pages/Checkout.tsx:5432-5489"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:23-76",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:283-330"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni ugotovljene vrzeli v osnovnem toku."
+  },
+  {
+    "id": "PLA-005",
+    "domain": "blagajna",
+    "feature": "Idempotentni kartični poskus in neznan rezultat",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene"
+    ],
+    "prerequisites": [
+      "rezerviran payment attempt",
+      "terminal ali bridge"
+    ],
+    "normal_flow": "Ustvari se poskus, terminal vrne rezultat, rezultat se ponovno preveri in šele nato se izda račun.",
+    "exceptions_recovery": "Pri timeoutu, potekli seji ali neznanem rezultatu UI zaklene ponovni poskus in zahteva pregled obstoječega zapisa; nejasen rezultat se ne plača dvakrat.",
+    "business_effect": "Preprečuje dvojno bremenitev in omogoča sledljivost neuspelih/čakajočih plačil.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:2129-2161",
+      "artifacts/pos/src/pages/Checkout.tsx:2218-2234",
+      "artifacts/pos/src/pages/Checkout.tsx:2380-2405"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:608-684",
+      "artifacts/api-server/src/routes/pos/racuni.ts:644-684"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:106-139",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:488-510"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni ugotovljene vrzeli v obravnavanem toku."
+  },
+  {
+    "id": "PLA-006",
+    "domain": "blagajna",
+    "feature": "Kartični ponudniki Payten, SumUp in Viva",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene",
+      "administrator"
+    ],
+    "prerequisites": [
+      "aktiven in seznanjen terminal/bridge",
+      "izbran kartični tok",
+      "znesek kartičnega doplačila"
+    ],
+    "normal_flow": "Checkout prikaže ustrezen tok za Payten, SumUp ali Viva in po uspešnem rezultatu nadaljuje izdajo računa.",
+    "exceptions_recovery": "Payten Android uporablja rezervacijo, poll token in povratni rezultat; Viva uporablja callback/storage; rezultat se preveri pred izdajo.",
+    "business_effect": "Plačilo je povezano z izbranim ponudnikom in računom.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:1298-1316",
+      "artifacts/pos/src/pages/Checkout.tsx:2238-2331",
+      "artifacts/pos/src/pages/Checkout.tsx:2331-2425"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:608-684",
+      "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:478-527",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:850-889"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni ugotovljene vrzeli; ponudniki so eksplicitno navedeni v UI in priročniku."
+  },
+  {
+    "id": "PLA-007",
+    "domain": "blagajna",
+    "feature": "Mešano plačilo in delitev postavk",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene"
+    ],
+    "prerequisites": [
+      "naročilo z odprtim zneskom",
+      "izbran delež/postavke",
+      "dovoljena sekundarna metoda"
+    ],
+    "normal_flow": "Sistem izračuna preostanek po bonu/subvenciji in omogoči sekundarno gotovino ali kartico; postavke se lahko razdelijo.",
+    "exceptions_recovery": "Delno potrjen kartični poskus ostane vezan na poskus; uporabnik ne sme ponoviti plačila brez preverbe.",
+    "business_effect": "Razporedi promet in terjatve med več plačilnih tokov brez podvajanja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:1250-1316",
+      "artifacts/pos/src/pages/Checkout.tsx:5438-5489"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400",
+      "artifacts/api-server/src/routes/pos/racuni.ts:2783-2860"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:417-464",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:778-813"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni ugotovljene vrzeli v dokumentiranem in implementiranem toku."
+  },
+  {
+    "id": "PLA-008",
+    "domain": "blagajna",
+    "feature": "Unovčitev darilnega bona",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene",
+      "administrator"
+    ],
+    "prerequisites": [
+      "aktiven skupni saldo darilnih bonov",
+      "izbran znesek bona",
+      "morebitno sekundarno plačilo"
+    ],
+    "normal_flow": "Uporabnik izbere Bon, vnese znesek, sistem ga odšteje od odprtega zneska in po potrebi izvede doplačilo.",
+    "exceptions_recovery": "UI izrecno prikazuje skupno evidenco odprtega salda in da bon nima individualnega preostanka; celotno pokritje preskoči kartični tok.",
+    "business_effect": "Zmanjša evidenco darilnih bonov in evidentira prihodke/plačilo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:1254-1259",
+      "artifacts/pos/src/pages/Checkout.tsx:5244-5316"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:603-686",
+      "artifacts/api-server/src/routes/posBookingSettings.ts:600-620"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:353-376",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:787-796"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni ugotovljene vrzeli."
+  },
+  {
+    "id": "DOG-001",
+    "domain": "dogodki in prenosi",
+    "feature": "Dogodki in prenosi zaloge med enotami",
+    "user_roles": [
+      "vodja",
+      "skladiščnik"
+    ],
+    "prerequisites": [
+      "dogodek ali ciljna enota",
+      "artikli in količine",
+      "pravice za prenos"
+    ],
+    "normal_flow": "Ustvari dogodek/prenos, izberi izvor in cilj, potrdi gibanje ter preveri celovitost premikov.",
+    "exceptions_recovery": "Pri nepopolnem, preklicanem ali nelogičnem dogodku uporabi diagnostiko in ne ustvarjaj ročnega nadomestnega gibanja brez razloga.",
+    "business_effect": "Premika zalogo med konteksti in ohranja sledljivost.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Events.tsx:1-320"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/events.ts:1-420",
+      "artifacts/api-server/src/lib/loadEventTransferDetail.ts:1-260",
+      "artifacts/api-server/src/lib/eventTransferDiagnostics.ts:1-260"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:920-941",
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1513-1554"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Poti dogodkov/prenosov in diagnostika obstajajo, vendar dobavljeni priročnik ponuja usmerjanje glede incidentov in ne celotnega postopka za normalne prenose."
+  },
+  {
+    "id": "DOST-001",
+    "domain": "dostop",
+    "feature": "Avtentikacija in življenjski cikel seje",
+    "user_roles": [
+      "vsi POS uporabniki",
+      "administrator"
+    ],
+    "prerequisites": [
+      "veljavna identiteta referenta",
+      "POS avtorizacija za izbrani kontekst"
+    ],
+    "normal_flow": "Uporabnik se prijavi, POS validira /api/pos/auth/me, naloži avtoriziran profil in ohrani API žeton na voljo za zahteve.",
+    "exceptions_recovery": "Stanja odjave, nalaganja, neavtoriziranega dostopa, prepovedi, osvežitve žetona/401 in odjave so eksplicitno predstavljena; uporabnik se mora ponovno avtenticirati, ko dostop ni več veljaven.",
+    "business_effect": "Nadzira dostop do POS podatkov in beleži delo pod avtenticirano identiteto.",
+    "ui_evidence": [
+      "artifacts/pos/src/contexts/AuthContext.tsx:63-181",
+      "artifacts/pos/src/pages/Login.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/contexts/AuthContext.tsx:93-145",
+      "artifacts/api-server/src/app.ts:1-80"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:73-185",
+      "docs/pos-manual-src/01-operativno-delo.md:640-664"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+  },
+  {
+    "id": "DOST-002",
+    "domain": "dostop",
+    "feature": "Izbira podjetja, enote, blagajne in delovnega dne",
+    "user_roles": [
+      "administrator podjetja",
+      "administrator enote",
+      "POS uporabnik"
+    ],
+    "prerequisites": [
+      "avtenticiran uporabnik",
+      "pooblaščena podjetja/enote/blagajne"
+    ],
+    "normal_flow": "Uporabnik izbere ali prejme dovoljen kontekst podjetja/enote/blagajne; sprememba enote počisti ali samodejno izbere združljivo blagajno in kontekst se pošlje v API zahteve.",
+    "exceptions_recovery": "Uporabniki s fiksno enoto/blagajno ne morejo izbirati izven svojega obsega; nezdružljiva blagajna se počisti ali zamenja z aktivno blagajno za novo enoto.",
+    "business_effect": "Omeji artikle, mize, naročila, nastavitve in finančne dejavnosti na pravilno lokacijo delovanja.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:604-680",
+      "artifacts/pos/src/pages/Settings.tsx:2153-2170",
+      "artifacts/pos/src/components/EnotaSwitcher.tsx:1-180"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/contexts/AuthContext.tsx:153-181",
+      "artifacts/pos/src/contexts/NapravaContext.tsx:95-145"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:263-382",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:288-326"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+  },
+  {
+    "id": "DOST-003",
+    "domain": "dostop",
+    "feature": "Registracija naprave in obseg naprave/mize",
+    "user_roles": [
+      "vsi POS uporabniki",
+      "administrator"
+    ],
+    "prerequisites": [
+      "avtenticirana seja",
+      "kontekst enote",
+      "brskalnik/naprava"
+    ],
+    "normal_flow": "POS registrira napravo po avtentikaciji in pošlje X-Enota-Id; podatki o napravi in njen dovoljen obseg miz se nato uporabijo v POS.",
+    "exceptions_recovery": "Registracija čaka na razpoložljivost žetona/enote in se ponovno izvede, ko se enota spremeni; predpomnjeno/brez povezave delovanje upravljata POS prehod/moduli za delo brez povezave.",
+    "business_effect": "Preprečuje, da bi neregistrirana ali neustrezna naprava delovala v napačnem kontekstu restavracije.",
+    "ui_evidence": [
+      "artifacts/pos/src/contexts/NapravaContext.tsx:1-151",
+      "artifacts/pos/src/pages/Settings.tsx:3290-3360"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/contexts/NapravaContext.tsx:105-145",
+      "artifacts/pos/src/lib/gatewayClient.ts:1-180"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:384-483",
+      "docs/pos-manual-src/01-operativno-delo.md:485-565"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik zahteva eksplicitne kontrole za prvi zagon/napravo in obseg miz; dokazi uporabniškega vmesnika kažejo registracijo/nastavitve, vendar ne dokazujejo celotnega dokumentiranega poteka potrditve."
+  },
+  {
+    "id": "POS-005",
+    "domain": "fiskalno",
+    "feature": "Omejeni/offline fiskalni tok in kasnejša sinhronizacija",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene",
+      "administrator"
+    ],
+    "prerequisites": [
+      "dovoljen offline režim",
+      "lokalna podpisana evidenca",
+      "kasnejša povezava"
+    ],
+    "normal_flow": "Pri omejeni povezavi sistem uporablja offline fiskalno vrsto; worker po vrnitvi povezave odda čakajoče račune in ohrani identiteto plana.",
+    "exceptions_recovery": "Worker zaklepa zapis, ob konfliktu zavrne manjkajoče/neujemajoče postavke in omogoča ponovni transport.",
+    "business_effect": "Ohrani davčno sled brez dvojne izdaje in pozneje dopolni FURS stanje.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:1062-1068",
+      "artifacts/pos/src/App.tsx:692"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/services/pos/offline-fiscal-worker.ts:39-133",
+      "artifacts/api-server/src/services/pos/offline-fiscal-worker.ts:164-208",
+      "artifacts/api-server/src/services/pos/offline-fiscal-runner.ts:1-80"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:140-155",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:537-564"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni ugotovljene vrzeli."
+  },
+  {
+    "id": "HOD-001",
+    "domain": "hodi",
+    "feature": "Dodeljevanje, zaporedje in proženje hodov naročila",
+    "user_roles": [
+      "natakar",
+      "kuhinjsko osebje",
+      "vodja enote"
+    ],
+    "prerequisites": [
+      "naročilo s konfiguriranim menijem z več hodi",
+      "konfiguracija KDS/hodov"
+    ],
+    "normal_flow": "Uporabnik dodeli hod/artikle menija in sprosti naslednji hod; KDS prejme podatke o hodu in natakar lahko sproži naslednji hod.",
+    "exceptions_recovery": "Za dvoumno izbiro hoda je potrebna razjasnitev; sprostitev uporablja ključ za idempotenco in poroča o uspehu/napaki.",
+    "business_effect": "Nadzira čas priprave in sinhronizira strežbo s kuhinjsko izvedbo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Order.tsx:970-1058",
+      "artifacts/pos/src/pages/Order.tsx:1103-1110",
+      "artifacts/pos/src/pages/Order.tsx:1285-1295"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/lib/kdsCourses.ts:1-180",
+      "artifacts/pos/src/components/AgentLauncher.course-clarification.test.tsx:90-130"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-80",
+      "docs/pos-manual-src/01-operativno-delo.md:202-218"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Dokazi kode/testov so močni, vendar navedeni priročnik ne dokumentira celotnega poteka sproščanja hodov za natakarja/KDS."
+  },
+  {
+    "id": "ID-001",
+    "domain": "identiteta",
+    "feature": "PIN in hitra menjava identitete",
+    "user_roles": [
+      "POS osebje",
+      "administrator enote"
+    ],
+    "prerequisites": [
+      "konfiguriran POS PIN",
+      "aktivno osebje/izmena"
+    ],
+    "normal_flow": "Osebje uporablja QuickSwitch za menjavo aktivnega operaterja in nastavitve omogočajo nastavitev POS PIN-a; operacije ostajajo pripisljive izbrani identiteti.",
+    "exceptions_recovery": "Napake pri validaciji/nastavitvi PIN-a so prikazane; minimalna dolžina in neujemanje potrditve sta zavrnjeni.",
+    "business_effect": "Ohranja pripis operaterja na skupnih POS napravah in zmanjšuje deljenje računov.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/QuickSwitch.tsx:23-180",
+      "artifacts/pos/src/pages/Settings.tsx:1410-1450",
+      "artifacts/pos/src/pages/Settings.tsx:1742-1758"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/components/QuickSwitch.tsx:23-180",
+      "artifacts/pos/src/pages/Settings.tsx:1400-1458"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:640-664",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:535-540"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Dokazi dokazujejo konfiguracijo in UI/teste za hitro menjavo, ne pa tudi celotnega dokumentiranega poteka prijave/zaklepanja/revizije s PIN-om."
+  },
+  {
+    "id": "IZM-001",
+    "domain": "izmene",
+    "feature": "Osebno odpiranje/zapiranje izmene in predaja blagajne",
+    "user_roles": [
+      "natakar",
+      "vodja enote",
+      "blagajnik"
+    ],
+    "prerequisites": [
+      "avtenticirana identiteta",
+      "kontekst enote/blagajne",
+      "konfigurirana politika izmen"
+    ],
+    "normal_flow": "Delavec odpre ali uporablja osebno izmeno, opravlja delo in jo zaključi/preda s preverjenim kontekstom blagajne/dneva.",
+    "exceptions_recovery": "Blagajna lahko ostane odprta med menjavo osebnih izmen; odgovornost ni dodeljena zgolj zadnjemu, ki je zaprl blagajno; razporejevalnik samodejno zaključi izmeno ob novem poslovnem dnevu.",
+    "business_effect": "Ločuje odgovornost za blagajno od osebnega dela in podpira dnevno usklajevanje.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/QuickSwitch.tsx:23-180",
+      "artifacts/pos/src/pages/ObracunUr.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/index.ts:35-40",
+      "artifacts/pos/src/components/QuickSwitch.tsx:23-180"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:288-341",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:407-420"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "QuickSwitch prikazuje aktivne izmene, vendar razpoložljivi dokazi ne vzpostavljajo celotnega poteka API-ja za odpiranje/zapiranje/predajo in usklajevanje."
+  },
+  {
+    "id": "MEN-001",
+    "domain": "meni",
+    "feature": "Alergeni: ročni vnos, dedovanje, potrditev in revizija",
+    "user_roles": [
+      "vodja menija",
+      "administrator"
+    ],
+    "prerequisites": [
+      "artikel ali normativ",
+      "znani sestavni artikli"
+    ],
+    "normal_flow": "Vnesi ali razreši alergene, preglej dedovane podatke, potrdi vir/status in objavi šele po kontroli.",
+    "exceptions_recovery": "Pri manjkajočem ali nejasnem podatku ustavi objavo, preveri sestavine in ponovno potrdi.",
+    "business_effect": "Zmanjšuje tveganje napačnega obveščanja gosta in alergenskega incidenta.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Menu.tsx:197-202",
+      "artifacts/pos/src/pages/Zaloge.tsx:94-107"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/artikli.ts:115-188",
+      "artifacts/api-server/src/lib/alergeni-resolver.ts:1-260",
+      "artifacts/api-server/src/lib/prejemnica-alergeni.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:292-350",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:870-929",
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:830-850"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Dokazi eksplicitno modelirajo status, vir, revizijo in podedovane alergene."
+  },
+  {
+    "id": "MEN-002",
+    "domain": "meni",
+    "feature": "Happy Hour urnik, cena in ročni vklop",
+    "user_roles": [
+      "vodja",
+      "blagajnik"
+    ],
+    "prerequisites": [
+      "artikel s Happy Hour nastavitvami",
+      "urnik ali dovoljenje za ročni preklop"
+    ],
+    "normal_flow": "Nastavi Happy Hour cene/urnik; POS prikaže status in omogoči ročni preklop.",
+    "exceptions_recovery": "Če urnika ni ali je status nejasen, preveri prikaz statusa in uporabi ročni način le po pooblastilu.",
+    "business_effect": "Spreminja prodajno ceno v časovnem obdobju.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/HappyHourSettings.tsx:1-200",
+      "artifacts/pos/src/App.tsx:288-304",
+      "artifacts/pos/src/pages/Menu.tsx:172-176"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/happy-hour.ts:1-240"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:626-654",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:1430-1511"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "UI, knjižnica in priročnik eksplicitno opisujejo načrtovano in ročno obnašanje Happy Hourja."
+  },
+  {
+    "id": "MEN-003",
+    "domain": "meni",
+    "feature": "Slike artiklov, različice in AI pomoč",
+    "user_roles": [
+      "vodja menija",
+      "administrator"
+    ],
+    "prerequisites": [
+      "artikel",
+      "dovoljenje za nalaganje/generiranje"
+    ],
+    "normal_flow": "Naloži ali generiraj sliko, obreži/normaliziraj, nastavi trenutno različico in uporabi jo v javnem meniju.",
+    "exceptions_recovery": "Pri neveljavni referenci ali neuspešni generaciji uporabi drugo različico oziroma ročno sliko.",
+    "business_effect": "Vpliva na kakovost javnega QR menija in prodajno predstavitev.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/ArticleImageCropDialog.tsx:1-240",
+      "artifacts/pos/src/pages/Menu.tsx:192-193"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/artikli.ts:1-30",
+      "artifacts/api-server/src/lib/article-image-references.ts:1-220",
+      "artifacts/api-server/src/lib/article-image-normalization.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:930-963",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:1512-1587"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Dokazano je obnašanje nalaganja slik/različic/referenc; zahtevani delovni tok AI slik je dokazan le posredno s strežniškimi uvozi/testi, ne s popolnim uporabniškim tokom."
+  },
+  {
+    "id": "MEN-004",
+    "domain": "meni",
+    "feature": "Upravljanje kategorij in vidnosti artiklov",
+    "user_roles": [
+      "administrator",
+      "vodja menija"
+    ],
+    "prerequisites": [
+      "prijava",
+      "pravice za upravljanje menija"
+    ],
+    "normal_flow": "Ustvari ali uredi kategorijo, aktivnost in razvrstitev artiklov; preveri prikaz pri naročanju.",
+    "exceptions_recovery": "Če se artikel ne shrani ali ni viden, preveri aktivnost, kategorijo in pravice ter ponovi shranjevanje.",
+    "business_effect": "Določa, katere ponudbe osebje lahko prodaja in kako je meni organiziran.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Menu.tsx:1-3556"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/artikli.ts:313-354"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:37-70",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:488-526",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:413-423"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Priročnik in UI/API podpirata delovni tok kategorij in vidnosti; iz razpoložljivih dokazov ni bilo ugotovljeno ožje neskladje."
+  },
+  {
+    "id": "MEN-005",
+    "domain": "meni",
+    "feature": "Ustvarjanje prodajnega/nabavnega artikla, cene in DDV",
+    "user_roles": [
+      "administrator",
+      "vodja menija"
+    ],
+    "prerequisites": [
+      "kategorija ali dovoljen katalog",
+      "davčne stopnje"
+    ],
+    "normal_flow": "Vnesi identiteto, prodajne in nabavne podatke, prodajno ceno ter davčni kontekst; shrani in preveri meni.",
+    "exceptions_recovery": "Pri napačni ceni ali DDV preveri artikel, stopnjo in To Go kontekst ter ponovno shrani oziroma uskladi.",
+    "business_effect": "Vpliva na prihodek, davčno poročanje in nabavno povezavo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Menu.tsx:136-202",
+      "artifacts/pos/src/pages/Menu.tsx:246-258"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/artikli.ts:90-190",
+      "artifacts/api-server/src/lib/ddv-resolver.ts:1-200"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:70-160",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:626-680",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:1382-1447"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Dokazi pokrivajo dokumentiran delovni tok artiklov, cen in davkov; natančno obnašanje validacije je implementirano v strežniški kodi, vendar tukaj ni reproducirano."
+  },
+  {
+    "id": "MIZ-001",
+    "domain": "mize",
+    "feature": "Mize in naročanje po tlorisu",
+    "user_roles": [
+      "natakar",
+      "vodja enote"
+    ],
+    "prerequisites": [
+      "kontekst enote",
+      "konfigurirane mize/prostori",
+      "aktivni operater"
+    ],
+    "normal_flow": "Uporabnik izbere mizo/lokacijo na tlorisu, odpre ali nadaljuje naročilo, dodaja artikle in upravlja naročila, povezana s to mizo.",
+    "exceptions_recovery": "Blokirane/onemogočene nove tabele in konfliktno stanje prehoda preprečujejo nevarne spremembe; naročila za isto mizo so navedena za obnovitev.",
+    "business_effect": "Povezuje porabo gostov in prihodke s pravo mizo ter preprečuje podvojena/konfliktna naročila.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Home.tsx:1-260",
+      "artifacts/pos/src/pages/Order.tsx:1113-1140",
+      "artifacts/pos/src/pages/Order.tsx:1380-1400"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/pages/Order.tsx:1380-1400",
+      "artifacts/api-server/src/routes/javnoMeni.ts:483-501"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:384-430",
+      "docs/pos-manual-src/01-operativno-delo.md:202-218"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+  },
+  {
+    "id": "NAB-001",
+    "domain": "nabava",
+    "feature": "OCR uvoz prejemnice in ročni pregled pred potrditvijo",
+    "user_roles": [
+      "skladiščnik",
+      "vodja"
+    ],
+    "prerequisites": [
+      "slika/PDF dokumenta",
+      "OCR uvoz",
+      "artikli za ujemanje"
+    ],
+    "normal_flow": "Naloži dokument, preglej prepoznanega dobavitelja, postavke, pakiranja in količine, popravi ujemanja ter potrdi.",
+    "exceptions_recovery": "Ne potrdi praznih/nejasnih vrstic ali desetkratnika; primerjaj z izvirnikom in ponovi uparjanje.",
+    "business_effect": "Preprečuje napačno zalogo, strošek in WAC zaradi OCR napak.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/uvoz/UvozPrejemniceDialog.tsx:1-320"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/uvoz-prejemnic.ts:1-320",
+      "artifacts/api-server/src/lib/uvoz/ocr-embalaza.ts:1-220",
+      "artifacts/api-server/src/routes/pos/prejemnice.input.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:854-941",
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1036-1049"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Priročnik eksplicitno zahteva pregled OCR kot predlog; UI/API vsebujeta uvoz in poti za ujemanje embalaže."
+  },
+  {
+    "id": "NAB-002",
+    "domain": "nabava",
+    "feature": "Prejemnica: ročni vnos, dokument, dobavitelj in zalogovni učinek",
+    "user_roles": [
+      "skladiščnik",
+      "vodja"
+    ],
+    "prerequisites": [
+      "dobavitelj",
+      "nabavni artikli",
+      "enote"
+    ],
+    "normal_flow": "Vnesi prejemnico in postavke, preveri cene/količine/DDV, potrdi dokument in posodobi zalogo.",
+    "exceptions_recovery": "Pri napaki dostopa, duplikatu ali napačni vrstici ustavi potrditev, preveri dokument in popravi pred ponovnim uvozom.",
+    "business_effect": "Poveča zalogo, nabavno vrednost in obveznosti do dobavitelja.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-4797",
+      "artifacts/pos/src/pages/Zaloge.prejemnica.test.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/prejemnice.ts:1-1296",
+      "artifacts/api-server/src/routes/pos/prejemnice.input.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:158-179",
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1513-1554"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Implementacija prejemnice je obsežna, vendar je navedeni ročni vir priročnik za incidente/odpravljanje težav in ne celoten postopek za normalen vnos; sledljivost za normalen potek je zato nepopolna."
+  },
+  {
+    "id": "GOT-001",
+    "domain": "nadzor gotovine",
+    "feature": "X poročilo in sprotna uskladitev gotovine",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene"
+    ],
+    "prerequisites": [
+      "aktivna blagajna",
+      "pričakovana gotovina",
+      "dostop do poročil"
+    ],
+    "normal_flow": "Uporabnik odpre X poročilo, pregleda promet, premike in pričakovano gotovino, vnese šteto stanje.",
+    "exceptions_recovery": "Razlika zahteva razlog oziroma vodjevo obravnavo; X ne zaključuje poslovnega dne.",
+    "business_effect": "Omogoča sprotno kontrolo gotovine brez ničeljenja prometa.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:340-377"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:1-575"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:125-149",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:566-577"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Checkout vsebuje X/Z stanje, vendar je glavni zaključni tok v drugem modulu; preveriti celoten X endpoint/pravice v UI."
+  },
+  {
+    "id": "GOT-002",
+    "domain": "nadzor gotovine",
+    "feature": "Z poročilo, polog/dvig in storno premika",
+    "user_roles": [
+      "vodja izmene",
+      "administrator",
+      "računovodstvo"
+    ],
+    "prerequisites": [
+      "zaključene odprte operacije",
+      "prešteta gotovina",
+      "potrditev vodje"
+    ],
+    "normal_flow": "Vodja vnese in potrdi blagajniški polog/dvig, po kontrolah izvede Z poročilo; premik je viden in dokumentiran.",
+    "exceptions_recovery": "Napačen premik se stornira prek namenskega endpointa; neusklajena gotovina blokira zaključek po pravilih priročnika.",
+    "business_effect": "Premakne fizično gotovino, zaključi poslovni dan in ustvari dnevni kontrolni zapis.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:365-377",
+      "artifacts/pos/src/pages/BlagajniskiPremiki.tsx:1-260"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:390-575",
+      "artifacts/api-server/src/routes/pos/racuni.ts:2998-3054"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:50-125",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:151-182",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:419-479"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "API in ločen modul pokrivata premike/Z, vendar Checkout sam ni dokaz glavnega uporabniškega zaključka; primerjava kaže razpršen, ne enoten workflow."
+  },
+  {
+    "id": "NAR-001",
+    "domain": "naročila",
+    "feature": "Ustvarjanje, urejanje in pošiljanje naročila za postrežbo",
+    "user_roles": [
+      "natakar",
+      "blagajnik",
+      "vodja enote"
+    ],
+    "prerequisites": [
+      "aktivni operater",
+      "kontekst enote/mize ali odnese",
+      "konfigurirani artikli/cene"
+    ],
+    "normal_flow": "Uporabnik odpre naročilo, išče/izbere artikle in modifikatorje, ureja količine/opombe in pošlje naročilo v pripravo ali na blagajno.",
+    "exceptions_recovery": "Nedostopni/skriti artikli, blokirane mize, konflikti prehoda in poti izven povezave preprečujejo ali zadržijo nevarne zapise.",
+    "business_effect": "Ustvari prodajo in delo za kuhinjo/bar ob ohranjanju konteksta mize in artikla.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Order.tsx:1113-1175",
+      "artifacts/pos/src/pages/Order.tsx:1590-1830",
+      "artifacts/pos/src/hooks/useOrderOutbox.ts:1-180"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/pages/Order.tsx:1380-1400",
+      "artifacts/pos/src/lib/gatewayClient.ts:1-180"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:19-70",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1-120"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+  },
+  {
+    "id": "NAS-001",
+    "domain": "nastavitve",
+    "feature": "POS in gostinske nastavitve, omejene z vlogami",
+    "user_roles": [
+      "administrator podjetja",
+      "administrator enote",
+      "manager"
+    ],
+    "prerequisites": [
+      "administratorjeva avtorizacija",
+      "izbrana enota"
+    ],
+    "normal_flow": "Pooblaščeni administrator odpre nastavitve in konfigurira uporabnike, enote/blagajne, dostavo, KDS, PIN, tiskalnike/terminale in gostinsko obnašanje.",
+    "exceptions_recovery": "Navigacija po nastavitvah je filtrirana po vlogi/zmožnostih; neveljaven vnos PIN-a in nezdružljiva izbira enote/blagajne sta zavrnjena z vidnimi napakami.",
+    "business_effect": "Določa, kateri poteki dela so na voljo in kako se obnašajo prodaja, priprava, dostava in nadzor dostopa.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Settings.tsx:1400-1458",
+      "artifacts/pos/src/pages/Settings.tsx:2153-2170",
+      "artifacts/pos/src/pages/Settings.tsx:2630-2650",
+      "artifacts/pos/src/lib/settings-navigation.ts:1-180"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/contexts/AuthContext.tsx:93-145",
+      "artifacts/pos/src/pages/Settings.tsx:1628-1640"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1-120",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1-180"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Nastavitve so široke in filtrirane po vlogah, vendar priročnik pokriva več kontrol kot neposredno navedeni izseki UI/API; opravite revizijo avtorizacije za vsako nastavitev."
+  },
+  {
+    "id": "OSE-001",
+    "domain": "osebje",
+    "feature": "Odmori osebja in računovodstvo delovnega časa",
+    "user_roles": [
+      "osebje",
+      "vodja enote"
+    ],
+    "prerequisites": [
+      "avtenticirana identiteta osebja",
+      "aktivni kontekst izmene/računovodstva časa"
+    ],
+    "normal_flow": "Osebje začne/konča odmor in vodja pregleda zapise o delovnem času za operativno računovodstvo.",
+    "exceptions_recovery": "Neveljavni ali nepopolni časovni zapisi zahtevajo pregled/popravek vodje, namesto tihega dodeljevanja odgovornosti za blagajno.",
+    "business_effect": "Ločuje plačani/opravljeni čas od odmorov in podpira poročanje o stroških dela in prisotnosti.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/ObracunUr.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos:1-1"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:288-341",
+      "docs/pos-manual-src/09-postopki-po-vlogah.md:1-120"
+    ],
+    "coverage_status": "MANJKA",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni bilo najdenih nobenih dokazov o namenskem UI ali API-ju za začetek/konec odmora; ne obravnavajte dokazov o predaji blagajne/izmeni kot sledenja odmora."
+  },
+  {
+    "id": "EMB-001",
+    "domain": "povratna embalaža",
+    "feature": "Povratna embalaža, bilanca in odpis",
+    "user_roles": [
+      "skladiščnik",
+      "vodja"
+    ],
+    "prerequisites": [
+      "embalažni artikel",
+      "prejem/prodaja ali promet embalaže"
+    ],
+    "normal_flow": "Evidentiraj promet povratne embalaže, preglej bilanco in po potrebi odpiši potrjeno razliko.",
+    "exceptions_recovery": "Pri napačnem OCR pakiranju ali bilanci preveri izvirni dokument in uparjanje pred odpisom.",
+    "business_effect": "Sledi obveznosti in količini povratne embalaže.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/zaloge/EmbalazaTab.tsx:1-280"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/embalaza.ts:1-360",
+      "artifacts/api-server/src/lib/embalazaBilanca.ts:1-260",
+      "artifacts/api-server/src/routes/pos/embalaza.odpis.integration.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:876-897",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:964-1009"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Namenski UI, poti ter implementacija bilance/odpisa so prisotni, priročnik pa zajema kontrole uvoza embalaže."
+  },
+  {
+    "id": "RAC-002",
+    "domain": "računi",
+    "feature": "Izdaja računa in FURS fiskalizacija",
+    "user_roles": [
+      "natakar/blagajnik",
+      "vodja izmene",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen plačilni tok",
+      "DDV in FURS nastavitve/certifikat",
+      "aktivna blagajna"
+    ],
+    "normal_flow": "Checkout po preverjanju plačila ustvari račun, pošlje FURS in shrani davčne identifikatorje.",
+    "exceptions_recovery": "FURS napaka se prikaže, račun ostane sledljiv, uporabnik uporabi ponovni poskus namesto novega plačila.",
+    "business_effect": "Ustvari pravno/davčno veljaven račun in promet.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:2080-2172",
+      "artifacts/pos/src/App.tsx:691-692"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:1157-1400",
+      "artifacts/api-server/src/routes/pos/racuni.ts:2783-2860"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:156-200",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:565-604"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Ni ugotovljene vrzeli."
+  },
+  {
+    "id": "RAC-003",
+    "domain": "računi",
+    "feature": "Prvi tisk, ponatis in tiskalni mostovi",
+    "user_roles": [
+      "natakar/blagajnik",
+      "administrator"
+    ],
+    "prerequisites": [
+      "izdan račun",
+      "konfiguriran NB80/ZCS/agent/Bluetooth tiskalnik"
+    ],
+    "normal_flow": "Po izdaji se račun natisne prek izbranega mostu; arhiv omogoča ponatis.",
+    "exceptions_recovery": "Ob napaki papirja ali mostu se ne izdaja novega računa; uporabi se ponovni tisk oziroma druga konfigurirana pot.",
+    "business_effect": "Fizično izroči dokazilo, brez spremembe davčnega zapisa pri ponatisu.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Checkout.tsx:64-71",
+      "artifacts/pos/src/pages/Receipts.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:4317-4591",
+      "artifacts/api-server/src/routes/pos/racuni.ts:5039-5145"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:201-230",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:370-447"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Ni ugotovljene vrzeli."
+  },
+  {
+    "id": "RAC-004",
+    "domain": "računi",
+    "feature": "Storno, vračilo postavke in kartično povračilo",
+    "user_roles": [
+      "vodja izmene",
+      "administrator",
+      "računovodstvo"
+    ],
+    "prerequisites": [
+      "obstoječ izdan račun",
+      "pooblastilo za storno",
+      "kartični podatki pri kartičnem vračilu"
+    ],
+    "normal_flow": "Po preverjanju originala uporabnik izvede storno/vračilo; API ustvari sledljiv popravek in po potrebi kartično povračilo.",
+    "exceptions_recovery": "Ne uporablja se brisanje računa ali ponovna izdaja kot nadomestilo; original in popravek ostaneta vidna v arhivu.",
+    "business_effect": "Zmanjša/obrne promet in davčno/plačilno knjiženje z revizijsko sledjo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Receipts.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/racuni.ts:3100-3457",
+      "artifacts/api-server/src/routes/pos/racuni.ts:4239-4317"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:231-269",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:645-678"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Pri pregledu Checkout.tsx ni najden ločen uporabniški storno/vračilo tok; funkcionalnost je vidna predvsem v računskem API/arhivu, zato preveriti, ali vodja lahko izvede celoten postopek iz UI."
+  },
+  {
+    "id": "POS-006",
+    "domain": "recepture",
+    "feature": "Normativ/receptura: vnos, sprememba, validacija in revizija",
+    "user_roles": [
+      "vodja menija",
+      "administrator"
+    ],
+    "prerequisites": [
+      "prodajni artikel",
+      "vhodni artikli in enote"
+    ],
+    "normal_flow": "Dodaj vrstice normativa, preveri enote in količine, shrani novo revizijo ter preveri porabo.",
+    "exceptions_recovery": "Zavrni samopovezavo/krožno povezavo ali zastarelo revizijo; popravi in ponovi shranjevanje.",
+    "business_effect": "Prodaja sestavljenega artikla porablja sestavine in določa strošek/maržo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Menu.tsx:136-166",
+      "artifacts/pos/src/components/NormativeChangeHistoryPanel.tsx:1-220",
+      "artifacts/pos/src/components/NormativSaveAlert.tsx:1-180"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/artikli.ts:30-60",
+      "artifacts/api-server/src/lib/normativ-validation.ts:1-260",
+      "artifacts/api-server/src/routes/pos/artikli.normativ-revision.integration.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:161-222",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:820-869",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:1588-1677"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Dokazi strežniške validacije in optimistične revizije se ujemajo z ročnim grafom normativa in delovnim tokom revizij."
+  },
+  {
+    "id": "REZ-002",
+    "domain": "rezervacije",
+    "feature": "Ustvarjanje/posodobitev rezervacije mize in sprostitev potekle rezervacije",
+    "user_roles": [
+      "natakar",
+      "vodja enote"
+    ],
+    "prerequisites": [
+      "pooblaščena enota",
+      "razpoložljiva miza",
+      "podatki o rezervaciji"
+    ],
+    "normal_flow": "Uporabnik odpre rezervacije, ustvari ali posodobi rezervacijo za mizo, sistem pa prikaže podatke o razpoložljivih mizah.",
+    "exceptions_recovery": "Konfliktne/blokirane mize so zavrnjene; strežniški razporejevalnik samodejno sprosti potekle rezervacije miz.",
+    "business_effect": "Ščiti rezervirane kapacitete, hkrati pa vrača neuporabljene mize v storitev.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Rezervacije.tsx:1-260",
+      "artifacts/pos/src/components/RezervacijaDialog.tsx:119-370"
+    ],
+    "api_evidence": [
+      "artifacts/pos/src/components/RezervacijaDialog.tsx:11-15",
+      "artifacts/api-server/src/index.ts:5,38"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/01-operativno-delo.md:202-218",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:250-280"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Izvedba jasno podpira CRUD in razporejanje poteka, vendar navedeni razdelki priročnika ne zagotavljajo namenskega postopka rezervacije."
+  },
+  {
+    "id": "POS-007",
+    "domain": "telefonska_dostava",
+    "feature": "Sprejem telefonskih naročil in obravnava dostave/odnosa",
+    "user_roles": [
+      "telefonski operater",
+      "natakar",
+      "vodja enote"
+    ],
+    "prerequisites": [
+      "nastavitve dostave",
+      "podatki o stranki/kontaktu",
+      "konfiguriran čas/kapaciteta naročila"
+    ],
+    "normal_flow": "Operater ustvari telefonsko naročilo, zabeleži podatke o stranki in dostavi/odnosu ter sledi predvidenemu času prevzema/dostave.",
+    "exceptions_recovery": "Nastavitve kapacitete, čakalne dobe in maksimalnega časa omejujejo sprejem; API testi pokrivajo posodobitve statusa in neveljavne prehode.",
+    "business_effect": "Zajame prihodke izven restavracije in načrtuje izpolnitev brez mešanja s postrežbo v restavraciji.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/TelefonNarociloDialog.tsx:1-260",
+      "artifacts/pos/src/components/DostavaSettings.tsx:1-260",
+      "artifacts/pos/src/pages/Narocniki.tsx:1-180"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/narocila.ts:1-220",
+      "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:330-413"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-220",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1-80"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "V primerjanih dokazih ni najdena nobena bistvena vrzel."
+  },
+  {
+    "id": "VHM-001",
+    "domain": "večhodni meni",
+    "feature": "Konfiguracija večhodnega menija in izbira jedi/vina",
+    "user_roles": [
+      "vodja menija",
+      "natakar"
+    ],
+    "prerequisites": [
+      "artikli hrane in vina",
+      "konfiguracija z najmanj dvema hodoma"
+    ],
+    "normal_flow": "Konfiguriraj fiksne ali izbirne hode, dovoljene jedi/vina, informativne hode in obveznost vina; pri naročilu validiraj izbire in določi zaporedje.",
+    "exceptions_recovery": "Zavrni nedovoljen artikel, podvojeni hod, manjkajoč obvezen izbor ali neveljavno konfiguracijo.",
+    "business_effect": "Omogoča pravilno prodajo, ceno in pripravo večhodnih menijev.",
+    "ui_evidence": [
+      "artifacts/pos/src/components/MulticourseMenuEditor.tsx:1-105",
+      "artifacts/pos/src/lib/multicourse-menu-validation.ts:1-220",
+      "artifacts/pos/src/lib/multicourse-order.ts:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/multicourse-menu.ts:1-260",
+      "artifacts/api-server/src/routes/pos/narocila.ts:74-123",
+      "artifacts/api-server/src/lib/multicourse-pricing.ts:1-220",
+      "artifacts/api-server/src/routes/pos/narocila.multicourse.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:256-290",
+      "docs/pos-manual-src/04-zaloge-dokumenti.md:772-819",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:155-193"
+    ],
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Urejevalnik, validacija, cenovne/naročilne poti in priročnik identificirajo enak večhodni delovni tok."
+  },
+  {
+    "id": "ZAL-001",
+    "domain": "zaloga",
+    "feature": "Odpad s krožnikov",
+    "user_roles": [
+      "natakar",
+      "vodja"
+    ],
+    "prerequisites": [
+      "odprto naročilo ali prodana postavka",
+      "pravica za odpis"
+    ],
+    "normal_flow": "Evidentiraj odpad s krožnika kot operativni dogodek in ga loči od normativa.",
+    "exceptions_recovery": "Pri napačnem izboru preveri naročilo/postavko in ne uporabljaj inventure za prikrivanje odpada.",
+    "business_effect": "Omogoča spremljanje odpada brez napačnega spreminjanja receptur.",
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:148-155"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/zaloge.ts:1-360"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2219-2221"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "SREDNJE",
+    "gap_or_correction": "Dokazi navigacije potrjujejo pogled odpada, vendar v preiskanih datotekah nismo našli celotne implementacije normalnega toka UI/API."
+  },
+  {
+    "id": "ZAL-002",
+    "domain": "zaloga",
+    "feature": "Pripravljena/sestavljena hrana in razpoložljivost",
+    "user_roles": [
+      "kuhar",
+      "vodja",
+      "natakar"
+    ],
+    "prerequisites": [
+      "pripravljeni artikel",
+      "normativ ali zalogovni vir"
+    ],
+    "normal_flow": "Pripravi ali evidentiraj sestavljeno hrano, preveri razpoložljivost in omogoči prodajo le v razpoložljivi količini.",
+    "exceptions_recovery": "Pri neusklajeni pripravi ali razpoložljivosti preveri dogodek in zalogovni vir, nato popravi izvorni zapis.",
+    "business_effect": "Povezuje pripravo, prodajno razpoložljivost in zalogo.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-4797",
+      "artifacts/pos/src/pages/Menu.tsx:1278-1381"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/prepared-food-availability.ts:1-260",
+      "artifacts/api-server/src/routes/pos/prepared-food.stocks.test.ts:1-220"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:920-941",
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1-64"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "Testi razpoložljivosti in zalog obstajajo, vendar v dobavljenih referencah UI ni mogoče identificirati celotnega delovnega toka pripravljene hrane za operaterja."
+  },
+  {
+    "id": "ZAL-003",
+    "domain": "zaloga",
+    "feature": "WAC izračun po prejemu in kontrola nabavne cene",
+    "user_roles": [
+      "skladiščnik",
+      "računovodja",
+      "vodja"
+    ],
+    "prerequisites": [
+      "obstoječa zaloga",
+      "potrjena nova prejemnica",
+      "neto nabavna cena"
+    ],
+    "normal_flow": "Po potrditvi prejemnice izračunaj tehtano povprečno ceno in preveri učinek na zalogo.",
+    "exceptions_recovery": "Pri nesmiselnem WAC preveri količine, neto ceno in prevoz/dodatne stroške; popravi izvorni dokument.",
+    "business_effect": "Določa vrednotenje zaloge in strošek prodanega blaga.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:1-4797"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/scripts/recompute-wac.mjs:1-240",
+      "artifacts/api-server/src/routes/pos/prejemnice.ts:1-1296"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2425-2465",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2547-2565",
+      "docs/pos-manual-src/07-zacetek-dela-dostop.md:2700-2725"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Izračun/ponovni izračun WAC je dokazan v kodi in vajah priročnika, vendar v UI dokazih POS nismo našli jasnega prikaza/nadzora WAC za uporabnika."
+  },
+  {
+    "id": "ZAL-004",
+    "domain": "zaloga",
+    "feature": "Začetna zaloga, inventura in kartica zaloge",
+    "user_roles": [
+      "skladiščnik",
+      "vodja"
+    ],
+    "prerequisites": [
+      "artikli/enote",
+      "aktivna poslovna enota"
+    ],
+    "normal_flow": "Vnesi začetno stanje ali inventuro, primerjaj knjižno in dejansko količino ter potrdi popravek.",
+    "exceptions_recovery": "Ne uporabljaj inventure za prikrivanje OCR napake; preveri dokument in razlog odstopanja.",
+    "business_effect": "Uskladi dejansko zalogo in poročila.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/Zaloge.tsx:340-380",
+      "artifacts/pos/src/pages/Zaloge.inventura.test.tsx:1-220",
+      "artifacts/pos/src/pages/Zaloge.zacetne-zaloge.test.tsx:1-220"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/pos/zacetne-zaloge.ts:1-260",
+      "artifacts/api-server/src/routes/pos/zaloge.ts:1-360",
+      "artifacts/api-server/src/lib/stockMovementHistory.ts:1-240"
+    ],
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:2365-2371",
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1739-1749"
+    ],
+    "coverage_status": "DELNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "UI/API dokazi so prisotni, vendar dobavljeni razdelek priročnika primarno dokumentira ravnanje z incidenti in ne celotnega normalnega poteka inventure."
+  }
+]
