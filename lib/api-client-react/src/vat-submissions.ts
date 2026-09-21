@@ -31,6 +31,7 @@ export interface VatSubmission {
 export interface CreateVatSubmissionBody {
   year: number;
   period: string;
+  periodMode?: "mesecno" | "trimesecno";
   /** Neobvezna polja glave */
   odbdelez?: boolean;
   vracilo?: boolean;

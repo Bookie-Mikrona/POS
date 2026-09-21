@@ -107,15 +107,15 @@
       "Vsi odprti nalogi in plačilne izjeme rešeni"
     ],
     "normal_flow": "Uporabnik pregleda pričakovano/prešteto gotovino, izvede X ali Z postopek ter zabeleži/nadzira zaključek delovnega dne.",
-  "exceptions_recovery": "Z-zaključek vrne operativne blokade; po odpravi se postopek ponovi. Administratorsko odklepanje je ločen, revizijsko sledljiv postopek.",
+    "exceptions_recovery": "Z-zaključek vrne operativne blokade; po odpravi se postopek ponovi. Administratorsko odklepanje je ločen, revizijsko sledljiv postopek.",
     "business_effect": "Zaključi delovni dan in določi zneske gotovine, za katere se odgovarja.",
     "ui_evidence": [
-    "artifacts/pos/src/pages/Checkout.tsx:4186-4270",
-    "artifacts/pos/src/pages/Checkout.sumup-terminal.test.tsx:309-500"
+      "artifacts/pos/src/pages/Checkout.tsx:4186-4270",
+      "artifacts/pos/src/pages/Checkout.sumup-terminal.test.tsx:309-500"
     ],
     "api_evidence": [
-    "artifacts/api-server/src/routes/pos/z-porocila.ts:1-700",
-    "artifacts/api-server/src/routes/pos/z-porocila.test.ts:189-600"
+      "artifacts/api-server/src/routes/pos/z-porocila.ts:1-700",
+      "artifacts/api-server/src/routes/pos/z-porocila.test.ts:189-600"
     ],
     "manual_evidence": [
       "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1-290",
@@ -124,8 +124,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-  "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli; uporabniški dialog, blokade, zaklep poslovnega dne, odklepanje in strežniški postopek so potrjeni v kodi in testih.",
-  "implementation_status": "IMPLEMENTIRANO"
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli; uporabniški dialog, blokade, zaklep poslovnega dne, odklepanje in strežniški postopek so potrjeni v kodi in testih.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "ERP-001",
@@ -1729,8 +1729,8 @@
     ],
     "api_evidence": [
       "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:390-575",
-    "artifacts/api-server/src/routes/pos/racuni.ts:2998-3054",
-    "artifacts/api-server/src/routes/pos/z-porocila.ts:1-700"
+      "artifacts/api-server/src/routes/pos/racuni.ts:2998-3054",
+      "artifacts/api-server/src/routes/pos/z-porocila.ts:1-700"
     ],
     "manual_evidence": [
       "docs/pos-manual-src/08-nastavitve-po-sklopih.md:65-115",
@@ -1739,8 +1739,8 @@
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-  "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli; pologi, dvigi, storno premika in Z-zaključek so potrjeni v uporabniškem vmesniku, API-ju in testih.",
-  "implementation_status": "IMPLEMENTIRANO"
+    "gap_or_correction": "Ni ugotovljene dokumentacijske vrzeli; pologi, dvigi, storno premika in Z-zaključek so potrjeni v uporabniškem vmesniku, API-ju in testih.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "NAR-001",
@@ -2259,5 +2259,150 @@
     "severity": "VISOKO",
     "gap_or_correction": "V8.3 pokriva začetno zalogo, inventuro, kartico, vire razlik, uskladitev in učinek na normative oziroma dokumente.",
     "implementation_status": "IMPLEMENTIRANO"
+  },
+  {
+    "domain": "davčne evidence",
+    "feature": "KIR izdanih računov in popravkov",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen ali potrjen davčni vir",
+      "izbrano podjetje in obdobje"
+    ],
+    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
+    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
+    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "id": "TAX-GEN-KIR-001",
+    "implementation_status": "IMPLEMENTIRANO",
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1914-1928"
+    ],
+    "ui_evidence": [
+      "artifacts/pos/src/App.tsx:359-359"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/vatLedger.ts:300-328"
+    ],
+    "gap_or_correction": "KIR je opisan kot vir iz zaključenih računov in popravkov, ne kot POS poročilo."
+  },
+  {
+    "domain": "davčne evidence",
+    "feature": "KPR prejetih računov",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen ali potrjen davčni vir",
+      "izbrano podjetje in obdobje"
+    ],
+    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
+    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
+    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "id": "TAX-GEN-KPR-001",
+    "implementation_status": "IMPLEMENTIRANO",
+    "manual_evidence": [
+      "docs/pos-manual-src/11-vnos-uvoz-prejemnice-ocr.md:1820-1845"
+    ],
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:200-290"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/vatLedger.ts:209-215"
+    ],
+    "gap_or_correction": "KPR je podprt za pravilno potrjene prejete račune; prejemnica brez računa ni popoln KPR."
+  },
+  {
+    "domain": "davčne evidence",
+    "feature": "Uskladitev KIR/KPR z GL",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen ali potrjen davčni vir",
+      "izbrano podjetje in obdobje"
+    ],
+    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
+    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
+    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "id": "TAX-GEN-GL-001",
+    "implementation_status": "NEPOTRJENO",
+    "manual_evidence": [
+      "docs/pos-manual-src/10-odlocitvena-drevesa-kontrolni-seznami.md:1680-1705"
+    ],
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:310-350"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/vatLedgerReport.ts:206-291"
+    ],
+    "gap_or_correction": "Popolna avtomatska uskladitev vira, registra in GL ni potrjena; postopek je ročen."
+  },
+  {
+    "domain": "davčne evidence",
+    "feature": "KIRKPR XML izvoz",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen ali potrjen davčni vir",
+      "izbrano podjetje in obdobje"
+    ],
+    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
+    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
+    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "id": "TAX-GEN-XML-001",
+    "implementation_status": "IMPLEMENTIRANO",
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1914-1950"
+    ],
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:713-745"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/vatSubmissions.ts:180-220"
+    ],
+    "gap_or_correction": "XML izvoz je podprt; dejanska oddaja eDavki je ločena."
+  },
+  {
+    "domain": "davčne evidence",
+    "feature": "Neposredna oddaja KIRKPR v eDavke",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen ali potrjen davčni vir",
+      "izbrano podjetje in obdobje"
+    ],
+    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
+    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
+    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "id": "TAX-GEN-EDAVKI-001",
+    "implementation_status": "NI IMPLEMENTIRANO",
+    "manual_evidence": [
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1939-1950"
+    ],
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:713-745"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/vatSubmissions.ts:150-180"
+    ],
+    "gap_or_correction": "Aplikacija pripravi XML za zunanji postopek, neposredne oddaje ne izvaja."
   }
 ]

@@ -1693,3 +1693,14 @@ Ob spremembi procesa trener določi, katere postaje je treba ponovno preveriti.
 Ob ponavljajočem se incidentu vodja lahko zahteva ciljno ponovno postajo.
 Končna odločitev vsebuje »uspešno«, »uspešno po obnovitvi« ali »še ni potrjeno«.
 Odločitev »še ni potrjeno« navede naslednjo konkretno vajo in odgovorno osebo.
+
+## 37. Računovodja: KIR, KPR in predaja
+
+- [ ] Vsi zaključeni računi, storna in vračila imajo vir za KIR.
+- [ ] Vsi potrjeni prejeti računi in povezani popravki imajo vir za KPR.
+- [ ] Preverjeni so partner, datum, DDV-koda, osnova, DDV in odbitnost.
+- [ ] Uskladitev KIR/KPR z glavno knjigo je dokumentirana; avtomatski popolni
+      tie-out ni domnevan brez dokazila.
+- [ ] XML izvoz in dejanska oddaja v eDavke sta preverjena ločeno.
+- [ ] Shranjeni so XML, čas, uporabnik, hash oziroma referenca datoteke in
+      povratnica ali zavrnitev; aplikacija sama ne pomeni oddaje v eDavke.

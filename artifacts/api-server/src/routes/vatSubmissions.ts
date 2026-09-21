@@ -18,6 +18,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { generateKirKprXml } from "../lib/vatXmlGenerator";
+import { vatSubmissionPeriodBounds } from "../lib/vatSubmissionPreflight";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { objectStorageClient } from "../lib/objectStorage";
 
@@ -55,22 +56,6 @@ async function resolveAccess(
     return null;
   }
   return { role: row.role };
-}
-
-/**
- * Izračuna datumske meje za FURS kodo obdobja.
- */
-function periodBounds(year: number, period: string): { from: string; to: string } | null {
-  const mm = parseInt(period.slice(2), 10);
-  if (isNaN(mm) || mm < 1 || mm > 12) return null;
-  const isQuarterly = [3, 6, 9, 12].includes(mm);
-  const startMonth = isQuarterly ? mm - 2 : mm;
-  const lastDay = new Date(year, mm, 0).getDate();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    from: `${year}-${pad(startMonth)}-01`,
-    to: `${year}-${pad(mm)}-${pad(lastDay)}`,
-  };
 }
 
 /**
@@ -112,6 +97,7 @@ function parseObjectPath(path: string): { bucketName: string; objectName: string
 interface CreateSubmissionBody {
   year: unknown;
   period: unknown;
+  periodMode?: unknown;
   odbdelez?: unknown;
   vracilo?: unknown;
   nacin?: unknown;
@@ -120,6 +106,7 @@ interface CreateSubmissionBody {
 
 function validateCreateBody(body: CreateSubmissionBody): {
   year: number; period: string;
+  periodMode: "mesecno" | "trimesecno";
   odbdelez?: boolean; vracilo?: boolean;
   nacin?: 1 | 2 | 3; opomba?: string;
 } | { error: string } {
@@ -128,6 +115,8 @@ function validateCreateBody(body: CreateSubmissionBody): {
     return { error: "Leto mora biti med 2025 in 2100" };
 
   const period = String(body.period ?? "");
+  const periodMode = body.periodMode === "trimesecno" ? "trimesecno" : "mesecno";
+
   if (!/^07(0[1-9]|1[0-2])$/.test(period))
     return { error: "Neveljavna koda obdobja (pričakovano MMMM, npr. 0707)" };
 
@@ -140,6 +129,7 @@ function validateCreateBody(body: CreateSubmissionBody): {
   return {
     year,
     period,
+    periodMode,
     odbdelez: body.odbdelez === true,
     vracilo: body.vracilo === true,
     nacin: nacin as 1 | 2 | 3 | undefined,
@@ -163,7 +153,7 @@ router.post(
       res.status(400).json({ error: parsed.error });
       return;
     }
-    const { year, period, odbdelez, vracilo, nacin, opomba } = parsed;
+    const { year, period, periodMode, odbdelez, vracilo, nacin, opomba } = parsed;
 
     // Pridobi davčno številko podjetja
     const [company] = await db
@@ -177,45 +167,195 @@ router.post(
       return;
     }
 
-    const bounds = periodBounds(year, period);
+    const bounds = vatSubmissionPeriodBounds(year, period, periodMode);
     if (!bounds) {
       res.status(400).json({ error: "Neveljavno obdobje" });
       return;
     }
 
-    // Preveri predoddajne napake (D.4.2 in D.4.3 blokirajo izvoz)
-    const errorsResult = await db.execute<{ cnt: string }>(sql`
-      SELECT COUNT(*) AS cnt
-      FROM vat_ledger vl
-      JOIN vat_code vc ON vc.id = vl.vat_code_id
-      LEFT JOIN journal_entries je ON je.id = vl.journal_entry_id
-      LEFT JOIN invoices iv ON iv.id = vl.invoice_id
-      LEFT JOIN documents dc ON dc.id = vl.document_id
-      WHERE vl.vat_period_year = ${year}
-        AND vl.vat_period = ${period}
-        AND (
-          je.company_id = ${companyId}
-          OR iv.company_id = ${companyId}
-          OR dc.company_id = ${companyId}
-        )
-        AND vl.reversed_by_id IS NULL
-        AND (
-          -- D4.2: KPR brez receipt_date
-          (vl.direction = 'IN' AND vl.receipt_date IS NULL)
-          OR
-          -- D4.3: reverse charge brez pair_id
-          (vc.is_reverse_charge = TRUE AND vl.pair_id IS NULL)
-          OR
-          -- D4.6: samoprijava brez correction_period
-          (vl.treatment IN (2, 3) AND vl.correction_period IS NULL)
-        )
+    // Pred oddajo preveri tako formalne D4 kontrole kot popolnost preslikave.
+    // Brez tega bi generator manjkajoče P-polje tiho izpustil iz XML.
+    const errorsResult = await db.execute<{
+      documentNo: string | null;
+      recordId: string | null;
+      direction: string | null;
+      vatCode: string | null;
+      reason: string;
+    }>(sql`
+      WITH scoped AS (
+        SELECT
+          vl.id::text AS "recordId",
+          vl.document_no AS "documentNo",
+          vl.direction,
+          vc.code AS "vatCode",
+          vl.receipt_date,
+          vl.pair_id,
+          vl.treatment,
+          vl.correction_period,
+          vl.base_amount::numeric AS base_amount,
+          vl.vat_amount::numeric AS vat_amount,
+          vl.non_deductible_vat::numeric AS non_deductible_vat,
+          vc.is_reverse_charge,
+          vc.is_import,
+          vc.kir_base_field,
+          vc.kir_vat_field,
+          vc.kpr_base_field,
+          vc.kpr_vat_field,
+          (
+            paired.id IS NOT NULL
+            AND paired.reversed_by_id IS NULL
+            AND paired.vat_code_id = vl.vat_code_id
+            AND paired.direction <> vl.direction
+            AND paired.journal_entry_id IS NOT DISTINCT FROM vl.journal_entry_id
+            AND paired.invoice_id IS NOT DISTINCT FROM vl.invoice_id
+            AND paired.document_id IS NOT DISTINCT FROM vl.document_id
+            AND paired.tax_point_date >= ${bounds.from}
+            AND paired.tax_point_date <= ${bounds.to}
+          ) AS pair_valid
+        FROM vat_ledger vl
+        JOIN vat_code vc ON vc.id = vl.vat_code_id
+        LEFT JOIN vat_ledger paired ON paired.id = vl.pair_id
+        LEFT JOIN journal_entries je ON je.id = vl.journal_entry_id
+        LEFT JOIN invoices iv ON iv.id = vl.invoice_id
+        LEFT JOIN documents dc ON dc.id = vl.document_id
+        WHERE vl.tax_point_date >= ${bounds.from}
+          AND vl.tax_point_date <= ${bounds.to}
+          AND (je.company_id = ${companyId} OR iv.company_id = ${companyId} OR dc.company_id = ${companyId})
+          AND (je.company_id IS NULL OR je.company_id = ${companyId})
+          AND (iv.company_id IS NULL OR iv.company_id = ${companyId})
+          AND (dc.company_id IS NULL OR dc.company_id = ${companyId})
+          AND vl.reversed_by_id IS NULL
+      ),
+      ledger_errors AS (
+        SELECT "documentNo", "recordId", direction, "vatCode",
+          CASE
+            WHEN direction = 'IN' AND receipt_date IS NULL THEN 'KPR: manjka datum prejema računa (D4.2).'
+            WHEN (is_reverse_charge = TRUE OR is_import = TRUE) AND NOT pair_valid THEN 'Manjka veljavna povezava samoobdavčitve ali uvoza (D4.3).'
+            WHEN treatment IN (2, 3) AND correction_period IS NULL THEN 'Manjka obdobje popravka (D4.6).'
+            WHEN direction = 'OUT' AND ABS(base_amount) > 0.005 AND kir_base_field IS NULL THEN 'KIR: manjka preslikava osnove.'
+            WHEN direction = 'OUT' AND ABS(vat_amount) > 0.005 AND kir_vat_field IS NULL THEN 'KIR: manjka preslikava DDV.'
+            WHEN direction = 'IN' AND ABS(base_amount) > 0.005 AND kpr_base_field IS NULL THEN 'KPR: manjka preslikava osnove.'
+            WHEN direction = 'IN' AND ABS(vat_amount) > 0.005 AND kpr_vat_field IS NULL THEN 'KPR: manjka preslikava odbitnega DDV.'
+            ELSE 'DDV vrstica nima popolne preslikave za KIR/KPR.'
+          END AS reason
+        FROM scoped
+        WHERE (direction = 'IN' AND receipt_date IS NULL)
+           OR ((is_reverse_charge = TRUE OR is_import = TRUE) AND NOT pair_valid)
+           OR (treatment IN (2, 3) AND correction_period IS NULL)
+           OR (direction = 'OUT' AND (
+                (ABS(base_amount) > 0.005 AND kir_base_field IS NULL)
+                OR (ABS(vat_amount) > 0.005 AND kir_vat_field IS NULL)))
+           OR (direction = 'IN' AND (
+                (ABS(base_amount) > 0.005 AND kpr_base_field IS NULL)
+                OR (ABS(vat_amount) > 0.005 AND kpr_vat_field IS NULL)))
+      ),
+      missing_code_errors AS (
+        SELECT
+          je.reference AS "documentNo",
+          jel.id::text AS "recordId",
+          NULL::text AS direction,
+          NULL::text AS "vatCode",
+          'DDV vrstica nima DDV-kode; KIR/KPR zapisa ni mogoče varno ustvariti.' AS reason
+        FROM journal_entry_lines jel
+        JOIN journal_entries je ON je.id = jel.entry_id
+        WHERE je.company_id = ${companyId}
+          AND je.status = 'posted'
+          AND COALESCE(je.document_date, je.entry_date) >= ${bounds.from}
+          AND COALESCE(je.document_date, je.entry_date) <= ${bounds.to}
+          AND (
+            ABS(jel.amount::numeric) > 0.005
+            OR ABS(COALESCE(jel.vat_amount, '0')::numeric) > 0.005
+          )
+          AND jel.vat_code_id IS NULL
+      ),
+      coded_line_groups AS (
+        SELECT
+          je.id AS entry_id,
+          je.reference AS "documentNo",
+          jel.vat_code_id,
+          vc.code AS "vatCode",
+          vc.is_reverse_charge,
+          vc.is_import,
+          COUNT(*)::integer AS line_count,
+          SUM(jel.amount::numeric) AS line_amount,
+          SUM(COALESCE(jel.vat_amount, '0')::numeric) AS line_vat_amount
+        FROM journal_entry_lines jel
+        JOIN journal_entries je ON je.id = jel.entry_id
+        JOIN vat_code vc ON vc.id = jel.vat_code_id
+        WHERE je.company_id = ${companyId}
+          AND je.status = 'posted'
+          AND (
+            CASE
+              WHEN vc.code LIKE 'EUB%' THEN LEAST(
+                COALESCE(je.document_date, je.entry_date),
+                (date_trunc('month', je.entry_date::date) + interval '1 month 14 days')::date
+              )
+              ELSE COALESCE(je.document_date, je.entry_date)
+            END
+          ) >= ${bounds.from}
+          AND (
+            CASE
+              WHEN vc.code LIKE 'EUB%' THEN LEAST(
+                COALESCE(je.document_date, je.entry_date),
+                (date_trunc('month', je.entry_date::date) + interval '1 month 14 days')::date
+              )
+              ELSE COALESCE(je.document_date, je.entry_date)
+            END
+          ) <= ${bounds.to}
+          AND (
+            ABS(jel.amount::numeric) > 0.005
+            OR ABS(COALESCE(jel.vat_amount, '0')::numeric) > 0.005
+          )
+        GROUP BY je.id, je.reference, jel.vat_code_id, vc.code, vc.is_reverse_charge, vc.is_import
+      ),
+      ledger_groups AS (
+        SELECT
+          vl.journal_entry_id AS entry_id,
+          vl.vat_code_id,
+          COUNT(*)::integer AS ledger_count,
+          SUM(vl.base_amount::numeric) AS ledger_base_amount,
+          SUM(vl.vat_amount::numeric + vl.non_deductible_vat::numeric) AS ledger_total_vat
+        FROM vat_ledger vl
+        WHERE vl.reversed_by_id IS NULL
+          AND vl.tax_point_date >= ${bounds.from}
+          AND vl.tax_point_date <= ${bounds.to}
+        GROUP BY vl.journal_entry_id, vl.vat_code_id
+      ),
+      coded_line_errors AS (
+        SELECT
+          cl."documentNo",
+          cl.entry_id::text AS "recordId",
+          NULL::text AS direction,
+          cl."vatCode",
+          'Knjižene DDV vrstice nimajo popolnoma usklajenih aktivnih vrstic v evidenci KIR/KPR.' AS reason
+        FROM coded_line_groups cl
+        LEFT JOIN ledger_groups lg
+          ON lg.entry_id = cl.entry_id
+         AND lg.vat_code_id = cl.vat_code_id
+        WHERE COALESCE(lg.ledger_count, 0) <>
+                cl.line_count * CASE WHEN cl.is_reverse_charge OR cl.is_import THEN 2 ELSE 1 END
+           OR ABS(
+                COALESCE(lg.ledger_base_amount, 0)
+                - cl.line_amount * CASE WHEN cl.is_reverse_charge OR cl.is_import THEN 2 ELSE 1 END
+              ) > 0.005
+           OR ABS(
+                COALESCE(lg.ledger_total_vat, 0)
+                - cl.line_vat_amount * CASE WHEN cl.is_reverse_charge OR cl.is_import THEN 2 ELSE 1 END
+              ) > 0.005
+      )
+      SELECT * FROM ledger_errors
+      UNION ALL
+      SELECT * FROM missing_code_errors
+      UNION ALL
+      SELECT * FROM coded_line_errors
     `);
 
-    const errorCount = parseInt(errorsResult.rows[0]?.cnt ?? "0", 10);
+    const errorCount = errorsResult.rows.length;
     if (errorCount > 0) {
       res.status(422).json({
-        error: `Pred izvozom odpravite ${errorCount} napako/-e v evidenci (D.4.2, D.4.3, D.4.6). Preverite KIR/KPR evidence zavihek.`,
+        error: `Pred izvozom odpravite ${errorCount} napako/-e v evidenci KIR/KPR. Preverite podrobnosti napak.`,
         errorCount,
+        errors: errorsResult.rows.slice(0, 100),
       });
       return;
     }
@@ -234,7 +374,7 @@ router.post(
         { odbdelez, vracilo, nacin, opomba },
       );
     } catch (err) {
-      console.error("XML generator napaka:", err);
+      req.log.error({ err }, "XML generator napaka");
       res.status(500).json({ error: "Napaka pri generiranju XML" });
       return;
     }

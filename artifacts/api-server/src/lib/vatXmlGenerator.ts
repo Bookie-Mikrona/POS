@@ -15,6 +15,7 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { getKprExportVatAmounts } from "./vatXmlAmounts";
 
 // ─── Tipi ──────────────────────────────────────────────────────────────────
 
@@ -167,13 +168,16 @@ export async function generateKirKprXml(
     LEFT JOIN journal_entries je ON je.id = vl.journal_entry_id
     LEFT JOIN invoices         iv ON iv.id = vl.invoice_id
     LEFT JOIN documents        dc ON dc.id = vl.document_id
-    WHERE vl.vat_period_year = ${year}
-      AND vl.vat_period = ${period}
+    WHERE vl.tax_point_date >= ${periodFrom}
+      AND vl.tax_point_date <= ${periodTo}
       AND (
         je.company_id = ${companyId}
         OR iv.company_id = ${companyId}
         OR dc.company_id = ${companyId}
       )
+      AND (je.company_id IS NULL OR je.company_id = ${companyId})
+      AND (iv.company_id IS NULL OR iv.company_id = ${companyId})
+      AND (dc.company_id IS NULL OR dc.company_id = ${companyId})
       -- Izključi stornirane vrstice
       AND vl.reversed_by_id IS NULL
     ORDER BY vl.posting_date, vl.document_no, vl.direction
@@ -190,7 +194,6 @@ export async function generateKirKprXml(
     const baseAmt = dec(r.baseAmount);
     const vatAmt  = dec(r.vatAmount);
     const nonDed  = dec(r.nonDeductibleVat);
-    const dedPct  = dec(r.deductionPercent) / 100; // 0–1
 
     // Ključ za grupiranje: journal_entry_id (ali documentNo kot fallback)
     const groupKey = r.journalEntryId ?? r.documentNo;
@@ -233,14 +236,17 @@ export async function generateKirKprXml(
       // Osnova
       addToField(g, r.kprBaseField, baseAmt);
 
-      // Odbitni DDV (po odbitnem deležu)
-      const deductibleVat = vatAmt * dedPct;
+      // vat_ledger že hrani odbitni in neodbitni del ločeno.
+      // Odstotka odbitka tu ne uporabimo ponovno.
+      const { deductibleVat, nonDeductibleVat } = getKprExportVatAmounts(
+        vatAmt,
+        nonDed,
+      );
       addToField(g, r.kprVatField, deductibleVat);
 
       // Neodbitni DDV → P17
-      const nonDeductibleTotal = vatAmt - deductibleVat + nonDed;
-      if (nonDeductibleTotal > 0.005) {
-        addToField(g, "P17", nonDeductibleTotal);
+      if (Math.abs(nonDeductibleVat) > 0.005) {
+        addToField(g, "P17", nonDeductibleVat);
       }
 
       // Asset type → informativna polja P12/P13/P15/P16

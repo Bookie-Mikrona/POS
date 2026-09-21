@@ -1910,3 +1910,41 @@ Po razveljavitvi plačila ali stornu mora računovodja preveriti:
 Če se prikaz računa, plačila in temeljnice ne ujema, primer ostane odprt.
 Ne popravljajte ga z dodatnim plačilom, nasprotnim pologom ali ročnim
 spreminjanjem zneska brez odobrenega računovodskega postopka.
+
+## 54. Davčni evidenci KIR in KPR ter predaja računovodstvu
+
+### 54.1 KIR — knjiga izdanih računov
+
+Zaključen in fiskalno potrjen račun je izvor za KIR, vendar operativno
+poročilo POS samo po sebi še ni KIR. Pri predaji računovodstvu morajo ostati
+povezani številka računa, datum izdaje oziroma davčni datum, DDV-koda, osnova,
+DDV, bruto znesek, način plačila, status in povezava na storno oziroma
+dobropis. Odprta miza, rezervacija, nedokončano naročilo ali odpad niso
+izdani račun in se v KIR ne smejo vključiti kot prihodek.
+
+Pri stornu ali vračilu ne ustvarite novega navideznega računa. Uporabite
+odobren postopek in shranite povezavo izvirni račun → KIR-vrstica →
+nasprotni dokument. Fiskalna potrditev je dokaz izvornega računa, ne dokaz,
+da je bil KIRKPR XML že pripravljen ali oddan.
+
+### 54.2 KPR — knjiga prejetih računov
+
+Prejeti dobaviteljski `RACUN`, `DOBROPIS` ali `BREMEPIS` mora pred potrditvijo
+vsebovati dobavitelja, številko listine, datum listine, datum prejema oziroma
+davčni datum, DDV-kodo, osnovo, DDV, odbitnost in povezavo na popravek ali
+izvirnik. Prejemnica brez računa je lahko samo zalogovni dokument; ne
+predstavljajte je kot popoln KPR-zapis. Pri dobropisu in bremepisu preverite,
+da se učinek ne podvoji v zalogi, obveznosti ali DDV.
+
+POS-operativni moduli ne predstavljajo samodejne oddaje v eDavke. Predaja
+računovodstvu mora vsebovati izvorno listino, potrjeno temeljnico, KIR/KPR
+status in morebitno zavrnitev ali manjkajočo preslikavo.
+
+### 54.3 Kontrolni seznam pred predajo
+
+- [ ] KIR vsebuje vse zaključene račune, storna in vračila brez odprtih miz.
+- [ ] KPR vsebuje pravilno potrjene prejete račune in povezane popravke.
+- [ ] Pri KIR in KPR so preverjeni datum, partner, DDV-koda, osnova in DDV.
+- [ ] KIR/KPR ni zamenjan s POS ali skladiščnim poročilom.
+- [ ] XML izvoz, če ga pripravi računovodski sistem, ima shranjen rezultat,
+      čas, uporabnika in morebitno povratno napako.

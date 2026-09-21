@@ -1258,3 +1258,12 @@ izmišljeno stranko. Zapišite prikazano napako in uporabite odobreno CTI/POS
 pot oziroma jo predajte administratorju. Podrobnosti telefonskega in
 dostavnega toka so v poglavju 05; to poglavje določa samo varno predajo pred
 začetkom dela.
+
+## 26. Vir za KIR in povezava popravkov
+
+Zaključen in fiskalno potrjen račun je izvorni dokument za knjigo izdanih
+računov (KIR), vendar POS-poročilo ali EOR samo po sebi ni dokaz KIR-vrstice.
+Pri predaji računovodstvu shranite številko računa, datum, DDV-kodo, osnovo,
+DDV, bruto znesek, način plačila in status. Storno oziroma vračilo mora imeti
+povezavo na izvirni račun; novega računa ne ustvarjajte samo za popravek.
+Odprta miza, rezervacija in nedokončano naročilo niso KIR.

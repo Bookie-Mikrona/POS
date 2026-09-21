@@ -1,7 +1,7 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
 **Datum pregleda:** 21.09.2026  
-**Število preverjenih uporabniških postopkov:** 67
+**Število preverjenih uporabniških postopkov:** 72
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
 
@@ -9,7 +9,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 67 |
+| PRAVILNO | 72 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -18,16 +18,16 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 60 |
-| NI IMPLEMENTIRANO | 4 |
-| NEPOTRJENO | 3 |
+| IMPLEMENTIRANO | 63 |
+| NI IMPLEMENTIRANO | 5 |
+| NEPOTRJENO | 4 |
 
 ## Pomembnost
 
 | Pomembnost | Število |
 |---|---:|
-| KRITIČNO | 22 |
-| VISOKO | 35 |
+| KRITIČNO | 25 |
+| VISOKO | 37 |
 | SREDNJE | 9 |
 | NIZKO | 1 |
 
@@ -109,3 +109,8 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | ZAL-002 | zaloga | Pripravljena/sestavljena hrana in razpoložljivost | PRAVILNO | VISOKO |
 | ZAL-003 | zaloga | WAC izračun po prejemu in kontrola nabavne cene | PRAVILNO | KRITIČNO |
 | ZAL-004 | zaloga | Začetna zaloga, inventura in kartica zaloge | PRAVILNO | VISOKO |
+| TAX-GEN-KIR-001 | davčne evidence | KIR izdanih računov in popravkov | PRAVILNO | KRITIČNO |
+| TAX-GEN-KPR-001 | davčne evidence | KPR prejetih računov | PRAVILNO | KRITIČNO |
+| TAX-GEN-GL-001 | davčne evidence | Uskladitev KIR/KPR z GL | PRAVILNO | VISOKO |
+| TAX-GEN-XML-001 | davčne evidence | KIRKPR XML izvoz | PRAVILNO | VISOKO |
+| TAX-GEN-EDAVKI-001 | davčne evidence | Neposredna oddaja KIRKPR v eDavke | PRAVILNO | KRITIČNO |

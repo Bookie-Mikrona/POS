@@ -369,3 +369,57 @@ postopek:
 zamenjal za dokaz popolnosti POS-dogodkov. Dokazilo o uskladitvi mora vsebovati
 obseg, uporabljena poročila, seštevke, razlike, razlago in podpis oziroma
 uporabnika, ki je kontrolo izvedel.
+
+## 0.18 KIR, KPR in uskladitev z glavno knjigo
+
+### KIR — knjiga izdanih računov
+
+KIR se tvori iz pravilno zaključenih izdanih računov, storna in vračil. Vir
+mora biti povezan po verigi **izvorni račun → KIR-vrstica → temeljnica**.
+Preverite številko, datum izdaje oziroma davčni datum, DDV-kodo, osnovo, DDV,
+bruto znesek, način plačila, status in povezavo popravka. Odprta miza,
+rezervacija, nedokončano naročilo in operativni odpad niso KIR.
+
+### KPR — knjiga prejetih računov
+
+KPR se tvori iz pravilno potrjenega prejetega `RACUN`; `DOBROPIS` in `BREMEPIS`
+sta popravljalna vira s povezavo na izvirnik. Preverite dobavitelja, številko
+listine, datum listine, datum prejema oziroma davčni datum, DDV-kodo, osnovo,
+DDV, odbitnost in povezavo **izvorna listina → KPR-vrstica → GL temeljnica**.
+Prejemnica brez računa je lahko samo zalogovni dokument in ne sme biti tiho
+predstavljena kot popoln KPR.
+
+KIR in KPR sta v programu podprta za pravilno knjižene vire. Strežniška
+predoddajna kontrola blokira manjkajoče preslikave KIR/KPR, neničelne DDV
+vrstice brez `vatCodeId` in knjižene DDV-vrstice brez aktivne vrstice v
+evidenci. Popolna avtomatska uskladitev vseh virov, registrov in GL ni
+potrjena; razliko vedno raziščite po vrstici.
+
+### KIR/KPR, POS, X/Z, banka in GL
+
+Ob zaključku obdobja shranite kontrolne vsote in število vrstic za POS,
+KIR, KPR, X/Z, bančni izpisek in GL. Primerjajte osnovo ter DDV po stopnji,
+neujemajoče in podvojene vrstice, preskočene vire, storna in korekcijske
+verige. Dokazilo mora vsebovati obdobje, podjetje, uporabnika, razlike,
+razlago in podpis oziroma sled odobritve.
+
+## 0.19 KIRKPR XML izvoz in eDavki
+
+### KIRKPR XML izvoz
+
+Program ustvari KIR/KPR XML za izbrano podjetje in obdobje ter pred izvozom
+preveri datum prejema, korekcijske povezave, preslikave KIR/KPR, DDV-vrstice
+brez kode in manjkajoče vrstice evidence. Napaka vrne seznam dokumentov,
+identifikatorjev, smeri, DDV-kode in razlog; ne izvažajte delne datoteke.
+Računovodja shrani XML, različico sheme, obdobje, čas, uporabnika, hash oziroma
+referenco datoteke ter seznam zavrnjenih vrstic.
+
+XML izvoz je implementiran in pomeni pripravo oziroma prenos datoteke. Ne
+pomeni, da je bila datoteka že elektronsko oddana ali sprejeta.
+
+### Neposredna oddaja v eDavke
+
+Neposredna oddaja iz aplikacije v eDavke trenutno **ni implementirana**.
+Uporabite zunanji odobreni postopek nalaganja oziroma spletno storitev,
+če jo podjetje uporablja, ter shranite povratnico, zavrnitev, čas, uporabnika
+in povezavo na XML. Uspešnega eDavki prejema ne predstavljajte brez dokazila.

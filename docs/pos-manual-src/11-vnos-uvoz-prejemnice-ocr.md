@@ -1835,3 +1835,12 @@ vendar ni spletna rezervacijska platforma. V trenutni izvedbi ni javne internetn
 rezervacije, spletnega nakupa darilnega bona ali Stripe plačila. Če se v podpori
 pojavi zahteva za te funkcije, jo zabeležite kot zahtevo za razvoj oziroma
 integracijo, ne kot incident obstoječega POS-postopka.
+
+## 49. Vir za KPR pri prejetem računu
+
+Po potrditvi prejetega `RACUN` preverite dobavitelja, številko in datum listine,
+datum prejema, DDV-kodo, osnovo, DDV in odbitnost. Prejemnica brez računa je
+lahko samo zalogovni vir in ne popoln zapis knjige prejetih računov (KPR).
+`DOBROPIS` in `BREMEPIS` morata imeti povezavo na izvirni račun ter preverjen
+učinek na zalogo, obveznost in DDV. Če manjka podatek ali povezava, dokument
+zadržite in ga ne predajte kot popoln KPR.

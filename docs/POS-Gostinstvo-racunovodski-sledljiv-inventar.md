@@ -1,7 +1,7 @@
 # POS Gostinstvo — sledljiv inventar računovodskega priročnika
 
 **Datum pregleda:** 21.09.2026  
-**Število preverjenih uporabniških postopkov:** 53
+**Število preverjenih uporabniških postopkov:** 58
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
 
@@ -9,7 +9,7 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Status | Število |
 |---|---:|
-| PRAVILNO | 53 |
+| PRAVILNO | 58 |
 | DELNO | 0 |
 | MANJKA | 0 |
 | NAPAČNO | 0 |
@@ -18,16 +18,16 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 48 |
-| NI IMPLEMENTIRANO | 1 |
-| NEPOTRJENO | 4 |
+| IMPLEMENTIRANO | 51 |
+| NI IMPLEMENTIRANO | 2 |
+| NEPOTRJENO | 5 |
 
 ## Pomembnost
 
 | Pomembnost | Število |
 |---|---:|
-| KRITIČNO | 21 |
-| VISOKO | 28 |
+| KRITIČNO | 24 |
+| VISOKO | 30 |
 | SREDNJE | 4 |
 | NIZKO | 0 |
 
@@ -95,3 +95,8 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | SAL006 | prodaja in plačila | Storno in vračilo | PRAVILNO | KRITIČNO |
 | SAL007 | prodaja in plačila | Neznani, offline in neuspešni FURS-izidi | PRAVILNO | KRITIČNO |
 | SAL008 | prodaja in plačila | Dnevne in mesečne prodajne temeljnice | PRAVILNO | VISOKO |
+| TAX-KIR-001 | davčne evidence | KIR – knjiga izdanih računov | PRAVILNO | KRITIČNO |
+| TAX-KPR-001 | davčne evidence | KPR – knjiga prejetih računov | PRAVILNO | KRITIČNO |
+| TAX-GL-001 | davčne evidence | Uskladitev KIR/KPR z glavno knjigo | PRAVILNO | VISOKO |
+| TAX-XML-001 | davčne evidence | KIRKPR XML izvoz | PRAVILNO | VISOKO |
+| TAX-EDAVKI-001 | davčne evidence | Neposredna elektronska oddaja KIRKPR v eDavke | PRAVILNO | KRITIČNO |

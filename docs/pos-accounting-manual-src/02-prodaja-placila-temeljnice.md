@@ -607,3 +607,13 @@ Pred potrditvijo vsak dan odkljukajte:
 - [ ] noben zapis v `skipped` nima neobravnavanega razloga;
 - [ ] osnutek ima pravilno obdobje in je obdobje odprto;
 - [ ] potrjene temeljnice so prenesene samo enkrat.
+
+## 13. KIR — knjiga izdanih računov
+
+Vsak pravilno zaključen POS račun z izhodnim DDV ustvari sled za KIR. V
+kontroli povežite izvorni račun, KIR-vrstico in temeljnico ter preverite
+številko, datum izdaje oziroma davčni datum, DDV-kodo, osnovo, DDV, bruto
+znesek, način plačila in status. Storno, vračilo in dobropis morajo kazati
+izvirnik in nasprotni učinek; odprta miza, rezervacija in nedokončano naročilo
+ne sodijo v KIR. KIR je podprt za pravilno knjižene vire, XML pa se pripravi
+šele po uspešni predoddajni kontroli.

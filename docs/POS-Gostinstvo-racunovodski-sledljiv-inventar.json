@@ -1581,13 +1581,13 @@
     ],
     "prerequisites": [
       "ločeni konti za darilne bone, bone za pico in subvencije",
-    "skupni saldo darilnih bonov podjetja",
+      "skupni saldo darilnih bonov podjetja",
       "konto terjatve in partner pri subvenciji",
       "pogodbeni cenik in partner pri pogodbeni malici"
     ],
-  "normal_flow": "Pri darilnem bonu se preverita izdaja kot predplačilo in znesek unovčenja proti skupnemu saldu podjetja; POS ne vodi individualnega ID-ja ali preostanka posameznega bona. Študentska subvencija uporablja ločen konto terjatve in partnerja. Pri pogodbeni malici dnevna prodaja ustvari prehodno terjatev, mesečni obračun pa jo zapre po pravilih glavne knjige.",
+    "normal_flow": "Pri darilnem bonu se preverita izdaja kot predplačilo in znesek unovčenja proti skupnemu saldu podjetja; POS ne vodi individualnega ID-ja ali preostanka posameznega bona. Študentska subvencija uporablja ločen konto terjatve in partnerja. Pri pogodbeni malici dnevna prodaja ustvari prehodno terjatev, mesečni obračun pa jo zapre po pravilih glavne knjige.",
     "exceptions_recovery": "Manjkajoči partner ali cenik ni dovoljenje za knjiženje na gotovino. Če pogodbeni podatki niso dokazani, se uporabi druga podprta negotovinska pot ali se račun zadrži; ne prikazuje se kot poravnana terjatev.",
-  "business_effect": "Boni, subvencije in pogodbene malice se ne pomešajo z gotovinskim prometom; skupni saldo darilnih bonov, partnerji in terjatve ostanejo sledljivi brez lažnega prikaza individualnih bonov.",
+    "business_effect": "Boni, subvencije in pogodbene malice se ne pomešajo z gotovinskim prometom; skupni saldo darilnih bonov, partnerji in terjatve ostanejo sledljivi brez lažnega prikaza individualnih bonov.",
     "ui_evidence": [
       "artifacts/erp-web/src/pages/nastavitve.tsx:2622-2624",
       "artifacts/erp-web/src/pages/nastavitve.tsx:2517-2552"
@@ -1772,5 +1772,154 @@
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
     "gap_or_correction": "Priročnik pravilno pokriva dnevni, mesečni in neuspešni prenos ter varno ponavljanje; omejitev je, da je ponovitev dovoljena samo ob dokazani idempotentnosti."
+  },
+  {
+    "id": "TAX-KIR-001",
+    "domain": "davčne evidence",
+    "feature": "KIR – knjiga izdanih računov",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "zaključen POS račun",
+      "veljavna DDV-preslikava"
+    ],
+    "normal_flow": "Zaključen račun, storno ali vračilo se poveže z vrstico KIR in temeljnico; preverijo se datum, DDV-koda, osnova, DDV, bruto znesek in status.",
+    "exceptions_recovery": "Odprta miza ali manjkajoča preslikava ni KIR; pred izvozom se napaka prikaže in postopek zadrži.",
+    "business_effect": "Izdani računi in popravki so sledljivi od POS vira do KIR in glavne knjige.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:101-190"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/vatLedger.ts:300-328",
+      "artifacts/api-server/src/lib/vatXmlGenerator.ts:220-244"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:606-619"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "KIR je podprt za pravilno knjižene izdane račune; manjkajoče preslikave blokira predoddajna kontrola."
+  },
+  {
+    "id": "TAX-KPR-001",
+    "domain": "davčne evidence",
+    "feature": "KPR – knjiga prejetih računov",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "potrjen prejeti RACUN",
+      "datum prejema",
+      "veljavna KPR-preslikava"
+    ],
+    "normal_flow": "Potrjen prejeti račun ustvari KPR-vrstico in vhodno DDV-vrstico; preverijo se dobavitelj, številka, datum listine, datum prejema, DDV, odbitnost in povezava na temeljnico.",
+    "exceptions_recovery": "Prejemnica brez računa ni popoln KPR; manjkajoč datum, koda ali preslikava blokira izvoz.",
+    "business_effect": "Prejeti računi so vključeni v KPR in povezani z obveznostjo, DDV ter GL.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:200-290"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/lib/vatLedger.ts:209-215",
+      "artifacts/api-server/src/lib/vatXmlGenerator.ts:229-245"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/03-nabava-zaloga-drugi-dogodki.md:801-826"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "KPR je podprt za pravilno knjižene prejete račune; dobropisi/bremepisi sledijo omejitvam svoje knjižne poti."
+  },
+  {
+    "id": "TAX-GL-001",
+    "domain": "davčne evidence",
+    "feature": "Uskladitev KIR/KPR z glavno knjigo",
+    "user_roles": [
+      "računovodja"
+    ],
+    "prerequisites": [
+      "zaključeno obdobje",
+      "KIR in KPR pregled",
+      "GL izpis"
+    ],
+    "normal_flow": "Ročno primerjajte število dokumentov in vrstic, osnove ter DDV po stopnjah, preskoke, dvojnike in korekcijske verige med KIR, KPR in GL.",
+    "exceptions_recovery": "Popoln avtomatski tie-out vseh POS, registrov, banke in GL ni potrjen; razliko zadržite in raziščite po izvorni referenci.",
+    "business_effect": "Dokumentirana ročna uskladitev zmanjša tveganje manjkajočih ali podvojenih davčnih zapisov.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:310-350"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/vatLedgerReport.ts:206-291"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:398-404"
+    ],
+    "implementation_status": "NEPOTRJENO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "KIR/KPR poročila in kontrole obstajajo, vendar avtomatska popolna uskladitev registra z vsemi viri ni potrjena."
+  },
+  {
+    "id": "TAX-XML-001",
+    "domain": "davčne evidence",
+    "feature": "KIRKPR XML izvoz",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "izbrano podjetje in obdobje",
+      "KIR/KPR brez predoddajnih napak"
+    ],
+    "normal_flow": "Za izbrano obdobje se preverijo formalne kontrole in preslikave, nato se ustvari ter prenese KIR/KPR XML z rezultatom in številom vrstic.",
+    "exceptions_recovery": "HTTP 422 z razlogi ustavi izvoz ob manjkajoči preslikavi, vatCodeId ali aktivni evidenčni vrstici; delne datoteke ne uporabljajte.",
+    "business_effect": "Računovodja dobi strojno berljivo datoteko za zunanji postopek oddaje.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:713-745"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/vatSubmissions.ts:180-220",
+      "artifacts/api-server/src/lib/vatXmlGenerator.ts:265-299"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:406-418"
+    ],
+    "implementation_status": "IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "VISOKO",
+    "gap_or_correction": "XML generiranje in prenos sta implementirana; XML sam po sebi ni dokaz oddaje v eDavke."
+  },
+  {
+    "id": "TAX-EDAVKI-001",
+    "domain": "davčne evidence",
+    "feature": "Neposredna elektronska oddaja KIRKPR v eDavke",
+    "user_roles": [
+      "računovodja",
+      "administrator"
+    ],
+    "prerequisites": [
+      "ustvarjen in preverjen XML",
+      "zunanji odobreni postopek eDavki"
+    ],
+    "normal_flow": "XML prenesite v zunanji odobreni postopek eDavki in shranite povratnico oziroma zavrnitev skupaj z XML.",
+    "exceptions_recovery": "Aplikacija ne sme prikazati uspešne oddaje brez zunanjega dokazila; napako rešujte z novo preverjeno datoteko.",
+    "business_effect": "Ločitev priprave XML od dejanske oddaje prepreči lažen dokaz davčne skladnosti.",
+    "ui_evidence": [
+      "artifacts/erp-web/src/pages/ddv-evidence.tsx:713-745"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/vatSubmissions.ts:150-180"
+    ],
+    "manual_evidence": [
+      "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:420-425"
+    ],
+    "implementation_status": "NI IMPLEMENTIRANO",
+    "coverage_status": "PRAVILNO",
+    "severity": "KRITIČNO",
+    "gap_or_correction": "Neposredna oddaja iz aplikacije v eDavke ni implementirana; podprt je XML prenos za zunanji postopek."
   }
 ]

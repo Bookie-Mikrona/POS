@@ -7,6 +7,7 @@ import {
   accountingRolesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { vatSubmissionPeriodBounds } from "../lib/vatSubmissionPreflight";
 
 const router: IRouter = Router();
 
@@ -81,7 +82,8 @@ router.get(
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
 
-    const { year: yearStr, period } = req.query as Record<string, string | undefined>;
+    const { year: yearStr, period, periodMode: periodModeRaw } =
+      req.query as Record<string, string | undefined>;
 
     if (!yearStr || !period) {
       res.status(400).json({ error: "Parametra year in period sta obvezna (npr. year=2026&period=0707)" });
@@ -97,7 +99,8 @@ router.get(
       return;
     }
 
-    const bounds = periodBounds(year, period);
+    const periodMode = periodModeRaw === "trimesecno" ? "trimesecno" : "mesecno";
+    const bounds = vatSubmissionPeriodBounds(year, period, periodMode);
     if (!bounds) {
       res.status(400).json({ error: "Neveljavno obdobje" });
       return;
@@ -175,13 +178,16 @@ router.get(
       LEFT JOIN journal_entries je ON je.id = vl.journal_entry_id
       LEFT JOIN invoices         iv ON iv.id = vl.invoice_id
       LEFT JOIN documents        dc ON dc.id = vl.document_id
-      WHERE vl.vat_period_year = ${year}
-        AND vl.vat_period = ${period}
+      WHERE vl.tax_point_date >= ${bounds.from}
+        AND vl.tax_point_date <= ${bounds.to}
         AND (
           je.company_id = ${companyId}
           OR iv.company_id = ${companyId}
           OR dc.company_id = ${companyId}
         )
+        AND (je.company_id IS NULL OR je.company_id = ${companyId})
+        AND (iv.company_id IS NULL OR iv.company_id = ${companyId})
+        AND (dc.company_id IS NULL OR dc.company_id = ${companyId})
       ORDER BY vl.posting_date, vl.document_no
     `);
 

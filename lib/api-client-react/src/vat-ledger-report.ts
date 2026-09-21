@@ -85,6 +85,7 @@ export interface VatLedgerReportResponse {
 export interface GetVatLedgerReportParams {
   year: number;
   period: string; // MMMM format, e.g. '0707'
+  periodMode?: "mesecno" | "trimesecno";
 }
 
 export function getVatLedgerReportQueryKey(
@@ -105,6 +106,7 @@ export function useGetVatLedgerReport(
       const qs = new URLSearchParams({
         year: String(params.year),
         period: params.period,
+        periodMode: params.periodMode ?? "mesecno",
       });
       return customFetch<VatLedgerReportResponse>(
         `/api/companies/${companyId}/vat-ledger-report?${qs.toString()}`,

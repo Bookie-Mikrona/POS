@@ -634,6 +634,13 @@ export function KirKprEvidenceTab() {
     return `07${String(m).padStart(2, "0")}`;
   });
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportDetails, setExportDetails] = useState<Array<{
+    documentNo: string | null;
+    recordId: string | null;
+    direction: string | null;
+    vatCode: string | null;
+    reason: string;
+  }>>([]);
   // Izbira za presežek DDV: null = ni izbrano, "vracilo" = zahteva vračilo, "prenos" = prenos v naslednje
   const [vraciloChoice, setVraciloChoice] = useState<"vracilo" | "prenos" | null>(null);
   // DDV zaključna temeljnica
@@ -643,7 +650,12 @@ export function KirKprEvidenceTab() {
   const [zakljucekError, setZakljucekError] = useState<string | null>(null);
 
   // Ponastavi izbiro in zaključek ob menjavi obdobja
-  useEffect(() => { setVraciloChoice(null); setZakljucekCreated(null); }, [year, period]);
+  useEffect(() => {
+    setVraciloChoice(null);
+    setZakljucekCreated(null);
+    setExportError(null);
+    setExportDetails([]);
+  }, [activeCompany?.id, year, period, periodMode]);
 
   // Ko se zamenja mode, nastavi privzeto obdobje
   const handleModeChange = (mode: "mesecno" | "trimesecno") => {
@@ -662,7 +674,7 @@ export function KirKprEvidenceTab() {
 
   const { data, isLoading, error } = useGetVatLedgerReport(
     activeCompany?.id ?? "",
-    { year, period },
+    { year, period, periodMode },
     { query: { enabled: !!(activeCompany?.id && period) } },
   );
 
@@ -713,11 +725,13 @@ export function KirKprEvidenceTab() {
   const handleExport = useCallback(async () => {
     if (!activeCompany?.id) return;
     setExportError(null);
+    setExportDetails([]);
     try {
       // Prenesi vracilo: true samo če je računovodja eksplicitno izbral vračilo
       const result = await createSubmission.mutateAsync({
         year,
         period,
+        periodMode,
         vracilo: vraciloChoice === "vracilo",
       });
       // Sproži download takoj
@@ -732,8 +746,18 @@ export function KirKprEvidenceTab() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Napaka pri izvozu XML";
       setExportError(msg);
+      const details = (err as { data?: { errors?: unknown } })?.data?.errors;
+      if (Array.isArray(details)) {
+        setExportDetails(details.filter((item): item is {
+          documentNo: string | null;
+          recordId: string | null;
+          direction: string | null;
+          vatCode: string | null;
+          reason: string;
+        } => !!item && typeof item === "object" && typeof (item as { reason?: unknown }).reason === "string").slice(0, 100));
+      }
     }
-  }, [activeCompany, year, period, vraciloChoice, createSubmission, queryClient]);
+  }, [activeCompany, year, period, periodMode, vraciloChoice, createSubmission, queryClient]);
 
   const hasErrors = data?.hasErrors ?? false;
   const totalWarnings = (data?.errorCount ?? 0) + (data?.warningCount ?? 0);
@@ -827,6 +851,18 @@ export function KirKprEvidenceTab() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Napaka pri izvozu</AlertTitle>
           <AlertDescription>{exportError}</AlertDescription>
+          {exportDetails.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+              {exportDetails.map((detail, index) => (
+                <li key={`${detail.recordId ?? detail.documentNo ?? "napaka"}-${index}`}>
+                  <span className="font-medium">{detail.documentNo ?? detail.recordId ?? "Neznan zapis"}</span>
+                  {detail.direction ? ` · ${detail.direction}` : ""}
+                  {detail.vatCode ? ` · DDV ${detail.vatCode}` : ""}
+                  {` — ${detail.reason}`}
+                </li>
+              ))}
+            </ul>
+          )}
         </Alert>
       )}
 
