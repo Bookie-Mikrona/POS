@@ -322,10 +322,10 @@ export function CenikProfilUrejevalnik(l: Lastnosti) {
         </p>
       )}
 
-      {/* Live predogled uparjanja */}
+      {/* Predogled povezovanja */}
       {predogled && (
         <div className="rounded border bg-neutral-50 p-3 text-xs">
-          <p className="mb-2 font-medium text-sm">Predogled uparjanja</p>
+          <p className="mb-2 font-medium text-sm">Predogled povezovanja</p>
           <div className="flex gap-4 text-neutral-600">
             <span>✓ Samodejno: <strong className="text-green-700">{predogled.samodejno}</strong></span>
             <span>? Pregled: <strong className="text-amber-700">{predogled.zaPotrditev}</strong></span>

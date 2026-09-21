@@ -1039,7 +1039,7 @@ Opozorila o duplikatu ne prezrite zaradi podobnega imena datoteke.
 
 Prazna obdelava ni dokaz, da dokument nima postavk.
 
-### 6.4 Napačno uparjanje artikla
+### 6.4 Napačna povezava artikla
 
 1. Ne sprejmite predlaganega artikla samo zaradi podobnega naziva.
 2. Preverite šifro, mersko enoto in nabavno ceno.
@@ -1596,19 +1596,19 @@ PDF, XML in e-SLOG se pošljejo neposredno brez predizbire dobavitelja v tem kor
 
 Datoteko hranite kot dokazilo po pravilih podjetja, tudi če je uvoz uspel.
 
-### 13.22 OCR: pregled rezultata pred uparjanjem
+### 13.22 OCR: pregled rezultata pred povezovanjem
 
 Po uspešnem zajemu sistem ustvari osnutek prejemnice, ne dokončne knjižbe.
 
 Samodejno prepoznane postavke so preštete v sporočilu o uspehu.
 
-Neuparjene postavke odprejo zaslon za uparjanje.
+Nepovezane postavke odprejo zaslon za povezovanje.
 
 Na zaslonu preverite dobavitelja, številko dokumenta, datum in oznako, ali so cene bruto.
 
 Oznaka bruto zahteva poseben pregled cen, preden ocenjujete WAC.
 
-Če ni neuparjenih postavk, uvoz vseeno preide v predogled knjiženja.
+Če ni nepovezanih postavk, uvoz vseeno preide v predogled knjiženja.
 
 Samodejna prepoznava ne pomeni, da so pakiranje, popust in DDV brez napake.
 
@@ -1704,7 +1704,7 @@ Vrstica s količino nič ne poveča fizične zaloge.
 
 Pred potrditvijo ugotovite, ali je ničelna vrstica samo informativna, rabat ali OCR napaka.
 
-Ne povezujte ničelne vrstice z rednim artiklom samo zato, da seznam neuparjenih vrstic izgine.
+Ne povezujte ničelne vrstice z rednim artiklom samo zato, da seznam nepovezanih vrstic izgine.
 
 Če OCR preskoči vrstico, jo poiščite na izvirniku in ugotovite razlog.
 
@@ -2446,7 +2446,7 @@ Preverite učinek na količino in WAC.
 
 [ ] Odvisni stroški imajo pravilno obravnavo.
 
-[ ] Vsaka OCR vrstica je uparjena s pravim artiklom.
+[ ] Vsaka OCR vrstica je povezana s pravim artiklom.
 
 [ ] Ni nerazloženih ničelnih ali preskočenih vrstic.
 

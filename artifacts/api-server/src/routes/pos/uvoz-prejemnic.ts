@@ -1049,7 +1049,7 @@ router.post(
       const msg = err instanceof Error ? err.message : '';
       return posljiJson(res, 500, {
         koda: 'ZAJ022',
-        sporocilo: msg || 'Napaka pri shranjevanju uparjanja.',
+        sporocilo: msg || 'Napaka pri shranjevanju povezave artikla.',
       });
     }
 

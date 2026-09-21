@@ -390,7 +390,7 @@ export default function UvozCenikPage() {
             {/* Povzetek */}
             <div className="grid grid-cols-4 gap-3">
               <StatKartica oznaka="Skupaj vrstic"     vrednost={predogled.vrstic}     barva="neutral" />
-              <StatKartica oznaka="Samodejno uparjeno" vrednost={predogled.samodejno}  barva="green" />
+              <StatKartica oznaka="Samodejno povezano" vrednost={predogled.samodejno}  barva="green" />
               <StatKartica oznaka="Že shranjeno"       vrednost={predogled.posodobitev} barva="blue" />
               <StatKartica oznaka="Brez ujemanja"      vrednost={predogled.brezZadetka} barva="amber" />
             </div>

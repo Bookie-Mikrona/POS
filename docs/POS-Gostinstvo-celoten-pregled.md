@@ -397,7 +397,7 @@ Ni dovolj jasno dokazano, da zaključek izmene ali Z-poročilo vedno blokira:
 - Ročni vnos.
 - Uvoz CSV, XLSX, PDF in XML.
 - OCR.
-- Uparjanje dobaviteljev in artiklov.
+- Povezovanje dobaviteljev in artiklov.
 - Profili dobaviteljev.
 - Inventure.
 - Izdajnice.

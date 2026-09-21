@@ -1621,7 +1621,7 @@
       "artikli za ujemanje"
     ],
     "normal_flow": "Naloži dokument, preglej prepoznanega dobavitelja, postavke, pakiranja in količine, popravi ujemanja ter potrdi.",
-    "exceptions_recovery": "Ne potrdi praznih/nejasnih vrstic ali desetkratnika; primerjaj z izvirnikom in ponovi uparjanje.",
+    "exceptions_recovery": "Ne potrdi praznih/nejasnih vrstic ali desetkratnika; primerjaj z izvirnikom in ponovi povezovanje.",
     "business_effect": "Preprečuje napačno zalogo, strošek in WAC zaradi OCR napak.",
     "ui_evidence": [
       "artifacts/pos/src/pages/uvoz/UvozPrejemniceDialog.tsx:1-320"
@@ -1861,7 +1861,7 @@
       "prejem/prodaja ali promet embalaže"
     ],
     "normal_flow": "Evidentiraj promet povratne embalaže, preglej bilanco in po potrebi odpiši potrjeno razliko.",
-    "exceptions_recovery": "Pri napačnem OCR pakiranju ali bilanci preveri izvirni dokument in uparjanje pred odpisom.",
+    "exceptions_recovery": "Pri napačnem OCR pakiranju ali bilanci preveri izvirni dokument in povezavo artikla pred odpisom.",
     "business_effect": "Sledi obveznosti in količini povratne embalaže.",
     "ui_evidence": [
       "artifacts/pos/src/pages/zaloge/EmbalazaTab.tsx:1-280"

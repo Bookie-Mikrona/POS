@@ -207,7 +207,7 @@ export function UparjanjeDialog(l: Lastnosti) {
         {/* povzetek: prikažemo SAMO postavke, ki potrebujejo odločitev */}
         <div className="flex items-center gap-4 border-b bg-neutral-50 px-6 py-2 text-sm">
           <span className="text-emerald-700">
-            ✓ {l.steviloUparjenih} postavk uparjenih samodejno
+            ✓ {l.steviloUparjenih} postavk samodejno povezanih
           </span>
           <span className="text-amber-700">
             ⚠ {skupaj} {skupaj === 1 ? 'postavka potrebuje' : 'postavk potrebuje'} vašo odločitev
