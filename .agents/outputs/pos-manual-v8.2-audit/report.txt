@@ -1,0 +1,108 @@
+3	low-heading	62
+5	low-heading	81
+47	low-heading	2.  Preverite, da ne uporabljate zasebnega ali neznanega brskalniškega profila.
+47	low-heading	3.  Vnesite svoje prijavne podatke.
+50	low-heading	3.5 Vloga in navigacija
+56	low-heading	7.1 Namen uvajanja
+60	margin	• Prijavljen sem s svojim računom. 
+66	low-heading	3.5 Odpiranje izmene
+66	low-heading	1.  Odprite Izmene.
+74	margin	Ali so zalogovne zapore in kritični artikli preverjeni? 
+77	low-heading	19.3 Čas
+83	low-heading	1.  Odprite rezervacijo na mizi ali seznamu rezervacij.
+83	low-heading	2.  Preverite ime gosta in termin.
+84	low-heading	5.  Nadaljujte po predpisanem postopku zaključka.
+86	low-heading	4.  Preverite izvorno in novo naročilo.
+86	low-heading	5.  Potrdite razdelitev.
+87	low-heading	8.3 Nejasno stanje po prekinitvi
+97	low-heading	19.2 Prazen seznam miz
+98	low-heading	20.1 Dodaj novo naročilo
+102	margin	Kapaciteta sama po sebi ne prepreči ustvarjanja naročila. 
+105	margin	To ni isto kot gumb za začetek rezervacije, ki se ponudi eno uro pred začetkom. 
+109	low-heading	26.4 Opomba in glasovni vnos
+110	low-heading	27.1 Splošne skupine modifikatorjev
+119	low-heading	5.  Nastavite vrstni red, če je na voljo.
+119	low-heading	6.  Shranite.
+129	low-heading	15.4 Primer polj
+136	margin	Preverite, ali lokalni filtri oziroma razpoložljivost artikel skrivajo. 
+145	low-heading	32.5 AI urejanje in brisanje
+145	margin	Polje Hitro AI urejanje ima omejitev 500 znakov. 
+157	low-heading	7.1 Pravilo za osebje
+157	low-heading	1.  Kuhinja pripravlja le naloge Kuhinja.
+159	low-heading	4.  Ponovite naročilo klicatelju.
+159	margin	5.  Pošljite v pripravo. 
+159	low-heading	5.  Pošljite v pripravo.
+178	low-heading	3.  Povejte gostu izračunano vračilo.
+179	low-heading	8.  Preverite, da račun prikazuje vse načine in zneske.
+180	low-heading	5.  Natisnite račun šele po dokončnem stanju.
+181	low-heading	2.  Zabeležite številko računa, čas in sporočilo napake.
+181	low-heading	3.  Preverite, ali je prikazan status napake oziroma manjkajoč EOR.
+183	low-heading	1.  skupni znesek je pravilen;
+208	low-heading	5B.2 Pakiranje
+212	margin	Po potrditvi program poveže dobropis z dokazom fizičnega vračila. Ne ustvari nove temeljnice in ne z
+214	low-heading	1.  Določite rez: datum, uro, skladišče in odgovorno osebo.
+217	low-heading	3.  Vnesite dejansko količino in pravilno enoto.
+217	low-heading	4.  Izberite najnatančnejši razlog.
+220	low-heading	3.  Počakajte na obdelavo OCR.
+220	low-heading	4.  Preverite dobavitelja, številko, datum in valuto.
+221	low-heading	1.  Odprite dogodek, za katerega pripravljate zalogo.
+234	margin	V iskalnik vpišite vsaj dva znaka in preverite obstoječe zadetke. 
+243	margin	Opomba je neobvezna. 
+245	margin	Ne prepišite samo naziva v poročilu. 
+248	low-heading	13.86 Kratek praktični izpit 6: OCR dobavitelj
+252	low-heading	3.2 Odmori
+252	low-heading	1.  Na kartici aktivne izmene izberite plačan ali neplačan odmor.
+253	low-heading	1.  Preverite, da je premik v zgodovini.
+253	margin	2.  Primerjajte čas, znesek, vrsto in uporabnika. 
+253	low-heading	2.  Primerjajte čas, znesek, vrsto in uporabnika.
+254	low-heading	4.  Preverite promet po plačilnih metodah.
+254	low-heading	5.  Primerjajte gotovino s trenutnim štetjem.
+256	low-heading	1.  Poslovni dan je zaključen, če proces to zahteva.
+256	margin	2.  Konti za temeljnice so nastavljeni in veljavni. 
+256	low-heading	2.  Konti za temeljnice so nastavljeni in veljavni.
+262	low-heading	14.4 Razlika
+271	low-heading	23.2 Statusi osebne izmene
+274	low-heading	23.8 Polja uskladitve gotovine
+275	low-heading	4.  Preverite prikaz stroškovnega mesta.
+275	low-heading	5.  Preverite ime dodeljene blagajne, kadar je prikazano.
+279	low-heading	100 EUR: količina ____ × 100 = ______ EUR.
+282	low-heading	25.10 Storno premika
+286	low-heading	3.  Najprej razrešite odprta naročila in zasedene mize.
+286	low-heading	4.  Nato zaključite osebne izmene, ki dejansko ne delajo več.
+293	low-heading	28.16 POS naprave
+301	low-heading	6.  Zabeležite odobritev, datum in skrbnika spremembe.
+310	low-heading	3.  Vnesite le zahtevane podatke.
+310	low-heading	4.  Skrivnosti ne zapišite v zahtevek ali posnetek zaslona.
+329	low-heading	2.  Potrdite, da je izbrani terminal namenjen temu registru.
+338	low-heading	2.4 Predaja
+338	margin	1.  Dokončajte ali jasno označite odprta naročila. 
+338	low-heading	1.  Dokončajte ali jasno označite odprta naročila.
+339	low-heading	1.  Zaženite samo en plačilni poskus.
+339	low-heading	2.  Spremljajte sporočilo terminala in POS-a.
+340	low-heading	2.  Preverite terminale, tisk in pripravljalne poglede.
+340	low-heading	3.  Določite pot za napake, manjkajoče artikle in predajo.
+341	low-heading	3.  Zberite čas, enoto, dokument, napravo in sporočilo.
+341	low-heading	4.  Ne zbirajte skrivnosti ali podatkov kartic.
+342	low-heading	1.  Prijavite se z osebnim dostopom iz 01.
+342	low-heading	2.  Preverite enoto in območje miz.
+346	low-heading	1.  Sprejmite nalogo na KDS ali izpisu.
+346	low-heading	2.  Preverite količino, velikost in opombe.
+368	low-heading	4.  Spremembo rezervacije naj potrdi pooblaščena oseba.
+368	low-heading	5.  Gostu dodelite drugo mizo le po dogovoru z vodjo.
+371	low-heading	2.  Osvežite pogled le po preverjanju, da ni odprtega nepotrjenega vnosa.
+371	low-heading	3.  Preverite pravilno enoto in izmeno.
+376	low-heading	2.  Ne označujte nove kartice kot nadomestilo brez preverjanja.
+376	low-heading	3.  Zabeležite dejansko stanje.
+377	low-heading	5.  Vodja odobri naslednje dejanje do gosta.
+384	low-heading	2.  Ne brišite zapisov, dokler ne določite pravega.
+384	margin	3.  Preverite zgodovino dokumentov in učinek na zalogo. 
+384	low-heading	3.  Preverite zgodovino dokumentov in učinek na zalogo.
+385	low-heading	5.  Razliko predajte vodji z izračunom.
+386	low-heading	10.  potrditev vodje, da so dokazi shranjeni po politiki.
+410	low-heading	04, 07
+412	low-heading	7.  Preglejte odprte zahtevke podpori in roke.
+413	low-heading	3.  premik oziroma razdelitev po pooblastilu;
+413	low-heading	4.  HOLD, FIRE in komunikacija s pripravo;
+421	low-heading	21.5 Kartica: preverjanje KDS
+427	low-heading	10
+428	low-heading	10

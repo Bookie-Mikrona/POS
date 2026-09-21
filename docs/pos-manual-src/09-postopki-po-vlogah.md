@@ -508,6 +508,11 @@ Preverite cene, alergene in razpoložljivost.
 Preverite delovanje z običajnim telefonom gosta.
 Ne objavite povezave do administracije.
 Ne tiskajte nove kode pred potrditvijo vsebine.
+
+Zaključena zgodovina QR naprav se hrani največ 30 dni. Če jo potrebujete za
+reševanje reklamacije ali podpornega primera, pravočasno shranite dovoljeni
+izvoz oziroma nujne identifikatorje. Ne pričakujte, da bo po poteku tega roka
+zgodovina naprave še na voljo.
 Za QR in telefonska naročila glejte 05.
 CTI povežite le z odobrenimi številkami in ponudnikom.
 Ne zapisujte podatkov kartice v opombo klica.

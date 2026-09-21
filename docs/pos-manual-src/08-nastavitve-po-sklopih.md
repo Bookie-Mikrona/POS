@@ -1839,17 +1839,17 @@ To pomeni `start <= čas < end`.
 
 ### 26.2 Primer pri začetku ob 04:00
 
-Poslovni dan 2026-06-10 se začne 2026-06-10 ob 04:00 v Ljubljani.
+Poslovni dan 10.06.2026 se začne 10.06.2026 ob 04:00 v Ljubljani.
 
-Poslovni dan 2026-06-10 se konča 2026-06-11 ob 04:00 v Ljubljani.
+Poslovni dan 10.06.2026 se konča 11.06.2026 ob 04:00 v Ljubljani.
 
-Račun ob 2026-06-10 03:59 pripada poslovnemu dnevu 2026-06-09.
+Račun ob 10.06.2026 03:59 pripada poslovnemu dnevu 09.06.2026.
 
-Račun ob 2026-06-10 04:00 pripada poslovnemu dnevu 2026-06-10.
+Račun ob 10.06.2026 04:00 pripada poslovnemu dnevu 10.06.2026.
 
-Račun ob 2026-06-11 03:59 pripada poslovnemu dnevu 2026-06-10.
+Račun ob 11.06.2026 03:59 pripada poslovnemu dnevu 10.06.2026.
 
-Račun ob 2026-06-11 04:00 pripada poslovnemu dnevu 2026-06-11.
+Račun ob 11.06.2026 04:00 pripada poslovnemu dnevu 11.06.2026.
 
 Enako pravilo velja za blagajniški premik.
 

@@ -1372,6 +1372,18 @@ Storno se izvaja kot polni storno veljavnega računa, ne kot delno brisanje post
 **Prepovedano:** brisati vrsto, preurejati vrstni red ali menjati poslovni datum.
 **Po incidentu:** naključno preverite EOR za prvi, srednji in zadnji prizadeti račun.
 
+### 34.2A Opozorilni pas za ponovni prenos
+
+Če POS prikaže opozorilni pas za neuspešne FURS prenose, najprej preberite
+število prizadetih računov. Pritisnite ponovni prenos samo enkrat in počakajte
+na rezultat obstoječih zapisov.
+
+Uspešno število pomeni račune, za katere je program prejel potrjen odgovor;
+ne pomeni dovoljenja za ponovno izdajo prodaje. Po zaključku preverite EOR na
+prizadetih računih in da je offline vrsta prazna. Če del zapisov ostane
+neuspešnih, zabeležite njihove identifikatorje in prikazano napako ter primer
+predajte odgovorni osebi.
+
 ### 34.3 Potrdilo ni veljavno
 
 **Dokazi po prednosti:** sporočilo validacije, datum veljavnosti konfiguracije, nato indikator povezave.

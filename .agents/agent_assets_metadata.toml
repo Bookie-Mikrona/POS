@@ -823,3 +823,17 @@ mtime_ms = 1790011851725
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/9e8bf190-19a0-4fa0-a5ae-07e333844e66/880e42bf-a1ae-4e82-9b1a-21e4a404330e"
 storage_version_token = "1790011897982601"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "6W_saIATkULBa3oxydTqJ"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.2.pdf"
+type = "pdf"
+title = "POS Gostinstvo — celovit uporabniški in referenčni priročnik v8.2"
+description = "Popravljena 449-stranska izdaja: obnovljen celoten 12. del, poenoteni datumi dd.mm.yyyy, dopolnjeni postopki povratne embalaže, dobropisov, FURS ponovnih prenosov in QR zgodovine ter odpravljene prazne strani."
+logical_id = "c39d6b53-fc3a-4d6a-967b-3c082d3af973"
+content_hash = "sha256:5c2d1fe3a13a2221472f3abe2a9bf2acc775d2bed5b5e8982c2bd64c1837c74e"
+size = 2251729
+mtime_ms = 1790012850300
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/c39d6b53-fc3a-4d6a-967b-3c082d3af973/6bced043-cf46-4e36-80b0-a400c598b5f5"
+storage_version_token = "1790012882595782"
+content_type = "application/pdf"

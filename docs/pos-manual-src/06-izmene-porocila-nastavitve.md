@@ -603,7 +603,7 @@ Po menjavi odgovorna oseba preveri veljavnost in produkcijsko nastavitev.
 
 ### 18.5 FURS vaja
 
-Račun 2025-01-184 je izdan, vendar nima EOR in prikazuje napako.
+Račun št. 184/2025 je izdan, vendar nima EOR in prikazuje napako.
 Ali izdate nov račun?
 Pravilni odgovor: ne.
 Katere podatke zapišete?

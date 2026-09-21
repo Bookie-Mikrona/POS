@@ -370,16 +370,23 @@ Pri povratni embalaži vedno ločite dva dogodka:
   po potrebi dodate opombo.
 
 Odpis v eni operaciji zmanjša fizično zalogo in saldo pri izbranem dobavitelju.
-Pri pozitivni zgodovinski depozitni vrednosti pripravi osnutek
-**D strošek odpisa / K 3107000**, pri vrednosti 0,00 EUR pa zneskovne
-temeljnice ne ustvari. Konto 220 se pri odpisu ne spremeni, ker dobavitelj
-embalaže ni prejel.
+Učinek je odvisen od dogodka in zgodovinske depozitne vrednosti:
+
+| Dogodek | Fizična zaloga | Saldo dobavitelja | Temeljnica pri pozitivni vrednosti | Učinek na 220 | Vrednost 0,00 EUR |
+|---|---:|---:|---|---|---|
+| Vračilo dobavitelju | zmanjša | zmanjša | D 220 / K 3107000 | zmanjša obveznost | brez temeljnice |
+| Odpis | zmanjša | zmanjša | D strošek odpisa / K 3107000 | brez spremembe | brez temeljnice |
 
 Pred potrditvijo primerjajte prikazani saldo dobavitelja, skupno fizično zalogo
 in količino odpisa. Program ne dovoli količine, ki bi presegla katerega koli od
 obeh razpoložljivih saldov. Če zahteva po prekinitvi povezave nima jasnega
 izida, ne ustvarite novega dogodka z drugačnim podatkom; najprej osvežite
 bilanco, saj ponovitev iste operacije ne sme zaloge zmanjšati dvakrat.
+
+Če program količino zavrne, osvežite bilanco in ponovno preverite oba salda.
+Ne spreminjajte količine ali operacije samo zato, da bi obšli opozorilo. Enaka
+ponovljena operacija vrne že evidentirani rezultat; zahteva z istim ključem in
+drugačnimi podatki je zavrnjena.
 
 Primer: pri dobavitelju je evidentiranih 20 zabojev, dva sta se razbila,
 depozitna vrednost pa je 3,00 EUR. Vnesite odpis 2 kosov z razlogom
@@ -391,9 +398,30 @@ pokazati 18 kosov, osnutek temeljnice pa 6,00 EUR:
 | 4802000 Strošek uničene povratne embalaže | D | 6,00 |
 | 3107000 Zaloga povratne embalaže | K | 6,00 |
 
-Konto stroška odpisa mora biti pred uporabo določen v
-**Nastavitve → Računovodstvo → POS konti**. Številka 4802000 je le primer;
-uporabite aktivni konto razreda 4 iz kontnega načrta podjetja.
+Pred uporabo v **Nastavitve → Računovodstvo → POS konti** preverite:
+
+* **Zaloga povratne embalaže** je nastavljena na aktivni proknjižljivi konto
+  3107000;
+* **Strošek odpisa povratne embalaže** je nastavljen na aktivni proknjižljivi
+  konto razreda 4.
+
+Številka 4802000 v primeru je ponazoritev; uporabite konto iz kontnega načrta
+podjetja.
+
+### 5C.6B Dobropis za že vrnjeno povratno embalažo
+
+Dobropis dobavitelja za embalažo, ki ste jo že fizično vrnili, ni novo vračilo.
+V prejemnicah odprite razdelek **Dobropisi — povratna embalaža**, izberite
+dobropis in ustrezno evidentirano vračilo ter vnesite samo še nepovezano
+količino.
+
+Po potrditvi program poveže dobropis z dokazom fizičnega vračila. Ne ustvari
+nove temeljnice in ne zmanjša zaloge ali dobaviteljskega salda še enkrat.
+Delno povezovanje je dovoljeno do preostale količine na obeh straneh.
+
+Če ste izbrali napačno vračilo ali količino, uporabite **Razveljavi**. Popravek
+ohrani revizijsko sled; ne ponavljajte fizičnega vračila in ne brišite
+izvornega dobropisa.
 
 ### 5C.7 Kontrolni seštevki uvoza
 

@@ -152,6 +152,10 @@ Za podrobnost uporabite navedeno glavno poglavje.
 
 ## 8. Kratka zgodovina trenutne različice
 
+Različica 8.2 dopolnjuje postopke za povratno embalažo, povezovanje dobropisov,
+ponovni FURS prenos in čas hrambe QR zgodovine. Vsi prikazani koledarski datumi
+so zapisani v obliki dd.mm.yyyy.
+
 Trenutna dokumentacija združuje operativne postopke v poglavjih 01–08.
 Poglavje 09 je namenjeno skrbniški konfiguraciji, napravam, vlogam, FURS potrdilu in integracijam.
 Poglavje 10 vsebuje hitre zaporedne postopke po vlogah.
@@ -1628,11 +1632,14 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Zgodovina različice ostane kratka in usmerjena v vpliv uporabnika.
 - [ ] Posodobitev se uskladi z internimi pravili podjetja.
 
-## 39. Kratka zgodovina v7
+## 39. Kratka zgodovina različic
 
 - **v7:** razširjen referenčni dodatek s slovarjem, matrikami odgovornosti,
   kontrolnimi cikli, učnimi načrti, preverjanji znanja, obrazci in pravili
   za dokaze ter vzdrževanje dokumentacije.
+- **v8.2:** obnovljen celoten referenčni dodatek, dopolnjeni aktualni postopki
+  povratne embalaže, FURS in QR zgodovine ter poenotena oblika datumov
+  dd.mm.yyyy.
 
 ## 40. Kontrolne kartice po organizacijskem modelu
 

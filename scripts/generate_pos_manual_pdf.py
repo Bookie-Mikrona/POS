@@ -32,7 +32,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
-OUTPUT = ROOT / "docs" / "POS-Gostinstvo-prirocnik-v8.1.pdf"
+OUTPUT = ROOT / "docs" / "POS-Gostinstvo-prirocnik-v8.2.pdf"
 LOGO = ROOT / "docs" / "mikrona-logo.png"
 
 SOURCE_FILES = [
@@ -49,6 +49,10 @@ SOURCE_FILES = [
     ("XI", "Odpravljanje težav in izredni primeri", "11-vnos-uvoz-prejemnice-ocr.md"),
     ("XII", "Slovar in kontrolni seznami", "12-spremembe-in-dopolnitve.md"),
 ]
+NON_SLOVENIAN_DATE = re.compile(
+    r"\b(?:19|20)\d{2}[-/]\d{1,2}[-/]\d{1,3}\b"
+    r"|\b\d{1,2}/\d{1,2}/(?:19|20)\d{2}\b"
+)
 
 BLUE = colors.HexColor("#163A5F")
 TEAL = colors.HexColor("#087F8C")
@@ -275,7 +279,11 @@ def clean_source(text: str) -> str:
             title = re.sub(r"[*`]", "", heading.group(2))
             if skipped_level is not None and level <= skipped_level:
                 skipped_level = None
-            if skipped_level is None and excluded_heading.search(title):
+            # A top-level chapter title may legitimately contain a filtered
+            # phrase (for example "Slovar, kontrolni seznami ..."). Skipping
+            # H1 would suppress the entire source file because no later H1
+            # resets skipped_level.
+            if skipped_level is None and level > 1 and excluded_heading.search(title):
                 skipped_level = level
                 continue
         if skipped_level is not None:
@@ -467,7 +475,7 @@ class ManualDocTemplate(BaseDocTemplate):
             canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
             canvas.setFont("Manual", 8.2)
             canvas.setFillColor(MUTED)
-            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — referenčni priročnik v8.1")
+            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — referenčni priročnik v8.2")
             canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
         canvas.restoreState()
 
@@ -499,10 +507,10 @@ def build_story(styles, doc):
             Spacer(1, 8 * mm),
             Spacer(1, 36 * mm),
             Paragraph("POS Gostinstvo", styles["cover_title"]),
-            Paragraph("Jedrnat referenčni uporabniški priročnik · izdaja 8.1", styles["cover_subtitle"]),
+            Paragraph("Celovit uporabniški in referenčni priročnik · izdaja 8.2", styles["cover_subtitle"]),
             Spacer(1, 13 * mm),
             Table(
-                [["Različica", "8.1"], ["Obseg", "priprava, operativno delo, prodaja, zaloge, poročila in administracija"], ["Datum izdaje", date.today().strftime("%d. %m.%Y")]],
+                [["Različica", "8.2"], ["Obseg", "priprava, operativno delo, prodaja, zaloge, poročila in administracija"], ["Datum izdaje", date.today().strftime("%d.%m.%Y")]],
                 colWidths=[40 * mm, 110 * mm],
                 style=TableStyle(
                     [
@@ -585,6 +593,13 @@ def build_story(styles, doc):
         path = SOURCE_DIR / filename
         if not path.exists():
             raise FileNotFoundError(path)
+        source = path.read_text(encoding="utf-8")
+        invalid_dates = sorted(set(NON_SLOVENIAN_DATE.findall(source)))
+        if invalid_dates:
+            raise ValueError(
+                f"{filename} vsebuje datume zunaj oblike dd.mm.yyyy: "
+                + ", ".join(invalid_dates)
+            )
         part = Paragraph(f"DEL {numeral}<br/><br/>{html.escape(title)}", styles["part"])
         part._manual_heading_level = 1
         part._manual_heading_text = f"DEL {numeral}: {title}"
@@ -600,11 +615,13 @@ def build_story(styles, doc):
                 PageBreak(),
             ]
         )
-        story.extend(markdown_to_flowables(path.read_text(encoding="utf-8"), styles, doc.width))
+        flowables = markdown_to_flowables(source, styles, doc.width)
+        if not flowables:
+            raise ValueError(f"{filename} po filtriranju nima vsebine")
+        story.extend(flowables)
         story.append(PageBreak())
 
     story.extend([
-        PageBreak(),
         Spacer(1, 45 * mm),
         Paragraph("Konec priročnika", styles["part"]),
         Paragraph(
@@ -627,7 +644,7 @@ def main() -> None:
         rightMargin=19 * mm,
         topMargin=18 * mm,
         bottomMargin=21 * mm,
-        title="POS Gostinstvo — referenčni uporabniški priročnik v8.1",
+        title="POS Gostinstvo — celovit uporabniški in referenčni priročnik v8.2",
         author="Bookie",
         subject="Uporabniški priročnik za POS Gostinstvo",
         creator="Bookie POS Gostinstvo",

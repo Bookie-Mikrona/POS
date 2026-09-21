@@ -1,0 +1,492 @@
+2	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 2 
+3	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 3 
+3	low-heading	59
+4	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 4 
+5	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 5 
+5	low-heading	78
+6	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 6 
+7	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 7 
+8	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 8 
+9	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 9 
+10	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 10 
+11	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 11 
+12	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 12 
+13	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 13 
+14	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 14 
+15	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 15 
+16	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 16 
+17	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 17 
+18	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 18 
+19	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 19 
+20	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 20 
+21	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 21 
+22	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 22 
+23	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 23 
+24	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 24 
+25	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 25 
+26	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 26 
+27	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 27 
+28	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 28 
+29	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 29 
+30	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 30 
+31	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 31 
+32	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 32 
+33	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 33 
+34	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 34 
+35	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 35 
+36	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 36 
+37	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 37 
+38	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 38 
+39	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 39 
+40	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 40 
+41	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 41 
+42	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 42 
+43	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 43 
+44	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 44 
+44	low-heading	2.  Preverite, da ne uporabljate zasebnega ali neznanega brskalniškega profila.
+44	low-heading	3.  Vnesite svoje prijavne podatke.
+45	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 45 
+46	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 46 
+47	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 47 
+47	low-heading	3.5 Vloga in navigacija
+48	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 48 
+49	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 49 
+50	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 50 
+51	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 51 
+52	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 52 
+53	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 53 
+53	low-heading	7.1 Namen uvajanja
+54	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 54 
+55	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 55 
+56	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 56 
+57	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 57 
+58	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 58 
+59	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 59 
+60	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 60 
+61	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 61 
+62	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 62 
+63	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 63 
+63	low-heading	3.5 Odpiranje izmene
+63	low-heading	1.  Odprite Izmene.
+64	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 64 
+65	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 65 
+66	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 66 
+67	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 67 
+68	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 68 
+69	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 69 
+70	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 70 
+71	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 71 
+72	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 72 
+73	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 73 
+74	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 74 
+74	low-heading	19.3 Čas
+75	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 75 
+76	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 76 
+77	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 77 
+78	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 78 
+79	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 79 
+80	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 80 
+80	low-heading	1.  Odprite rezervacijo na mizi ali seznamu rezervacij.
+80	low-heading	2.  Preverite ime gosta in termin.
+81	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 81 
+81	low-heading	5.  Nadaljujte po predpisanem postopku zaključka.
+82	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 82 
+83	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 83 
+83	low-heading	4.  Preverite izvorno in novo naročilo.
+83	low-heading	5.  Potrdite razdelitev.
+84	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 84 
+84	low-heading	8.3 Nejasno stanje po prekinitvi
+85	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 85 
+86	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 86 
+87	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 87 
+88	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 88 
+89	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 89 
+90	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 90 
+91	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 91 
+92	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 92 
+93	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 93 
+94	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 94 
+94	low-heading	19.2 Prazen seznam miz
+95	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 95 
+95	low-heading	20.1 Dodaj novo naročilo
+96	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 96 
+97	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 97 
+98	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 98 
+99	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 99 
+100	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 100 
+101	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 101 
+102	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 102 
+103	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 103 
+104	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 104 
+105	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 105 
+106	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 106 
+106	low-heading	26.4 Opomba in glasovni vnos
+107	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 107 
+107	low-heading	27.1 Splošne skupine modifikatorjev
+108	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 108 
+109	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 109 
+110	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 110 
+111	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 111 
+112	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 112 
+113	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 113 
+114	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 114 
+115	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 115 
+116	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 116 
+116	low-heading	5.  Nastavite vrstni red, če je na voljo.
+116	low-heading	6.  Shranite.
+117	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 117 
+118	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 118 
+119	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 119 
+120	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 120 
+121	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 121 
+122	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 122 
+123	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 123 
+124	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 124 
+125	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 125 
+126	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 126 
+126	low-heading	15.4 Primer polj
+127	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 127 
+128	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 128 
+129	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 129 
+130	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 130 
+131	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 131 
+132	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 132 
+133	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 133 
+134	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 134 
+135	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 135 
+136	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 136 
+137	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 137 
+138	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 138 
+139	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 139 
+140	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 140 
+141	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 141 
+142	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 142 
+142	low-heading	32.5 AI urejanje in brisanje
+143	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 143 
+144	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 144 
+145	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 145 
+146	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 146 
+147	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 147 
+148	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 148 
+149	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 149 
+150	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 150 
+151	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 151 
+152	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 152 
+153	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 153 
+154	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 154 
+154	low-heading	7.1 Pravilo za osebje
+154	low-heading	1.  Kuhinja pripravlja le naloge Kuhinja.
+155	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 155 
+156	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 156 
+156	low-heading	4.  Ponovite naročilo klicatelju.
+156	low-heading	5.  Pošljite v pripravo.
+157	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 157 
+158	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 158 
+159	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 159 
+160	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 160 
+161	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 161 
+162	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 162 
+163	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 163 
+164	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 164 
+165	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 165 
+166	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 166 
+167	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 167 
+168	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 168 
+169	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 169 
+170	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 170 
+171	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 171 
+172	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 172 
+173	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 173 
+174	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 174 
+175	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 175 
+175	low-heading	3.  Povejte gostu izračunano vračilo.
+176	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 176 
+176	low-heading	8.  Preverite, da račun prikazuje vse načine in zneske.
+177	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 177 
+177	low-heading	5.  Natisnite račun šele po dokončnem stanju.
+178	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 178 
+178	low-heading	2.  Zabeležite številko računa, čas in sporočilo napake.
+178	low-heading	3.  Preverite, ali je prikazan status napake oziroma manjkajoč EOR.
+179	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 179 
+180	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 180 
+180	low-heading	1.  skupni znesek je pravilen;
+181	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 181 
+182	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 182 
+183	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 183 
+184	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 184 
+185	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 185 
+186	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 186 
+187	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 187 
+188	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 188 
+189	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 189 
+190	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 190 
+191	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 191 
+192	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 192 
+193	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 193 
+194	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 194 
+195	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 195 
+196	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 196 
+197	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 197 
+198	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 198 
+199	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 199 
+200	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 200 
+201	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 201 
+202	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 202 
+203	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 203 
+204	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 204 
+205	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 205 
+205	low-heading	5B.2 Pakiranje
+206	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 206 
+207	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 207 
+208	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 208 
+209	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 209 
+210	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 210 
+210	low-heading	1.  Preverite fizični preostanek v začasni enoti.
+211	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 211 
+211	low-heading	4.  Primerjajte z nedavnimi prejemi, prenosi in proizvodnjo.
+212	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 212 
+213	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 213 
+214	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 214 
+215	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 215 
+216	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 216 
+217	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 217 
+217	low-heading	2.  Preverite, ali je bila naložena prava stran dokumenta.
+217	low-heading	3.  Preverite berljivost, zasuk in popolnost slike.
+218	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 218 
+218	low-heading	8.1 Priprava
+218	low-heading	1.  Določite datum in skladišče.
+219	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 219 
+219	low-heading	5.  Prilagodite samo dejanske, dovoljene razlike.
+219	low-heading	6.  Potrdite izdelavo.
+220	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 220 
+221	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 221 
+222	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 222 
+223	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 223 
+224	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 224 
+225	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 225 
+226	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 226 
+227	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 227 
+228	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 228 
+229	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 229 
+230	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 230 
+231	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 231 
+232	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 232 
+233	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 233 
+234	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 234 
+235	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 235 
+236	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 236 
+237	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 237 
+238	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 238 
+239	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 239 
+240	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 240 
+241	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 241 
+242	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 242 
+243	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 243 
+244	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 244 
+245	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 245 
+246	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 246 
+246	low-heading	13.99 Kratek praktični izpit 19: prevoz
+247	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 247 
+248	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 248 
+249	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 249 
+249	low-heading	3.2 Odmori
+249	low-heading	1.  Na kartici aktivne izmene izberite plačan ali neplačan odmor.
+250	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 250 
+250	low-heading	1.  Preverite, da je premik v zgodovini.
+250	low-heading	2.  Primerjajte čas, znesek, vrsto in uporabnika.
+251	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 251 
+251	low-heading	4.  Preverite promet po plačilnih metodah.
+251	low-heading	5.  Primerjajte gotovino s trenutnim štetjem.
+252	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 252 
+253	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 253 
+253	low-heading	1.  Poslovni dan je zaključen, če proces to zahteva.
+253	low-heading	2.  Konti za temeljnice so nastavljeni in veljavni.
+254	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 254 
+255	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 255 
+256	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 256 
+257	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 257 
+258	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 258 
+259	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 259 
+259	low-heading	14.4 Razlika
+260	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 260 
+261	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 261 
+262	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 262 
+263	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 263 
+264	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 264 
+265	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 265 
+266	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 266 
+267	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 267 
+268	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 268 
+268	low-heading	23.2 Statusi osebne izmene
+269	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 269 
+270	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 270 
+271	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 271 
+271	low-heading	23.8 Polja uskladitve gotovine
+272	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 272 
+272	low-heading	4.  Preverite prikaz stroškovnega mesta.
+272	low-heading	5.  Preverite ime dodeljene blagajne, kadar je prikazano.
+273	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 273 
+274	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 274 
+275	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 275 
+276	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 276 
+276	low-heading	100 EUR: količina ____ × 100 = ______ EUR.
+277	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 277 
+278	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 278 
+279	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 279 
+279	low-heading	25.10 Storno premika
+280	date	2026-06-09, 2026-06-10, 2026-06-11
+280	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 280 
+281	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 281 
+282	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 282 
+283	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 283 
+283	low-heading	3.  Najprej razrešite odprta naročila in zasedene mize.
+283	low-heading	4.  Nato zaključite osebne izmene, ki dejansko ne delajo več.
+284	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 284 
+285	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 285 
+286	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 286 
+287	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 287 
+288	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 288 
+289	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 289 
+290	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 290 
+290	low-heading	28.16 POS naprave
+291	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 291 
+292	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 292 
+293	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 293 
+294	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 294 
+295	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 295 
+296	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 296 
+297	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 297 
+298	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 298 
+298	low-heading	6.  Zabeležite odobritev, datum in skrbnika spremembe.
+299	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 299 
+300	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 300 
+301	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 301 
+302	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 302 
+303	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 303 
+304	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 304 
+305	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 305 
+306	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 306 
+307	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 307 
+307	low-heading	3.  Vnesite le zahtevane podatke.
+307	low-heading	4.  Skrivnosti ne zapišite v zahtevek ali posnetek zaslona.
+308	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 308 
+309	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 309 
+310	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 310 
+311	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 311 
+312	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 312 
+313	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 313 
+314	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 314 
+315	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 315 
+316	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 316 
+317	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 317 
+318	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 318 
+319	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 319 
+320	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 320 
+321	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 321 
+322	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 322 
+323	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 323 
+324	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 324 
+325	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 325 
+326	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 326 
+326	low-heading	2.  Potrdite, da je izbrani terminal namenjen temu registru.
+327	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 327 
+328	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 328 
+329	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 329 
+330	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 330 
+331	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 331 
+332	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 332 
+333	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 333 
+334	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 334 
+335	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 335 
+335	low-heading	2.4 Predaja
+335	low-heading	1.  Dokončajte ali jasno označite odprta naročila.
+336	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 336 
+336	low-heading	1.  Zaženite samo en plačilni poskus.
+336	low-heading	2.  Spremljajte sporočilo terminala in POS-a.
+337	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 337 
+337	low-heading	2.  Preverite terminale, tisk in pripravljalne poglede.
+337	low-heading	3.  Določite pot za napake, manjkajoče artikle in predajo.
+338	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 338 
+338	low-heading	3.  Zberite čas, enoto, dokument, napravo in sporočilo.
+338	low-heading	4.  Ne zbirajte skrivnosti ali podatkov kartic.
+339	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 339 
+339	low-heading	1.  Prijavite se z osebnim dostopom iz 01.
+339	low-heading	2.  Preverite enoto in območje miz.
+340	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 340 
+341	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 341 
+342	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 342 
+343	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 343 
+343	low-heading	1.  Sprejmite nalogo na KDS ali izpisu.
+343	low-heading	2.  Preverite količino, velikost in opombe.
+344	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 344 
+345	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 345 
+346	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 346 
+347	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 347 
+348	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 348 
+349	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 349 
+350	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 350 
+351	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 351 
+352	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 352 
+353	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 353 
+354	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 354 
+355	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 355 
+356	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 356 
+357	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 357 
+358	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 358 
+359	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 359 
+360	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 360 
+361	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 361 
+362	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 362 
+363	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 363 
+364	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 364 
+365	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 365 
+365	low-heading	4.  Spremembo rezervacije naj potrdi pooblaščena oseba.
+365	low-heading	5.  Gostu dodelite drugo mizo le po dogovoru z vodjo.
+366	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 366 
+367	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 367 
+368	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 368 
+368	low-heading	2.  Osvežite pogled le po preverjanju, da ni odprtega nepotrjenega vnosa.
+368	low-heading	3.  Preverite pravilno enoto in izmeno.
+369	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 369 
+370	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 370 
+371	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 371 
+372	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 372 
+373	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 373 
+373	low-heading	2.  Ne označujte nove kartice kot nadomestilo brez preverjanja.
+373	low-heading	3.  Zabeležite dejansko stanje.
+374	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 374 
+374	low-heading	5.  Vodja odobri naslednje dejanje do gosta.
+375	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 375 
+376	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 376 
+377	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 377 
+378	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 378 
+379	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 379 
+380	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 380 
+381	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 381 
+381	low-heading	2.  Ne brišite zapisov, dokler ne določite pravega.
+381	low-heading	3.  Preverite zgodovino dokumentov in učinek na zalogo.
+382	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 382 
+382	low-heading	5.  Razliko predajte vodji z izračunom.
+383	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 383 
+383	low-heading	10.  potrditev vodje, da so dokazi shranjeni po politiki.
+384	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 384 
+385	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 385 
+386	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 386 
+387	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 387 
+388	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 388 
+389	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 389 
+390	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 390 
+391	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 391 
+392	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 392 
+393	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 393 
+394	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 394 
+395	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 395 
+396	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 396 
+397	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 397 
+398	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 398 
+399	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 399 
+400	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 400 
+400	sparse	''
+401	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 401 
+401	sparse	''
+402	margin	POS Gostinstvo — referenčni priročnik v8.1 Stran 402 
