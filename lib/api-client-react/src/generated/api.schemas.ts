@@ -678,6 +678,11 @@ export interface PosBookingSettings {
      * @nullable
      */
   returnablePackagingAccountId?: string | null;
+  /**
+     * Konto stroška odpisa povratne embalaže (razred 4)
+     * @nullable
+     */
+  returnablePackagingWriteoffAccountId?: string | null;
 }
 
 export interface PosCategoryRevenueAccountInput {
@@ -724,6 +729,11 @@ export interface PosBookingSettingsInput {
      * @nullable
      */
   returnablePackagingAccountId?: string | null;
+  /**
+     * Konto stroška odpisa povratne embalaže (razred 4)
+     * @nullable
+     */
+  returnablePackagingWriteoffAccountId?: string | null;
 }
 
 export type TipPolicyMode = typeof TipPolicyMode[keyof typeof TipPolicyMode];
@@ -9952,8 +9962,44 @@ export interface EmbalazaVraciloRequest {
 export interface EmbalazaVraciloResponse {
   id?: number;
   kolicina?: number;
-  journalEntryId?: string;
+  /** @nullable */
+  journalEntryId?: string | null;
   reference?: string;
+}
+
+export type EmbalazaOdpisRequestRazlog = typeof EmbalazaOdpisRequestRazlog[keyof typeof EmbalazaOdpisRequestRazlog];
+
+
+export const EmbalazaOdpisRequestRazlog = {
+  razbitje: 'razbitje',
+  uniceno: 'uniceno',
+  nevracljivo: 'nevracljivo',
+} as const;
+
+export interface EmbalazaOdpisRequest {
+  /** @minimum 1 */
+  artikelId: number;
+  dobaviteljId: string;
+  /**
+     * @maximum 1000000
+     * @exclusiveMinimum 0
+     */
+  kolicina: number;
+  razlog: EmbalazaOdpisRequestRazlog;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  opomba?: string | null;
+  operationKey: string;
+}
+
+export interface EmbalazaOdpisResponse {
+  id: number;
+  kolicina: number;
+  /** @nullable */
+  journalEntryId: string | null;
+  reference: string;
 }
 
 export type OfflineFiscalClaimResultState = typeof OfflineFiscalClaimResultState[keyof typeof OfflineFiscalClaimResultState];

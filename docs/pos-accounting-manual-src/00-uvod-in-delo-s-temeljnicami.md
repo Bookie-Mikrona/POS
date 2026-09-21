@@ -62,7 +62,13 @@ Pri preverjanju si zabeležite najmanj:
 * status temeljnice in čas morebitne potrditve;
 * povezavo na izvirnik in pri stornu povezavo na izvirni dogodek.
 
-Sinhronizacija prodaje se lahko izvede za dan ali za zaključen mesec. Pri ročni dnevni sinhronizaciji se v **Temeljnice** izbere datum in pritisne **Sinhroniziraj**. Rezultat lahko vsebuje ustvarjene temeljnice in preskočene reference z razlogom. Preskok ni uspešno knjiženje: razlog je treba odpraviti in sinhronizacijo ponoviti.
+Sinhronizacija prodaje se lahko izvede za dan ali za zaključen mesec. Program
+jo sproži samodejno ob podprtih POS dogodkih, ročni dnevni oziroma mesečni
+zagon pa je na zaslonu **Nastavitve → POS knjiženje**, ne na zaslonu
+**Temeljnice**. Rezultat lahko vsebuje ustvarjene osnutke in preskočene
+reference z razlogom. Preskok ni uspešno knjiženje: razlog je treba odpraviti
+in sinhronizacijo ponoviti. Zaslon **Temeljnice** je namenjen pregledu,
+dopolnitvi, knjiženju in izvozu že ustvarjenih osnutkov.
 
 Mesečna sinhronizacija se uporablja za zaključeno obdobje in združi podatke po pravilih nastavitev. Pred njo preverite, da so računi, vračila, prejemnice in drugi dogodki za mesec zaključeni. Če je bil dan že potrjen, mesečni postopek ne sme ustvariti dvojnega prihodka; morebitna razlika se rešuje z ločenim popravkom.
 
@@ -74,9 +80,14 @@ V seznamu **Temeljnice** so statusi prikazani kot:
 |---|---|---|
 | **osnutek (draft)** | temeljnica je ustvarjena, vendar še ni potrjena | pregled, dopolnitev v skladu s pravili in priprava na knjiženje |
 | **potrjena (posted)** | temeljnica je knjižena/potrjena v knjigi | ne prepisujte vrstic; popravek izvedite z reverzom ali ločenim dokumentom |
-| **storno (reversed)** | učinek prvotne temeljnice je razveljavljen | preverite povezavo na izvirnik in nov popravljalni dokument |
+| **stornirana izvorna (reversed)** | prvotna knjižena temeljnica je bila razveljavljena z ločeno nasprotno temeljnico | preverite povezavo med izvirnikom in novo nasprotno temeljnico |
 
 Status osnutka ne pomeni, da je dogodek napačen. Pomeni, da mora računovodja opraviti kontrolni pregled. Status potrjene temeljnice tudi ne pomeni, da je izvorni račun pravilen: potrditi je treba, da se vsota, DDV, plačila in izvorna referenca ujemajo.
+
+Pri stornu nastaneta dve povezani temeljnici. Prvotna knjižena temeljnica dobi
+status `reversed`, nova nasprotna temeljnica pa je takoj `posted`, vsebuje
+obrnjene D/K vrstice in povezavo `reversalOf` na izvirnik. Status `reversed`
+zato označuje prvotno, ne nove storno temeljnice.
 
 ## 0.5 Pregled seznama in razširitev vrstice
 

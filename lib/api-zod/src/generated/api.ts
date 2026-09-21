@@ -8306,8 +8306,36 @@ export const ReturnEmbalazaBody = zod.object({
 export const ReturnEmbalazaResponse = zod.object({
   "id": zod.number().optional(),
   "kolicina": zod.number().optional(),
-  "journalEntryId": zod.string().optional(),
+  "journalEntryId": zod.string().nullish(),
   "reference": zod.string().optional()
+})
+
+
+/**
+ * @summary Evidentiraj odpis razbite ali nevračljive povratne embalaže
+ */
+
+export const writeoffEmbalazaBodyKolicinaExclusiveMin = 0;
+export const writeoffEmbalazaBodyKolicinaMax = 1000000;
+
+export const writeoffEmbalazaBodyOpombaMax = 2000;
+
+
+
+export const WriteoffEmbalazaBody = zod.object({
+  "artikelId": zod.number().min(1),
+  "dobaviteljId": zod.string(),
+  "kolicina": zod.number().gt(writeoffEmbalazaBodyKolicinaExclusiveMin).max(writeoffEmbalazaBodyKolicinaMax),
+  "razlog": zod.enum(['razbitje', 'uniceno', 'nevracljivo']),
+  "opomba": zod.string().max(writeoffEmbalazaBodyOpombaMax).nullish(),
+  "operationKey": zod.string()
+})
+
+export const WriteoffEmbalazaResponse = zod.object({
+  "id": zod.number(),
+  "kolicina": zod.number(),
+  "journalEntryId": zod.string().nullable(),
+  "reference": zod.string()
 })
 
 
@@ -13447,7 +13475,8 @@ export const GetPosBookingSettingsResponse = zod.object({
   "tipsVatAccountId": zod.string().nullish().describe('Ločen izhodni DDV napitnin'),
   "tipsCardFeeExpenseAccountId": zod.string().nullish().describe('Strošek odstotne kartične provizije napitnine'),
   "contractReceivableTransitAccountId": zod.string().nullish().describe('Prehodna terjatev pogodbenih malic do mesečnega A-računa'),
-  "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)')
+  "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)'),
+  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)')
 })
 
 
@@ -13466,7 +13495,8 @@ export const UpdatePosBookingSettingsBody = zod.object({
   "tipsVatAccountId": zod.string().nullish().describe('Ločen izhodni DDV napitnin'),
   "tipsCardFeeExpenseAccountId": zod.string().nullish().describe('Strošek odstotne kartične provizije napitnine'),
   "contractReceivableTransitAccountId": zod.string().nullish().describe('Prehodna terjatev pogodbenih malic do mesečnega A-računa'),
-  "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)')
+  "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)'),
+  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)')
 })
 
 export const UpdatePosBookingSettingsResponse = zod.object({
@@ -13484,7 +13514,8 @@ export const UpdatePosBookingSettingsResponse = zod.object({
   "tipsVatAccountId": zod.string().nullish().describe('Ločen izhodni DDV napitnin'),
   "tipsCardFeeExpenseAccountId": zod.string().nullish().describe('Strošek odstotne kartične provizije napitnine'),
   "contractReceivableTransitAccountId": zod.string().nullish().describe('Prehodna terjatev pogodbenih malic do mesečnega A-računa'),
-  "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)')
+  "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)'),
+  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)')
 })
 
 

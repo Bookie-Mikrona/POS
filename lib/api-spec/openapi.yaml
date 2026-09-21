@@ -4596,6 +4596,23 @@ paths:
         "400": { description: Neveljavni podatki }
         "403": { description: Dobavitelj ni v najemniku }
         "409": { description: Preseženo stanje }
+  /embalaza/odpis:
+    post:
+      operationId: writeoffEmbalaza
+      tags: [embalaza]
+      summary: Evidentiraj odpis razbite ali nevračljive povratne embalaže
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/EmbalazaOdpisRequest" } }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/EmbalazaOdpisResponse" } }
+        "400": { description: Neveljavni podatki ali manjkajoča nastavitev }
+        "403": { description: Dobavitelj ni v najemniku }
+        "409": { description: Preseženo stanje ali konflikt idempotentnega ključa }
   /zaloge/kartica/{artikelId}:
     get:
       operationId: getKarticaArtikla
@@ -9974,6 +9991,7 @@ components:
         tipsCardFeeExpenseAccountId: { type: [string, "null"], description: Strošek odstotne kartične provizije napitnine }
         contractReceivableTransitAccountId: { type: [string, "null"], description: Prehodna terjatev pogodbenih malic do mesečnega A-računa }
         returnablePackagingAccountId: { type: [string, "null"], description: Konto zaloge povratne embalaže (3107000) }
+        returnablePackagingWriteoffAccountId: { type: [string, "null"], description: Konto stroška odpisa povratne embalaže (razred 4) }
     PosBookingSettingsInput:
       type: object
       properties:
@@ -9988,6 +10006,7 @@ components:
         tipsCardFeeExpenseAccountId: { type: [string, "null"], description: Strošek odstotne kartične provizije napitnine }
         contractReceivableTransitAccountId: { type: [string, "null"], description: Prehodna terjatev pogodbenih malic do mesečnega A-računa }
         returnablePackagingAccountId: { type: [string, "null"], description: Konto zaloge povratne embalaže (3107000) }
+        returnablePackagingWriteoffAccountId: { type: [string, "null"], description: Konto stroška odpisa povratne embalaže (razred 4) }
     PosCategoryRevenueAccount:
       type: object
       required: [categoryId, categoryName, unitId, unitName, accountId]
@@ -21247,7 +21266,25 @@ components:
       properties:
         id: { type: integer }
         kolicina: { type: number }
-        journalEntryId: { type: string }
+        journalEntryId: { type: [string, "null"] }
+        reference: { type: string }
+    EmbalazaOdpisRequest:
+      type: object
+      required: [artikelId, dobaviteljId, kolicina, razlog, operationKey]
+      properties:
+        artikelId: { type: integer, minimum: 1 }
+        dobaviteljId: { type: string }
+        kolicina: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        razlog: { type: string, enum: [razbitje, uniceno, nevracljivo] }
+        opomba: { type: [string, "null"], maxLength: 2000 }
+        operationKey: { type: string }
+    EmbalazaOdpisResponse:
+      type: object
+      required: [id, kolicina, journalEntryId, reference]
+      properties:
+        id: { type: integer }
+        kolicina: { type: number }
+        journalEntryId: { type: [string, "null"] }
         reference: { type: string }
     OfflineFiscalClaimResult:
       type: object

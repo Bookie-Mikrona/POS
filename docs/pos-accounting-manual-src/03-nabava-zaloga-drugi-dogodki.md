@@ -29,10 +29,12 @@ knjiženje, zahtevani partner/stroškovno mesto pa sta prisotna.
    ali `Blagajna → Premiki`).
 3. Pred shranjevanjem preverite artikel, mersko enoto, količino, nabavno ceno,
    stopnjo DDV, vrsto dokumenta, dobavitelja in sklic.
-4. Pri prejemnici uporabite `Predogled knjiženja`; v njem morajo biti vidne
-   vrstice za zalogo/strošek, vstopni DDV in obveznost do dobavitelja.
-5. Osnutek temeljnice shranite šele po odpravi vseh blokirnih napak. Potrditev
-   prejemnice in potrditev blagajniškega premika sta ločena dejanja.
+4. Po shranitvi oziroma potrditvi prejemnice program pri POS sinhronizaciji
+   samodejno pripravi osnutek temeljnice. Če je za konkretno vrsto dokumenta
+   na voljo predogled, ga uporabite kot dodatno kontrolo.
+5. Osnutek pregledate in knjižite na zaslonu **Temeljnice** šele po odpravi
+   vseh blokirnih napak. Operativna potrditev prejemnice ali blagajniškega
+   premika ni isto kot knjiženje osnutka v glavno knjigo.
 6. V GL preverite številko temeljnice, izvorni POS ID, partnerja, dimenzije in
    obdobje. Pri uvozu v drug program preverite, da se isti izvorni dokument ne
    uvozi dvakrat.
@@ -40,10 +42,9 @@ knjiženje, zahtevani partner/stroškovno mesto pa sta prisotna.
 ### Zaslon za pregled dokumenta
 
 
-Na zaslonu mora računovodja ločiti **vnos dokumenta**, **operativni gib
-zaloge** in **računovodski predogled**. Gumb `Knjiži prejemnico` ne pomeni,
-da je vsak znesek že v glavni knjigi; preverite še stanje predogleda in
-referenco temeljnice.
+Računovodja mora ločiti **vnos dokumenta**, **operativni gib zaloge** in
+**osnutek temeljnice**. POS sinhronizacija pripravi osnutek s statusom `draft`;
+šele ločeno knjiženje na zaslonu **Temeljnice** ga spremeni v `posted`.
 
 ## 2. Prejemnica: podprte vrste dokumentov
 
@@ -58,7 +59,8 @@ Ne ustvarite dveh zalogovnih prejemov za isti prevzem.
 **Vnos:** `Zaloge → Nova prejemnica`; izberite dobavitelja, datum in vrsto
 `Račun`; za vsako vrstico izberite artikel, količino, ceno brez DDV, popust,
 stopnjo DDV in `Obravnava: zaloga` ali `strošek`; dodajte številko dokumenta in
-kliknite `Shrani → Predogled knjiženja → Shrani osnutek → Potrdi`.
+shranite in potrdite dokument. Nato na zaslonu **Temeljnice** preglejte
+samodejno ustvarjeni osnutek ter ga ločeno poknjižite.
 
 **Primer:** moka 100 kg × 2,00 = 200,00 neto, DDV 9,5 % = 19,00, skupaj
 219,00. Kontrolni konti: 3101000 *Zaloga surovin*, 1600950 *Vstopni DDV
@@ -260,24 +262,22 @@ poravna po običajnem postopku. Če dobavitelj kljub temu prizna delni dobropis,
 se dobropis knjiži samo za dejansko priznano količino in se odpis za isti del
 ne sme podvojiti.
 
-**Trenutna omejitev programa:** obstoječa funkcija `Vračilo embalaže` v enem
-dogodku zmanjša fizično zalogo in dobaviteljski saldo ter pripravi zmanjšanje
-obveznosti do dobavitelja. Zato je pri razbitju ne uporabljajte, saj bi
-računovodsko prikazala vračilo, ki se ni zgodilo. Dokler ni na voljo ločena
-funkcija `Odpis povratne embalaže`, je treba:
+Uporabite namensko funkcijo **Odpis povratne embalaže**. Izberite dobavitelja,
+artikel, pozitivno količino, razlog (`razbitje`, `uničenje` ali
+`nevračljivo`) in po potrebi opombo. Program v eni transakciji:
 
-1. dejansko količino popraviti z dokumentiranim odpisom oziroma inventurnim
-   manjkom;
-2. knjižiti D strošek odpisa / K 3107000;
-3. voditi podpisan zapisnik z artiklom, dobaviteljem, količino, depozitno
-   vrednostjo, razlogom, datumom in odgovorno osebo;
-4. razliko v dobaviteljskem saldu embalaže označiti kot odprto uskladitev in je
-   ne zapreti z navideznim vračilom.
+1. zmanjša dejansko zalogo;
+2. zmanjša saldo vračljive embalaže pri izbranem dobavitelju;
+3. pri pozitivni zgodovinski depozitni vrednosti ustvari osnutek temeljnice
+   D nastavljeni strošek odpisa / K 3107000; pri vrednosti 0,00 EUR knjižne
+   temeljnice ne ustvari;
+4. ohrani konto 220 nespremenjen;
+5. shrani razlog, zgodovinsko depozitno vrednost, izvajalca in enolični ključ
+   operacije.
 
-Če po odpisu fizična zaloga kaže 18 kosov, dobaviteljski saldo pa še vedno 20,
-razlika 2 kosa ni zaloga na lokaciji, temveč programsko še nepodprt dogodek
-uničenja. Računovodja mora razliko držati na kontrolnem seznamu, dokler ni
-vnesen namenski popravek z revizijsko sledjo.
+Odpis ne sme preseči niti fizične zaloge niti salda pri izbranem dobavitelju.
+Po primeru z 20 zaboji in 2 razbitima kosoma morata tako fizična zaloga kot
+dobaviteljski saldo pokazati 18 kosov, osnutek temeljnice pa 6,00 EUR odpisa.
 
 ## 5. Začetna zaloga
 
@@ -545,10 +545,11 @@ nastavljen v POS nastavitvah. Ne knjižite bančnega priliva ponovno kot
 prihodek.
 
 
-## 14. Primeri, ki niso samodejna GL temeljnica
+## 14. Operativni dogodki in njihova knjižna pot
 
-Naslednji vnosi se trenutno vodijo kot operativna evidenca, razen če
-predogled v konkretnem podjetju pokaže drugače:
+Pri vsakem dogodku preverite konkretni knjižni vir. Celotnega toka vračila
+embalaže ali dobropisa ne označujte kot »brez GL«: finančne vrstice dobropisa,
+fizično vračilo in odpis embalaže imajo različne knjižne poti.
 
 | Vnos | Učinek POS | Neposredni GL |
 |---|---|---|
@@ -556,11 +557,15 @@ predogled v konkretnem podjetju pokaže drugače:
 | priprava po normativu | poraba/razpoložljivost zaloge | brez samodejne temeljnice |
 | odpad s krožnikov | evidenca odpada in poročilo | brez temeljnice |
 | prenos med enotami z istim kontom | premik količine | brez neto učinka |
-| vračilo embalaže brez finančnega depozita | embalažni promet | brez temeljnice |
+| vračilo embalaže z depozitom | embalažni promet in zmanjšanje zaloge | osnutek D 220 / K 3107000 |
+| vračilo embalaže brez finančne vrednosti | embalažni promet in zmanjšanje zaloge | brez zneskovne temeljnice |
+| odpis uničene povratne embalaže | zmanjšanje zaloge in dobaviteljskega salda | pri pozitivni vrednosti osnutek D strošek odpisa / K 3107000; pri 0,00 EUR brez zneskovne temeljnice |
+| dobropis z embalažnimi vrsticami | finančne vrstice dobropisa in ločena uskladitev embalaže | preverite dejansko ustvarjeni osnutek; fizičnega učinka ne podvojite |
 | inventura brez nastavljenih kontov | popravek zaloge | brez temeljnice |
 
-To niso napake. Računovodja mora pri izvozu ločiti operativne priloge od
-dejanskih knjižb.
+Čisti operativni dogodki brez knjižnega vira niso napake. Računovodja mora pri
+izvozu ločiti operativne priloge od dejanskih knjižb in pri dobropisih posebej
+preveriti, da embalažni učinek ni zajet dvakrat.
 
 ## 15. Robni primeri, ki jih mora računovodja zavrniti
 

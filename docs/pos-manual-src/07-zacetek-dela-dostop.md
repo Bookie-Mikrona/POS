@@ -357,6 +357,44 @@ Vnesite pravilno pretvorbo pred potrditvijo.
 
 Nikoli ne domnevajte, da sta karton in zaboj enake velikosti.
 
+### 5C.6A Povratna embalaža: vračilo ali odpis
+
+Pri povratni embalaži vedno ločite dva dogodka:
+
+* **Vračilo embalaže** uporabite samo, ko embalažo dejansko prejme dobavitelj.
+  Program zmanjša fizično zalogo in saldo pri dobavitelju. Pri pozitivni
+  depozitni vrednosti pripravi osnutek D 220 / K 3107000.
+* **Odpis povratne embalaže** uporabite za razbito, uničeno ali drugače
+  nevračljivo embalažo. Dobavitelja, artikel in pozitivno količino izberete v
+  prejemnicah v razdelku **Odpis povratne embalaže**, nato določite razlog in
+  po potrebi dodate opombo.
+
+Odpis v eni operaciji zmanjša fizično zalogo in saldo pri izbranem dobavitelju.
+Pri pozitivni zgodovinski depozitni vrednosti pripravi osnutek
+**D strošek odpisa / K 3107000**, pri vrednosti 0,00 EUR pa zneskovne
+temeljnice ne ustvari. Konto 220 se pri odpisu ne spremeni, ker dobavitelj
+embalaže ni prejel.
+
+Pred potrditvijo primerjajte prikazani saldo dobavitelja, skupno fizično zalogo
+in količino odpisa. Program ne dovoli količine, ki bi presegla katerega koli od
+obeh razpoložljivih saldov. Če zahteva po prekinitvi povezave nima jasnega
+izida, ne ustvarite novega dogodka z drugačnim podatkom; najprej osvežite
+bilanco, saj ponovitev iste operacije ne sme zaloge zmanjšati dvakrat.
+
+Primer: pri dobavitelju je evidentiranih 20 zabojev, dva sta se razbila,
+depozitna vrednost pa je 3,00 EUR. Vnesite odpis 2 kosov z razlogom
+**Razbitje**. Po potrditvi morata dobaviteljski saldo in fizična zaloga
+pokazati 18 kosov, osnutek temeljnice pa 6,00 EUR:
+
+| Konto (primer) | D/K | Znesek |
+|---|---:|---:|
+| 4802000 Strošek uničene povratne embalaže | D | 6,00 |
+| 3107000 Zaloga povratne embalaže | K | 6,00 |
+
+Konto stroška odpisa mora biti pred uporabo določen v
+**Nastavitve → Računovodstvo → POS konti**. Številka 4802000 je le primer;
+uporabite aktivni konto razreda 4 iz kontnega načrta podjetja.
+
 ### 5C.7 Kontrolni seštevki uvoza
 
 Število uvoženih vrstic primerjajte s številom vrstic listine.

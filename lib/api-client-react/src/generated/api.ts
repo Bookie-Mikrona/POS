@@ -87,6 +87,8 @@ import type {
   DownloadPlateWasteExportParams,
   EmailRacunaOdgovor,
   EmbalazaBilanca,
+  EmbalazaOdpisRequest,
+  EmbalazaOdpisResponse,
   EmbalazaVraciloRequest,
   EmbalazaVraciloResponse,
   Enota,
@@ -16063,6 +16065,77 @@ export const useReturnEmbalaza = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getReturnEmbalazaMutationOptions(options));
+    }
+
+export const getWriteoffEmbalazaUrl = () => {
+
+
+
+
+  return `/api/embalaza/odpis`
+}
+
+/**
+ * @summary Evidentiraj odpis razbite ali nevračljive povratne embalaže
+ */
+export const writeoffEmbalaza = async (embalazaOdpisRequest: EmbalazaOdpisRequest, options?: RequestInit): Promise<EmbalazaOdpisResponse> => {
+
+  return customFetch<EmbalazaOdpisResponse>(getWriteoffEmbalazaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(embalazaOdpisRequest)
+  }
+);}
+
+
+
+
+
+export const getWriteoffEmbalazaMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeoffEmbalaza>>, TError,{data: BodyType<EmbalazaOdpisRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeoffEmbalaza>>, TError,{data: BodyType<EmbalazaOdpisRequest>}, TContext> => {
+
+const mutationKey = ['writeoffEmbalaza'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeoffEmbalaza>>, {data: BodyType<EmbalazaOdpisRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  writeoffEmbalaza(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteoffEmbalazaMutationResult = NonNullable<Awaited<ReturnType<typeof writeoffEmbalaza>>>
+    export type WriteoffEmbalazaMutationBody = BodyType<EmbalazaOdpisRequest>
+    export type WriteoffEmbalazaMutationError = ErrorType<void>
+
+    /**
+ * @summary Evidentiraj odpis razbite ali nevračljive povratne embalaže
+ */
+export const useWriteoffEmbalaza = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeoffEmbalaza>>, TError,{data: BodyType<EmbalazaOdpisRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof writeoffEmbalaza>>,
+        TError,
+        {data: BodyType<EmbalazaOdpisRequest>},
+        TContext
+      > => {
+      return useMutation(getWriteoffEmbalazaMutationOptions(options));
     }
 
 export const getGetKarticaArtiklaUrl = (artikelId: number,

@@ -4,12 +4,15 @@
  * Tok: Blago prispe z dobavnico → prejemnica (DR zaloga / CR 221) →
  *      ob prejemu računa ujemanje (DR 221 / CR 220).
  */
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
 import {
   useListCounterparties,
   useListPeriods,
   useListAccounts,
+  useListEmbalazaBilance,
+  useWriteoffEmbalaza,
+  getListEmbalazaBilanceQueryKey,
 } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -142,6 +145,95 @@ function useCreditNoteDocuments(companyId: string) {
     ),
     enabled: !!companyId,
   });
+}
+
+function ReturnablePackagingWriteoffPanel() {
+  const queryClient = useQueryClient();
+  const { data: balances, isLoading } = useListEmbalazaBilance();
+  const writeoff = useWriteoffEmbalaza();
+  const [selectedKey, setSelectedKey] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [reason, setReason] = useState<"razbitje" | "uniceno" | "nevracljivo">("razbitje");
+  const [note, setNote] = useState("");
+  const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
+  const selected = (balances ?? []).find((row) => `${row.artikelId}:${row.dobaviteljId ?? ""}` === selectedKey);
+  useEffect(() => {
+    setOperationKey(crypto.randomUUID());
+  }, [selectedKey, quantity, reason, note]);
+  const submit = async () => {
+    if (!selected?.dobaviteljId || !(Number(quantity) > 0)) return;
+    await writeoff.mutateAsync({
+      data: {
+        artikelId: selected.artikelId,
+        dobaviteljId: selected.dobaviteljId,
+        kolicina: Number(quantity),
+        razlog: reason,
+        opomba: note.trim() || null,
+        operationKey,
+      },
+    });
+    setQuantity("");
+    setNote("");
+    setOperationKey(crypto.randomUUID());
+    queryClient.invalidateQueries({ queryKey: getListEmbalazaBilanceQueryKey() });
+  };
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  return (
+    <div className="border rounded-lg bg-card p-4 space-y-3">
+      <div>
+        <h2 className="font-semibold">Odpis povratne embalaže</h2>
+        <p className="text-xs text-muted-foreground">
+          Za razbito, uničeno ali drugače nevračljivo embalažo. Odpis zmanjša fizično
+          zalogo in saldo pri dobavitelju, ne zmanjša pa obveznosti 220.
+        </p>
+      </div>
+      {writeoff.error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{(writeoff.error as any)?.data?.error ?? (writeoff.error as Error).message}</AlertDescription>
+        </Alert>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
+        <div className="md:col-span-2">
+          <Label>Dobavitelj in artikel</Label>
+          <Select value={selectedKey} onValueChange={setSelectedKey}>
+            <SelectTrigger><SelectValue placeholder="Izberi dobavitelja in embalažo" /></SelectTrigger>
+            <SelectContent>
+              {(balances ?? []).filter(row => row.dobaviteljId).map(row => {
+                const key = `${row.artikelId}:${row.dobaviteljId}`;
+                return (
+                  <SelectItem key={key} value={key}>
+                    {row.artikelIme} · {row.dobaviteljIme ?? row.dobaviteljId} · dobavitelj {row.fizicnaKolicina} · fizična zaloga {row.overallPhysicalStock}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Količina</Label>
+          <Input type="number" min="0" max={selected ? Math.min(selected.fizicnaKolicina, selected.overallPhysicalStock) : undefined} step="0.0001" value={quantity} onChange={e => setQuantity(e.target.value)} />
+        </div>
+        <div>
+          <Label>Razlog</Label>
+          <Select value={reason} onValueChange={(value) => setReason(value as typeof reason)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="razbitje">Razbitje</SelectItem>
+              <SelectItem value="uniceno">Uničenje</SelectItem>
+              <SelectItem value="nevracljivo">Nevračljivo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex gap-2 items-end">
+        <div className="flex-1"><Label>Opomba</Label><Textarea value={note} maxLength={2000} onChange={e => setNote(e.target.value)} placeholder="Zapisnik, datum ali dodatna razlaga" /></div>
+        <Button onClick={submit} disabled={!selected?.dobaviteljId || !(Number(quantity) > 0) || writeoff.isPending}>
+          {writeoff.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Potrdi odpis
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 // ─── Pomočniki ────────────────────────────────────────────────────────────────
@@ -770,6 +862,8 @@ export default function Prejemnice() {
           ))}
         </div>
       )}
+
+      {activeCompany && <ReturnablePackagingWriteoffPanel />}
 
       {/* Legenda */}
       <div className="text-xs text-muted-foreground border rounded-lg p-3 bg-muted/20 space-y-1">

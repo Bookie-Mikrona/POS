@@ -138,6 +138,9 @@ export const posBookingSettingsTable = pgTable("pos_booking_settings", {
   /** Zaloga povratne embalaže — konto 3107000, debet. */
   returnablePackagingAccountId: uuid("returnable_packaging_account_id")
     .references(() => accountsTable.id, { onDelete: "set null" }),
+  /** Strošek odpisa povratne embalaže — konto razreda 4. */
+  returnablePackagingWriteoffAccountId: uuid("returnable_packaging_writeoff_account_id")
+    .references(() => accountsTable.id, { onDelete: "set null" }),
   /** Prehodni konto obračuna nabave (109) — uporabi ga nabavna temeljnica v naslednjem koraku. */
   nabavaObracunAccountId: uuid("nabava_obracun_account_id")
     .references(() => accountsTable.id, { onDelete: "set null" }),

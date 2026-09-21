@@ -795,3 +795,31 @@ mtime_ms = 1790009987836
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/328796c4-891f-4d75-ba66-bba27caab596/87e67c94-d6a4-4737-9f67-ba8565b70a04"
 storage_version_token = "1790010047785663"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "oa47XKH0ay7hWH9V1wp7w"
+uri = "file://docs/POS-Gostinstvo-racunovodski-prirocnik-v1.3.pdf"
+type = "pdf"
+title = "POS Gostinstvo — računovodski priročnik v1.3"
+description = "Popravljena 49-stranska izdaja brez zaslonskih slik, usklajena z namenskim odpisom povratne embalaže in dejanskim tokom POS knjiženja."
+logical_id = "ad178fd1-7aad-4c5a-85bc-3f2b0a8cd628"
+content_hash = "sha256:e83bccb47969255aeec0aec53fcace6219dc47fa9e106cf8f4dac4e8777c8586"
+size = 479000
+mtime_ms = 1790011391776
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/ad178fd1-7aad-4c5a-85bc-3f2b0a8cd628/dc260cb2-114b-46a3-9070-d4ac45aca8f1"
+storage_version_token = "1790011768942466"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "7td6cMQFPrS4AS1o3XN1u"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.1.pdf"
+type = "pdf"
+title = "POS Gostinstvo — referenčni priročnik v8.1"
+description = "Dopolnjena 402-stranska izdaja z navodili za vračilo in namenski odpis povratne embalaže, primerom knjiženja ter pravilom za vrednost 0,00 EUR."
+logical_id = "9e8bf190-19a0-4fa0-a5ae-07e333844e66"
+content_hash = "sha256:e56a98119a1c0052f797f191e6727f2422e8a55d35a94e169301faa5c3d14691"
+size = 2059104
+mtime_ms = 1790011851725
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/9e8bf190-19a0-4fa0-a5ae-07e333844e66/880e42bf-a1ae-4e82-9b1a-21e4a404330e"
+storage_version_token = "1790011897982601"
+content_type = "application/pdf"

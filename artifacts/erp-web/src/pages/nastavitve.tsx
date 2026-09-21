@@ -1255,6 +1255,7 @@ interface PosBookingSettingsData {
   inventoryGoodsAccountId: string | null;
   payablesAccountId: string | null;
   returnablePackagingAccountId: string | null;
+  returnablePackagingWriteoffAccountId: string | null;
   nabavaObracunAccountId: string | null;
   inputVatAccountId: string | null;
   inputVat22AccountId: string | null;
@@ -1334,6 +1335,7 @@ const EMPTY_PBS: PosBookingSettingsData = {
   inventoryGoodsAccountId: null,
   payablesAccountId: null,
   returnablePackagingAccountId: null,
+  returnablePackagingWriteoffAccountId: null,
   nabavaObracunAccountId: null,
   inputVatAccountId: null,
   inputVat22AccountId: null,
@@ -2568,6 +2570,7 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
           <AccountSelect label="Splošna zaloga (fallback)" field="inventoryAccountId" description="Debet — rezerva" />
           <AccountSelect label="Obveznosti do dobaviteljev" field="payablesAccountId" description="Kredit — npr. 2200000" />
           <AccountSelect label="Zaloga povratne embalaže" field="returnablePackagingAccountId" description="Debet — konto 3107000" />
+          <AccountSelect label="Strošek odpisa povratne embalaže" field="returnablePackagingWriteoffAccountId" prefixes={["4"]} description="Debet pri razbitju/uničenju — konto razreda 4" />
         </CardContent>
       </Card>
 

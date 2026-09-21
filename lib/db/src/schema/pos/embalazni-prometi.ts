@@ -15,6 +15,7 @@ export const embalazniPrometiTable = pgTable("embalazni_prometi", {
   depozitnaVrednost: numeric("depozitna_vrednost", { precision: 12, scale: 2 }),
   prejemnicaPostavkaId: integer("prejemnica_postavka_id"),
   vrsta: text("vrsta").notNull().default("prejem"),
+  odpisRazlog: text("odpis_razlog"),
   opomba: text("opomba"),
   datum: timestamp("datum", { withTimezone: true }).notNull().defaultNow(),
   actorSnapshot: text("actor_snapshot"),
@@ -23,7 +24,8 @@ export const embalazniPrometiTable = pgTable("embalazni_prometi", {
   reversalOfId: integer("reversal_of_id"),
 }, (t) => [
   check("embalazni_prometi_kolicina_nonzero", sql`${t.kolicina} <> 0`),
-  check("embalazni_prometi_vrsta_check", sql`${t.vrsta} IN ('prejem', 'vracilo')`),
+  check("embalazni_prometi_vrsta_check", sql`${t.vrsta} IN ('prejem', 'vracilo', 'odpis') AND ((${t.vrsta} = 'odpis' AND ${t.odpisRazlog} IN ('razbitje', 'uniceno', 'nevracljivo')) OR (${t.vrsta} <> 'odpis' AND ${t.odpisRazlog} IS NULL))`),
+  check("embalazni_prometi_odpis_razlog_check", sql`${t.odpisRazlog} IS NULL OR ${t.odpisRazlog} IN ('razbitje', 'uniceno', 'nevracljivo')`),
   uniqueIndex("embalazni_prometi_receipt_line_unique").on(t.prejemnicaPostavkaId)
     .where(sql`${t.prejemnicaPostavkaId} IS NOT NULL AND ${t.reversalOfId} IS NULL`),
   index("embalazni_prometi_scope_idx").on(t.enotaId, t.artikelId, t.dobaviteljId),

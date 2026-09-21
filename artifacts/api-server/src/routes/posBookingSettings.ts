@@ -206,6 +206,7 @@ const ACCOUNT_FIELDS = [
   "inventoryGoodsAccountId",
   "payablesAccountId",
   "returnablePackagingAccountId",
+  "returnablePackagingWriteoffAccountId",
   "nabavaObracunAccountId",
   "inputVatAccountId",
   "inputVat22AccountId",
@@ -560,6 +561,12 @@ router.put(
         res.status(400).json({ error: "Konto obveznosti do dobaviteljev mora biti iz razreda 220" });
         return;
       }
+      const writeoffAccountId = patch.returnablePackagingWriteoffAccountId ?? null;
+      const writeoffCode = typeof writeoffAccountId === "string" ? codeById.get(writeoffAccountId) : null;
+      if (writeoffAccountId && !writeoffCode?.startsWith("4")) {
+        res.status(400).json({ error: "Konto odpisa povratne embalaže mora biti v razredu 4" });
+        return;
+      }
       for (const [field, label] of [
         ["rawMaterialExpenseAccountId", "neposrednega stroška surovin"],
         ["inboundFreightExpenseAccountId", "prevoznih storitev"],
@@ -579,6 +586,7 @@ router.put(
         contractReceivableTransitAccountId: posBookingSettingsTable.contractReceivableTransitAccountId,
         payablesAccountId: posBookingSettingsTable.payablesAccountId,
         returnablePackagingAccountId: posBookingSettingsTable.returnablePackagingAccountId,
+        returnablePackagingWriteoffAccountId: posBookingSettingsTable.returnablePackagingWriteoffAccountId,
         subsidyCounterpartyId: posBookingSettingsTable.subsidyCounterpartyId,
       }).from(posBookingSettingsTable).where(eq(posBookingSettingsTable.companyId, companyId)).limit(1);
       const bankAccountId = patch.bankAccountId ?? current?.bankAccountId ?? null;

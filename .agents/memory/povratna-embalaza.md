@@ -69,4 +69,4 @@ Razbita ali uničena povratna embalaža je ločen dogodek, ne vračilo dobavitel
 
 **Why:** Navidezno vračilo bi napačno ustvarilo D 220, čeprav dobavitelj embalaže ni prejel in depozita ni priznal. Sam inventurni manjko pa pusti dobaviteljski saldo napačno odprt.
 
-**How to apply:** Namenski append-only dogodek uničenja naj v eni transakciji shrani razlog, dobavitelja, količino in zgodovinsko kavcijsko vrednost, zmanjša zalogo ter pripravi D strošek / K 3107000 brez DDV in brez konta 220.
+**How to apply:** Namenski append-only dogodek uničenja v eni transakciji shrani razlog, dobavitelja, količino in zgodovinsko kavcijsko vrednost ter zmanjša oba salda. Pri pozitivni vrednosti pripravi D strošek / K 3107000 brez DDV in brez 220; pri 0,00 EUR ne ustvari temeljnice. Vračila in odpisi istega artikla uporabljajo isti zaklep, operacijski ključ pa varno podpira ponovitev zahteve.

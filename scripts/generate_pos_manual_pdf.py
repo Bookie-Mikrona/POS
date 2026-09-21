@@ -32,7 +32,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
-OUTPUT = ROOT / "docs" / "POS-Gostinstvo-prirocnik-v8.0.pdf"
+OUTPUT = ROOT / "docs" / "POS-Gostinstvo-prirocnik-v8.1.pdf"
 LOGO = ROOT / "docs" / "mikrona-logo.png"
 
 SOURCE_FILES = [
@@ -467,7 +467,7 @@ class ManualDocTemplate(BaseDocTemplate):
             canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
             canvas.setFont("Manual", 8.2)
             canvas.setFillColor(MUTED)
-            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — referenčni priročnik v8.0")
+            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — referenčni priročnik v8.1")
             canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
         canvas.restoreState()
 
@@ -499,10 +499,10 @@ def build_story(styles, doc):
             Spacer(1, 8 * mm),
             Spacer(1, 36 * mm),
             Paragraph("POS Gostinstvo", styles["cover_title"]),
-            Paragraph("Jedrnat referenčni uporabniški priročnik · izdaja 8.0", styles["cover_subtitle"]),
+            Paragraph("Jedrnat referenčni uporabniški priročnik · izdaja 8.1", styles["cover_subtitle"]),
             Spacer(1, 13 * mm),
             Table(
-                [["Različica", "8.0"], ["Obseg", "priprava, operativno delo, prodaja, zaloge, poročila in administracija"], ["Datum izdaje", date.today().strftime("%d. %m. %Y")]],
+                [["Različica", "8.1"], ["Obseg", "priprava, operativno delo, prodaja, zaloge, poročila in administracija"], ["Datum izdaje", date.today().strftime("%d. %m.%Y")]],
                 colWidths=[40 * mm, 110 * mm],
                 style=TableStyle(
                     [
@@ -627,7 +627,7 @@ def main() -> None:
         rightMargin=19 * mm,
         topMargin=18 * mm,
         bottomMargin=21 * mm,
-        title="POS Gostinstvo — referenčni uporabniški priročnik v8.0",
+        title="POS Gostinstvo — referenčni uporabniški priročnik v8.1",
         author="Bookie",
         subject="Uporabniški priročnik za POS Gostinstvo",
         creator="Bookie POS Gostinstvo",

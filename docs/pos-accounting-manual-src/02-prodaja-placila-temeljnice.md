@@ -62,7 +62,8 @@ razlogom.
 1. Izberite mizo ali naročilo, dodajte artikel (npr. kosilo 9,5 %).
 2. Izberite **Plačilo → Gotovina**, vnesite prejeti znesek in zaključite račun.
 3. Preverite, da je račun fiskalno potrjen in ni označen kot storno.
-4. Pri dnevnem zaključku sprožite **Temeljnice → Sinhroniziraj dan**.
+4. Pri dnevnem zaključku preverite samodejno ustvarjeni osnutek. Če je potreben
+   ročni zagon, uporabite **Nastavitve → POS knjiženje → Sinhroniziraj dan**.
 
 ### Primer
 
@@ -424,16 +425,20 @@ račun označite za opustitev po internem postopku.
 
 ## Dnevna in mesečna izdelava; preprečevanje dvojnikov
 
-1. Dnevno: **Temeljnice → Sinhroniziraj dan → YYYY-MM-DD**. Sistem ustvari
-   zbirne osnutke po enoti (prodaja, otvoritvena/KIR po konfiguraciji ter
-   lastna poraba/reprezentanca).
-2. Mesečno: **Temeljnice → Sinhroniziraj mesec → YYYY-MM** uporabite šele po
-   pregledu obdobja. Mesečna prodajna temeljnica prepreči novo dnevno
+1. Dnevno: program ob podprtih dogodkih samodejno pripravi osnutek. Za ročni
+   ponovni zagon uporabite **Nastavitve → POS knjiženje → Sinhroniziraj dan**
+   in izberite datum. Sistem ustvari zbirne osnutke po enoti (prodaja,
+   otvoritvena/KIR po konfiguraciji ter lastna poraba/reprezentanca).
+2. Mesečno: **Nastavitve → POS knjiženje → Sinhroniziraj mesec** uporabite
+   šele po pregledu obdobja. Mesečna prodajna temeljnica prepreči novo dnevno
    podvajanje za isto obdobje.
 3. Osnutek se lahko ponovno izdela, dokler ni knjižen. Sistem odstrani samo
    svoj obstoječi osnutek in ga sestavi iz izvornih računov.
 4. Potrjene temeljnice se ne brišejo in ne spreminjajo. Popravek je nov
    izvorni dokument, storno ali ročna uskladitev z revizijsko sledjo.
+
+Na zaslonu **Temeljnice** nato osnutke samo pregledate, dopolnite, knjižite ali
+izvozite; ta zaslon nima dnevnega ali mesečnega gumba za POS sinhronizacijo.
 
 Pri izvozu v drug program prenesite najmanj: datum, številko temeljnice,
 referenco POS, konto in naziv, D/K, znesek, DDV-stopnjo in DDV-kodo, partnerja,
