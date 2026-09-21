@@ -1,0 +1,23 @@
+{
+  "id": "/pos/",
+  "name": "Bookie POS Gostinstvo",
+  "short_name": "Bookie POS",
+  "description": "Blagajna Bookie za gostinstvo",
+  "lang": "sl",
+  "start_url": "/pos/",
+  "scope": "/pos/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff3c00",
+  "icons": [
+    {
+      "src": "/pos/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}

@@ -1,26 +1,99 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { and, asc, count, desc, eq, inArray, ne, sql, sum } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, kategorijeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, nastavitveTable, normativiTable, postavkeTable } from "@workspace/db";
+import { artModSkupineTable, articleImageVersionsTable, artikliTable, companiesTable, db, enoteTable, kategorijeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenusTable, nastavitveTable, normativiTable, posNormativeChangeAuditTable, postavkeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import ExcelJS from "exceljs";
+import multer from "multer";
+import { resolveArticleType } from "../../lib/articleType";
+import { CreateArtikelBody, GenerateArtikelImageBody, PreviewArtikelAlergeniNormativBody, UpdateArtikelBody } from "@workspace/api-zod";
+import { ObjectStorageService } from "../../lib/objectStorage";
+import { izracunajVelikostiPic } from "../../lib/pica-velikosti";
+import { readAll } from "./nastavitve";
+import { generateImage, ImageGenerationError } from "@workspace/integrations-gemini-ai/image";
+import {
+  ArticleImageReferenceError,
+  extractArticleImageReferenceUrls,
+  loadArticleImageReferences,
+} from "../../lib/article-image-references";
+import {
+  ArticleImageNormalizationError,
+  normalizeArticleImage,
+} from "../../lib/article-image-normalization";
+import { isAllowedOneToOneSelfNorm, requiresClassicNormativ } from "../../lib/normativ-validation";
+import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
+import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory } from "../../lib/ddv-resolver";
+import PDFDocument from "pdfkit";
+import { normalizirajAlergenProfil } from "../../lib/alergeni";
+import { razresiAlergeneArtikla, razresiAlergeneVhodnihArtiklov, razveljaviAlergeneNadrejenih } from "../../lib/alergeni-resolver";
+import { generateMenuPriceListPdf } from "../../lib/menu-price-list-pdf";
+import Decimal from "decimal.js";
+import { verifyNormativeProposal } from "../../lib/normative-comparison";
+import { z } from "zod";
 
 const router: IRouter = Router();
+class NormativeStaleError extends Error {}
+type NormativeGraphLockTestContext = {
+  artikelId: number;
+  operation: "article-update" | "normativ-update";
+};
+let normativRevisionLockTestHook:
+  ((context: NormativeGraphLockTestContext) => Promise<void>) | undefined;
+const NORMATIVE_GRAPH_LOCK_NAMESPACE = 1_315_924_557;
+
+export function setNormativRevisionLockTestHook(
+  hook?: (context: NormativeGraphLockTestContext) => Promise<void>,
+): void {
+  if (process.env.NODE_ENV !== "test") {
+    throw new Error("Normativ revision lock hook je dovoljen samo v testih.");
+  }
+  normativRevisionLockTestHook = hook;
+}
+
+class NormativeRequestError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly responseBody: Record<string, unknown>,
+  ) {
+    super(String(responseBody.error ?? "Neveljaven normativ."));
+  }
+}
+
+async function lockNormativeGraph(tx: any, enotaId: number): Promise<void> {
+  await tx.execute(sql`
+    SELECT pg_advisory_xact_lock(
+      ${NORMATIVE_GRAPH_LOCK_NAMESPACE}::integer,
+      ${enotaId}::integer
+    )
+  `);
+}
+
+const ApplyNormativeProposalsBody = z.object({
+  selections: z.array(z.object({ proposalToken: z.string().min(1).max(8_000), confirmed: z.literal(true) }).strict()).min(1).max(50),
+}).strict();
 
 const SELECT_FIELDS = {
   id: artikliTable.id,
   ime: artikliTable.ime,
   opis: artikliTable.opis,
   cena: artikliTable.cena,
+  cenaMala: artikliTable.cenaMala,
+  cenaDruzinska: artikliTable.cenaDruzinska,
   davek: artikliTable.davek,
   aktiven: artikliTable.aktiven,
   kategorijaId: artikliTable.kategorijaId,
   kategorijaIme: kategorijeTable.ime,
   barva: artikliTable.barva,
+  opisSlike: artikliTable.opisSlike,
+  slikaUrl: artikliTable.slikaUrl,
   vrstniRed: artikliTable.vrstniRed,
   nabavniArtikel: artikliTable.nabavniArtikel,
   prodajniArtikel: artikliTable.prodajniArtikel,
+  povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+  vrstaEmbalaze: artikliTable.vrstaEmbalaze,
+  depozitnaVrednost: artikliTable.depozitnaVrednost,
   imeZaNabavo: artikliTable.imeZaNabavo,
   enotaMere: artikliTable.enotaMere,
+  normativRevision: artikliTable.normativRevision,
   jePica: artikliTable.jePica,
   jeDodatekZaPico: artikliTable.jeDodatekZaPico,
   privzetiDodatki: artikliTable.privzetiDodatki,
@@ -28,13 +101,33 @@ const SELECT_FIELDS = {
   privzetiModifikatorji: artikliTable.privzetiModifikatorji,
   toGoArtikli: artikliTable.toGoArtikli,
   toGo: artikliTable.toGo,
+  casPripraveMin: artikliTable.casPripraveMin,
+  mealType: artikliTable.mealType,
   vrstaArtikla: artikliTable.vrstaArtikla,
   happyHourCena: artikliTable.happyHourCena,
+  happyHourCenaMala: artikliTable.happyHourCenaMala,
+  happyHourCenaDruzinska: artikliTable.happyHourCenaDruzinska,
   skupina: artikliTable.skupina,
   taxCategory: artikliTable.taxCategory,
+  jeDelMenija: artikliTable.jeDelMenija,
   addedSugar: artikliTable.addedSugar,
   knCode: artikliTable.knCode,
+  alergeni: artikliTable.alergeni,
+  alergeniSledi: artikliTable.alergeniSledi,
+  alergeniStatus: artikliTable.alergeniStatus,
+  alergeniVir: artikliTable.alergeniVir,
+  alergeniOpombaVira: artikliTable.alergeniOpombaVira,
+  alergeniDocumentId: artikliTable.alergeniDocumentId,
+  alergeniVerifiedBy: artikliTable.alergeniVerifiedBy,
+  alergeniVerifiedAt: artikliTable.alergeniVerifiedAt,
+  alergeniRevision: artikliTable.alergeniRevision,
+  alergeniHash: artikliTable.alergeniHash,
   hasNormativ: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE artikel_id = ${artikliTable.id})`,
+  isMulticourseMenu: sql<boolean>`EXISTS (
+    SELECT 1 FROM multicourse_menus
+    WHERE menu_artikel_id = ${artikliTable.id}
+      AND enota_id = ${artikliTable.enotaId}
+  )`,
   vNormativih: sql<boolean>`EXISTS (SELECT 1 FROM normativi WHERE vhodni_artikel_id = ${artikliTable.id})
                          OR EXISTS (SELECT 1 FROM modifikator_normativi WHERE vhodni_artikel_id = ${artikliTable.id})`};
 
@@ -44,16 +137,24 @@ function mapRow(r: Record<string, unknown>) {
     ime: r.ime as string,
     opis: (r.opis as string | null) ?? null,
     cena: Number(r.cena),
+    cenaMala: r.cenaMala == null ? null : Number(r.cenaMala),
+    cenaDruzinska: r.cenaDruzinska == null ? null : Number(r.cenaDruzinska),
     davek: Number(r.davek),
     aktiven: r.aktiven as boolean,
     kategorijaId: (r.kategorijaId as number | null) ?? null,
     kategorijaIme: (r.kategorijaIme as string | null) ?? null,
     barva: (r.barva as string | null) ?? null,
+    opisSlike: (r.opisSlike as string | null) ?? null,
+    slikaUrl: (r.slikaUrl as string | null) ?? null,
     vrstniRed: r.vrstniRed as number,
     nabavniArtikel: r.nabavniArtikel as boolean,
     prodajniArtikel: r.prodajniArtikel as boolean,
+    povratnaEmbalaza: Boolean(r.povratnaEmbalaza),
+    vrstaEmbalaze: (r.vrstaEmbalaze as string | null) ?? null,
+    depozitnaVrednost: r.depozitnaVrednost == null ? null : Number(r.depozitnaVrednost),
     imeZaNabavo: (r.imeZaNabavo as string | null) ?? null,
     enotaMere: (r.enotaMere as string | null) ?? null,
+    normativRevision: Number(r.normativRevision ?? 1),
     jePica: r.jePica as boolean,
     jeDodatekZaPico: r.jeDodatekZaPico as boolean,
     privzetiDodatki: (r.privzetiDodatki as number[] | null) ?? [],
@@ -61,18 +162,95 @@ function mapRow(r: Record<string, unknown>) {
     privzetiModifikatorji: (r.privzetiModifikatorji as number[] | null) ?? [],
     toGoArtikli: (r.toGoArtikli as number[] | null) ?? [],
     toGo: Boolean(r.toGo),
-    vrstaArtikla: (r.vrstaArtikla as string | null) ?? "material",
+    casPripraveMin: Number(r.casPripraveMin ?? 0),
+    mealType: (r.mealType as "ala_carte" | "prepared" | "composite" | null) ?? "ala_carte",
+    vrstaArtikla: resolveArticleType(r.vrstaArtikla as string | null, {
+      nabavniArtikel: r.nabavniArtikel as boolean,
+      prodajniArtikel: r.prodajniArtikel as boolean,
+    }),
     happyHourCena: r.happyHourCena != null ? Number(r.happyHourCena) : null,
+    happyHourCenaMala: r.happyHourCenaMala != null ? Number(r.happyHourCenaMala) : null,
+    happyHourCenaDruzinska: r.happyHourCenaDruzinska != null ? Number(r.happyHourCenaDruzinska) : null,
     skupina: (r.skupina as string | null) ?? null,
     taxCategory: (r.taxCategory as string | null) ?? "food",
+    jeDelMenija: Boolean(r.jeDelMenija),
     addedSugar: Boolean(r.addedSugar),
     knCode: (r.knCode as string | null) ?? null,
+    alergeni: (r.alergeni as string[] | null) ?? [],
+    alergeniSledi: (r.alergeniSledi as string[] | null) ?? [],
+    alergeniStatus: r.alergeniStatus as string,
+    alergeniVir: (r.alergeniVir as string | null) ?? null,
+    alergeniOpombaVira: (r.alergeniOpombaVira as string | null) ?? null,
+    alergeniDocumentId: (r.alergeniDocumentId as string | null) ?? null,
+    alergeniVerifiedBy: (r.alergeniVerifiedBy as string | null) ?? null,
+    alergeniVerifiedAt: (r.alergeniVerifiedAt as Date | null)?.toISOString() ?? null,
+    alergeniRevision: Number(r.alergeniRevision ?? 0),
+    alergeniHash: (r.alergeniHash as string | null) ?? null,
     hasNormativ: Boolean(r.hasNormativ),
+    isMulticourseMenu: Boolean(r.isMulticourseMenu),
     vNormativih: Boolean(r.vNormativih),
     modSkupine: [] as Array<{
       id: number; ime: string; obvezna: boolean; minIzbir: number; maxIzbir: number; vrstniRed: number;
       modifikatorji: Array<{ id: number; skupinaId: number; ime: string; cenaDodatek: number; aktiven: boolean; vrstniRed: number }>;
     }>};
+}
+
+type PizzaCenaInput = Record<string, unknown>;
+type PizzaCeneArtikla = {
+  jePica: boolean;
+  cena: string | number;
+  cenaMala: string | number | null;
+  cenaDruzinska: string | number | null;
+  happyHourCena: string | number | null;
+  happyHourCenaMala: string | number | null;
+  happyHourCenaDruzinska: string | number | null;
+};
+
+function jeVeljavnaCena(vrednost: unknown): boolean {
+  if (vrednost === null || vrednost === undefined || vrednost === "" || (typeof vrednost !== "number" && typeof vrednost !== "string")) return false;
+  if (typeof vrednost === "string" && vrednost.trim() === "") return false;
+  const cena = Number(vrednost);
+  return Number.isFinite(cena) && cena >= 0;
+}
+
+/**
+ * Dodatni ceni sta obvezni samo za dejansko aktivni velikosti. Pri urejanju
+ * združimo poslano delno telo z obstoječim artiklom, zato pravila ne more
+ * obiti niti neposreden API klic.
+ */
+async function preveriCenePic(
+  podatki: PizzaCenaInput,
+  enotaId: number,
+  obstojeci?: PizzaCeneArtikla,
+): Promise<string | null> {
+  const jePica = podatki.jePica === undefined ? obstojeci?.jePica ?? false : podatki.jePica === true;
+  for (const [polje, naziv] of [
+    ["cena", "osnovne"],
+    ["cenaMala", "male"],
+    ["cenaDruzinska", "družinske"],
+    ["happyHourCena", "Happy Hour normalne"],
+    ["happyHourCenaMala", "Happy Hour male"],
+    ["happyHourCenaDruzinska", "Happy Hour družinske"],
+  ] as const) {
+    if (podatki[polje] !== undefined && podatki[polje] !== null && !jeVeljavnaCena(podatki[polje])) {
+      return `Cena ${naziv} pice mora biti število 0 ali več.`;
+    }
+  }
+  if (!jePica) return null;
+
+  const aktivneVelikosti = izracunajVelikostiPic(await readAll("", enotaId));
+  for (const velikost of aktivneVelikosti) {
+    if (velikost.id === "normalna") continue;
+    const polje = velikost.id === "mala" ? "cenaMala" : "cenaDruzinska";
+    const cena = podatki[polje] === undefined ? obstojeci?.[polje] : podatki[polje];
+    if (!jeVeljavnaCena(cena)) {
+      return `Za aktivno ${velikost.naziv.toLowerCase()} pico je treba vnesti ceno.`;
+    }
+  }
+  // Happy Hour cena je neodvisna od drugih velikosti: pravilo lahko velja
+  // samo za malo, normalno ali družinsko pico. Posamezne neprazne vrednosti
+  // smo že preverili zgoraj, prazne pa pomenijo brez popusta za to velikost.
+  return null;
 }
 
 async function fetchModSkupineForArtikli(artikelIds: number[]) {
@@ -179,8 +357,10 @@ router.get("/artikli", async (req, res): Promise<void> => {
 
 router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  const parsed = CreateArtikelBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const napakaCenePic = await preveriCenePic(parsed.data as PizzaCenaInput, tenotaId);
+  if (napakaCenePic) { res.status(400).json({ error: napakaCenePic }); return; }
 
   if (parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })
@@ -189,33 +369,115 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     if (!kat) { res.status(403).json({ error: "Kategorija ne pripada temu podjetju" }); return; }
   }
 
-  const [row] = await db.insert(artikliTable).values({
-    enotaId: tenotaId,
-    ime: parsed.data.ime,
-    opis: parsed.data.opis ?? null,
-    cena: String(parsed.data.cena ?? 0),
-    davek: String(parsed.data.davek ?? 0),
-    aktiven: parsed.data.aktiven ?? true,
-    kategorijaId: parsed.data.kategorijaId ?? null,
-    barva: parsed.data.barva ?? null,
-    vrstniRed: parsed.data.vrstniRed ?? 0,
-    nabavniArtikel: parsed.data.nabavniArtikel ?? false,
-    prodajniArtikel: parsed.data.prodajniArtikel ?? true,
-    imeZaNabavo: parsed.data.imeZaNabavo ?? null,
-    enotaMere: parsed.data.enotaMere ?? null,
-    jePica: parsed.data.jePica ?? false,
-    jeDodatekZaPico: (parsed.data as { jeDodatekZaPico?: boolean }).jeDodatekZaPico ?? false,
-    privzetiDodatki: (parsed.data as { privzetiDodatki?: number[] }).privzetiDodatki ?? [],
-    jeModifikator: (parsed.data as { jeModifikator?: boolean }).jeModifikator ?? false,
-    privzetiModifikatorji: (parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji ?? [],
-    toGoArtikli: (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [],
-    toGo: (parsed.data as { toGo?: boolean }).toGo ?? false,
-    vrstaArtikla: (parsed.data as { vrstaArtikla?: string }).vrstaArtikla ?? "material",
-    skupina: (parsed.data as { skupina?: string | null }).skupina ?? null,
-    taxCategory: (parsed.data as { taxCategory?: string }).taxCategory ?? "food",
-    addedSugar: (parsed.data as { addedSugar?: boolean }).addedSugar ?? false,
-    knCode: (parsed.data as { knCode?: string | null }).knCode ?? null,
-  }).returning();
+  const nabavniArtikel = parsed.data.nabavniArtikel ?? false;
+  const prodajniArtikel = parsed.data.prodajniArtikel ?? true;
+  const vrstaArtikla = resolveArticleType(
+    (parsed.data as { vrstaArtikla?: string }).vrstaArtikla,
+    { nabavniArtikel, prodajniArtikel },
+  );
+  const taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
+  const jeDelMenija = (parsed.data as { jeDelMenija?: boolean }).jeDelMenija ?? false;
+  const requestedAddedSugar = (parsed.data as { addedSugar?: boolean }).addedSugar ?? false;
+  const addedSugar = normalizeAddedSugarForTaxCategory(taxCategory, requestedAddedSugar);
+  if (taxCategory === "food_drink" && requestedAddedSugar) {
+    req.log.warn(
+      { taxCategory, requestedAddedSugar },
+      "addedSugar je bil pri kategoriji food_drink normaliziran na false",
+    );
+  }
+  if (jeDelMenija && (!prodajniArtikel || !isMenuEligibleTaxCategory(taxCategory))) {
+    res.status(400).json({ error: "Kot del menija je mogoče označiti le prodajno toplo ali hladno pijačo." });
+    return;
+  }
+
+  let row: typeof artikliTable.$inferSelect;
+  try {
+    row = await db.transaction(async (tx) => {
+      await lockPosBusinessDay(tx, tenotaId);
+      if (parsed.data.normativItems) {
+        await lockNormativeGraph(tx, tenotaId);
+      }
+      let allergenData: Partial<typeof artikliTable.$inferInsert> = {};
+      if ("alergeniStatus" in req.body || "alergeni" in req.body || "alergeniSledi" in req.body) {
+        try {
+          const profile = normalizirajAlergenProfil(req.body);
+          allergenData = { ...profile, alergeniRevision: 1 };
+        } catch (error) {
+          throw new Error(`ALLERGEN_INVALID:${(error as Error).message}`);
+        }
+      }
+      const mealType = parsed.data.mealType ?? "ala_carte";
+      const [inserted] = await tx.insert(artikliTable).values({
+        enotaId: tenotaId,
+        ime: parsed.data.ime,
+        opis: parsed.data.opis ?? null,
+        cena: String(parsed.data.cena ?? 0),
+        cenaMala: parsed.data.cenaMala == null ? null : String(parsed.data.cenaMala),
+        cenaDruzinska: parsed.data.cenaDruzinska == null ? null : String(parsed.data.cenaDruzinska),
+        happyHourCena: parsed.data.happyHourCena == null ? null : String(parsed.data.happyHourCena),
+        happyHourCenaMala: parsed.data.happyHourCenaMala == null ? null : String(parsed.data.happyHourCenaMala),
+        happyHourCenaDruzinska: parsed.data.happyHourCenaDruzinska == null ? null : String(parsed.data.happyHourCenaDruzinska),
+        davek: String(parsed.data.davek ?? 0),
+        aktiven: parsed.data.aktiven ?? true,
+        kategorijaId: parsed.data.kategorijaId ?? null,
+        barva: parsed.data.barva ?? null,
+        opisSlike: parsed.data.opisSlike?.trim() || null,
+        vrstniRed: parsed.data.vrstniRed ?? 0,
+        nabavniArtikel,
+        prodajniArtikel,
+        povratnaEmbalaza: (parsed.data as any).povratnaEmbalaza ?? false,
+        vrstaEmbalaze: (parsed.data as any).vrstaEmbalaze ?? null,
+        depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
+        imeZaNabavo: parsed.data.imeZaNabavo ?? null,
+        enotaMere: parsed.data.enotaMere ?? null,
+        jePica: parsed.data.jePica ?? false,
+        jeDodatekZaPico: parsed.data.jeDodatekZaPico ?? false,
+        privzetiDodatki: parsed.data.privzetiDodatki ?? [],
+        jeModifikator: parsed.data.jeModifikator ?? false,
+        privzetiModifikatorji: parsed.data.privzetiModifikatorji ?? [],
+        toGoArtikli: parsed.data.toGoArtikli ?? [],
+        toGo: parsed.data.toGo ?? false,
+        casPripraveMin: Math.max(0, Number((parsed.data as { casPripraveMin?: number }).casPripraveMin ?? 0)),
+        mealType,
+        vrstaArtikla,
+        skupina: (parsed.data as { skupina?: string | null }).skupina ?? null,
+        taxCategory,
+        jeDelMenija,
+        addedSugar,
+        knCode: (parsed.data as { knCode?: string | null }).knCode ?? null,
+        ...allergenData,
+      }).returning();
+
+      if (parsed.data.normativItems) {
+        const prepared = await prepareNormativUpdate(
+          inserted.id,
+          tenotaId,
+          {
+            expectedRevision: 1,
+            items: parsed.data.normativItems.map(item => ({
+              ...item,
+              vhodniArtikelId: item.vhodniArtikelId === -1 ? inserted.id : item.vhodniArtikelId,
+            })),
+          },
+          { mealType, nabavniArtikel, prodajniArtikel },
+          tx,
+        );
+        await applyPreparedNormativUpdate(tx, inserted.id, tenotaId, prepared);
+      }
+      return inserted;
+    });
+  } catch (error) {
+    if (String((error as Error).message).startsWith("ALLERGEN_INVALID:")) {
+      req.log.warn({ err: error }, "Invalid article allergen profile");
+      res.status(400).json({ error: "Alergenski profil ni veljaven." });
+      return;
+    }
+    if (error instanceof NormativeRequestError) {
+      res.status(error.status).json(error.responseBody);
+      return;
+    }
+    throw error;
+  }
 
   const [withKat] = await db
     .select(SELECT_FIELDS)
@@ -239,6 +501,404 @@ router.patch("/artikli/reorder", requireEnota, async (req, res): Promise<void> =
   );
 
   res.sendStatus(204);
+});
+
+const articleImageStorage = new ObjectStorageService();
+const ARTICLE_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_ARTICLE_IMAGE_BYTES = 8 * 1024 * 1024;
+const ARTICLE_IMAGE_GENERATION_TIMEOUT_MS = 60_000;
+const ARTICLE_IMAGE_SOURCE_ASPECT_RATIO = "21:9";
+const ARTICLE_IMAGE_SOURCE_SIZE = "2K";
+const articleImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ARTICLE_IMAGE_BYTES, files: 1 },
+});
+const articleImageBulkUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ARTICLE_IMAGE_BYTES, files: 50 },
+});
+
+function uploadArticleImage(req: Request, res: Response, next: NextFunction): void {
+  articleImageUpload.single("file")(req, res, (error: unknown) => {
+    if (error instanceof multer.MulterError) {
+      res.status(400).json({
+        error: error.code === "LIMIT_FILE_SIZE"
+          ? "Slika je prevelika. Največja dovoljena velikost je 8 MB."
+          : "Nalaganje slike ni uspelo.",
+      });
+      return;
+    }
+    if (error) {
+      res.status(400).json({ error: "Nalaganje slike ni uspelo." });
+      return;
+    }
+    next();
+  });
+}
+
+function uploadArticleImages(req: Request, res: Response, next: NextFunction): void {
+  articleImageBulkUpload.array("files", 50)(req, res, (error: unknown) => {
+    if (error) { res.status(400).json({ error: "Paket slik ni veljaven (največ 50 slik po 8 MB)." }); return; }
+    next();
+  });
+}
+
+function detectArticleImageMimeType(bytes: Buffer): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 8
+    && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 12
+    && bytes.subarray(0, 4).toString("ascii") === "RIFF"
+    && bytes.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+function buildArticleImagePrompt(description: string, referenceCount: number): string {
+  const descriptionWithoutUrls = description.replace(/https?:\/\/[^\s<>"'`]+/gi, "").replace(/\s+/g, " ").trim();
+  return [
+    "Create one appetizing, realistic professional food-and-drink menu photograph.",
+    `Subject: ${descriptionWithoutUrls || "the product shown in the attached references"}.`,
+    "Create a native 21:9 panoramic composition for a final 2.5:1 menu image. Keep the complete served product centered and fully visible inside the central safe area, with at least 10% clear space above and below it; do not cut off any part of the food and do not make a square composition.",
+    "Show only the served product. Do not include people, hands, text, packaging labels, logos, watermarks or price tags.",
+    ...(referenceCount > 0
+      ? [`Use the ${referenceCount} attached reference image${referenceCount === 1 ? "" : "s"} as visual inspiration for the product's shape, colors, proportions and presentation. Do not copy any logo, text, trademark or watermark from the references.`]
+      : []),
+  ].join(" ");
+}
+
+function articleImageKey(slikaUrl: string): string | null {
+  const prefix = "/api/storage/public-objects/";
+  return slikaUrl.startsWith(prefix) ? slikaUrl.slice(prefix.length) : null;
+}
+
+async function setCurrentArticleImage(
+  artikelId: number,
+  enotaId: number,
+  imageKey: string,
+  source: "upload" | "generate" | "edit" | "restore" | "bulk",
+  options: { prompt?: string | null; altText?: string | null } = {},
+): Promise<void> {
+  const slikaUrl = `/api/storage/public-objects/${imageKey}`;
+  await db.transaction(async (tx) => {
+    await tx.update(articleImageVersionsTable)
+      .set({ isCurrent: false })
+      .where(and(eq(articleImageVersionsTable.artikelId, artikelId), eq(articleImageVersionsTable.isCurrent, true)));
+    await tx.insert(articleImageVersionsTable).values({
+      artikelId, storageKey: imageKey, slikaUrl, source, isCurrent: true,
+      prompt: options.prompt ?? null, altText: options.altText ?? null,
+    });
+    await tx.update(artikliTable)
+      .set({ slikaUrl, ...(options.prompt !== undefined ? { opisSlike: options.prompt } : {}) })
+      .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  });
+}
+
+async function articleImageResponse(artikelId: number, enotaId: number, res: Response): Promise<void> {
+  const [row] = await db.select(SELECT_FIELDS).from(artikliTable)
+    .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, enotaId)))
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!row) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  res.json(mapRow(row));
+}
+
+router.post("/artikli/:id/generiraj-sliko", requireEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const artikelId = Number(req.params.id);
+  if (!Number.isInteger(artikelId) || artikelId < 1) {
+    res.status(400).json({ error: "Neveljaven artikel" });
+    return;
+  }
+
+  const parsed = GenerateArtikelImageBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Opis slike mora vsebovati največ 500 znakov." });
+    return;
+  }
+  const opisSlike = parsed.data.opisSlike.trim();
+  if (!opisSlike) {
+    res.status(400).json({ error: "Vnesite opis slike." });
+    return;
+  }
+
+  const [artikel] = await db
+    .select({
+      id: artikliTable.id,
+      prodajniArtikel: artikliTable.prodajniArtikel,
+    })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, tenotaId)))
+    .limit(1);
+  if (!artikel) {
+    res.status(404).json({ error: "Artikel ni najden" });
+    return;
+  }
+  if (!artikel.prodajniArtikel) {
+    res.status(400).json({ error: "Sliko lahko ustvarite samo za prodajni artikel." });
+    return;
+  }
+
+  try {
+    const referenceUrls = extractArticleImageReferenceUrls(opisSlike);
+    const referenceImages = await loadArticleImageReferences(referenceUrls);
+    const generated = await generateImage(
+      buildArticleImagePrompt(opisSlike, referenceImages.length),
+      {
+        abortSignal: AbortSignal.timeout(ARTICLE_IMAGE_GENERATION_TIMEOUT_MS),
+        referenceImages,
+        imageConfig: {
+          aspectRatio: ARTICLE_IMAGE_SOURCE_ASPECT_RATIO,
+          imageSize: ARTICLE_IMAGE_SOURCE_SIZE,
+        },
+      },
+    );
+    if (!ARTICLE_IMAGE_MIME_TYPES.has(generated.mimeType.toLowerCase())) {
+      req.log.warn({ mimeType: generated.mimeType }, "Unsupported generated article image MIME type");
+      res.status(502).json({ error: "Storitev je vrnila nepodprto vrsto slike." });
+      return;
+    }
+
+    const base64 = generated.b64Json.replace(/\s/g, "");
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64) || base64.length % 4 !== 0) {
+      res.status(502).json({ error: "Storitev je vrnila neveljavne slikovne podatke." });
+      return;
+    }
+    const bytes = Buffer.from(base64, "base64");
+    if (!bytes.length || bytes.length > MAX_ARTICLE_IMAGE_BYTES) {
+      req.log.warn({ bytes: bytes.length }, "Generated article image had invalid size");
+      res.status(502).json({ error: "Ustvarjena slika je neveljavna ali prevelika." });
+      return;
+    }
+
+    const normalizedImage = await normalizeArticleImage(bytes, { fit: "contain" });
+    const imageKey = `article-images/enota-${tenotaId}/artikel-${artikelId}-${crypto.randomUUID()}.webp`;
+    await articleImageStorage.savePublicObject(imageKey, normalizedImage, "image/webp");
+    await setCurrentArticleImage(artikelId, tenotaId, imageKey, "generate", { prompt: opisSlike });
+    await articleImageResponse(artikelId, tenotaId, res);
+  } catch (error) {
+    req.log.error({ err: error, artikelId }, "Article image generation failed");
+    if ((error as { name?: string }).name === "AbortError") {
+      res.status(504).json({ error: "Ustvarjanje slike je trajalo predolgo. Poskusite znova." });
+      return;
+    }
+    if (error instanceof ImageGenerationError) {
+      res.status(502).json({ error: error.message });
+      return;
+    }
+    if (error instanceof ArticleImageReferenceError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    const upstreamStatus = Number((error as { status?: number }).status);
+    if (upstreamStatus === 429 || upstreamStatus >= 500) {
+      res.status(503).json({ error: "Storitev za ustvarjanje slik je trenutno zasedena. Poskusite malo pozneje." });
+      return;
+    }
+    res.status(502).json({ error: "Slike ni bilo mogoče ustvariti. Poskusite znova." });
+  }
+});
+
+router.post("/artikli/:id/nalozi-sliko", requireEnota, uploadArticleImage, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const artikelId = Number(req.params.id);
+  if (!Number.isInteger(artikelId) || artikelId < 1) {
+    res.status(400).json({ error: "Neveljaven artikel" });
+    return;
+  }
+
+  const file = req.file;
+  if (!file) {
+    res.status(400).json({ error: "Izberite sliko za nalaganje." });
+    return;
+  }
+  const actualMimeType = detectArticleImageMimeType(file.buffer);
+    if (!actualMimeType || actualMimeType !== file.mimetype || !ARTICLE_IMAGE_MIME_TYPES.has(actualMimeType)) {
+    res.status(400).json({ error: "Podprte so samo veljavne slike JPEG, PNG ali WebP." });
+    return;
+  }
+
+  const [artikel] = await db
+    .select({
+      id: artikliTable.id,
+      prodajniArtikel: artikliTable.prodajniArtikel,
+    })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, tenotaId)))
+    .limit(1);
+  if (!artikel) {
+    res.status(404).json({ error: "Artikel ni najden" });
+    return;
+  }
+  if (!artikel.prodajniArtikel) {
+    res.status(400).json({ error: "Sliko lahko naložite samo za prodajni artikel." });
+    return;
+  }
+
+  try {
+    const normalizedImage = await normalizeArticleImage(file.buffer);
+    const imageKey = `article-images/enota-${tenotaId}/artikel-${artikelId}-${crypto.randomUUID()}.webp`;
+    await articleImageStorage.savePublicObject(imageKey, normalizedImage, "image/webp");
+    await setCurrentArticleImage(artikelId, tenotaId, imageKey, "upload");
+    await articleImageResponse(artikelId, tenotaId, res);
+  } catch (error) {
+    req.log.error({ err: error, artikelId }, "Article image upload failed");
+    if (error instanceof ArticleImageNormalizationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.status(502).json({ error: "Slike ni bilo mogoče shraniti. Poskusite znova." });
+  }
+});
+
+router.get("/artikli/:id/slike", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id);
+  const enotaId = (req as any).enotaId ?? 1;
+  if (!Number.isInteger(artikelId)) { res.status(400).json({ error: "Neveljaven artikel" }); return; }
+  const [artikel] = await db.select({ id: artikliTable.id }).from(artikliTable)
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!artikel) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  const versions = await db.select().from(articleImageVersionsTable)
+    .where(eq(articleImageVersionsTable.artikelId, artikelId))
+    .orderBy(desc(articleImageVersionsTable.createdAt), desc(articleImageVersionsTable.id));
+  res.json(versions.map((version) => ({ ...version, createdAt: version.createdAt.toISOString() })));
+});
+
+router.post("/artikli/:id/uredi-sliko", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id);
+  const enotaId = (req as any).enotaId ?? 1;
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  if (!Number.isInteger(artikelId) || !prompt || prompt.length > 500) {
+    res.status(400).json({ error: "Navodilo za urejanje je obvezno in lahko vsebuje največ 500 znakov." }); return;
+  }
+  const [artikel] = await db.select({ slikaUrl: artikliTable.slikaUrl, prodajniArtikel: artikliTable.prodajniArtikel })
+    .from(artikliTable).where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  const imageKey = artikel?.slikaUrl ? articleImageKey(artikel.slikaUrl) : null;
+  if (!artikel) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  if (!artikel.prodajniArtikel || !imageKey) { res.status(400).json({ error: "Za urejanje najprej dodajte sliko prodajnemu artiklu." }); return; }
+  try {
+    const file = await articleImageStorage.searchPublicObject(imageKey);
+    if (!file) { res.status(409).json({ error: "Trenutna slika v shrambi ne obstaja. Naložite novo sliko." }); return; }
+    const [originalBytes] = await file.download();
+    const generated = await generateImage(
+      `${buildArticleImagePrompt(prompt, 1)} Edit the attached image according to this instruction while preserving the dish identity: ${prompt}`,
+      { abortSignal: AbortSignal.timeout(ARTICLE_IMAGE_GENERATION_TIMEOUT_MS), referenceImages: [{ mimeType: "image/webp", b64Json: originalBytes.toString("base64") }], imageConfig: { aspectRatio: ARTICLE_IMAGE_SOURCE_ASPECT_RATIO, imageSize: ARTICLE_IMAGE_SOURCE_SIZE } },
+    );
+    const bytes = Buffer.from(generated.b64Json.replace(/\s/g, ""), "base64");
+    if (!ARTICLE_IMAGE_MIME_TYPES.has(generated.mimeType.toLowerCase()) || !bytes.length || bytes.length > MAX_ARTICLE_IMAGE_BYTES) {
+      res.status(502).json({ error: "Storitev je vrnila neveljavno urejeno sliko." }); return;
+    }
+    const key = `article-images/enota-${enotaId}/artikel-${artikelId}-${crypto.randomUUID()}.webp`;
+    await articleImageStorage.savePublicObject(key, await normalizeArticleImage(bytes, { fit: "contain" }), "image/webp");
+    await setCurrentArticleImage(artikelId, enotaId, key, "edit", { prompt });
+    await articleImageResponse(artikelId, enotaId, res);
+  } catch (error) {
+    req.log.error({ err: error, artikelId }, "Article image edit failed");
+    res.status(error instanceof ArticleImageNormalizationError ? 400 : 502).json({ error: error instanceof ImageGenerationError ? error.message : "Slike ni bilo mogoče urediti. Poskusite znova." });
+  }
+});
+
+router.post("/artikli/:id/slike/:versionId/obnovi", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id), versionId = Number(req.params.versionId), enotaId = (req as any).enotaId ?? 1;
+  const [version] = await db.select({ storageKey: articleImageVersionsTable.storageKey, altText: articleImageVersionsTable.altText })
+    .from(articleImageVersionsTable).innerJoin(artikliTable, eq(articleImageVersionsTable.artikelId, artikliTable.id))
+    .where(and(eq(articleImageVersionsTable.id, versionId), eq(articleImageVersionsTable.artikelId, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!version) { res.status(404).json({ error: "Različica slike ni najdena." }); return; }
+  await setCurrentArticleImage(artikelId, enotaId, version.storageKey, "restore", { altText: version.altText });
+  await articleImageResponse(artikelId, enotaId, res);
+});
+
+router.patch("/artikli/:id/slike/alt", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id), enotaId = (req as any).enotaId ?? 1;
+  const altText = typeof req.body?.altText === "string" ? req.body.altText.trim() : "";
+  if (!Number.isInteger(artikelId) || altText.length > 250) { res.status(400).json({ error: "Nadomestno besedilo lahko vsebuje največ 250 znakov." }); return; }
+  const [article] = await db.select({ id: artikliTable.id }).from(artikliTable)
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!article) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+  const result = await db.update(articleImageVersionsTable).set({ altText: altText || null })
+    .where(and(eq(articleImageVersionsTable.artikelId, artikelId), eq(articleImageVersionsTable.isCurrent, true))).returning();
+  if (!result.length) { res.status(404).json({ error: "Aktivna slika ni najdena." }); return; }
+  res.json(result[0]);
+});
+
+router.delete("/artikli/:id/slike/trenutna", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id), enotaId = (req as any).enotaId ?? 1;
+  if (req.body?.confirm !== true) { res.status(400).json({ error: "Za odstranitev slike je potrebna izrecna potrditev." }); return; }
+  const [article] = await db.select({ id: artikliTable.id }).from(artikliTable)
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!article) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+  await db.transaction(async (tx) => {
+    await tx.update(articleImageVersionsTable).set({ isCurrent: false })
+      .where(and(eq(articleImageVersionsTable.artikelId, artikelId), eq(articleImageVersionsTable.isCurrent, true)));
+    await tx.update(artikliTable).set({ slikaUrl: null })
+      .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  }).catch((error) => {
+    throw error;
+  });
+  if (!res.headersSent) res.sendStatus(204);
+});
+
+router.get("/artikli/slike/pregled", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId ?? 1;
+  const articles = await db.select({ id: artikliTable.id, ime: artikliTable.ime, slikaUrl: artikliTable.slikaUrl })
+    .from(artikliTable).where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.prodajniArtikel, true)));
+  const missing = articles.filter((article) => !article.slikaUrl);
+  const broken: Array<{ id: number; ime: string }> = [];
+  // Verification is intentionally read-only: no lifecycle task can delete an object referenced by a version.
+  for (const article of articles.filter((item) => item.slikaUrl)) {
+    const key = articleImageKey(article.slikaUrl!);
+    if (!key || !await articleImageStorage.searchPublicObject(key)) broken.push({ id: article.id, ime: article.ime });
+  }
+  res.json({ total: articles.length, missing, broken });
+});
+
+router.post("/artikli/slike/bulk", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId ?? 1;
+  const ids: number[] = Array.isArray(req.body?.artikelIds) ? req.body.artikelIds.map(Number).filter(Number.isInteger) : [];
+  if (!ids.length || ids.length > 100) { res.status(400).json({ error: "Izberite od 1 do 100 artiklov." }); return; }
+  if (req.body?.action === "remove") {
+    if (req.body?.confirm !== true) { res.status(400).json({ error: "Za paketno odstranitev je potrebna izrecna potrditev." }); return; }
+    const saved = await db.transaction(async (tx) => {
+      await tx.update(articleImageVersionsTable).set({ isCurrent: false }).where(and(inArray(articleImageVersionsTable.artikelId, ids), eq(articleImageVersionsTable.isCurrent, true)));
+      await tx.update(artikliTable).set({ slikaUrl: null }).where(and(inArray(artikliTable.id, ids), eq(artikliTable.enotaId, enotaId)));
+    });
+    res.json({ updated: ids.length, action: "remove" }); return;
+  }
+  const sourceId = Number(req.body?.sourceArtikelId);
+  const [source] = await db.select({ storageKey: articleImageVersionsTable.storageKey, altText: articleImageVersionsTable.altText })
+    .from(articleImageVersionsTable).innerJoin(artikliTable, eq(articleImageVersionsTable.artikelId, artikliTable.id))
+    .where(and(eq(articleImageVersionsTable.artikelId, sourceId), eq(articleImageVersionsTable.isCurrent, true), eq(artikliTable.enotaId, enotaId)));
+  if (!source) { res.status(400).json({ error: "Izvorna trenutna slika ni najdena." }); return; }
+  for (const artikelId of ids.filter((id) => id !== sourceId)) await setCurrentArticleImage(artikelId, enotaId, source.storageKey, "bulk", { altText: source.altText });
+  res.json({ updated: ids.filter((id) => id !== sourceId).length, action: "replace" });
+});
+
+router.post("/artikli/slike/bulk-upload", requireEnota, uploadArticleImages, async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId ?? 1;
+  let mapping: Record<string, number>;
+  try { mapping = JSON.parse(String(req.body?.mapping ?? "{}")); } catch { res.status(400).json({ error: "Preslikava datotek ni veljaven JSON." }); return; }
+  const files = (req.files ?? []) as Express.Multer.File[];
+  const updated: number[] = [], errors: Array<{ file: string; error: string }> = [];
+  for (const file of files) {
+    const artikelId = Number(mapping[file.originalname]);
+    if (!Number.isInteger(artikelId) || !detectArticleImageMimeType(file.buffer)) { errors.push({ file: file.originalname, error: "Datoteka nima veljavne preslikave ali slike." }); continue; }
+    const [article] = await db.select({ id: artikliTable.id }).from(artikliTable).where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+    if (!article) { errors.push({ file: file.originalname, error: "Artikel ni najden." }); continue; }
+    try {
+      const key = `article-images/enota-${enotaId}/artikel-${artikelId}-${crypto.randomUUID()}.webp`;
+      await articleImageStorage.savePublicObject(key, await normalizeArticleImage(file.buffer), "image/webp");
+      await setCurrentArticleImage(artikelId, enotaId, key, "upload"); updated.push(artikelId);
+    } catch { errors.push({ file: file.originalname, error: "Slike ni mogoče shraniti." }); }
+  }
+  res.json({ updated, errors });
 });
 
 router.post("/artikli/uskladi-ddv", requireEnota, async (req, res): Promise<void> => {
@@ -382,7 +1042,10 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       ime:             a.ime,
       cena:            Number(a.cena),
       ddv:             Number(a.davek),
-      vrstaArtikla:    a.vrstaArtikla ?? "material",
+      vrstaArtikla:    resolveArticleType(a.vrstaArtikla, {
+        nabavniArtikel: a.nabavniArtikel,
+        prodajniArtikel: a.prodajniArtikel,
+      }),
       kategorija:      a.kategorijaIme ?? "",
       opis:            a.opis ?? "",
       barva:           a.barva ?? "",
@@ -401,7 +1064,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   const prvaVrsticaZaVnos = artikli.length + 2; // +1 za glavo, +1 za 1-based
   for (let r = prvaVrsticaZaVnos; r <= MAX_VRSTIC + 1; r++) {
     const row = wsArt.getRow(r);
-    row.getCell("D").value = "material"; // vrstaArtikla
+    row.getCell("D").value = "storitev"; // vrstaArtikla (prodajniArtikel=DA)
     row.getCell("H").value = "DA";       // aktiven
     row.getCell("J").value = "DA";       // prodajniArtikel
     row.getCell("M").value = "NE";       // toGo
@@ -412,9 +1075,11 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   // Validacija podatkov (dropdowni) — za vse vrstice s podatki
   const r1 = 2;
   const r2 = MAX_VRSTIC + 1;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wsArtDv = (wsArt as any).dataValidations;
 
   // Vrsta artikla (D)
-  wsArt.dataValidations.add(`D${r1}:D${r2}`, {
+  wsArtDv.add(`D${r1}:D${r2}`, {
     type: "list",
     allowBlank: false,
     formulae: ['"blago,material,storitev"'],
@@ -425,7 +1090,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
 
   // Kategorija (E)
   if (katImena.length > 0) {
-    wsArt.dataValidations.add(`E${r1}:E${r2}`, {
+    wsArtDv.add(`E${r1}:E${r2}`, {
       type: "list",
       allowBlank: true,
       formulae: [`Sifranti!$A$1:$A$${katImena.length}`],
@@ -435,7 +1100,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
 
   // DA/NE polja: H=aktiven, I=nabavniArtikel, J=prodajniArtikel, M=toGo
   for (const col of ["H", "I", "J", "M"]) {
-    wsArt.dataValidations.add(`${col}${r1}:${col}${r2}`, {
+    wsArtDv.add(`${col}${r1}:${col}${r2}`, {
       type: "list",
       allowBlank: false,
       formulae: ['"DA,NE"'],
@@ -446,7 +1111,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   }
 
   // Enota mere (L)
-  wsArt.dataValidations.add(`L${r1}:L${r2}`, {
+  wsArtDv.add(`L${r1}:L${r2}`, {
     type: "list",
     allowBlank: true,
     formulae: [`Sifranti!$B$1:$B$${ENOTE_MERE.length}`],
@@ -470,10 +1135,119 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     wsNorm.addRow({ artikelIme: n.artikelIme, sestavinaIme: n.sestavinaIme, kolicina: Number(n.kolicina), enotaMere: n.enotaMere ?? "" });
   }
 
-  const buf = await wb.xlsx.writeBuffer() as Buffer;
+  const buf = await wb.xlsx.writeBuffer() as unknown as Buffer;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", 'attachment; filename="artikli.xlsx"');
   res.send(buf);
+});
+
+// ── GET /artikli/izvozi-cenik.pdf — cenik aktivnih prodajnih artiklov z alergeni
+router.get("/artikli/izvozi-cenik.pdf", async (req: Request, res: Response): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const [companyRows, rows] = await Promise.all([
+    db.select({
+      enotaIme: enoteTable.ime,
+      enotaOpis: enoteTable.opis,
+      naziv: companiesTable.naziv,
+      kratekNaziv: companiesTable.kratekNaziv,
+      naslov: companiesTable.naslov,
+      ulica: companiesTable.ulica,
+      postnaStevilka: companiesTable.postnaStevika,
+      kraj: companiesTable.kraj,
+      drzava: companiesTable.drzava,
+      podjetjeDavcna: companiesTable.podjetjeDavcna,
+      idZaDdv: companiesTable.idZaDdv,
+      zavezanecDdv: companiesTable.zavezanecDdv,
+      maticnaStevilka: companiesTable.maticnaStevilka,
+      trr: companiesTable.trr,
+      email: companiesTable.email,
+      telefon: companiesTable.telefon,
+      www: companiesTable.www,
+    })
+      .from(enoteTable)
+      .innerJoin(companiesTable, eq(companiesTable.id, enoteTable.companyId))
+      .where(eq(enoteTable.id, tenotaId))
+      .limit(1),
+    db.select({
+      id: artikliTable.id,
+      ime: artikliTable.ime,
+      opis: artikliTable.opis,
+      cena: artikliTable.cena,
+      cenaMala: artikliTable.cenaMala,
+      cenaDruzinska: artikliTable.cenaDruzinska,
+      jePica: artikliTable.jePica,
+      kategorijaIme: kategorijeTable.ime,
+      kategorijaVrstniRed: kategorijeTable.vrstniRed,
+      vrstniRed: artikliTable.vrstniRed,
+    })
+      .from(artikliTable)
+      .leftJoin(kategorijeTable, and(
+        eq(kategorijeTable.id, artikliTable.kategorijaId),
+        eq(kategorijeTable.enotaId, tenotaId),
+      ))
+      .where(and(
+        eq(artikliTable.enotaId, tenotaId),
+        eq(artikliTable.aktiven, true),
+        eq(artikliTable.prodajniArtikel, true),
+      ))
+      .orderBy(
+        asc(kategorijeTable.vrstniRed),
+        asc(artikliTable.vrstniRed),
+        asc(artikliTable.ime),
+      ),
+  ]);
+  const company = companyRows[0];
+  if (!company) {
+    res.status(404).json({ error: "Podjetje oziroma poslovna enota ni najdena." });
+    return;
+  }
+
+  const allergenSummaries = await Promise.all(
+    rows.map((row) => razresiAlergeneArtikla(row.id, tenotaId)),
+  );
+  const cena = (value: string | number | null) => value == null ? null : `${Number(value).toFixed(2)} €`;
+  const pdf = await generateMenuPriceListPdf({
+    company: {
+      naziv: company.naziv,
+      kratekNaziv: company.kratekNaziv,
+      naslov: company.naslov,
+      ulica: company.ulica,
+      postnaStevilka: company.postnaStevilka,
+      kraj: company.kraj,
+      drzava: company.drzava,
+      podjetjeDavcna: company.podjetjeDavcna,
+      idZaDdv: company.idZaDdv,
+      zavezanecDdv: company.zavezanecDdv,
+      maticnaStevilka: company.maticnaStevilka,
+      trr: company.trr,
+      email: company.email,
+      telefon: company.telefon,
+      www: company.www,
+    },
+    unit: {
+      ime: company.enotaIme,
+      opis: company.enotaOpis,
+    },
+    items: rows.map((row, index) => {
+      const summary = allergenSummaries[index];
+      return {
+        category: row.kategorijaIme ?? "Ostalo",
+        name: row.ime,
+        description: row.opis,
+        prices: row.jePica
+          ? [
+              `Normalna  ${cena(row.cena) ?? "—"}`,
+              ...(cena(row.cenaMala) ? [`Mala  ${cena(row.cenaMala)}`] : []),
+              ...(cena(row.cenaDruzinska) ? [`Družinska  ${cena(row.cenaDruzinska)}`] : []),
+            ]
+          : [cena(row.cena) ?? "—"],
+        allergens: summary?.alergeni.map((allergen) => allergen.naziv) ?? [],
+        traces: summary?.alergeniSledi.map((allergen) => allergen.naziv) ?? [],
+        verified: summary?.potrjen ?? false,
+      };
+    }),
+  });
+  res.type("application/pdf").attachment("cenik-z-alergeni.pdf").send(pdf);
 });
 
 router.get("/artikli/:id", async (req, res): Promise<void> => {
@@ -499,17 +1273,73 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  const parsed = UpdateArtikelBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [obstojeci] = await db.select({
+    jePica: artikliTable.jePica,
+    cena: artikliTable.cena,
+    cenaMala: artikliTable.cenaMala,
+    cenaDruzinska: artikliTable.cenaDruzinska,
+    happyHourCena: artikliTable.happyHourCena,
+    happyHourCenaMala: artikliTable.happyHourCenaMala,
+    happyHourCenaDruzinska: artikliTable.happyHourCenaDruzinska,
+    taxCategory: artikliTable.taxCategory,
+    jeDelMenija: artikliTable.jeDelMenija,
+    prodajniArtikel: artikliTable.prodajniArtikel,
+    addedSugar: artikliTable.addedSugar,
+    alergeniRevision: artikliTable.alergeniRevision,
+    mealType: artikliTable.mealType,
+    nabavniArtikel: artikliTable.nabavniArtikel,
+    normativRevision: artikliTable.normativRevision,
+  }).from(artikliTable).where(and(
+    eq(artikliTable.id, params.data.id),
+    eq(artikliTable.enotaId, tenotaId),
+  ));
+  if (!obstojeci) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  const naslednjaTaxCategory =
+    (parsed.data as { taxCategory?: string }).taxCategory ?? obstojeci.taxCategory ?? "food";
+  const naslednjiJeDelMenija =
+    (parsed.data as { jeDelMenija?: boolean }).jeDelMenija ?? obstojeci.jeDelMenija;
+  const naslednjiProdajniArtikel = parsed.data.prodajniArtikel ?? obstojeci.prodajniArtikel;
+  const zahtevaniAddedSugar =
+    (parsed.data as { addedSugar?: boolean }).addedSugar ?? obstojeci.addedSugar;
+  const naslednjiAddedSugar = normalizeAddedSugarForTaxCategory(naslednjaTaxCategory, zahtevaniAddedSugar);
+  if (naslednjaTaxCategory === "food_drink" && zahtevaniAddedSugar) {
+    req.log.warn(
+      { artikelId: params.data.id, taxCategory: naslednjaTaxCategory, requestedAddedSugar: zahtevaniAddedSugar },
+      "addedSugar je bil pri kategoriji food_drink normaliziran na false",
+    );
+  }
+  if (
+    naslednjiJeDelMenija
+    && (!naslednjiProdajniArtikel || !isMenuEligibleTaxCategory(naslednjaTaxCategory))
+  ) {
+    res.status(400).json({ error: "Kot del menija je mogoče označiti le prodajno toplo ali hladno pijačo." });
+    return;
+  }
+  const napakaCenePic = await preveriCenePic(parsed.data as PizzaCenaInput, tenotaId, obstojeci);
+  if (napakaCenePic) { res.status(400).json({ error: napakaCenePic }); return; }
 
   const updateData: Partial<typeof artikliTable.$inferInsert> = {};
   if (parsed.data.ime !== undefined) updateData.ime = parsed.data.ime;
   if (parsed.data.opis !== undefined) updateData.opis = parsed.data.opis;
   if (parsed.data.cena !== undefined) updateData.cena = String(parsed.data.cena);
+  if ("cenaMala" in parsed.data) {
+    const cenaMala = (parsed.data as { cenaMala?: number | null }).cenaMala;
+    updateData.cenaMala = cenaMala == null ? null : String(cenaMala);
+  }
+  if ("cenaDruzinska" in parsed.data) {
+    const cenaDruzinska = (parsed.data as { cenaDruzinska?: number | null }).cenaDruzinska;
+    updateData.cenaDruzinska = cenaDruzinska == null ? null : String(cenaDruzinska);
+  }
   if (parsed.data.davek !== undefined) updateData.davek = String(parsed.data.davek);
   if (parsed.data.aktiven !== undefined) updateData.aktiven = parsed.data.aktiven;
   if ("kategorijaId" in parsed.data) updateData.kategorijaId = parsed.data.kategorijaId ?? null;
   if ("barva" in parsed.data) updateData.barva = parsed.data.barva ?? null;
+  if ("opisSlike" in parsed.data) {
+    updateData.opisSlike = (parsed.data as { opisSlike?: string | null }).opisSlike?.trim() || null;
+  }
   if (parsed.data.vrstniRed !== undefined) updateData.vrstniRed = parsed.data.vrstniRed;
   if (parsed.data.nabavniArtikel !== undefined) updateData.nabavniArtikel = parsed.data.nabavniArtikel;
   if (parsed.data.prodajniArtikel !== undefined) updateData.prodajniArtikel = parsed.data.prodajniArtikel;
@@ -522,12 +1352,38 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if ((parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji !== undefined) updateData.privzetiModifikatorji = (parsed.data as { privzetiModifikatorji?: number[] }).privzetiModifikatorji ?? [];
   if ((parsed.data as { toGoArtikli?: number[] }).toGoArtikli !== undefined) updateData.toGoArtikli = (parsed.data as { toGoArtikli?: number[] }).toGoArtikli ?? [];
   if ((parsed.data as { toGo?: boolean }).toGo !== undefined) updateData.toGo = (parsed.data as { toGo?: boolean }).toGo;
+  const casPripraveMin = (parsed.data as unknown as { casPripraveMin?: number }).casPripraveMin;
+  if (casPripraveMin !== undefined) {
+    updateData.casPripraveMin = Math.max(0, Number(casPripraveMin));
+  }
+  const mealType = (parsed.data as { mealType?: "ala_carte" | "prepared" | "composite" }).mealType;
+  if (mealType !== undefined) updateData.mealType = mealType;
   if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) updateData.vrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla;
+  if ("povratnaEmbalaza" in parsed.data) updateData.povratnaEmbalaza = Boolean((parsed.data as any).povratnaEmbalaza);
+  if ("vrstaEmbalaze" in parsed.data) updateData.vrstaEmbalaze = (parsed.data as any).vrstaEmbalaze ?? null;
+  if ("depozitnaVrednost" in parsed.data) updateData.depozitnaVrednost = (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost);
   if ("happyHourCena" in parsed.data) updateData.happyHourCena = (parsed.data as { happyHourCena?: number | null }).happyHourCena != null ? String((parsed.data as { happyHourCena: number }).happyHourCena) : null;
+  if ("happyHourCenaMala" in parsed.data) updateData.happyHourCenaMala = (parsed.data as { happyHourCenaMala?: number | null }).happyHourCenaMala != null ? String((parsed.data as { happyHourCenaMala: number }).happyHourCenaMala) : null;
+  if ("happyHourCenaDruzinska" in parsed.data) updateData.happyHourCenaDruzinska = (parsed.data as { happyHourCenaDruzinska?: number | null }).happyHourCenaDruzinska != null ? String((parsed.data as { happyHourCenaDruzinska: number }).happyHourCenaDruzinska) : null;
   if ("skupina" in parsed.data) updateData.skupina = (parsed.data as { skupina?: string | null }).skupina ?? null;
   if ("taxCategory" in parsed.data) updateData.taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
-  if ("addedSugar" in parsed.data) updateData.addedSugar = Boolean((parsed.data as { addedSugar?: boolean }).addedSugar);
+  if ("jeDelMenija" in parsed.data) updateData.jeDelMenija = Boolean((parsed.data as { jeDelMenija?: boolean }).jeDelMenija);
+  if (naslednjaTaxCategory === "food_drink" || "addedSugar" in parsed.data) {
+    updateData.addedSugar = naslednjiAddedSugar;
+  }
   if ("knCode" in parsed.data) updateData.knCode = (parsed.data as { knCode?: string | null }).knCode ?? null;
+  const hasAlergenProfil = ["alergeni", "alergeniSledi", "alergeniStatus", "alergeniVir", "alergeniOpombaVira", "alergeniDocumentId", "alergeniVerifiedBy", "alergeniVerifiedAt"]
+    .some((key) => Object.prototype.hasOwnProperty.call(req.body, key));
+  if (hasAlergenProfil) {
+    try {
+      const profile = normalizirajAlergenProfil(req.body);
+      Object.assign(updateData, profile, { alergeniRevision: (obstojeci.alergeniRevision ?? 0) + 1 });
+    } catch (error) {
+      req.log.warn({ err: error, artikelId: params.data.id }, "Invalid article allergen profile");
+      res.status(400).json({ error: (error as Error).message });
+      return;
+    }
+  }
 
   if ("kategorijaId" in parsed.data && parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })
@@ -536,8 +1392,83 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     if (!kat) { res.status(403).json({ error: "Kategorija ne pripada temu podjetju" }); return; }
   }
 
-  await db.update(artikliTable).set(updateData)
-    .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+  const graphCanChange = Boolean(parsed.data.normativUpdate) || mealType !== undefined;
+  let saved: boolean;
+  try {
+    saved = await db.transaction(async (tx) => {
+      let currentOwner = obstojeci;
+      await normativRevisionLockTestHook?.({
+        artikelId: params.data.id,
+        operation: "article-update",
+      });
+      await lockPosBusinessDay(tx, tenotaId);
+      if (graphCanChange) {
+        await lockNormativeGraph(tx, tenotaId);
+        const [lockedOwner] = await tx.select({
+          jePica: artikliTable.jePica,
+          cena: artikliTable.cena,
+          cenaMala: artikliTable.cenaMala,
+          cenaDruzinska: artikliTable.cenaDruzinska,
+          happyHourCena: artikliTable.happyHourCena,
+          happyHourCenaMala: artikliTable.happyHourCenaMala,
+          happyHourCenaDruzinska: artikliTable.happyHourCenaDruzinska,
+          taxCategory: artikliTable.taxCategory,
+          jeDelMenija: artikliTable.jeDelMenija,
+          prodajniArtikel: artikliTable.prodajniArtikel,
+          addedSugar: artikliTable.addedSugar,
+          alergeniRevision: artikliTable.alergeniRevision,
+          mealType: artikliTable.mealType,
+          nabavniArtikel: artikliTable.nabavniArtikel,
+          normativRevision: artikliTable.normativRevision,
+        }).from(artikliTable)
+          .where(and(
+            eq(artikliTable.id, params.data.id),
+            eq(artikliTable.enotaId, tenotaId),
+          ))
+          .for("update");
+        if (!lockedOwner) {
+          throw new NormativeRequestError(404, { error: "Artikel ni najden" });
+        }
+        currentOwner = lockedOwner;
+      }
+      if (mealType !== undefined && mealType !== currentOwner.mealType) {
+        await validateIngredientTypeChange(tx, params.data.id, tenotaId, mealType);
+      }
+      if (parsed.data.normativUpdate) {
+        const preparedNormativ = await prepareNormativUpdate(
+          params.data.id,
+          tenotaId,
+          parsed.data.normativUpdate,
+          {
+            mealType: parsed.data.mealType ?? currentOwner.mealType,
+            nabavniArtikel: parsed.data.nabavniArtikel ?? currentOwner.nabavniArtikel,
+            prodajniArtikel: parsed.data.prodajniArtikel ?? currentOwner.prodajniArtikel,
+          },
+          tx,
+        );
+        await applyPreparedNormativUpdate(tx, params.data.id, tenotaId, preparedNormativ);
+      }
+      await tx.update(artikliTable).set(updateData)
+        .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+      if (hasAlergenProfil) await razveljaviAlergeneNadrejenih(params.data.id, tx as any, false);
+    }).then(() => true);
+  } catch (error) {
+    if (error instanceof NormativeStaleError) {
+      saved = false;
+    } else if (error instanceof NormativeRequestError) {
+      res.status(error.status).json(error.responseBody);
+      return;
+    } else {
+      throw error;
+    }
+  }
+  if (!saved) {
+    res.status(409).json({
+      code: "NORMATIVE_STALE",
+      error: "Normativ se je medtem spremenil. Artikel in normativ nista bila shranjena.",
+    });
+    return;
+  }
 
   const [row] = await db
     .select(SELECT_FIELDS)
@@ -555,7 +1486,12 @@ router.delete("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
 
-  const [owner] = await db.select({ id: artikliTable.id })
+  const [owner] = await db.select({
+    id: artikliTable.id,
+    mealType: artikliTable.mealType,
+    nabavniArtikel: artikliTable.nabavniArtikel,
+    prodajniArtikel: artikliTable.prodajniArtikel,
+  })
     .from(artikliTable)
     .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
   if (!owner) { res.status(404).json({ error: "Artikel ni najden" }); return; }
@@ -566,14 +1502,27 @@ router.delete("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     .innerJoin(artikliTable, eq(normativiTable.artikelId, artikliTable.id))
     .where(and(eq(normativiTable.vhodniArtikelId, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
 
-  if (vpNormativi.length > 0) {
+  const samoLastniNormativ =
+    owner.nabavniArtikel &&
+    owner.prodajniArtikel &&
+    vpNormativi.length > 0 &&
+    vpNormativi.every(row => row.id === owner.id);
+
+  if (vpNormativi.length > 0 && !samoLastniNormativ) {
     const potrdi = req.query["potrdi"] === "1";
     if (!potrdi) {
       res.status(409).json({ error: "Artikel se uporablja v normativih", vpNormativi });
       return;
     }
     // Potrjeno kaskadno brisanje: odstrani vse normativne vrstice, kjer je ta artikel sestavina
-    await db.delete(normativiTable).where(eq(normativiTable.vhodniArtikelId, params.data.id));
+    const parents = [...new Set(vpNormativi.map(row => row.id))].sort((a, b) => a - b);
+    await db.transaction(async (tx) => {
+      // Lock affected owners in a stable order before changing their complete normative.
+      await tx.execute(sql`SELECT id FROM artikli WHERE id IN (${sql.join(parents.map(parent => sql`${parent}`), sql`, `)}) FOR UPDATE`);
+      await tx.delete(normativiTable).where(eq(normativiTable.vhodniArtikelId, params.data.id));
+      await tx.update(artikliTable).set({ normativRevision: sql`${artikliTable.normativRevision} + 1` })
+        .where(inArray(artikliTable.id, parents));
+    });
   }
 
   // Preverimo ali je artikel vezan na kakšne postavke (naročila ali računi)
@@ -592,8 +1541,16 @@ router.delete("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     return;
   }
 
-  await db.delete(artikliTable)
-    .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+  await db.transaction(async (tx) => {
+    if (samoLastniNormativ) {
+      await tx.delete(normativiTable).where(and(
+        eq(normativiTable.artikelId, params.data.id),
+        eq(normativiTable.vhodniArtikelId, params.data.id),
+      ));
+    }
+    await tx.delete(artikliTable)
+      .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+  });
   res.sendStatus(204);
 });
 
@@ -612,7 +1569,7 @@ router.get("/artikli/:id/v-normativi", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const [owner] = await db.select({ id: artikliTable.id })
+  const [owner] = await db.select({ id: artikliTable.id, mealType: artikliTable.mealType })
     .from(artikliTable)
     .where(and(eq(artikliTable.id, id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
   if (!owner) { res.status(404).json({ error: "Artikel ni najden" }); return; }
@@ -631,7 +1588,11 @@ router.get("/artikli/:id/normativi", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const [owner] = await db.select({ id: artikliTable.id })
+  const [owner] = await db.select({
+    id: artikliTable.id,
+    mealType: artikliTable.mealType,
+    normativRevision: artikliTable.normativRevision,
+  })
     .from(artikliTable)
     .where(and(eq(artikliTable.id, id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
   if (!owner) { res.status(404).json({ error: "Artikel ni najden" }); return; }
@@ -651,61 +1612,472 @@ router.get("/artikli/:id/normativi", async (req, res): Promise<void> => {
     ORDER BY n.vrstni_red
   `);
 
-  res.json(rows.rows.map((r) => ({
-    id: r.id,
-    artikelId: r.artikelId,
-    vhodniArtikelId: r.vhodniArtikelId,
-    vhodniArtikelIme: r.vhodniArtikelIme ?? "",
-    enotaMere: r.enotaMere ?? null,
-    kolicina: Number(r.kolicina),
-    vrstniRed: r.vrstniRed})));
+  res.json({
+    normativRevision: owner.normativRevision,
+    normativi: rows.rows.map((r) => ({
+      id: r.id,
+      artikelId: r.artikelId,
+      vhodniArtikelId: r.vhodniArtikelId,
+      vhodniArtikelIme: r.vhodniArtikelIme ?? "",
+      enotaMere: r.enotaMere ?? null,
+      kolicina: Number(r.kolicina),
+      vrstniRed: r.vrstniRed})),
+  });
+});
+
+router.get("/artikli/:id/alergeni-normativ", async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Neveljaven ID artikla." }); return; }
+  const rezultat = await razresiAlergeneArtikla(id, tenotaId);
+  if (!rezultat) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+  res.json(rezultat);
+});
+
+router.post("/artikli/alergeni-normativ/preview", async (req, res): Promise<void> => {
+  const parsed = PreviewArtikelAlergeniNormativBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const tenotaId = (req as any).enotaId ?? 1;
+  const rezultat = await razresiAlergeneVhodnihArtiklov(parsed.data.vhodniArtikelIds, tenotaId);
+  res.json(rezultat);
+});
+
+router.get("/artikli/:id/alergeni-normativ.pdf", async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Neveljaven ID artikla." }); return; }
+  const [artikel] = await db.select({ ime: artikliTable.ime, hash: artikliTable.alergeniHash, revision: artikliTable.alergeniRevision, verifiedBy: artikliTable.alergeniVerifiedBy, verifiedAt: artikliTable.alergeniVerifiedAt })
+    .from(artikliTable).where(and(eq(artikliTable.id, id), eq(artikliTable.enotaId, tenotaId)));
+  const izracun = await razresiAlergeneArtikla(id, tenotaId);
+  if (!artikel || !izracun) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+  const sestavine = await db.select({ ime: artikliTable.ime, kolicina: normativiTable.kolicina })
+    .from(normativiTable).innerJoin(artikliTable, eq(artikliTable.id, normativiTable.vhodniArtikelId))
+    .where(eq(normativiTable.artikelId, id));
+  const pdf = new PDFDocument({ margin: 42 });
+  const chunks: Buffer[] = [];
+  pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
+  pdf.on("end", () => {
+    res.type("application/pdf").attachment(`normativ-alergeni-${id}.pdf`).send(Buffer.concat(chunks));
+  });
+  pdf.fontSize(18).text("Alergenski normativ");
+  pdf.moveDown().fontSize(11).text(`Enota: ${tenotaId}`).text(`Artikel: ${artikel.ime}`);
+  pdf.text(`Status: ${izracun.potrjen ? "potrjeno" : "nepreverjeno"}`);
+  pdf.text(`Verzija: ${artikel.revision}; hash: ${artikel.hash ?? "ni izračunan"}`);
+  pdf.text(`Čas izvoza: ${new Date().toISOString()}`);
+  pdf.text(`Potrdil: ${artikel.verifiedBy ?? "ni potrjeno"} ${artikel.verifiedAt ? `(${artikel.verifiedAt.toISOString()})` : ""}`);
+  pdf.moveDown().text("Sestavine / količine:");
+  sestavine.forEach((s) => pdf.text(`• ${s.ime}: ${s.kolicina}`));
+  pdf.moveDown().text(`Vsebuje: ${izracun.alergeni.map((a) => `${a.koda} – ${a.naziv}`).join(", ") || "ni potrjenih podatkov"}`);
+  pdf.text(`Lahko vsebuje sledi: ${izracun.alergeniSledi.map((a) => `${a.koda} – ${a.naziv}`).join(", ") || "brez navedenih sledi"}`);
+  pdf.moveDown().text("Izvori:");
+  izracun.izvori.forEach((source) => pdf.text(`• ${source.artikel}: ${source.vir ?? "vir ni naveden"}${source.documentId ? `; dokument ${source.documentId}` : ""}`));
+  if (izracun.opozorila.length) { pdf.moveDown().text(`Opozorila: ${izracun.opozorila.join(" ")}`); }
+  pdf.end();
 });
 
 type NormativInput = { vhodniArtikelId: number; kolicina: number };
+type UpdateNormativBody = { items: NormativInput[]; expectedRevision: number };
+type NormativeChangeHistoryRow = {
+  id: number;
+  changedAt: Date | string;
+  actorClerkUserId: string;
+  actorNatakarId: number | null;
+  actorName: string | null;
+  ingredientId: number;
+  ingredientName: string | null;
+  oldQuantity: string;
+  newQuantity: string;
+  unit: string;
+  sourceUrl: string;
+  sourceTitle: string;
+  comparisonGeneratedAt: Date | string;
+};
+
+export function soNormativiEnaki(
+  obstojeci: Array<{ vhodniArtikelId: number; kolicina: string | number; vrstniRed: number | null }>,
+  novi: NormativInput[],
+): boolean {
+  const urejeni = [...obstojeci].sort(
+    (a, b) => (a.vrstniRed ?? 0) - (b.vrstniRed ?? 0),
+  );
+  return urejeni.length === novi.length && urejeni.every((item, index) =>
+    item.vhodniArtikelId === novi[index]?.vhodniArtikelId
+    && Number(item.kolicina) === Number(novi[index]?.kolicina),
+  );
+}
+
+type PreparedNormativUpdate = {
+  expectedRevision: number;
+  items: NormativInput[];
+  changed: boolean;
+};
+
+async function prepareNormativUpdate(
+  id: number,
+  tenotaId: number,
+  body: UpdateNormativBody,
+  owner: {
+    mealType: "ala_carte" | "prepared" | "composite";
+    nabavniArtikel: boolean;
+    prodajniArtikel: boolean;
+  },
+  queryDb: any = db,
+): Promise<PreparedNormativUpdate> {
+  const expectedRevision = Number(body.expectedRevision);
+  const items = body.items;
+  const vhodniIds = [...new Set(items.map(item => item.vhodniArtikelId))];
+  let validVhodni: Array<{ id: number; ime: string; mealType: "ala_carte" | "prepared" | "composite" }> = [];
+
+  if (items.length > 0) {
+    validVhodni = await queryDb.select({
+      id: artikliTable.id,
+      ime: artikliTable.ime,
+      mealType: artikliTable.mealType,
+    }).from(artikliTable).where(and(
+      inArray(artikliTable.id, vhodniIds),
+      eq(artikliTable.enotaId, tenotaId),
+    ));
+    const validIds = new Set(validVhodni.map(item => item.id));
+    const manjkajociIds = vhodniIds.filter(itemId => !validIds.has(itemId));
+    if (manjkajociIds.length > 0) {
+      throw new NormativeRequestError(422, {
+        error: "Nekatere sestavine normativa so bile izbrisane ali ne obstajajo",
+        manjkajoceSestavine: manjkajociIds,
+      });
+    }
+  }
+
+  if (items.some(item => !Number.isFinite(item.kolicina) || item.kolicina <= 0)) {
+    throw new NormativeRequestError(400, { error: "Količina normativa mora biti pozitivna." });
+  }
+  const allowsSelfNorm = isAllowedOneToOneSelfNorm(owner, id, items);
+  if (items.some(item => item.vhodniArtikelId === id) && !allowsSelfNorm) {
+    throw new NormativeRequestError(400, {
+      error: "Artikel je lahko lastna sestavina samo pri 1 : 1 normativu preprostega nabavnega in prodajnega artikla.",
+    });
+  }
+  if (owner.mealType === "composite") {
+    const [multicourseMenu] = items.length === 0
+      ? await queryDb.select({ id: multicourseMenusTable.id })
+        .from(multicourseMenusTable)
+        .where(and(
+          eq(multicourseMenusTable.menuArtikelId, id),
+          eq(multicourseMenusTable.enotaId, tenotaId),
+        ))
+        .limit(1)
+      : [];
+    if (items.length === 0 && requiresClassicNormativ(owner.mealType, Boolean(multicourseMenu))) {
+      throw new NormativeRequestError(400, {
+        error: "Sestavljeni artikel mora vsebovati vsaj en vhodni artikel.",
+      });
+    }
+    const typeById = new Map(validVhodni.map(article => [article.id, article.mealType]));
+    const invalid = vhodniIds.filter(articleId => {
+      const type = typeById.get(articleId);
+      return type !== "ala_carte" && type !== "prepared";
+    });
+    if (invalid.length > 0) {
+      throw new NormativeRequestError(422, {
+        error: "Sestavljeni artikel lahko vsebuje samo à la carte ali pripravljene artikle.",
+        manjkajoceSestavine: invalid,
+      });
+    }
+  }
+
+  const existing: Array<{
+    artikelId: number;
+    vhodniArtikelId: number;
+    kolicina: string | number;
+    vrstniRed: number;
+  }> = await queryDb.select({
+    artikelId: normativiTable.artikelId,
+    vhodniArtikelId: normativiTable.vhodniArtikelId,
+    kolicina: normativiTable.kolicina,
+    vrstniRed: normativiTable.vrstniRed,
+  }).from(normativiTable);
+  const changed = !soNormativiEnaki(
+    existing
+      .filter(row => row.artikelId === id)
+      .map(({ vhodniArtikelId, kolicina, vrstniRed }) => ({
+        vhodniArtikelId,
+        kolicina,
+        vrstniRed,
+      })),
+    items,
+  );
+  const graph = new Map<number, number[]>();
+  for (const row of existing) {
+    if (row.artikelId === id) continue;
+    graph.set(row.artikelId, [...(graph.get(row.artikelId) ?? []), row.vhodniArtikelId]);
+  }
+  for (const item of items) {
+    if (allowsSelfNorm && item.vhodniArtikelId === id) continue;
+    const seen = new Set<number>();
+    const stack = [item.vhodniArtikelId];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (current === id) {
+        throw new NormativeRequestError(400, {
+          error: "Normativ bi ustvaril krožno sestavo artiklov.",
+        });
+      }
+      if (!seen.has(current)) {
+        seen.add(current);
+        stack.push(...(graph.get(current) ?? []));
+      }
+    }
+  }
+
+  return { expectedRevision, items, changed };
+}
+
+async function validateIngredientTypeChange(
+  tx: any,
+  artikelId: number,
+  enotaId: number,
+  nextMealType: "ala_carte" | "prepared" | "composite",
+): Promise<void> {
+  if (nextMealType !== "composite") return;
+  const [usage] = await tx.select({
+    parentId: normativiTable.artikelId,
+  }).from(normativiTable)
+    .innerJoin(artikliTable, eq(artikliTable.id, normativiTable.artikelId))
+    .where(and(
+      eq(normativiTable.vhodniArtikelId, artikelId),
+      eq(artikliTable.enotaId, enotaId),
+      eq(artikliTable.mealType, "composite"),
+    ))
+    .limit(1);
+  if (usage) {
+    throw new NormativeRequestError(422, {
+      error: "Artikla ni mogoče spremeniti v sestavljenega, ker je sestavina drugega sestavljenega artikla.",
+    });
+  }
+}
+
+async function applyPreparedNormativUpdate(
+  tx: any,
+  id: number,
+  tenotaId: number,
+  prepared: PreparedNormativUpdate,
+): Promise<void> {
+  const locked = await tx.execute(
+    sql`SELECT normativ_revision AS revision FROM artikli WHERE id = ${id} AND enota_id = ${tenotaId} FOR UPDATE`,
+  ) as any;
+  const lockedRevision = Number((locked.rows ?? locked)[0]?.revision);
+  if (lockedRevision !== prepared.expectedRevision) throw new NormativeStaleError();
+  if (!prepared.changed) return;
+
+  await tx.delete(normativiTable).where(eq(normativiTable.artikelId, id));
+  if (prepared.items.length > 0) {
+    await tx.insert(normativiTable).values(prepared.items.map((item, idx) => ({
+      artikelId: id,
+      vhodniArtikelId: item.vhodniArtikelId,
+      kolicina: String(item.kolicina),
+      vrstniRed: idx,
+    })));
+  }
+  await razveljaviAlergeneNadrejenih(id, tx, false);
+  await tx.update(artikliTable)
+    .set({ normativRevision: lockedRevision + 1 })
+    .where(eq(artikliTable.id, id));
+}
 
 router.put("/artikli/:id/normativi", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const [owner] = await db.select({ id: artikliTable.id })
-    .from(artikliTable)
-    .where(and(eq(artikliTable.id, id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
-  if (!owner) { res.status(404).json({ error: "Artikel ni najden" }); return; }
-
-  if (!Array.isArray(req.body)) { res.status(400).json({ error: "Pričakovano polje" }); return; }
-  const items: NormativInput[] = (req.body as NormativInput[]).filter(
+  const body = req.body as Partial<UpdateNormativBody> | null;
+  if (!body || Array.isArray(body) || !Array.isArray(body.items)
+      || !Number.isInteger(body.expectedRevision) || Number(body.expectedRevision) < 1) {
+    res.status(400).json({ error: "Pričakovana sta seznam normativa in veljavna revizija." }); return;
+  }
+  const items: NormativInput[] = body.items.filter(
     (item) => item && typeof item.vhodniArtikelId === "number" && typeof item.kolicina === "number"
   );
-
-  if (items.length > 0) {
-    const vhodniIds = [...new Set(items.map(i => i.vhodniArtikelId))];
-    const validVhodni = await db.select({ id: artikliTable.id, ime: artikliTable.ime })
-      .from(artikliTable)
-      .where(and(inArray(artikliTable.id, vhodniIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
-    const validIds = new Set(validVhodni.map(v => v.id));
-    const manjkajociIds = vhodniIds.filter((id: any) => !validIds.has(id));
-    if (manjkajociIds.length > 0) {
-      res.status(422).json({
-        error: "Nekatere sestavine normativa so bile izbrisane ali ne obstajajo",
-        manjkajoceSestavine: manjkajociIds});
+  let saved: boolean;
+  try {
+    saved = await db.transaction(async (tx) => {
+      await normativRevisionLockTestHook?.({
+        artikelId: id,
+        operation: "normativ-update",
+      });
+      await lockNormativeGraph(tx, tenotaId);
+      const [owner] = await tx.select({
+        id: artikliTable.id,
+        mealType: artikliTable.mealType,
+        nabavniArtikel: artikliTable.nabavniArtikel,
+        prodajniArtikel: artikliTable.prodajniArtikel,
+      }).from(artikliTable)
+        .where(and(eq(artikliTable.id, id), eq(artikliTable.enotaId, tenotaId)))
+        .for("update");
+      if (!owner) {
+        throw new NormativeRequestError(404, { error: "Artikel ni najden" });
+      }
+      const prepared = await prepareNormativUpdate(
+        id,
+        tenotaId,
+        { expectedRevision: Number(body.expectedRevision), items },
+        owner,
+        tx,
+      );
+      await applyPreparedNormativUpdate(tx, id, tenotaId, prepared);
+    }).then(() => true);
+  } catch (error) {
+    if (error instanceof NormativeStaleError) {
+      saved = false;
+    } else if (error instanceof NormativeRequestError) {
+      res.status(error.status).json(error.responseBody);
       return;
+    } else {
+      throw error;
     }
   }
-
-  await db.delete(normativiTable).where(eq(normativiTable.artikelId, id));
-
-  if (items.length > 0) {
-    await db.insert(normativiTable).values(
-      items.map((item, idx) => ({
-        artikelId: id,
-        vhodniArtikelId: item.vhodniArtikelId,
-        kolicina: String(item.kolicina),
-        vrstniRed: idx}))
-    );
-  }
+  if (saved === false) { res.status(409).json({ code: "NORMATIVE_STALE", error: "Normativ se je medtem spremenil. Osvežite podatke in spremembe vnesite ponovno." }); return; }
 
   res.sendStatus(204);
+});
+
+router.get("/artikli/:id/normativi/spletne-spremembe", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id);
+  const enotaId = (req as any).enotaId as number;
+  if (!["admin", "admin_enote", "superadmin"].includes((req as any).vloga)) {
+    res.status(403).json({ error: "Za ogled zgodovine normativa je potrebna vloga upravitelja." }); return;
+  }
+  if (!Number.isInteger(artikelId) || artikelId <= 0) {
+    res.status(400).json({ error: "Neveljaven artikel." }); return;
+  }
+
+  const [owner] = await db.select({ id: artikliTable.id })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)));
+  if (!owner) { res.status(404).json({ error: "Artikel ni najden." }); return; }
+
+  const result = await db.execute(sql<NormativeChangeHistoryRow>`
+    SELECT
+      audit.id,
+      audit.changed_at AS "changedAt",
+      audit.actor_clerk_user_id AS "actorClerkUserId",
+      audit.actor_natakar_id AS "actorNatakarId",
+      NULLIF(TRIM(CONCAT(n.ime, ' ', n.priimek)), '') AS "actorName",
+      audit.ingredient_id AS "ingredientId",
+      ingredient.ime AS "ingredientName",
+      audit.old_quantity AS "oldQuantity",
+      audit.new_quantity AS "newQuantity",
+      audit.unit,
+      audit.source_url AS "sourceUrl",
+      audit.source_title AS "sourceTitle",
+      audit.comparison_generated_at AS "comparisonGeneratedAt"
+    FROM pos_normative_change_audit audit
+    JOIN enote e ON e.id = audit.enota_id
+    LEFT JOIN natakari n
+      ON n.id = audit.actor_natakar_id
+      AND n.company_id = e.company_id
+    LEFT JOIN artikli ingredient
+      ON ingredient.id = audit.ingredient_id
+      AND ingredient.enota_id = audit.enota_id
+    WHERE audit.enota_id = ${enotaId}
+      AND audit.artikel_id = ${artikelId}
+    ORDER BY audit.changed_at DESC, audit.id DESC
+    LIMIT 100
+  `);
+
+  const rows = result.rows as unknown as NormativeChangeHistoryRow[];
+  res.json(rows.map(row => ({
+    id: Number(row.id),
+    changedAt: new Date(row.changedAt).toISOString(),
+    actorClerkUserId: row.actorClerkUserId,
+    actorNatakarId: row.actorNatakarId == null ? null : Number(row.actorNatakarId),
+    actorName: row.actorName ?? null,
+    ingredientId: Number(row.ingredientId),
+    ingredientName: row.ingredientName ?? `Artikel #${row.ingredientId}`,
+    oldQuantity: Number(row.oldQuantity),
+    newQuantity: Number(row.newQuantity),
+    unit: row.unit,
+    sourceUrl: row.sourceUrl,
+    sourceTitle: row.sourceTitle,
+    comparisonGeneratedAt: new Date(row.comparisonGeneratedAt).toISOString(),
+  })));
+});
+
+router.post("/artikli/:id/normativi/spletni-predlogi", requireEnota, async (req, res): Promise<void> => {
+  const artikelId = Number(req.params.id);
+  const enotaId = (req as any).enotaId as number;
+  const requestedEnotaHeader = req.headers["x-enota-id"];
+  if (typeof requestedEnotaHeader !== "string" || !/^[1-9]\d*$/.test(requestedEnotaHeader)) {
+    res.status(400).json({ error: "Za potrditev predlogov izberite poslovno enoto." }); return;
+  }
+  const requestedEnotaId = Number(requestedEnotaHeader);
+  if (!Number.isSafeInteger(requestedEnotaId) || requestedEnotaId !== enotaId) {
+    res.status(403).json({ error: "Izbrana poslovna enota se ne ujema z dovoljenim dostopom." }); return;
+  }
+  if (!Number.isInteger(artikelId) || artikelId <= 0) { res.status(400).json({ error: "Neveljaven artikel." }); return; }
+  if (!["admin", "admin_enote", "superadmin"].includes((req as any).vloga)) {
+    res.status(403).json({ error: "Za potrditev predlogov je potrebna vloga upravitelja." }); return;
+  }
+  const parsed = ApplyNormativeProposalsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Neveljavni predlogi normativa." }); return; }
+  if (!process.env.POS_NORMATIVE_PROPOSAL_SECRET && !process.env.SESSION_SECRET) {
+    res.status(503).json({ error: "Podpisni ključ za predloge normativa ni nastavljen." }); return;
+  }
+  const proposals = parsed.data.selections.map(item => verifyNormativeProposal(item.proposalToken));
+  if (proposals.some(p => !p) || proposals.some(p => p!.artikelId !== artikelId)) {
+    res.status(400).json({ error: "Predlog normativa ni veljaven." }); return;
+  }
+  const signed = proposals as NonNullable<(typeof proposals)[number]>[];
+  if (new Set(signed.map(p => p.normativRowId)).size !== signed.length) {
+    res.status(400).json({ error: "Isti normativ je mogoče potrditi le enkrat." }); return;
+  }
+  if (new Set(signed.map(p => p.expectedRevision)).size !== 1) {
+    res.status(400).json({ error: "Predlogi niso iz iste revizije normativa." }); return;
+  }
+  class StaleProposal extends Error {}
+  try {
+    const applied = await db.transaction(async (tx) => {
+      const owner = await tx.execute(sql`SELECT id, normativ_revision AS revision FROM artikli WHERE id = ${artikelId} AND enota_id = ${enotaId} FOR UPDATE`) as any;
+      const ownerRow = (owner.rows ?? owner)[0] as { revision: number } | undefined;
+      if (!ownerRow || Number(ownerRow.revision) !== signed[0].expectedRevision) throw new StaleProposal();
+      const ids = signed.map(p => p.normativRowId);
+      const locked = await tx.execute(sql`
+        SELECT n.id AS "normativRowId", n.artikel_id AS "artikelId", n.vhodni_artikel_id AS "ingredientId",
+          n.kolicina AS quantity, a.enota_mere AS unit
+        FROM normativi n JOIN artikli a ON a.id = n.vhodni_artikel_id
+        WHERE n.id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)}) AND a.enota_id = ${enotaId} FOR UPDATE
+      `) as any;
+      const rows = (locked.rows ?? locked) as Array<{ normativRowId: number; artikelId: number; ingredientId: number; quantity: string; unit: string | null }>;
+      if (rows.length !== signed.length) throw new StaleProposal();
+      const byId = new Map(rows.map(row => [Number(row.normativRowId), row]));
+      for (const p of signed) {
+        const row = byId.get(p.normativRowId);
+        if (!row || Number(row.artikelId) !== artikelId || Number(row.ingredientId) !== p.ingredientId
+          || row.unit !== p.localUnit || !new Decimal(row.quantity).eq(new Decimal(p.expectedQuantity))) throw new StaleProposal();
+      }
+      const result = [];
+      for (const p of signed) {
+        const row = byId.get(p.normativRowId)!;
+        const quantity = new Decimal(p.proposedQuantity);
+        if (!quantity.isFinite() || !quantity.isPositive() || quantity.gt("999999.9999") || quantity.decimalPlaces()! > 4) throw new StaleProposal();
+        await tx.update(normativiTable).set({ kolicina: quantity.toFixed(4) }).where(eq(normativiTable.id, p.normativRowId));
+        await tx.insert(posNormativeChangeAuditTable).values({
+          enotaId, artikelId, normativRowId: p.normativRowId, ingredientId: p.ingredientId,
+          actorClerkUserId: (req as any).clerkUserId, actorNatakarId: (req as any).posActorNatakarId ?? null,
+          oldQuantity: new Decimal(row.quantity).toFixed(4), newQuantity: quantity.toFixed(4), unit: p.localUnit,
+          sourceUrl: p.sourceUrl, sourceTitle: p.sourceTitle, comparisonGeneratedAt: new Date(p.generatedAt),
+        });
+        result.push({ normativRowId: p.normativRowId, ingredientId: p.ingredientId, oldQuantity: Number(row.quantity),
+          newQuantity: Number(quantity), unit: p.localUnit, sourceUrl: p.sourceUrl, sourceTitle: p.sourceTitle });
+      }
+      await razveljaviAlergeneNadrejenih(artikelId, tx as any);
+      const revision = signed[0].expectedRevision + 1;
+      await tx.update(artikliTable).set({ normativRevision: revision }).where(eq(artikliTable.id, artikelId));
+      return { result, revision };
+    });
+    res.json({ applied: applied.result, changed: applied.result.length, revision: applied.revision });
+  } catch (error) {
+    if (error instanceof StaleProposal) { res.status(409).json({ code: "NORMATIVE_PROPOSAL_STALE", error: "Normativ se je medtem spremenil." }); return; }
+    throw error;
+  }
 });
 
 export default router;

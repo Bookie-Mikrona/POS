@@ -1,0 +1,3 @@
+# Reproducible Windows release-build toolchain. Runtime dependencies remain in
+# requirements.txt; this file is intentionally used only by build-release.ps1.
+PyInstaller==6.11.1

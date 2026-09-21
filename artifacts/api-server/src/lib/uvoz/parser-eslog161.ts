@@ -238,6 +238,30 @@ function vDatum(s: string | null): string | null {
   return null;
 }
 
+function globokoBesedilo(vozlisce: unknown, imena: string[]): string | null {
+  if (!vozlisce || typeof vozlisce !== 'object') return null;
+  for (const [kljuc, vrednost] of Object.entries(vozlisce as Record<string, unknown>)) {
+    if (imena.some((ime) => ime.toLowerCase() === kljuc.toLowerCase())) {
+      const najdeno = txt({ vrednost } as Vozel, 'vrednost');
+      if (najdeno) return najdeno;
+    }
+    const globlje = globokoBesedilo(vrednost, imena);
+    if (globlje) return globlje;
+  }
+  return null;
+}
+
+function nastaviPlacilniSklic(dto: PrejemDTO, vrednost: string | null): void {
+  if (!vrednost) return;
+  const slovenski = /^(SI\d{2})\s*(.*)$/i.exec(vrednost.trim());
+  if (slovenski) {
+    dto.placilniModel = slovenski[1].toUpperCase();
+    dto.placilniSklic = slovenski[2].trim() || null;
+  } else {
+    dto.placilniSklic = vrednost.trim();
+  }
+}
+
 // =====================================================================
 // Vstop
 // =====================================================================
@@ -269,6 +293,10 @@ export function razcleniEslog161(xml: Buffer | string): PrejemDTO {
     poKvalifikatorju(glava?.[POTI.datumi], POTI.datumVrsta,
                      DATUM.DOKUMENTA, POTI.datumVrednost),
   );
+  dto.datumZapadlosti = vDatum(
+    poKvalifikatorju(glava?.[POTI.datumi], POTI.datumVrsta,
+                     DATUM.ZAPADLOSTI, POTI.datumVrednost),
+  );
   dto.valuta = txt(glava, POTI.valuta) ?? 'EUR';
   dto.vrstaDokumenta = 'RACUN';
   dto.ceneBruto = false;
@@ -294,6 +322,18 @@ export function razcleniEslog161(xml: Buffer | string): PrejemDTO {
       `Partnerja z vlogo ${PARTNER.PRODAJALEC} (prodajalec) v dokumentu ni.`,
       { diagnostika: diagnostikaPartnerjev(glava) });
   }
+
+  dto.dobaviteljIban = globokoBesedilo(glava, [
+    'IBAN', 'Iban', 'BancniRacun', 'TransakcijskiRacun',
+  ]);
+  dto.dobaviteljBic = globokoBesedilo(glava, ['BIC', 'Bic', 'SWIFT', 'Swift']);
+  dto.placilniModel = globokoBesedilo(glava, ['PlacilniModel', 'ModelPlacila', 'Model']);
+  nastaviPlacilniSklic(dto, globokoBesedilo(glava, [
+    'PlacilniSklic', 'SklicPlacila', 'ReferencaPlacila', 'Sklic',
+  ]));
+  dto.placilniNamen = globokoBesedilo(glava, [
+    'PlacilniNamen', 'NamenPlacila', 'Namen',
+  ]);
 
   // ---- postavke ----
   const postavke = seznam(koren[POTI.postavka]);
@@ -384,6 +424,8 @@ function razcleniPostavko(v: unknown, i: number, dto: PrejemDTO): void {
     izvVrednost: vrednost,
     rabat1Odst: rabat ?? new Decimal(0),
     ddvStopnja: ddv,
+    ddvOsnova: vrednost,
+    ddvZnesek: vrednost && ddv ? zaokrozi(vrednost.mul(ddv).div(100)) : null,
     rokUporabe: vDatum(
       poKvalifikatorju((v as Vozel)?.[POTI.datumi], POTI.datumVrsta,
                        DATUM.ROK_UPORABE, POTI.datumVrednost),

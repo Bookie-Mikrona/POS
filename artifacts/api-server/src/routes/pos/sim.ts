@@ -8,12 +8,15 @@ import {
   artikliTable, zacetneZalogeTable, zacetneZalogePostavkeTable,
   zalogaGibiTable, zalogeTable,
 } from "@workspace/db";
-import { requireEnota } from "../../middlewares/pos";
+import { requireEnota, requireSpecificUnitCapability } from "../../middlewares/pos";
+import type { PosRequest } from "../../middlewares/pos";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { lockPosReceiptForEdit, ReceiptEditConflict } from "../../lib/posReceiptBooking";
 import { broadcast } from "../../lib/pos-sse";
 import { SIM_DATUM_KEY } from "../../lib/sim-datum";
 
 const router: IRouter = Router();
+router.use("/sim", requireEnota, requireSpecificUnitCapability("simulation"));
 
 // ── GET /sim ─────────────────────────────────────────────────────────────────
 router.get("/sim", async (req, res): Promise<void> => {
@@ -29,7 +32,7 @@ router.get("/sim", async (req, res): Promise<void> => {
 // ── POST /sim/datum ───────────────────────────────────────────────────────────
 // Nastavi simulacijski datum. Novi datum mora biti >= prejšnjega.
 // Samodejno zapre vse odprte izmene.
-router.post("/sim/datum", requireEnota, async (req, res): Promise<void> => {
+router.post("/sim/datum", async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId ?? 1;
   const { datum } = req.body ?? {};
   if (!datum || !/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
@@ -86,7 +89,7 @@ router.post("/sim/datum", requireEnota, async (req, res): Promise<void> => {
 });
 
 // ── DELETE /sim/datum ─────────────────────────────────────────────────────────
-router.delete("/sim/datum", requireEnota, async (req, res): Promise<void> => {
+router.delete("/sim/datum", async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId ?? 1;
   await db.delete(nastavitveTable)
     .where(and(eq(nastavitveTable.enotaId, enotaId), eq(nastavitveTable.kljuc, SIM_DATUM_KEY)));
@@ -96,10 +99,25 @@ router.delete("/sim/datum", requireEnota, async (req, res): Promise<void> => {
 
 // ── POST /sim/reset ───────────────────────────────────────────────────────────
 // Pobriše vse promete (narocila, racuni, izmene, zaloge, prejemnice, ...) za enoto.
-router.post("/sim/reset", requireEnota, async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+router.post("/sim/reset", async (req, res): Promise<void> => {
+  const enotaId = (req as any).enotaId as number;
+  const companyId = (req as any).companyId as string;
 
+  try {
   await db.transaction(async (tx) => {
+    // Simulation reset is the only production path allowed to physically purge
+    // stock history; the exception is transaction-local and cannot leak.
+    await tx.execute(sql`SET LOCAL app.allow_stock_movement_cleanup = 'on'`);
+    const receipts = await tx.execute<{ id: number }>(sql`
+      SELECT p.id
+      FROM prejemnice p
+      JOIN enote e ON e.id = p.enota_id AND e.company_id = ${companyId}
+      WHERE p.enota_id = ${enotaId}
+      ORDER BY p.id
+    `);
+    for (const receipt of receipts.rows) {
+      await lockPosReceiptForEdit(tx, companyId, enotaId, receipt.id);
+    }
     // 1. Zaloga gibanja
     await tx.execute(sql`
       DELETE FROM zaloga_gibi
@@ -165,6 +183,14 @@ router.post("/sim/reset", requireEnota, async (req, res): Promise<void> => {
       WHERE artikel_id IN (SELECT id FROM artikli WHERE enota_id = ${enotaId})
     `);
   });
+  } catch (error) {
+    if (error instanceof ReceiptEditConflict) {
+      res.status(error.code === "RECEIPT_BOOKING_POSTED" ? 409 : 404)
+        .json({ error: error.message, code: error.code });
+      return;
+    }
+    throw error;
+  }
 
   broadcast("update", { type: "zaloge" });
   broadcast("update", { type: "narocila" });
@@ -173,8 +199,9 @@ router.post("/sim/reset", requireEnota, async (req, res): Promise<void> => {
 
 // ── POST /sim/zacetne-zaloge ──────────────────────────────────────────────────
 // Naključno generira začetne zaloge za vse nabavne artikle.
-router.post("/sim/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => {
+router.post("/sim/zacetne-zaloge", async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const { datum, leto } = req.body ?? {};
 
   if (!datum || !leto) {
@@ -254,8 +281,13 @@ router.post("/sim/zacetne-zaloge", requireEnota, async (req, res): Promise<void>
         artikelId: art.id,
         tip: "inventura",
         kolicina: String(kolicina),
+        cenaKos: String(cenaKos),
+        vrednost: String(kolicina * cenaKos),
         opomba: `Začetne zaloge ${letoInt}`,
         referencaId: zz.id,
+        actorSnapshot,
+        effectiveAtSnapshot: zz.datum,
+        sourceSnapshot: "sim-zacetne-zaloge",
       });
 
       postavkeResult.push({ artikelId: art.id, artikelIme: art.ime, kolicina, cenaKos });

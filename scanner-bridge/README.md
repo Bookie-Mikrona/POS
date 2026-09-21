@@ -12,25 +12,54 @@ dokumentov prek HP optičnega čitalnika (WIA).
 
 ---
 
-## Namestitev (Python)
+## Namestitev (.exe — brez Pythona)
+
+1. Prenesi `ScannerBridge.exe`
+2. Kopiraj ga kamorkoli — npr. `C:\Programi\ScannerBridge\ScannerBridge.exe`
+3. Poženi `ScannerBridge.exe`
+   - Ob prvem zagonu se **samodejno doda v Windows autostart** (Registry `HKCU\...\Run`)
+   - Ikona se pojavi v sistemski vrstici (tray)
+   - Ob ponovnem kliku dvojnega zagona ne odpre (zaščita)
+
+### Odstranitev autostarta
+
+```bat
+ScannerBridge.exe --uninstall
+```
+
+---
+
+## Namestitev (Python — razvoj)
 
 ```bat
 pip install -r requirements.txt
 python bridge.py
 ```
 
-## Namestitev (.exe — brez Pythona)
-
-1. Prenesi `ScannerBridge.exe` iz `dist/` mape
-2. Poženi `ScannerBridge.exe` — pojavi se ikona v system tray-u
-3. Ob prvem zagonu se samodejno doda v Windows autostart
+---
 
 ## Gradnja .exe
 
+Na Windows računalniku z nameščenim Pythonom:
+
+**CMD (ukazni poziv):**
 ```bat
 pip install -r requirements.txt
-build.bat
+.\build.bat
 ```
+
+**PowerShell:**
+```powershell
+pip install -r requirements.txt
+.\build.ps1
+```
+
+> Če PowerShell javi napako o izvajalni politiki, enkrat zaženite:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+Rezultat: `dist\ScannerBridge.exe` — enkratna datoteka, Python ni potreben.
+
+**Opomba:** Skripta sama ustvari ikono in doda vse potrebne pywin32 skrite uvoz.
 
 ---
 
@@ -40,6 +69,18 @@ build.bat
 |--------|-----------|-----------------------------------|
 | GET    | /health   | Status + seznam zaznjenih scannerjev |
 | POST   | /scan     | Sproži skeniranje, vrni base64 PNG |
+
+### GET /health — odgovor
+
+```json
+{
+  "status": "ok",
+  "version": "1.1.0",
+  "scanners": [
+    { "id": "{...}", "name": "HP ScanJet Pro 3000" }
+  ]
+}
+```
 
 ### POST /scan — parametri
 
@@ -52,12 +93,14 @@ build.bat
 }
 ```
 
-- `deviceId` — ID scannerja iz `/health`. `null` = prvi najden
-- `dpi` — 150, 300 (privzeto) ali 600
-- `color` — `false` = sivinska (priporočeno za OCR, 3× manjša datoteka)
-- `format` — `"png"` (privzeto, lossless) ali `"jpeg"`
+| Parameter  | Vrednosti               | Privzeto | Opis                                    |
+|------------|-------------------------|----------|-----------------------------------------|
+| `deviceId` | ID iz `/health` ali null | null    | null = prvi zaznani scanner             |
+| `dpi`      | 150, 300, 600           | 300      | Ločljivost; 300 priporočeno za OCR      |
+| `color`    | true / false            | false    | false = sivinska (3× manjša datoteka)   |
+| `format`   | "png" / "jpeg"          | "png"    | PNG je lossless; priporočen za OCR      |
 
-### Odgovor
+### POST /scan — odgovor
 
 ```json
 {
@@ -71,15 +114,32 @@ build.bat
 
 ## Odpravljanje težav
 
-| Simptom | Rešitev |
-|---------|---------|
-| Bridge ni zaznan | Poženi `ScannerBridge.exe`, preveri firewall |
-| Scanner ni na seznamu | Namesti WIA gonilnike za HP (HP Easy Start) |
-| Napaka COM | Poženi kot administrator (enkrat) |
-| HTTPS / Mixed content | Nastavi ALLOWED_ORIGINS v `bridge.py` |
+| Simptom                          | Rešitev                                                      |
+|----------------------------------|--------------------------------------------------------------|
+| Bridge ni zaznan                 | Poženi `ScannerBridge.exe`, preveri sistemsko vrstico (tray) |
+| Scanner ni na seznamu `/health`  | Namesti WIA gonilnike za HP (HP Easy Start)                  |
+| Napaka COM / ni dostopa          | Poženi enkrat kot administrator                               |
+| Port 8765 zaseden                | Drug program zaseda port; preveri z `netstat -ano ^| findstr 8765` |
+| EXE se zapre takoj               | Poženi iz ukazne vrstice (`cmd.exe`), preveri napako         |
+| HTTPS / Mixed content napaka     | POS mora teči na HTTP ali bridge mora biti dostopen prek HTTPS tunela |
 
 ---
 
-## Port
+## Port in varnost
 
-Bridge posluša na `http://127.0.0.1:8765`. Dostopen je samo z lokalne naprave.
+Bridge posluša **samo** na `http://127.0.0.1:8765` — dostopen je izključno z lokalne naprave,
+ne iz omrežja. CORS wildcard (`*`) je varen v tej konfiguraciji.
+
+---
+
+## Autostart podrobnosti
+
+Ob prvem zagonu `.exe` se doda vnos v Windows Registry:
+
+```
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+  ScannerBridge = "C:\pot\do\ScannerBridge.exe"
+```
+
+Za ročno odstranitev: `regedit` → poiščite `ScannerBridge` pod `HKCU\...\Run` in izbrišite,
+ali: `ScannerBridge.exe --uninstall`.

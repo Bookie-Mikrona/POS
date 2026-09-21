@@ -6,7 +6,12 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "test:uvoz": "node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/01-csv.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/02-locilo.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/03-eslog20.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/04-format.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/05-cenik.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/06-integracija-profil.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/07-naziv.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/08-reklamacija.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/09-eslog161.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/11-xlsx-karakterizacija.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-prejemnic/10-kratki-naziv.test.ts",
+    "test:eracun": "node_modules/.pnpm/node_modules/.bin/tsx tests/eracun-generator/01-generator.test.ts",
+    "test": "pnpm run test:uvoz && pnpm run test:eracun && pnpm run test:cenik && pnpm run test:zalog-sync",
+    "test:cenik": "node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-cenik/01-zapisi-preslikave.test.ts && node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-cenik/02-profil-tip.test.ts",
+    "test:zalog-sync": "node_modules/.pnpm/node_modules/.bin/tsx tests/uvoz-zalog-sync/01-zalog-sync.test.ts"
   },
   "private": true,
   "dependencies": {
@@ -16,5 +21,27 @@
   "devDependencies": {
     "prettier": "^3.9.5",
     "typescript": "~5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@esbuild-kit/esm-loader": "npm:tsx@^4.23.0",
+      "@xmldom/xmldom": "0.9.12",
+      "browserslist": "4.28.8",
+      "decode-uri-component": "0.5.0",
+      "deepmerge-ts": "8.0.2",
+      "dompurify": "3.4.14",
+      "js-yaml": "^4.3.1",
+      "fast-uri": "^3.1.6",
+      "metro": "0.83.8",
+      "nanoid": "^3.3.18",
+      "postcss": "^8.5.26",
+      "qs": "6.16.0",
+      "undici": "^7.29.0",
+      "uuid": "11.1.1",
+      "vite>esbuild": "0.28.2",
+      "brace-expansion@1": "1.1.18",
+      "brace-expansion@2": "2.1.4",
+      "brace-expansion@5": "5.0.9"
+    }
   }
 }

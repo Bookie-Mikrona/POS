@@ -6,6 +6,7 @@ import {
   pgEnum,
   numeric,
   date,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { companiesTable } from "./companies";
 import { counterpartiesTable } from "./counterparties";
@@ -13,6 +14,7 @@ import { accountingPeriodsTable } from "./accounting-periods";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
 import { invoicesTable } from "./invoices";
+import { bankStatementLinesTable } from "./bank-statements";
 
 export const paymentDirectionEnum = pgEnum("payment_direction", [
   "inbound",  // prejet (kupec plača nam)
@@ -59,6 +61,8 @@ export const paymentsTable = pgTable("payments", {
     .references(() => accountsTable.id),
   status: paymentStatusEnum("status").notNull().default("draft"),
   linkedEntryId: uuid("linked_entry_id").references(() => journalEntriesTable.id),
+  bankStatementLineId: uuid("bank_statement_line_id")
+    .references(() => bankStatementLinesTable.id),
   notes: text("notes"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -66,7 +70,10 @@ export const paymentsTable = pgTable("payments", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, table => ({
+  bankStatementLineUnique: uniqueIndex("payments_bank_statement_line_uq")
+    .on(table.bankStatementLineId),
+}));
 
 /**
  * Poravnave plačil z računi.

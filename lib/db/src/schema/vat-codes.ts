@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { companiesTable } from "./companies";
 import { accountsTable } from "./accounts";
+import { vatCodeTable } from "./vat-code";
 
 /**
  * DDV kode (šifranti) — verzionirana konfiguracija stopenj.
@@ -48,6 +49,12 @@ export const vatCodesTable = pgTable("vat_codes", {
   accountOutputId: uuid("account_output_id").references(() => accountsTable.id),
   /** Konto vstopnega DDV (za prejete račune, npr. 160xxx) */
   accountInputId: uuid("account_input_id").references(() => accountsTable.id),
+  /**
+   * Natančna verzija globalne FURS kode.
+   * UUID je nameren: vat_code je verzioniran po (code, valid_from), zato sama
+   * besedilna koda ni varen oziroma unikaten FK.
+   */
+  fursCodeId: uuid("furs_code_id").references(() => vatCodeTable.id, { onDelete: "restrict" }),
   /** Veljavno od (null = vedno) */
   validFrom: date("valid_from", { mode: "string" }),
   /** Veljavno do (null = trenutno veljavna) */

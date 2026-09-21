@@ -1,0 +1,48 @@
+ali je vsa dokumentacija in navodila pripravljena za prenos v replit?
+
+Odločil se je temeljito pregledati dokumentacijo
+Odločil se je temeljito pregledati dokumentacijo
+
+Preverim, namesto da bi ugibal.
+
+Odkrila napako v validaciji in jo popravila
+Odkrila napako v validaciji in jo popravila
+
+Moj preverjalnik je bil pokvarjen (find -q ne obstaja). Popravljam.
+
+Ran 2 commands
+Ran 2 commands
+
+Našel sem štiri vrzeli. Odpravljam jih.
+
+Ran 2 commands, created a file
+Ran 2 commands, created a file
+
+Obe navodili sta zastareli — navajata osem datotek, dejansko jih je deset, in ne omenjata scripts/ ne bizBoxa. Popravljam.
+
+Ran 3 commands, read a file
+Ran 3 commands, read a file
+
+Ni bila. Preverba je našla štiri vrzeli, ki so zdaj odpravljene.
+
+Kaj je bilo narobe
+
+Obe navodili za prenos sta bili zastareli. 08-vkljucitev.md je navajal osem datotek v lib/uvoz/, dejansko jih je deset — manjkala sta parser-eslog20.ts in bizbox-client.ts. Nobeno navodilo ni omenjalo mape scripts/ z diagnostičnima orodjema, ki sta nastali pozneje. Če bi po njiju kopirali, bi vam trije novejši deli manjkali brez opozorila.
+
+Mapa docs/ je imela enajst dokumentov brez vstopne točke. Dva se nista omenjala nikjer — bralec ju ne bi našel.
+
+Diagnostični orodji sta bili dosegljivi le prek dolge poti npx tsx artifacts/api-server/src/scripts/.... Zdaj sta npm run preveri in npm run bizbox-odkrij.
+
+In v paketu je bila datoteka cenik-generiran.csv, ki jo ustvari test sam — ne sodi v arhiv.
+
+Kaj je dodano
+
+docs/00-kazalo.md je zdaj vstopna točka: pove, kje začeti glede na to, kaj želite, kaj je izvedeno in kaj ne, ter zbere vseh šest mest, označenih z ⚠ PREVERI, na eno mesto s posledico, če se preskoči.
+
+PRENOS-V-REPLIT.md ima nov razdelek »Česa ni treba kopirati« — bizbox-client.ts, scripts/ in zajem.ts so neobvezni; modul deluje brez njih, le pripadajoči kanali odpadejo.
+
+Preverjeno iz čistega arhiva
+
+Namestitev brez ranljivosti, enajst testnih sklopov uspešnih, osem pričakovanih napak tipov (moduli, ki obstajajo šele v BOOKIE), diagnostično orodje deluje. 57 datotek, 200 kB.
+
+Ena stvar, ki jo kazalo zdaj izrecno pove in prej ni bila razvidna: knjiženje v glavno knjigo je zasnova, ne koda. Dokument 03-izracun-in-knjizenje.md opisuje konte in vzorce knjižb, izvedbe pa ni — modul ustvari osnutek prejemnice in ga preda obstoječemu zaslonu, kar knjiži vaša obstoječa logika.

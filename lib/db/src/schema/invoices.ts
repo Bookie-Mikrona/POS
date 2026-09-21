@@ -7,6 +7,7 @@ import {
   integer,
   numeric,
   date,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { companiesTable } from "./companies";
 import { counterpartiesTable } from "./counterparties";
@@ -14,6 +15,7 @@ import { accountingPeriodsTable } from "./accounting-periods";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
 import { vatCodesTable } from "./vat-codes";
+import { purchaseSourceDocumentsTable } from "./purchase-source-documents";
 
 export const invoiceTypeEnum = pgEnum("invoice_type", ["issued", "received"]);
 
@@ -38,6 +40,13 @@ export const invoicesTable = pgTable("invoices", {
     .notNull()
     .references(() => companiesTable.id, { onDelete: "cascade" }),
   type: invoiceTypeEnum("type").notNull(),
+  /** Izvor določa poseben knjižbeni tok; POS zbirni A-račun ne knjiži DDV/prihodkov znova. */
+  sourceType: text("source_type")
+    .$type<"manual" | "pos-sync" | "pos-contract-summary">()
+    .notNull()
+    .default("manual"),
+  /** Poslovni mesec izvornega zbirnika (YYYY-MM); pri običajnih računih je NULL. */
+  sourcePeriod: text("source_period"),
   counterpartyId: uuid("counterparty_id")
     .notNull()
     .references(() => counterpartiesTable.id),
@@ -47,6 +56,12 @@ export const invoicesTable = pgTable("invoices", {
   invoiceNumber: text("invoice_number").notNull(),
   invoiceDate: date("invoice_date", { mode: "string" }).notNull(),
   dueDate: date("due_date", { mode: "string" }),
+  /** Nespremenljiv posnetek plačilnih navodil s konkretnega prejetega računa. */
+  destinationIban: text("destination_iban"),
+  destinationBic: text("destination_bic"),
+  paymentModel: text("payment_model"),
+  paymentReference: text("payment_reference"),
+  paymentPurpose: text("payment_purpose"),
   status: invoiceStatusEnum("status").notNull().default("draft"),
   /** Konto terjatev (izdani) ali obveznosti (prejeti) */
   arApAccountId: uuid("ar_ap_account_id")
@@ -58,6 +73,11 @@ export const invoicesTable = pgTable("invoices", {
   linkedEntryId: uuid("linked_entry_id").references(
     () => journalEntriesTable.id,
   ),
+  /** Kanonična identiteta dobaviteljeve listine; en vir sme ustvariti le en račun. */
+  sourceDocumentId: uuid("source_document_id").references(
+    () => purchaseSourceDocumentsTable.id,
+    { onDelete: "restrict" },
+  ),
   notes: text("notes"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -67,7 +87,12 @@ export const invoicesTable = pgTable("invoices", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (t) => [
+  uniqueIndex("invoices_source_document_unique")
+    .on(t.sourceDocumentId),
+  uniqueIndex("invoices_contract_summary_period_unique")
+    .on(t.companyId, t.sourceType, t.counterpartyId, t.sourcePeriod),
+]);
 
 /**
  * Vrstice računa.

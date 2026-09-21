@@ -1,0 +1,106 @@
+kako se registrira in vodi napitnina, ki jo je gost dodal skupnemu znesku zapitka in plačal s plačilno kartico ali gotovino (ne iz rok v roke)
+
+Kadar gost napitnino doda skupnemu znesku računa in jo v celoti obdela skozi blagajniški sistem ter plača z gotovino ali s plačilno kartico, se napitnina v obeh primerih fizično ali elektronsko evidentira v blagajni podjetja.
+
+Natančen postopek registracije, vodenja in izplačila se razlikuje glede na način plačila:
+
+Primerjava vodenja registrirane napitnine
+Vidik obravnave	Plačilo s kartico (POS)	Plačilo z gotovino (preko blagajne)
+Registracija na računu	Ločeno vnesena ne-davčna postavka ali prehodni znesek.	Ločeno vnesena ne-davčna postavka ali vnos v blagajniški predal.
+Skupni znesek transakcije	Terminal avtorizira celoten znesek (konzumacija + napitnina).	Gost izroči gotovino za celoten znesek (v blagajni nastane presežek).
+Priliv / Sledljivost	Celoten znesek prispeta na bančni račun podjetja (TRR).	Denar je fizično v blagajniškem predalu lokala.
+Računovodsko knjiženje	Konto 76 (prihodki) + Konto 220/28 (obveznost do osebja).	Konto 76 (prihodki) + Konto 220/28 (obveznost do osebja).
+Način izplačila osebju	Preko nakazila na TRR (plača ali študentska napotnica).	Preko blagajniškega izdatka ali nakazila na TRR.
+1. Registracija na blagajni in izdaja računa
+Ne glede na to, ali gost plača s kartico ali z gotovino, mora davčna blagajna jasno ločiti konzumacijo od napitnine:
+
+Vnos računa: Vnesete vrednost storitev/blaga (npr. 40 € + DDV).
+
+Dodajanje napitnine: V blagajno vnesete ločeno postavko napitnine (npr. 5 €).
+
+Izkaz na računu:
+
+Osnova za DDV: Ostane 40 € (DDV se obračuna samo od te vrednosti).
+
+Napitnina: Prikaže se kot ne-davčna postavka ali postopek prehodnih sredstev (5 €).
+
+Skupni znesek za plačilo: 45 €.
+
+2. Knjiženje in računovodsko vodenje
+Pri obeh načinih plačila podjetje prejeti znesek napitnine obravnava kot prehodna sredstva (obveznost do zaposlenih) in ne kot lasten prihodek:
+
+Prihodki podjetja (Konto skupine 76): Knjiži se neto vrednost konzumacije z DDV (40 € + DDV).
+
+Obveznosti do osebja (Konto skupine 220 ali 280): Knjiži se znesek napitnine (5 €).
+
+Bančni priliv / Blagajna:
+
+Pri kartici: Procesor nakazala 45 € na TRR podjetja.
+
+Pri gotovini: V blagajniškem predalu se nahaja 45 € gotovine.
+
+3. Pravilno izplačilo napitnine osebju
+Ker je napitnina v obeh primerih evidentirana v poslovanju podjetja, mora izplačilo slediti uradnim predpisom:
+
+Za redno zaposlene: Znesek se zaposlenim izplača preko nakazila na osebni TRR (praviloma pri mesečni plači). V skladu s stališčem FURS se evidentirana napitnina obravnava kot drug prejemek iz delovnega razmerja in je podvržena obračunu dohodnine ter prispevkov.
+
+Za študente: Zbrani znesek se doda na študentsko napotnico preko študentskega servisa in izplača na študentov TRR.
+
+Prepoved neformalnega jemanja iz blagajne: Gotovine iz blagajniškega predala ni dovoljeno jemati "na roke" brez sestavljenega blagajniškega izdatka in ustrezne davčne dokumentacije, saj to pri nadzoru stanj registrskih blagajn povzroči neskladje (primanjkljaj).
+
+kako se v obeh primerih knjiži?
+
+Pri registrirani napitnini (tako pri kartičnem kot pri gotovinskem plačilu skozi blagajno) se uporablja enak računovodski koncept: napitnina ne predstavlja prihoda podjetja, temveč obveznost podjetja do zaposlenih (prehodna postavka).
+
+Primer knjiženja za račun v vrednosti 100 € (+ 22 % DDV = 122 €) in dodano napitnino 10 € (skupni znesek za plačilo = 132 €):
+
+1. Plačilo s plačilno kartico (POS)
+Pri kartičnem plačilu nastane terjatev do kupca/procesorja kartic za celotni znesek, ki se zapre ob prilivu na TRR.
+
+A. Obračun in izdaja računa (Temeljnica prodaje):
+
+Konto 1200 (Terjatve do kupcev / POS): Debet (V breme) 132,00 €
+
+Konto 7600 (Prihodki od prodaje storitev): Kredit (V dobro) 100,00 €
+
+Konto 2600 (Obveznosti za izstopni DDV 22 %): Kredit (V dobro) 22,00 €
+
+Konto 2850 (Kratkoročne obveznosti do zaposlenih – napitnine): Kredit (V dobro) 10,00 €
+
+B. Priliv na bančni račun (Bančni izpisek):
+
+Konto 1100 (Bančni račun / TRR): Debet (V breme) 132,00 € (opomba: minus provizija banke)
+
+Konto 1200 (Terjatve do kupcev / POS): Kredit (V dobro) 132,00 €
+
+2. Plačilo z gotovino (vpisano v blagajno)
+Pri gotovinskem plačilu gre celoten znesek fizično v blagajniški predal podjetja.
+
+A. Dnevni izkupiček blagajne (Blagajniški prejemek / Temeljnica blagajne):
+
+Konto 1000 (Glavna blagajna / Gotovina): Debet (V breme) 132,00 €
+
+Konto 7600 (Prihodki od prodaje storitev): Kredit (V dobro) 100,00 €
+
+Konto 2600 (Obveznosti za izstopni DDV 22 %): Kredit (V dobro) 22,00 €
+
+Konto 2850 (Kratkoročne obveznosti do zaposlenih – napitnine): Kredit (V dobro) 10,00 €
+
+3. Zapiranje obveznosti ob izplačilu napitnine osebju
+Ko podjetje zbrano napitnino nakazal zaposlenim ali študentom, razknjiži obveznost na kontu 2850:
+
+A. Izplačilo preko TRR (Plača ali študentska napotnica):
+
+Konto 2850 (Kratkoročne obveznosti – napitnine): Debet (V breme) 10,00 €
+
+Konto 1100 (TRR) ali 2500 (Obveznosti za plače/študente): Kredit (V dobro) 10,00 €
+
+B. Izplačilo v gotovini (preko formalnega blagajniškega izdatka):
+
+Konto 2850 (Kratkoročne obveznosti – napitnine): Debet (V breme) 10,00 €
+
+Konto 1000 (Glavna blagajna): Kredit (V dobro) 10,00 €
+
+(Opomba: Pri obračunu dohodnine in prispevkov od napitnine se pripadajoči dajatve knjižijo na ustrezne kontove obveznosti za davke in prispevke).
+
+Ali vas zanima tudi natančen način obračuna dohodnine in prispevkov pri izplačilu te napitnine na plačilni listi ali študentski napotnici?

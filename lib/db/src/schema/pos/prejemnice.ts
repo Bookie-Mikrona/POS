@@ -1,13 +1,21 @@
-import { pgTable, serial, text, timestamp, numeric, integer, date, uuid } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, numeric, integer, date, uuid, pgEnum, uniqueIndex, jsonb, check, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { enoteTable } from "./enote";
 import { artikliTable } from "./artikli";
-import { shranjeniKupciTable } from "./shranjeni-kupci";
+import { counterpartiesTable } from "../counterparties";
+import { purchaseSourceDocumentsTable } from "../purchase-source-documents";
+import type { AlergenKoda, AlergenStatusPotrditve, AlergenVir } from "./artikli";
+
+export const prejemnicaVrstaDokumenta = pgEnum("prejemnica_vrsta_dokumenta", [
+  "RACUN", "DOBAVNICA", "DOBROPIS", "BREMEPIS",
+]);
+export const prejemnicaStatus = pgEnum("prejemnica_status", ["draft", "confirmed"]);
 
 export const prejemniceTable = pgTable("prejemnice", {
   id: serial("id").primaryKey(),
   enotaId: integer("enota_id").notNull().references(() => enoteTable.id, { onDelete: "cascade" }),
-  dobaviteljId: integer("dobavitelj_id").references(() => shranjeniKupciTable.id, { onDelete: "set null" }),
+  dobaviteljId: uuid("dobavitelj_id").references(() => counterpartiesTable.id, { onDelete: "set null" }),
   stevilka: text("stevilka"),
   datum: timestamp("datum").notNull().defaultNow(),
   opomba: text("opomba"),
@@ -21,7 +29,50 @@ export const prejemniceTable = pgTable("prejemnice", {
   datumDokumenta: date("datum_dokumenta"),
   /** Sklic na uvozno sejo, ki je ustvarila to prejemnico */
   uvozSejaId: uuid("uvoz_seja_id"),
-});
+  /** ISO valuta dobaviteljevega dokumenta. Obstoječe prejemnice so v EUR. */
+  valuta: text("valuta").notNull().default("EUR"),
+  /** Rok plačila na dobaviteljevem dokumentu. */
+  datumZapadlosti: date("datum_zapadlosti"),
+  /** Skupna davčna osnova dokumenta, kadar jo dobavitelj navede. */
+  ddvOsnova: numeric("ddv_osnova", { precision: 14, scale: 2 }),
+  /** Skupni znesek DDV dokumenta, kadar ga dobavitelj navede. */
+  ddvZnesek: numeric("ddv_znesek", { precision: 14, scale: 2 }),
+  vrstaDokumenta: prejemnicaVrstaDokumenta("vrsta_dokumenta"),
+  datumDobave: date("datum_dobave"),
+  datumOpravljeneStoritve: date("datum_opravljene_storitve"),
+  brutoSkupaj: numeric("bruto_skupaj", { precision: 14, scale: 2 }),
+  placilniNacin: text("placilni_nacin"),
+  placanoZGotovino: boolean("placano_z_gotovino").notNull().default(false),
+  placilniModel: text("placilni_model"),
+  placilniSklic: text("placilni_sklic"),
+  placilniNamen: text("placilni_namen"),
+  // Nespremenljiv dokumentni posnetek; ne bere se ponovno iz živega šifranta.
+  dobaviteljNaziv: text("dobavitelj_naziv"),
+  dobaviteljDavcna: text("dobavitelj_davcna"),
+  dobaviteljIdDdv: text("dobavitelj_id_ddv"),
+  dobaviteljMaticna: text("dobavitelj_maticna"),
+  dobaviteljUlica: text("dobavitelj_ulica"),
+  dobaviteljPosta: text("dobavitelj_posta"),
+  dobaviteljKraj: text("dobavitelj_kraj"),
+  dobaviteljDrzava: text("dobavitelj_drzava"),
+  dobaviteljIban: text("dobavitelj_iban"),
+  dobaviteljBic: text("dobavitelj_bic"),
+  prejemnikNaziv: text("prejemnik_naziv"),
+  prejemnikDavcna: text("prejemnik_davcna"),
+  prejemnikIdDdv: text("prejemnik_id_ddv"),
+  prejemnikNaslov: text("prejemnik_naslov"),
+  prejemnikDrzava: text("prejemnik_drzava"),
+  snapshotZajet: timestamp("snapshot_zajet", { withTimezone: true }),
+  /** Skupna identiteta listine čez POS in ERP. */
+  sourceDocumentId: uuid("source_document_id").references(
+    () => purchaseSourceDocumentsTable.id,
+    { onDelete: "restrict" },
+  ),
+  status: prejemnicaStatus("status").notNull().default("draft"),
+}, (t) => [
+  uniqueIndex("prejemnice_source_document_unique")
+    .on(t.sourceDocumentId),
+]);
 
 export const prejemnicePostavkeTable = pgTable("prejemnice_postavke", {
   id: serial("id").primaryKey(),
@@ -45,15 +96,69 @@ export const prejemnicePostavkeTable = pgTable("prejemnice_postavke", {
   rabat1Odst:         numeric("rabat_1_odst", { precision: 7, scale: 4 }).default("0"),
   rabat2Odst:         numeric("rabat_2_odst", { precision: 7, scale: 4 }).default("0"),
   opozorila:          text("opozorila"), // JSONB, preberemo kot text
-});
+  /** DDV podatki z dobaviteljeve vrstice; ne vplivajo na zalogo v KORAKU 2. */
+  ddvStopnja:         numeric("ddv_stopnja", { precision: 5, scale: 2 }),
+  ddvOsnova:          numeric("ddv_osnova", { precision: 14, scale: 2 }),
+  ddvZnesek:          numeric("ddv_znesek", { precision: 14, scale: 2 }),
+  vatCodeId:           uuid("vat_code_id"),
+  /** Kanonični računovski podatki za prihodnji e-SLOG prejetega računa. */
+  enotaMere:           text("enota_mere"),
+  netoCena:            numeric("neto_cena", { precision: 15, scale: 6 }),
+  netoZnesek:          numeric("neto_znesek", { precision: 14, scale: 2 }),
+  ddvKategorija:       text("ddv_kategorija"),
+  /** Stabilna računovodska obravnava vrstice; ne ugiba se iz naziva. */
+  vrsticaTip:          text("vrstica_tip").notNull().default("zaloga"),
+  /**
+   * Nespremenljiv alergenski posnetek dobaviteljeve vrstice. Živi profil
+   * artikla se lahko kasneje spremeni, posnetek pa ostane dokaz zgodovine.
+   */
+  alergeni: jsonb("alergeni").$type<AlergenKoda[]>().notNull().default([]),
+  alergeniSledi: jsonb("alergeni_sledi").$type<AlergenKoda[]>().notNull().default([]),
+  alergeniStatus: text("alergeni_status", { enum: ["nepreverjeno", "potrjeno_brez", "potrjeno"] })
+    .notNull().default("nepreverjeno"),
+  alergeniVir: text("alergeni_vir", { enum: ["etiketa", "specifikacija", "izjava_dobavitelja", "normativ", "rocno", "drugo"] }),
+  alergeniOpombaVira: text("alergeni_opomba_vira"),
+  alergeniDocumentId: uuid("alergeni_document_id"),
+  alergeniVerifiedBy: text("alergeni_verified_by"),
+  alergeniVerifiedAt: timestamp("alergeni_verified_at", { withTimezone: true }),
+  alergeniRevision: integer("alergeni_revision").notNull().default(0),
+  alergeniHash: text("alergeni_hash"),
+}, (t) => [
+  check("prejemnice_postavke_vrstica_tip_check", sql`${t.vrsticaTip} IN ('zaloga', 'poraba_surovin', 'prevoz')`),
+]);
 
 export const prejemniceRelations = relations(prejemniceTable, ({ many }) => ({
   postavke: many(prejemnicePostavkeTable),
+  odvisniStroski: many(prejemniceOdvisniStroskiTable),
 }));
 
 export const prejemnicePostavkeRelations = relations(prejemnicePostavkeTable, ({ one }) => ({
   prejemnica: one(prejemniceTable, { fields: [prejemnicePostavkeTable.prejemnicaId], references: [prejemniceTable.id] }),
 }));
 
+/**
+ * Stroški dobave, prevoza, zavarovanja ipd. so ločeni od materialnih vrstic.
+ * Njihova računovodska obravnava se uporabi šele pri nabavni temeljnici.
+ */
+export const prejemniceOdvisniStroskiTable = pgTable("prejemnice_odvisni_stroski", {
+  id: serial("id").primaryKey(),
+  prejemnicaId: integer("prejemnica_id")
+    .notNull()
+    .references(() => prejemniceTable.id, { onDelete: "cascade" }),
+  naziv: text("naziv").notNull(),
+  znesek: numeric("znesek", { precision: 14, scale: 2 }).notNull(),
+  ddvStopnja: numeric("ddv_stopnja", { precision: 5, scale: 2 }),
+  /** Ali strošek poveča nabavno vrednost zaloge ali ostane ločen strošek. */
+  obravnava: text("obravnava").notNull().default("zaloga"),
+});
+
+export const prejemniceOdvisniStroskiRelations = relations(prejemniceOdvisniStroskiTable, ({ one }) => ({
+  prejemnica: one(prejemniceTable, {
+    fields: [prejemniceOdvisniStroskiTable.prejemnicaId],
+    references: [prejemniceTable.id],
+  }),
+}));
+
 export type Prejemnica = typeof prejemniceTable.$inferSelect;
 export type PrejemnicaPostavka = typeof prejemnicePostavkeTable.$inferSelect;
+export type PrejemnicaOdvisniStrosek = typeof prejemniceOdvisniStroskiTable.$inferSelect;

@@ -1,0 +1,40 @@
+Analiza prikazuje zelo natančno sliko stanja. Vaša ugotovitev glede tretjega režima (Pod nadzorom delodajalca) je ključna: v praksi in davčni teoriji obstaja opazna razlika med prostovoljno napitnino (ki pripada zaposlenim in ni prihodek podjetja) ter obveznim dodatkom za storitev / "service charge" (ki ga predpiše delodajalec, gre v prihodke podjetja in podlega 22 % DDV). Zaradi tega je odločitev, da se ta funkcionalnost ne odstrani samodejno, sistemsko in strokovno povsem utemeljena.
+
+Arhitekturni predlog za dokončno ureditev POS/ERP modula
+Da bi premostili vrzel med trenutno operativno evidenco in popolno računovodsko-davčno skladnostjo, so potrebne naslednje dopolnitve:
+
+1. Avtomatski razdelilnik (Ključ delitve)
+Rešitev v POS: Nastavitev profilov delitve na ravni POS politične enote (npr. Profil A: 100 % strežba, Profil B: 70 % strežba / 30 % kuhinja).
+
+Izvedba: Ob zaključku računa ali dneva (Z-poročilo) sistem samodejno razdeli znesek napitnine po definiranem razmerju na posamezne osebne račune/sklad zaposlenih.
+
+2. Avtomatsko knjiženje v glavno knjigo (GK)
+Za zaprtje računovodskega kroga mora POS ob Z-poročilu generirati avtomatsko temeljnico ali pripraviti podatke za ERP:
+
+Režim 1 & 2 (Prostovoljna napitnina - neobdavčeno):
+
+Kredit (K): Konto 275xxx ali 285xxx (Obveznosti do zaposlenih za prejete napitnine)
+
+Debet (D): Konto 100xxx (GOTOVINA / POS Terjatve)
+
+Ob izplačilu zaposlenim:
+
+Debet (D): Konto 275xxx / 285xxx
+
+Kredit (K): Konto 100xxx (Blagajniški izdatek) ali 110xxx (TRR)
+
+Režim 3 (Pod nadzorom delodajalca / Storitev - če se uporablja):
+
+Kredit (K): Konto 762xxx (Drugi poslovni prihodki)
+
+Kredit (K): Konto 260xxx (Obveznost za DDV 22 %)
+
+Debet (D): Konto 100xxx (GOTOVINA / POS Terjatve)
+
+3. Integracija z obračunom plač (REK obrazci)
+Ker se kartične in gotovinske napitnine, prejete prek podjetja, po Zakonu o dohodnini (ZDoh-2) obravnavajo kot drug prejemek iz delovnega razmerja, mora POS omogočiti izvoz zbirnih podatkov po zaposlenih v modul za plače (za pravilno odmero dohodnine in prispevkov na REK-O obrazcu).
+
+Naslednji koraki za razvoj / prilagoditev
+Konfiguracija nastavitev DDV: V nastavitvah POS omogočiti stikalo (flag), s katerim računovodstvo za posamezno podjetje izbere, ali se režim Pod nadzorom delodajalca sploh dovoli ali se sistemsko onemogoči.
+
+Priprava specifikacije za temeljnični izvoz: Definirati strukturo JSON / XML datoteke ali API vmesnika za prenos dnevnih iztržkov in napitnin neposredno v glavno knjigo.

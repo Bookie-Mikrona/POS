@@ -1,14 +1,68 @@
 import React, { useState } from "react";
 import { useLocation } from "wouter";
-import { Building2, Plus, ArrowRight, Loader2, AlertCircle, Clock, ShieldCheck, LogOut } from "lucide-react";
+import { Building2, Plus, ArrowRight, Loader2, AlertCircle, Clock, ShieldCheck, LogOut, BookMarked, UtensilsCrossed, Landmark, type LucideIcon } from "lucide-react";
 import { useListCompanies, useCreateCompany, useGetMe, type CompanyWithRole } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useUser, useClerk } from "@clerk/react";
 
+export const MODULE_LABELS = {
+  erp: "Glavna knjiga",
+  pos: "POS gostinstvo",
+  osnovna_sredstva: "Osnovna sredstva",
+} as const;
+
+export const MODULE_ICONS: Record<keyof typeof MODULE_LABELS, LucideIcon> = {
+  erp: BookMarked,
+  pos: UtensilsCrossed,
+  osnovna_sredstva: Landmark,
+};
+
+export function normalizeCompanyTaxNumber(podjetjeDavcna: string): string {
+  return podjetjeDavcna.replace(/^SI/i, "");
+}
+
+function ModuleCard({
+  naziv,
+  davcna,
+  moduleLabel,
+  Icon,
+  onClick,
+}: {
+  naziv: string;
+  davcna: string;
+  moduleLabel: string;
+  Icon: LucideIcon;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group"
+    >
+      <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
+        <div className="h-8 w-8 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-neutral-700" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-medium text-neutral-900 truncate">{naziv}</h3>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs text-neutral-500">{normalizeCompanyTaxNumber(davcna)}</span>
+            <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
+              {moduleLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+      <ArrowRight className="h-5 w-5 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+    </button>
+  );
+}
+
 export default function CompanySelectPage() {
   const [, setLocation] = useLocation();
   const { setActiveCompany } = useCompany();
-  const { data, isLoading: companiesLoading, isFetching: companiesFetching, error } = useListCompanies({ query: { staleTime: 0 } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, isLoading: companiesLoading, isFetching: companiesFetching, error } = useListCompanies({ query: { staleTime: 0 } as any });
   const createCompany = useCreateCompany();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -35,15 +89,27 @@ export default function CompanySelectPage() {
 
   // Zaznaj POS podjetje po vlogi (role začne z "pos_")
   const isPosOnly = (company: CompanyWithRole) => (company.role as string).startsWith("pos_");
-  const erpCompanies = companies.filter(c => !isPosOnly(c));
+  // Zaznaj OS-only podjetje (vrnjeno z API s primarno vlogo os_admin/os_user/os_viewer)
+  const isOsOnly = (company: CompanyWithRole) => (company.role as string).startsWith("os_");
+
+  // Deduplicirani seznam podjetij z OS dostopom (za ločeno OS kartico)
+  const osCardIds = new Set<string>();
+  const osCompanies = companies.filter(c => {
+    const comp = c as CompanyWithRole & { osRole?: string | null; modules?: string[] };
+    const hasOsRole = !!(comp.osRole || isOsOnly(c));
+    const hasOsModule = comp.modules?.includes("osnovna_sredstva") ?? false;
+    if (hasOsRole && hasOsModule && !osCardIds.has(c.id)) {
+      osCardIds.add(c.id);
+      return true;
+    }
+    return false;
+  });
+
+  const erpCompanies = companies.filter(c => !isPosOnly(c) && !isOsOnly(c));
   const posCompanies = companies.filter(c => isPosOnly(c));
-  const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0;
+  // Preusmeri POS-only (brez ERP, brez OS) direktno na /pos/
+  const posOnlyUser = !isLoading && !isSuperAdmin && companies.length > 0 && erpCompanies.length === 0 && osCompanies.length === 0;
 
-
-  const roleLabel = (role: string) => ({
-    owner: "Lastnik", accountant: "Računovodja", viewer: "Pregledovalec",
-    pos_admin: "POS – Admin podjetja", pos_admin_enote: "POS – Admin enote", pos_uporabnik: "POS – Uporabnik",
-  })[role] ?? role;
 
   const handleSelect = (company: CompanyWithRole) => {
     setActiveCompany(company);
@@ -87,6 +153,13 @@ export default function CompanySelectPage() {
       <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-neutral-200/50 overflow-hidden">
         <div className="p-6">
           <div className="flex justify-center mb-6">
+              <img
+                src={`${import.meta.env.BASE_URL}mikrona-logo.png`}
+                alt="Mikrona d.o.o."
+                className="h-16 w-16 object-contain"
+              />
+            </div>
+            <div className="flex justify-center mb-6">
             <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${noAccess ? "bg-amber-100" : "bg-neutral-100"}`}>
               {noAccess
                 ? <Clock className="h-6 w-6 text-amber-600" />
@@ -116,46 +189,45 @@ export default function CompanySelectPage() {
           ) : (
             <div className="space-y-3 mb-8">
               {companies.map(company => {
+                // OS-only podjetja se prikažejo v ločenem OS bloku spodaj
+                if (isOsOnly(company)) return null;
+
                 const posOnly = isPosOnly(company);
                 if (posOnly) {
                   return (
-                    <button
-                      key={company.id}
+                     <ModuleCard
+                      key={`pos-${company.id}`}
+                       naziv={company.naziv}
+                       davcna={company.podjetjeDavcna}
+                       moduleLabel={MODULE_LABELS.pos}
+                       Icon={MODULE_ICONS.pos}
                       onClick={() => { window.location.href = "/pos/"; }}
-                      className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50/40 hover:bg-amber-50 transition-colors group"
-                    >
-                      <div className="flex-1 min-w-0 pr-4">
-                        <h3 className="font-medium text-neutral-900 truncate">{company.naziv}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-neutral-500">{company.podjetjeDavcna}</span>
-                          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                            POS gostinstvo
-                          </span>
-                        </div>
-                      </div>
-                      <ArrowRight className="h-5 w-5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </button>
+                     />
                   );
                 }
                 return (
-                  <button
-                    key={company.id}
+                   <ModuleCard
+                    key={`erp-${company.id}`}
+                     naziv={company.naziv}
+                     davcna={company.podjetjeDavcna}
+                     moduleLabel={MODULE_LABELS.erp}
+                     Icon={MODULE_ICONS.erp}
                     onClick={() => handleSelect(company)}
-                    className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-colors group"
-                  >
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h3 className="font-medium text-neutral-900 truncate">{company.naziv}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-neutral-500">SI{company.podjetjeDavcna}</span>
-                        <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
-                          {roleLabel(company.role)}
-                        </span>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                  </button>
+                   />
                 );
               })}
+
+              {/* Osnovna sredstva — ločena kartica za vsako podjetje z OS dostopom */}
+              {osCompanies.map(company => (
+                 <ModuleCard
+                  key={`os-${company.id}`}
+                   naziv={company.naziv}
+                   davcna={company.podjetjeDavcna}
+                   moduleLabel={MODULE_LABELS.osnovna_sredstva}
+                   Icon={MODULE_ICONS.osnovna_sredstva}
+                  onClick={() => { setActiveCompany(company); setLocation("/osnovna-sredstva"); }}
+                 />
+              ))}
               
               {companies.length === 0 && !isCreating && isSuperAdmin && (
                 <div className="text-center py-8 space-y-3">

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, useClerk, useUser, useSignIn, useSignUp } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser, useSignIn, useSignUp } from '@clerk/react';
+import { setAuthTokenGetter, setOn401Handler } from "@workspace/api-client-react";
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
+import { clerkSlovenian } from "@/lib/clerk-sl";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
 import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -25,8 +27,13 @@ import BancniIzpis from "@/pages/bancni-izpis";
 import Saldakonti from "@/pages/saldakonti";
 import Ddv from "@/pages/ddv";
 import Dimenzije from "@/pages/dimenzije";
+import StroskovnaMesta from "@/pages/stroskovana-mesta";
+import OsnovnaSredstva from "@/pages/osnovna-sredstva";
+import AmortizacijskeSkupine from "@/pages/amortizacijske-skupine";
+import AmortizacijskiObracun from "@/pages/amortizacijski-obracun";
 import Porocila from "@/pages/porocila";
 import PorocilaAnalitika from "@/pages/porocila-dimenzije";
+import ObracunUr from "@/pages/obracun-ur";
 import Nastavitve from "@/pages/nastavitve";
 import AdminPage from "@/pages/admin";
 import AdminSetupPage from "@/pages/admin-setup";
@@ -56,7 +63,7 @@ const clerkAppearance = {
   options: {
     logoPlacement: "inside" as const,
     logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+    logoImageUrl: `${window.location.origin}${basePath}/mikrona-logo.png`,
   },
   variables: {
     colorPrimary: "hsl(220 10% 15%)", // --primary
@@ -99,6 +106,59 @@ const clerkAppearance = {
   },
 };
 
+/**
+ * Globalno nastavi Clerk Bearer token za vse customFetch klice (OS hooks, generirani hooki).
+ * Mora biti znotraj ClerkProvider, kjer useAuth() deluje.
+ *
+ * OPOMBE:
+ * - skipCache: true — AKTIVNO osveževanje: getToken({ skipCache: true }) prisili Clerk,
+ *   da pred vrnitvijo preveri veljavnost JWT in po potrebi osveži prek mreže.
+ *   Dev instance imajo ~60s JWT TTL; brez skipCache getToken() vrne star/null žeton.
+ * - Proaktivno gretje: interval vsakih 45s pokliče getToken({ skipCache: true })
+ *   da žeton nikoli ne poteče med aktivno sejo (pred 60s TTL).
+ * - Cleanup NE nullificira getterja: med Clerk token-refreshom/re-initom se getter
+ *   le POSODOBI na novo getToken funkcijo, nikoli ne postane null. S tem preprečimo
+ *   race condition, kjer queries med cleanup() oknom ne dobijo žetona → 401.
+ * - setOn401Handler: ob 401, ki ga token-refresh retry ne reši (potekla seja),
+ *   preusmeri na / (HomeRedirect bo prikazal landing ali redirect glede na stanje).
+ */
+function ClerkTokenSync() {
+  const { getToken, isSignedIn } = useAuth();
+  const [, setLocation] = useLocation();
+  const isSignedInRef = useRef(isSignedIn);
+
+  // Sinhroniziraj ref — vedno drži trenutno vrednost brez potrebe po re-registraciji handlerja
+  useEffect(() => { isSignedInRef.current = isSignedIn; }, [isSignedIn]);
+
+  // Posodobi getter ob vsaki spremembi getToken — skipCache: true → aktiven refresh.
+  // BREZ cleanup na null: race condition med Clerk re-initom → 401.
+  useEffect(() => {
+    setAuthTokenGetter(() => getToken({ skipCache: true }));
+  }, [getToken]);
+
+  // Proaktivno "gretje" žetona vsake 45s — prepreči potek med neaktivnostjo.
+  // Clerk dev JWT TTL ≈ 60s; grejemo 15s pred potekom da ni presenečenj.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const warm = () => { getToken({ skipCache: true }).catch(() => {}); };
+    warm(); // takoj ob prijavi
+    const id = setInterval(warm, 45_000);
+    return () => clearInterval(id);
+  }, [isSignedIn, getToken]);
+
+  // Globalni 401 handler: ob potekli seji preusmeri na /
+  useEffect(() => {
+    setOn401Handler(() => {
+      if (!isSignedInRef.current) {
+        setLocation("/");
+      }
+    });
+    return () => setOn401Handler(null);
+  }, [setLocation]);
+
+  return null;
+}
+
 function AuthSpinner() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-zinc-50">
@@ -109,17 +169,16 @@ function AuthSpinner() {
 
 function SignInPage() {
   const { isSignedIn, isLoaded } = useUser();
-  const { signIn, isLoaded: signInLoaded } = useSignIn();
   const [, setLocation] = useLocation();
   // Fallback: če Clerk po prijavi ne pokliče routerPush, sami navigiramo
   useEffect(() => {
     if (isLoaded && isSignedIn) setLocation("/");
   }, [isLoaded, isSignedIn, setLocation]);
-  // Pokaži spinner takoj ko je signIn "complete" ali ko je isSignedIn=true —
-  // to prepreči prazen zaslon ki ga Clerk prikaže med tranzicijo stanja
-  const isCompleting =
-    (signInLoaded && signIn?.status === "complete") ||
-    (isLoaded && isSignedIn);
+  // Spinner SAMO kadar je uporabnik dejansko prijavljen in se preusmerja.
+  // signIn?.status === "complete" je bil odstranjen — bil je stagnan Clerkov
+  // client-side resource iz prejšnjega sign-in cikla in se ob odjavi ni resetiral,
+  // kar je povzročilo neskončni spinner pri SPA navigaciji na /sign-in po odjavi.
+  const isCompleting = isLoaded && isSignedIn;
   if (isCompleting) return <AuthSpinner />;
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4">
@@ -130,7 +189,7 @@ function SignInPage() {
 
 function SignUpPage() {
   const { isSignedIn, isLoaded } = useUser();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp();
+  const { signUp } = useSignUp();
   const [, setLocation] = useLocation();
   // Fallback: če Clerk po registraciji ne pokliče routerPush, sami navigiramo
   useEffect(() => {
@@ -139,7 +198,7 @@ function SignUpPage() {
   // Pokaži spinner takoj ko je signUp "complete" ali ko je isSignedIn=true —
   // to prepreči prazen zaslon ki ga Clerk prikaže med tranzicijo stanja
   const isCompleting =
-    (signUpLoaded && signUp?.status === "complete") ||
+    (signUp?.status === "complete") ||
     (isLoaded && isSignedIn);
   if (isCompleting) return <AuthSpinner />;
   return (
@@ -163,11 +222,9 @@ function HomeRedirect() {
   if (!isLoaded) return spinner;
 
   if (isSignedIn) {
-    // POS-only hint: preusmeri takoj, preden se naloži karkoli ERP
-    if (localStorage.getItem("pos_user_hint") === "1") {
-      window.location.replace("/pos/");
-      return spinner;
-    }
+    // Počisti zastarelo zastavico — ne preusmerja več brezpogojno.
+    // POS-only preusmerjanje prevzame company-select (ki pozna dejanske vloge).
+    localStorage.removeItem("pos_user_hint");
 
     // Počakaj na /api/me da super admin ne pristane napačno
     if (isLoading) return spinner;
@@ -310,25 +367,13 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
-      localization={{
-        signIn: {
-          start: {
-            title: "Prijava v sistem",
-            subtitle: "Vnesite vaše podatke za dostop do ERP",
-          },
-        },
-        signUp: {
-          start: {
-            title: "Ustvarite račun",
-            subtitle: "Začnite uporabljati ERP za vašo organizacico",
-          },
-        },
-      }}
+      localization={clerkSlovenian}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <CompanyProvider>
         <QueryClientProvider client={queryClient}>
+          <ClerkTokenSync />
           <ClerkQueryClientCacheInvalidator />
           <SuperAdminGuard>
           <Switch>
@@ -358,10 +403,16 @@ function ClerkProviderWithRoutes() {
           
           <ProtectedRoute path="/ddv" component={Ddv} />
           
+          <ProtectedRoute path="/stroskovana-mesta" component={StroskovnaMesta} />
           <ProtectedRoute path="/dimenzije" component={Dimenzije} />
+
+          <ProtectedRoute path="/osnovna-sredstva" component={OsnovnaSredstva} />
+          <ProtectedRoute path="/amortizacijske-skupine" component={AmortizacijskeSkupine} />
+          <ProtectedRoute path="/amortizacijski-obracun" component={AmortizacijskiObracun} />
           
           <ProtectedRoute path="/porocila" component={Porocila} />
           <ProtectedRoute path="/porocila/dimenzije" component={PorocilaAnalitika} />
+           <ProtectedRoute path="/porocila/obracun-ur" component={ObracunUr} />
           
           <ProtectedRoute path="/nastavitve" component={Nastavitve} />
           <ProtectedRoute path="/admin" component={AdminPage} adminOnly={true} />

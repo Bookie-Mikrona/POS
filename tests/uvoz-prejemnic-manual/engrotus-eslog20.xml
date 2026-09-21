@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Testna datoteka: e-SLOG 2.0 / UBL 2.1 račun
+  Dobavitelj: ENGROTUŠ PODJETJE ZA TRGOVINO, D.O.O. (davčna 87927497)
+  Namen: ročni funkcionalni preizkus uvoza prejemnic v POS modulu
+
+  Zneski (konsistentni — vse se ujema):
+    DDV 9,5 %: osnova 728,20 € | DDV 69,18 € | bruto 797,38 €
+    DDV 22 %:  osnova 343,50 € | DDV 75,57 € | bruto 419,07 €
+    SKUPAJ:    osnova 1.071,70 € | DDV 144,75 € | BRUTO 1.216,45 €
+
+  Posebnosti za preizkus:
+    - Vrstica 4 (Kumina mleta 1kg): 5 % rabat → AllowanceCharge
+    - Dve DDV skupini: 9,5 % (živila) in 22 % (pijača)
+    - Vrstica 9 (Sok Jabolko Natura 1L): IZMIŠLJENI artikel — ne obstaja v šifrantu
+      → uparjanje mora zahtevati ročno akcijo (dialog za nov artikel)
+-->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:si-tucn.eu:2019:eslog:v2.0:1.0</cbc:CustomizationID>
+  <cbc:ProfileID>SI-UBL-2.0</cbc:ProfileID>
+  <cbc:ID>ET-2026/000123</cbc:ID>
+  <cbc:IssueDate>2026-07-31</cbc:IssueDate>
+  <cbc:DueDate>2026-08-31</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>UVOZ-PREIZKUS-2026</cbc:BuyerReference>
+
+  <!-- ── Dobavitelj (AccountingSupplierParty) ─────────────────────────── -->
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName>
+        <cbc:Name>ENGROTUS PODJETJE ZA TRGOVINO, D.O.O.</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Ulica Leona Dobrotinska 1</cbc:StreetName>
+        <cbc:CityName>Celje</cbc:CityName>
+        <cbc:PostalZone>3000</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>SI</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>SI87927497</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>ENGROTUS PODJETJE ZA TRGOVINO, D.O.O.</cbc:RegistrationName>
+        <cbc:CompanyID>87927497</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+
+  <!-- ── Kupec (AccountingCustomerParty) ─────────────────────────────── -->
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyName>
+        <cbc:Name>MIKRONA, d.o.o.</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Testna ulica 1</cbc:StreetName>
+        <cbc:CityName>Ljubljana</cbc:CityName>
+        <cbc:PostalZone>1000</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>SI</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>SI84040653</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+
+  <!-- ── Plačilni pogoji ──────────────────────────────────────────────── -->
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+    <cbc:PaymentDueDate>2026-08-31</cbc:PaymentDueDate>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>SI56043500016340232</cbc:ID>
+      <cac:FinancialInstitutionBranch>
+        <cbc:ID>KBMASI2X</cbc:ID>
+      </cac:FinancialInstitutionBranch>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+
+  <!-- ── Skupni DDV ───────────────────────────────────────────────────── -->
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">144.75</cbc:TaxAmount>
+
+    <!-- DDV skupina 9,5 % — živila -->
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">728.20</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">69.18</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>9.50</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+
+    <!-- DDV skupina 22 % — pijača -->
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">343.50</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">75.57</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>22.00</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+
+  <!-- ── Skupni zneski ────────────────────────────────────────────────── -->
+  <cac:LegalMonetaryTotal>
+    <!-- Vsota vseh LineExtensionAmount (neto, po rabatih na vrsticah) -->
+    <cbc:LineExtensionAmount currencyID="EUR">1071.70</cbc:LineExtensionAmount>
+    <!-- Brez dokumentnih popustov = enako -->
+    <cbc:TaxExclusiveAmount currencyID="EUR">1071.70</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">1216.45</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="EUR">1216.45</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- POSTAVKE                                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+
+  <!-- 1. Govedina 1kg — 100 kom × 4,80 = 480,00 neto | DDV 9,5 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">100</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">480.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Govedina 1kg</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>9.50</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">4.80</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 2. Goveji vampi 1kg — 50 kom × 3,20 = 160,00 neto | DDV 9,5 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">50</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">160.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Goveji vampi 1kg</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>9.50</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">3.20</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 3. Jajce 1kos — 300 kom × 0,18 = 54,00 neto | DDV 9,5 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>3</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">300</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">54.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Jajce 1kos</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>9.50</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">0.18</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 4. Kumina mleta 1kg — 10 kom × 3,60 = 36,00; RABAT 5 % = 1,80 → neto 34,20 | DDV 9,5 % -->
+  <!--    LineExtensionAmount = 34,20 (po rabatu); PriceAmount = 3,60 (pred rabatom)           -->
+  <cac:InvoiceLine>
+    <cbc:ID>4</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">10</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">34.20</cbc:LineExtensionAmount>
+    <cac:AllowanceCharge>
+      <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+      <cbc:AllowanceChargeReasonCode>95</cbc:AllowanceChargeReasonCode>
+      <cbc:AllowanceChargeReason>Rabat</cbc:AllowanceChargeReason>
+      <cbc:MultiplierFactorNumeric>5</cbc:MultiplierFactorNumeric>
+      <cbc:Amount currencyID="EUR">1.80</cbc:Amount>
+      <cbc:BaseAmount currencyID="EUR">36.00</cbc:BaseAmount>
+    </cac:AllowanceCharge>
+    <cac:Item>
+      <cbc:Name>Kumina mleta 1kg</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>9.50</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">3.60</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 5. Coca-cola 0.25l stek. — 200 kom × 0,42 = 84,00 neto | DDV 22 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>5</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">200</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">84.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Coca-cola 0.25l stek.</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>22.00</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">0.42</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 6. Cockta 0,275l stek. — 100 kom × 0,52 = 52,00 neto | DDV 22 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>6</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">100</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">52.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Cockta 0,275l stek.</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>22.00</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">0.52</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 7. Fanta orange 0.25l — 150 kom × 0,40 = 60,00 neto | DDV 22 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>7</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">150</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">60.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Fanta orange 0.25l</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>22.00</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">0.40</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 8. Pivo Laško 3dl stek. — 200 kom × 0,55 = 110,00 neto | DDV 22 % -->
+  <cac:InvoiceLine>
+    <cbc:ID>8</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">200</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">110.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Pivo Laško 3dl stek.</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>22.00</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">0.55</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+  <!-- 9. *** IZMIŠLJENI ARTIKEL *** — NI V ŠIFRANTU → zahteva ročno uparjanje -->
+  <!--    Sok Jabolko Natura 1L — 50 kom × 0,75 = 37,50 neto | DDV 22 %        -->
+  <cac:InvoiceLine>
+    <cbc:ID>9</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">50</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">37.50</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Sok Jabolko Natura 1L</cbc:Name>
+      <cbc:Description>Jabolkov sok, naravni, 1 liter, steklenica</cbc:Description>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>22.00</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">0.75</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="C62">1</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+
+</Invoice>

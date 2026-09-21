@@ -386,7 +386,9 @@ export default function PorocilaAnalitika() {
                 const y = now.getFullYear();
                 const m = now.getMonth() + 1;
                 const firstDay = `${y}-${String(m).padStart(2, "0")}-01`;
-                const lastDay = new Date(y, m, 0).toISOString().slice(0, 10);
+                // Lokalni zadnji dan — ne toISOString(), ki pri UTC+2 da prejšnji dan
+                const _ld = new Date(y, m, 0);
+                const lastDay = `${_ld.getFullYear()}-${String(_ld.getMonth() + 1).padStart(2, "0")}-${String(_ld.getDate()).padStart(2, "0")}`;
                 setDateFrom(firstDay);
                 setDateTo(lastDay);
               }}

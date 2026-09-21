@@ -59,6 +59,14 @@ export default function KontniPlan() {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
+  // Pravice urejanja kontnega plana (spec: ERP in OS vloge urejajo; POS-only samo bere)
+  const canEdit = React.useMemo(() => {
+    const role = (activeCompany?.role as string) ?? "";
+    if (role === "owner" || role === "accountant") return true;
+    if (role === "os_admin" || role === "os_user") return true;
+    return false; // ERP viewer, OS viewer, POS-only
+  }, [activeCompany]);
+
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   
@@ -76,7 +84,7 @@ export default function KontniPlan() {
     isOpenItem: false,
     allowsPosting: true,
     requiresPartner: false,
-    requiresCostCenter: false,
+    costCenterPolicy: "allowed" as "not_allowed" | "allowed" | "required",
     requiresProject: false,
     taxBehavior: "none" as "none" | "output_vat" | "input_vat" | "exempt",
   });
@@ -128,7 +136,7 @@ export default function KontniPlan() {
         isOpenItem: acc.isOpenItem ?? false,
         allowsPosting: acc.allowsPosting ?? true,
         requiresPartner: acc.requiresPartner ?? false,
-        requiresCostCenter: acc.requiresCostCenter ?? false,
+        costCenterPolicy: acc.costCenterPolicy ?? (acc.requiresCostCenter ? "required" : "allowed"),
         requiresProject: acc.requiresProject ?? false,
         taxBehavior: (acc.taxBehavior ?? "none") as "none" | "output_vat" | "input_vat" | "exempt",
       });
@@ -144,7 +152,7 @@ export default function KontniPlan() {
         isOpenItem: false,
         allowsPosting: true,
         requiresPartner: false,
-        requiresCostCenter: false,
+        costCenterPolicy: "allowed",
         requiresProject: false,
         taxBehavior: "none",
       });
@@ -168,7 +176,8 @@ export default function KontniPlan() {
           isOpenItem: formData.isOpenItem,
           allowsPosting: formData.allowsPosting,
           requiresPartner: formData.requiresPartner,
-          requiresCostCenter: formData.requiresCostCenter,
+           costCenterPolicy: formData.costCenterPolicy,
+           requiresCostCenter: formData.costCenterPolicy === "required",
           requiresProject: formData.requiresProject,
           taxBehavior: formData.taxBehavior,
         }
@@ -191,7 +200,8 @@ export default function KontniPlan() {
           isOpenItem: formData.isOpenItem,
           allowsPosting: formData.allowsPosting,
           requiresPartner: formData.requiresPartner,
-          requiresCostCenter: formData.requiresCostCenter,
+           costCenterPolicy: formData.costCenterPolicy,
+           requiresCostCenter: formData.costCenterPolicy === "required",
           requiresProject: formData.requiresProject,
           taxBehavior: formData.taxBehavior,
         }
@@ -251,18 +261,20 @@ export default function KontniPlan() {
           <h1 className="text-3xl font-bold tracking-tight">Kontni plan</h1>
           <p className="text-muted-foreground mt-1">Upravljanje s sintetičnimi in analitičnimi konti</p>
         </div>
-        <div className="flex items-center gap-2">
-          {isEmpty && (
-            <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending}>
-              {seedMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              Uvozi standardni plan
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {isEmpty && (
+              <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending}>
+                {seedMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Uvozi standardni plan
+              </Button>
+            )}
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Dodaj konto
             </Button>
-          )}
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Dodaj konto
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
 
       {isEmpty ? (
@@ -274,10 +286,12 @@ export default function KontniPlan() {
           <p className="text-muted-foreground max-w-md mb-6">
             Začnete lahko z ročnim dodajanjem kontov ali pa z enim klikom uvozite priporočen slovenski kontni plan (SRS).
           </p>
-          <Button size="lg" onClick={handleSeed} disabled={seedMut.isPending}>
-            {seedMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5" />}
-            Uvozi standardni slovenski kontni plan
-          </Button>
+          {canEdit && (
+            <Button size="lg" onClick={handleSeed} disabled={seedMut.isPending}>
+              {seedMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5" />}
+              Uvozi standardni slovenski kontni plan
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -346,20 +360,22 @@ export default function KontniPlan() {
                           {!acc.isActive && <Badge variant="outline" className="text-muted-foreground">Neaktivno</Badge>}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(acc)}>
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8" 
-                              onClick={() => handleToggleStatus(acc)}
-                              title={acc.isActive ? "Deaktiviraj" : "Aktiviraj"}
-                            >
-                              {acc.isActive ? <Square className="h-4 w-4 text-muted-foreground" /> : <Play className="h-4 w-4 text-primary" />}
-                            </Button>
-                          </div>
+                          {canEdit && (
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(acc)}>
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8" 
+                                onClick={() => handleToggleStatus(acc)}
+                                title={acc.isActive ? "Deaktiviraj" : "Aktiviraj"}
+                              >
+                                {acc.isActive ? <Square className="h-4 w-4 text-muted-foreground" /> : <Play className="h-4 w-4 text-primary" />}
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -391,7 +407,15 @@ export default function KontniPlan() {
               <Input 
                 id="code" 
                 value={formData.code} 
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  const firstDigit = code.trim().charAt(0);
+                  const costCenterPolicy =
+                    firstDigit === "4" ? "required"
+                    : ["1", "2", "9"].includes(firstDigit) ? "not_allowed"
+                    : "allowed";
+                  setFormData({ ...formData, code, costCenterPolicy });
+                }}
                 disabled={!!editingAccount}
                 placeholder="Npr. 020"
               />
@@ -475,16 +499,23 @@ export default function KontniPlan() {
                   onCheckedChange={(v) => setFormData({ ...formData, requiresPartner: v })}
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="requiresCostCenter" className="text-sm font-medium">Zahteva stroškovno mesto</Label>
-                  <p className="text-xs text-muted-foreground">Analitično računovodstvo</p>
-                </div>
-                <Switch
-                  id="requiresCostCenter"
-                  checked={formData.requiresCostCenter}
-                  onCheckedChange={(v) => setFormData({ ...formData, requiresCostCenter: v })}
-                />
+              <div className="grid gap-2">
+                <Label htmlFor="costCenterPolicy" className="text-sm font-medium">Stroškovno mesto</Label>
+                <p className="text-xs text-muted-foreground">Določi, ali je STM prepovedano, dovoljeno ali obvezno.</p>
+                <Select
+                  value={formData.costCenterPolicy}
+                  onValueChange={(value) => setFormData({
+                    ...formData,
+                    costCenterPolicy: value as "not_allowed" | "allowed" | "required",
+                  })}
+                >
+                  <SelectTrigger id="costCenterPolicy"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not_allowed">Ni dovoljeno</SelectItem>
+                    <SelectItem value="allowed">Dovoljeno</SelectItem>
+                    <SelectItem value="required">Obvezno</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex items-center justify-between">
                 <div>

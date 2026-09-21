@@ -11,6 +11,7 @@ import {
 import { companiesTable } from "./companies";
 import { counterpartiesTable } from "./counterparties";
 import { invoicesTable } from "./invoices";
+import { purchaseSourceDocumentsTable } from "./purchase-source-documents";
 
 /**
  * Dokumenti za AI/OCR obdelavo.
@@ -49,7 +50,7 @@ export interface ProposedLine {
   accountId?: string;       // Predlagan ID konta (fuzzy match)
   confidence: number;       // 0-1 zaupnost predloga
   /** Vir predloga konta */
-  suggestionSource?: "history" | "pattern";
+  suggestionSource?: "history" | "pattern" | "manual";
   /** Število preteklih potrditev tega konta za istega partnerja (samo za "history") */
   suggestionCount?: number;
 }
@@ -108,15 +109,27 @@ export const documentsTable = pgTable("documents", {
    * Ustvarjeni račun (po potrditvi).
    *
    * INVARIANT: ta FK kaže IZ dokumenta NA račun — ne obratno.
-   * Ker ni onDelete: "cascade", brisanje dokumenta ne izbriše računa ali njegovih vrstic.
+   * Brisanje dokumenta ne izbriše računa ali njegovih vrstic.
    * Račun in knjižbe ostanejo neodvisni od dokumenta ter se uporabljajo
    * kot učni kontekst za prihodnje predloge kontiranja.
-   * Prav tako ni obratnega FK (invoice → document), zato brisanje
-   * računa ne vpliva na dokument.
+   * Brisanje računa je prepovedano, dokler nanj kaže dokument, da dokument
+   * ne more izgubiti učnega konteksta kontiranja.
    */
-  linkedInvoiceId: uuid("linked_invoice_id").references(() => invoicesTable.id),
+  linkedInvoiceId: uuid("linked_invoice_id").references(
+    () => invoicesTable.id,
+    { onDelete: "restrict" },
+  ),
+  /** Kanonična listina; več datotečnih predstavitev lahko kaže na isti vir. */
+  sourceDocumentId: uuid("source_document_id").references(
+    () => purchaseSourceDocumentsTable.id,
+    { onDelete: "restrict" },
+  ),
   /** Naložil (Clerk userId) */
   uploadedByClerkId: text("uploaded_by_clerk_id"),
+  /** Uporabniško ime ali e-pošta, shranjena ob potrditvi */
+  confirmedBy: text("confirmed_by"),
+  /** Uporabniško ime ali e-pošta, shranjena ob zavrnitvi */
+  rejectedBy: text("rejected_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

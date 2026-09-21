@@ -117,7 +117,20 @@ vi.mock("@workspace/api-client-react", () => ({
     data: vivaVracilaRef.current[racunId] ?? [],
     isLoading: false,
   }),
+  useListFursAttempts: () => ({ data: { items: [] }, isLoading: false }),
+  useListUnknownVivaRefunds: () => ({ data: { items: [] }, isLoading: false }),
+  getListUnknownVivaRefundsQueryKey: () => ["/api/terminal/viva/terminal/refunds/unknown"],
+  useResolveUnknownVivaRefund: () => ({ mutate: vi.fn(), isPending: false }),
+  vivaTerminalRefundStatus: vi.fn(),
+  useListCardPaymentAttempts: () => ({ data: { items: [] }, isLoading: false }),
+  useRetryFursBatch: () => ({ mutate: vi.fn(), isPending: false }),
   getListRacuniQueryKey: () => ["/api/racuni"],
+  getListFursAttemptsQueryKey: () => ["/api/racuni/furs-attempts"],
+  getListVivaVracilaQueryKey: (racunId: number) => ["/api/racuni", racunId, "viva-vracila"],
+}));
+
+vi.mock("@/contexts/NapravaContext", () => ({
+  useNaprava: () => ({ napravaKljuc: "test-naprava-kljuc" }),
 }));
 
 vi.mock("@/contexts/NastavitveContext", () => ({
@@ -141,8 +154,8 @@ vi.mock("@/components/PrintReceiptButton", () => ({
   ),
 }));
 
-vi.mock("@/components/ShranjeniKupciSelector", () => ({
-  ShranjeniKupciSelector: () => null,
+vi.mock("@/components/PartnerjiSelector", () => ({
+  PartnerjiSelector: () => null,
 }));
 
 // ── Pomožne funkcije ─────────────────────────────────────────────────────────

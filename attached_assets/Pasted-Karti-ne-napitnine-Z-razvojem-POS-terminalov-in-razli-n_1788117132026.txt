@@ -1,0 +1,61 @@
+Kartične napitnine
+Z razvojem POS terminalov in različnih plačilnih aplikacij se vse več napitnin izvaja digitalno, kar pomeni, da so te napitnine sledljive in evidentirane. Prav tukaj pa nastane največ izzivov za samostojne podjetnike.
+
+Ko napitnina pride na transakcijski račun podjetja ali preko POS terminala, se praviloma šteje kot prihodek podjetja. To velja ne glede na to ali je bila namenjena zaposlenemu ali ne. Kar potrjujejo tudi pojasnila Finančne uprave RS (FURS)..
+
+Izjema obstaja le, če ima podjetnik jasno urejen interni dogovor ter ustrezno evidenco, iz katere izhaja, da napitnina dejansko pripada zaposlenemu in ne podjetju. Brez takšne ureditve lahko hitro pride do napačnega knjiženja, posledično do dodatnih davčnih obveznosti, v skrajnem primeru pa tudi do težav pri davčnem nadzoru.
+
+Primer iz prakse (s.p.)
+Primer 1: gostinski lokal (gotovina)
+Gost pusti 5 € napitnine na mizi
+
+natakar obdrži znesek
+podjetnik nima davčne obveznosti.
+Primer 2: gostinski lokal (kartica)
+Gost plača račun 50 €, napitnina 5 € preko POS
+
+celoten znesek pride na račun podjetja,
+5 € je prihodek,
+ob izplačilu zaposlenemu se obdavči.
+Kaj mora urediti vsak s.p., ki prejema napitnine
+Če pri svoji dejavnosti prejemaš napitnine, je zelo pomembno, da imaš to področje jasno urejeno že vnaprej. Napitnine namreč niso le “dodatek”, ampak lahko hitro postanejo tudi davčno relevantni prihodki, zato mora biti sistem pregleden in usklajen z zakonodajo, saj imajo lahko različni načini prejema različne davčne posledice (več o tem v članku Katere zakone mora poznati vsak samostojni podjetnik).
+
+Najprej je ključno, da določiš osnovna pravila, kako se z napitninami ravna. Jasno mora biti ali napitnine prejemajo zaposleni neposredno ali pa gredo preko podjetja in se kasneje razdelijo. Od tega je namreč odvisna tudi njihova davčna obravnava.
+
+Poleg tega je pomembno, da vodiš ustrezno evidenco. To pomeni, da imaš pregled nad tem, kako se napitnine beležijo in komu so dejansko namenjene oziroma izplačane. Še posebej pri kartičnih napitninah je priporočljivo urediti interne dogovore, kjer je jasno določeno, ali napitnina pripada zaposlenim in na kakšen način se jim izplača.
+
+Za pravilno poslovanje je nujno tudi sodelovanje z računovodstvom, saj mora biti zagotovljeno pravilno knjiženje napitnin ter ustrezna davčna obravnava glede na način prejema.
+
+Za boljšo preglednost lahko ključne korake povzameš takole:
+
+določitev jasnih pravil (neposredno zaposlenim ali preko podjetja),
+
+vodenje evidence napitnin (beleženje in prejemniki),
+
+ureditev internih dogovorov, predvsem pri kartičnih napitninah,
+
+uskladitev z računovodstvom (knjiženje in davčna obravnava).
+
+Če sistem napitnin ni ustrezno urejen, lahko to hitro vodi v napačno evidentiranje prihodkov, dodatne davčne obveznosti ali celo kazni v primeru nadzora. Zato je priporočljivo, da podjetnik temu področju nameni dovolj pozornosti že na začetku poslovanja.
+
+Napitnine postajajo del poslovnega modela
+Danes napitnine niso več le v gostinstvu.
+
+Pojavljajo se tudi pri:
+
+dostavi hrane,
+
+taksi prevozih,
+
+kozmetiki in frizerstvu,...
+
+Z digitalizacijo jih je lažje pobrati, težje pa “spregledati” z davčnega vidika. Za podjetnike to pomeni več odgovornosti.
+
+Zaključek
+Pri napitninah je ključno predvsem to, na kakšen način so prejete, saj prav način prejema določa njihovo davčno obravnavo. Če pride neposredno do zaposlenega, praviloma ni obdavčena, če pa gre preko podjetja, postane del prihodkov in davčne obravnave.
+
+Zato je ključno, da ima vsak s.p. jasno urejena pravila in evidenco napitnin ter usklajeno računovodsko prakso. Več o pravilnem vodenju prihodkov ter davčnih obveznostih pri poslovanju si lahko preberete na strani Davki in prispevki za s.p., kjer so zbrane ključne informacije za urejeno in skladno poslovanje.
+
+Hkrati pa ne pozabimo, da napitnina ostaja pozitiven signal zadovoljstva strank in lahko pomembno prispeva k motivaciji ekipe.
+
+Najboljši pristop podjetnika je, da napitnine uredi pravočasno in pregledno - kot del svojega poslovanja.

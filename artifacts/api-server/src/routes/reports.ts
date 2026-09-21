@@ -262,6 +262,15 @@ const SRS_EXPECTED_TYPES: Record<string, string> = {
   "9": "equity",
 };
 
+/**
+ * The five classification values that the report filter conditions recognise.
+ * Any effectiveType outside this set cannot be placed in any report section and
+ * MUST go to the explicit "unclassified" bucket — never silently dropped.
+ */
+const VALID_REPORT_TYPES = new Set<string>([
+  "asset", "liability", "equity", "expense", "revenue",
+]);
+
 export interface AccountTypeWarning {
   accountId: string;
   code: string;
@@ -273,28 +282,73 @@ export interface AccountTypeWarning {
 }
 
 /**
- * Resolve the effective type used for report classification.
- *
- * The stored `type` is the primary source of truth.  When it conflicts with the
- * SRS-standard type for the account's code digit we fall back to the SRS digit
- * mapping so the account is always placed in the correct report section rather
- * than being silently excluded.  The mismatch is surfaced as a warning so the
- * accountant can fix the master data.
+ * An account whose effective type could not be resolved to any of the five
+ * recognised report classification values.  Returned in a dedicated
+ * `unclassifiedAccounts` array so the caller can render an explicit
+ * "Nerazvrščeno" section — books are NEVER silently dropped from totals.
  */
-function resolveEffectiveType(acct: AccountBalance): string {
+export interface UnclassifiedAccount {
+  accountId: string;
+  code: string;
+  name: string;
+  /** Value stored in the DB (may be null in practice despite the schema type). */
+  storedType: string | null;
+  /** Human-readable explanation of why classification failed. */
+  reason: string;
+  debit: number;
+  credit: number;
+  /** Raw net (debit − credit).  Natural direction is unknown for unclassified accounts. */
+  net: number;
+}
+
+/** Build a human-readable reason for an unclassifiable account. */
+function classifyUnclassifiedReason(acct: AccountBalance): string {
   const digit = acct.code.charAt(0);
   const srsType = SRS_EXPECTED_TYPES[digit];
-  // If the SRS standard disagrees with the stored type, the code digit wins.
-  if (srsType && srsType !== acct.type) return srsType;
-  return acct.type;
+  if (!acct.type || acct.type.trim() === "") {
+    return srsType
+      ? "Manjka tip konta"
+      : "Manjka tip konta in koda se ne začne s cifro 0–9";
+  }
+  if (!srsType) {
+    return `Koda konta se ne začne s cifro 0–9 (shranjeni tip: "${acct.type}")`;
+  }
+  return `Neznan tip konta: "${acct.type}"`;
+}
+
+/**
+ * Resolve the effective type used for report classification.
+ *
+ * Priority rules:
+ *  1. Numeric code prefix (0–9): if SRS mapping differs from stored type → SRS wins.
+ *  2. Stored type is already one of the five recognised values → use as-is.
+ *  3. Everything else → return the explicit sentinel "unclassified".
+ *     The caller MUST route such accounts to a visible bucket; they must NEVER
+ *     be silently dropped from the report.
+ *
+ * Exported for unit testing.
+ */
+export function resolveEffectiveType(acct: { code: string; type: string | null }): string {
+  const digit = acct.code.charAt(0);
+  const srsType = SRS_EXPECTED_TYPES[digit];
+
+  // Rule 1: numeric code prefix → SRS standard overrides wrong / missing stored type
+  if (srsType !== undefined && srsType !== (acct.type ?? "")) return srsType;
+
+  // Rule 2: stored type is already a valid report-filter value
+  if (VALID_REPORT_TYPES.has(acct.type ?? "")) return acct.type!;
+
+  // Rule 3: cannot classify — explicit sentinel, never silent loss
+  return "unclassified";
 }
 
 /**
  * Compute the signed balance using the EFFECTIVE type (not the stored type).
- * Necessary when the stored type disagrees with the SRS classification because
- * aggregateBalances signed the balance according to the stored type convention.
+ * For "unclassified" accounts the natural direction is unknown; we return the
+ * raw debit − credit so the caller can display both sides explicitly.
  */
 function balanceForType(acct: AccountBalance, effectiveType: string): number {
+  if (effectiveType === "unclassified") return acct.debit - acct.credit;
   return isDebitNormal(effectiveType)
     ? acct.debit - acct.credit
     : acct.credit - acct.debit;
@@ -302,7 +356,7 @@ function balanceForType(acct: AccountBalance, effectiveType: string): number {
 
 // ── Balance sheet ─────────────────────────────────────────────────────────────
 
-function buildBalanceSheet(accounts: AccountBalance[]) {
+export function buildBalanceSheet(accounts: AccountBalance[]) {
   // Resolve effective classification for every account; recompute balance sign
   // so that SRS-overridden accounts display correctly in their new section.
   const resolved = accounts.map((a) => {
@@ -310,10 +364,12 @@ function buildBalanceSheet(accounts: AccountBalance[]) {
     return { ...a, effectiveType, balance: balanceForType(a, effectiveType) };
   });
 
-  const assets   = resolved.filter((a) => a.effectiveType === "asset");
+  const assets     = resolved.filter((a) => a.effectiveType === "asset");
   const liabEquity = resolved.filter(
     (a) => a.effectiveType === "liability" || a.effectiveType === "equity",
   );
+  // Explicitly unclassifiable — collected here, NEVER silently dropped
+  const unclassifiedRaw = resolved.filter((a) => a.effectiveType === "unclassified");
 
   const aktivaSections = buildSections(assets);
   const pasivaSections = buildSections(liabEquity);
@@ -321,8 +377,8 @@ function buildBalanceSheet(accounts: AccountBalance[]) {
   const totalAktiva = aktivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
   const totalPasiva = pasivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
 
-  // Warnings are limited to accounts that actually appear in THIS report (non-zero balance)
-  // and whose stored type was overridden by the SRS code-digit rule.
+  // Warnings: accounts that DID appear in the report but whose stored type
+  // was overridden by the SRS code-digit rule.
   const inReport = [...assets, ...liabEquity].filter((a) => a.balance !== 0);
   const typeWarnings: AccountTypeWarning[] = inReport
     .filter((a) => a.effectiveType !== a.type)
@@ -334,16 +390,31 @@ function buildBalanceSheet(accounts: AccountBalance[]) {
       effectiveType: a.effectiveType,
     }));
 
+  // Unclassified: accounts that could NOT be placed in any section
+  const unclassifiedAccounts: UnclassifiedAccount[] = unclassifiedRaw
+    .filter((a) => a.debit !== 0 || a.credit !== 0)
+    .map((a) => ({
+      accountId: a.accountId,
+      code: a.code,
+      name: a.name,
+      storedType: a.type ?? null,
+      reason: classifyUnclassifiedReason(a),
+      debit: a.debit,
+      credit: a.credit,
+      net: a.debit - a.credit,
+    }));
+
   return {
     aktiva: { sections: aktivaSections, total: totalAktiva.toFixed(2) },
     pasiva: { sections: pasivaSections, total: totalPasiva.toFixed(2) },
     typeWarnings,
+    unclassifiedAccounts,
   };
 }
 
 // ── Income statement ──────────────────────────────────────────────────────────
 
-function buildIncomeStatement(accounts: AccountBalance[]) {
+export function buildIncomeStatement(accounts: AccountBalance[]) {
   // Same SRS-consistent classification as buildBalanceSheet.
   const resolved = accounts.map((a) => {
     const effectiveType = resolveEffectiveType(a);
@@ -352,6 +423,8 @@ function buildIncomeStatement(accounts: AccountBalance[]) {
 
   const revenues = resolved.filter((a) => a.effectiveType === "revenue");
   const expenses = resolved.filter((a) => a.effectiveType === "expense");
+  // Explicitly unclassifiable — collected here, NEVER silently dropped
+  const unclassifiedRaw = resolved.filter((a) => a.effectiveType === "unclassified");
 
   const revenueSections = buildSections(revenues);
   const expenseSections = buildSections(expenses);
@@ -372,11 +445,26 @@ function buildIncomeStatement(accounts: AccountBalance[]) {
       effectiveType: a.effectiveType,
     }));
 
+  // Unclassified: accounts that could NOT be placed in any section
+  const unclassifiedAccounts: UnclassifiedAccount[] = unclassifiedRaw
+    .filter((a) => a.debit !== 0 || a.credit !== 0)
+    .map((a) => ({
+      accountId: a.accountId,
+      code: a.code,
+      name: a.name,
+      storedType: a.type ?? null,
+      reason: classifyUnclassifiedReason(a),
+      debit: a.debit,
+      credit: a.credit,
+      net: a.debit - a.credit,
+    }));
+
   return {
     revenue:  { sections: revenueSections,  total: totalRevenue.toFixed(2) },
     expenses: { sections: expenseSections, total: totalExpenses.toFixed(2) },
     netResult: netResult.toFixed(2),
     typeWarnings,
+    unclassifiedAccounts,
   };
 }
 

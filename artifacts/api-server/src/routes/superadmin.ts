@@ -7,6 +7,8 @@ import { eq, inArray } from "drizzle-orm";
 import { db, companiesTable, posUporabnikiTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
+import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
+import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
 
 const router: IRouter = Router();
 
@@ -219,16 +221,22 @@ router.post("/superadmin/podjetja", ...superAdminStack, async (req: Request, res
     res.status(409).json({ error: "Podjetje s to davčno številko že obstaja." });
     return;
   }
-  const [company] = await db.insert(companiesTable).values({
-    podjetjeDavcna: cleanDavcna,
-    naziv: naziv.trim(),
-    kratekNaziv: kratekNaziv?.trim() || null,
-    naslov: naslov?.trim() || null,
-    postnaStevika: postnaStevika?.trim() || null,
-    kraj: kraj?.trim() || null,
-    maticnaStevilka: maticnaStevilka?.trim() || null,
-    trr: trr?.length ? trr : null,
-  }).returning();
+  const company = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(companiesTable).values({
+      podjetjeDavcna: cleanDavcna,
+      naziv: naziv.trim(),
+      kratekNaziv: kratekNaziv?.trim() || null,
+      naslov: naslov?.trim() || null,
+      postnaStevika: postnaStevika?.trim() || null,
+      kraj: kraj?.trim() || null,
+      maticnaStevilka: maticnaStevilka?.trim() || null,
+      trr: trr?.length ? trr : null,
+    }).returning();
+
+    await seedDefaultChartOfAccounts(created.id, tx);
+    await seedDefaultAccountSettings(created.id, tx);
+    return created;
+  });
   res.status(201).json(company);
 });
 

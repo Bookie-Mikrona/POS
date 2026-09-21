@@ -3,12 +3,26 @@
  * Dostopno samo za super adminov (env SUPER_ADMIN_IDS).
  */
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, desc, and } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable, blagajneTable, poslovniProstoriTable } from "@workspace/db";
+import { eq, desc, and, inArray, sql } from "drizzle-orm";
+import { db, accountsTable, companiesTable, accountingRolesTable, companyModulesTable, systemSettingsTable, posUporabnikiTable, enoteTable, blagajneTable, poslovniProstoriTable, osRolesTable, invoicesTable, journalEntriesTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
-import { CreateCompanyBody, AssignRoleBody } from "@workspace/api-zod";
+import {
+  AssignRoleBody,
+  CreateCompanyBody,
+  GetAdminEventTransferDiagnosticsParams,
+  GetAdminEventTransferDiagnosticsQueryParams,
+  GetAdminEventTransferDiagnosticsResponse,
+  GetAdminEventTransferDetailParams,
+  GetAdminEventTransferDetailResponse,
+  GetAdminEventTransferMovementDetailParams,
+  GetAdminEventTransferMovementDetailResponse,
+} from "@workspace/api-zod";
 import { clerkClient } from "@clerk/express";
+import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
+import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
+import { loadEventTransferDiagnostics } from "../lib/loadEventTransferDiagnostics";
+import { loadEventTransferDetail, loadEventTransferMovementDetail } from "../lib/loadEventTransferDetail";
 
 const router: IRouter = Router();
 
@@ -85,15 +99,21 @@ router.post("/companies", async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  const [company] = await db
-    .insert(companiesTable)
-    .values(parsed.data)
-    .returning();
+  const company = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(companiesTable)
+      .values(parsed.data)
+      .returning();
+
+    await seedDefaultChartOfAccounts(created.id, tx);
+    await seedDefaultAccountSettings(created.id, tx);
+    return created;
+  });
 
   res.status(201).json(company);
 });
 
-// DELETE /admin/companies/:id — izbriši podjetje (kaskadno počisti vloge, module)
+// DELETE /admin/companies/:id — izbriši samo podjetje brez finančnih zapisov.
 router.delete("/companies/:id", async (req: Request, res: Response): Promise<void> => {
   const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
@@ -109,8 +129,93 @@ router.delete("/companies/:id", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
+  const result = await db.transaction(async (tx) => {
+    const [company] = await tx
+      .select({ id: companiesTable.id })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1)
+      .for("update");
+    if (!company) return { status: "not_found" as const };
+
+    const [[invoiceSummary], [journalSummary]] = await Promise.all([
+      tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(invoicesTable)
+        .where(eq(invoicesTable.companyId, companyId)),
+      tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(journalEntriesTable)
+        .where(eq(journalEntriesTable.companyId, companyId)),
+    ]);
+    const invoiceCount = invoiceSummary?.count ?? 0;
+    const journalEntryCount = journalSummary?.count ?? 0;
+
+    if (invoiceCount > 0 || journalEntryCount > 0) {
+      return {
+        status: "financial_records" as const,
+        invoiceCount,
+        journalEntryCount,
+      };
+    }
+
+    await tx.delete(companiesTable).where(eq(companiesTable.id, companyId));
+    return { status: "deleted" as const };
+  });
+
+  if (result.status === "not_found") {
+    res.status(404).json({ error: "Podjetje ni najdeno." });
+    return;
+  }
+  if (result.status === "financial_records") {
+    res.status(409).json({
+      error: "Podjetja ni mogoče izbrisati, ker vsebuje finančne zapise. Računi in temeljnice morajo ostati ohranjeni zaradi revizijske sledi.",
+      code: "COMPANY_HAS_ACCOUNTING_RECORDS",
+      invoiceCount: result.invoiceCount,
+      journalEntryCount: result.journalEntryCount,
+      deletionBlocked: true,
+    });
+    return;
+  }
+
   res.status(204).send();
+});
+
+// DELETE /admin/companies/:id/accounts — trajno odstrani celotni, še neuporabljeni kontni plan.
+// PostgreSQL FK omejitve zagotovijo, da se ob obstoječi knjižbi ali nastavitvi ne izbriše nič.
+router.delete("/companies/:id/accounts", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const [company] = await db
+    .select({ id: companiesTable.id })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (!company) {
+    res.status(404).json({ error: "Podjetje ni najdeno." });
+    return;
+  }
+
+  try {
+    const deleted = await db
+      .delete(accountsTable)
+      .where(eq(accountsTable.companyId, companyId))
+      .returning({ id: accountsTable.id });
+
+    res.json({ deletedCount: deleted.length });
+  } catch (error: unknown) {
+    const pgCode = typeof error === "object" && error !== null && "code" in error
+      ? (error as { code?: string }).code
+      : undefined;
+    if (pgCode === "23503") {
+      res.status(409).json({
+        error: "Kontnega plana ni mogoče izbrisati, ker so konti že uporabljeni v knjižbah ali nastavitvah.",
+      });
+      return;
+    }
+    req.log.error({ error, companyId }, "Brisanje kontnega plana ni uspelo");
+    res.status(500).json({ error: "Brisanje kontnega plana ni uspelo." });
+  }
 });
 
 // ── Moduli ────────────────────────────────────────────────────────────────────
@@ -121,8 +226,8 @@ router.post("/companies/:id/modules", async (req: Request, res: Response): Promi
   const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { module } = req.body as { module?: string };
 
-  if (!module || !["erp", "pos"].includes(module)) {
-    res.status(400).json({ error: "Neveljaven modul. Dovoljeni: erp, pos" });
+  if (!module || !["erp", "pos", "osnovna_sredstva"].includes(module)) {
+    res.status(400).json({ error: "Neveljaven modul. Dovoljeni: erp, pos, osnovna_sredstva" });
     return;
   }
 
@@ -152,12 +257,78 @@ router.delete("/companies/:id/modules/:module", async (req: Request, res: Respon
   res.status(204).send();
 });
 
+// ── Osnovna sredstva — dostop (os_roles) ─────────────────────────────────────
+
+// GET /admin/companies/:id/os-roles — seznam OS uporabnikov za podjetje
+router.get("/companies/:id/os-roles", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  try {
+    const rows = await db
+      .select({
+        id: osRolesTable.id,
+        clerkUserId: osRolesTable.clerkUserId,
+        role: osRolesTable.role,
+        createdAt: osRolesTable.createdAt,
+      })
+      .from(osRolesTable)
+      .where(eq(osRolesTable.companyId, companyId));
+    res.json({ users: rows });
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[admin] GET os-roles napaka:", detail);
+    res.status(500).json({ error: "Napaka pri branju OS dostopov.", detail });
+  }
+});
+
+// POST /admin/companies/:id/os-roles — dodeli OS vlogo
+router.post("/companies/:id/os-roles", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { clerkUserId, role } = req.body as { clerkUserId?: string; role?: string };
+  if (!clerkUserId || !role) {
+    res.status(400).json({ error: "Manjkata clerkUserId ali role." }); return;
+  }
+  if (!["os_admin", "os_user", "os_viewer"].includes(role)) {
+    res.status(400).json({ error: "Neveljavna vloga. Dovoljene: os_admin, os_user, os_viewer." }); return;
+  }
+  try {
+    const [row] = await db
+      .insert(osRolesTable)
+      .values({ clerkUserId, companyId, role: role as "os_admin" | "os_user" | "os_viewer" })
+      .onConflictDoUpdate({
+        target: [osRolesTable.clerkUserId, osRolesTable.companyId],
+        set: { role: role as "os_admin" | "os_user" | "os_viewer", updatedAt: sql`now()` },
+      })
+      .returning();
+    res.json(row);
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[admin] POST os-roles napaka:", detail, { companyId, clerkUserId, role });
+    res.status(500).json({ error: "Napaka pri dodeljevanju OS vloge.", detail });
+  }
+});
+
+// DELETE /admin/companies/:id/os-roles/:clerkUserId — odstrani OS dostop
+router.delete("/companies/:id/os-roles/:clerkUserId", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const clerkUserId = Array.isArray(req.params.clerkUserId) ? req.params.clerkUserId[0] : req.params.clerkUserId;
+  try {
+    await db
+      .delete(osRolesTable)
+      .where(and(eq(osRolesTable.clerkUserId, clerkUserId), eq(osRolesTable.companyId, companyId)));
+    res.status(204).send();
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[admin] DELETE os-roles napaka:", detail);
+    res.status(500).json({ error: "Napaka pri odstranitvi OS dostopa.", detail });
+  }
+});
+
 // ── Uporabniki ────────────────────────────────────────────────────────────────
 
-// GET /admin/users — VSI Clerk uporabniki + njihove vloge v podjetjih (ERP + POS)
+// GET /admin/users — VSI Clerk uporabniki + njihove vloge v podjetjih (ERP + POS + OS)
 router.get("/users", async (_req: Request, res: Response): Promise<void> => {
-  // 1. Hkrati pridobimo Clerk userje, ERP vloge in POS vloge
-  const [clerkResponse, erpRows, posRows] = await Promise.all([
+  // 1. Hkrati pridobimo Clerk userje, ERP vloge, POS vloge in OS vloge
+  const [clerkResponse, erpRows, posRows, osRows] = await Promise.all([
     clerkClient.users.getUserList({ limit: 500, orderBy: "-created_at" }),
     db
       .select({
@@ -181,10 +352,20 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
       .from(posUporabnikiTable)
       .innerJoin(companiesTable, eq(companiesTable.id, posUporabnikiTable.companyId))
       .where(eq(posUporabnikiTable.aktiven, true)),
+    db
+      .select({
+        clerkUserId: osRolesTable.clerkUserId,
+        companyId: osRolesTable.companyId,
+        companyNaziv: companiesTable.naziv,
+        role: osRolesTable.role,
+        createdAt: osRolesTable.createdAt,
+      })
+      .from(osRolesTable)
+      .innerJoin(companiesTable, eq(companiesTable.id, osRolesTable.companyId)),
   ]);
 
   // 2. Grupiraj vloge po Clerk userju
-  const rolesMap = new Map<string, { companyId: string; naziv: string; role: string; sistem: "erp" | "pos"; createdAt: Date }[]>();
+  const rolesMap = new Map<string, { companyId: string; naziv: string; role: string; sistem: "erp" | "pos" | "os"; createdAt: Date }[]>();
 
   for (const row of erpRows) {
     if (!rolesMap.has(row.clerkUserId)) rolesMap.set(row.clerkUserId, []);
@@ -209,6 +390,21 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
         role: row.vloga ?? "blagajnik",
         sistem: "pos",
         createdAt: row.ustvarjeno ?? new Date(),
+      });
+    }
+  }
+
+  for (const row of osRows) {
+    if (!rolesMap.has(row.clerkUserId)) rolesMap.set(row.clerkUserId, []);
+    const obstoječi = rolesMap.get(row.clerkUserId)!;
+    const jeŽe = obstoječi.some((r) => r.companyId === row.companyId && r.sistem === "os");
+    if (!jeŽe) {
+      obstoječi.push({
+        companyId: row.companyId,
+        naziv: row.companyNaziv,
+        role: row.role,
+        sistem: "os",
+        createdAt: row.createdAt,
       });
     }
   }
@@ -264,14 +460,14 @@ router.get("/users", async (_req: Request, res: Response): Promise<void> => {
 
 // POST /admin/users/:clerkUserId/ban — blokiraj prijavo uporabnika
 router.post("/users/:clerkUserId/ban", async (req: Request, res: Response): Promise<void> => {
-  const { clerkUserId } = req.params;
+  const clerkUserId = req.params.clerkUserId as string;
   await clerkClient.users.banUser(clerkUserId);
   res.json({ ok: true });
 });
 
 // POST /admin/users/:clerkUserId/unban — odblokiraj prijavo uporabnika
 router.post("/users/:clerkUserId/unban", async (req: Request, res: Response): Promise<void> => {
-  const { clerkUserId } = req.params;
+  const clerkUserId = req.params.clerkUserId as string;
   await clerkClient.users.unbanUser(clerkUserId);
   res.json({ ok: true });
 });
@@ -299,7 +495,7 @@ function mapActivity(s: { id: string; clientId: string; userId: string; status: 
 
 // GET /admin/users/:clerkUserId/sessions — vse seje (vsa stanja) enega uporabnika
 router.get("/users/:clerkUserId/sessions", async (req: Request, res: Response): Promise<void> => {
-  const { clerkUserId } = req.params;
+  const clerkUserId = req.params.clerkUserId as string;
 
   // Pridobi vse seje (brez filtra statusa = aktivne + historične)
   const resp = await clerkClient.sessions.getSessionList({
@@ -341,7 +537,7 @@ router.get("/sessions", async (_req: Request, res: Response): Promise<void> => {
 
 // DELETE /admin/sessions/:sessionId — prekini eno sejo
 router.delete("/sessions/:sessionId", async (req: Request, res: Response): Promise<void> => {
-  const { sessionId } = req.params;
+  const sessionId = req.params.sessionId as string;
   await clerkClient.sessions.revokeSession(sessionId);
   res.json({ ok: true });
 });
@@ -424,7 +620,7 @@ router.get("/devices", async (_req: Request, res: Response): Promise<void> => {
 
 // DELETE /admin/clients/:clientId/sessions — prekini vse aktivne seje naprave
 router.delete("/clients/:clientId/sessions", async (req: Request, res: Response): Promise<void> => {
-  const { clientId } = req.params;
+  const clientId = req.params.clientId as string;
 
   // Poiščemo vse aktivne seje za ta clientId
   const sessionsResp = await clerkClient.sessions
@@ -438,6 +634,24 @@ router.delete("/clients/:clientId/sessions", async (req: Request, res: Response)
   );
 
   res.json({ ok: true, razveljavljenoSej: sessionsResp.data.length });
+});
+
+// GET /admin/companies/:id/roles — seznam ERP uporabnikov za podjetje
+router.get("/companies/:id/roles", async (req: Request, res: Response): Promise<void> => {
+  const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const roles = await db
+    .select({
+      id: accountingRolesTable.id,
+      clerkUserId: accountingRolesTable.clerkUserId,
+      role: accountingRolesTable.role,
+      createdAt: accountingRolesTable.createdAt,
+    })
+    .from(accountingRolesTable)
+    .where(eq(accountingRolesTable.companyId, companyId))
+    .orderBy(accountingRolesTable.createdAt);
+
+  res.json({ users: roles });
 });
 
 // POST /admin/companies/:id/roles — dodeli dostop do podjetja kateremukoli userju
@@ -562,10 +776,15 @@ router.post("/system/setup", async (req: Request, res: Response): Promise<void> 
     if (dup) {
       company = dup;
     } else {
-      const [created] = await db
-        .insert(companiesTable)
-        .values(parsed2.data)
-        .returning();
+      const created = await db.transaction(async (tx) => {
+        const [newCompany] = await tx
+          .insert(companiesTable)
+          .values(parsed2.data)
+          .returning();
+        await seedDefaultChartOfAccounts(newCompany.id, tx);
+        await seedDefaultAccountSettings(newCompany.id, tx);
+        return newCompany;
+      });
       company = created;
     }
   }
@@ -608,6 +827,54 @@ function razclenitNaslov(naslov: string): { ulica: string | null; postnaStevilka
 }
 
 // ── POS uporabniki (admin panel) ──────────────────────────────────────────────
+
+// GET /admin/companies/:id/event-transfer-diagnostics — strogo read-only pregled
+router.get("/companies/:id/event-transfer-diagnostics", async (req: Request, res: Response): Promise<void> => {
+  const params = GetAdminEventTransferDiagnosticsParams.safeParse(req.params);
+  const query = GetAdminEventTransferDiagnosticsQueryParams.safeParse(req.query);
+  if (!params.success || !query.success) {
+    res.status(400).json({ error: "Neveljaven obseg diagnostike" });
+    return;
+  }
+
+  res.setHeader("Cache-Control", "no-store");
+  const report = await loadEventTransferDiagnostics(params.data.id, query.data.unitId);
+  res.json(GetAdminEventTransferDiagnosticsResponse.parse(report));
+});
+
+// GET /admin/companies/:id/event-transfer-diagnostics/events/:eventId — read-only podrobnosti
+router.get("/companies/:id/event-transfer-diagnostics/events/:eventId", async (req: Request, res: Response): Promise<void> => {
+  const params = GetAdminEventTransferDetailParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Neveljaven dogodek" });
+    return;
+  }
+
+  res.setHeader("Cache-Control", "no-store");
+  const detail = await loadEventTransferDetail(params.data.id, params.data.eventId);
+  if (!detail) {
+    res.status(404).json({ error: "Dogodek ni najden" });
+    return;
+  }
+  res.json(GetAdminEventTransferDetailResponse.parse(detail));
+});
+
+// GET /admin/companies/:id/event-transfer-diagnostics/movements/:movementId — read-only sled premika
+router.get("/companies/:id/event-transfer-diagnostics/movements/:movementId", async (req: Request, res: Response): Promise<void> => {
+  const params = GetAdminEventTransferMovementDetailParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Neveljaven premik zaloge" });
+    return;
+  }
+
+  res.setHeader("Cache-Control", "no-store");
+  const detail = await loadEventTransferMovementDetail(params.data.id, params.data.movementId);
+  if (!detail) {
+    res.status(404).json({ error: "Premik zaloge ni najden" });
+    return;
+  }
+  res.json(GetAdminEventTransferMovementDetailResponse.parse(detail));
+});
 
 // GET /admin/companies/:id/enote — seznam enot za podjetje (za dropdown), vključno s poslovnim prostorom
 router.get("/companies/:id/enote", async (req: Request, res: Response): Promise<void> => {
@@ -927,6 +1194,7 @@ router.get("/podjetje/poisci", async (req: Request, res: Response): Promise<void
         NazivKratek?: string;
         Naslov?: string;
         DavcnaStevilkaKratka?: string;
+        TransakcijskiRacuni?: Array<{ TRRSurovi?: string; Zaprt?: boolean; Banka?: string }> | null;
       }> | null;
     };
 

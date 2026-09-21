@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, screen, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
-import Order from "./Order";
+import Order, { selectOrderKdsNalogi } from "./Order";
 
 // ── Vzorčni podatki ──────────────────────────────────────────────────────────
 
@@ -40,6 +40,7 @@ const mockPicaBrezDodatkov = {
   privzetiModifikatorji: [],
   modSkupine: [],   // <-- ključno: brez modifikatorske skupine → direktno dodajanje
 };
+const mockArtikli = [mockPicaBrezDodatkov];
 
 const mockNarocilo = {
   id: NAROCILO_ID,
@@ -49,7 +50,7 @@ const mockNarocilo = {
   status: "odprto",
   skupaj: 0,
   ddvNeskladje: null,
-  postavke: [],
+  postavke: [] as Array<Record<string, unknown>>,
 };
 
 const mockKategorija = { id: 1, ime: "Pice", barva: null, vrstniRed: 1 };
@@ -57,11 +58,19 @@ const mockKategorija = { id: 1, ime: "Pice", barva: null, vrstniRed: 1 };
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
 const mockAddPostavkaMutate = vi.hoisted(() => vi.fn());
+const mockUpdatePostavkaMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
 
-vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })));
+vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve({
+  ok: true,
+  json: () => Promise.resolve(
+    String(url).includes("/api/ai/glasovni-ukaz")
+      ? { postavke: [{ artikelId: mockPicaBrezDodatkov.id, kolicina: 1, modifikatorji: [] }] }
+      : {},
+  ),
+})));
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -79,6 +88,11 @@ vi.mock("@/lib/autoStartGuard", () => ({
 vi.mock("@/contexts/AutoStartContext", () => ({
   useAutoStartRef: () => ({ current: { blocked: false, block: vi.fn(), unblock: vi.fn() } }),
   AutoStartProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/contexts/HappyHourContext", () => ({
+  useHappyHour: () => ({ status: null, loading: false, setRocno: vi.fn(), refresh: vi.fn() }),
+  HappyHourProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/hooks/use-glasovni-ukaz", () => ({
@@ -121,16 +135,24 @@ vi.mock("@dnd-kit/utilities", () => ({
 
 vi.mock("@workspace/api-client-react", () => ({
   useGetNarocilo: () => ({ data: mockNarocilo, isLoading: false }),
-  useListArtikli: () => ({ data: [mockPicaBrezDodatkov], isLoading: false }),
+  useListArtikli: () => ({ data: mockArtikli, isLoading: false }),
+  getListArtikliQueryKey: () => ["/api/artikli"],
+  useGetPreparedFoodAvailability: () => ({ data: { businessDate: "2026-08-28", items: [] }, isLoading: false }),
+  getGetPreparedFoodAvailabilityQueryKey: () => ["/prepared-food/availability"],
   useListKategorije: () => ({ data: [mockKategorija], isLoading: false }),
+  getListKategorijeQueryKey: () => ["/api/kategorije"],
+  useListDnevniMeni: () => ({ data: [], isLoading: false }),
+  useListProstori: () => ({ data: [], isLoading: false }),
   useListMize: () => ({ data: [{ id: 5, stevilka: 5, ime: "Miza 5", status: "odprto", narocila: [] }] }),
   useListNarocila: () => ({ data: [] }),
   useListRacuni: () => ({ data: [] }),
   useGetRacunPostavke: () => ({ data: undefined, isLoading: false }),
   useAddPostavka: () => ({ mutate: mockAddPostavkaMutate, isPending: false }),
+  useAddMulticourseMenu: () => ({ mutate: vi.fn(), isPending: false }),
+  customFetch: vi.fn(() => Promise.resolve([])),
   useAddPostavkaModifikatorji: () => ({ mutate: vi.fn(), isPending: false }),
   useRemovePostavka: () => ({ mutate: vi.fn() }),
-  useUpdatePostavkaKolicina: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+  useUpdatePostavkaKolicina: () => ({ mutate: mockUpdatePostavkaMutate, mutateAsync: vi.fn() }),
   useSpojiNarocili: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useUpdateNarocilo: () => ({ mutate: vi.fn(), isPending: false }),
   getGetNarociloQueryKey: (id: number) => ["/api/narocila", id],
@@ -205,7 +227,7 @@ async function klikniMikInPridobionResult(): Promise<(tekst: string) => void> {
   mockZacniGlasovni.mockClear();
   mockZacniGlasovni.mockImplementation((_callbacks: { onResult: (t: string) => void }) => true);
 
-  const micButton = screen.getByTitle("Glasovni ukaz (npr. »dodaj pica«)");
+  const micButton = screen.getAllByTitle("Glasovni ukaz — naroči s prostim govorom")[0];
   await act(async () => {
     fireEvent.click(micButton);
   });
@@ -215,7 +237,17 @@ async function klikniMikInPridobionResult(): Promise<(tekst: string) => void> {
     { onResult: (t: string) => void },
     ...unknown[]
   ];
-  return lastCall[0].onResult;
+  return (tekst: string) => {
+    const originalSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = ((fn: TimerHandler, delay?: number, ...args: unknown[]) => {
+      if (delay === 4500 && typeof fn === "function") {
+        return originalSetTimeout(fn, 0, ...args);
+      }
+      return originalSetTimeout(fn, delay, ...args);
+    }) as typeof setTimeout;
+    lastCall[0].onResult(tekst);
+    globalThis.setTimeout = originalSetTimeout;
+  };
 }
 
 // ── Testi ─────────────────────────────────────────────────────────────────────
@@ -227,9 +259,12 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
     qc = makeQueryClient();
     mockToast.mockClear();
     mockAddPostavkaMutate.mockClear();
+    mockUpdatePostavkaMutate.mockClear();
     mockSetLocation.mockClear();
     mockZacniGlasovni.mockClear();
     mockZacniGlasovni.mockReturnValue(true);
+    mockArtikli.splice(0, mockArtikli.length, mockPicaBrezDodatkov);
+    mockNarocilo.postavke = [];
   });
 
   // ── 1. Glasovni vnos → direct add, brez dialoga ───────────────────────────
@@ -314,5 +349,71 @@ describe("Order — pica BREZ modifikatorske skupine (modSkupine=[])", () => {
     const klic = (mockAddPostavkaMutate.mock.calls[0] as [MutateArgs, ...unknown[]])[0];
     expect(klic.id).toBe(NAROCILO_ID);
     expect(klic.data.artikelId).toBe(mockPicaBrezDodatkov.id);
+  });
+
+  it("po vklopu To Go pri vroči pijači prikaže opozorilo, ki ga je mogoče opustiti", async () => {
+    const caj = {
+      id: 12,
+      ime: "Čaj",
+      cena: 3,
+      davek: 22,
+      aktiven: true,
+      kategorijaId: 1,
+      kategorijaIme: "Pijače",
+      barva: null,
+      vrstniRed: 2,
+      prodajniArtikel: true,
+      nabavniArtikel: false,
+      jePica: false,
+      jeDodatekZaPico: false,
+      privzetiDodatki: [],
+      privzetiModifikatorji: [],
+      toGo: true,
+      taxCategory: "hot_beverage",
+      modSkupine: [],
+    };
+    mockArtikli.push(caj);
+    mockNarocilo.postavke = [{
+      id: 21,
+      artikelId: caj.id,
+      ime: caj.ime,
+      cenaKos: caj.cena,
+      kolicina: 1,
+      skupaj: caj.cena,
+      davek: caj.davek,
+      toGo: false,
+      racunId: null,
+      parentPostavkaId: null,
+      modifikatorId: null,
+    }];
+    mockUpdatePostavkaMutate.mockImplementation((_args: unknown, options?: { onSuccess?: (value: typeof mockNarocilo) => void }) => {
+      options?.onSuccess?.(mockNarocilo);
+    });
+
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const toGoButton = await screen.findByTitle("Dodaj To Go embalažo");
+    await act(async () => {
+      fireEvent.click(toGoButton);
+    });
+
+    expect(await screen.findByTestId("to-go-ddv-warning")).toHaveTextContent(
+      "Nekatere postavke imajo starejšo DDV stopnjo — odstranite in znova dodajte, da se DDV posodobi",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Opusti opozorilo o DDV pri To Go" }));
+    expect(screen.queryByTestId("to-go-ddv-warning")).not.toBeInTheDocument();
+  });
+
+  it("selects held gateway KDS courses by opaque local order ID", () => {
+    const selected = selectOrderKdsNalogi([
+      { narociloId: "opaque-uuid", stanje: "zadrzano", courseNumber: 2 },
+      { narociloId: "other-order", stanje: "zadrzano", courseNumber: 2 },
+    ], true, "opaque-uuid", undefined);
+    expect(selected).toHaveLength(1);
+    expect(selected[0]?.narociloId).toBe("opaque-uuid");
+    expect(selected[0]?.courseNumber).toBe(2);
   });
 });

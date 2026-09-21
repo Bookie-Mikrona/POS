@@ -1,0 +1,203 @@
+1. Kartična plačila in FURS
+Manjka oziroma je treba utrditi:
+
+zaščito pred dvojnim plačilom ob dvojnem kliku;
+trajno shranjevanje vsakega kartičnega poskusa;
+varen retry po timeoutu;
+enoten status plačila pri Payten, SumUp in Viva;
+idempotentno pošiljanje računov na FURS;
+zaklep pri množičnem ponovnem pošiljanju računov;
+jasen dnevnik neuspešnih, čakalnih in uspešnih FURS računov;
+ločen FURS profil oziroma certifikat po poslovni enoti/blagajni, če imajo različne blagajne različne naprave.
+2. Napitnine
+Logika je v ozadju, vendar manjka uporabniški del:
+
+nastavitev politike napitnin;
+izbira, ali je napitnina za zaposlene ali jo obvladuje delodajalec;
+vnos dokazila in datuma veljavnosti;
+nastavitev odstotne ali pavšalne provizije;
+zgodovina politik;
+evidenca razdelitev zaposlenim;
+poravnava razdelitev;
+preklic odprtih razdelitev;
+konti prihodkov, DDV in provizij za režim delodajalca;
+pregleden izpis napitnin za računovodstvo.
+3. KDS in kuhinja
+Trenutno je KDS predvsem prikaz naročil in oznaka pripravljeno. Manjka:
+
+trajna čakalna vrsta naročil;
+stanja novo → v pripravi → pripravljeno → prevzeto;
+usmerjanje artiklov na kuhinjo, točilnico ali drugo postajo;
+bump/ack dejanje;
+prioritete;
+zgodovina, kdo je kaj označil in kdaj;
+obnovitev stanja po izpadu KDS zaslona;
+avtomatsko tiskanje kuhinjskih naročil;
+trajna vrsta tiskanja, retry in status uspešne dostave tiskalniku;
+zvočna opozorila.
+4. Zaloga in normativi
+Obstajajo artikli, normativi, zaloga in pripravljena hrana, vendar manjka zanesljiva povezava:
+
+zaključena prodaja mora samodejno porabiti surovine po normativu;
+pravilno upoštevati velikost pice, dodatke, modifikatorje in faktorje pakiranja;
+ob stornu ali vračilu ustvariti nasprotni zalogovni gib;
+jasno opozoriti na manjkajoč ali neveljaven normativ;
+povezati porabo s poročili in POS→ERP knjiženjem;
+zagotoviti enoten tok za začetne zaloge, inventure, prenose, prevzemnice in izdajnice.
+5. Zaključek blagajne, X in Z poročila
+Osnovno Z-poročilo in zaklep dneva obstajata, vendar je treba dokončati:
+
+natančne pogoje, kdaj se sme dan zapreti;
+preverjanje odprtih računov, neknjiženih računov in neuspešnih FURS računov;
+X-poročilo po posamezni blagajni;
+uskladitev gotovine, kartic, bonov in drugih plačil;
+razliko med pričakovanim in dejanskim stanjem;
+potrjevalca in zavrnitelja;
+revizijsko sled;
+nedvoumen prikaz, kaj je bilo pri zaključku zavrnjeno ali popravljeno;
+varno obravnavo več blagajn iste enote.
+6. Darilni boni
+Osnovni tok obstaja, vendar je treba zaključiti produkcijsko uporabo:
+
+izdaja bona z enolično številko;
+preverjanje veljavnosti in preostanka;
+preprečevanje dvojne uporabe;
+preklic bona;
+vračilo ali delna poraba;
+poročilo o izdanih, porabljenih in neporabljenih bonih;
+pravilno knjiženje predplačila in unovčitve;
+jasen audit za blagajno in računovodstvo.
+Gostinsko obratovanje
+7. Dostava in telefonska naročila
+Telefonsko naročilo in naročnik sta že podprta, manjka pa celoten statusni tok:
+
+sprejeto;
+v pripravi;
+pripravljeno;
+predano kurirju;
+dostavljeno;
+neuspešna dostava;
+preklic;
+določitev kurirja;
+evidenca časa in razloga neuspeha;
+ponovni klic oziroma callback iz telefonskega sistema;
+boljši pregled odprtih dostav.
+8. Rezervacije in mize
+Osnovne rezervacije, mize in blokade obstajajo. Manjka oziroma je delno:
+
+globalni koledar rezervacij;
+iskanje prostih miz za izbran datum, čas in število oseb;
+pregled vseh rezervacij čez vse mize;
+naprednejši urejevalnik tlorisa miz;
+ohranitev zgodovine rezervacij pri brisanju mize;
+zgodovina sprememb rezervacij;
+jasnejše upravljanje prostorov;
+nadaljevanje QR naročila na že obstoječem naročilu.
+9. A-računi in odprte terjatve
+Če POS izda račun podjetju oziroma pravni osebi, manjka bolj celovit tok:
+
+odprta terjatev po posameznem računu;
+plačilo terjatve;
+delno plačilo;
+povezava z bančnim prilivom;
+opomini;
+starostna analiza terjatev;
+izvoz v računovodstvo;
+preprečevanje, da se račun obravnava samo kot zaključen POS promet brez saldakonta.
+Računovodstvo in poročila
+10. POS→ERP knjiženje
+Dnevne in mesečne temeljnice so večinoma narejene, ostaja pa:
+
+popolna nastavitev politike napitnin;
+ločeni konti za prihodek delodajalca in DDV napitnin;
+ločeni konti stroškov kartičnih provizij;
+dosledno knjiženje na analitične konte;
+knjiženje po posamezni enoti oziroma stroškovnem mestu;
+preprečitev tihe izgube knjižb pri napačnem tipu konta;
+predogled temeljnice pred potrditvijo;
+jasna povezava med POS računom, temeljnico in analitiko;
+dokončen izvoz za zunanje računovodstvo.
+11. Operativna poročila
+Trenutne statistike in Z-poročilo niso dovolj za celoten gostinski pregled. Manjkajo podrobna poročila:
+
+promet po artiklu;
+promet po kategoriji;
+promet po natakarju;
+promet po mizi;
+promet po poslovni enoti;
+promet po načinu plačila;
+napitnine po zaposlenem;
+čas priprave po kuhinji/točilnici;
+dostave in uspešnost dostave;
+poraba po normativih;
+zalogovni manjki in odpisi;
+neuspešna kartična plačila;
+neuspešni FURS računi;
+razlike pri zaključku blagajne.
+Naprave in zanesljivost
+12. Offline delovanje
+Trenutno je POS odvisen od povezave. Manjka pravi offline način:
+
+lokalno shranjevanje dogodkov;
+nadaljevanje prodaje ob izpadu povezave;
+vrsta za kasnejšo sinhronizacijo;
+preprečevanje dvojnega računa po ponovni povezavi;
+prikaz, kateri računi čakajo na sinhronizacijo;
+varna obravnava FURS, kadar povezava začasno ni na voljo.
+13. Upravljanje tiskalnikov
+Mostovi za ZCS, NB80, NYX, Bluetooth, USB, Wi-Fi in druge tiskalnike obstajajo. Manjka pa:
+
+registracija tiskalnika;
+heartbeat oziroma preverjanje dosegljivosti;
+prikaz zmogljivosti tiskalnika;
+trajna čakalna vrsta tiskalnih nalog;
+ponovni poskus;
+dead-letter oziroma neuspešne naloge;
+potrditev, da je tiskalnik nalogo dejansko izvedel;
+usmerjanje kategorij na različne tiskalnike;
+preprečitev dvojnega tiskanja.
+Zaposleni in dostopi
+14. Izmene in obračun ur
+Odpiranje in zapiranje izmen že obstaja, manjka bolj popoln kadrovski del:
+
+PIN oziroma hitra menjava uporabnika na POS-u;
+odmori;
+nadure;
+odsotnosti;
+potrjevanje ur;
+poprave z razlogom;
+podrobnejši audit;
+povezava ur z razdelitvijo napitnin.
+Meni in QR
+15. QR meni in vsebine
+QR meni obstaja kot ločen artefakt, vendar so še odprte izboljšave:
+
+nadaljevanje že odprtega QR naročila;
+izdelava in tisk QR kod po prostorih;
+boljši PDF izvoz QR kod;
+nalaganje lastnih slik artiklov;
+generiranje oziroma urejanje slik artiklov;
+boljši prikaz pijač in ETA;
+celotna sinhronizacija razpoložljivosti med POS in QR menijem.
+Administracija, uvoz in dokumentacija
+16. Uvoz prejemnic in cenikov
+Odprt je večfazni uvoz:
+
+uvoz CSV/XLSX;
+profili dobaviteljev;
+samodejno prepoznavanje stolpcev;
+kodiranja in decimalnih ločil;
+uparjanje artiklov;
+čakalna vrsta neuparjenih artiklov;
+zaznava podvojenega uvoza;
+opozorilo ob spremembi pakiranja;
+varen zaključek uvoza, kadar so vse vrstice preskočene.
+17. Dokumentacija in testiranje
+Manjka še:
+
+celoten uporabniški priročnik;
+navodila za namestitev in odpravljanje težav tiskalnikov;
+testni scenariji za celotno gostinsko izmeno;
+čiščenje oziroma konsolidacija testov;
+end-to-end test z dejanskim uporabnikom in podjetjem;
+test izpada povezave, dvojnega plačila, FURS retryja, tiskalnika in KDS-ja.

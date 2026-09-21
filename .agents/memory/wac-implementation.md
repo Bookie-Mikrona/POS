@@ -32,3 +32,10 @@ description: Drseča tehtana povprečna nabavna cena (WAC) implementacija za POS
 ## Important edge case
 - Articles with ONLY outflows and no inflows: WAC = NULL, value = 0 (correct — no cost basis)
 - Articles with outflows BEFORE first inflow: those specific rows get cena_kos=0
+
+## Sočasni zapisi gibanj
+Vsi INSERT/UPDATE/DELETE nad zaloga_gibi se serializirajo z enim transakcijskim advisory lockom. Tok, ki pred odpisom preverja razpoložljivost, isti lock pridobi že pred branjem stanja.
+
+**Why:** Sicer lahko dva še nevidna sočasna odpisa oba uspešno preverita isto količino in končni preračun ustvari negativno zalogo.
+
+**How to apply:** Novi tokovi naj zaupajo triggerju za zapis; kadar pred zapisom preverjajo stanje, morajo lock pridobiti pred SELECT.

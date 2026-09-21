@@ -53,6 +53,12 @@ export interface EntryMeta {
   entryDate: string;
   /** Davčni datum (če nastavljeno) */
   taxDate: string | null;
+  /**
+   * §67 ZDDV-1 — Datum fizičnega prejema računa (D4-2 polje v KPR).
+   * Ko je nastavljeno, se uporabi za receiptDate v vat_ledger namesto documentDate.
+   * NULL = vatLedger pade nazaj na documentDate ?? entryDate.
+   */
+  receiptDate: string | null;
   /** Zunanja referenca (npr. številka računa) */
   reference: string | null;
   /** Vrsta vira (manual, document, bank_import, ai_suggestion) */
@@ -200,8 +206,13 @@ export async function createVatLedgerEntries(
       );
     }
 
+    // §67 ZDDV-1 — D4-2: datum prejema računa.
+    // Prioriteta: receiptDate (fizični prejem) → documentDate (datum na računu) → entryDate.
+    // Velja samo za vhodne DDV (KPR); pri izhodnih (KIR) polje ni relevantno.
     const receiptDate =
-      vatCode.direction === "IN" ? (entry.documentDate ?? entry.entryDate) : null;
+      vatCode.direction === "IN"
+        ? (entry.receiptDate ?? entry.documentDate ?? entry.entryDate)
+        : null;
 
     const invoiceDate = entry.documentDate ?? entry.entryDate;
     const serviceDate = entry.documentDate ?? entry.entryDate;

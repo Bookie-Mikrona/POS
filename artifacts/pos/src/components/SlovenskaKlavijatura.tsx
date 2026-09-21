@@ -1,90 +1,81 @@
-import { useState, useEffect } from "react";
-import { Check, X, Delete, ChevronUp, CornerDownLeft } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronUp, CornerDownLeft, Delete, X } from "lucide-react";
 
 interface Props {
   vrednost: string;
+  onSprememba?: (vrednost: string) => void;
   onPotrdi: (vrednost: string) => void;
   onPreklic: () => void;
   naslov?: string;
   placeholder?: string;
 }
 
-const STEVILKE: string[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ".", ","];
-
-const VRSTICE: string[][] = [
+const STEVILKE = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ".", ","];
+const SIMBOLI = ["@", "+", "-", "_", "/", ":", "(", ")", "€"];
+const VRSTICE = [
   ["q", "w", "e", "r", "t", "z", "u", "i", "o", "p"],
   ["a", "s", "d", "f", "g", "h", "j", "k", "l", "č"],
   ["y", "x", "c", "v", "b", "n", "m", "š", "ž"],
 ];
 
-export default function SlovenskaKlavijatura({ vrednost, onPotrdi, onPreklic, naslov, placeholder }: Props) {
+export default function SlovenskaKlavijatura({
+  vrednost,
+  onSprememba,
+  onPotrdi,
+  onPreklic,
+  naslov,
+  placeholder,
+}: Props) {
   const [besedilo, setBesedilo] = useState(vrednost);
   const [caps, setCaps] = useState(false);
 
-  useEffect(() => {
-    setBesedilo(vrednost);
-  }, [vrednost]);
+  useEffect(() => setBesedilo(vrednost), [vrednost]);
 
-  const dodajZnak = (znak: string) => {
-    setBesedilo(prev => prev + (caps ? znak.toUpperCase() : znak));
+  const posodobi = (novaVrednost: string) => {
+    setBesedilo(novaVrednost);
+    onSprememba?.(novaVrednost);
   };
-
-  const brisi = () => setBesedilo(prev => prev.slice(0, -1));
-  const brisiVse = () => setBesedilo("");
-
+  const dodajZnak = (znak: string) => {
+    posodobi(besedilo + (caps ? znak.toUpperCase() : znak));
+  };
+  const brisiZnak = () => posodobi(besedilo.slice(0, -1));
   const tipkaClass =
-    "flex-1 flex items-center justify-center bg-card active:bg-muted border border-border rounded-md text-sm font-medium select-none touch-manipulation";
+    "flex flex-1 select-none touch-manipulation items-center justify-center rounded-md border border-border bg-card text-sm font-medium active:bg-muted";
 
   return (
     <div
-      className="fixed inset-0 z-50"
+      data-pos-keyboard-overlay
+      data-pos-keyboard-autofocus-disabled
+      className="pointer-events-auto fixed inset-0 z-[100]"
       style={{ touchAction: "none" }}
     >
-      {/* Backdrop — onPointerDown ne onClick: ko se dialog odpre med aktivnim dotikom,
-          pointerup/click pade na backdrop in z onClick bi takoj zaprl dialog.
-          onPointerDown se sproži šele pri novem dotiku (ne pri istem ki je odprl dialog). */}
       <div
         className="absolute inset-0 bg-black/40"
-        onPointerDown={e => { e.preventDefault(); onPreklic(); }}
+        onPointerDown={event => {
+          event.preventDefault();
+          onPreklic();
+        }}
       />
-
-      {/* Panel — nad spodnjim menijem (16=64px na mobilnih, 0 na desktop) */}
       <div
-        className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-background border-t shadow-2xl rounded-t-xl overflow-y-auto"
-        style={{ maxHeight: "calc(92vh - 4rem)" }}
+        data-pos-keyboard-panel
+        className="fixed bottom-16 left-0 right-0 max-h-[calc(92vh-4rem)] overflow-y-auto rounded-t-xl border-t bg-background shadow-2xl md:bottom-0"
       >
-
-        {/* Vnosna vrstica */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
-          {naslov && (
-            <span className="text-xs font-medium text-muted-foreground shrink-0">{naslov}:</span>
-          )}
-          <div className="flex-1 bg-background border rounded-md px-2.5 py-1.5 min-h-[34px] flex items-center">
-            <span className="text-sm flex-1 leading-snug break-all">
-              {besedilo || <span className="text-muted-foreground italic text-xs">{placeholder ?? "Vnesite besedilo…"}</span>}
-            </span>
-            {besedilo && (
-              <button
-                type="button"
-                onPointerDown={e => { e.preventDefault(); brisiVse(); }}
-                className="ml-1 text-muted-foreground/50 hover:text-muted-foreground shrink-0"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
+        {naslov && (
+          <div className="border-b bg-muted/30 px-3 py-1.5 text-center text-xs font-medium text-muted-foreground">
+            {naslov}
           </div>
-        </div>
+        )}
 
-        {/* Tipkovnica */}
-        <div className="px-1.5 pt-1.5 pb-1 space-y-1">
-
-          {/* Vrstica številk */}
-          <div className="flex gap-1" style={{ height: 36 }}>
+        <div className="space-y-1 px-1.5 pb-1 pt-1.5">
+          <div className="flex h-9 gap-1">
             {STEVILKE.map(znak => (
               <button
                 key={znak}
                 type="button"
-                onPointerDown={e => { e.preventDefault(); dodajZnak(znak); }}
+                onPointerDown={event => {
+                  event.preventDefault();
+                  dodajZnak(znak);
+                }}
                 className={tipkaClass}
               >
                 {znak}
@@ -92,78 +83,108 @@ export default function SlovenskaKlavijatura({ vrednost, onPotrdi, onPreklic, na
             ))}
           </div>
 
-          {/* Črkovna vrstica */}
-          {VRSTICE.map((vrstica, vi) => (
-            <div key={vi} className="flex gap-1" style={{ height: 38 }}>
-              {vi === 2 && (
+          <div className="flex h-9 gap-1">
+            {SIMBOLI.map(znak => (
+              <button
+                key={znak}
+                type="button"
+                onPointerDown={event => {
+                  event.preventDefault();
+                  dodajZnak(znak);
+                }}
+                className={tipkaClass}
+              >
+                {znak}
+              </button>
+            ))}
+          </div>
+
+          {VRSTICE.map((vrstica, indeks) => (
+            <div key={indeks} className="flex h-[38px] gap-1">
+              {indeks === 2 && (
                 <button
                   type="button"
-                  onPointerDown={e => { e.preventDefault(); setCaps(c => !c); }}
+                  onPointerDown={event => {
+                    event.preventDefault();
+                    setCaps(trenutno => !trenutno);
+                  }}
                   style={{ flex: "1.4 1 0" }}
-                  className={`flex items-center justify-center rounded-md border transition-colors touch-manipulation select-none ${
-                    caps
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-muted text-foreground border-border"
+                  className={`flex touch-manipulation select-none items-center justify-center rounded-md border ${
+                    caps ? "border-primary bg-primary text-primary-foreground" : "border-border bg-muted text-foreground"
                   }`}
+                  aria-label="Velike črke"
                 >
                   <ChevronUp className="h-4 w-4" />
                 </button>
               )}
-
               {vrstica.map(znak => (
                 <button
                   key={znak}
                   type="button"
-                  onPointerDown={e => { e.preventDefault(); dodajZnak(znak); }}
+                  onPointerDown={event => {
+                    event.preventDefault();
+                    dodajZnak(znak);
+                  }}
                   className={tipkaClass}
                 >
                   {caps ? znak.toUpperCase() : znak}
                 </button>
               ))}
-
-              {vi === 2 && (
+              {indeks === 2 && (
                 <button
                   type="button"
-                  onPointerDown={e => { e.preventDefault(); brisi(); }}
+                  onPointerDown={event => {
+                    event.preventDefault();
+                    brisiZnak();
+                  }}
                   style={{ flex: "1.4 1 0" }}
-                  className="flex items-center justify-center bg-muted border border-border rounded-md touch-manipulation select-none"
+                  className="flex touch-manipulation select-none items-center justify-center rounded-md border border-border bg-muted"
+                  aria-label="Izbriši znak"
                 >
-                  <Delete className="h-4 w-4 text-foreground" />
+                  <Delete className="h-4 w-4" />
                 </button>
               )}
             </div>
           ))}
 
-          {/* Spodnja vrstica — potrditev desno spodaj */}
-          <div className="flex gap-1" style={{ height: 42 }}>
-            {/* Prekliči in Potrdi: onClick (ne onPointerDown) — preprečuje click-through.
-                Z onPointerDown bi dialog zaprl preden se pointerup/click sproži → klik
-                pade na artikel gumb pod tipkovnico → artikel se doda po naključju. */}
+          <div className="flex h-[42px] gap-1">
             <button
               type="button"
               onClick={onPreklic}
               style={{ flex: "1.8 1 0" }}
-              className="flex items-center justify-center gap-1 bg-muted border border-border rounded-md text-sm font-medium touch-manipulation select-none"
+              className="flex touch-manipulation select-none items-center justify-center gap-1 rounded-md border border-border bg-muted text-sm font-medium"
             >
               <X className="h-3.5 w-3.5" />
-              <span>Prekliči</span>
+              Prekliči
             </button>
-
             <button
               type="button"
-              onPointerDown={e => { e.preventDefault(); dodajZnak(" "); }}
-              style={{ flex: "4 1 0" }}
-              className="flex items-center justify-center bg-card border border-border rounded-md text-xs text-muted-foreground touch-manipulation select-none"
+              onPointerDown={event => {
+                event.preventDefault();
+                posodobi("");
+              }}
+              style={{ flex: "1.2 1 0" }}
+              className="flex touch-manipulation select-none items-center justify-center rounded-md border border-border bg-muted text-xs font-medium"
+              aria-label="Počisti vnos"
+            >
+              Počisti
+            </button>
+            <button
+              type="button"
+              onPointerDown={event => {
+                event.preventDefault();
+                dodajZnak(" ");
+              }}
+              style={{ flex: "3 1 0" }}
+              className="flex touch-manipulation select-none items-center justify-center rounded-md border border-border bg-card text-xs text-muted-foreground"
             >
               presledek
             </button>
-
-            {/* Potrditev — desni spodnji kot */}
             <button
               type="button"
               onClick={() => onPotrdi(besedilo)}
               style={{ flex: "1.8 1 0" }}
-              className="flex flex-col items-center justify-center gap-0.5 bg-primary text-primary-foreground rounded-md touch-manipulation select-none"
+              className="flex touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-md bg-primary text-primary-foreground"
               title="Potrdi"
             >
               <CornerDownLeft className="h-5 w-5" />
@@ -171,8 +192,6 @@ export default function SlovenskaKlavijatura({ vrednost, onPotrdi, onPreklic, na
             </button>
           </div>
         </div>
-
-        {/* Safe area */}
         <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </div>
     </div>

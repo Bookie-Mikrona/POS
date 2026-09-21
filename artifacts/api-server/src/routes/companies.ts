@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
-import { db, companiesTable, accountingRolesTable, companyModulesTable, posUporabnikiTable } from "@workspace/db";
+import { db, companiesTable, accountingRolesTable, companyModulesTable, posUporabnikiTable, osRolesTable } from "@workspace/db";
+import { resolvePodjetjeSkrbnik } from "./companies-bizbox";
 import {
   CreateCompanyBody,
   AssignRoleBody,
@@ -74,6 +75,9 @@ function parseUpdateCompany(body: unknown): { ok: true; data: UpdateCompanyField
   return { ok: true, data };
 }
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { isSuperAdmin } from "../middlewares/requireSuperAdmin";
+import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
+import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
 
 const router: IRouter = Router();
 
@@ -95,6 +99,7 @@ router.get(
         postnaStevika: companiesTable.postnaStevika,
         kraj: companiesTable.kraj,
         createdAt: companiesTable.createdAt,
+        employerControlledTipsEnabled: companiesTable.employerControlledTipsEnabled,
         role: accountingRolesTable.role,
       })
       .from(accountingRolesTable)
@@ -102,30 +107,60 @@ router.get(
       .where(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId))
       .orderBy(companiesTable.naziv);
 
-    // POS podjetja (posUporabniki) — samo tista ki niso že v ERP seznamu
+    // POS podjetja (posUporabniki)
     const erpIds = new Set(erpRows.map((r) => r.id));
-    const posRows = await db
-      .select({
-        id: companiesTable.id,
-        podjetjeDavcna: companiesTable.podjetjeDavcna,
-        naziv: companiesTable.naziv,
-        kratekNaziv: companiesTable.kratekNaziv,
-        naslov: companiesTable.naslov,
-        postnaStevika: companiesTable.postnaStevika,
-        kraj: companiesTable.kraj,
-        createdAt: companiesTable.createdAt,
-        vloga: posUporabnikiTable.vloga,
-      })
-      .from(posUporabnikiTable)
-      .innerJoin(companiesTable, eq(companiesTable.id, posUporabnikiTable.companyId))
-      .where(and(
-        eq(posUporabnikiTable.clerkUserId, authReq.clerkUserId),
-        eq(posUporabnikiTable.aktiven, true),
-      ))
-      .orderBy(companiesTable.naziv);
+    const [posRows, osRows] = await Promise.all([
+      db
+        .select({
+          id: companiesTable.id,
+          podjetjeDavcna: companiesTable.podjetjeDavcna,
+          naziv: companiesTable.naziv,
+          kratekNaziv: companiesTable.kratekNaziv,
+          naslov: companiesTable.naslov,
+          postnaStevika: companiesTable.postnaStevika,
+          kraj: companiesTable.kraj,
+          createdAt: companiesTable.createdAt,
+          employerControlledTipsEnabled: companiesTable.employerControlledTipsEnabled,
+          vloga: posUporabnikiTable.vloga,
+        })
+        .from(posUporabnikiTable)
+        .innerJoin(companiesTable, eq(companiesTable.id, posUporabnikiTable.companyId))
+        .where(and(
+          eq(posUporabnikiTable.clerkUserId, authReq.clerkUserId),
+          eq(posUporabnikiTable.aktiven, true),
+        ))
+        .orderBy(companiesTable.naziv),
+      // OS podjetja — neodvisno od ERP/POS
+      db
+        .select({
+          id: companiesTable.id,
+          podjetjeDavcna: companiesTable.podjetjeDavcna,
+          naziv: companiesTable.naziv,
+          kratekNaziv: companiesTable.kratekNaziv,
+          naslov: companiesTable.naslov,
+          postnaStevika: companiesTable.postnaStevika,
+          kraj: companiesTable.kraj,
+          createdAt: companiesTable.createdAt,
+          employerControlledTipsEnabled: companiesTable.employerControlledTipsEnabled,
+          osRole: osRolesTable.role,
+        })
+        .from(osRolesTable)
+        .innerJoin(companiesTable, eq(companiesTable.id, osRolesTable.companyId))
+        .where(eq(osRolesTable.clerkUserId, authReq.clerkUserId))
+        .orderBy(companiesTable.naziv),
+    ]);
+
+    const posIds = new Set(posRows.map((r) => r.id));
+
+    // Mapa companyId → osRole za tega uporabnika
+    const userOsRoleMap = new Map(osRows.map((r) => [r.id, r.osRole]));
 
     // Združi vse ID-je za module query
-    const allIds = [...new Set([...erpRows.map((r) => r.id), ...posRows.map((r) => r.id)])];
+    const allIds = [...new Set([
+      ...erpRows.map((r) => r.id),
+      ...posRows.map((r) => r.id),
+      ...osRows.map((r) => r.id),
+    ])];
     const moduleRows = allIds.length
       ? await db
           .select({ companyId: companyModulesTable.companyId, module: companyModulesTable.module })
@@ -140,23 +175,51 @@ router.get(
     }
 
     const companies = [
-      ...erpRows.map((r) => ({ ...r, modules: modulesMap.get(r.id) ?? [], posOnly: false })),
-      // Dodaj VSA POS podjetja — tudi tista ki so hkrati v ERP (dual-role uporabnik)
-      ...posRows
-        .map((r) => ({ ...r, role: `pos_${r.vloga}`, modules: modulesMap.get(r.id) ?? [], posOnly: !erpIds.has(r.id) })),
+      // ERP podjetja — vključi osRole če ga ima
+      ...erpRows.map((r) => ({
+        ...r,
+        modules: modulesMap.get(r.id) ?? [],
+        posOnly: false,
+        osRole: userOsRoleMap.get(r.id) ?? null,
+      })),
+      // POS podjetja — tudi tista ki so hkrati v ERP (dual-role uporabnik)
+      ...posRows.map((r) => ({
+        ...r,
+        role: `pos_${r.vloga}`,
+        modules: modulesMap.get(r.id) ?? [],
+        posOnly: !erpIds.has(r.id),
+        osRole: userOsRoleMap.get(r.id) ?? null,
+      })),
+      // OS podjetja — tista kjer ima OS dostop brez ERP (POS+OS ali čisto OS)
+      // Izključimo samo tista ki so ŽE v ERP (tista imajo osRole priložen k ERP zapisu)
+      ...osRows
+        .filter((r) => !erpIds.has(r.id))
+        .map((r) => ({
+          id: r.id,
+          podjetjeDavcna: r.podjetjeDavcna,
+          naziv: r.naziv,
+          kratekNaziv: r.kratekNaziv,
+          naslov: r.naslov,
+          postnaStevika: r.postnaStevika,
+          kraj: r.kraj,
+          createdAt: r.createdAt,
+           employerControlledTipsEnabled: r.employerControlledTipsEnabled,
+          role: r.osRole as string,  // OS vloga kot primarna vloga za prikaz
+          modules: modulesMap.get(r.id) ?? [],
+          posOnly: false,
+          osRole: r.osRole,
+        })),
     ];
 
     res.json({ companies });
   },
 );
 
-// POST /companies — ustvari novo podjetje, ustvarjalec dobi vlogo owner
+// POST /companies — ustvari novo podjetje; vloge dodeli superadmin izrecno
 router.post(
   "/companies",
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
-    const authReq = req as AuthenticatedRequest;
-
     const parsed = CreateCompanyBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
@@ -174,22 +237,46 @@ router.post(
       return;
     }
 
-    const [company] = await db.transaction(async (tx) => {
-      const [newCompany] = await tx
+    const company = await db.transaction(async (tx) => {
+      const [created] = await tx
         .insert(companiesTable)
         .values(parsed.data)
         .returning();
 
-      await tx.insert(accountingRolesTable).values({
-        clerkUserId: authReq.clerkUserId,
-        companyId: newCompany.id,
-        role: "owner",
-      });
-
-      return [newCompany];
+      await seedDefaultChartOfAccounts(created.id, tx);
+      await seedDefaultAccountSettings(created.id, tx);
+      return created;
     });
 
-    res.status(201).json({ ...company, role: "owner" });
+    res.status(201).json(company);
+  },
+);
+
+// POST /companies/:id/booking-settings/seed-defaults — varno dopolni le prazne nastavitve.
+router.post(
+  "/companies/:id/booking-settings/seed-defaults",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const vloga = await resolvePodjetjeSkrbnik(authReq.clerkUserId, companyId);
+    if (!vloga) {
+      res.status(403).json({ error: "Dostop ni dovoljen — potrebna je skrbniška vloga podjetja." });
+      return;
+    }
+
+    const [company] = await db
+      .select({ id: companiesTable.id })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1);
+    if (!company) {
+      res.status(404).json({ error: "Podjetje ni najdeno." });
+      return;
+    }
+
+    const result = await db.transaction((tx) => seedDefaultAccountSettings(companyId, tx));
+    res.json({ companyId, ...result });
   },
 );
 
@@ -200,6 +287,48 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (isSuperAdmin(authReq.clerkUserId)) {
+      const [company] = await db
+        .select({
+          id: companiesTable.id,
+          podjetjeDavcna: companiesTable.podjetjeDavcna,
+          naziv: companiesTable.naziv,
+          kratekNaziv: companiesTable.kratekNaziv,
+          naslov: companiesTable.naslov,
+          ulica: companiesTable.ulica,
+          postnaStevika: companiesTable.postnaStevika,
+          kraj: companiesTable.kraj,
+          drzava: companiesTable.drzava,
+          kodaDrzave: companiesTable.kodaDrzave,
+          maticnaStevilka: companiesTable.maticnaStevilka,
+          idZaDdv: companiesTable.idZaDdv,
+          zavezanecDdv: companiesTable.zavezanecDdv,
+           employerControlledTipsEnabled: companiesTable.employerControlledTipsEnabled,
+          trr: companiesTable.trr,
+          email: companiesTable.email,
+          telefon: companiesTable.telefon,
+          www: companiesTable.www,
+          eRacunPrejemnik: companiesTable.eRacunPrejemnik,
+          eRacunOmrezje: companiesTable.eRacunOmrezje,
+          eRacunEmail: companiesTable.eRacunEmail,
+          eRacunNaslov: companiesTable.eRacunNaslov,
+          eRacunSifraPu: companiesTable.eRacunSifraPu,
+          eRacunBic: companiesTable.eRacunBic,
+          createdAt: companiesTable.createdAt,
+        })
+        .from(companiesTable)
+        .where(eq(companiesTable.id, companyId))
+        .limit(1);
+
+      if (!company) {
+        res.status(404).json({ error: "Podjetje ni najdeno" });
+        return;
+      }
+
+      res.json({ ...company, role: "owner" });
+      return;
+    }
 
     // Preveri dostop — JOIN po companyId IZ poti, ne iz headerja
     const [row] = await db
@@ -217,6 +346,7 @@ router.get(
         maticnaStevilka: companiesTable.maticnaStevilka,
         idZaDdv: companiesTable.idZaDdv,
         zavezanecDdv: companiesTable.zavezanecDdv,
+         employerControlledTipsEnabled: companiesTable.employerControlledTipsEnabled,
         trr: companiesTable.trr,
         email: companiesTable.email,
         telefon: companiesTable.telefon,
@@ -270,15 +400,18 @@ router.patch(
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
     const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const callerIsSuperAdmin = isSuperAdmin(authReq.clerkUserId);
 
-    const [callerRole] = await db
-      .select({ role: accountingRolesTable.role })
-      .from(accountingRolesTable)
-      .where(and(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId), eq(accountingRolesTable.companyId, companyId)))
-      .limit(1);
+    if (!callerIsSuperAdmin) {
+      const [callerRole] = await db
+        .select({ role: accountingRolesTable.role })
+        .from(accountingRolesTable)
+        .where(and(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId), eq(accountingRolesTable.companyId, companyId)))
+        .limit(1);
 
-    if (!callerRole) { res.status(403).json({ error: "Dostop ni dovoljen" }); return; }
-    if (callerRole.role !== "owner") { res.status(403).json({ error: "Za urejanje podatkov podjetja potrebujete vlogo lastnik" }); return; }
+      if (!callerRole) { res.status(403).json({ error: "Dostop ni dovoljen" }); return; }
+      if (callerRole.role !== "owner") { res.status(403).json({ error: "Za urejanje podatkov podjetja potrebujete vlogo lastnik" }); return; }
+    }
 
     const parsed = parseUpdateCompany(req.body);
     if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
@@ -291,7 +424,7 @@ router.patch(
 
     if (!updated) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
 
-    res.json({ ...updated, role: callerRole.role });
+    res.json({ ...updated, role: "owner" });
   },
 );
 
@@ -303,13 +436,8 @@ router.post(
     const authReq = req as AuthenticatedRequest;
     const companyId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-    const [callerRole] = await db
-      .select({ role: accountingRolesTable.role })
-      .from(accountingRolesTable)
-      .where(and(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId), eq(accountingRolesTable.companyId, companyId)))
-      .limit(1);
-    if (!callerRole) { res.status(403).json({ error: "Dostop ni dovoljen" }); return; }
-    if (callerRole.role !== "owner") { res.status(403).json({ error: "Za osvežitev podatkov potrebujete vlogo lastnik" }); return; }
+    const vloga = await resolvePodjetjeSkrbnik(authReq.clerkUserId, companyId);
+    if (!vloga) { res.status(403).json({ error: "Dostop ni dovoljen — potrebna je vloga admin podjetja (ERP lastnik ali POS admin)" }); return; }
 
     const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
     if (!company) { res.status(404).json({ error: "Podjetje ni najdeno" }); return; }
@@ -436,7 +564,9 @@ router.post(
     };
 
     const [updated] = await db.update(companiesTable).set(updateData).where(eq(companiesTable.id, companyId)).returning();
-    res.json({ ...updated, role: callerRole.role });
+    // Vrni ERP vlogo za odgovor (za ažuriranje CompanyContext v ERP; POS admin nima ERP vloge)
+    const erpVloga = (vloga === "erp_owner" || vloga === "superadmin") ? "owner" : null;
+    res.json({ ...updated, role: erpVloga });
   },
 );
 

@@ -1,0 +1,37 @@
+Podatek o alergenih v osnovnih surovinah je dobavitelj/proizvajalec po zakonodaji EU (Uredba 1169/2011) dolžan zagotoviti. V gostinstvu te podatke pridobite iz štirih primarnih virov:
+
+1. Deklaracija na embalaži izdelka
+
+Kje poiskati: Na deklaraciji, etiketi ali zadnji strani embalaže kupljenega izdelka.
+
+Kako je označen: Zakonsko morajo biti vsi alergeni na embalaži grafično poudarjeni (npr. izpisani z krepko pisavo, ležeče, z VELIKIMI CRKAMI ali v drugi barvi).
+
+Primer: Vsebuje mleko, pšenično moko, sledi oraščkov.
+
+2. Specifikacija izdelka (Tehnični list / Product Specification)
+
+Kje poiskati: Pri veletrgovcih in specializiranih dostavljavcih za gostinstvo (npr. METRO, Tuš Cash&Carry, Mercator Veleprodaja, Horeca dobavitelji).
+
+Kako pridobiti:
+
+V B2B spletnih portalih dobaviteljev, koder so tehnični listi in podatki o alergenih pogosto priloženi v PDF obliki neposredno ob artiklu.
+
+Z zahtevo komercialistu ali naročniški službi dobavitelja, da vam pošlje tehnične specifikacije (sestavo in alergene) za vse surovine, ki jih redno kupujete.
+
+3. Izjava dobavitelja / Varnostni list za sveže ali nepredpakirane surovine
+
+Kje velja: Pri nabavi nepredpakiranih živil (npr. sveže meso pri mesarju, pekovski izdelki, sveže ribe, sadje in zelenjava).
+
+Kako pridobiti: Dobavitelj ali proizvajalec vam mora na vašo zahtevo izdati pisno izjavo o alergenih oziroma potrdilo o prisotnosti/odsotnosti alergenov v opremljeni seriji ali dobavnici.
+
+4. Uradne podatkovne baze in spletni katalogi
+
+Če kupujete izdelke široke porabe z črtno kodo (GS1), so podatki pogosto dostopni v elektronskih katalogih proizvajalcev (npr. GS1 Slovenia - Moj spletni katalog).
+
+Priporočena praksa pri vnosu v sistem (npr. Bookie/ERP)
+
+Ob prevzemu blaga: Oseba, ki prevzema blago ali vnaša prevzemnico/prevzemni dokument v skladiščni sistem, preveri nove ali spremenjene artikle.
+
+Shranjenje specifikacij: Priporočljivo je, da specifikacije dobaviteljev (PDF ali fotografije deklaracij) shranite v digitalni arhiv ali pri posamezni surovinah v programu, da imate ob inšpekcijskem nadzoru takojšen dokaz o izvoru podatkov.
+
+Obvestilo o spremembi recepture: Dobavitelji včasih spremenijo sestavo (npr. zamenjava olja ali začimbne mešanice). Ob menjavi znamke ali dobavitelja surovine je treba v sistemu takoj preveriti in posodobiti alergene te surovine.

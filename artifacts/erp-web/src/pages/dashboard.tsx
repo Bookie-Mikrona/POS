@@ -48,7 +48,14 @@ function fmtEur(value: number | string) {
 
 interface BankBalanceCardProps {
   totalBalance: string | null;
-  accounts: Array<{ accountId: string; accountCode: string; accountName: string; balance: string }>;
+  accounts: Array<{
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    balance: string | null;
+    hasStatementBalance: boolean;
+    evidenceDate: string | null;
+  }>;
   loading: boolean;
 }
 
@@ -75,16 +82,16 @@ function BankBalanceCard({ totalBalance, accounts, loading }: BankBalanceCardPro
             <div className="text-2xl font-bold tracking-tight">
               {totalBalance !== null ? fmtEur(totalBalance) : "—"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">Skupni saldo kontov 110x</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-3">Zadnja evidentirana stanja bančnih izpiskov</p>
             {accounts.length > 0 && (
               <div className="space-y-1 border-t border-border/40 pt-2 mt-2">
                 {accounts.map((acc) => {
-                  const bal = parseFloat(acc.balance);
+                  const bal = acc.balance == null ? null : parseFloat(acc.balance);
                   const isZero = bal === 0;
                   return (
                     <Link
                       key={acc.accountId}
-                      href={`/glavna-knjiga?accountCodePrefix=${encodeURIComponent(acc.accountCode)}`}
+                      href="/bancni-izpis"
                     >
                       <div className={`flex items-center justify-between rounded px-1.5 py-1 text-xs hover:bg-muted/60 transition-colors cursor-pointer group ${isZero ? "text-muted-foreground" : ""}`}>
                         <span className="font-mono mr-2 shrink-0 group-hover:text-primary transition-colors">
@@ -93,8 +100,8 @@ function BankBalanceCard({ totalBalance, accounts, loading }: BankBalanceCardPro
                         <span className="truncate flex-1 mr-2 group-hover:text-primary transition-colors">
                           {acc.accountName}
                         </span>
-                        <span className={`font-semibold tabular-nums shrink-0 ${isZero ? "text-muted-foreground" : bal < 0 ? "text-red-600" : "text-emerald-700"}`}>
-                          {fmtEur(bal)}
+                        <span className={`font-semibold tabular-nums shrink-0 ${isZero || bal == null ? "text-muted-foreground" : bal < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                          {bal == null ? "Ni evidentirano" : fmtEur(bal)}
                         </span>
                       </div>
                     </Link>
@@ -315,6 +322,10 @@ const MODULES = [
     bg: "bg-orange-600/10",
   },
 ];
+
+export function isCrossArtifactModule(moduleId: string): boolean {
+  return moduleId === "pos";
+}
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
@@ -545,8 +556,8 @@ export default function Dashboard() {
             Moduli sistema
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleModules.map((module) => (
-              <Link key={module.id} href={module.path}>
+            {visibleModules.map((module) => {
+              const card = (
                 <Card className="h-full shadow-sm hover:shadow-md transition-shadow cursor-pointer border-border/60 hover:border-primary/30 group">
                   <CardHeader className="pb-3 flex flex-row items-center gap-4">
                     <div
@@ -567,8 +578,18 @@ export default function Dashboard() {
                     <ArrowUpRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
                   </CardFooter>
                 </Card>
-              </Link>
-            ))}
+              );
+
+              return isCrossArtifactModule(module.id) ? (
+                <a key={module.id} href={module.path}>
+                  {card}
+                </a>
+              ) : (
+                <Link key={module.id} href={module.path}>
+                  {card}
+                </Link>
+              );
+            })}
           </div>
         </div>
       ) : activeCompany ? (

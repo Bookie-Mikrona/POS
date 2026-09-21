@@ -37,6 +37,16 @@ const mockToast = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/api-client-react", () => ({
   useListZaloge: () => ({ data: [], isLoading: false }),
   useListPrejemnice: () => ({ data: [], isLoading: false }),
+  useListIzdajnice: () => ({ data: [], isLoading: false }),
+  useListPartnerji: () => ({ data: [], isLoading: false }),
+  useCreatePartner: () => ({ mutate: vi.fn(), isPending: false }),
+  useOsveziPartnerja: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdatePartner: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateArtikel: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useGetIzdajnica: () => ({ data: undefined, isLoading: false }),
   useListInventure: () => ({ data: [], isLoading: false }),
   useListArtikli: () => ({ data: [] }),
   useListZacetneZaloge: () => ({ data: [mockZacetnaZaloga], isLoading: false }),
@@ -59,11 +69,16 @@ vi.mock("@workspace/api-client-react", () => ({
   useReconcileZaloge: () => ({ mutate: vi.fn(), isPending: false }),
   getListZalogeQueryKey: () => ["/api/zaloge"],
   getListPrejemniceQueryKey: () => ["/api/prejemnice"],
+  getListIzdajniceQueryKey: () => ["/api/izdajnice"],
   getListInventureQueryKey: () => ["/api/inventure"],
   getGetPrejemnicaQueryKey: () => ["/api/prejemnice/detail"],
+  getGetIzdajnicaQueryKey: () => ["/api/izdajnice/detail"],
   getGetInventuraQueryKey: () => ["/api/inventure/detail"],
   getListZacetneZalogeQueryKey: () => ["/api/zacetne-zaloge"],
   getGetZacetnaZalogaQueryKey: () => ["/api/zacetne-zaloge/detail"],
+  getListPartnerjiQueryKey: () => ["/api/partnerji"],
+  getListArtikliQueryKey: () => ["/api/artikli"],
+  getEnotaId: () => 1,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({

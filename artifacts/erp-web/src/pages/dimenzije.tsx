@@ -4,16 +4,12 @@ import { Plus, Loader2, AlertCircle, Edit2, Layers, FolderOpen, Building } from 
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
-  useListCostCenters,
-  useCreateCostCenter,
-  useUpdateCostCenter,
   useListProjects,
   useCreateProject,
   useUpdateProject,
   useListDepartments,
   useCreateDepartment,
   useUpdateDepartment,
-  getListCostCentersQueryKey,
   getListProjectsQueryKey,
   getListDepartmentsQueryKey,
 } from "@workspace/api-client-react";
@@ -29,6 +25,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Link } from "wouter";
 
 /** Skupni tip za vse dimenzionalne zapise */
 type DimRecord = {
@@ -128,13 +125,6 @@ export default function Dimenzije() {
   const queryClient = useQueryClient();
   const companyId = activeCompany?.id ?? "";
 
-  // Cost Centers
-  const { data: ccData, isLoading: ccLoading, error: ccError } = useListCostCenters(
-    companyId, { includeInactive: true }, { query: { enabled: !!companyId } as any }
-  );
-  const createCC = useCreateCostCenter();
-  const updateCC = useUpdateCostCenter();
-
   // Projects
   const { data: prData, isLoading: prLoading, error: prError } = useListProjects(
     companyId, { includeInactive: true }, { query: { enabled: !!companyId } as any }
@@ -151,13 +141,13 @@ export default function Dimenzije() {
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogKind, setDialogKind] = useState<"costCenter" | "project" | "department">("costCenter");
+  const [dialogKind, setDialogKind] = useState<"project" | "department">("project");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<DimFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  function openNew(kind: "costCenter" | "project" | "department") {
+  function openNew(kind: "project" | "department") {
     setDialogKind(kind);
     setEditingId(null);
     setForm(emptyForm);
@@ -165,7 +155,7 @@ export default function Dimenzije() {
     setDialogOpen(true);
   }
 
-  function openEdit(kind: "costCenter" | "project" | "department", item: DimRecord) {
+  function openEdit(kind: "project" | "department", item: DimRecord) {
     setDialogKind(kind);
     setEditingId(item.id);
     setForm({
@@ -194,15 +184,7 @@ export default function Dimenzije() {
         isActive: form.isActive,
       };
 
-      if (dialogKind === "costCenter") {
-        if (editingId) {
-          await updateCC.mutateAsync({ companyId, id: editingId, data: updateBody });
-          queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey(companyId) });
-        } else {
-          await createCC.mutateAsync({ companyId, data: body });
-          queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey(companyId) });
-        }
-      } else if (dialogKind === "project") {
+      if (dialogKind === "project") {
         if (editingId) {
           await updatePr.mutateAsync({ companyId, id: editingId, data: updateBody });
           queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey(companyId) });
@@ -228,7 +210,6 @@ export default function Dimenzije() {
   }
 
   const kindLabel = {
-    costCenter: "Stroškovno mesto",
     project: "Projekt",
     department: "Oddelek",
   }[dialogKind];
@@ -238,7 +219,11 @@ export default function Dimenzije() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Dimenzije analitičnega računovodstva</h1>
         <p className="text-muted-foreground mt-1">
-          Stroškovna mesta, projekti in oddelki za podrobnejše razporejanje knjižb na temeljnicah.
+          Projekti in oddelki za podrobnejše razporejanje knjižb na temeljnicah.{" "}
+          <Link href="/stroskovana-mesta" className="underline text-primary hover:text-primary/80">
+            Stroškovna mesta
+          </Link>{" "}
+          so na ločeni strani.
         </p>
       </div>
 
@@ -250,11 +235,10 @@ export default function Dimenzije() {
         </Alert>
       )}
 
-      <Tabs defaultValue="cost-centers">
+      {/* Stroškovna mesta so zdaj samo na /stroskovana-mesta (polna stran s CRUD in hierarhijo).
+          Tukaj prikazujemo samo projekti in oddelki. */}
+      <Tabs defaultValue="projects">
         <TabsList>
-          <TabsTrigger value="cost-centers" className="gap-2">
-            <Layers className="h-4 w-4" /> Stroškovna mesta
-          </TabsTrigger>
           <TabsTrigger value="projects" className="gap-2">
             <FolderOpen className="h-4 w-4" /> Projekti
           </TabsTrigger>
@@ -263,16 +247,6 @@ export default function Dimenzije() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cost-centers" className="mt-4">
-          <DimTable
-            items={ccData?.costCenters ?? []}
-            isLoading={ccLoading}
-            error={ccError}
-            onNew={() => openNew("costCenter")}
-            onEdit={(item) => openEdit("costCenter", item)}
-            entityLabel="Stroškovno mesto"
-          />
-        </TabsContent>
         <TabsContent value="projects" className="mt-4">
           <DimTable
             items={prData?.projects ?? []}

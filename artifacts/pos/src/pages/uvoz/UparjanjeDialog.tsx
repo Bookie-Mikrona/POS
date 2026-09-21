@@ -8,7 +8,10 @@
 // Razredi CSS so pisani v slogu Tailwinda; prilagodi jih svojemu
 // oblikovnemu sistemu. Barva poudarka sledi oranžni z obstoječega zaslona.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { jeMismatchVelikosti } from './uparjanjeNaziv';
+import { isEditableKeyboardTarget } from '@/lib/keyboard-events';
+import { KlavijaturaInput } from '@/components/KlavijaturaInput';
 
 // =====================================================================
 // Tipi (ustrezajo odgovoru /api/pos/uvoz/prejemnice/:id/neuparjeno)
@@ -23,6 +26,10 @@ export interface Kandidat {
   enotVPaketu: string | null;
   ocena: number;
   znanDobavitelj: boolean;
+  /** false = artikel je deaktiviran; prikazan z opozorilom */
+  aktiven?: boolean;
+  aiPredlog?: boolean;
+  aiRazlog?: string;
 }
 
 export interface Opozorilo {
@@ -34,6 +41,8 @@ export interface Opozorilo {
 
 export interface NeuparjenaPostavka {
   id: number;
+  artikel_id?: number | null;
+  vrstica_tip?: 'zaloga' | 'poraba_surovin' | 'prevoz';
   zap_st: number;
   izv_gtin: string | null;
   izv_sifra: string | null;
@@ -42,25 +51,42 @@ export interface NeuparjenaPostavka {
   izv_kolicina: string;
   izv_cena: string;
   enot_v_paketu: string;
+  izbrano_enot_v_paketu?: string;
   uparjanje_zaupanje: number | null;
   uparjanje_kandidati: Kandidat[] | null;
-  opozorila: Opozorilo[] | null;
+  opozorila: Opozorilo[] | string | null;
+}
+
+export function pripraviPostavkoZaNovArtikel(
+  postavka: NeuparjenaPostavka,
+  pakiranje: string,
+): NeuparjenaPostavka {
+  const izbranoPakiranje = pakiranje.trim() || postavka.enot_v_paketu || '1';
+  return {
+    ...postavka,
+    enot_v_paketu: izbranoPakiranje,
+    izbrano_enot_v_paketu: izbranoPakiranje,
+  };
 }
 
 interface Lastnosti {
   prejemnicaId: number;
   dobaviteljNaziv: string;
+  dobaviteljPolniNaziv?: string;
   stDokumenta: string | null;
   datum: string | null;
   ceneBruto: boolean;
   steviloUparjenih: number;
   postavke: NeuparjenaPostavka[];
-  onUpari: (postavkaId: number, artikelId: number, enotVPaketu: string,
-            zapomni: boolean) => Promise<void>;
+  /** Vrne število preostalih (neuparjenih) postavk po uspešnem upari. */
+  onUpari: (postavkaId: number, artikelId: number | null, enotVPaketu: string,
+             zapomni: boolean, vrsticaTip: string) => Promise<number>;
   onNovArtikel: (postavka: NeuparjenaPostavka) => void;
-  onIsci: (niz: string) => Promise<Kandidat[]>;
+  onIsci: (niz: string, postavka: NeuparjenaPostavka) => Promise<Kandidat[]>;
   onZakljuci: () => void;
   onPreklici: () => void;
+  /** Opcijsko: prenese e-SLOG ZIP paket za to prejemnico. */
+  onPrenesiEslog?: () => Promise<void>;
 }
 
 // =====================================================================
@@ -82,6 +108,17 @@ function cenaNaEnoto(cenaPaket: string, enotVPaketu: string): string | null {
   return (c / p).toFixed(4);
 }
 
+function normalizirajOpozorila(vrednost: NeuparjenaPostavka['opozorila']): Opozorilo[] {
+  if (Array.isArray(vrednost)) return vrednost;
+  if (!vrednost) return [];
+  try {
+    const parsed = JSON.parse(vrednost) as unknown;
+    return Array.isArray(parsed) ? parsed as Opozorilo[] : [];
+  } catch {
+    return [];
+  }
+}
+
 function barvaOcene(ocena: number): string {
   if (ocena >= 0.9) return 'text-emerald-700';
   if (ocena >= 0.75) return 'text-amber-700';
@@ -100,44 +137,97 @@ export function UparjanjeDialog(l: Lastnosti) {
   const [najdeni, setNajdeni] = useState<Kandidat[]>([]);
   const [dela, setDela] = useState(false);
   const [napaka, setNapaka] = useState<string | null>(null);
+  const [pakiranje, setPakiranje] = useState<string>('1');
+  const [vrsticaTip, setVrsticaTip] = useState<'zaloga' | 'poraba_surovin' | 'prevoz'>('zaloga');
   const iskalnoPolje = useRef<HTMLInputElement>(null);
+  const pakiranjePolje = useRef<HTMLInputElement>(null);
+  const potrdiGumb = useRef<HTMLButtonElement>(null);
+  const vsebina = useRef<HTMLDivElement>(null);
+  const jePrviPrikaz = useRef(true);
+  const jePrivzetoPakiranjePocisceno = useRef(false);
 
   const postavka = l.postavke[kazalo];
   const skupaj = l.postavke.length;
 
   // Predlogi iz zaledja, dopolnjeni z rezultati ročnega iskanja.
+  // Dedupliciramo po artikelId — starejši uvozi so morda shranili dvojnike
+  // (napaka v GROUP BY pri trigramskem iskanju, popravljena z LATERAL).
   const kandidati = useMemo<Kandidat[]>(() => {
     const osnovni = postavka?.uparjanje_kandidati ?? [];
-    if (!najdeni.length) return osnovni;
-    const videni = new Set(osnovni.map((k) => k.artikelId));
-    return [...osnovni, ...najdeni.filter((k) => !videni.has(k.artikelId))];
+    const dodatni = najdeni;
+
+    const po = new Map<number, Kandidat>();
+    for (const k of [...osnovni, ...dodatni]) {
+      const obs = po.get(k.artikelId);
+      if (!obs || k.ocena > obs.ocena ||
+          (k.ocena === obs.ocena && Number(k.zadnjaCenaEnota ?? 0) > Number(obs.zadnjaCenaEnota ?? 0))) {
+        po.set(k.artikelId, k);
+      }
+    }
+    // Ohranjamo vrstni red po oceni (najvišja prva).
+    return [...po.values()].sort((a, b) => b.ocena - a.ocena);
   }, [postavka, najdeni]);
 
   // Ob prehodu na novo postavko počisti stanje in predizberi najboljšega.
   useEffect(() => {
-    setIzbran(postavka?.uparjanje_kandidati?.[0]?.artikelId ?? null);
+    const prviKandidat = postavka?.uparjanje_kandidati?.[0];
+    setIzbran(postavka?.artikel_id ?? prviKandidat?.artikelId ?? null);
+    setPakiranje(prviKandidat?.enotVPaketu ?? postavka?.enot_v_paketu ?? '1');
+    setVrsticaTip(postavka?.vrstica_tip ?? 'zaloga');
     setIskanje('');
     setNajdeni([]);
     setNapaka(null);
+    jePrivzetoPakiranjePocisceno.current = false;
   }, [postavka?.id]);
 
+  // Po potrditvi se na istem mestu pokaže naslednja postavka. Na telefonu
+  // ohranjen scroll pusti uporabnika pri dnu prejšnje, zato ga vedno vrnemo
+  // na začetek in tam pripravimo prvo vnosno polje.
+  useLayoutEffect(() => {
+    const jePrvi = jePrviPrikaz.current;
+    jePrviPrikaz.current = false;
+    vsebina.current?.scrollTo({ top: 0, behavior: 'auto' });
+    if (!jePrvi) {
+      requestAnimationFrame(() => {
+        pakiranjePolje.current?.focus({ preventScroll: true });
+        pakiranjePolje.current?.select();
+      });
+    }
+  }, [postavka?.id]);
+
+  // Ko se izbrani kandidat zamenja, posodobi pakiranje iz zapomnjene vrednosti.
+  useEffect(() => {
+    if (izbran === null) return;
+    const k = kandidati.find((x) => x.artikelId === izbran);
+    if (k?.enotVPaketu) setPakiranje(k.enotVPaketu);
+  }, [izbran, kandidati]);
+
   const potrdi = useCallback(async () => {
-    if (!postavka || izbran === null || dela) return;
+    if (!postavka || dela) return;
+    if (vrsticaTip === 'zaloga' && izbran === null) return;
     setDela(true);
     setNapaka(null);
     try {
-      const k = kandidati.find((x) => x.artikelId === izbran);
-      // Če ima artikel zapomnjeno pakiranje, ga uporabi; sicer tisto z dokumenta.
-      const pak = k?.enotVPaketu ?? postavka.enot_v_paketu;
-      await l.onUpari(postavka.id, izbran, pak, zapomni);
-      if (kazalo + 1 < skupaj) setKazalo(kazalo + 1);
-      else l.onZakljuci();
+      // onUpari vrne število preostalih postavk po odstranitvi — zanesljivo,
+      // brez stale-closure problema (izračunano iz prev v setState updaterju).
+      const ostalo = await l.onUpari(
+        postavka.id, vrsticaTip === 'zaloga' ? izbran : null, pakiranje || postavka.enot_v_paketu, zapomni, vrsticaTip,
+      );
+      if (ostalo === 0) {
+        l.onZakljuci();
+      }
+      // else: starš je odstranil to postavko; naslednja je zdaj na istem kazalu.
     } catch (e) {
       setNapaka((e as Error).message);
     } finally {
       setDela(false);
     }
-  }, [postavka, izbran, dela, kandidati, zapomni, kazalo, skupaj, l]);
+  }, [postavka, izbran, dela, pakiranje, zapomni, vrsticaTip, l]);
+
+  const odpriNovArtikel = useCallback(() => {
+    if (!postavka) return;
+    l.onNovArtikel(pripraviPostavkoZaNovArtikel(postavka, pakiranje));
+  }, [l, pakiranje, postavka]);
 
   // Uparjanje mora biti izvedljivo brez miške — kdor prevzema blago,
   // ima pogosto eno roko na dobavnici.
@@ -147,6 +237,10 @@ export function UparjanjeDialog(l: Lastnosti) {
         if (e.key === 'Escape') iskalnoPolje.current?.blur();
         return;
       }
+      if (
+        isEditableKeyboardTarget(e.target)
+        || isEditableKeyboardTarget(document.activeElement)
+      ) return;
       if (e.key >= '1' && e.key <= '9') {
         const i = Number(e.key) - 1;
         if (kandidati[i]) { setIzbran(kandidati[i].artikelId); e.preventDefault(); }
@@ -160,7 +254,7 @@ export function UparjanjeDialog(l: Lastnosti) {
       } else if (e.key === 'Enter') {
         void potrdi(); e.preventDefault();
       } else if (e.key.toLowerCase() === 'n') {
-        if (postavka) l.onNovArtikel(postavka); e.preventDefault();
+        odpriNovArtikel(); e.preventDefault();
       } else if (e.key === 'Escape') {
         if (kazalo + 1 < skupaj) setKazalo(kazalo + 1);
         e.preventDefault();
@@ -172,30 +266,54 @@ export function UparjanjeDialog(l: Lastnosti) {
     };
     window.addEventListener('keydown', naTipko);
     return () => window.removeEventListener('keydown', naTipko);
-  }, [kandidati, izbran, kazalo, skupaj, postavka, potrdi, l]);
+  }, [kandidati, izbran, kazalo, skupaj, postavka, potrdi, odpriNovArtikel, l]);
+
+  // Kadar starš odstrani postavko (po potrditvi) in je kazalo zdaj izven
+  // obsega (npr. po preskoku z Escape), ga vrnemo na zadnjo veljavno postavko.
+  useEffect(() => {
+    if (l.postavke.length > 0 && kazalo >= l.postavke.length) {
+      setKazalo(l.postavke.length - 1);
+    }
+  }, [l.postavke.length, kazalo]);
 
   // Iskanje z zamikom, da vsak pritisk tipke ne sproži zahtevka.
   useEffect(() => {
     if (iskanje.trim().length < 2) { setNajdeni([]); return; }
-    const id = setTimeout(() => { void l.onIsci(iskanje).then(setNajdeni); }, 250);
+    const id = setTimeout(() => { void l.onIsci(iskanje, postavka).then(setNajdeni); }, 250);
     return () => clearTimeout(id);
-  }, [iskanje, l]);
+  }, [iskanje, l, postavka]);
 
   if (!postavka) return null;
 
   const cenaEnota = cenaNaEnoto(postavka.izv_cena, postavka.enot_v_paketu);
   const skupnaVrednost =
     Number(postavka.izv_kolicina) * Number(postavka.izv_cena);
+  const jePrivzetoPakiranje = Number(pakiranje.replace(',', '.')) === 1;
+
+  const pripraviVnosPakiranja = () => {
+    // Mobilni brskalniki pri prvem tapu pogosto ne ohranijo select() izbire.
+    // Privzeti OCR zapis 1,0000 zato ob prvem tapu res izpraznimo, da lahko
+    // uporabnik takoj vpiše npr. 20 brez več zaporednih brisanj.
+    if (jePrivzetoPakiranje && !jePrivzetoPakiranjePocisceno.current) {
+      jePrivzetoPakiranjePocisceno.current = true;
+      setPakiranje('');
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex touch-pan-y items-center justify-center overscroll-contain bg-black/40 p-4 pb-20 md:pb-4">
+      <div className="flex w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl max-h-[calc(100vh-5rem)] md:max-h-[90vh]">
 
         {/* glava */}
-        <div className="flex shrink-0 items-start justify-between border-b px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold">Uvoz prejemnice — {l.dobaviteljNaziv}</h2>
-            <p className="mt-0.5 text-sm text-neutral-500">
+        <div className="flex shrink-0 items-start justify-between border-b px-3 py-2 sm:px-5 sm:py-3">
+          <div className="min-w-0 pr-2">
+            <h2
+              className="truncate text-sm font-semibold sm:text-base"
+              title={l.dobaviteljPolniNaziv ?? l.dobaviteljNaziv}
+            >
+              Uvoz prejemnice · {l.dobaviteljNaziv}
+            </h2>
+            <p className="truncate text-xs text-neutral-500">
               {l.stDokumenta && <>Dokument {l.stDokumenta} · </>}
               {l.datum} · cene: {l.ceneBruto ? 'BRUTO' : 'NETO'}
             </p>
@@ -214,7 +332,7 @@ export function UparjanjeDialog(l: Lastnosti) {
           </span>
         </div>
 
-        <div className="overflow-y-auto px-6 py-4">
+        <div ref={vsebina} className="overflow-y-auto overscroll-contain px-6 py-4">
           <p className="mb-2 text-sm text-neutral-500">{kazalo + 1} / {skupaj}</p>
 
           {/* izvorni zapis z dobavnice */}
@@ -229,20 +347,45 @@ export function UparjanjeDialog(l: Lastnosti) {
               {postavka.izv_enota && <> · {postavka.izv_enota}</>}
             </p>
             <p className="mt-1 text-sm">
-              {denar(postavka.enot_v_paketu, 0)} enot/paket
-              {' × '}{denar(postavka.izv_kolicina, 0)} paket
-              {' × '}{denar(postavka.izv_cena, 3)} €
+              {denar(postavka.izv_kolicina, 0)} paket
+              {' × '}{denar(postavka.izv_cena, 3)} €/paket
               {' = '}<strong>{denar(String(skupnaVrednost))} €</strong>
-              {cenaEnota && (
-                <span className="ml-2 text-neutral-500">
-                  ({denar(cenaEnota, 4)} €/enoto)
+            </p>
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <label className="text-neutral-500 shrink-0">Enot v paketu:</label>
+              <KlavijaturaInput
+                ref={pakiranjePolje}
+                type="text"
+                inputMode="decimal"
+                value={pakiranje}
+                naslov="Enot v paketu"
+                klavijaturaPlaceholder="npr. 20"
+                onPointerDown={pripraviVnosPakiranja}
+                onFocus={e => e.currentTarget.select()}
+                onChange={vrednost => setPakiranje(vrednost.replace(',', '.'))}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); potrdiGumb.current?.focus(); } }}
+                className="w-20 rounded border border-neutral-300 px-2 py-0.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
+              />
+              {Number(pakiranje) > 1 && Number(postavka.izv_cena) > 0 && (
+                <span className="text-neutral-500">
+                  = {denar(String(Number(postavka.izv_cena) / Number(pakiranje)), 4)} €/enoto
                 </span>
               )}
-            </p>
+            </div>
+          </div>
+          <div className="mt-3 rounded-md border border-orange-200 bg-orange-50 p-3">
+            <label className="text-sm font-medium">Obravnava vrstice</label>
+            <select value={vrsticaTip} onChange={e => setVrsticaTip(e.target.value as typeof vrsticaTip)}
+              className="ml-2 rounded border px-2 py-1 text-sm">
+              <option value="zaloga">Zaloga (artikel)</option>
+              <option value="poraba_surovin">Neposredna poraba surovin</option>
+              <option value="prevoz">Prevozne storitve pri nabavi</option>
+            </select>
+            {vrsticaTip !== 'zaloga' && <p className="mt-1 text-xs text-orange-800">Artikel ni potreben; vrstica gre neposredno v strošek.</p>}
           </div>
 
           {/* opozorila razčlenitve */}
-          {postavka.opozorila?.map((o) => (
+          {normalizirajOpozorila(postavka.opozorila).map((o) => (
             <div key={o.koda}
                  className={`mt-2 rounded-md px-3 py-2 text-sm ${
                    o.resnost === 'B'
@@ -269,33 +412,63 @@ export function UparjanjeDialog(l: Lastnosti) {
                   ? ((Number(cenaEnota) - Number(kandidatCena)) /
                       Number(kandidatCena)) * 100
                   : null;
+              const velikostNeSklada = jeMismatchVelikosti(k.naziv, postavka.izv_naziv);
 
               return (
                 <label key={k.artikelId}
-                  className={`flex cursor-pointer items-center gap-3 border-b px-3 py-2 last:border-b-0
+                  className={`flex cursor-pointer items-start sm:items-center gap-2 sm:gap-3 border-b px-3 py-2 last:border-b-0
                               ${izbran === k.artikelId ? 'bg-orange-50' : 'hover:bg-neutral-50'}`}>
                   <input type="radio" name="kandidat" checked={izbran === k.artikelId}
                          onChange={() => setIzbran(k.artikelId)}
-                         className="accent-orange-600" />
+                         className="accent-orange-600 mt-0.5 sm:mt-0 shrink-0" />
                   {i < 9 && (
-                    <kbd className="rounded border bg-white px-1.5 text-xs text-neutral-500">
+                    <kbd className="rounded border bg-white px-1.5 text-xs text-neutral-500 shrink-0 mt-0.5 sm:mt-0">
                       {i + 1}
                     </kbd>
                   )}
-                  <span className="flex-1 truncate min-w-0">
-                    <span className="truncate">{k.naziv}</span>
-                    {kandidati.filter(c => c.naziv === k.naziv).length > 1 && (
-                      <span className="ml-1 text-xs text-neutral-400">#{k.artikelId}</span>
+                  {/* Ime artikla:
+                      • mobilno (selfie/kamera): text-xs, prelom na 2 vrstici (line-clamp-2)
+                      • desktop (sm+): text-sm, ena vrstica z rezanjem (truncate) */}
+                  <span className="flex-1 min-w-0 overflow-hidden">
+                    <span className="block text-xs leading-snug line-clamp-2 sm:text-sm sm:leading-normal sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis sm:[display:block]">
+                      {k.naziv}
+                    </span>
+                    {(kandidati.filter(c => c.naziv === k.naziv).length > 1 ||
+                      k.aktiven === false || velikostNeSklada) && (
+                      <span className="flex flex-wrap gap-1 mt-0.5">
+                        {kandidati.filter(c => c.naziv === k.naziv).length > 1 && (
+                          <span className="text-xs text-neutral-400">#{k.artikelId}</span>
+                        )}
+                        {k.aktiven === false && (
+                          <span className="rounded bg-amber-100 px-1 py-0.5 text-xs font-medium text-amber-700">
+                            neaktiven
+                          </span>
+                        )}
+                        {k.aiPredlog && (
+                          <span title={k.aiRazlog || 'AI je prepoznal pomensko podobnost'}
+                                className="rounded bg-violet-100 px-1 py-0.5 text-xs font-medium text-violet-700">
+                            AI predlog
+                          </span>
+                        )}
+                        {velikostNeSklada && (
+                          <span title="Velikost v imenu artikla se razlikuje od dobavnice — preverite enot v paketu"
+                                className="rounded bg-amber-100 px-1 py-0.5 text-xs font-medium text-amber-700">
+                            ⚠ velikost
+                          </span>
+                        )}
+                      </span>
                     )}
                   </span>
+
+                  {/* Enota in cena — skrita na ozkih zaslonih */}
                   {k.osnovnaEnota && (
-                    <span className="shrink-0 text-sm text-neutral-500">({k.osnovnaEnota})</span>
+                    <span className="hidden sm:inline shrink-0 text-sm text-neutral-500">({k.osnovnaEnota})</span>
                   )}
 
                   {/* Cena je močnejši signal od imena: dobavitelj piše
                       "Caj vrecka - Kamilica 20/1", mi imamo "Čaj vrečka -
                       Kamilica"; ceni 0,2738 in 0,26 ujemanje potrdita. */}
-                  <span className="w-28 text-right text-sm">
+                  <span className="hidden sm:inline w-28 text-right text-sm shrink-0">
                     {kandidatCena ? `${denar(kandidatCena, 4)} €` : '—'}
                     {razlika !== null && Math.abs(razlika) >= 1 && (
                       <span className={Math.abs(razlika) > 15
@@ -307,9 +480,9 @@ export function UparjanjeDialog(l: Lastnosti) {
 
                   {k.znanDobavitelj && (
                     <span title="Ta artikel že kupujete od tega dobavitelja"
-                          className="text-xs text-emerald-600">✓</span>
+                          className="shrink-0 text-xs text-emerald-600">✓</span>
                   )}
-                  <span className={`w-12 text-right text-sm ${barvaOcene(k.ocena)}`}>
+                  <span className={`shrink-0 w-10 text-right text-sm ${barvaOcene(k.ocena)}`}>
                     {Math.round(k.ocena * 100)} %
                   </span>
                 </label>
@@ -320,14 +493,16 @@ export function UparjanjeDialog(l: Lastnosti) {
               <p className="mb-1 text-xs text-neutral-400">
                 Išči po imenu med vsemi artikli <kbd className="rounded border px-1 text-[10px]">Tab</kbd>
               </p>
-              <input ref={iskalnoPolje} value={iskanje}
-                     onChange={(e) => setIskanje(e.target.value)}
+              <KlavijaturaInput ref={iskalnoPolje} value={iskanje}
+                     onChange={setIskanje}
+                     naslov="Iskanje artikla"
+                     klavijaturaPlaceholder="Vtipkaj 2+ znake…"
                      placeholder="Vtipkaj 2+ znake…"
                      className="w-full rounded border px-2 py-1 text-sm outline-none
                                 focus:border-orange-500" />
             </div>
 
-            <button onClick={() => l.onNovArtikel(postavka)}
+            <button onClick={odpriNovArtikel}
                     className="w-full border-t px-3 py-2 text-left text-sm
                                text-orange-700 hover:bg-orange-50">
               ＋ Ustvari nov nabavni artikel <kbd className="ml-1 text-xs">N</kbd>
@@ -336,19 +511,29 @@ export function UparjanjeDialog(l: Lastnosti) {
 
           {/* učenje: brez tega je vsak naslednji uvoz enako ročen */}
           {(() => {
-            const imaSidro = !!(postavka.izv_sifra?.trim() || postavka.izv_gtin?.trim());
+            // Sidro je šifra, GTIN ali (vedno prisoten) naziv dobavitelja
+            const imaSidro = !!(
+              postavka.izv_sifra?.trim() ||
+              postavka.izv_gtin?.trim() ||
+              postavka.izv_naziv?.trim()
+            );
+            const sidroOpis = postavka.izv_sifra?.trim()
+              ? `šifra ${postavka.izv_sifra}`
+              : postavka.izv_gtin?.trim()
+              ? `EAN ${postavka.izv_gtin.replace(/^0+/, '')}`
+              : postavka.izv_naziv?.trim()
+              ? `naziv "${postavka.izv_naziv}"`
+              : null;
             return (
               <label className={`mt-3 flex items-center gap-2 text-sm ${
-                imaSidro ? '' : 'cursor-not-allowed opacity-50'}`}>
+                imaSidro ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
                 <input type="checkbox" checked={zapomni && imaSidro}
                        onChange={(e) => imaSidro && setZapomni(e.target.checked)}
                        disabled={!imaSidro}
                        className="accent-orange-600 disabled:cursor-not-allowed" />
                 Zapomni si za tega dobavitelja
-                {!imaSidro && (
-                  <span className="text-xs text-neutral-400">
-                    (ni šifre/EAN — povezava se ne more zapomniti)
-                  </span>
+                {imaSidro && sidroOpis && (
+                  <span className="text-xs text-neutral-400">({sidroOpis})</span>
                 )}
               </label>
             );
@@ -360,21 +545,31 @@ export function UparjanjeDialog(l: Lastnosti) {
         </div>
 
         {/* noga */}
-        <div className="flex shrink-0 items-center justify-between border-t px-6 py-3">
-          <button onClick={() => kazalo + 1 < skupaj ? setKazalo(kazalo + 1) : l.onZakljuci()}
-                  className="rounded px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100">
-            Preskoči <kbd className="ml-1 text-xs">Esc</kbd>
-          </button>
-          <div className="flex gap-2">
-            <button onClick={l.onZakljuci}
-                    className="rounded border px-4 py-2 text-sm hover:bg-neutral-50">
-              Zaključi <kbd className="ml-1 text-xs">F2</kbd>
+        <div className="flex shrink-0 items-center justify-between gap-1 border-t px-2 py-1.5 sm:px-4 sm:py-2">
+          <div className="flex items-center gap-1">
+            <button onClick={() => kazalo + 1 < skupaj ? setKazalo(kazalo + 1) : l.onZakljuci()}
+                    className="h-8 rounded px-2 text-xs text-neutral-600 hover:bg-neutral-100 sm:px-3 sm:text-sm">
+              Preskoči <kbd className="ml-0.5 text-[10px]">Esc</kbd>
             </button>
-            <button onClick={() => void potrdi()} disabled={izbran === null || dela}
-                    className="rounded bg-orange-600 px-4 py-2 text-sm font-medium text-white
-                               hover:bg-orange-700 disabled:opacity-40">
+            {l.onPrenesiEslog && (
+              <button
+                onClick={() => void l.onPrenesiEslog!()}
+                title="Prenesi e-SLOG ZIP paket prejetega računa"
+                className="h-8 rounded border px-2 text-xs text-neutral-600 hover:bg-neutral-50 sm:px-3 sm:text-sm">
+                ⬇ e-SLOG
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <button onClick={l.onZakljuci}
+                    className="h-8 rounded border px-2 text-xs hover:bg-neutral-50 sm:px-3 sm:text-sm">
+              Zaključi <kbd className="ml-0.5 text-[10px]">F2</kbd>
+            </button>
+          <button ref={potrdiGumb} onClick={() => void potrdi()} disabled={(vrsticaTip === 'zaloga' && izbran === null) || dela}
+                    className="h-8 rounded bg-orange-600 px-2 text-xs font-medium text-white
+                               hover:bg-orange-700 disabled:opacity-40 sm:px-3 sm:text-sm">
               {dela ? 'Shranjujem…' : (
-                <>Potrdi in naprej <kbd className="ml-1 text-xs">↵</kbd></>
+                <>Potrdi <kbd className="ml-0.5 text-[10px]">↵</kbd></>
               )}
             </button>
           </div>

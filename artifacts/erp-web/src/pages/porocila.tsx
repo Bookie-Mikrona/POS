@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { trackEvent } from "@/lib/analytics";
 import {
   FileText,
   AlertCircle,
@@ -18,7 +19,7 @@ import {
   RefreshCw,
   Sheet,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   useGetBalanceSheet,
   useGetIncomeStatement,
@@ -30,7 +31,7 @@ import {
   type TrialBalanceRow,
 } from "@workspace/api-client-react";
 
-// Defined locally — backend adds this to responses but it is not yet in the
+// Defined locally — backend adds these to responses but they are not yet in the
 // generated OpenAPI schema (schema update pending in a future task).
 interface AccountTypeWarning {
   accountId: string;
@@ -40,12 +41,25 @@ interface AccountTypeWarning {
   effectiveType: string;
 }
 
+interface UnclassifiedAccount {
+  accountId: string;
+  code: string;
+  name: string;
+  storedType: string | null;
+  reason: string;
+  debit: number;
+  credit: number;
+  net: number;
+}
+
 type BalanceSheetDataWithWarnings = BalanceSheetData & {
   typeWarnings?: AccountTypeWarning[];
+  unclassifiedAccounts?: UnclassifiedAccount[];
 };
 
 type IncomeStatementDataWithWarnings = IncomeStatementData & {
   typeWarnings?: AccountTypeWarning[];
+  unclassifiedAccounts?: UnclassifiedAccount[];
 };
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@clerk/react";
@@ -427,6 +441,93 @@ function TypeWarningsAlert({ warnings }: { warnings: AccountTypeWarning[] }) {
   );
 }
 
+/**
+ * Rdeče opozorilo za konte, ki so IZPADLI iz poročila (ne le prerazvrščeni).
+ * Prikaže se samo, kadar unclassifiedAccounts ni prazen.
+ */
+function UnclassifiedAccountsAlert({ accounts }: { accounts: UnclassifiedAccount[] }) {
+  const [open, setOpen] = useState(false);
+  if (!accounts || accounts.length === 0) return null;
+  const totalNet = accounts.reduce((s, a) => s + Math.abs(a.net), 0);
+  return (
+    <Alert className="border-red-400 bg-red-50 dark:bg-red-950/20 dark:border-red-700 mt-4 print:hidden">
+      <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+      <AlertTitle className="text-red-800 dark:text-red-300 flex items-center gap-2">
+        Pozor: {accounts.length === 1 ? "1 konto" : `${accounts.length} kontov`} ni
+        razvrščenih — {fmt(totalNet.toFixed(2))} EUR prikazano kot »Nerazvrščeno«
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="text-xs font-normal underline decoration-dotted cursor-pointer ml-1"
+        >
+          {open ? "Skrij podrobnosti" : "Pokaži podrobnosti"}
+        </button>
+      </AlertTitle>
+      <AlertDescription className="text-red-700 dark:text-red-400 text-xs mt-1">
+        Naslednji konti nimajo prepoznavnega tipa in so prikazani v sekciji{" "}
+        <strong>NERAZVRŠČENO</strong> na dnu poročila. Uredite tip konta v kontnem
+        načrtu, da bodo pravilno uvrščeni.
+        {open && (
+          <div className="mt-2 space-y-1">
+            {accounts.map((a) => (
+              <div
+                key={a.accountId}
+                className="flex items-center gap-2 px-2 py-1 rounded bg-red-100 dark:bg-red-900/30"
+              >
+                <span className="font-mono font-medium w-16 flex-shrink-0">{a.code}</span>
+                <span className="flex-1 truncate">{a.name}</span>
+                <span className="text-red-500 dark:text-red-400 flex-shrink-0 text-right">
+                  {a.reason}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/**
+ * Inline sekcija "NERAZVRŠČENO" — prikaže konte, ki jih ni mogoče uvrstiti
+ * v nobeno standardno kategorijo.  Vedno vidna v telesu poročila, ne le v opozorilu.
+ */
+function UnclassifiedSection({ accounts }: { accounts: UnclassifiedAccount[] }) {
+  if (!accounts || accounts.length === 0) return null;
+  const totalNet = accounts.reduce((s, a) => s + Math.abs(a.net), 0);
+  return (
+    <div className="space-y-1 border border-red-300 dark:border-red-700 rounded-md p-3 bg-red-50/60 dark:bg-red-950/10">
+      <div className="flex items-center gap-3 mb-2">
+        <h3 className="text-sm font-bold tracking-tight text-red-700 dark:text-red-400">
+          NERAZVRŠČENO
+        </h3>
+        <Badge variant="outline" className="text-xs border-red-300 text-red-600">
+          Neto: {fmt(totalNet.toFixed(2))} EUR
+        </Badge>
+        <span className="text-xs text-red-500 dark:text-red-400">
+          Uredite tip konta v kontnem načrtu
+        </span>
+      </div>
+      {accounts.map((a) => (
+        <div
+          key={a.accountId}
+          className="flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-red-100/60 dark:hover:bg-red-900/20"
+        >
+          <span className="font-mono w-16 flex-shrink-0 text-red-700 dark:text-red-400">
+            {a.code}
+          </span>
+          <span className="flex-1 text-muted-foreground truncate">{a.name}</span>
+          <span className="text-muted-foreground text-right whitespace-nowrap">
+            DB: {fmt(a.debit.toFixed(2))} / KR: {fmt(a.credit.toFixed(2))}
+          </span>
+          <span className="font-medium min-w-[90px] text-right text-red-600 dark:text-red-400">
+            {fmt(Math.abs(a.net).toFixed(2))} EUR
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Balance Sheet tab ─────────────────────────────────────────────────────────
 
 function BalanceSheetTab() {
@@ -484,6 +585,7 @@ function BalanceSheetTab() {
         filename: `bilanca-stanja-${appliedAsOf}.pdf`,
         token: token ?? "",
       });
+      trackEvent("report_exported", { report_type: "balance_sheet", format: "pdf" });
     } catch (err) {
       alert(`Napaka pri izvozu PDF: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -717,16 +819,30 @@ function BalanceSheetTab() {
             />
           </div>
 
+          {/* NERAZVRŠČENO — konti z nedoločljivim tipom (nikoli tiha izguba) */}
+          {((current as BalanceSheetDataWithWarnings).unclassifiedAccounts?.length ?? 0) > 0 && (
+            <>
+              <div className="border-t border-red-200 dark:border-red-800 my-4" />
+              <UnclassifiedSection
+                accounts={(current as BalanceSheetDataWithWarnings).unclassifiedAccounts ?? []}
+              />
+            </>
+          )}
+
           {/* Balance check */}
           {(() => {
             const diff = Math.abs(parseFloat(current.aktiva.total) - parseFloat(current.pasiva.total));
+            const hasUnclassified = ((current as BalanceSheetDataWithWarnings).unclassifiedAccounts?.length ?? 0) > 0;
             if (diff > 0.01) {
               return (
                 <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Bilanca se ne ujema</AlertTitle>
                   <AlertDescription>
-                    Razlika med aktivo in pasivo: {fmt(diff.toFixed(2))} EUR. Preverite knjižbe.
+                    Razlika med aktivo in pasivo: {fmt(diff.toFixed(2))} EUR.
+                    {hasUnclassified
+                      ? " Del razlike je lahko posledica nerazvrščenih kontov (glejte sekcijo Nerazvrščeno zgoraj)."
+                      : " Preverite knjižbe."}
                   </AlertDescription>
                 </Alert>
               );
@@ -741,8 +857,12 @@ function BalanceSheetTab() {
             );
           })()}
 
-          {/* SRS type mismatch warnings */}
+          {/* SRS type mismatch warnings (prerazvrščeni) */}
           <TypeWarningsAlert warnings={current.typeWarnings ?? []} />
+          {/* Unclassified accounts alert (izpuščeni — kritično) */}
+          <UnclassifiedAccountsAlert
+            accounts={(current as BalanceSheetDataWithWarnings).unclassifiedAccounts ?? []}
+          />
         </div>
       )}
 
@@ -829,6 +949,7 @@ function IncomeStatementTab() {
         filename: `izkaz-poslovnega-izida-${applied.dateFrom}-${applied.dateTo}.pdf`,
         token: token ?? "",
       });
+      trackEvent("report_exported", { report_type: "income_statement", format: "pdf" });
     } catch (err) {
       alert(`Napaka pri izvozu PDF: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -1106,6 +1227,16 @@ function IncomeStatementTab() {
             />
           </div>
 
+          {/* NERAZVRŠČENO — konti z nedoločljivim tipom (nikoli tiha izguba) */}
+          {((current as IncomeStatementDataWithWarnings).unclassifiedAccounts?.length ?? 0) > 0 && (
+            <>
+              <div className="border-t border-red-200 dark:border-red-800 my-2" />
+              <UnclassifiedSection
+                accounts={(current as IncomeStatementDataWithWarnings).unclassifiedAccounts ?? []}
+              />
+            </>
+          )}
+
           <div className="border-t-2 border-border mt-4 pt-2" />
 
           {/* NET RESULT */}
@@ -1131,8 +1262,12 @@ function IncomeStatementTab() {
             );
           })()}
 
-          {/* SRS type mismatch warnings */}
+          {/* SRS type mismatch warnings (prerazvrščeni) */}
           <TypeWarningsAlert warnings={current.typeWarnings ?? []} />
+          {/* Unclassified accounts alert (izpuščeni — kritično) */}
+          <UnclassifiedAccountsAlert
+            accounts={(current as IncomeStatementDataWithWarnings).unclassifiedAccounts ?? []}
+          />
         </div>
       )}
 
@@ -1226,6 +1361,7 @@ function TrialBalanceTab() {
         filename: `bruto-bilanca-${appliedFrom}-${appliedTo}.pdf`,
         token: token ?? "",
       });
+      trackEvent("report_exported", { report_type: "trial_balance", format: "pdf" });
     } catch (err) {
       alert(`Napaka pri izvozu PDF: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -1235,7 +1371,7 @@ function TrialBalanceTab() {
 
   const [xlsxExporting, setXlsxExporting] = useState(false);
 
-  function handleExportXlsx() {
+  async function handleExportXlsx() {
     if (!data) return;
     setXlsxExporting(true);
     try {
@@ -1272,39 +1408,47 @@ function TrialBalanceTab() {
       const totalBalCredit = data.rows.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
       const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalObD, totalObC, totalDebit, totalCredit, totalBalDebit, totalBalCredit];
 
-      const allRows = [...headerRows, ...dataRows, [], totalsRow];
-
-      const ws = XLSX.utils.aoa_to_sheet(allRows);
-
-      // Column widths
-      ws["!cols"] = [
-        { wch: 12 },  // Šifra
-        { wch: 40 },  // Naziv
-        { wch: 14 },  // Tip
-        { wch: 16 },  // Začetni saldo B
-        { wch: 16 },  // Začetni saldo D
-        { wch: 16 },  // Promet breme
-        { wch: 16 },  // Promet dobro
-        { wch: 16 },  // Saldo breme
-        { wch: 16 },  // Saldo dobro
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Bruto bilanca");
+      worksheet.columns = [
+        { width: 12 },  // Šifra
+        { width: 40 },  // Naziv
+        { width: 14 },  // Tip
+        { width: 16 },  // Začetni saldo B
+        { width: 16 },  // Začetni saldo D
+        { width: 16 },  // Promet breme
+        { width: 16 },  // Promet dobro
+        { width: 16 },  // Saldo breme
+        { width: 16 },  // Saldo dobro
       ];
+      for (const row of headerRows) worksheet.addRow(row);
+      for (const row of dataRows) worksheet.addRow(row);
+      worksheet.addRow([]);
+      worksheet.addRow(totalsRow);
 
-      // Number format for numeric columns (D–I, rows starting at data row)
-      const dataStartRow = headerRows.length; // 0-based
+      // Number format for numeric columns D–I. Skupne vrednosti so že
+      // izračunane v JavaScriptu, zato izvoz ne vsebuje Excel formul.
       const numFmt = "#,##0.00";
-      for (let r = dataStartRow; r < dataStartRow + dataRows.length + 2; r++) {
-        for (const col of [3, 4, 5, 6, 7, 8]) {
-          const cellAddr = XLSX.utils.encode_cell({ r, c: col });
-          if (ws[cellAddr] && typeof ws[cellAddr].v === "number") {
-            ws[cellAddr].z = numFmt;
+      for (let rowIndex = 6; rowIndex <= worksheet.rowCount; rowIndex++) {
+        for (let columnIndex = 4; columnIndex <= 9; columnIndex++) {
+          const cell = worksheet.getCell(rowIndex, columnIndex);
+          if (typeof cell.value === "number") {
+            cell.numFmt = numFmt;
           }
         }
       }
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Bruto bilanca");
-
-      XLSX.writeFile(wb, `bruto-bilanca-${appliedFrom}-${appliedTo}.xlsx`);
+      const vsebina = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([vsebina as unknown as BlobPart], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bruto-bilanca-${appliedFrom}-${appliedTo}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      trackEvent("report_exported", { report_type: "trial_balance", format: "xlsx" });
     } finally {
       setXlsxExporting(false);
     }
@@ -1536,10 +1680,10 @@ function TrialBalanceTab() {
                       </span>
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-muted-foreground">
-                      {parseFloat(row.openingBalanceDebit ?? "0") !== 0 ? fmtZ(row.openingBalanceDebit) : ""}
+                      {parseFloat(row.openingBalanceDebit ?? "0") !== 0 ? fmtZ(row.openingBalanceDebit ?? "") : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
-                      {parseFloat(row.openingBalanceCredit ?? "0") !== 0 ? fmtZ(row.openingBalanceCredit) : ""}
+                      {parseFloat(row.openingBalanceCredit ?? "0") !== 0 ? fmtZ(row.openingBalanceCredit ?? "") : ""}
                     </td>
                     <td className="px-3 py-1.5 text-right tabular-nums border-l border-border/30 text-blue-700 dark:text-blue-400">
                       {parseFloat(row.turnoverDebit) !== 0 ? fmtZ(row.turnoverDebit) : ""}

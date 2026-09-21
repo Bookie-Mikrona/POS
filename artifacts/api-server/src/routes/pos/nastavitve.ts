@@ -1,10 +1,17 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, ne } from "drizzle-orm";
-import { db, enoteTable, nastavitveTable, companiesTable } from "@workspace/db";
+import { artikliTable, db, enoteTable, nastavitveTable, companiesTable, bizboxNastavitveTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
-import { fursSOAPEcho } from "../../lib/pos-furs";
+import { fursSOAPEcho, pridobiCompanyCert } from "../../lib/pos-furs";
 import { randomUUID } from "node:crypto";
 import { posljiTestnoEmail } from "../../lib/pos-email";
+import {
+  isHappyHourActiveForArticle,
+  normalizeHappyHourRules,
+  parseHappyHourRules,
+  type HappyHourPravilo,
+  type HappyHourVelikostPice,
+} from "../../lib/happy-hour";
 
 const requireAdmin = requireEnota;
 const requireAdminEnote = requireEnota;
@@ -24,10 +31,6 @@ const DEFAULTS: Record<string, string> = {
   poslovniProstor:     "PP001",
   elektronskaNaprava:  "B001",
   ponudnikDavcna:      "",
-  certifikatPot:       "",
-  certifikatGeslo:     "",
-  certifikatPem:       "",
-  certifikatKljuc:     "",
   racunPozdrav1:       "Hvala za obisk!",
   racunPozdrav2:       "Vracamo se — se vidimo.",
   testniNacin:         "true",
@@ -55,23 +58,43 @@ const DEFAULTS: Record<string, string> = {
   racunPravnaKlavzula:        "",
   happyHourOd:                "",
   happyHourDo:                "",
-  happyHourRocnoAktiven:      "auto"};
+  happyHourPravila:           "[]",
+  happyHourRocnoAktiven:      "auto",
+  dovoliNegativneZaloge:      "true",
+  bizBoxOkolje:               "test",
+  telefonNarocilaOsnovniCasMin: "5",
+  telefonNarocilaCakalnaVrstaMin: "0",
+  telefonNarocilaKapaciteta: "3",
+  telefonNarocilaNajvecCasMin: "30",
+  telefonNarocilaZaokrozevanjeMin: "5",
+  telefonNarocilaPijacaOsnovniCasMin: "3",
+  telefonNarocilaPijacaCakalnaVrstaMin: "0",
+  telefonNarocilaPijacaKapaciteta: "2",
+  telefonNarocilaPijacaNajvecCasMin: "20",
+  telefonNarocilaPijacaZaokrozevanjeMin: "1",
+  dostavaArtikelId: "",
+  picaPremerMala: "0",
+  picaPremerNormalna: "0",
+  picaPremerDruzinska: "0",
+  studentskiBonAktiven: "false",
+  qrAiAsistentAktiven: "false",
+  toastTocilnicaAktiven: "true",
+};
+
+const BREZ_FALLBACKA_MED_ENOTAMI = new Set(["qrAiAsistentAktiven"]);
 
 /**
  * Ključi, ki so shranjeni na nivoju podjetja (enota_id=0, podjetje_davcna=X).
  * Certifikat, FURS način in PP/BB kode veljajo za celotno podjetje, ne posamezno enoto.
  */
 const FURS_KLJUCI_PO_PODJETJU = new Set([
-  "certifikatPem",
-  "certifikatKljuc",
-  "certifikatPot",
-  "certifikatGeslo",
   "poslovniProstor",
   "elektronskaNaprava",
   "testniNacin",
   "fursNacin",
   "fursProxyUrl",
   "simulirajFursNapako",
+  "bizBoxOkolje",
 ]);
 
 async function readAll(podjetjeDavcna: string, enotaId = 1): Promise<Record<string, string>> {
@@ -105,7 +128,9 @@ async function readAll(podjetjeDavcna: string, enotaId = 1): Promise<Record<stri
   // Rezervna možnost za enote brez lastnih ne-FURS nastavitev: vzamemo enota_id=1
   if (enotaId !== 1) {
     const manjkajoceNeFursKljuce = Object.keys(DEFAULTS).filter(
-      k => !enotaKljuci.has(k) && !FURS_KLJUCI_PO_PODJETJU.has(k)
+      k => !enotaKljuci.has(k)
+        && !FURS_KLJUCI_PO_PODJETJU.has(k)
+        && !BREZ_FALLBACKA_MED_ENOTAMI.has(k)
     );
     if (manjkajoceNeFursKljuce.length > 0) {
       const fallbackVrstice = await db.select().from(nastavitveTable).where(
@@ -136,9 +161,6 @@ function toResponse(map: Record<string, string>) {
     poslovniProstor:    map["poslovniProstor"]    ?? DEFAULTS["poslovniProstor"],
     elektronskaNaprava: map["elektronskaNaprava"] ?? DEFAULTS["elektronskaNaprava"],
     ponudnikDavcna:     map["ponudnikDavcna"]     ?? DEFAULTS["ponudnikDavcna"],
-    certifikatPot:      map["certifikatPot"]      ?? DEFAULTS["certifikatPot"],
-    certifikatGeslo:    map["certifikatGeslo"]    ?? DEFAULTS["certifikatGeslo"],
-    certifikatNaložen:  !!(map["certifikatPem"] && map["certifikatKljuc"]),
     racunPozdrav1:      map["racunPozdrav1"]      ?? DEFAULTS["racunPozdrav1"],
     racunPozdrav2:      map["racunPozdrav2"]      ?? DEFAULTS["racunPozdrav2"],
     fursNacin:          ((map["fursNacin"] as "simulacija" | "testno" | "produkcija" | undefined)
@@ -169,14 +191,47 @@ function toResponse(map: Record<string, string>) {
     racunPravnaKlavzula:        map["racunPravnaKlavzula"]   ?? "",
     happyHourOd:                map["happyHourOd"]           ?? "",
     happyHourDo:                map["happyHourDo"]           ?? "",
+     happyHourPravila:           (() => {
+       try {
+         return normalizeHappyHourRules(JSON.parse(map["happyHourPravila"] ?? "[]"));
+       } catch {
+         return [];
+       }
+     })(),
     happyHourRocnoAktiven:      (map["happyHourRocnoAktiven"] ?? "auto") as "auto" | "on" | "off",
+    dovoliNegativneZaloge:      (map["dovoliNegativneZaloge"] ?? "true") === "true",
     toGoTopliNapitekStopnja:    (map["toGoTopliNapitekStopnja"] ?? "konservativno") as "konservativno" | "liberalno",
+    telefonNarocilaOsnovniCasMin: Number(map["telefonNarocilaOsnovniCasMin"] ?? DEFAULTS["telefonNarocilaOsnovniCasMin"]),
+    telefonNarocilaCakalnaVrstaMin: Number(map["telefonNarocilaCakalnaVrstaMin"] ?? DEFAULTS["telefonNarocilaCakalnaVrstaMin"]),
+    telefonNarocilaKapaciteta: Number(map["telefonNarocilaKapaciteta"] ?? DEFAULTS["telefonNarocilaKapaciteta"]),
+    telefonNarocilaNajvecCasMin: Number(map["telefonNarocilaNajvecCasMin"] ?? DEFAULTS["telefonNarocilaNajvecCasMin"]),
+    telefonNarocilaZaokrozevanjeMin: Number(map["telefonNarocilaZaokrozevanjeMin"] ?? DEFAULTS["telefonNarocilaZaokrozevanjeMin"]),
+    telefonNarocilaPijacaOsnovniCasMin: Number(map["telefonNarocilaPijacaOsnovniCasMin"] ?? DEFAULTS["telefonNarocilaPijacaOsnovniCasMin"]),
+    telefonNarocilaPijacaCakalnaVrstaMin: Number(map["telefonNarocilaPijacaCakalnaVrstaMin"] ?? DEFAULTS["telefonNarocilaPijacaCakalnaVrstaMin"]),
+    telefonNarocilaPijacaKapaciteta: Number(map["telefonNarocilaPijacaKapaciteta"] ?? DEFAULTS["telefonNarocilaPijacaKapaciteta"]),
+    telefonNarocilaPijacaNajvecCasMin: Number(map["telefonNarocilaPijacaNajvecCasMin"] ?? DEFAULTS["telefonNarocilaPijacaNajvecCasMin"]),
+    telefonNarocilaPijacaZaokrozevanjeMin: Number(map["telefonNarocilaPijacaZaokrozevanjeMin"] ?? DEFAULTS["telefonNarocilaPijacaZaokrozevanjeMin"]),
+    dostavaArtikelId: map["dostavaArtikelId"] ? Number(map["dostavaArtikelId"]) : null,
+    picaPremerMala: Number(map["picaPremerMala"] ?? "0"),
+    picaPremerNormalna: Number(map["picaPremerNormalna"] ?? "0"),
+    picaPremerDruzinska: Number(map["picaPremerDruzinska"] ?? "0"),
+    studentskiBonAktiven: (map["studentskiBonAktiven"] ?? "false") === "true",
+    qrAiAsistentAktiven: (map["qrAiAsistentAktiven"] ?? "false") === "true",
+    toastTocilnicaAktiven: (map["toastTocilnicaAktiven"] ?? "true") === "true",
     agentTiskalnikToken:        map["agentTiskalnikToken"]   ?? "",
     podjetjeTrr: (() => {
       try { return JSON.parse(map["__podjetjeTrr"] ?? "[]") as Array<{ iban: string; bic: string }>; }
       catch { return [] as Array<{ iban: string; bic: string }>; }
     })(),
+    /** bizBox okolje: 'test' = demo.zzi.si (privzeto), 'prod' = ws.zzi.si */
+    bizBoxOkolje:               (map["bizBoxOkolje"] ?? "test") as "test" | "prod",
+    /** Ali sta poverilnici BIZBOX_USER in BIZBOX_PASS nastavljeni v okoljskih spremenljivkah */
+    bizBoxKonfiguriran:         !!(process.env["BIZBOX_USER"] && process.env["BIZBOX_PASS"]),
   };
+}
+
+function toJavniOdgovor(map: Record<string, string>) {
+  return toResponse(map);
 }
 
 router.get("/nastavitve/ddv-stopnje", async (_req, res): Promise<void> => {
@@ -256,8 +311,24 @@ router.get("/nastavitve", async (req, res): Promise<void> => {
     map["ponudnikDavcna"] = process.env.ERP_PONUDNIK_DAVCNA;
   }
 
+  // Per-podjetje bizBox konfiguracija — preverimo DB (ločeno od env fallback)
+  let bizBoxDbKonfiguriran = false;
+  if (enota?.companyId) {
+    const [bbRow] = await db
+      .select({ companyId: bizboxNastavitveTable.companyId })
+      .from(bizboxNastavitveTable)
+      .where(eq(bizboxNastavitveTable.companyId, enota.companyId));
+    bizBoxDbKonfiguriran = !!bbRow;
+  }
+
   res.setHeader("Cache-Control", "no-store, max-age=0");
-  res.json({ ...(toResponse(map)), zacetekDnevaUra: enota?.zacetekDnevaUra ?? "04:00" });
+  res.json({
+    ...(toJavniOdgovor(map)),
+    zacetekDnevaUra: enota?.zacetekDnevaUra ?? "04:00",
+    // Per-podjetje DB ima prednost; env spremenljivki sta fallback za nazaj-kompatibilnost
+    bizBoxKonfiguriran: bizBoxDbKonfiguriran || !!(process.env["BIZBOX_USER"] && process.env["BIZBOX_PASS"]),
+    bizBoxDbKonfiguriran,
+  });
 });
 
 router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
@@ -280,8 +351,6 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
     poslovniProstor:    parsed.data.poslovniProstor,
     elektronskaNaprava: parsed.data.elektronskaNaprava,
     ponudnikDavcna:     parsed.data.ponudnikDavcna ?? "",
-    certifikatPot:      parsed.data.certifikatPot ?? "",
-    certifikatGeslo:    parsed.data.certifikatGeslo ?? "",
     racunPozdrav1:      parsed.data.racunPozdrav1 ?? DEFAULTS["racunPozdrav1"]!,
     racunPozdrav2:      parsed.data.racunPozdrav2 ?? DEFAULTS["racunPozdrav2"]!,
     fursNacin:          fursNacinVal,
@@ -304,7 +373,74 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
     racunKapital:       (parsed.data as { racunKapital?: string }).racunKapital ?? "",
     racunDdvKlavzula:   (parsed.data as { racunDdvKlavzula?: string }).racunDdvKlavzula ?? "",
     racunZbirnaKlavzula: String((parsed.data as { racunZbirnaKlavzula?: boolean }).racunZbirnaKlavzula ?? false),
-    racunPravnaKlavzula: (parsed.data as { racunPravnaKlavzula?: string }).racunPravnaKlavzula ?? ""};
+    racunPravnaKlavzula: (parsed.data as { racunPravnaKlavzula?: string }).racunPravnaKlavzula ?? "",
+    dovoliNegativneZaloge: String((parsed.data as { dovoliNegativneZaloge?: boolean }).dovoliNegativneZaloge ?? true),
+    bizBoxOkolje: (parsed.data as { bizBoxOkolje?: string }).bizBoxOkolje === "prod" ? "prod" : "test",
+    ...((parsed.data as { studentskiBonAktiven?: boolean }).studentskiBonAktiven !== undefined
+      ? { studentskiBonAktiven: String((parsed.data as { studentskiBonAktiven: boolean }).studentskiBonAktiven) }
+      : {}),
+    qrAiAsistentAktiven: String((parsed.data as { qrAiAsistentAktiven?: boolean }).qrAiAsistentAktiven ?? false),
+    toastTocilnicaAktiven: String((parsed.data as { toastTocilnicaAktiven?: boolean }).toastTocilnicaAktiven ?? true),
+  };
+
+  const pizzaPremeri = [
+    ["picaPremerMala", (parsed.data as { picaPremerMala?: number }).picaPremerMala],
+    ["picaPremerNormalna", (parsed.data as { picaPremerNormalna?: number }).picaPremerNormalna],
+    ["picaPremerDruzinska", (parsed.data as { picaPremerDruzinska?: number }).picaPremerDruzinska],
+  ] as const;
+  for (const [kljuc, premer] of pizzaPremeri) {
+    if (premer === undefined) continue;
+    if (!Number.isFinite(premer) || premer < 0 || premer > 100) {
+      res.status(400).json({ error: "Premer pice mora biti število med 0 in 100 cm." });
+      return;
+    }
+    updates[kljuc] = String(premer);
+  }
+
+  const telefonNastavitve = [
+    ["telefonNarocilaOsnovniCasMin", (parsed.data as { telefonNarocilaOsnovniCasMin?: number }).telefonNarocilaOsnovniCasMin, 1, 120],
+    ["telefonNarocilaCakalnaVrstaMin", (parsed.data as { telefonNarocilaCakalnaVrstaMin?: number }).telefonNarocilaCakalnaVrstaMin, 0, 60],
+    ["telefonNarocilaKapaciteta", (parsed.data as { telefonNarocilaKapaciteta?: number }).telefonNarocilaKapaciteta, 1, 50],
+    ["telefonNarocilaNajvecCasMin", (parsed.data as { telefonNarocilaNajvecCasMin?: number }).telefonNarocilaNajvecCasMin, 5, 240],
+    ["telefonNarocilaZaokrozevanjeMin", (parsed.data as { telefonNarocilaZaokrozevanjeMin?: number }).telefonNarocilaZaokrozevanjeMin, 0, 60],
+    ["telefonNarocilaPijacaOsnovniCasMin", (parsed.data as { telefonNarocilaPijacaOsnovniCasMin?: number }).telefonNarocilaPijacaOsnovniCasMin, 1, 120],
+    ["telefonNarocilaPijacaCakalnaVrstaMin", (parsed.data as { telefonNarocilaPijacaCakalnaVrstaMin?: number }).telefonNarocilaPijacaCakalnaVrstaMin, 0, 60],
+    ["telefonNarocilaPijacaKapaciteta", (parsed.data as { telefonNarocilaPijacaKapaciteta?: number }).telefonNarocilaPijacaKapaciteta, 1, 50],
+    ["telefonNarocilaPijacaNajvecCasMin", (parsed.data as { telefonNarocilaPijacaNajvecCasMin?: number }).telefonNarocilaPijacaNajvecCasMin, 5, 240],
+    ["telefonNarocilaPijacaZaokrozevanjeMin", (parsed.data as { telefonNarocilaPijacaZaokrozevanjeMin?: number }).telefonNarocilaPijacaZaokrozevanjeMin, 0, 60],
+  ] as const;
+  for (const [kljuc, value, min, max] of telefonNastavitve) {
+    if (value === undefined) continue;
+    if (!Number.isInteger(value) || value < min || value > max) {
+      res.status(400).json({ error: "Nastavitve telefonskih naročil morajo biti cela števila v dovoljenem območju." });
+      return;
+    }
+    updates[kljuc] = String(value);
+  }
+
+  const dostavaArtikelId = (parsed.data as { dostavaArtikelId?: number | null }).dostavaArtikelId;
+  if (dostavaArtikelId !== undefined) {
+    if (dostavaArtikelId == null) {
+      updates["dostavaArtikelId"] = "";
+    } else if (!Number.isInteger(dostavaArtikelId) || dostavaArtikelId <= 0) {
+      res.status(400).json({ error: "Dostavni artikel mora biti veljaven artikel storitve." });
+      return;
+    } else {
+      const [artikel] = await db.select({ id: artikliTable.id })
+        .from(artikliTable)
+        .where(and(
+          eq(artikliTable.id, dostavaArtikelId),
+          eq(artikliTable.enotaId, tenotaId),
+          eq(artikliTable.aktiven, true),
+          eq(artikliTable.vrstaArtikla, "storitev"),
+        ));
+      if (!artikel) {
+        res.status(400).json({ error: "Dostavni artikel mora biti aktiven artikel vrste storitev iz izbrane enote." });
+        return;
+      }
+      updates["dostavaArtikelId"] = String(dostavaArtikelId);
+    }
+  }
 
   const novPin = (parsed.data as { izrednaIzdajaPIN?: string }).izrednaIzdajaPIN;
   if (novPin && novPin.length >= 4) {
@@ -335,39 +471,135 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
   }
 
   const map = await readAll("", tenotaId);
-  res.json((toResponse(map)));
+  res.json(toJavniOdgovor(map));
 });
 
 // ── Happy Hour ──────────────────────────────────────────────────────────────
-function isHappyHourActiveNow(od: string, doo: string, rocno: string): boolean {
-  if (rocno === "on") return true;
-  if (rocno === "off") return false;
-  if (!od || !doo) return false;
-  // Ljubljana time (UTC+1 winter / UTC+2 summer)
-  const now = new Date();
-  const lj = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Ljubljana" }));
-  const h = lj.getHours(), m = lj.getMinutes();
-  const cur = h * 60 + m;
-  const [oh, om] = od.split(":").map(Number);
-  const [dh, dm] = doo.split(":").map(Number);
-  const start = (oh ?? 0) * 60 + (om ?? 0);
-  const end = (dh ?? 0) * 60 + (dm ?? 0);
-  return end > start ? cur >= start && cur < end : cur >= start || cur < end;
+function parseJsonOrEmptyArray(value: string | undefined): unknown[] {
+  try {
+    const parsed = JSON.parse(value ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+interface HappyHourArtikelZaStatus {
+  id: number;
+  jePica: boolean;
+  happyHourCena: string | number | null;
+  happyHourCenaMala: string | number | null;
+  happyHourCenaDruzinska: string | number | null;
+}
+
+function izracunajHappyHourStatus(
+  artikli: HappyHourArtikelZaStatus[],
+  rules: HappyHourPravilo[],
+  rocno: string,
+): {
+  aktivniArtikelIds: number[];
+  aktivneVelikostiPice: Record<string, HappyHourVelikostPice[]>;
+} {
+  const aktivniArtikelIds: number[] = [];
+  const aktivneVelikostiPice: Record<string, HappyHourVelikostPice[]> = {};
+
+  for (const artikel of artikli) {
+    if (!artikel.jePica) {
+      if (artikel.happyHourCena != null && isHappyHourActiveForArticle(rules, artikel.id, rocno)) {
+        aktivniArtikelIds.push(artikel.id);
+      }
+      continue;
+    }
+
+    const razpolozljiveVelikosti: HappyHourVelikostPice[] = [
+      ...(artikel.happyHourCenaMala != null ? ["mala" as const] : []),
+      ...(artikel.happyHourCena != null ? ["normalna" as const] : []),
+      ...(artikel.happyHourCenaDruzinska != null ? ["druzinska" as const] : []),
+    ];
+    const aktivneVelikosti = razpolozljiveVelikosti.filter((velikost) =>
+      isHappyHourActiveForArticle(rules, artikel.id, rocno, new Date(), velikost)
+    );
+    if (aktivneVelikosti.length > 0) {
+      aktivniArtikelIds.push(artikel.id);
+      aktivneVelikostiPice[String(artikel.id)] = aktivneVelikosti;
+    }
+  }
+
+  return { aktivniArtikelIds, aktivneVelikostiPice };
 }
 
 router.get("/happy-hour", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const map = await readAll("", tenotaId);
-  const od = map["happyHourOd"] ?? "";
-  const doo = map["happyHourDo"] ?? "";
   const rocno = map["happyHourRocnoAktiven"] ?? "auto";
+  const artikli = await db.select({
+    id: artikliTable.id,
+    jePica: artikliTable.jePica,
+    happyHourCena: artikliTable.happyHourCena,
+    happyHourCenaMala: artikliTable.happyHourCenaMala,
+    happyHourCenaDruzinska: artikliTable.happyHourCenaDruzinska,
+  })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.enotaId, tenotaId), eq(artikliTable.aktiven, true)));
+  const rules = parseHappyHourRules(
+    parseJsonOrEmptyArray(map["happyHourPravila"]),
+    map["happyHourOd"] ?? "",
+    map["happyHourDo"] ?? "",
+    artikli.map((artikel) => artikel.id),
+  );
+  const activeRules = rules.filter((rule) =>
+    isHappyHourActiveForArticle([rule], rule.artikelIds[0] ?? 0, "auto")
+  );
+  const statusRule = activeRules[0] ?? rules[0];
+  const hhStatus = izracunajHappyHourStatus(artikli, rules, rocno);
   res.setHeader("Cache-Control", "no-store");
-  res.json({ aktiven: isHappyHourActiveNow(od, doo, rocno), od, do: doo, rocno });
+  res.json({
+    aktiven: hhStatus.aktivniArtikelIds.length > 0,
+    od: statusRule?.od ?? "",
+    do: statusRule?.do ?? "",
+    rocno,
+    pravila: rules,
+    aktivnaPravila: activeRules.map((rule) => rule.id),
+    aktivniArtikelIds: hhStatus.aktivniArtikelIds,
+    aktivneVelikostiPice: hhStatus.aktivneVelikostiPice,
+  });
 });
 
 router.patch("/nastavitve/happy-hour-urnik", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
-  const { happyHourOd, happyHourDo } = req.body as { happyHourOd?: string; happyHourDo?: string };
+  const { happyHourOd, happyHourDo, pravila } = req.body as {
+    happyHourOd?: string;
+    happyHourDo?: string;
+    pravila?: unknown;
+  };
+  if (pravila !== undefined) {
+    if (!Array.isArray(pravila)) {
+      res.status(400).json({ error: "Happy Hour pravila morajo biti seznam." });
+      return;
+    }
+    const rules = normalizeHappyHourRules(pravila);
+    if (rules.length !== pravila.length) {
+      res.status(400).json({ error: "Eno ali več Happy Hour pravil ima neveljavne podatke." });
+      return;
+    }
+    const vrednost = JSON.stringify(rules);
+    const [existing] = await db.select({ id: nastavitveTable.id })
+      .from(nastavitveTable)
+      .where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, "happyHourPravila")));
+    if (existing) {
+      await db.update(nastavitveTable).set({ vrednost }).where(eq(nastavitveTable.id, existing.id));
+    } else {
+      await db.insert(nastavitveTable).values({ enotaId: tenotaId, kljuc: "happyHourPravila", vrednost });
+    }
+    // Stari ključi ostanejo prazni, da jih stare stranke ne uporabijo vzporedno.
+    for (const kljuc of ["happyHourOd", "happyHourDo"]) {
+      await db.update(nastavitveTable).set({ vrednost: "" })
+        .where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+    }
+    res.json({ ok: true, pravila: rules });
+    return;
+  }
+
   for (const [kljuc, vrednost] of Object.entries({ happyHourOd: happyHourOd ?? "", happyHourDo: happyHourDo ?? "" })) {
     const existing = await db.select().from(nastavitveTable).where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
     if (existing.length > 0) {
@@ -391,8 +623,36 @@ router.patch("/happy-hour", requireEnota, async (req, res): Promise<void> => {
     await db.insert(nastavitveTable).values({ enotaId: tenotaId, kljuc, vrednost });
   }
   const map = await readAll("", tenotaId);
-  const od = map["happyHourOd"] ?? ""; const doo = map["happyHourDo"] ?? "";
-  res.json({ aktiven: isHappyHourActiveNow(od, doo, vrednost), od, do: doo, rocno: vrednost });
+  const artikli = await db.select({
+    id: artikliTable.id,
+    jePica: artikliTable.jePica,
+    happyHourCena: artikliTable.happyHourCena,
+    happyHourCenaMala: artikliTable.happyHourCenaMala,
+    happyHourCenaDruzinska: artikliTable.happyHourCenaDruzinska,
+  })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.enotaId, tenotaId), eq(artikliTable.aktiven, true)));
+  const rules = parseHappyHourRules(
+    parseJsonOrEmptyArray(map["happyHourPravila"]),
+    map["happyHourOd"] ?? "",
+    map["happyHourDo"] ?? "",
+    artikli.map((artikel) => artikel.id),
+  );
+  const activeRules = rules.filter((rule) =>
+    isHappyHourActiveForArticle([rule], rule.artikelIds[0] ?? 0, "auto")
+  );
+  const activeRule = activeRules[0] ?? rules[0];
+  const hhStatus = izracunajHappyHourStatus(artikli, rules, vrednost);
+  res.json({
+    aktiven: hhStatus.aktivniArtikelIds.length > 0,
+    od: activeRule?.od ?? "",
+    do: activeRule?.do ?? "",
+    rocno: vrednost,
+    pravila: rules,
+    aktivnaPravila: activeRules.map((rule) => rule.id),
+    aktivniArtikelIds: hhStatus.aktivniArtikelIds,
+    aktivneVelikostiPice: hhStatus.aktivneVelikostiPice,
+  });
 });
 
 router.patch("/nastavitve/grupiranje", requireAdminEnote, async (req, res): Promise<void> => {
@@ -416,6 +676,67 @@ router.patch("/nastavitve/grupiranje", requireAdminEnote, async (req, res): Prom
  enotaId: tenotaId, kljuc, vrednost });
   }
   res.json({ ok: true });
+});
+
+router.patch("/nastavitve/telefon-narocila", requireAdminEnote, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId ?? 1;
+  const body = req.body as Partial<{
+    osnovniCasMin: number;
+    cakalnaVrstaMin: number;
+    kapaciteta: number;
+    najvecCasMin: number;
+    zaokrozevanjeMin?: number;
+    pijacaOsnovniCasMin: number;
+    pijacaCakalnaVrstaMin: number;
+    pijacaKapaciteta: number;
+    pijacaNajvecCasMin: number;
+    pijacaZaokrozevanjeMin?: number;
+  }>;
+  const values = [
+    ["telefonNarocilaOsnovniCasMin", body.osnovniCasMin, 1, 120],
+    ["telefonNarocilaCakalnaVrstaMin", body.cakalnaVrstaMin, 0, 60],
+    ["telefonNarocilaKapaciteta", body.kapaciteta, 1, 50],
+    ["telefonNarocilaNajvecCasMin", body.najvecCasMin, 5, 240],
+    ...(body.zaokrozevanjeMin !== undefined ? [["telefonNarocilaZaokrozevanjeMin", body.zaokrozevanjeMin, 0, 60] as const] : []),
+    ["telefonNarocilaPijacaOsnovniCasMin", body.pijacaOsnovniCasMin, 1, 120],
+    ["telefonNarocilaPijacaCakalnaVrstaMin", body.pijacaCakalnaVrstaMin, 0, 60],
+    ["telefonNarocilaPijacaKapaciteta", body.pijacaKapaciteta, 1, 50],
+    ["telefonNarocilaPijacaNajvecCasMin", body.pijacaNajvecCasMin, 5, 240],
+    ...(body.pijacaZaokrozevanjeMin !== undefined ? [["telefonNarocilaPijacaZaokrozevanjeMin", body.pijacaZaokrozevanjeMin, 0, 60] as const] : []),
+  ] as const;
+
+  for (const [, value, min, max] of values) {
+    if (!Number.isInteger(value) || value! < min || value! > max) {
+      res.status(400).json({ error: `Nastavitve telefonskih naročil morajo biti cela števila v dovoljenem območju.` });
+      return;
+    }
+  }
+
+  for (const [kljuc, value] of values) {
+    const [existing] = await db.select({ kljuc: nastavitveTable.kljuc })
+      .from(nastavitveTable)
+      .where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+    if (existing) {
+      await db.update(nastavitveTable).set({ vrednost: String(value) })
+        .where(and(eq(nastavitveTable.enotaId, tenotaId), eq(nastavitveTable.kljuc, kljuc)));
+    } else {
+      await db.insert(nastavitveTable).values({ enotaId: tenotaId, kljuc, vrednost: String(value) });
+    }
+  }
+
+  const map = await readAll("", tenotaId);
+  res.json({
+    osnovniCasMin: Number(map["telefonNarocilaOsnovniCasMin"]),
+    cakalnaVrstaMin: Number(map["telefonNarocilaCakalnaVrstaMin"]),
+    kapaciteta: Number(map["telefonNarocilaKapaciteta"]),
+    najvecCasMin: Number(map["telefonNarocilaNajvecCasMin"]),
+    zaokrozevanjeMin: Number(map["telefonNarocilaZaokrozevanjeMin"]),
+    pijacaOsnovniCasMin: Number(map["telefonNarocilaPijacaOsnovniCasMin"]),
+    pijacaCakalnaVrstaMin: Number(map["telefonNarocilaPijacaCakalnaVrstaMin"]),
+    pijacaKapaciteta: Number(map["telefonNarocilaPijacaKapaciteta"]),
+    pijacaNajvecCasMin: Number(map["telefonNarocilaPijacaNajvecCasMin"]),
+    pijacaZaokrozevanjeMin: Number(map["telefonNarocilaPijacaZaokrozevanjeMin"]),
+  });
 });
 
 router.patch("/nastavitve/ddv-razresevalnik", requireAdminEnote, async (req, res): Promise<void> => {
@@ -464,20 +785,16 @@ router.post("/nastavitve/furs-echo", requireAdmin, async (req, res): Promise<voi
   const tenotaId = (req as any).enotaId ?? 1;
   const map = await readAll("", tenotaId);
   const nastavitve = toResponse(map);
-  const certPot = nastavitve.certifikatPot || "";
-  const certPem = map["certifikatPem"] || undefined;
-  const certKljuc = map["certifikatKljuc"] || undefined;
-  if (nastavitve.fursNacin !== "simulacija" && !certPot && !(certPem && certKljuc)) {
-    res.status(400).json({ uspeh: false, napaka: "Certifikat ni nastavljen (naložite .p12 prek vmesnika)" });
+  const companyCert = await pridobiCompanyCert((req as import("../../middlewares/pos").PosRequest).companyId);
+  if (nastavitve.fursNacin !== "simulacija" && !companyCert) {
+    res.status(400).json({ uspeh: false, napaka: "FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS." });
     return;
   }
   const odgovor = await fursSOAPEcho(
-    certPot,
     nastavitve.fursNacin,
-    nastavitve.certifikatGeslo || undefined,
     nastavitve.fursProxyUrl || undefined,
-    certPem,
-    certKljuc
+    companyCert?.certPem,
+    companyCert?.certKljuc
   );
   res.json(odgovor);
 });

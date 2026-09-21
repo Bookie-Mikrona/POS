@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, timestamp, integer, index, numeric } from "drizzle-orm/pg-core";
 import { enoteTable } from "./enote";
 
 export const blagajneTable = pgTable("blagajne", {
@@ -9,6 +9,10 @@ export const blagajneTable = pgTable("blagajne", {
   ime: text("ime").notNull(),
   aktivna: boolean("aktivna").notNull().default(true),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
-});
+  /** Kumulativni Grand Total (GT) — neponastavljiv, per blagajna (Z-poročilo). */
+  grandTotal: numeric("grand_total", { precision: 14, scale: 2 }).notNull().default("0"),
+}, (t) => [
+  index("ix_blagajne_enota_id").on(t.enotaId),
+]);
 
 export type Blagajna = typeof blagajneTable.$inferSelect;

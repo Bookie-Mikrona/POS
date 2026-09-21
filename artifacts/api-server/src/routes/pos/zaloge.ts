@@ -17,6 +17,7 @@ router.get("/zaloge", async (req, res): Promise<void> => {
       artikelIme:        artikliTable.ime,
       imeZaNabavo:       artikliTable.imeZaNabavo,
       enotaMere:         artikliTable.enotaMere,
+      povratnaEmbalaza:  artikliTable.povratnaEmbalaza,
       kolicina:          sql<string>`COALESCE(${zalogeTable.kolicina}, '0')`,
       povprecnaCena:     zalogeTable.povprecnaCena,
       skupnaVrednost:    zalogeTable.skupnaVrednost,
@@ -153,7 +154,7 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
       zg.referenca_id AS "referencaId",
       zg.ustvarjeno,
       p.stevilka      AS "prejStevilka",
-      COALESCE(sk.kratki_naziv, sk.naziv) AS "dobaviteljNaziv",
+      COALESCE(cp.kratki_naziv, cp.name) AS "dobaviteljNaziv",
       izd.stevilka    AS "izdStevilka",
       COALESCE(
         CASE WHEN zg.tip = 'prejemnica'                                    THEN p.datum END,
@@ -165,7 +166,7 @@ router.get("/zaloge/kartica/:artikelId", async (req, res): Promise<void> => {
     FROM zaloga_gibi zg
     LEFT JOIN artikli a            ON a.id   = zg.artikel_id
     LEFT JOIN prejemnice p         ON p.id   = zg.referenca_id AND zg.tip = 'prejemnica'
-    LEFT JOIN shranjeni_kupci sk   ON sk.id  = p.dobavitelj_id
+    LEFT JOIN counterparties cp    ON cp.id  = p.dobavitelj_id
     LEFT JOIN zacetne_zaloge zz    ON zz.id  = zg.referenca_id AND zg.opomba LIKE 'Začetne zaloge%'
     LEFT JOIN inventure inv        ON inv.id  = zg.referenca_id AND zg.tip = 'inventura'
     LEFT JOIN izdajnice izd        ON izd.id  = zg.referenca_id AND zg.tip = 'izdajnica'

@@ -1,0 +1,8 @@
+R_DEF: Internal format may change without notice
+local
+drawable ic_launcher
+id btnStop
+id tvStatus
+id tvUrl
+layout activity_main
+string app_name

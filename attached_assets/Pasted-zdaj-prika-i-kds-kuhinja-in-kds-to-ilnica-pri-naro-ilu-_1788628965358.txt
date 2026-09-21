@@ -1,0 +1,123 @@
+zdaj prikaži kds-kuhinja in kds-točilnica pri naročilu 4 hodnega menija z vinsko spremljavo pri mizi
+
+Pri naročilu 4-hodnega menija z vinsko spremljavo KDS sistemi v kuhinji in točilnici delujejo sinhronizirano, vendar z različnimi informacijskimi poudarki:
+
+KDS-Kuhinja prikazuje jedi in nadzoruje ritem kuhanja ter proženje hodov (FIRE).
+
+KDS-Točilnica (Šank / Sommelier) prikazuje izbrana vina, vezana na posamezne hode, ter opozorila za pravočasno natočitev pijače (vino mora biti pri mizi tik pred ali ob strežbi hoda).
+
+Miza 12 | 2 Gostoma | Naročilo: 2x 4-hodni meni + Vinska spremljava
+Status mize: Zagon 1. hoda | Čas od naročila: 02:15 min
+
+1. KDS - Kuhinja (Prikazovalnik za toplo/hladno linijo in expeditorja)
+Plaintext
+================================================================================
+MIZA 12 (2 oseb) | Natakar: Marko | Čas: 19:20
+Opombe: Gost 1 - Brez laktoze
+================================================================================
+
+[1. HOD] ---------------------------------- STATUS: IN PROGRESS (V pripravi)
+- 1x Tarpas jadranske hobotnice
+- 1x Karpaccio rdeče pese (Vegansko / Brez laktoze)
+
+[2. HOD] ---------------------------------- STATUS: HOLD (Na čakanju)
+- 1x Kremna žametna juha iz jurčkov
+- 1x Rižota z divjim škampom in žafranom
+
+[3. HOD] ---------------------------------- STATUS: HOLD (Na čakanju)
+- 1x File divjega brancina na žaru
+- 1x Zorjen goveji biftek v zeliščni skorjici (Mediano)
+
+[4. HOD] ---------------------------------- STATUS: HOLD (Na čakanju)
+- 1x Čokoladni fondat s pomarančo
+- 1x Izbor slovenskih obrtniških sirov
+================================================================================
+2. KDS - Točilnica / Šank (Prikazovalnik za šank in sommelierja)
+Plaintext
+================================================================================
+MIZA 12 (2 oseb) | Vinska spremljava (1 dcl) | Čas: 19:20
+================================================================================
+
+[1. HOD - PAIRING] ------------------------ STATUS: READY TO POUR (Pripravi)
+- 1x Malvazija 1 dcl  ---> (k hobotnici)
+- 1x Sivi pinot 1 dcl ---> (k cvekli)
+
+[2. HOD - PAIRING] ------------------------ STATUS: PENDING (Čaka na FIRE 2. hoda)
+- 1x Chardonnay (zorjen) 1 dcl
+- 1x Macerirana Rebula 1 dcl
+
+[3. HOD - PAIRING] ------------------------ STATUS: PENDING (Čaka na FIRE 3. hoda)
+- 1x Pošip 1 dcl
+- 1x Cabernet Sauvignon 1 dcl
+
+[4. HOD - PAIRING] ------------------------ STATUS: PENDING (Čaka na FIRE 4. hoda)
+- 1x Renski rizling (pozna trgatev) 1 dcl
+- 1x Portovec 1 dcl
+================================================================================
+Potek komunikacije med sistemoma med večerjo:
+Začetek (1. Hod): Natakar odda naročilo. KDS-Kuhinja dobi ukaz za pripravo 1. hoda. KDS-Točilnica takoj prikaže alert READY TO POUR za vina 1. hoda, da jih sommelier natoči in odnese k mizi pred ali skupaj s hrano.
+
+Prehod na 2. Hod: Ko miza pojé 1. hod, natakar na POS-u pritisne FIRE 2. HOD.
+
+KDS-Kuhinja: Status 2. hoda se spremeni iz HOLD v FIRE (V pripravi).
+
+KDS-Točilnica: Vina 2. hoda avtomatsko skočijo v status READY TO POUR, kar opozori šank, da pripravi naslednji par vin.
+
+Časovna usklajenost: Točilnica ima vpogled v stanja kuhinje, s čimer se prepreči, da bi vino stalo na šanku prehitro ali pa zamujalo na mizo.
+
+Prikaži točno spremembo na KDS zaslonih kuhinje in točilnice, ko natakar pritisne gumb FIRE za 2. hod.
+
+Ob trenutku, ko natakar na POS terminalu pritisne gumb FIRE 2. HOD, se na obeh KDS zaslonih izvede takojšnja vizualna in zvočna posodobitev.
+
+1. KDS - Kuhinja (Sprememba)
+Prvi hod se samodejno premakne med zaključene jedi, 2. hod pa zasveti v rdeči/zeleni barvi, sproži zvočni signal (pisk) in zažene časomer kuhanja.
+
+Plaintext
+================================================================================
+MIZA 12 (2 oseb) | Natakar: Marko | Čas sprožitve 2. hoda: 19:42
+Opombe: Gost 1 - Brez laktoze
+================================================================================
+
+[1. HOD] ---------------------------------- STATUS: COMPLETED (Zaključeno 19:40)
+- 1x Tarpas jadranske hobotnice              [ODNESENO]
+- 1x Karpaccio rdeče pese                    [ODNESENO]
+
+[2. HOD] ---------------------------------- STATUS: FIRE / IN PROGRESS (00:12 min)
+>>> ZVOČNI SIGNAL (PISK) <<<
+- 1x Kremna žametna juha iz jurčkov          ---> Postaja: Topla linija / Juhe
+- 1x Rižota z divjim škampom in žafranom     ---> Postaja: Topla linija / Tople jedi
+
+[3. HOD] ---------------------------------- STATUS: HOLD (Na čakanju)
+- 1x File divjega brancina na žaru
+- 1x Zorjen goveji biftek v zeliščni skorjici (Mediano)
+
+[4. HOD] ---------------------------------- STATUS: HOLD (Na čakanju)
+- 1x Čokoladni fondat s pomarančo
+- 1x Izbor slovenskih obrtniških sirov
+================================================================================
+2. KDS - Točilnica / Šank (Sprememba)
+Za šank in sommelierja se vina za 2. hod premaknejo na vrh z oznako Nujno / Za natočiti, da se pijača dostavi k mizi, preden pride topla hrana.
+
+Plaintext
+================================================================================
+MIZA 12 (2 oseb) | Vinska spremljava (1 dcl) | Čas sprožitve 2. hoda: 19:42
+================================================================================
+
+[1. HOD - PAIRING] ------------------------ STATUS: SERVED (Postreženo)
+- Malvazija 1 dcl / Sivi pinot 1 dcl         [ZAKLJUČENO]
+
+[2. HOD - PAIRING] ------------------------ STATUS: FIRE / READY TO POUR !!!
+>>> UTRIPAJOČO OPOZORILO <<<
+- 1x Chardonnay (zorjen) 1 dcl               ---> Strežba k rižoti
+- 1x Macerirana Rebula 1 dcl                 ---> Strežba k juhi iz jurčkov
+
+[3. HOD - PAIRING] ------------------------ STATUS: PENDING (Čaka na FIRE 3. hoda)
+- 1x Pošip 1 dcl / 1x Cabernet Sauvignon 1 dcl
+
+[4. HOD - PAIRING] ------------------------ STATUS: PENDING (Čaka na FIRE 4. hoda)
+- 1x Renski rizling 1 dcl / 1x Portovec 1 dcl
+================================================================================
+Ključne spremembe v tem trenutku:
+Časomeri (Timers): Na KDS-Kuhinja se pri 2. hodu začne šteti čas od 00:00. Vodja kuhinje (expeditor) ve, da mora biti rižota pripravljena v npr. 12 minutah.
+
+Prioriteta šanka: Sommelier dobi takojšen signal, da mora natočiti in dostaviti vino za 2. hod v roku 2–3 minut, tako da imata gosta vino na mizi ravno v trenutku, ko kuhinja izda toplo predjed.

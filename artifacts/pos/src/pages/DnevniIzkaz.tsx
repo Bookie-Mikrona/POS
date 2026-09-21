@@ -10,6 +10,7 @@ import {
   Download, Search, Banknote, CreditCard, Gift, Smartphone,
   Landmark, Users, Package, Receipt, TrendingUp, FileText,
 } from "lucide-react";
+import { poslovniDatumZaCas } from "@/lib/posCas";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -37,14 +38,13 @@ interface PrometObdobjaData {
   odZap: string | null;
   doZap: string | null;
   podjetje: { naziv: string; naslov: string; davcnaStevilka: string };
+  enota: { id: number; ime: string };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const LJ = "Europe/Ljubljana";
-
 function danes(): string {
-  return new Date().toLocaleDateString("sv-SE", { timeZone: LJ });
+  return poslovniDatumZaCas();
 }
 
 function fmt(n: number): string {
@@ -76,6 +76,7 @@ function genCsv(datum: string, data: PrometObdobjaData): string {
 
   row("DNEVNI IZKAZ", datumSlo(datum));
   row("Podjetje", data.podjetje.naziv);
+  row("Poslovna enota", data.enota.ime || `Enota #${data.enota.id}`);
   if (data.podjetje.davcnaStevilka) row("DDV ID", "SI" + data.podjetje.davcnaStevilka);
   rows.push([]);
 
@@ -199,7 +200,10 @@ export default function DnevniIzkaz() {
             Dnevni izkaz
           </h1>
           {data && (
-            <p className="text-sm text-muted-foreground mt-0.5">{data.podjetje.naziv}</p>
+            <div className="text-sm text-muted-foreground mt-0.5">
+              <p>{data.podjetje.naziv}</p>
+              {data.enota.ime && <p className="font-medium text-primary">Poslovna enota: {data.enota.ime}</p>}
+            </div>
           )}
         </div>
         <div className="flex items-end gap-2 ml-auto">

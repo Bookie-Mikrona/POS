@@ -99,7 +99,8 @@ export default function Partnerji() {
           <h1 className="text-3xl font-bold tracking-tight">Poslovni partnerji</h1>
           <p className="text-muted-foreground mt-1">Upravljanje kupcev in dobaviteljev.</p>
         </div>
-        {activeCompany?.role !== "viewer" && (
+        {/* Vsi uporabniki (vseh modulov) urejajo poslovne partnerje */}
+        {!!activeCompany && (
           <Button onClick={handleNew}>
             <Plus className="mr-2 h-4 w-4" />
             Nov partner
@@ -140,7 +141,7 @@ export default function Partnerji() {
           <p className="text-muted-foreground max-w-md mb-6">
             Za izbrane filtre ni bilo mogoče najti nobenega partnerja.
           </p>
-          {activeCompany?.role !== "viewer" && (
+          {!!activeCompany && (
             <Button onClick={handleNew}>
               <Plus className="mr-2 h-4 w-4" />
               Dodaj prvega partnerja
@@ -213,7 +214,8 @@ export default function Partnerji() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {activeCompany?.role !== "viewer" && (
+                    {/* Vsi uporabniki vseh modulov urejajo poslovne partnerje */}
+                    {!!activeCompany && (
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(partner)}>
                         <Pencil className="h-4 w-4" />
                       </Button>

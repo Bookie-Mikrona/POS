@@ -48,6 +48,10 @@ const racunGlavni = {
 const dataRef = vi.hoisted(() => ({ current: null as unknown }));
 const vivaVracilaRef = vi.hoisted(() => ({ current: {} as Record<number, unknown[]> }));
 const mockToast = vi.hoisted(() => vi.fn());
+const userRoleRef = vi.hoisted(() => ({ current: "blagajnik" }));
+const unknownRefundsRef = vi.hoisted(() => ({ current: [] as unknown[] }));
+const resolveUnknownMutate = vi.hoisted(() => vi.fn());
+const refundStatusCheck = vi.hoisted(() => vi.fn());
 
 // ── Moki modulov ──────────────────────────────────────────────────────────────
 
@@ -62,8 +66,20 @@ vi.mock("@workspace/api-client-react", () => ({
     isLoading: false,
     isFetching: false,
   }),
+  useListFursAttempts: () => ({ data: { items: [] }, isLoading: false }),
+  useListUnknownVivaRefunds: () => ({ data: { items: unknownRefundsRef.current }, isLoading: false }),
+  getListUnknownVivaRefundsQueryKey: () => ["/api/terminal/viva/terminal/refunds/unknown"],
+  useResolveUnknownVivaRefund: () => ({ mutate: resolveUnknownMutate, isPending: false }),
+  vivaTerminalRefundStatus: refundStatusCheck,
+  useListCardPaymentAttempts: () => ({ data: { items: [] }, isLoading: false }),
+  useRetryFursBatch: () => ({ mutate: vi.fn(), isPending: false }),
   getListRacuniQueryKey: () => ["/api/racuni"],
+  getListFursAttemptsQueryKey: () => ["/api/racuni/furs-attempts"],
   getListVivaVracilaQueryKey: (racunId: number) => ["/api/racuni", racunId, "viva-vracila"],
+}));
+
+vi.mock("@/contexts/NapravaContext", () => ({
+  useNaprava: () => ({ napravaKljuc: "test-naprava-kljuc" }),
 }));
 
 vi.mock("@/contexts/NastavitveContext", () => ({
@@ -74,7 +90,7 @@ vi.mock("@/contexts/NastavitveContext", () => ({
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { vloga: "blagajnik" } }),
+  useAuth: () => ({ user: { vloga: userRoleRef.current } }),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -87,8 +103,8 @@ vi.mock("@/components/PrintReceiptButton", () => ({
   ),
 }));
 
-vi.mock("@/components/ShranjeniKupciSelector", () => ({
-  ShranjeniKupciSelector: () => null,
+vi.mock("@/components/PartnerjiSelector", () => ({
+  PartnerjiSelector: () => null,
 }));
 
 // ── Pomožne funkcije ──────────────────────────────────────────────────────────
@@ -116,6 +132,10 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
   beforeEach(() => {
     dataRef.current = [racunGlavni];
     vivaVracilaRef.current = {};
+    userRoleRef.current = "blagajnik";
+    unknownRefundsRef.current = [];
+    resolveUnknownMutate.mockReset();
+    refundStatusCheck.mockReset().mockResolvedValue({ status: "UNKNOWN", napaka: null });
     mockToast.mockReset();
   });
 
@@ -127,7 +147,7 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
     renderReceipts();
     razširiRacun("PP001-B001-000001");
 
-    const badge = screen.getByText("Potrjeno");
+    const badge = screen.getAllByText("Potrjeno").find(element => element.classList.contains("bg-green-100"));
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveClass("bg-green-100");
     expect(badge).toHaveClass("text-green-800");
@@ -191,5 +211,125 @@ describe("VivaVracilaHistory — barvno kodiranje statusov", () => {
     razširiRacun("PP001-B001-000001");
 
     expect(screen.queryByLabelText("Samodejno osveževanje…")).not.toBeInTheDocument();
+  });
+
+  it('UNKNOWN po osvežitvi ustavi oba koraka in zahteva ročno uskladitev', () => {
+    vivaVracilaRef.current = {
+      1: [
+        {
+          id: 16,
+          znesek: "25.00",
+          status: "unknown",
+          ustvarjeno: "2024-06-01T10:30:00.000Z",
+          napaka: "Preverjanje terminala ni dosegljivo.",
+        },
+      ],
+    };
+
+    renderReceipts();
+    razširiRacun("PP001-B001-000001");
+
+    expect(screen.getByText("Ročna uskladitev")).toBeInTheDocument();
+    expect(screen.getByText("Postopek ustavljen")).toBeInTheDocument();
+    expect(screen.getAllByText(/Ne ponavljajte vračila/).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Potrdi storno" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Poskusi znova" })).not.toBeInTheDocument();
+  });
+
+  it("admin vidi izvajalca, napravo, provider referenco in časovnico prehodov", () => {
+    userRoleRef.current = "admin";
+    vivaVracilaRef.current = {
+      1: [
+        {
+          id: 17,
+          racunId: 1,
+          refundSessionId: "refund-provider-17",
+          providerReferenca: "refund-provider-17",
+          znesek: 25,
+          status: "paid",
+          napaka: null,
+          actorClerkUserId: "clerk-admin-17",
+          actorNatakarId: 77,
+          napravaKljuc: "POS-BAR-01",
+          ustvarjeno: "2024-06-01T10:30:00.000Z",
+          statusPrehodi: [
+            {
+              id: 170,
+              prejsnjiStatus: null,
+              noviStatus: "pending",
+              napaka: null,
+              actorClerkUserId: "clerk-admin-17",
+              actorNatakarId: 77,
+              napravaKljuc: "POS-BAR-01",
+              providerReferenca: "refund-provider-17",
+              ustvarjeno: "2024-06-01T10:30:00.000Z",
+            },
+            {
+              id: 171,
+              prejsnjiStatus: "pending",
+              noviStatus: "paid",
+              napaka: null,
+              actorClerkUserId: "clerk-admin-17",
+              actorNatakarId: 77,
+              napravaKljuc: "POS-BAR-01",
+              providerReferenca: "refund-provider-17",
+              ustvarjeno: "2024-06-01T10:31:00.000Z",
+            },
+          ],
+        },
+      ],
+    };
+
+    renderReceipts();
+    razširiRacun("PP001-B001-000001");
+
+    expect(screen.getByText("Natakar #77")).toBeInTheDocument();
+    expect(screen.getAllByText("POS-BAR-01")).toHaveLength(3);
+    expect(screen.getByText("refund-provider-17")).toBeInTheDocument();
+    expect(screen.getByText("Potek statusa (2)")).toBeInTheDocument();
+  });
+
+  it("admin lahko ponovno preveri UNKNOWN in ročno razreši le z razlogom ter dokazom", async () => {
+    userRoleRef.current = "admin";
+    unknownRefundsRef.current = [{
+      id: 91,
+      racunId: 1,
+      stevilkaRacuna: "PP001-B001-000001",
+      refundSessionId: "refund-unknown-91",
+      znesek: 25,
+      napaka: "Provider ni dosegljiv",
+      actorClerkUserId: "clerk-admin",
+      actorNatakarId: 77,
+      napravaKljuc: "POS-BAR-01",
+      ustvarjeno: "2024-06-01T10:30:00.000Z",
+    }];
+    renderReceipts();
+
+    expect(screen.getByText("Nejasna Viva vračila (1)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ponovno preveri Vivo" }));
+    expect(refundStatusCheck).toHaveBeenCalledWith("refund-unknown-91");
+
+    fireEvent.click(screen.getByRole("button", { name: "Ročno razreši" }));
+    const confirm = screen.getByRole("button", { name: "Potrdi ročno razrešitev" });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Razlog odločitve"), {
+      target: { value: "Preverjeno na terminalskem dnevniku." },
+    });
+    fireEvent.change(screen.getByLabelText("Dokaz ali referenca"), {
+      target: { value: "TX-REF-991" },
+    });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(resolveUnknownMutate).toHaveBeenCalledWith(
+      {
+        sessionId: "refund-unknown-91",
+        data: {
+          status: "paid",
+          razlog: "Preverjeno na terminalskem dnevniku.",
+          dokazReferenca: "TX-REF-991",
+        },
+      },
+      expect.any(Object),
+    );
   });
 });

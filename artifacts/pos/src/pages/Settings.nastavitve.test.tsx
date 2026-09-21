@@ -1,11 +1,13 @@
+declare global {
+  var mockResetProstorTloris: any;
+}
+globalThis.mockResetProstorTloris = vi.fn();
 /**
  * Testi za handleSaveNastavitve v resnični komponenti Settings.tsx.
  *
  * Pokritost:
  *  1. queryClient.setQueryData se pokliče z odgovorom API-ja po uspešnem shranjevanju
- *  2. localStorage dobi posodobljene podatke za medZavihkovno sinhronizacijo
- *     (prek NastavitveProvider, ki ob spremembi nastavitve zapiše v localStorage)
- *  3. Po shranjevanju se NE sproži dodatni API klic (invalidateQueries za nastavitve ni klican)
+ *  2. Po shranjevanju se no-store poizvedba invalidira za svež strežniški zajem.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, screen } from "@testing-library/react";
@@ -13,7 +15,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import type { Nastavitve } from "@workspace/api-client-react";
 import Settings from "./Settings";
-import { NastavitveProvider } from "@/contexts/NastavitveContext";
 
 const QUERY_KEY = ["/api/nastavitve"] as const;
 
@@ -43,8 +44,11 @@ const mockNastavitve: Nastavitve = {
 
 // vi.hoisted ensures these are available before vi.mock hoisting
 const mockMutate = vi.hoisted(() => vi.fn());
+const mockBulkPozicijaMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 const mockUseGetNastavitve = vi.hoisted(() => vi.fn());
+const mockUseListMize = vi.hoisted(() => vi.fn());
+const mockUseListProstori = vi.hoisted(() => vi.fn());
 
 vi.mock("wouter", () => ({
   useSearch: () => "",
@@ -63,14 +67,33 @@ vi.mock("recharts", () => ({
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
-  useListMize: () => ({ data: [] }),
+  useListMize: () => mockUseListMize(),
   useCreateMiza: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteMiza: () => ({ mutate: vi.fn() }),
   useUpdateMiza: () => ({ mutate: vi.fn() }),
-  useListProstori: () => ({ data: [] }),
+  useBulkPozicijaMize: () => ({ mutate: mockBulkPozicijaMutate, isPending: false }),
+  useGetProstorTloris: () => ({ data: undefined, isFetching: false }),
+  useUpdateProstorTloris: () => ({ mutate: vi.fn(), isPending: false }),
+  useResetProstorTloris: () => ({ mutate: globalThis.mockResetProstorTloris, isPending: false }),
+  useListProstori: () => mockUseListProstori(),
   useCreateProstor: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateProstor: () => ({ mutate: vi.fn() }),
   useDeleteProstor: () => ({ mutate: vi.fn() }),
+  useUpdateNapraveTerminali: () => ({ mutate: vi.fn(), isPending: false }),
+  useEnrollPaytenAndroidBridge: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListNaprave: () => ({ data: [], isLoading: false }),
+  useUpdateNaprava: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteNaprava: () => ({ mutate: vi.fn(), isPending: false }),
+  useListBlagajne: () => ({ data: [], isLoading: false, refetch: vi.fn() }),
+  useCreateBlagajna: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateBlagajna: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteBlagajna: () => ({ mutate: vi.fn(), isPending: false }),
+  useListEnote: () => ({ data: [], isLoading: false }),
+  useCreateEnota: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateEnota: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteEnota: () => ({ mutate: vi.fn(), isPending: false }),
+  useGetCurrentPublicIp: () => ({ data: undefined, isLoading: false, refetch: vi.fn() }),
+  useListCostCenters: () => ({ data: [], isLoading: false }),
   useUpdateNastavitve: () => ({ mutate: mockMutate, isPending: false }),
   useListNatakari: () => ({ data: [] }),
   useCreateNatakar: () => ({ mutate: vi.fn(), isPending: false }),
@@ -91,12 +114,17 @@ vi.mock("@workspace/api-client-react", () => ({
   getListNatakariQueryKey: () => ["/api/natakari"],
   getListPoslovniProstoriQueryKey: () => ["/api/poslovni-prostori"],
   getListProstoriQueryKey: () => ["/api/prostori"],
-  // NastavitveProvider-specific mock (used when NastavitveProvider is in the tree)
+  getListEnoteQueryKey: () => ["/api/enote"],
+  getListBlagajneQueryKey: () => ["/api/blagajne"],
+  getListNapraveQueryKey: () => ["/api/naprave"],
+  customFetch: vi.fn(),
+  getAuthToken: () => null,
+  getEnotaId: () => 1,
   useGetNastavitve: (opts: unknown) => mockUseGetNastavitve(opts),
 }));
 
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
+vi.mock("@/contexts/AuthContext", () => {
+  const auth = {
     user: {
       id: 1,
       username: "admin",
@@ -109,13 +137,26 @@ vi.mock("@/contexts/AuthContext", () => ({
     login: vi.fn(),
     updateUser: vi.fn(),
     logout: vi.fn(),
-  }),
-}));
+  };
+
+  return { useAuth: () => auth };
+});
 
 vi.mock("@/contexts/NastavitveContext", () => ({
   useNastavitve: () => ({ nastavitve: mockNastavitve, nastavitveLoading: false }),
   NastavitveProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  clearNastavitveStorage: vi.fn(),
+}));
+
+vi.mock("@/contexts/NapravaContext", () => ({
+  useNaprava: () => ({
+    naprava: null,
+    napravaKljuc: "test-naprava-kljuc",
+    napravaLoading: false,
+    refreshNaprava: vi.fn(),
+    useUpdateNaprava: () => ({ mutate: vi.fn(), isPending: false }),
+    updateTerminalConfig: vi.fn(),
+  }),
+  NapravaProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -147,10 +188,12 @@ describe("Settings — handleSaveNastavitve integracija", () => {
 
   beforeEach(() => {
     queryClient = makeQueryClient();
-    localStorage.clear();
     mockMutate.mockReset();
+    mockBulkPozicijaMutate.mockReset();
     mockToast.mockReset();
     mockUseGetNastavitve.mockReturnValue({ data: undefined, isLoading: false });
+    mockUseListMize.mockReturnValue({ data: [] });
+    mockUseListProstori.mockReturnValue({ data: [] });
     // Odpri zavihek "nastavitve" — tam je gumb "Shrani vse nastavitve"
     sessionStorage.setItem("settings.aktivniZavihek", "nastavitve");
     // Prepreči dejanske fetch klice (za certifikat/info, testni zagoni, ipd.)
@@ -204,6 +247,42 @@ describe("Settings — handleSaveNastavitve integracija", () => {
     expect(setQueryDataSpy).toHaveBeenCalledWith(QUERY_KEY, mockApiResponse);
   });
 
+  it("shrani vklop AI asistenta javnega QR menija", () => {
+    render(
+      <Wrapper queryClient={queryClient}>
+        <Settings />
+      </Wrapper>
+    );
+
+    fireEvent.click(screen.getByTestId("qr-ai-asistent-aktiven"));
+    fireEvent.click(screen.getByText("Shrani vse nastavitve"));
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ qrAiAsistentAktiven: true }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("shrani izklop toastov iz točilnice", () => {
+    render(
+      <Wrapper queryClient={queryClient}>
+        <Settings />
+      </Wrapper>
+    );
+
+    fireEvent.click(screen.getByTestId("toast-tocilnica-aktiven"));
+    fireEvent.click(screen.getByText("Shrani vse nastavitve"));
+
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ toastTocilnicaAktiven: false }),
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("React Query cache vsebuje sveže nastavitve takoj po uspešnem shranjevanju (brez ponovne zahteve)", () => {
     mockMutate.mockImplementation(
       (_args: unknown, callbacks: { onSuccess?: (d: Nastavitve) => void }) => {
@@ -223,7 +302,7 @@ describe("Settings — handleSaveNastavitve integracija", () => {
     expect(cached).toEqual(mockApiResponse);
   });
 
-  it("queryClient.invalidateQueries se NE pokliče za ključ nastavitev po uspešnem shranjevanju", () => {
+  it("po uspešnem shranjevanju invalidira no-store ključ nastavitev", () => {
     mockMutate.mockImplementation(
       (_args: unknown, callbacks: { onSuccess?: (d: Nastavitve) => void }) => {
         callbacks?.onSuccess?.(mockApiResponse);
@@ -248,7 +327,7 @@ describe("Settings — handleSaveNastavitve integracija", () => {
         return key.length > 0 && key[0] === QUERY_KEY[0];
       }
     );
-    expect(nastavitveInvalidations).toHaveLength(0);
+    expect(nastavitveInvalidations).toHaveLength(1);
   });
 
   it("po neuspešnem shranjevanju se queryClient.setQueryData NE pokliče", () => {
@@ -270,69 +349,48 @@ describe("Settings — handleSaveNastavitve integracija", () => {
 
     expect(setQueryDataSpy).not.toHaveBeenCalled();
   });
-});
 
-describe("Settings — localStorage sinhronizacija prek NastavitveContext", () => {
-  let queryClient: QueryClient;
-
-  beforeEach(() => {
-    queryClient = makeQueryClient();
-    localStorage.clear();
-    mockMutate.mockReset();
-    mockUseGetNastavitve.mockReturnValue({ data: undefined, isLoading: false });
-  });
-
-  /**
-   * Uvozi pravo NastavitveContext implementacijo (brez moka) in preverja,
-   * da NastavitveProvider zapiše posodobljene podatke v localStorage,
-   * ko useGetNastavitve vrne nov odgovor — kar se v produkciji zgodi
-   * takoj po tem, ko handleSaveNastavitve kliče setQueryData.
-   */
-  it("NastavitveContext zapiše posodobljene nastavitve v localStorage ko prejme sveže podatke", async () => {
-    // Dinamično uvozimo pravo implementacijo (brez moka za NastavitveContext)
-    const { NastavitveProvider: RealNastavitveProvider } = await vi.importActual<
-      typeof import("@/contexts/NastavitveContext")
-    >("@/contexts/NastavitveContext");
-
-    mockUseGetNastavitve.mockReturnValue({ data: mockApiResponse, isLoading: false });
+  it("po potrditvi ponastavi tloris samo izbranega prostora", async () => {
+    sessionStorage.setItem("settings.aktivniZavihek", "mize");
+    mockUseListProstori.mockReturnValue({
+      data: [{ id: 42, ime: "Terasa", vrstniRed: 1 }],
+    });
+    mockUseListMize.mockReturnValue({
+      data: [{
+        id: 7,
+        stevilka: 1,
+        ime: "Miza 1",
+        kapaciteta: 4,
+        status: "prosta",
+        prostorId: 42,
+        posX: 100,
+        posY: 50,
+        oblika: "pravokotnik_h",
+      }],
+    });
 
     render(
-      <QueryClientProvider client={queryClient}>
-        <RealNastavitveProvider>
-          <span data-testid="child" />
-        </RealNastavitveProvider>
-      </QueryClientProvider>
+      <Wrapper queryClient={queryClient}>
+        <Settings />
+      </Wrapper>
     );
 
-    const raw = localStorage.getItem("nastavitve");
-    expect(raw).not.toBeNull();
-    const entry = JSON.parse(raw!) as { data: Nastavitve; ts: number };
-    expect(entry.data.nazivRestavracije).toBe(mockApiResponse.nazivRestavracije);
-    expect(entry.data.davcnaStevilka).toBe(mockApiResponse.davcnaStevilka);
-  });
+    // Expand the tloris row first
+    const expandButton = await screen.findByRole("button", { name: /Tloris/i });
+    fireEvent.click(expandButton);
 
-  it("localStorage format je { data, ts } — potreben za StorageEvent sinhronizacijo med zavihki", async () => {
-    const pred = Date.now();
+    const button = await screen.findByRole("button", { name: "Ponastavi tloris" });
+    fireEvent.click(button);
+    expect(screen.getByText("Ponastavim tloris prostora?")).toBeTruthy();
+    const confirmationButtons = screen.getAllByRole("button", { name: "Ponastavi tloris" });
+    fireEvent.click(confirmationButtons.at(-1)!);
 
-    const { NastavitveProvider: RealNastavitveProvider } = await vi.importActual<
-      typeof import("@/contexts/NastavitveContext")
-    >("@/contexts/NastavitveContext");
-
-    mockUseGetNastavitve.mockReturnValue({ data: mockApiResponse, isLoading: false });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RealNastavitveProvider>
-          <span />
-        </RealNastavitveProvider>
-      </QueryClientProvider>
+    expect(globalThis.mockResetProstorTloris).toHaveBeenCalledWith(
+      { id: 42, data: { version: expect.any(Number) } },
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onError: expect.any(Function),
+      }),
     );
-
-    const raw = localStorage.getItem("nastavitve");
-    expect(raw).not.toBeNull();
-    const entry = JSON.parse(raw!) as { data: unknown; ts: number };
-    expect(entry).toHaveProperty("data");
-    expect(entry).toHaveProperty("ts");
-    expect(entry.ts).toBeGreaterThanOrEqual(pred);
   });
 });

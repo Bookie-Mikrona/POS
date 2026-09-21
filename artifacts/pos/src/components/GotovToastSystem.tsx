@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, X, ChefHat, GlassWater } from "lucide-react";
 import { useGotovToast, type GotovToastItem } from "@/contexts/GotovToastContext";
+import { formatMizaProstor } from "@/lib/formatMizaProstor";
 
 function mizaLabel(t: GotovToastItem) {
-  return t.mizaIme ?? (t.mizaStevilka != null ? `Miza ${t.mizaStevilka}` : "?");
+  return formatMizaProstor(t, "?");
 }
 
 function ActiveToast({ t, onDismiss, onMinimize }: {

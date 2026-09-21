@@ -23,33 +23,11 @@ export async function getZalogeObDatumu(
           zg.tip,
           zg.kolicina::float8 AS kolicina,
           zg.opomba,
-          CASE
-            WHEN zg.tip = 'prejemnica'             THEN pp.cena_kos::float8
-            WHEN zg.opomba LIKE 'Začetne zaloge%'  THEN zzp.cena_kos::float8
-            ELSE NULL
-          END AS source_cena_kos,
-          COALESCE(
-            CASE WHEN zg.tip = 'prejemnica'                                              THEN p.datum END,
-            CASE WHEN zg.opomba LIKE 'Začetne zaloge%'                                  THEN zz.datum END,
-            CASE WHEN zg.tip = 'inventura'
-                  AND (zg.opomba IS NULL OR zg.opomba NOT LIKE 'Začetne zaloge%')        THEN inv.datum END,
-            CASE WHEN zg.tip = 'izdajnica'                                               THEN izd.datum END,
-            zg.ustvarjeno
-          ) AS datum_dokumenta
+          zg.cena_kos::float8 AS source_cena_kos,
+          zg.vrednost::float8 AS vrednost,
+          zg.reversal_of_id,
+          zg.effective_at_snapshot AS datum_dokumenta
         FROM zaloga_gibi zg
-        LEFT JOIN prejemnice_postavke pp
-          ON pp.prejemnica_id = zg.referenca_id AND pp.artikel_id = ${artikelId} AND zg.tip = 'prejemnica'
-        LEFT JOIN prejemnice p
-          ON p.id = zg.referenca_id AND zg.tip = 'prejemnica'
-        LEFT JOIN zacetne_zaloge_postavke zzp
-          ON zzp.zacetna_zaloga_id = zg.referenca_id AND zzp.artikel_id = ${artikelId} AND zg.opomba LIKE 'Začetne zaloge%'
-        LEFT JOIN zacetne_zaloge zz
-          ON zz.id = zg.referenca_id AND zg.opomba LIKE 'Začetne zaloge%'
-        LEFT JOIN inventure inv
-          ON inv.id = zg.referenca_id AND zg.tip = 'inventura'
-         AND (zg.opomba IS NULL OR zg.opomba NOT LIKE 'Začetne zaloge%')
-        LEFT JOIN izdajnice izd
-          ON izd.id = zg.referenca_id AND zg.tip = 'izdajnica'
         WHERE zg.artikel_id = ${artikelId}
       )
       SELECT * FROM gibi
@@ -57,7 +35,7 @@ export async function getZalogeObDatumu(
       ORDER BY datum_dokumenta ASC, id ASC
     `);
 
-    type MovRow = { id: number; tip: string; kolicina: number; opomba: string | null; source_cena_kos: number | null };
+    type MovRow = { id: number; tip: string; kolicina: number; opomba: string | null; source_cena_kos: number | null; vrednost: number | null; reversal_of_id: number | null };
     const movements = movementsResult.rows as MovRow[];
 
     let runQty   = 0;
@@ -68,18 +46,21 @@ export async function getZalogeObDatumu(
       let unitCost: number;
       const isZacetnaZaloga = m.opomba != null && String(m.opomba).startsWith('Začetne zaloge');
 
-      if (isZacetnaZaloga) {
+      if (m.reversal_of_id != null) {
+        runQty += qty;
+        runValue += m.vrednost ?? qty * (m.source_cena_kos ?? 0);
+      } else if (isZacetnaZaloga) {
         unitCost = m.source_cena_kos ?? 0;
         runQty   = qty;
-        runValue = qty * unitCost;
+        runValue = m.vrednost ?? qty * unitCost;
       } else if (qty >= 0) {
         unitCost = m.source_cena_kos ?? (runQty > 0 ? runValue / runQty : 0);
         runQty   += qty;
-        runValue += qty * unitCost;
+        runValue += m.vrednost ?? qty * unitCost;
       } else {
         unitCost = runQty > 0 ? runValue / runQty : 0;
         runQty   += qty;
-        runValue += qty * unitCost;
+        runValue += m.vrednost ?? qty * unitCost;
       }
       if (runQty < 0.000001 && runQty > -0.000001) { runQty = 0; runValue = 0; }
     }
@@ -133,8 +114,8 @@ export async function recomputeZaloge(
     }
 
     // ── fetch all movements with their source prices ───────────────────────
-    // For receipts the unit cost comes from the source document table.
-    // For outflows we compute it from the running WAC.
+    // Costs, values and business dates come from immutable movement snapshots.
+    // Running WAC is only a compatibility fallback for legacy rows without one.
     const movementsResult = await (tx ?? db).execute(sql`
       SELECT
         zg.id,
@@ -142,50 +123,11 @@ export async function recomputeZaloge(
         zg.kolicina::float8                                               AS kolicina,
         zg.opomba,
         zg.referenca_id,
-        -- Source unit price: only filled for inflow documents
-        CASE
-          WHEN zg.tip = 'prejemnica'
-            THEN pp.cena_kos::float8
-          WHEN zg.opomba LIKE 'Začetne zaloge%'
-            THEN zzp.cena_kos::float8
-          ELSE NULL   -- outflow; will use running WAC
-        END AS source_cena_kos,
-        -- Canonical document date (same logic as kartica view)
-        COALESCE(
-          CASE WHEN zg.tip = 'prejemnica'                               THEN p.datum END,
-          CASE WHEN zg.opomba LIKE 'Začetne zaloge%'                   THEN zz.datum END,
-          CASE WHEN zg.tip = 'inventura'
-                AND (zg.opomba IS NULL OR zg.opomba NOT LIKE 'Začetne zaloge%')
-                                                                        THEN inv.datum END,
-          CASE WHEN zg.tip = 'izdajnica'                               THEN izd.datum END,
-          zg.ustvarjeno
-        ) AS datum_dokumenta
+        zg.cena_kos::float8 AS source_cena_kos,
+        zg.vrednost::float8 AS vrednost,
+        zg.reversal_of_id,
+        zg.effective_at_snapshot AS datum_dokumenta
       FROM zaloga_gibi zg
-      -- Receipts: join to get the per-article unit cost
-      LEFT JOIN prejemnice_postavke pp
-        ON pp.prejemnica_id = zg.referenca_id
-       AND pp.artikel_id    = ${artikelId}
-       AND zg.tip = 'prejemnica'
-      LEFT JOIN prejemnice p
-        ON p.id  = zg.referenca_id
-       AND zg.tip = 'prejemnica'
-      -- Beginning balances (stored as inventura gibanje with 'Začetne zaloge' opomba)
-      LEFT JOIN zacetne_zaloge_postavke zzp
-        ON zzp.zacetna_zaloga_id = zg.referenca_id
-       AND zzp.artikel_id        = ${artikelId}
-       AND zg.opomba LIKE 'Začetne zaloge%'
-      LEFT JOIN zacetne_zaloge zz
-        ON zz.id = zg.referenca_id
-       AND zg.opomba LIKE 'Začetne zaloge%'
-      -- Regular inventory counts
-      LEFT JOIN inventure inv
-        ON inv.id  = zg.referenca_id
-       AND zg.tip  = 'inventura'
-       AND (zg.opomba IS NULL OR zg.opomba NOT LIKE 'Začetne zaloge%')
-      -- Issue notes
-      LEFT JOIN izdajnice izd
-        ON izd.id = zg.referenca_id
-       AND zg.tip = 'izdajnica'
       WHERE zg.artikel_id = ${artikelId}
       ORDER BY datum_dokumenta ASC, zg.id ASC
     `);
@@ -196,6 +138,8 @@ export async function recomputeZaloge(
       kolicina: number;
       opomba: string | null;
       source_cena_kos: number | null;
+      vrednost: number | null;
+      reversal_of_id: number | null;
       datum_dokumenta: string | Date | null;
     };
     const movements = movementsResult.rows as MovRow[];
@@ -205,46 +149,37 @@ export async function recomputeZaloge(
     let runValue = 0;  // running value (qty * WAC)
     let lastDatum: Date | null = null;  // datum zadnjega gibanja
 
-    const updates: { id: number; cenaKos: number; vrednost: number }[] = [];
-
     for (const m of movements) {
       const qty = m.kolicina;  // positive for inflows, negative for outflows
       let unitCost: number;
 
       const isZacetnaZaloga = m.opomba != null && String(m.opomba).startsWith('Začetne zaloge');
 
-      if (isZacetnaZaloga) {
+      if (m.reversal_of_id != null) {
+        unitCost = m.source_cena_kos ?? 0;
+        runQty += qty;
+        runValue += m.vrednost ?? qty * unitCost;
+      } else if (isZacetnaZaloga) {
         // Začetna zaloga = absolutno izhodišče leta: PONASTAVI tekoče stanje, ne seštevaj
         unitCost = m.source_cena_kos ?? 0;
         runQty   = qty;
-        runValue = qty * unitCost;
+        runValue = m.vrednost ?? qty * unitCost;
       } else if (qty >= 0) {
         // Navadan pritok: tehtano povprečje s tekočim WAC
         unitCost = m.source_cena_kos ?? (runQty > 0 ? runValue / runQty : 0);
         runQty   += qty;
-        runValue += qty * unitCost;
+        runValue += m.vrednost ?? qty * unitCost;
       } else {
-        // Odtok: vedno uporabi tekoči WAC
+        // Odtok: uporabi zamrznjeno vrednost; tekoči WAC je samo legacy fallback.
         unitCost = runQty > 0 ? runValue / runQty : 0;
         runQty   += qty;
-        runValue += qty * unitCost;
+        runValue += m.vrednost ?? qty * unitCost;
       }
 
       // Prepreči plovečo vejico pod nič po uravnoteženih gibanjih
       if (runQty < 0.000001 && runQty > -0.000001) { runQty = 0; runValue = 0; }
 
       if (m.datum_dokumenta) lastDatum = new Date(m.datum_dokumenta as string);
-      updates.push({ id: m.id, cenaKos: unitCost, vrednost: qty * unitCost });
-    }
-
-    // ── batch-update zaloga_gibi rows ──────────────────────────────────────
-    for (const u of updates) {
-      await executor.execute(sql`
-        UPDATE zaloga_gibi
-           SET cena_kos = ${u.cenaKos},
-               vrednost  = ${u.vrednost}
-         WHERE id = ${u.id}
-      `);
     }
 
     // ── update zaloge summary ──────────────────────────────────────────────

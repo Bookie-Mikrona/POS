@@ -1,0 +1,29 @@
+PS C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit> .\sign-prebuilt-release.ps1 `
+>>   -PrebuiltExePath "C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\Bookie-Local-Gateway-1.0.0-unsigned-win-x64.exe" `                                                                                                                    >>   -Version "1.0.0" `                                                                                                 >>   -CertificateThumbprint "ABD28772B12BAA1C9051E14D0E7928EDA6692E3F" `                                                >>   -PublicCertificatePath $cerPath `                                                                                  >>   -ExpectedInputSha256 "bd25994c53d3bc1597df11e8893325c9e18b95e59fdc35ebcd2e84186079a1b2" `                          >>   -OutputRoot "C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\signed-output"
+Done Adding Additional Store
+Successfully signed: C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\signed-output\prebuilt-staging-7e5d4a7ee7604fa485c556eea6ac8a26\Bookie-Local-Gateway.exe
+
+Signed prebuilt package created: C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\signed-output\Bookie-Local-Gateway-1.0.0-internal-production-win-x64.zip
+PS C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit> Import-Certificate `
+>>   -FilePath $cerPath `
+>>   -CertStoreLocation "Cert:\CurrentUser\Root"
+
+
+   PSParentPath: Microsoft.PowerShell.Security\Certificate::CurrentUser\Root
+
+Thumbprint                                Subject
+----------                                -------
+ABD28772B12BAA1C9051E14D0E7928EDA6692E3F  CN=Bookie Local Gateway BOOKIE INTERNAL PRODUCTION
+
+
+PS C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit> .\sign-prebuilt-release.ps1 `
+>>   -PrebuiltExePath "C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\Bookie-Local-Gateway-1.0.0-unsigned-win-x64.exe" `
+>>   -Version "1.0.0" `
+>>   -CertificateThumbprint "ABD28772B12BAA1C9051E14D0E7928EDA6692E3F" `
+>>   -PublicCertificatePath $cerPath `
+>>   -ExpectedInputSha256 "bd25994c53d3bc1597df11e8893325c9e18b95e59fdc35ebcd2e84186079a1b2" `
+>>   -OutputRoot "C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\signed-output"
+Done Adding Additional Store
+Successfully signed: C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\signed-output\prebuilt-staging-6c5eaec703d0423bb17db71075e24e4c\Bookie-Local-Gateway.exe
+
+Signed prebuilt package created: C:\Bookie-Local-Gateway-1.0.0-internal-signing-kit\signed-output\Bookie-Local-Gateway-1.0.0-internal-production-win-x64.zip

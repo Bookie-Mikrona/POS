@@ -1,6 +1,8 @@
 package si.pos.zcsbridge
 
 import android.content.Intent
+import android.app.KeyguardManager
+import android.app.Activity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,6 +17,10 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
+    private val fiscalInfo by lazy { si.bookie.fiscal.BookieFiscalHttpServer(applicationContext) }
+    private val confirmAdmin = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { if (it.resultCode == Activity.RESULT_OK) openAdmin() }
     private val refreshRunnable = object : Runnable {
         override fun run() {
             refreshStatus()
@@ -28,6 +34,14 @@ class MainActivity : AppCompatActivity() {
 
         // Zaženi foreground servis
         startForegroundService(Intent(this, PrintServerService::class.java))
+        findViewById<Button>(R.id.btnAdmin).setOnClickListener {
+            val keyguard = getSystemService(KeyguardManager::class.java)
+            val confirmation = keyguard?.createConfirmDeviceCredentialIntent(
+                "Bookie lokalna administracija", "Potrdite dostop do fiskalnih nastavitev"
+            )
+            if (confirmation != null) confirmAdmin.launch(confirmation)
+            else findViewById<TextView>(R.id.tvUrl).text = "Za lokalno administracijo najprej nastavite zaklep zaslona."
+        }
 
         findViewById<Button>(R.id.btnStop).setOnClickListener {
             stopService(Intent(this, PrintServerService::class.java))
@@ -43,6 +57,11 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(refreshRunnable)
+    }
+
+    override fun onDestroy() {
+        fiscalInfo.close()
+        super.onDestroy()
     }
 
     private fun refreshStatus() {
@@ -67,8 +86,21 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 findViewById<TextView>(R.id.tvStatus).text = statusText
                 findViewById<TextView>(R.id.tvUrl).text =
-                    "POS aplikacija naj uporablja:\nhttp://localhost:${PrintServerService.PORT}/print"
+                    "Tisk: http://localhost:${PrintServerService.PORT}/print\n" +
+                    "Fiskalni API: http://127.0.0.1:17831/v1\n" +
+                    "Koda za seznanitev je skrita"
             }
         }.start()
+    }
+
+    private fun revealPairingCode() {
+        findViewById<TextView>(R.id.tvUrl).text =
+            "Fiskalni API: http://127.0.0.1:17831/v1\nKoda za seznanitev: ${fiscalInfo.pairingCode()}\n" +
+                "Koda poteče in je uporabna samo enkrat."
+    }
+
+    private fun openAdmin() {
+        revealPairingCode()
+        startActivity(Intent(this, si.bookie.fiscal.LocalCertificateAdminActivity::class.java))
     }
 }

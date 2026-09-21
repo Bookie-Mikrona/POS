@@ -333,6 +333,7 @@ describe("robni primer: void v drugem obdobju kot originalno plačilo", () => {
   let arAccountId: string;
   let paymentId: string;
   let linkedEntryId: string;
+    let counterpartyId: string;
   const AMOUNT = 300;
 
   beforeAll(async () => {
@@ -342,13 +343,13 @@ describe("robni primer: void v drugem obdobju kot originalno plačilo", () => {
     period2Id = await createPeriod(companyId, "Test 2027", "2027-01-01", "2027-12-31");
     bankAccountId = await createAccount(companyId, "1100", "asset");
     arAccountId = await createAccount(companyId, "1200", "asset");
-    const cpId = await createCounterparty(companyId, "Testni partner LED3");
+    counterpartyId = await createCounterparty(companyId, "Testni partner LED3");
 
     // Ustvari in potrdi plačilo v 1. obdobju (2026)
     const createRes = await supertest(app)
       .post(`/companies/${companyId}/payments`)
       .send({
-        counterpartyId: cpId,
+        counterpartyId,
         periodId: period1Id,
         direction: "inbound",
         amount: AMOUNT,
@@ -419,6 +420,19 @@ describe("robni primer: void v drugem obdobju kot originalno plačilo", () => {
     expect(reversalEntry).toBeDefined();
     expect(reversalEntry!.status).toBe("posted");
     expect(reversalEntry!.periodId).toBe(period2Id);
+    const reversalLines = await db
+      .select({
+        accountId: journalEntryLinesTable.accountId,
+        side: journalEntryLinesTable.side,
+        partnerId: journalEntryLinesTable.partnerId,
+      })
+      .from(journalEntryLinesTable)
+      .where(eq(journalEntryLinesTable.entryId, reversalEntry!.id));
+    expect(reversalLines).toContainEqual({
+      accountId: arAccountId,
+      side: "debit",
+      partnerId: counterpartyId,
+    });
   });
 
   it("ledger za 1. obdobje: prikaže samo original debit (reversed vnos)", async () => {

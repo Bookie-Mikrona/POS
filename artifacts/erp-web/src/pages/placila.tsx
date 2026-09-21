@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from "react";
+import { useAuth } from "@clerk/react";
+import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -8,7 +10,8 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   X,
-  FileText
+  FileText,
+  Download
 } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
@@ -22,6 +25,8 @@ import {
   useListPeriods,
   useListAccounts,
   useListInvoices,
+  useGetOpenItems,
+  useGetBankBalance,
   getListPaymentsQueryKey,
   type PaymentRecord,
   type PaymentWithAllocations,
@@ -40,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Osnutek",
@@ -55,7 +61,9 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
 
 export default function Placila() {
   const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
   const queryClient = useQueryClient();
+  const [location, setLocation] = useLocation();
 
   const [activeTab, setActiveTab] = useState<string>("inbound");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -78,8 +86,47 @@ export default function Placila() {
 
   const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<PaymentRecord | null>(null);
+  const sspPrefill = useMemo(() => {
+    const params = new URLSearchParams(location.split("?")[1] ?? "");
+    const invoiceId = params.get("sspInvoiceId");
+    const counterpartyId = params.get("counterpartyId");
+    const arApAccountId = params.get("arApAccountId");
+    const amount = params.get("amount");
+    return invoiceId && counterpartyId && arApAccountId && amount
+      ? { invoiceId, counterpartyId, arApAccountId, amount }
+      : null;
+  }, [location]);
+
+  React.useEffect(() => {
+    if (sspPrefill) setNewSheetOpen(true);
+  }, [sspPrefill]);
 
   const postMut = usePostPayment();
+
+  const handleSepaExport = async (e: React.MouseEvent, payment: PaymentRecord) => {
+    e.stopPropagation();
+    if (!activeCompany) return;
+    try {
+      const token = await getToken();
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${base}/api/companies/${activeCompany.id}/payments/${payment.id}/sepa.xml`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.error ?? "SEPA izvoza ni bilo mogoče pripraviti.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SEPA-${payment.reference || payment.id.slice(0, 8)}.xml`.replace(/[^A-Za-z0-9._-]/g, "_");
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "SEPA izvoza ni bilo mogoče pripraviti.");
+    }
+  };
   
   const handlePost = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -232,6 +279,12 @@ export default function Placila() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    {pay.direction === "outbound" && pay.status === "draft" && activeCompany?.role !== "viewer" && (
+                      <Button variant="outline" size="sm" className="mr-2" onClick={(e) => handleSepaExport(e, pay)}>
+                        <Download className="mr-1.5 h-3 w-3" />
+                        SEPA XML
+                      </Button>
+                    )}
                     {pay.status === "draft" && activeCompany?.role !== "viewer" && (
                       <Button variant="outline" size="sm" onClick={(e) => handlePost(e, pay.id)} disabled={postMut.isPending}>
                         <CheckCircle2 className="mr-1.5 h-3 w-3 text-green-600" />
@@ -258,8 +311,12 @@ export default function Placila() {
       {newSheetOpen && (
         <NewPaymentSheet 
           open={newSheetOpen} 
-          onOpenChange={setNewSheetOpen} 
+          onOpenChange={(open) => {
+            setNewSheetOpen(open);
+            if (!open && sspPrefill) setLocation("/placila");
+          }}
           defaultDirection={activeTab as "inbound" | "outbound"}
+          sspPrefill={sspPrefill ?? undefined}
         />
       )}
 
@@ -290,7 +347,7 @@ export default function Placila() {
 // NEW PAYMENT SHEET
 // ---------------------------------------------------------------------------
 
-function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boolean, onOpenChange: (open: boolean) => void, defaultDirection: "inbound" | "outbound" }) {
+function NewPaymentSheet({ open, onOpenChange, defaultDirection, sspPrefill }: { open: boolean, onOpenChange: (open: boolean) => void, defaultDirection: "inbound" | "outbound", sspPrefill?: { invoiceId: string; counterpartyId: string; arApAccountId: string; amount: string } }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
 
@@ -302,11 +359,11 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
   const openPeriods = periods.filter(p => p.status === "open");
 
   const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id && open } as any });
-  const accounts = accountsData?.accounts?.filter(a => a.isActive) || [];
+  // Samo knjižljivi konti — skupinski/sintetični konti (allowsPosting=false) niso na voljo za izbiro
+  const accounts = accountsData?.accounts?.filter(a => a.isActive && a.allowsPosting !== false) || [];
 
   const { data: invoicesData } = useListInvoices(activeCompany?.id ?? "", { status: "posted" } as any, { query: { enabled: !!activeCompany?.id && open } as any });
   const allInvoices = invoicesData?.invoices ?? [];
-
   const [formData, setFormData] = useState({
     direction: defaultDirection,
     counterpartyId: "",
@@ -319,7 +376,34 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
     notes: ""
   });
 
+  const { data: openItemsData, isLoading: openItemsLoading } = useGetOpenItems(
+    activeCompany?.id ?? "",
+    {
+      counterpartyId: formData.direction === "outbound" ? undefined : formData.counterpartyId || undefined,
+      type: formData.direction === "outbound" ? "received" : "issued",
+      asOfDate: formData.paymentDate,
+    },
+    { query: { enabled: !!activeCompany?.id && open && (formData.direction === "outbound" || !!formData.counterpartyId) } as any },
+  );
+  const { data: bankBalanceData } = useGetBankBalance(
+    activeCompany?.id ?? "",
+    { query: { enabled: !!activeCompany?.id && open && formData.direction === "outbound" } as any },
+  );
+
   const [allocations, setAllocations] = useState<{ id: string; invoiceId: string; allocatedAmount: string }[]>([]);
+
+  React.useEffect(() => {
+    if (!open || !sspPrefill) return;
+    setFormData(prev => ({
+      ...prev,
+      direction: "inbound",
+      counterpartyId: sspPrefill.counterpartyId,
+      arApAccountId: sspPrefill.arApAccountId,
+      amount: sspPrefill.amount,
+      notes: "Poravnava SŠP terjatve",
+    }));
+    setAllocations([{ id: `ssp-${sspPrefill.invoiceId}`, invoiceId: sspPrefill.invoiceId, allocatedAmount: sspPrefill.amount }]);
+  }, [open, sspPrefill]);
 
   // Duplicate detection state
   const [duplicateWarning, setDuplicateWarning] = useState<{
@@ -330,10 +414,18 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
   const cpTypeForPayment = formData.direction === "inbound" ? "customer" : "supplier";
   const validCounterparties = counterparties.filter(c => c.type === cpTypeForPayment || c.type === "both");
 
-  const bankAccounts = accounts.filter(a => a.code.startsWith("11") || a.code.startsWith("22")); // 110 banka, 220 blagajna etc
+  const bankAccounts = accounts.filter(a =>
+    formData.direction === "outbound"
+      ? a.code.startsWith("110")
+      : a.code.startsWith("11") || a.code.startsWith("22"),
+  );
+  const selectedBankBalance = bankBalanceData?.accounts.find(a => a.accountId === formData.bankAccountId);
   
   const arapPrefix = formData.direction === "inbound" ? "120" : "220";
-  const arapAccounts = accounts.filter(a => a.code.startsWith(arapPrefix) || a.code.startsWith("14") || a.code.startsWith("43"));
+  const arapAccounts = accounts.filter(a =>
+    a.code.startsWith(arapPrefix) || a.code.startsWith("14") || a.code.startsWith("43") ||
+    (sspPrefill?.arApAccountId === a.id),
+  );
 
   // Invoices for selected counterparty and direction
   const invoiceTypeForPayment = formData.direction === "inbound" ? "issued" : "received";
@@ -342,10 +434,25 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
     i.type === invoiceTypeForPayment &&
     i.status === "posted"
   );
+  const supplierOpenItems = (openItemsData?.items ?? [])
+    .filter(item => item.invoiceType === "received")
+    .sort((a, b) => (a.dueDate || a.invoiceDate).localeCompare(b.dueDate || b.invoiceDate));
 
   const addAllocation = () => setAllocations([...allocations, { id: Math.random().toString(), invoiceId: "", allocatedAmount: "" }]);
   const removeAllocation = (id: string) => setAllocations(allocations.filter(a => a.id !== id));
   const updateAllocation = (id: string, field: string, val: string) => setAllocations(allocations.map(a => a.id === id ? { ...a, [field]: val } : a));
+  const toggleSupplierInvoice = (invoiceId: string, checked: boolean) => {
+    if (!checked) {
+      setAllocations(current => current.filter(allocation => allocation.invoiceId !== invoiceId));
+      return;
+    }
+    const item = supplierOpenItems.find(openItem => openItem.invoiceId === invoiceId);
+    if (!item) return;
+    setAllocations(current => [
+      ...current,
+      { id: `invoice-${invoiceId}`, invoiceId, allocatedAmount: item.remainingAmount },
+    ]);
+  };
 
   React.useEffect(() => {
     if (open && openPeriods.length > 0 && !formData.periodId) {
@@ -355,8 +462,10 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
 
   React.useEffect(() => {
     // Reset allocations when counterparty or direction changes
+    if (sspPrefill) return;
+    if (formData.direction === "outbound") return;
     setAllocations([]);
-  }, [formData.counterpartyId, formData.direction]);
+  }, [formData.counterpartyId, formData.direction, sspPrefill]);
 
   const totals = useMemo(() => {
     let allocated = 0;
@@ -368,11 +477,30 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
   }, [allocations, formData.amount]);
 
   const isAllocationValid = totals.unallocated >= 0;
+  const hasBankStatementBalance = selectedBankBalance?.hasStatementBalance === true && selectedBankBalance.balance != null;
+  const availableBankBalance = hasBankStatementBalance ? parseFloat(selectedBankBalance.balance!) : null;
+  const missingBankStatementBalance = formData.direction === "outbound" &&
+    !!formData.bankAccountId &&
+    !hasBankStatementBalance;
+  const exceedsBankBalance = formData.direction === "outbound" &&
+    !!formData.bankAccountId &&
+    availableBankBalance != null &&
+    totals.allocated > availableBankBalance + 0.005;
+
+  React.useEffect(() => {
+    if (formData.direction !== "outbound") return;
+    const amount = totals.allocated > 0 ? totals.allocated.toFixed(2) : "";
+    setFormData(current => current.amount === amount ? current : { ...current, amount });
+  }, [formData.direction, totals.allocated]);
 
   const createMut = useCreatePayment();
 
-  const buildPayload = (force = false) => {
-    const validAllocations = allocations
+  const buildPayload = (
+    force = false,
+    batch?: { counterpartyId: string; arApAccountId: string; allocations: typeof allocations },
+  ) => {
+    const sourceAllocations = batch?.allocations ?? allocations;
+    const validAllocations = sourceAllocations
       .filter(a => a.invoiceId && parseFloat(a.allocatedAmount) > 0)
       .map(a => ({
         invoiceId: a.invoiceId,
@@ -383,13 +511,15 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
       companyId: activeCompany!.id,
       data: {
         direction: formData.direction,
-        counterpartyId: formData.counterpartyId,
+        counterpartyId: batch?.counterpartyId ?? formData.counterpartyId,
         periodId: formData.periodId,
         paymentDate: formData.paymentDate,
-        amount: parseFloat(formData.amount),
+        amount: batch
+          ? validAllocations.reduce((sum, allocation) => sum + allocation.allocatedAmount, 0)
+          : parseFloat(formData.amount),
         reference: formData.reference || null,
         bankAccountId: formData.bankAccountId,
-        arApAccountId: formData.arApAccountId,
+        arApAccountId: batch?.arApAccountId ?? formData.arApAccountId,
         notes: formData.notes || null,
         allocations: validAllocations.length > 0 ? validAllocations : undefined,
         ...(force ? { force: true } : {}),
@@ -397,11 +527,49 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
     };
   };
 
-  const handleSave = (force = false) => {
+  const handleSave = async (force = false) => {
     if (!activeCompany) return;
     
     if (!isAllocationValid) {
       alert("Vsota poravnav ne sme presegati zneska plačila.");
+      return;
+    }
+    if (exceedsBankBalance) {
+      alert("Skupni znesek izbranih računov presega zadnje evidentirano stanje izbranega TRR.");
+      return;
+    }
+    if (missingBankStatementBalance) {
+      alert("Za izbrani TRR ni evidentiranega končnega stanja bančnega izpiska.");
+      return;
+    }
+
+    if (formData.direction === "outbound") {
+      const groups = new Map<string, { counterpartyId: string; arApAccountId: string; allocations: typeof allocations }>();
+      for (const allocation of allocations) {
+        const item = supplierOpenItems.find(openItem => openItem.invoiceId === allocation.invoiceId);
+        if (!item) continue;
+        const key = `${item.counterpartyId}:${item.arApAccountId}`;
+        const group = groups.get(key) ?? {
+          counterpartyId: item.counterpartyId,
+          arApAccountId: item.arApAccountId,
+          allocations: [],
+        };
+        group.allocations.push(allocation);
+        groups.set(key, group);
+      }
+      try {
+        await Promise.all([...groups.values()].map(group => createMut.mutateAsync(buildPayload(force, group))));
+        queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
+        setDuplicateWarning(null);
+        onOpenChange(false);
+      } catch (err: any) {
+        if (err?.status === 409 && err?.data?.duplicateOf?.paymentId) {
+          setDuplicateWarning({
+            paymentId: err.data.duplicateOf.paymentId,
+            message: err.data?.error ?? "Plačilo s temi podatki že obstaja v sistemu.",
+          });
+        }
+      }
       return;
     }
 
@@ -422,7 +590,11 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
     });
   };
 
-  const canSave = formData.counterpartyId && formData.periodId && parseFloat(formData.amount) > 0 && formData.bankAccountId && formData.arApAccountId && isAllocationValid;
+  const canSave = formData.periodId && parseFloat(formData.amount) > 0 && formData.bankAccountId && isAllocationValid && !exceedsBankBalance && !missingBankStatementBalance && (
+    formData.direction === "outbound"
+      ? allocations.length > 0
+      : !!formData.counterpartyId && !!formData.arApAccountId
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -436,7 +608,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tip plačila</Label>
-              <Select value={formData.direction} onValueChange={(val: any) => setFormData(p => ({ ...p, direction: val, counterpartyId: "" }))}>
+              <Select disabled={!!sspPrefill} value={formData.direction} onValueChange={(val: any) => setFormData(p => ({ ...p, direction: val, counterpartyId: "" }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -447,18 +619,24 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Partner <span className="text-destructive">*</span></Label>
-              <Select value={formData.counterpartyId} onValueChange={val => setFormData(p => ({ ...p, counterpartyId: val }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Izberite partnerja" />
-                </SelectTrigger>
-                <SelectContent>
-                  {validCounterparties.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                  {validCounterparties.length === 0 && <SelectItem value="none" disabled>Ni partnerjev</SelectItem>}
-                </SelectContent>
-              </Select>
+              <Label>{formData.direction === "outbound" ? "Obseg" : "Partner"} <span className="text-destructive">*</span></Label>
+              {formData.direction === "outbound" ? (
+                <div className="h-10 rounded-md border bg-muted/30 px-3 flex items-center text-sm font-medium">
+                  Vsi dobavitelji z odprtimi računi
+                </div>
+              ) : (
+                <Select disabled={!!sspPrefill} value={formData.counterpartyId} onValueChange={val => setFormData(p => ({ ...p, counterpartyId: val }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Izberite partnerja" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {validCounterparties.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                    {validCounterparties.length === 0 && <SelectItem value="none" disabled>Ni partnerjev</SelectItem>}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
@@ -485,7 +663,11 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Znesek <span className="text-destructive">*</span></Label>
-              <Input type="number" min="0" step="0.01" value={formData.amount} onChange={e => setFormData(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" />
+              <Input disabled={formData.direction === "outbound"} type="number" min="0" step="0.01" value={formData.amount} onChange={e => {
+                const amount = e.target.value;
+                setFormData(p => ({ ...p, amount }));
+                if (sspPrefill) setAllocations(current => current.map(a => ({ ...a, allocatedAmount: amount })));
+              }} placeholder="0.00" />
             </div>
             <div className="space-y-2">
               <Label>Sklic</Label>
@@ -493,7 +675,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 p-4 border rounded-md bg-muted/10">
+          <div className={`grid gap-4 p-4 border rounded-md bg-muted/10 ${formData.direction === "outbound" ? "grid-cols-1" : "grid-cols-2"}`}>
             <div className="space-y-2">
               <Label>Bančni / Blagajniški konto <span className="text-destructive">*</span></Label>
               <Select value={formData.bankAccountId} onValueChange={val => setFormData(p => ({ ...p, bankAccountId: val }))}>
@@ -506,10 +688,17 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
                   ))}
                 </SelectContent>
               </Select>
+              {formData.direction === "outbound" && formData.bankAccountId && (
+                <p className={`text-xs ${(exceedsBankBalance || missingBankStatementBalance) ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                  {hasBankStatementBalance && availableBankBalance != null
+                    ? `Stanje po izpisku na dan ${selectedBankBalance.evidenceDate}: ${availableBankBalance.toLocaleString("sl-SI", { style: "currency", currency: selectedBankBalance.currency ?? "EUR" })}`
+                    : "Stanje ni znano — evidentirajte izpisek s končnim stanjem."}
+                </p>
+              )}
             </div>
-            <div className="space-y-2">
+            {formData.direction !== "outbound" && <div className="space-y-2">
               <Label>Konto {formData.direction === "inbound" ? "terjatev" : "obveznosti"} <span className="text-destructive">*</span></Label>
-              <Select value={formData.arApAccountId} onValueChange={val => setFormData(p => ({ ...p, arApAccountId: val }))}>
+              <Select disabled={!!sspPrefill} value={formData.arApAccountId} onValueChange={val => setFormData(p => ({ ...p, arApAccountId: val }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Izberite konto" />
                 </SelectTrigger>
@@ -519,9 +708,66 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
           </div>
 
+          {formData.direction === "outbound" ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold">Odprti računi dobavitelja</h3>
+                <p className="text-xs text-muted-foreground mt-1">Razvrščeno kronološko po datumu zapadlosti. Znesek lahko zmanjšate za delno plačilo.</p>
+              </div>
+              <div className="rounded-md border bg-card overflow-hidden">
+                {openItemsLoading ? (
+                  <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
+                ) : supplierOpenItems.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">Dobavitelj nima odprtih računov.</div>
+                ) : supplierOpenItems.map(item => {
+                  const allocation = allocations.find(current => current.invoiceId === item.invoiceId);
+                  const overdue = item.daysOverdue > 0;
+                  return (
+                    <div key={item.invoiceId} className="grid grid-cols-[auto_1fr_120px] gap-3 items-center border-b last:border-b-0 p-3">
+                      <Checkbox checked={!!allocation} onCheckedChange={checked => toggleSupplierInvoice(item.invoiceId, checked === true)} />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{item.invoiceNumber}</span>
+                          <Badge className={overdue ? "bg-red-600 hover:bg-red-600" : "bg-green-600 hover:bg-green-600"}>
+                            {overdue ? `Zapadlo ${item.daysOverdue} dni` : "Še ni zapadlo"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm font-medium text-foreground/80 mt-1">{item.counterpartyName}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Zapadlost: {item.dueDate ? new Date(`${item.dueDate}T00:00:00`).toLocaleDateString("sl-SI") : "ni določena"}
+                          {" · "}Odprto: {parseFloat(item.remainingAmount).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}
+                        </div>
+                      </div>
+                      <Input
+                        aria-label={`Znesek plačila za račun ${item.invoiceNumber}`}
+                        disabled={!allocation}
+                        type="number"
+                        min="0.01"
+                        max={item.remainingAmount}
+                        step="0.01"
+                        value={allocation?.allocatedAmount ?? ""}
+                        onChange={event => allocation && updateAllocation(allocation.id, "allocatedAmount", event.target.value)}
+                        className="text-right"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={`rounded-md border p-4 ${(exceedsBankBalance || missingBankStatementBalance) ? "border-destructive bg-destructive/10" : "bg-muted/30"}`}>
+                <div className="flex justify-between font-semibold">
+                  <span>Skupaj odkljukano za plačilo</span>
+                  <span className={exceedsBankBalance ? "text-destructive" : ""}>
+                    {totals.allocated.toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}
+                  </span>
+                </div>
+                {exceedsBankBalance && <p className="text-sm text-destructive mt-2">Znesek presega zadnje stanje iz bančnega izpiska. Zmanjšajte zneske ali izberite drug TRR.</p>}
+                {missingBankStatementBalance && <p className="text-sm text-destructive mt-2">Za izbrani TRR ni evidentiranega končnega stanja bančnega izpiska.</p>}
+              </div>
+            </div>
+          ) : (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-semibold">Poravnave (Opcijsko)</h3>
@@ -584,6 +830,7 @@ function NewPaymentSheet({ open, onOpenChange, defaultDirection }: { open: boole
               </div>
             </div>
           </div>
+          )}
 
           <div className="space-y-2">
             <Label>Opombe (Neobvezno)</Label>

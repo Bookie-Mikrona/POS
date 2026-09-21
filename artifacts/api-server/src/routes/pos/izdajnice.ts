@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
-import { artikliTable, db, izdajnicePostavkeTable, izdajniceTable, zalogaGibiTable } from "@workspace/db";
+import { artikliTable, db, izdajnicePostavkeTable, izdajniceTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
+import type { PosRequest } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
-import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { getZalogeObDatumu, recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 
 const router: IRouter = Router();
 
@@ -44,6 +46,7 @@ router.get("/izdajnice", async (req, res): Promise<void> => {
 
 router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const { datum, opomba, postavke } = req.body;
 
   if (!postavke || postavke.length === 0) {
@@ -73,10 +76,20 @@ router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
       opomba: opomba ?? null,
     }).returning();
 
+    const zalogeRows = await tx
+      .select({ artikelId: zalogeTable.artikelId, cenaKos: zalogeTable.povprecnaCena })
+      .from(zalogeTable)
+      .where(inArray(zalogeTable.artikelId, artikelIds));
+    const cenaMap = new Map(zalogeRows.map(row => [
+      row.artikelId,
+      row.cenaKos == null ? null : Number(row.cenaKos),
+    ]));
+
     const postavkeResult = [];
     for (const p of postavke) {
       const kolicina = Number(p.kolicina) || 0;
       if (kolicina <= 0) continue;
+      const cenaKos = cenaMap.get(p.artikelId) ?? null;
 
       const [pp] = await tx.insert(izdajnicePostavkeTable).values({
         izdajnicaId: izdajnica.id,
@@ -89,8 +102,13 @@ router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
         artikelId: p.artikelId,
         tip: "izdajnica",
         kolicina: String(-kolicina),
+        cenaKos: cenaKos == null ? null : String(cenaKos),
+        vrednost: cenaKos == null ? null : String(-kolicina * cenaKos),
         opomba: opomba ?? null,
         referencaId: izdajnica.id,
+        actorSnapshot,
+        effectiveAtSnapshot: docDatum,
+        sourceSnapshot: "izdajnica",
       });
 
       const art = artikelMap.get(p.artikelId);
@@ -159,6 +177,7 @@ router.get("/izdajnice/:id", async (req, res): Promise<void> => {
 
 router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -188,13 +207,30 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
       const oldPostavke = await tx.select().from(izdajnicePostavkeTable).where(eq(izdajnicePostavkeTable.izdajnicaId, id));
       const oldArtikleIds = oldPostavke.map(p => p.artikelId);
 
-      await tx.delete(zalogaGibiTable).where(sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.tip} = 'izdajnica'`);
+      const reversedArtikelIds = await appendStockMovementReversals(tx, {
+        referenceId: id,
+        sourceSnapshots: ["izdajnica"],
+        actorSnapshot,
+        reversalSourceSnapshot: "izdajnica_reversal",
+        note: `Razveljavitev izdajnice #${id} zaradi urejanja`,
+        legacyKind: "izdajnica",
+      });
       await tx.delete(izdajnicePostavkeTable).where(eq(izdajnicePostavkeTable.izdajnicaId, id));
+
+      const zalogeRows = await tx
+        .select({ artikelId: zalogeTable.artikelId, cenaKos: zalogeTable.povprecnaCena })
+        .from(zalogeTable)
+        .where(inArray(zalogeTable.artikelId, artikelIds));
+      const cenaMap = new Map(zalogeRows.map(row => [
+        row.artikelId,
+        row.cenaKos == null ? null : Number(row.cenaKos),
+      ]));
 
       const newArtikleIds: number[] = [];
       for (const p of postavke) {
         const kolicina = Number(p.kolicina) || 0;
         if (kolicina <= 0) continue;
+        const cenaKos = cenaMap.get(p.artikelId) ?? null;
         await tx.insert(izdajnicePostavkeTable).values({
           izdajnicaId: id,
           artikelId: p.artikelId,
@@ -204,14 +240,55 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
           artikelId: p.artikelId,
           tip: "izdajnica",
           kolicina: String(-kolicina),
+          cenaKos: cenaKos == null ? null : String(cenaKos),
+          vrednost: cenaKos == null ? null : String(-kolicina * cenaKos),
           opomba: opomba ?? existing.opomba ?? null,
           referencaId: id,
+          actorSnapshot,
+          effectiveAtSnapshot: datum !== undefined
+            ? endOfDayIzdajnica(datum)
+            : existing.datum,
+          sourceSnapshot: "izdajnica",
         });
         newArtikleIds.push(p.artikelId);
       }
 
-      const allAffectedIds = [...new Set([...oldArtikleIds, ...newArtikleIds])];
+      const allAffectedIds = [...new Set([...oldArtikleIds, ...reversedArtikelIds, ...newArtikleIds])];
       await recomputeZaloge(allAffectedIds, tx);
+      didUpdatePostavke = true;
+    } else if (datum !== undefined && txUpdates.datum!.getTime() !== existing.datum.getTime()) {
+      const newEffectiveDate = txUpdates.datum!;
+      const existingPostavke = await tx.select().from(izdajnicePostavkeTable)
+        .where(eq(izdajnicePostavkeTable.izdajnicaId, id));
+      const artikelIds = existingPostavke.flatMap((p) => p.artikelId == null ? [] : [p.artikelId]);
+      const reversedArtikelIds = await appendStockMovementReversals(tx, {
+        referenceId: id,
+        sourceSnapshots: ["izdajnica"],
+        actorSnapshot,
+        reversalSourceSnapshot: "izdajnica_reversal",
+        note: `Razveljavitev izdajnice #${id} zaradi spremembe datuma`,
+        legacyKind: "izdajnica",
+      });
+      await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
+      const zalogaObDatumu = await getZalogeObDatumu(artikelIds, newEffectiveDate, tx);
+      for (const p of existingPostavke) {
+        if (p.artikelId == null) continue;
+        const kolicina = Number(p.kolicina);
+        const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos ?? null;
+        await tx.insert(zalogaGibiTable).values({
+          artikelId: p.artikelId,
+          tip: "izdajnica",
+          kolicina: String(-kolicina),
+          cenaKos: cenaKos == null ? null : String(cenaKos),
+          vrednost: cenaKos == null ? null : String(-kolicina * cenaKos),
+          opomba: opomba ?? existing.opomba ?? null,
+          referencaId: id,
+          actorSnapshot,
+          effectiveAtSnapshot: newEffectiveDate,
+          sourceSnapshot: "izdajnica",
+        });
+      }
+      await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
       didUpdatePostavke = true;
     }
 
@@ -247,6 +324,7 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
 
 router.delete("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -258,12 +336,18 @@ router.delete("/izdajnice/:id", requireEnota, async (req, res): Promise<void> =>
   const artikelIds = postavke.map(p => p.artikelId);
 
   await db.transaction(async (tx) => {
-    await tx.delete(zalogaGibiTable).where(
-      sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.tip} = 'izdajnica'`
-    );
+    const reversedArtikelIds = await appendStockMovementReversals(tx, {
+      referenceId: id,
+      sourceSnapshots: ["izdajnica"],
+      actorSnapshot,
+      reversalSourceSnapshot: "izdajnica_reversal",
+      note: `Razveljavitev izbrisane izdajnice #${id}`,
+      legacyKind: "izdajnica",
+    });
     await tx.delete(izdajnicePostavkeTable).where(eq(izdajnicePostavkeTable.izdajnicaId, id));
     await tx.delete(izdajniceTable).where(and(eq(izdajniceTable.id, id), eq(izdajniceTable.enotaId, enotaId)));
-    if (artikelIds.length > 0) await recomputeZaloge(artikelIds, tx);
+    const allAffectedIds = [...new Set([...artikelIds, ...reversedArtikelIds])];
+    if (allAffectedIds.length > 0) await recomputeZaloge(allAffectedIds, tx);
   });
 
   broadcast("update", { type: "zaloge" });

@@ -44,6 +44,7 @@ class PrintServerService : Service() {
     }
 
     private lateinit var bridge: ZcsPrinterBridge
+    private lateinit var fiscalServer: si.bookie.fiscal.BookieFiscalHttpServer
     private val executor = Executors.newCachedThreadPool()
 
     @Volatile private var running = false
@@ -52,12 +53,23 @@ class PrintServerService : Service() {
     override fun onCreate() {
         super.onCreate()
         bridge = ZcsPrinterBridge(applicationContext)
+        fiscalServer = si.bookie.fiscal.BookieFiscalHttpServer(applicationContext, printer = object : si.bookie.fiscal.FiscalPrinter {
+            override val paperWidthMm = 58
+            override fun isHealthy() = bridge.isReady()
+            override fun status() = bridge.statusText()
+            override fun printLegal(lines: List<String>, qrData: String?, zoi: String?, reprint: Boolean): Result<Unit> {
+                val result = bridge.printText(lines, null, qrData, null, zoi)
+                return if (result.ok) Result.success(Unit) else Result.failure(IllegalStateException(result.error))
+            }
+        })
 
         // startForeground MORA biti klican v 5 sekundah od startForegroundService().
         // bridge.connect() skenira APK-je in lahko traja dlje → kličemo ga ASINHRONO
         // šele ko je notifikacija že prikazana in Android servis ne more več ubiti.
         startForeground(NOTIF_ID, buildNotification())
         startHttpServer()
+        fiscalServer.start()
+        si.bookie.fiscal.FiscalSyncWorker.schedule(applicationContext)
 
         // Inicializacija tiskalnika v ozadju — ne blokira 5-sekundnega okna
         executor.submit {
@@ -74,6 +86,7 @@ class PrintServerService : Service() {
     override fun onDestroy() {
         running = false
         serverSocket?.close()
+        fiscalServer.close()
         bridge.disconnect()
         executor.shutdown()
         super.onDestroy()
@@ -91,7 +104,8 @@ class PrintServerService : Service() {
                 // (stara instanca morda ni pravočasno sprostila vrat)
                 val srv = java.net.ServerSocket().apply {
                     reuseAddress = true
-                    bind(java.net.InetSocketAddress(PORT))
+                    // Never expose the printer/fiscal bridge on Wi-Fi or Ethernet.
+                    bind(java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), PORT))
                 }
                 serverSocket = srv
                 srv.use {
@@ -181,7 +195,7 @@ class PrintServerService : Service() {
 
                     method == "GET" && path == "/status" -> {
                         val isReady = bridge.isReady()
-                        val json = """{"ok":$isReady,"status":"${bridge.statusText()}","port":$PORT}"""
+                        val json = """{"ok":$isReady,"status":"${bridge.statusText()}","port":$PORT,"bridge":"zcs","version":"1.1.1","singleJobQr":true}"""
                         sendJson(output, 200, json)
                     }
 

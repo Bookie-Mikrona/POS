@@ -1,6 +1,7 @@
 import { Building2, ChevronDown, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { POS_ENOTA_ID_KEY } from "@/contexts/AuthContext";
+import { BLAGAJNA_STORAGE_KEY } from "@/contexts/BlagajnaContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,9 @@ export function EnotaSwitcher() {
   const preklopi = (id: number) => {
     if (id === user?.enotaId) return;
     localStorage.setItem(POS_ENOTA_ID_KEY, String(id));
+    localStorage.removeItem(BLAGAJNA_STORAGE_KEY);
+    localStorage.removeItem("pos_last_operator_id");
+    sessionStorage.removeItem("pos_actor_session");
     window.location.reload();
   };
 

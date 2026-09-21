@@ -37,6 +37,16 @@ const mockToast = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/api-client-react", () => ({
   useListZaloge: () => ({ data: [], isLoading: false }),
   useListPrejemnice: () => ({ data: [mockPrejemnica], isLoading: false }),
+  useListIzdajnice: () => ({ data: [], isLoading: false }),
+  useListPartnerji: () => ({ data: [], isLoading: false }),
+  useCreatePartner: () => ({ mutate: vi.fn(), isPending: false }),
+  useOsveziPartnerja: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdatePartner: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateArtikel: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
+  useGetIzdajnica: () => ({ data: undefined, isLoading: false }),
   useListInventure: () => ({ data: [], isLoading: false }),
   useListArtikli: () => ({ data: [] }),
   useListZacetneZaloge: () => ({ data: [], isLoading: false }),
@@ -59,11 +69,16 @@ vi.mock("@workspace/api-client-react", () => ({
   useReconcileZaloge: () => ({ mutate: vi.fn(), isPending: false }),
   getListZalogeQueryKey: () => ["/api/zaloge"],
   getListPrejemniceQueryKey: () => ["/api/prejemnice"],
+  getListIzdajniceQueryKey: () => ["/api/izdajnice"],
   getListInventureQueryKey: () => ["/api/inventure"],
   getGetPrejemnicaQueryKey: () => ["/api/prejemnice/detail"],
+  getGetIzdajnicaQueryKey: () => ["/api/izdajnice/detail"],
   getGetInventuraQueryKey: () => ["/api/inventure/detail"],
   getListZacetneZalogeQueryKey: () => ["/api/zacetne-zaloge"],
   getGetZacetnaZalogaQueryKey: () => ["/api/zacetne-zaloge/detail"],
+  getListPartnerjiQueryKey: () => ["/api/partnerji"],
+  getListArtikliQueryKey: () => ["/api/artikli"],
+  getEnotaId: () => 1,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -206,5 +221,54 @@ describe("Zaloge — brisanje prejemnice: potrditveni dialog", () => {
 
     expect(mockDeleteMutate).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+});
+
+// ── Rekonstrukcija bruto iz neto + popust (BT-147, Price/AllowanceCharge) ──
+//
+// Diagnosticiran vzrok: pri e-SLOG BT-147 je izv_cena = neto cena (rabatVkljucenVCeni=true).
+// Display rekonstruira bruto iz: bruto = neto / ((1 − r1/100) × (1 − r2/100))
+// Testi preverijo formulo neposredno (enako logiko ima Zaloge.tsx, EditPrejemnicaDialog).
+describe("BT-147 rekonstrukcija bruto iz neto + popust", () => {
+  // Lokalna kopija formule iz Zaloge.tsx (EditPrejemnicaDialog rows init)
+  const rekonstruiraj = (netoNaPaket: number, r1: number, r2 = 0): number | null => {
+    if (r1 <= 0) return null;
+    const faktor = (1 - r1 / 100) * (r2 > 0 ? (1 - r2 / 100) : 1);
+    if (faktor <= 0.0001) return null;
+    return Math.round(netoNaPaket / faktor * 10000) / 10000;
+  };
+
+  it("rekonstruira bruto iz neto pri enem rabatu (5 %)", () => {
+    // 1,43 / 0,95 = 1,5053 → zaokroženo na 4 decimalke
+    expect(rekonstruiraj(1.43, 5)).toBeCloseTo(1.5053, 3);
+  });
+
+  it("rekonstruira bruto iz neto pri 10 % rabatu", () => {
+    // 9,00 / 0,90 = 10,00
+    expect(rekonstruiraj(9.0, 10)).toBeCloseTo(10.0, 4);
+  });
+
+  it("rekonstruira bruto pri dveh verižnih rabatih (10 % + 5 %)", () => {
+    // 90 / (0,90 × 0,95) = 90 / 0,855 ≈ 105,2632
+    const rezultat = rekonstruiraj(90, 10, 5);
+    expect(rezultat).not.toBeNull();
+    expect(rezultat!).toBeCloseTo(105.2632, 1);
+  });
+
+  it("vrne null pri rabatu 0 (ni popusta)", () => {
+    expect(rekonstruiraj(1.43, 0)).toBeNull();
+  });
+
+  it("vrne null pri rabatu 100 % (deljenje z 0)", () => {
+    expect(rekonstruiraj(0, 100)).toBeNull();
+  });
+
+  it("vrne null pri rabatu 99,999 % (faktor ≤ 0,0001)", () => {
+    expect(rekonstruiraj(0.001, 99.999)).toBeNull();
+  });
+
+  it("ohrani 4 decimalne mesta pri zaokroževanju", () => {
+    // 1,90 / 0,95 = 2,0000 — točno, brez napake zaokroževanja
+    expect(rekonstruiraj(1.90, 5)).toBe(2.0);
   });
 });

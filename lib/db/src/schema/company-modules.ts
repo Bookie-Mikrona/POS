@@ -1,7 +1,7 @@
 import { pgTable, text, uuid, timestamp, unique } from "drizzle-orm/pg-core";
 import { companiesTable } from "./companies";
 
-export const AVAILABLE_MODULES = ["erp", "pos"] as const;
+export const AVAILABLE_MODULES = ["erp", "pos", "osnovna_sredstva"] as const;
 export type AppModule = (typeof AVAILABLE_MODULES)[number];
 
 export const companyModulesTable = pgTable(

@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "ERP — Dvostavno Knjigovodstvo"
+title = "Bookie-ERP"
 version = "1.0.0"
 id = "artifacts/erp-web"
 router = "path"

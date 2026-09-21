@@ -48,8 +48,6 @@ interface NastavitveGet {
   poslovniProstor: string;
   elektronskaNaprava: string;
   ponudnikDavcna: string;
-  certifikatPot: string;
-  certifikatGeslo: string;
   racunPozdrav1: string;
   racunPozdrav2: string;
   testniNacin: boolean;
@@ -283,7 +281,7 @@ function NovUporabnikDialog({ davcna, onCreated }: { davcna: string; onCreated: 
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>Prekliči</Button>
-            <Button type="submit" disabled={loading || !username || !geslo}>
+            <Button type="submit" disabled={loading || !clerkUserId}>
               {loading ? "Dodajam..." : "Dodaj"}
             </Button>
           </div>
@@ -583,8 +581,6 @@ function EpostaView() {
           ponudnikDavcna: nasAll.ponudnikDavcna,
           racunPozdrav1: nasAll.racunPozdrav1,
           racunPozdrav2: nasAll.racunPozdrav2,
-          certifikatPot: nasAll.certifikatPot,
-          certifikatGeslo: nasAll.certifikatGeslo,
           testniNacin: nasAll.testniNacin,
           fursProxyUrl: nasAll.fursProxyUrl,
           smtpHost,
@@ -782,25 +778,21 @@ function formatVelikost(bytes: number) {
 function BackupView() {
   const { toast } = useToast();
   const [kopije, setKopije] = useState<BackupKopija[]>([]);
-  const [idriveStatus, setIdriveStatus] = useState<IdriveStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [ustvariLoading, setUstvariLoading] = useState(false);
   const [ustvariSqlLoading, setUstvariSqlLoading] = useState(false);
   const [obnoviLoading, setObnoviLoading] = useState(false);
   const [brisemIme, setBrisemIme] = useState<string | null>(null);
-  const [naloziLoading, setNaloziLoading] = useState<string | null>(null);
-  const [idriveNastavLoading, setIdriveNastavLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchBackupi = useCallback(async () => {
     setLoading(true);
     try {
       const r = await fetch(`${getBase()}/api/backup/seznam`, { credentials: "include" });
-      const d = await r.json() as { kopije: BackupKopija[]; idrive: IdriveStatus };
-      setKopije(d.kopije);
-      setIdriveStatus(d.idrive);
-    } catch {
-      toast({ title: "Napaka pri branju kopij", variant: "destructive" });
+      const d = await r.json() as { kopije?: BackupKopija[]; error?: string };
+      if (!r.ok) throw new Error(d.error ?? "Seznama kopij ni bilo mogoče prebrati.");
+      setKopije(d.kopije ?? []);
+    } catch (err) {
+      toast({ title: "Napaka pri branju kopij", description: (err as Error).message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -808,28 +800,32 @@ function BackupView() {
 
   useEffect(() => { void fetchBackupi(); }, [fetchBackupi]);
 
-  const handleUstvari = async (format: "json" | "sql" = "json") => {
-    if (format === "sql") setUstvariSqlLoading(true); else setUstvariLoading(true);
+  const handleUstvari = async () => {
+    setUstvariSqlLoading(true);
     try {
-      const r = await fetch(`${getBase()}/api/backup/ustvari?format=${format}`, { method: "POST", credentials: "include" });
+      const r = await fetch(`${getBase()}/api/backup/ustvari?format=sql`, { method: "POST", credentials: "include" });
       if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Napaka"); }
-      toast({ title: format === "sql" ? "SQL kopija ustvarjena" : "JSON kopija ustvarjena" });
+      toast({ title: "SQL kopija ustvarjena" });
       void fetchBackupi();
     } catch (err) {
       toast({ title: "Napaka", description: (err as Error).message, variant: "destructive" });
     } finally {
-      if (format === "sql") setUstvariSqlLoading(false); else setUstvariLoading(false);
+      setUstvariSqlLoading(false);
     }
   };
 
   const handleBrisi = async (ime: string) => {
     setBrisemIme(ime);
     try {
-      await fetch(`${getBase()}/api/backup/${encodeURIComponent(ime)}`, { method: "DELETE", credentials: "include" });
+      const response = await fetch(`${getBase()}/api/backup/${encodeURIComponent(ime)}`, { method: "DELETE", credentials: "include" });
+      if (!response.ok) {
+        const data = await response.json() as { error?: string };
+        throw new Error(data.error ?? "Brisanje kopije ni uspelo.");
+      }
       toast({ title: "Kopija izbrisana" });
-      setKopije(prev => prev.filter(k => k.ime !== ime));
-    } catch {
-      toast({ title: "Napaka pri brisanju", variant: "destructive" });
+      await fetchBackupi();
+    } catch (err) {
+      toast({ title: "Napaka pri brisanju", description: (err as Error).message, variant: "destructive" });
     } finally {
       setBrisemIme(null);
     }
@@ -838,44 +834,23 @@ function BackupView() {
   const handleObnovi = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!confirm("POZOR: Obnovitev bo prepisala vse trenutne podatke v bazi. Tik pred obnovitvijo bo ustvarjena dodatna zaščitna kopija. Nadaljujete?")) {
+      e.target.value = "";
+      return;
+    }
     setObnoviLoading(true);
     try {
       const form = new FormData();
       form.append("backup", file);
       const r = await fetch(`${getBase()}/api/backup/obnovi`, { method: "POST", body: form, credentials: "include" });
-      if (!r.ok) { const d = await r.json() as { napaka?: string }; throw new Error(d.napaka ?? "Napaka"); }
-      toast({ title: "Baza uspešno obnovljena iz kopije" });
+      if (!r.ok) { const d = await r.json() as { error?: string; napaka?: string }; throw new Error(d.error ?? d.napaka ?? "Napaka"); }
+      toast({ title: "Baza uspešno obnovljena iz kopije", description: "Pred obnovitvijo je nastala dodatna zaščitna kopija." });
       void fetchBackupi();
     } catch (err) {
       toast({ title: "Napaka pri obnovitvi", description: (err as Error).message, variant: "destructive" });
     } finally {
       setObnoviLoading(false);
       if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
-  const handleNaloziIdrive = async (ime: string) => {
-    setNaloziLoading(ime);
-    try {
-      await fetch(`${getBase()}/api/backup/idrive/nalozi/${encodeURIComponent(ime)}`, { method: "POST", credentials: "include" });
-      toast({ title: "Kopija naložena na iDrive" });
-    } catch {
-      toast({ title: "Napaka pri nalaganju na iDrive", variant: "destructive" });
-    } finally {
-      setNaloziLoading(null);
-    }
-  };
-
-  const handleNastaviIdrive = async () => {
-    setIdriveNastavLoading(true);
-    try {
-      await fetch(`${getBase()}/api/backup/idrive/nastavi`, { method: "POST", credentials: "include" });
-      toast({ title: "iDrive uspešno konfiguriran" });
-      void fetchBackupi();
-    } catch {
-      toast({ title: "Napaka pri konfiguraciji iDrive", variant: "destructive" });
-    } finally {
-      setIdriveNastavLoading(false);
     }
   };
 
@@ -890,75 +865,22 @@ function BackupView() {
           <p className="text-sm text-muted-foreground mt-0.5">Ustvarjanje in upravljanje varnostnih kopij baze podatkov</p>
         </div>
 
-        {idriveStatus && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CloudUpload className="h-4 w-4" />
-                iDrive Cloud Backup
-              </CardTitle>
-              <CardDescription>Samodejno nalaganje kopij v oblak.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                {idriveStatus.konfiguriran
-                  ? <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-                  : <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />}
-                <div>
-                  <p className="font-medium text-sm">
-                    {idriveStatus.konfiguriran
-                      ? `Povezan: ${idriveStatus.username}`
-                      : idriveStatus.namesecen
-                      ? "Odjemalec nameščen, ni konfiguriran"
-                      : "iDrive odjemalec ni nameščen"}
-                  </p>
-                  {!idriveStatus.konfiguriran && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {idriveStatus.namesecen
-                        ? "Nastavite IDRIVE_USERNAME in IDRIVE_GESLO v Skrivnostih."
-                        : "Kliknite 'Nastavi iDrive' za samodejno namestitev."}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={idriveStatus.konfiguriran ? "outline" : "default"}
-                  size="sm"
-                  onClick={() => void handleNastaviIdrive()}
-                  disabled={idriveNastavLoading}
-                >
-                  {idriveNastavLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CloudUpload className="w-4 h-4 mr-2" />}
-                  {idriveStatus.konfiguriran ? "Znova nastavi" : "Nastavi iDrive"}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => void fetchBackupi()} disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive className="w-5 h-5" />
-                Lokalne varnostne kopije
+                Varnostne kopije baze
               </CardTitle>
-              <CardDescription>Varnostne kopije baze podatkov na strežniku.</CardDescription>
+              <CardDescription>Popolne SQL kopije v zasebnem Replit App Storage. Za dodatno varnost jih redno prenesite na zunanji medij.</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => void fetchBackupi()} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
-              <Button variant="outline" onClick={() => void handleUstvari("sql")} disabled={ustvariSqlLoading} title="Popolna SQL kopija (shema + podatki)">
+              <Button variant="outline" onClick={() => void handleUstvari()} disabled={ustvariSqlLoading} title="Popolna SQL kopija vseh tabel, sheme in podatkov">
                 {ustvariSqlLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
                 SQL kopija
-              </Button>
-              <Button onClick={() => void handleUstvari("json")} disabled={ustvariLoading} title="JSON kopija — odporna na spremembe sheme">
-                {ustvariLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
-                JSON kopija
               </Button>
             </div>
           </CardHeader>
@@ -969,7 +891,7 @@ function BackupView() {
               <div className="text-center py-8 text-muted-foreground">
                 <HardDrive className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Ni varnostnih kopij.</p>
-                <p className="text-xs mt-1">Kliknite "JSON kopija" ali "SQL kopija" za prvi backup.</p>
+                  <p className="text-xs mt-1">Kliknite »SQL kopija« za prvo popolno kopijo baze.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -979,8 +901,8 @@ function BackupView() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium truncate font-mono">{k.ime}</p>
-                        <Badge variant={k.ime.endsWith(".tar.gz") ? "outline" : "secondary"} className="text-xs shrink-0">
-                          {k.ime.endsWith(".tar.gz") ? "SQL" : "JSON"}
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          SQL
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -988,18 +910,6 @@ function BackupView() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {idriveStatus?.konfiguriran && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Naloži na iDrive"
-                          onClick={() => void handleNaloziIdrive(k.ime)}
-                          disabled={naloziLoading === k.ime}
-                        >
-                          {naloziLoading === k.ime ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CloudUpload className="h-3.5 w-3.5" />}
-                        </Button>
-                      )}
                       <a
                         href={`${getBase()}/api/backup/${encodeURIComponent(k.ime)}/prenesi`}
                         download
@@ -1033,7 +943,7 @@ function BackupView() {
               Obnova iz datoteke
             </CardTitle>
             <CardDescription>
-              Naložite JSON kopijo <span className="font-mono text-xs">.gz</span> ali SQL kopijo <span className="font-mono text-xs">.tar.gz</span> za obnovitev baze.{" "}
+              Naložite preverjeno SQL kopijo <span className="font-mono text-xs">.sql</span> ali <span className="font-mono text-xs">.sql.gz</span> za obnovitev celotne baze.{" "}
               <span className="text-destructive font-medium">Pozor: obstoječi podatki se prebrišejo!</span>
             </CardDescription>
           </CardHeader>
@@ -1042,7 +952,7 @@ function BackupView() {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".gz,.tar.gz,.sql"
+                accept=".sql,.sql.gz"
                 onChange={e => void handleObnovi(e)}
                 disabled={obnoviLoading}
                 className="flex-1 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border file:border-input file:bg-background file:text-sm file:font-medium cursor-pointer"

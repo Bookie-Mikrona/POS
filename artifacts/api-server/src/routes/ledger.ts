@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, asc, like, inArray, or } from "drizzle-orm";
+import { eq, and, gte, lte, asc, like, or } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
@@ -7,8 +7,10 @@ import {
   accountsTable,
   accountingPeriodsTable,
   accountingRolesTable,
+  osRolesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { getLatestBankStatementBalances } from "../lib/bankStatementBalances";
 
 const router: IRouter = Router();
 
@@ -16,6 +18,7 @@ function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
 }
 
+// Glavna knjiga je skupna — dostop dovolimo tudi OS vlogam (branje)
 async function resolveAccess(
   clerkUserId: string,
   companyId: string,
@@ -31,11 +34,22 @@ async function resolveAccess(
       ),
     )
     .limit(1);
-  if (!row) {
-    res.status(403).json({ error: "Dostop do tega podjetja ni dovoljen" });
-    return false;
-  }
-  return true;
+  if (row) return true;
+
+  const [osRow] = await db
+    .select({ role: osRolesTable.role })
+    .from(osRolesTable)
+    .where(
+      and(
+        eq(osRolesTable.clerkUserId, clerkUserId),
+        eq(osRolesTable.companyId, companyId),
+      ),
+    )
+    .limit(1);
+  if (osRow) return true;
+
+  res.status(403).json({ error: "Dostop do tega podjetja ni dovoljen" });
+  return false;
 }
 
 // GET /companies/:companyId/ledger
@@ -135,7 +149,7 @@ router.get(
 );
 
 // GET /companies/:companyId/bank-balance
-// Vrne skupni saldo bančnih kontov (kode 110x) za podjetje
+// Vrne zadnje dokazljivo stanje bančnih kontov (kode 110x) iz izpiskov
 router.get(
   "/companies/:companyId/bank-balance",
   requireAuth,
@@ -153,59 +167,40 @@ router.get(
       .where(and(eq(accountsTable.companyId, companyId), like(accountsTable.code, "110%")));
 
     if (bankAccounts.length === 0) {
-      res.json({ totalBalance: "0.00", accounts: [] });
+      res.json({
+        totalBalance: "0.00",
+        allAccountsHaveStatementBalance: true,
+        accounts: [],
+      });
       return;
     }
 
-    const bankAccountIds = bankAccounts.map((a) => a.id);
-
-    // Seštej debite in kredite za vse bančne konte iz knjiženih vpisov.
-    // Vključimo "reversed" vnose skupaj s "posted", ker je storno del
-    // revizijske sledi in neto skupaj z originalnim vnosom doseže 0.
-    const rows = await db
-      .select({
-        accountId: journalEntryLinesTable.accountId,
-        side: journalEntryLinesTable.side,
-        amount: journalEntryLinesTable.amount,
-      })
-      .from(journalEntryLinesTable)
-      .innerJoin(
-        journalEntriesTable,
-        eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
-      )
-      .where(
-        and(
-          eq(journalEntriesTable.companyId, companyId),
-          or(
-            eq(journalEntriesTable.status, "posted"),
-            eq(journalEntriesTable.status, "reversed"),
-          )!,
-          inArray(journalEntryLinesTable.accountId, bankAccountIds),
-        ),
-      );
-
-    // Izračunaj saldo po kontu
-    const balanceMap = new Map<string, number>();
-    for (const row of rows) {
-      const current = balanceMap.get(row.accountId) ?? 0;
-      const amt = parseFloat(row.amount ?? "0");
-      balanceMap.set(row.accountId, current + (row.side === "debit" ? amt : -amt));
-    }
-
-    let totalBalance = 0;
+    const evidenceByAccount = await getLatestBankStatementBalances(
+      companyId,
+      bankAccounts.map(account => account.id),
+    );
+    let knownTotalBalance = 0;
     const accounts = bankAccounts.map((a) => {
-      const balance = balanceMap.get(a.id) ?? 0;
-      totalBalance += balance;
+      const evidence = evidenceByAccount.get(a.id);
+      if (evidence) knownTotalBalance += parseFloat(evidence.balance);
       return {
         accountId: a.id,
         accountCode: a.code,
         accountName: a.name,
-        balance: balance.toFixed(2),
+        balance: evidence?.balance ?? null,
+        hasStatementBalance: !!evidence,
+        evidenceDate: evidence?.evidenceDate ?? null,
+        statementId: evidence?.statementId ?? null,
+        statementNumber: evidence?.statementNumber ?? null,
+        sourceIban: evidence?.sourceIban ?? null,
+        currency: evidence?.currency ?? null,
       };
     });
+    const allAccountsHaveStatementBalance = accounts.every(account => account.hasStatementBalance);
 
     res.json({
-      totalBalance: totalBalance.toFixed(2),
+      totalBalance: allAccountsHaveStatementBalance ? knownTotalBalance.toFixed(2) : null,
+      allAccountsHaveStatementBalance,
       accounts,
     });
   },

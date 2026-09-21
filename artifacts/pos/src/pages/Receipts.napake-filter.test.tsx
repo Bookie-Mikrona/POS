@@ -13,10 +13,11 @@
  */
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen } from "@testing-library/react";
+import { render, fireEvent, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Receipts from "./Receipts";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // ── Vzorčni računi ──────────────────────────────────────────────────────────
 
@@ -100,7 +101,16 @@ const mockToast = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/api-client-react", () => ({
   useListRacuni: () => ({ data: dataRef.current, isLoading: false }),
   usePonoviPosiljanjeRacuna: () => ({ mutate: mockPonoviMutate, isPending: false }),
+  useUpdateRacunPlacilnaNacin: () => ({ mutate: vi.fn(), isPending: false }),
+  useListFursAttempts: () => ({ data: { items: [] }, isLoading: false }),
+  useListCardPaymentAttempts: () => ({ data: { items: [] }, isLoading: false }),
+  useRetryFursBatch: () => ({ mutate: vi.fn(), isPending: false }),
   getListRacuniQueryKey: () => ["/api/racuni"],
+  getListFursAttemptsQueryKey: () => ["/api/racuni/furs-attempts"],
+}));
+
+vi.mock("@/contexts/NapravaContext", () => ({
+  useNaprava: () => ({ napravaKljuc: "test-naprava-kljuc" }),
 }));
 
 vi.mock("@/contexts/NastavitveContext", () => ({
@@ -108,6 +118,17 @@ vi.mock("@/contexts/NastavitveContext", () => ({
     nastavitve: { testniNacin: true },
     nastavitveLoading: false,
   }),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: "admin", ime: "Admin", vloga: "admin" },
+    loading: false,
+    login: vi.fn(),
+    updateUser: vi.fn(),
+    logout: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -130,7 +151,7 @@ function renderReceipts() {
   const queryClient = makeQueryClient();
   render(
     <QueryClientProvider client={queryClient}>
-      <Receipts />
+      <AuthProvider><Receipts /></AuthProvider>
     </QueryClientProvider>
   );
   return { queryClient };
@@ -145,15 +166,14 @@ describe("Receipts — filter napak FURS", () => {
     mockToast.mockReset();
   });
 
-  it("značka na gumbu Napake prikazuje pravilno število računov z napako", () => {
+  it("značka na filtru neuspelih FURS prikazuje samo eksplicitne napake", () => {
     renderReceipts();
 
-    // Sta 2 računa z napako: racunNapakaStatus (status=napaka) in racunBrezZoi (!zoi && status!=testni)
-    const badge = screen.getByText("2");
+    // Samo status=napaka je neuspel; odsotni ZOI/EOR pomeni neznano stanje.
+    const napakeButton = screen.getByTestId("button-filter-furs-failed");
+    const badge = within(napakeButton).getByText("1");
     expect(badge).toBeInTheDocument();
 
-    // Badge mora biti znotraj gumba "Napake"
-    const napakeButton = screen.getByRole("button", { name: /napake/i });
     expect(napakeButton).toContainElement(badge);
   });
 
@@ -161,7 +181,7 @@ describe("Receipts — filter napak FURS", () => {
     dataRef.current = [racunPotrjen, racunTestni];
     renderReceipts();
 
-    const napakeButton = screen.getByRole("button", { name: /^napake$/i });
+    const napakeButton = screen.getByTestId("button-filter-furs-failed");
     expect(napakeButton).toBeInTheDocument();
     expect(napakeButton.querySelector(".bg-red-600")).toBeNull();
   });
@@ -174,18 +194,18 @@ describe("Receipts — filter napak FURS", () => {
     expect(screen.getByText("PP001-B001-000003")).toBeInTheDocument();
     expect(screen.getByText("PP001-B001-000004")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /napake/i }));
+    fireEvent.click(screen.getByTestId("button-filter-furs-failed"));
 
     expect(screen.queryByText("PP001-B001-000001")).not.toBeInTheDocument();
     expect(screen.queryByText("PP001-B001-000002")).not.toBeInTheDocument();
     expect(screen.getByText("PP001-B001-000003")).toBeInTheDocument();
-    expect(screen.getByText("PP001-B001-000004")).toBeInTheDocument();
+    expect(screen.queryByText("PP001-B001-000004")).not.toBeInTheDocument();
   });
 
   it("po kliku na 'Vsi' se obnovi celoten seznam po predhodni aktivaciji filtra napak", () => {
     renderReceipts();
 
-    fireEvent.click(screen.getByRole("button", { name: /napake/i }));
+    fireEvent.click(screen.getByTestId("button-filter-furs-failed"));
 
     expect(screen.queryByText("PP001-B001-000001")).not.toBeInTheDocument();
     expect(screen.queryByText("PP001-B001-000002")).not.toBeInTheDocument();
@@ -202,8 +222,8 @@ describe("Receipts — filter napak FURS", () => {
     dataRef.current = [racunPotrjen, racunTestni];
     renderReceipts();
 
-    fireEvent.click(screen.getByRole("button", { name: /napake/i }));
+    fireEvent.click(screen.getByTestId("button-filter-furs-failed"));
 
-    expect(screen.getByText("Ni računov z napako FURS.")).toBeInTheDocument();
+    expect(screen.getByText("Ni računov FURS v stanju »failed« za izbrane filtre.")).toBeInTheDocument();
   });
 });

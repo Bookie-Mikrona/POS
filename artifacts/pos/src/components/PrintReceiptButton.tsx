@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNaprava } from "@/contexts/NapravaContext";
 import { Printer, Usb, Monitor, Bluetooth, BluetoothOff, Wifi, WifiOff, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   getPrinterState,
   tryAutoConnectSerial,
+  tryAutoConnectBluetooth,
   connectSerialPrinter,
   disconnectSerialPrinter,
   connectBluetoothPrinter,
@@ -35,18 +36,11 @@ import {
   printReceiptViaNetwork,
   setNetworkPrinterUrl,
   clearNetworkPrinterUrl,
+  BT_CONNECTION_EVENT,
 } from "@/lib/printer";
-import {
-  connectQz,
-  disconnectQz,
-  listQzPrinters,
-  printQz,
-  setQzPrinterName,
-  clearQzPrinterName,
-  isQzConnected,
-} from "@/lib/qzPrinter";
 import { isSunmiPrinterAvailable, printViaSunmi } from "@/lib/sunmiPrinter";
-import { isZcsBridgeAvailable, printZcsReceipt, getZcsBridgeStatus, getZcsDiagnostics, getZcsBridgeCached } from "@/lib/zcsAndroidPrinter";
+import { isZcsBridgeAvailable, waitForZcsBridge, printZcsReceipt, getZcsBridgeStatus, getZcsDiagnostics, getZcsBridgeCached, getZcsBridgeType, isBtBridge } from "@/lib/zcsAndroidPrinter";
+import { isNb80BridgeAvailable, waitForNb80Bridge, printNb80Receipt, getNb80BridgeCached, getNb80Diagnostics } from "@/lib/nb80AndroidPrinter";
 
 interface PrintReceiptButtonProps {
   racunId: number;
@@ -60,6 +54,8 @@ interface PrintReceiptButtonProps {
   /** Called (and awaited) before any print action — use for pre-print mutations */
   onBeforePrint?: () => Promise<void>;
   onAfterPrint?: () => void;
+  /** Automatically print once after mount, without requiring a second click. */
+  autoPrint?: boolean;
 }
 
 export function PrintReceiptButton({
@@ -72,11 +68,18 @@ export function PrintReceiptButton({
   zbirni,
   onBeforePrint,
   onAfterPrint,
+  autoPrint = false,
 }: PrintReceiptButtonProps) {
   const { toast } = useToast();
   const { naprava } = useNaprava();
   const jeWindows = navigator.userAgent.includes("Windows");
   const agentTiskalnikIme = naprava?.terminalConfig?.agentTiskalnikIme ?? "";
+  // 32 stolpcev je nedvoumna konfiguracija BT tiskalnika širine 58 mm
+  // (npr. PT210). Takšna naprava ne sme biti preusmerjena na NB80 most,
+  // tudi če je njegov HTTP endpoint še vedno dosegljiv ali ima star cache.
+  const jeKonfiguriranBt58 =
+    naprava?.terminalConfig?.tiskalnikSirina === 32 ||
+    naprava?.terminalConfig?.tiskalnikSirina === 58;
   const [printing, setPrinting] = useState(false);
   const [connectSerialDialogOpen, setConnectSerialDialogOpen] = useState(false);
   const [connectBtDialogOpen, setConnectBtDialogOpen] = useState(false);
@@ -84,47 +87,77 @@ export function PrintReceiptButton({
   const [networkInput, setNetworkInput] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [, forceUpdate] = useState(0);
-
-  // QZ Tray stanje
-  const [qzDialogOpen, setQzDialogOpen] = useState(false);
-  const [qzPrinters, setQzPrinters] = useState<string[]>([]);
-  const [qzLoading, setQzLoading] = useState(false);
-  const [qzSelected, setQzSelected] = useState<string>("");
-  const [qzError, setQzError] = useState<string | null>(null);
+  const autoPrintStartedRef = useRef(false);
 
   // ZCS Android most — inicializiraj iz module-level cache takoj (brez čakanja)
   const [zcsBridgeAvailable, setZcsBridgeAvailable] = useState(() => getZcsBridgeCached() === true);
   const [zcsChecking, setZcsChecking] = useState(false);
 
-  useEffect(() => {
-    tryAutoConnectSerial().then(connected => {
-      if (connected) forceUpdate(n => n + 1);
-    });
+  // NB80 Android most — inicializiraj iz module-level cache takoj (brez čakanja)
+  const [nb80BridgeAvailable, setNb80BridgeAvailable] = useState(() => getNb80BridgeCached() === true);
+  const [nb80Checking, setNb80Checking] = useState(false);
 
+  useEffect(() => {
     let cancelled = false;
 
-    // Če cache ni veljaven, preverimo takoj; sicer preskočimo (cache je svež)
-    const cached = getZcsBridgeCached();
-    if (cached === null) {
+    // USB Serial — tiha vzpostavitev
+    tryAutoConnectSerial().then(connected => {
+      if (connected && !cancelled) forceUpdate(n => n + 1);
+    });
+
+    // BT — tihi reconnect po osvežitvi strani (brez chooserja).
+    // Pogoj: Chrome ≥85 + navigator.bluetooth.getDevices + shranjeni device.id.
+    // Ob uspehu: BT_CONNECTION_EVENT → forceUpdate → UI pokaže "tiskalnik povezan".
+    tryAutoConnectBluetooth().then(ok => {
+      if (ok && !cancelled) forceUpdate(n => n + 1);
+    });
+
+    // BT status listener — zagotovi da UI odraža dejansko stanje ob vsakem
+    // spremembi (samodejni reconnect v ozadju, nenamerna prekinitev).
+    const onBtChange = () => {
+      if (!cancelled) forceUpdate(n => n + 1);
+    };
+    window.addEventListener(BT_CONNECTION_EVENT, onBtChange);
+
+    // ZCS — preveri takoj če cache ni svež
+    const cachedZcs = getZcsBridgeCached();
+    if (cachedZcs === null) {
       isZcsBridgeAvailable().then(ok => {
         if (!cancelled) setZcsBridgeAvailable(ok);
       });
     }
 
-    // Periodično preverjanje vsakih 6s — zaznа APK ki se zažene po nalaganju
-    // Ko je most zaznan, interval avtomatsko posodablja cache (TTL 30s)
+    // NB80 — pri konfiguriranem BT 58 mm ga ne preverjamo.
+    // Dosegljiv, vendar neuporaben NB80 endpoint sicer lahko prevzame
+    // prednost pred dejanskim BT tiskalnikom.
+    if (jeKonfiguriranBt58) {
+      setNb80BridgeAvailable(false);
+    } else {
+      const cachedNb80 = getNb80BridgeCached();
+      if (cachedNb80 === null) {
+        isNb80BridgeAvailable().then(ok => {
+          if (!cancelled) setNb80BridgeAvailable(ok);
+        });
+      }
+    }
+
+    // Periodično preverjanje vsakih 6s — zazna APK ki se zažene po nalaganju
     const interval = setInterval(() => {
       if (cancelled) return;
-      isZcsBridgeAvailable().then(ok => {
-        if (!cancelled) setZcsBridgeAvailable(ok);
-      });
+      isZcsBridgeAvailable().then(ok => { if (!cancelled) setZcsBridgeAvailable(ok); });
+      if (jeKonfiguriranBt58) {
+        setNb80BridgeAvailable(false);
+      } else {
+        isNb80BridgeAvailable().then(ok => { if (!cancelled) setNb80BridgeAvailable(ok); });
+      }
     }, 6000);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
+      window.removeEventListener(BT_CONNECTION_EVENT, onBtChange);
     };
-  }, []);
+  }, [jeKonfiguriranBt58]);
 
   async function handleZcsConnect() {
     setZcsChecking(true);
@@ -183,14 +216,152 @@ export function PrintReceiptButton({
 
   const printerState = getPrinterState();
 
+  // ── NB80 diagnostika ─────────────────────────────────────────────────────
+  async function handleNb80Diagnostika() {
+    setNb80Checking(true);
+    try {
+      const d = await getNb80Diagnostics();
+      if (!d) {
+        toast({
+          title: "NB80 most ni dosegljiv",
+          description: "APK ne teče ali ni dosegljiv na localhost:8091.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const statusOpis = d.printerStatus === 0
+        ? "✓ Tiskalnik je pripravljen"
+        : d.printerStatus === -1
+          ? "⚠ Stanje tiskalnika ni znano (Binder ni bil vzpostavljen)"
+          : `✗ Napaka tiskalnika (koda ${d.printerStatus})`;
+      const versionInfo = d.serviceVersion ? `Verzija SDK: ${d.serviceVersion}` : "Verzija SDK: ni znana";
+      const modelInfo   = d.printerModel   ? `Model: ${d.printerModel}`         : "Model: ni znan";
+      toast({
+        title: d.binderReady
+          ? (d.printerStatus === 0 ? "NB80 diagnostika — tiskalnik OK" : "NB80 diagnostika — opozorilo")
+          : "NB80 diagnostika — PrinterService ni dosegljiv",
+        description: [statusOpis, versionInfo, modelInfo].join("\n"),
+        variant: d.binderReady && d.printerStatus === 0 ? "default" : "destructive",
+      });
+    } finally {
+      setNb80Checking(false);
+    }
+  }
+
+  // ── NB80 Android most ────────────────────────────────────────────────────
+  async function handleNb80Print() {
+    setPrinting(true);
+    try {
+      await onBeforePrint?.();
+      const sirina = naprava?.terminalConfig?.tiskalnikSirina;
+      const cols = sirina === 30 ? 30 : undefined; // NB80 na 58mm papirju
+      const result = await printNb80Receipt(racunId, zbirni, cols);
+      if (!result.ok) throw new Error(result.error);
+      toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} poslan na NB80 tiskalnik.` });
+      onAfterPrint?.();
+    } catch (err) {
+      toast({
+        title: "Napaka pri NB80 tiskanju",
+        description: err instanceof Error ? err.message : "Neznana napaka",
+        variant: "destructive",
+      });
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  async function handleNb80PrintZRetryjem() {
+    if (nb80BridgeAvailable) return handleNb80Print();
+    setPrinting(true);
+    const mostDosegljiv = await waitForNb80Bridge(4, 1000).catch(() => false);
+    setNb80BridgeAvailable(mostDosegljiv);
+    setPrinting(false);
+    if (!mostDosegljiv) {
+      toast({
+        title: "NB80 tiskalnik ni pripravljen",
+        description: "Odprite originalni NB80 Tiskalni Most 1.5 in v diagnostiki preverite PrinterService.",
+        variant: "destructive",
+      });
+      return;
+    }
+    return handleNb80Print();
+  }
+
   // ── ZCS Android most ─────────────────────────────────────────────────────
+
+  /**
+   * Vrne true, če je naprava konfigurirana za tiskanje prek ZCS/NB80/BT mosta.
+   * Te naprave ob nedosegljivem mostu NIKOLI ne smejo tiho pasti na BLE ESC/POS pot
+   * (ki povzroči scrambled izpis). Namesto tega pokažemo retry in napako.
+   */
+  function jeZcsMostNaprava(sirina: number | null | undefined): boolean {
+    // 58=ZCS Z92, 32=BT most 58mm, 80=NB80 ali BT most 80mm, 30=NB80 58mm
+    return sirina === 58 || sirina === 32 || sirina === 80 || sirina === 30;
+  }
+
+  /**
+   * Tisk z retry logiko za BT/ZCS most — prepreči tiho BLE pot.
+   * Ko je most nedosegljiv (Android ga je uspavel), poskusi /status do 3x z 1s zamikom.
+   * Ob uspehu: tisk prek mosta. Ob neuspehu: napaka (ne BLE fallback).
+   */
+  async function handleZcsPrintZRetryjem() {
+    if (zcsBridgeAvailable) {
+      // Most je že dosegljiv v cache-u — direktno tiskaj brez retry
+      return handleZcsPrint();
+    }
+    // Most ni dosegljiv — poskusi ga prebuditi (Android APK je bil uspavan)
+    setPrinting(true);
+    let mostDosegljiv = false;
+    try {
+      mostDosegljiv = await waitForZcsBridge(3, 1000);
+      setZcsBridgeAvailable(mostDosegljiv);
+    } catch {
+      // ignore — mostDosegljiv ostane false
+    }
+    if (!mostDosegljiv) {
+      setPrinting(false);
+      toast({
+        title: "Tiskalni most ni dosegljiv",
+        description: "Odprite aplikacijo za tiskalni most (BtTiskalniMost ali ZcsPrinterBridge) na napravi in poskusite znova.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Most se je prebudil → sproži tisk (handleZcsPrint upravlja setPrinting sam)
+    setPrinting(false);
+    return handleZcsPrint();
+  }
+
   async function handleZcsPrint() {
     setPrinting(true);
     try {
       await onBeforePrint?.();
-      const result = await printZcsReceipt(racunId, zbirni);
+      // tiskalnikSirina + bridge tip → model override in cols
+      // BT most (bridge="bt" v2.2+ ali "q10" ≤v2.1): vedno zcs endpoint; cols glede na širino papirja (80mm→40, 58mm→32)
+      // ZCS most (bridge="zcs"/null): strojna omejitev 30 kolon; NYX (80/30mm) gre prek /nb80
+      const sirina = naprava?.terminalConfig?.tiskalnikSirina;
+      const bridgeType = getZcsBridgeType(); // "bt" | "q10" | "zcs" | null
+      let modelOverride: "nyx" | "zcs" | undefined;
+      let colsOverride: number | undefined;
+      if (isBtBridge(bridgeType)) {
+        // BT most (bt ali q10): vedno /zcs endpoint, cols glede na papir
+        modelOverride = "zcs";
+        colsOverride = sirina === 80 ? 40 : 32;
+      } else {
+        // ZCS most ali ni zaznano: stara logika (sirina določa model)
+        modelOverride =
+          sirina === 80 || sirina === 30 ? "nyx"
+          : sirina === 58 || sirina === 32 ? "zcs"
+          : undefined;
+        colsOverride = sirina === 30 ? 30 : sirina === 32 ? 32 : undefined;
+      }
+      const result = await printZcsReceipt(racunId, zbirni, modelOverride, colsOverride, sirina ?? undefined);
       if (!result.ok) throw new Error(result.error);
-      toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} poslan na ZCS tiskalnik.` });
+      const jeBt = isBtBridge(getZcsBridgeType()) || sirina === 32;
+      toast({
+        title: "Natisnjeno",
+        description: `Račun ${stevilkaRacuna ?? racunId} poslan na ${jeBt ? "BT tiskalnik" : "ZCS tiskalnik"}.`,
+      });
       onAfterPrint?.();
     } catch (err) {
       toast({
@@ -208,7 +379,7 @@ export function PrintReceiptButton({
     setPrinting(true);
     try {
       await onBeforePrint?.();
-      const bytes = await fetchReceiptBytes(racunId, zbirni);
+      const bytes = await fetchReceiptBytes(racunId, zbirni, naprava?.id);
       const result = await printViaSunmi(bytes);
       if (!result.ok) throw new Error(result.error);
       toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} je bil poslan na Sunmi tiskalnik.` });
@@ -258,17 +429,54 @@ export function PrintReceiptButton({
   }
 
   // ── Brskalniški tisk — avto (rezerva ko ni konfiguriranega tiskalnika) ─────
-  // Prednostni vrstni red: ZCS → Sunmi → ESC/POS (serial → BT → QZ → omrežni) → HTML rezerva
+  // Prednostni vrstni red: neposredni BT → Android mostovi → Sunmi → ESC/POS → HTML.
   async function handleBrowserPrint() {
+    const state = getPrinterState();
+    // Neposredno povezan PT210 mora imeti prednost pred dosegljivim NB80 mostom.
+    if (state.btConnected) return handleBluetoothPrint();
+
+    const sirina = naprava?.terminalConfig?.tiskalnikSirina;
+    if ((sirina === 80 || sirina === 30) && nb80BridgeAvailable) return handleNb80Print();
+    if ((sirina === 58 || sirina === 32) && zcsBridgeAvailable) return handleZcsPrint();
     if (zcsBridgeAvailable) return handleZcsPrint();
     if (isSunmiPrinterAvailable()) return handleSunmiPrint();
-    const state = getPrinterState();
     if (state.connected) return handleSerialPrint();
-    if (state.btConnected) return handleBluetoothPrint();
-    if (state.qzPrinterName) return handleQzPrint();
     if (state.networkUrl) return handleNetworkPrint();
     return handleDirectBrowserPrint();
   }
+
+  async function handleAutomaticPrint() {
+    // Po izdaji računa se ta veja lahko izvede pred zaključkom tihega BT
+    // reconnecta iz prvega useEffect-a. Počakamo nanj, da PT210 ne pade v
+    // napačno NB80 vejo samo zato, ker je bil trenutek preverjanja prezgoden.
+    const reconnectedBt = await tryAutoConnectBluetooth().catch(() => false);
+    if (reconnectedBt || getPrinterState().btConnected) {
+      return handleBluetoothPrint();
+    }
+
+    // Če se uporablja Android BT most, najprej preberemo njegov status. Šele
+    // ko vemo, da ni BT mosta, lahko širina 80/30 izbere namenski NB80 most.
+    const zcsDosegljiv = await isZcsBridgeAvailable().catch(() => false);
+    if (zcsDosegljiv && isBtBridge(getZcsBridgeType())) {
+      return handleZcsPrint();
+    }
+
+    const sirina = naprava?.terminalConfig?.tiskalnikSirina;
+    const jeNb80 = sirina === 80 || sirina === 30;
+    if (jeNb80 && !nb80BridgeAvailable) {
+      return handleNb80PrintZRetryjem();
+    }
+    if (jeZcsMostNaprava(sirina) && !jeNb80 && !zcsBridgeAvailable) {
+      return handleZcsPrintZRetryjem();
+    }
+    return handleBrowserPrint();
+  }
+
+  useEffect(() => {
+    if (!autoPrint || autoPrintStartedRef.current) return;
+    autoPrintStartedRef.current = true;
+    void handleAutomaticPrint();
+  }, [autoPrint, naprava?.terminalConfig?.tiskalnikSirina, zcsBridgeAvailable, nb80BridgeAvailable]);
 
   // ── USB Serial tisk ──────────────────────────────────────────────────────
   async function handleSerialPrint() {
@@ -280,7 +488,7 @@ export function PrintReceiptButton({
     setPrinting(true);
     try {
       await onBeforePrint?.();
-      const bytes = await fetchReceiptBytes(racunId, zbirni);
+      const bytes = await fetchReceiptBytes(racunId, zbirni, naprava?.id);
       const result = await printRaw(bytes);
       if (!result.ok) throw new Error(result.error);
       toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} je bil poslan na tiskalnik.` });
@@ -298,18 +506,33 @@ export function PrintReceiptButton({
 
   // ── Bluetooth tisk ───────────────────────────────────────────────────────
   async function handleBluetoothPrint() {
-    const state = getPrinterState();
+    let state = getPrinterState();
+
     if (!state.btConnected) {
-      setConnectBtDialogOpen(true);
-      return;
+      // Najprej poskusi tihi reconnect (po osvežitvi strani gatt.connected=false
+      // a dovoljenje ostane — getDevices() vrne napravo brez chooserja).
+      const reconnected = await tryAutoConnectBluetooth();
+      if (reconnected) {
+        forceUpdate(n => n + 1); // ažuriraj status v UI
+      } else {
+        // Tihi reconnect ni mogoč → prikaži chooser (samo ob resnični potrebi)
+        setConnectBtDialogOpen(true);
+        return;
+      }
     }
+
     setPrinting(true);
     try {
       await onBeforePrint?.();
-      const bytes = await fetchReceiptBytes(racunId, zbirni);
+      const bytes = await fetchReceiptBytes(racunId, zbirni, naprava?.id);
       const result = await printRawViaBluetooth(bytes);
       if (!result.ok) throw new Error(result.error);
-      toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} je bil poslan na BT tiskalnik.` });
+      toast({
+        title: "Natisnjeno",
+        description: result.btInfo
+          ? `Račun ${stevilkaRacuna ?? racunId} — ${result.btInfo}`
+          : `Račun ${stevilkaRacuna ?? racunId} je bil poslan na BT tiskalnik.`,
+      });
       onAfterPrint?.();
     } catch (err) {
       toast({
@@ -388,67 +611,6 @@ export function PrintReceiptButton({
     }
   }
 
-  // ── QZ Tray tisk ─────────────────────────────────────────────────────────
-  async function handleQzPrint() {
-    const state = getPrinterState();
-    if (!state.qzPrinterName) {
-      await openQzDialog();
-      return;
-    }
-    setPrinting(true);
-    try {
-      await onBeforePrint?.();
-      const bytes = await fetchReceiptBytes(racunId, zbirni);
-      const result = await printQz(bytes);
-      if (!result.ok) throw new Error(result.error);
-      toast({ title: "Natisnjeno", description: `Račun ${stevilkaRacuna ?? racunId} poslan na ${state.qzPrinterName}.` });
-      onAfterPrint?.();
-    } catch (err) {
-      toast({
-        title: "Napaka pri QZ tiskanju",
-        description: err instanceof Error ? err.message : "Neznana napaka",
-        variant: "destructive",
-      });
-    } finally {
-      setPrinting(false);
-    }
-  }
-
-  async function openQzDialog() {
-    setQzSelected(printerState.qzPrinterName ?? "");
-    setQzPrinters([]);
-    setQzError(null);
-    setQzDialogOpen(true);
-    setQzLoading(true);
-    try {
-      const connResult = await connectQz();
-      if (!connResult.ok) throw new Error(connResult.error);
-      const list = await listQzPrinters();
-      setQzPrinters(list);
-      if (list.length > 0) setQzSelected(s => s || list[0]);
-    } catch (err) {
-      setQzError(err instanceof Error ? err.message : "Napaka pri povezavi z QZ Tray.");
-    } finally {
-      setQzLoading(false);
-    }
-  }
-
-  async function handleSaveQzPrinter() {
-    if (!qzSelected) return;
-    setQzPrinterName(qzSelected);
-    setQzDialogOpen(false);
-    forceUpdate(n => n + 1);
-    toast({ title: "QZ tiskalnik shranjen", description: qzSelected });
-    await handleQzPrint();
-  }
-
-  async function handleDisconnectQz() {
-    await disconnectQz();
-    clearQzPrinterName();
-    forceUpdate(n => n + 1);
-    toast({ title: "QZ tiskalnik odstranjen" });
-  }
-
   // ── Serijski povezovalni handlers ─────────────────────────────────────────
   async function handleConnectSerial() {
     setConnecting(true);
@@ -492,6 +654,7 @@ export function PrintReceiptButton({
     toast({ title: "Wi-Fi tiskalnik odstranjen" });
   }
 
+  // Windows tiskalni agent — direkten tisk brez dropdowna
   if (agentTiskalnikIme) {
     return (
       <>
@@ -502,6 +665,46 @@ export function PrintReceiptButton({
           disabled={printing || externalDisabled}
           data-testid={`button-print-${racunId}`}
           onClick={handleAgentPrint}
+        >
+          <Printer className="h-4 w-4 mr-2" />
+          {printing ? "Tiskanje..." : "Natisni"}
+        </Button>
+      </>
+    );
+  }
+
+  // Neposredno povezan BT tiskalnik (npr. PT210) ima absolutno prednost pred
+  // Android mostovi. Tako klik ne more končati v NB80 veji.
+  if (printerState.btConnected) {
+    return (
+      <>
+        <Button
+          variant={variant}
+          size={size}
+          className={cn("bg-orange-500 hover:bg-orange-600 text-white border-orange-500", className)}
+          disabled={printing || externalDisabled}
+          data-testid={`button-print-${racunId}`}
+          onClick={handleBluetoothPrint}
+        >
+          <Printer className="h-4 w-4 mr-2" />
+          {printing ? "Tiskanje..." : "Natisni"}
+        </Button>
+      </>
+    );
+  }
+
+  // NB80: ko je most zaznan → direkten tisk brez dropdowna.
+  // BT PT210 (konfiguracija 32 stolpcev ali zaznan BT most) ima prednost.
+  if (nb80BridgeAvailable && !jeKonfiguriranBt58 && !isBtBridge(getZcsBridgeType())) {
+    return (
+      <>
+        <Button
+          variant={variant}
+          size={size}
+          className={cn("bg-orange-500 hover:bg-orange-600 text-white border-orange-500", className)}
+          disabled={printing || externalDisabled}
+          data-testid={`button-print-${racunId}`}
+          onClick={handleNb80Print}
         >
           <Printer className="h-4 w-4 mr-2" />
           {printing ? "Tiskanje..." : "Natisni"}
@@ -529,6 +732,28 @@ export function PrintReceiptButton({
     );
   }
 
+  // Naprava je konfigurirana za most (ZCS/BT/NB80), a most trenutno ni dosegljiv.
+  // → prikaži isti gumb, ki najprej poskusi most prebuditi (retry), ne tiho pade na BLE.
+  // KLJUČNO: BLE ESC/POS pot je za te tiskalnike nezanesljiva (scrambled) — nikoli ne sme
+  // biti tihi fallback. Napaka je bolje kot scrambled tisk.
+  if (jeZcsMostNaprava(naprava?.terminalConfig?.tiskalnikSirina) && !agentTiskalnikIme) {
+    return (
+      <>
+        <Button
+          variant={variant}
+          size={size}
+          className={cn("bg-orange-500 hover:bg-orange-600 text-white border-orange-500", className)}
+          disabled={printing || externalDisabled}
+          data-testid={`button-print-${racunId}`}
+          onClick={handleZcsPrintZRetryjem}
+        >
+          <Printer className="h-4 w-4 mr-2" />
+          {printing ? "Vzpostavljam most..." : "Natisni"}
+        </Button>
+      </>
+    );
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -551,6 +776,21 @@ export function PrintReceiptButton({
               <DropdownMenuItem onClick={handleAgentPrint} data-testid="print-agent">
                 <Printer className="h-4 w-4 mr-2" />
                 <span className="flex-1 truncate">Windows agent ({agentTiskalnikIme})</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
+
+          {/* NB80 Android most */}
+          {nb80BridgeAvailable && (
+            <>
+              <DropdownMenuItem onClick={handleNb80Print} data-testid="print-nb80">
+                <Printer className="h-4 w-4 mr-2" />
+                Vgrajen tiskalnik (NB80)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleNb80Diagnostika} disabled={nb80Checking} data-testid="diag-nb80">
+                <Printer className="h-4 w-4 mr-2 opacity-50" />
+                {nb80Checking ? "Preverjam NB80..." : "NB80 diagnostika"}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
@@ -598,34 +838,6 @@ export function PrintReceiptButton({
             <Monitor className="h-4 w-4 mr-2" />
             Natisni v brskalniku
           </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          {/* QZ Tray — Windows gonilniški tiskalniki */}
-          {printerState.qzPrinterName ? (
-            <>
-              <DropdownMenuItem onClick={handleQzPrint} data-testid="print-qz">
-                <Printer className="h-4 w-4 mr-2" />
-                <span className="flex-1 truncate">{printerState.qzPrinterName}</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={openQzDialog}
-                data-testid="change-qz"
-              >
-                <ChevronDown className="h-4 w-4 mr-2 opacity-50" />
-                Zamenjaj QZ tiskalnik
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDisconnectQz} className="text-destructive" data-testid="disconnect-qz">
-                <X className="h-4 w-4 mr-2" />
-                Odstrani QZ tiskalnik
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <DropdownMenuItem onClick={openQzDialog} data-testid="connect-qz">
-              <Printer className="h-4 w-4 mr-2" />
-              Poveži Windows tiskalnik (QZ Tray)
-            </DropdownMenuItem>
-          )}
 
           <DropdownMenuSeparator />
 
@@ -699,109 +911,6 @@ export function PrintReceiptButton({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* QZ Tray dialog — izbira Windows tiskalnika */}
-      <Dialog open={qzDialogOpen} onOpenChange={setQzDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Windows tiskalnik prek QZ Tray</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-3 text-sm">
-                <p>
-                  QZ Tray omogoča tih tisk na katerikoli Windows USB tiskalnik brez tiskalnega dialoga.
-                </p>
-                {!isQzConnected() && !qzLoading && qzPrinters.length === 0 && (
-                  <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-amber-900 text-xs space-y-2">
-                    <p className="font-semibold">Namestitev in nastavitev (enkratno):</p>
-                    <ol className="list-decimal list-inside space-y-2">
-                      <li>
-                        Prenesite z{" "}
-                        <a
-                          href="https://qz.io/download/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline text-blue-700"
-                        >
-                          qz.io/download
-                        </a>{" "}
-                        — namestite in zaženite QZ Tray
-                      </li>
-                      <li>
-                        <strong>Zaupajte certifikatu</strong> — odprite ta naslov v Chromu, kliknite
-                        &ldquo;Napredno&rdquo; → &ldquo;Nadaljuj na localhost&rdquo;:{" "}
-                        <a
-                          href="https://localhost:8183"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline text-blue-700 font-semibold"
-                        >
-                          https://localhost:8183
-                        </a>
-                        <br />
-                        <span className="text-amber-700">
-                          ⚠ Ta korak je obvezen — brez njega Chrome blokira povezavo.
-                        </span>
-                      </li>
-                      <li>
-                        Zaprite tisti zavihek, kliknite <strong>Poveži</strong> spodaj.
-                        <br />
-                        QZ Tray bo pokazal pojavno okno — kliknite <strong>Allow</strong> (Dovoli).
-                      </li>
-                    </ol>
-                    <div className="mt-2 pt-2 border-t border-amber-300">
-                      <p className="font-semibold mb-1">Pojavno okno se ne pojavi? Nastavite v datoteki:</p>
-                      <p>Odprite <code>qz-tray.properties</code> (v mapi QZ Tray) in dodajte:</p>
-                      <code className="block mt-1 bg-amber-100 px-2 py-1 rounded">allow-unsigned=true</code>
-                      <p className="mt-1">Nato znova zaženite QZ Tray in kliknite Poveži.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-
-          {qzLoading ? (
-            <div className="py-4 text-center text-sm text-muted-foreground">
-              Povezujem z QZ Tray… (do 5 sekund)
-            </div>
-          ) : qzError ? (
-            <div className="rounded-md bg-destructive/10 border border-destructive/30 p-3 text-destructive text-xs whitespace-pre-line">
-              {qzError}
-            </div>
-          ) : qzPrinters.length > 0 ? (
-            <div className="space-y-2 py-2">
-              <Label htmlFor="qz-printer-select">Izberite tiskalnik</Label>
-              <select
-                id="qz-printer-select"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={qzSelected}
-                onChange={e => setQzSelected(e.target.value)}
-              >
-                {qzPrinters.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setQzDialogOpen(false)}>
-              Prekliči
-            </Button>
-            {qzPrinters.length > 0 ? (
-              <Button onClick={handleSaveQzPrinter} disabled={!qzSelected || qzLoading}>
-                <Printer className="h-4 w-4 mr-2" />
-                Shrani in natisni
-              </Button>
-            ) : (
-              <Button onClick={openQzDialog} disabled={qzLoading}>
-                <Printer className="h-4 w-4 mr-2" />
-                {qzLoading ? "Povezujem…" : "Poveži"}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Wi-Fi tiskalnik dialog */}
       <Dialog open={networkDialogOpen} onOpenChange={setNetworkDialogOpen}>

@@ -10,6 +10,11 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: vi.fn(),
 }));
 
+const mockUseNastavitve = vi.hoisted(() => vi.fn());
+vi.mock("@/contexts/NastavitveContext", () => ({
+  useNastavitve: () => mockUseNastavitve(),
+}));
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -21,6 +26,10 @@ describe("useRealtimeSync", () => {
   let esInstance: { addEventListener: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
+    mockUseNastavitve.mockReturnValue({
+      nastavitve: { toastTocilnicaAktiven: true },
+      nastavitveLoading: false,
+    });
     // Return a stable object so queryClient reference stays the same across renders,
     // preventing the useEffect from re-running due to a reference change.
     mockUseQueryClient.mockReturnValue({ invalidateQueries: vi.fn() } as ReturnType<typeof useQueryClient>);
@@ -80,6 +89,41 @@ describe("useRealtimeSync", () => {
     renderHook(() => useRealtimeSync());
 
     expect(EventSourceSpy).toHaveBeenCalledOnce();
+  });
+
+  it("ob izklopu utiša samo toast iz točilnice", () => {
+    mockUseNastavitve.mockReturnValue({
+      nastavitve: { toastTocilnicaAktiven: false },
+      nastavitveLoading: false,
+    });
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 1, username: "test", ime: "Test", vloga: "blagajnik",
+        podjetjeDavcna: "12345678", moraZamenjatiGeslo: false,
+      },
+      loading: false, login: vi.fn(), updateUser: vi.fn(), logout: vi.fn(),
+    });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    renderHook(() => useRealtimeSync());
+    const preparedHandler = esInstance.addEventListener.mock.calls.find(
+      ([eventName]) => eventName === "postavkaPripravljena",
+    )?.[1] as (event: MessageEvent) => void;
+
+    act(() => preparedHandler(new MessageEvent("postavkaPripravljena", {
+      data: JSON.stringify({
+        postavkaId: 1, narociloId: 2, ime: "Pijača", kolicina: 1,
+        opomba: null, mizaIme: "Miza 1", mizaStevilka: 1, vir: "tocilnica",
+      }),
+    })));
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: "gotov-toast" }));
+
+    act(() => preparedHandler(new MessageEvent("postavkaPripravljena", {
+      data: JSON.stringify({
+        postavkaId: 3, narociloId: 2, ime: "Jed", kolicina: 1,
+        opomba: null, mizaIme: "Miza 1", mizaStevilka: 1, vir: "kuhinja",
+      }),
+    })));
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "gotov-toast" }));
   });
 
   it("ne ustvari EventSource, ko ni prijavljenega uporabnika", () => {

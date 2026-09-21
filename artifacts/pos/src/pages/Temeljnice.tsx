@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronRight, Search, RefreshCw } from "lucide-react";
 import { getEnotaId } from "@workspace/api-client-react";
+import { poslovniDatumZaCas } from "@/lib/posCas";
 
 // ── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -31,16 +32,14 @@ interface Temeljnica {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const LJ = "Europe/Ljubljana";
-
 function danes(): string {
-  return new Date().toLocaleDateString("sv-SE", { timeZone: LJ });
+  return poslovniDatumZaCas();
 }
 
 function mesecNazaj(): string {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
-  return d.toLocaleDateString("sv-SE", { timeZone: LJ });
+  return d.toLocaleDateString("sv-SE", { timeZone: "Europe/Ljubljana" });
 }
 
 function datumSlo(iso: string): string {

@@ -18,6 +18,12 @@ export const costCentersTable = pgTable("cost_centers", {
   code: text("code").notNull(),
   name: text("name").notNull(),
   description: text("description"),
+  /** direktna | indirektna | projektna */
+  tip: text("tip"),
+  /** FK na samo sebe — hierarhija nadrejenega SM */
+  parentId: uuid("parent_id"),
+  /** Odgovorna oseba / vodja */
+  odgovornaOseba: text("odgovorna_oseba"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

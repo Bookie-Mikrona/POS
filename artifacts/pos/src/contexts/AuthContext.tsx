@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/clerk-react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getGetNastavitveQueryKey, setAuthTokenGetter, setEnotaIdGetter } from "@workspace/api-client-react";
-import { clearNastavitveStorage } from "./NastavitveContext";
+import { getGetNastavitveQueryKey, setAuthTokenGetter, setEnotaIdGetter, setOn401Handler, setPosActorSessionGetter } from "@workspace/api-client-react";
 import { clearReturnUrl } from "@/lib/returnUrl";
+import type { HospitalityProfile, UnitCapability } from "@/lib/unitProfiles";
 
 export const POS_ENOTA_ID_KEY = "pos_enota_id";
 
@@ -27,7 +27,9 @@ export interface Uporabnik {
   blagajnaPpId?: string | null;
   natakariId?: number | null;
   companyId?: string;
-  enote?: Array<{ id: number; ime: string }>;
+  enote?: Array<{ id: number; ime: string; hospitalityProfile: HospitalityProfile; capabilities: UnitCapability[] }>;
+  hospitalityProfile?: HospitalityProfile | null;
+  capabilities?: UnitCapability[];
   idZaDdv?: string | null;
   jeDdvZavezanec?: boolean;
   imaTrr?: boolean;
@@ -48,21 +50,26 @@ interface PosAuthMeResponse {
   imaTrr: boolean;
   enotaId: number | null;
   enotaIme: string | null;
+  enotaHospitalityProfile: HospitalityProfile | null;
+  enotaCapabilities: UnitCapability[];
   blagajnaId: number | null;
   blagajnaIme: string | null;
   blagajnaPpId: string | null;
   natakariId: number | null;
-  enote: Array<{ id: number; ime: string }>;
+  enote: Array<{ id: number; ime: string; hospitalityProfile: HospitalityProfile; capabilities: UnitCapability[] }>;
   aktiven: boolean;
 }
 
 interface AuthCtx {
   user: Uporabnik | null;
   loading: boolean;
+  authStatus: PosAuthStatus;
   login: (u: Uporabnik) => void;
   updateUser: (patch: Partial<Uporabnik>) => void;
   logout: () => Promise<void>;
 }
+
+export type PosAuthStatus = "loading" | "signed_out" | "ready" | "unauthorized" | "forbidden" | "error";
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
@@ -71,40 +78,132 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { getToken } = useClerkAuth();
   const { signOut } = useClerk();
   const [posUser, setPosUser] = useState<Uporabnik | null>(null);
-  const [posLoading, setPosLoading] = useState(true);
+  const [authStatus, setAuthStatus] = useState<PosAuthStatus>("loading");
   const queryClient = useQueryClient();
+  const revalidatingUnauthorizedRef = useRef(false);
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const clerkUserId = clerkUser?.id ?? null;
+  const clerkEmail = clerkUser?.emailAddresses[0]?.emailAddress ?? "";
 
-  // Nastavi Clerk token getter za vse API klice prek api-client-react
+  // Nastavi Clerk token getter za vse API klice prek api-client-react.
+  // Clerk sam osveži potekel žeton. Prisilni skipCache bi pred vsakim API
+  // klicem izvedel dodatno omrežno zahtevo in občutno upočasnil celoten POS.
   useEffect(() => {
-    setAuthTokenGetter(async () => {
-      try { return await getToken(); } catch { return null; }
+    setAuthTokenGetter(async (options) => {
+      try { return await getToken(options?.skipCache ? { skipCache: true } : undefined); } catch { return null; }
     });
     setEnotaIdGetter(() => localStorage.getItem(POS_ENOTA_ID_KEY));
+    setPosActorSessionGetter(() => sessionStorage.getItem("pos_actor_session"));
     return () => {
       setAuthTokenGetter(null);
       setEnotaIdGetter(null);
+      setPosActorSessionGetter(null);
     };
   }, [getToken]);
+
+  useEffect(() => {
+    const confirmUnauthorized = async () => {
+      if (revalidatingUnauthorizedRef.current || !isSignedIn) return;
+      revalidatingUnauthorizedRef.current = true;
+      try {
+        const token = await getToken({ skipCache: true });
+        if (!token) {
+          queryClient.clear();
+          setPosUser(null);
+          setAuthStatus("unauthorized");
+          return;
+        }
+
+        const response = await fetch("/api/pos/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+
+        if (response.ok) {
+          // Prvotni 401 je bil prehoden. Ohrani celotno drevo aplikacije in
+          // samo ponovno naloži neuspele poizvedbe s svežim žetonom.
+          await queryClient.invalidateQueries({ refetchType: "active" });
+          return;
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          queryClient.clear();
+          setPosUser(null);
+          setAuthStatus(response.status === 403 ? "forbidden" : "unauthorized");
+        }
+        // Omrežne napake in 5xx ne pomenijo potrjene odjave. Obstoječa seja
+        // in odprti obrazci ostanejo nedotaknjeni.
+      } catch {
+        // Prehodna napaka pri osvežitvi ne sme odmontirati POS aplikacije.
+      } finally {
+        revalidatingUnauthorizedRef.current = false;
+      }
+    };
+    const handleUnauthorized = () => { void confirmUnauthorized(); };
+    setOn401Handler(handleUnauthorized);
+    window.addEventListener("auth:401", handleUnauthorized);
+    return () => {
+      setOn401Handler(null);
+      window.removeEventListener("auth:401", handleUnauthorized);
+    };
+  }, [getToken, isSignedIn, queryClient]);
 
   // Po Clerk prijavi: pridobi POS vlogo
   // POMEMBNO: URL mora biti /api/pos/auth/me brez ${BASE_URL} prefiksa.
   // Replit proxy usmerja /pos/* na POS Vite strežnik — /api/* pa direktno na API strežnik.
   useEffect(() => {
     if (!clerkLoaded) return;
-    if (!isSignedIn) { setPosUser(null); setPosLoading(false); return; }
+    if (!isSignedIn) {
+      setPosUser(null);
+      setAuthStatus("signed_out");
+      return;
+    }
 
-    setPosLoading(true);
-    getToken()
+    let active = true;
+    setAuthStatus("loading");
+    getTokenRef.current()
       .then(token => {
-        if (!token) return null;
+        if (!token) {
+          if (active) setAuthStatus("unauthorized");
+          return null;
+        }
         return fetch(`/api/pos/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         });
       })
-      .then(r => (r && r.ok ? r.json() : null))
+      .then(r => {
+        if (!r) return null;
+        if (r.status === 401) {
+          if (active) setAuthStatus("unauthorized");
+          return null;
+        }
+        if (r.status === 403) {
+          if (active) setAuthStatus("forbidden");
+          return null;
+        }
+        if (!r.ok) {
+          if (active) setAuthStatus("error");
+          return null;
+        }
+        return r.json();
+      })
       .then((data: PosAuthMeResponse | null) => {
-        if (!data) { setPosUser(null); return; }
+        if (!active || !data) {
+          if (active) setPosUser(null);
+          return;
+        }
+
+        // POS in ERP si delita origin, zato lahko v localStorage ostane
+        // X-Company-Id iz zadnje ERP seje. API klient ga samodejno pripne
+        // vsakemu klicu; ob prijavi v POS ga moramo uskladiti s trenutno
+        // razrešenim POS podjetjem, sicer middleware vrne 403.
+        if (data.companyId) {
+          localStorage.setItem("erp_active_company", data.companyId);
+        } else {
+          localStorage.removeItem("erp_active_company");
+        }
 
         // Določi enotaId: za admin vzamemo shranjeno preferenco, drugače iz vloge
         let enotaId = data.enotaId ?? undefined;
@@ -133,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setPosUser({
           id: data.id,
-          username: clerkUser?.emailAddresses[0]?.emailAddress ?? "",
+          username: clerkEmail,
           ime: `${data.ime} ${data.priimek}`.trim(),
           vloga: data.vloga,
           podjetjeDavcna: data.podjetjeDavcna ?? "",
@@ -150,19 +249,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           natakariId: data.natakariId ?? null,
           companyId: data.companyId ?? undefined,
           enote: data.enote,
+          hospitalityProfile: (
+            data.enote.find(enota => enota.id === enotaId)?.hospitalityProfile
+            ?? data.enotaHospitalityProfile
+            ?? "restaurant"
+          ),
+          capabilities: (
+            data.enote.find(enota => enota.id === enotaId)?.capabilities
+            ?? data.enotaCapabilities
+            ?? []
+          ),
           idZaDdv: data.idZaDdv ?? null,
           jeDdvZavezanec: data.jeDdvZavezanec ?? false,
           imaTrr: data.imaTrr ?? false,
         });
+        setAuthStatus("ready");
       })
-      .catch(() => setPosUser(null))
-      .finally(() => setPosLoading(false));
-  }, [clerkLoaded, isSignedIn, getToken, clerkUser]);
+      .catch(() => {
+        if (!active) return;
+        setPosUser(null);
+        setAuthStatus("error");
+      });
+    return () => { active = false; };
+  // Clerk lahko ob osvežitvi žetona vrne nov objekt user/getToken za istega
+  // uporabnika. Celotni objekti zato ne smejo biti odvisnosti tega zagonskega
+  // učinka, saj bi ponovni prehod v loading odmontiral odprte POS obrazce.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clerkLoaded, isSignedIn, clerkUserId, clerkEmail]);
 
   const login = useCallback((u: Uporabnik) => {
-    clearNastavitveStorage();
     queryClient.removeQueries({ queryKey: getGetNastavitveQueryKey() });
     setPosUser(u);
+    setAuthStatus("ready");
   }, [queryClient]);
 
   const updateUser = useCallback((patch: Partial<Uporabnik>) => {
@@ -175,20 +293,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    clearNastavitveStorage();
     queryClient.removeQueries({ queryKey: getGetNastavitveQueryKey() });
     clearReturnUrl();
     localStorage.removeItem(POS_ENOTA_ID_KEY);
+    await signOut({ redirectUrl: "/" });
     setPosUser(null);
-    await signOut();
-    // Eksplicitna preusmeritev — Clerk z routing="hash" ne spoštuje redirectUrl zanesljivo
-    window.location.href = "/pos/";
+    setAuthStatus("signed_out");
+    // Po odjavi → glavna prijava aplikacije na korenu.
+    window.location.href = "/";
   }, [queryClient, signOut]);
 
   return (
     <AuthContext.Provider value={{
       user: posUser,
-      loading: !clerkLoaded || posLoading,
+      loading: !clerkLoaded || authStatus === "loading",
+      authStatus,
       login,
       updateUser,
       logout,

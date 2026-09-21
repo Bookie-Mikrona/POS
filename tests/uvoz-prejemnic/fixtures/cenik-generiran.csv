@@ -1,0 +1,8 @@
+Cenik dobavitelja, veljavnost od 01.01.2026
+
+Šifra artikla;EAN koda;Naziv izdelka;EM;Kos v pakiranju;Cena/pak;DDV %
+ART-9912;3838800000121;Èaj vreèka - Kamilica;KOM;20;5,476;9,5
+ART-1044;3830012345670;Kava zrna Espresso 1 kg;KG;1;12,90;9,5
+ART-2201;3838900007778;Radenska 0,5 L;KOM;24;16,80;9,5
+ART-0000;3838800000123;Artikel z NAPACNO kodo;KOM;1;3,00;22
+ART-BREZ;;Artikel brez cene;KOM;1;0;9,5

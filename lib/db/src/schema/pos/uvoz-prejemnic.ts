@@ -34,7 +34,7 @@ import {
 // Obstoječe BOOKIE tabele
 import { artikliTable } from './artikli';
 import { prejemniceTable, prejemnicePostavkeTable } from './prejemnice';
-import { shranjeniKupciTable } from './shranjeni-kupci';
+import { counterpartiesTable } from '../counterparties';
 
 // ---------------------------------------------------------------------
 // Pomožni tip: bytea (Drizzle ga nima vgrajenega)
@@ -110,19 +110,18 @@ export const artikelDobaviteljTable = pgTable(
     artikelId: integer('artikel_id')
       .notNull()
       .references(() => artikliTable.id),
-    dobaviteljId: integer('dobavitelj_id')
+    dobaviteljId: uuid('dobavitelj_id')
       .notNull()
-      .references(() => shranjeniKupciTable.id),
+      .references(() => counterpartiesTable.id),
 
     sifraDobavitelja: text('sifra_dobavitelja'),
     gtin: text('gtin'),
     nazivDobavitelja: text('naziv_dobavitelja'),
 
-    // Generirani stolpec prek NESPREMENLJIVE ovojnice.
-    // Neposreden klic unaccent() tu ne deluje — glej migracijo 0009.
-    nazivNorm: text('naziv_norm').generatedAlwaysAs(
-      sql`public.naziv_norm(naziv_dobavitelja)`,
-    ),
+    // Shranjena normalizirana vrednost za uparjanje. Ne sme biti generirani
+    // stolpec, ker Replitov Publish preverja Drizzle shemo pred ročnimi SQL
+    // migracijami, funkcija public.naziv_norm pa takrat še ne obstaja.
+    nazivNorm: text('naziv_norm'),
 
     enotVPaketu: numeric('enot_v_paketu', { precision: 18, scale: 6 })
       .notNull()
@@ -142,6 +141,9 @@ export const artikelDobaviteljTable = pgTable(
   (t) => [
     uniqueIndex('uq_ad_sifra').on(t.enotaId, t.dobaviteljId, t.sifraDobavitelja),
     uniqueIndex('uq_ad_gtin').on(t.enotaId, t.dobaviteljId, t.gtin),
+    uniqueIndex('uq_ad_naziv_only')
+      .on(t.enotaId, t.dobaviteljId, t.nazivNorm)
+      .where(sql`${t.sifraDobavitelja} IS NULL AND ${t.gtin} IS NULL AND ${t.nazivNorm} IS NOT NULL`),
     index('ix_ad_artikel').on(t.enotaId, t.artikelId),
     // GIN indeks nad naziv_norm se ustvari v migraciji — Drizzle nima
     // izraznega zapisa za operatorski razred gin_trgm_ops.
@@ -231,14 +233,16 @@ export const uvozProfilTable = pgTable(
   {
     id: serial('id').primaryKey(),
     enotaId: integer('enota_id').notNull(),
-    dobaviteljId: integer('dobavitelj_id')
-      .notNull()
-      .references(() => shranjeniKupciTable.id),
+    dobaviteljId: uuid('dobavitelj_id')
+      .references(() => counterpartiesTable.id),
     naziv: text('naziv').notNull(),
     format: uvozFormat('format').notNull(),
     ceneBruto: boolean('cene_bruto').notNull().default(false),
     prepoznava: jsonb('prepoznava').notNull().default(sql`'{}'::jsonb`),
     konfiguracija: jsonb('konfiguracija').notNull(),
+    // 'PREJEMNICA' = profil za uvoz dobavnic/prejemnic
+    // 'CENIK'      = profil za uvoz cenika dobavitelja (brez zaloge/prejemnice)
+    tip: text('tip').notNull().default('PREJEMNICA'),
     aktivno: boolean('aktivno').notNull().default(true),
     ustvarjeno: timestamp('ustvarjeno', { withTimezone: true })
       .notNull()
@@ -278,9 +282,9 @@ export const partnerEpostaTable = pgTable(
   {
     id: serial('id').primaryKey(),
     enotaId: integer('enota_id').notNull(),
-    partnerId: integer('partner_id')
+    partnerId: uuid('partner_id')
       .notNull()
-      .references(() => shranjeniKupciTable.id, { onDelete: 'cascade' }),
+      .references(() => counterpartiesTable.id, { onDelete: 'cascade' }),
     naslov: text('naslov'),
     domena: text('domena'),
     zaupanjaVreden: boolean('zaupanja_vreden').notNull().default(false),

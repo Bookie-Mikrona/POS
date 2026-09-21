@@ -86,6 +86,7 @@ async function zZaklepom<T>(
 interface Predal {
   id: number;
   enota_id: number | null;
+  company_id: string | null;
   streznik: string;
   vrata: number;
   uporabnisko_ime: string;
@@ -205,7 +206,7 @@ async function obdelajSporocilo(
       const dto = await razcleniSejo(db, zajem.sejaId);
       if (dto.napake.some((n) => n.resnost === 'B')) continue;
 
-      const dob = await dolociDobavitelja(db, p.enota_id ?? 0, dto, posiljatelj);
+      const dob = await dolociDobavitelja(db, p.company_id ?? '', dto, posiljatelj);
       if (!dob.dobaviteljId) continue;
 
       await ustvariOsnutek(db, {
@@ -237,11 +238,13 @@ function prednost(ime: string): number {
 // =====================================================================
 
 async function obdelajCakajoceSeje(): Promise<void> {
-  const { rows: seje } = await db.execute<{ id: string; enota_id: number }>(sql`
-    SELECT id, enota_id FROM uvoz_seja
-     WHERE status = 'PREJETO'
-       AND prejeto < now() - interval '1 minute'
-     ORDER BY prejeto
+  const { rows: seje } = await db.execute<{ id: string; enota_id: number; company_id: string | null }>(sql`
+    SELECT s.id, s.enota_id, e.company_id
+      FROM uvoz_seja s
+      LEFT JOIN enote e ON e.id = s.enota_id
+     WHERE s.status = 'PREJETO'
+       AND s.prejeto < now() - interval '1 minute'
+     ORDER BY s.prejeto
      LIMIT ${NAJVEC_SEJ}
   `);
 
@@ -250,7 +253,7 @@ async function obdelajCakajoceSeje(): Promise<void> {
       const dto = await razcleniSejo(db, s.id);
       if (dto.napake.some((n) => n.resnost === 'B')) continue;
 
-      const dob = await dolociDobavitelja(db, s.enota_id, dto);
+      const dob = await dolociDobavitelja(db, s.company_id ?? '', dto);
       if (!dob.dobaviteljId) continue;
 
       await ustvariOsnutek(db, {
@@ -284,11 +287,13 @@ async function glavni(): Promise<void> {
   const zacetek = Date.now();
 
   const { rows: predali } = await db.execute<Record<string, unknown>>(sql`
-    SELECT id, enota_id, streznik, vrata, uporabnisko_ime,
-           geslo_sifrirano, mapa, mapa_obdelano, mapa_karantena, uporabi_tls
-      FROM uvoz_predal
-     WHERE aktivno
-     ORDER BY id
+    SELECT p.id, p.enota_id, e.company_id,
+           p.streznik, p.vrata, p.uporabnisko_ime,
+           p.geslo_sifrirano, p.mapa, p.mapa_obdelano, p.mapa_karantena, p.uporabi_tls
+      FROM uvoz_predal p
+      LEFT JOIN enote e ON e.id = p.enota_id
+     WHERE p.aktivno
+     ORDER BY p.id
   `);
 
   for (const p of predali as unknown as Predal[]) {

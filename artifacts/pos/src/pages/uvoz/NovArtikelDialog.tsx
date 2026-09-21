@@ -5,6 +5,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { predlagajArtikel } from './naziv';
+import { DEFAULT_NEW_PURCHASE_ARTICLE_TYPE } from '@/lib/article-type-defaults';
+import { KlavijaturaInput } from '@/components/KlavijaturaInput';
 
 // =====================================================================
 // Konstante
@@ -22,6 +24,7 @@ const DDV_KATEGORIJE = [
   { value: 'hot_beverage',  label: 'Topla pijača',                               opis: '22 %'  },
   { value: 'cold_beverage', label: 'Hladna pijača',                              opis: '22 %'  },
   { value: 'food_drink',    label: 'Pijača-jed (gosta čokolada, smoothie …)',    opis: '9,5 %' },
+  { value: 'vat_super_reduced_5', label: 'Znižana stopnja DDV',                  opis: '5 %' },
   { value: 'alcoholic',     label: 'Alkohol',                                    opis: '22 %'  },
   { value: 'other',         label: 'Ostalo',                                     opis: '22 %'  },
 ] as const;
@@ -32,10 +35,58 @@ const DDV_KATEGORIJE = [
 
 export type TaxCategory =
   | 'food' | 'hot_beverage' | 'cold_beverage'
-  | 'alcoholic' | 'food_drink' | 'other';
+  | 'alcoholic' | 'food_drink' | 'vat_super_reduced_5' | 'other';
 
-export type TipArtikla = 'NABAVNI' | 'NABAVNO_PRODAJNI';
+export function normalizeAddedSugarForTaxCategory(
+  category: TaxCategory,
+  addedSugar: boolean,
+): boolean {
+  return category === 'hot_beverage' || category === 'cold_beverage'
+    ? addedSugar
+    : false;
+}
+
+export type TipArtikla = 'NABAVNI' | 'NABAVNO_PRODAJNI' | 'POVRATNA_EMBALAZA';
 export type VrstaArtikla = 'blago' | 'material' | 'storitev';
+export type VrstaEmbalaze = 'steklenica' | 'zaboj' | 'keg' | 'balon' | 'drugo';
+
+export function dolociAktivnostNovegaArtikla(
+  tip: TipArtikla,
+  prodajnoAktiven: boolean,
+): boolean {
+  return tip === 'NABAVNO_PRODAJNI' ? prodajnoAktiven : true;
+}
+
+export function parseProdajnaCena(value: string): number | null {
+  const normalized = value.trim().replace(/\s/g, '').replace(',', '.');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+const EMBALAZA_NAZIVI: Record<Exclude<VrstaEmbalaze, 'drugo'>, string> = {
+  steklenica: 'Steklenica',
+  zaboj: 'Zaboj',
+  keg: 'Sod',
+  balon: 'Balon',
+};
+
+export function zagotoviVrstoEmbalazeVNazivu(
+  naziv: string,
+  vrsta: VrstaEmbalaze,
+): string {
+  const brezStareVrste = naziv
+    .trim()
+    .replace(/^(?:steklenica|zaboj|gajba|sod(?:\s*\(keg\))?|keg|balon)\b[\s:–—-]*/i, '')
+    .trim();
+  if (vrsta === 'drugo') return brezStareVrste;
+  const oznaka = EMBALAZA_NAZIVI[vrsta];
+  return brezStareVrste ? `${oznaka} ${brezStareVrste}` : oznaka;
+}
+
+export function predlagajVrstoEmbalaze(izvorniNaziv: string): VrstaEmbalaze {
+  return /\bzaboj\b/i.test(izvorniNaziv) ? 'zaboj' : 'steklenica';
+}
 
 export interface NovArtikelVhod {
   naziv:        string;
@@ -61,6 +112,9 @@ export interface NovArtikelVhod {
   toGoArtikli:  number[];
   happyHourCena: string;
   normativItems: { vhodniArtikelId: number; kolicina: string }[];
+  povratnaEmbalaza: boolean;
+  vrstaEmbalaze: VrstaEmbalaze | null;
+  depozitnaVrednost: string | null;
 }
 
 interface Postavka {
@@ -70,6 +124,7 @@ interface Postavka {
   izv_enota:    string | null;
   izv_cena:     string;
   enot_v_paketu: string;
+  izbrano_enot_v_paketu?: string;
 }
 
 interface PosKategorija { id: number; ime: string }
@@ -93,7 +148,7 @@ interface Lastnosti {
 
 function pricakovanaNabavnaDdv(
   cat: TaxCategory, addedSugar: boolean,
-  stopnje = { splosnaSt: 22, nizjaSt: 9.5 },
+  stopnje = { splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 },
 ): number {
   switch (cat) {
     case 'food':          return stopnje.nizjaSt;
@@ -101,6 +156,7 @@ function pricakovanaNabavnaDdv(
     case 'hot_beverage':  return addedSugar ? stopnje.splosnaSt : stopnje.nizjaSt;
     case 'cold_beverage': return addedSugar ? stopnje.splosnaSt : stopnje.nizjaSt;
     case 'alcoholic':     return stopnje.splosnaSt;
+    case 'vat_super_reduced_5': return stopnje.znizanaSt;
     case 'other':         return stopnje.splosnaSt;
     default:              return stopnje.nizjaSt;
   }
@@ -108,7 +164,7 @@ function pricakovanaNabavnaDdv(
 
 function prodajnaDefaultDdv(
   cat: TaxCategory,
-  stopnje = { splosnaSt: 22, nizjaSt: 9.5 },
+  stopnje = { splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 },
 ): number {
   switch (cat) {
     case 'food':          return stopnje.nizjaSt;
@@ -116,6 +172,7 @@ function prodajnaDefaultDdv(
     case 'hot_beverage':  return stopnje.splosnaSt;
     case 'cold_beverage': return stopnje.splosnaSt;
     case 'alcoholic':     return stopnje.splosnaSt;
+    case 'vat_super_reduced_5': return stopnje.znizanaSt;
     case 'other':         return stopnje.splosnaSt;
     default:              return stopnje.nizjaSt;
   }
@@ -139,11 +196,17 @@ export function NovArtikelDialog(l: Lastnosti) {
   const [imeZaNabavo,  setImeZaNabavo]  = useState('');
   const [tip,          setTip]          = useState<TipArtikla>('NABAVNI');
   const [enota,        setEnota]        = useState(predlog.osnovnaEnota ?? '');
-  const [enotVPaketu,  setEnotVPaketu]  = useState(String(predlog.enotVPaketu ?? p.enot_v_paketu ?? '1'));
+  const [enotVPaketu,  setEnotVPaketu]  = useState(String(
+    p.izbrano_enot_v_paketu ?? predlog.enotVPaketu ?? p.enot_v_paketu ?? '1',
+  ));
   const [taxCategory,  setTaxCategory]  = useState<TaxCategory>('food');
   const [addedSugar,   setAddedSugar]   = useState(false);
-  const [vrstaArtikla, setVrstaArtikla] = useState<VrstaArtikla>('material');
+  const [vrstaArtikla, setVrstaArtikla] = useState<VrstaArtikla>(DEFAULT_NEW_PURCHASE_ARTICLE_TYPE);
   const [skupina,      setSkupina]      = useState('');
+  const [vrstaEmbalaze, setVrstaEmbalaze] = useState<VrstaEmbalaze>(
+    predlagajVrstoEmbalaze(p.izv_naziv),
+  );
+  const [depozitnaVrednost, setDepozitnaVrednost] = useState('0');
 
   // ── Prodajni vnosi (NABAVNO_PRODAJNI) ──────────────────────────
   const [cena,         setCena]         = useState('');
@@ -155,9 +218,10 @@ export function NovArtikelDialog(l: Lastnosti) {
   const [toGoArtikli,  setToGoArtikli]  = useState<number[]>([]);
   const [happyHourCena, setHappyHourCena] = useState('');
   const [normativItems, setNormativItems] = useState<{ vhodniArtikelId: number; kolicina: string }[]>([]);
+  const povratnaEmbalaza = tip === 'POVRATNA_EMBALAZA';
 
   // ── Naloženi podatki ────────────────────────────────────────────
-  const [ddvStopnje,   setDdvStopnje]   = useState({ splosnaSt: 22, nizjaSt: 9.5 });
+  const [ddvStopnje,   setDdvStopnje]   = useState({ splosnaSt: 22, nizjaSt: 9.5, znizanaSt: 5 });
   const [posKat,       setPosKat]       = useState<PosKategorija[]>([]);
   const [artikliList,  setArtikliList]  = useState<ArtikelMin[]>([]);
 
@@ -170,12 +234,24 @@ export function NovArtikelDialog(l: Lastnosti) {
 
   // Naloži DDV stopnje, POS kategorije in artikle
   useEffect(() => {
-    const h = { credentials: 'include' as const, headers: hdr() };
+    // Dialog podatke bere neposredno, zato 304 brez telesa ne sme pustiti
+    // praznih kategorij ali artiklov. Vedno zahtevaj svež JSON.
+    const h = {
+      credentials: 'include' as const,
+      headers: hdr(),
+      cache: 'no-store' as const,
+    };
     fetch(`${base}/api/nastavitve/ddv-stopnje`, h)
       .then(r => r.json())
       .then((d: unknown) => {
         const data = d as { splosnaSt?: number; nizjaSt?: number };
-        if (data?.splosnaSt) setDdvStopnje({ splosnaSt: data.splosnaSt, nizjaSt: data.nizjaSt ?? 9.5 });
+        if (data?.splosnaSt) {
+          setDdvStopnje({
+            splosnaSt: data.splosnaSt,
+            nizjaSt: data.nizjaSt ?? 9.5,
+            znizanaSt: 5,
+          });
+        }
       }).catch(() => {});
     fetch(`${base}/api/kategorije`, h)
       .then(r => r.json())
@@ -190,9 +266,12 @@ export function NovArtikelDialog(l: Lastnosti) {
   // Ob zamenjavi predloga iz OCR
   useEffect(() => {
     setNaziv(predlog.naziv);
+    setVrstaEmbalaze(predlagajVrstoEmbalaze(p.izv_naziv));
     setEnota(predlog.osnovnaEnota ?? '');
-    setEnotVPaketu(String(predlog.enotVPaketu ?? p.enot_v_paketu ?? '1'));
-  }, [predlog, p.enot_v_paketu]);
+    setEnotVPaketu(String(
+      p.izbrano_enot_v_paketu ?? predlog.enotVPaketu ?? p.enot_v_paketu ?? '1',
+    ));
+  }, [predlog, p.enot_v_paketu, p.izbrano_enot_v_paketu]);
 
   // Avtomatski normativ 1:1 ob preklopi na NABAVNO_PRODAJNI (enako kot Menu.tsx)
   useEffect(() => {
@@ -203,9 +282,29 @@ export function NovArtikelDialog(l: Lastnosti) {
           : [{ vhodniArtikelId: -1, kolicina: '1' }, ...prev.filter(n => n.vhodniArtikelId !== -1)],
       );
     } else {
+      setVrstaArtikla(DEFAULT_NEW_PURCHASE_ARTICLE_TYPE);
       setNormativItems(prev => prev.filter(n => n.vhodniArtikelId !== -1));
     }
   }, [tip]);
+
+  // Embalaža se vodi kot nabavni material v kosih. Ne sme se po pomoti
+  // pojaviti v prodajnem meniju niti podedovati DDV-ja iz vsebine dobavnice.
+  useEffect(() => {
+    if (!povratnaEmbalaza) return;
+    setTip('POVRATNA_EMBALAZA');
+    setEnota('kom');
+    setVrstaArtikla('material');
+    setTaxCategory('other');
+    setAddedSugar(false);
+  }, [povratnaEmbalaza]);
+
+  useEffect(() => {
+    if (!povratnaEmbalaza) return;
+    setNaziv((trenutni) => zagotoviVrstoEmbalazeVNazivu(trenutni, vrstaEmbalaze));
+    setImeZaNabavo((trenutni) => (
+      trenutni ? zagotoviVrstoEmbalazeVNazivu(trenutni, vrstaEmbalaze) : trenutni
+    ));
+  }, [povratnaEmbalaza, vrstaEmbalaze]);
 
   // Avtomatski preklop na "blago" ko je normativ 1:1
   const normativRef = useRef(normativItems);
@@ -222,14 +321,20 @@ export function NovArtikelDialog(l: Lastnosti) {
   const prodDdv  = prodajnaDefaultDdv(taxCategory, ddvStopnje);
   const nabavDdv = pricakovanaNabavnaDdv(taxCategory, addedSugar, ddvStopnje);
 
-  const isNabavnoSamo = tip === 'NABAVNI';
+  const isNabavnoSamo = tip !== 'NABAVNO_PRODAJNI';
   const cenaEnota     = Number(enotVPaketu) > 0 ? Number(p.izv_cena) / Number(enotVPaketu) : null;
 
   // Validacija
   const manjka: string[] = [];
   if (!naziv.trim()) manjka.push('naziv');
   if (!enota)        manjka.push('osnovna enota');
-  if (!isNabavnoSamo && !cena) manjka.push('prodajna cena');
+  if (!isNabavnoSamo && parseProdajnaCena(cena) === null) {
+    manjka.push('veljavna prodajna cena');
+  }
+  const depozit = Number(depozitnaVrednost.replace(',', '.'));
+  if (povratnaEmbalaza && (!Number.isFinite(depozit) || depozit < 0)) {
+    manjka.push('veljavna depozitna vrednost');
+  }
 
   // ── Shranjevanje ────────────────────────────────────────────────
   const shrani = async () => {
@@ -237,28 +342,39 @@ export function NovArtikelDialog(l: Lastnosti) {
     setDela(true);
     setNapaka(null);
     try {
+      const nazivZaShranjevanje = povratnaEmbalaza
+        ? zagotoviVrstoEmbalazeVNazivu(naziv, vrstaEmbalaze)
+        : naziv.trim();
+      const nabavniNazivZaShranjevanje = imeZaNabavo.trim()
+        ? (povratnaEmbalaza
+          ? zagotoviVrstoEmbalazeVNazivu(imeZaNabavo, vrstaEmbalaze)
+          : imeZaNabavo.trim())
+        : null;
       await l.onShrani({
-        naziv:         naziv.trim(),
-        imeZaNabavo:   imeZaNabavo.trim() || null,
+        naziv:         nazivZaShranjevanje,
+        imeZaNabavo:   nabavniNazivZaShranjevanje,
         tip,
         osnovnaEnota:  enota,
         gtin:          p.izv_gtin,
         enotVPaketu,
         taxCategory,
-        addedSugar,
+        addedSugar: normalizeAddedSugarForTaxCategory(taxCategory, addedSugar),
         vrstaArtikla,
         skupina:       skupina.trim() || null,
         prodajnaDdvStopnja:  prodDdv,
         nabavnaDdvStopnja:   nabavDdv,
         cena,
         posCategoryId: isNabavnoSamo ? null : posCatId,
-        aktiven:       isNabavnoSamo ? false : aktiven,
+        aktiven:       dolociAktivnostNovegaArtikla(tip, aktiven),
         barva:         isNabavnoSamo ? null  : barva,
         jePica:        isNabavnoSamo ? false : jePica,
         toGo:          isNabavnoSamo ? false : toGo,
         toGoArtikli:   isNabavnoSamo ? []    : toGoArtikli,
         happyHourCena: isNabavnoSamo ? ''    : happyHourCena,
         normativItems,
+        povratnaEmbalaza,
+        vrstaEmbalaze: povratnaEmbalaza ? vrstaEmbalaze : null,
+        depozitnaVrednost: povratnaEmbalaza ? depozitnaVrednost : null,
       });
     } catch (e) {
       setNapaka((e as Error).message);
@@ -285,7 +401,7 @@ export function NovArtikelDialog(l: Lastnosti) {
         </div>
 
         {/* Telo — drsi */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4">
 
         {/* Izvorni zapis */}
         <div className="rounded-md border bg-neutral-50 p-3 text-sm">
@@ -312,7 +428,8 @@ export function NovArtikelDialog(l: Lastnosti) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Oznaka obvezno>Naziv v šifrantu</Oznaka>
-              <input value={naziv} onChange={e => setNaziv(e.target.value)}
+              <KlavijaturaInput value={naziv} onChange={setNaziv}
+                     naslov="Naziv v šifrantu"
                      className="w-full rounded border px-2 py-1.5 text-sm" />
               {predlog.vsebina && (
                 <p className="mt-1 text-xs text-neutral-500">
@@ -324,7 +441,8 @@ export function NovArtikelDialog(l: Lastnosti) {
             {/* Ime za nabavo */}
             <div className="col-span-2">
               <Oznaka>Ime za nabavo <span className="font-normal text-neutral-400">(opcijsko, drugačno od prodajnega)</span></Oznaka>
-              <input value={imeZaNabavo} onChange={e => setImeZaNabavo(e.target.value)}
+              <KlavijaturaInput value={imeZaNabavo} onChange={setImeZaNabavo}
+                     naslov="Ime za nabavo"
                      placeholder={naziv || p.izv_naziv}
                      className="w-full rounded border px-2 py-1.5 text-sm" />
             </div>
@@ -332,10 +450,15 @@ export function NovArtikelDialog(l: Lastnosti) {
             {/* Tip artikla */}
             <div>
               <Oznaka obvezno>Tip artikla</Oznaka>
-              <select value={tip} onChange={e => setTip(e.target.value as TipArtikla)}
+              <select value={tip}
+                      onChange={e => {
+                        const noviTip = e.target.value as TipArtikla;
+                        setTip(noviTip);
+                      }}
                       className="w-full rounded border px-2 py-1.5 text-sm">
                 <option value="NABAVNI">Nabavni — surovina, ni v meniju</option>
                 <option value="NABAVNO_PRODAJNI">Nabavno-prodajni — se tudi prodaja</option>
+                <option value="POVRATNA_EMBALAZA">Povratna embalaža — vračila po dobavitelju</option>
               </select>
               {tip === 'NABAVNO_PRODAJNI' && (
                 <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
@@ -344,10 +467,39 @@ export function NovArtikelDialog(l: Lastnosti) {
               )}
             </div>
 
+            {povratnaEmbalaza && (
+              <div className="col-span-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Oznaka obvezno>Vrsta embalaže</Oznaka>
+                    <select value={vrstaEmbalaze}
+                            onChange={e => setVrstaEmbalaze(e.target.value as VrstaEmbalaze)}
+                            className="w-full rounded border border-amber-300 bg-white px-2 py-1.5 text-sm">
+                      <option value="steklenica">Steklenica</option>
+                      <option value="zaboj">Zaboj</option>
+                      <option value="keg">Sod (keg)</option>
+                      <option value="balon">Balon</option>
+                      <option value="drugo">Drugo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Oznaka obvezno>Depozitna vrednost / kos</Oznaka>
+                    <KlavijaturaInput value={depozitnaVrednost} inputMode="decimal"
+                           onChange={setDepozitnaVrednost}
+                           naslov="Depozitna vrednost"
+                           placeholder="0,00"
+                           className="w-full rounded border border-amber-300 bg-white px-2 py-1.5 text-sm" />
+                    <p className="mt-1 text-xs text-amber-900">Za evidenčno embalažo vnesite 0.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Osnovna enota */}
             <div>
               <Oznaka obvezno>Osnovna enota</Oznaka>
-              <select value={enota} onChange={e => setEnota(e.target.value)}
+              <select value={enota} disabled={povratnaEmbalaza}
+                      onChange={e => setEnota(e.target.value)}
                       className="w-full rounded border px-2 py-1.5 text-sm">
                 <option value="">— izberite —</option>
                 {l.enote.map(e => <option key={e} value={e}>{e}</option>)}
@@ -357,8 +509,10 @@ export function NovArtikelDialog(l: Lastnosti) {
             {/* Enot v paketu */}
             <div>
               <Oznaka>Enot v paketu</Oznaka>
-              <input value={enotVPaketu} inputMode="decimal"
-                     onChange={e => setEnotVPaketu(e.target.value)}
+              <KlavijaturaInput value={enotVPaketu} inputMode="decimal"
+                     naslov="Enot v paketu"
+                     onFocus={e => e.currentTarget.select()}
+                     onChange={vrednost => setEnotVPaketu(vrednost.replace(',', '.'))}
                      className="w-full rounded border px-2 py-1.5 text-sm" />
               {cenaEnota !== null && Number.isFinite(cenaEnota) && (
                 <p className="mt-1 text-xs text-neutral-500">= {cenaEnota.toFixed(4)} € na enoto</p>
@@ -368,16 +522,32 @@ export function NovArtikelDialog(l: Lastnosti) {
             {/* Skupina */}
             <div>
               <Oznaka>Skupina artiklov</Oznaka>
-              <input value={skupina} onChange={e => setSkupina(e.target.value)}
+              <KlavijaturaInput value={skupina} onChange={setSkupina}
+                     naslov="Skupina artiklov"
                      placeholder="npr. Pijača"
                      className="w-full rounded border px-2 py-1.5 text-sm" />
             </div>
           </div>
 
           {/* ── DDV kategorija ── */}
+          {povratnaEmbalaza ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <Oznaka>DDV</Oznaka>
+              <div className="flex h-9 items-center rounded border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-950">
+                0 %
+              </div>
+              <p className="mt-1 text-xs text-amber-900">
+                Povratna embalaža je evidenčni promet in se ob ustvarjanju vedno vodi z DDV 0 %.
+              </p>
+            </div>
+          ) : (
           <div className="rounded-lg border p-3">
             <Oznaka obvezno>DDV kategorija</Oznaka>
-            <select value={taxCategory} onChange={e => setTaxCategory(e.target.value as TaxCategory)}
+            <select value={taxCategory} onChange={e => {
+              const nextCategory = e.target.value as TaxCategory;
+              setTaxCategory(nextCategory);
+              setAddedSugar(current => normalizeAddedSugarForTaxCategory(nextCategory, current));
+            }}
                     className="w-full rounded border px-2 py-1.5 text-sm">
               {DDV_KATEGORIJE.map(k => (
                 <option key={k.value} value={k.value}>{k.label} — {k.opis}</option>
@@ -388,6 +558,11 @@ export function NovArtikelDialog(l: Lastnosti) {
                 ? 'Narava blaga — za izpeljavo nabavne stopnje na prejemu'
                 : 'Narava blaga in način prodaje — razreševalnik pri mizi / za s seboj'}
             </p>
+            {taxCategory === 'food_drink' && (
+              <p className="mt-1 text-xs font-medium text-amber-700">
+                Pri kategoriji Pijača-jed dodan sladkor ne vpliva na DDV; stopnja je vedno 9,5 %.
+              </p>
+            )}
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               {/* Pričakovana nabavna stopnja */}
@@ -437,10 +612,19 @@ export function NovArtikelDialog(l: Lastnosti) {
               </p>
             )}
           </div>
+          )}
 
           {/* ── Vrsta artikla ── */}
           <div className="rounded-lg border p-3">
             <p className="mb-2 text-xs font-semibold text-neutral-700">Vrsta artikla</p>
+            {povratnaEmbalaza ? (
+              <>
+                <div className="flex h-9 items-center rounded border bg-neutral-50 px-3 text-sm font-semibold">
+                  Material
+                </div>
+                <p className="mt-1 text-xs text-neutral-500">Povratna embalaža se vedno vodi kot material.</p>
+              </>
+            ) : (
             <div className="flex gap-2">
               {(['blago', 'material', 'storitev'] as VrstaArtikla[]).map(v => (
                 <button key={v} type="button" onClick={() => setVrstaArtikla(v)}
@@ -452,6 +636,7 @@ export function NovArtikelDialog(l: Lastnosti) {
                 </button>
               ))}
             </div>
+            )}
           </div>
 
           {/* ── Prodajni vnosi (samo NABAVNO_PRODAJNI) ── */}
@@ -461,7 +646,8 @@ export function NovArtikelDialog(l: Lastnosti) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Oznaka obvezno>Prodajna cena (€)</Oznaka>
-                <input value={cena} onChange={e => setCena(e.target.value)}
+                <KlavijaturaInput value={cena} onChange={setCena}
+                       naslov="Prodajna cena"
                        inputMode="decimal" placeholder="0.00"
                        className="w-full rounded border px-2 py-1.5 text-sm" />
               </div>
@@ -543,8 +729,9 @@ export function NovArtikelDialog(l: Lastnosti) {
                             ))}
                           </select>
                         )}
-                        <input value={item.kolicina} inputMode="decimal"
-                               onChange={e => setNormativItems(prev => prev.map((it, i) => i === idx ? { ...it, kolicina: e.target.value } : it))}
+                        <KlavijaturaInput value={item.kolicina} inputMode="decimal"
+                               naslov="Količina normativa"
+                               onChange={vrednost => setNormativItems(prev => prev.map((it, i) => i === idx ? { ...it, kolicina: vrednost } : it))}
                                className="h-8 rounded border px-1 text-right text-xs" />
                         {!isSelf && (
                           <button type="button"
@@ -623,9 +810,10 @@ export function NovArtikelDialog(l: Lastnosti) {
               </div>
               <p className="mb-2 text-xs text-neutral-500">Pusti prazno, če artikel ni del Happy Hour.</p>
               <div className="flex items-center gap-2">
-                <input type="number" min="0" step="0.01"
+                <KlavijaturaInput type="number" min="0" step="0.01"
                        value={happyHourCena}
-                       onChange={e => setHappyHourCena(e.target.value)}
+                       onChange={setHappyHourCena}
+                       naslov="Happy Hour cena"
                        placeholder="npr. 2.50"
                        className="w-full rounded border px-2 py-1.5 text-sm" />
                 <span className="shrink-0 text-sm text-neutral-500">€</span>
@@ -669,7 +857,7 @@ export function NovArtikelDialog(l: Lastnosti) {
           <button onClick={() => void shrani()} disabled={manjka.length > 0 || dela}
                   className="rounded bg-orange-600 px-4 py-2 text-sm font-medium text-white
                              hover:bg-orange-700 disabled:opacity-40">
-            {dela ? 'Shranjujem…' : 'Ustvari in upari'}
+            {dela ? 'Shranjujem…' : 'Ustvari in poveži'}
           </button>
         </div>
 

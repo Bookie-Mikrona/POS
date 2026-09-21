@@ -11,6 +11,7 @@ import {
   useGetVatRegister,
   useGetVatReturn,
   getListVatCodesQueryKey,
+  useListCompanyFursVatCodes,
   type VatCodeRecord
 } from "@workspace/api-client-react";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -86,6 +87,7 @@ function VatCodesTab() {
                 <TableHead>Tip</TableHead>
                 <TableHead>Konto izstopni</TableHead>
                 <TableHead>Konto vstopni</TableHead>
+                <TableHead>FURS koda</TableHead>
                 <TableHead>Veljavnost</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Dejanja</TableHead>
@@ -117,6 +119,13 @@ function VatCodesTab() {
                   </TableCell>
                   <TableCell><span className="text-muted-foreground text-xs">{code.accountOutputCode || "-"}</span></TableCell>
                   <TableCell><span className="text-muted-foreground text-xs">{code.accountInputCode || "-"}</span></TableCell>
+                  <TableCell>
+                    {code.fursCode ? (
+                      <Badge variant="outline">
+                        {code.fursCode} · {code.fursCodeDirection === "IN" ? "vstopna" : "izstopna"}
+                      </Badge>
+                    ) : <span className="text-muted-foreground text-xs">Ni povezave</span>}
+                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {code.validFrom ? new Date(code.validFrom).toLocaleDateString("sl-SI") : "Vedno"} - {code.validTo ? new Date(code.validTo).toLocaleDateString("sl-SI") : "Naprej"}
                   </TableCell>
@@ -136,7 +145,7 @@ function VatCodesTab() {
               ))}
               {vatCodes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Ni najdenih DDV kod</TableCell>
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Ni najdenih DDV kod</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -156,6 +165,12 @@ function VatCodeSheet({ open, onOpenChange, editCode }: { open: boolean, onOpenC
 
   const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id && open } as any });
   const accounts = accountsData?.accounts?.filter(a => a.isActive) || [];
+  const { data: fursCodesData, isLoading: fursCodesLoading } = useListCompanyFursVatCodes(
+    activeCompany?.id ?? "",
+    {},
+    { query: { enabled: !!activeCompany?.id && open } as any },
+  );
+  const fursCodes = fursCodesData?.codes ?? [];
 
   const [formData, setFormData] = useState({
     code: editCode?.code || "",
@@ -164,6 +179,7 @@ function VatCodeSheet({ open, onOpenChange, editCode }: { open: boolean, onOpenC
     behavior: editCode?.behavior || "standard",
     accountOutputId: editCode?.accountOutputId || "none",
     accountInputId: editCode?.accountInputId || "none",
+    fursCodeId: editCode?.fursCodeId || "none",
     validFrom: editCode?.validFrom?.split("T")[0] || "",
     validTo: editCode?.validTo?.split("T")[0] || "",
     notes: editCode?.notes || "",
@@ -182,6 +198,7 @@ function VatCodeSheet({ open, onOpenChange, editCode }: { open: boolean, onOpenC
       behavior: formData.behavior,
       accountOutputId: formData.accountOutputId !== "none" ? formData.accountOutputId : null,
       accountInputId: formData.accountInputId !== "none" ? formData.accountInputId : null,
+      fursCodeId: formData.fursCodeId !== "none" ? formData.fursCodeId : null,
       validFrom: formData.validFrom || null,
       validTo: formData.validTo || null,
       notes: formData.notes || null,
@@ -270,6 +287,30 @@ function VatCodeSheet({ open, onOpenChange, editCode }: { open: boolean, onOpenC
                 {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>FURS DDV koda</Label>
+            <Select
+              value={formData.fursCodeId}
+              onValueChange={val => setFormData(p => ({ ...p, fursCodeId: val }))}
+              disabled={fursCodesLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={fursCodesLoading ? "Nalagam FURS kode..." : "Izberi FURS kodo..."} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Brez povezave</SelectItem>
+                {fursCodes.map(code => (
+                  <SelectItem key={code.id} value={code.id}>
+                    {code.code} · {code.direction === "IN" ? "vstopna" : "izstopna"} · {Number(code.rate)} % — {code.description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Povezava določa pravilno polje FURS KIR/KPR (npr. P14, P17 ali P23).
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

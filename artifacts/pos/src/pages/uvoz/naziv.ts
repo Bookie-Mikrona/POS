@@ -35,7 +35,7 @@ const PAKIRANJE_KRAT =
 
 /** samostojna beseda za vrsto pakiranja */
 const BESEDA_PAKIRANJA =
-  /(?:^|\s)(karton|kart\.?|kar\.?|gajba|gaj\.?|paket|pak\.?|zaboj|sod|paleta|pal\.?|display|disp\.?)(?=\s|$)/gi;
+  /(?:^|\s)(karton|kart\.?|kar\.?|gajba|gaj\.?|paket|pak\.?|sod|paleta|pal\.?|display|disp\.?)(?=\s|$)/gi;
 
 /** prostornina ali masa ENOTE — to obdržimo */
 const VSEBINA = /(\d+(?:[.,]\d+)?)\s*(l|dl|cl|ml|kg|g|dag)\b/i;
@@ -170,11 +170,14 @@ export function predlagajArtikel(
   const r = razcleniNaziv(izvNaziv);
   const naziv = popraviVelikeCrke(r.ocisceno);
 
-  let osnovnaEnota: string | null = izvEnota;
+  // Normaliziramo na male črke, ker ENOTE_MERE v selectu vsebuje samo male.
+  // Brez normalizacije React <select value="KOM"> ne najde opcije "kom" in
+  // prikaže "— izberite —", čeprav je vrednost v statu prisotna.
+  let osnovnaEnota: string | null = izvEnota ? izvEnota.toLowerCase() : null;
   if (r.vsebina) {
     const enota = r.vsebina.split(' ')[1]?.toLowerCase();
-    if (['l', 'dl', 'cl', 'ml'].includes(enota)) osnovnaEnota = 'L';
-    else if (['kg', 'g', 'dag'].includes(enota)) osnovnaEnota = 'KG';
+    if (['l', 'dl', 'cl', 'ml'].includes(enota)) osnovnaEnota = 'l';
+    else if (['kg', 'g', 'dag'].includes(enota)) osnovnaEnota = 'kg';
   }
 
   return {

@@ -93,7 +93,7 @@ type MatchDecision =
 async function parseBankStatement(
   companyId: string,
   file: File,
-): Promise<{ transactions: BankTransaction[]; count: number; skippedRows: SkippedRow[] }> {
+): Promise<ParsedStatement> {
   const form = new FormData();
   form.append("file", file);
   const resp = await fetch(`/api/companies/${companyId}/bank-statements/parse`, {
@@ -109,6 +109,65 @@ async function parseBankStatement(
   return { skippedRows: [], ...data };
 }
 
+interface StatementMetadata {
+  statementNumber: string | null;
+  statementDate: string | null;
+  periodFrom: string | null;
+  periodTo: string | null;
+  sourceIban: string | null;
+  openingBalance: number | null;
+  closingBalance: number | null;
+  currency: string;
+}
+
+interface ParsedStatement {
+  transactions: BankTransaction[];
+  count: number;
+  skippedRows: SkippedRow[];
+  metadata: StatementMetadata;
+  sourceFilename: string;
+  sourceSha256: string;
+}
+
+interface RegisteredStatement {
+  id: string;
+  bankAccountCode: string;
+  bankAccountName: string;
+  sourceIban: string | null;
+  statementNumber: string | null;
+  statementDate: string;
+  periodFrom: string | null;
+  periodTo: string | null;
+  openingBalance: string | null;
+  closingBalance: string | null;
+  currency: string;
+  sourceFilename: string;
+  lineCount: number;
+}
+
+async function registerBankStatement(
+  companyId: string,
+  bankAccountId: string,
+  parsed: ParsedStatement,
+): Promise<{ statementId: string; lineIds: Record<string, string> }> {
+  const resp = await fetch(`/api/companies/${companyId}/bank-statements/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bankAccountId,
+      metadata: parsed.metadata,
+      sourceFilename: parsed.sourceFilename,
+      sourceSha256: parsed.sourceSha256,
+      transactions: parsed.transactions,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error((err as any).error ?? `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
 interface CreatePaymentPayload {
   direction: "inbound" | "outbound";
   counterpartyId: string;
@@ -120,6 +179,7 @@ interface CreatePaymentPayload {
   arApAccountId: string;
   notes: string | null;
   allocations: { invoiceId: string; allocatedAmount: number }[];
+  bankStatementLineId?: string;
   force?: boolean;
 }
 
@@ -149,20 +209,64 @@ async function postPayment(companyId: string, paymentId: string): Promise<void> 
   }
 }
 
-async function matchTransactions(
+export async function matchTransactions(
   companyId: string,
   transactions: BankTransaction[],
+  onProgress: (current: number, total: number) => void,
 ): Promise<{ suggestions: TransactionWithSuggestions[] }> {
   const resp = await fetch(`/api/companies/${companyId}/bank-statements/match`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/x-ndjson",
+    },
     body: JSON.stringify({ transactions }),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error((err as any).error ?? `HTTP ${resp.status}`);
   }
-  return resp.json();
+  if (!resp.body) {
+    throw new Error("Strežnik ni omogočil prikaza napredka");
+  }
+
+  const suggestions: TransactionWithSuggestions[] = [];
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let completedTotal: number | null = null;
+
+  const processLine = (line: string) => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as
+      | { type: "suggestion"; suggestion: TransactionWithSuggestions; current: number; total: number }
+      | { type: "complete"; total: number };
+    if (event.type === "suggestion") {
+      if (event.total !== transactions.length || event.current !== suggestions.length + 1) {
+        throw new Error("Strežnik je vrnil neveljaven potek iskanja ujemanj");
+      }
+      suggestions.push(event.suggestion);
+      onProgress(event.current, event.total);
+    } else {
+      completedTotal = event.total;
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) processLine(line);
+    if (done) break;
+  }
+  processLine(buffer);
+
+  if (completedTotal !== transactions.length || suggestions.length !== transactions.length) {
+    throw new Error("Iskanje ujemanj se je predčasno prekinilo");
+  }
+
+  return { suggestions };
 }
 
 // ─── Wizard steps ─────────────────────────────────────────────────────────────
@@ -255,11 +359,24 @@ export default function BancniIzpis() {
 
   // Skipped rows from the last parse
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
+  const [parsedStatement, setParsedStatement] = useState<ParsedStatement | null>(null);
+  const [registeredStatements, setRegisteredStatements] = useState<RegisteredStatement[]>([]);
+  const loadRegisteredStatements = useCallback(async () => {
+    if (!activeCompany) return;
+    const response = await fetch(`/api/companies/${activeCompany.id}/bank-statements`);
+    if (!response.ok) return;
+    const data = await response.json();
+    setRegisteredStatements(data.statements ?? []);
+  }, [activeCompany]);
+  useEffect(() => {
+    loadRegisteredStatements();
+  }, [loadRegisteredStatements]);
 
   // Step 2 state
   const [suggestions, setSuggestions] = useState<TransactionWithSuggestions[]>([]);
   const [decisions, setDecisions] = useState<Map<string, MatchDecision>>(new Map());
   const [matching, setMatching] = useState(false);
+  const [matchingProgress, setMatchingProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Auto-post option
   const [autoPost, setAutoPost] = useState(false);
@@ -271,6 +388,7 @@ export default function BancniIzpis() {
 
   // Step 3 state
   const [confirming, setConfirming] = useState(false);
+  const confirmInFlightRef = useRef(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmResult, setConfirmResult] = useState<{ created: number; skipped: number; posted: number; postErrors: string[] } | null>(null);
   const [confirmProgress, setConfirmProgress] = useState<{
@@ -286,7 +404,8 @@ export default function BancniIzpis() {
   const openPeriods = periods.filter(p => p.status === "open");
 
   const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
-  const accounts = accountsData?.accounts?.filter(a => a.isActive) ?? [];
+  // Samo knjižljivi konti — skupinski/sintetični konti (allowsPosting=false) niso na voljo za izbiro
+  const accounts = (accountsData?.accounts ?? []).filter(a => a.isActive && a.allowsPosting !== false);
   const bankAccounts = accounts.filter(a => a.code.startsWith("11"));
   const arAccounts = accounts.filter(a => a.code.startsWith("12") || a.code.startsWith("14"));
   const apAccounts = accounts.filter(a => a.code.startsWith("22") || a.code.startsWith("43"));
@@ -357,10 +476,15 @@ export default function BancniIzpis() {
     setParsing(true);
     setParseError(null);
     try {
-      const { transactions, skippedRows: sr } = await parseBankStatement(activeCompany.id, file);
+      const parsed = await parseBankStatement(activeCompany.id, file);
+      const { transactions, skippedRows: sr } = parsed;
+      setParsedStatement(parsed);
       setSkippedRows(sr);
       setMatching(true);
-      const { suggestions: s } = await matchTransactions(activeCompany.id, transactions);
+      setMatchingProgress({ current: 0, total: transactions.length });
+      const { suggestions: s } = await matchTransactions(activeCompany.id, transactions, (current, total) => {
+        setMatchingProgress({ current, total });
+      });
 
       // Guard: if a company switch was confirmed (reset() cleared the ref) while
       // parse/match was in-flight, discard results and do NOT advance the wizard.
@@ -406,6 +530,7 @@ export default function BancniIzpis() {
     } finally {
       setParsing(false);
       setMatching(false);
+      setMatchingProgress(null);
     }
   };
 
@@ -432,6 +557,11 @@ export default function BancniIzpis() {
       setShowCompanyChangedDialog(true);
       return;
     }
+    // React state is not updated synchronously, so a fast second click can enter
+    // this handler before `confirming` disables the button. Acquire a synchronous
+    // lock before the first state update to guarantee one import per confirmation.
+    if (confirmInFlightRef.current) return;
+    confirmInFlightRef.current = true;
     setConfirming(true);
     setConfirmError(null);
     setConfirmProgress(null);
@@ -448,6 +578,21 @@ export default function BancniIzpis() {
     });
     const total = toProcess.length;
     let processedIndex = 0;
+    if (!parsedStatement) {
+      setConfirmError("Podatki izpiska niso več na voljo. Ponovite uvoz datoteke.");
+      setConfirming(false);
+      confirmInFlightRef.current = false;
+      return;
+    }
+    let registered: { statementId: string; lineIds: Record<string, string> };
+    try {
+      registered = await registerBankStatement(activeCompany.id, bankAccountId, parsedStatement);
+    } catch (e: any) {
+      setConfirmError(e.message ?? "Izpiska ni bilo mogoče evidentirati");
+      setConfirming(false);
+      confirmInFlightRef.current = false;
+      return;
+    }
 
     for (const item of suggestions) {
       const tx = item.transaction;
@@ -492,6 +637,7 @@ export default function BancniIzpis() {
               allocatedAmount: parseFloat(decision.allocatedAmount),
             },
           ],
+          bankStatementLineId: registered.lineIds[tx.id],
           force: forceImport,
         });
         created++;
@@ -520,6 +666,7 @@ export default function BancniIzpis() {
     }
 
     queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey(activeCompany.id) });
+    await loadRegisteredStatements();
     setConfirmResult({ created, skipped, posted, postErrors });
     setConfirmProgress(null);
     setConfirming(false);
@@ -527,15 +674,18 @@ export default function BancniIzpis() {
   };
 
   const reset = () => {
+    confirmInFlightRef.current = false;
     setStep("upload");
     setFile(null);
     setPeriodId("");
     setSuggestions([]);
     setDecisions(new Map());
     setSkippedRows([]);
+    setParsedStatement(null);
     setConfirmResult(null);
     setConfirmError(null);
     setParseError(null);
+    setMatchingProgress(null);
     setAutoPost(false);
     setInvalidAccountsCleared(false);
     // Re-hydrate account fields from saved config so that "Nov uvoz" in the
@@ -572,7 +722,7 @@ export default function BancniIzpis() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Uvoz bančnega izpiska</h1>
         <p className="text-muted-foreground mt-1">
-          Uvozite CSV ali MT940 datoteko in samodejno uskladite transakcije z odprtimi postavkami.
+          Uvozite CAMT.053 XML, CSV ali MT940 datoteko in samodejno uskladite transakcije z odprtimi postavkami.
         </p>
       </div>
 
@@ -587,6 +737,50 @@ export default function BancniIzpis() {
 
       <Separator />
 
+      {step === "upload" && registeredStatements.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Evidentirani bančni izpiski</h2>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left">
+                <tr>
+                  <th className="p-3">Št. izpiska</th>
+                  <th className="p-3">Datum / obdobje</th>
+                  <th className="p-3">TRR in konto</th>
+                  <th className="p-3 text-right">Začetno stanje</th>
+                  <th className="p-3 text-right">Končno stanje</th>
+                  <th className="p-3 text-right">Vrstice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {registeredStatements.map(statement => (
+                  <tr key={statement.id} className="border-t">
+                    <td className="p-3 font-medium">{statement.statementNumber || "—"}</td>
+                    <td className="p-3">
+                      <div>{statement.statementDate}</div>
+                      {statement.periodFrom && statement.periodTo && (
+                        <div className="text-xs text-muted-foreground">{statement.periodFrom}–{statement.periodTo}</div>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div>{statement.sourceIban || "IBAN ni naveden"}</div>
+                      <div className="text-xs text-muted-foreground">{statement.bankAccountCode} — {statement.bankAccountName}</div>
+                    </td>
+                    <td className="p-3 text-right tabular-nums">
+                      {statement.openingBalance == null ? "—" : `${Number(statement.openingBalance).toFixed(2)} ${statement.currency}`}
+                    </td>
+                    <td className="p-3 text-right tabular-nums">
+                      {statement.closingBalance == null ? "—" : `${Number(statement.closingBalance).toFixed(2)} ${statement.currency}`}
+                    </td>
+                    <td className="p-3 text-right tabular-nums">{statement.lineCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ─── STEP 1: Upload ─────────────────────────────────────────────────── */}
       {step === "upload" && (
         <div className="space-y-6 max-w-2xl">
@@ -600,7 +794,7 @@ export default function BancniIzpis() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.mt940,.sta,.940,.txt"
+              accept=".xml,.camt,.csv,.mt940,.sta,.940,.txt"
               className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f); }}
             />
@@ -621,7 +815,7 @@ export default function BancniIzpis() {
                   <Upload className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <p className="font-medium">Povlecite datoteko sem ali kliknite za izbor</p>
-                <p className="text-sm text-muted-foreground mt-1">Podprti formati: CSV (NLB, SKB, Addiko) in MT940/STA</p>
+                <p className="text-sm text-muted-foreground mt-1">Podprti formati: CAMT.053 XML, CSV (NLB, SKB, Addiko) in MT940/STA</p>
               </>
             )}
           </div>
@@ -753,13 +947,35 @@ export default function BancniIzpis() {
             </Alert>
           )}
 
+          {matching && matchingProgress && (
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-4" aria-live="polite">
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="font-medium">Iščem ujemanja</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {matchingProgress.current} od {matchingProgress.total}
+                </span>
+              </div>
+              <Progress
+                value={matchingProgress.total > 0
+                  ? (matchingProgress.current / matchingProgress.total) * 100
+                  : 0}
+              />
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button
               onClick={handleParse}
               disabled={!file || !periodId || !bankAccountId || (!arAccountId && !apAccountId) || parsing || matching}
             >
               {(parsing || matching) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {parsing ? "Razčlenjujem..." : matching ? "Iščem ujemanja..." : "Nadaljuj"}
+              {parsing
+                ? "Razčlenjujem..."
+                : matching && matchingProgress
+                  ? `Iščem ujemanja ${matchingProgress.current}/${matchingProgress.total}`
+                  : matching
+                    ? "Iščem ujemanja..."
+                    : "Nadaljuj"}
               {!parsing && !matching && <ChevronRight className="ml-2 h-4 w-4" />}
             </Button>
           </div>

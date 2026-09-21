@@ -21,7 +21,10 @@ export function BlagajnaSwitcher() {
   });
 
   // Auto-selekcija: ob nalaganju blagajn preveri veljavnost shranjene vrednosti
-  // in avtomatično izberi, če je na voljo samo ena blagajna
+  // in avtomatično izberi, če je na voljo samo ena blagajna.
+  // activeBlagajnaId je v deps, da preprečimo stale closure: brez tega bi
+  // ozadnji refetch (po 30s staleTime) znova sprožil effect s staro vrednostjo
+  // activeBlagajnaId (null) in ponastavil adminovo ročno izbiro.
   useEffect(() => {
     if (!jeAdminAliEnote || !blagajne) return;
 
@@ -37,8 +40,7 @@ export function BlagajnaSwitcher() {
         setActiveBlagajnaId(null);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blagajne, jeAdminAliEnote]);
+  }, [blagajne, jeAdminAliEnote, activeBlagajnaId, setActiveBlagajnaId]);
 
   if (!jeAdminAliEnote) return null;
   if (!blagajne) return null;
@@ -63,8 +65,10 @@ export function BlagajnaSwitcher() {
   }
 
   // Več blagajn — dropdown za izbiro
+  // Na mobilnem je switcher znotraj modalnega Sheeta. Drugi modalni
+  // focus/pointer lock bi preprečil izbiro portalled elementov menija.
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
           !aktivna

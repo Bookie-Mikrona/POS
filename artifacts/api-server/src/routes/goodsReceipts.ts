@@ -10,7 +10,7 @@
  *   POST   /companies/:id/goods-receipts/:id/void   — prekliči prejemnico
  */
 import { Router, type Request, type Response, type IRouter } from "express";
-import { and, eq, inArray, desc } from "drizzle-orm";
+import { and, eq, inArray, desc, gte, isNull, lte, or, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 import {
   db,
@@ -23,9 +23,22 @@ import {
   journalEntriesTable,
   journalEntryLinesTable,
   invoicesTable,
+  invoiceLinesTable,
+  vatCodeTable,
   auditLogTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { claimPurchaseSourceDocument } from "../lib/purchaseSourceDocuments";
+import {
+  calculateGoodsReceiptInvoiceMatch,
+  resolveGoodsReceiptInvoiceSource,
+} from "../lib/goodsReceiptInvoiceMatch";
+import {
+  createVatLedgerEntries,
+  reverseVatLedgerEntries,
+  type EntryMeta,
+  type VatLine,
+} from "../lib/vatLedger";
 
 const router: IRouter = Router();
 
@@ -73,6 +86,7 @@ async function fetchReceipt(id: string, companyId: string) {
       linkedEntryId: goodsReceiptsTable.linkedEntryId,
       matchedInvoiceId: goodsReceiptsTable.matchedInvoiceId,
       matchEntryId: goodsReceiptsTable.matchEntryId,
+      sourceDocumentId: goodsReceiptsTable.sourceDocumentId,
       notes: goodsReceiptsTable.notes,
       createdBy: goodsReceiptsTable.createdBy,
       createdAt: goodsReceiptsTable.createdAt,
@@ -164,6 +178,14 @@ router.post(
       if (!a.allowsPosting) { res.status(400).json({ error: `Na konto ${a.code} ni dovoljeno neposredno knjižiti` }); return; }
     }
 
+    // Preveri tudi opcijske konte na vrsticah — tuj ali neobstoječ konto zavrni
+    for (const l of lines) {
+      if (!l.accountId) continue;
+      const a = accountMap.get(l.accountId);
+      if (!a) { res.status(400).json({ error: "Konto na vrstici ni najden ali ne pripada temu podjetju" }); return; }
+      if (!a.isActive) { res.status(400).json({ error: `Konto ${a.code} na vrstici ni aktiven` }); return; }
+    }
+
     // Izračunaj skupni znesek
     const now = new Date();
     let totalAmount = new Decimal(0);
@@ -181,7 +203,34 @@ router.post(
     }
 
     // ── Transakcija: ustvari prejemnico + temeljnico ────────────────────────
-    const result = await db.transaction(async (tx) => {
+    let result: string;
+    try {
+      result = await db.transaction(async (tx) => {
+      const sourceDocumentId = await claimPurchaseSourceDocument(tx, {
+        companyId,
+        counterpartyId,
+        kind: "delivery_note",
+        documentNumber: deliveryNoteNo,
+        documentDate: receiptDate,
+      });
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${sourceDocumentId}))`);
+      const existingPosReceipt = await tx.execute(sql`
+        SELECT id FROM prejemnice
+         WHERE source_document_id = ${sourceDocumentId}
+         LIMIT 1
+      `);
+      if (existingPosReceipt.rows[0]) {
+        throw new Error("PURCHASE_SOURCE_ALREADY_IN_POS");
+      }
+      const existingFinalInvoice = await tx.execute(sql`
+        SELECT id FROM invoices
+         WHERE source_document_id = ${sourceDocumentId}
+           AND status <> 'draft'
+         LIMIT 1
+      `);
+      if (existingFinalInvoice.rows[0]) {
+        throw new Error("PURCHASE_SOURCE_ALREADY_IN_INVOICE");
+      }
       // 1. Ustvari goods_receipt zapis
       const [gr] = await tx.insert(goodsReceiptsTable).values({
         companyId,
@@ -196,6 +245,7 @@ router.post(
         totalAmount: totalAmount.toFixed(2),
         notes: notes?.trim() ?? null,
         createdBy: auth.clerkUserId,
+        sourceDocumentId,
       }).returning({ id: goodsReceiptsTable.id });
 
       // 2. Vrstice
@@ -263,7 +313,30 @@ router.post(
       });
 
       return gr.id;
-    });
+      });
+    } catch (error: any) {
+      if (error?.message === "PURCHASE_SOURCE_ALREADY_IN_POS") {
+        res.status(409).json({
+          error: "Ta dobavnica je že zajeta kot POS prejemnica in je ni dovoljeno ponovno finančno zajeti",
+        });
+        return;
+      }
+      if (error?.message === "PURCHASE_SOURCE_ALREADY_IN_INVOICE") {
+        res.status(409).json({
+          error: "Ta listina je že finančno zajeta kot prejeti račun",
+        });
+        return;
+      }
+      if (
+        error?.cause?.code === "23505"
+        || error?.code === "23505"
+        || error?.code === "LEGACY_PURCHASE_SOURCE_CONFLICT"
+      ) {
+        res.status(409).json({ error: "Ta dobavnica je že zajeta v ERP prejemnicah" });
+        return;
+      }
+      throw error;
+    }
 
     const full = await fetchReceipt(result, companyId);
     res.status(201).json(full);
@@ -357,24 +430,204 @@ router.post(
     if (!gr) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
     if (gr.status !== "open") { res.status(400).json({ error: "Samo odprte prejemnice se lahko ujamejo z računom" }); return; }
 
-    // Naloži račun (mora biti prejeti, posted, istega podjetja)
-    const [invoice] = await db.select({ id: invoicesTable.id, type: invoicesTable.type, status: invoicesTable.status, arApAccountId: invoicesTable.arApAccountId, invoiceNumber: invoicesTable.invoiceNumber })
+    // Naloži račun (mora biti prejeti osnutek istega podjetja).
+    // Match je edini lastnik finančnega knjiženja tega toka.
+    const [invoice] = await db.select({
+      id: invoicesTable.id,
+      type: invoicesTable.type,
+      status: invoicesTable.status,
+      arApAccountId: invoicesTable.arApAccountId,
+      vatAccountId: invoicesTable.vatAccountId,
+      linkedEntryId: invoicesTable.linkedEntryId,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      invoiceDate: invoicesTable.invoiceDate,
+      updatedAt: invoicesTable.updatedAt,
+      sourceDocumentId: invoicesTable.sourceDocumentId,
+    })
       .from(invoicesTable)
       .where(and(eq(invoicesTable.id, invoiceId), eq(invoicesTable.companyId, companyId)))
       .limit(1);
     if (!invoice) { res.status(404).json({ error: "Račun ni najden" }); return; }
     if (invoice.type !== "received") { res.status(400).json({ error: "Ujemanje je možno samo s prejetim računom" }); return; }
-    if (invoice.status !== "posted") { res.status(400).json({ error: "Račun mora biti poknjižen (status: posted)" }); return; }
+    if (invoice.status !== "draft") {
+      res.status(400).json({ error: "Z ERP prejemnico je mogoče ujeti samo osnutek prejetega računa" });
+      return;
+    }
+    if (invoice.linkedEntryId) {
+      res.status(409).json({
+        error: "Račun že ima finančno temeljnico; ponovno knjiženje obveznosti na K 220 ni dovoljeno",
+      });
+      return;
+    }
+    let sharedSourceDocumentId: string | null;
+    try {
+      sharedSourceDocumentId = resolveGoodsReceiptInvoiceSource(
+        gr.sourceDocumentId,
+        invoice.sourceDocumentId,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error
+        && (
+          error.message === "MATCH_SOURCE_MISMATCH"
+          || error.message === "MATCH_SOURCE_IDENTITY_MISSING"
+        )
+      ) {
+        res.status(409).json({
+          error: "ERP prejemnica in račun ne predstavljata iste identificirane izvorne listine",
+        });
+        return;
+      }
+      throw error;
+    }
+
+    const invoiceAmountRows = await db
+      .select({
+        quantity: invoiceLinesTable.quantity,
+        unitPrice: invoiceLinesTable.unitPrice,
+        vatRate: invoiceLinesTable.vatRate,
+        vatAmount: invoiceLinesTable.vatAmount,
+      })
+      .from(invoiceLinesTable)
+      .where(eq(invoiceLinesTable.invoiceId, invoiceId));
+    const { net: invoiceNet, vat: vatAmount, gross: invoiceGross } =
+      calculateGoodsReceiptInvoiceMatch(invoiceAmountRows);
+    if (!invoiceNet.eq(new Decimal(gr.totalAmount))) {
+      res.status(409).json({
+        error: "Neto znesek računa se ne ujema z odprto ERP prejemnico; samodejno knjiženje K 220 je zavrnjeno",
+      });
+      return;
+    }
+    const [validatedInputVatAccount] = vatAmount.gt(0)
+      ? await db.select({ id: accountsTable.id })
+          .from(accountsTable)
+          .where(and(
+            eq(accountsTable.companyId, companyId),
+            eq(accountsTable.isActive, true),
+            eq(accountsTable.allowsPosting, true),
+            sql`${accountsTable.code} LIKE '160%'`,
+            ...(invoice.vatAccountId ? [eq(accountsTable.id, invoice.vatAccountId)] : []),
+          ))
+          .orderBy(accountsTable.code)
+          .limit(1)
+      : [];
+    const inputVatAccountId = validatedInputVatAccount?.id ?? null;
+    if (vatAmount.gt(0) && !inputVatAccountId) {
+      res.status(400).json({ error: "Račun vsebuje DDV, vendar nima nastavljenega konta vhodnega DDV (160)" });
+      return;
+    }
+    const positiveVatRates = [
+      ...new Set(
+        invoiceAmountRows
+          .map((row) => Number(row.vatRate))
+          .filter((rate) => rate > 0),
+      ),
+    ];
+    const fursVatCodeByRate = new Map<number, string>();
+    if (positiveVatRates.length > 0) {
+      const fursVatCodes = await db.select({
+        id: vatCodeTable.id,
+        rate: vatCodeTable.rate,
+      })
+        .from(vatCodeTable)
+        .where(and(
+          eq(vatCodeTable.direction, "IN"),
+          lte(vatCodeTable.validFrom, invoice.invoiceDate),
+          or(isNull(vatCodeTable.validTo), gte(vatCodeTable.validTo, invoice.invoiceDate)),
+        ))
+        .orderBy(desc(vatCodeTable.validFrom));
+      for (const code of fursVatCodes) {
+        const rate = Number(code.rate);
+        if (!fursVatCodeByRate.has(rate)) fursVatCodeByRate.set(rate, code.id);
+      }
+      const missingRates = positiveVatRates.filter((rate) => !fursVatCodeByRate.has(rate));
+      if (missingRates.length > 0) {
+        res.status(400).json({
+          error: `Za vstopni DDV manjkajo FURS DDV kode za stopnje: ${missingRates.join(", ")}%.`,
+        });
+        return;
+      }
+    }
 
     const now = new Date();
 
-    const result = await db.transaction(async (tx) => {
-      // Temeljnica: DR transitAccountId (221) / CR invoice.arApAccountId (220)
+    let result: string;
+    try {
+      result = await db.transaction(async (tx) => {
+      if (sharedSourceDocumentId) {
+        await tx.execute(sql`
+          SELECT pg_advisory_xact_lock(hashtext(${sharedSourceDocumentId}))
+        `);
+      }
+      // Isti advisory lock kot invoice PATCH/post. Če se je osnutek med
+      // predogledom in prevzemom zaklepa spremenil, knjiženje zavrnemo.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${invoiceId}))`);
+      const locked = await tx.execute(sql`
+        SELECT status, source_document_id FROM goods_receipts
+         WHERE id = ${id} AND company_id = ${companyId}
+         FOR UPDATE
+      `);
+      const currentReceipt = locked.rows[0] as {
+        status?: string;
+        source_document_id?: string | null;
+      } | undefined;
+      if (currentReceipt?.status !== "open") {
+        throw new Error("GOODS_RECEIPT_ALREADY_MATCHED");
+      }
+      const lockedInvoice = await tx.execute(sql`
+        SELECT status, linked_entry_id, updated_at, source_document_id
+          FROM invoices
+         WHERE id = ${invoiceId} AND company_id = ${companyId}
+         FOR UPDATE
+      `);
+      const currentInvoice = lockedInvoice.rows[0] as {
+        status?: string;
+        linked_entry_id?: string | null;
+        updated_at?: Date | string;
+        source_document_id?: string | null;
+      } | undefined;
+      if (
+        currentInvoice?.status !== "draft"
+        || currentInvoice.linked_entry_id
+        || !currentInvoice.updated_at
+        || new Date(currentInvoice.updated_at).getTime() !== invoice.updatedAt.getTime()
+      ) {
+        throw new Error("INVOICE_ALREADY_FINANCIALLY_CAPTURED");
+      }
+      let currentSharedSourceId: string | null;
+      try {
+        currentSharedSourceId = resolveGoodsReceiptInvoiceSource(
+          currentReceipt.source_document_id ?? null,
+          currentInvoice.source_document_id ?? null,
+        );
+      } catch {
+        throw new Error("MATCH_SOURCE_CHANGED");
+      }
+      if (currentSharedSourceId !== sharedSourceDocumentId) {
+        throw new Error("MATCH_SOURCE_CHANGED");
+      }
+      if (currentSharedSourceId) {
+        const existingPosReceipt = await tx.execute(sql`
+          SELECT p.id
+            FROM prejemnice p
+            JOIN enote e ON e.id = p.enota_id
+           WHERE e.company_id = ${companyId}
+             AND p.source_document_id = ${currentSharedSourceId}
+           LIMIT 1
+        `);
+        if (existingPosReceipt.rows.length > 0) {
+          throw new Error("MATCH_SOURCE_ALREADY_IN_POS");
+        }
+      }
+
+      // Temeljnica: DR 221 (neto) + DR 160 (DDV) / CR 220 (bruto).
       const [matchEntry] = await tx.insert(journalEntriesTable).values({
         companyId,
         periodId: gr.periodId,
-        entryDate: now.toISOString().slice(0, 10),
-        documentDate: now.toISOString().slice(0, 10),
+        entryDate: invoice.invoiceDate,
+        documentDate: invoice.invoiceDate,
+        taxDate: invoice.invoiceDate,
+        receiptDate: invoice.invoiceDate,
         description: `Zapiranje prehod. konta — ${gr.deliveryNoteNo} → ${invoice.invoiceNumber}`,
         reference: invoice.invoiceNumber,
         status: "posted",
@@ -384,31 +637,92 @@ router.post(
         createdBy: auth.clerkUserId,
       }).returning({ id: journalEntriesTable.id });
 
-      await tx.insert(journalEntryLinesTable).values([
-        {
+      const matchLines: (typeof journalEntryLinesTable.$inferInsert)[] = [
+        ...invoiceAmountRows.map((row, index) => {
+          const baseAmount = new Decimal(row.quantity).mul(row.unitPrice).toDecimalPlaces(2);
+          const rate = Number(row.vatRate);
+          const calculatedVat = baseAmount.mul(row.vatRate).div(100).toDecimalPlaces(2);
+          return {
           entryId: matchEntry.id,
           accountId: gr.transitAccountId,
           side: "debit",
-          amount: gr.totalAmount,
+          amount: baseAmount.toFixed(2),
           description: `Zapiranje 221 — ${gr.deliveryNoteNo}`,
-          sequence: 0,
+          sequence: index,
           partnerId: gr.counterpartyId,
-        },
-        {
+          vatCodeId: rate > 0 ? fursVatCodeByRate.get(rate)! : null,
+          vatAmount: rate > 0 ? new Decimal(row.vatAmount ?? calculatedVat).toFixed(2) : null,
+          } as const;
+        }),
+      ];
+      if (vatAmount.gt(0)) {
+        matchLines.push({
+            entryId: matchEntry.id,
+            accountId: inputVatAccountId!,
+            side: "debit",
+            amount: vatAmount.toFixed(2),
+            description: `Vstopni DDV — ${invoice.invoiceNumber}`,
+            sequence: invoiceAmountRows.length,
+            partnerId: gr.counterpartyId,
+        });
+      }
+      matchLines.push({
           entryId: matchEntry.id,
           accountId: invoice.arApAccountId,
           side: "credit",
-          amount: gr.totalAmount,
+          amount: invoiceGross.toFixed(2),
           description: `Obveznosti — ${invoice.invoiceNumber}`,
-          sequence: 1,
+          sequence: invoiceAmountRows.length + (vatAmount.gt(0) ? 1 : 0),
           partnerId: gr.counterpartyId,
-        },
-      ]);
+      });
+      await tx.insert(journalEntryLinesTable).values(matchLines);
+      const vatLedgerLines: VatLine[] = invoiceAmountRows
+        .flatMap((row, index): VatLine[] => {
+          const rate = Number(row.vatRate);
+          const vatCodeId = rate > 0 ? fursVatCodeByRate.get(rate) : null;
+          if (!vatCodeId) return [];
+          const baseAmount = new Decimal(row.quantity).mul(row.unitPrice).toDecimalPlaces(2);
+          const calculatedVat = baseAmount.mul(row.vatRate).div(100).toDecimalPlaces(2);
+          return [{
+            lineId: `goods-receipt-match-${id}-${index}`,
+            vatCodeId,
+            amount: baseAmount.toFixed(2),
+            vatAmount: new Decimal(row.vatAmount ?? calculatedVat).toFixed(2),
+            vatDeductionPercent: "100.00",
+            partnerId: gr.counterpartyId,
+            description: `Prejeti račun ${invoice.invoiceNumber}`,
+          }];
+        });
+      if (vatLedgerLines.length > 0) {
+        const entryMeta: EntryMeta = {
+          id: matchEntry.id,
+          companyId,
+          documentDate: invoice.invoiceDate,
+          entryDate: invoice.invoiceDate,
+          taxDate: invoice.invoiceDate,
+          receiptDate: invoice.invoiceDate,
+          reference: invoice.invoiceNumber,
+          sourceType: "document",
+        };
+        await createVatLedgerEntries(
+          tx,
+          entryMeta,
+          vatLedgerLines,
+          auth.clerkUserId,
+          invoiceId,
+        );
+      }
 
       // Posodobi prejemnico
       await tx.update(goodsReceiptsTable)
         .set({ status: "matched", matchedInvoiceId: invoiceId, matchEntryId: matchEntry.id })
         .where(eq(goodsReceiptsTable.id, id));
+      await tx.update(invoicesTable)
+        .set({ status: "posted", linkedEntryId: matchEntry.id })
+        .where(and(
+          eq(invoicesTable.id, invoiceId),
+          eq(invoicesTable.companyId, companyId),
+        ));
 
       await tx.insert(auditLogTable).values({
         companyId,
@@ -420,7 +734,24 @@ router.post(
       });
 
       return matchEntry.id;
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Error
+        && (
+          error.message === "GOODS_RECEIPT_ALREADY_MATCHED"
+          || error.message === "INVOICE_ALREADY_FINANCIALLY_CAPTURED"
+          || error.message === "MATCH_SOURCE_CHANGED"
+          || error.message === "MATCH_SOURCE_ALREADY_IN_POS"
+        )
+      ) {
+        res.status(409).json({
+          error: "Prejemnica ali račun je bil medtem že finančno zajet; dvojni K 220 ni dovoljen",
+        });
+        return;
+      }
+      throw error;
+    }
 
     const full = await fetchReceipt(id, companyId);
     res.json({ ...full, matchEntryId: result });
@@ -447,19 +778,54 @@ router.delete(
     if (!gr) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
     if (gr.status !== "matched") { res.status(400).json({ error: "Samo ujete prejemnice se lahko razveže" }); return; }
     if (!gr.matchEntryId) { res.status(400).json({ error: "Ni najdene match temeljnice za storniranje" }); return; }
+    if (!gr.matchedInvoiceId) { res.status(400).json({ error: "Ni najdenega povezanega računa za razvezavo" }); return; }
+    const matchEntryId = gr.matchEntryId;
+    const matchedInvoiceId = gr.matchedInvoiceId;
 
     // Storniraj match temeljnico
     const now = new Date();
-    await db.transaction(async (tx) => {
+    try {
+      await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${matchedInvoiceId}))`);
+      const lockedReceipt = await tx.execute(sql`
+        SELECT status, matched_invoice_id, match_entry_id
+          FROM goods_receipts
+         WHERE id = ${id} AND company_id = ${companyId}
+         FOR UPDATE
+      `);
+      const currentReceipt = lockedReceipt.rows[0] as {
+        status?: string;
+        matched_invoice_id?: string | null;
+        match_entry_id?: string | null;
+      } | undefined;
+      if (
+        currentReceipt?.status !== "matched"
+        || currentReceipt.matched_invoice_id !== matchedInvoiceId
+        || currentReceipt.match_entry_id !== matchEntryId
+      ) {
+        throw new Error("GOODS_RECEIPT_UNMATCH_CHANGED");
+      }
+      const lockedInvoice = await tx.execute(sql`
+        SELECT linked_entry_id
+          FROM invoices
+         WHERE id = ${matchedInvoiceId} AND company_id = ${companyId}
+         FOR UPDATE
+      `);
+      if (
+        (lockedInvoice.rows[0] as { linked_entry_id?: string | null } | undefined)?.linked_entry_id
+        !== matchEntryId
+      ) {
+        throw new Error("INVOICE_UNMATCH_LINK_CHANGED");
+      }
       const [original] = await tx.select()
         .from(journalEntriesTable)
-        .where(eq(journalEntriesTable.id, gr.matchEntryId!))
+        .where(eq(journalEntriesTable.id, matchEntryId))
         .limit(1);
       if (!original) throw new Error("Match temeljnica ni najdena");
 
       const originalLines = await tx.select()
         .from(journalEntryLinesTable)
-        .where(eq(journalEntryLinesTable.entryId, gr.matchEntryId!));
+        .where(eq(journalEntryLinesTable.entryId, matchEntryId));
 
       // Ustvari storno temeljnico (obrnjene strani)
       const [reversal] = await tx.insert(journalEntriesTable).values({
@@ -472,7 +838,7 @@ router.delete(
         status: "posted",
         postedAt: now,
         sourceType: "document",
-        reversalOf: gr.matchEntryId,
+        reversalOf: matchEntryId,
         approvedBy: auth.clerkUserId,
         createdBy: auth.clerkUserId,
       }).returning({ id: journalEntriesTable.id });
@@ -488,17 +854,46 @@ router.delete(
           partnerId: l.partnerId,
         }))
       );
+      await reverseVatLedgerEntries(
+        tx,
+        matchEntryId,
+        reversal.id,
+        auth.clerkUserId,
+        now.toISOString().slice(0, 10),
+      );
 
       await tx.update(goodsReceiptsTable)
         .set({ status: "open", matchedInvoiceId: null, matchEntryId: null })
         .where(eq(goodsReceiptsTable.id, id));
+      await tx.update(invoicesTable)
+        .set({ status: "draft", linkedEntryId: null })
+        .where(and(
+          eq(invoicesTable.id, matchedInvoiceId),
+          eq(invoicesTable.companyId, companyId),
+          eq(invoicesTable.linkedEntryId, matchEntryId),
+        ));
 
       await tx.insert(auditLogTable).values({
         companyId, entityType: "goods_receipt", entityId: id,
         action: "unmatch", changedBy: auth.clerkUserId,
         payload: { reversalId: reversal.id },
       });
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Error
+        && (
+          error.message === "GOODS_RECEIPT_UNMATCH_CHANGED"
+          || error.message === "INVOICE_UNMATCH_LINK_CHANGED"
+        )
+      ) {
+        res.status(409).json({
+          error: "Povezava prejemnice in računa se je medtem spremenila; razvezava ni bila izvedena",
+        });
+        return;
+      }
+      throw error;
+    }
 
     const full = await fetchReceipt(id, companyId);
     res.json(full);

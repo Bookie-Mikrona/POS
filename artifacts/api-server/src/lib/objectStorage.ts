@@ -88,6 +88,44 @@ export class ObjectStorageService {
     return null;
   }
 
+  /**
+   * Shrani aplikacijsko ustvarjeno javno vsebino v prvi konfigurirani javni
+   * prostor. Končni javni URL vedno streže naš API, zato GCS objekta ni treba
+   * izpostaviti neposredno internetu.
+   */
+  async savePublicObject(
+    relativePath: string,
+    contents: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    const normalizedPath = relativePath.replace(/^\/+/, "");
+    if (
+      !normalizedPath ||
+      normalizedPath.split("/").some((part) => !part || part === "." || part === "..")
+    ) {
+      throw new Error("Invalid public object path");
+    }
+
+    const [publicPath] = this.getPublicObjectSearchPaths();
+    if (!publicPath) {
+      throw new Error("No public object storage path configured");
+    }
+
+    const { bucketName, objectName } = parseObjectPath(
+      `${publicPath.replace(/\/+$/, "")}/${normalizedPath}`,
+    );
+    await objectStorageClient
+      .bucket(bucketName)
+      .file(objectName)
+      .save(contents, {
+        resumable: false,
+        metadata: {
+          contentType,
+          cacheControl: "public, max-age=31536000, immutable",
+        },
+      });
+  }
+
   async downloadObject(
     file: File,
     cacheTtlSec: number = 3600,

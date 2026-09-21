@@ -16,9 +16,13 @@
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, screen, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import React from "react";
 import Checkout from "./Checkout";
+import {
+  CheckoutTestWrapper,
+  createCheckoutTestQueryClient,
+} from "./Checkout.test-harness";
 
 // ── Vzorčni podatki ─────────────────────────────────────────────────────────
 
@@ -57,24 +61,8 @@ const mockNarocilo = {
     },
   ],
 };
-
-const mockNastavitveQr = {
-  nazivRestavracije: "Test restavracija",
-  naslovRestavracije: "Testna ulica 1",
-  davcnaStevilka: "12345678",
-  poslovniProstor: "PP001",
-  elektronskaNaprava: "B001",
-  testniNacin: true,
-  terminalIp: "",
-  terminalPort: 9000,
-  terminalTimeoutMs: 30000,
-  terminalAktiven: false,
-  sumupAktiven: true,
-  sumupTerminalSerial: "",   // prazno → QR koda način
-  vivaAktiven: false,
-  smtpAktiven: false,
-  certifikatNaložen: false,
-};
+const mockNarocilaQr = [mockNarocilo];
+const mockAktivneIzmeneQr = [{ natakariId: 1, natakarIme: "Natakar" }];
 
 // ── Hoisted mocks ────────────────────────────────────────────────────────────
 
@@ -87,6 +75,7 @@ const mockSetLocation = vi.hoisted(() => vi.fn());
 vi.mock("wouter", () => ({
   useSearch: () => "",
   useLocation: () => ["/blagajna", mockSetLocation],
+  Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock("qrcode.react", () => ({
@@ -113,60 +102,48 @@ vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@workspace/api-client-react", () => ({
-  useListAktivnaNarocila: () => ({ data: [mockNarocilo], isLoading: false }),
-  useCreateRacun: () => ({ mutate: mockCreateRacunMutate, isPending: false }),
-  useListAktivneIzmene: () => ({ data: [] }),
-  useUpdateNarocilo: () => ({ mutate: vi.fn(), isPending: false }),
-  useRemovePostavka: () => ({ mutate: vi.fn() }),
-  useUpdatePostavkaKolicina: () => ({ mutateAsync: vi.fn() }),
-  useSpojiNarocili: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
-  poisciKupca: vi.fn(),
-  getListAktivnaNarocilaQueryKey: () => ["/api/narocila/aktivna"],
-  getListMizeQueryKey: () => ["/api/mize"],
-  getListRacuniQueryKey: () => ["/api/racuni"],
-  getGetNarociloQueryKey: (id: number) => ["/api/narocila", id],
-}));
+vi.mock("@workspace/api-client-react", async () => {
+  const { createCheckoutApiClientMock } = await import("./Checkout.test-harness");
+  return createCheckoutApiClientMock({
+    getNarocila: () => mockNarocilaQr,
+    getAktivneIzmene: () => mockAktivneIzmeneQr,
+    createRacunMutate: mockCreateRacunMutate,
+  });
+});
 
-vi.mock("@/contexts/NastavitveContext", () => ({
-  useNastavitve: () => ({ nastavitve: mockNastavitveQr, nastavitveLoading: false }),
-  NastavitveProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+vi.mock("@/contexts/NastavitveContext", async () => {
+  const { createCheckoutNastavitveContextMock } = await import("./Checkout.test-harness");
+  return createCheckoutNastavitveContextMock();
+});
 
-vi.mock("@/contexts/BlagajnaContext", () => ({
-  useBlagajna: () => ({ activeBlagajnaId: 1, setActiveBlagajnaId: vi.fn() }),
-}));
+vi.mock("@/contexts/BlagajnaContext", async () => {
+  const { createCheckoutBlagajnaContextMock } = await import("./Checkout.test-harness");
+  return createCheckoutBlagajnaContextMock();
+});
 
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: {
-      id: 1,
-      username: "natakar",
-      ime: "Natakar",
-      vloga: "natakar",
-      podjetjeDavcna: "12345678",
-      moraZamenjatiGeslo: false,
+vi.mock("@/contexts/NapravaContext", async () => {
+  const {
+    createCheckoutNapravaContextMock,
+    createCheckoutTestDevice,
+  } = await import("./Checkout.test-harness");
+  return createCheckoutNapravaContextMock(createCheckoutTestDevice({
+    terminalConfig: {
+      sumupAktiven: true,
+      sumupTerminalSerial: "",
     },
-    loading: false,
-    login: vi.fn(),
-    updateUser: vi.fn(),
-    logout: vi.fn(),
-  }),
-}));
+  }));
+});
+
+vi.mock("@/contexts/AuthContext", async () => {
+  const { createCheckoutAuthContextMock } = await import("./Checkout.test-harness");
+  return createCheckoutAuthContextMock();
+});
 
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
 // ── Pomožne funkcije ─────────────────────────────────────────────────────────
-
-function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
-}
-
-function Wrapper({ children, qc }: { children: React.ReactNode; qc: QueryClient }) {
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
 
 /**
  * Izberi naročilo in nastavi plačilni način na Kartica.
@@ -211,10 +188,12 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
   let qc: QueryClient;
 
   beforeEach(() => {
-    qc = makeQueryClient();
+    sessionStorage.clear();
+    qc = createCheckoutTestQueryClient();
     mockCreateRacunMutate.mockReset();
     mockToast.mockReset();
     mockSetLocation.mockReset();
+    localStorage.setItem("pos_last_operator_id", "1");
   });
 
   afterEach(() => {
@@ -237,9 +216,9 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     );
 
     render(
-      <Wrapper qc={qc}>
+      <CheckoutTestWrapper qc={qc}>
         <Checkout />
-      </Wrapper>
+      </CheckoutTestWrapper>
     );
 
     await selectNarociloInKartica();
@@ -308,6 +287,7 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
         callbacks?.onSuccess?.({
           id: 99,
           stevilkaRacuna: "PP001-B001-000099",
+          datumCas: "2026-08-19T10:30:00.000Z",
           skupaj: 25.00,
           zoi: "zoi-test",
           eor: "eor-test",
@@ -321,9 +301,9 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     );
 
     render(
-      <Wrapper qc={qc}>
+      <CheckoutTestWrapper qc={qc}>
         <Checkout />
-      </Wrapper>
+      </CheckoutTestWrapper>
     );
 
     await selectNarociloInKartica();
@@ -381,9 +361,9 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     );
 
     render(
-      <Wrapper qc={qc}>
+      <CheckoutTestWrapper qc={qc}>
         <Checkout />
-      </Wrapper>
+      </CheckoutTestWrapper>
     );
 
     await selectNarociloInKartica();
@@ -439,9 +419,9 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     );
 
     render(
-      <Wrapper qc={qc}>
+      <CheckoutTestWrapper qc={qc}>
         <Checkout />
-      </Wrapper>
+      </CheckoutTestWrapper>
     );
 
     await selectNarociloInKartica();
@@ -491,9 +471,9 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     );
 
     render(
-      <Wrapper qc={qc}>
+      <CheckoutTestWrapper qc={qc}>
         <Checkout />
-      </Wrapper>
+      </CheckoutTestWrapper>
     );
 
     await selectNarociloInKartica();
@@ -545,9 +525,9 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     );
 
     render(
-      <Wrapper qc={qc}>
+      <CheckoutTestWrapper qc={qc}>
         <Checkout />
-      </Wrapper>
+      </CheckoutTestWrapper>
     );
 
     await selectNarociloInKartica();
@@ -579,9 +559,14 @@ describe("Checkout — SumUp QR plačilo brez terminala", () => {
     // Račun NI bil izdan
     expect(mockCreateRacunMutate).not.toHaveBeenCalled();
 
-    // Možnost ponovnega poskusa in zamenjave načina plačila
-    expect(screen.getByTestId("button-retry-terminal")).toBeInTheDocument();
-    expect(screen.getByTestId("button-change-payment")).toBeInTheDocument();
+    // Nejasen oziroma zavrnjen zunanji izid ne sme neposredno sprožiti
+    // novega bremenjenja. Najprej je obvezno ročno preverjanje in odklep.
+    expect(screen.queryByTestId("button-retry-terminal")).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-payment-guard")).toHaveTextContent(
+      "Preverite terminal oziroma QR plačilo",
+    );
+    expect(screen.getByTestId("button-reset-payment-guard")).toBeInTheDocument();
+    expect(screen.getByTestId("button-change-payment")).toBeDisabled();
 
     restoreSetTimeout();
   });

@@ -148,7 +148,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   };
 
   const handleDeleteGroup = (id: number) => {
-    deleteSkupina.mutate({ id }, {
+    deleteSkupina.mutate({ id: String(id) as any }, {
       onSuccess: () => {
         if (expandedId === id) setExpandedId(null);
         invalidateSkupine();
@@ -234,53 +234,52 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   const isPendingMod = addMod.isPending || updateMod.isPending || setNormativi.isPending;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Settings2 className="w-5 h-5" />
-          Modifikatorske skupine
-        </h2>
+    <Card className="flex flex-col h-full border-border/50 shadow-sm overflow-hidden bg-card">
+      <div className="px-3 py-2 border-b border-border/50 bg-muted/30 flex items-center justify-between">
+        <div className="flex flex-col">
+          <h2 className="font-medium text-sm tracking-tight text-foreground flex items-center gap-1.5">
+            <Settings2 className="w-4 h-4 text-muted-foreground" />
+            Modifikatorji
+          </h2>
+        </div>
         {!jeUporabnik && (
-          <Button size="sm" onClick={openNewGroup}>
-            <Plus className="w-4 h-4 mr-2" />Nova skupina
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={openNewGroup}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Dodaj
           </Button>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        Modifikatorske skupine omogočajo opcijske ali obvezne izbire pri naročilu (npr. "Stopnja pečenosti", "Zasita").
-        Skupino dodelite artiklu v uredniku artiklov.
-      </p>
 
+      <div className="flex-1 overflow-y-auto max-h-[50vh] p-1 scrollbar-hidden">
       {isLoading ? (
-        <Card className="p-4 text-center text-muted-foreground text-sm">Nalaganje...</Card>
+        <div className="p-4 text-center text-xs text-muted-foreground">Nalaganje...</div>
       ) : !skupineList?.length ? (
-        <Card className="p-6 text-center text-muted-foreground text-sm">
+        <div className="p-4 text-center text-xs text-muted-foreground">
           Ni modifikatorskih skupin.
-          {!jeUporabnik && " Dodajte prvo skupino z gumbom zgoraj."}
-        </Card>
+          {!jeUporabnik && " Dodajte jo zgoraj."}
+        </div>
       ) : (
-        <Card className="divide-y overflow-hidden">
+        <div className="space-y-0.5">
           {skupineList.map(s => {
             const isExpanded = expandedId === s.id;
             return (
-              <div key={s.id}>
+              <div key={s.id} className="rounded-md overflow-hidden">
                 <div
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 transition-colors cursor-pointer select-none group"
                   onClick={() => setExpandedId(isExpanded ? null : s.id)}
                 >
                   <span className="text-muted-foreground shrink-0">
                     {isExpanded
-                      ? <ChevronDown className="w-4 h-4" />
-                      : <ChevronRight className="w-4 h-4" />}
+                      ? <ChevronDown className="w-3.5 h-3.5" />
+                      : <ChevronRight className="w-3.5 h-3.5" />}
                   </span>
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{s.ime}</span>
+                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap pr-2">
+                    <span className="text-sm font-medium truncate">{s.ime}</span>
                     {s.obvezna ? (
-                      <Badge className="bg-red-100 text-red-800 border-red-200 text-[10px] px-1.5 py-0 h-4">Obvezna</Badge>
+                      <Badge className="bg-red-100 text-red-800 border-red-200 text-[9px] px-1 py-0 h-3.5 leading-none">Obvezna</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">Izbirna</Badge>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 leading-none">Izbirna</Badge>
                     )}
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                       {s.minIzbir === 0 && s.maxIzbir === 0
                         ? "neomejeno"
                         : s.maxIzbir === 0
@@ -289,50 +288,50 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                     </span>
                   </div>
                   {!jeUporabnik && (
-                    <div className="flex gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditGroup(s)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-0.5 shrink-0 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => openEditGroup(s)}>
+                        <Pencil className="w-3 h-3" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteGroup(s.id)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/70 hover:text-destructive" onClick={() => handleDeleteGroup(s.id)}>
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   )}
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t bg-muted/20 px-4 py-3 space-y-2">
+                  <div className="bg-muted/10 px-3 py-2 pb-3 ml-6 border-l-2 border-border/50 space-y-1.5 mt-0.5">
                     {loadingExpanded ? (
-                      <p className="text-sm text-muted-foreground">Nalaganje modifikatorjev...</p>
+                      <p className="text-xs text-muted-foreground">Nalaganje...</p>
                     ) : (
                       <>
                         {!expandedSkupina?.modifikatorji?.length ? (
-                          <p className="text-sm text-muted-foreground">Ni modifikatorjev.</p>
+                          <p className="text-xs text-muted-foreground">Ni modifikatorjev.</p>
                         ) : (
                           <div className="space-y-1">
                             {expandedSkupina.modifikatorji.map(m => (
                               <div
                                 key={m.id}
-                                className={`flex items-center gap-3 rounded-md px-3 py-2 bg-background border ${!m.aktiven ? "opacity-50" : ""}`}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded bg-background border border-border/50 shadow-sm group ${!m.aktiven ? "opacity-60" : ""}`}
                               >
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-sm font-medium">{m.ime}</span>
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                  <span className="text-xs font-medium text-foreground">{m.ime}</span>
                                   {m.cenaDodatek !== 0 && (
-                                    <span className="ml-2 text-xs text-muted-foreground font-mono">
+                                    <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
                                       {m.cenaDodatek > 0 ? "+" : ""}{m.cenaDodatek.toFixed(2)} €
                                     </span>
                                   )}
                                   {!m.aktiven && (
-                                    <Badge variant="secondary" className="ml-2 text-[10px] px-1 py-0 h-4">Neaktiven</Badge>
+                                    <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5 leading-none">Neaktiven</Badge>
                                   )}
                                 </div>
                                 {!jeUporabnik && (
-                                  <div className="flex gap-0.5 shrink-0">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditMod(m)}>
-                                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <div className="flex gap-0.5 shrink-0 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground" onClick={() => openEditMod(m)}>
+                                      <Pencil className="w-3 h-3" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteMod(m)}>
-                                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive/70 hover:text-destructive" onClick={() => handleDeleteMod(m)}>
+                                      <Trash2 className="w-3 h-3" />
                                     </Button>
                                   </div>
                                 )}
@@ -341,8 +340,8 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                           </div>
                         )}
                         {!jeUporabnik && (
-                          <Button size="sm" variant="outline" className="mt-1" onClick={() => openNewMod(s.id)}>
-                            <Plus className="w-3.5 h-3.5 mr-1.5" />Dodaj modifikator
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground mt-1" onClick={() => openNewMod(s.id)}>
+                            <Plus className="w-3 h-3 mr-1" /> Dodaj modifikator
                           </Button>
                         )}
                       </>
@@ -352,8 +351,9 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
               </div>
             );
           })}
-        </Card>
+        </div>
       )}
+      </div>
 
       {/* ── Group dialog ─────────────────────────────────────── */}
       <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
@@ -504,6 +504,6 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   );
 }

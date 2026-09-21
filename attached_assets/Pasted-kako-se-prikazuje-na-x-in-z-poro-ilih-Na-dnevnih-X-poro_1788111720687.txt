@@ -1,0 +1,83 @@
+kako se prikazuje na x in z poročilih
+
+Na dnevnih X-poročilih (vmesnih izpisih poslovanja) in Z-poročilih (dnevnih zaključkih davčne blagajne) ter na bančnem POS zaključku se registrirana napitnina prikazuje kot neobdavčljiv ne-poslovni prejemek oziroma prehodna postavka.
+
+1. Prikaz na blagajniškem X in Z-poročilu
+Glava poročila (X ali Z) loči obdavčljivi promet podjetja od sredstev, ki pripadajo osebju. Z-poročilo znesek razdeli v tri ključne sklope:
+
+Plaintext
+========================================
+         DNEVNO Z-POROČILO #042         
+========================================
+PROMET PO DAVČNIH STOPNJAH:
+  Osnova DDV 22%:            100,00 EUR
+  Obračunani DDV 22%:         22,00 EUR
+----------------------------------------
+SKUPAJ OBDAVČLJIVI PROMET:   122,00 EUR
+
+NEOBDAVČLJIVI PREJEMKI / PREHODNE POSTAVKE:
+  Prejeta napitnina:          10,00 EUR
+----------------------------------------
+SKUPAJ IZKUPIČEK BLAGAJNE:   132,00 EUR
+========================================
+STRUKTURA PLAČIL:
+  Plačilne kartice (POS):    132,00 EUR
+  Gotovina v blagajni:         0,00 EUR
+========================================
+X-poročilo: Prikazuje enako strukturo kot Z-poročilo, vendar je namenjeno le medsebojnemu pregledu stanja med izmeno in ne zapira blagajniškega dneva.
+
+Z-poročilo: Zapre blagajniški dan, ustvari računovodski zapis in ponastavi dnevne števce.
+
+2. Razlika med POS zaključkom in Blagajniškim Z-poročilom
+Pri plačilu s kartico prejmete dve vrsti zaključnih poročil:
+
+POS zaključek (Bančni terminal):
+
+Izpisuje skupni znesek avtoriziranih transakcij (npr. 132,00 €).
+
+POS terminal ne razlikuje med hrano, pijačo in napitnino – zanj je pomembna le skupna bančna odobritev, ki bo nakazana na TRR podjetja.
+
+Blagajniško Z-poročilo (Davčna blagajna):
+
+Prikazuje razčlenitev: 122,00 € (obdavčen promet gostinskega lokala) + 10,00 € (neobdavčena napitnina).
+
+Skupni znesek na blagajniškem Z-poročilu (132,00 €) se mora do centa ujemati s skupnim zneskom na bančnem POS zaključku.
+
+3. Delovanje pri gotovinski napitnini (vneseni v blagajno)
+Če je bila napitnina plačana z gotovino in registrirana na blagajni kot prehodna postavka:
+
+Z-poročilo prikaže, da mora biti v blagajniškem predalu 132,00 € gotovine.
+
+FURS ob morebitnem nadzoru primerja fizični denar v blagajni z Z-poročilom.
+
+Ker je 10,00 € napitnine zabeleženih v vrstici Prejeta napitnina / Prehodni prejemki, tistih 10,00 € v predalu ne velja za neprijavljen presežek ali črni promet, temveč za uradno evidentirano prehodno obveznost do osebja.
+
+kje je vidna evidenca napitnin po natakarjih
+
+Evidenca napitnin po natakarjih je vidna na dveh glavnih ravneh: v blagajniškem programu (operativno) ter v računovodstvu ali kadrovski evidenci (za izplačilo).
+
+1. V blagajniškem programu (POS sistem)
+Večina sodobnih gostinskih blagajn (npr. MicroBlink, POS Sector, TRONpos, Birokrat ipd.) vodi natančno analitiko po operaterjih/natakarjih:
+
+Osebna X in Z poročila (Poročilo po natakarju):
+Ob zaključku izmene ali dneva blagajna omogoča izpis poročila po posameznem natakarju (prijava z PIN-om ali kartico). Na tem izpisku je poleg njegovega prometa ločeno izkazana skupna prejeta napitnina (razdeljena na kartično in registrirano gotovinsko).
+
+Pregledovalnik transakcij / Dnevnik blagajne:
+V analitičnem modulu blagajne ali v oblaku (Back-Office) je vidna podrobna evidenca vsakega posameznega računa – točno kateri natakar je izdal račun, kateri gost je dodal napitnino in na kakšen način je bila plačana (gotovina ali POS).
+
+Izvoz podatkov:
+Blagajniški sistem omogoča mesečni izvoz zbirnika napitnin po zaposlenih (XLS/CSV) za potrebe obračuna.
+
+2. V interno-računovodski evidenci podjetja
+Ker je evidentirana napitnina obveznost podjetja do zaposlenega (Konto 285/220), mora podjetje voditi ločeno analitiko:
+
+Analitični konto po zaposlenih:
+Računovodski program vodi prehodni konto napitnin razdeljen po analitiki (analitična kartica za vsakega natakarja posebej), kamo se knjižijo zneski iz dnevnih blagajniških zaključkov.
+
+Interni list o razdelitvi (Zapisnik o napitninah):
+Če lokal uporablja sistem skupnega sklada napitnin (tip jar ali delitev med strežbo in kuhinjo), se na podlagi blagajniških izpiskov vodi interni obračunski list, ki določa, kolikšen delež zbrane napitnine pripada posameznemu delavcu ali študentu.
+
+3. Na obračunu prejemka (Plačilna lista / Študentska napotnica)
+Redno zaposleni: Znesek prejete napitnine je za posameznega natakarja viden na njegovem mesečnem plačilnem listu pod ločeno postavko (npr. Drugi prejemki iz delovnega razmerja – napitnina).
+
+Študenti: Znesek je razviden iz obračuna študentske napotnice, kjer se zbirna napitnina prišteje k opravljenim uram ali izkaže kot dodatek.

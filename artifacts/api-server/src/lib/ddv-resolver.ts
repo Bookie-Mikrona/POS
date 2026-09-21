@@ -10,12 +10,29 @@ import { db, vatRuleTable, nastavitveTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 export type SupplyKind = "eat_in" | "to_go";
-export type TaxCategory = "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "other";
+export type TaxCategory =
+  | "food"
+  | "hot_beverage"
+  | "cold_beverage"
+  | "alcoholic"
+  | "food_drink"
+  | "vat_super_reduced_5"
+  | "other";
+
+export function isMenuEligibleTaxCategory(category: string): boolean {
+  return category === "hot_beverage" || category === "cold_beverage";
+}
+
+export function normalizeAddedSugarForTaxCategory(category: string, addedSugar: boolean): boolean {
+  return category === "food_drink" ? false : addedSugar;
+}
 
 export interface ResolveRateInput {
   supplyKind: SupplyKind;
   taxCategory: TaxCategory;
   addedSugar: boolean;
+  /** Revizijski kontekst: artikel je bil ob prodaji del menija. */
+  jeDelMenija?: boolean;
   /** Nastavitve enote (kljuc→vrednost) — za configurable pravila */
   nastavitve: Record<string, string>;
   /** Privzeta stopnja (iz artikel.davek) — fallback ko nobeno pravilo ne velja */
@@ -69,8 +86,13 @@ const DEFAULT_VAT_RULES: Omit<VatRuleRow, "id">[] = [
   { priority: 10, supplyKind: "eat_in",  taxCategory: "cold_beverage", addedSugar: null,  rate: "22.00", configurable: false, label: "Hladna pijača na mestu" },
   { priority: 10, supplyKind: "to_go",   taxCategory: "cold_beverage", addedSugar: null,  rate: "9.50",  configurable: false, label: "Hladna pijača za s seboj" },
   { priority: 10, supplyKind: null,      taxCategory: "alcoholic",     addedSugar: null,  rate: "22.00", configurable: false, label: "Alkoholna pijača" },
-  // food_drink: napitki, ki se davčno štejejo za jed (FURS: 9,5 % tudi za mizo)
+  // food_drink: napitki, ki se davčno štejejo za pripravljeno jed (FURS: 9,5 %
+  // pri mizi in za s seboj). addedSugar je namenoma null, ker vsebnost sladkorja
+  // ne spremeni davčne klasifikacije pripravljene jedi.
   { priority: 10, supplyKind: null,      taxCategory: "food_drink",    addedSugar: null,  rate: "9.50",  configurable: false, label: "Pijača-jed (vroča čokolada, smoothie, frappé)" },
+  { priority: 1,  supplyKind: null,      taxCategory: "menu_item",     addedSugar: null,  rate: "9.50",  configurable: false, label: "Pijača kot del menija" },
+  // Izrecna kategorija: ne prepisuje nobene obstoječe prehranske ali pijačne kategorije.
+  { priority: 10, supplyKind: null,      taxCategory: "vat_super_reduced_5", addedSugar: null, rate: "5.00", configurable: false, label: "Znižana stopnja DDV 5 %" },
   // other: artikli brez natančne davčne klasifikacije — privzeto 22 %
   { priority: 10, supplyKind: null,      taxCategory: "other",         addedSugar: null,  rate: "22.00", configurable: false, label: "Ostalo (22 %)" },
 ];
@@ -143,9 +165,35 @@ export function resolveRate(input: ResolveRateInput, rules: VatRuleRow[]): Resol
     return { rate: 0, ruleId: null, ruleLabel: "Ni DDV zavezanec" };
   }
 
+  // Alkohol je vedno obdavčen po splošni stopnji, tudi kadar je del menija.
+  if (input.taxCategory === "alcoholic") {
+    const alcoholRule = rules.find((rule) =>
+      rule.taxCategory === "alcoholic"
+      && (rule.supplyKind === null || rule.supplyKind === input.supplyKind)
+      && (rule.addedSugar === null || rule.addedSugar === input.addedSugar)
+    );
+    return {
+      rate: 22,
+      ruleId: alcoholRule?.id ?? null,
+      ruleLabel: alcoholRule?.label ?? "Alkoholna pijača",
+    };
+  }
+
+  // Pijača kot del menija je pomožna dobava hrane in ima 9,5 % v obeh tokovih.
+  if (input.jeDelMenija && isMenuEligibleTaxCategory(input.taxCategory)) {
+    const menuRule = rules.find((rule) => rule.taxCategory === "menu_item");
+    return {
+      rate: 9.5,
+      ruleId: menuRule?.id ?? null,
+      ruleLabel: menuRule?.label ?? "Pijača kot del menija",
+    };
+  }
+
   const toGoSetting = input.nastavitve["toGoTopliNapitekStopnja"] ?? "konservativno";
 
   for (const rule of rules) {
+    // Interno menijsko pravilo se uporablja samo prek preverjenega snapshot-a.
+    if (rule.taxCategory === "menu_item") continue;
     // Filtriraj po supply_kind
     if (rule.supplyKind !== null && rule.supplyKind !== input.supplyKind) continue;
     // Filtriraj po tax_category

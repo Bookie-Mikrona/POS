@@ -4,7 +4,7 @@
  * Tok: Blago prispe z dobavnico → prejemnica (DR zaloga / CR 221) →
  *      ob prejemu računa ujemanje (DR 221 / CR 220).
  */
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
 import {
   useListCounterparties,
@@ -63,6 +63,18 @@ interface GoodsReceipt {
   lines?: GoodsReceiptLine[];
 }
 
+interface CreditNoteDocument {
+  id: number; number: string | null; date: string; supplierName: string | null;
+  sourceDocumentId: string | null; packagingLineCount: number; remainingQuantity: string;
+}
+
+interface CreditNotePackagingData {
+  document?: { sourceDocumentId?: string | null };
+  lines: Array<{ id: number; articleId: number | null; quantity: string; netValue: string }>;
+  candidates: Array<{ id: number; lineId: number; articleId: number; articleName: string | null; quantity: string; depositValue: string | null; movementUnitDeposit: string | null; expectedUnitValue: string | null; valueDifference: string | null; lineRemainingQuantity: string; returnRemainingQuantity: string }>;
+  history: Array<{ id: string; status: string; quantitySnapshot: string; createdAt: string; actorSnapshot: string | null; reversedAllocationId?: string | null }>;
+}
+
 interface InvoiceOption {
   id: string;
   invoiceNumber: string;
@@ -109,6 +121,26 @@ function usePostedReceivedInvoices(companyId: string, enabled: boolean) {
         `/api/companies/${companyId}/invoices?type=received&status=posted`,
       ),
     enabled: !!companyId && enabled,
+  });
+}
+
+function useCreditNotePackaging(companyId: string, receiptId: string | number, enabled: boolean) {
+  return useQuery({
+    queryKey: ["companies", companyId, "prejemnice", receiptId, "credit-note-packaging"],
+    queryFn: () => customFetch<CreditNotePackagingData>(
+      `/api/companies/${companyId}/prejemnice/${receiptId}/credit-note-packaging`,
+    ),
+    enabled: !!companyId && enabled,
+  });
+}
+
+function useCreditNoteDocuments(companyId: string) {
+  return useQuery({
+    queryKey: ["companies", companyId, "credit-note-packaging-documents"],
+    queryFn: () => customFetch<{ documents: CreditNoteDocument[] }>(
+      `/api/companies/${companyId}/credit-note-packaging-documents`,
+    ),
+    enabled: !!companyId,
   });
 }
 
@@ -444,6 +476,76 @@ function MatchDialog({
   );
 }
 
+function CreditNotePackagingPanel({ companyId, receipt }: { companyId: string; receipt: { id: number } }) {
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<{ lineId: number; movementId: number } | null>(null);
+  const [quantity, setQuantity] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const confirmOperationKey = useRef(crypto.randomUUID());
+  const reverseOperationKeys = useRef(new Map<string, string>());
+  const { data, isLoading } = useCreditNotePackaging(companyId, receipt.id, true);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["companies", companyId, "prejemnice", receipt.id, "credit-note-packaging"] });
+  const confirmAllocation = async () => {
+    if (!selected || !(Number(quantity) > 0)) return;
+    setSaving(true); setError(null);
+    try {
+      await customFetch(`/api/companies/${companyId}/prejemnice/${receipt.id}/credit-note-packaging/confirm`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ operationKey: confirmOperationKey.current,
+          prejemnicaPostavkaId: selected.lineId, embalazniPrometId: selected.movementId, quantity: Number(quantity) }),
+      });
+       confirmOperationKey.current = crypto.randomUUID();
+       setSelected(null); setQuantity(""); refresh();
+    } catch (e: any) { setError(e.message ?? "Potrditev ni uspela"); }
+    finally { setSaving(false); }
+  };
+  const reverse = async (id: string) => {
+    setSaving(true); setError(null);
+    try {
+      const operationKey = reverseOperationKeys.current.get(id) ?? crypto.randomUUID();
+      reverseOperationKeys.current.set(id, operationKey);
+      await customFetch(`/api/companies/${companyId}/prejemnice/${receipt.id}/credit-note-packaging/${id}/reverse`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operationKey }),
+      });
+      reverseOperationKeys.current.delete(id);
+      refresh();
+    } catch (e: any) { setError(e.message ?? "Razveljavitev ni uspela"); }
+    finally { setSaving(false); }
+  };
+  if (isLoading) return <div className="text-xs text-muted-foreground">Nalagam povratno embalažo…</div>;
+  if (!data) return null;
+  return <div className="border rounded-md p-3 space-y-2">
+    <div className="font-semibold text-sm">Povratna embalaža</div>
+    {error && <Alert variant="destructive"><AlertCircle className="h-3 w-3" /><AlertDescription className="text-xs">{error}</AlertDescription></Alert>}
+    {data.lines.map(line => <div key={line.id} className="text-xs space-y-1">
+      <div className="flex justify-between"><span>Vrstica {line.id} · kol. {line.quantity}</span><span>{fmtEur(line.netValue)}</span></div>
+      {data.candidates.filter(c => c.lineId === line.id).slice(0, 5).map(candidate => (
+        <div key={candidate.id} className="flex items-center gap-2 rounded bg-muted/40 px-2 py-1">
+           <span className="flex-1">{candidate.articleName ?? `Artikel ${candidate.articleId}`} · kol. {candidate.returnRemainingQuantity}/{candidate.quantity} · kavcija {fmtEur(candidate.movementUnitDeposit)} · pričak. enota {fmtEur(candidate.expectedUnitValue)} · razlika {fmtEur(candidate.valueDifference)}</span>
+          <Input className="h-6 w-20 text-xs" type="number" min="0" max={Math.min(Number(candidate.lineRemainingQuantity), Number(candidate.returnRemainingQuantity))} step="0.0001"
+            value={selected?.lineId === line.id && selected.movementId === candidate.id ? quantity : ""}
+            placeholder="količina" onChange={e => {
+              if (selected?.lineId !== line.id || selected.movementId !== candidate.id || quantity !== e.target.value) {
+                confirmOperationKey.current = crypto.randomUUID();
+              }
+              setSelected({ lineId: line.id, movementId: candidate.id });
+              setQuantity(e.target.value);
+            }} />
+          <Button size="sm" className="h-6 text-xs" disabled={saving || selected?.lineId !== line.id || selected.movementId !== candidate.id} onClick={confirmAllocation}>Potrdi</Button>
+        </div>
+      ))}
+    </div>)}
+    {data.history.length > 0 && <div className="border-t pt-2 space-y-1">
+      <div className="text-xs font-medium">Potrjena/reverzirana zgodovina</div>
+      {data.history.map(item => <div key={item.id} className="flex items-center text-xs gap-2">
+        <Badge variant="outline">{item.status}</Badge><span>kol. {item.quantitySnapshot}</span><span className="text-muted-foreground">{fmtDate(item.createdAt)}</span>
+        {item.status === "confirmed" && !data.history.some(reversal => (reversal as any).reversedAllocationId === item.id) && <Button variant="ghost" size="sm" className="h-6 text-xs" disabled={saving} onClick={() => reverse(item.id)}>Razveljavi</Button>}
+      </div>)}
+    </div>}
+  </div>;
+}
+
 // ─── Kartica ene prejemnice ───────────────────────────────────────────────────
 
 function ReceiptRow({
@@ -575,6 +677,7 @@ export default function Prejemnice() {
   }, [queryClient, activeCompany?.id]);
 
   const receipts = data?.receipts ?? [];
+  const { data: creditNotes } = useCreditNoteDocuments(activeCompany?.id ?? "");
 
   return (
     <div className="p-6 space-y-5 max-w-7xl mx-auto">
@@ -647,6 +750,24 @@ export default function Prejemnice() {
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {activeCompany && (creditNotes?.documents?.length ?? 0) > 0 && (
+        <div className="border rounded-lg bg-card p-4 space-y-3">
+          <div>
+            <h2 className="font-semibold">Dobropisi — povratna embalaža</h2>
+            <p className="text-xs text-muted-foreground">Ujemanje dobropisa s fizičnimi vračili; potrditve ne ustvarijo nove temeljnice.</p>
+          </div>
+          {creditNotes!.documents.map(document => (
+            <details key={document.id} className="border rounded-md p-3">
+              <summary className="cursor-pointer text-sm flex justify-between">
+                <span>{document.number ?? `Prejemnica ${document.id}`} · {document.supplierName ?? "–"} · {fmtDate(document.date)}</span>
+                <span className="text-muted-foreground">{document.packagingLineCount} vrstic · preostalo {document.remainingQuantity}</span>
+              </summary>
+              <div className="pt-3"><CreditNotePackagingPanel companyId={activeCompany.id} receipt={{ id: document.id }} /></div>
+            </details>
+          ))}
         </div>
       )}
 

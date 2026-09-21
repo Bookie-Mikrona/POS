@@ -1,0 +1,194 @@
+PS C:\ScannerBridge> .\build.bat
+============================================================
+ Scanner Bridge ÔÇö gradnja .exe
+============================================================
+
+Ustvarjam ikono ...
+  File "<string>", line 1
+    from PIL import Image, ImageDraw; ^
+                                      ^
+SyntaxError: invalid syntax
+'sizes' is not recognized as an internal or external command,
+operable program or batch file.
+[OPOZORILO] Ikona ni bila ustvarjena ÔÇö gradnja nadaljuje brez nje.
+
+Gradim ScannerBridge.exe ...
+
+844 INFO: PyInstaller: 6.21.0, contrib hooks: 2026.6
+845 INFO: Python: 3.13.14
+891 INFO: Platform: Windows-10-10.0.19045-SP0
+892 INFO: Python environment: C:\Users\Aco\AppData\Local\Programs\Python\Python313
+893 INFO: wrote C:\ScannerBridge\ScannerBridge.spec
+4013 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\pyinstaller.exe',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\python313.zip',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\DLLs',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\win32',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pythonwin',
+ 'C:\\ScannerBridge']
+4581 INFO: Appending 'datas' from .spec
+4625 INFO: checking Analysis
+4626 INFO: Building Analysis because Analysis-00.toc is non existent
+4628 INFO: Looking for Python shared library...
+4640 INFO: Using Python shared library: C:\Users\Aco\AppData\Local\Programs\Python\Python313\python313.dll
+4641 INFO: Running Analysis Analysis-00.toc
+4643 INFO: Target bytecode optimization level: 0
+4644 INFO: Initializing module dependency graph...
+4657 INFO: Initializing module graph hook caches...
+4736 INFO: Analyzing modules for base_library.zip ...
+6962 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8255 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11264 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13525 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+15097 INFO: Caching module dependency graph...
+15174 INFO: Analyzing C:\ScannerBridge\bridge.py
+15287 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+15302 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+15542 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+15970 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+16654 INFO: Processing standard module hook 'hook-uvicorn.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+19945 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+19954 INFO: SetuptoolsInfo: initializing cached setuptools info...
+22029 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+22733 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+23046 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+24154 INFO: Processing standard module hook 'hook-anyio.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+26327 INFO: Processing standard module hook 'hook-pydantic.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+28365 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+31859 INFO: Processing standard module hook 'hook-pystray.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+32530 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32680 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32746 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+33094 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+33918 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+34332 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+35069 INFO: Processing pre-safe-import-module hook 'hook-win32com.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\pre_safe_import_module'
+35330 INFO: Processing standard module hook 'hook-win32com.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+35339 INFO: Processing standard module hook 'hook-pythoncom.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+35510 INFO: Processing standard module hook 'hook-pywintypes.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+36236 INFO: Analyzing hidden import 'win32com.server.util'
+36368 INFO: Analyzing hidden import 'win32timezone'
+36425 INFO: Analyzing hidden import 'pystray._info'
+36429 INFO: Analyzing hidden import 'PIL.AvifImagePlugin'
+36456 INFO: Analyzing hidden import 'PIL.BdfFontFile'
+36484 INFO: Analyzing hidden import 'PIL.BlpImagePlugin'
+36533 INFO: Analyzing hidden import 'PIL.BufrStubImagePlugin'
+36541 INFO: Analyzing hidden import 'PIL.ContainerIO'
+36554 INFO: Analyzing hidden import 'PIL.CurImagePlugin'
+36567 INFO: Analyzing hidden import 'PIL.DcxImagePlugin'
+36596 INFO: Analyzing hidden import 'PIL.DdsImagePlugin'
+36645 INFO: Analyzing hidden import 'PIL.EpsImagePlugin'
+36688 INFO: Analyzing hidden import 'PIL.FitsImagePlugin'
+36705 INFO: Analyzing hidden import 'PIL.FliImagePlugin'
+36730 INFO: Analyzing hidden import 'PIL.FpxImagePlugin'
+36754 INFO: Analyzing hidden import 'PIL.FtexImagePlugin'
+36764 INFO: Analyzing hidden import 'PIL.GbrImagePlugin'
+36773 INFO: Analyzing hidden import 'PIL.GdImageFile'
+36785 INFO: Analyzing hidden import 'PIL.GribStubImagePlugin'
+36794 INFO: Analyzing hidden import 'PIL.Hdf5StubImagePlugin'
+36802 INFO: Analyzing hidden import 'PIL.IcnsImagePlugin'
+36898 INFO: Analyzing hidden import 'PIL.IcoImagePlugin'
+36930 INFO: Analyzing hidden import 'PIL.ImImagePlugin'
+36961 INFO: Analyzing hidden import 'PIL.ImageEnhance'
+36985 INFO: Analyzing hidden import 'PIL.ImageGrab'
+37007 INFO: Analyzing hidden import 'PIL.ImageMorph'
+37031 INFO: Analyzing hidden import 'PIL.ImageTk'
+37049 INFO: Analyzing hidden import 'PIL.ImageTransform'
+37057 INFO: Analyzing hidden import 'PIL.ImtImagePlugin'
+37066 INFO: Analyzing hidden import 'PIL.IptcImagePlugin'
+37086 INFO: Analyzing hidden import 'PIL.McIdasImagePlugin'
+37096 INFO: Analyzing hidden import 'PIL.MicImagePlugin'
+37105 INFO: Analyzing hidden import 'PIL.MpegImagePlugin'
+37116 INFO: Analyzing hidden import 'PIL.MspImagePlugin'
+37131 INFO: Analyzing hidden import 'PIL.PSDraw'
+37144 INFO: Analyzing hidden import 'PIL.PalmImagePlugin'
+37167 INFO: Analyzing hidden import 'PIL.PcdImagePlugin'
+37176 INFO: Analyzing hidden import 'PIL.PcfFontFile'
+37200 INFO: Analyzing hidden import 'PIL.PdfImagePlugin'
+37323 INFO: Analyzing hidden import 'PIL.PixarImagePlugin'
+37331 INFO: Analyzing hidden import 'PIL.PsdImagePlugin'
+37357 INFO: Analyzing hidden import 'PIL.QoiImagePlugin'
+37383 INFO: Analyzing hidden import 'PIL.SgiImagePlugin'
+37400 INFO: Analyzing hidden import 'PIL.SpiderImagePlugin'
+37426 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+37430 INFO: Analyzing hidden import 'PIL.SunImagePlugin'
+37443 INFO: Analyzing hidden import 'PIL.TarIO'
+37453 INFO: Analyzing hidden import 'PIL.TgaImagePlugin'
+37476 INFO: Analyzing hidden import 'PIL.WalImageFile'
+37485 INFO: Analyzing hidden import 'PIL.WebPImagePlugin'
+37516 INFO: Analyzing hidden import 'PIL.WmfImagePlugin'
+37530 INFO: Analyzing hidden import 'PIL.XVThumbImagePlugin'
+37541 INFO: Analyzing hidden import 'PIL.XbmImagePlugin'
+37554 INFO: Analyzing hidden import 'PIL.XpmImagePlugin'
+37570 INFO: Analyzing hidden import 'PIL.__main__'
+37574 INFO: Analyzing hidden import 'PIL._tkinter_finder'
+37579 INFO: Analyzing hidden import 'PIL.report'
+37583 INFO: Processing module hooks (post-graph stage)...
+38314 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+38317 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+38334 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+38378 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+38467 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+38471 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+38502 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+38505 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+39069 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+39600 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+39609 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+40078 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+40082 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+42129 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+42133 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+42523 WARNING: Hidden import "tzdata" not found!
+44474 INFO: Performing binary vs. data reclassification (142 entries)
+44529 INFO: Looking for ctypes DLLs
+44634 INFO: Analyzing run-time hooks ...
+44640 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+44651 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+44656 INFO: Including run-time hook 'pyi_rth_pythoncom.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+44662 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+44668 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+44677 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\Aco\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+44726 INFO: Creating base_library.zip...
+44764 INFO: Looking for dynamic libraries
+47059 INFO: Extra DLL search directories (AddDllDirectory): []
+47059 INFO: Extra DLL search directories (PATH): []
+49349 INFO: Warnings written to C:\ScannerBridge\build\ScannerBridge\warn-ScannerBridge.txt
+49489 INFO: Graph cross-reference written to C:\ScannerBridge\build\ScannerBridge\xref-ScannerBridge.html
+49594 INFO: checking PYZ
+49595 INFO: Building PYZ because PYZ-00.toc is non existent
+49597 INFO: Building PYZ (ZlibArchive) C:\ScannerBridge\build\ScannerBridge\PYZ-00.pyz
+50603 INFO: Building PYZ (ZlibArchive) C:\ScannerBridge\build\ScannerBridge\PYZ-00.pyz completed successfully.
+50667 INFO: checking PKG
+50668 INFO: Building PKG because PKG-00.toc is non existent
+50673 INFO: Building PKG (CArchive) ScannerBridge.pkg
+58388 INFO: Building PKG (CArchive) ScannerBridge.pkg completed successfully.
+58400 INFO: Bootloader C:\Users\Aco\AppData\Local\Programs\Python\Python313\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+58401 INFO: checking EXE
+58401 INFO: Building EXE because EXE-00.toc is non existent
+58401 INFO: Building EXE from EXE-00.toc
+58402 INFO: Copying bootloader EXE to C:\ScannerBridge\dist\ScannerBridge.exe
+58510 INFO: Copying icon to EXE
+58566 INFO: Copying 0 resources to EXE
+58567 INFO: Embedding manifest in EXE
+58628 INFO: Appending PKG archive to EXE
+58732 INFO: Fixing EXE headers
+59570 INFO: Building EXE from EXE-00.toc completed successfully.
+59582 INFO: Build complete! The results are available in: C:\ScannerBridge\dist
+
+============================================================
+ [OK] dist\ScannerBridge.exe je pripravljen!
+
+ Namestitev:
+   1. Kopiraj dist\ScannerBridge.exe kamorkoli (npr. Dokumenti
+   2. Pozeni ScannerBridge.exe
+   3. Autostart se doda samodejno ob prvem zagonu
+   4. Ikona se pojavi v sistemski vrstici
+ [NAPAKA] Gradnja ni uspela ÔÇö preveri sporocila zgoraj.
+============================================================
+
+Press any key to continue . . .

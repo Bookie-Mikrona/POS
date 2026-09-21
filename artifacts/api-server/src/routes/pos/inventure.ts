@@ -2,8 +2,10 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 import { artikliTable, db, inventurePostavkeTable, inventureTable, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
+import type { PosRequest } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
+import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 
 const router: IRouter = Router();
 
@@ -40,7 +42,7 @@ async function fetchZadnjeCene(artikelIds: number[], beforeDate?: Date): Promise
     .orderBy(desc(prejemniceTable.datum), desc(prejemniceTable.id));
   const map = new Map<number, number>();
   for (const r of rows) {
-    if (!map.has(r.artikelId)) map.set(r.artikelId, Number(r.cenaKos));
+    if (r.artikelId != null && !map.has(r.artikelId)) map.set(r.artikelId, Number(r.cenaKos));
   }
   return map;
 }
@@ -66,6 +68,7 @@ router.get("/inventure", async (req, res): Promise<void> => {
 
 router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
@@ -123,8 +126,13 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
         artikelId: p.artikelId,
         tip: "inventura",
         kolicina: String(razlika),
+        cenaKos: String(cenaKos),
+        vrednost: String(razlika * cenaKos),
         opomba: opomba ?? `Inventura #${inventura.id}`,
-        referencaId: inventura.id});
+        referencaId: inventura.id,
+        actorSnapshot,
+        effectiveAtSnapshot: docDatum,
+        sourceSnapshot: "inventura"});
 
       const art = artikelMap.get(p.artikelId);
       postavkeResult.push({
@@ -195,6 +203,7 @@ router.get("/inventure/:id", async (req, res): Promise<void> => {
 
 router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -242,9 +251,16 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       const oldPostavke = await tx.select().from(inventurePostavkeTable).where(eq(inventurePostavkeTable.inventuraId, id));
       const oldArtikleIds = oldPostavke.map((p: any) => p.artikelId);
 
-      await tx.delete(zalogaGibiTable).where(sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.tip} = 'inventura' AND (${zalogaGibiTable.opomba} IS NULL OR ${zalogaGibiTable.opomba} NOT LIKE ${'Začetne zaloge%'})`);
+      const reversedArtikelIds = await appendStockMovementReversals(tx, {
+        referenceId: id,
+        sourceSnapshots: ["inventura"],
+        actorSnapshot,
+        reversalSourceSnapshot: "inventura_reversal",
+        note: `Razveljavitev inventure #${id} zaradi urejanja`,
+        legacyKind: "inventura",
+      });
       await tx.delete(inventurePostavkeTable).where(eq(inventurePostavkeTable.inventuraId, id));
-      await recomputeZaloge(oldArtikleIds, tx);
+      await recomputeZaloge([...new Set([...oldArtikleIds, ...reversedArtikelIds])], tx);
 
       // Stanje zalog ob koncu inventurnega dne (brez te inventure, ker smo jo ravno izbrisali)
       const putCutoff2 = parsed.data.datum
@@ -271,13 +287,62 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
           artikelId: p.artikelId,
           tip: "inventura",
           kolicina: String(razlika),
+          cenaKos: String(cenaKos),
+          vrednost: String(razlika * cenaKos),
           opomba: parsed.data.opomba ?? existing.opomba ?? `Inventura #${id}`,
-          referencaId: id});
+          referencaId: id,
+          actorSnapshot,
+          effectiveAtSnapshot: putCutoff2,
+          sourceSnapshot: "inventura"});
       }
 
-      const allAffectedIds = [...new Set([...oldArtikleIds, ...artikelIds2])];
+      const allAffectedIds = [...new Set([...oldArtikleIds, ...reversedArtikelIds, ...artikelIds2])];
       await recomputeZaloge(allAffectedIds, tx);
 
+      didUpdatePostavke = true;
+    } else if (parsed.data.datum !== undefined && txUpdates.datum!.getTime() !== existing.datum.getTime()) {
+      const newEffectiveDate = txUpdates.datum!;
+      const existingPostavke = await tx.select().from(inventurePostavkeTable)
+        .where(eq(inventurePostavkeTable.inventuraId, id));
+      const artikelIds = existingPostavke.flatMap((p) => p.artikelId == null ? [] : [p.artikelId]);
+      const reversedArtikelIds = await appendStockMovementReversals(tx, {
+        referenceId: id,
+        sourceSnapshots: ["inventura"],
+        actorSnapshot,
+        reversalSourceSnapshot: "inventura_reversal",
+        note: `Razveljavitev inventure #${id} zaradi spremembe datuma`,
+        legacyKind: "inventura",
+      });
+      await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
+
+      // Enako kot pri celotnem urejanju: ohranimo prešteto količino, vendar
+      // razliko in vrednost določimo glede na stanje na nov inventurni dan.
+      const zalogaObDatumu = await getZalogeObDatumu(artikelIds, newEffectiveDate, tx);
+      for (const p of existingPostavke) {
+        if (p.artikelId == null) continue;
+        const steviloNajdeno = Number(p.steviloNajdeno);
+        const steviloPrejsnje = zalogaObDatumu.get(p.artikelId)?.kolicina ?? 0;
+        const razlika = steviloNajdeno - steviloPrejsnje;
+        const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos || Number(p.cenaKos);
+        await tx.update(inventurePostavkeTable).set({
+          steviloPrejsnje: String(steviloPrejsnje),
+          razlika: String(razlika),
+          cenaKos: String(cenaKos),
+        }).where(eq(inventurePostavkeTable.id, p.id));
+        await tx.insert(zalogaGibiTable).values({
+          artikelId: p.artikelId,
+          tip: "inventura",
+          kolicina: String(razlika),
+          cenaKos: String(cenaKos),
+          vrednost: String(razlika * cenaKos),
+          opomba: parsed.data.opomba ?? existing.opomba ?? `Inventura #${id}`,
+          referencaId: id,
+          actorSnapshot,
+          effectiveAtSnapshot: newEffectiveDate,
+          sourceSnapshot: "inventura",
+        });
+      }
+      await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
       didUpdatePostavke = true;
     }
 
@@ -320,6 +385,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
 
 router.delete("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -331,13 +397,18 @@ router.delete("/inventure/:id", requireEnota, async (req, res): Promise<void> =>
   const artikelIds = postavke.map((p: any) => p.artikelId);
 
   await db.transaction(async (tx) => {
-    await tx.delete(zalogaGibiTable).where(
-      sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.tip} = 'inventura' AND (${zalogaGibiTable.opomba} IS NULL OR ${zalogaGibiTable.opomba} NOT LIKE ${'Začetne zaloge%'})`
-    );
+    const reversedArtikelIds = await appendStockMovementReversals(tx, {
+      referenceId: id,
+      sourceSnapshots: ["inventura"],
+      actorSnapshot,
+      reversalSourceSnapshot: "inventura_reversal",
+      note: `Razveljavitev izbrisane inventure #${id}`,
+      legacyKind: "inventura",
+    });
     await tx.delete(inventurePostavkeTable).where(eq(inventurePostavkeTable.inventuraId, id));
     await tx.delete(inventureTable).where(and(eq(inventureTable.id, id), sql`true`, eq(inventureTable.enotaId, tenotaId)));
 
-    await recomputeZaloge(artikelIds, tx);
+    await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
   });
 
   broadcast("update", { type: "zaloge" });

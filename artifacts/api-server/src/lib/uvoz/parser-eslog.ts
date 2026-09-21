@@ -24,6 +24,7 @@ import {
   dodajOpozorilo,
   gtinNorm,
   gtinVeljaven,
+  netoPoRabatih,
   postavkaSchema,
   prazenDto,
   zahtevaSamoobdavcitev,
@@ -115,6 +116,18 @@ function seznam(vozlisce: unknown, ...pot: string[]): unknown[] {
   return Array.isArray(v) ? v : [v];
 }
 
+function nastaviPlacilniSklic(dto: PrejemDTO, vrednost: string | null): void {
+  if (!vrednost) return;
+  const urejeno = vrednost.trim();
+  const slovenski = /^(SI\d{2})\s*(.*)$/i.exec(urejeno);
+  if (slovenski) {
+    dto.placilniModel = slovenski[1].toUpperCase();
+    dto.placilniSklic = slovenski[2].trim() || null;
+  } else {
+    dto.placilniSklic = urejeno;
+  }
+}
+
 /** Datum iz UBL ('2026-01-03') ali CII ('20260103', format 102). */
 function vDatumXml(surov: string | null, format?: string | null): string | null {
   if (!surov) return null;
@@ -198,8 +211,24 @@ function razcleniUbl(k: Vozlisce, oblika: XmlOblika, dto: PrejemDTO): PrejemDTO 
   // ---- glava ----
   dto.stDokumenta = t(k, 'ID');
   dto.datumDokumenta = vDatumXml(t(k, 'IssueDate'));
+  dto.datumZapadlosti = vDatumXml(t(k, 'DueDate')) ??
+    vDatumXml(t(k, 'PaymentTerms', 'PaymentDueDate'));
   dto.valuta = t(k, 'DocumentCurrencyCode') ?? 'EUR';
   dto.ceneBruto = false; // EN 16931 je vedno neto
+
+  const placilo = seznam(k, 'PaymentMeans')[0];
+  if (placilo) {
+    dto.dobaviteljIban =
+      t(placilo, 'PayeeFinancialAccount', 'ID') ??
+      t(placilo, 'PayeeFinancialAccount', 'Name');
+    dto.dobaviteljBic =
+      t(placilo, 'PayeeFinancialAccount', 'FinancialInstitutionBranch', 'ID') ??
+      t(placilo, 'PayeeFinancialAccount', 'FinancialInstitutionBranch', 'FinancialInstitution', 'ID');
+    nastaviPlacilniSklic(dto, t(placilo, 'PaymentID'));
+    dto.placilniNamen =
+      t(placilo, 'InstructionNote') ??
+      t(k, 'PaymentTerms', 'Note');
+  }
 
   const koda = t(k, 'InvoiceTypeCode') ?? t(k, 'DocumentTypeCode');
   const vrste: Record<string, PrejemDTO['vrstaDokumenta']> = {
@@ -250,6 +279,7 @@ function razcleniUbl(k: Vozlisce, oblika: XmlOblika, dto: PrejemDTO): PrejemDTO 
         razlog,
         znesek,
         ddvStopnja: d(ac, 'TaxCategory', 'Percent'),
+        obravnava: 'zaloga',
       });
     } else {
       dto.rabatiGlave.push({ razlog, znesek });
@@ -302,8 +332,15 @@ function postavkeRacun(k: Vozlisce, dto: PrejemDTO): void {
       izvVrednost: d(v, 'LineExtensionAmount'),
       ddvStopnja: d(artikel, 'ClassifiedTaxCategory', 'Percent'),
       ddvKategorija: t(artikel, 'ClassifiedTaxCategory', 'ID'),
+      ddvKoda: t(artikel, 'ClassifiedTaxCategory', 'ID'),
+      ddvOsnova: d(v, 'LineExtensionAmount'),
+      ddvZnesek: d(v, 'TaxTotal', 'TaxAmount'),
       lot: t(artikel, 'ItemInstance', 'LotIdentification', 'LotNumberID'),
       rokUporabe: vDatumXml(t(artikel, 'ItemInstance', 'BestBeforeDate')),
+      // EN 16931 BT-146: cac:Price/cbc:PriceAmount je neto cena postavke,
+      // torej ŽE po rabatu. AllowanceCharge na ceni le pojasnjuje,
+      // kako je iz bruto nastala neto — ne sme se odbiti še enkrat.
+      rabatVkljucenVCeni: true,
     });
 
     if (!osnovnaKol.eq(1)) {
@@ -316,13 +353,39 @@ function postavkeRacun(k: Vozlisce, dto: PrejemDTO): void {
         });
     }
 
-    // rabat na ravni cene
+    // rabat na ravni cene (EN 16931 BT-147, Price/AllowanceCharge)
+    // PriceAmount je ŽE neto — AllowanceCharge pojasnjuje izvor, ne odbija znova.
     const ac = seznam(cenaVozel, 'AllowanceCharge')[0];
     if (ac) {
       const osnova = d(ac, 'BaseAmount');
       const znesek = d(ac, 'Amount');
       if (osnova && znesek && osnova.gt(0)) {
         p.rabat1Odst = zaokrozi(znesek.div(osnova).mul(100), 4);
+      }
+    }
+
+    // InvoiceLine-level AllowanceCharge (EN 16931 BT-136):
+    // Dobaviteljev popust na ravni vrstice — PriceAmount je tu bruto cena, rabat
+    // je ločen element (ni vgrajen v ceno). Primer: cena 3,60, linijski popust
+    // 5 % (= 1,80), LineExtensionAmount = 34,20.
+    // ⚠ Obdelamo le kadar Price/AllowanceCharge ni nastavil rabat1Odst — sicer
+    //   bi prišlo do dvojnega odbitka pri redkem kombiniranem primeru.
+    if (p.rabat1Odst.eq(0)) {
+      const linAc = seznam(v, 'AllowanceCharge').filter(
+        (element) => t(element, 'ChargeIndicator') !== 'true',
+      );
+      if (linAc.length > 0 && kolicina.gt(0)) {
+        const linZnesek = linAc.reduce<Decimal>(
+          (vsota, element) => vsota.plus(d(element, 'Amount') ?? new Decimal(0)),
+          new Decimal(0),
+        );
+        const brutoVr = kolicina.mul(cenaNaEnoto);
+        if (linZnesek.gt(0) && brutoVr.gt(0)) {
+          // Preračunamo v % relativno na kolicina × cena in shranimo v rabat1Odst.
+          // rabatVkljucenVCeni = false: cena je bruto, service bo odbitek izvedel.
+          p.rabat1Odst = zaokrozi(linZnesek.div(brutoVr).mul(100), 4);
+          p.rabatVkljucenVCeni = false;
+        }
       }
     }
 
@@ -396,6 +459,26 @@ function razcleniCii(k: Vozlisce, dto: PrejemDTO): PrejemDTO {
     }
   }
 
+  const placilnaPoravnava = vozel(
+    k, 'SupplyChainTradeTransaction', 'ApplicableHeaderTradeSettlement',
+  );
+  const placilo = seznam(placilnaPoravnava, 'SpecifiedTradeSettlementPaymentMeans')[0];
+  if (placilo) {
+    dto.dobaviteljIban =
+      t(placilo, 'PayeePartyCreditorFinancialAccount', 'IBANID') ??
+      t(placilo, 'PayeePartyCreditorFinancialAccount', 'ProprietaryID');
+    dto.dobaviteljBic =
+      t(placilo, 'PayeeSpecifiedCreditorFinancialInstitution', 'BICID') ??
+      t(placilo, 'PayeeSpecifiedCreditorFinancialInstitution', 'ID');
+  }
+  nastaviPlacilniSklic(dto, t(placilnaPoravnava, 'PaymentReference'));
+  const placilniPogoji = seznam(placilnaPoravnava, 'SpecifiedTradePaymentTerms')[0];
+  dto.placilniNamen = t(placilniPogoji, 'Description');
+  dto.datumZapadlosti ??= vDatumXml(
+    t(placilniPogoji, 'DueDateDateTime', 'DateTimeString'),
+    atr(vozel(placilniPogoji, 'DueDateDateTime', 'DateTimeString'), 'format') ?? '102',
+  );
+
   const vrstice = seznam(
     k, 'SupplyChainTradeTransaction', 'IncludedSupplyChainTradeLineItem',
   );
@@ -428,6 +511,14 @@ function razcleniCii(k: Vozlisce, dto: PrejemDTO): PrejemDTO {
       ),
       ddvStopnja: d(poravnava, 'ApplicableTradeTax', 'RateApplicablePercent'),
       ddvKategorija: t(poravnava, 'ApplicableTradeTax', 'CategoryCode'),
+      ddvKoda: t(poravnava, 'ApplicableTradeTax', 'CategoryCode'),
+      ddvOsnova: d(
+        poravnava, 'SpecifiedTradeSettlementLineMonetarySummation', 'LineTotalAmount',
+      ),
+      ddvZnesek: d(poravnava, 'ApplicableTradeTax', 'CalculatedAmount'),
+      // CII D16B: NetPriceProductTradePrice/ChargeAmount je neto cena (EN 16931),
+      // torej ŽE po rabatu — ne sme se odbiti še enkrat.
+      rabatVkljucenVCeni: true,
     });
 
     if (!osnovnaKol.eq(1)) {
@@ -448,6 +539,9 @@ function razcleniCii(k: Vozlisce, dto: PrejemDTO): PrejemDTO {
   dto.izvOsnova = d(vsote, 'TaxBasisTotalAmount');
   dto.izvDdv = d(vsote, 'TaxTotalAmount');
   dto.izvSkupaj = d(vsote, 'GrandTotalAmount');
+  const poravnavaGlave = vozel(k, 'SupplyChainTradeTransaction', 'ApplicableHeaderTradeSettlement');
+  const rokEl = vozel(poravnavaGlave, 'SpecifiedTradePaymentTerms', 'DueDateDateTime', 'DateTimeString');
+  dto.datumZapadlosti = vDatumXml(t(rokEl), atr(rokEl, 'format') ?? '102');
 
   preveriDokument(dto);
   return dto;
@@ -465,12 +559,33 @@ function preveriPostavko(p: Postavka): void {
   }
 
   if (p.izvVrednost !== null && p.izvCena.gt(0)) {
-    const izracun = p.izvKolicina.mul(p.izvCena);
-    if (zaokrozi(izracun).minus(zaokrozi(p.izvVrednost)).abs().gt('0.02')) {
-      dodajOpozorilo(p, 'POS007', 'B',
+    // Preverimo ujemanje z dvema izračunoma:
+    //   bruto = kolicina × cena  (brez upoštevanja rabata)
+    //   neto  = kolicina × cena_po_rabatu  (z rabat1Odst / rabat2Odst)
+    // Zadostuje, da EN izmed njiju ustreza dokumentirani vrednosti.
+    // S tem pokrijemo oba vzorca: "vrednost je bruto" (CSV z gross vrednostjo)
+    // in "vrednost je neto" (UBL InvoiceLine/AllowanceCharge z neto LineExtensionAmount).
+    const bruto = p.izvKolicina.mul(p.izvCena);
+    const neto = p.rabatVkljucenVCeni
+      ? bruto
+      : p.izvKolicina.mul(netoPoRabatih(p.izvCena, p.rabat1Odst, p.rabat2Odst));
+
+    const difBruto = zaokrozi(bruto).minus(zaokrozi(p.izvVrednost)).abs();
+    const difNeto  = zaokrozi(neto).minus(zaokrozi(p.izvVrednost)).abs();
+    const razlika  = difBruto.lt(difNeto) ? difBruto : difNeto;
+
+    if (razlika.gt('0.02')) {
+      // Ocenimo resnost: majhen relativni odklon (< 1 % vrednosti in < 1 EUR)
+      // je verjetno zaokrožitvena razlika → opozorilo (uvoz se nadaljuje).
+      // Večji odklon je prava napaka v dokumentu → blokada.
+      const relativni = p.izvVrednost.abs().gt(0)
+        ? razlika.div(p.izvVrednost.abs())
+        : new Decimal(1);
+      const jeBlokada = razlika.gte('1.00') || relativni.gte('0.01');
+      dodajOpozorilo(p, 'POS007', jeBlokada ? 'B' : 'O',
         'Količina × cena se ne ujema z vrednostjo postavke. Preverite BaseQuantity.',
         {
-          izracunano: zaokrozi(izracun).toString(),
+          izracunano: zaokrozi(bruto).toString(),
           naDokumentu: zaokrozi(p.izvVrednost).toString(),
         });
     }

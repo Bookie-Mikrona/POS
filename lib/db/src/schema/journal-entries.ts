@@ -14,6 +14,7 @@ import { accountsTable } from "./accounts";
 import { counterpartiesTable } from "./counterparties";
 import { costCentersTable, projectsTable, departmentsTable } from "./dimensions";
 import { vatCodeTable } from "./vat-code";
+import { vatCodesTable } from "./vat-codes";
 
 export const journalEntryStatusEnum = pgEnum("journal_entry_status", [
   "draft",
@@ -53,6 +54,12 @@ export const journalEntriesTable = pgTable("journal_entries", {
    * Privzeto enak datumu listine, a lahko različen (npr. intrastat).
    */
   taxDate: date("tax_date", { mode: "string" }),
+  /**
+   * §67 ZDDV-1 — Datum fizičnega prejema računa (D4-2 polje v KPR evidenci).
+   * Ločen od documentDate (datum na računu)!
+   * NULL = ni nastavljeno; vatLedger.ts pade nazaj na documentDate.
+   */
+  receiptDate: date("receipt_date", { mode: "string" }),
   description: text("description").notNull(),
   /** Zunanji sklic (npr. številka računa) */
   reference: text("reference"),
@@ -67,7 +74,7 @@ export const journalEntriesTable = pgTable("journal_entries", {
    * document: potrjen dokument (AI OCR) | ai_suggestion: AI predlog
    */
   sourceType: text("source_type")
-    .$type<"manual" | "bank_import" | "document" | "ai_suggestion">()
+    .$type<"manual" | "bank_import" | "document" | "ai_suggestion" | "amortizacija">()
     .notNull()
     .default("manual"),
   /** Clerk user ID ki je potrdil/knjižil vnos */
@@ -117,6 +124,11 @@ export const journalEntryLinesTable = pgTable("journal_entry_lines", {
    * amount = osnova brez DDV; vatAmount = znesek DDV.
    */
   vatCodeId: uuid("vat_code_id").references(() => vatCodeTable.id),
+  /**
+   * Izvorna podjetniška DDV koda. Ločena od vatCodeId, ki kaže neposredno na
+   * globalno FURS klasifikacijo in jo uporablja vat_ledger.
+   */
+  companyVatCodeId: uuid("company_vat_code_id").references(() => vatCodesTable.id, { onDelete: "set null" }),
   /** Znesek DDV za to vrstico — 0 pri oproščenih */
   vatAmount: numeric("vat_amount", { precision: 18, scale: 2 }).default("0"),
   /** Odbitni delež v % (0–100); 100 = polna pravica do odbitka */

@@ -1,0 +1,36 @@
+ali morajo voditi oziroma ali vodijo gostinci zalogo embalaže za pijače (steklenice, zaboje) pri nabavi
+
+Da, gostinci morajo in praktično vsi vodijo evidenco oziroma zalogo povratne (vračljive) embalaže (steklenic, zabojev, sodov/KEG-ov).  
+PISRS
+
+Pravna in praktična podlaga ter način vodenja sta razdeljena na dva dela:  
+PISRS
+
+1. Pravno-računovodska obveznost
+Pravila in Uzance pri vračanju in prevzemanju vračljive embalaže določajo, da morajo vsi sodelujoči v embalažnem krogotoku (proizvajalci, veletrgovci, gostinci) zagotoviti sledljivost in usklajevanje saldov vračljive embalaže.  
+PISRS
+in še 1
+
+Finančno ali evidenčno vodenje: V praksi dobavitelj (npr. Pivovarna Laško, Radenska ali veletrgovec z pijačami) ob dobavi pijače na dobavnici/računu ločeno izpiše tudi prejeto embalažo (število zabojev, steklenic ali sodov) ter vrnjeno embalažo od zadnjič.  
+PISRS
+
+Kavcija / Dobroimetje: Ker ima vračljiva embalaža določeno kavcijsko vrednost (denarno vrednost), se vsak manjko ali nepovrnjena embalaža gostincu finančno obremeni. Zato morajo gostinci preko materialnega knjigovodstva spremljati saldo teh sredstev, saj gre za premoženje oziroma kavcijski dolg/terjatev do dobavitelja.  
+PISRS
+in še 2
+
+2. Kako se zaloga embalaže dejansko vodi v gostinstvu
+Večina sodobnih gostinskih programov (POS/ERP sistemov) to opravlja avtomatsko ali polavtomatsko:  
+PISRS
+
+Ob nabavi (Prevzemnica): Ko gostinec vnese prevzemnico za pijačo (npr. 10 zabojev piva), program na zalogo samodejno doda tako pijačo kot tudi 10 zabojev in 200 steklenic.  
+PISRS
+
+Ob vračilu dobavitelju: Ko dobavitelj odpelje prazne zaboje/steklenice, se na temelju vračilnice oz. dobavnice stanje embalaže na zalogi ustrezno zmanjša.  
+PISRS
+in še 2
+
+Inventura: Ob koncu meseca ali leta gostinec ob popisovanju pijače vedno popiše tudi prazne steklenice, zaboje in sodčke (tako v skladišču kot v šanku ali hladilnikih).  
+PISRS
+
+Kaj pa nepovratna embalaža (pločevinke, plastenke, nepovratne stekleničke)?
+Nepovratna embalaža nima kavcije in se ne vrača dobavitelju. Njena vrednost je že vključena v nabavno ceno pijače, zato se ločeno na zalogo embalaže ne vodi, temveč se po porabi odvrže med odpadke

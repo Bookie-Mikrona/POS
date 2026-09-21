@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/bookie-viva-bridge/"
+title = "Bookie Viva Bridge"
+description = "Tanek Android spremljevalec za Bookie POS, ki varno sprejme rezultat Viva.com Terminal plačila in ga preda spletnemu POS-u za strežniško potrditev ter izdajo računa."
+version = "1.0.0"
+id = "artifacts/bookie-viva-bridge"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/bookie-viva-bridge/" ]
+localPort = 23975
+
+[services.development]
+run = "pnpm --filter @workspace/bookie-viva-bridge run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bookie-viva-bridge", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/bookie-viva-bridge", "run", "serve" ]
+
+[services.env]
+PORT = "23975"
+BASE_PATH = "/bookie-viva-bridge/"

@@ -15,13 +15,17 @@ import { Decimal } from 'decimal.js';
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 
-import { gtinNorm, gtinVeljaven, normalizirajEnoto } from './dto';
+import { gtinNorm, gtinVeljaven, normalizirajEnoto, normalizirajNaziv } from './dto';
 import { dekodiraj, vDecimal, zaznajLocilo } from './parser-csv';
 import { upariPostavko, type Kandidat, type UparjanjeNastavitve, PRIVZETE_NASTAVITVE } from './uparjanje';
+import {
+  preberiXlsxTipizirano,
+  xlsxMatrikaZaStevilskeStolpce,
+} from './xlsx-branje';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
+type CenikMatrika = Array<Array<string | number>>;
 
 // =====================================================================
 // Model vrstice cenika
@@ -61,32 +65,55 @@ export interface CenikProfil {
 // Razčlenitev
 // =====================================================================
 
+type RazclenjenCenik = { vrstice: CenikVrstica[]; napake: string[] };
+
+export function razcleniCenik(
+  raw: Buffer,
+  profil: CenikProfil,
+  jeXlsx: true,
+): Promise<RazclenjenCenik>;
+export function razcleniCenik(
+  raw: Buffer,
+  profil: CenikProfil,
+  jeXlsx?: false,
+): RazclenjenCenik;
 export function razcleniCenik(
   raw: Buffer,
   profil: CenikProfil,
   jeXlsx = false,
-): { vrstice: CenikVrstica[]; napake: string[] } {
-  const napake: string[] = [];
-  let matrika: string[][];
+): RazclenjenCenik | Promise<RazclenjenCenik> {
+  if (jeXlsx) return razcleniCenikXlsx(raw, profil);
 
-  if (jeXlsx) {
-    const wb = XLSX.read(raw, { type: 'buffer', cellDates: true });
-    const imeLista = profil.list ?? wb.SheetNames[0];
-    const ws = wb.Sheets[imeLista];
-    if (!ws) return { vrstice: [], napake: [`Lista "${imeLista}" ni v datoteki.`] };
-    // raw:false -> celice kot besedilo, sicer Excel poje vodilne ničle v GTIN
-    matrika = XLSX.utils.sheet_to_json<string[]>(ws, {
-      header: 1, raw: false, defval: '', blankrows: true,
-    });
-  } else {
-    const { besedilo } = dekodiraj(raw, profil.kodiranje);
-    const locilo = profil.locilo ?? zaznajLocilo(besedilo);
-    matrika = Papa.parse<string[]>(besedilo, {
-      delimiter: locilo,
-      skipEmptyLines: false,
-      dynamicTyping: false,
-    }).data;
+  const { besedilo } = dekodiraj(raw, profil.kodiranje);
+  const locilo = profil.locilo ?? zaznajLocilo(besedilo);
+  return razcleniCenikMatriko(Papa.parse<string[]>(besedilo, {
+    delimiter: locilo,
+    skipEmptyLines: false,
+    dynamicTyping: false,
+  }).data, profil);
+}
+
+async function razcleniCenikXlsx(raw: Buffer, profil: CenikProfil): Promise<RazclenjenCenik> {
+  try {
+    const tipizirane = await preberiXlsxTipizirano(raw, profil.list);
+    const s = profil.stolpci;
+    const stevilskiStolpci = [
+      s.cena,
+      s.enotVPaketu,
+      s.ddv,
+    ].filter((indeks): indeks is number => indeks !== undefined);
+
+    return razcleniCenikMatriko(
+      xlsxMatrikaZaStevilskeStolpce(tipizirane, stevilskiStolpci),
+      profil,
+    );
+  } catch (e) {
+    return { vrstice: [], napake: [e instanceof Error ? e.message : 'Cenika ni bilo mogoče prebrati.'] };
   }
+}
+
+function razcleniCenikMatriko(matrika: CenikMatrika, profil: CenikProfil): RazclenjenCenik {
+  const napake: string[] = [];
 
   // Iskanje glave po vsebini je zanesljivejše od fiksnega odmika —
   // dobavitelji radi dodajo uvodno vrstico brez obvestila.
@@ -182,7 +209,7 @@ export interface CenikPredogled {
 export async function predogledCenika(
   db: Db,
   enotaId: number,
-  dobaviteljId: number,
+  dobaviteljId: string,
   vrstice: CenikVrstica[],
   nastavitve: UparjanjeNastavitve = PRIVZETE_NASTAVITVE,
 ): Promise<CenikPredogled> {
@@ -285,7 +312,7 @@ export interface CenikZapisVrstica {
 export async function zapisiPreslikave(
   db: Db,
   enotaId: number,
-  dobaviteljId: number,
+  dobaviteljId: string,
   vrstice: CenikZapisVrstica[],
   uporabnikId: number,
   velikostSveznja = 200,
@@ -306,33 +333,76 @@ export async function zapisiPreslikave(
           continue;
         }
 
-        const [r] = (await tx.execute<{ je_nov: boolean }>(sql`
-          INSERT INTO artikel_dobavitelj (
-            podjetje_id, artikel_id, dobavitelj_id, sifra_dobavitelja, gtin,
-            naziv_dobavitelja, enot_v_paketu, zadnja_cena_enota,
-            zadnja_ddv_stopnja, potrdil_uporabnik, potrjeno_dne)
-          VALUES (
-            ${enotaId}, ${v.artikelId}, ${dobaviteljId},
-            ${v.sifra}, ${v.gtin}, ${v.naziv},
-            ${v.enotVPaketu.toString()},
-            ${v.cenaEnota?.toString() ?? null},
-            ${v.ddvStopnja?.toString() ?? null},
-            ${uporabnikId}, now())
-          ON CONFLICT (enota_id, dobavitelj_id, sifra_dobavitelja)
-            WHERE sifra_dobavitelja IS NOT NULL
-          DO UPDATE SET
-            artikel_id         = EXCLUDED.artikel_id,
-            gtin               = COALESCE(EXCLUDED.gtin, artikel_dobavitelj.gtin),
-            naziv_dobavitelja  = EXCLUDED.naziv_dobavitelja,
-            enot_v_paketu      = EXCLUDED.enot_v_paketu,
-            zadnja_cena_enota  = EXCLUDED.zadnja_cena_enota,
-            zadnja_ddv_stopnja = EXCLUDED.zadnja_ddv_stopnja,
-            aktivno            = true
-          RETURNING (xmax = 0) AS je_nov
-        `)).rows;
+        // cenaPaket = cena na celoten paket (= cenaEnota × enotVPaketu)
+        const cenaPaket = v.cenaEnota ? v.cenaEnota.mul(v.enotVPaketu) : null;
+        const nazivNorm = normalizirajNaziv(v.naziv);
 
-        if (r?.je_nov) ustvarjenih += 1;
-        else posodobljenih += 1;
+        // FIX: stolpec je enota_id (ne podjetje_id); tabela artikel_dobavitelj.
+        // Dve ločeni veji ker PostgreSQL ne dopušča ON CONFLICT na dveh delnih
+        // indeksih naenkrat. st_prevzemov in zadnji_prevzem se NE osvežujeta —
+        // to je posodobitev cenika, ne dejanski prevzem blaga.
+        if (v.sifra) {
+          // Veja A: conflict po šifri dobavitelja (uq_ad_sifra)
+          const [r] = (await tx.execute<{ je_nov: boolean }>(sql`
+            INSERT INTO artikel_dobavitelj (
+              enota_id, artikel_id, dobavitelj_id, sifra_dobavitelja, gtin,
+              naziv_dobavitelja, naziv_norm, enot_v_paketu, zadnja_cena_paket, zadnja_cena_enota,
+              zadnja_ddv_stopnja, aktivno, potrdil_uporabnik, potrjeno_dne)
+            VALUES (
+              ${enotaId}, ${v.artikelId}, ${dobaviteljId},
+              ${v.sifra}, ${v.gtin}, ${v.naziv}, ${nazivNorm},
+              ${v.enotVPaketu.toString()},
+              ${cenaPaket?.toString() ?? null},
+              ${v.cenaEnota?.toString() ?? null},
+              ${v.ddvStopnja?.toString() ?? null},
+              true, ${uporabnikId}, now())
+            ON CONFLICT (enota_id, dobavitelj_id, sifra_dobavitelja)
+              WHERE sifra_dobavitelja IS NOT NULL
+            DO UPDATE SET
+              artikel_id         = EXCLUDED.artikel_id,
+              gtin               = COALESCE(EXCLUDED.gtin, artikel_dobavitelj.gtin),
+              naziv_dobavitelja  = EXCLUDED.naziv_dobavitelja,
+              naziv_norm         = EXCLUDED.naziv_norm,
+              enot_v_paketu      = EXCLUDED.enot_v_paketu,
+              zadnja_cena_paket  = EXCLUDED.zadnja_cena_paket,
+              zadnja_cena_enota  = EXCLUDED.zadnja_cena_enota,
+              zadnja_ddv_stopnja = EXCLUDED.zadnja_ddv_stopnja,
+              potrjeno_dne       = now(),
+              aktivno            = true
+            RETURNING (xmax = 0) AS je_nov
+          `)).rows;
+          if (r?.je_nov) ustvarjenih += 1; else posodobljenih += 1;
+        } else {
+          // Veja B: conflict po GTIN (uq_ad_gtin) — v.gtin je != null (check zgoraj)
+          const [r] = (await tx.execute<{ je_nov: boolean }>(sql`
+            INSERT INTO artikel_dobavitelj (
+              enota_id, artikel_id, dobavitelj_id, sifra_dobavitelja, gtin,
+              naziv_dobavitelja, naziv_norm, enot_v_paketu, zadnja_cena_paket, zadnja_cena_enota,
+              zadnja_ddv_stopnja, aktivno, potrdil_uporabnik, potrjeno_dne)
+            VALUES (
+              ${enotaId}, ${v.artikelId}, ${dobaviteljId},
+              NULL, ${v.gtin}, ${v.naziv}, ${nazivNorm},
+              ${v.enotVPaketu.toString()},
+              ${cenaPaket?.toString() ?? null},
+              ${v.cenaEnota?.toString() ?? null},
+              ${v.ddvStopnja?.toString() ?? null},
+              true, ${uporabnikId}, now())
+            ON CONFLICT (enota_id, dobavitelj_id, gtin)
+              WHERE gtin IS NOT NULL
+            DO UPDATE SET
+              artikel_id         = EXCLUDED.artikel_id,
+              naziv_dobavitelja  = EXCLUDED.naziv_dobavitelja,
+              naziv_norm         = EXCLUDED.naziv_norm,
+              enot_v_paketu      = EXCLUDED.enot_v_paketu,
+              zadnja_cena_paket  = EXCLUDED.zadnja_cena_paket,
+              zadnja_cena_enota  = EXCLUDED.zadnja_cena_enota,
+              zadnja_ddv_stopnja = EXCLUDED.zadnja_ddv_stopnja,
+              potrjeno_dne       = now(),
+              aktivno            = true
+            RETURNING (xmax = 0) AS je_nov
+          `)).rows;
+          if (r?.je_nov) ustvarjenih += 1; else posodobljenih += 1;
+        }
 
         // GTIN na artikel, če ga še nima. Ne prepisujemo obstoječega —
         // dobaviteljev cenik ni merodajen za artikel, ki ga že imamo.

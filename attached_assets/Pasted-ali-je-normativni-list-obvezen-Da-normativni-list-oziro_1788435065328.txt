@@ -1,0 +1,47 @@
+ali je normativni list obvezen
+
+Da, normativni list (oziroma normativ) je v slovenskem gostinstvu zakonsko obvezen za vse obrate.
+
+Tako določata Zakon o gostinstvu (ZGos) ter zakonodaja s področja varstva potrošnikov in davčnega nadzora.
+
+Zakaj je normativ obvezen in kaj mora vsebovati
+
+Preglednost in pošteno poslovanje: Normativ natančno določa porabo materiala (količino sestavin) za posamezno porcijo jedi ali pijače (npr. 7 g kave, 0,05 l mleka). S tem je potrošniku zagotovljeno, da dobi točno določeno količino, ki jo plača.
+
+Skladnost s cenikom: Cene na ceniku morajo ustrezati normativom. Če je na ceniku navedena kava ali porcija jedi, mora biti iz normativa razvidno, kaj točno ta porcija vsebuje.
+
+Nadzor Finančne uprave (FURS): Davčni inšpektorji ob nadzoru poslovanja gostinskih obratov primerjajo nabavo surovin (npr. kupljeno kavo v zrnu) s prodanimi količinami po izdanih računih. Pravilno sestavljeni normativi so osnova za ugotavljanje dejanske porabe in zalog.
+
+Zahteve glede hrambe in dostopnosti
+
+Interni akt: Normativni list sprejme odgovorna oseba gostinskega obrata in velja kot interni akt.
+
+Dostopnost: Normativ mora biti na voljo v lokalu, da se lahko ob morebitnem inšpekcijskem nadzoru (Tržni inšpektorat RS, FURS) takoj predloži na vpogled.
+
+Če obrat nima oblikovanih normativov ali se jih pri pripravi in izdajanju računov ne drži, gre za prekršek, za katerega so predvidene globe.
+
+ali je predpisana oblika normativnega lista
+
+Zakonsko ni predpisana stroga ali enotna predpisana oblika (obrazec) normativnega lista. Gostinec ima prostost pri tem, kako ga oblikuje, dokler akt vsebuje vse ključne elemente, ki omogočajo preglednost ter nadzor nad porabo surovin in sestavo porcije.
+
+Obvezne vsebine normativnega lista
+
+Ne glede na vizualno obliko mora normativni list za vsak napitek ali jed jasno prikazovati:
+
+Naziv artikla/napitka: Natančno ime, kot je navedeno na ceniku (npr. Cappuccino).
+
+Mersko enoto in količino končnega izdelka: Količina postrežene pijače (npr. 1 skodelica / 0,15 l).
+
+Seznam vseh surovin/sestavin: Poimensko navedene sestavine (npr. Kava v zrnu, Polnomastno mleko, Sladkor).
+
+Količino posamezne surovine (normativ na porcijo): Točna gramatura ali volumen sestavin (npr. Kava: 8 g, Mleko: 0,05 l, Sladkor: 5 g).
+
+Podatke o podjetju in datum: Naziv gostinskega obrata, datum sprejema normativa ter podpis odgovorne osebe.
+
+Prakse v praksi
+
+Vnos v POS / blagajniški sistem: Večina sodobnih gostinskih obratov ima normative vnesene neposredno v svoj gostinski blagajniški program (ERP/POS). Ob izdaji računa sistem samodejno razknjiži ustrezno količino surovin iz zaloge. Izpis teh normativov iz programa velja kot uradni normativni list.
+
+Fizična mapa / Razpredelnica: Normativi so lahko natisnjeni v obliki tabele (npr. v Excelu) in shranjeni v mapi v lokalu.
+
+Pomembno je le, da je normativni list jasen, posodobljen in takoj dostopen ob morebitnem nadzoru Tržnega inšpektorata RS ali FURS.

@@ -77,3 +77,16 @@ Normativ med materialom in izdelkom **ne prenaša davčne logike** — samo koli
 
 Posebnost: instant pripravki 2101–2105 (vključno 3v1) → 9,5 % ne glede na sladkor —
 za te potrebuje `purchase_rate_map` ločeno vrstico ali kljukico »instant_pripravek«.
+
+## OCR po uspešnem uparjanju
+
+Pri OCR je prebrana stopnja nezanesljiv vhod. Ko se vrstica zanesljivo poveže z
+artiklom, naj se vhodna stopnja in navadna P-koda uskladita s pričakovano nabavno
+stopnjo artikla; izrecna `nabavna_ddv_stopnja` ima prednost pred izpeljavo iz
+`taxCategory` in `addedSugar`.
+
+**Why:** OCR je sladkan Fructalov jabolčni sok prebral kot 9,5 %, čeprav je bil
+artikel pravilno označen `cold_beverage` + `addedSugar=true`, kar pomeni 22 %.
+
+**How to apply:** Pravilo uporabi pri samodejni in ročni povezavi ter ponovno
+izračunaj DDV znesek. Za neuparjeno vrstico ohrani izvorno stopnjo in opozorilo.

@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { ClerkProvider, SignIn } from "@clerk/clerk-react";
+import { lazy, Suspense, useState, useEffect } from "react";
+import { ClerkProvider, SignIn } from "@clerk/react";
+import { publishableKeyFromHost } from "@clerk/react/internal";
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,48 +8,105 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { GotovToastProvider } from "@/contexts/GotovToastContext";
 import { GotovToastSystem } from "@/components/GotovToastSystem";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { useListRacuni, useRetryFursBatch, getListRacuniQueryKey } from "@workspace/api-client-react";
+import { PosSyncStatus } from "@/components/PosSyncStatus";
+import { OfflineFiscalQueueStatus } from "@/components/OfflineFiscalQueueStatus";
+import { LocalGatewayStatusBanner } from "@/components/LocalGatewayStatusBanner";
+import { GatewayOfflineProvider } from "@/lib/gatewayOfflineStore";
+import { QuickSwitch } from "@/components/QuickSwitch";
+import { useListRacuni, useRetryFursBatch, getListRacuniQueryKey, useGetKdsNastavitve, getGetKdsNastavitveQueryKey } from "@workspace/api-client-react";
 import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext";
 import { HappyHourProvider, useHappyHour } from "@/contexts/HappyHourContext";
 import { NapravaProvider } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, BookUser, CalendarDays, Users, ClipboardList, BookOpen } from "lucide-react";
+import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, Users, ClipboardList, BookOpen, TrendingDown, Tag, Banknote, Recycle, Info, Activity, CalendarDays, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
 import { UporabnikSidebarInfo } from "@/components/UporabnikSidebarInfo";
 import { AdminEnotaStaticInfo } from "@/components/AdminEnotaStaticInfo";
+import { SifrantiSidebar } from "@/components/SifrantiSidebar";
+import { NAV_CAPABILITY_BY_PATH, type UnitCapability } from "@/lib/unitProfiles";
+import { CtiDohodniKlicPopup } from "@/components/CtiDohodniKlicPopup";
+import { AgentLauncher } from "@/components/AgentLauncher";
 import { BlagajnaProvider } from "@/contexts/BlagajnaContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import NotFound from "@/pages/not-found";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth, type PosAuthStatus } from "@/contexts/AuthContext";
 import { setNapravaIdGetter } from "@workspace/api-client-react";
 import { getNapravaId } from "@/lib/naprava";
 setNapravaIdGetter(getNapravaId);
-import SuperAdminPage from "@/pages/SuperAdmin";
 
-import HomePage from "@/pages/Home";
-import OrderPage from "@/pages/Order";
-import CheckoutPage from "@/pages/Checkout";
-import MenuPage from "@/pages/Menu";
-import ReceiptsPage from "@/pages/Receipts";
-import StatsPage from "@/pages/Stats";
-import DnevniIzkazPage from "@/pages/DnevniIzkaz";
-import RealizacijaPage from "@/pages/Realizacija";
-import TemeljnicePage from "@/pages/Temeljnice";
-import SettingsPage from "@/pages/Settings";
-import KitchenPage from "@/pages/Kitchen";
-import TocilnicaPage from "@/pages/Tocilnica";
-import IzmenePage from "@/pages/Izmene";
-import ZalogePage from "@/pages/Zaloge";
-import SimulacijaPage from "@/pages/Simulacija";
-import TestniZagoniPage from "@/pages/TestniZagoni";
-import PartnerjiPage from "@/pages/Partnerji";
-import DnevniMeniPage from "@/pages/DnevniMeni";
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const MIKRONA_LOGO_URL = `${basePath}/mikrona-logo.png`;
+
+const clerkAppearance = {
+  options: {
+    logoPlacement: "inside" as const,
+    logoLinkUrl: basePath || "/",
+    logoImageUrl: `${window.location.origin}${MIKRONA_LOGO_URL}`,
+  },
+};
+
+// Strani se nalagajo šele ob prvem obisku. App sicer uvozi navigacijo in
+// avtentikacijo, ne pa celotnega velikega nastavitev/poročilnega dela.
+const HomePage = lazy(() => import("@/pages/Home"));
+const OrderPage = lazy(() => import("@/pages/Order"));
+const CheckoutPage = lazy(() => import("@/pages/Checkout"));
+const MenuPage = lazy(() => import("@/pages/Menu"));
+const ReceiptsPage = lazy(() => import("@/pages/Receipts"));
+const StatsPage = lazy(() => import("@/pages/Stats"));
+const DnevniIzkazPage = lazy(() => import("@/pages/DnevniIzkaz"));
+const OperativnaPorocilaPage = lazy(() => import("@/pages/OperativnaPorocila"));
+const RealizacijaPage = lazy(() => import("@/pages/Realizacija"));
+const TemeljnicePage = lazy(() => import("@/pages/Temeljnice"));
+const SettingsPage = lazy(() => import("@/pages/Settings"));
+const KitchenPage = lazy(() => import("@/pages/Kitchen"));
+const IzmenePage = lazy(() => import("@/pages/Izmene"));
+const ObracunUrPage = lazy(() => import("@/pages/ObracunUr"));
+const ZalogePage = lazy(() => import("@/pages/Zaloge"));
+const SimulacijaPage = lazy(() => import("@/pages/Simulacija"));
+const TestniZagoniPage = lazy(() => import("@/pages/TestniZagoni"));
+const PartnerjiPage = lazy(() => import("@/pages/Partnerji"));
+const NarocnikiPage = lazy(() => import("@/pages/Narocniki"));
+const StroskovnaMestaPage = lazy(() => import("@/pages/StroskovnaMesta"));
+const KontniPlanPage = lazy(() => import("@/pages/KontniPlan"));
+const KontiZaTemeljnicePage = lazy(() => import("@/pages/KontiZaTemeljnice"));
+const OdstopanjaPage = lazy(() => import("@/pages/uvoz/OdstopanjaPage"));
+const UvozCenikPage = lazy(() => import("@/pages/uvoz/UvozCenikPage"));
+const BlagajniskiPremikiPage = lazy(() => import("@/pages/BlagajniskiPremiki"));
+const EventsPage = lazy(() => import("@/pages/Events"));
+const RezervacijePage = lazy(() => import("@/pages/Rezervacije"));
+const IzdajaPage = lazy(() => import("@/pages/Izdaja"));
+const QrAdministracijaPage = lazy(() => import("@/pages/QrAdministracija"));
+
+function KdsStationPage({ station }: { station: "bar" | "kitchen" | "pizza" }) {
+  const { user } = useAuth();
+  const enotaId = user?.enotaId;
+  const queryKey = enotaId
+    ? [...getGetKdsNastavitveQueryKey(), enotaId]
+    : getGetKdsNastavitveQueryKey();
+  const { data: settings } = useGetKdsNastavitve({
+    query: { queryKey, enabled: !!enotaId },
+  });
+  const stationTypes = station === "kitchen" && settings?.profil === "bar_combined_kitchen"
+    ? ["kitchen", "pizza"] as const
+    : [station] as const;
+  const title = station === "bar" ? "Točilnica" : station === "pizza" ? "Pice" : "Kuhinja";
+  return <KitchenPage stationTypes={[...stationTypes]} title={title} />;
+}
+
+import { Snowflake, CheckSquare } from "lucide-react";
+const PreparedFoodPage = lazy(() => import("@/pages/PreparedFood"));
+const PlateWastePage = lazy(() => import("@/pages/PlateWaste"));
 
 function make401QueryClient() {
   const on401 = () => window.dispatchEvent(new Event("auth:401"));
@@ -82,23 +140,28 @@ const queryClient = make401QueryClient();
 const primaryNav = [
   { href: "/", label: "Mize", shortLabel: "Mize", icon: Home },
   { href: "/blagajna", label: "Blagajna", shortLabel: "Blagajna", icon: Wallet },
-  { href: "/kuhinja", label: "Kuhinja", shortLabel: "Kuhinja", icon: ChefHat },
+  { href: "/izmene", label: "Izmene", shortLabel: "Izmene", icon: Clock },
   { href: "/racuni", label: "Računi", shortLabel: "Računi", icon: Receipt },
 ];
 
 const secondaryNav = [
   { href: "/tocilnica", label: "Točilnica", icon: GlassWater },
+  { href: "/pripravljena-hrana", label: "Pripravljena hrana", icon: Snowflake },
+  { href: "/odpadki-s-kroznikov", label: "Odpadki s krožnikov", icon: Recycle },
   { href: "/meni", label: "Meni", icon: Menu },
-  { href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays },
   { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
+  { href: "/odstopanja", label: "Cen. odstopanja", icon: TrendingDown },
+  { href: "/uvoz-cenik", label: "Uvoz cenika", icon: Tag },
   { href: "/statistike", label: "Statistike", icon: BarChart3 },
   { href: "/izkaz", label: "Dnevni izkaz", icon: ClipboardList },
   { href: "/realizacija", label: "Realizacija", icon: FileText },
   { href: "/temeljnice", label: "Temeljnice", icon: BookOpen },
   { href: "/izmene", label: "Izmene", icon: Clock },
-  { href: "/partnerji", label: "Partnerji", icon: BookUser },
   { href: "/simulacija", label: "Simulacija", icon: FlaskConical },
   { href: "/nastavitve", label: "Nastavitve", icon: Settings },
+  { href: "/rezervacije", label: "Rezervacije miz", icon: CalendarDays },
+  { href: "/narocniki", label: "Telefonski naročniki", icon: Users },
+  { href: "/dogodki", label: "Dogodki in slavja", icon: CalendarDays },
 ];
 
 function NavLink({ href, label, icon: Icon, active, dot, className = "" }: {
@@ -107,14 +170,14 @@ function NavLink({ href, label, icon: Icon, active, dot, className = "" }: {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all ${
+      className={`flex min-h-10 items-center gap-2.5 px-4 py-2 rounded-xl text-[13px] font-medium transition-all ${
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       } ${className}`}
     >
       <div className="relative shrink-0">
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
         {dot && (
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-sidebar" />
         )}
@@ -229,9 +292,7 @@ function HappyHourToggle() {
   const maUrnik = od && doo;
 
   const handlePress = () => {
-    if (rocno === "on") setRocno("auto");
-    else if (rocno === "off") setRocno("auto");
-    else setRocno(aktiven ? "off" : "on");
+    void setRocno(aktiven ? "off" : "on");
   };
 
   return (
@@ -240,10 +301,10 @@ function HappyHourToggle() {
       disabled={loading}
       onClick={handlePress}
       title={aktiven ? `Happy Hour AKTIVEN${rocno !== "auto" ? " (ročno)" : ""}` : `Happy Hour${maUrnik ? ` (${od}–${doo})` : " — ni urnika"}`}
-      className={`flex flex-col items-center justify-center py-2 gap-0.5 min-h-[56px] w-14 shrink-0 transition-colors ${
+      className={`flex min-h-[56px] w-14 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 border-l-2 py-2 font-semibold transition-all hover:brightness-95 disabled:cursor-wait disabled:opacity-60 ${
         aktiven
-          ? "text-amber-600 bg-amber-50"
-          : "text-muted-foreground"
+          ? "border-amber-500 bg-amber-100 text-amber-800 shadow-inner"
+          : "border-slate-300 bg-slate-100 text-slate-700 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800"
       }`}
       style={aktiven ? { animation: "none" } : undefined}
     >
@@ -253,15 +314,80 @@ function HappyHourToggle() {
   );
 }
 
+function AboutProgramDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5 text-primary" />
+            O programu
+          </DialogTitle>
+          <DialogDescription>
+            Informacije o razvijalcu in aplikaciji Bookie POS.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-4">
+          <img
+            src={MIKRONA_LOGO_URL}
+            alt="Mikrona d.o.o."
+            className="h-14 w-14 shrink-0 rounded-lg bg-white object-contain"
+          />
+          <div className="min-w-0">
+            <p className="text-base font-semibold leading-tight">Bookie POS Gostinstvo</p>
+            <p className="mt-1 text-sm text-muted-foreground">Mikrona d.o.o.</p>
+          </div>
+        </div>
+
+        <dl className="divide-y rounded-xl border text-sm">
+          <div className="flex items-start justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">Razvijalec</dt>
+            <dd className="text-right font-medium">Mikrona d.o.o.</dd>
+          </div>
+          <div className="flex items-start justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">Program</dt>
+            <dd className="text-right font-medium">Bookie POS Gostinstvo</dd>
+          </div>
+          <div className="flex items-start justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">Vrsta</dt>
+            <dd className="text-right font-medium">Spletna aplikacija za gostinstvo</dd>
+          </div>
+          <div className="flex items-start justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">Uporaba</dt>
+            <dd className="max-w-[13rem] text-right font-medium">
+              Prodaja, računi, izmene, zaloge in poročila
+            </dd>
+          </div>
+          <div className="flex items-start justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">Povezave</dt>
+            <dd className="max-w-[13rem] text-right font-medium">
+              FURS in lokalni tiskalniški mostovi
+            </dd>
+          </div>
+        </dl>
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Podatki o aktivnem podjetju, poslovni enoti in blagajni so prikazani
+          ločeno v meniju oziroma v nastavitvah POS-a.
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const { user, logout } = useAuth();
   const { nastavitve } = useNastavitve();
-  const [sidebarScale, setSidebarScale] = useState(1);
+
+  const enotaId = user?.enotaId;
+  const keyKdsNastavitve = enotaId ? [...getGetKdsNastavitveQueryKey(), enotaId] : getGetKdsNastavitveQueryKey();
+  const { data: kdsNastavitve } = useGetKdsNastavitve({ query: { queryKey: keyKdsNastavitve, enabled: !!enotaId } });
+
   const [simDatum, setSimDatum] = useState<string | null>(null);
-  const asideRef = useRef<HTMLElement>(null);
-  const sidebarContentRef = useRef<HTMLDivElement>(null);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const v = localStorage.getItem("pos_sidebar_w");
     return v ? Math.max(180, Math.min(420, Number(v))) : 240;
@@ -324,36 +450,30 @@ function Layout({ children }: { children: React.ReactNode }) {
   }, [toast]);
 
   useEffect(() => {
-    const aside = asideRef.current;
-    const content = sidebarContentRef.current;
-    if (!aside || !content) return;
-    const recalc = () => {
-      const ah = aside.clientHeight;
-      const sh = content.scrollHeight;
-      if (sh > 0 && ah > 0) setSidebarScale(Math.min(1, ah / sh));
-    };
-    const ro = new ResizeObserver(recalc);
-    ro.observe(aside);
-    ro.observe(content);
-    recalc();
-    return () => ro.disconnect();
-  });
-
-  useEffect(() => {
     const naziv = nastavitve?.nazivRestavracije;
     const allNavForTitle = [
       { href: "/", label: "Mize" },
       { href: "/blagajna", label: "Blagajna" },
       { href: "/kuhinja", label: "Kuhinja" },
+      { href: "/pice", label: "Pice" },
+      { href: "/izdaja", label: "Izdaja" },
       { href: "/tocilnica", label: "Točilnica" },
+      { href: "/pripravljena-hrana", label: "Pripravljena hrana" },
+      { href: "/odpadki-s-kroznikov", label: "Odpadki s krožnikov" },
       { href: "/meni", label: "Meni" },
       { href: "/zaloge", label: "Zaloge" },
+      { href: "/odstopanja", label: "Cen. odstopanja" },
       { href: "/racuni", label: "Računi" },
       { href: "/statistike", label: "Statistike" },
+      { href: "/operativna-porocila", label: "Operativna poročila" },
       { href: "/realizacija", label: "Realizacija" },
       { href: "/temeljnice", label: "Temeljnice" },
       { href: "/izmene", label: "Izmene" },
+      { href: "/obracun-ur", label: "Obračun ur" },
       { href: "/partnerji", label: "Partnerji" },
+      { href: "/stroskovana-mesta", label: "Stroškovna mesta" },
+      { href: "/kontni-plan", label: "Kontni plan" },
+       { href: "/konti-za-temeljnice", label: "Konti za temeljnice" },
       { href: "/nastavitve", label: "Nastavitve" },
       { href: "/nastavitve?tab=uporabniki", label: "Uporabniki" },
       { href: "/narocilo/", label: "Naročilo" },
@@ -376,37 +496,77 @@ function Layout({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = user?.vloga === "superadmin";
   const isAdmin = user?.vloga === "admin" || isSuperAdmin;
   const isAdminEnote = user?.vloga === "admin_enote";
+  const activeCapabilities = new Set<UnitCapability>(
+    (user?.capabilities ?? []) as UnitCapability[],
+  );
+  const canShowNav = (href: string) => {
+    if (isSuperAdmin) return true;
+    if (href === "/nastavitve" && (isAdmin || isAdminEnote)) return true;
+    const capability = NAV_CAPABILITY_BY_PATH[href];
+    return capability ? activeCapabilities.has(capability) : true;
+  };
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    const pathRule = Object.entries(NAV_CAPABILITY_BY_PATH)
+      .sort(([a], [b]) => b.length - a.length)
+      .find(([path]) => path === "/" ? location === "/" : location === path || location.startsWith(`${path}/`));
+    if (!pathRule || activeCapabilities.has(pathRule[1])) return;
+    toast({
+      title: "Funkcija v tej enoti ni omogočena",
+      description: "Prikaz je prilagojen profilu in izbranim funkcijam aktivne poslovne enote.",
+      variant: "destructive",
+    });
+    navigate("/nastavitve", { replace: true });
+  }, [location, navigate, isSuperAdmin, user?.capabilities, toast]);
+  const visiblePrimaryNav = primaryNav.filter(item => canShowNav(item.href));
 
-  const allNav = isSuperAdmin ? [
+  const allNav = (isSuperAdmin ? [
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
     { href: "/superadmin", label: "Super-admin", icon: ShieldCheck },
   ] : [
     { href: "/", label: "Mize", icon: Home },
     { href: "/blagajna", label: "Blagajna", icon: Wallet },
-    { href: "/kuhinja", label: "Kuhinja", icon: ChefHat },
-    { href: "/tocilnica", label: "Točilnica", icon: GlassWater },
-    { href: "/meni", label: "Meni", icon: Menu },
-    { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
+    { href: "/izmene", label: "Izmene", icon: Clock },
     { href: "/racuni", label: "Računi", icon: Receipt },
+    { href: "/tocilnica", label: "Točilnica", icon: GlassWater },
+    { href: "/kuhinja", label: "Kuhinja", icon: ChefHat },
+    ...(kdsNastavitve?.profil === "bar_separate_kitchen_pizza" ? [{ href: "/pice", label: "Pice", icon: ChefHat }] : []),
+    ...(kdsNastavitve?.dispatchOmogocen ? [{ href: "/izdaja", label: "Izdaja", icon: CheckSquare }] : []),
+    { href: "/pripravljena-hrana", label: "Pripravljena hrana", icon: Snowflake },
+    { href: "/odpadki-s-kroznikov", label: "Odpadki s krožnikov", icon: Recycle },
+    { href: "/meni", label: "Meni", icon: Menu },
+    ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
+    { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
     { href: "/statistike", label: "Statistike", icon: BarChart3 },
+    ...(isAdmin || isAdminEnote ? [{ href: "/operativna-porocila", label: "Operativna poročila", icon: Activity }] : []),
     { href: "/realizacija", label: "Realizacija", icon: FileText },
     { href: "/temeljnice", label: "Temeljnice", icon: BookOpen },
-    { href: "/izmene", label: "Izmene", icon: Clock },
-    { href: "/partnerji", label: "Partnerji", icon: BookUser },
-    ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
+    { href: "/blagajniski-premiki", label: "Blagajniški premiki", icon: Banknote },
+    { href: "/rezervacije", label: "Rezervacije miz", icon: CalendarDays },
+    { href: "/dogodki", label: "Dogodki in slavja", icon: CalendarDays },
+    ...(isAdmin || isAdminEnote ? [{ href: "/obracun-ur", label: "Obračun ur", icon: ClipboardList }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/simulacija", label: "Simulacija", icon: FlaskConical }] : []),
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
     ...(isAdmin ? [{ href: "/admin/testi", label: "Testi", icon: FlaskConical }] : []),
-  ];
+  ]).filter(item => canShowNav(item.href));
 
-  const mobileSecondaryNav = isSuperAdmin ? [
+  const mobileSecondaryNav = (isSuperAdmin ? [
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
     { href: "/superadmin", label: "Super-admin", icon: ShieldCheck },
   ] : [
-    ...secondaryNav,
+    // Kuhinja je bila v primarni vrstici — zdaj na vrhu "Več"
+     // (Računi in Izmene so zdaj v primarni vrstici)
+    { href: "/kuhinja", label: "Kuhinja", icon: ChefHat },
+    ...(kdsNastavitve?.profil === "bar_separate_kitchen_pizza" ? [{ href: "/pice", label: "Pice", icon: ChefHat }] : []),
+    ...(kdsNastavitve?.dispatchOmogocen ? [{ href: "/izdaja", label: "Izdaja", icon: CheckSquare }] : []),
+     // Preostalo (brez Izmene in Računi, ki so zdaj v primarni vrstici)
+     ...secondaryNav.filter(i => i.href !== "/izmene" && i.href !== "/racuni"),
+    ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
+    ...(isAdmin || isAdminEnote ? [{ href: "/operativna-porocila", label: "Operativna poročila", icon: Activity }] : []),
+    ...(isAdmin || isAdminEnote ? [{ href: "/obracun-ur", label: "Obračun ur", icon: ClipboardList }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/simulacija", label: "Simulacija", icon: FlaskConical }] : []),
     ...(isAdmin ? [{ href: "/admin/testi", label: "Testi", icon: FlaskConical }] : []),
-  ];
+  ]).filter(item => canShowNav(item.href));
 
   const isActive = (href: string) => {
     const [hrefPath] = href.split("?");
@@ -425,17 +585,16 @@ function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-background font-sans text-foreground">
       {!isOrderPage && (
-        <aside ref={asideRef} className="hidden md:flex flex-col border-r bg-sidebar text-sidebar-foreground shadow-md overflow-hidden relative" style={{ width: sidebarWidth, flexShrink: 0 }}>
-          <div
-            ref={sidebarContentRef}
-            style={sidebarScale < 1 ? {
-              transform: `scale(${sidebarScale})`,
-              transformOrigin: "top left",
-              width: `${100 / sidebarScale}%`,
-            } : undefined}
-          >
-            <div className="p-3 border-b border-sidebar-border/50 text-red-600">
-              <h1 className="text-base font-bold tracking-tight">POS Cockpit</h1>
+        <aside className="hidden md:flex flex-col border-r bg-sidebar text-sidebar-foreground shadow-md overflow-hidden relative" style={{ width: sidebarWidth, flexShrink: 0 }}>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 p-3 border-b border-sidebar-border/50 text-red-600">
+              <div className="flex items-center gap-2.5">
+                <img src={MIKRONA_LOGO_URL} alt="Mikrona d.o.o." className="h-10 w-10 shrink-0 rounded-md object-contain bg-white" />
+                <div className="min-w-0">
+                  <h1 className="text-base font-bold tracking-tight">POS Gostinstvo</h1>
+                  <p className="text-[10px] text-sidebar-foreground/60 leading-tight">Mikrona d.o.o.</p>
+                </div>
+              </div>
               {!isSuperAdmin && (() => {
                 // Davčna: iz nastavitev ali pa iz prijavljenega uporabnika (companies tabela)
                 const davcna = nastavitve?.davcnaStevilka || user?.podjetjeDavcna;
@@ -464,19 +623,25 @@ function Layout({ children }: { children: React.ReactNode }) {
                 );
               })()}
             </div>
-            <nav className="py-3 px-2 flex flex-col gap-1">
-              {allNav.map(item => (
-                <NavLink
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={isActive(item.href)}
-                  dot={item.href === "/simulacija" && simDatum !== null}
-                />
-              ))}
-            </nav>
-            <div className="p-2 border-t border-sidebar-border/50 text-red-600">
+            <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <nav className="py-3 px-2 flex flex-col gap-1">
+                {allNav.map(item => (
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={isActive(item.href)}
+                    dot={item.href === "/simulacija" && simDatum !== null}
+                  />
+                ))}
+              </nav>
+
+              {/* ── Šifranti — skupni blok (vidno vsem POS vlogam; dev + produkcija) ── */}
+              {!isSuperAdmin && <SifrantiSidebar vloga={user?.vloga ?? ""} />}
+            </div>
+
+            <div className="shrink-0 p-2 border-t border-sidebar-border/50 text-red-600">
               {/* Admin podjetja: enota → blagajna (vizualno povezano) */}
               {isAdmin && !isSuperAdmin && (
                 <div className="space-y-1 mb-1">
@@ -521,9 +686,12 @@ function Layout({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
-      <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
+      <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
         <CertExpiryBanner />
         <FursNapakaRetryBanner />
+        <OfflineFiscalQueueStatus />
+        <LocalGatewayStatusBanner />
+        {!isSuperAdmin && <CtiDohodniKlicPopup />}
         {simDatum && !isCheckoutPage && (
           <Link href="/simulacija" className="block">
             <div className="flex items-center justify-between px-4 py-2 bg-purple-700 text-white text-xs font-medium hover:bg-purple-800 transition-colors cursor-pointer">
@@ -538,18 +706,22 @@ function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
         )}
-        {!isSuperAdmin && nastavitve?.nazivRestavracije && !isCheckoutPage && (
+        {!isSuperAdmin && nastavitve?.nazivRestavracije && (
           <div className="flex items-center justify-center px-4 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border/40">
             <Link href="/nastavitve" className="text-xs font-medium text-muted-foreground/70 tracking-wide truncate hover:text-foreground hover:underline transition-colors">
               {nastavitve.nazivRestavracije}
             </Link>
           </div>
         )}
+      <div className="pos-page-content flex-1 min-h-0 min-w-0 flex flex-col">
         {children}
+      </div>
+      <PosSyncStatus />
+      <QuickSwitch />
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden bg-background border-t safe-area-inset-bottom">
-          {primaryNav.map(item => (
+          {visiblePrimaryNav.map(item => (
             <Link
               key={item.href}
               href={item.href}
@@ -576,85 +748,183 @@ function Layout({ children }: { children: React.ReactNode }) {
                 <span className="text-[10px] font-medium">Več</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-2xl pb-8">
-              <SheetHeader className="mb-4">
-                <SheetTitle className="text-left">Meni</SheetTitle>
-              </SheetHeader>
-              <div className="grid grid-cols-4 gap-2">
-                {mobileSecondaryNav.map(item => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMoreOpen(false)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${
-                      isActive(item.href)
-                        ? "bg-primary/10 border-primary/30 text-primary"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    <item.icon className="h-6 w-6" />
-                    <span className="text-xs font-medium text-center">{item.label}</span>
-                  </Link>
-                ))}
+            <SheetContent
+              side="bottom"
+              data-pos-mobile-more-menu
+              className="rounded-t-2xl flex h-[85dvh] max-h-[85dvh] flex-col p-0"
+            >
+              {/* Potegni ročaj */}
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
               </div>
-              <div className="mt-4 pt-4 border-t">
+              {/* Glava: naslov + odjava v isti vrstici */}
+              <div className="shrink-0 flex items-center justify-between px-6 pb-3">
+                <SheetHeader className="p-0">
+                  <SheetTitle className="text-left">Meni</SheetTitle>
+                </SheetHeader>
+                <button
+                  onClick={() => { setMoreOpen(false); void logout(); }}
+                  className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted active:bg-muted/70 transition-colors"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span className="max-w-[7rem] truncate">{user?.ime ?? user?.username}</span>
+                </button>
+              </div>
+              {/* Pomikljiva vsebina */}
+              <div className="overflow-y-auto flex-1 px-6 pb-2">
+
+                {/* Enota in blagajna — na mobilnih napravah ni sidebara */}
+                {(isAdmin || isAdminEnote) && !isSuperAdmin && (
+                  <div
+                    className="mb-4 pb-4 border-b space-y-1.5"
+                    style={{
+                      "--sidebar-foreground": "var(--foreground)",
+                      "--sidebar-accent": "var(--muted)",
+                      "--sidebar-accent-foreground": "var(--foreground)",
+                      "--sidebar-border": "var(--border)",
+                    } as React.CSSProperties}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-1">Enota</p>
+                    {isAdmin ? <EnotaSwitcher /> : <AdminEnotaStaticInfo />}
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-1 pt-1">Blagajna</p>
+                    <BlagajnaSwitcher />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-4 gap-2">
+                  {mobileSecondaryNav.map(item => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMoreOpen(false)}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${
+                        isActive(item.href)
+                          ? "bg-primary/10 border-primary/30 text-primary"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <item.icon className="h-6 w-6" />
+                      <span className="text-xs font-medium text-center">{item.label}</span>
+                    </Link>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      setAboutOpen(true);
+                    }}
+                    className="flex flex-col items-center gap-2 rounded-xl border border-border p-4 text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    <Info className="h-6 w-6" />
+                    <span className="text-center text-xs font-medium">O programu</span>
+                  </button>
+                </div>
                 {!isSuperAdmin && nastavitve?.nazivRestavracije && (
-                  <div className="px-4 pb-2">
+                  <div className="mt-3 pt-3 border-t">
                     <p className="text-xs text-muted-foreground leading-snug">{nastavitve.nazivRestavracije}</p>
                     {nastavitve.davcnaStevilka && (
                       <p className="text-[11px] text-muted-foreground/60 mt-0.5">ID: {nastavitve.davcnaStevilka}</p>
                     )}
                   </div>
                 )}
+              </div>
+              {/* Fiksen gumb za zapiranje na dnu */}
+              <div className="shrink-0 px-6 py-3 border-t bg-background">
                 <button
-                  onClick={() => { setMoreOpen(false); void logout(); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-all"
+                  onClick={() => setMoreOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted text-sm font-medium text-muted-foreground active:bg-muted/70"
                 >
-                  <LogOut className="h-4 w-4" />
-                  <span>Odjava ({user?.ime ?? user?.username})</span>
+                  <X className="h-4 w-4" />
+                  Zapri
                 </button>
               </div>
             </SheetContent>
           </Sheet>
         </nav>
+        <AgentLauncher />
+        <AboutProgramDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </div>
   );
 }
 
-function ProtectedRouter() {
+// Preusmeritev superadmina je centralizirana v AuthGate (sinhrono varovalo).
+// HomeGuard se ne bi smel nikoli izrisati za superadmina — return null je samo
+// zadnja varnostna mreža v primeru nepričakovanega remount.
+function HomeGuard() {
+  const { user } = useAuth();
+
+  if (user?.vloga === "superadmin") return null;
+  return <HomePage />;
+}
+
+// Nevtralen zaslon med DNS/TCP nalaganjem /admin — brez POS Layout, sidebara ali headerja.
+function PreusmeritevZaslon() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-muted-foreground text-sm">Preusmerjanje…</div>
+    </div>
+  );
+}
+
+function NalagamStran() {
+  return (
+    <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
+      Nalagam stran…
+    </div>
+  );
+}
+
+function RealtimeSync() {
   useRealtimeSync();
+  return null;
+}
+
+function ProtectedRouter() {
   return (
     <NastavitveProvider>
+      <RealtimeSync />
       <NapravaProvider>
       <AutoStartProvider>
       <ZamenjajGesloOverlay />
       <Layout>
-        <Switch>
-        <Route path="/" component={HomePage} />
-        <Route path="/narocilo/:id" component={OrderPage} />
-        <Route path="/blagajna" component={CheckoutPage} />
-        <Route path="/meni" component={MenuPage} />
-        <Route path="/racuni" component={ReceiptsPage} />
-        <Route path="/statistike" component={StatsPage} />
-        <Route path="/izkaz" component={DnevniIzkazPage} />
-        <Route path="/realizacija" component={RealizacijaPage} />
-        <Route path="/temeljnice" component={TemeljnicePage} />
-        <Route path="/kuhinja" component={KitchenPage} />
-        <Route path="/tocilnica" component={TocilnicaPage} />
-        <Route path="/izmene" component={IzmenePage} />
-        <Route path="/zaloge" component={ZalogePage} />
-        <Route path="/simulacija" component={SimulacijaPage} />
-        <Route path="/partnerji" component={PartnerjiPage} />
-        <Route path="/dnevni-meni" component={DnevniMeniPage} />
-        <Route path="/nastavitve" component={SettingsPage} />
-        <Route path="/admin/testi" component={TestniZagoniPage} />
-        <Route path="/superadmin/eposta" component={SuperAdminPage} />
-        <Route path="/superadmin/backup" component={SuperAdminPage} />
-        <Route path="/superadmin/profil" component={SuperAdminPage} />
-        <Route path="/superadmin/testi" component={SuperAdminPage} />
-        <Route path="/superadmin" component={SuperAdminPage} />
-        <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<NalagamStran />}>
+          <Switch>
+          <Route path="/" component={HomeGuard} />
+          <Route path="/narocilo/:id" component={OrderPage} />
+          <Route path="/blagajna" component={CheckoutPage} />
+          <Route path="/meni" component={MenuPage} />
+          <Route path="/qr-meni" component={QrAdministracijaPage} />
+          <Route path="/pripravljena-hrana" component={PreparedFoodPage} />
+          <Route path="/odpadki-s-kroznikov" component={PlateWastePage} />
+          <Route path="/racuni" component={ReceiptsPage} />
+          <Route path="/statistike" component={StatsPage} />
+          <Route path="/operativna-porocila" component={OperativnaPorocilaPage} />
+          <Route path="/izkaz" component={DnevniIzkazPage} />
+          <Route path="/realizacija" component={RealizacijaPage} />
+          <Route path="/temeljnice" component={TemeljnicePage} />
+          <Route path="/blagajniski-premiki" component={BlagajniskiPremikiPage} />
+          <Route path="/rezervacije" component={RezervacijePage} />
+          <Route path="/dogodki" component={EventsPage} />
+          <Route path="/kuhinja">{() => <KdsStationPage station="kitchen" />}</Route>
+          <Route path="/pice">{() => <KdsStationPage station="pizza" />}</Route>
+          <Route path="/izdaja" component={IzdajaPage} />
+          <Route path="/tocilnica">{() => <KdsStationPage station="bar" />}</Route>
+          <Route path="/izmene" component={IzmenePage} />
+          <Route path="/obracun-ur" component={ObracunUrPage} />
+          <Route path="/zaloge" component={ZalogePage} />
+          <Route path="/odstopanja" component={OdstopanjaPage} />
+          <Route path="/uvoz-cenik" component={UvozCenikPage} />
+          <Route path="/simulacija" component={SimulacijaPage} />
+          <Route path="/partnerji" component={PartnerjiPage} />
+          <Route path="/narocniki" component={NarocnikiPage} />
+          <Route path="/stroskovana-mesta" component={StroskovnaMestaPage} />
+          <Route path="/kontni-plan" component={KontniPlanPage} />
+          <Route path="/konti-za-temeljnice" component={KontiZaTemeljnicePage} />
+          <Route path="/nastavitve" component={SettingsPage} />
+          <Route path="/admin/testi" component={TestniZagoniPage} />
+          <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </Layout>
       </AutoStartProvider>
       </NapravaProvider>
@@ -771,19 +1041,72 @@ function ZamenjajGesloOverlay() {
 
 function ClerkSignInPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-5 bg-background px-4">
+      <div className="flex items-center gap-3 text-foreground">
+        <img src={MIKRONA_LOGO_URL} alt="Mikrona d.o.o." className="h-12 w-12 object-contain" />
+        <div>
+          <p className="text-base font-semibold leading-tight">Mikrona d.o.o.</p>
+          <p className="text-xs text-muted-foreground">Bookie POS Gostinstvo</p>
+        </div>
+      </div>
       <SignIn routing="hash" />
     </div>
   );
 }
 
+export function PosAuthProblem({
+  status,
+  onLogout,
+}: {
+  status: Extract<PosAuthStatus, "unauthorized" | "forbidden" | "error">;
+  onLogout: () => void | Promise<void>;
+}) {
+  const forbidden = status === "forbidden";
+  const unauthorized = status === "unauthorized";
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-xl border bg-card p-7 text-center shadow-sm">
+        <img src={MIKRONA_LOGO_URL} alt="Mikrona d.o.o." className="mx-auto mb-4 h-12 w-12 object-contain" />
+        <ShieldCheck className="mx-auto mb-3 h-9 w-9 text-muted-foreground" aria-hidden="true" />
+        <h1 className="text-xl font-semibold text-foreground">
+          {forbidden ? "Nimate dostopa do POS sistema" : unauthorized ? "Prijavna seja ni več veljavna" : "POS trenutno ni dosegljiv"}
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {forbidden
+            ? "Prijavljeni ste, vendar vaš račun nima aktivne POS-vloge. Za dostop se obrnite na skrbnika podjetja."
+            : unauthorized
+              ? "Za nadaljevanje se odjavite in ponovno prijavite."
+              : "Podatkov o vaši POS-vlogi trenutno ni mogoče pridobiti. Poskusite znova čez nekaj trenutkov."}
+        </p>
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          {status === "error" && (
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Poskusi znova
+            </Button>
+          )}
+          <Button onClick={() => void onLogout()}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Odjava in menjava računa
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AuthGate() {
-  const { user, loading } = useAuth();
+  const { user, loading, authStatus, logout } = useAuth();
   const [location, setLocation] = useLocation();
 
+  // Varnostna mreža za rob primer: vloga postane superadmin med aktivno sejo
+  // (Clerk session refresh, ko location ni "/"). Sinhrono varovalo spodaj pokrije
+  // glavni primer (prijava/pristanek na "/"), useEffect pa edge case.
   useEffect(() => {
-    if (!loading && user && location === "/login") {
-      setLocation(user.vloga === "superadmin" ? "/superadmin" : "/");
+    if (loading || !user) return;
+    if (user.vloga === "superadmin" && (location === "/" || location === "/login")) {
+      window.location.replace("/admin");
+    } else if (location === "/login") {
+      setLocation("/");
     }
   }, [user, loading, location, setLocation]);
 
@@ -795,6 +1118,17 @@ function AuthGate() {
     );
   }
 
+  // Sinhrono varovalo — steče MED renderom, preden POS Layout dobi priložnost za izris.
+  // window.location.replace znotraj renderja je nameren "escape iz Reacta" za navigacijo;
+  // PreusmeritevZaslon zagotovi, da brskalnik ne naslika ničesar iz POS-a.
+  if (user?.vloga === "superadmin" && (location === "/" || location === "/login")) {
+    window.location.replace("/admin");
+    return <PreusmeritevZaslon />;
+  }
+
+  if (!user && (authStatus === "forbidden" || authStatus === "unauthorized" || authStatus === "error")) {
+    return <PosAuthProblem status={authStatus} onLogout={logout} />;
+  }
   if (!user) return <ClerkSignInPage />;
   return <ProtectedRouter />;
 }
@@ -808,21 +1142,28 @@ function AppRouter() {
 }
 
 function App() {
-  const pubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
-  if (!pubKey) throw new Error("Manjka VITE_CLERK_PUBLISHABLE_KEY");
+  if (!clerkPubKey) throw new Error("Manjka VITE_CLERK_PUBLISHABLE_KEY");
   return (
-    <ClerkProvider publishableKey={pubKey} afterSignOutUrl="/pos/" fallbackRedirectUrl="/pos/">
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      afterSignOutUrl="/"
+      signInFallbackRedirectUrl="/pos/"
+    >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <GotovToastProvider>
             <AuthProvider>
-              <BlagajnaProvider>
-                <HappyHourProvider>
-                  <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                    <AppRouter />
-                  </WouterRouter>
-                </HappyHourProvider>
-              </BlagajnaProvider>
+              <GatewayOfflineProvider>
+                <BlagajnaProvider>
+                  <HappyHourProvider>
+                    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                      <AppRouter />
+                    </WouterRouter>
+                  </HappyHourProvider>
+                </BlagajnaProvider>
+              </GatewayOfflineProvider>
             </AuthProvider>
             <Toaster />
             <GotovToastSystem />

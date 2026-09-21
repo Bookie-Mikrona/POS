@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "si.pos.zcsbridge.app-debug-23:/layout_activity_main.xml.flat",
+        "source": "si.pos.zcsbridge.app-main-25:/layout/activity_main.xml"
+    },
+    {
+        "merged": "si.pos.zcsbridge.app-debug-23:/drawable_ic_launcher.xml.flat",
+        "source": "si.pos.zcsbridge.app-main-25:/drawable/ic_launcher.xml"
+    }
+]

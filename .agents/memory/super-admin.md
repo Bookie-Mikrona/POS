@@ -16,6 +16,12 @@ Super admin = Clerk user ID v env var `SUPER_ADMIN_IDS` (vejičnik-ločeni). Ne 
 Tabela `company_modules` (`company_id`, `module: 'erp'|'pos'`, `enabled_by`).
 Vsako podjetje ima eksplicitno aktivirane module. Brez zapisa = modul ni aktiven.
 
+Začetni ERP setup superadminu tehnično dodeli `owner` vlogo, da lahko vzpostavi paket. Sidebar te vloge ne sme šteti kot računovodski dostop: superadmin brez ločene uporabniške vloge vidi administracijo, ne GLK ali skupnih šifrantov.
+
+**Why:** tehnična lastniška vloga za vzpostavitev sistema ne sme postati implicitni dostop do poslovnih podatkov podjetja.
+
+**How to apply:** pri odločitvi o uporabniškem ERP meniju vedno loči `isSuperAdmin` od običajne `owner` vloge; OS in POS zahtevata svoji izrecno dodeljeni vlogi.
+
 ## Backend
 - `artifacts/api-server/src/middlewares/requireSuperAdmin.ts` — middleware + `isSuperAdmin()` helper
 - `artifacts/api-server/src/routes/admin.ts` — router na `/admin/*`

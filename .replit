@@ -11,6 +11,26 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "pos-events-release"
+author = "agent"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server exec tsx scripts/apply-test-migrations.ts && pnpm --filter @workspace/api-server run typecheck && pnpm --filter @workspace/api-server exec vitest run src/middlewares/pos.capability-audit.test.ts src/routes/pos/enote.temporary-validation.test.ts src/routes/pos/events.integration.test.ts src/routes/admin.roles.test.ts src/lib/inventory-serialization.test.ts src/lib/eventPolicy.test.ts src/lib/eventTransferDiagnostics.test.ts src/lib/loadEventTransferDiagnostics.test.ts src/lib/loadEventTransferDetail.test.ts && pnpm --filter @workspace/api-server exec vitest run src/routes/pos/offline-fiscal-sync.native.integration.test.ts && pnpm --filter @workspace/api-server exec vitest run src/routes/pos/offline-fiscal-sync.cloud-offline.integration.test.ts && PYTHONPATH=fiscal-service pytest -q fiscal-service/tests && pnpm --filter @workspace/erp-web run typecheck && pnpm --filter @workspace/erp-web exec vitest run --config vitest.config.ts src/lib/eventTransferDiagnosticsCsv.test.ts src/pages/admin.diagnostics-export.test.tsx && pnpm --filter @workspace/pos run typecheck && pnpm --filter @workspace/pos exec vitest run --config vitest.config.ts src/lib/unitProfiles.test.ts src/contexts/AuthContext.access.test.tsx src/PosAuthProblem.test.tsx src/components/LocalGatewaySettings.test.tsx src/lib/gatewayOfflineStore.test.ts src/lib/gatewayClient.test.ts"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "pos-events-release"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
@@ -21,9 +41,45 @@ timeoutMs = 120000
 
 [nix]
 channel = "stable-25_05"
+packages = ["android-tools", "cargo", "freetype", "glibcLocales", "gradle", "gumbo", "harfbuzz", "jbig2dec", "jdk17", "lcms2", "libiconv", "libimagequant", "libjpeg", "libjpeg_turbo", "libtiff", "libwebp", "libxcrypt", "mupdf", "openjpeg", "openssl", "pkg-config", "rustc", "swig", "tcl", "tk", "xcbuild", "xcodebuild", "zlib"]
 
 [userenv]
 
 [userenv.shared]
-SUPER_ADMIN_IDS = "user_3GhFXPAlFf51CI7swb8CKrU7Ykb"
 ERP_PONUDNIK_DAVCNA = "84040653"
+
+[userenv.development]
+SUPER_ADMIN_IDS = "user_3GhFXPAlFf51CI7swb8CKrU7Ykb"
+PUBLIC_MENU_ORIGIN = "https://befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f-00-2wke6lz2c4axb.riker.replit.dev"
+
+[userenv.production]
+SUPER_ADMIN_IDS = "user_3IEihRybqaXfG09CHeZ3aIM4CBG"
+PUBLIC_MENU_ORIGIN = "https://Bookie-ERP.replit.app"
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 6800
+
+[[ports]]
+localPort = 19239
+externalPort = 3003
+
+[[ports]]
+localPort = 20010
+externalPort = 3000
+
+[[ports]]
+localPort = 22228
+externalPort = 4200
+
+[[ports]]
+localPort = 23975
+externalPort = 5000
+
+[[ports]]
+localPort = 28080
+externalPort = 3002

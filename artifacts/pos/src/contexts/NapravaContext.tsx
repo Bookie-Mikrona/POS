@@ -24,7 +24,12 @@ export interface NapravaTerminalConfig {
   vivaTapToPayAktiven?: boolean;
   vivaTapToPaySourceCode?: string;
   agentTiskalnikIme?: string;
-  tiskalnikSirina?: 58 | 80;
+  aiSvetovalecAktiven?: boolean;
+  tiskalnikCodePage?: string;
+  /** 30 = NB80 58mm, 58 = ZCS Z92, 80 = NB80 80mm */
+  tiskalnikSirina?: 30 | 32 | 58 | 80;
+  /** "windows" = mrežni Windows tiskalnik */
+  tiskalnikTip?: string;
 }
 
 export interface NapravaData {
@@ -33,6 +38,7 @@ export interface NapravaData {
   enotaId: number;
   ime: string;
   napravaKljuc: string;
+  aiAccessToken?: string;
   placilniTerminal: string | null;
   dovoljeneMize?: number[] | null;
   glasovniPragZaupanja?: number | null;

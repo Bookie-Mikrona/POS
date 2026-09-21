@@ -1,0 +1,47 @@
+PS Z:\nb80-printer-bridge> + .\gradlew.bat wrapper --gradle-version 8.6
+At line:1 char:2
++ + .\gradlew.bat wrapper --gradle-version 8.6
++  ~
+Missing expression after unary operator '+'.
+At line:1 char:3
++ + .\gradlew.bat wrapper --gradle-version 8.6
++   ~~~~~~~~~~~~~
+Unexpected token '.\gradlew.bat' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+
+PS Z:\nb80-printer-bridge> + ~~~~~~~~~~~~~
+At line:1 char:2
++ + ~~~~~~~~~~~~~
++  ~
+Missing expression after unary operator '+'.
+At line:1 char:3
++ + ~~~~~~~~~~~~~
++   ~~~~~~~~~~~~~
+Unexpected token '~~~~~~~~~~~~~' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+
+PS Z:\nb80-printer-bridge>     + CategoryInfo          : ObjectNotFound: (.\gradlew.bat:String) [], CommandNotFoundException
+At line:1 char:6
++     + CategoryInfo          : ObjectNotFound: (.\gradlew.bat:String)  ...
++      ~
+Missing expression after unary operator '+'.
+At line:1 char:7
++     + CategoryInfo          : ObjectNotFound: (.\gradlew.bat:String)  ...
++       ~~~~~~~~~~~~
+Unexpected token 'CategoryInfo' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+
+PS Z:\nb80-printer-bridge>     + FullyQualifiedErrorId : CommandNotFoundException
+At line:1 char:6
++     + FullyQualifiedErrorId : CommandNotFoundException
++      ~
+Missing expression after unary operator '+'.
+At line:1 char:7
++     + FullyQualifiedErrorId : CommandNotFoundException
++       ~~~~~~~~~~~~~~~~~~~~~
+Unexpected token 'FullyQualifiedErrorId' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator

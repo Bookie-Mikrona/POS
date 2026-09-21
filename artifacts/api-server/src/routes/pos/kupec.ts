@@ -1,9 +1,15 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
-import { artikliTable, db, kategorijeTable, partnerCenikiTable, shranjeniKupciTable } from "@workspace/db";
+import { artikliTable, counterpartiesTable, db, enoteTable, kategorijeTable, partnerCenikiTable } from "@workspace/db";
 import { poisciVUjp } from "../ujp";
 import { poisciVAjpes } from "../ajpes";
 import { preveriVies, drzavaIzKode } from "../../lib/vies.js";
+import {
+  poisciNaInetis, poisciVInetisNiz, zaznajVrsto, trrSuroviVIban, razclenitNaslov,
+  BANCNI_BIC, type TrrPostavka, type InetisRezultat,
+} from "../../lib/inetis.js";
+import type { PosRequest } from "../../middlewares/pos.js";
+import { resolveSifrantAccess } from "../../lib/resolveSifrantAccess.js";
 
 /**
  * Pretvori 15-mestno slovensko TRR številko (UJP format) v IBAN.
@@ -32,73 +38,22 @@ function normalizeMaticnaZaUjp(m?: string | null): string | undefined {
 
 const router: IRouter = Router();
 
-type TrrPostavka = { iban: string; bic: string };
-
-const BANCNI_BIC: Record<string, string> = {
-  "NLB": "LJBASI2X",
-  "Nova KBM": "KBMASI2X",
-  "SKB": "SKBASI2X",
-  "Addiko": "HAABSI22",
-  "OTP banka": "OTPVSI2X",
-  "UniCredit Banka": "BACXSI22",
-  "Banka Intesa Sanpaolo": "BISISI22",
-  "BKS banka": "BFKKSI22",
-  "Gorenjska banka": "GBKPSI2X",
-  "Delavska hranilnica": "DELAVSI2X",
-  "Primorska hranilnica": "PHBPSI22"};
-
-function trrSuroviVIban(trrSurovi: string): string {
-  // SI IBAN: "SI" + 2 check digits + 15-digit BBAN
-  // Check digits = 98 - MOD97(BBAN + "281800")  [S=28, I=18, 00]
-  const rearranged = trrSurovi + "281800";
-  const mod = BigInt(rearranged) % 97n;
-  const check = String(98n - mod).padStart(2, "0");
-  return `SI${check}${trrSurovi}`;
-}
-
-function razclenitNaslov(naslov: string): { ulica: string | null; postnaStevilka: string | null; kraj: string | null } {
-  // Format: "ULICA HS, POSTA KRAJ"
-  const idx = naslov.lastIndexOf(", ");
-  if (idx === -1) return { ulica: naslov.trim() || null, postnaStevilka: null, kraj: null };
-  const ulica = naslov.slice(0, idx).trim();
-  const rest = naslov.slice(idx + 2).trim();
-  const spaceIdx = rest.indexOf(" ");
-  if (spaceIdx === -1) return { ulica: ulica || null, postnaStevilka: rest || null, kraj: null };
+/** Preslikava iz skupne tabele counterparties v POS API format. */
+function mapKupec(k: typeof counterpartiesTable.$inferSelect) {
   return {
-    ulica: ulica || null,
-    postnaStevilka: rest.slice(0, spaceIdx),
-    kraj: rest.slice(spaceIdx + 1).trim() || null};
-}
-
-interface InetisRezultat {
-  naziv: string;
-  kratkiNaziv: string | null;
-  naslov: string | null;
-  ulica: string | null;
-  postnaStevilka: string | null;
-  kraj: string | null;
-  zavezanecDdv: boolean | null;
-  davcnaStevilka: string;
-  idZaDdv: string | null;
-  maticnaStevilka: string | null;
-  trr: TrrPostavka[] | null;
-}
-
-function mapKupec(k: typeof shranjeniKupciTable.$inferSelect) {
-  return {
-    id: k.id,
-    naziv: k.naziv,
+    id: k.id,                               // UUID string (ne integer!)
+    naziv: k.name,
     kratkiNaziv: k.kratkiNaziv ?? null,
-    naslov: k.naslov ?? null,
+    naslov: k.address ?? null,
     ulica: k.ulica ?? null,
-    postnaStevilka: k.postnaStevilka ?? null,
-    kraj: k.kraj ?? null,
-    drzava: k.drzava ?? null,
+    postnaStevilka: k.postCode ?? null,
+    kraj: k.city ?? null,
+    drzava: k.country ?? null,
     kodaDrzave: k.kodaDrzave ?? null,
-    zavezanecDdv: k.zavezanecDdv ?? null,
-    davcnaStevilka: k.davcnaStevilka ?? null,
+    zavezanecDdv: k.vatPayer ?? null,
+    davcnaStevilka: k.taxId ?? null,
     idZaDdv: k.idZaDdv ?? null,
-    maticnaStevilka: k.maticnaStevilka ?? null,
+    maticnaStevilka: k.registrationNumber ?? null,
     trr: (k.trr as TrrPostavka[] | null) ?? null,
     vrstaPartnerja: k.vrstaPartnerja ?? null,
     kmgMid: k.kmgMid ?? null,
@@ -109,52 +64,19 @@ function mapKupec(k: typeof shranjeniKupciTable.$inferSelect) {
     eRacunSifraPu: k.eRacunSifraPu ?? null,
     eRacunBic: k.eRacunBic ?? null,
     email: k.email ?? null,
-    telefon: k.telefon ?? null,
+    telefon: k.phone ?? null,
     steviloUpor: k.steviloUpor,
     zadnjaUporaba: k.zadnjaUporaba,
-    ustvarjeno: k.ustvarjeno};
-}
-
-function zaznajVrsto(naziv: string, zavezanecDdv: boolean | null, maticnaStevilka?: string | null): "obcan" | "sp" | "podjetje" | "kmet" | "javni_sektor" | null {
-  // Gospodarske družbe (d.o.o., d.d., k.d., z.o.o., d.n.o., e.s.p., k.d.d., s.k.e.)
-  if (/\bd\.\s*o\.\s*o\.|\bd\.\s*d\.|\bk\.\s*d\.|\bz\.\s*o\.\s*o\.|\bd\.\s*n\.\s*o\.|\be\.\s*s\.\s*p\.|\bk\.\s*d\.\s*d\.|\bs\.\s*k\.\s*e\./i.test(naziv)) {
-    return "podjetje";
-  }
-  // Samostojni podjetnik
-  if (/\bs\.\s*p\.(\s|$|,)/i.test(naziv)) {
-    return "sp";
-  }
-  // Kmetijsko gospodarstvo
-  if (/\bkmetij|\bkmet\b|\bkgz\b/i.test(naziv)) {
-    return "kmet";
-  }
-  // Javni sektor: šole, vrtci, zavodi, občine, ministrstva, sodišča, bolnice, univerze …
-  if (/\bšola\b|\bvrtec\b|\bgimnazija\b|\blicej\b|\buniverzit|\bfakultet|\binštitut\b|\bzavod\b|\bobčina\b|\bministrstvo\b|\bagencija\b|\buprava\b|\bsodišče\b|\bbolnica\b|\bdom\s+zdravja\b|\bzdravstveni\s+dom\b|\bdom\s+starejših\b|\bdom\s+upokojencev\b|\bdom\s+za\b|\bjavni\s+sklad\b|\bsvet\s+zavoda\b|\bkrajevna\s+skupnost\b|\bmestna\s+občina\b/i.test(naziv)) {
-    return "javni_sektor";
-  }
-  // Vsaka entiteta z matično številko je registrirana organizacija — ne fizična oseba
-  if (maticnaStevilka?.trim()) {
-    return "podjetje";
-  }
-  // Fizična oseba = brez pravnoorganizacijske oblike in brez DDV
-  if (!zavezanecDdv) {
-    return "obcan";
-  }
-  return null;
+    ustvarjeno: k.createdAt,
+  };
 }
 
 async function poisciNaBizBox(davcna: string, naziv?: string): Promise<{ registriran: boolean; omrezje: string | null; naslov: string | null } | null> {
-  // bizBox eImenik — javni register prejemnikov e-računov (bizbox.zzi.si/bizBoxIskalnik)
-  // Filter deluje po imenu podjetja; taxid v odgovoru je v formatu SI<8mestna>.
-  // Zahteva Referer od bizbox.eu. Iščemo po nazivu, potrdimo z davčno.
   const cleaned = davcna.replace(/^SI/i, "");
   const siDavcna = `SI${cleaned}`.toUpperCase();
-
-  // Iskalni niz: prvih 3 besede naziva ali SI<davčna> kot fallback
   const iskalniNiz = naziv
     ? naziv.split(/[\s,]+/).filter(Boolean).slice(0, 3).join(" ")
     : siDavcna;
-
   try {
     const r = await fetch(
       `https://bizbox.zzi.si/bizBoxIskalnik?filter=${encodeURIComponent(iskalniNiz)}`,
@@ -164,7 +86,9 @@ async function poisciNaBizBox(davcna: string, naziv?: string): Promise<{ registr
           "Accept": "application/json, */*",
           "User-Agent": "Mozilla/5.0 (compatible; POS/1.0)",
           "Referer": "https://www.bizbox.eu/e-imenik/",
-          "Origin": "https://www.bizbox.eu"}}
+          "Origin": "https://www.bizbox.eu",
+        },
+      }
     );
     if (!r.ok) return null;
     const data = await r.json() as {
@@ -179,358 +103,166 @@ async function poisciNaBizBox(davcna: string, naziv?: string): Promise<{ registr
       };
     };
     const companies = data?.result?.companies ?? [];
-    // Poiščemo točno ujemanje po SI<davčna> — edini zanesljiv identifikator
     const match = companies.find(c => c.taxid?.toUpperCase() === siDavcna);
-    if (!match) {
-      // Točnega ujemanja ni → podjetje ni v bizBox registru
-      return { registriran: false, omrezje: null, naslov: null };
-    }
+    if (!match) return { registriran: false, omrezje: null, naslov: null };
     const registriran = (match.isedirecipient ?? 1) === 1;
     const omrezje = match.provider ?? null;
     const naslov = match.defaultlocation ?? null;
     return { registriran, omrezje, naslov };
   } catch {
-    // Timeout ali napaka omrežja — vrnemo null (ne posodabljamo obstoječe)
     return null;
   }
 }
 
-async function poisciNaInetis(davcna: string): Promise<InetisRezultat | null> {
-  try {
-    const cleaned = davcna.replace(/^SI/i, "");
-    const r = await fetch(
-      `https://ddv.inetis.com/Ajax.aspx?a=isci&niz=${encodeURIComponent(cleaned)}`,
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (!r.ok) return null;
-    const data = await r.json() as {
-      status: string;
-      list: Array<{
-        Naziv?: string;
-        NazivKratek?: string;
-        Naslov?: string;
-        DavcnaStevilka?: string;
-        DavcnaStevilkaKratka?: string;
-        MaticnaStevilka?: string;
-        ZavezanecZaDDV?: boolean;
-        TransakcijskiRacuni?: Array<{ TRRSurovi?: string; Banka?: string; Zaprt?: boolean }>;
-      }> | null;
-    };
-    if (data.status !== "ok" || !data.list?.length) return null;
-    const p = data.list[0]!;
-
-    const rawNaslov = p.Naslov ?? null;
-    const adresni = rawNaslov ? razclenitNaslov(rawNaslov) : { ulica: null, postnaStevilka: null, kraj: null };
-
-    const trrji: TrrPostavka[] = (p.TransakcijskiRacuni ?? [])
-      .filter(t => !t.Zaprt && t.TRRSurovi && /^\d{15}$/.test(t.TRRSurovi))
-      .map(t => ({
-        iban: trrSuroviVIban(t.TRRSurovi!),
-        bic: (t.Banka && BANCNI_BIC[t.Banka]) ? BANCNI_BIC[t.Banka]! : ""}));
-
-    return {
-      naziv: p.Naziv ?? p.NazivKratek ?? "",
-      kratkiNaziv: p.NazivKratek ?? null,
-      naslov: rawNaslov,
-      ulica: adresni.ulica,
-      postnaStevilka: adresni.postnaStevilka,
-      kraj: adresni.kraj,
-      zavezanecDdv: p.ZavezanecZaDDV ?? null,
-      davcnaStevilka: p.DavcnaStevilkaKratka ?? davcna,
-      idZaDdv: p.DavcnaStevilka ?? null,
-      maticnaStevilka: p.MaticnaStevilka ?? null,
-      trr: trrji.length > 0 ? trrji : null};
-  } catch {
-    return null;
-  }
-}
-
+// ── Pogosti (8 najpogosteje izbranih) ───────────────────────────────────────
 router.get("/kupec/pogosti", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const companyId = (req as any).companyId;
   const kupci = await db
     .select()
-    .from(shranjeniKupciTable)
-    .where(and(eq(shranjeniKupciTable.enotaId, tenotaId)))
-    .orderBy(desc(shranjeniKupciTable.steviloUpor), desc(shranjeniKupciTable.zadnjaUporaba))
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true)))
+    .orderBy(desc(counterpartiesTable.steviloUpor), desc(counterpartiesTable.zadnjaUporaba))
     .limit(8);
   res.json(kupci.map(mapKupec));
 });
 
+// ── Celoten šifrant (legacy alias za GET /partnerji) ─────────────────────────
 router.get("/kupec/shranjeni", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
   const kupci = await db
     .select()
-    .from(shranjeniKupciTable)
-    .where(and(eq(shranjeniKupciTable.enotaId, tenotaId)))
-    .orderBy(shranjeniKupciTable.naziv);
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.companyId, ctx.companyId), eq(counterpartiesTable.isActive, true)))
+    .orderBy(counterpartiesTable.name);
   res.json(kupci.map(mapKupec));
 });
 
+// ── Ustvari novega partnerja (legacy alias za POST /partnerji) ───────────────
 router.post("/kupec/shranjeni", async (req, res): Promise<void> => {
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) {
-    const msg = (parsed as any).error.issues[0]?.message ?? "Napačen vnos";
-    res.status(400).json({ napaka: msg });
-    return;
-  }
-  const tenotaId = (req as any).enotaId ?? 1;
-  const d = parsed.data;
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const companyId = ctx.companyId;
+  const d = req.body as any;
   const [kupec] = await db
-    .insert(shranjeniKupciTable)
+    .insert(counterpartiesTable)
     .values({
-      enotaId: tenotaId,
-      naziv: d.naziv,
+      companyId,
+      type: "both",
+      name: d.naziv,
       kratkiNaziv: d.kratkiNaziv ?? null,
-      naslov: d.naslov ?? null,
+      address: d.naslov ?? null,
       ulica: d.ulica ?? null,
-      postnaStevilka: d.postnaStevilka ?? null,
-      kraj: d.kraj ?? null,
-      drzava: d.drzava ?? null,
+      postCode: d.postnaStevilka ?? null,
+      city: d.kraj ?? null,
+      country: d.drzava ?? null,
       kodaDrzave: d.kodaDrzave ?? null,
-      zavezanecDdv: d.zavezanecDdv ?? null,
-      davcnaStevilka: d.davcnaStevilka ?? null,
+      vatPayer: d.zavezanecDdv ?? false,
+      taxId: d.davcnaStevilka ?? null,
       idZaDdv: d.idZaDdv ?? null,
-      maticnaStevilka: d.maticnaStevilka ?? null,
+      registrationNumber: d.maticnaStevilka ?? null,
       trr: d.trr ?? null,
       vrstaPartnerja: d.vrstaPartnerja ?? null,
       kmgMid: d.kmgMid ?? null,
-      eRacunPrejemnik: d.eRacunPrejemnik ?? null,
+      eRacunPrejemnik: d.eRacunPrejemnik ?? false,
       eRacunOmrezje: d.eRacunOmrezje ?? null,
       eRacunNaslov: d.eRacunNaslov ?? null,
       eRacunEmail: d.eRacunEmail ?? null,
       eRacunSifraPu: d.eRacunSifraPu ?? null,
       eRacunBic: d.eRacunBic ?? null,
       email: d.email ?? null,
-      telefon: d.telefon ?? null,
+      phone: d.telefon ?? null,
       steviloUpor: 1,
-      zadnjaUporaba: new Date()})
+      zadnjaUporaba: new Date(),
+    })
     .returning();
   res.status(201).json(mapKupec(kupec!));
 });
 
+// ── Posodobi partnerja (legacy alias za PUT /partnerji/:id) ──────────────────
 router.put("/kupec/shranjeni/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id ?? "");
-  if (isNaN(id)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) {
-    const msg = (parsed as any).error.issues[0]?.message ?? "Napačen vnos";
-    res.status(400).json({ napaka: msg });
-    return;
-  }
-  const tenotaId = (req as any).enotaId ?? 1;
-  const d = parsed.data;
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const companyId = ctx.companyId;
+  const d = req.body as any;
   const [updated] = await db
-    .update(shranjeniKupciTable)
+    .update(counterpartiesTable)
     .set({
-      naziv: d.naziv,
+      name: d.naziv,
       kratkiNaziv: d.kratkiNaziv ?? null,
-      naslov: d.naslov ?? null,
+      address: d.naslov ?? null,
       ulica: d.ulica ?? null,
-      postnaStevilka: d.postnaStevilka ?? null,
-      kraj: d.kraj ?? null,
-      drzava: d.drzava ?? null,
+      postCode: d.postnaStevilka ?? null,
+      city: d.kraj ?? null,
+      country: d.drzava ?? null,
       kodaDrzave: d.kodaDrzave ?? null,
-      zavezanecDdv: d.zavezanecDdv ?? null,
-      davcnaStevilka: d.davcnaStevilka ?? null,
+      vatPayer: d.zavezanecDdv ?? false,
+      taxId: d.davcnaStevilka ?? null,
       idZaDdv: d.idZaDdv ?? null,
-      maticnaStevilka: d.maticnaStevilka ?? null,
+      registrationNumber: d.maticnaStevilka ?? null,
       trr: d.trr ?? null,
       vrstaPartnerja: d.vrstaPartnerja ?? null,
       kmgMid: d.kmgMid ?? null,
-      eRacunPrejemnik: d.eRacunPrejemnik ?? null,
+      eRacunPrejemnik: d.eRacunPrejemnik ?? false,
       eRacunOmrezje: d.eRacunOmrezje ?? null,
       eRacunNaslov: d.eRacunNaslov ?? null,
       eRacunEmail: d.eRacunEmail ?? null,
       eRacunSifraPu: d.eRacunSifraPu ?? null,
       eRacunBic: d.eRacunBic ?? null,
       email: d.email ?? null,
-      telefon: d.telefon ?? null})
+      phone: d.telefon ?? null,
+    })
     .where(and(
-      eq(shranjeniKupciTable.id, id),
-      sql`true`,
-      eq(shranjeniKupciTable.enotaId, tenotaId),
+      eq(counterpartiesTable.id, id),
+      eq(counterpartiesTable.companyId, companyId),
     ))
     .returning();
   if (!updated) { res.status(404).json({ napaka: "Kupec ni najden" }); return; }
   res.json(mapKupec(updated));
 });
 
+// ── Izbriši partnerja (legacy alias za DELETE /partnerji/:id) ────────────────
 router.delete("/kupec/shranjeni/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id ?? "");
-  if (isNaN(id)) {
-    res.status(400).json({ napaka: "Neveljaven ID" });
-    return;
-  }
-  const tenotaId = (req as any).enotaId ?? 1;
-  const [deleted] = await db
-    .delete(shranjeniKupciTable)
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const companyId = ctx.companyId;
+
+  const [obstojecKupec] = await db
+    .select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
     .where(and(
-      eq(shranjeniKupciTable.id, id),
-      sql`true`,
-      eq(shranjeniKupciTable.enotaId, tenotaId),
+      eq(counterpartiesTable.id, id),
+      eq(counterpartiesTable.companyId, companyId),
     ))
-    .returning();
-  if (!deleted) {
-    res.status(404).json({ napaka: "Kupec ni najden" });
+    .limit(1);
+  if (!obstojecKupec) {
+    res.status(404).json({ napaka: "Partner ni najden" });
     return;
   }
+
+  // artikel_dobavitelj in uvoz_profil imata FK CASCADE/SET NULL → brisanje counterparties je varno
+  await db
+    .update(counterpartiesTable)
+    .set({ isActive: false })
+    .where(eq(counterpartiesTable.id, id));
+
   res.status(204).end();
 });
 
+// ── Osveži podatke iz javnih registrov (legacy alias za POST /partnerji/:id/osvezi) ──
 router.post("/kupec/shranjeni/:id/osvezi", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id ?? "");
-  if (isNaN(id)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
-  const tenotaId = (req as any).enotaId ?? 1;
-
-  const [obstojecKupec] = await db
-    .select()
-    .from(shranjeniKupciTable)
-    .where(and(
-      eq(shranjeniKupciTable.id, id),
-      sql`true`,
-      eq(shranjeniKupciTable.enotaId, tenotaId),
-    ))
-    .limit(1);
-
-  if (!obstojecKupec) { res.status(404).json({ napaka: "Kupec ni najden" }); return; }
-
-  const davcna = obstojecKupec.davcnaStevilka?.trim();
-  const idZaDdv = obstojecKupec.idZaDdv?.trim();
-  const jeTuji = !davcna || !/^\d{8}$/.test(davcna);
-
-  // ── Tuji partner (EU VAT ID, ne SI davčna) → osveži prek VIES ─────────────
-  if (jeTuji) {
-    if (!idZaDdv || !/^[A-Z]{2}.+$/i.test(idZaDdv)) {
-      res.status(400).json({ napaka: "Partner nima EU VAT ID — osveževanje ni mogoče." });
-      return;
-    }
-    const vies = await preveriVies(idZaDdv);
-    if (!vies) {
-      res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje.", kodaNapake: "VIES_NEDOSEGLJIV" });
-      return;
-    }
-
-    const kodaDrzave = obstojecKupec.kodaDrzave ?? vies.kodaDrzave;
-    const imaPodatke = !!(vies.naziv || vies.ulica || vies.postnaStevilka || vies.kraj);
-
-    // VIES ni potrdil in nima koristnih podatkov (npr. DE pogosto vrne isValid=false + vse ---)
-    if (!vies.veljaven && !imaPodatke) {
-      const drzavaNaziv = vies.drzavaNaziv ?? drzavaIzKode(kodaDrzave) ?? kodaDrzave;
-      res.status(422).json({
-        napaka: `VIES ne vrača podatkov za ${drzavaNaziv}. Dopolnite podatke ročno.`,
-        kodaNapake: "VIES_NO_DATA",
-      });
-      return;
-    }
-
-    const [posodobljen] = await db
-      .update(shranjeniKupciTable)
-      .set({
-        ...(vies.naziv ? { naziv: vies.naziv } : {}),
-        ...(vies.ulica ? { ulica: vies.ulica } : {}),
-        ...(vies.postnaStevilka ? { postnaStevilka: vies.postnaStevilka } : {}),
-        ...(vies.kraj ? { kraj: vies.kraj } : {}),
-        drzava: obstojecKupec.drzava || vies.drzavaNaziv || drzavaIzKode(kodaDrzave),
-        kodaDrzave: kodaDrzave,
-        zavezanecDdv: vies.veljaven ? true : (obstojecKupec.zavezanecDdv ?? null),
-      })
-      .where(and(
-        eq(shranjeniKupciTable.id, id),
-        eq(shranjeniKupciTable.enotaId, tenotaId),
-      ))
-      .returning();
-    res.json(mapKupec(posodobljen!));
-    return;
-  }
-
-  // ── Domači partner (SI davčna) → AJPES / INETIS / BizBox / UJP ───────────
-  // INETIS najprej (dobi naziv), nato vzporedno BizBox + UJP + AJPES
-  const svezi = await poisciNaInetis(davcna);
-
-  if (!svezi) {
-    res.status(404).json({ napaka: `Podatkov za davčno ${davcna} v registru AJPES/INETIS ni bilo mogoče najti.` });
-    return;
-  }
-
-  const maticnaZaUjp = normalizeMaticnaZaUjp(svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka);
-  const [eReg, ujpVnosi, ajpesSub] = await Promise.all([
-    poisciNaBizBox(davcna, svezi.naziv),
-    poisciVUjp(davcna, maticnaZaUjp),
-    poisciVAjpes(svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka),
-  ]);
-
-  // UJP ima prednost pred BizBox za javni sektor
-  const jeVUjp = ujpVnosi.length > 0;
-  const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
-  const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? obstojecKupec.eRacunOmrezje ?? null);
-  // trrSt iz UJP je 15-mestna surova TRR — pretvorimo v SI IBAN za shranjevanje
-  const eRacunNaslov = jeVUjp
-    ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
-    : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
-  const eRacunSifraPu = jeVUjp ? (ujpVnosi[0]!.sifraPu || null) : obstojecKupec.eRacunSifraPu ?? null;
-  // BIC BSLJSI2X velja za UJP podračune, ki se začnejo z SI5601 (Banka Slovenije, šifra banke 01)
-  const ujpIban = jeVUjp ? ujpTrrVIban(ujpVnosi[0]!.trrSt) : null;
-  const eRacunBic = (jeVUjp && ujpIban?.replace(/\s/g, "").toUpperCase().startsWith("SI5601"))
-    ? "BSLJSI2X"
-    : (obstojecKupec.eRacunBic ?? null);
-
-  const surowiTrr = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
-  // SI5601 podračuni gredo vedno skozi Banko Slovenije → BIC je vedno BSLJSI2X
-  const trrji = surowiTrr
-    ? (surowiTrr as Array<{ iban: string; bic: string }>).map(t =>
-        t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
-          ? { ...t, bic: "BSLJSI2X" }
-          : t)
-    : surowiTrr;
-  const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
-
-  // Sestavi posodobitev za e-račun polja:
-  // - Če UJP najden: vedno prepiši (UJP je avtoritativen vir)
-  // - Če BizBox odgovori: posodobi
-  // - Sicer: ohrani obstoječe
-  const eRacunPosodobitev =
-    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu, eRacunBic }
-    : eReg !== null ? {
-        eRacunPrejemnik: eReg.registriran,
-        eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
-        ...(eReg.naslov ? { eRacunNaslov: eReg.naslov } : {})}
-    : {};
-
-  // AJPES: zapolni email in spletno stran, če ni že vnešeno
-  const ajpesEmail = (ajpesSub?.email && !obstojecKupec.email) ? ajpesSub.email : undefined;
-  const ajpesWww = (ajpesSub?.www && !obstojecKupec.email) ? ajpesSub.www : undefined;
-
-  const [posodobljen] = await db
-    .update(shranjeniKupciTable)
-    .set({
-      naziv: svezi.naziv || obstojecKupec.naziv,
-      kratkiNaziv: svezi.kratkiNaziv ?? obstojecKupec.kratkiNaziv,
-      naslov: svezi.naslov ?? obstojecKupec.naslov,
-      ulica: svezi.ulica ?? obstojecKupec.ulica,
-      postnaStevilka: svezi.postnaStevilka ?? obstojecKupec.postnaStevilka,
-      kraj: svezi.kraj ?? obstojecKupec.kraj,
-      drzava: obstojecKupec.drzava || "Slovenija",
-      kodaDrzave: obstojecKupec.kodaDrzave || "SI",
-      zavezanecDdv: svezi.zavezanecDdv ?? obstojecKupec.zavezanecDdv,
-      idZaDdv: svezi.idZaDdv ?? obstojecKupec.idZaDdv,
-      maticnaStevilka: svezi.maticnaStevilka ?? obstojecKupec.maticnaStevilka,
-      trr: trrji,
-      ...(novaVrsta !== null ? { vrstaPartnerja: novaVrsta } : {}),
-      ...(ajpesEmail ? { email: ajpesEmail } : {}),
-      ...(ajpesWww ? { telefon: ajpesWww } : {}),
-      ...eRacunPosodobitev,
-    })
-    .where(and(
-      eq(shranjeniKupciTable.id, id),
-      sql`true`,
-      eq(shranjeniKupciTable.enotaId, tenotaId),
-    ))
-    .returning();
-
-  res.json(mapKupec(posodobljen!));
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  await osveziPartnerjaPodLogiko(id, ctx.companyId, req, res);
 });
 
-// ── GET /kupec/poisci-vies — išči tujega partnerja po EU VAT ID ──────────────
+// ── Iskanje po EU VAT ID (tuji partnerji) ───────────────────────────────────
 router.get("/kupec/poisci-vies", async (req, res): Promise<void> => {
   const vatId = typeof req.query.vatId === "string"
     ? req.query.vatId.trim().toUpperCase().replace(/\s/g, "")
@@ -539,21 +271,21 @@ router.get("/kupec/poisci-vies", async (req, res): Promise<void> => {
     res.status(400).json({ napaka: "Neveljaven EU VAT ID (npr. DE195033395)" });
     return;
   }
-  const tenotaId = (req as any).enotaId ?? 1;
+  const companyId = (req as any).companyId;
   const kodaDrzave = vatId.slice(0, 2);
 
-  // 1. Že v šifrantu?
+  // Že v šifrantu?
   const [obstojecKupec] = await db
     .select()
-    .from(shranjeniKupciTable)
+    .from(counterpartiesTable)
     .where(and(
-      eq(shranjeniKupciTable.enotaId, tenotaId),
-      eq(shranjeniKupciTable.idZaDdv, vatId),
+      eq(counterpartiesTable.companyId, companyId),
+      eq(counterpartiesTable.idZaDdv, vatId),
+      eq(counterpartiesTable.isActive, true),
     ))
     .limit(1);
   if (obstojecKupec) { res.json(mapKupec(obstojecKupec)); return; }
 
-  // 2. VIES lookup
   const vies = await preveriVies(vatId);
   if (!vies) { res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje." }); return; }
 
@@ -563,32 +295,30 @@ router.get("/kupec/poisci-vies", async (req, res): Promise<void> => {
   const postnaStevilka = vies.postnaStevilka && vies.postnaStevilka !== "---" ? vies.postnaStevilka : null;
   const kraj = vies.kraj && vies.kraj !== "---" ? vies.kraj : null;
 
-  // 3. VIES vrnil naziv → samodejno shrani
   if (vies.veljaven && naziv) {
     try {
-      const [nov] = await db.insert(shranjeniKupciTable).values({
-        enotaId: tenotaId,
-        naziv,
+      const [nov] = await db.insert(counterpartiesTable).values({
+        companyId,
+        type: "customer",
+        name: naziv,
         idZaDdv: vatId,
         kodaDrzave,
-        drzava: drzavaNaziv,
+        country: drzavaNaziv,
         ulica,
-        postnaStevilka,
-        kraj,
-        zavezanecDdv: true,
-        vrstaPartnerja: "podjetje" as any,
-      }).returning({ id: shranjeniKupciTable.id });
-      const [saved] = await db.select().from(shranjeniKupciTable)
-        .where(eq(shranjeniKupciTable.id, nov!.id)).limit(1);
-      res.json(mapKupec(saved!));
+        address: ulica,
+        postCode: postnaStevilka,
+        city: kraj,
+        vatPayer: true,
+        vrstaPartnerja: "podjetje",
+      }).returning();
+      res.json(mapKupec(nov!));
       return;
     } catch { /* spodleti → vrni brez id */ }
   }
-
-  // 4. Brez VIES podatkov (npr. DE) → vrni metapodatke za ročen vnos
   res.json({ naziv, idZaDdv: vatId, kodaDrzave, drzava: drzavaNaziv, zavezanecDdv: vies.veljaven ?? null, ulica, postnaStevilka, kraj });
 });
 
+// ── Iskanje po davčni (slovensko podjetje) ───────────────────────────────────
 router.get("/kupec/poisci", async (req, res): Promise<void> => {
   const davcna = typeof req.query.davcna === "string" ? req.query.davcna.trim() : "";
   if (!/^\d{8}$/.test(davcna)) {
@@ -602,60 +332,52 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
     return;
   }
 
-  // Vzporedno preverimo bizBox eImenik + UJP + AJPES
   const [eReg, ujpVnosi, ajpesSub] = await Promise.all([
     poisciNaBizBox(davcna, r.naziv),
     poisciVUjp(davcna, normalizeMaticnaZaUjp(r.maticnaStevilka)),
     poisciVAjpes(r.maticnaStevilka),
   ]);
 
-  // UJP ima prednost pred BizBox za javni sektor — trrSt pretvorimo v SI IBAN
   const jeVUjp = ujpVnosi.length > 0;
   const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
   const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? null);
-  const eRacunNaslov = jeVUjp
-    ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
-    : (eReg?.naslov ?? null);
+  const eRacunNaslov = jeVUjp ? ujpTrrVIban(ujpVnosi[0]!.trrSt) : (eReg?.naslov ?? null);
 
-  // Avtomatsko shrani / posodobi v shranjeni_kupci z vsemi INETIS podatki
-  const tenotaId = (req as any).enotaId ?? 1;
-  let shranjeniId: number | null = null;
+  const companyId = (req as any).companyId;
+  let shranjeniId: string | null = null;
   if (r) {
     try {
       const [existing] = await db
-        .select({ id: shranjeniKupciTable.id })
-        .from(shranjeniKupciTable)
-        .where(and(eq(shranjeniKupciTable.enotaId, tenotaId),
-          eq(shranjeniKupciTable.davcnaStevilka, r.davcnaStevilka),
+        .select({ id: counterpartiesTable.id })
+        .from(counterpartiesTable)
+        .where(and(
+          eq(counterpartiesTable.companyId, companyId),
+          eq(counterpartiesTable.taxId, r.davcnaStevilka),
         ))
         .limit(1);
 
       const vrstaIzPoisci = zaznajVrsto(r.naziv, r.zavezanecDdv, r.maticnaStevilka);
-
-      // SI5601 podračuni gredo vedno skozi Banko Slovenije → BIC vedno BSLJSI2X
       const trr_popravljeni = r.trr
         ? (r.trr as Array<{ iban: string; bic: string }>).map(t =>
             t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
               ? { ...t, bic: "BSLJSI2X" } : t)
         : r.trr;
-
-      // AJPES: zapolni email, če je na voljo in kupec ga še nima
       const ajpesEmailPoisci = ajpesSub?.email || null;
 
       if (existing) {
         shranjeniId = existing.id;
-        await db.update(shranjeniKupciTable).set({
-          naziv: r.naziv,
+        await db.update(counterpartiesTable).set({
+          name: r.naziv,
           kratkiNaziv: r.kratkiNaziv,
-          naslov: r.naslov,
+          address: r.naslov,
           ulica: r.ulica,
-          postnaStevilka: r.postnaStevilka,
-          kraj: r.kraj,
-          drzava: "Slovenija",
+          postCode: r.postnaStevilka,
+          city: r.kraj,
+          country: "Slovenija",
           kodaDrzave: "SI",
-          zavezanecDdv: r.zavezanecDdv,
+          vatPayer: r.zavezanecDdv ?? false,
           idZaDdv: r.idZaDdv,
-          maticnaStevilka: r.maticnaStevilka,
+          registrationNumber: r.maticnaStevilka,
           trr: trr_popravljeni,
           zadnjaUporaba: new Date(),
           ...(ajpesEmailPoisci ? { email: ajpesEmailPoisci } : {}),
@@ -665,22 +387,25 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
             eRacunOmrezje,
             ...(eRacunNaslov ? { eRacunNaslov } : {}),
             ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {}),
-            ...(jeVUjp ? { eRacunBic: "BSLJSI2X" } : {})} : {})}).where(eq(shranjeniKupciTable.id, existing.id));
+            ...(jeVUjp ? { eRacunBic: "BSLJSI2X" } : {}),
+          } : {}),
+        }).where(eq(counterpartiesTable.id, existing.id));
       } else {
-        const [inserted] = await db.insert(shranjeniKupciTable).values({
-          enotaId: tenotaId,
-          naziv: r.naziv,
+        const [inserted] = await db.insert(counterpartiesTable).values({
+          companyId,
+          type: "both",
+          name: r.naziv,
           kratkiNaziv: r.kratkiNaziv,
-          naslov: r.naslov,
+          address: r.naslov,
           ulica: r.ulica,
-          postnaStevilka: r.postnaStevilka,
-          kraj: r.kraj,
-          drzava: "Slovenija",
+          postCode: r.postnaStevilka,
+          city: r.kraj,
+          country: "Slovenija",
           kodaDrzave: "SI",
-          zavezanecDdv: r.zavezanecDdv,
-          davcnaStevilka: r.davcnaStevilka,
+          vatPayer: r.zavezanecDdv ?? false,
+          taxId: r.davcnaStevilka,
           idZaDdv: r.idZaDdv,
-          maticnaStevilka: r.maticnaStevilka,
+          registrationNumber: r.maticnaStevilka,
           trr: trr_popravljeni,
           email: ajpesEmailPoisci,
           steviloUpor: 0,
@@ -691,7 +416,9 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
             eRacunOmrezje,
             ...(eRacunNaslov ? { eRacunNaslov } : {}),
             ...(jeVUjp && ujpVnosi[0]!.sifraPu ? { eRacunSifraPu: ujpVnosi[0]!.sifraPu } : {}),
-            ...(jeVUjp ? { eRacunBic: "BSLJSI2X" } : {})} : {})}).returning({ id: shranjeniKupciTable.id });
+            ...(jeVUjp ? { eRacunBic: "BSLJSI2X" } : {}),
+          } : {}),
+        }).returning({ id: counterpartiesTable.id });
         shranjeniId = inserted?.id ?? null;
       }
     } catch {
@@ -713,56 +440,90 @@ router.get("/kupec/poisci", async (req, res): Promise<void> => {
   });
 });
 
+// ── Iskanje po nazivu (Inetis) ───────────────────────────────────────────────
+router.get("/kupec/poisci-naziv", async (req, res): Promise<void> => {
+  const niz = typeof req.query.niz === "string" ? req.query.niz.trim() : "";
+  if (niz.length < 3) {
+    res.status(400).json({ napaka: "Iskalni niz mora imeti vsaj 3 znake." });
+    return;
+  }
+  try {
+    const zadetki = await poisciVInetisNiz(niz);
+    if (zadetki.length === 0) {
+      res.status(404).json({ napaka: "Podjetja po iskalnem nizu ni v Inetis registru." });
+      return;
+    }
+    if (zadetki.length === 1) { res.json(zadetki[0]); return; }
+    res.json({ vecZadetkov: true, zadetki });
+  } catch {
+    res.status(502).json({ napaka: "Napaka pri iskanju prek Inetis registra." });
+  }
+});
+
+/**
+ * Upsert "pogost kupec" ob potrditvi računa.
+ * Sedaj dela na ravni podjetja (companyId) — skupen šifrant za vse enote.
+ */
 export async function upsertPogostKupec(opts: {
-  enotaId: number;
+  companyId: string;
   naziv: string;
   naslov: string | null;
   davcnaStevilka: string | null;
 }): Promise<void> {
-  const { enotaId, naziv, naslov, davcnaStevilka } = opts;
+  const { companyId, naziv, naslov, davcnaStevilka } = opts;
 
   const whereClause = davcnaStevilka
-    ? and(eq(shranjeniKupciTable.enotaId, enotaId),
-        eq(shranjeniKupciTable.davcnaStevilka, davcnaStevilka),
+    ? and(
+        eq(counterpartiesTable.companyId, companyId),
+        eq(counterpartiesTable.taxId, davcnaStevilka),
       )
-    : and(eq(shranjeniKupciTable.enotaId, enotaId),
-        sql`lower(${shranjeniKupciTable.naziv}) = lower(${naziv})`,
+    : and(
+        eq(counterpartiesTable.companyId, companyId),
+        sql`lower(${counterpartiesTable.name}) = lower(${naziv})`,
       );
 
   const [existing] = await db
-    .select({ id: shranjeniKupciTable.id })
-    .from(shranjeniKupciTable)
+    .select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
     .where(whereClause)
     .limit(1);
 
   if (existing) {
     await db
-      .update(shranjeniKupciTable)
+      .update(counterpartiesTable)
       .set({
-        steviloUpor: sql`${shranjeniKupciTable.steviloUpor} + 1`,
+        steviloUpor: sql`${counterpartiesTable.steviloUpor} + 1`,
         zadnjaUporaba: new Date(),
-        naziv,
-        ...(naslov !== undefined && { naslov })})
-      .where(eq(shranjeniKupciTable.id, existing.id));
+        name: naziv,
+        ...(naslov !== undefined && { address: naslov }),
+      })
+      .where(eq(counterpartiesTable.id, existing.id));
   } else {
-    await db.insert(shranjeniKupciTable).values({
-      enotaId,
-      naziv,
-      naslov,
-      davcnaStevilka,
+    await db.insert(counterpartiesTable).values({
+      companyId,
+      type: "both",
+      name: naziv,
+      address: naslov,
+      taxId: davcnaStevilka,
       steviloUpor: 1,
-      zadnjaUporaba: new Date()});
+      zadnjaUporaba: new Date(),
+    });
   }
 }
 
-// ─── Partner cenik ───────────────────────────────────────────────────────────
+// ─── Partner cenik ────────────────────────────────────────────────────────────
 
+// Legacy alias za GET /partnerji/:id/cenik
 router.get("/kupec/shranjeni/:id/cenik", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id ?? "");
-  if (isNaN(id)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const companyId = ctx.companyId;
 
-  const [kupec] = await db.select({ id: shranjeniKupciTable.id }).from(shranjeniKupciTable)
-    .where(and(eq(shranjeniKupciTable.id, id)))
+  const [kupec] = await db.select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, companyId)))
     .limit(1);
   if (!kupec) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
 
@@ -774,11 +535,16 @@ router.get("/kupec/shranjeni/:id/cenik", async (req, res): Promise<void> => {
       kategorijaIme: kategorijeTable.ime,
       originalCena: artikliTable.cena,
       cena: partnerCenikiTable.cena,
-      davek: artikliTable.davek})
+      davek: artikliTable.davek,
+    })
     .from(partnerCenikiTable)
     .innerJoin(artikliTable, eq(partnerCenikiTable.artikelId, artikliTable.id))
+    .innerJoin(enoteTable, eq(artikliTable.enotaId, enoteTable.id))
     .leftJoin(kategorijeTable, eq(artikliTable.kategorijaId, kategorijeTable.id))
-    .where(eq(partnerCenikiTable.kupecId, id))
+    .where(and(
+      eq(partnerCenikiTable.kupecId, id),
+      eq(enoteTable.companyId, ctx.companyId),
+    ))
     .orderBy(artikliTable.ime);
 
   res.json(vrstice.map(v => ({
@@ -788,38 +554,55 @@ router.get("/kupec/shranjeni/:id/cenik", async (req, res): Promise<void> => {
     kategorijaIme: v.kategorijaIme ?? null,
     originalCena: Number(v.originalCena),
     cena: Number(v.cena),
-    davek: Number(v.davek)})));
+    davek: Number(v.davek),
+  })));
 });
 
+// Legacy alias za PUT /partnerji/:id/cenik/:artikelId
 router.put("/kupec/shranjeni/:id/cenik/:artikelId", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id ?? "");
+  const id = req.params.id ?? "";
   const artikelId = parseInt(req.params.artikelId ?? "");
-  if (isNaN(id) || isNaN(artikelId)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
-  const tenotaId = (req as any).enotaId ?? 1;
+  if (!id || isNaN(artikelId)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const companyId = ctx.companyId;
+  const enotaId = (req as any).enotaId;
   const cena = Number(req.body?.cena);
-  if (!isFinite(cena) || cena < 0) { res.status(400).json({ napaka: "Cena mora biti nenegativen número" }); return; }
+  if (!isFinite(cena) || cena < 0) { res.status(400).json({ napaka: "Cena mora biti nenegativno število" }); return; }
 
-  const [kupec] = await db.select({ id: shranjeniKupciTable.id }).from(shranjeniKupciTable)
-    .where(and(eq(shranjeniKupciTable.id, id)))
+  const [kupec] = await db.select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, companyId)))
     .limit(1);
   if (!kupec) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
 
-  const [artikel] = await db.select({ id: artikliTable.id, ime: artikliTable.ime, cena: artikliTable.cena, davek: artikliTable.davek, kategorijaId: artikliTable.kategorijaId })
+  const [artikel] = await db.select({
+    id: artikliTable.id, ime: artikliTable.ime,
+    cena: artikliTable.cena, davek: artikliTable.davek,
+    kategorijaId: artikliTable.kategorijaId,
+  })
     .from(artikliTable)
-    .where(and(eq(artikliTable.id, artikelId)))
+    .innerJoin(enoteTable, eq(artikliTable.enotaId, enoteTable.id))
+    .where(and(
+      eq(artikliTable.id, artikelId),
+      eq(enoteTable.companyId, ctx.companyId),
+    ))
     .limit(1);
   if (!artikel) { res.status(404).json({ napaka: "Artikel ni najden" }); return; }
 
   await db.insert(partnerCenikiTable).values({
-    enotaId: tenotaId,
+    enotaId,
     kupecId: id,
     artikelId,
-    cena: String(cena)}).onConflictDoUpdate({
+    cena: String(cena),
+  }).onConflictDoUpdate({
     target: [partnerCenikiTable.kupecId, partnerCenikiTable.artikelId],
-    set: { cena: String(cena) }});
+    set: { cena: String(cena) },
+  });
 
   const [kat] = artikel.kategorijaId
-    ? await db.select({ ime: kategorijeTable.ime }).from(kategorijeTable).where(eq(kategorijeTable.id, artikel.kategorijaId)).limit(1)
+    ? await db.select({ ime: kategorijeTable.ime }).from(kategorijeTable)
+        .where(eq(kategorijeTable.id, artikel.kategorijaId)).limit(1)
     : [];
 
   res.json({
@@ -829,18 +612,315 @@ router.put("/kupec/shranjeni/:id/cenik/:artikelId", async (req, res): Promise<vo
     kategorijaIme: kat?.ime ?? null,
     originalCena: Number(artikel.cena),
     cena,
-    davek: Number(artikel.davek)});
+    davek: Number(artikel.davek),
+  });
 });
 
+// Legacy alias za DELETE /partnerji/:id/cenik/:artikelId
 router.delete("/kupec/shranjeni/:id/cenik/:artikelId", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id ?? "");
+  const id = req.params.id ?? "";
   const artikelId = parseInt(req.params.artikelId ?? "");
-  if (isNaN(id) || isNaN(artikelId)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  if (!id || isNaN(artikelId)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const companyId = ctx.companyId;
 
-  const [kupec] = await db.select({ id: shranjeniKupciTable.id }).from(shranjeniKupciTable)
-    .where(and(eq(shranjeniKupciTable.id, id)))
+  const [kupec] = await db.select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, companyId)))
     .limit(1);
   if (!kupec) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
+
+  const [artikel] = await db.select({ id: artikliTable.id })
+    .from(artikliTable)
+    .innerJoin(enoteTable, eq(artikliTable.enotaId, enoteTable.id))
+    .where(and(
+      eq(artikliTable.id, artikelId),
+      eq(enoteTable.companyId, ctx.companyId),
+    ))
+    .limit(1);
+  if (!artikel) { res.status(404).json({ napaka: "Artikel ni najden" }); return; }
+
+  await db.delete(partnerCenikiTable)
+    .where(and(eq(partnerCenikiTable.kupecId, id), eq(partnerCenikiTable.artikelId, artikelId)));
+
+  res.status(204).send();
+});
+
+// ─── Canonical /api/partnerji/* rute (z resolveSifrantAccess) ────────────────
+//
+// Stare /kupec/shranjeni poti ostanejo kot backward-compatible aliasi.
+// Novo POS ime je "partnerji"; resolver dovoljuje vse POS vloge (vrne accountant).
+
+/** Skupna middleware funkcija za preverjanje dostopa prek resolveSifrantAccess. */
+async function requirePartnerjiAccess(req: Request, res: Response): Promise<{ companyId: string; clerkUserId: string } | null> {
+  const clerkUserId = (req as PosRequest).clerkUserId;
+  const companyId = (req as PosRequest).companyId;
+  if (!clerkUserId || !companyId) {
+    res.status(401).json({ error: "Prijava je obvezna" });
+    return null;
+  }
+  const access = await resolveSifrantAccess(clerkUserId, companyId, "partnerji", res);
+  if (!access) return null; // resolveSifrantAccess je že poslal 403
+  return { companyId, clerkUserId };
+}
+
+// GET /partnerji — seznam aktivnih partnerjev
+router.get("/partnerji", async (req, res): Promise<void> => {
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const kupci = await db
+    .select()
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.companyId, ctx.companyId), eq(counterpartiesTable.isActive, true)))
+    .orderBy(counterpartiesTable.name);
+  res.json(kupci.map(mapKupec));
+});
+
+// POST /partnerji — ustvari novega partnerja
+router.post("/partnerji", async (req, res): Promise<void> => {
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const d = req.body as any;
+  const [kupec] = await db
+    .insert(counterpartiesTable)
+    .values({
+      companyId: ctx.companyId,
+      type: "both",
+      name: d.naziv,
+      kratkiNaziv: d.kratkiNaziv ?? null,
+      address: d.naslov ?? null,
+      ulica: d.ulica ?? null,
+      postCode: d.postnaStevilka ?? null,
+      city: d.kraj ?? null,
+      country: d.drzava ?? null,
+      kodaDrzave: d.kodaDrzave ?? null,
+      vatPayer: d.zavezanecDdv ?? false,
+      taxId: d.davcnaStevilka ?? null,
+      idZaDdv: d.idZaDdv ?? null,
+      registrationNumber: d.maticnaStevilka ?? null,
+      trr: d.trr ?? null,
+      vrstaPartnerja: d.vrstaPartnerja ?? null,
+      kmgMid: d.kmgMid ?? null,
+      eRacunPrejemnik: d.eRacunPrejemnik ?? false,
+      eRacunOmrezje: d.eRacunOmrezje ?? null,
+      eRacunNaslov: d.eRacunNaslov ?? null,
+      eRacunEmail: d.eRacunEmail ?? null,
+      eRacunSifraPu: d.eRacunSifraPu ?? null,
+      eRacunBic: d.eRacunBic ?? null,
+      email: d.email ?? null,
+      phone: d.telefon ?? null,
+      steviloUpor: 1,
+      zadnjaUporaba: new Date(),
+    })
+    .returning();
+  res.status(201).json(mapKupec(kupec!));
+});
+
+// PUT /partnerji/:id — posodobi partnerja
+router.put("/partnerji/:id", async (req, res): Promise<void> => {
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const d = req.body as any;
+  const [updated] = await db
+    .update(counterpartiesTable)
+    .set({
+      name: d.naziv,
+      kratkiNaziv: d.kratkiNaziv ?? null,
+      address: d.naslov ?? null,
+      ulica: d.ulica ?? null,
+      postCode: d.postnaStevilka ?? null,
+      city: d.kraj ?? null,
+      country: d.drzava ?? null,
+      kodaDrzave: d.kodaDrzave ?? null,
+      vatPayer: d.zavezanecDdv ?? false,
+      taxId: d.davcnaStevilka ?? null,
+      idZaDdv: d.idZaDdv ?? null,
+      registrationNumber: d.maticnaStevilka ?? null,
+      trr: d.trr ?? null,
+      vrstaPartnerja: d.vrstaPartnerja ?? null,
+      kmgMid: d.kmgMid ?? null,
+      eRacunPrejemnik: d.eRacunPrejemnik ?? false,
+      eRacunOmrezje: d.eRacunOmrezje ?? null,
+      eRacunNaslov: d.eRacunNaslov ?? null,
+      eRacunEmail: d.eRacunEmail ?? null,
+      eRacunSifraPu: d.eRacunSifraPu ?? null,
+      eRacunBic: d.eRacunBic ?? null,
+      email: d.email ?? null,
+      phone: d.telefon ?? null,
+    })
+    .where(and(
+      eq(counterpartiesTable.id, id),
+      eq(counterpartiesTable.companyId, ctx.companyId),
+    ))
+    .returning();
+  if (!updated) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
+  res.json(mapKupec(updated));
+});
+
+// DELETE /partnerji/:id — soft-delete partnerja
+router.delete("/partnerji/:id", async (req, res): Promise<void> => {
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+
+  const [obstojecKupec] = await db
+    .select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(
+      eq(counterpartiesTable.id, id),
+      eq(counterpartiesTable.companyId, ctx.companyId),
+    ))
+    .limit(1);
+  if (!obstojecKupec) {
+    res.status(404).json({ napaka: "Partner ni najden" });
+    return;
+  }
+
+  await db
+    .update(counterpartiesTable)
+    .set({ isActive: false })
+    .where(eq(counterpartiesTable.id, id));
+
+  res.status(204).end();
+});
+
+// POST /partnerji/:id/osvezi — osveži iz registrov (deljena logika s staro potjo)
+router.post("/partnerji/:id/osvezi", async (req, res): Promise<void> => {
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  await osveziPartnerjaPodLogiko(id, ctx.companyId, req, res);
+});
+
+// GET /partnerji/:id/cenik
+router.get("/partnerji/:id/cenik", async (req, res): Promise<void> => {
+  const id = req.params.id ?? "";
+  if (!id) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+
+  const [kupec] = await db.select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, ctx.companyId)))
+    .limit(1);
+  if (!kupec) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
+
+  const vrstice = await db
+    .select({
+      artikelId: partnerCenikiTable.artikelId,
+      artikelIme: artikliTable.ime,
+      kategorijaId: artikliTable.kategorijaId,
+      kategorijaIme: kategorijeTable.ime,
+      originalCena: artikliTable.cena,
+      cena: partnerCenikiTable.cena,
+      davek: artikliTable.davek,
+    })
+    .from(partnerCenikiTable)
+    .innerJoin(artikliTable, eq(partnerCenikiTable.artikelId, artikliTable.id))
+    .innerJoin(enoteTable, eq(artikliTable.enotaId, enoteTable.id))
+    .leftJoin(kategorijeTable, eq(artikliTable.kategorijaId, kategorijeTable.id))
+    .where(and(
+      eq(partnerCenikiTable.kupecId, id),
+      eq(enoteTable.companyId, ctx.companyId),
+    ))
+    .orderBy(artikliTable.ime);
+
+  res.json(vrstice.map(v => ({
+    artikelId: v.artikelId,
+    artikelIme: v.artikelIme,
+    kategorijaId: v.kategorijaId ?? null,
+    kategorijaIme: v.kategorijaIme ?? null,
+    originalCena: Number(v.originalCena),
+    cena: Number(v.cena),
+    davek: Number(v.davek),
+  })));
+});
+
+// PUT /partnerji/:id/cenik/:artikelId — upsert postavke cenika
+router.put("/partnerji/:id/cenik/:artikelId", async (req, res): Promise<void> => {
+  const id = req.params.id ?? "";
+  const artikelId = parseInt(req.params.artikelId ?? "");
+  if (!id || isNaN(artikelId)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+  const enotaId = (req as any).enotaId;
+  const cena = Number(req.body?.cena);
+  if (!isFinite(cena) || cena < 0) { res.status(400).json({ napaka: "Cena mora biti nenegativno število" }); return; }
+
+  const [kupec] = await db.select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, ctx.companyId)))
+    .limit(1);
+  if (!kupec) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
+
+  const [artikel] = await db.select({
+    id: artikliTable.id, ime: artikliTable.ime,
+    cena: artikliTable.cena, davek: artikliTable.davek,
+    kategorijaId: artikliTable.kategorijaId,
+  })
+    .from(artikliTable)
+    .innerJoin(enoteTable, eq(artikliTable.enotaId, enoteTable.id))
+    .where(and(
+      eq(artikliTable.id, artikelId),
+      eq(enoteTable.companyId, ctx.companyId),
+    ))
+    .limit(1);
+  if (!artikel) { res.status(404).json({ napaka: "Artikel ni najden" }); return; }
+
+  await db.insert(partnerCenikiTable).values({
+    enotaId,
+    kupecId: id,
+    artikelId,
+    cena: String(cena),
+  }).onConflictDoUpdate({
+    target: [partnerCenikiTable.kupecId, partnerCenikiTable.artikelId],
+    set: { cena: String(cena) },
+  });
+
+  const [kat] = artikel.kategorijaId
+    ? await db.select({ ime: kategorijeTable.ime }).from(kategorijeTable)
+        .where(eq(kategorijeTable.id, artikel.kategorijaId)).limit(1)
+    : [];
+
+  res.json({
+    artikelId,
+    artikelIme: artikel.ime,
+    kategorijaId: artikel.kategorijaId ?? null,
+    kategorijaIme: kat?.ime ?? null,
+    originalCena: Number(artikel.cena),
+    cena,
+    davek: Number(artikel.davek),
+  });
+});
+
+// DELETE /partnerji/:id/cenik/:artikelId — odstrani postavko cenika
+router.delete("/partnerji/:id/cenik/:artikelId", async (req, res): Promise<void> => {
+  const id = req.params.id ?? "";
+  const artikelId = parseInt(req.params.artikelId ?? "");
+  if (!id || isNaN(artikelId)) { res.status(400).json({ napaka: "Neveljaven ID" }); return; }
+  const ctx = await requirePartnerjiAccess(req, res);
+  if (!ctx) return;
+
+  const [kupec] = await db.select({ id: counterpartiesTable.id })
+    .from(counterpartiesTable)
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, ctx.companyId)))
+    .limit(1);
+  if (!kupec) { res.status(404).json({ napaka: "Partner ni najden" }); return; }
+
+  const [artikel] = await db.select({ id: artikliTable.id })
+    .from(artikliTable)
+    .innerJoin(enoteTable, eq(artikliTable.enotaId, enoteTable.id))
+    .where(and(
+      eq(artikliTable.id, artikelId),
+      eq(enoteTable.companyId, ctx.companyId),
+    ))
+    .limit(1);
+  if (!artikel) { res.status(404).json({ napaka: "Artikel ni najden" }); return; }
 
   await db.delete(partnerCenikiTable)
     .where(and(eq(partnerCenikiTable.kupecId, id), eq(partnerCenikiTable.artikelId, artikelId)));
@@ -849,3 +929,143 @@ router.delete("/kupec/shranjeni/:id/cenik/:artikelId", async (req, res): Promise
 });
 
 export default router;
+
+// ─── Interni helper za logiko osveži (deljena med /kupec/shranjeni in /partnerji) ───
+
+/**
+ * Shranjuje logiko osveži skupaj — kliče jo tako /kupec/shranjeni/:id/osvezi
+ * kot /partnerji/:id/osvezi. Obe poti imata identično logiko, razlikujeta se
+ * le v poti. Helper je definiran PO export default, ker je interni.
+ */
+async function osveziPartnerjaPodLogiko(id: string, companyId: string, req: Request, res: Response): Promise<void> {
+  const [obstojecKupec] = await db
+    .select()
+    .from(counterpartiesTable)
+    .where(and(
+      eq(counterpartiesTable.id, id),
+      eq(counterpartiesTable.companyId, companyId),
+    ))
+    .limit(1);
+
+  if (!obstojecKupec) { res.status(404).json({ napaka: "Kupec ni najden" }); return; }
+
+  const davcna = obstojecKupec.taxId?.trim();
+  const idZaDdv = obstojecKupec.idZaDdv?.trim();
+  const jeTuji = !davcna || !/^\d{8}$/.test(davcna);
+
+  if (jeTuji) {
+    if (!idZaDdv || !/^[A-Z]{2}.+$/i.test(idZaDdv)) {
+      res.status(400).json({ napaka: "Partner nima EU VAT ID — osveževanje ni mogoče." });
+      return;
+    }
+    const vies = await preveriVies(idZaDdv);
+    if (!vies) {
+      res.status(503).json({ napaka: "VIES ni dosegljiv. Poskusite pozneje.", kodaNapake: "VIES_NEDOSEGLJIV" });
+      return;
+    }
+    const kodaDrzave = obstojecKupec.kodaDrzave ?? vies.kodaDrzave;
+    const imaPodatke = !!(vies.naziv || vies.ulica || vies.postnaStevilka || vies.kraj);
+    if (!vies.veljaven && !imaPodatke) {
+      const drzavaNaziv = vies.drzavaNaziv ?? drzavaIzKode(kodaDrzave) ?? kodaDrzave;
+      res.status(422).json({
+        napaka: `VIES ne vrača podatkov za ${drzavaNaziv}. Dopolnite podatke ročno.`,
+        kodaNapake: "VIES_NO_DATA",
+      });
+      return;
+    }
+    const [posodobljen] = await db
+      .update(counterpartiesTable)
+      .set({
+        ...(vies.naziv ? { name: vies.naziv } : {}),
+        ...(vies.ulica ? { ulica: vies.ulica, address: vies.ulica } : {}),
+        ...(vies.postnaStevilka ? { postCode: vies.postnaStevilka } : {}),
+        ...(vies.kraj ? { city: vies.kraj } : {}),
+        country: obstojecKupec.country || vies.drzavaNaziv || drzavaIzKode(kodaDrzave),
+        kodaDrzave,
+        vatPayer: vies.veljaven ? true : (obstojecKupec.vatPayer ?? false),
+      })
+      .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, companyId)))
+      .returning();
+    res.json(mapKupec(posodobljen!));
+    return;
+  }
+
+  const svezi = await poisciNaInetis(davcna);
+  if (!svezi) {
+    res.status(422).json({
+      napaka: `Podjetja z davčno ${davcna} ni v registru AJPES/INETIS. Dopolnite podatke ročno.`,
+      kodaNapake: "INETIS_NI_ZADETKOV",
+    });
+    return;
+  }
+  function normalizeMaticnaZaUjp(m?: string | null): string | undefined {
+    if (!m) return undefined;
+    const t = m.trim().replace(/0+$/, "");
+    return t.length >= 4 ? t : m.trim();
+  }
+  const maticnaZaUjp = normalizeMaticnaZaUjp(svezi.maticnaStevilka ?? obstojecKupec.registrationNumber);
+  const [eReg, ujpVnosi, ajpesSub] = await Promise.all([
+    poisciNaBizBox(davcna, svezi.naziv),
+    poisciVUjp(davcna, maticnaZaUjp),
+    poisciVAjpes(svezi.maticnaStevilka ?? obstojecKupec.registrationNumber),
+  ]);
+  const jeVUjp = ujpVnosi.length > 0;
+  function ujpTrrVIban(trrSt: string): string {
+    const cleaned = trrSt.trim();
+    if (/^SI\d{17}$/i.test(cleaned)) return cleaned.toUpperCase();
+    if (!/^\d{15}$/.test(cleaned)) return cleaned;
+    const rearranged = cleaned + "281800";
+    const mod = BigInt(rearranged) % 97n;
+    const check = String(98n - mod).padStart(2, "0");
+    return `SI${check}${cleaned}`;
+  }
+  const eRacunPrejemnik = jeVUjp ? true : (eReg?.registriran ?? null);
+  const eRacunOmrezje = jeVUjp ? "UJP" : (eReg?.omrezje ?? obstojecKupec.eRacunOmrezje ?? null);
+  const eRacunNaslov = jeVUjp
+    ? ujpTrrVIban(ujpVnosi[0]!.trrSt)
+    : (eReg?.naslov ?? obstojecKupec.eRacunNaslov ?? null);
+  const eRacunSifraPu = jeVUjp ? (ujpVnosi[0]!.sifraPu || null) : obstojecKupec.eRacunSifraPu ?? null;
+  const ujpIban = jeVUjp ? ujpTrrVIban(ujpVnosi[0]!.trrSt) : null;
+  const eRacunBic = (jeVUjp && ujpIban?.replace(/\s/g, "").toUpperCase().startsWith("SI5601"))
+    ? "BSLJSI2X"
+    : (obstojecKupec.eRacunBic ?? null);
+  const surowiTrr = (svezi.trr && svezi.trr.length > 0) ? svezi.trr : obstojecKupec.trr;
+  const trrji = surowiTrr
+    ? (surowiTrr as Array<{ iban: string; bic: string }>).map(t =>
+        t.iban.replace(/\s/g, "").toUpperCase().startsWith("SI5601")
+          ? { ...t, bic: "BSLJSI2X" }
+          : t)
+    : surowiTrr;
+  const novaVrsta = zaznajVrsto(svezi.naziv, svezi.zavezanecDdv, svezi.maticnaStevilka);
+  const eRacunPosodobitev =
+    jeVUjp ? { eRacunPrejemnik: true, eRacunOmrezje: "UJP", eRacunNaslov, eRacunSifraPu, eRacunBic }
+    : eReg !== null ? {
+        eRacunPrejemnik: eReg.registriran,
+        eRacunOmrezje: eReg.omrezje ?? obstojecKupec.eRacunOmrezje,
+        ...(eReg.naslov ? { eRacunNaslov: eReg.naslov } : {}),
+      }
+    : {};
+  const ajpesEmail = (ajpesSub?.email && !obstojecKupec.email) ? ajpesSub.email : undefined;
+  const [posodobljen] = await db
+    .update(counterpartiesTable)
+    .set({
+      name: svezi.naziv || obstojecKupec.name,
+      kratkiNaziv: svezi.kratkiNaziv ?? obstojecKupec.kratkiNaziv,
+      address: svezi.naslov ?? obstojecKupec.address,
+      ulica: svezi.ulica ?? obstojecKupec.ulica,
+      postCode: svezi.postnaStevilka ?? obstojecKupec.postCode,
+      city: svezi.kraj ?? obstojecKupec.city,
+      country: obstojecKupec.country || "Slovenija",
+      kodaDrzave: obstojecKupec.kodaDrzave || "SI",
+      vatPayer: svezi.zavezanecDdv ?? obstojecKupec.vatPayer,
+      idZaDdv: svezi.idZaDdv ?? obstojecKupec.idZaDdv,
+      registrationNumber: svezi.maticnaStevilka ?? obstojecKupec.registrationNumber,
+      trr: trrji,
+      ...(novaVrsta !== null ? { vrstaPartnerja: novaVrsta } : {}),
+      ...(ajpesEmail ? { email: ajpesEmail } : {}),
+      ...eRacunPosodobitev,
+    })
+    .where(and(eq(counterpartiesTable.id, id), eq(counterpartiesTable.companyId, companyId)))
+    .returning();
+  res.json(mapKupec(posodobljen!));
+}

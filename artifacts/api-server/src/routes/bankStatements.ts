@@ -1,6 +1,8 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import multer from "multer";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { XMLParser } from "fast-xml-parser";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   counterpartiesTable,
@@ -11,6 +13,8 @@ import {
   accountingRolesTable,
   accountsTable,
   accountingPeriodsTable,
+  bankStatementsTable,
+  bankStatementLinesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 
@@ -108,6 +112,138 @@ function isValidIsoDate(date: string): boolean {
 interface ParseResult {
   transactions: BankTransaction[];
   skippedRows: SkippedRow[];
+  metadata?: StatementMetadata;
+}
+
+interface StatementMetadata {
+  statementNumber: string | null;
+  statementDate: string | null;
+  periodFrom: string | null;
+  periodTo: string | null;
+  sourceIban: string | null;
+  openingBalance: number | null;
+  closingBalance: number | null;
+  currency: string;
+}
+
+const asArray = <T>(value: T | T[] | undefined | null): T[] =>
+  value == null ? [] : Array.isArray(value) ? value : [value];
+
+function xmlText(value: any): string | null {
+  if (value == null) return null;
+  const raw = typeof value === "object" ? value["#text"] : value;
+  const text = String(raw ?? "").trim();
+  return text || null;
+}
+
+function camtAmount(value: any): number | null {
+  const text = xmlText(value);
+  if (!text || !/^-?\d+(?:\.\d+)?$/.test(text)) return null;
+  const amount = Number(text);
+  return Number.isFinite(amount) && amount !== 0 ? Math.abs(amount) : null;
+}
+
+function camtDate(value: any): string | null {
+  const raw = xmlText(value?.Dt ?? value?.DtTm ?? value);
+  const date = raw?.slice(0, 10) ?? null;
+  return date && isValidIsoDate(date) ? date : null;
+}
+
+function camtReference(tx: any): string | null {
+  const structured = asArray(tx?.RmtInf?.Strd)
+    .map((item: any) => xmlText(item?.CdtrRefInf?.Ref))
+    .find(Boolean);
+  const unstructured = asArray(tx?.RmtInf?.Ustrd).map(xmlText).filter(Boolean).join(" ");
+  const endToEnd = xmlText(tx?.Refs?.EndToEndId);
+  const candidate = structured || unstructured || (endToEnd !== "NOTPROVIDED" ? endToEnd : null);
+  return candidate?.slice(0, 140) ?? null;
+}
+
+/** Razčleni ISO 20022 bančni izpis CAMT.053, neodvisno od verzije namespace-a. */
+export function parseCamt053(content: string): ParseResult {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@",
+    removeNSPrefix: true,
+    parseTagValue: false,
+    trimValues: true,
+  });
+  const parsed = parser.parse(content);
+  const statements = asArray(parsed?.Document?.BkToCstmrStmt?.Stmt);
+  const transactions: BankTransaction[] = [];
+  const skippedRows: SkippedRow[] = [];
+  let index = 0;
+  const firstStatement = statements[0];
+  const balances = asArray(firstStatement?.Bal);
+  const findBalance = (codes: string[]) => {
+    const balance = balances.find((b: any) => codes.includes(xmlText(b?.Tp?.CdOrPrtry?.Cd) ?? ""));
+    const amountText = xmlText(balance?.Amt);
+    const amount = amountText != null && Number.isFinite(Number(amountText)) ? Math.abs(Number(amountText)) : null;
+    return amount == null ? null : (xmlText(balance?.CdtDbtInd) === "DBIT" ? -amount : amount);
+  };
+  const metadata: StatementMetadata = {
+    statementNumber: xmlText(firstStatement?.Id),
+    statementDate: camtDate(firstStatement?.CreDtTm) || camtDate(firstStatement?.FrToDt?.ToDtTm),
+    periodFrom: camtDate(firstStatement?.FrToDt?.FrDtTm),
+    periodTo: camtDate(firstStatement?.FrToDt?.ToDtTm),
+    sourceIban: xmlText(firstStatement?.Acct?.Id?.IBAN)?.replace(/\s+/g, "").toUpperCase() ?? null,
+    openingBalance: findBalance(["OPBD", "PRCD"]),
+    closingBalance: findBalance(["CLBD", "ITBD"]),
+    currency: xmlText(firstStatement?.Acct?.Ccy) || "EUR",
+  };
+
+  for (const statement of statements) {
+    const statementCurrency = xmlText(statement?.Acct?.Ccy) || "EUR";
+    for (const entry of asArray(statement?.Ntry)) {
+      const date = camtDate(entry?.BookgDt) || camtDate(entry?.ValDt);
+      const entryAmount = camtAmount(entry?.Amt);
+      const direction = xmlText(entry?.CdtDbtInd);
+      const details = asArray(entry?.NtryDtls)
+        .flatMap((container: any) => asArray(container?.TxDtls));
+      const units = details.length > 0 ? details : [null];
+
+      if (!date || !entryAmount || (direction !== "CRDT" && direction !== "DBIT")) {
+        skippedRows.push({ lineNumber: index + 1, reason: "CAMT knjižba nima veljavnega datuma, zneska ali smeri CRDT/DBIT" });
+        index++;
+        continue;
+      }
+      if (units.length > 1 && units.some((tx: any) => !camtAmount(tx?.AmtDtls?.TxAmt?.Amt ?? tx?.Amt))) {
+        skippedRows.push({ lineNumber: index + 1, reason: "CAMT zbirna knjižba vsebuje več transakcij brez posameznih zneskov" });
+        index++;
+        continue;
+      }
+
+      for (const tx of units) {
+        const credit = direction === "CRDT";
+        const amount = camtAmount(tx?.AmtDtls?.TxAmt?.Amt ?? tx?.Amt) ?? entryAmount;
+        const parties = tx?.RltdPties;
+        const counterparty = credit ? parties?.Dbtr : parties?.Cdtr;
+        const counterpartyAccount = credit ? parties?.DbtrAcct : parties?.CdtrAcct;
+        const currency = xmlText(
+          tx?.AmtDtls?.TxAmt?.Amt?.["@Ccy"]
+          ?? tx?.Amt?.["@Ccy"]
+          ?? entry?.Amt?.["@Ccy"],
+        ) || statementCurrency;
+        const serviceRef = xmlText(tx?.Refs?.AcctSvcrRef) || xmlText(entry?.AcctSvcrRef) || xmlText(entry?.NtryRef);
+        const description = [
+          xmlText(tx?.AddtlTxInf),
+          xmlText(tx?.BkTxCd?.Prtry?.Cd),
+        ].filter(Boolean).join(" — ") || null;
+        transactions.push({
+          id: `camt-${serviceRef || "tx"}-${index}`,
+          date,
+          amount: credit ? amount : -amount,
+          reference: camtReference(tx),
+          counterpartyName: xmlText(counterparty?.Nm),
+          counterpartyIban: xmlText(counterpartyAccount?.Id?.IBAN)?.replace(/\s+/g, "").toUpperCase() ?? null,
+          description,
+          currency,
+        });
+        index++;
+      }
+    }
+  }
+  return { transactions, skippedRows, metadata };
 }
 
 /**
@@ -209,7 +345,34 @@ function parseMT940(content: string): ParseResult {
     });
   }
 
-  return { transactions, skippedRows };
+  const statementNumber = tags.find(t => t.tag === "28C")?.value ?? null;
+  const sourceIban = tags.find(t => t.tag === "25")?.value.replace(/\s+/g, "").toUpperCase() ?? null;
+  const parseBalance = (tagNames: string[]) => {
+    const value = tags.find(t => tagNames.includes(t.tag))?.value;
+    const match = value?.match(/^([CD])(\d{6})([A-Z]{3})(\d+,\d+)/);
+    if (!match) return { date: null, amount: null };
+    const amount = Number(match[4].replace(",", "."));
+    return {
+      date: `20${match[2].slice(0, 2)}-${match[2].slice(2, 4)}-${match[2].slice(4, 6)}`,
+      amount: match[1] === "D" ? -amount : amount,
+    };
+  };
+  const opening = parseBalance(["60F", "60M"]);
+  const closing = parseBalance(["62F", "62M"]);
+  return {
+    transactions,
+    skippedRows,
+    metadata: {
+      statementNumber,
+      statementDate: closing.date,
+      periodFrom: opening.date,
+      periodTo: closing.date,
+      sourceIban,
+      openingBalance: opening.amount,
+      closingBalance: closing.amount,
+      currency,
+    },
+  };
 }
 
 /**
@@ -370,9 +533,14 @@ function normRefForDup(ref: string | null | undefined): string | null {
   return n || null;
 }
 
-async function buildMatchSuggestions(
+export async function buildMatchSuggestions(
   companyId: string,
   transactions: BankTransaction[],
+  onSuggestion?: (
+    suggestion: TransactionWithSuggestions,
+    current: number,
+    total: number,
+  ) => void | Promise<void>,
 ): Promise<TransactionWithSuggestions[]> {
   if (transactions.length === 0) return [];
 
@@ -474,7 +642,13 @@ async function buildMatchSuggestions(
     );
 
   if (invoices.length === 0) {
-    return transactions.map(t => ({ transaction: t, suggestions: [] }));
+    const results: TransactionWithSuggestions[] = [];
+    for (const [index, transaction] of transactions.entries()) {
+      const result = { transaction, suggestions: [] };
+      results.push(result);
+      await onSuggestion?.(result, index + 1, transactions.length);
+    }
+    return results;
   }
 
   const invoiceIds = invoices.map(i => i.id);
@@ -483,7 +657,7 @@ async function buildMatchSuggestions(
   const grossRows = await db
     .select({
       invoiceId: invoiceLinesTable.invoiceId,
-      gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
+      gross: sql<string>`COALESCE(SUM(COALESCE(${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric, (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100))), 0)`,
     })
     .from(invoiceLinesTable)
     .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
@@ -520,7 +694,7 @@ async function buildMatchSuggestions(
   // Score each transaction against open items
   const results: TransactionWithSuggestions[] = [];
 
-  for (const tx of transactions) {
+  for (const [index, tx] of transactions.entries()) {
     const absAmount = Math.abs(tx.amount);
     // inbound payments match against issued invoices (receivables)
     // outbound payments match against received invoices (payables)
@@ -597,7 +771,9 @@ async function buildMatchSuggestions(
     const suggestions: MatchSuggestion[] = scored.slice(0, 5).map(({ score: _s, ...rest }) => rest);
 
     const duplicateOf = findDuplicate(tx);
-    results.push({ transaction: tx, suggestions, duplicateOf });
+    const result = { transaction: tx, suggestions, duplicateOf };
+    results.push(result);
+    await onSuggestion?.(result, index + 1, transactions.length);
   }
 
   return results;
@@ -607,7 +783,7 @@ async function buildMatchSuggestions(
 
 /**
  * POST /companies/:companyId/bank-statements/parse
- * Accepts multipart/form-data with field "file" (CSV or MT940).
+ * Accepts multipart/form-data with field "file" (CSV, MT940 or CAMT.053 XML).
  * Returns parsed transactions.
  */
 router.post(
@@ -631,7 +807,9 @@ router.post(
 
     let parseResult: ParseResult;
     try {
-      if (filename.endsWith(".mt940") || filename.endsWith(".sta") || filename.endsWith(".940") || content.includes(":61:")) {
+      if (filename.endsWith(".xml") || content.includes("BkToCstmrStmt")) {
+        parseResult = parseCamt053(content);
+      } else if (filename.endsWith(".mt940") || filename.endsWith(".sta") || filename.endsWith(".940") || content.includes(":61:")) {
         parseResult = parseMT940(content);
         if (parseResult.transactions.length === 0) {
           // Fallback to CSV if MT940 parsing yields nothing
@@ -641,7 +819,7 @@ router.post(
         parseResult = parseCSV(content);
       }
     } catch (err) {
-      res.status(400).json({ error: "Napaka pri razčlenjevanju datoteke. Preverite format (CSV ali MT940)." });
+      res.status(400).json({ error: "Napaka pri razčlenjevanju datoteke. Preverite format (CAMT.053 XML, CSV ali MT940)." });
       return;
     }
 
@@ -660,7 +838,125 @@ router.post(
       return;
     }
 
-    res.json({ transactions, count: transactions.length, skippedRows });
+    const dates = transactions.map(tx => tx.date).sort();
+    const metadata = {
+      statementNumber: null,
+      statementDate: dates.at(-1) ?? null,
+      periodFrom: dates[0] ?? null,
+      periodTo: dates.at(-1) ?? null,
+      sourceIban: null,
+      openingBalance: null,
+      closingBalance: null,
+      currency: transactions[0]?.currency ?? "EUR",
+      ...parseResult.metadata,
+    };
+    res.json({
+      transactions,
+      count: transactions.length,
+      skippedRows,
+      metadata,
+      sourceFilename: req.file.originalname,
+      sourceSha256: createHash("sha256").update(req.file.buffer).digest("hex"),
+    });
+  },
+);
+
+router.get(
+  "/companies/:companyId/bank-statements",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    const statements = await db.select({
+      id: bankStatementsTable.id,
+      bankAccountId: bankStatementsTable.bankAccountId,
+      bankAccountCode: accountsTable.code,
+      bankAccountName: accountsTable.name,
+      sourceIban: bankStatementsTable.sourceIban,
+      statementNumber: bankStatementsTable.statementNumber,
+      statementDate: bankStatementsTable.statementDate,
+      periodFrom: bankStatementsTable.periodFrom,
+      periodTo: bankStatementsTable.periodTo,
+      openingBalance: bankStatementsTable.openingBalance,
+      closingBalance: bankStatementsTable.closingBalance,
+      currency: bankStatementsTable.currency,
+      sourceFilename: bankStatementsTable.sourceFilename,
+      lineCount: sql<number>`count(${bankStatementLinesTable.id})::int`,
+      createdAt: bankStatementsTable.createdAt,
+    })
+      .from(bankStatementsTable)
+      .innerJoin(accountsTable, eq(accountsTable.id, bankStatementsTable.bankAccountId))
+      .leftJoin(bankStatementLinesTable, eq(bankStatementLinesTable.statementId, bankStatementsTable.id))
+      .where(eq(bankStatementsTable.companyId, companyId))
+      .groupBy(bankStatementsTable.id, accountsTable.id)
+      .orderBy(desc(bankStatementsTable.statementDate), desc(bankStatementsTable.createdAt))
+      .limit(100);
+    res.json({ statements });
+  },
+);
+
+router.post(
+  "/companies/:companyId/bank-statements/register",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    const { bankAccountId, metadata, sourceFilename, sourceSha256, transactions } = req.body ?? {};
+    if (!bankAccountId || !sourceFilename || !/^[a-f0-9]{64}$/.test(sourceSha256 ?? "") || !Array.isArray(transactions) || transactions.length === 0) {
+      res.status(400).json({ error: "Manjkajo podatki bančnega izpiska" });
+      return;
+    }
+    const [bankAccount] = await db.select({ id: accountsTable.id })
+      .from(accountsTable)
+      .where(and(eq(accountsTable.id, bankAccountId), eq(accountsTable.companyId, companyId)))
+      .limit(1);
+    if (!bankAccount) { res.status(400).json({ error: "Izbrani bančni konto ne pripada podjetju" }); return; }
+    const dates = transactions.map((tx: BankTransaction) => tx.date).sort();
+    try {
+      const result = await db.transaction(async tx => {
+        const [statement] = await tx.insert(bankStatementsTable).values({
+          companyId,
+          bankAccountId,
+          sourceIban: metadata?.sourceIban ?? null,
+          statementNumber: metadata?.statementNumber ?? null,
+          statementDate: metadata?.statementDate ?? dates.at(-1),
+          periodFrom: metadata?.periodFrom ?? dates[0],
+          periodTo: metadata?.periodTo ?? dates.at(-1),
+          openingBalance: metadata?.openingBalance == null ? null : String(metadata.openingBalance),
+          closingBalance: metadata?.closingBalance == null ? null : String(metadata.closingBalance),
+          currency: metadata?.currency ?? transactions[0]?.currency ?? "EUR",
+          sourceFilename,
+          sourceSha256,
+          createdBy: authReq.clerkUserId,
+        }).returning({ id: bankStatementsTable.id });
+        const lines = await tx.insert(bankStatementLinesTable).values(
+          transactions.map((item: BankTransaction, index: number) => ({
+            statementId: statement.id,
+            transactionKey: item.id,
+            lineNumber: index + 1,
+            bookingDate: item.date,
+            amount: String(item.amount),
+            currency: item.currency,
+            reference: item.reference,
+            counterpartyName: item.counterpartyName,
+            counterpartyIban: item.counterpartyIban,
+            description: item.description,
+          })),
+        ).returning({ id: bankStatementLinesTable.id, transactionKey: bankStatementLinesTable.transactionKey });
+        return { statementId: statement.id, lineIds: Object.fromEntries(lines.map(line => [line.transactionKey, line.id])) };
+      });
+      res.status(201).json(result);
+    } catch (error: any) {
+      if (error?.code === "23505") {
+        res.status(409).json({ error: "Ta datoteka bančnega izpiska je bila že evidentirana." });
+        return;
+      }
+      throw error;
+    }
   },
 );
 
@@ -687,6 +983,20 @@ router.post(
 
     if (transactions.length > 500) {
       res.status(400).json({ error: "Največ 500 transakcij na enkrat" });
+      return;
+    }
+
+    if (req.accepts(["application/x-ndjson", "json"]) === "application/x-ndjson") {
+      res.status(200);
+      res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      res.flushHeaders();
+
+      await buildMatchSuggestions(companyId, transactions, async (suggestion, current, total) => {
+        res.write(`${JSON.stringify({ type: "suggestion", suggestion, current, total })}\n`);
+        await new Promise<void>(resolve => setImmediate(resolve));
+      });
+      res.end(`${JSON.stringify({ type: "complete", total: transactions.length })}\n`);
       return;
     }
 

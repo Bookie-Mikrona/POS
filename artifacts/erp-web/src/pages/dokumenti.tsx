@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, Upload, Loader2, FileSearch, CheckCircle2, XCircle, AlertCircle, 
   Building2, AlertTriangle, FileUp, UserPlus, ChevronDown, ChevronUp,
-  Eye, EyeOff, ZoomIn, ZoomOut, ExternalLink, Maximize2, X
+  Eye, EyeOff, ZoomIn, ZoomOut, ExternalLink, Maximize2, X, Bookmark
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -20,18 +21,13 @@ import {
   useCreateCounterparty,
   useListAccounts,
   useListPeriods,
+  useGetCounterpartyAccountTemplates,
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
   getListCounterpartiesQueryKey,
   type DocumentRecord,
   type ProposedLine,
 } from "@workspace/api-client-react";
-
-// Task #31 dodal ti polji v backend, še nista v generiranem scheemu
-type ProposedLineExtended = ProposedLine & {
-  suggestionSource?: "history" | "pattern";
-  suggestionCount?: number;
-};
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +54,23 @@ function formatRelativeTime(dateString: string) {
   if (diffHr < 24) return `pred ${diffHr} h`;
   if (diffDays === 1) return "včeraj";
   return `pred ${diffDays} dnevi`;
+}
+
+function formatApprovalAudit(actor: string | null | undefined, dateString: string | null | undefined, action: "confirmed" | "rejected") {
+  if (!dateString) return null;
+  const label = action === "confirmed" ? "Potrdil" : "Zavrnil";
+  const actorLabel = actor || "neznan uporabnik";
+  const date = new Date(dateString);
+  const dateLabel = date.toLocaleDateString("sl-SI", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const timeLabel = date.toLocaleTimeString("sl-SI", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${label}: ${actorLabel} · ${dateLabel} ob ${timeLabel}`;
 }
 
 const formatEur = (n: number | null | undefined) => {
@@ -95,7 +108,9 @@ export default function Dokumenti() {
     if (hasActive) {
       const timer = setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(activeCompany.id) });
-        if (selectedDocId) {
+        const selectedDoc = documents.find(d => d.id === selectedDocId);
+        const selectedDocIsActive = selectedDoc?.status === "pending" || selectedDoc?.status === "processing";
+        if (selectedDocId && selectedDocIsActive) {
           queryClient.invalidateQueries({ queryKey: getGetDocumentQueryKey(activeCompany.id, selectedDocId) });
         }
       }, 3000);
@@ -142,6 +157,14 @@ export default function Dokumenti() {
           mimeType: file.type,
           fileSizeBytes: file.size
         }
+      });
+      trackEvent("document_imported", {
+        mime_type_group: file.type === "application/pdf"
+          ? "pdf"
+          : file.type.startsWith("image/") ? "image" : "other",
+        file_size_bucket: file.size < 1_000_000
+          ? "under_1mb"
+          : file.size < 5_000_000 ? "1_5mb" : "over_5mb",
       });
 
       // 4. Refresh list
@@ -369,54 +392,58 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
               <AlertDescription>{doc.errorMessage || "Neznana napaka pri komunikaciji z AI storitvijo."}</AlertDescription>
             </Alert>
           </div>
-        ) : doc.status === "done" ? (
-          <div className="p-6">
-            <DocumentReviewForm doc={doc} />
-          </div>
-        ) : doc.status === "confirmed" ? (
+        ) : doc.status === "done" || doc.status === "confirmed" || doc.status === "rejected" ? (
           <div className="p-6 space-y-6">
-            <div className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
-              <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-emerald-800">Dokument potrjen</h3>
-                <p className="text-sm text-emerald-700 mt-0.5">
-                  Podatki so bili uspešno shranjeni.
-                  {doc.updatedAt && (
-                    <span className="ml-1 text-emerald-600">
-                      · {new Date(doc.updatedAt).toLocaleString("sl-SI", { dateStyle: "medium", timeStyle: "short" })}
-                    </span>
+            {/* Stalne reže preprečijo, da bi osvežitev statusa ponovno namestila PDF iframe. */}
+            <div className={doc.status === "done" ? "hidden" : undefined}>
+              {doc.status === "confirmed" ? (
+                <div className="flex items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
+                  <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-emerald-800">Dokument potrjen</h3>
+                    <p className="text-sm text-emerald-700 mt-0.5">
+                      Podatki so bili uspešno shranjeni.
+                      {formatApprovalAudit(doc.confirmedBy, doc.updatedAt, "confirmed") && (
+                        <span className="ml-1 text-emerald-600">
+                          · {formatApprovalAudit(doc.confirmedBy, doc.updatedAt, "confirmed")}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  {doc.linkedInvoiceId && (
+                    <Button asChild variant="outline" size="sm" className="shrink-0 border-emerald-300 text-emerald-800 hover:bg-emerald-100">
+                      <Link href="/racuni">Odpri račun</Link>
+                    </Button>
                   )}
-                </p>
-              </div>
-              {doc.linkedInvoiceId && (
-                <Button asChild variant="outline" size="sm" className="shrink-0 border-emerald-300 text-emerald-800 hover:bg-emerald-100">
-                  <Link href="/racuni">Odpri račun</Link>
-                </Button>
-              )}
+                </div>
+              ) : doc.status === "rejected" ? (
+                <div className="flex items-center gap-4 p-4 rounded-xl border border-red-200 bg-red-50">
+                  <div className="h-12 w-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">
+                    <XCircle className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-red-800">Dokument zavrnjen</h3>
+                    <p className="text-sm text-red-700 mt-0.5">
+                      Ta dokument je bil zavrnjen in ne bo obdelan.
+                      {formatApprovalAudit(doc.rejectedBy, doc.updatedAt, "rejected") && (
+                        <span className="ml-1 text-red-600">
+                          · {formatApprovalAudit(doc.rejectedBy, doc.updatedAt, "rejected")}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
-          </div>
-        ) : doc.status === "rejected" ? (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center gap-4 p-4 rounded-xl border border-red-200 bg-red-50">
-              <div className="h-12 w-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">
-                <XCircle className="h-6 w-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-red-800">Dokument zavrnjen</h3>
-                <p className="text-sm text-red-700 mt-0.5">
-                  Ta dokument je bil zavrnjen in ne bo obdelan.
-                  {doc.updatedAt && (
-                    <span className="ml-1 text-red-600">
-                      · {new Date(doc.updatedAt).toLocaleString("sl-SI", { dateStyle: "medium", timeStyle: "short" })}
-                    </span>
-                  )}
-                </p>
-              </div>
+            {doc.status === "confirmed" && (
+              <ConfirmedDocumentLines lines={getConfirmedDocumentLines(doc)} />
+            )}
+            <div className={doc.status === "done" ? undefined : "hidden"}>
+              {doc.status === "done" ? <DocumentReviewForm doc={doc} /> : null}
             </div>
-            <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
           </div>
         ) : null}
       </div>
@@ -428,7 +455,7 @@ function DocumentDetailPanel({ docId, onDeselect }: { docId: string, onDeselect:
 // DOCUMENT PREVIEW COMPONENT
 // ----------------------------------------------------------------------
 
-function DocumentPreview({ objectPath, mimeType }: { objectPath: string; mimeType: string }) {
+const DocumentPreview = React.memo(function DocumentPreview({ objectPath, mimeType }: { objectPath: string; mimeType: string }) {
   const { getToken } = useAuth();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -608,13 +635,93 @@ function DocumentPreview({ objectPath, mimeType }: { objectPath: string; mimeTyp
       )}
     </>
   );
-}
+});
 
 // ----------------------------------------------------------------------
 // FORM & REVIEW SECTION
 // ----------------------------------------------------------------------
 
-function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
+export function SuggestionSourceIndicator({
+  source,
+  count,
+}: {
+  source?: ProposedLine["suggestionSource"];
+  count?: number;
+}) {
+  if (source === "history") {
+    return (
+      <p className="text-[10px] text-emerald-700 mt-0.5 flex items-center gap-1">
+        <span>✓</span>
+        {count != null && count > 0
+          ? `Na podlagi ${count} preteklih ${count === 1 ? "računa" : "računov"} tega dobavitelja`
+          : "Na podlagi preteklih računov tega dobavitelja"}
+      </p>
+    );
+  }
+
+  if (source === "pattern") {
+    return <p className="text-[10px] text-muted-foreground mt-0.5">Tipičen vzorec kontiranja</p>;
+  }
+
+  if (source === "manual") {
+    return <p className="text-[10px] text-muted-foreground mt-0.5">Ročna izbira</p>;
+  }
+
+  return null;
+}
+
+export function getConfirmedDocumentLines(
+  doc: Pick<DocumentRecord, "confirmedData" | "ocrResult">,
+): ProposedLine[] {
+  return doc.confirmedData?.lines ?? doc.ocrResult?.lines ?? [];
+}
+
+export function ConfirmedDocumentLines({ lines }: { lines: ProposedLine[] }) {
+  if (lines.length === 0) return null;
+
+  return (
+    <Card className="shadow-none border-border">
+      <CardContent className="p-0">
+        <div className="p-5 pb-4 border-b">
+          <h3 className="font-semibold text-lg flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-muted-foreground" />
+            Potrjeno kontiranje
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-muted-foreground bg-muted/30 uppercase border-b">
+              <tr>
+                <th className="px-4 py-3 font-medium">Opis</th>
+                <th className="px-4 py-3 font-medium text-right">Znesek</th>
+                <th className="px-4 py-3 font-medium text-right">DDV %</th>
+                <th className="px-4 py-3 font-medium min-w-[180px]">Konto</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {lines.map((line, idx) => (
+                <tr key={idx}>
+                  <td className="px-4 py-3 font-medium">{line.description}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{formatEur(line.vatBase)}</td>
+                  <td className="px-4 py-3 text-right">{line.vatRate}%</td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono">{line.accountCode || "–"}</span>
+                    <SuggestionSourceIndicator
+                      source={line.suggestionSource}
+                      count={line.suggestionCount}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
   const ocr = doc.ocrResult;
@@ -623,8 +730,15 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { data: counterpartiesData } = useListCounterparties(activeCompany?.id ?? "", { includeInactive: false }, { query: { enabled: !!activeCompany?.id } as any });
   const counterparties = counterpartiesData?.counterparties ?? [];
 
-  const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
+  const { data: accountsData } = useListAccounts(
+    activeCompany?.id ?? "",
+    { includeInactive: true },
+    { query: { enabled: !!activeCompany?.id } as any },
+  );
+  // V seznamu pokažemo tudi neaktivne/skupinske AI-predloge, da uporabnik vidi,
+  // zakaj jih ni mogoče uporabiti. V izbiri so onemogočeni.
   const accounts = accountsData?.accounts ?? [];
+  const postableAccounts = accounts.filter(a => a.isActive && a.allowsPosting !== false);
 
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
@@ -672,13 +786,28 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     createInvoice: true
   });
 
+  const {
+    data: accountTemplatesData,
+    isLoading: accountTemplatesLoading,
+    isError: accountTemplatesError,
+  } = useGetCounterpartyAccountTemplates(
+    activeCompany?.id ?? "",
+    form.counterpartyId,
+    {
+      query: {
+        enabled: !!(activeCompany?.id && form.counterpartyId),
+      } as any,
+    },
+  );
+  const accountTemplates = accountTemplatesData?.templates ?? [];
+
   // Fuzzy match account code to loaded accounts list
   const fuzzyMatchAccount = (code: string | null | undefined) => {
-    if (!code || accounts.length === 0) return null;
-    const exact = accounts.find(a => a.code === code);
+    if (!code || postableAccounts.length === 0) return null;
+    const exact = postableAccounts.find(a => a.code === code);
     if (exact) return exact;
     // Prefix match: "400" → "4000", or "4200" → "420"
-    const prefix = accounts.find(a => a.code.startsWith(code) || code.startsWith(a.code));
+    const prefix = postableAccounts.find(a => a.code.startsWith(code) || code.startsWith(a.code));
     return prefix ?? null;
   };
 
@@ -694,11 +823,10 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     accountCode: string | null;
     accountId: string | null;
     confidence: number;
-    suggestionSource?: "history" | "pattern";
+    suggestionSource?: "history" | "pattern" | "manual";
     suggestionCount?: number;
   }>>(() =>
     (ocr?.lines ?? []).map(l => {
-      const le = l as ProposedLineExtended;
       return {
         description: l.description,
         quantity: l.quantity,
@@ -709,8 +837,8 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         accountCode: l.accountCode ?? null,
         accountId: l.accountId ?? null,
         confidence: l.confidence,
-        suggestionSource: le.suggestionSource,
-        suggestionCount: le.suggestionCount ?? undefined,
+        suggestionSource: l.suggestionSource,
+        suggestionCount: l.suggestionCount ?? undefined,
       };
     })
   );
@@ -736,13 +864,33 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     const acct = accounts.find(a => a.id === accountId);
     setEditableLines(prev =>
       prev.map((l, i) =>
-        i === idx ? { ...l, accountId: accountId || null, accountCode: acct?.code ?? l.accountCode } : l
+        i === idx
+          ? {
+              ...l,
+              accountId: accountId || null,
+              accountCode: acct?.code ?? l.accountCode,
+              ...(l.accountId !== (accountId || null)
+                ? { suggestionSource: "manual" as const, suggestionCount: undefined }
+                : {}),
+            }
+          : l
       )
     );
   };
 
+  const applyTemplateToLine = (idx: number, accountId: string) => {
+    if (!accounts.some(account => account.id === accountId)) return;
+    updateLine(idx, accountId);
+  };
+
   const linesWithMissingAccount = editableLines.filter(l => !l.accountId);
   const hasUnresolvedLines = linesWithMissingAccount.length > 0;
+  const linesWithInvalidAccount = editableLines.filter(line => {
+    const account = line.accountId ? accounts.find(a => a.id === line.accountId) : undefined;
+    return account ? !account.isActive || account.allowsPosting === false : false;
+  });
+  const hasInvalidAccounts = linesWithInvalidAccount.length > 0;
+  const hasNoLines = editableLines.length === 0;
 
   // Confidence calculations
   const docConfidence = ocr?.confidence ? (ocr.confidence <= 1 ? ocr.confidence * 100 : ocr.confidence) : 0;
@@ -751,6 +899,7 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
   const handleSubmit = () => {
     if (!activeCompany) return;
+    if (hasNoLines) return;
     
     confirmMut.mutate({
       companyId: activeCompany.id,
@@ -776,9 +925,6 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
   return (
     <div className="space-y-6">
-      {/* Document Preview */}
-      <DocumentPreview objectPath={doc.objectPath} mimeType={doc.mimeType} />
-
       {/* 2-Column OCR Overview */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
@@ -853,6 +999,16 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               </h3>
             </div>
             
+            {hasNoLines && (
+              <div className="px-5 pb-2">
+                <Alert variant="destructive" className="py-2 px-3">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    Dokument nima vrstic za kontiranje — dodajte vsaj eno vrstico.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             {hasUnresolvedLines && (
               <div className="px-5 pb-2">
                 <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
@@ -863,6 +1019,39 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                       : `${linesWithMissingAccount.length} vrstice nimajo izbranega konta — izberite konte pred potrditvijo.`}
                   </AlertDescription>
                 </Alert>
+              </div>
+            )}
+            {hasInvalidAccounts && (
+              <div className="px-5 pb-2">
+                <Alert className="py-2 px-3 border-amber-200 bg-amber-50 text-amber-900">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    {linesWithInvalidAccount.length === 1
+                      ? "Izbrani konto ni aktiven ali ni knjižljiv — izberite analitični konto pred potrditvijo."
+                      : `${linesWithInvalidAccount.length} izbrani konti niso aktivni ali knjižljivi — izberite analitične konte pred potrditvijo.`}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+            {form.counterpartyId && (
+              <div className="px-5 pb-3">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs">
+                  <Bookmark className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                  <span className="font-medium text-emerald-900">Shranjene predloge za tega partnerja:</span>
+                  {accountTemplatesLoading ? (
+                    <span className="text-emerald-700">nalagam…</span>
+                  ) : accountTemplatesError ? (
+                    <span className="text-amber-700">ni jih bilo mogoče naložiti</span>
+                  ) : accountTemplates.length > 0 ? (
+                    accountTemplates.map(template => (
+                      <span key={template.id} className="font-mono text-emerald-800">
+                        {template.accountCode} ({template.usageCount}×)
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">zaenkrat ni shranjenih predlog</span>
+                  )}
+                </div>
               </div>
             )}
             <div className="overflow-x-auto">
@@ -881,6 +1070,9 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                     editableLines.map((line, idx) => {
                       const lConf = line.confidence <= 1 ? line.confidence * 100 : line.confidence;
                       const missing = !line.accountId;
+                      const selectedAccount = line.accountId ? accounts.find(a => a.id === line.accountId) : undefined;
+                      const accountIsInactive = selectedAccount ? !selectedAccount.isActive : false;
+                      const accountIsGroup = selectedAccount ? selectedAccount.allowsPosting === false : false;
                       return (
                         <tr key={idx} className={`hover:bg-muted/10 ${missing ? "bg-amber-50/40" : ""}`}>
                           <td className="px-4 py-3 font-medium truncate max-w-[150px]" title={line.description}>{line.description}</td>
@@ -893,7 +1085,13 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                               disabled={isViewer}
                             >
                               <SelectTrigger
-                                className={`h-8 text-xs bg-background ${missing ? "border-amber-300 text-amber-700" : ""}`}
+                                className={`h-8 text-xs bg-background ${
+                                  missing
+                                    ? "border-amber-300 text-amber-700"
+                                    : accountIsGroup || accountIsInactive
+                                      ? "border-amber-400 bg-amber-50 text-amber-800"
+                                      : ""
+                                }`}
                               >
                                 <SelectValue placeholder={
                                   line.accountCode
@@ -903,24 +1101,58 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                               </SelectTrigger>
                               <SelectContent>
                                 {accounts.map(a => (
-                                  <SelectItem key={a.id} value={a.id}>
+                                  <SelectItem
+                                    key={a.id}
+                                    value={a.id}
+                                    disabled={!a.isActive || a.allowsPosting === false}
+                                    className={!a.isActive || a.allowsPosting === false ? "text-muted-foreground opacity-60" : undefined}
+                                  >
                                     <span className="font-mono mr-1">{a.code}</span> {a.name}
+                                    {!a.isActive && <span className="ml-2 text-[10px]">neaktiven</span>}
+                                    {a.isActive && a.allowsPosting === false && <span className="ml-2 text-[10px]">skupinski</span>}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                            {line.suggestionSource === "history" && line.accountId && (
-                              <p className="text-[10px] text-emerald-700 mt-0.5 flex items-center gap-1">
-                                <span>✓</span>
-                                {line.suggestionCount != null && line.suggestionCount > 0
-                                  ? `Na podlagi ${line.suggestionCount} preteklih ${line.suggestionCount === 1 ? "računa" : "računov"} tega dobavitelja`
-                                  : "Na podlagi preteklih računov tega dobavitelja"}
-                              </p>
+                            {accountIsGroup && (
+                              <div className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 mt-1">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                                <span>Konto {selectedAccount?.code ?? line.accountCode} je skupinski — izberite analitični konto za direktno knjiženje</span>
+                              </div>
                             )}
-                            {line.suggestionSource === "pattern" && line.accountId && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
-                                Tipičen vzorec kontiranja
-                              </p>
+                            {accountIsInactive && (
+                              <div className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 mt-1">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                                <span>Konto {selectedAccount?.code ?? line.accountCode} ni aktiven — izberite aktiven konto za direktno knjiženje</span>
+                              </div>
+                            )}
+                            {line.accountId && (
+                              <SuggestionSourceIndicator
+                                source={line.suggestionSource}
+                                count={line.suggestionCount}
+                              />
+                            )}
+                            {accountTemplates.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                <span className="text-[10px] text-muted-foreground mr-0.5">Uporabi predlogo:</span>
+                                {accountTemplates.map(template => {
+                                  const canApply = accounts.some(account => account.id === template.accountId);
+                                  return (
+                                    <button
+                                      key={template.id}
+                                      type="button"
+                                      disabled={isViewer || !canApply}
+                                      onClick={() => applyTemplateToLine(idx, template.accountId)}
+                                      className="inline-flex items-center rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                      title={canApply
+                                        ? `Uporabi konto ${template.accountCode} za to vrstico`
+                                        : `Konto ${template.accountCode} ni v kontnem planu`}
+                                    >
+                                      {template.accountCode} ({template.usageCount}×)
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1131,11 +1363,14 @@ function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
               {hasUnresolvedLines && (
                 <p className="text-amber-600 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> {linesWithMissingAccount.length} {linesWithMissingAccount.length === 1 ? "vrstica nima" : "vrstice nimajo"} konta</p>
               )}
+              {hasInvalidAccounts && (
+                <p className="text-amber-600 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> {linesWithInvalidAccount.length} {linesWithInvalidAccount.length === 1 ? "konto ni knjižljiv" : "kontov ni knjižljivih"}</p>
+              )}
             </div>
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!form.counterpartyId || !form.periodId || hasUnresolvedLines || confirmMut.isPending || isViewer}
+              disabled={!form.counterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}

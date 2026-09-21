@@ -38,15 +38,15 @@ export function useKopirajNormativ({
   const handleCopyFromArtikel = async (sourceId: number) => {
     setCopyPickerLoading(true);
     try {
-      const normativi = await queryClient.fetchQuery({
+      const response = await queryClient.fetchQuery({
         queryKey: getGetArtikelNormativiQueryKey(sourceId),
         queryFn: () => getArtikelNormativi(sourceId),
       });
-      if (jeNormativPrazen(normativi)) {
+      if (jeNormativPrazen(response.normativi)) {
         toast({ title: "Ta artikel nima normativa", variant: "destructive" });
         return;
       }
-      setNormativItems(preslikajNormativIzVira(normativi));
+      setNormativItems(preslikajNormativIzVira(response.normativi));
       setNormativNapaka(null);
       setCopyPickerOpen(false);
       setCopyPickerSearch("");

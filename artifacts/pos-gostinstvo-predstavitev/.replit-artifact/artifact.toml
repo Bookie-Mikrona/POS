@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/pos-gostinstvo-predstavitev/"
+title = "Bookie POS Gostinstvo — predstavitev"
+description = "Spodbudna 30-diapozitivna predstavitev bistvenih funkcij in prednosti modula POS Gostinstvo za uporabnike starega programa, z jasnim načrtom varnega postopnega prehoda."
+version = "1.0.0"
+id = "artifacts/pos-gostinstvo-predstavitev"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/pos-gostinstvo-predstavitev/" ]
+localPort = 23844
+
+[services.development]
+run = "pnpm --filter @workspace/pos-gostinstvo-predstavitev run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pos-gostinstvo-predstavitev", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pos-gostinstvo-predstavitev/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23844"
+BASE_PATH = "/pos-gostinstvo-predstavitev/"

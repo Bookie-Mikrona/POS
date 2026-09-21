@@ -1,0 +1,77 @@
+točno opiši definiranje in kreiranje a-računov v gostinstvu za pogodbeno podjetje katerega delavci hodijo vsakodnevno na malico v obrat, Cene malic so določene v pogodbi oziroma ceniku, ki velja za podjetje. vsak dan se delavcem izda račun na pos blagajni s podatki podjetja, negotovinsko, ddv se obračuna in račun registrira na furs. na koncu meseca, pa se izda zbirni a-račun podjetju z valuto plačila po pogodbi. razloži, prikaži tudi knjiženje
+
+Izdajanje in knjiženje t. i. A-računov (oziroma zbirnih/avansnih računov) za pogodbene malice je eden najpogostejših, a tudi davčno najbolj občutljivih procesov v gostinstvu.
+
+Bistvo tega sistema je, da ne sme priti do dvojnega obračuna DDV ali dvojnega pripoznanja prihodkov ob izdaji dnevnih računov in končnega zbirnega računa na koncu meseca.
+
+1. Definicija in potek procesa (Korak za korakom)
+A-račun v gostinstvu v praksi pomeni zbirni račun za opravljene storitve v obračunskem obdobju (zaseda vlogo končnega računa), ki se opira na predhodno posamično izdane dnevne račune.
+
+Korak 1: Podpis pogodbe in vnos v POS sistem
+S podjetjem se sklene pogodba o prehrani delavcev.
+
+V POS sistemu se odpre posebna partner kartica s podatki podjetja (ID za DDV, naslov) ter nastavi ustrezen cenik ali pogodbeni popust za njihove zaposlene.
+
+Določi se posebna negotovinska oblika plačila na blagajni (npr. »Naročilnica«, »A-račun« ali »Plačilo po pogodbi«).
+
+Korak 2: Dnevna izdaja posamičnih računov na POS blagajni
+Vsak dan ob prevzemu malice natakar na POS blagajni izbere partnerja (podjetje) in izda račun.
+
+Fiscalizacija (FURS): Račun se obvezno davčno potrdi na FURS takoj ob izdaji, saj je storitev (postrežba malice) opravljena na ta dan.
+
+Način plačila: Na računu je označeno negotovinsko plačilo (npr. Odloženo plačilo / Naročilnica).
+
+Obračun DDV: DDV se obračuna ob vsakem dnevnem računu in se uvrsti v dnevni davčni knjigovodski zapisnik (Zasebni/Poslovni računi FURS).
+
+Izpisan dnevni račun ali potrjen dobavnik/bon delavec pogosto podpiše kot dokazilo o prejetem obroku.
+
+Korak 3: Konec meseca – Izdelava zbirnega A-računa
+Na zadnji dan meseca se iz POS/ERP sistema izvozi zbirno poročilo vseh posamičnih dnevnih računov za to podjetje.
+
+Izda se Zbirni A-račun (lahko kot knjižba/specifikacija ali zbirni dokument), na katerem so navedene postavke:
+
+Specifikacija opravljenih storitev (skupni znesek z DDV po kategorijah/stopnjah).
+
+Storno / Odbitek že davčno potrjenih dnevnih računov ali jasna opomba:
+
+"Storitev je bila že obračunana in davčno potrjena s posamičnimi računi št. [SEZNAM RAČUNOV]. Ta dokument služi kot zbirni račun za plačilo in ne predstavlja novega obračuna DDV."
+
+Rok plačila (valuta) na zbirnem računu se določi v skladu s pogodbo (npr. 15 ali 30 dni).
+
+2. Računovodsko knjiženje (Primer)
+Da se izognemo podvajanju obveznosti za DDV in prihodkov, se v računovodstvu uporablja prehodni konto (npr. 2200 ali 1450 - Obveznosti/Teratve v teku).
+
+Predpostavke za primer:
+Podjetje A ima v mesecu 100 malic po pogodbeni ceni 8,00 € + 9,5 % DDV = 8,76 € / malico.
+
+Skupaj mesec: 800,00 € neto + 76,00 € DDV (9,5 %) = 876,00 € z DDV.
+
+A. Dnevno knjiženje (ali zbirno mesečno knjiženje dnevnih POS trakov)
+Ker se vsak dan računi davčno potrdijo in izdajo na POS-u, se prihodki in DDV pripoznajo na podlagi dnevnih blagajniških izpiskov (POS trakov):
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+1650 (ali 1209)	Teratve do kupcev – negotovinske blagajne (A-računi v teku)	876,00 €	
+7600	Prihodki od prodaje gostinskih storitev		800,00 €
+2600	Obveznosti za izstopni DDV (9,5 %)		76,00 €
+Učinek: Prihodki in obveznost za DDV do FURS-a so pravilno evidentirani v mesecu, ko so bile malice dejansko porabljene.
+
+B. Knjiženje končnega zbirnega A-računa na koncu meseca
+Ko na koncu meseca podjetju pošljete uradni zbirni A-račun s specifikacijo in določenim rokom plačila:
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+1200	Teratve do kupcev v državi (Podjetje X)	876,00 €	
+1650 (ali 1209)	Teratve do kupcev – negotovinske blagajne (A-računi v teku)		876,00 €
+Učinek: Konto 1650 se zapre (izravna na 0 €), odprta pa ostane čista terjatev do podjetja na kontu 1200 z ustrezno valuto plačila. DDV in prihodki se na zbirnem računu NE knjižijo ponovno.
+
+C. Knjiženje prejetega plačila podjetja
+Ko podjetje poravna zbirni A-račun na bančni račun (TRR):
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+1100	Denarna sredstva na TRR	876,00 €	
+1200	Teratve do kupcev v državi (Podjetje X)		876,00 €
+Ključna opozorila pri poslovanju z A-računi
+Prepoved dvojnega potrjevanja (FURS): Zbirni A-račun na koncu meseca se ne sme ponovno davčno potrditi (fiscalizirati), če so bili že vsi posamični dnevni računi davčno potrjeni.
+
+Klavzula na zbirnem A-računu: Na zbirnem računu mora biti vedno jasno napisana opomba, ki povezuje zbirni račun z dnevnimi računi (npr. "DDV je bil obračunan ob izdaji posamičnih računov št. X do Y").
+
+Avtomatsko zapiranje v ERP: Večina gostinskih programov (npr. MicroBlink, Saop, Pantheon, TRONpos ipd.) ima že vgrajen modul za A-račune, ki avtomatsko generira zbirni račun iz posamičnih dnevnih vnosov ter pripravi ustrezne temeljnice za knjiženje.

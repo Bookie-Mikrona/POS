@@ -1,0 +1,11 @@
+# Prekopirajte to datoteko v local.properties in nastavite pravilno pot!
+# (local.properties je strojno-specifičen in ni commitan v git)
+#
+# Windows (tipična pot):
+sdk.dir=C\:\\Users\\VašeUporabniškiIme\\AppData\\Local\\Android\\Sdk
+#
+# macOS (tipična pot):
+# sdk.dir=/Users/vaseuporabniskiime/Library/Android/sdk
+#
+# Linux (tipična pot):
+# sdk.dir=/home/vaseuporabniskiime/Android/Sdk

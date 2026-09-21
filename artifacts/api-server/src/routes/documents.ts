@@ -20,6 +20,7 @@
 
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, desc, sql, asc, inArray } from "drizzle-orm";
+import { clerkClient } from "@clerk/express";
 import {
   db,
   documentsTable,
@@ -36,11 +37,31 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 import { ObjectStorageService } from "../lib/objectStorage";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import type { OcrResult, ProposedLine } from "@workspace/db";
+import { validateDirectPostingAccounts } from "../lib/directPostingAccountValidation";
+import { claimPurchaseSourceDocument } from "../lib/purchaseSourceDocuments";
 
 const router: IRouter = Router();
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
+}
+
+async function resolveActorLabel(clerkUserId: string): Promise<string> {
+  try {
+    const user = await clerkClient.users.getUser(clerkUserId);
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+    if (fullName) return fullName;
+
+    const primaryEmail = user.emailAddresses.find(
+      (email) => email.id === user.primaryEmailAddressId,
+    )?.emailAddress;
+    return primaryEmail ?? user.emailAddresses[0]?.emailAddress ?? clerkUserId;
+  } catch {
+    // Akcija se ne sme izjaloviti samo zato, ker Clerk trenutno ni dosegljiv.
+    // ID ohrani sledljivost do uporabnika, medtem ko običajni tok vedno shrani
+    // ime ali e-pošto.
+    return clerkUserId;
+  }
 }
 
 async function resolveAccess(
@@ -60,6 +81,55 @@ async function resolveAccess(
 const storage = new ObjectStorageService();
 
 // ─── OCR logika ────────────────────────────────────────────────────────────────
+
+type SuggestionTemplateRow = {
+  counterpartyId: string;
+  accountId: string;
+  usageCount: number | null;
+};
+
+type SuggestionBookingRow = {
+  counterpartyId: string;
+  accountCode: string;
+};
+
+export function enrichLinesWithSuggestionSource(
+  lines: ProposedLine[],
+  detectedCounterpartyId: string | null,
+  templateRows: SuggestionTemplateRow[],
+  recentBookingRows: SuggestionBookingRow[],
+): ProposedLine[] {
+  return lines.map(line => {
+    const accountId = line.accountId ?? null;
+    if (!accountId || !detectedCounterpartyId) {
+      return { ...line, suggestionSource: "pattern" as const };
+    }
+
+    const matchingTemplate = templateRows.find(
+      t => t.counterpartyId === detectedCounterpartyId && t.accountId === accountId,
+    );
+    if (matchingTemplate) {
+      return {
+        ...line,
+        suggestionSource: "history" as const,
+        suggestionCount: matchingTemplate.usageCount ?? undefined,
+      };
+    }
+
+    const matchingBookings = recentBookingRows.filter(
+      b => b.counterpartyId === detectedCounterpartyId && b.accountCode === line.accountCode,
+    );
+    if (matchingBookings.length > 0) {
+      return {
+        ...line,
+        suggestionSource: "history" as const,
+        suggestionCount: matchingBookings.length,
+      };
+    }
+
+    return { ...line, suggestionSource: "pattern" as const };
+  });
+}
 
 /**
  * Pridobi vsebino datoteke iz GCS za posredovanje Claudu.
@@ -139,6 +209,7 @@ async function runOcrWithClaude(
       accountId: counterpartyAccountTemplatesTable.accountId,
       accountCode: accountsTable.code,
       accountName: accountsTable.name,
+      accountIsActive: accountsTable.isActive,
       documentType: counterpartyAccountTemplatesTable.documentType,
       lastLineDescription: counterpartyAccountTemplatesTable.lastLineDescription,
       usageCount: counterpartyAccountTemplatesTable.usageCount,
@@ -146,7 +217,12 @@ async function runOcrWithClaude(
       .from(counterpartyAccountTemplatesTable)
       .innerJoin(counterpartiesTable, eq(counterpartyAccountTemplatesTable.counterpartyId, counterpartiesTable.id))
       .innerJoin(accountsTable, eq(counterpartyAccountTemplatesTable.accountId, accountsTable.id))
-      .where(eq(counterpartyAccountTemplatesTable.companyId, companyId))
+      .where(
+        and(
+          eq(counterpartyAccountTemplatesTable.companyId, companyId),
+          eq(accountsTable.isActive, true),
+        ),
+      )
       .orderBy(desc(counterpartyAccountTemplatesTable.usageCount))
       .limit(200),
   ]);
@@ -313,38 +389,12 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
 
   // Določi vir predloga za vsako vrstico (history vs pattern)
   const detectedCounterpartyId = parsed.suggestedCounterpartyId ?? null;
-  const enrichedLines: ProposedLine[] = (parsed.lines ?? []).map(line => {
-    const accountId = line.accountId ?? null;
-    if (!accountId || !detectedCounterpartyId) {
-      return { ...line, suggestionSource: "pattern" as const };
-    }
-
-    // Preveri shranjene predloge za tega partnerja
-    const matchingTemplate = templateRows.find(
-      t => t.counterpartyId === detectedCounterpartyId && t.accountId === accountId,
-    );
-    if (matchingTemplate) {
-      return {
-        ...line,
-        suggestionSource: "history" as const,
-        suggestionCount: matchingTemplate.usageCount ?? undefined,
-      };
-    }
-
-    // Preveri pretekle knjižbe za tega partnerja
-    const matchingBookings = recentBookingRows.filter(
-      b => b.counterpartyId === detectedCounterpartyId && b.accountCode === line.accountCode,
-    );
-    if (matchingBookings.length > 0) {
-      return {
-        ...line,
-        suggestionSource: "history" as const,
-        suggestionCount: matchingBookings.length,
-      };
-    }
-
-    return { ...line, suggestionSource: "pattern" as const };
-  });
+  const enrichedLines = enrichLinesWithSuggestionSource(
+    parsed.lines ?? [],
+    detectedCounterpartyId,
+    templateRows,
+    recentBookingRows,
+  );
 
   return {
     rawText: parsed.rawText ?? rawText,
@@ -544,8 +594,15 @@ router.post(
       arApAccountId?: string;
     };
 
-    // Validacija: vse vrstice morajo imeti veljavni accountId iz kontnega načrta tega podjetja
-    const submittedLines: ProposedLine[] = lines.length > 0 ? lines : ((doc.ocrResult?.lines ?? []) as ProposedLine[]);
+    if (!Array.isArray(lines) || lines.length === 0) {
+      res.status(400).json({ error: "Dokument nima vrstic za kontiranje — dodajte vsaj eno vrstico." });
+      return;
+    }
+
+    // Validacija: vse vrstice morajo imeti aktiven, knjižljiv konto iz kontnega
+    // načrta tega podjetja. Skupinski konti (allowsPosting=false) so namenjeni
+    // samo grupiranju v poročilih in jih ni dovoljeno neposredno knjižiti.
+    const submittedLines: ProposedLine[] = lines;
     const allLineAccountIds = submittedLines.map(l => l.accountId).filter((id): id is string => !!id);
     const missingAccountLines = submittedLines.filter(l => !l.accountId);
     if (missingAccountLines.length > 0) {
@@ -557,18 +614,38 @@ router.post(
     if (allLineAccountIds.length > 0) {
       const uniqueLineAccountIds = [...new Set(allLineAccountIds)];
       const validAccounts = await db
-        .select({ id: accountsTable.id })
+        .select({
+          id: accountsTable.id,
+          code: accountsTable.code,
+          isActive: accountsTable.isActive,
+          allowsPosting: accountsTable.allowsPosting,
+        })
         .from(accountsTable)
         .where(and(
           inArray(accountsTable.id, uniqueLineAccountIds),
           eq(accountsTable.companyId, companyId),
-          eq(accountsTable.isActive, true),
         ));
-      const validIds = new Set(validAccounts.map(a => a.id));
-      const invalidIds = uniqueLineAccountIds.filter(id => !validIds.has(id));
-      if (invalidIds.length > 0) {
+      const validation = validateDirectPostingAccounts(uniqueLineAccountIds, validAccounts);
+      if (!validation.valid && validation.reason === "missing") {
+        const missingIds = validation.accounts.map(account => account.id);
         res.status(400).json({
-          error: `${invalidIds.length} ${invalidIds.length === 1 ? "konto ni najden" : "kontov ni najdenih"} v kontnem načrtu tega podjetja — preverite kontiranje pred potrditvijo`
+          error: `${missingIds.length} ${missingIds.length === 1 ? "konto ni najden" : "kontov ni najdenih"} v kontnem načrtu tega podjetja — preverite kontiranje pred potrditvijo`
+        });
+        return;
+      }
+
+      if (!validation.valid && validation.reason === "inactive") {
+        const labels = validation.accounts.map(account => account.code).join(", ");
+        res.status(400).json({
+          error: `Konto ${labels} ni aktiven — izberite aktiven konto za direktno knjiženje`
+        });
+        return;
+      }
+
+      if (!validation.valid && validation.reason === "group") {
+        const labels = validation.accounts.map(account => account.code).join(", ");
+        res.status(400).json({
+          error: `Konto ${labels} je skupinski — izberite analitični konto za direktno knjiženje`
         });
         return;
       }
@@ -581,16 +658,23 @@ router.post(
       invoiceNumber: invoiceNumber ?? base.invoiceNumber,
       invoiceDate: invoiceDate ?? base.invoiceDate,
       dueDate: dueDate ?? base.dueDate,
-      lines: lines.length > 0 ? lines : base.lines,
+      lines,
       suggestedCounterpartyId: counterpartyId ?? base.suggestedCounterpartyId,
       suggestedPeriodId: periodId ?? base.suggestedPeriodId,
       suggestedDocumentType: (documentType as OcrResult["suggestedDocumentType"]) ?? base.suggestedDocumentType,
     };
 
     let linkedInvoiceId: string | null = null;
+    let updated: typeof doc | undefined;
+    const confirmedBy = await resolveActorLabel(authReq.clerkUserId);
 
     // Ustvari draft račun (opcijsko)
     if (createInvoice && counterpartyId && periodId && invoiceDate) {
+      const effectiveInvoiceNumber = invoiceNumber ?? base.invoiceNumber;
+      if (!effectiveInvoiceNumber) {
+        res.status(400).json({ error: "Za ustvarjanje prejetega računa je številka dobaviteljeve listine obvezna" });
+        return;
+      }
       // Validacija partnerja in obdobja
       const [cp] = await db.select({ id: counterpartiesTable.id })
         .from(counterpartiesTable)
@@ -604,18 +688,30 @@ router.post(
         .limit(1);
       if (!period) { res.status(400).json({ error: "Obdobje ni najdeno" }); return; }
 
-      // Validacija kontov vrstic — vsi morajo pripadati istemu podjetju
+      // Vrstice so bile že validirane zgoraj. Ta preverba ostane kot obramba
+      // pred uporabo kontov iz kakšnega prihodnjega privzetega vira.
       const lineAccountIds = [...new Set((lines ?? []).filter(l => l.accountId).map((l) => l.accountId as string))];
       if (lineAccountIds.length > 0) {
         const validLineAccounts = await db
-          .select({ id: accountsTable.id })
+          .select({
+            id: accountsTable.id,
+            code: accountsTable.code,
+            isActive: accountsTable.isActive,
+            allowsPosting: accountsTable.allowsPosting,
+          })
           .from(accountsTable)
           .where(and(
             inArray(accountsTable.id, lineAccountIds),
             eq(accountsTable.companyId, companyId),
           ));
-        if (validLineAccounts.length !== lineAccountIds.length) {
-          res.status(400).json({ error: "Eden ali več kontov vrstic ne pripada temu podjetju" });
+        const validation = validateDirectPostingAccounts(lineAccountIds, validLineAccounts);
+        if (!validation.valid) {
+          const message = validation.reason === "group"
+            ? "Eden ali več kontov vrstic je skupinskih — izberite analitične konte za direktno knjiženje"
+            : validation.reason === "inactive"
+              ? "Eden ali več kontov vrstic ni aktivnih — izberite aktivne konte za direktno knjiženje"
+              : "Eden ali več kontov vrstic ne pripada temu podjetju";
+          res.status(400).json({ error: message });
           return;
         }
       }
@@ -627,13 +723,21 @@ router.post(
       const revenuePrefix = invType === "issued" ? "760" : "400";
 
       const [resolvedArApAccount] = arApAccountId
-        ? await db.select({ id: accountsTable.id })
+        ? await db.select({ id: accountsTable.id, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
             .from(accountsTable)
-            .where(and(eq(accountsTable.id, arApAccountId), eq(accountsTable.companyId, companyId)))
+            .where(and(
+              eq(accountsTable.id, arApAccountId),
+              eq(accountsTable.companyId, companyId),
+              eq(accountsTable.isActive, true),
+              eq(accountsTable.allowsPosting, true),
+            ))
             .limit(1)
-        : await db.select({ id: accountsTable.id })
+        : await db.select({ id: accountsTable.id, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
             .from(accountsTable)
-            .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true),
+            .where(and(
+              eq(accountsTable.companyId, companyId),
+              eq(accountsTable.isActive, true),
+              eq(accountsTable.allowsPosting, true),
               sql`${accountsTable.code} LIKE ${arApPrefix + "%"}`,
             ))
             .orderBy(asc(accountsTable.code))
@@ -647,25 +751,56 @@ router.post(
       // Poišči privzet prihodkovni/stroškovni konto za vrstice
       const [defaultAccount] = await db.select({ id: accountsTable.id })
         .from(accountsTable)
-        .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true),
+        .where(and(
+          eq(accountsTable.companyId, companyId),
+          eq(accountsTable.isActive, true),
+          eq(accountsTable.allowsPosting, true),
           sql`${accountsTable.code} LIKE ${revenuePrefix + "%"}`,
         ))
         .orderBy(asc(accountsTable.code))
         .limit(1);
 
-      const invoice = await db.transaction(async (tx) => {
+      try {
+        const transactionResult = await db.transaction(async (tx) => {
+        const [claimedDocument] = await tx.update(documentsTable)
+          .set({
+            status: "confirmed",
+            documentType: (documentType ?? doc.documentType) as any,
+            confirmedData: confirmedData as any,
+            confirmedBy,
+          })
+          .where(and(
+            eq(documentsTable.id, id),
+            eq(documentsTable.companyId, companyId),
+            eq(documentsTable.status, "done"),
+          ))
+          .returning({ id: documentsTable.id });
+        if (!claimedDocument) throw new Error("DOCUMENT_ALREADY_CONFIRMED");
+
+        const sourceDocumentId = invType === "received"
+          ? await claimPurchaseSourceDocument(tx, {
+              companyId,
+              counterpartyId,
+              kind: "invoice",
+              documentNumber: effectiveInvoiceNumber,
+              documentDate: invoiceDate,
+              currency: confirmedData.currency,
+            })
+          : null;
+
         const [inv] = await tx.insert(invoicesTable).values({
           companyId,
           type: invType as any,
           counterpartyId,
           periodId,
-          invoiceNumber: invoiceNumber ?? `DRAFT-${doc.id.slice(0, 8)}`,
+          invoiceNumber: effectiveInvoiceNumber,
           invoiceDate: invoiceDate as string,
           dueDate: (dueDate ?? null) as string | null,
           status: "draft",
           arApAccountId: resolvedArApAccount.id,
           createdBy: authReq.clerkUserId,
           notes: `Ustvarjeno iz dokumenta: ${doc.fileName}`,
+          sourceDocumentId,
         } as any).returning({ id: invoicesTable.id });
 
         // Ustvari vrstice
@@ -686,18 +821,47 @@ router.post(
             sequence: i,
           });
         }
-        return inv;
-      });
-
-      linkedInvoiceId = invoice.id;
+        const [savedDocument] = await tx.update(documentsTable)
+          .set({ linkedInvoiceId: inv.id, sourceDocumentId })
+          .where(eq(documentsTable.id, id))
+          .returning();
+        return { invoiceId: inv.id, document: savedDocument };
+        });
+        linkedInvoiceId = transactionResult.invoiceId;
+        updated = transactionResult.document;
+      } catch (error: any) {
+        if (
+          error?.message === "DOCUMENT_ALREADY_CONFIRMED"
+          || error?.cause?.code === "23505"
+          || error?.code === "23505"
+          || error?.code === "LEGACY_PURCHASE_SOURCE_CONFLICT"
+        ) {
+          res.status(409).json({
+            error: "Ta nabavna listina je že potrjena ali že zajeta kot prejeti račun",
+          });
+          return;
+        }
+        throw error;
+      }
     }
 
-    const [updated] = await db.update(documentsTable).set({
-      status: "confirmed",
-      documentType: (documentType ?? doc.documentType) as any,
-      confirmedData: confirmedData as any,
-      linkedInvoiceId,
-    }).where(eq(documentsTable.id, id)).returning();
+    if (!updated) {
+      [updated] = await db.update(documentsTable).set({
+        status: "confirmed",
+        documentType: (documentType ?? doc.documentType) as any,
+        confirmedData: confirmedData as any,
+        linkedInvoiceId,
+        confirmedBy,
+      }).where(and(
+        eq(documentsTable.id, id),
+        eq(documentsTable.companyId, companyId),
+        eq(documentsTable.status, "done"),
+      )).returning();
+      if (!updated) {
+        res.status(409).json({ error: "Dokument je bil medtem že potrjen" });
+        return;
+      }
+    }
 
     // ── Upsert predlog kontiranja po partnerju ──────────────────────────────
     // Ob vsaki potrditvi shranimo par (partner + konto) za vsako vrstico.
@@ -770,7 +934,8 @@ router.post(
       .limit(1);
     if (!doc) { res.status(404).json({ error: "Dokument ni najden" }); return; }
 
-    const [updated] = await db.update(documentsTable).set({ status: "rejected" })
+    const rejectedBy = await resolveActorLabel(authReq.clerkUserId);
+    const [updated] = await db.update(documentsTable).set({ status: "rejected", rejectedBy })
       .where(eq(documentsTable.id, id)).returning();
 
     res.json(updated);

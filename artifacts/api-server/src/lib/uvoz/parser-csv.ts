@@ -13,7 +13,6 @@
 //   - Excelova serijska številka datuma z izhodiščem 30.12.1899
 
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import iconv from 'iconv-lite';
 import { Decimal } from 'decimal.js';
 
@@ -30,6 +29,14 @@ import {
   prazenDto,
   zaokrozi,
 } from './dto';
+import {
+  XlsxBranjeNapaka,
+  preberiXlsxTipizirano,
+  xlsxMatrikaZaStevilskeStolpce,
+} from './xlsx-branje';
+
+type UvozXlsxVrednost = string | number;
+type UvozXlsxMatrika = UvozXlsxVrednost[][];
 
 // =====================================================================
 // Konfiguracija profila
@@ -156,6 +163,23 @@ export function zaznajLocilo(besedilo: string): string {
     }
   }
   return najboljse;
+}
+
+/**
+ * Skupna CSV matrika za tokove, ki ne uporabljajo dobaviteljskega profila.
+ * Ohranimo isto zaznavo kodiranja, ločila in praznih vrstic kot pri
+ * CsvRazclenjevalnik. CSV nikoli ne gre skozi XLSX bralnik.
+ */
+export function preberiCsvMatriko(
+  raw: Buffer,
+  options: Pick<UvozProfilKonfig, 'kodiranje' | 'locilo'> = {},
+): string[][] {
+  const { besedilo } = dekodiraj(raw, options.kodiranje);
+  return Papa.parse<string[]>(besedilo, {
+    delimiter: options.locilo ?? zaznajLocilo(besedilo),
+    skipEmptyLines: false,
+    dynamicTyping: false,
+  }).data;
 }
 
 // =====================================================================
@@ -285,26 +309,43 @@ export class CsvRazclenjevalnik {
   }
 
   /** XLSX: pretvori v matriko in uporabi isto pot. */
-  razcleniXlsx(raw: Buffer, imeDatoteke = ''): PrejemDTO {
-    const wb = XLSX.read(raw, { type: 'buffer', cellDates: true });
-    const imeLista = this.k.list ?? wb.SheetNames[0];
-    const ws = wb.Sheets[imeLista];
+  async razcleniXlsx(raw: Buffer, imeDatoteke = ''): Promise<PrejemDTO> {
     const dto = prazenDto();
-    if (!ws) {
-      dodajNapako(dto, 'ZAJ010', 'B', `Lista "${imeLista}" ni v datoteki.`, {
-        naVoljo: wb.SheetNames,
-      });
+    try {
+      const tipizirane = await preberiXlsxTipizirano(raw, this.k.list);
+      const besedilneVrstice = tipizirane.map((vrstica) =>
+        vrstica.map((celica) => celica.text),
+      );
+      const s = this.k.stolpci;
+      const stevilskiStolpci = [
+        s.kolicina.indeks,
+        s.cena.indeks,
+        s.vrednost?.indeks,
+        s.enotVPaketu?.indeks,
+        s.rabatOdst?.indeks,
+        s.rabat2Odst?.indeks,
+        s.ddv?.indeks,
+      ].filter((indeks): indeks is number => indeks !== undefined);
+      const vrsticZaPostavke = xlsxMatrikaZaStevilskeStolpce(
+        tipizirane,
+        stevilskiStolpci,
+      );
+
+      // Glava dokumenta, datumi in identifikatorji vedno ostanejo prikazano
+      // besedilo; native številke so dovoljene izključno v postavkah.
+      this.glava(dto, besedilneVrstice, imeDatoteke);
+      this.postavke(dto, vrsticZaPostavke);
+    } catch (e) {
+      const napaka = e instanceof XlsxBranjeNapaka ? e : null;
+      dodajNapako(
+        dto,
+        napaka?.koda ?? 'ZAJ018',
+        'B',
+        napaka?.message ?? 'Datoteke .xlsx ni bilo mogoče prebrati.',
+        napaka?.naVoljo.length ? { naVoljo: napaka.naVoljo } : undefined,
+      );
       return dto;
     }
-    // raw:false -> celice kot besedilo, da Excel ne uniči vodilnih ničel v GTIN
-    const vrstice = XLSX.utils.sheet_to_json<string[]>(ws, {
-      header: 1,
-      raw: false,
-      defval: '',
-      blankrows: true,
-    });
-    this.glava(dto, vrstice, imeDatoteke);
-    this.postavke(dto, vrstice);
     this.dolociNetoBruto(dto);
     this.preveriVsote(dto);
     return dto;
@@ -326,6 +367,9 @@ export class CsvRazclenjevalnik {
       if (polje === 'stDokumenta' || polje === 'stDokumentaAlt')
         dto.stDokumenta ??= vrednost.trim();
       else if (polje === 'datum') dto.datumDokumenta = vDatum(vrednost);
+      else if (polje === 'datumZapadlosti' || polje === 'zapadlost')
+        dto.datumZapadlosti = vDatum(vrednost);
+      else if (polje === 'valuta') dto.valuta = vrednost.trim().toUpperCase();
       else if (polje === 'dobaviteljDavcna')
         dto.dobaviteljDavcna = vrednost.replace(/\D/g, '').slice(0, 8) || null;
     }
@@ -365,7 +409,7 @@ export class CsvRazclenjevalnik {
 
   // ---------------- postavke ----------------
 
-  private najdiGlavo(vrstice: string[][]): number | null {
+  private najdiGlavo(vrstice: UvozXlsxMatrika): number | null {
     const pricakovana = (this.k.glavaVsebuje ?? []).map((s) => s.toLowerCase());
     if (!pricakovana.length) return null;
     for (let i = 0; i < Math.min(vrstice.length, 40); i++) {
@@ -375,7 +419,7 @@ export class CsvRazclenjevalnik {
     return null;
   }
 
-  private postavke(dto: PrejemDTO, vrstice: string[][]): void {
+  private postavke(dto: PrejemDTO, vrstice: UvozXlsxMatrika): void {
     const glava = this.najdiGlavo(vrstice);
     const prva = glava !== null ? glava + 1 : (this.k.prvaVrsticaPodatkov ?? 2) - 1;
     const s = this.k.stolpci;
@@ -415,6 +459,7 @@ export class CsvRazclenjevalnik {
         rabat1Odst: s.rabatOdst ? vDecimal(this.polje(v, s.rabatOdst), dec) : new Decimal(0),
         rabat2Odst: s.rabat2Odst ? vDecimal(this.polje(v, s.rabat2Odst), dec) : new Decimal(0),
         ddvStopnja: s.ddv ? vDecimal(this.polje(v, s.ddv), dec) : null,
+        ddvOsnova: s.vrednost ? vDecimal(this.polje(v, s.vrednost), dec) : null,
       });
 
       // GTIN, ki ga je Excel uničil (3.8388E+12), gtinNorm vrne null
@@ -441,7 +486,7 @@ export class CsvRazclenjevalnik {
     }
   }
 
-  private polje(v: string[], pravilo?: StolpecPravilo): unknown {
+  private polje(v: UvozXlsxVrednost[], pravilo?: StolpecPravilo): unknown {
     if (!pravilo) return null;
     const surovo = v[pravilo.indeks];
     if (surovo === undefined || surovo === '') return pravilo.privzeto ?? null;
@@ -457,7 +502,7 @@ export class CsvRazclenjevalnik {
     return s || null;
   }
 
-  private preskoci(v: string[]): boolean {
+  private preskoci(v: UvozXlsxVrednost[]): boolean {
     const p = this.k.preskociVrsticeKjer;
     if (!p) return false;
     const vrednost = String(v[p.stolpec] ?? '');
@@ -466,14 +511,14 @@ export class CsvRazclenjevalnik {
     return false;
   }
 
-  private jeVrsticaVsote(v: string[]): boolean {
+  private jeVrsticaVsote(v: UvozXlsxVrednost[]): boolean {
     const p = this.k.vrsticaVsote;
     if (!p) return false;
     const vrednost = String(v[p.prepoznajPo.stolpec] ?? '');
     return vrednost.toLowerCase().includes(p.prepoznajPo.vsebuje.toLowerCase());
   }
 
-  private preberiVsoto(dto: PrejemDTO, v: string[]): void {
+  private preberiVsoto(dto: PrejemDTO, v: UvozXlsxVrednost[]): void {
     for (const [polje, idx] of Object.entries(this.k.vrsticaVsote?.stolpci ?? {})) {
       const d = vDecimal(v[idx as number], this.k.decimalnoLocilo);
       (dto as unknown as Record<string, Decimal>)[polje] = d;

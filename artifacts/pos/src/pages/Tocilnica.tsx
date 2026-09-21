@@ -3,6 +3,7 @@ import { useListAktivnaNarocila, useListKategorije, getListAktivnaNarocilaQueryK
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Clock, GlassWater } from "lucide-react";
+import { getActiveKdsTarget, getKdsCountdown, KdsNarociloGlava, kdsUrgencyClass, sortKdsNarocila } from "@/lib/kdsNarocilo";
 
 function minutesSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -44,11 +45,13 @@ export default function Tocilnica() {
 
   const pijacaIds = new Set((kategorije ?? []).filter(k => k.tip === "pijaca").map(k => k.id));
 
-  const odprta = (narocila?.filter(n => n.status === "odprto") ?? [])
+  const odprtaPoStarosti = (narocila?.filter(n => n.status === "odprto") ?? [])
     .map(n => {
       const vsePostavke = n.postavke ?? [];
       const topPostavke = vsePostavke
-        .filter(p => p.parentPostavkaId == null && p.kategorijaId != null && pijacaIds.has(p.kategorijaId))
+        .filter(p => p.parentPostavkaId == null
+          && p.kategorijaId != null
+          && pijacaIds.has(p.kategorijaId))
         .sort((a, b) => {
           const aDone = !!a.pripravljeno;
           const bDone = !!b.pripravljeno;
@@ -73,6 +76,7 @@ export default function Tocilnica() {
     })
     .filter(n => n.topPostavke.length > 0)
     .sort((a, b) => a.najstarejsiMs - b.najstarejsiMs);
+  const odprta = sortKdsNarocila(odprtaPoStarosti);
 
   function handleToggle(narociloId: number, postavkaId: number, trenutnoPripravljeno: string | null) {
     toggle.mutate({
@@ -115,7 +119,6 @@ export default function Tocilnica() {
           <span className="text-gray-400">Pripravljeno</span>
         </div>
       </div>
-
       {odprta.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 text-gray-600 gap-4">
           <GlassWater className="h-16 w-16 opacity-30" />
@@ -125,17 +128,22 @@ export default function Tocilnica() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {odprta.map(narocilo => {
             const cardMins = Math.floor((Date.now() - narocilo.najstarejsiMs) / 60000);
+            const pripravljeno = narocilo.topPostavke.length > 0 && narocilo.topPostavke.every((p) => !!p.pripravljeno);
+            const target = getActiveKdsTarget(narocilo, pripravljeno);
+            const targetUrgency = target ? getKdsCountdown(target.iso).urgency : null;
             return (
-              <Card key={narocilo.id} className={`border-2 transition-all ${cardBorder(cardMins)}`}>
+              <Card
+                key={narocilo.id}
+                data-testid={`kds-narocilo-${narocilo.id}`}
+                className={`border-2 transition-all ${targetUrgency ? kdsUrgencyClass(targetUrgency) : cardBorder(cardMins)}`}
+              >
                 <CardHeader className="pb-2 pt-3 px-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-xl font-black text-gray-900">
-                      {narocilo.mizaIme ?? `Miza ${narocilo.mizaStevilka}`}
-                    </CardTitle>
-                    <span className="text-xs text-gray-500 tabular-nums shrink-0 pt-0.5">
-                      {narocilo.topPostavke.length} artik.
-                    </span>
-                  </div>
+                  <CardTitle className="sr-only">Naročilo {narocilo.id}</CardTitle>
+                  <KdsNarociloGlava
+                    narocilo={narocilo}
+                    itemCount={narocilo.topPostavke.length}
+                     pripravljeno={pripravljeno}
+                  />
                 </CardHeader>
                 <CardContent className="px-3 pb-3">
                   <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">

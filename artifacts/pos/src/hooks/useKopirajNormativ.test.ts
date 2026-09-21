@@ -14,12 +14,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
-import type { Normativ } from "@workspace/api-client-react";
+import type { Normativ, NormativResponse } from "@workspace/api-client-react";
 import { useKopirajNormativ } from "./useKopirajNormativ";
 
 // ─── vi.hoisted mocks ────────────────────────────────────────────────────────
 
-const mockGetArtikelNormativi = vi.hoisted(() => vi.fn<() => Promise<Normativ[]>>());
+const mockGetArtikelNormativi = vi.hoisted(() => vi.fn<() => Promise<NormativResponse>>());
 const mockToast = vi.hoisted(() => vi.fn());
 
 // ─── Module mocks ────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ describe("useKopirajNormativ", () => {
   });
 
   it("artikel z normativom: vrstice se nadomestijo z normativom vira", async () => {
-    mockGetArtikelNormativi.mockResolvedValue(normativVira);
+    mockGetArtikelNormativi.mockResolvedValue({ normativRevision: 3, normativi: normativVira });
 
     const { result } = renderHook(
       () => useKopirajNormativ({ setNormativItems, setNormativNapaka }),
@@ -97,7 +97,7 @@ describe("useKopirajNormativ", () => {
   });
 
   it("artikel z normativom: prikaže toast 'Normativ kopiran'", async () => {
-    mockGetArtikelNormativi.mockResolvedValue(normativVira);
+    mockGetArtikelNormativi.mockResolvedValue({ normativRevision: 3, normativi: normativVira });
 
     const { result } = renderHook(
       () => useKopirajNormativ({ setNormativItems, setNormativNapaka }),
@@ -112,7 +112,7 @@ describe("useKopirajNormativ", () => {
   });
 
   it("artikel z normativom: picker se zapre po kopiranju", async () => {
-    mockGetArtikelNormativi.mockResolvedValue(normativVira);
+    mockGetArtikelNormativi.mockResolvedValue({ normativRevision: 3, normativi: normativVira });
 
     const { result } = renderHook(
       () => useKopirajNormativ({ setNormativItems, setNormativNapaka }),
@@ -133,7 +133,7 @@ describe("useKopirajNormativ", () => {
   });
 
   it("artikel brez normativa: prikaže napako toast in NE zamenja obstoječih vrstic", async () => {
-    mockGetArtikelNormativi.mockResolvedValue([]);
+    mockGetArtikelNormativi.mockResolvedValue({ normativRevision: 3, normativi: [] });
 
     const { result } = renderHook(
       () => useKopirajNormativ({ setNormativItems, setNormativNapaka }),
@@ -153,7 +153,7 @@ describe("useKopirajNormativ", () => {
   });
 
   it("artikel brez normativa: picker ostane odprt (copiranje ni uspelo)", async () => {
-    mockGetArtikelNormativi.mockResolvedValue([]);
+    mockGetArtikelNormativi.mockResolvedValue({ normativRevision: 3, normativi: [] });
 
     const { result } = renderHook(
       () => useKopirajNormativ({ setNormativItems, setNormativNapaka }),

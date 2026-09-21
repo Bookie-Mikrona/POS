@@ -1,0 +1,57 @@
+Predlagana je tudi naloga #503 za poznejšo ločeno proizvodno evidenco esence in štrukljev, ko bodo znane celotne recepture in izkoristki serij.
+
+To je povsem logičen in sistemsko pravilen korak. Predlog naloge #503 za ločeno proizvodno evidenco je odličen pristop iz več razlogov:
+
+Različna dinamika proizvodnje (Serijska vs. Dnevna):
+Goveja esenca se običajno kuha v večjih serijah (npr. 50–100 litrov naenkrat) in ima daljši postopek redukcije ter bistrenja, pri čemer je izkoristek odvisen od odparjanja in bistrenja z beljaki. Štruklji pa se pripravljajo serijsko (npr. zamrznjeni po porcijah ali rolicah) ali sveže na nekaj dni.
+
+Natančen izračun lastne cene (RVC):
+Z ločeno recepturo boste natančno vedeli, kolikšna je dejanska proizvodna cena 1 litra esence (glede na izkoristek kosti, mesa in zelenjave) ter kolikšna je cena 1 kosa/porcije štruklja (glede na izkoristek dušenega govejega repa in testa).
+
+Nadzor nad zalogami in odpisi:
+V skladiščnem/proizvodnem sistemu bo esenca vodena kot polizdelek v litrih (L), štrukelj pa kot polizdelek v kosih (kos) ali kilogramih (kg). Ob prodaji končne jedi (porcije) se iz zaloge polizdelkov samodejno razknjiži npr. 0,18 L esence in 1 kos štruklja.
+
+Ko bodo v kuhinji testno izvedene prve celotne serije, boste preprosto izmerili vhodne surovine in končni izkoristek (yield) ter v nalogi #503 vnesli končne normative v sistem.
+
+normativ
+
+Ker ste omenili nalogo #503 za ločeno proizvodno evidenco, spodaj pošiljam razdeljen normativ, pripravljen za vnos v gostinski ali ERP sistem.
+
+Sistem je razdeljen na dva polizdelka (ki se delata serijsko) in končno jed za prodajo (ki se razknjižuje ob naročilu na blagajni).
+
+1. Polizdelek A: Goveja esenca (Consommé)
+Normativ velja za proizvodno serijo 10 litrov končnega bistrenega consomméja.
+
+Sestavina / Vhod	Količina (Bruto)	Opomba / Izkoristek
+Goveje kosti (mozgovne/jušne)	5,0 kg	Pečene za barvo in globino
+Goveje bočnik ali bočni kos	2,0 kg	Mleto (za bistrenje in okus)
+Jajčni beljaki	15 kos	Za beljakov kolač (bistrenje)
+Jušna zelenjava (korenje, zelena, por)	1,5 kg	Deloma pečena, deloma za bistrenje
+Čebula (z lupino)	0,8 kg	Prepolovljena in popečena do črnega
+Paradižnikova mezga	0,1 kg	Za kislino in barvo
+Začimbe (poper v zrnu, lovor, timijan)	0,02 kg	V vrečki za začimbe
+Voda	18,0 L	Z odparjanjem in odstranitvijo goščije nastane cca 10 L esence
+2. Polizdelek B: Štrukelj z govejim repom
+Normativ velja za serijo 20 kosov štrukljev (1 kos = cca 50 g).
+
+A) Nadev iz govejega repa:
+
+Sestavina / Vhod	Količina	Opomba
+Svež goveji rep	1,2 kg	Po dolgem dušenju in odstranitvi kosti ostane cca 450 g čistega mesa
+Rdeča čebula in česen	0,2 kg	Fine kockice, praženo
+Rdeče vino	0,1 L	Za deglaziranje
+Maslo in začimbe (sol, poper, majaron)	po potrebi	Za vezavo in okus
+B) Vlečeno testo:
+
+Sestavina / Vhod	Količina	Opomba
+Pšenična moka (tip 400/500)	0,25 kg	
+Voda (mlačna), olje, jajce, sol	0,15 kg	Klasično vlečeno testo
+3. Končna jed na blagajni: Bistra goveja esenca s štrukljem (1 porcija)
+To je sestavnica (BOM), ki jo blagajna razknjiži iz zaloge polizdelkov ob prodaji 1 porcije:
+
+Polizdelek / Sestavina	Količina	Enota mere
+Goveja esenca (Polizdelek A)	0,18	L
+Štrukelj z govejim repom (Polizdelek B)	1	kos
+Zelenjavni vložek (julienne korenje/zelena)	0,015	kg
+Svež drobnjak	0,002	kg
+Tako nastavljen normativ v nalogi #503 omogoča, da se ob kuhanju esence ali delanju štrukljev v sistem vniša proizvodnica (kjer se odpišejo surovine in prevzamejo polizdelki), ob prodaji na blagajni pa se avtomatsko odpiše le porabljeni polizdelek.

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useHappyHour } from "@/contexts/HappyHourContext";
 import { useGlasovniUkaz } from "@/hooks/use-glasovni-ukaz";
 import { useGlasovniSinonimi } from "@/hooks/use-glasovni-sinonimi";
@@ -6,15 +7,19 @@ import { setSkipAutoStart, clearSkipAutoStart } from "@/lib/autoStartGuard";
 
 import { useAutoStartRef } from "@/contexts/AutoStartContext";
 import { useParams, useLocation, useSearch } from "wouter";
+import { isTemporaryPostavkaId, useAddPostavkaOptimistic } from "@/hooks/useAddPostavkaOptimistic";
+import type { ArtikelZaOptimistiko } from "@/hooks/useAddPostavkaOptimistic";
 import {
   useGetNarocilo,
   getGetNarociloQueryKey,
   useListArtikli,
+  getListArtikliQueryKey,
   useListKategorije,
-  useAddPostavka,
+  getListKategorijeQueryKey,
   useRemovePostavka,
   useUpdatePostavkaKolicina,
   useListMize,
+  getListMizeQueryKey,
   useListNarocila,
   getListNarocilaQueryKey,
   getListAktivnaNarocilaQueryKey,
@@ -27,8 +32,14 @@ import {
   useAddPostavkaModifikatorji,
   useListDnevniMeni,
   useListProstori,
+  useGetPreparedFoodAvailability,
+  getGetPreparedFoodAvailabilityQueryKey,
   type ModSkupinaFull,
   ApiError,
+  customFetch,
+  useAddMulticourseMenu,
+  useGetKdsNastavitve,
+  getGetKdsNastavitveQueryKey,
 } from "@workspace/api-client-react";
 import {
   DndContext,
@@ -50,11 +61,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, ChevronDown, ClipboardList, GitMerge, GripVertical, Mic, MicOff, Minus, Pencil, Percent, Plus, Search, Settings2, ShoppingBag, Trash2, Users, Wallet, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowLeftRight, Check, ChevronDown, ClipboardList, Clock3, GitMerge, GripVertical, Mic, MicOff, Minus, Pencil, Percent, Pizza, Plus, Search, Settings2, ShieldAlert, ShoppingBag, Trash2, Users, Wallet, X } from "lucide-react";
 import { DdvNeskladjeAlert } from "@/components/DdvNeskladjeAlert";
 import { useToast } from "@/hooks/use-toast";
 import { useNaprava } from "@/contexts/NapravaContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -63,11 +74,107 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose, DrawerTrigger } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNastavitve } from "@/contexts/NastavitveContext";
-import SlovenskaKlavijatura from "@/components/SlovenskaKlavijatura";
+import SystemInputDialog from "@/components/SystemInputDialog";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
+import { casZaPosDatetimeLocal, formatPosCas, poslovniDatumZaCas, posDatetimeLocalToIso } from "@/lib/posCas";
+import { isOrderArticleVisible } from "@/lib/order-article-visibility";
+import { DostavaStatusPanel } from "@/components/DostavaStatusPanel";
+import { KdsCountdown } from "@/lib/kdsNarocilo";
+import { getNextKdsCoursesToFire } from "@/lib/kdsCourses";
+import { useFireKdsCourse, useKdsNalogiVecPostaj, useKdsPostaje } from "@/hooks/use-kds";
+import { formatMizaProstor } from "@/lib/formatMizaProstor";
+import {
+  groupMulticourseOrderRows,
+  multicourseSelectionRequirements,
+  validateMulticourseOrderSelection,
+} from "@/lib/multicourse-order";
+import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
+import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
+import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
+import { GatewayConflictError, localOrderRoute, parseLocalOrderRoute, type GatewayOrderSnapshot } from "@/lib/gatewayClient";
+
+export function selectOrderKdsNalogi<T extends { narociloId: unknown }>(
+  nalogi: T[], gatewayMode: boolean, gatewayOrderId: string | null, id: number | undefined,
+): T[] {
+  const activeKdsOrderId = gatewayMode && gatewayOrderId ? gatewayOrderId : id;
+  return nalogi.filter((nalog) => activeKdsOrderId != null &&
+    String(nalog.narociloId) === String(activeKdsOrderId));
+}
+
+type VelikostPice = "mala" | "normalna" | "druzinska";
+
+const ORDER_MENU_STALE_TIME = 60_000;
+
+function IkonaVelikostiPice({ velikost }: { velikost: VelikostPice }) {
+  const meta: Record<VelikostPice, { naziv: string; razred: string; barva: string }> = {
+    mala: { naziv: "Mala pica", razred: "h-4 w-4", barva: "bg-sky-100 text-sky-700" },
+    normalna: { naziv: "Normalna pica", razred: "h-5 w-5", barva: "bg-emerald-100 text-emerald-700" },
+    druzinska: { naziv: "Družinska pica", razred: "h-6 w-6", barva: "bg-violet-100 text-violet-700" },
+  };
+  const { naziv, razred, barva } = meta[velikost];
+
+  return (
+    <span
+      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded ${barva}`}
+      title={naziv}
+      aria-label={naziv}
+      data-testid={`velikost-pice-${velikost}`}
+    >
+      <Pizza className={razred} aria-hidden="true" />
+    </span>
+  );
+}
+
+function OrderContextLine({
+  prostorIme,
+  mizaIme,
+  mizaStevilka,
+  stevilkaNarocila,
+  virOznaka,
+  dostavaOb,
+  testId = "order-context-line",
+  className = "",
+}: {
+  prostorIme: string | null;
+  mizaIme: string | null;
+  mizaStevilka: number | null;
+  stevilkaNarocila: number | string;
+  virOznaka: "QR" | null;
+  dostavaOb: string | null;
+  testId?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`flex min-w-0 flex-nowrap items-center gap-x-1.5 overflow-x-auto whitespace-nowrap text-[11px] leading-tight text-muted-foreground ${className}`} data-testid={testId}>
+      <span className="shrink-0 font-semibold text-foreground">
+        {formatMizaProstor({ mizaIme, mizaStevilka, prostorIme })}
+      </span>
+      <span aria-hidden="true">·</span>
+      <span className="shrink-0 font-semibold text-foreground">#{stevilkaNarocila}</span>
+      {virOznaka && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 font-bold text-violet-800">{virOznaka}</span>
+        </>
+      )}
+      {dostavaOb && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span
+            className="inline-flex shrink-0 items-center gap-1 font-semibold text-foreground"
+            title={`Dostava ob ${dostavaOb}`}
+            aria-label={`Dostava ob ${dostavaOb}`}
+          >
+            <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{dostavaOb}</span>
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
 
 
 interface ArtikelItem {
@@ -84,11 +191,38 @@ interface ArtikelItem {
   prodajniArtikel?: boolean;
   nabavniArtikel?: boolean;
   jePica?: boolean;
+  cenaMala?: number | null;
+  cenaDruzinska?: number | null;
+  happyHourCena?: number | null;
+  happyHourCenaMala?: number | null;
+  happyHourCenaDruzinska?: number | null;
   jeDodatekZaPico?: boolean;
   privzetiDodatki?: number[];
   jeModifikator?: boolean;
   privzetiModifikatorji?: number[];
   skupina?: string | null;
+  toGo?: boolean;
+  taxCategory?: string;
+  mealType?: "ala_carte" | "prepared" | "composite";
+  availableQuantity?: number | null;
+}
+
+interface MulticourseMenuConfig {
+  id: number;
+  menuArtikelId: number;
+  /** Legacy field, retained for menus saved before generic course selection. */
+  izbor?: "fixed_four" | "choose_three";
+  selectionMode?: "fixed" | "choose";
+  selectionCount?: number | null;
+  aktivno: boolean;
+  courses: {
+    courseNumber: number;
+    courseName?: string;
+    allowedFoodArtikelIds: number[];
+    allowedWineArtikelIds: number[];
+    wineRequired?: boolean;
+    informational?: boolean;
+  }[];
 }
 
 function playTapSound() {
@@ -124,6 +258,7 @@ interface SortableCardProps {
   flashing: boolean;
   artikliMap?: Map<number, ArtikelLookup>;
   isHappyHourActive?: boolean;
+  happyHourVelikostiPice?: Set<"mala" | "normalna" | "druzinska">;
 }
 
 // ── Slovensko korenjenje za glasovne ukaze ────────────────────────────────────
@@ -257,7 +392,7 @@ function ujemaSeArtikel(ime: string, iskanje: string, extra: [string, string][] 
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive }: SortableCardProps) {
+function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, isHappyHourActive, happyHourVelikostiPice }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: artikel.id });
 
@@ -301,20 +436,31 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           {artikel.ime}
         </span>
         {(() => {
-          const hhCena = (artikel as typeof artikel & { happyHourCena?: number | null }).happyHourCena;
-          const hhAktiven = isHappyHourActive && hhCena != null;
+          const hhCena = artikel.happyHourCena;
+          const hhAktiven = isHappyHourActive && (hhCena != null || artikel.happyHourCenaMala != null || artikel.happyHourCenaDruzinska != null);
+          const hhOznaka = artikel.jePica
+            ? [
+                happyHourVelikostiPice?.has("mala") ? "M" : null,
+                happyHourVelikostiPice?.has("normalna") ? "V" : null,
+                happyHourVelikostiPice?.has("druzinska") ? "D" : null,
+              ].filter(Boolean).join("/")
+            : "";
+          const osnovnaCenaJeHappyHour = hhAktiven
+            && (!artikel.jePica || happyHourVelikostiPice?.has("normalna"));
           return (
             <div className="flex items-baseline gap-1.5 flex-wrap">
               {hhAktiven && (
-                <span className="text-[10px] font-bold rounded px-1 py-0" style={{ backgroundColor: "rgba(251,191,36,0.9)", color: "#000" }}>⭐ {hhCena!.toFixed(2)} €</span>
+                <span className="text-[10px] font-bold rounded px-1 py-0" style={{ backgroundColor: "rgba(251,191,36,0.9)", color: "#000" }}>
+                  {artikel.jePica ? `⭐ HH ${hhOznaka}` : `⭐ ${hhCena!.toFixed(2)} €`}
+                </span>
               )}
               <span
                 className="text-sm font-bold"
                 style={{
                   color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))",
-                  textDecoration: hhAktiven ? "line-through" : undefined,
-                  opacity: hhAktiven ? 0.6 : 1,
-                  fontSize: hhAktiven ? "0.7rem" : undefined,
+                  textDecoration: osnovnaCenaJeHappyHour ? "line-through" : undefined,
+                  opacity: osnovnaCenaJeHappyHour ? 0.6 : 1,
+                  fontSize: osnovnaCenaJeHappyHour ? "0.7rem" : undefined,
                 }}
               >
                 {artikel.cena.toFixed(2)} €
@@ -322,6 +468,19 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
             </div>
           );
         })()}
+
+        {artikel.mealType !== "ala_carte" && artikel.availableQuantity != null && (
+          <span
+            className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+            style={{
+              backgroundColor: hasColor ? "rgba(255,255,255,0.2)" : "hsl(var(--secondary))",
+              color: hasColor ? "#fff" : "hsl(var(--secondary-foreground))",
+            }}
+            data-testid={`available-portions-${artikel.id}`}
+          >
+            {artikel.availableQuantity} porcij
+          </span>
+        )}
 
         {privzetiImena && (
           <span
@@ -525,46 +684,61 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
 
   const cenaMin = Math.min(...grupa.children.map(a => a.cena));
   const cenaMax = Math.max(...grupa.children.map(a => a.cena));
-  const cols = varianteZLabeli.length <= 3 ? "grid-cols-1" : varianteZLabeli.length <= 6 ? "grid-cols-2" : "grid-cols-3";
+  const cols = varianteZLabeli.length <= 3
+    ? "grid-cols-1"
+    : varianteZLabeli.length <= 6
+      ? "grid-cols-1 sm:grid-cols-2"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <button
-          className="relative flex flex-col items-start p-3 border rounded-lg shadow-sm text-left min-h-[4.5rem] w-full justify-between transition-all hover:brightness-95 active:scale-95"
-          style={{
-            backgroundColor: bg ?? "hsl(var(--card))",
-            color: hasColor ? "#fff" : undefined,
-            borderColor: hasColor ? "transparent" : undefined,
-          }}
-          disabled={allPending}
-        >
-          <span className="text-xs font-semibold leading-tight pr-5" style={{ color: hasColor ? "rgba(255,255,255,0.95)" : undefined }}>
-            {grupa.baseIme}
+    <>
+      <button
+        className="relative flex flex-col items-start p-3 border rounded-lg shadow-sm text-left min-h-[4.5rem] w-full justify-between transition-all hover:brightness-95 active:scale-95"
+        style={{
+          backgroundColor: bg ?? "hsl(var(--card))",
+          color: hasColor ? "#fff" : undefined,
+          borderColor: hasColor ? "transparent" : undefined,
+        }}
+        disabled={allPending}
+        onClick={() => setOpen(true)}
+      >
+        <span className="text-xs font-semibold leading-tight pr-5" style={{ color: hasColor ? "rgba(255,255,255,0.95)" : undefined }}>
+          {grupa.baseIme}
+        </span>
+        <div className="flex items-center justify-between w-full">
+          <span className="text-sm font-bold" style={{ color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
+            {cenaMin === cenaMax ? `${cenaMin.toFixed(2)} €` : `od ${cenaMin.toFixed(2)} €`}
           </span>
-          <div className="flex items-center justify-between w-full">
-            <span className="text-sm font-bold" style={{ color: hasColor ? "rgba(255,255,255,0.9)" : "hsl(var(--primary))" }}>
-              {cenaMin === cenaMax ? `${cenaMin.toFixed(2)} €` : `od ${cenaMin.toFixed(2)} €`}
-            </span>
-            <span className="flex items-center gap-0.5 text-xs" style={{ color: hasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
-              <ChevronDown className="w-3.5 h-3.5" />{grupa.children.length}
-            </span>
-          </div>
-        </button>
-      </DrawerTrigger>
+          <span className="flex items-center gap-0.5 text-xs" style={{ color: hasColor ? "rgba(255,255,255,0.6)" : "hsl(var(--muted-foreground))" }}>
+            <ChevronDown className="w-3.5 h-3.5" />{grupa.children.length}
+          </span>
+        </div>
+      </button>
 
-      <DrawerContent className="max-h-[75vh]">
-        <DrawerHeader className="pb-2 border-b">
+      {open && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/80" onClick={() => setOpen(false)}>
+          <div
+            role="region"
+            aria-label={grupa.baseIme}
+            className="absolute inset-x-0 top-0 flex h-[75dvh] max-h-[75dvh] flex-col overflow-hidden rounded-b-[10px] border bg-background"
+            onClick={event => event.stopPropagation()}
+          >
+          <div className="shrink-0 border-b p-4 pb-2">
           <div className="flex items-center justify-between">
-            <DrawerTitle className="text-lg">{grupa.baseIme}</DrawerTitle>
-            <DrawerClose asChild>
-              <button className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors">
-                <X className="h-4 w-4" />
-              </button>
-            </DrawerClose>
+            <h2 className="text-lg font-semibold leading-none tracking-tight">{grupa.baseIme}</h2>
+            <button
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors"
+              onClick={() => setOpen(false)}
+              aria-label="Zapri izbor"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </DrawerHeader>
-        <div className={`p-4 pb-8 overflow-y-auto grid gap-3 ${cols}`}>
+          </div>
+        <div
+          className={`min-h-0 flex-1 touch-pan-y overscroll-contain overflow-y-scroll p-4 pb-8 grid content-start gap-3 ${cols}`}
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {varianteZLabeli.map(a => {
             const aBg = a.barva ?? undefined;
             const aHasColor = !!a.barva;
@@ -610,8 +784,11 @@ function GrupaGumb({ grupa, onAdd, pendingArtikliIds, artikliMap }: { grupa: Art
             );
           })}
         </div>
-      </DrawerContent>
-    </Drawer>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -715,7 +892,12 @@ function DiscountInput({ postavkaId, cenaKos, cenaKosOriginalna, kolicina, onApp
 
 export default function Order() {
   const params = useParams();
-  const id = Number(params.id);
+  const gatewayOrderId = params.id ? parseLocalOrderRoute(params.id) ?? null : null;
+  const cloudId = params.id && !gatewayOrderId && /^\d+$/.test(params.id) ? Number(params.id) : undefined;
+  const id = cloudId as number;
+  const gatewayOffline = useGatewayOfflineContext();
+  const gatewayMode = gatewayOffline.effectiveAuthority === "GATEWAY" ||
+    (!!gatewayOrderId && gatewayOffline.authorityForOrder(gatewayOrderId) === "GATEWAY");
   const [, setLocation] = useLocation();
   const urlSearch = useSearch();
   const urlGost = (() => {
@@ -726,6 +908,25 @@ export default function Order() {
   })();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const leaveClosedOrder = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
+    void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getListMizeQueryKey() });
+    toast({
+      title: "Naročilo je zaprto",
+      description: "Račun je bil izdan na drugem terminalu. Vračam vas na pregled miz.",
+      variant: "destructive",
+    });
+    setLocation("/");
+  };
+  const isClosedOrderConflict = (err: unknown) => {
+    if (!(err instanceof ApiError) || err.status !== 409) return false;
+    const data = err.data as { code?: string; error?: string } | null;
+    return data?.code === "ORDER_ALREADY_CLOSED"
+      || /naročilo (ni odprto|je zaprto|je že zaključeno)|račun je bil že izdan|že pokrite z račun/i.test(
+        data?.error?.toLocaleLowerCase("sl") ?? "",
+      );
+  };
   const [mobileTab, setMobileTab] = useState<"meni" | "narocilo">("meni");
   const [flashingId, setFlashingId] = useState<number | null>(null);
   const [discountOpenId, setDiscountOpenId] = useState<number | null>(null);
@@ -734,6 +935,7 @@ export default function Order() {
   const [modDialogIzbrani, setModDialogIzbrani] = useState<{ skupinaId: number; modifikatorId: number }[]>([]);
   const [modDialogKolicina, setModDialogKolicina] = useState(1);
   const [modDialogOpomba, setModDialogOpomba] = useState<string | null>(null);
+  const [modDialogVelikostPice, setModDialogVelikostPice] = useState<"mala" | "normalna" | "druzinska" | undefined>();
   // Opcije dialog: naknadni dostop do izbirnih skupin obstoječe postavke
   const [opcijePostavkaId, setOpcijePostavkaId] = useState<number | null>(null);
   const [opcijeIzbrani, setOpcijeIzbrani] = useState<{ skupinaId: number; modifikatorId: number }[]>([]);
@@ -749,6 +951,7 @@ export default function Order() {
   const [aktivniGostStevilka, setAktivniGostStevilka] = useState<number | null>(urlGost);
   const [spojiDialogOpen, setSpojiDialogOpen] = useState(false);
   const [prestaviDialogOpen, setPrestaviDialogOpen] = useState(false);
+  const [gatewayConflict, setGatewayConflict] = useState<unknown | null>(null);
   const [uvozDialogOpen, setUvozDialogOpen] = useState(false);
   const [uvozRacunId, setUvozRacunId] = useState<number | null>(null);
   const [uvozKolicine, setUvozKolicine] = useState<Map<number, number>>(new Map());
@@ -757,21 +960,183 @@ export default function Order() {
   const [uvozVprogress, setUvozVprogress] = useState(false);
   const [pendingPostavke, setPendingPostavke] = useState<Set<number>>(new Set());
   const [pendingArtikli, setPendingArtikli] = useState<Set<number>>(new Set());
+  const [toGoDdVWarningVisible, setToGoDdVWarningVisible] = useState(false);
+  const [casDialogOpen, setCasDialogOpen] = useState(false);
+  const [casZaUrejanje, setCasZaUrejanje] = useState("");
+  const [multicourseMenu, setMulticourseMenu] = useState<MulticourseMenuConfig | null>(null);
+  const [multicourseCourses, setMulticourseCourses] = useState<number[]>([]);
+  const [multicourseFoods, setMulticourseFoods] = useState<Record<number, number>>({});
+  const [multicourseWines, setMulticourseWines] = useState<Record<number, number>>({});
+  const [multicourseOpomba, setMulticourseOpomba] = useState("");
+  const [multicourseError, setMulticourseError] = useState<string | null>(null);
 
-  const { data: narocilo, isLoading: loadingNarocila } = useGetNarocilo(id, {
-    query: { enabled: !!id, queryKey: getGetNarociloQueryKey(id) },
+  const { data: cloudNarocilo, isLoading: cloudOrderLoading } = useGetNarocilo(id, {
+    query: { enabled: !!id && !gatewayMode, queryKey: getGetNarociloQueryKey(id) },
   });
-  const { data: artikli, isLoading: loadingArtikli } = useListArtikli();
-  const { data: kategorije, isLoading: loadingKategorije } = useListKategorije();
-  const danasStr = new Date().toISOString().slice(0, 10);
+  const gatewayOrder = gatewayOffline.snapshot?.orders.find(order => String(order.orderId) === String(gatewayOrderId));
+  const narocilo = (gatewayMode && gatewayOrder
+    ? (() => {
+      const projection = (gatewayOrder.projection ?? gatewayOrder) as Record<string, any>;
+       const lines = Array.isArray(projection.lines) ? projection.lines : [];
+      return {
+        ...projection, id: gatewayOrderId, mizaId: projection.mizaId ?? projection.tableId ?? null,
+        status: projection.status === "OPEN" || projection.status === "open" ? "odprto" : projection.status,
+        postavke: lines, skupaj: Number(projection.skupaj ?? projection.total ?? 0),
+      };
+    })()
+    : gatewayMode ? undefined : cloudNarocilo) as typeof cloudNarocilo;
+  const loadingNarocila = gatewayMode
+    ? !gatewayOffline.snapshot : cloudOrderLoading;
+  const leaseRef = useRef<import("@/lib/gatewayClient").GatewayLease | null>(null);
+  const writeQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  useEffect(() => {
+    if (!gatewayMode || !gatewayOrderId || !gatewayOffline.snapshot) return;
+    let disposed = false;
+    let renewTimer: number | undefined;
+    void gatewayOffline.acquireLease(
+      gatewayOrderId,
+      Number(gatewayOrder?.version ?? 0),
+      120,
+    ).then(lease => {
+      if (disposed) {
+        void gatewayOffline.releaseLease(lease);
+        return;
+      }
+      leaseRef.current = lease;
+      renewTimer = window.setInterval(() => {
+        if (leaseRef.current) {
+          void gatewayOffline.renewLease(leaseRef.current, 120)
+            .then(next => { leaseRef.current = next; });
+        }
+      }, 60_000);
+    }).catch(() => undefined);
+    return () => {
+      disposed = true;
+      if (renewTimer) window.clearInterval(renewTimer);
+      const lease = leaseRef.current;
+      leaseRef.current = null;
+      if (lease) void gatewayOffline.releaseLease(lease);
+    };
+  }, [gatewayMode, gatewayOrderId, gatewayOffline.scope?.companyId,
+    gatewayOffline.scope?.enotaId, gatewayOffline.acquireLease,
+    gatewayOffline.renewLease, gatewayOffline.releaseLease]);
+
+  const getNarociloPayload = useCallback(() => {
+    if (!narocilo) return null;
+    return {
+      id: narocilo.id,
+      nacin: (narocilo as any).nacin,
+      status: narocilo.status,
+      miza: narocilo.mizaId,
+      strankaIme: narocilo.strankaIme,
+      telefon: narocilo.strankaTelefon,
+      naslovDostave: narocilo.dostavaUlica
+        ? [
+            `${narocilo.dostavaUlica} ${narocilo.dostavaHisnaStevilka ?? ""}`.trim(),
+            narocilo.dostavaNaseljeNaziv,
+          ].filter(Boolean).join(", ")
+        : null,
+      skupaj: narocilo.skupaj,
+      postavke: (narocilo.postavke ?? []).filter((p: any) => !p.parentPostavkaId).map((p: any) => ({
+        naziv: p.ime,
+        kolicina: p.kolicina,
+        skupaj: p.skupaj,
+        opomba: p.opomba
+      }))
+    };
+  }, [narocilo]);
+
+  const aiSvetovalec = useAiSvetovalec("narocilo", getNarociloPayload);
+
+  // A waiter must be able to release the next multicourse course without
+  // navigating to the kitchen screen. Query every KDS station because a prior
+  // course can span more than one station.
+  const { data: kdsPostaje = [] } = useKdsPostaje();
+  const { data: kdsNastavitve } = useGetKdsNastavitve({
+    query: { queryKey: [...getGetKdsNastavitveQueryKey(), gatewayOffline.scope?.enotaId],
+      enabled: !!gatewayOffline.scope?.enotaId },
+  });
+  const kdsPostajaIds = useMemo(() => kdsPostaje.map((postaja) => postaja.id), [kdsPostaje]);
+  const { data: kdsRouting = [] } = useQuery<Array<{ postajaId: number; artikelId: number | null; kategorijaId: number | null }>>({
+    queryKey: ["kds", "routing", gatewayOffline.scope?.enotaId, kdsPostajaIds],
+    enabled: kdsPostajaIds.length > 0,
+    queryFn: async () => (await Promise.all(kdsPostajaIds.map(async (postajaId) => {
+      const mappings = await customFetch<Array<{ artikelId: number | null; kategorijaId: number | null }>>(
+        `/api/kds/postaje/${postajaId}/mapiranja`,
+      );
+      return mappings.map(mapping => ({ ...mapping, postajaId }));
+    }))).flat(),
+  });
+  const kdsNalogQueries = useKdsNalogiVecPostaj(kdsPostajaIds);
+  const activeKdsOrderId = gatewayMode && gatewayOrderId ? gatewayOrderId : id;
+  const orderKdsNalogi = useMemo(
+    () => selectOrderKdsNalogi(
+      kdsNalogQueries.flatMap((query) => query.data ?? []),
+      gatewayMode, gatewayOrderId, id,
+    ),
+    [kdsNalogQueries, activeKdsOrderId, gatewayOrderId, gatewayMode],
+  );
+  const nextKdsCourses = useMemo(() => getNextKdsCoursesToFire(orderKdsNalogi), [orderKdsNalogi]);
+  const { data: artikli, isLoading: loadingArtikli } = useListArtikli(undefined, {
+    query: {
+      queryKey: getListArtikliQueryKey(),
+      staleTime: ORDER_MENU_STALE_TIME,
+    },
+  });
+  const { data: preparedFoodAvailability } = useGetPreparedFoodAvailability({
+    query: {
+      queryKey: getGetPreparedFoodAvailabilityQueryKey(),
+      refetchInterval: 5_000,
+      staleTime: 2_000,
+    },
+  });
+  const { data: kategorije, isLoading: loadingKategorije } = useListKategorije({
+    query: {
+      queryKey: getListKategorijeQueryKey(),
+      staleTime: ORDER_MENU_STALE_TIME,
+    },
+  });
+  const danasStr = preparedFoodAvailability?.businessDate ?? poslovniDatumZaCas();
   const { data: dnevniMeniDanes } = useListDnevniMeni({ od: danasStr, do: danasStr });
+  // This endpoint is intentionally not generated yet; keep its cache key explicit
+  // so menu configuration changes get a normal freshness path.
+  const { data: multicourseMenuji = [] } = useQuery<MulticourseMenuConfig[]>({
+    queryKey: ["/api/multicourse-menus"],
+    queryFn: () => customFetch<MulticourseMenuConfig[]>("/api/multicourse-menus"),
+    staleTime: ORDER_MENU_STALE_TIME,
+  });
+  const activeMulticourseMenuArticleIds = useMemo(
+    () => new Set(multicourseMenuji.filter((menu) => menu.aktivno).map((menu) => menu.menuArtikelId)),
+    [multicourseMenuji],
+  );
   const { data: mize } = useListMize();
+  const currentMiza = mize?.find(m => m.id === narocilo?.mizaId);
+  const isBlocked = !!currentMiza?.noviNarocilaBlokirani || !!currentMiza?.novaNarocilaBlokirana || gatewayConflict !== null;
   const { data: prostori } = useListProstori();
   const { naprava } = useNaprava();
   const { nastavitve } = useNastavitve();
   const grupiranjeNacin = (nastavitve as ({ grupiranjeNacin?: string } | undefined))?.grupiranjeNacin ?? "novo";
+  const aktivneVelikostiPice = [
+    { id: "mala" as const, premer: Number((nastavitve as any)?.picaPremerMala ?? 0) },
+    { id: "normalna" as const, premer: Number((nastavitve as any)?.picaPremerNormalna ?? 0) },
+    { id: "druzinska" as const, premer: Number((nastavitve as any)?.picaPremerDruzinska ?? 0) },
+  ].filter((velikost) => velikost.premer > 0);
+  const privzetaVelikostPice = aktivneVelikostiPice.find((velikost) => velikost.id === "normalna")?.id
+    ?? aktivneVelikostiPice[0]?.id;
   const { status: hhStatus } = useHappyHour();
-  const isHappyHourActive = hhStatus?.aktiven ?? false;
+  const activeHappyHourArticleIds = useMemo(
+    () => new Set(hhStatus?.aktivniArtikelIds ?? []),
+    [hhStatus?.aktivniArtikelIds],
+  );
+  const activeHappyHourPizzaSizes = useMemo(
+    () => new Map(
+      Object.entries(hhStatus?.aktivneVelikostiPice ?? {}).map(([artikelId, velikosti]) => [
+        Number(artikelId),
+        new Set(velikosti),
+      ]),
+    ),
+    [hhStatus?.aktivneVelikostiPice],
+  );
   const { data: racuniZaUvoz } = useListRacuni(undefined, {
     query: { enabled: uvozDialogOpen && uvozRacunId === null, queryKey: getListRacuniQueryKey() },
   });
@@ -782,13 +1147,167 @@ export default function Order() {
   const autoStartsHome = (mize !== undefined && mize.length === 0) || (naprava?.dovoljeneMize?.length === 1);
   const backUrl = autoStartsHome ? "/?skipAutoStart=1" : "/";
 
-  const addPostavka = useAddPostavka();
-  const removePostavka = useRemovePostavka();
-  const updateKolicina = useUpdatePostavkaKolicina();
-  const addModifikatorji = useAddPostavkaModifikatorji();
+  // Ref sinhroniziran z artikliMapForOrder na vsakem renderu (dlje spodaj);
+  // onMutate bere .current ob klicu — vedno najnovejši katalog
+  const _artikliMapRef = useRef<Map<number, ArtikelZaOptimistiko>>(new Map());
+  const cloudAddPostavka = useAddPostavkaOptimistic(_artikliMapRef);
+  const cloudRemovePostavka = useRemovePostavka();
+  const cloudUpdateKolicina = useUpdatePostavkaKolicina();
+  const cloudAddModifikatorji = useAddPostavkaModifikatorji();
   const spojiMutation = useSpojiNarocili();
-  const prestaviMutation = useUpdateNarocilo();
-  const cancelNarocilo = useUpdateNarocilo();
+  const cloudPrestaviMutation = useUpdateNarocilo();
+  const cloudUpdateNarociloForOrder = useUpdateNarocilo();
+  const cloudCancelNarocilo = useUpdateNarocilo();
+  const addMulticourseMenu = useAddMulticourseMenu();
+  const fireKdsCourse = useFireKdsCourse();
+  type GatewayMutation = {
+    isPending: boolean;
+    mutate: (value: any, options?: {
+      onSuccess?: (result: any) => void;
+      onError?: (error: any) => void;
+      onSettled?: () => void;
+    }) => void;
+    mutateAsync: (value: any) => Promise<any>;
+  };
+
+  const gatewayReplaceSnapshot = useCallback(async (mutate: (snapshot: GatewayOrderSnapshot) => GatewayOrderSnapshot) => {
+    if (!gatewayMode || !narocilo || !gatewayOrderId) {
+      throw new Error("Gateway način ni aktiven.");
+    }
+    const write = async () => {
+      const lease = leaseRef.current ?? await gatewayOffline.acquireLease(
+        gatewayOrderId, Number(gatewayOrder?.version ?? 0),
+      );
+      leaseRef.current = lease;
+      const result = await gatewayOffline.replaceOrder((latest) => mutate({
+        ...latest, orderId: gatewayOrderId,
+        companyId: gatewayOffline.scope!.companyId, enotaId: gatewayOffline.scope!.enotaId,
+        projection: latest.projection,
+        lines: (latest.lines ?? []).map((line: any) => ({ ...line, lineId: String(line.lineId ?? line.id) })),
+      }), lease);
+      leaseRef.current = { ...lease, version: result.version };
+      const projected = { ...result.projection, id: gatewayOrderId,
+        status: result.projection.status === "open" ? "odprto" : result.projection.status,
+        postavke: (result.projection.lines ?? []).map((line: any) => ({
+          ...line, id: line.id ?? line.lineId,
+        })) };
+      queryClient.setQueryData(getGetNarociloQueryKey(id), projected);
+      return projected;
+    };
+    try {
+      const result = writeQueueRef.current.then(write, write);
+      writeQueueRef.current = result.catch(() => undefined);
+      return await result;
+    } catch (error) {
+      if (error instanceof GatewayConflictError || gatewayOffline.isConflict(error)) setGatewayConflict(error);
+      throw error;
+    }
+  }, [gatewayOffline, narocilo, gatewayOrderId, gatewayOrder, queryClient, id]);
+
+  const gatewayMutation = useCallback(<T,>(
+    fn: (value: T) => Promise<unknown>,
+  ) => ({
+    isPending: false,
+    mutate: (value: T, options?: { onSuccess?: (result: unknown) => void; onError?: (error: unknown) => void; onSettled?: () => void }) => {
+      void fn(value).then(result => options?.onSuccess?.(result)).catch(error => options?.onError?.(error)).finally(() => options?.onSettled?.());
+    },
+    mutateAsync: (value: T) => fn(value),
+  }), []);
+
+  const addPostavka: GatewayMutation = gatewayMode ? gatewayMutation((value: any) =>
+    gatewayReplaceSnapshot(snapshot => ({
+      ...snapshot,
+      lines: [...(snapshot.lines ?? []), ...materializeGatewayLine(value.data)],
+    }))) : cloudAddPostavka;
+  const removePostavka: GatewayMutation = gatewayMode ? gatewayMutation((value: any) =>
+    gatewayReplaceSnapshot(snapshot => ({
+      ...snapshot, lines: (snapshot.lines ?? []).filter(line => String(line.lineId ?? line.id) !== String(value.postavkaId)),
+    }))) : cloudRemovePostavka;
+  const updateKolicina: GatewayMutation = gatewayMode ? gatewayMutation((value: any) =>
+    gatewayReplaceSnapshot(snapshot => ({
+      ...snapshot, lines: (snapshot.lines ?? []).map(line => String(line.lineId ?? line.id) === String(value.postavkaId)
+        ? { ...line, ...value.data } : line),
+    }))) : cloudUpdateKolicina;
+  const addModifikatorji: GatewayMutation = gatewayMode ? gatewayMutation((value: any) =>
+    gatewayReplaceSnapshot(snapshot => ({
+      ...snapshot, lines: (snapshot.lines ?? []).map(line => String(line.lineId ?? line.id) === String(value.postavkaId)
+        ? { ...line, ...value.data } : line),
+    }))) : cloudAddModifikatorji;
+  const materializeGatewayLine = useCallback((data: Record<string, any>) => {
+    const article = _artikliMapRef.current.get(Number(data.artikelId));
+    if (!article) throw new Error("Gateway zahteva popoln katalog artiklov.");
+    const size = data.velikostPice as "mala" | "normalna" | "druzinska" | undefined;
+    const regular = Number(size === "mala" ? article.cenaMala : size === "druzinska" ? article.cenaDruzinska : article.cena);
+    const happy = Number(size === "mala" ? article.happyHourCenaMala
+      : size === "druzinska" ? article.happyHourCenaDruzinska : article.happyHourCena);
+    const unit = article.happyHourAktiven && Number.isFinite(happy) && happy > 0 ? happy : regular;
+    if (!Number.isFinite(unit) || !Number.isFinite(Number(data.kolicina ?? 1))) {
+      throw new Error("Gateway postavka nima popolne cene ali količine.");
+    }
+    const quantity = Number(data.kolicina ?? 1);
+    const mappedStations = kdsRouting.filter(mapping =>
+      mapping.artikelId === article.id || mapping.kategorijaId === article.kategorijaId,
+    ).map(mapping => mapping.postajaId);
+    const activeStations = kdsPostaje.filter(postaja => postaja.aktivna !== false);
+    const kind = `${article.kategorijaIme ?? ""} ${(article as any).skupina ?? ""}`.toLocaleLowerCase("sl");
+    const fallbackType = kind.includes("pija") || kind.includes("bar") ? "bar"
+      : kind.includes("pica") || kind.includes("pizza") ? "pizza" : "kitchen";
+    const fallbackStation = kdsNastavitve?.fallbackPostajaId
+      ? activeStations.find(postaja => postaja.id === kdsNastavitve.fallbackPostajaId)?.id
+      : undefined;
+    const routedStations = [...new Set(mappedStations.length ? mappedStations :
+      activeStations.filter(postaja => postaja.tip === fallbackType).map(postaja => postaja.id)
+        .concat(fallbackStation ? [fallbackStation] : []))];
+    if (!routedStations.length) throw new Error(`Artikel ${article.ime} nima veljavne KDS postaje.`);
+    const lineId = crypto.randomUUID();
+    return [{
+      lineId, cloudLineId: null, artikelId: article.id, ime: article.ime, kolicina: quantity,
+      cenaKos: unit, cenaKosOriginalna: unit === regular ? null : regular,
+      skupaj: unit * quantity, neto: unit * quantity, davek: Number(article.davek),
+      davcnaSkupina: Number(article.davek), izbranModifikatorji: data.izbranModifikatorji ?? [],
+      modifikatorji: data.izbranModifikatorji ?? [], gostStevilka: data.gostStevilka ?? null,
+      opomba: data.opomba ?? null, toGo: Boolean(data.toGo), pripravljeno: null,
+      parentPostavkaId: null, racunId: null, postajaId: routedStations[0], postajaIds: routedStations,
+      courseNumber: data.courseNumber ?? null, pairingGroupId: data.pairingGroupId ?? null,
+      velikostPice: size ?? null,
+    }];
+  }, [kdsPostaje, kdsRouting, kdsNastavitve?.fallbackPostajaId]);
+  const gatewayOrderMutation: any = gatewayMutation((value: any) =>
+    gatewayReplaceSnapshot(snapshot => ({
+      ...snapshot, ...(value.data ?? {}),
+      status: value.data?.status === "preklicano" ? "cancelled" : value.data?.status ?? snapshot.status,
+      tableId: value.data?.mizaId ?? value.data?.tableId ?? snapshot.tableId,
+    })));
+  const prestaviMutation: GatewayMutation = gatewayMode ? gatewayOrderMutation : cloudPrestaviMutation as unknown as GatewayMutation;
+  const updateNarociloForOrder: GatewayMutation = gatewayMode ? gatewayOrderMutation : cloudUpdateNarociloForOrder as unknown as GatewayMutation;
+  const cancelNarocilo: GatewayMutation = gatewayMode ? gatewayOrderMutation : cloudCancelNarocilo as unknown as GatewayMutation;
+
+  const handleFireNextKdsCourse = (course: (typeof nextKdsCourses)[number]) => {
+    fireKdsCourse.mutate({
+      narociloId: gatewayMode && gatewayOrderId ? gatewayOrderId : id,
+      courseNumber: course.courseNumber,
+      pairingGroupId: course.pairingGroupId,
+      idempotencyKey: `kds-fire:${id}:${course.pairingGroupId}:${course.courseSequence}`,
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
+        toast({ title: `${course.courseNumber}. hod sproščen` });
+      },
+      onError: () => toast({
+        title: "Hoda ni bilo mogoče sprostiti",
+        description: "Osvežite naročilo in poskusite znova.",
+        variant: "destructive",
+      }),
+    });
+  };
+
+  const checkBlock = () => {
+    if (isBlocked) {
+      toast({ title: "Blokirano", description: "Spremembe so blokirane zaradi prihajajoče rezervacije.", variant: "destructive" });
+      return true;
+    }
+    return false;
+  };
 
   const autoStartRef = useAutoStartRef();
 
@@ -851,10 +1370,15 @@ export default function Order() {
     }
   }, [narocilo, backUrl, setLocation, cancelNarocilo]);
 
-  // Mize za prenos naročila (le proste, ne trenutna)
+  // Mize za prenos naročila (le proste, ne trenutna, ne blokirana za nova naročila)
   const prosteMize = useMemo(() => {
     if (!mize || !narocilo) return [];
-    return mize.filter(m => m.status === "prosta" && m.id !== narocilo.mizaId);
+    return mize.filter(m =>
+      m.status === "prosta" &&
+      m.id !== narocilo.mizaId &&
+      !m.noviNarocilaBlokirani &&
+      !m.novaNarocilaBlokirana
+    );
   }, [mize, narocilo]);
 
   // Naročila za isto mizo (za gumb Združi)
@@ -1000,11 +1524,18 @@ export default function Order() {
 
   const orderedArtikli = useMemo((): ArtikelItem[] => {
     if (!artikli) return [];
-    const map = new Map(artikli.map(a => [a.id, a as ArtikelItem]));
+    const availabilityByArticle = new Map(
+      (preparedFoodAvailability?.items ?? []).map((item) => [item.articleId, item.availableQuantity]),
+    );
+    const mapped = artikli.map((article) => ({
+      ...article,
+      availableQuantity: availabilityByArticle.get(article.id) ?? null,
+    })) as ArtikelItem[];
+    const map = new Map(mapped.map(a => [a.id, a]));
     const ordered = orderedIds.flatMap(id => (map.has(id) ? [map.get(id)!] : []));
-    const extra = artikli.filter(a => !orderedIds.includes(a.id)) as ArtikelItem[];
+    const extra = mapped.filter(a => !orderedIds.includes(a.id));
     return [...ordered, ...extra];
-  }, [artikli, orderedIds]);
+  }, [artikli, orderedIds, preparedFoodAvailability]);
 
   // ── Search & filter ──────────────────────────────────────────
   const [activeKategorija, setActiveKategorija] = useState<string>("all");
@@ -1023,6 +1554,17 @@ export default function Order() {
   useEffect(() => { extraSinomiRef.current = extraSinonimi; }, [extraSinonimi]);
 
   const artikliMapForOrder = useMemo(() => new Map((artikli ?? []).map(a => [a.id, a])), [artikli]);
+  // Sinhronizacija ref za useAddPostavkaOptimistic (onMutate bere .current ob klicu)
+  _artikliMapRef.current = new Map(
+    Array.from(artikliMapForOrder.entries()).map(([artikelId, artikel]) => [
+      artikelId,
+      {
+        ...artikel,
+        happyHourAktiven: activeHappyHourArticleIds.has(artikelId),
+        happyHourVelikostiPice: [...(activeHappyHourPizzaSizes.get(artikelId) ?? [])],
+      } as ArtikelZaOptimistiko,
+    ]),
+  );
 
   const dnevnoFiltriranjeKatIds = useMemo(() => {
     if (!kategorije) return new Set<number>();
@@ -1045,9 +1587,14 @@ export default function Order() {
 
   const { filteredArtikli, filteredArtikliModMatch } = useMemo(() => {
     // Only show output articles (prodajniArtikel) that have a category assigned
-    let list = orderedArtikli.filter(a => a.prodajniArtikel && a.kategorijaId != null);
+    let list = orderedArtikli.filter((article) =>
+      isOrderArticleVisible(article, activeMulticourseMenuArticleIds.has(article.id))
+    );
+    if (narocilo?.nacin === "telefon") {
+      list = list.filter(a => a.toGo === true);
+    }
     if (activeKategorija !== "all") {
-      list = list.filter(a => a.kategorijaId!.toString() === activeKategorija);
+      list = list.filter(a => a.kategorijaId != null && a.kategorijaId.toString() === activeKategorija);
     }
     const modMatch = new Map<number, { skupinaId: number; modifikatorId: number; modIme: string }>();
     if (search.trim()) {
@@ -1074,7 +1621,11 @@ export default function Order() {
       return { filteredArtikli: byMod, filteredArtikliModMatch: modMatch };
     }
     return { filteredArtikli: list, filteredArtikliModMatch: modMatch };
-  }, [orderedArtikli, activeKategorija, search, extraSinonimi]);
+  }, [orderedArtikli, activeKategorija, search, extraSinonimi, narocilo?.nacin, activeMulticourseMenuArticleIds]);
+
+  useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
+  }, [nezaracunaneKljuc, queryClient]);
 
   // ── Drag-and-drop ────────────────────────────────────────────
   const sensors = useSensors(
@@ -1180,7 +1731,8 @@ export default function Order() {
         }
       }
       const kandidati = orderedArtikli.filter(
-        a => a.prodajniArtikel && a.kategorijaId != null && ujemaSeArtikel(a.ime, iskanje, extraSinomiRef.current)
+        a => isOrderArticleVisible(a, activeMulticourseMenuArticleIds.has(a.id))
+          && ujemaSeArtikel(a.ime, iskanje, extraSinomiRef.current)
       );
       if (kandidati.length === 0) {
         // Poskusi "artikel z modifikator" razbitje (npr. "malica ena z golaž")
@@ -1189,7 +1741,10 @@ export default function Order() {
         if (zMatch) {
           const artDel = zMatch[1].trim();
           const modDel = zMatch[2].trim();
-          const artK = orderedArtikli.filter(a => a.prodajniArtikel && a.kategorijaId != null && ujemaSeArtikel(a.ime, artDel, extraSinomiRef.current));
+          const artK = orderedArtikli.filter(a =>
+            isOrderArticleVisible(a, activeMulticourseMenuArticleIds.has(a.id))
+              && ujemaSeArtikel(a.ime, artDel, extraSinomiRef.current)
+          );
           if (artK.length === 1) {
             const modSkupine = (artK[0] as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
             for (const sk of modSkupine) {
@@ -1205,7 +1760,9 @@ export default function Order() {
         }
         if (!handled) {
           // Iskanje samo po modifikatorjih (npr. "golaž" → Malica 1 + Golaž)
-          const prodajni = orderedArtikli.filter(a => a.prodajniArtikel && a.kategorijaId != null);
+          const prodajni = orderedArtikli.filter(a =>
+            isOrderArticleVisible(a, activeMulticourseMenuArticleIds.has(a.id))
+          );
           let modFound = false;
           for (const a of prodajni) {
             const modSkupine = (a as { modSkupine?: ModSkupinaFull[] }).modSkupine ?? [];
@@ -1260,7 +1817,7 @@ export default function Order() {
       const tekstZaAI = tekstBrezPonavljanja.replace(TO_GO_RE, " ").replace(/\s{2,}/g, " ").trim();
 
       const artikliZaAI = orderedArtikli
-        .filter(a => a.prodajniArtikel && a.kategorijaId != null)
+        .filter(a => isOrderArticleVisible(a, activeMulticourseMenuArticleIds.has(a.id)))
         .map(a => {
           const artInfo = artikliMapForOrder.get(a.id);
           const artModSkupine = (artInfo as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [];
@@ -1268,8 +1825,12 @@ export default function Order() {
             id: a.id,
             ime: a.ime,
             kategorija: a.kategorijaIme ?? "",
+             jePica: Boolean(a.jePica),
+             velikostiPice: a.jePica ? aktivneVelikostiPice.map((velikost) => velikost.id) : [],
             modifikatorji: artModSkupine.flatMap(sk =>
-              sk.modifikatorji.map(m => ({ id: m.id, ime: m.ime, skupinaIme: sk.ime, obvezna: sk.obvezna }))
+               sk.modifikatorji
+                 .filter(m => m.aktiven)
+                 .map(m => ({ id: m.id, ime: m.ime, skupinaIme: sk.ime, obvezna: sk.obvezna }))
             ),
           };
         });
@@ -1284,7 +1845,13 @@ export default function Order() {
       if (!odgovor.ok) { tolkujTranskriptRegex(tekst); return; }
 
       const { postavke } = await odgovor.json() as {
-        postavke: { artikelId: number; kolicina: number; opomba?: string; modifikatorji?: number[] }[];
+         postavke: {
+           artikelId: number;
+           kolicina: number;
+           opomba?: string;
+           modifikatorji?: number[];
+           velikostPice?: VelikostPice;
+         }[];
       };
 
       if (!postavke || postavke.length === 0) { tolkujTranskriptRegex(tekst); return; }
@@ -1295,8 +1862,14 @@ export default function Order() {
         const artInfo = artikliMapForOrder.get(p.artikelId);
         if (!artInfo) continue;
         const artModSkupine = (artInfo as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [];
+         const jePica = Boolean((artInfo as { jePica?: boolean }).jePica);
+         const aiVelikostPice = jePica
+           && p.velikostPice
+           && aktivneVelikostiPice.some((velikost) => velikost.id === p.velikostPice)
+           ? p.velikostPice
+           : privzetaVelikostPice;
 
-        if (artModSkupine.length > 0) {
+         if (artModSkupine.length > 0 || (jePica && aktivneVelikostiPice.length > 1)) {
           // Sestavi payload iz AI izbranih modifikatorjev
           const izbraniIds = p.modifikatorji ?? [];
           const modPayload: { modifikatorId: number; ime: string; cenaDodatek: number }[] = [];
@@ -1320,6 +1893,7 @@ export default function Order() {
             });
             setModDialogArtikelId(p.artikelId);
             setModDialogIzbrani(privzetiSelected);
+             setModDialogVelikostPice(aiVelikostPice ?? null);
             setModDialogKolicina(p.kolicina);
             setModDialogOpomba(p.opomba ?? null);
             continue;
@@ -1333,7 +1907,14 @@ export default function Order() {
             const artikelIdZaToGo = p.artikelId;
             addPostavka.mutate(
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              { id, data: { artikelId: p.artikelId, kolicina: p.kolicina, gostStevilka: aktivniGostStevilka, opomba: p.opomba ?? null, izbranModifikatorji: modPayload } as any },
+               { id, data: {
+                 artikelId: p.artikelId,
+                 kolicina: p.kolicina,
+                 gostStevilka: aktivniGostStevilka,
+                 opomba: p.opomba ?? null,
+                 izbranModifikatorji: modPayload,
+                 ...(jePica && aiVelikostPice ? { velikostPice: aiVelikostPice } : {}),
+               } as any },
               {
                 onSuccess: (u) => {
                   clearSkipAutoStart();
@@ -1347,10 +1928,8 @@ export default function Order() {
                   }
                 },
                 onError: (err) => {
-                  if (err instanceof ApiError && err.status === 409) {
-                    toast({ title: "Naročilo je zaprto", description: "Račun je bil že izdan. Stran se bo osvežila.", variant: "destructive" });
-                    void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
-                    void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+                  if (isClosedOrderConflict(err)) {
+                    leaveClosedOrder();
                   } else {
                     toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" });
                   }
@@ -1382,10 +1961,8 @@ export default function Order() {
                   }
                 },
                 onError: (err) => {
-                  if (err instanceof ApiError && err.status === 409) {
-                    toast({ title: "Naročilo je zaprto", description: "Račun je bil že izdan. Stran se bo osvežila.", variant: "destructive" });
-                    void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
-                    void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+                  if (isClosedOrderConflict(err)) {
+                    leaveClosedOrder();
                   } else {
                     toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" });
                   }
@@ -1408,6 +1985,7 @@ export default function Order() {
   };
 
   const handleGlasovnoMeni = () => {
+    if (checkBlock()) return;
     if (glasovnoAktivno || aiObdeluje) {
       // Ročna prekinitev — pokliči shranjeno prekini() da pravilno nastavi zakljuceno=true
       // in prepreči neskončno zanko restart ↔ stop v onEnd handlerju
@@ -1513,13 +2091,26 @@ export default function Order() {
     maksTimer = setTimeout(zakljuci, 60_000);
   };
 
-  const handleAddArtikel = (artikelId: number, kolicina = 1, opomba?: string): "dialog" | "direct" => {
+  const handleAddArtikel = (artikelId: number, kolicina = 1, opomba?: string): "dialog" | "direct" | "blocked" => {
+    if (checkBlock()) return "blocked";
+    const configuredMenu = multicourseMenuji.find(menu => menu.aktivno && menu.menuArtikelId === artikelId);
+    if (configuredMenu) {
+      setMulticourseMenu(configuredMenu);
+      setMulticourseCourses(multicourseSelectionRequirements(configuredMenu, configuredMenu.courses).mode === "fixed"
+        ? configuredMenu.courses.filter(course => !course.informational).map(course => course.courseNumber)
+        : []);
+      setMulticourseFoods({});
+      setMulticourseWines({});
+      setMulticourseOpomba(opomba ?? "");
+      setMulticourseError(null);
+      return "dialog";
+    }
     const artInfo = artikliMapForOrder.get(artikelId);
     const jePica = !!artInfo?.jePica;
     const artModSkupine = (artInfo as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [];
     const hasObvezne = artModSkupine.some(s => s.obvezna);
     // Odpri splošni dialog za: vsak artikel z vsaj eno modifikatorsko skupino
-    if (artModSkupine.length > 0) {
+    if (artModSkupine.length > 0 || (jePica && aktivneVelikostiPice.length > 1)) {
       setFlashingId(artikelId);
       playTapSound();
       setTimeout(() => setFlashingId(null), 300);
@@ -1546,32 +2137,38 @@ export default function Order() {
       setModDialogIzbrani(privzetiSelected);
       setModDialogKolicina(kolicina);
       setModDialogOpomba(opomba ?? null);
+      setModDialogVelikostPice(privzetaVelikostPice);
       return "dialog";
     }
-    // Direktno dodajanje; strežnik samodejno vstavi privzeti_dodatki, če so nastavljeni
-    if (pendingArtikli.has(artikelId)) return "direct";
+    // Direktno dodajanje z optimistično posodobitvijo (onMutate v useAddPostavkaOptimistic):
+    // artikel se takoj prikaže v seznam, strežnik potrdi v ozadju.
+    // Gumb ni blokiran — natakar lahko takoj tapne naslednjega.
     setFlashingId(artikelId);
     playTapSound();
     setTimeout(() => setFlashingId(null), 300);
-    setPendingArtikli(prev => new Set(prev).add(artikelId));
-    const settlePending = () => setPendingArtikli(prev => { const s = new Set(prev); s.delete(artikelId); return s; });
     addPostavka.mutate({ id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null } }, {
       onSuccess: (updatedNarocilo) => {
         clearSkipAutoStart();
+        // Zamenjaj temp postavko (id < 0) s strežniško (pravi id, DDV, happy hour cena)
         queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
         queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
         setSearch("");
-        settlePending();
       },
       onError: (err) => {
-        if (err instanceof ApiError && err.status === 409) {
-          toast({ title: "Naročilo je zaprto", description: "Račun je bil že izdan. Stran se bo osvežila.", variant: "destructive" });
-          void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
-          void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+        // Rollback optimistične posodobitve je v useAddPostavkaOptimistic.onError
+        if (isClosedOrderConflict(err)) {
+          leaveClosedOrder();
+        } else if (err instanceof ApiError && err.status === 409) {
+          const serverError = (err.data as { error?: string } | null)?.error;
+          toast({
+            title: "Ni mogoče spremeniti naročila",
+            description: serverError ?? "Spremembe naročila trenutno niso dovoljene.",
+            variant: "destructive",
+          });
+          void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
         } else {
-          toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" });
+          toast({ title: "Artikla ni bilo mogoče dodati", description: "Artikel je bil odstranjen iz naročila.", variant: "destructive" });
         }
-        settlePending();
       },
     });
     return "direct";
@@ -1579,6 +2176,7 @@ export default function Order() {
 
   // Dodaj artikel z vnaprej izbranim modifikatorjem (iz iskanja po modifikatorjih)
   const handleAddArtikelZModifikatorjem = (artikelId: number, skupinaId: number, modifikatorId: number, modIme: string, kolicina = 1, opomba?: string) => {
+    if (checkBlock()) return;
     const artInfo = artikliMapForOrder.get(artikelId);
     const artModSkupine = (artInfo as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [];
     setFlashingId(artikelId);
@@ -1600,6 +2198,7 @@ export default function Order() {
     setModDialogIzbrani(iskaničeNi);
     setModDialogKolicina(kolicina);
     setModDialogOpomba(opomba ?? null);
+    setModDialogVelikostPice(artInfo?.jePica ? privzetaVelikostPice : undefined);
     // Če je to edini modifikator in skupina ni obvezna z minIzbir>1 — direktno potrdi
     const skupina = artModSkupine.find(s => s.id === skupinaId);
     const vskeObvezne = artModSkupine.filter(s => s.obvezna);
@@ -1626,6 +2225,8 @@ export default function Order() {
   };
 
   const handleSpremeniGosta = (postavkaId: number) => {
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId)) return;
     const postavka = narocilo?.postavke?.find(p => p.id === postavkaId);
     if (!postavka || steviloGostov === 0) return;
     const current = (postavka as typeof postavka & { gostStevilka?: number | null }).gostStevilka ?? null;
@@ -1637,6 +2238,7 @@ export default function Order() {
   };
 
   const handleDodajPrvegaGosta = async () => {
+    if (checkBlock()) return;
     const nezaracunane = vsePostavke.filter(p => !p.racunId);
     if (nezaracunane.length > 0) {
       setSteviloGostov(2);
@@ -1662,7 +2264,8 @@ export default function Order() {
   };
 
   const handleRemovePostavka = (postavkaId: number) => {
-    if (pendingPostavke.has(postavkaId)) return;
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) return;
     setPendingPostavke(prev => new Set(prev).add(postavkaId));
     const settle = () => setPendingPostavke(prev => { const s = new Set(prev); s.delete(postavkaId); return s; });
     removePostavka.mutate({ id, postavkaId }, {
@@ -1676,7 +2279,8 @@ export default function Order() {
   };
 
   const handleUpdateKolicina = (postavkaId: number, novaKolicina: number) => {
-    if (pendingPostavke.has(postavkaId)) return;
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) return;
     setPendingPostavke(prev => new Set(prev).add(postavkaId));
     const settle = () => setPendingPostavke(prev => { const s = new Set(prev); s.delete(postavkaId); return s; });
     if (novaKolicina <= 0) {
@@ -1693,7 +2297,8 @@ export default function Order() {
   };
 
   const handleDodatekDecrement = (postavkaId: number, kolicina: number) => {
-    if (pendingPostavke.has(postavkaId)) return;
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) return;
     setPendingPostavke(prev => new Set(prev).add(postavkaId));
     const settle = () => setPendingPostavke(prev => { const s = new Set(prev); s.delete(postavkaId); return s; });
     if (kolicina <= 1) {
@@ -1710,7 +2315,8 @@ export default function Order() {
   };
 
   const handleDodatekIncrement = (postavkaId: number, kolicina: number) => {
-    if (pendingPostavke.has(postavkaId)) return;
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) return;
     setPendingPostavke(prev => new Set(prev).add(postavkaId));
     const settle = () => setPendingPostavke(prev => { const s = new Set(prev); s.delete(postavkaId); return s; });
     updateKolicina.mutate({ id, postavkaId, data: { kolicina: kolicina + 1 } }, {
@@ -1720,6 +2326,8 @@ export default function Order() {
   };
 
   const handleMikrofon = (postavka: { id: number; kolicina: number; opomba?: string | null }) => {
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavka.id)) return;
     if (mikrofon?.postavkaId === postavka.id) {
       ustaviMikrofon();
       setMikrofon(null);
@@ -1744,6 +2352,8 @@ export default function Order() {
   };
 
   const handleShraniOpombo = (postavkaId: number, kolicina: number, novaOpomba: string) => {
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId)) return;
     const opomba = novaOpomba.trim() || null;
     updateKolicina.mutate({ id, postavkaId, data: { kolicina, opomba } }, {
       onSuccess: (u) => { queryClient.setQueryData(getGetNarociloQueryKey(id), u); setOpombaPostavka(null); },
@@ -1752,6 +2362,8 @@ export default function Order() {
   };
 
   const handleBrisiOpombo = (postavka: { id: number; kolicina: number }) => {
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavka.id)) return;
     updateKolicina.mutate({ id, postavkaId: postavka.id, data: { kolicina: postavka.kolicina, opomba: null } }, {
       onSuccess: (u) => queryClient.setQueryData(getGetNarociloQueryKey(id), u),
       onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče zbrisati opombe", variant: "destructive" }),
@@ -1759,6 +2371,8 @@ export default function Order() {
   };
 
   const handleToGo = (postavka: { id: number; artikelId: number; kolicina: number; toGo?: boolean }) => {
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavka.id)) return;
     const artInfo = artikliMapForOrder.get(postavka.artikelId);
     const toGoIds: number[] = (artInfo as { toGoArtikli?: number[] } | undefined)?.toGoArtikli ?? [];
     const jeToGo = !!(postavka as { toGo?: boolean }).toGo;
@@ -1788,6 +2402,11 @@ export default function Order() {
         onSuccess: (u) => {
           queryClient.setQueryData(getGetNarociloQueryKey(id), u);
           queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+          const vsebujeVrocoPijaco = (narocilo?.postavke ?? []).some((p) => {
+            const artikel = artikliMapForOrder.get(p.artikelId) as { taxCategory?: string } | undefined;
+            return artikel?.taxCategory === "hot_beverage";
+          });
+          if (vsebujeVrocoPijaco) setToGoDdVWarningVisible(true);
           for (const toGoArtikelId of toGoIds) {
             addPostavka.mutate({ id, data: { artikelId: toGoArtikelId, kolicina: 1, parentPostavkaId: postavka.id, gostStevilka: aktivniGostStevilka } }, {
               onSuccess: (u2) => {
@@ -1804,7 +2423,8 @@ export default function Order() {
   };
 
   const handleApplyDiscount = (postavkaId: number, novaCenaKos: number) => {
-    if (pendingPostavke.has(postavkaId)) return;
+    if (checkBlock()) return;
+    if (isTemporaryPostavkaId(postavkaId) || pendingPostavke.has(postavkaId)) return;
     const postavka = narocilo?.postavke?.find(p => p.id === postavkaId);
     if (!postavka) return;
     setDiscountOpenId(null);
@@ -1816,7 +2436,53 @@ export default function Order() {
     });
   };
 
+  const odpriUrejanjeCasa = () => {
+    if (!narocilo || narocilo.nacin !== "telefon") return;
+    setCasZaUrejanje(casZaPosDatetimeLocal(narocilo.predvidenPrevzem));
+    setCasDialogOpen(true);
+  };
+
+  const shraniCasPrevzema = () => {
+    if (!casZaUrejanje) {
+      toast({ title: "Izberite čas", description: "Vnesite predviden čas prevzema.", variant: "destructive" });
+      return;
+    }
+    const cas = posDatetimeLocalToIso(casZaUrejanje);
+    if (!cas) {
+      toast({ title: "Neveljaven čas", variant: "destructive" });
+      return;
+    }
+    updateNarociloForOrder.mutate({
+      id,
+      data: { predvidenPrevzem: cas, predvidenPrevzemRocen: true },
+    }, {
+      onSuccess: updated => {
+        queryClient.setQueryData(getGetNarociloQueryKey(id), updated);
+        void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+        setCasDialogOpen(false);
+        toast({ title: "Čas naročila posodobljen" });
+      },
+      onError: () => toast({ title: "Napaka", description: "Časa naročila ni bilo mogoče shraniti.", variant: "destructive" }),
+    });
+  };
+
+  const ponastaviCasPrevzema = () => {
+    updateNarociloForOrder.mutate({
+      id,
+      data: { predvidenPrevzem: null, predvidenPrevzemRocen: false },
+    }, {
+      onSuccess: updated => {
+        queryClient.setQueryData(getGetNarociloQueryKey(id), updated);
+        void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+        setCasDialogOpen(false);
+        toast({ title: "Čas se ponovno izračunava samodejno" });
+      },
+      onError: () => toast({ title: "Napaka", description: "Samodejnega časa ni bilo mogoče nastaviti.", variant: "destructive" }),
+    });
+  };
+
   const handleUvozPotrditev = async () => {
+    if (checkBlock()) return;
     if (!uvozPostavke || uvozPostavke.length === 0) return;
     const artikliMap = new Map(artikli?.map(a => [a.id, a]));
     const neaktivni: string[] = [];
@@ -1853,7 +2519,7 @@ export default function Order() {
     }
   };
 
-  if (loadingNarocila || loadingArtikli || loadingKategorije) {
+  if (loadingNarocila) {
     return <div className="p-8"><Skeleton className="h-64 w-full" /></div>;
   }
 
@@ -1861,23 +2527,63 @@ export default function Order() {
 
   const postavkeCount = (narocilo?.postavke ?? []).filter(p => p.parentPostavkaId == null).length;
   const currentMizaProstorId = mize?.find(m => m.id === narocilo.mizaId)?.prostorId ?? null;
-  const prostorIme = currentMizaProstorId != null ? (prostori?.find(p => p.id === currentMizaProstorId)?.ime ?? null) : null;
+  const prostorIme = narocilo.prostorIme
+    ?? (currentMizaProstorId != null ? (prostori?.find(p => p.id === currentMizaProstorId)?.ime ?? null) : null);
+  const stevilkaNarocila = narocilo.stevilkaNarocila ?? narocilo.id;
+  const virOznaka = narocilo.vir === "qr_gost" ? "QR" : null;
+  const jeTelefonskoNarocilo = narocilo.nacin === "telefon";
+  const jeDostava = jeTelefonskoNarocilo && narocilo.nacinIzpolnitve === "dostava";
+  const dostavaStatus = narocilo.dostavaStatus;
+  const dostavaKurirId = narocilo.dostavaKurirId;
+  const predvidenCas = formatPosCas(narocilo.predvidenPrevzem);
+  const dostavaPodatki = narocilo as typeof narocilo & { casDostaveMin?: number | null; cenaDostave?: number | null };
+  const casVoznjeMin = dostavaPodatki.casDostaveMin
+    ?? (narocilo.predvidenPrevzem && narocilo.predvidenaDostava
+      ? Math.max(0, Math.round((new Date(narocilo.predvidenaDostava).getTime() - new Date(narocilo.predvidenPrevzem).getTime()) / 60_000))
+      : null);
+  const pripravaCas = formatPosCas(narocilo.predvidenPrevzem);
+  const dostavaCas = formatPosCas(narocilo.predvidenaDostava);
+  const cenaDostave = dostavaPodatki.cenaDostave;
+  const predvidenaDostava = narocilo.predvidenaDostava;
+  const dostavaEtaAktivna = jeDostava
+    && predvidenaDostava
+    && dostavaStatus !== "dostavljeno"
+    && dostavaStatus !== "preklicano";
+  const dostavaIzracun = jeDostava && pripravaCas && dostavaCas && casVoznjeMin != null ? (
+    <div className="text-xs text-muted-foreground" data-testid="dostava-izracun">
+      Priprava do {pripravaCas} + vožnja {casVoznjeMin} min ={" "}
+      <span
+        className="inline-flex items-center gap-1 font-medium"
+        title={`Dostava ob ${dostavaCas}`}
+        aria-label={`Dostava ob ${dostavaCas}`}
+      >
+        <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+        {dostavaCas}
+      </span>
+      {dostavaEtaAktivna && (
+        <span className="ml-2" data-testid="dostava-odstevanje">
+          <KdsCountdown target={{ iso: predvidenaDostava, label: "Dostava ob" }} />
+        </span>
+      )}
+      {typeof cenaDostave === "number" && <> · Dostava {cenaDostave.toFixed(2)} €</>}
+    </div>
+  ) : null;
 
   return (
     <>
+    {isBlocked && (
+      <div className="bg-red-600 text-white p-2 text-center text-sm font-semibold flex items-center justify-center gap-2 shrink-0 shadow-sm z-50">
+        <ShieldAlert className="w-4 h-4" />
+        Spreminjanje naročila je blokirano, ker se bliža čas rezervacije (manj kot 2 uri). Možen je samo zaključek ali prestavitev naročila.
+      </div>
+    )}
     <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden bg-muted/20">
       {/* ── Mobile tab switcher ──────────────────────────────── */}
-      <div className="md:hidden flex items-center border-b bg-background shrink-0 gap-1 px-1 py-1">
+      <div className="md:hidden flex items-center border-b bg-background shrink-0 gap-1 px-1 py-1" data-testid="mobile-order-tabs">
         <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span className="flex flex-col leading-tight flex-1 min-w-0 truncate">
-          <span className="text-base font-semibold truncate">
-            {prostorIme && <span className="text-muted-foreground font-normal">{prostorIme} · </span>}
-            {narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}
-            <span className="font-normal text-muted-foreground ml-1">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
-          </span>
-        </span>
+        <span className="flex-1 min-w-0" aria-hidden="true" />
         <button
           onClick={() => setMobileTab("meni")}
           className={`shrink-0 px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
@@ -1898,15 +2604,15 @@ export default function Order() {
 
       {/* ── Levi del — Meni ──────────────────────────────────── */}
       <div className={`flex-1 flex flex-col h-full border-r bg-background ${mobileTab === "narocilo" ? "hidden md:flex" : "flex"}`}>
-        <div className="hidden md:flex p-4 border-b items-center gap-4">
+        <div className="hidden md:flex p-2 border-b items-center gap-3">
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">Meni</h1>
-            <p className="text-sm text-muted-foreground">Izberi artikle • povleci za razvrščanje</p>
+            <h1 className="text-lg font-bold leading-tight">Meni</h1>
+            <p className="text-xs leading-tight text-muted-foreground">Izberi artikle • povleci za razvrščanje</p>
           </div>
-          {aktivniGostStevilka !== null && (
+          {!jeTelefonskoNarocilo && aktivniGostStevilka !== null && (
             <button
               type="button"
               onClick={() => setAktivniGostStevilka(null)}
@@ -1926,6 +2632,15 @@ export default function Order() {
           onValueChange={v => { setActiveKategorija(v); setSearch(""); }}
         >
           <div className="px-2 pt-1.5 pb-1.5 border-b space-y-1.5">
+            <OrderContextLine
+              prostorIme={prostorIme}
+              mizaIme={narocilo.mizaIme ?? null}
+              mizaStevilka={narocilo.mizaStevilka ?? null}
+              stevilkaNarocila={stevilkaNarocila}
+              virOznaka={virOznaka}
+              dostavaOb={predvidenCas}
+              className="pb-1 border-b border-border/60"
+            />
             <div className="relative flex gap-2 items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1966,7 +2681,7 @@ export default function Order() {
               </button>
             </div>
             {/* Gostje — samo mobile */}
-            <div className="md:hidden flex flex-wrap gap-1 items-center">
+            {!jeTelefonskoNarocilo && <div className="md:hidden flex flex-wrap gap-1 items-center">
               <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               {steviloGostov === 0 ? (
                 <button type="button" onClick={() => { void handleDodajPrvegaGosta(); }}
@@ -1998,7 +2713,7 @@ export default function Order() {
                   })()}
                 </>
               )}
-            </div>
+            </div>}
             <TabsList className="h-auto flex-wrap w-full justify-start gap-1 bg-transparent p-0">
               <TabsTrigger value="all" className="rounded-full border text-xs h-7 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary">Vse</TabsTrigger>
               {kategorije?.map(k => (
@@ -2008,7 +2723,13 @@ export default function Order() {
           </div>
 
           <ScrollArea className="flex-1 p-3">
-            {(() => {
+             {loadingArtikli || loadingKategorije ? (
+               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-20 md:pb-4">
+                 {Array.from({ length: 12 }).map((_, index) => (
+                   <Skeleton key={index} className="h-24 w-full rounded-lg" />
+                 ))}
+               </div>
+             ) : (() => {
               const gridItems: GridItem[] = (search.trim() || grupiranjeNacin === "izklopljeno")
                 ? filteredArtikli.map(a => ({ type: "artikel" as const, artikel: a }))
                 : skupinaArtiklov(filteredArtikli);
@@ -2029,6 +2750,10 @@ export default function Order() {
                             key={item.artikel.id}
                             artikel={item.artikel}
                             onAdd={(artId) => {
+                              if (multicourseMenuji.some(menu => menu.aktivno && menu.menuArtikelId === artId)) {
+                                handleAddArtikel(artId);
+                                return;
+                              }
                               const modM = filteredArtikliModMatch.get(artId);
                               if (modM) handleAddArtikelZModifikatorjem(artId, modM.skupinaId, modM.modifikatorId, modM.modIme);
                               else handleAddArtikel(artId);
@@ -2036,7 +2761,8 @@ export default function Order() {
                             pending={pendingArtikli.has(item.artikel.id)}
                             flashing={flashingId === item.artikel.id}
                             artikliMap={artikliMapForOrder}
-                            isHappyHourActive={isHappyHourActive}
+                            isHappyHourActive={activeHappyHourArticleIds.has(item.artikel.id)}
+                            happyHourVelikostiPice={activeHappyHourPizzaSizes.get(item.artikel.id)}
                           />
                         ) : (
                           <div key={`grupa-${item.baseIme}`}>
@@ -2067,52 +2793,112 @@ export default function Order() {
                   </SortableContext>
                 </DndContext>
               );
-            })()}
+             })()}
           </ScrollArea>
         </Tabs>
       </div>
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
-        <div className="shrink-0 p-3 md:p-4 border-b bg-card space-y-1.5">
-          {/* Ime mize + ikone — samo desktop (mobile: ime je v zgornjem baru, ikone so pri gostih) */}
+        <div className="shrink-0 p-3 md:p-2.5 border-b bg-card space-y-1.5 md:space-y-0.5">
+          <OrderContextLine
+            prostorIme={prostorIme}
+            mizaIme={narocilo.mizaIme ?? null}
+            mizaStevilka={narocilo.mizaStevilka ?? null}
+            stevilkaNarocila={stevilkaNarocila}
+            virOznaka={virOznaka}
+            dostavaOb={predvidenCas}
+            testId="right-order-context-line"
+            className="hidden md:flex pb-1 border-b border-border/60"
+          />
+          {/* Dodatni podatki za telefonska/dostavna naročila — kontekst je že v prvi vrstici */}
+          {(jeTelefonskoNarocilo || (jeDostava && narocilo.dostavaUlica)) && (
           <div className="hidden md:flex items-center gap-1 min-w-0">
-            <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
-              <h2 className="min-w-0 text-lg md:text-xl font-bold leading-tight truncate">{narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}</h2>
-              <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">#{narocilo.stevilkaNarocila ?? narocilo.id}</span>
+            <div className="flex-1 min-w-0">
+              {jeTelefonskoNarocilo && (
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <button type="button" className="inline-flex items-center gap-1 text-primary hover:underline" onClick={odpriUrejanjeCasa} data-testid="uredi-predviden-cas">
+                    <Pencil className="h-3 w-3" /> Uredi čas
+                  </button>
+                </div>
+              )}
+              {jeDostava && narocilo.dostavaUlica && (
+                <>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5" data-testid="dostavni-naslov">
+                    {narocilo.dostavaUlica} {narocilo.dostavaHisnaStevilka}{narocilo.dostavaVhod ? `, vhod ${narocilo.dostavaVhod}` : ""}{narocilo.dostavaNadstropje ? `, ${narocilo.dostavaNadstropje}. nadst.` : ""}{narocilo.dostavaNaseljeNaziv ? ` · ${narocilo.dostavaNaseljeNaziv}` : ""}
+                  </p>
+                  {dostavaIzracun}
+                </>
+              )}
             </div>
-            {narocilo.status === "odprto" && (
-              <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Uvozi iz računa" onClick={() => setUvozDialogOpen(true)}>
-                <ClipboardList className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            {prosteMize.length > 0 && (
-              <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Prestavi na mizo" onClick={() => setPrestaviDialogOpen(true)}>
-                <ArrowLeftRight className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            {drugaNarocila.length > 0 && (
-              <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Združi naročili" onClick={() => setSpojiDialogOpen(true)}>
-                <GitMerge className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            <button
-              onClick={handleGlasovnoMeni}
-              disabled={aiObdeluje}
-              title={glasovnoAktivno ? "Poslušam… klikni za zaustavitev" : aiObdeluje ? "AI analizira naročilo…" : "Glasovni ukaz — naroči s prostim govorom"}
-              className={`shrink-0 flex items-center justify-center h-7 w-7 rounded-md border transition-colors ${glasovnoAktivno ? "bg-red-50 border-red-300 text-red-500 animate-pulse" : aiObdeluje ? "bg-blue-50 border-blue-300 text-blue-500 animate-pulse" : "border-input text-muted-foreground hover:text-foreground hover:bg-accent"}`}
-            >
-              {glasovnoAktivno ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-            </button>
           </div>
+          )}
           {glasovnoAktivno && (
             <div className="mx-0 mb-1 bg-red-50 border border-red-200 rounded-md px-2 py-1 text-xs text-red-700 truncate">
               {glasovnoTranskript ? glasovnoTranskript : <span className="opacity-60 italic">Poslušam…</span>}
             </div>
           )}
+          <div className="md:hidden rounded-md bg-muted/50 px-2.5 py-2.5 text-xs space-y-2" data-testid="mobile-order-summary">
+            <OrderContextLine
+              prostorIme={prostorIme}
+              mizaIme={narocilo.mizaIme ?? null}
+              mizaStevilka={narocilo.mizaStevilka ?? null}
+              stevilkaNarocila={stevilkaNarocila}
+              virOznaka={virOznaka}
+              dostavaOb={predvidenCas}
+              className="pb-2 border-b border-border/60"
+            />
+            {jeTelefonskoNarocilo && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {narocilo.strankaIme && <span className="font-semibold text-foreground">{narocilo.strankaIme}</span>}
+                <button type="button" className="text-primary underline underline-offset-2" onClick={odpriUrejanjeCasa}>
+                  Uredi čas
+                </button>
+              </div>
+            )}
+
+            {jeDostava && narocilo.dostavaUlica && (
+              <div className="space-y-1">
+                <p className="break-words [overflow-wrap:anywhere] text-muted-foreground" data-testid="dostavni-naslov-mobile">
+                  {narocilo.dostavaUlica} {narocilo.dostavaHisnaStevilka}
+                  {narocilo.dostavaVhod ? `, vhod ${narocilo.dostavaVhod}` : ""}
+                  {narocilo.dostavaNadstropje ? `, ${narocilo.dostavaNadstropje}. nadst.` : ""}
+                  {narocilo.dostavaNaseljeNaziv ? ` · ${narocilo.dostavaNaseljeNaziv}` : ""}
+                </p>
+                {dostavaIzracun}
+              </div>
+            )}
+          </div>
+          {jeDostava && (
+            <DostavaStatusPanel
+              narociloId={narocilo.id}
+              status={dostavaStatus}
+              kurirId={dostavaKurirId}
+            />
+          )}
+
+          {nextKdsCourses.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2 py-1.5" data-testid="order-next-kds-course-actions">
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-violet-800">Naslednji hod</span>
+              {nextKdsCourses.map((course) => (
+                <Button
+                  key={course.pairingGroupId}
+                  type="button"
+                  size="sm"
+                  className="h-7 bg-violet-600 px-2 text-xs hover:bg-violet-700"
+                  disabled={fireKdsCourse.isPending}
+                  onClick={() => handleFireNextKdsCourse(course)}
+                  data-testid={`order-fire-course-${course.courseNumber}-${course.pairingGroupId}`}
+                >
+                  {fireKdsCourse.isPending ? "Sproščanje …" : `Sprosti ${course.courseNumber}. hod`}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {/* Gostje + mobile ikone */}
-          <div className="flex flex-wrap gap-1 items-center pt-0.5">
+          <div className="flex flex-wrap gap-1 items-center pt-0.5 md:pt-0">
+            {!jeTelefonskoNarocilo && <>
             <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             {steviloGostov === 0 ? (
               <button
@@ -2156,15 +2942,15 @@ export default function Order() {
                   );
                 })()}
               </>
-            )}
-            {/* Ikone — samo mobile */}
-            <div className="ml-auto flex items-center gap-1 md:hidden">
+            )}</>}
+            {/* Akcije so poravnane z gumbi za goste v isti vrstici */}
+            <div className="ml-auto flex shrink-0 items-center gap-1" data-testid="right-order-guest-actions">
               {narocilo.status === "odprto" && (
                 <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Uvozi iz računa" onClick={() => setUvozDialogOpen(true)}>
                   <ClipboardList className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {prosteMize.length > 0 && (
+              {!jeTelefonskoNarocilo && prosteMize.length > 0 && (
                 <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" title="Prestavi na mizo" onClick={() => setPrestaviDialogOpen(true)}>
                   <ArrowLeftRight className="h-3.5 w-3.5" />
                 </Button>
@@ -2186,7 +2972,38 @@ export default function Order() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-1 pb-2">
+        {aiSvetovalec.aktiven && (
+          <div className="px-3 md:px-2 pb-1 shrink-0">
+            <AiSvetovalecPanel 
+              loading={aiSvetovalec.loading}
+              data={aiSvetovalec.data}
+              error={aiSvetovalec.error}
+              onRefresh={(vprasanje) => aiSvetovalec.performCheck(vprasanje)}
+            />
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-1 pb-2 md:py-0 md:pb-1">
+          {toGoDdVWarningVisible && (
+            <div
+              role="alert"
+              data-testid="to-go-ddv-warning"
+              className="mb-1 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-xs text-amber-950"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+              <span className="flex-1">
+                Nekatere postavke imajo starejšo DDV stopnjo — odstranite in znova dodajte, da se DDV posodobi
+              </span>
+              <button
+                type="button"
+                aria-label="Opusti opozorilo o DDV pri To Go"
+                className="shrink-0 rounded p-0.5 text-amber-700 hover:bg-amber-100"
+                onClick={() => setToGoDdVWarningVisible(false)}
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          )}
           {nezaracunaneVse.length === 0 ? (
             <div className="h-full flex items-center justify-center text-muted-foreground p-8 text-center text-sm">
               Ni še dodanih artiklov.
@@ -2216,26 +3033,40 @@ export default function Order() {
                     }
                   }
                 }
-                const topPostavkeOrder = filtiranePostavke.filter(p =>
+                const topPostavkeOrder = groupMulticourseOrderRows(filtiranePostavke.filter(p =>
                   (p as typeof p & { parentPostavkaId?: number | null }).parentPostavkaId == null
-                );
+                ));
                 return topPostavkeOrder.map((postavka, idx) => {
                 const artRaw = artikliMapForOrder.get(postavka.artikelId) as { jePica?: boolean; modSkupine?: ModSkupinaFull[] } | undefined;
                 const artIzbirneOrder = (artRaw?.modSkupine ?? []).filter(s => !s.obvezna);
                 const dodat = dodMapOrder.get(postavka.id) ?? [];
+                const jeVecHodniMeni = postavka.isMulticourseBundle === true;
                 const hasDiscount =
+                  !jeVecHodniMeni &&
                   postavka.cenaKosOriginalna != null &&
                   postavka.cenaKosOriginalna > 0 &&
                   Math.abs(postavka.cenaKosOriginalna - postavka.cenaKos) >= 0.01;
                 const isDiscountOpen = discountOpenId === postavka.id;
                 const jeRacunana = !!postavka.racunId;
+                const jeZacasnaPostavka = isTemporaryPostavkaId(postavka.id);
+                const jePostavkaVObdelavi = jeZacasnaPostavka || pendingPostavke.has(postavka.id);
 
                 return (
-                  <div key={postavka.id} className={`flex flex-col py-1 px-1 transition-colors gap-0.5 ${jeRacunana ? "opacity-50" : "hover:bg-muted/50"}`}>
+                  <div
+                    key={postavka.id}
+                    aria-busy={jeZacasnaPostavka || undefined}
+                    className={`flex flex-col py-1 px-1 transition-colors gap-0.5 ${jeRacunana ? "opacity-50" : "hover:bg-muted/50"}`}
+                  >
                     {/* Vrstica 1: številka + ime + gost badge + gumbi */}
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground w-4 shrink-0 text-right">{idx + 1}.</span>
                       <span className={`flex-1 text-lg font-medium min-w-0 leading-snug ${jeRacunana ? "line-through text-muted-foreground" : ""}`}>{postavka.ime}</span>
+                      {postavka.velikostPice && (
+                        <IkonaVelikostiPice velikost={postavka.velikostPice as VelikostPice} />
+                      )}
+                       {jeZacasnaPostavka && (
+                         <span className="text-[9px] text-muted-foreground shrink-0 animate-pulse">Shranjujem…</span>
+                       )}
                       {!jeRacunana && !!(postavka as typeof postavka & { toGo?: boolean }).toGo && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold border border-orange-200 shrink-0">
                           <ShoppingBag className="h-2.5 w-2.5" />
@@ -2259,21 +3090,21 @@ export default function Order() {
                           )}
                         </button>
                       )}
-                      {!jeRacunana && steviloGostov > 0 && (() => {
+                      {!jeRacunana && !jeVecHodniMeni && steviloGostov > 0 && (() => {
                         const g = (postavka as typeof postavka & { gostStevilka?: number | null }).gostStevilka ?? null;
                         return (
                           <button
                             type="button"
                             title="Klikni za spremembo gosta"
                             onClick={() => handleSpremeniGosta(postavka.id)}
-                            disabled={pendingPostavke.has(postavka.id)}
+                            disabled={jePostavkaVObdelavi}
                             className={`text-xs font-bold px-2.5 py-1 rounded-full border shrink-0 transition-colors ${g !== null ? gostBarva(g) : "bg-muted text-muted-foreground border-muted-foreground/30 hover:bg-muted/80"}`}
                           >
                             {g !== null ? `G${g}` : "—"}
                           </button>
                         );
                       })()}
-                      {!jeRacunana && (() => {
+                      {!jeRacunana && !jeVecHodniMeni && !jeDostava && (() => {
                         const artInfo = artikliMapForOrder.get(postavka.artikelId) as { toGo?: boolean } | undefined;
                         if (!artInfo?.toGo) return null;
                         const jeToGoAktiven = !!(postavka as typeof postavka & { toGo?: boolean }).toGo;
@@ -2282,7 +3113,8 @@ export default function Order() {
                             type="button"
                             className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${jeToGoAktiven ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-600" : "bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-100"}`}
                             onClick={() => handleToGo(postavka)}
-                            title={jeToGoAktiven ? "Odstrani To Go embalažo" : "Dodaj To Go embalažo"}
+                            disabled={jePostavkaVObdelavi}
+                            title={jeZacasnaPostavka ? "Artikel se še shranjuje" : jeToGoAktiven ? "Odstrani To Go embalažo" : "Dodaj To Go embalažo"}
                           >
                             <ShoppingBag className="h-4 w-4" />
                           </button>
@@ -2293,13 +3125,13 @@ export default function Order() {
                           type="button"
                           className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${hasDiscount ? "bg-amber-50 text-amber-500 border-amber-200 hover:bg-amber-100" : "bg-muted/60 text-muted-foreground border-border hover:bg-amber-50 hover:text-amber-500 hover:border-amber-200"}`}
                           onClick={() => setDiscountOpenId(isDiscountOpen ? null : postavka.id)}
-                          disabled={pendingPostavke.has(postavka.id)}
+                          disabled={jePostavkaVObdelavi}
                           title="Dodaj popust"
                         >
                           <Percent className="h-4 w-4" />
                         </button>
                       )}
-                      {!jeRacunana && (() => {
+                      {!jeRacunana && !jeVecHodniMeni && (() => {
                         const poslusam = mikrofon?.postavkaId === postavka.id && mikrofon.stanje === "poslusam";
                         const napaka = mikrofon?.postavkaId === postavka.id && mikrofon.stanje === "napaka";
                         return (
@@ -2307,18 +3139,20 @@ export default function Order() {
                             type="button"
                             className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${poslusam ? "bg-red-50 text-red-500 border-red-200 animate-pulse" : napaka ? "bg-red-50 text-red-500 border-red-200" : "bg-muted/60 text-muted-foreground border-border hover:bg-blue-50 hover:text-blue-500 hover:border-blue-200"}`}
                             onClick={() => handleMikrofon(postavka)}
-                            title={poslusam ? "Klikni za zaustavitev" : "Dodaj zvočno opombo"}
+                            disabled={jePostavkaVObdelavi}
+                            title={jeZacasnaPostavka ? "Artikel se še shranjuje" : poslusam ? "Klikni za zaustavitev" : "Dodaj zvočno opombo"}
                           >
                             {poslusam ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                           </button>
                         );
                       })()}
-                      {!jeRacunana && (
+                      {!jeRacunana && !jeVecHodniMeni && (
                         <button
                           type="button"
                           className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${postavka.opomba ? "bg-amber-50 text-amber-500 border-amber-200 hover:bg-amber-100" : "bg-muted/60 text-muted-foreground border-border hover:bg-violet-50 hover:text-violet-500 hover:border-violet-200"}`}
                           onClick={() => setOpombaPostavka({ id: postavka.id, kolicina: postavka.kolicina, opomba: postavka.opomba ?? null })}
-                          title="Vnesi opombo s tipkovnico"
+                            disabled={jePostavkaVObdelavi}
+                            title={jeZacasnaPostavka ? "Artikel se še shranjuje" : "Vnesi opombo s tipkovnico"}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -2328,8 +3162,8 @@ export default function Order() {
                           type="button"
                           className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border bg-red-50 text-red-500 border-red-200 hover:bg-red-100 transition-colors"
                           onClick={() => handleRemovePostavka(postavka.id)}
-                          disabled={pendingPostavke.has(postavka.id)}
-                          title="Odstrani artikel"
+                          disabled={jePostavkaVObdelavi}
+                          title={jeZacasnaPostavka ? "Artikel se še shranjuje" : "Odstrani artikel"}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -2353,13 +3187,13 @@ export default function Order() {
                     )}
                     {/* Vrstica 2: gumbi za količino + cena */}
                     <div className="flex items-center gap-0.5 pl-5">
-                      {!jeRacunana && (
+                      {!jeRacunana && !jeVecHodniMeni && (
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-6 w-6 shrink-0"
                           onClick={() => handleUpdateKolicina(postavka.id, postavka.kolicina - 1)}
-                          disabled={pendingPostavke.has(postavka.id)}
+                          disabled={jePostavkaVObdelavi}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -2367,13 +3201,13 @@ export default function Order() {
                       <span className={`text-sm font-bold w-8 text-center tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : ""}`}>
                         {postavka.kolicina}
                       </span>
-                      {!jeRacunana && (
+                      {!jeRacunana && !jeVecHodniMeni && (
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-6 w-6 shrink-0"
                           onClick={() => handleUpdateKolicina(postavka.id, postavka.kolicina + 1)}
-                          disabled={pendingPostavke.has(postavka.id)}
+                          disabled={jePostavkaVObdelavi}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -2394,7 +3228,7 @@ export default function Order() {
                       </span>
                     </div>
                     {/* Vrstica 3: vnosno polje za popust (pogojno) */}
-                    {isDiscountOpen && (
+                    {isDiscountOpen && !jeVecHodniMeni && (
                       <DiscountInput
                         postavkaId={postavka.id}
                         cenaKos={postavka.cenaKos}
@@ -2445,7 +3279,7 @@ export default function Order() {
                         )}
                       </div>
                     ))}
-                    {artIzbirneOrder.length > 0 && !jeRacunana && (
+                    {artIzbirneOrder.length > 0 && !jeRacunana && !jeVecHodniMeni && (
                       <div className="flex gap-1.5 pl-5 mt-0.5 mb-0.5">
                         {artIzbirneOrder.length > 0 && (
                           <button
@@ -2530,7 +3364,7 @@ export default function Order() {
               const gostParam = aktivniGostStevilka !== null && neracunanePostavke.length > 0
                 ? `&gost=${aktivniGostStevilka}`
                 : "";
-              setLocation(`/blagajna?narocilo=${narocilo.id}${gostParam}`);
+              setLocation(`/blagajna?narocilo=${gatewayMode && gatewayOrderId ? localOrderRoute(gatewayOrderId) : narocilo.id}${gostParam}`);
             }}
             disabled={narocilo.postavke?.length === 0}
           >
@@ -2544,6 +3378,35 @@ export default function Order() {
         </div>
       </div>
     </div>
+
+    <Dialog open={casDialogOpen} onOpenChange={setCasDialogOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Predviden čas {jeDostava ? "dostave" : "prevzema"}</DialogTitle>
+          <DialogDescription>
+            Ročni čas ostane nastavljen tudi ob spremembi postavk. Za samodejni izračun ga lahko ponastavite.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input
+            aria-label="Predviden čas prevzema"
+            type="datetime-local"
+            value={casZaUrejanje}
+            onChange={event => setCasZaUrejanje(event.target.value)}
+          />
+          <div className="flex flex-wrap justify-end gap-2">
+            {narocilo.predvidenPrevzemRocen && (
+              <Button type="button" variant="outline" onClick={ponastaviCasPrevzema} disabled={updateNarociloForOrder.isPending}>
+                Samodejno
+              </Button>
+            )}
+            <Button type="button" onClick={shraniCasPrevzema} disabled={updateNarociloForOrder.isPending}>
+              Shrani čas
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
 
 
     {/* ── Dialog: Uvozi iz računa ──────────────────────────── */}
@@ -2705,7 +3568,13 @@ export default function Order() {
               <div key={miza.id} className="flex items-center justify-between rounded-lg border p-3 gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
-                    {miza.ime ?? `Miza ${miza.stevilka}`}
+                    {formatMizaProstor({
+                      mizaIme: miza.ime,
+                      mizaStevilka: miza.stevilka,
+                      prostorIme: miza.prostorId != null
+                        ? (prostori?.find(prostor => prostor.id === miza.prostorId)?.ime ?? null)
+                        : null,
+                    })}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Kapaciteta: {miza.kapaciteta}
@@ -2719,11 +3588,18 @@ export default function Order() {
                   onClick={() => {
                     prestaviMutation.mutate({ id, data: { mizaId: miza.id } }, {
                       onSuccess: (u) => {
+                        const ciljnaMiza = formatMizaProstor({
+                          mizaIme: miza.ime,
+                          mizaStevilka: miza.stevilka,
+                          prostorIme: miza.prostorId != null
+                            ? (prostori?.find(prostor => prostor.id === miza.prostorId)?.ime ?? null)
+                            : null,
+                        });
                         setPrestaviDialogOpen(false);
                         queryClient.setQueryData(getGetNarociloQueryKey(id), u);
                         toast({
                           title: "Naročilo prestavljeno",
-                          description: `Naročilo #${narocilo.id} je bilo prestavljeno na ${miza.ime ?? `Mizo ${miza.stevilka}`}.`,
+                          description: `Naročilo #${narocilo.id} je bilo prestavljeno na ${ciljnaMiza}.`,
                         });
                       },
                       onError: () => toast({ title: "Napaka", description: "Prenos ni uspel", variant: "destructive" }),
@@ -2761,25 +3637,79 @@ export default function Order() {
       const artCena = modDialogArtikelId !== null
         ? Number((artikliMapForOrder.get(modDialogArtikelId) as { cena?: number } | undefined)?.cena ?? 0)
         : 0;
+      const artCenaMala = modDialogArtikelId !== null
+        ? (artikliMapForOrder.get(modDialogArtikelId) as { cenaMala?: number | null } | undefined)?.cenaMala
+        : null;
+      const artCenaDruzinska = modDialogArtikelId !== null
+        ? (artikliMapForOrder.get(modDialogArtikelId) as { cenaDruzinska?: number | null } | undefined)?.cenaDruzinska
+        : null;
+      const artHappyHourCena = modDialogArtikelId !== null
+        ? (artikliMapForOrder.get(modDialogArtikelId) as { happyHourCena?: number | null } | undefined)?.happyHourCena
+        : null;
+      const artHappyHourCenaMala = modDialogArtikelId !== null
+        ? (artikliMapForOrder.get(modDialogArtikelId) as { happyHourCenaMala?: number | null } | undefined)?.happyHourCenaMala
+        : null;
+      const artHappyHourCenaDruzinska = modDialogArtikelId !== null
+        ? (artikliMapForOrder.get(modDialogArtikelId) as { happyHourCenaDruzinska?: number | null } | undefined)?.happyHourCenaDruzinska
+        : null;
+      const artJeHappyHourAktiven = modDialogArtikelId !== null
+        && activeHappyHourArticleIds.has(modDialogArtikelId);
+      const artHappyHourVelikostiPice = modDialogArtikelId !== null
+        ? activeHappyHourPizzaSizes.get(modDialogArtikelId)
+        : undefined;
       const artJePica = modDialogArtikelId !== null
         ? Boolean((artikliMapForOrder.get(modDialogArtikelId) as { jePica?: boolean } | undefined)?.jePica)
         : false;
+      const aktivneVelikostiPic = [
+        { id: "mala" as const, naziv: "Mala", premer: Number((nastavitve as any)?.picaPremerMala ?? 0) },
+        { id: "normalna" as const, naziv: "Normalna", premer: Number((nastavitve as any)?.picaPremerNormalna ?? 0) },
+        { id: "druzinska" as const, naziv: "Družinska", premer: Number((nastavitve as any)?.picaPremerDruzinska ?? 0) },
+      ].filter((velikost) => velikost.premer > 0);
+      const cenaZaVelikostPice = (velikost: "mala" | "normalna" | "druzinska") => {
+        const rednaCenaVelikosti = velikost === "mala"
+          ? artCenaMala
+          : velikost === "druzinska"
+            ? artCenaDruzinska
+            : artCena;
+        const happyHourCenaVelikosti = velikost === "mala"
+          ? artHappyHourCenaMala
+          : velikost === "druzinska"
+            ? artHappyHourCenaDruzinska
+            : artHappyHourCena;
+        const cenaVelikosti = artJeHappyHourAktiven
+          && artHappyHourVelikostiPice?.has(velikost)
+          && happyHourCenaVelikosti != null
+          ? happyHourCenaVelikosti
+          : rednaCenaVelikosti;
+        return cenaVelikosti == null ? artCena : Number(cenaVelikosti);
+      };
+      const izbranaVelikostPice = modDialogVelikostPice
+        ?? aktivneVelikostiPic.find((velikost) => velikost.id === "normalna")?.id
+        ?? aktivneVelikostiPic[0]?.id;
+      const artCenaZaPrikaz = artJePica
+        ? cenaZaVelikostPice(izbranaVelikostPice ?? "normalna")
+        : artCena;
 
-      const RAZREZ_RE = /razrez|razreži|razrezi|polovico|polovica|četrtin|trikotnik/i;
+      const RAZREZ_RE = /\brazrez\b/i;
+      const BREZ_RE = /\bbrez\b/i;
       const picaGroups = artJePica ? (() => {
         const vseMods = artSkupine.flatMap(sk =>
           sk.modifikatorji.filter(m => m.aktiven).map(m => ({ ...m, skupinaId: sk.id, maxIzbir: sk.maxIzbir }))
         );
-        const dodatki = vseMods.filter(m => Number(m.cenaDodatek) > 0);
-        const brez = vseMods.filter(m => /brez/i.test(m.ime));
-        const razrez = vseMods.filter(m => RAZREZ_RE.test(m.ime) && !/brez/i.test(m.ime));
-        const ostalo = vseMods.filter(m => Number(m.cenaDodatek) === 0 && !/brez/i.test(m.ime) && !RAZREZ_RE.test(m.ime));
+        const dodatki = vseMods.filter(m => !BREZ_RE.test(m.ime) && !RAZREZ_RE.test(m.ime));
+        const brez = vseMods.filter(m => BREZ_RE.test(m.ime) && !RAZREZ_RE.test(m.ime));
+        const razrez = vseMods.filter(m => RAZREZ_RE.test(m.ime) && !BREZ_RE.test(m.ime));
         return [
-          { naslov: "Dodatki", barvaClass: "text-green-700", mods: [...dodatki, ...ostalo] },
+          { naslov: "Dodatki", barvaClass: "text-green-700", mods: dodatki },
           { naslov: "Brez", barvaClass: "text-orange-600", mods: brez },
           { naslov: "Razrez", barvaClass: "text-slate-600", mods: razrez },
         ].filter(g => g.mods.length > 0);
       })() : [];
+      const razrezIzbire = new Set(
+        picaGroups
+          .find(group => group.naslov === "Razrez")
+          ?.mods.map(mod => `${mod.skupinaId}:${mod.id}`) ?? [],
+      );
 
       const isPotrdiDisabled = artSkupine.filter(s => s.obvezna).some(s => {
         const selected = modDialogIzbrani.filter(m => m.skupinaId === s.id).length;
@@ -2794,9 +3724,15 @@ export default function Order() {
         return sum;
       }, 0);
 
-      function toggleMod(skupinaId: number, modifikatorId: number, maxIzbir: number) {
+      function toggleMod(skupinaId: number, modifikatorId: number, maxIzbir: number, samoEnRazrez = false) {
         setModDialogIzbrani(prev => {
           const isSelected = prev.some(m => m.skupinaId === skupinaId && m.modifikatorId === modifikatorId);
+          if (samoEnRazrez) {
+            const brezRazreza = prev.filter(
+              izbira => !razrezIzbire.has(`${izbira.skupinaId}:${izbira.modifikatorId}`),
+            );
+            return isSelected ? brezRazreza : [...brezRazreza, { skupinaId, modifikatorId }];
+          }
           if (maxIzbir === 1) {
             const filtered = prev.filter(m => m.skupinaId !== skupinaId);
             return isSelected ? filtered : [...filtered, { skupinaId, modifikatorId }];
@@ -2816,10 +3752,14 @@ export default function Order() {
         const izbrani = [...modDialogIzbrani];
         const kolicina = modDialogKolicina;
         const opomba = modDialogOpomba;
+        const velikostPice = artJePica
+          ? (modDialogVelikostPice ?? aktivneVelikostiPic.find((velikost) => velikost.id === "normalna")?.id ?? aktivneVelikostiPic[0]?.id)
+          : undefined;
         setModDialogArtikelId(null);
         setModDialogIzbrani([]);
         setModDialogKolicina(1);
         setModDialogOpomba(null);
+        setModDialogVelikostPice(undefined);
         if (pendingArtikli.has(artikelId)) return;
         setPendingArtikli(prev => new Set(prev).add(artikelId));
         const settle = () => setPendingArtikli(prev => { const s = new Set(prev); s.delete(artikelId); return s; });
@@ -2832,7 +3772,7 @@ export default function Order() {
         }
         addPostavka.mutate(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload } as any },
+          { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice } as any },
           {
             onSuccess: (updatedNarocilo) => {
               clearSkipAutoStart();
@@ -2842,10 +3782,8 @@ export default function Order() {
               settle();
             },
             onError: (err) => {
-              if (err instanceof ApiError && err.status === 409) {
-                toast({ title: "Naročilo je zaprto", description: "Račun je bil že izdan. Stran se bo osvežila.", variant: "destructive" });
-                void queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(id) });
-                void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+              if (isClosedOrderConflict(err)) {
+                leaveClosedOrder();
               } else {
                 toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" });
               }
@@ -2857,44 +3795,77 @@ export default function Order() {
 
       return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); } }}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
                 {artIme}
               </DialogTitle>
-              <DialogDescription className="flex items-center justify-between">
+              <DialogDescription className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span>Izberi možnosti pred potrditvijo.</span>
-                <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{artCena.toFixed(2)} €</span>
+                <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{artCenaZaPrikaz.toFixed(2)} €</span>
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-5 max-h-[min(62dvh,34rem)] overflow-y-auto pr-1">
+              {artJePica && aktivneVelikostiPic.length > 1 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2">Velikost pice</p>
+                  <div className="grid grid-cols-1 min-[360px]:grid-cols-3 gap-2">
+                    {aktivneVelikostiPic.map((velikost) => (
+                      <Button
+                        key={velikost.id}
+                        type="button"
+                        size="sm"
+                        variant={izbranaVelikostPice === velikost.id ? "default" : "outline"}
+                        className="h-auto min-h-[4.5rem] min-w-0 w-full flex-col gap-0.5 whitespace-normal px-2 py-2 text-center leading-tight"
+                        aria-pressed={izbranaVelikostPice === velikost.id}
+                        onClick={() => setModDialogVelikostPice(velikost.id)}
+                      >
+                        <span className="font-semibold">{velikost.naziv}</span>
+                        <span className="text-xs opacity-80">{velikost.premer} cm</span>
+                        <span className="font-bold">{cenaZaVelikostPice(velikost.id).toFixed(2)} €</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {artJePica ? (
-                picaGroups.map(grupa => (
-                  <div key={grupa.naslov}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {picaGroups.map(grupa => (
+                  <div
+                    key={grupa.naslov}
+                    className="min-w-0 rounded-lg border bg-muted/20 p-3"
+                    data-testid={`pizza-mod-group-${grupa.naslov.toLowerCase()}`}
+                  >
                     <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${grupa.barvaClass}`}>
                       {grupa.naslov === "Dodatki" && <Plus className="inline h-3 w-3 mr-1" />}
                       {grupa.naslov === "Brez" && <Minus className="inline h-3 w-3 mr-1" />}
                       {grupa.naslov}
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                       {grupa.mods.map(mod => {
                         const isSelected = modDialogIzbrani.some(m => m.skupinaId === mod.skupinaId && m.modifikatorId === mod.id);
                         return (
                           <button
                             key={mod.id}
                             type="button"
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-colors ${
+                            aria-pressed={isSelected}
+                            className={`flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 py-2 text-center text-sm leading-tight transition-colors ${
                               isSelected
                                 ? "bg-primary text-primary-foreground border-primary"
                                 : "hover:bg-muted/60 border-muted-foreground/30"
                             }`}
-                            onClick={() => toggleMod(mod.skupinaId, mod.id, mod.maxIzbir)}
+                            onClick={() => toggleMod(
+                              mod.skupinaId,
+                              mod.id,
+                              mod.maxIzbir,
+                              grupa.naslov === "Razrez",
+                            )}
                           >
                             {isSelected && <Check className="h-3 w-3 shrink-0" />}
-                            <span>{mod.ime}</span>
+                            <span className="min-w-0 break-words">{mod.ime}</span>
                             {Number(mod.cenaDodatek) > 0 && (
-                              <span className={`tabular-nums text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                              <span className={`shrink-0 tabular-nums text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                                 +{Number(mod.cenaDodatek).toFixed(2)} €
                               </span>
                             )}
@@ -2903,7 +3874,8 @@ export default function Order() {
                       })}
                     </div>
                   </div>
-                ))
+                ))}
+                </div>
               ) : (
                 artSkupine.map(skupina => (
                   <div key={skupina.id}>
@@ -2942,13 +3914,175 @@ export default function Order() {
             {skupajDoplačilo > 0 && (
               <div className="border-t pt-2 flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">Skupaj</span>
-                <span className="font-bold tabular-nums">{(artCena + skupajDoplačilo).toFixed(2)} €</span>
+                <span className="font-bold tabular-nums">{(artCenaZaPrikaz + skupajDoplačilo).toFixed(2)} €</span>
               </div>
             )}
             <div className="flex gap-2 pt-2 border-t">
               <Button variant="outline" className="flex-1" onClick={() => { setModDialogArtikelId(null); setModDialogIzbrani([]); }}>Prekliči</Button>
               <Button className="flex-1" disabled={isPotrdiDisabled || addPostavka.isPending} onClick={handlePotrdiModifikatorje}>
                 Potrdi
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    })()}
+
+    {/* ── Dialog: configured multicourse menu ───────────────────────────── */}
+    {(() => {
+      const menu = multicourseMenu;
+      if (!menu) return null;
+      const courses = [...menu.courses].sort((a, b) => a.courseNumber - b.courseNumber);
+      const menuArtikel = artikliMapForOrder.get(menu.menuArtikelId);
+      const selection = multicourseSelectionRequirements(menu, courses);
+      const close = () => {
+        setMulticourseMenu(null);
+        setMulticourseCourses([]);
+        setMulticourseFoods({});
+        setMulticourseWines({});
+        setMulticourseOpomba("");
+        setMulticourseError(null);
+      };
+      const toggleCourse = (courseNumber: number) => {
+        if (selection.mode === "fixed") return;
+        setMulticourseCourses(current => current.includes(courseNumber)
+          ? current.filter(number => number !== courseNumber)
+          : current.length < selection.count ? [...current, courseNumber] : current);
+        setMulticourseError(null);
+      };
+      const submit = () => {
+        const selections = courses
+          .filter(course => multicourseCourses.includes(course.courseNumber))
+          .map(course => ({
+            courseNumber: course.courseNumber,
+            foodArtikelId: multicourseFoods[course.courseNumber],
+            wineArtikelId: multicourseWines[course.courseNumber],
+          }));
+        const validationError = validateMulticourseOrderSelection(menu, courses, selections);
+        if (validationError) {
+          setMulticourseError(validationError);
+          return;
+        }
+        addMulticourseMenu.mutate({
+          id,
+          data: {
+            menuArtikelId: menu.menuArtikelId,
+            quantity: 1,
+            gostStevilka: aktivniGostStevilka,
+            opomba: multicourseOpomba.trim() || null,
+            // The generated client may still describe the legacy required-wine
+            // payload while deployed APIs accept optional wine for a course.
+            selections: selections as unknown as { courseNumber: number; foodArtikelId: number; wineArtikelId: number }[],
+          },
+        }, {
+          onSuccess: (updatedNarocilo) => {
+            clearSkipAutoStart();
+            queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
+            queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
+            setSearch("");
+            close();
+          },
+          onError: (err) => {
+            if (isClosedOrderConflict(err)) {
+              leaveClosedOrder();
+            } else if (err instanceof ApiError && err.status === 409) {
+              const serverError = (err.data as { error?: string } | null)?.error;
+              toast({ title: "Menija ni bilo mogoče dodati", description: serverError ?? "Spremembe naročila trenutno niso dovoljene.", variant: "destructive" });
+              void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
+            } else {
+              toast({ title: "Menija ni bilo mogoče dodati", description: "Poskusite znova.", variant: "destructive" });
+            }
+          },
+        });
+      };
+
+      return (
+        <Dialog open onOpenChange={(open) => { if (!open && !addMulticourseMenu.isPending) close(); }}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{menuArtikel?.ime ?? "Večhodni meni"}</DialogTitle>
+              <DialogDescription>
+                {selection.mode === "fixed"
+                  ? `Vseh ${selection.count} hodov je v določenem vrstnem redu.`
+                  : `Izberite natanko ${selection.count} od ${courses.filter(course => !course.informational).length} hodov v želenem zaporedju.`} Za vsak izbran hod izberite jed{courses.some(course => !course.informational && course.wineRequired !== false) ? "; vino izberite le, kjer je obvezno." : "."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {courses.map(course => {
+                const selected = multicourseCourses.includes(course.courseNumber);
+                  const informational = course.informational === true;
+                const foods = course.allowedFoodArtikelIds
+                  .map(foodId => artikliMapForOrder.get(foodId))
+                  .flatMap(food => food ? [food] : []);
+                const wines = course.allowedWineArtikelIds
+                  .map(wineId => artikliMapForOrder.get(wineId))
+                  .flatMap(wine => wine ? [wine] : []);
+                return (
+                  <fieldset key={course.courseNumber} className="rounded-lg border p-3" data-testid={`multicourse-course-${course.courseNumber}`}>
+                    <label className="flex items-center gap-2 font-medium">
+                      {!informational && <Checkbox
+                        checked={selected}
+                        disabled={selection.mode === "fixed"}
+                        onCheckedChange={() => toggleCourse(course.courseNumber)}
+                        data-testid={`toggle-multicourse-course-${course.courseNumber}`}
+                      />}
+                      <span>{course.courseName || `${course.courseNumber}. hod`}</span>
+                      {informational && <span className="text-xs font-normal text-muted-foreground">(samodejno vključen hod)</span>}
+                    </label>
+                    {selected && !informational && (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <label className="block text-sm">
+                          Jed
+                          <select
+                            className="mt-1 w-full rounded-md border bg-background p-2"
+                            value={multicourseFoods[course.courseNumber] ?? ""}
+                            onChange={event => {
+                              const foodId = Number(event.target.value);
+                              setMulticourseFoods(current => foodId
+                                ? { ...current, [course.courseNumber]: foodId }
+                                : Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== course.courseNumber)));
+                              setMulticourseError(null);
+                            }}
+                            data-testid={`select-multicourse-food-${course.courseNumber}`}
+                          >
+                            <option value="">Izberite jed</option>
+                            {foods.map(food => <option key={food.id} value={food.id}>{food.ime}</option>)}
+                          </select>
+                        </label>
+                        <label className="block text-sm">
+                          Vino (1 dl){course.wineRequired !== false ? " *" : " (neobvezno)"}
+                          <select
+                            className="mt-1 w-full rounded-md border bg-background p-2"
+                            value={multicourseWines[course.courseNumber] ?? ""}
+                            onChange={event => {
+                              const wineId = Number(event.target.value);
+                              setMulticourseWines(current => wineId
+                                ? { ...current, [course.courseNumber]: wineId }
+                                : Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== course.courseNumber)));
+                              setMulticourseError(null);
+                            }}
+                            data-testid={`select-multicourse-wine-${course.courseNumber}`}
+                          >
+                            <option value="">{course.wineRequired !== false ? "Izberite vino" : "Brez vina"}</option>
+                            {wines.map(wine => <option key={wine.id} value={wine.id}>{wine.ime} · 1 dl</option>)}
+                          </select>
+                        </label>
+                      </div>
+                    )}
+                  </fieldset>
+                );
+              })}
+              <label className="block text-sm">
+                Opomba
+                <Input value={multicourseOpomba} onChange={event => setMulticourseOpomba(event.target.value)} maxLength={1000} data-testid="input-multicourse-note" />
+              </label>
+              {multicourseError && <p role="alert" className="text-sm text-destructive" data-testid="multicourse-selection-error">{multicourseError}</p>}
+            </div>
+            <div className="flex justify-end gap-2 border-t pt-4">
+              <Button variant="outline" onClick={close} disabled={addMulticourseMenu.isPending} data-testid="button-cancel-multicourse-menu">Prekliči</Button>
+              <Button onClick={submit} disabled={addMulticourseMenu.isPending} data-testid="button-add-multicourse-menu">
+                {addMulticourseMenu.isPending ? "Dodajanje …" : "Dodaj meni"}
               </Button>
             </div>
           </DialogContent>
@@ -3129,13 +4263,49 @@ export default function Order() {
       </DialogContent>
     </Dialog>
     {opombaPostavka && (
-      <SlovenskaKlavijatura
+      <SystemInputDialog
         naslov="Opomba"
         vrednost={opombaPostavka.opomba ?? ""}
         onPotrdi={(nova) => handleShraniOpombo(opombaPostavka.id, opombaPostavka.kolicina, nova)}
         onPreklic={() => setOpombaPostavka(null)}
       />
     )}
+    <Dialog open={gatewayConflict !== null} onOpenChange={() => undefined}>
+      <DialogContent className="max-w-md" onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <ShieldAlert className="h-5 w-5" /> Naročilo je trenutno zaklenjeno
+          </DialogTitle>
+          <DialogDescription>
+            Drug POS ga ureja. Naročilo je samo za branje, dokler lastništvo ni sproščeno ali ga ne prevzame vodja.
+          </DialogDescription>
+        </DialogHeader>
+        {(() => {
+          const detail = (gatewayConflict as GatewayConflictError | null)?.detail;
+          let info: any = detail;
+          if (typeof detail === "string") { try { info = JSON.parse(detail); } catch { /* plain */ } }
+          return (
+            <div className="space-y-3">
+              <div className="rounded border bg-muted/40 p-3 text-sm">
+                <p><strong>Lastnik:</strong> {info?.ownerClientId ?? "neznan"}</p>
+                <p><strong>Velja do:</strong> {info?.leaseUntil ?? "poteklo"}</p>
+              </div>
+              {gatewayOffline.scope && gatewayOrderId && (
+                <Button className="w-full" variant="destructive" onClick={() => {
+                  const approvalCode = window.prompt("Vnesite enkratno kodo potrditve upravitelja:");
+                  if (!approvalCode) return;
+                  void gatewayOffline.acquireLease(gatewayOrderId, Number(gatewayOrder?.version ?? info?.currentVersion ?? 0), 120, true, approvalCode)
+                    .then(() => setGatewayConflict(null))
+                    .catch(error => setGatewayConflict(error));
+                }}>
+                  Prevzemi kot vodja
+                </Button>
+              )}
+            </div>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

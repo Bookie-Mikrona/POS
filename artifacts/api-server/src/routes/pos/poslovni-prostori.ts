@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, poslovniProstoriTable, enoteTable, companiesTable } from "@workspace/db";
 import { requireEnota, type PosRequest } from "../../middlewares/pos";
 import { readAll, toResponse } from "./nastavitve";
-import { registrirajPoslovniProstor } from "../../lib/pos-furs";
+import { pridobiCompanyCert, registrirajPoslovniProstor } from "../../lib/pos-furs";
 
 const router: IRouter = Router();
 
@@ -164,6 +164,7 @@ router.post("/poslovni-prostori/:id/registriraj", requireEnota, async (req: Requ
   }
 
   const ponudnik = nastavitve.ponudnikDavcna || process.env.ERP_PONUDNIK_DAVCNA || undefined;
+  const companyCert = await pridobiCompanyCert(companyId);
 
   const odgovor = await registrirajPoslovniProstor(
     {
@@ -184,10 +185,8 @@ router.post("/poslovni-prostori/:id/registriraj", requireEnota, async (req: Requ
       vin: prostor.vin ?? undefined,
       premicninaTip: (prostor.premicninaTip as import('../../lib/pos-furs').FursPremicninaTip | undefined) ?? undefined,
       veljavnostOd: prostor.veljavnostOd ?? new Date().toISOString().slice(0, 10),
-      certifikatPot: (prostor.certifikatPot ?? nastavitve.certifikatPot) || undefined,
-      certifikatGeslo: (prostor.certifikatGeslo ?? nastavitve.certifikatGeslo) || undefined,
-      certPem: nastavitveMap["certifikatPem"] || undefined,
-      certKljuc: nastavitveMap["certifikatKljuc"] || undefined,
+      certPem: companyCert?.certPem,
+      certKljuc: companyCert?.certKljuc,
       proxyUrl: nastavitve.fursProxyUrl || undefined,
     },
     jeFursNacin
@@ -243,6 +242,7 @@ router.post("/poslovni-prostori/:id/zapri", requireEnota, async (req: Request, r
   }
 
   const ponudnik = nastavitve.ponudnikDavcna || process.env.ERP_PONUDNIK_DAVCNA || undefined;
+  const companyCert = await pridobiCompanyCert(companyId);
 
   const odgovor = await registrirajPoslovniProstor(
     {
@@ -263,10 +263,8 @@ router.post("/poslovni-prostori/:id/zapri", requireEnota, async (req: Request, r
       vin: prostor.vin ?? undefined,
       premicninaTip: (prostor.premicninaTip as import('../../lib/pos-furs').FursPremicninaTip | undefined) ?? undefined,
       veljavnostOd: prostor.veljavnostOd ?? new Date().toISOString().slice(0, 10),
-      certifikatPot: (prostor.certifikatPot ?? nastavitve.certifikatPot) || undefined,
-      certifikatGeslo: (prostor.certifikatGeslo ?? nastavitve.certifikatGeslo) || undefined,
-      certPem: nastavitveMap["certifikatPem"] || undefined,
-      certKljuc: nastavitveMap["certifikatKljuc"] || undefined,
+      certPem: companyCert?.certPem,
+      certKljuc: companyCert?.certKljuc,
       proxyUrl: nastavitve.fursProxyUrl || undefined,
       zapri: true,
     },

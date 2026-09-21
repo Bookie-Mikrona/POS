@@ -5,6 +5,9 @@ export interface HappyHourStatus {
   od: string;
   do: string;
   rocno: "auto" | "on" | "off";
+  aktivnaPravila?: string[];
+  aktivniArtikelIds?: number[];
+  aktivneVelikostiPice?: Record<string, ("mala" | "normalna" | "druzinska")[]>;
 }
 
 interface HappyHourCtx {

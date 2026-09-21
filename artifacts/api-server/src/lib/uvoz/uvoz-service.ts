@@ -14,6 +14,7 @@ import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { preveriVies, drzavaIzKode } from '../vies.js';
+import { poisciNaInetis, zaznajVrsto, type TrrPostavka } from '../inetis.js';
 
 import {
   type PrejemDTO,
@@ -27,6 +28,14 @@ import { razcleniXml, zaznajOblikoXml } from './parser-eslog';
 import { razcleniEslog161 } from './parser-eslog161';
 import { upariPrejemnico } from './uparjanje';
 import { getSimDatumOrNow } from '../sim-datum';
+import { artikliTable, embalazniPrometiTable, zalogaGibiTable } from '@workspace/db';
+import { recomputeZaloge } from '../pos-zaloge-utils';
+import { resolveInputVatCode, type InputVatCodeCandidate } from './vat-code-resolver';
+import { toUneceUnitCode } from '../received-invoice-eslog';
+import { claimPurchaseSourceDocument } from '../purchaseSourceDocuments';
+import { appendStockMovementReversals } from '../stockMovementHistory';
+import { packagingMovementKindForQuantity } from '../packagingMovementKind';
+import { normalizeIncomingPaymentMethod } from '../posReceiptBooking';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
@@ -144,7 +153,7 @@ export interface ZajemVhod {
   raw: Buffer;
   imeDatoteke?: string;
   mimeTip?: string;
-  dobaviteljId?: number | null;
+  dobaviteljId?: string | null;
   metapodatki?: Record<string, unknown>;
 }
 
@@ -283,7 +292,7 @@ async function razcleni(
         return dto;
       }
       const r = new CsvRazclenjevalnik(konfig);
-      return format === 'XLSX' ? r.razcleniXlsx(raw, ime) : r.razcleni(raw, ime);
+      return format === 'XLSX' ? await r.razcleniXlsx(raw, ime) : r.razcleni(raw, ime);
     }
 
     default: {
@@ -312,8 +321,8 @@ async function naloziProfil(
 // =====================================================================
 
 export interface DobaviteljIzid {
-  dobaviteljId: number | null;
-  vir: 'DAVCNA' | 'GLN' | 'EPOSTA' | 'PODAN' | null;
+  dobaviteljId: string | null;
+  vir: 'DAVCNA' | 'MATICNA' | 'IBAN' | 'IME' | 'IME_IBAN' | 'GLN' | 'EPOSTA' | 'PODAN' | null;
   predlogNovega: { davcna: string; naziv: string | null } | null;
 }
 
@@ -325,10 +334,10 @@ export interface DobaviteljIzid {
  */
 export async function resolveOrCreateDobavitelja(
   db: Db,
-  enotaId: number,
+  companyId: string,
   dob: DobaviteljIzid,
   dto: PrejemDTO,
-): Promise<number | null> {
+): Promise<string | null> {
   if (dob.dobaviteljId) return dob.dobaviteljId;
 
   const pred = dob.predlogNovega;
@@ -340,43 +349,107 @@ export async function resolveOrCreateDobavitelja(
     : pred.davcna;
   const davcnaStevilka = jeSi8 ? pred.davcna : null;
 
-  const vies = await preveriVies(idZaDdv);
+  // Za slovenske partnerje: Inetis vzporedno z VIES (Inetis ima matično, TRR, kratki naziv)
+  const [vies, inetis] = await Promise.all([
+    preveriVies(idZaDdv),
+    jeSi8 ? poisciNaInetis(pred.davcna) : Promise.resolve(null),
+  ]);
 
-  // Naziv: VIES > OCR > fallback
-  const naziv = vies?.naziv ?? pred.naziv ?? `Uvoz ${pred.davcna}`;
+  const viesPotrjen =
+    vies?.veljaven === true
+    && vies.stDdv.replace(/\D/g, "") === idZaDdv.replace(/^[A-Z]{2}/i, "").replace(/\D/g, "");
+  if (!inetis && !viesPotrjen) {
+    return null;
+  }
+
+  // Naziv: Inetis > VIES > OCR > fallback
+  const naziv = inetis?.naziv || vies?.naziv || pred.naziv || `Uvoz ${pred.davcna}`;
+  const kratkiNaziv = inetis?.kratkiNaziv ?? null;
 
   // Država
   const kodaDrzave = dto.dobaviteljDrzava ?? vies?.kodaDrzave ?? (jeSi8 ? 'SI' : null);
   const drzavaNaziv = vies?.drzavaNaziv ?? drzavaIzKode(kodaDrzave);
 
-  // Naslov: VIES strukturiran > OCR > VIES polni niz
-  const ulica           = vies?.ulica          ?? dto.dobaviteljUlica          ?? null;
-  const postnaStevilka  = vies?.postnaStevilka  ?? dto.dobaviteljPostnaStevilka ?? null;
-  const kraj            = vies?.kraj            ?? dto.dobaviteljKraj           ?? null;
-
-  // Polni naslov (za `naslov` stolpec) — sestavi iz delov ali vzemi iz VIES
+  // Naslov: Inetis > VIES > OCR
+  const ulica          = inetis?.ulica          ?? vies?.ulica          ?? dto.dobaviteljUlica          ?? null;
+  const postnaStevilka = inetis?.postnaStevilka  ?? vies?.postnaStevilka  ?? dto.dobaviteljPostnaStevilka ?? null;
+  const kraj           = inetis?.kraj            ?? vies?.kraj            ?? dto.dobaviteljKraj           ?? null;
   const naslovDeli = [ulica, postnaStevilka && kraj ? `${postnaStevilka} ${kraj}` : (kraj ?? postnaStevilka)].filter(Boolean);
-  const naslov = naslovDeli.length ? naslovDeli.join(', ') : (vies?.naslov ?? null);
+  const naslov = naslovDeli.length ? naslovDeli.join(', ') : (inetis?.naslov ?? vies?.naslov ?? null);
 
-  const email    = dto.dobaviteljEmail    ?? null;
-  const telefon  = dto.dobaviteljTelefon  ?? null;
-  const trrJson  = dto.dobaviteljIban
-    ? JSON.stringify([{ iban: dto.dobaviteljIban, bic: dto.dobaviteljBic ?? '' }])
-    : null;
+  // TRR: Inetis seznam kot osnova + OCR IBAN kot dopolnitev (če ga ni v Inetis seznamu)
+  const inetisIbani = new Set((inetis?.trr ?? []).map(t => t.iban.replace(/\s/g, '').toUpperCase()));
+  const ocrIban = (dto.dobaviteljIban ?? '').replace(/\s/g, '').toUpperCase();
+  const trrji: TrrPostavka[] = [
+    ...(inetis?.trr ?? []).map(t =>
+      t.iban.replace(/\s/g, '').toUpperCase().startsWith('SI5601')
+        ? { ...t, bic: 'BSLJSI2X' }
+        : t,
+    ),
+    ...(ocrIban && !inetisIbani.has(ocrIban)
+      ? [{ iban: ocrIban, bic: dto.dobaviteljBic ?? '' }]
+      : []),
+  ];
+  const trrJson = trrji.length > 0 ? JSON.stringify(trrji) : null;
 
-  const [novDob] = (await db.execute<{ id: number }>(sql`
-    INSERT INTO shranjeni_kupci (
-      enota_id, naziv, davcna_stevilka, id_za_ddv,
-      koda_drzave, drzava, naslov, ulica, postna_stevilka, kraj,
-      zavezanec_ddv, email, telefon, trr
+  // Matična, vrsta, DDV
+  const maticnaStevilka = inetis?.maticnaStevilka ?? dto.dobaviteljMaticna ?? null;
+  const vrstaPartnerja  = zaznajVrsto(naziv, inetis?.zavezanecDdv ?? null, maticnaStevilka);
+  const zavezanecDdv    = inetis?.zavezanecDdv ?? true;
+  const idZaDdvZapis    = inetis?.idZaDdv ?? idZaDdv;
+
+  const email   = dto.dobaviteljEmail   ?? null;
+  const telefon = dto.dobaviteljTelefon ?? null;
+
+  // Najprej preveri ali že obstaja (po davčni ali id_za_ddv)
+  const obstojecResult = await db.execute<{ id: string }>(sql`
+    SELECT id FROM counterparties
+    WHERE company_id = ${companyId}
+      AND (
+        (${davcnaStevilka}::text IS NOT NULL AND tax_id = ${davcnaStevilka})
+        OR (${idZaDdvZapis}::text IS NOT NULL AND id_za_ddv = ${idZaDdvZapis})
+      )
+    LIMIT 1
+  `);
+  if (obstojecResult.rows.length > 0) {
+    return String(obstojecResult.rows[0]!.id);
+  }
+
+  const [novDob] = (await db.execute<{ id: string }>(sql`
+    INSERT INTO counterparties (
+      company_id, type, name, kratki_naziv, tax_id, id_za_ddv,
+      koda_drzave, country, address, ulica, post_code, city,
+      vat_payer, registration_number, vrsta_partnerja, email, phone, trr, iban,
+      stevilo_upor, zadnja_uporaba
     ) VALUES (
-      ${enotaId}, ${naziv}, ${davcnaStevilka}, ${idZaDdv},
+      ${companyId}, 'both', ${naziv}, ${kratkiNaziv}, ${davcnaStevilka}, ${idZaDdvZapis},
       ${kodaDrzave}, ${drzavaNaziv}, ${naslov}, ${ulica}, ${postnaStevilka}, ${kraj},
-      true, ${email}, ${telefon}, ${trrJson}::jsonb
+      ${zavezanecDdv}, ${maticnaStevilka}, ${vrstaPartnerja}, ${email}, ${telefon},
+      ${trrJson}::jsonb,
+      CASE WHEN ${trrJson}::jsonb IS NOT NULL AND jsonb_array_length(${trrJson}::jsonb) > 0
+           THEN ${trrJson}::jsonb -> 0 ->> 'iban' ELSE NULL END,
+      1, NOW()
     )
+     ON CONFLICT DO NOTHING
     RETURNING id
   `)).rows;
-  return Number(novDob.id);
+  if (!novDob) {
+    const [sočasnoUstvarjen] = (await db.execute<{ id: string }>(sql`
+      SELECT id FROM counterparties
+       WHERE company_id = ${companyId}
+         AND (
+           (${davcnaStevilka}::text IS NOT NULL
+             AND regexp_replace(coalesce(tax_id, ''), '\D', '', 'g')
+                 = regexp_replace(${davcnaStevilka}, '\D', '', 'g'))
+           OR (${idZaDdvZapis}::text IS NOT NULL
+             AND upper(regexp_replace(coalesce(id_za_ddv, ''), '\s', '', 'g'))
+                 = upper(regexp_replace(${idZaDdvZapis}, '\s', '', 'g')))
+         )
+       LIMIT 1
+    `)).rows;
+    return sočasnoUstvarjen ? String(sočasnoUstvarjen.id) : null;
+  }
+  return String(novDob.id);
 }
 
 /**
@@ -387,68 +460,143 @@ export async function resolveOrCreateDobavitelja(
  */
 export async function dolociDobavitelja(
   db: Db,
-  enotaId: number,
+  companyId: string,
   dto: PrejemDTO,
   posiljatelj?: string | null,
-  podanId?: number | null,
+  podanId?: string | null,
 ): Promise<DobaviteljIzid> {
   if (podanId) return { dobaviteljId: podanId, vir: 'PODAN', predlogNovega: null };
 
-  // BOOKIE: shranjeni_kupci (ne partnerji), stolpec davcna_stevilka
+  let predlogNovega: DobaviteljIzid["predlogNovega"] = null;
+
+  // Skupen šifrant partnerjev (counterparties, company-scope)
   if (dto.dobaviteljDavcna) {
-    const [p] = (await db.execute<{ id: number }>(sql`
-      SELECT id FROM shranjeni_kupci
-       WHERE enota_id = ${enotaId}
-         AND regexp_replace(coalesce(davcna_stevilka,''), '\D', '', 'g')
+    const [p] = (await db.execute<{ id: string }>(sql`
+      SELECT id FROM counterparties
+       WHERE company_id = ${companyId}
+         AND regexp_replace(coalesce(tax_id,''), '\D', '', 'g')
              = ${dto.dobaviteljDavcna}
        LIMIT 1
     `)).rows;
-    if (p) return { dobaviteljId: Number(p.id), vir: 'DAVCNA', predlogNovega: null };
+    if (p) return { dobaviteljId: String(p.id), vir: 'DAVCNA', predlogNovega: null };
 
-    // Dobavitelj ni v šifrantu — samodejno ustvari
-    return {
-      dobaviteljId: null,
-      vir: null,
-      predlogNovega: { davcna: dto.dobaviteljDavcna, naziv: dto.dobaviteljNaziv },
-    };
+    // OCR-davčna je lahko napačno prebrana matična. Pred ustvarjanjem
+    // nadaljuj še z matično, IBAN-om in nazivom.
+    predlogNovega = { davcna: dto.dobaviteljDavcna, naziv: dto.dobaviteljNaziv };
   }
 
   // Tuji dobavitelj — poišči po id_za_ddv (npr. DE123456789)
   if (dto.dobaviteljIdDdv) {
     const idDdvNorm = dto.dobaviteljIdDdv.replace(/\s/g, '').toUpperCase();
-    const [p] = (await db.execute<{ id: number }>(sql`
-      SELECT id FROM shranjeni_kupci
-       WHERE enota_id = ${enotaId}
+    const [p] = (await db.execute<{ id: string }>(sql`
+      SELECT id FROM counterparties
+       WHERE company_id = ${companyId}
          AND upper(regexp_replace(coalesce(id_za_ddv,''), '\s', '', 'g'))
              = ${idDdvNorm}
        LIMIT 1
     `)).rows;
-    if (p) return { dobaviteljId: Number(p.id), vir: 'DAVCNA', predlogNovega: null };
+    if (p) return { dobaviteljId: String(p.id), vir: 'DAVCNA', predlogNovega: null };
 
-    // Ni v šifrantu — samodejno ustvari
-    return {
-      dobaviteljId: null,
-      vir: null,
-      predlogNovega: { davcna: idDdvNorm, naziv: dto.dobaviteljNaziv },
-    };
+    predlogNovega ??= { davcna: idDdvNorm, naziv: dto.dobaviteljNaziv };
   }
 
   // GLN: BOOKIE shranjeni_kupci nima gln stolpca — preskočimo
 
+  // Matična številka: zanesljiv enolični identifikator podjetja
+  if (dto.dobaviteljMaticna) {
+    const maticnaNorm = dto.dobaviteljMaticna.replace(/\D/g, '');
+    if (maticnaNorm) {
+      const [p] = (await db.execute<{ id: string }>(sql`
+        SELECT id FROM counterparties
+         WHERE company_id = ${companyId}
+           AND regexp_replace(coalesce(registration_number,''), '\D', '', 'g') = ${maticnaNorm}
+         LIMIT 1
+      `)).rows;
+      if (p) return { dobaviteljId: String(p.id), vir: 'MATICNA', predlogNovega: null };
+    }
+  }
+
+  // IBAN/TRR: zanesljiv identifikator bančnega računa
+  // Kadar je IBAN v šifrantu enolično prisoten → samodejno
+  const ibanNorm = (dto.dobaviteljIban ?? '').replace(/\s/g, '').toUpperCase();
+  if (ibanNorm) {
+    const { rows: ibanZadetki } = await db.execute<{ id: string }>(sql`
+      SELECT id FROM counterparties
+       WHERE company_id = ${companyId}
+         AND (
+           upper(replace(coalesce(iban,''), ' ', '')) = ${ibanNorm}
+           OR (trr IS NOT NULL AND EXISTS (
+             SELECT 1 FROM jsonb_array_elements(trr) AS t
+              WHERE upper(replace(t->>'iban', ' ', '')) = ${ibanNorm}
+           ))
+         )
+       LIMIT 2
+    `);
+    if (ibanZadetki.length === 1) {
+      return { dobaviteljId: String(ibanZadetki[0].id), vir: 'IBAN', predlogNovega: null };
+    }
+  }
+
+  // Ime-fallback:
+  // Primerja OCR naziv z OBEMA: dolgim (name) IN kratkim (kratki_naziv) nazivom.
+  // Vzame NAJVEČJO similarity od obeh (GREATEST), prag ostaja 0.75.
+  // - natanko 1 visoko-podoben zadetek → samodejno
+  // - več zadetkov + se IBAN ujema z enim → samodejno
+  // - sicer → MANJKA_DOBAVITELJ picker
+  if (dto.dobaviteljNaziv) {
+    const imeNorm = dto.dobaviteljNaziv.trim();
+    const { rows: imeZadetki } = await db.execute<{ id: string }>(sql`
+      SELECT id
+        FROM counterparties
+       WHERE company_id = ${companyId}
+         AND GREATEST(
+               similarity(lower(name), lower(${imeNorm})),
+               similarity(lower(COALESCE(kratki_naziv, '')), lower(${imeNorm}))
+             ) > 0.75
+       ORDER BY GREATEST(
+                  similarity(lower(name), lower(${imeNorm})),
+                  similarity(lower(COALESCE(kratki_naziv, '')), lower(${imeNorm}))
+                ) DESC
+       LIMIT 10
+    `);
+    if (imeZadetki.length === 1) {
+      return { dobaviteljId: String(imeZadetki[0].id), vir: 'IME', predlogNovega: null };
+    }
+    if (imeZadetki.length > 1 && ibanNorm) {
+      const imeIds = imeZadetki.map((r: { id: string }) => r.id);
+      const [p] = (await db.execute<{ id: string }>(sql`
+        SELECT id FROM counterparties
+         WHERE company_id = ${companyId}
+           AND id = ANY(${imeIds}::uuid[])
+           AND (
+             upper(replace(coalesce(iban,''), ' ', '')) = ${ibanNorm}
+             OR (trr IS NOT NULL AND EXISTS (
+               SELECT 1 FROM jsonb_array_elements(trr) AS t
+                WHERE upper(replace(t->>'iban', ' ', '')) = ${ibanNorm}
+             ))
+           )
+         LIMIT 1
+      `)).rows;
+      if (p) return { dobaviteljId: String(p.id), vir: 'IME_IBAN', predlogNovega: null };
+    }
+  }
+
   if (posiljatelj) {
     const naslov = posiljatelj.toLowerCase();
     const domena = naslov.split('@')[1] ?? '';
-    const [p] = (await db.execute<{ partner_id: number }>(sql`
+    const [p] = (await db.execute<{ partner_id: string }>(sql`
       SELECT partner_id FROM partner_eposta
-       WHERE enota_id = ${enotaId}
-         AND (lower(naslov) = ${naslov} OR lower(domena) = ${domena})
+       WHERE (lower(naslov) = ${naslov} OR lower(domena) = ${domena})
+         AND partner_id IN (
+           SELECT id FROM counterparties WHERE company_id = ${companyId}
+         )
        ORDER BY (naslov IS NOT NULL) DESC
        LIMIT 1
     `)).rows;
-    if (p) return { dobaviteljId: Number(p.partner_id), vir: 'EPOSTA', predlogNovega: null };
+    if (p) return { dobaviteljId: String(p.partner_id), vir: 'EPOSTA', predlogNovega: null };
   }
 
-  return { dobaviteljId: null, vir: null, predlogNovega: null };
+  return { dobaviteljId: null, vir: null, predlogNovega };
 }
 
 // =====================================================================
@@ -457,6 +605,14 @@ export async function dolociDobavitelja(
 
 export interface OsnutekIzid {
   prejemnicaId: number;
+  vrstaDokumenta: PrejemDTO["vrstaDokumenta"];
+  datumZapadlosti: string | null;
+  dobaviteljIban: string | null;
+  dobaviteljBic: string | null;
+  placilniNacin: string | null;
+  placilniModel: string | null;
+  placilniSklic: string | null;
+  placilniNamen: string | null;
   uparjenih: number;
   dvomljivih: number;
   neuparjenih: number;
@@ -475,12 +631,14 @@ export async function ustvariOsnutek(
   opts: {
     enotaId: number;
     sejaId: string;
-    dobaviteljId: number;
+    dobaviteljId: string;
     dto: PrejemDTO;
     uporabnikId: number;
+    /** Clerk actor, kadar tok teče iz avtentificirane zahteve; ozadni zajem ga nima. */
+    actorSnapshot?: string | null;
   },
 ): Promise<OsnutekIzid> {
-  const { enotaId, sejaId, dobaviteljId, dto, uporabnikId } = opts;
+  const { enotaId, sejaId, dobaviteljId, dto, uporabnikId, actorSnapshot } = opts;
 
   if (imaBlokado(dto)) {
     throw new Error(
@@ -492,6 +650,13 @@ export async function ustvariOsnutek(
   // Datum prejema = danes ali simulacijski datum (NE datum na dokumentu)
   const datumPrejema = await getSimDatumOrNow(enotaId);
   const datumPrejemaStr = datumPrejema.toISOString().slice(0, 10); // YYYY-MM-DD
+  const vatCodes = (await db.execute<InputVatCodeCandidate>(sql`
+    SELECT id, code, rate
+      FROM vat_code
+     WHERE direction = 'IN'
+       AND valid_from <= ${datumPrejemaStr}
+       AND (valid_to IS NULL OR valid_to >= ${datumPrejemaStr})
+  `)).rows;
 
   let prejemnicaId: number;
   try {
@@ -509,26 +674,135 @@ export async function ustvariOsnutek(
 
     // datum       = datum prejema (danes / sim datum)
     // datum_dokumenta = datum na skeniranem dokumentu (dobavnica)
+    // Snapshot je del dokumenta, ne živi pogled na partnerja/podjetje.
+    const [snapshotSource] = (await tx.execute<{
+      company_id: string;
+      company_name: string; company_tax_id: string; company_vat_id: string | null;
+      company_address: string | null; company_street: string | null; company_country: string | null;
+      supplier_name: string | null; supplier_tax_id: string | null; supplier_vat_id: string | null;
+      supplier_registration: string | null; supplier_address: string | null; supplier_street: string | null;
+      supplier_post_code: string | null; supplier_city: string | null; supplier_country: string | null;
+      supplier_iban: string | null; supplier_trr: unknown;
+    }>(sql`
+      SELECT c.id AS company_id, c.naziv AS company_name, c.podjetje_davcna AS company_tax_id, c.id_za_ddv AS company_vat_id,
+             c.naslov AS company_address, c.ulica AS company_street, COALESCE(c.koda_drzave, c.drzava) AS company_country,
+             cp.name AS supplier_name, cp.tax_id AS supplier_tax_id, cp.id_za_ddv AS supplier_vat_id,
+             cp.registration_number AS supplier_registration, cp.address AS supplier_address, cp.ulica AS supplier_street,
+             cp.post_code AS supplier_post_code, cp.city AS supplier_city, COALESCE(cp.koda_drzave, cp.country) AS supplier_country,
+             cp.iban AS supplier_iban, cp.trr AS supplier_trr
+        FROM enote e
+        JOIN companies c ON c.id = e.company_id
+        LEFT JOIN counterparties cp ON cp.id = ${dobaviteljId} AND cp.company_id = c.id
+       WHERE e.id = ${enotaId}
+       LIMIT 1
+    `)).rows;
+    if (!snapshotSource) throw new Error(`Enota ${enotaId} nima podjetja za dokumentni snapshot.`);
+    const [sessionSource] = (await tx.execute<{ sha256: string }>(sql`
+      SELECT sha256 FROM uvoz_seja WHERE id = ${sejaId} FOR UPDATE
+    `)).rows;
+    const sourceKind = dto.vrstaDokumenta === "DOBAVNICA"
+      ? "delivery_note"
+      : dto.vrstaDokumenta === "DOBROPIS"
+        ? "credit_note"
+        : dto.vrstaDokumenta === "BREMEPIS"
+          ? "debit_note"
+          : "invoice";
+    const sourceDocumentId = await claimPurchaseSourceDocument(tx, {
+      companyId: snapshotSource.company_id,
+      counterpartyId: dobaviteljId,
+      kind: sourceKind,
+      documentNumber: dto.stDokumenta,
+      documentDate: dto.datumDokumenta,
+      currency: dto.valuta,
+      contentSha256: sessionSource?.sha256,
+    });
+    await tx.execute(sql`
+      SELECT pg_advisory_xact_lock(hashtext(${sourceDocumentId}))
+    `);
+    const existingErpReceipt = await tx.execute(sql`
+      SELECT id FROM goods_receipts
+       WHERE source_document_id = ${sourceDocumentId}
+       LIMIT 1
+    `);
+    if (existingErpReceipt.rows[0]) {
+      throw new Error("Ta listina je že finančno zajeta kot ERP prejemnica.");
+    }
+    const existingFinalInvoice = await tx.execute(sql`
+      SELECT id FROM invoices
+       WHERE source_document_id = ${sourceDocumentId}
+         AND status <> 'draft'
+       LIMIT 1
+    `);
+    if (existingFinalInvoice.rows[0]) {
+      throw new Error("Ta listina je že finančno zajeta kot prejeti račun.");
+    }
+    const trr = Array.isArray(snapshotSource.supplier_trr) ? snapshotSource.supplier_trr[0] as { iban?: unknown; bic?: unknown } | undefined : undefined;
+    const supplierIban = dto.dobaviteljIban ?? snapshotSource.supplier_iban ?? (typeof trr?.iban === "string" ? trr.iban : null);
+    const supplierBic = dto.dobaviteljBic ?? (typeof trr?.bic === "string" ? trr.bic : null);
+    const dependentCosts = dto.odvisniStroski.reduce((total, cost) => total.plus(cost.znesek), new Decimal(0));
+    const brutoSkupaj = dto.izvSkupaj
+      ?? (dto.izvOsnova && dto.izvDdv ? dto.izvOsnova.plus(dto.izvDdv).plus(dependentCosts) : null);
     const [glava] = (await tx.execute<{ id: number }>(sql`
       INSERT INTO prejemnice (
         enota_id, dobavitelj_id, datum,
         vrsta_cen, opomba, stevilka,
-        st_dokumenta, datum_dokumenta, uvoz_seja_id)
+        st_dokumenta, datum_dokumenta, uvoz_seja_id,
+        valuta, datum_zapadlosti, ddv_osnova, ddv_znesek,
+        vrsta_dokumenta, datum_dobave, datum_opravljene_storitve, bruto_skupaj,
+         placilni_nacin, placano_z_gotovino, placilni_model, placilni_sklic, placilni_namen,
+        dobavitelj_naziv, dobavitelj_davcna, dobavitelj_id_ddv, dobavitelj_maticna,
+        dobavitelj_ulica, dobavitelj_posta, dobavitelj_kraj, dobavitelj_drzava, dobavitelj_iban, dobavitelj_bic,
+        prejemnik_naziv, prejemnik_davcna, prejemnik_id_ddv, prejemnik_naslov, prejemnik_drzava, snapshot_zajet,
+        source_document_id)
       VALUES (
         ${enotaId}, ${dobaviteljId},
         ${datumPrejemaStr},
         ${dto.ceneBruto ? 'bruto' : 'neto'},
         ${dto.stDokumenta ? `Uvoz: ${dto.stDokumenta}` : 'Uvoz'},
         ${stevilka},
-        ${dto.stDokumenta ?? null}, ${dto.datumDokumenta ?? null}, ${sejaId})
+        ${dto.stDokumenta ?? null}, ${dto.datumDokumenta ?? null}, ${sejaId},
+        ${dto.valuta}, ${dto.datumZapadlosti ?? null},
+        ${dto.izvOsnova?.toString() ?? null}, ${dto.izvDdv?.toString() ?? null},
+        ${dto.vrstaDokumenta}, ${dto.datumDobave ?? null}, ${dto.datumOpravljeneStoritve ?? null},
+        ${brutoSkupaj?.toString() ?? null},
+         ${dto.placilniNacin ?? null},
+         ${normalizeIncomingPaymentMethod(dto.placilniNacin) === "cash"},
+         ${dto.placilniModel ?? null},
+        ${dto.placilniSklic ?? null}, ${dto.placilniNamen ?? null},
+        ${dto.dobaviteljNaziv ?? snapshotSource.supplier_name}, ${dto.dobaviteljDavcna ?? snapshotSource.supplier_tax_id},
+        ${dto.dobaviteljIdDdv ?? snapshotSource.supplier_vat_id}, ${dto.dobaviteljMaticna ?? snapshotSource.supplier_registration},
+        ${dto.dobaviteljUlica ?? snapshotSource.supplier_street ?? snapshotSource.supplier_address},
+        ${dto.dobaviteljPostnaStevilka ?? snapshotSource.supplier_post_code}, ${dto.dobaviteljKraj ?? snapshotSource.supplier_city},
+        ${dto.dobaviteljDrzava ?? snapshotSource.supplier_country}, ${supplierIban}, ${supplierBic},
+        ${snapshotSource.company_name}, ${snapshotSource.company_tax_id}, ${snapshotSource.company_vat_id},
+        ${snapshotSource.company_address ?? snapshotSource.company_street}, ${snapshotSource.company_country}, now(),
+        ${sourceDocumentId})
       RETURNING id
     `)).rows;
 
     for (const p of dto.postavke) {
+       const preslikavaDdv = resolveInputVatCode(
+         vatCodes,
+         p.ddvKoda ?? p.ddvKategorija,
+         p.ddvStopnja?.toString() ?? null,
+       );
+       const vatCodeId = preslikavaDdv.kind === 'matched' ? preslikavaDdv.vatCodeId : null;
+       if (preslikavaDdv.kind !== 'matched' && (p.ddvKoda || p.ddvKategorija || p.ddvStopnja)) {
+         p.opozorila.push({
+           koda: 'DDV021',
+           resnost: 'O',
+           sporocilo: preslikavaDdv.kind === 'ambiguous'
+             ? `DDV kode ni mogoče enolično preslikati (${preslikavaDdv.candidateCount} veljavnih vhodnih kod).`
+             : 'Za uvozno DDV kodo oziroma stopnjo ni veljavne vhodne DDV kode.',
+         });
+       }
       // Cena na enoto: dokument navaja ceno paketa, prejemnica pa vodi
       // oboje. Delimo šele tu, da ostane izvorni zapis nedotaknjen.
       const enotVPaketu = p.enotVPaketu.gt(0) ? p.enotVPaketu : new Decimal(1);
-      const cenaPaket = netoPoRabatih(p.izvCena, p.rabat1Odst, p.rabat2Odst);
+      // Pri UBL/e-SLOG/CII je cena že neto — rabat ne sme biti odbitan še enkrat.
+      const cenaPaket = p.rabatVkljucenVCeni
+        ? p.izvCena
+        : netoPoRabatih(p.izvCena, p.rabat1Odst, p.rabat2Odst);
       const cenaEnota = cenaPaket.div(enotVPaketu);
       const kolicinaEnot = p.izvKolicina.mul(enotVPaketu);
 
@@ -540,7 +814,9 @@ export async function ustvariOsnutek(
           prejemnica_id,
           kolicina, cena_kos, skupaj, enot_v_paketu,
           izv_gtin, izv_sifra, izv_naziv, izv_enota, izv_kolicina, izv_cena,
-          rabat_1_odst, rabat_2_odst, opozorila)
+           rabat_1_odst, rabat_2_odst, opozorila,
+             ddv_stopnja, ddv_osnova, ddv_znesek, vat_code_id, vrstica_tip,
+             enota_mere, neto_cena, neto_znesek, ddv_kategorija)
         VALUES (
           ${glava.id},
           ${kolicinaEnot.toString()}, ${cenaEnota.toString()},
@@ -548,9 +824,39 @@ export async function ustvariOsnutek(
           ${p.izvGtin ?? null}, ${p.izvSifra ?? null}, ${p.izvNaziv ?? null},
           ${p.izvEnota ?? null}, ${p.izvKolicina.toString()}, ${p.izvCena.toString()},
           ${p.rabat1Odst.toString()}, ${p.rabat2Odst.toString()},
-          ${JSON.stringify(p.opozorila)}::jsonb)
+           ${JSON.stringify(p.opozorila)}::jsonb,
+           ${p.ddvStopnja?.toString() ?? null},
+           ${(p.ddvOsnova ?? p.izvVrednost ?? skupaj).toString()},
+           ${(p.ddvZnesek ?? (p.ddvStopnja ? (p.ddvOsnova ?? p.izvVrednost ?? skupaj).mul(p.ddvStopnja).div(100) : null))?.toString() ?? null},
+            ${vatCodeId},
+            ${p.vrsticaTip},
+            ${toUneceUnitCode(p.izvEnota)}, ${cenaEnota.toString()}, ${skupaj.toString()}, ${p.ddvKategorija ?? null})
       `);
     }
+
+     for (const strosek of dto.odvisniStroski) {
+       await tx.execute(sql`
+         INSERT INTO prejemnice_odvisni_stroski (
+           prejemnica_id, naziv, znesek, ddv_stopnja, obravnava)
+         VALUES (
+           ${glava.id},
+           ${strosek.razlog ?? strosek.vrsta},
+           ${strosek.znesek.toString()},
+           ${strosek.ddvStopnja?.toString() ?? null},
+           ${strosek.obravnava})
+       `);
+     }
+
+    // Posodobi skupaj_vrednost na glavi (seštevek vseh postavk)
+    await tx.execute(sql`
+      UPDATE prejemnice
+         SET skupaj_vrednost = (
+           SELECT COALESCE(SUM(skupaj), 0)
+             FROM prejemnice_postavke
+            WHERE prejemnica_id = ${glava.id}
+         )
+       WHERE id = ${glava.id}
+    `);
 
     await tx.execute(sql`
       UPDATE uvoz_seja
@@ -577,12 +883,22 @@ export async function ustvariOsnutek(
     // Drizzle's _DrizzleQueryError embeds the pg error message but doesn't expose cause.code reliably.
     const msg = (e as any)?.message ?? '';
     const causeCode = (e as any)?.cause?.code ?? (e as any)?.code ?? '';
-    if (causeCode === '23505' || msg.includes('uq_prejemnica_dokument')) {
+    if (
+      causeCode === '23505'
+      || causeCode === 'LEGACY_PURCHASE_SOURCE_CONFLICT'
+      || msg.includes('uq_prejemnica_dokument')
+      || msg.includes('prejemnice_source_document_unique')
+    ) {
       const [obs] = (await db.execute<{ id: number }>(sql`
-        SELECT id FROM prejemnice
-         WHERE enota_id      = ${enotaId}
-           AND dobavitelj_id = ${dobaviteljId}
-           AND st_dokumenta  = ${dto.stDokumenta ?? null}
+        SELECT p.id
+          FROM prejemnice p
+          JOIN enote e ON e.id = p.enota_id
+         WHERE e.company_id = (
+                 SELECT company_id FROM enote WHERE id = ${enotaId}
+               )
+           AND p.dobavitelj_id = ${dobaviteljId}
+           AND regexp_replace(upper(p.st_dokumenta), '[^[:alnum:]]', '', 'g')
+               = regexp_replace(upper(${dto.stDokumenta ?? ''}), '[^[:alnum:]]', '', 'g')
          LIMIT 1
       `)).rows;
       throw new DuplicatePrejemnicaError(obs ? Number(obs.id) : 0);
@@ -591,7 +907,180 @@ export async function ustvariOsnutek(
   }
 
   const izid = await upariPrejemnico(db, enotaId, prejemnicaId!);
-  return { prejemnicaId: prejemnicaId!, ...izid };
+
+  return {
+    prejemnicaId: prejemnicaId!,
+    vrstaDokumenta: dto.vrstaDokumenta,
+    datumZapadlosti: dto.datumZapadlosti,
+    dobaviteljIban: dto.dobaviteljIban,
+    dobaviteljBic: dto.dobaviteljBic,
+    placilniNacin: dto.placilniNacin,
+    placilniModel: dto.placilniModel,
+    placilniSklic: dto.placilniSklic,
+    placilniNamen: dto.placilniNamen,
+    ...izid,
+  };
+}
+
+/**
+ * Vpiše zaloga_gibi za vse uparjene postavke uvožene prejemnice in
+ * posodobi zaloge.kolicina / povprecna_cena.
+ *
+ * Append-only: obstoječe gibe za to prejemnico stornira, nato ustvari
+ * nove. Izvirne knjižbe in njihovi actor snapshoti ostanejo nespremenjeni.
+ *
+ * Kliče se:
+ *  1. Ob nastanku osnutka (ustvariOsnutek) — za 100 % samodejno uparjanje.
+ *  2. Ob ročnem uparjanju v UparjanjeDialog (/postavke/:id/upari).
+ *  3. Ob ponovnem auto-matchu (/prejemnice/:id/uparjanje).
+ *
+ * Izvozi se, da ga routes/pos/uvoz-prejemnic.ts ne podvaja logike.
+ */
+export async function knjizalogaGibiZaUvozPrejemnico(
+  db: Db,
+  prejemnicaId: number,
+  actorSnapshot: string | null,
+): Promise<void> {
+  // Serialize every reconciliation of the same imported receipt. Some callers
+  // already hold this lock, but keeping it here protects all current and future
+  // entry points from racing reversal selection and replacement insertion.
+  await db.execute(sql`
+    SELECT id
+      FROM prejemnice
+     WHERE id = ${prejemnicaId}
+     FOR UPDATE
+  `);
+
+  const { rows: postavke } = await db.execute<{
+    id: number;
+    artikel_id: number | null;
+    vrstica_tip: string;
+    kolicina: string;
+    cena_kos: string;
+    opomba: string | null;
+    datum: Date;
+    enota_id: number;
+    dobavitelj_id: string | null;
+    povratna_embalaza: boolean;
+    depozitna_vrednost: string | null;
+  }>(sql`
+    SELECT
+      pp.id, pp.artikel_id, pp.kolicina, pp.cena_kos,
+      p.opomba, p.datum, p.enota_id, p.dobavitelj_id,
+      a.povratna_embalaza, a.depozitna_vrednost, pp.vrstica_tip
+      FROM prejemnice_postavke pp
+      JOIN prejemnice p ON p.id = pp.prejemnica_id
+      JOIN artikli a ON a.id = pp.artikel_id
+     WHERE pp.prejemnica_id = ${prejemnicaId}
+       AND pp.artikel_id IS NOT NULL
+       AND pp.vrstica_tip = 'zaloga'
+  `);
+
+  // Stare gibe ohrani in jih razveljavi, tudi če po novem ni nič uparjeno.
+  const reversedArtikelIds = await appendStockMovementReversals(db as any, {
+    referenceId: prejemnicaId,
+    sourceSnapshots: ['uvoz-prejemnica', 'prejemnica'],
+    actorSnapshot,
+    reversalSourceSnapshot: 'uvoz-prejemnica_reversal',
+    note: 'Storno uskladitve uvožene prejemnice',
+    legacyKind: 'prejemnica',
+  });
+
+  for (const p of postavke) {
+    const vrednost = new Decimal(p.kolicina).mul(p.cena_kos);
+    await db.insert(zalogaGibiTable).values({
+      artikelId:  p.artikel_id,
+      tip:        'prejemnica',
+      kolicina:   p.kolicina,
+      cenaKos:    p.cena_kos,
+      vrednost:   vrednost.toString(),
+      opomba:     p.opomba ?? null,
+      referencaId: prejemnicaId,
+      actorSnapshot,
+      effectiveAtSnapshot: p.datum instanceof Date ? p.datum : new Date(p.datum),
+      sourceSnapshot: 'uvoz-prejemnica',
+    });
+  }
+
+  // Povratna embalaža je ločena fizična evidenca. Najprej append-only
+  // razveljavimo trenutno veljavne prejeme te prejemnice, nato zapišemo
+  // aktualno uparjene postavke. Tako ponovljeno uparjanje ne ustvari dvojnikov.
+  const { rows: receiptLineRows } = await db.execute<{ id: number }>(sql`
+    SELECT id
+      FROM prejemnice_postavke
+     WHERE prejemnica_id = ${prejemnicaId}
+  `);
+  const packagingLineIds = receiptLineRows.map((p: { id: number }) => p.id);
+  if (packagingLineIds.length > 0) {
+    const { rows: activePackaging } = await db.execute<{
+      id: number;
+      enota_id: number;
+      artikel_id: number;
+      dobavitelj_id: string | null;
+      kolicina: string;
+      depozitna_vrednost: string | null;
+      prejemnica_postavka_id: number;
+      vrsta: 'prejem' | 'vracilo';
+    }>(sql`
+      SELECT ep.id, ep.enota_id, ep.artikel_id, ep.dobavitelj_id,
+             ep.kolicina, ep.depozitna_vrednost, ep.prejemnica_postavka_id, ep.vrsta
+        FROM embalazni_prometi ep
+       WHERE ep.prejemnica_postavka_id IN (${sql.join(packagingLineIds.map((id: number) => sql`${id}`), sql`, `)})
+         AND NOT EXISTS (
+           SELECT 1 FROM embalazni_prometi reversal
+            WHERE reversal.reversal_of_id = ep.id
+         )
+    `);
+    for (const movement of activePackaging) {
+      await db.insert(embalazniPrometiTable).values({
+        enotaId: movement.enota_id,
+        artikelId: movement.artikel_id,
+        dobaviteljId: movement.dobavitelj_id,
+        kolicina: String(-Number(movement.kolicina)),
+        depozitnaVrednost: movement.depozitna_vrednost,
+        prejemnicaPostavkaId: movement.prejemnica_postavka_id,
+        vrsta: movement.vrsta === 'prejem' ? 'vracilo' : 'prejem',
+        opomba: 'Storno uskladitve uvožene prejemnice',
+        reversalOfId: movement.id,
+        actorSnapshot,
+      });
+    }
+  }
+
+  for (const p of postavke) {
+    if (!p.povratna_embalaza || new Decimal(p.kolicina).isZero()) continue;
+    const ciljnaVrsta = packagingMovementKindForQuantity(p.kolicina);
+    const { rows: currentPackaging } = await db.execute<{ id: number; vrsta: string }>(sql`
+      SELECT ep.id, ep.vrsta
+        FROM embalazni_prometi ep
+       WHERE ep.prejemnica_postavka_id = ${p.id}
+         AND NOT EXISTS (
+           SELECT 1 FROM embalazni_prometi reversal
+            WHERE reversal.reversal_of_id = ep.id
+         )
+       ORDER BY ep.id DESC
+       LIMIT 1
+    `);
+    if (currentPackaging[0]?.vrsta === ciljnaVrsta) continue;
+    await db.insert(embalazniPrometiTable).values({
+      enotaId: p.enota_id,
+      artikelId: p.artikel_id,
+      dobaviteljId: p.dobavitelj_id,
+      kolicina: p.kolicina,
+      depozitnaVrednost: p.depozitna_vrednost,
+      prejemnicaPostavkaId: p.id,
+      vrsta: ciljnaVrsta,
+      reversalOfId: currentPackaging[0]?.id ?? null,
+      actorSnapshot,
+      datum: p.datum instanceof Date ? p.datum : new Date(p.datum),
+    });
+  }
+
+  const artikelIds = [...new Set([
+    ...reversedArtikelIds,
+    ...postavke.map((p: { artikel_id: number }) => p.artikel_id),
+  ])];
+  await recomputeZaloge(artikelIds, db as any);
 }
 
 // =====================================================================
@@ -604,32 +1093,70 @@ export interface UvoziIzid extends Partial<OsnutekIzid> {
   status: 'OSNUTEK_USTVARJEN' | 'PODVOJENO' | 'NAPAKA' | 'MANJKA_DOBAVITELJ';
   napake: PrejemDTO['napake'];
   predlogDobavitelja?: DobaviteljIzid['predlogNovega'];
+  dobaviteljId?: string | null;
+  dobaviteljNazivOcr?: string | null;
 }
 
 export async function uvozi(
   db: Db,
-  v: ZajemVhod & { uporabnikId: number; posiljatelj?: string | null },
+  v: ZajemVhod & {
+    uporabnikId: number;
+    actorSnapshot?: string | null;
+    posiljatelj?: string | null;
+  },
 ): Promise<UvoziIzid> {
   const zajem = await zajemi(db, v);
 
   if (zajem.status === 'PODVOJENO') {
-    return {
-      sejaId: zajem.sejaId,
-      format: zajem.format,
-      status: 'PODVOJENO',
-      napake: [
-        {
-          koda: 'ZAJ003',
-          resnost: 'B',
-          sporocilo: 'Ta dokument je bil že uvožen.',
-          podatki: {
-            sejaId: zajem.obstojecaSejaId,
-            prejemnicaId: zajem.obstojecaPrejemnicaId,
+    // Blokira samo, če je obstoječa seja dejansko ustvarila prejemnico.
+    // Če prejšnji poskus ni uspel do konca (prejemnica_id = NULL, npr. padel
+    // pri razčlenjevanju ali iskanju dobavitelja), dovolimo ponoven uvoz iste
+    // datoteke — seja se bo nadaljevala z obstoječim sejaId.
+    // S tem uskladimo CSV/e-SLOG pot z že obstoječo logiko PDF poti.
+    if (zajem.obstojecaPrejemnicaId != null) {
+      return {
+        sejaId: zajem.sejaId,
+        format: zajem.format,
+        status: 'PODVOJENO',
+        napake: [
+          {
+            koda: 'ZAJ003',
+            resnost: 'B',
+            sporocilo: 'Ta dokument je bil že uvožen.',
+            podatki: {
+              sejaId: zajem.obstojecaSejaId,
+              prejemnicaId: zajem.obstojecaPrejemnicaId,
+            },
           },
-        },
-      ],
-      prejemnicaId: zajem.obstojecaPrejemnicaId ?? undefined,
-    };
+        ],
+        prejemnicaId: zajem.obstojecaPrejemnicaId ?? undefined,
+      };
+    }
+    // Obstoječa seja nima prejemnice → nadaljujemo z njenim sejaId.
+    // razcleniSejo bo prepisala status iz NAPAKA_RAZCLENITVE v RAZCLENJENO
+    // (ali spet v NAPAKA_RAZCLENITVE, če se napaka ponovi).
+  }
+
+  // Za CSV/XLSX: če seja nima profil_id in je dobaviteljId znan,
+  // poiščemo aktiven profil za tega dobavitelja in ga nastavimo na seji.
+  // S tem rešimo ZAJ012 brez ročnega koraka v UI.
+  if ((zajem.format === 'CSV' || zajem.format === 'XLSX') && v.dobaviteljId) {
+    const { rows: profilVrstice } = await db.execute<{ id: number }>(sql`
+      SELECT id FROM uvoz_profil
+       WHERE enota_id      = ${v.enotaId}
+         AND dobavitelj_id = ${v.dobaviteljId}
+         AND format::text  = ${zajem.format}
+         AND aktivno
+       LIMIT 1
+    `);
+    if (profilVrstice[0]) {
+      await db.execute(sql`
+        UPDATE uvoz_seja
+           SET profil_id = ${profilVrstice[0].id}
+         WHERE id = ${zajem.sejaId}
+           AND profil_id IS NULL
+      `);
+    }
   }
 
   const dto = await razcleniSejo(db, zajem.sejaId);
@@ -637,11 +1164,17 @@ export async function uvozi(
     return { sejaId: zajem.sejaId, format: zajem.format, status: 'NAPAKA', napake: dto.napake };
   }
 
+  // Pridobi companyId iz enotaId za skupen šifrant partnerjev
+  const [enotaZaCompany] = (await db.execute<{ company_id: string }>(sql`
+    SELECT company_id FROM enote WHERE id = ${v.enotaId} LIMIT 1
+  `)).rows;
+  const companyIdZaUvoz = enotaZaCompany?.company_id ?? '';
+
   const dob = await dolociDobavitelja(
-    db, v.enotaId, dto, v.posiljatelj, v.dobaviteljId,
+    db, companyIdZaUvoz, dto, v.posiljatelj, v.dobaviteljId,
   );
 
-  const dobaviteljId = await resolveOrCreateDobavitelja(db, v.enotaId, dob, dto);
+  const dobaviteljId = await resolveOrCreateDobavitelja(db, companyIdZaUvoz, dob, dto);
   if (!dobaviteljId) {
     return {
       sejaId: zajem.sejaId,
@@ -662,6 +1195,7 @@ export async function uvozi(
     dobaviteljId: dobaviteljId!,
     dto,
     uporabnikId: v.uporabnikId,
+    actorSnapshot: v.actorSnapshot ?? null,
   });
 
   return {

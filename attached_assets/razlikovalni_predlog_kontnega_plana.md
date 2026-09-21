@@ -1,0 +1,424 @@
+# Razlikovalni predlog kontnega plana: Python proti novemu PDF-ju
+
+Primerjava je narejena brez izvajanja priložene Python kode; prebran je samo vgrajeni HTML seznam kontov.
+
+- Python različica: **259 kod**
+- Novi PDF / trenutna različica: **266 kod**
+- Kode samo v Pythonu: **8**
+- Kode samo v novem PDF-ju: **15**
+- Skupne kode z različnim nazivom: **61**
+
+## Predlog pravila združitve
+
+1. Novi PDF ostane osnovni vir za kode in strukturo razredov 0–9.
+2. Kode, ki obstajajo samo v Pythonu, se dodajo kot predlogi in se ne vključijo samodejno.
+3. Pri skupnih kodah z različnim nazivom se obdrži naziv iz novega PDF-ja, Pythonov naziv pa ostane naveden za ročno odločitev.
+4. Vse 4-mestne kode se v končnem planu pretvorijo v 7-mestne z dodanimi `000`.
+
+## Kode samo v Pythonu
+
+- `050` — Naložbene nepremičnine
+- `0500000` — Zemljišča in zgradbe, dane v najem ali za povečanje vrednosti
+- `060` — Dolgoročne finančne naložbe
+- `0600000` — Deleži v družbah v skupini
+- `0610000` — Deleži v pridruženih družbah
+- `0620000` — Druge dolgoročne finančne naložbe (delnice, obveznice)
+- `063` — Dolgoročne finančne naložbe
+- `0630000` — Dana dolgoročna posojila
+
+## Kode samo v novem PDF-ju
+
+- `431` — Amortizacija
+- `441` — Stroški dela
+- `442` — Stroški dela
+- `742` — Finančni odhodki
+- `762` — Prihodki od prodaje
+- `802` — Druge dolgoročne poslovne in finančne obveznosti
+- `8020000` — Dolgoročno prejeta posojila od družbenikov ali povezanih oseb
+- `8021000` — Dolgoročne varščine in jamstva
+- `8301000` — Neplačani vpoklicani kapital
+- `8322000` — Rezerve za lastne deleže
+- `840` — Presežek iz prevrednotenja (Revalvacijske rezerve)
+- `8400000` — Revalvacijske rezerve za nepremičnine in opremo
+- `8401000` — Revalvacijske rezerve za finančne naložbe
+- `9801000` — Blago na konsignaciji ali v komisijski prodaji
+- `9901000` — Izdana jamstva, garancije in poroštva drugim družbam
+
+## Skupne kode z različnim nazivom
+
+- `1242000`
+  - Python: Dane varščine in jamstva
+  - PDF: Danie varščine in jamstva
+- `1902000`
+  - Python: Vnaprej plačane naročnine in letni stroški
+  - PDF: Vnaprej plačane naročnine in letne stroške
+- `2301000`
+  - Python: Obveznosti za prispevke za socialno varnost (iz/na plače)
+  - PDF: Obveznosti za prispevke za socialno varnost (iz plače in na plačo)
+- `2401000`
+  - Python: Kratkoročni del dolgoročnih kreditov
+  - PDF: Kratkoročni del dolgoročnih kreditov (odplačilo v 12 mesecih)
+- `3500000`
+  - Python: Usredstveni lastni proizvodi
+  - PDF: Usredstveni lastni proizvodi (pripoznani med osnovna sredstva)
+- `4000000`
+  - Python: Stroški porabljenega osnovnega materiala
+  - PDF: Stroški porabljenega osnovnega materiala v proizvodnji
+- `4012000`
+  - Python: Drobni inventar (do 1 leta)
+  - PDF: Drobni inventar (z dobo koristnosti pod 1 letom)
+- `4021000`
+  - Python: Stroški ogrevanja (plin, olje, daljinsko)
+  - PDF: Stroški ogrevanja (plin, kurilno olje, daljinsko ogrevanje)
+- `4022000`
+  - Python: Gorivo za tovorni park in mehanizacijo
+  - PDF: Stroški pogonskega goriva za tovorni park in mehanizacijo
+- `4023000`
+  - Python: Gorivo za službena vozila
+  - PDF: Stroški pogonskega goriva za službena vozila
+- `4100000`
+  - Python: Prevozne storitve pri nabavi
+  - PDF: Prevozne storitve pri nabavi (vračunane v nabavno vrednost)
+- `4101000`
+  - Python: Prevozne storitve pri prodaji
+  - PDF: Prevozne storitve pri prodaji blaga in proizvodov
+- `4110000`
+  - Python: Vzdrževanje poslovnih objektov
+  - PDF: Vzdrževanje poslovnih objektov in prostorov
+- `4120000`
+  - Python: Najemnine za poslovne prostore
+  - PDF: Najemnine za poslovne prostore in skladišča
+- `4133000`
+  - Python: Kilometrina za uporabo lastnega vozila
+  - PDF: Stroški kilometrine za uporabo lastnega vozila v službene namene
+- `4152000`
+  - Python: Storitve varovanja in čiščenja
+  - PDF: Storitve varovanja in čiščenja objektov
+- `4160000`
+  - Python: Oglaševanje, sejmi in promocije
+  - PDF: Stroški oglaševanja, sejmov in promocij
+- `4161000`
+  - Python: Reprezentanca (pogostitve, darila)
+  - PDF: Stroški reprezentance (pogostitve, darila poslovnim partnerjem)
+- `4190000`
+  - Python: Zavarovalne premije za premoženje
+  - PDF: Premije premoženjskega in odgovornostnega zavarovanja
+- `4192000`
+  - Python: Bančne provizije in stroški PP
+  - PDF: Bančne provizije in stroški plačilnega prometa
+- `4410000`
+  - Python: Nadomestila plač v breme podjetja
+  - PDF: Nadomestila plač v breme podjetja (bolniška do 20 dni, dopust)
+- `4420000`
+  - Python: Prispevki delodajalca na plače (II. bruto – 16,10 %)
+  - PDF: Prispevki za socialno varnost na plače (II. bruto – 16,10 %)
+- `4433000`
+  - Python: Jubilejne nagrade in odpravnine
+  - PDF: Jubilejne nagrade in odpravnine ob upokojitvi
+- `5100000`
+  - Python: Stroški skladiščenja in pakiranja izdelkov
+  - PDF: Stroški skladiščenja in pakiranja gotovih izdelkov
+- `5101000`
+  - Python: Transportni stroški pri prodaji
+  - PDF: Transportni stroški pri prodaji (odprema)
+- `5102000`
+  - Python: Stroški prodajnega osebja
+  - PDF: Stroški prodajnega osebja in komerciale
+- `5103000`
+  - Python: Marketinške kampanje in sejmi
+  - PDF: Stroški marketinških kampanj, sejmov in promocij
+- `5201000`
+  - Python: Računovodstvo, pravne in kadrovske storitve
+  - PDF: Stroški računovodstva, pravne službe in kadrovske službe
+- `5202000`
+  - Python: IT podpora in upravna infrastruktura
+  - PDF: Stroški IT podpore in upravne infrastrukture
+- `5203000`
+  - Python: Amortizacija upravnih prostorov in opreme
+  - PDF: Amortizacija upravnih prostorov in pisarniške opreme
+- `700`
+  - Python: Nabavna vrednost prodanega / Proizvajalni stroški
+  - PDF: Nabavna vrednost prodanega in proizvajalni stroški
+- `701`
+  - Python: Nabavna vrednost prodanega / Proizvajalni stroški
+  - PDF: Nabavna vrednost prodanega in proizvajalni stroški
+- `7400000`
+  - Python: Obresti od bančnih kreditov
+  - PDF: Odhodki za obresti od bančnih kreditov
+- `7401000`
+  - Python: Zamudne obresti dobaviteljem
+  - PDF: Odhodki za obresti do dobaviteljev (zamudne obresti)
+- `7600000`
+  - Python: Prodaja izdelkov na domačem trgu
+  - PDF: Prihodki od prodaje izdelkov na domačem trgu
+- `7601000`
+  - Python: Prodaja storitev na domačem trgu
+  - PDF: Prihodki od prodaje storitev na domačem trgu
+- `7610000`
+  - Python: Prodaja izdelkov v EU
+  - PDF: Prihodki od prodaje izdelkov v EU
+- `7611000`
+  - Python: Prodaja storitev v EU ali tretjih državah
+  - PDF: Prihodki od prodaje storitev v EU ali tretjih državah
+- `7620000`
+  - Python: Prodaja blaga na domačem trgu
+  - PDF: Prihodki od prodaje blaga na domačem trgu
+- `7680000`
+  - Python: Državne podpore in subvencije
+  - PDF: Prihodki iz državnih podpor in subvencij
+- `7682000`
+  - Python: Naknadni popusti in bonifikacije dobaviteljev
+  - PDF: Prihodki od popustov in bonifikacij dobaviteljev po računu
+- `7710000`
+  - Python: Obresti na depozite in TRR
+  - PDF: Prihodki od obresti na depozite in TRR
+- `8000000`
+  - Python: Dolgoročni krediti pri domačih bankah
+  - PDF: Dolgoročni krediti pri domačih bankah (glavnica nad 1 letom)
+- `801`
+  - Python: Dolgoročni finančni najem (Leasing)
+  - PDF: Dolgoročne obveznosti iz finančnega najema
+- `8010000`
+  - Python: Leasing za opremo in vozila
+  - PDF: Leasing obveznosti za opremo in vozila
+- `8011000`
+  - Python: Leasing za nepremičnine
+  - PDF: Leasing obveznosti za nepremičnine
+- `8300000`
+  - Python: Osnovni kapital (vpisani v sodni register)
+  - PDF: Osnovni kapital (vpisani v sodni register – d.o.o. / d.d.)
+- `831`
+  - Python: Kapitalske rezerve in rezerve iz dobička
+  - PDF: Kapitalske rezerve
+- `8310000`
+  - Python: Vplačani presežek kapitala
+  - PDF: Vplačani presežek kapitala (vpoklicani nad nominalno vrednostjo)
+- `832`
+  - Python: Kapitalske rezerve in rezerve iz dobička
+  - PDF: Rezerve iz dobička
+- `8600000`
+  - Python: Prenesena izguba preteklih let
+  - PDF: Neeksponirana (prenesena) izguba preteklih let
+- `8700000`
+  - Python: Čisti dobiček obračunskega leta
+  - PDF: Čisti dobiček obračunskega leta (pred razporeditvijo)
+- `9000000`
+  - Python: Prenos prihodkov na poslovni izid
+  - PDF: Prenos poslovnih, finančnih in drugih prihodkov na poslovni izid
+- `9001000`
+  - Python: Prenos odhodkov na poslovni izid
+  - PDF: Prenos poslovnih, finančnih in drugih odhodkov na poslovni izid
+- `9020000`
+  - Python: Obračunani DDPO
+  - PDF: Obračunani davek od dohodkov pravnih oseb (DDPO)
+- `9021000`
+  - Python: Odloženi davki
+  - PDF: Odloženi davki (terjatve ali obveznosti)
+- `9030000`
+  - Python: Čisti dobiček ali izguba po obdavčitvi
+  - PDF: Čisti poslovni izid (dobiček ali izguba po obdavčitvi)
+- `980`
+  - Python: Zunajbilančna evidenca
+  - PDF: Zunajbilančna sredstva
+- `9802000`
+  - Python: Prejete garancije, menice in hipoteke
+  - PDF: Prejete garancije, menice in hipoteke v zavarovanje
+- `990`
+  - Python: Zunajbilančna evidenca
+  - PDF: Zunajbilančne obveznosti
+- `9900000`
+  - Python: Obveznosti za tuja sredstva in izdana jamstva
+  - PDF: Obveznosti za tuja sredstva
+
+## Skupne kode z enakim nazivom
+
+- `000` — Stroški razvoja
+- `0000000` — Aktiviran lastni razvoj proizvodov ali storitev
+- `001` — Premoženjske pravice
+- `0010000` — Programska oprema (računalniške licence)
+- `0011000` — Blagovne znamke in patenti
+- `0012000` — Koncesije in posebne pravice
+- `008` — Popravek vrednosti neopredmetenih sredstev
+- `0081000` — Amortizacija programske opreme
+- `020` — Zemljišča
+- `0200000` — Poslovna zemljišča (stavbna)
+- `0201000` — Kmetijska in gozdna zemljišča
+- `021` — Zgradbe
+- `0210000` — Upravne zgradbe in pisarne
+- `0211000` — Proizvodni objekti in delavnice
+- `0212000` — Skladiščni objekti
+- `028` — Popravek vrednosti zgradb
+- `0281000` — Amortizacija zgradb
+- `040` — Proizvodna oprema in stroji
+- `0400000` — Stroji in proizvodne linije
+- `0401000` — Orodja in merilne naprave
+- `041` — Druga oprema in transportna sredstva
+- `0410000` — Računalniška in IT oprema
+- `0411000` — Pisarniški pohištvo in inventar
+- `0412000` — Osebna vozila
+- `0413000` — Tovorna in dostavna vozila
+- `048` — Popravek vrednosti druge opreme
+- `0480000` — Amortizacija IT opreme
+- `0482000` — Amortizacija osebnih vozil
+- `0483000` — Amortizacija tovornih vozil
+- `100` — Blagajna
+- `1000000` — Gotovinska blagajna (EUR)
+- `1001000` — Valutna blagajna (tuje valute)
+- `101` — Transakcijski računi (TRR)
+- `1010000` — Glavni TRR pri domači banki
+- `1011000` — Sekundarni TRR pri drugi banki
+- `1012000` — Devizni TRR
+- `120` — Terjatve do kupcev v državi
+- `1200000` — Terjatve do kupcev – neplačani računi
+- `1201000` — Terjatve do kupcev – menice in drugi papirji
+- `121` — Terjatve do kupcev v tujini
+- `1210000` — Kupci iz države članic EU
+- `1211000` — Kupci iz tretjih držav (izvoz)
+- `124` — Dani predujmi in varščine
+- `1240000` — Dani predujmi za storitve
+- `1241000` — Dani predujmi za material ali blago
+- `129` — Popravek vrednosti terjatev
+- `1290000` — Popravek vrednosti dvomljivih terjatev
+- `1291000` — Popravek vrednosti spornih terjatev (v izterjavi)
+- `130` — Terjatve do zaposlenih
+- `1300000` — Akontacije za službena potovanja
+- `1301000` — Odškodninske terjatve ali preplačila do zaposlenih
+- `160` — Terjatve za vstopni DDV
+- `1600000` — Vstopni DDV 22 % od nabav v državi
+- `1601000` — Vstopni DDV 9,5 % od nabav v državi
+- `1602000` — Vstopni DDV 5 % od nabav v državi
+- `1603000` — Vstopni DDV od uvoza blaga
+- `1604000` — Vstopni DDV od samoobdavčitve (pridobitve EU / 76.a člen)
+- `190` — Kratkoročno razmejeni stroški (AČR)
+- `1900000` — Vnaprej plačane najemnine
+- `1901000` — Vnaprej plačane zavarovalne premije
+- `210` — Obveznosti do dobaviteljev v državi
+- `2100000` — Obveznosti do domačih dobaviteljev – redni računi
+- `2109000` — Nefakturirane dobave (prejeto blago/storitve brez računa)
+- `211` — Obveznosti do dobaviteljev v tujini
+- `2110000` — Dobavitelji iz EU
+- `2111000` — Dobavitelji iz tretjih držav (uvoz)
+- `214` — Prejeti predujmi
+- `2140000` — Prejeti avansi od kupcev v državi
+- `2141000` — Prejeti avansi od kupcev iz tujine
+- `220` — Obveznosti do zaposlenih
+- `2200000` — Obveznosti za neto plače
+- `2201000` — Obveznosti za nadomestila plač (bolniške v breme podjetja/ZZZS)
+- `2202000` — Obveznosti za prevoz na delo in prehrano
+- `2203000` — Obveznosti za dnevnice in potne stroške
+- `2204000` — Obveznosti za regres za letni dopust
+- `230` — Obveznosti za dajatve in prispevke
+- `2300000` — Obveznosti za dohodnino od plač
+- `2302000` — Obveznosti za dajatve od avtorskih in podjemnih pogodb
+- `240` — Kratkoročni krediti pri bankah
+- `2400000` — Kratkoročni likvidnostni krediti
+- `260` — Obveznosti za izstopni DDV
+- `2600000` — Obračunani DDV 22 % od prodaje v državi
+- `2601000` — Obračunani DDV 9,5 % od prodaje v državi
+- `2602000` — Obračunani DDV 5 % od prodaje v državi
+- `2603000` — Obračunani DDV od prejetih avansov
+- `2604000` — Obračunani DDV od samoobdavčitve (EU pridobitve in 76.a člen)
+- `290` — Vnaprej vračunani stroški (PČR)
+- `2900000` — Vnaprej vračunani stroški revizije in računovodstva
+- `2901000` — Vnaprej vračunani neizkoriščeni dopusti
+- `300` — Direktni stroški materiala v proizvodnji
+- `3000000` — Direktni material po proizvodnih nalogih
+- `3001000` — Direktna embalaža v proizvodnji
+- `301` — Direktni stroški dela v proizvodnji
+- `3010000` — Neto plače in prispevki proizvodnih delavcev po nalogih
+- `309` — Splošni proizvodni stroški (SPS)
+- `3090000` — Posredni material v proizvodnji
+- `3091000` — Amortizacija proizvodnih strojev in objektov
+- `3092000` — Storitve vzdrževanja proizvodne opreme
+- `310` — Nedokončana proizvodnja
+- `3100000` — Polizdelki v delovnem procesu
+- `3101000` — Nedokončani izdelki po vrednosti neposrednih stroškov
+- `320` — Nedokončane storitve
+- `3200000` — Nedokončane storitve v teku (po stroškovni vrednosti)
+- `350` — Proizvodi in storitve za lastne potrebe
+- `3501000` — Lastne storitve za naložbene namene
+- `400` — Poraba surovin in materiala
+- `4001000` — Stroški porabljene embalaže
+- `401` — Pomožni in pisarniški material
+- `4010000` — Pisarniški material in strokovna literatura
+- `4011000` — Pomožni material za vzdrževanje in čiščenje
+- `402` — Stroški energije
+- `4020000` — Stroški električne energije
+- `4024000` — Komunalne storitve in odvoz odpadkov
+- `410` — Transportne in pretovorne storitve
+- `4102000` — Poštne in kurirske storitve
+- `411` — Storitve vzdrževanja
+- `4111000` — Vzdrževanje strojev in opreme
+- `4112000` — Vzdrževanje in servis vozil
+- `4113000` — Vzdrževanje IT opreme in licenčne podpore
+- `412` — Najemnine in zakupnine
+- `4121000` — Najem opreme, orodij in vozil
+- `413` — Stroški povračil zaposlenim
+- `4130000` — Dnevnice za službena potovanja v državi
+- `4131000` — Dnevnice za službena potovanja v tujini
+- `4132000` — Stroški prenočišč na službenih poteh
+- `415` — Intelektualne in osebne storitve
+- `4150000` — Računovodske storitve
+- `4151000` — Pravne, revizorske in svetovalne storitve
+- `416` — Reklama in reprezentanca
+- `419` — Bančne storitve in zavarovanja
+- `4191000` — Zavarovalne premije za vozila
+- `430` — Amortizacija
+- `4310000` — Amortizacija zgradb
+- `432` — Amortizacija
+- `4320000` — Amortizacija opreme in računalnikov
+- `4321000` — Amortizacija vozil
+- `440` — Stroški dela
+- `4400000` — Bruto plače zaposlenih (I. bruto)
+- `443` — Stroški dela
+- `4430000` — Prehrana med delom
+- `4431000` — Prevoz na delo in z dela
+- `4432000` — Regres za letni dopust
+- `500` — Proizvajalni stroški prodanih količin
+- `5000000` — Proizvajalni stroški prodanih izdelkov
+- `5001000` — Stroški opravljenih in prodanih storitev
+- `510` — Stroški prodajanja
+- `520` — Stroški splošnih dejavnosti (Uprava)
+- `5200000` — Stroški vodstva podjetja in splošnih služb
+- `600` — Material v skladišču
+- `6000000` — Surovine in osnovni material
+- `6001000` — Pomožni material
+- `6002000` — Rezervni deli
+- `6008000` — Odstopanja od stalenih cen materiala
+- `650` — Proizvodi v skladišču
+- `6500000` — Gotovi izdelki po proizvajalnih stroških / stalenih cenah
+- `6508000` — Odstopanje od stalenih cen proizvodov
+- `660` — Blago v skladišču (Veleprodaja)
+- `6600000` — Blago po nabavni ceni
+- `6601000` — Odvisni stroški nabave blaga
+- `661` — Blago v trgovini na drobno
+- `6610000` — Blago po prodajni ceni z DDV
+- `6618000` — Vračunana razlika v ceni (marža)
+- `6619000` — Vračunani DDV v zalogi blaga na drobno
+- `7000000` — Nabavna vrednost prodanega blaga v državi
+- `7001000` — Nabavna vrednost prodanega blaga v tujini
+- `7010000` — Proizvajalni stroški prodanih proizvodov
+- `740` — Finančni odhodki
+- `7420000` — Negativne tečajne razlike
+- `760` — Prihodki od prodaje
+- `761` — Prihodki od prodaje
+- `768` — Drugi poslovni prihodki
+- `7681000` — Prihodki od odškodnin iz zavarovanj
+- `771` — Finančni prihodki
+- `772` — Finančni prihodki
+- `7720000` — Pozitivne tečajne razlike
+- `800` — Dolgoročni bančni krediti
+- `8001000` — Dolgoročni krediti pri tujih bankah
+- `830` — Osnovni kapital
+- `8320000` — Zakonske rezerve
+- `8321000` — Statutarne rezerve
+- `8323000` — Druge rezerve iz dobička
+- `850` — Preneseni poslovni izidi
+- `8500000` — Nerazporejeni dobiček preteklih let
+- `860` — Preneseni poslovni izidi
+- `870` — Poslovni izid obračunskega leta
+- `8701000` — Čista izguba obračunskega leta
+- `900` — Obračun prihodkov in odhodkov
+- `902` — Davek iz dobička
+- `903` — Čisti poslovni izid obdobja
+- `9800000` — Tuja sredstva v uporabi ali upravljanju

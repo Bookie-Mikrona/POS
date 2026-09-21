@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'si.pos.nb80printer'
+    // Replitov Android SDK vsebuje platformo 36; target ostane 34 za NB80.
+    compileSdk 36
+    buildToolsVersion "36.0.0"
+
+    defaultConfig {
+        applicationId "si.pos.nb80printer"
+        minSdk 26
+        targetSdk 34
+        versionCode 6
+        versionName "1.5"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    buildFeatures {
+        // Obvezno za AGP 8.0+ — brez tega AIDL generiranje ne deluje
+        aidl = true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    // NanoHTTPD — vgrajen lahek HTTP strežnik (za lokalni most med browserjem in PrinterService)
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+}

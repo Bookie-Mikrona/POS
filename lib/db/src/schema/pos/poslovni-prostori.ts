@@ -22,9 +22,6 @@ export const poslovniProstoriTable = pgTable("poslovni_prostori", {
   vin: text("vin"),
   premicninaTip: text("premicnina_tip"),
   veljavnostOd: text("veljavnost_od"),
-  /** FURS certifikat — shranjen šifriran v DB */
-  certifikatPot: text("certifikat_pot"),
-  certifikatGeslo: text("certifikat_geslo"),
   zadnjaRegistracija: timestamp("zadnja_registracija", { withTimezone: true }),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
 });

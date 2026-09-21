@@ -8,7 +8,11 @@ Zaganjanje:
   python bridge.py
 
 Pakiranje v .exe:
-  pyinstaller --onefile --noconsole --icon=scanner.ico bridge.py
+  pip install -r requirements.txt
+  build.bat
+
+Odklop avtostarta:
+  ScannerBridge.exe --uninstall
 """
 
 import sys
@@ -19,6 +23,8 @@ import threading
 import ctypes
 import time
 import logging
+import socket
+import argparse
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
@@ -29,7 +35,7 @@ from pydantic import BaseModel
 
 try:
     import pystray
-    from PIL import Image as PILImage
+    from PIL import Image as PILImage, ImageDraw
     HAS_TRAY = True
 except ImportError:
     HAS_TRAY = False
@@ -38,10 +44,11 @@ except ImportError:
 
 PORT         = 8765
 HOST         = "127.0.0.1"
-VERSION      = "1.0.0"
+VERSION      = "1.1.0"
+APP_NAME     = "ScannerBridge"
 
-# Dovoli dostop z POS app-a (nastavi na pravi origin v produkciji)
-ALLOWED_ORIGINS = ["*"]  # lokalni bridge — dostopen samo z localhost, wildcard je varen
+# Dovoli dostop z POS app-a (lokalni bridge — wildcard je varen)
+ALLOWED_ORIGINS = ["*"]
 
 # WIA Property IDs
 WIA_HORIZONTAL_RESOLUTION = 6147
@@ -194,7 +201,7 @@ class ScanRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    """Preveri, ali bridge teče, in vrni seznam zaznjanih scannerjev."""
+    """Preveri, ali bridge teče, in vrni seznam zaznjenih scannerjev."""
     try:
         scanners = _run_in_sta(_get_scanners_sta)
     except Exception as e:
@@ -211,7 +218,7 @@ async def health():
 @app.post("/scan")
 async def scan(req: ScanRequest):
     """
-    Sprozi skeniranje in vrni base64 sliko.
+    Sproži skeniranje in vrni base64 sliko.
     Zahteva: { deviceId?, dpi?, color?, format? }
     Odgovor: { image: "<base64>", mimeType: "image/png", size: <bytes> }
     """
@@ -247,10 +254,40 @@ async def scan(req: ScanRequest):
 
 # ── Tray icon ─────────────────────────────────────────────────────────────────
 
-def _make_tray_icon():
-    """Ustvari minimalistično ikono za tray (brez zunanjega .ico)."""
+def _make_tray_icon(size: int = 64) -> "PILImage.Image | None":
+    """Nariši preprosto ikono optičnega čitalnika (bela stran + modra puščica navzdol)."""
     try:
-        img = PILImage.new("RGB", (64, 64), color=(30, 120, 200))
+        s = size
+        img = PILImage.new("RGBA", (s, s), (0, 0, 0, 0))
+        d   = ImageDraw.Draw(img)
+
+        # Ozadje — zaokrožen pravokotnik (simuliran z ovalom + pravokotnikom)
+        bg = (240, 245, 255, 255)
+        d.rectangle([0, 0, s - 1, s - 1], fill=bg)
+
+        # Telo skenerja — temno modri pravokotnik (spodnja tretjina)
+        body_color = (30, 100, 200, 255)
+        d.rectangle([s // 8, s * 5 // 8, s * 7 // 8, s * 7 // 8], fill=body_color)
+
+        # Steklo / plošča skenerja — svetlo modra
+        glass_color = (160, 200, 255, 255)
+        d.rectangle([s // 8, s // 8, s * 7 // 8, s * 9 // 16], fill=glass_color)
+
+        # Puščica (skeniranje navzdol) — bela, centrirana v glavi
+        cx = s // 2
+        ay = s * 3 // 16
+        aw = s // 5
+        ah = s // 4
+        # navpična linija
+        d.rectangle([cx - aw // 6, ay, cx + aw // 6, ay + ah * 2 // 3], fill=(255, 255, 255, 255))
+        # trikotna konica
+        arrow_pts = [
+            (cx - aw // 2, ay + ah * 2 // 3),
+            (cx + aw // 2, ay + ah * 2 // 3),
+            (cx,           ay + ah),
+        ]
+        d.polygon(arrow_pts, fill=(255, 255, 255, 255))
+
         return img
     except Exception:
         return None
@@ -260,7 +297,7 @@ def _run_tray():
     if not HAS_TRAY:
         return
 
-    icon_img = _make_tray_icon()
+    icon_img = _make_tray_icon(64)
     if icon_img is None:
         return
 
@@ -269,42 +306,124 @@ def _run_tray():
         os._exit(0)
 
     menu = pystray.Menu(
-        pystray.MenuItem("Scanner Bridge — HP", None, enabled=False),
-        pystray.MenuItem(f"Port: {PORT}", None, enabled=False),
+        pystray.MenuItem(f"Scanner Bridge v{VERSION}", None, enabled=False),
+        pystray.MenuItem(f"http://{HOST}:{PORT}", None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Zapri", on_quit),
     )
 
-    icon = pystray.Icon("ScannerBridge", icon_img, "Scanner Bridge", menu)
+    icon = pystray.Icon(APP_NAME, icon_img, f"Scanner Bridge v{VERSION}", menu)
     icon.run()
 
 
 # ── Autostart (Registry) ──────────────────────────────────────────────────────
 
+_AUTOSTART_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+
 def _enable_autostart():
-    """Dodaj v Windows Registry za autostart ob prijavi uporabnika."""
+    """
+    Dodaj v Windows Registry za autostart ob prijavi.
+    Idempotentno — ne piše, če je pot že pravilna.
+    """
     try:
         import winreg
-        exe_path = sys.executable if not getattr(sys, "frozen", False) else sys.executable
+        exe_path  = sys.executable
+        reg_value = f'"{exe_path}"'
+
         key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Run",
-            0, winreg.KEY_SET_VALUE,
+            winreg.HKEY_CURRENT_USER, _AUTOSTART_KEY,
+            0, winreg.KEY_ALL_ACCESS,
         )
-        winreg.SetValueEx(key, "ScannerBridge", 0, winreg.REG_SZ, f'"{exe_path}"')
+        try:
+            existing, _ = winreg.QueryValueEx(key, APP_NAME)
+            if existing == reg_value:
+                log.info("Autostart že registriran — preskočeno.")
+                winreg.CloseKey(key)
+                return
+        except FileNotFoundError:
+            pass  # ključ še ne obstaja — dodamo
+
+        winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, reg_value)
         winreg.CloseKey(key)
-        log.info("Autostart v Registry dodan.")
+        log.info(f"Autostart dodan: {reg_value}")
     except Exception as e:
         log.warning(f"Autostart ni bil dodan: {e}")
+
+
+def _disable_autostart():
+    """Odstrani Scanner Bridge iz Windows autostart."""
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _AUTOSTART_KEY,
+            0, winreg.KEY_ALL_ACCESS,
+        )
+        try:
+            winreg.DeleteValue(key, APP_NAME)
+            log.info("Autostart odstranjen.")
+            print("Scanner Bridge je bil odstranjen iz avtomatskega zagona.")
+        except FileNotFoundError:
+            print("Scanner Bridge ni bil registriran v avtomatskem zagonu.")
+        winreg.CloseKey(key)
+    except Exception as e:
+        log.warning(f"Napaka pri odstranjevanju autostarta: {e}")
+
+
+# ── Zaščita pred dvojnim zagonom ──────────────────────────────────────────────
+
+def _port_prosta() -> bool:
+    """Vrni True, če port 8765 ni zaseden (= bridge še ne teče)."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.3)
+        result = s.connect_ex((HOST, PORT))
+        s.close()
+        return result != 0  # 0 = povezava uspela = port zaseden
+    except Exception:
+        return True
+
+
+def _pokazi_ze_tece():
+    """Prikaži Windows MessageBox, da bridge že teče."""
+    try:
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            f"Scanner Bridge že teče na http://{HOST}:{PORT}.\n"
+            f"Preverite sistemsko vrstico (tray).",
+            "Scanner Bridge",
+            0x40,  # MB_ICONINFORMATION
+        )
+    except Exception:
+        print(f"[INFO] Scanner Bridge že teče na http://{HOST}:{PORT}.")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Scanner Bridge")
+    parser.add_argument(
+        "--uninstall",
+        action="store_true",
+        help="Odstrani Scanner Bridge iz Windows autostart in zapri.",
+    )
+    args = parser.parse_args()
+
+    if args.uninstall:
+        _disable_autostart()
+        sys.exit(0)
+
     log.info(f"Scanner Bridge v{VERSION} — port {PORT}")
 
-    # Autostart ob prvem zagonu
-    if getattr(sys, "frozen", False):  # samo v .exe
+    # Prepreči dvojni zagon
+    if not _port_prosta():
+        log.warning("Port %d je že zaseden — bridge morda že teče.", PORT)
+        if getattr(sys, "frozen", False):
+            _pokazi_ze_tece()
+        sys.exit(0)
+
+    # Autostart — samo v .exe načinu, idempotentno
+    if getattr(sys, "frozen", False):
         _enable_autostart()
 
     # Zaženi tray v ločenem thread-u
@@ -312,4 +431,4 @@ if __name__ == "__main__":
     tray_thread.start()
 
     # Zaženi HTTP strežnik
-    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+    uvicorn.run(app, host=HOST, port=PORT, log_level="warning", log_config=None)

@@ -4,8 +4,8 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
-import { and, eq } from "drizzle-orm";
-import { db, posUporabnikiTable, enoteTable, blagajneTable, companiesTable, natakariTable } from "@workspace/db";
+import { and, eq, gte, lte } from "drizzle-orm";
+import { db, posUporabnikiTable, posEventStaffGrantsTable, enoteTable, blagajneTable, companiesTable, natakariTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -62,6 +62,8 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
       companyZavezanecDdv: companiesTable.zavezanecDdv,
       companyTrr: companiesTable.trr,
       enotaIme: enoteTable.ime,
+      enotaHospitalityProfile: enoteTable.hospitalityProfile,
+      enotaCapabilities: enoteTable.capabilities,
       blagajnaIme: blagajneTable.ime,
       blagajnaPpId: blagajneTable.ppId,
     })
@@ -98,14 +100,42 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     .limit(1);
   natakariId = nat?.id ?? null;
 
-  // Za admin vloge: seznam vseh enot podjetja
-  let enote: Array<{ id: number; ime: string }> = [];
+  // Admin vidi vse enote; drugi uporabniki poleg primarne tudi trenutno veljavne dogodkovne dostope.
+  let enote: Array<{ id: number; ime: string; hospitalityProfile: string; capabilities: string[] }> = [];
   if (uporabnik.vloga === "admin") {
     enote = await db
-      .select({ id: enoteTable.id, ime: enoteTable.ime })
+      .select({
+        id: enoteTable.id,
+        ime: enoteTable.ime,
+        hospitalityProfile: enoteTable.hospitalityProfile,
+        capabilities: enoteTable.capabilities,
+      })
       .from(enoteTable)
       .where(and(eq(enoteTable.companyId, uporabnik.companyId), eq(enoteTable.aktiven, true)))
       .orderBy(enoteTable.id);
+  } else {
+    const now = new Date();
+    const grants = await db.select({
+      id: enoteTable.id, ime: enoteTable.ime,
+      hospitalityProfile: enoteTable.hospitalityProfile, capabilities: enoteTable.capabilities,
+    }).from(posEventStaffGrantsTable)
+      .innerJoin(enoteTable, eq(enoteTable.id, posEventStaffGrantsTable.unitId))
+      .where(and(
+        eq(posEventStaffGrantsTable.posUserId, uporabnik.id),
+        eq(posEventStaffGrantsTable.revoked, false),
+        lte(posEventStaffGrantsTable.validFrom, now),
+        gte(posEventStaffGrantsTable.validTo, now),
+        eq(enoteTable.aktiven, true),
+      ));
+    enote = [
+      ...(uporabnik.enotaId ? [{
+        id: uporabnik.enotaId,
+        ime: uporabnik.enotaIme ?? "",
+        hospitalityProfile: uporabnik.enotaHospitalityProfile ?? "restaurant",
+        capabilities: uporabnik.enotaCapabilities ?? [],
+      }] : []),
+      ...grants.filter(grant => grant.id !== uporabnik.enotaId),
+    ];
   }
 
   res.json({
@@ -126,6 +156,8 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     imaTrr: Array.isArray(uporabnik.companyTrr) && (uporabnik.companyTrr as Array<{ iban?: string }>).some(t => typeof t.iban === "string" && t.iban.trim().length > 0),
     enotaId: uporabnik.enotaId,
     enotaIme: uporabnik.enotaIme ?? null,
+    enotaHospitalityProfile: uporabnik.enotaHospitalityProfile ?? null,
+    enotaCapabilities: uporabnik.enotaCapabilities ?? [],
     blagajnaId: uporabnik.blagajnaId ?? null,
     blagajnaIme: uporabnik.blagajnaIme ?? null,
     blagajnaPpId: uporabnik.blagajnaPpId ?? null,

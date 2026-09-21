@@ -27,6 +27,13 @@ export const taxBehaviorEnum = pgEnum("tax_behavior", [
   "exempt",         // Oproščeno
 ]);
 
+/** Politika stroškovnega mesta na kontu. */
+export const accountCostCenterPolicyEnum = pgEnum("account_cost_center_policy", [
+  "not_allowed",
+  "allowed",
+  "required",
+]);
+
 export const accountsTable = pgTable(
   "accounts",
   {
@@ -48,6 +55,8 @@ export const accountsTable = pgTable(
     requiresPartner: boolean("requires_partner").notNull().default(false),
     /** Ali vrstica temeljnice na ta konto zahteva stroškovno mesto */
     requiresCostCenter: boolean("requires_cost_center").notNull().default(false),
+    /** Kanonična politika stroškovnega mesta; requiresCostCenter ostaja združljivostni alias. */
+    costCenterPolicy: accountCostCenterPolicyEnum("cost_center_policy").notNull().default("allowed"),
     /** Ali vrstica temeljnice na ta konto zahteva projekt */
     requiresProject: boolean("requires_project").notNull().default(false),
     /** DDV vedenje tega konta */

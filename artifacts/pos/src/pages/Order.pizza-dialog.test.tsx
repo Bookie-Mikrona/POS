@@ -12,7 +12,7 @@
  */
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen, waitFor, act } from "@testing-library/react";
+import { render, fireEvent, screen, waitFor, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Order from "./Order";
@@ -30,20 +30,64 @@ const mockModifikator = {
   vrstniRed: 0,
 };
 
+const mockRazrezTrikotni = {
+  id: 101,
+  skupinaId: 1,
+  ime: "Trikotni razrez",
+  cenaDodatek: 0,
+  aktiven: true,
+  vrstniRed: 1,
+};
+
+const mockRazrezStirikotni = {
+  id: 102,
+  skupinaId: 1,
+  ime: "Štirikotni razrez",
+  cenaDodatek: 0,
+  aktiven: true,
+  vrstniRed: 2,
+};
+
+const mockRazrezPolovica = {
+  id: 103,
+  skupinaId: 1,
+  ime: "Razrez na polovico",
+  cenaDodatek: 0,
+  aktiven: true,
+  vrstniRed: 3,
+};
+
+const mockBrezCebule = {
+  id: 104,
+  skupinaId: 1,
+  ime: "Brez čebule",
+  cenaDodatek: 0,
+  aktiven: true,
+  vrstniRed: 4,
+};
+
 const mockModSkupina = {
   id: 1,
   ime: "Dodatki za pico",
-  obvezna: false,
-  minIzbir: 0,
+  obvezna: true,
+  minIzbir: 1,
   maxIzbir: 99,
   vrstniRed: 0,
-  modifikatorji: [mockModifikator],
+  modifikatorji: [
+    mockModifikator,
+    mockRazrezTrikotni,
+    mockRazrezStirikotni,
+    mockRazrezPolovica,
+    mockBrezCebule,
+  ],
 };
 
 const mockPica = {
   id: 10,
   ime: "Margherita",
   cena: 8.50,
+  cenaMala: 7.00,
+  cenaDruzinska: 12.00,
   davek: 9.5,
   aktiven: true,
   kategorijaId: 1,
@@ -64,6 +108,10 @@ const mockNarocilo = {
   mizaId: 5,
   mizaStevilka: 5,
   mizaIme: "Miza 5",
+  nacin: "miza",
+  vir: "qr_gost",
+  predvidenPrevzem: "2026-08-28T12:30:00.000Z",
+  predvidenPrevzemRocen: false,
   status: "odprto",
   skupaj: 0,
   ddvNeskladje: null,
@@ -118,7 +166,28 @@ const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockListArtikliData = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
 
-vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })));
+vi.stubGlobal("fetch", vi.fn((url: string, options?: RequestInit) => Promise.resolve({
+  ok: true,
+  json: () => {
+    const artikli = mockListArtikliData();
+    const body = options?.body ? JSON.parse(String(options.body)) as { transkript?: string } : {};
+    const jeMalaZRazrezom = body.transkript?.includes("mala") && body.transkript.includes("razrez");
+    return Promise.resolve(
+      String(url).includes("/api/ai/glasovni-ukaz")
+        ? {
+            postavke: artikli.length === 1
+              ? [{
+                  artikelId: artikli[0].id,
+                  kolicina: 1,
+                  modifikatorji: jeMalaZRazrezom ? [mockRazrezTrikotni.id] : [],
+                  ...(jeMalaZRazrezom ? { velikostPice: "mala" } : {}),
+                }]
+              : [],
+          }
+        : {},
+    );
+  },
+})));
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -136,6 +205,11 @@ vi.mock("@/lib/autoStartGuard", () => ({
 vi.mock("@/contexts/AutoStartContext", () => ({
   useAutoStartRef: () => ({ current: { blocked: false, block: vi.fn(), unblock: vi.fn() } }),
   AutoStartProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/contexts/HappyHourContext", () => ({
+  useHappyHour: () => ({ status: null, loading: false, setRocno: vi.fn(), refresh: vi.fn() }),
+  HappyHourProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/hooks/use-glasovni-ukaz", () => ({
@@ -179,12 +253,31 @@ vi.mock("@dnd-kit/utilities", () => ({
 vi.mock("@workspace/api-client-react", () => ({
   useGetNarocilo: () => ({ data: mockNarocilo, isLoading: false }),
   useListArtikli: () => ({ data: mockListArtikliData(), isLoading: false }),
+  getListArtikliQueryKey: () => ["/api/artikli"],
+  useGetPreparedFoodAvailability: () => ({ data: { businessDate: "2026-08-28", items: [] }, isLoading: false }),
+  getGetPreparedFoodAvailabilityQueryKey: () => ["/prepared-food/availability"],
   useListKategorije: () => ({ data: [mockKategorija], isLoading: false }),
-  useListMize: () => ({ data: [{ id: 5, stevilka: 5, ime: "Miza 5", status: "odprto", narocila: [] }] }),
+  getListKategorijeQueryKey: () => ["/api/kategorije"],
+  useListDnevniMeni: () => ({ data: [], isLoading: false }),
+  useListProstori: () => ({
+    data: [
+      { id: 1, ime: "Terasa" },
+      { id: 2, ime: "Salon" },
+    ],
+    isLoading: false,
+  }),
+  useListMize: () => ({
+    data: [
+      { id: 5, stevilka: 5, ime: "Miza 5", prostorId: 1, status: "zasedena", narocila: [] },
+      { id: 8, stevilka: 8, ime: "Miza 8", prostorId: 2, status: "prosta", kapaciteta: 4, narocila: [] },
+    ],
+  }),
   useListNarocila: () => ({ data: [] }),
   useListRacuni: () => ({ data: [] }),
   useGetRacunPostavke: () => ({ data: undefined, isLoading: false }),
   useAddPostavka: () => ({ mutate: mockAddPostavkaMutate, isPending: false }),
+  useAddMulticourseMenu: () => ({ mutate: vi.fn(), isPending: false }),
+  customFetch: vi.fn(() => Promise.resolve([])),
   useAddPostavkaModifikatorji: () => ({ mutate: vi.fn(), isPending: false }),
   useRemovePostavka: () => ({ mutate: vi.fn() }),
   useUpdatePostavkaKolicina: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
@@ -207,6 +300,9 @@ vi.mock("@/contexts/NastavitveContext", () => ({
       elektronskaNaprava: "B001",
       testniNacin: true,
       grupiranjeNacin: "novo",
+      picaPremerMala: 26,
+      picaPremerNormalna: 32,
+      picaPremerDruzinska: 40,
     },
     nastavitveLoading: false,
   }),
@@ -264,7 +360,7 @@ async function klikniMikInPridobionResult(): Promise<(tekst: string) => void> {
     return true;
   });
 
-  const micButton = screen.getByTitle("Glasovni ukaz (npr. »dodaj pica«)");
+  const micButton = screen.getAllByTitle("Glasovni ukaz — naroči s prostim govorom")[0];
   await act(async () => {
     fireEvent.click(micButton);
   });
@@ -274,7 +370,19 @@ async function klikniMikInPridobionResult(): Promise<(tekst: string) => void> {
     { onResult: (t: string) => void },
     ...unknown[]
   ];
-  return lastCall[0].onResult;
+  return (tekst: string) => {
+    const originalSetTimeout = globalThis.setTimeout;
+    // Prepoznava obravnava ukaz po 4,5 s tišine. V testu sprožimo samo ta
+    // zaključek takoj, ne pa tudi zaščitnega 60-sekundnega časovnika.
+    globalThis.setTimeout = ((fn: TimerHandler, delay?: number, ...args: unknown[]) => {
+      if (delay === 4500 && typeof fn === "function") {
+        return originalSetTimeout(fn, 0, ...args);
+      }
+      return originalSetTimeout(fn, delay, ...args);
+    }) as typeof setTimeout;
+    lastCall[0].onResult(tekst);
+    globalThis.setTimeout = originalSetTimeout;
+  };
 }
 
 // ── Testi ─────────────────────────────────────────────────────────────────────
@@ -290,6 +398,53 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     mockZacniGlasovni.mockClear();
     mockZacniGlasovni.mockReturnValue(true);
     mockListArtikliData.mockReturnValue([mockPica]);
+  });
+
+  it("mobilna glava prikaže čas priprave samo enkrat in ga ne ponavlja v preklopniku ali QR opozorilu", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const mobileTabs = await screen.findByTestId("mobile-order-tabs");
+    const mobileSummary = screen.getByTestId("mobile-order-summary");
+
+    expect(screen.getAllByTestId("order-context-line")).toHaveLength(2);
+    expect(within(mobileTabs).queryByText(/Pripravljeno ob/i)).not.toBeInTheDocument();
+    expect(within(mobileSummary).queryByText(/Dostava ob/i)).not.toBeInTheDocument();
+    const contextLine = within(mobileSummary).getByTestId("order-context-line");
+    expect(contextLine).toHaveTextContent(/Miza 5.*Terasa.*#99.*QR.*14:30/);
+    expect(within(contextLine).getByLabelText("Dostava ob 14:30")).toBeInTheDocument();
+  });
+
+  it("na desktopu prikaže isto kontekstno vrstico tudi v desnem oknu naročila", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const rightContextLine = await screen.findByTestId("right-order-context-line");
+
+    expect(rightContextLine).toHaveTextContent(/Miza 5.*Terasa.*#99.*QR.*14:30/);
+    expect(within(rightContextLine).getByLabelText("Dostava ob 14:30")).toBeInTheDocument();
+    expect(rightContextLine).toHaveClass("hidden", "md:flex");
+    expect(screen.queryByTestId("kds-type-label")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("qr-gost-staff-info")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("uredi-predviden-cas")).not.toBeInTheDocument();
+
+    const guestActions = screen.getByTestId("right-order-guest-actions");
+    expect(guestActions).toHaveClass("flex", "items-center", "gap-1");
+    expect(within(guestActions).getByTitle("Uvozi iz računa")).toBeInTheDocument();
+    expect(within(guestActions).getByTitle("Glasovni ukaz — naroči s prostim govorom")).toBeInTheDocument();
+  });
+
+  it("v dialogu za prenos prikaže ciljno mizo skupaj s prostorom", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    fireEvent.click(await screen.findByTitle("Prestavi na mizo"));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Miza 8 · Salon")).toBeInTheDocument();
   });
 
   // ── 1. Glasovni vnos → dialog (ne direct add) ──────────────────────────────
@@ -342,6 +497,38 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     expect(dodanoToasti).toHaveLength(0);
   });
 
+  it("AI glasovni ukaz izbere malo Margherito in trikotni razrez brez dodatnega dialoga", async () => {
+    mockAddPostavkaMutate.mockImplementation(
+      (_args: unknown, options?: { onSuccess?: (data: unknown) => void }) => {
+        options?.onSuccess?.({ ...mockNarocilo, postavke: [] });
+      },
+    );
+
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const onResult = await klikniMikInPridobionResult();
+    await act(async () => {
+      onResult("dodaj pica margherita mala trikotni razrez");
+    });
+
+    await waitFor(() => {
+      expect(mockAddPostavkaMutate).toHaveBeenCalledTimes(1);
+    });
+
+    type MutateArgs = { id: number; data: Record<string, unknown> };
+    const klic = (mockAddPostavkaMutate.mock.calls[0] as [MutateArgs, ...unknown[]])[0];
+    expect(klic.data.artikelId).toBe(mockPica.id);
+    expect(klic.data.velikostPice).toBe("mala");
+    expect(klic.data.izbranModifikatorji).toEqual([{
+      modifikatorId: mockRazrezTrikotni.id,
+      ime: mockRazrezTrikotni.ime,
+      cenaDodatek: 0,
+    }]);
+    expect(screen.queryByText(/Izberi možnosti pred potrditvijo/i)).not.toBeInTheDocument();
+  });
+
   // ── 3. Tap → dialog (enako kot glasovni vnos) ─────────────────────────────
 
   it("tap na pico z modSkupine odpre dialog — NE pokliče addPostavka takoj", async () => {
@@ -360,6 +547,80 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     });
 
     expect(mockAddPostavkaMutate).not.toHaveBeenCalled();
+  });
+
+  it("prikaže naziv, premer in ceno vsake aktivne velikosti znotraj gumba", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const picaButton = await screen.findByRole("button", { name: /Margherita/i });
+    await act(async () => {
+      fireEvent.click(picaButton);
+    });
+
+    const mala = await screen.findByRole("button", { name: /Mala.*26 cm.*7\.00 €/i });
+    const normalna = screen.getByRole("button", { name: /Normalna.*32 cm.*8\.50 €/i });
+    const druzinska = screen.getByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i });
+
+    expect(mala).toHaveAttribute("aria-pressed", "false");
+    expect(normalna).toHaveAttribute("aria-pressed", "true");
+    expect(druzinska).toHaveAttribute("aria-pressed", "false");
+
+    await act(async () => {
+      fireEvent.click(druzinska);
+    });
+
+    expect(druzinska).toHaveAttribute("aria-pressed", "true");
+    expect(normalna).toHaveAttribute("aria-pressed", "false");
+    expect(within(druzinska).getByText("12.00 €")).toBeInTheDocument();
+    expect(screen.getByText("12.50 €")).toBeInTheDocument();
+  });
+
+  it("v skupino Razrez razporedi vsak aktivni modifikator z besedo razrez", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const picaButton = await screen.findByRole("button", { name: /Margherita/i });
+    await act(async () => {
+      fireEvent.click(picaButton);
+    });
+
+    const razrez = await screen.findByTestId("pizza-mod-group-razrez");
+    const dodatki = screen.getByTestId("pizza-mod-group-dodatki");
+    const brez = screen.getByTestId("pizza-mod-group-brez");
+
+    expect(within(razrez).getByRole("button", { name: "Trikotni razrez" })).toBeInTheDocument();
+    expect(within(razrez).getByRole("button", { name: "Štirikotni razrez" })).toBeInTheDocument();
+    expect(within(razrez).getByRole("button", { name: "Razrez na polovico" })).toBeInTheDocument();
+    expect(within(dodatki).getByRole("button", { name: /Sir/ })).toBeInTheDocument();
+    expect(within(dodatki).queryByRole("button", { name: /razrez/i })).not.toBeInTheDocument();
+    expect(within(brez).getByRole("button", { name: "Brez čebule" })).toBeInTheDocument();
+  });
+
+  it("pri pici dovoli samo en razrez ali nobenega", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /Margherita/i }));
+    });
+
+    const razrez = await screen.findByTestId("pizza-mod-group-razrez");
+    const trikotni = within(razrez).getByRole("button", { name: "Trikotni razrez" });
+    const stirikotni = within(razrez).getByRole("button", { name: "Štirikotni razrez" });
+
+    fireEvent.click(trikotni);
+    expect(trikotni).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(stirikotni);
+    expect(trikotni).toHaveAttribute("aria-pressed", "false");
+    expect(stirikotni).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(stirikotni);
+    expect(stirikotni).toHaveAttribute("aria-pressed", "false");
   });
 
   // ── 4. Zaprtje dialoga → addPostavka se NE pokliče, stanje se ponastavi ────
@@ -447,6 +708,10 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
       fireEvent.click(picaButton);
     });
 
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i }));
+    });
+
     const potrdiButton = await screen.findByRole("button", { name: /Potrdi/i });
 
     await act(async () => {
@@ -462,6 +727,7 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
 
     expect(prviKlic[0].id).toBe(NAROCILO_ID);
     expect(prviKlic[0].data.artikelId).toBe(mockPica.id);
+    expect(prviKlic[0].data.velikostPice).toBe("druzinska");
     expect(Array.isArray(prviKlic[0].data.izbranModifikatorji)).toBe(true);
     const modifikatorji = prviKlic[0].data.izbranModifikatorji as Array<{ modifikatorId: number; ime: string; cenaDodatek: number }>;
     expect(modifikatorji).toEqual([{ modifikatorId: 100, ime: "Sir", cenaDodatek: 0.5 }]);

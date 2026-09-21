@@ -6,39 +6,764 @@ id = "Kad5zn33OAeyXtSU-Dh7O"
 uri = "file://attached_assets/ZcsPrinterBridge_1785252514974.kt"
 type = "unspecified"
 title = "ZcsPrinterBridge.kt (popravljen)"
+logical_id = "4cbc6bd0-861e-414a-ad9e-788b11e0c422"
 
 [[outputs]]
 id = "UpkxZvs8326OwdENLH5am"
 uri = "file://artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ZcsPrinterBridge.kt"
 type = "unspecified"
 title = "ZcsPrinterBridge.kt"
+logical_id = "3015575e-6322-4c2b-829e-f619e94aed35"
 
 [[outputs]]
 id = "ujUvwxuDIEqziXStl2hRY"
 uri = "file://artifacts/zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/PrintServerService.kt"
 type = "unspecified"
 title = "PrintServerService.kt (bere zoi)"
+logical_id = "6d6399ba-7592-4379-9450-8c3bcbbce625"
 
 [[outputs]]
 id = "DE_HovpAiSYRdvdyY0Kik"
 uri = "file://memory-backup.zip"
 type = "unspecified"
 title = "Memory backup"
+logical_id = "a636a516-5a81-404b-b0b1-21938e92c403"
 
 [[outputs]]
 id = "AZQ44KuBjmJhUm3hRcqqN"
 uri = "file://pos-prirucnik.docx"
 type = "word_document"
 title = "POS Gostinstvo — Priročnik v2.1"
+logical_id = "d57db660-5b1d-4ad3-a7f6-c5a70ec731ad"
 
 [[outputs]]
 id = "J1YDGzDvhqinxRkg4O1Gt"
 uri = "file://pos-prirocnik.docx"
 type = "word_document"
 title = "POS Gostinstvo — Priročnik v2.1"
+logical_id = "d65b5374-29bc-4750-b37b-49a48680255e"
 
 [[outputs]]
 id = "gCLGHamMz4g5MqkOtat-d"
 uri = "file://scanner-bridge.zip"
 type = "unspecified"
 title = "scanner-bridge.zip"
+logical_id = "30d9853c-b390-4c1e-ad75-6292a1269e5b"
+
+[[outputs]]
+id = "6GhvvFB0KBGtpcP-RMmzu"
+uri = "file://scanner-bridge/ScannerBridge-setup.zip"
+type = "unspecified"
+title = "ScannerBridge-setup.zip"
+description = "Popravek: log_config=None prepreči uvicorn napako pri inicializaciji formatter-ja v EXE"
+logical_id = "919b0229-fe51-477a-b1d2-f47d5751bb16"
+
+[[outputs]]
+id = "-WJDlHoKZ--0bPIunKJJG"
+uri = "file://tests/uvoz-prejemnic-manual/testne-datoteke-uvoz.zip"
+type = "unspecified"
+title = "Testne datoteke — uvoz prejemnic"
+description = "engrotus-eslog20.xml + engrotus-csv.csv (ENGROTUŠ, 9 postavk, rabat, 2 DDV skupini)"
+logical_id = "572d1b9e-3a78-4d01-97f8-144dbfa761f2"
+
+[[outputs]]
+id = "__RZ4hxeTINQhsryz9M_x"
+uri = "file://artifacts/nb80-printer-bridge.zip"
+type = "unspecified"
+title = "NB80 Printer Bridge — Android projekt"
+description = "Najnovejša verzija: printBitmap() namesto printQrCode(), transliteracija č/š/ž→c/s/z, MONOSPACE pisava, setPaperWidth(576), textSize 10/13."
+logical_id = "6f670615-80f0-4398-9158-e0d28f3edd0e"
+
+[[outputs]]
+id = "uKhdos3nWVLWW57hU1Xjw"
+uri = "file://nyx-printer-bridge.zip"
+type = "unspecified"
+title = "NyxPrinterBridge v9 — 20 mm praznega prostora na koncu"
+description = "paperOut(144px) = 20 mm po printEndAutoOut()"
+logical_id = "bc409c0b-2c7c-4e38-9262-c3cbfa8cf9b0"
+
+[[outputs]]
+id = "5Sa9SFwFs-P0rfOjyFnxd"
+uri = "file://zcs-printer-bridge.zip"
+type = "unspecified"
+title = "zcs-printer-bridge.zip"
+description = "ZCS Z92 tiskalni most — Android projekt (popravek batch tiskanja)"
+logical_id = "5b270782-ed8a-4da3-8543-62588207eca8"
+
+[[outputs]]
+id = "jFvprrkQ2g11MvdrgZX7s"
+uri = "file://zcs-bridge-batch-fix.zip"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt — batch fix"
+description = "Nadomestitvena datoteka za ZCS most. Kopiraj v zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ in zgradi APK."
+logical_id = "c79e3991-82dc-4eed-9049-8ad09fbe080f"
+
+[[outputs]]
+id = "7BiM6Sop1i7BgDkheOh2h"
+uri = "file://zcs-bridge-group-fix.zip"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt — group fix"
+description = "Nadomestitvena datoteka za ZCS most. Kopiraj v zcs-printer-bridge/app/src/main/java/si/pos/zcsbridge/ in zgradi APK."
+logical_id = "e03481cc-ee1f-42a1-8b8c-1b491b645ec0"
+
+[[outputs]]
+id = "NxCZ1Ynh7tE1MOScg9RtF"
+uri = "file://zcs-bridge-single-call.zip"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt — en klic (brez pavz)"
+description = "Vse vrstice v enem setPrintAppendString() klicu — neprekinjeno tiskanje brez pavz med segmenti."
+logical_id = "f08b0019-9d5b-40bd-a52f-9e20e1284120"
+
+[[outputs]]
+id = "aFBUufnpTZnAH7NcHmZkE"
+uri = "file://zcs-bridge-appendstrings.zip"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt — setPrintAppendStrings"
+description = "En SDK klic z vsemi vrsticami in ločenim formatom na vrstico. Odpravlja intermittentno odrezavin in ohranja bold."
+logical_id = "1db6779b-59c0-4ba1-a8fc-4447f5d07387"
+
+[[outputs]]
+id = "0r6pkF7-sNZRYs6OhUhHi"
+uri = "file://zcs-bridge-blank-fix.zip"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt — blank line fix"
+description = "Prazne vrstice zamenjane s presledkom pred setPrintAppendStrings — odpravlja 'width/height must be > 0'."
+logical_id = "bd1f66d6-d877-405a-a4d3-eb12c98b09c5"
+
+[[outputs]]
+id = "L6hWMbC1WixDc04X9i0fa"
+uri = "file://zcs-bridge-chunk800.zip"
+type = "unspecified"
+title = "ZcsPrinterBridge.kt — 800-znak chunki"
+description = "En setPrintStart(), chunki po 800 znakov. Kratki računi = 1 klic brez pavz, daljši = 2 klica."
+logical_id = "8b2659d2-9ba1-4a88-879d-5e9ba64b0bb7"
+
+[[outputs]]
+id = "bmT6Y302tAAwerA_l9pc0"
+uri = "file://bitmap_diagnostic.png"
+type = "image"
+title = "Bitmap račun — testni PNG (diagnostika)"
+description = "Canvas izris 384×908 px, 19px DejaVu Bold, lineHeight=28px (1.47×). Preverite razmike med vrsticami."
+logical_id = "12395266-5d64-44df-9808-daea9a2ceea3"
+
+[[outputs]]
+id = "_uxaMnhsamQmY0PAJOh0j"
+uri = "file://attached_assets/Kontni_plan_gospodarske_druzbe.txt"
+type = "text"
+title = "Kontni plan za gospodarske družbe – tekstovni izpis"
+description = "Celoten končni kontni plan z 990 konti, nadrejenimi konti ter oznakami skupinskih in knjižljivih kontov."
+logical_id = "57568736-a823-48be-b585-a29c30f59525"
+
+[[outputs]]
+id = "_my3UD9X2UY2_dLuEzcYq"
+uri = "file://attached_assets/Kontni_plan_gospodarske_druzbe_7_mestni.txt"
+type = "text"
+title = "Kontni plan za d.o.o. – 7-mestne kode"
+description = "Celoten, neokrnjen tekstovni izpis končnega plana z 7-mestnimi konti, hierarhijo in oznako knjižljivosti."
+logical_id = "abf989c9-e34e-4406-af61-cd6c7b79d487"
+
+[[outputs]]
+id = "BDy9JXZMYzugoGHMDaxLF"
+uri = "file://attached_assets/Koncni_kontni_plan_SRS_7_mestni.txt"
+type = "text"
+title = "Celotni kontni plan SRS – 7-mestni"
+description = "Vseh 266 kontov v razredih 0–9; vsaka izvorna 4-mestna koda je razširjena s 000."
+logical_id = "5891c48e-ae0b-4cbe-bc60-e4fcdf84bd02"
+
+[[outputs]]
+id = "rCx6kJhu6TWPXmdLvqgJX"
+uri = "file://attached_assets/razlikovalni_predlog_kontnega_plana.md"
+type = "text"
+title = "Razlikovalni predlog kontnega plana"
+description = "Primerjava Python različice in novega PDF-ja: 8 kod samo v Pythonu, 15 samo v PDF-ju in 61 skupnih kod z različnimi nazivi."
+logical_id = "e2ceea86-0719-4e35-8536-cd8e8c91ec61"
+
+[[outputs]]
+id = "YwbPO7iOXQeWaQUhgXAoh"
+uri = "file://docs/BOOKIE-ERP-POS-Gostinstvo-reklamni-dokument.pdf"
+type = "pdf"
+title = "BOOKIE-ERP POS Gostinstvo — reklamni dokument"
+description = "Šeststranski predstavitveni PDF za gostinske lokale in obrate: blagajna, KDS, telefonska naročila, dostava, zaloge, FURS in ERP povezava."
+logical_id = "b961d24c-9538-4dc1-92e6-6d8f1d057264"
+
+[[outputs]]
+id = "lch4CGcmSmhJYHm1j1FTn"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v3.0.docx"
+type = "word_document"
+title = "POS Gostinstvo — uporabniški priročnik v3.0"
+description = "Celovito posodobljen priročnik za modul POS Gostinstvo: nastavitve, uporabniki, FURS, naročila, plačila, tiskanje, kuhinja, izmene, zaloge, pripravljena hrana, kalo, odpadki s krožnikov, poročila, kontrolni seznami in odpravljanje težav."
+logical_id = "b1dc6112-4255-4cc7-b3db-aea023c6cf87"
+
+[[outputs]]
+id = "UROswAcvtW8CBwCUeF9uO"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v4.0.pdf"
+type = "pdf"
+title = "POS Gostinstvo — razširjeni uporabniški priročnik v4.0 PDF"
+description = "124-stranski A4 priročnik v slovenščini za uporabnike, vodje, administratorje in skrbnike: prijava, vloge, naročila, KDS, plačila, FURS, izmene, zaloge, WAC, pripravljena hrana, kalo, odpadki s krožnikov, QR/To Go, poročila, ERP temeljnice, naprave, odpravljanje težav in delovni listi."
+logical_id = "ddb973f5-64f1-434d-b99c-9d0d82be021a"
+
+[[outputs]]
+id = "KvrjFB6Wi09TQ5Q70gcDe"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v5.0.pdf"
+type = "pdf"
+title = "Mikrona d.o.o. — POS Gostinstvo, priročnik v5.0"
+description = "Posodobljen 252-stranski PDF priročnik z zaščitnim znakom podjetja Mikrona d.o.o. in podrobnimi navodili za vse glavne module POS Gostinstvo."
+logical_id = "f0aab756-944b-48b4-a20b-d9e1bafbf7a0"
+
+[[outputs]]
+id = "yh650pS8i-lkNP6D46hjV"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.0.pdf"
+type = "pdf"
+title = "POS Gostinstvo — uporabniški priročnik v6.0"
+description = "Razširjena izdaja na 378 straneh z začetkom dela, vlogami in pravicami, podrobnimi nastavitvami, postopki po vlogah, diagnostiko ter kontrolnimi seznami."
+logical_id = "b7c1cfc7-1561-47ba-a610-82070709968d"
+
+[[outputs]]
+id = "yccTZ8pgIwmpERMXqh_Gk"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.1.pdf"
+type = "pdf"
+title = "POS Gostinstvo — uporabniški priročnik v6.1"
+description = "Posodobljena izdaja s pravilno količinsko korekcijo, izračunom Skupaj in kala ter stroškovnim prenosom ene kalne porcije po strošku ene pripravljene porcije."
+logical_id = "2deab22a-74f4-4a4d-b4ba-3c80fce744ef"
+
+[[outputs]]
+id = "BNd-xza_b-QS8eqbHn_bn"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.2.pdf"
+type = "pdf"
+title = "POS Gostinstvo – priročnik v6.2"
+description = "Posodobljen PDF priročnik z navodili za QR meni, Wi-Fi nastavitve in drsenje v dialogu Uredi poslovno enoto."
+logical_id = "8b7221d1-7afe-48c0-9495-745f0fdca17d"
+
+[[outputs]]
+id = "AbBeG9WTRBX45zPZfjnSJ"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.3.pdf"
+type = "pdf"
+title = "POS Gostinstvo — uporabniški priročnik v6.3"
+description = "Posodobljen slovenski uporabniški priročnik. Vključuje pravilen postopek kartične napitnine, omejitve Payten/SumUp/Viva ter pravilo, da se napitnina vodi ločeno od prodaje in DDV."
+logical_id = "9e780e88-fab7-4b04-a793-545f387131d4"
+
+[[outputs]]
+id = "06Ed-QAHP5z0_sd0jwQoo"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.4.pdf"
+type = "pdf"
+title = "POS Gostinstvo — uporabniški priročnik v6.4"
+description = "Dopolnjena izdaja z Bankartovo ECR specifikacijo: pojasnjena je omejitev polja Transaction amount 2, pravilen terminalski potek napitnine ter prepoved uporabe starih fiksnih napitnin."
+logical_id = "f03ff933-19fc-4c2c-925a-7df13e41ddc2"
+
+[[outputs]]
+id = "3sglGIRiuM_EGcnsO_8nM"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-arm64-release.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge — Android testni APK"
+description = "Arm64 release APK za fizični Viva Demo preizkus. APK je podpisan z razvojnim Android ključem in ni namenjen javni produkcijski distribuciji."
+logical_id = "fa83816a-eccc-437c-8f73-30fa3737ff65"
+content_hash = "sha256:f18c9f77b960a95251c73ec3f4ed9ed80fb922ea60dde18651154e1927a08a8d"
+size = 39384981
+mtime_ms = 1788257457340
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/fa83816a-eccc-437c-8f73-30fa3737ff65/093220e2-fdf4-46ee-b435-4f057d404843"
+storage_version_token = "1788257485465256"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "I19YoIKpVbI4gru-NRJ9G"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-armeabi-v7a-release.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge – ZCS Z92 z Android URI filtrom"
+description = "Popravljen 32-bitni APK z dejanskima bookie-viva-bridge://pay in result filtroma v native manifestu. Veljaven APK v2 podpis; SHA-256: ad76706f17f8895ec8264b64fd253acd9aeb88165fb366a96b3b90ff83508fee."
+logical_id = "f1cfa1a3-df2d-4d0c-826f-2409cff54dfe"
+content_hash = "sha256:ad76706f17f8895ec8264b64fd253acd9aeb88165fb366a96b3b90ff83508fee"
+size = 33335731
+mtime_ms = 1788262326593
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/f1cfa1a3-df2d-4d0c-826f-2409cff54dfe/6c32527d-2333-4ba6-843a-022e00c831fa"
+storage_version_token = "1788262400879138"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "9QzVt7Mv-MWB0Eo5t9U7T"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-v1.0.1-zcs-z92.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.0.1 za ZCS Z92"
+description = "Posodobljeni APK z odpravo napačnega 404 zaslona pri Viva plačilnem URI-ju. Namestite ga čez obstoječo aplikacijo Bookie Viva Bridge."
+logical_id = "a9d349ea-8816-402f-8ca7-7e50267237ba"
+content_hash = "sha256:b9b67276422c581d77bbde09deb73ffde1ebdf4ee85279e0ccbb2864dc19c887"
+size = 33347051
+mtime_ms = 1788286366381
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a9d349ea-8816-402f-8ca7-7e50267237ba/41c2c35b-45b2-45bb-9ce6-57949ae40419"
+storage_version_token = "1788286400954854"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "CQ0qq_bhNSPMS__E2PQmx"
+uri = "file://attached_assets/ZcsTiskalniMost-v1.1.1.apk"
+type = "unspecified"
+title = "ZCS Tiskalni Most 1.1.1"
+description = "Nova čista namestitev za ZCS Z92: enotno tiskalno opravilo za besedilo in QR, brez 5-sekundnega čakanja in brez vmesnega 2 cm odmika."
+logical_id = "0dbeebdb-3e10-4d63-ae36-0e35c6d4da8b"
+content_hash = "sha256:94acdb83366fd69ad6e588214cfc33834e5bce463d2571c67a55306978dff889"
+size = 4098806
+mtime_ms = 1788296289208
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/0dbeebdb-3e10-4d63-ae36-0e35c6d4da8b/8b04eeaa-3970-41fc-a747-b1b9e0ff0f83"
+storage_version_token = "1788296297308377"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "mxQnA3hrqtsD9ffCvzpDQ"
+uri = "file://artifacts/zcs-printer-bridge/dist/ZcsPrinterBridge-1.1.1-fixed.apk"
+type = "unspecified"
+title = "ZcsPrinterBridge 1.1.1 – popravljena verzija"
+description = "Podpisan ARM 32-bit APK za ZCS Z92 iz zadnje popravljene izvorne kode. Pred namestitvijo bo zaradi drugačnega podpisa verjetno treba odstraniti trenutno verzijo 1.2.0."
+logical_id = "96081407-60d0-41c7-92f4-b719e2bcccd6"
+content_hash = "sha256:6aea11ac0d5dbcc770b3eb0255830021943286c425d3fbbe0a4af9d9688787ad"
+size = 4098806
+mtime_ms = 1788314822257
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/96081407-60d0-41c7-92f4-b719e2bcccd6/73a3d14b-0380-4702-873d-e472b4381582"
+storage_version_token = "1788314842763785"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "4M4FRedeeIWqVJvH3Sfbc"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-v1.0.2-zcs-z92.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.0.2 – ZCS Z92"
+description = "Posodobljen 32-bitni APK: Bridge se po predaji rezultata odstrani iz zgodovine aplikacij, POS pa naročilo po povratku naloži neposredno po ID-ju."
+logical_id = "7f6f206e-cdd1-4f4b-9e86-85b850d62fb1"
+content_hash = "sha256:4e66a536b7d6048f47116677fd0d57ddb2e56455951adf828f2a751fe8b9eb31"
+size = 31833829
+mtime_ms = 1788322731252
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7f6f206e-cdd1-4f4b-9e86-85b850d62fb1/26e29849-fbd7-4dbd-b193-7472ccbb5c34"
+storage_version_token = "1788322937923755"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "olxUdiykv9NMuBvpjs4rn"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-v1.0.3-zcs-z92.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.0.3 – ZCS Z92"
+description = "Popravljen 32-bitni APK z usklajenim Android paketom. Ista različica je na voljo tudi v POS nastavitvah pod Prenesi za ZCS Z92."
+logical_id = "bc855fd7-d35a-4291-900f-b0d9165a22fd"
+content_hash = "sha256:51ce01dc9bb3be4bfb4c64f09c47a376349e8421045315da4111286e37cdba1e"
+size = 31936264
+mtime_ms = 1788323622816
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/bc855fd7-d35a-4291-900f-b0d9165a22fd/64102eb5-5e18-4ed9-a9d5-df4249e9fb12"
+storage_version_token = "1788323743299632"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "z2IaDKjgxzcwDFO0wsWDm"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-v1.0.4-zcs-z92.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.0.4 – ZCS Z92"
+description = "Native Android različica brez React Native/Hermes zagona, pripravljena za odpravo takojšnjega sesutja na ZCS Z92. Isti APK je na voljo v POS nastavitvah pod Prenesi za ARM 32 bit."
+logical_id = "bebb0d04-5ec2-42c6-afb9-7d209af6043b"
+content_hash = "sha256:b6aadb0c3b07ecb155a2991425d36144b76015a9707337fb3333f8b7983206f4"
+size = 31833797
+mtime_ms = 1788324430732
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/bebb0d04-5ec2-42c6-afb9-7d209af6043b/fe303256-cb7e-4c85-bac9-5e6a14a7186b"
+storage_version_token = "1788324477859711"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "uGaWuWHkItbUjXTr_ogPH"
+uri = "file://artifacts/bookie-viva-bridge/dist/bookie-viva-bridge-v1.0.5-zcs-z92.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.0.5 — ZCS Z92"
+description = "Native Android Bridge, ki ostane živ do Viva callbacka in se zapre šele po predaji rezultata POS-u."
+logical_id = "c5c99b79-8586-4e53-8b98-0f8fadab2bc6"
+content_hash = "sha256:2eafe8921e0f03a1ea93cb9d7d3d0938e3d739b1a84c45eb1c72eafa4ed5e893"
+size = 12655
+mtime_ms = 1788330199097
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/c5c99b79-8586-4e53-8b98-0f8fadab2bc6/5f968a92-7029-4882-98dc-60a631e08bb7"
+storage_version_token = "1788330284886360"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "zdluWX1-xuKcUJh1vxwBC"
+uri = "file://artifacts/bookie-viva-bridge/dist/BookieVivaBridge.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.0.6"
+description = "Univerzalni Android APK z ločeno Viva callback aktivnostjo za zanesljiv povratek rezultata v POS."
+logical_id = "435f4d22-392b-4163-a63a-f38fa227ffff"
+content_hash = "sha256:d56d4784860423a63a4ee4969b2fed84518360aa1c6189433b5ea3ab9f3ef414"
+size = 12655
+mtime_ms = 1788331424941
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/435f4d22-392b-4163-a63a-f38fa227ffff/8d37e594-eb7b-486f-a3f0-5cf9a2e13119"
+storage_version_token = "1788331486648916"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Oag-bOLqu25xkGuuWQ0rh"
+uri = "file://artifacts/api-server/src/assets/downloads/BookieVivaBridge.apk"
+type = "unspecified"
+title = "Bookie Viva Bridge 1.1.0"
+description = "Samsung popravek povratka po Viva plačilu. Paket in podpis sta enaka različici 1.0.9, zato se namesti kot neposredna nadgradnja."
+logical_id = "efbb1a0f-0423-4959-9075-b6c7a83ae726"
+content_hash = "sha256:c088466be998e1e00b420eaf14fc7f49c0a9ce8672522baedc27fe65a60a81aa"
+size = 16751
+mtime_ms = 1788368339481
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/efbb1a0f-0423-4959-9075-b6c7a83ae726/3d709c91-c751-425d-ac98-def5f7223ba7"
+storage_version_token = "1788368407252709"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "AR0z2gEWOQ81JS3vk1ZVF"
+uri = "file://artifacts/api-server/src/assets/downloads/NoryoxNB80Bridge.apk"
+type = "unspecified"
+title = "Stabilni NB80 Tiskalni Most 1.5"
+description = "Obnovljeni originalni podpisani APK na portu 8091. Preverjeno pravilno tiska č, š, ž, € in celoten QR; QR ostane centriran za 58-mm papir."
+logical_id = "eaa743d3-9194-4d64-9c7e-289f97f39826"
+content_hash = "sha256:91a59baec45309f3eb06a439a418ffd249401ae591df1188616ae7aeb8748890"
+size = 2498293
+mtime_ms = 1788366866496
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/eaa743d3-9194-4d64-9c7e-289f97f39826/401affa2-00f8-467a-b2de-c5930beaf4e4"
+storage_version_token = "1788366935229963"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "YupyillHOsDMECB40OiTD"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.5.pdf"
+type = "pdf"
+title = "POS Gostinstvo – uporabniški priročnik v6.5"
+description = "Posodobljen celovit priročnik z novim delom XII, ki združuje dosedanje spremembe plačil, Viva/FURS tokov, tiskanja, QR in telefonskih naročil, zalog, ERP temeljnic, poročil, osnovnih sredstev ter varnostnih postopkov."
+logical_id = "02046cc8-a123-4003-90e1-62bc68e52da6"
+content_hash = "sha256:4335623c290c57ebefc5ae99b6e94ed539ad23d2390b4e59f36fe5a19fc7104c"
+size = 1816618
+mtime_ms = 1788422934973
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/02046cc8-a123-4003-90e1-62bc68e52da6/ec9d8da6-6e64-464f-bfb7-7c80405365dd"
+storage_version_token = "1788423017244204"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "kHB6T4dyxJ-VXznGYJoe2"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.6.pdf"
+type = "pdf"
+title = "POS Gostinstvo – priročnik v6.6"
+description = "Posodobljen priročnik z novo razporeditvijo Upravljanja menija ter skupnim PDF-cenikom z alergeni."
+logical_id = "3a5804d2-ad45-429e-a149-d0362060433b"
+content_hash = "sha256:f5bf19f5baf676985df018200d1ec35bcea89b340de59d8d212544181c34782d"
+size = 1818495
+mtime_ms = 1788444121686
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/3a5804d2-ad45-429e-a149-d0362060433b/59758501-3b85-477a-8b2b-cdd9acd09f99"
+storage_version_token = "1788444178351511"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "97Dnv2fYaU3v5UJTtcZ3H"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.7.pdf"
+type = "pdf"
+title = "POS Gostinstvo – uporabniški priročnik v6.7"
+description = "Posodobljen 434-stranski priročnik z vsemi zbranimi funkcionalnimi, operativnimi, računovodskimi, terminalskimi, tiskalniškimi, varnostnimi in administrativnimi dopolnitvami."
+logical_id = "7e58a281-93cb-40f5-972f-899db0f2ff98"
+content_hash = "sha256:563901f19fd75e5813327532a70366c6f6cff4a8174a84bebb8a517ef0b60050"
+size = 1840095
+mtime_ms = 1788449901550
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7e58a281-93cb-40f5-972f-899db0f2ff98/23160f8e-296d-41cd-abb2-a2133456ee87"
+storage_version_token = "1788449913796147"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "yCTsOchn5vsonywp-S1KY"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v6.8.pdf"
+type = "pdf"
+title = "POS Gostinstvo – uporabniški priročnik v6.8"
+description = "Posodobljen priročnik z navodili za profile enot, začasne in dogodkovne enote, osebje, prenose in vračila zaloge ter append-only revizijsko sled."
+logical_id = "d34ebf5f-6d2f-4f2b-951b-157a31a7a171"
+content_hash = "sha256:be95c2012734f201d4f87437f708d1a493b3d6786d1c0fd3b5065a20b11df12e"
+size = 1862916
+mtime_ms = 1788514429960
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/d34ebf5f-6d2f-4f2b-951b-157a31a7a171/5863015b-e1e6-469e-a3a7-c077edd1dd81"
+storage_version_token = "1788514460216265"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "XW52XL02YWG9P8qJPXnNb"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v7.0.pdf"
+type = "pdf"
+title = "POS Gostinstvo — podrobni uporabniški priročnik v7.0"
+description = "Končna razširjena izdaja: 689 strani A4, 12 logično urejenih poglavij, podrobni postopki, praktični primeri, odpravljanje težav, kontrolni seznami in preverjanje znanja."
+logical_id = "b2cb3e57-730f-4d5b-aa18-d6fbe019c0c8"
+content_hash = "sha256:f231e02acf58e4c68c0dbf4956ff0c9706729a113bd686aedf950191db1ab384"
+size = 2728084
+mtime_ms = 1788688788400
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/b2cb3e57-730f-4d5b-aa18-d6fbe019c0c8/8fd1084e-ab53-4e5b-b6a2-ddd712d3c5e2"
+storage_version_token = "1788688810489852"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "5AH5wuX11Qjp-w3LVgqOc"
+uri = "file://docs/POS-Gostinstvo-pregled-in-priporocila.md"
+type = "text"
+title = "POS Gostinstvo — pregled in priporočila"
+description = "Celovit pregled implementiranih področij, omejitev ter prioritet P0, P1 in P2 z merljivimi kriteriji sprejema."
+logical_id = "3572753c-ef16-459a-8a28-9a3edc78fb83"
+content_hash = "sha256:f5ccddc182f695af81adb163b9015acca69a51a8911aa82c54da102c78656616"
+size = 8640
+mtime_ms = 1788687142928
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/3572753c-ef16-459a-8a28-9a3edc78fb83/2ffb2673-55a3-46e4-a14e-38c2f78f8090"
+storage_version_token = "1788687208653670"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "qcl_9YI3R3lM4yJHleXyl"
+uri = "file://docs/POS-Gostinstvo-celoten-pregled.pdf"
+type = "pdf"
+title = "POS Gostinstvo — celovit pregled modula"
+description = "19-stransko revizijsko poročilo: implementirane funkcije, delne omejitve, manjkajoče funkcije, tveganja, prioritete P0/P1/P2 in zaključna matrika."
+logical_id = "5b7dff8b-f2a2-4be8-9c1d-9c0255629471"
+content_hash = "sha256:ba77fb13a639fa7ade4b9dd33d6ae2dd8becdd114239840fc640a20523ee60d5"
+size = 127048
+mtime_ms = 1788690035248
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/5b7dff8b-f2a2-4be8-9c1d-9c0255629471/418e5c26-3f49-4687-8d18-7c3ea7461cc6"
+storage_version_token = "1788690053264268"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "GWoyZXix77YIkZRe7Jb2j"
+uri = "file://docs/POS-Gostinstvo-ocena-produkcijske-pripravljenosti.pdf"
+type = "pdf"
+title = "POS Gostinstvo — ocena produkcijske pripravljenosti"
+description = "8-stranska odločitev o produkcijskem pilotu in prehodu iz starega programa, z razlogi, pogoji GO, faznim načrtom ter kontrolnim seznamom lokacije."
+logical_id = "7a11b241-1797-494d-b0a2-c5b091e9c013"
+content_hash = "sha256:37ef6794ad3966e766de0b7434aa0b8b7cfa2187e286c95662ba0f34f87f613a"
+size = 73567
+mtime_ms = 1788691017815
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7a11b241-1797-494d-b0a2-c5b091e9c013/8aa9daed-8536-4dfc-940b-c93e0508a0d0"
+storage_version_token = "1788691035088654"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "H8qWcJC2uKJktVi27Kez4"
+uri = "file://.local/outputs/Bookie-POS-Gostinstvo---predstavitev.pptx"
+type = "slides"
+title = "Bookie POS Gostinstvo — predstavitev (PPTX)"
+description = "PowerPoint predstavitev modula POS Gostinstvo za uporabnike starega programa."
+logical_id = "743e6e4e-7514-4ef5-bb5a-333ee9fb9ce1"
+content_hash = "sha256:1adf39aaa4951e1e7ecaa1d1fbb7b8556136998f87d31c3b28bbc7300c986eaf"
+size = 24420582
+mtime_ms = 1788692186571
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/743e6e4e-7514-4ef5-bb5a-333ee9fb9ce1/ca8579d2-2135-42a6-be3a-6fa4fd4e216c"
+storage_version_token = "1788692187833062"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "DWbDoyPNltm5f2qWsk425"
+uri = "file://.local/outputs/Bookie-POS-Gostinstvo---predstavitev.pdf"
+type = "pdf"
+title = "Bookie POS Gostinstvo — predstavitev (PDF)"
+description = "PDF predstavitev modula POS Gostinstvo za uporabnike starega programa."
+logical_id = "89fe937c-a9cf-4555-9427-5d2fd5d0a721"
+content_hash = "sha256:e61e45a130683ad8754d2d8afa65cc2458cda274d0eb775f36603fcc59535c69"
+size = 1292563
+mtime_ms = 1788692220171
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/89fe937c-a9cf-4555-9427-5d2fd5d0a721/0cf1d40b-d80c-43dd-990e-b229fd64f63e"
+storage_version_token = "1788692221078217"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "m1wxcAc0SV_3MmWd2gjUD"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.0.pdf"
+type = "pdf"
+title = "POS Gostinstvo — referenčni priročnik v8.0"
+description = "Jedrnat 401-stranski uporabniški priročnik brez vaj, nalog, preverjanj znanja, trenerjevih scenarijev in podvojenega učnega balasta."
+logical_id = "a8f05733-9180-495b-9aff-13aa653d1e48"
+content_hash = "sha256:9bb9123e7aad38faac649cce037eb8440a4e2be12e16c9d5007173a001aef0d9"
+size = 2055341
+mtime_ms = 1788716071168
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a8f05733-9180-495b-9aff-13aa653d1e48/d35c04f9-e78d-449f-bb11-c335a70947e2"
+storage_version_token = "1788716091609272"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "fKkBr5RQOGVsTtuDR6VB1"
+uri = "file://attached_assets/mikrona-bookie-erp-oauth-icon.png"
+type = "image"
+title = "Mikrona – ikona za Bookie ERP"
+description = "Kvadratna PNG ikona 512 × 512 za Users & Auth → App info → App icon in Google prijavni zaslon."
+logical_id = "1e7d0105-5d6c-47e6-84cb-624421249fd2"
+content_hash = "sha256:dc940c12537b5edfe0d702f6fc17a178cd98cf804ce1cbecfeee77ba582369ea"
+size = 159961
+mtime_ms = 1788955109873
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1e7d0105-5d6c-47e6-84cb-624421249fd2/55ab75ff-9916-4466-a8d7-492df2b7474b"
+storage_version_token = "1788955117824222"
+content_type = "image/png"
+
+[[outputs]]
+id = "zxqwfwVAnC4a8YWRzRRDK"
+uri = "file://exports/bookie-local-gateway-source-1.0.0.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – Windows source 1.0.0"
+description = "Aktualna vsebina fiscal-service za prenos na Windows; brez baz, certifikatov, zasebnih ključev in build cachev."
+logical_id = "9bdb95b7-e452-4358-ac97-ca8350add13b"
+content_hash = "sha256:d1fc3420b3ccd93c34cd8943aad28700945d2e7099e58f7a808e64a3652cff5d"
+size = 120194
+mtime_ms = 1789672840748
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/9bdb95b7-e452-4358-ac97-ca8350add13b/68a2897d-91f9-4de6-acc9-f3acab206088"
+storage_version_token = "1789672864971874"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "V1Q8OmwCJUVh1tLXs5pGe"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY priprava 1.0.0"
+description = "Windows test-ready izvorna vsebina z generatorjem 30-dnevnega neizvoznega testnega code-signing certifikata, varnostnimi TEST ONLY omejitvami in runbookom za 192.168.1.250 / POS-58. Brez certifikatov, zasebnih ključev in baz."
+logical_id = "13701416-5b89-4753-9739-a51ba7444384"
+content_hash = "sha256:b28811da2b624e27fabc849f0ec849c5fe2d7c3933d8e2fff8952dc19dc105e8"
+size = 126550
+mtime_ms = 1789675308416
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/13701416-5b89-4753-9739-a51ba7444384/177fb56d-82f0-4a01-a753-f65329d8060f"
+storage_version_token = "1789675316135795"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "28Hs_1qxNLBE62u0VlZtb"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 popravek"
+description = "Posodobljen Windows test-ready vir z izrecnim Microsoft Software Key Storage Providerjem, pravilnim RSACertificateExtensions preverjanjem in exact-thumbprint cleanupom. Brez certifikatov, zasebnih ključev in baz."
+logical_id = "22774c79-9574-4634-8e08-6a1331a078c6"
+content_hash = "sha256:86c10cc263cdfda8bb95725bd1c803aab423bcbb9b5b59f06e724bf1d3528bad"
+size = 127518
+mtime_ms = 1789675806176
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/22774c79-9574-4634-8e08-6a1331a078c6/07510d06-8b42-4dab-ab57-ae6165ec38ba"
+storage_version_token = "1789675814070594"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "xB_ERD9eNuZsal9EJWhzJ"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix2.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 fix 2"
+description = "Nadomestni test-ready vir. Popravljene vse odkrite PS 5.1 interpolacije z dvopičjem v generatorju, namestitvi in preverjanju; brez certifikatov, ključev in baz."
+logical_id = "61e7395a-fb7f-44aa-9669-41e0cb97828e"
+content_hash = "sha256:afcbc6c6b691ed79a08bfc1889a550bbf36f30ef1f76ded6d74d6c1abdf0496b"
+size = 127527
+mtime_ms = 1789676260923
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/61e7395a-fb7f-44aa-9669-41e0cb97828e/436ccd00-2e25-4720-a11f-a31d8ee93270"
+storage_version_token = "1789676270146025"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "fnm87xbxym1CBp7qhfafE"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix3.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 fix 3"
+description = "Nadomestni paket s PS 5.1 združljivim preverjanjem ugnezdene OID lastnosti ter prejšnjimi parser in CNG popravki. Brez certifikatov, ključev in baz."
+logical_id = "1f7e458a-2d77-4784-aa9d-2da483839a3c"
+content_hash = "sha256:193d1185c694e57cf3cae75173f04040db7ca2b76909807d967e6038f842e2ef"
+size = 127543
+mtime_ms = 1789676437695
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/1f7e458a-2d77-4784-aa9d-2da483839a3c/d39fe252-8567-4d55-9902-545fa3cd64ba"
+storage_version_token = "1789676444945329"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "ksjmtRLYe7_zBp41zMJxN"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix4.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 fix 4"
+description = "Nadomestni paket s popravljenim OutputRoot izrazom in vsemi prejšnjimi PS 5.1/CNG popravki. Uporabite obstoječi testni certifikat; brez certifikatov, ključev in baz."
+logical_id = "f81eeb4a-5d27-47ff-b205-1c63d4e27523"
+content_hash = "sha256:e4e7a34942a0a7fa36c3bf7b02dc09c8ae5a49ac2af47ee6869745d18fff3752"
+size = 127572
+mtime_ms = 1789677059487
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/f81eeb4a-5d27-47ff-b205-1c63d4e27523/b7955fa5-a02c-4925-89a3-42be3edb2e21"
+storage_version_token = "1789677070273604"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "RHT1YYC12C9DUrh7k3Lv8"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix5.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 fix 5"
+description = "Build paket z vsemi prejšnjimi PS 5.1/CNG popravki in obveznim izpisom prvotne napake po cleanupu. Uporabite obstoječi testni certifikat; brez certifikatov, ključev in baz."
+logical_id = "8a53d730-4e42-48bf-8cbd-b896e398652b"
+content_hash = "sha256:2665f0e561bc159c902570ff4633cd6df294f9b686c31f2cf14d7b8fd2f9d6b2"
+size = 127676
+mtime_ms = 1789677673920
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/8a53d730-4e42-48bf-8cbd-b896e398652b/e74b0422-45a0-44b4-b256-cfff39520634"
+storage_version_token = "1789677684731480"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "vEl4oxqUQ0l5KWvdn8Zw0"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix6.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 fix 6"
+description = "Paket z vsemi PS 5.1/CNG popravki, vidnimi build napakami in pravilno Python 3.13 odvisnostjo httpx==0.28.1 namesto napačnega httpx2. Brez certifikatov, ključev in baz."
+logical_id = "6f286eac-672a-4934-8b54-a7bee5305ccd"
+content_hash = "sha256:ca5858f7ee494a358c1eccbe3abb925226226595c5a89b5ec5315df8320e8288"
+size = 127674
+mtime_ms = 1789677951703
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/6f286eac-672a-4934-8b54-a7bee5305ccd/d2a283f5-3afe-4066-8a2c-d3a5e8b1d75a"
+storage_version_token = "1789677959880564"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "FDucDtQNInZUSje59p786"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix7.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PowerShell 5.1 fix 7"
+description = "Popravljen Invoke-Native v vseh treh skriptah: stderr izpisi zunanjih orodij ne prekinejo builda prezgodaj; napaka se zdaj pravilno pokaže. Brez certifikatov, ključev in baz."
+logical_id = "7113a6a9-102b-44e3-92f1-05ab0fc777cf"
+content_hash = "sha256:eae0fa22f45a3fdb38f665250e09a7792e4cc6f42c6c1ce9a3ae5c5aa4158200"
+size = 127876
+mtime_ms = 1789679482535
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7113a6a9-102b-44e3-92f1-05ab0fc777cf/33516cc3-963b-412b-92b8-0804b7a99a42"
+storage_version_token = "1789679493306818"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "qEhUMUrzF2WPQhKAoMXib"
+uri = "file://exports/bookie-local-gateway-source-1.0.0-test-ready-ps51-fix8.zip"
+type = "unspecified"
+title = "Bookie Local Gateway – TEST ONLY PS 5.1 fix 8"
+description = "Paket, ki ga je pripravil dodeljeni agent. Robustnejša diagnostika native procesov, varen zajem exit kode in PowerShell 5.1 regresijski testi. SHA-256: 0def2c1864a8f34c339467a019ec488ac3579ed11c15abe8c8d9bb8f0197b7c0"
+logical_id = "ff022122-daf7-413b-9d26-fb6d99f43939"
+content_hash = "sha256:0def2c1864a8f34c339467a019ec488ac3579ed11c15abe8c8d9bb8f0197b7c0"
+size = 128169
+mtime_ms = 1789681048359
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/ff022122-daf7-413b-9d26-fb6d99f43939/ef926636-425f-422e-9d73-9b833e1dab9e"
+storage_version_token = "1789681075286678"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "9br_LMjhdR73Zx7AGWk7x"
+uri = "file://exports/Bookie-Local-Gateway-1.0.0-unsigned-win-x64.exe"
+type = "unspecified"
+title = "Bookie Local Gateway 1.0.0 – Windows x64 EXE"
+description = "Dejanski Windows PE32+ x86-64 program, izdelan na GitHub Actions windows-latest. Trenutno nepodpisan. SHA-256: bd25994c53d3bc1597df11e8893325c9e18b95e59fdc35ebcd2e84186079a1b2"
+logical_id = "6447417e-2868-4547-9019-1b0400309130"
+content_hash = "sha256:bd25994c53d3bc1597df11e8893325c9e18b95e59fdc35ebcd2e84186079a1b2"
+size = 25990488
+mtime_ms = 1789686218973
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/6447417e-2868-4547-9019-1b0400309130/30926bb7-0dc1-419c-9da8-5baf1338704f"
+storage_version_token = "1789686245593669"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "ODvRFhEjhMEueqGkZf8ig"
+uri = "file://exports/Bookie-Local-Gateway-unsigned-win-x64.zip"
+type = "unspecified"
+title = "Bookie Local Gateway 1.0.0 – Windows build ZIP"
+description = "Izvirni GitHub Actions artefakt z EXE in BUILD-SHA256.txt. ZIP SHA-256: dcc30fb22b2e3e0593c6adc177c3607b3e1d817d6994fe35e4dd0b8a8faa8a49"
+logical_id = "bf4d4caf-1b19-4d35-935e-0e9684ae62c1"
+content_hash = "sha256:dcc30fb22b2e3e0593c6adc177c3607b3e1d817d6994fe35e4dd0b8a8faa8a49"
+size = 25717561
+mtime_ms = 1789686218333
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/bf4d4caf-1b19-4d35-935e-0e9684ae62c1/7f7a71ab-4791-4b0e-abcc-7e96c07ca944"
+storage_version_token = "1789686246836805"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "gbauHtX2btpyqpEkS-sZe"
+uri = "file://exports/Bookie-Local-Gateway-1.0.0-internal-signing-kit.zip"
+type = "unspecified"
+title = "Bookie Local Gateway 1.0.0 – signing kit s popravkom poti"
+description = "Popravek razreševanja relativnih poti v PowerShell/.NET. Vhodni EXE je nespremenjen. Brez certifikata, PFX ali zasebnega ključa. SHA-256 kita: 56c69391fd8f6427f3c15f4fd15ca0929709b5dbf9bd12f9ba8479b3d2670f8a"
+logical_id = "3eb07219-b797-428e-a93e-54975bd8d8d0"
+content_hash = "sha256:56c69391fd8f6427f3c15f4fd15ca0929709b5dbf9bd12f9ba8479b3d2670f8a"
+size = 25727749
+mtime_ms = 1789710575527
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/3eb07219-b797-428e-a93e-54975bd8d8d0/e27fccc6-2b71-4512-841b-57a54d24580b"
+storage_version_token = "1789710587075104"
+content_type = "application/octet-stream"

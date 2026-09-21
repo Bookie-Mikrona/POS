@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, gte, lte, asc, like, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, asc, desc, like, inArray, isNull, or, sql, notInArray } from "drizzle-orm";
+import Decimal from "decimal.js";
 import {
   db,
   invoicesTable,
@@ -11,14 +12,71 @@ import {
   auditLogTable,
   journalEntriesTable,
   journalEntryLinesTable,
+  posInvoiceLinksTable,
+  prejemniceTable,
+  prejemnicePostavkeTable,
+  enoteTable,
+  posBookingSettingsTable,
+  posReceiptBookingSourcesTable,
+  vatCodeTable,
+  goodsReceiptsTable,
+  documentsTable,
+  racuniTable,
+  postavkeTable,
+  partnerCenikiTable,
+  posContractInvoiceReceiptsTable,
 } from "@workspace/db";
-import { CreateInvoiceBody, UpdateInvoiceBody, VoidInvoiceBody } from "@workspace/api-zod";
+import {
+  CreateInvoiceBody,
+  UpdateInvoiceBody,
+  VoidInvoiceBody,
+  LinkInvoicePosReceiptBody,
+} from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { pos109PostingReasons } from "../lib/posInvoice109";
+import {
+  lockPosReceiptForReconciliation,
+  ReceiptEditConflict,
+} from "../lib/posReceiptBooking";
+import { createVatLedgerEntries, type EntryMeta, type VatLine } from "../lib/vatLedger";
+import {
+  claimPurchaseSourceDocument,
+  normalizePurchaseDocumentNumber,
+} from "../lib/purchaseSourceDocuments";
+import {
+  buildContractSummaryPostingLines,
+  resolveContractSummaryDueDate,
+} from "../lib/posContractSummary";
 
 const router: IRouter = Router();
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
+}
+
+type PosMatchHistoryStatus = "confirmed" | "closed109" | "unlinked";
+
+function asAuditPayload(value: unknown): Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function auditInteger(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function auditEnum<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  return typeof value === "string" && allowed.includes(value as T) ? value as T : null;
+}
+
+function timestampOf(value: Date | string): number {
+  return value instanceof Date ? value.getTime() : new Date(value).getTime();
 }
 
 async function resolveAccess(
@@ -43,7 +101,7 @@ async function resolveAccess(
   return { role: row.role };
 }
 
-/** Vrne DDV konto za podjetje — 450 za izdane, 160 za prejete račune */
+/** Vrne aktiven knjižni DDV konto za podjetje — 450 za izdane, 160 za prejete račune. */
 async function resolveVatAccount(
   companyId: string,
   invoiceType: "issued" | "received",
@@ -51,7 +109,51 @@ async function resolveVatAccount(
   vatRate: number,
 ): Promise<string | null> {
   if (vatRate === 0) return null;
-  if (vatAccountId) return vatAccountId;
+  if (vatAccountId) {
+    const [explicitAccount] = await db
+      .select({ id: accountsTable.id })
+      .from(accountsTable)
+      .where(and(
+        eq(accountsTable.id, vatAccountId),
+        eq(accountsTable.companyId, companyId),
+        eq(accountsTable.isActive, true),
+        eq(accountsTable.allowsPosting, true),
+      ))
+      .limit(1);
+    return explicitAccount?.id ?? null;
+  }
+
+  if (invoiceType === "received") {
+    const [settings] = await db
+      .select({
+        vat22: posBookingSettingsTable.inputVat22AccountId,
+        vat95: posBookingSettingsTable.inputVat95AccountId,
+        vat5: posBookingSettingsTable.inputVat5AccountId,
+      })
+      .from(posBookingSettingsTable)
+      .where(eq(posBookingSettingsTable.companyId, companyId))
+      .limit(1);
+    const configuredId = vatRate === 22
+      ? settings?.vat22
+      : vatRate === 9.5
+        ? settings?.vat95
+        : vatRate === 5
+          ? settings?.vat5
+          : null;
+    if (configuredId) {
+      const [configuredAccount] = await db
+        .select({ id: accountsTable.id })
+        .from(accountsTable)
+        .where(and(
+          eq(accountsTable.id, configuredId),
+          eq(accountsTable.companyId, companyId),
+          eq(accountsTable.isActive, true),
+          eq(accountsTable.allowsPosting, true),
+        ))
+        .limit(1);
+      if (configuredAccount) return configuredAccount.id;
+    }
+  }
 
   // Poišči privzeti DDV konto po kodi
   const codePrefix = invoiceType === "issued" ? "450" : "160";
@@ -63,6 +165,7 @@ async function resolveVatAccount(
         eq(accountsTable.companyId, companyId),
         like(accountsTable.code, `${codePrefix}%`),
         eq(accountsTable.isActive, true),
+        eq(accountsTable.allowsPosting, true),
       ),
     )
     .orderBy(asc(accountsTable.code))
@@ -98,6 +201,7 @@ async function fetchInvoiceWithLines(invoiceId: string) {
       id: invoicesTable.id,
       companyId: invoicesTable.companyId,
       type: invoicesTable.type,
+      sourceType: invoicesTable.sourceType,
       counterpartyId: invoicesTable.counterpartyId,
       counterpartyName: counterpartiesTable.name,
       periodId: invoicesTable.periodId,
@@ -105,10 +209,16 @@ async function fetchInvoiceWithLines(invoiceId: string) {
       invoiceNumber: invoicesTable.invoiceNumber,
       invoiceDate: invoicesTable.invoiceDate,
       dueDate: invoicesTable.dueDate,
+      destinationIban: invoicesTable.destinationIban,
+      destinationBic: invoicesTable.destinationBic,
+      paymentModel: invoicesTable.paymentModel,
+      paymentReference: invoicesTable.paymentReference,
+      paymentPurpose: invoicesTable.paymentPurpose,
       status: invoicesTable.status,
       arApAccountId: invoicesTable.arApAccountId,
       vatAccountId: invoicesTable.vatAccountId,
       linkedEntryId: invoicesTable.linkedEntryId,
+      sourceDocumentId: invoicesTable.sourceDocumentId,
       notes: invoicesTable.notes,
       createdBy: invoicesTable.createdBy,
       createdAt: invoicesTable.createdAt,
@@ -168,6 +278,462 @@ async function fetchInvoiceWithLines(invoiceId: string) {
   };
 }
 
+const contractBusinessDateSql = sql<string>`DATE(
+  (${racuniTable.datumCas} AT TIME ZONE 'Europe/Ljubljana')
+  - (${enoteTable.zacetekDnevaUra}::time - TIME '00:00')
+)::text`;
+
+async function loadUnbilledContractReceipts(
+  companyId: string,
+  counterpartyId: string,
+  month: string,
+) {
+  const start = `${month}-01`;
+  return db
+    .select({
+      id: racuniTable.id,
+      invoiceNumber: racuniTable.stevilkaRacuna,
+      grossAmount: racuniTable.skupaj,
+      businessDate: contractBusinessDateSql,
+      unitId: racuniTable.enotaId,
+      unitName: enoteTable.ime,
+      paymentTermsDays: racuniTable.dniOdloga,
+    })
+    .from(racuniTable)
+    .innerJoin(enoteTable, eq(enoteTable.id, racuniTable.enotaId))
+    .leftJoin(
+      posContractInvoiceReceiptsTable,
+      eq(posContractInvoiceReceiptsTable.receiptId, racuniTable.id),
+    )
+    .where(and(
+      eq(enoteTable.companyId, companyId),
+      eq(racuniTable.kupecCpId, counterpartyId),
+      eq(racuniTable.placilnaNacin, "negotovinsko"),
+      notInArray(racuniTable.status, ["storniran"]),
+      gte(contractBusinessDateSql, start),
+      lte(contractBusinessDateSql, new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10)),
+      isNull(posContractInvoiceReceiptsTable.id),
+      sql`EXISTS (
+        SELECT 1 FROM ${partnerCenikiTable}
+        WHERE ${partnerCenikiTable.kupecId} = ${racuniTable.kupecCpId}
+          AND ${partnerCenikiTable.enotaId} = ${racuniTable.enotaId}
+      )`,
+    ))
+    .orderBy(asc(contractBusinessDateSql), asc(racuniTable.id));
+}
+
+async function loadContractVatBuckets(receiptIds: number[]) {
+  if (receiptIds.length === 0) return [];
+  const rows = await db
+    .select({
+      vatRate: postavkeTable.davek,
+      grossAmount: sql<string>`SUM(CAST(${postavkeTable.skupaj} AS numeric))`,
+    })
+    .from(postavkeTable)
+    .where(and(
+      inArray(postavkeTable.racunId, receiptIds),
+      isNull(postavkeTable.parentPostavkaId),
+    ))
+    .groupBy(postavkeTable.davek)
+    .orderBy(asc(postavkeTable.davek));
+  return rows.map((row) => {
+    const vatRate = new Decimal(row.vatRate ?? "0");
+    const gross = new Decimal(row.grossAmount ?? "0").toDecimalPlaces(2);
+    const net = vatRate.gt(0)
+      ? gross.mul(100).div(vatRate.add(100)).toDecimalPlaces(2)
+      : gross;
+    return { vatRate, gross, net, vat: gross.minus(net) };
+  });
+}
+
+function receiptBookingReferences(receiptDate: Date, enotaId: number) {
+  const date = receiptDate.toISOString().slice(0, 10);
+  return {
+    aggregate: `POS:PREJEMNICA:${date}`,
+    // Prehodna oblika brez šifre stroškovnega mesta.
+    stable: `POS:PREJEMNICA:${date}:E${enotaId}`,
+    // Sedanja oblika: POS:PREJEMNICA:YYYY-MM-DD:<šifra-SM>:E<enota>.
+    withCostCenterPattern: `POS:PREJEMNICA:${date}:%:E${enotaId}`,
+  };
+}
+
+export async function isReceiptBookedTo109(
+  companyId: string,
+  prejemnicaId: number,
+  receiptDate: Date,
+  enotaId: number,
+  expected109AccountId?: string | null,
+  expectedNetAmount?: string | null,
+): Promise<boolean> {
+  const refs = receiptBookingReferences(receiptDate, enotaId);
+  const [entry] = await db
+    .select({ id: journalEntriesTable.id })
+    .from(journalEntriesTable)
+    .innerJoin(
+      posReceiptBookingSourcesTable,
+      and(
+        eq(posReceiptBookingSourcesTable.journalEntryId, journalEntriesTable.id),
+        eq(posReceiptBookingSourcesTable.prejemnicaId, prejemnicaId),
+        expectedNetAmount ? eq(posReceiptBookingSourcesTable.netAmount, expectedNetAmount) : undefined,
+      ),
+    )
+    .innerJoin(
+      journalEntryLinesTable,
+      and(
+        eq(journalEntryLinesTable.entryId, journalEntriesTable.id),
+        eq(journalEntryLinesTable.side, "credit"),
+        expected109AccountId ? eq(journalEntryLinesTable.accountId, expected109AccountId) : undefined,
+      ),
+    )
+    .innerJoin(
+      accountsTable,
+      and(
+        eq(accountsTable.id, journalEntryLinesTable.accountId),
+        eq(accountsTable.companyId, companyId),
+        like(accountsTable.code, "109%"),
+        eq(accountsTable.isActive, true),
+        eq(accountsTable.allowsPosting, true),
+      ),
+    )
+    .where(
+      and(
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.status, "posted"),
+        or(
+          and(
+            eq(journalEntriesTable.reference, `POS:NABAVA:${prejemnicaId}`),
+            eq(journalEntriesTable.createdBy, "pos-receipt-booking"),
+          ),
+          and(
+            eq(journalEntriesTable.createdBy, "pos-sync"),
+            or(
+              eq(journalEntriesTable.reference, refs.aggregate),
+              eq(journalEntriesTable.reference, refs.stable),
+              like(journalEntriesTable.reference, refs.withCostCenterPattern),
+            ),
+          ),
+        ),
+      ),
+    )
+    .limit(1);
+  return Boolean(entry);
+}
+
+type PostedReceiptVatBucket = {
+  vatCodeId: string | null;
+  rate: string;
+  net: string;
+  vat: string;
+};
+
+type PostedReceiptBookingFacts = {
+  sourceEntryId: string;
+  booked109Gross: string;
+  bookedNet: string;
+  bookedVat: string;
+  buckets: PostedReceiptVatBucket[];
+};
+
+function money(value: Decimal.Value): string {
+  return new Decimal(value).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2);
+}
+
+async function loadPostedReceiptBookingFacts(
+  executor: any,
+  companyId: string,
+  receiptId: number,
+  configured109AccountId: string,
+): Promise<PostedReceiptBookingFacts | null> {
+  const sources = await executor
+    .select({
+      sourceEntryId: journalEntriesTable.id,
+      bookedNet: posReceiptBookingSourcesTable.netAmount,
+      reference: journalEntriesTable.reference,
+      createdBy: journalEntriesTable.createdBy,
+      sourceCount: sql<number>`(
+        SELECT count(*)::int FROM pos_receipt_booking_sources ownership
+        WHERE ownership.journal_entry_id = ${journalEntriesTable.id}
+      )`,
+    })
+    .from(posReceiptBookingSourcesTable)
+    .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, posReceiptBookingSourcesTable.journalEntryId))
+    .where(and(
+      eq(posReceiptBookingSourcesTable.prejemnicaId, receiptId),
+      eq(journalEntriesTable.companyId, companyId),
+      eq(journalEntriesTable.status, "posted"),
+    ));
+  const owned = sources.filter((row: any) =>
+    row.reference === `POS:NABAVA:${receiptId}`
+    && row.createdBy === "pos-receipt-booking"
+    && Number(row.sourceCount) === 1);
+  if (owned.length !== 1) return null;
+  const source = owned[0];
+  const lines = await executor
+    .select({
+      accountId: journalEntryLinesTable.accountId,
+      accountCode: accountsTable.code,
+      side: journalEntryLinesTable.side,
+      amount: journalEntryLinesTable.amount,
+      vatCodeId: journalEntryLinesTable.vatCodeId,
+      vatAmount: journalEntryLinesTable.vatAmount,
+      vatRate: vatCodeTable.rate,
+    })
+    .from(journalEntryLinesTable)
+    .innerJoin(accountsTable, and(
+      eq(accountsTable.id, journalEntryLinesTable.accountId),
+      eq(accountsTable.companyId, companyId),
+      eq(accountsTable.isActive, true),
+      eq(accountsTable.allowsPosting, true),
+    ))
+    .leftJoin(vatCodeTable, eq(vatCodeTable.id, journalEntryLinesTable.vatCodeId))
+    .where(eq(journalEntryLinesTable.entryId, source.sourceEntryId));
+  const credits109 = lines.filter((line: any) =>
+    line.accountId === configured109AccountId && line.side === "credit");
+  if (credits109.length !== 1 || !credits109[0].accountCode.startsWith("109")) return null;
+  const bookedGross = new Decimal(credits109[0].amount).toDecimalPlaces(2);
+  const bookedNet = new Decimal(source.bookedNet).toDecimalPlaces(2);
+  const bookedVat = bookedGross.minus(bookedNet).toDecimalPlaces(2);
+  if (bookedGross.lte(0) || bookedNet.lte(0) || bookedVat.lt(0)) return null;
+  const vatDebit = lines
+    .filter((line: any) => line.side === "debit" && line.accountCode.startsWith("160"))
+    .reduce((sum: Decimal, line: any) => sum.plus(line.amount), new Decimal(0))
+    .toDecimalPlaces(2);
+  if (!vatDebit.eq(bookedVat)) return null;
+
+  const bucketMap = new Map<string, { vatCodeId: string | null; rate: string; net: Decimal; vat: Decimal }>();
+  for (const line of lines as any[]) {
+    if (line.side !== "debit" || line.accountCode.startsWith("160")) continue;
+    const vat = new Decimal(line.vatAmount ?? 0).toDecimalPlaces(2);
+    if (vat.gt(0) && (!line.vatCodeId || line.vatRate == null)) return null;
+    const rate = line.vatRate == null ? "0" : new Decimal(line.vatRate).toString();
+    const key = `${line.vatCodeId ?? "none"}:${rate}`;
+    const bucket = bucketMap.get(key) ?? {
+      vatCodeId: line.vatCodeId,
+      rate,
+      net: new Decimal(0),
+      vat: new Decimal(0),
+    };
+    bucket.net = bucket.net.plus(line.amount);
+    bucket.vat = bucket.vat.plus(vat);
+    bucketMap.set(key, bucket);
+  }
+  const bucketNet = [...bucketMap.values()].reduce((sum, bucket) => sum.plus(bucket.net), new Decimal(0));
+  const bucketVat = [...bucketMap.values()].reduce((sum, bucket) => sum.plus(bucket.vat), new Decimal(0));
+  if (!bucketNet.toDecimalPlaces(2).eq(bookedNet) || !bucketVat.toDecimalPlaces(2).eq(bookedVat)) return null;
+  return {
+    sourceEntryId: source.sourceEntryId,
+    booked109Gross: money(bookedGross),
+    bookedNet: money(bookedNet),
+    bookedVat: money(bookedVat),
+    buckets: [...bucketMap.values()]
+      .map(bucket => ({
+        vatCodeId: bucket.vatCodeId,
+        rate: bucket.rate,
+        net: money(bucket.net),
+        vat: money(bucket.vat),
+      }))
+      .sort((a, b) => new Decimal(a.rate).cmp(b.rate) || (a.vatCodeId ?? "").localeCompare(b.vatCodeId ?? "")),
+  };
+}
+
+async function lockInvoiceForPosLinks(tx: any, invoiceId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${invoiceId}))`);
+}
+
+async function getInvoicePosReceiptLinksResponse(companyId: string, invoiceId: string) {
+  const [invoice] = await db
+    .select({
+      id: invoicesTable.id,
+      type: invoicesTable.type,
+      status: invoicesTable.status,
+      counterpartyId: invoicesTable.counterpartyId,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      invoiceDate: invoicesTable.invoiceDate,
+    })
+    .from(invoicesTable)
+    .where(and(eq(invoicesTable.id, invoiceId), eq(invoicesTable.companyId, companyId)))
+    .limit(1);
+  if (!invoice) return null;
+
+  const fullInvoice = await fetchInvoiceWithLines(invoiceId);
+  const invoiceNet = new Decimal(fullInvoice?.totalNet ?? "0");
+
+  const linkedRows = await db
+    .select({
+      id: posInvoiceLinksTable.id,
+      prejemnicaId: prejemniceTable.id,
+      enotaId: enoteTable.id,
+      enotaName: enoteTable.ime,
+      receiptNumber: prejemniceTable.stevilka,
+      documentNumber: prejemniceTable.stDokumenta,
+      receiptDate: prejemniceTable.datum,
+      documentDate: prejemniceTable.datumDokumenta,
+      netAmount: prejemniceTable.skupajVrednost,
+      vatBase: prejemniceTable.ddvOsnova,
+      vatAmount: prejemniceTable.ddvZnesek,
+      grossAmount: prejemniceTable.brutoSkupaj,
+      currency: prejemniceTable.valuta,
+      mode: posInvoiceLinksTable.mode,
+      matchMethod: posInvoiceLinksTable.matchMethod,
+      matchedBy: posInvoiceLinksTable.matchedBy,
+      matchedAt: posInvoiceLinksTable.matchedAt,
+    })
+    .from(posInvoiceLinksTable)
+    .innerJoin(prejemniceTable, eq(prejemniceTable.id, posInvoiceLinksTable.prejemnicaId))
+    .innerJoin(enoteTable, eq(enoteTable.id, posInvoiceLinksTable.enotaId))
+    .where(and(eq(posInvoiceLinksTable.companyId, companyId), eq(posInvoiceLinksTable.invoiceId, invoiceId)));
+
+  const links = await Promise.all(
+    linkedRows.map(async (row) => ({
+      ...row,
+      status: (invoice.status === "posted" ? "closed109" : "confirmed") as "closed109" | "confirmed",
+      bookedTo109: await isReceiptBookedTo109(
+        companyId,
+        row.prejemnicaId,
+        row.receiptDate,
+        row.enotaId,
+        null,
+        row.netAmount,
+      ),
+    })),
+  );
+  const linkedNet = links.reduce((total, row) => total.plus(new Decimal(row.netAmount)), new Decimal(0));
+  const isDirectDeliveryNoteInvoice = links.length > 0
+    && links.every((row) => row.mode === "delivery_note_invoice");
+  const allReceiptsBooked = links.every((row) => row.bookedTo109);
+  const reasons = isDirectDeliveryNoteInvoice
+    ? []
+    : pos109PostingReasons({
+        linkedReceiptNet: linkedNet,
+        invoiceNet,
+        allReceiptsBooked,
+        hasLinks: links.length > 0,
+      });
+
+  const candidateRows = await db
+    .select({
+      prejemnicaId: prejemniceTable.id,
+      enotaId: enoteTable.id,
+      enotaName: enoteTable.ime,
+      receiptNumber: prejemniceTable.stevilka,
+      documentNumber: prejemniceTable.stDokumenta,
+      receiptDate: prejemniceTable.datum,
+      documentDate: prejemniceTable.datumDokumenta,
+      netAmount: prejemniceTable.skupajVrednost,
+      currency: prejemniceTable.valuta,
+      vatBase: prejemniceTable.ddvOsnova,
+      vatAmount: prejemniceTable.ddvZnesek,
+    })
+    .from(prejemniceTable)
+    .innerJoin(enoteTable, eq(enoteTable.id, prejemniceTable.enotaId))
+    .leftJoin(posInvoiceLinksTable, eq(posInvoiceLinksTable.prejemnicaId, prejemniceTable.id))
+    .where(
+      and(
+        eq(enoteTable.companyId, companyId),
+        eq(prejemniceTable.dobaviteljId, invoice.counterpartyId),
+        isNull(posInvoiceLinksTable.id),
+      ),
+    )
+    .orderBy(asc(prejemniceTable.datum));
+
+  const candidates = await Promise.all(
+    candidateRows.map(async (row) => {
+      const exactDocument = Boolean(
+        normalizePurchaseDocumentNumber(row.documentNumber)
+        && normalizePurchaseDocumentNumber(row.documentNumber) === normalizePurchaseDocumentNumber(invoice.invoiceNumber),
+      );
+      const exactAmount = new Decimal(row.netAmount).eq(invoiceNet);
+      const financeComplete = Boolean(
+        row.documentNumber && row.documentDate && row.vatBase != null && row.vatAmount != null && new Decimal(row.netAmount).gt(0),
+      );
+      const matchMethod = exactDocument && exactAmount ? "exact" : "suggested";
+      return {
+        ...row,
+        matchMethod,
+        confidence: exactDocument && exactAmount ? 1 : exactDocument ? 0.85 : exactAmount ? 0.7 : 0.35,
+        reason: exactDocument && exactAmount
+          ? "Ista številka dokumenta in enak neto znesek."
+          : exactDocument
+            ? "Enaka številka dokumenta pri istem dobavitelju."
+            : exactAmount
+              ? "Enak neto znesek pri istem dobavitelju."
+              : "Isti dobavitelj; preverite dokument in znesek.",
+        financeComplete,
+        bookedTo109: await isReceiptBookedTo109(
+          companyId,
+          row.prejemnicaId,
+          row.receiptDate,
+          row.enotaId,
+          null,
+          row.netAmount,
+        ),
+      };
+    }),
+  );
+  candidates.sort((left, right) => {
+    if (right.confidence !== left.confidence) return right.confidence - left.confidence;
+    const invoiceTimestamp = timestampOf(invoice.invoiceDate);
+    const leftTimestamp = timestampOf(left.receiptDate);
+    const rightTimestamp = timestampOf(right.receiptDate);
+    const leftDistance = Math.abs(leftTimestamp - invoiceTimestamp);
+    const rightDistance = Math.abs(rightTimestamp - invoiceTimestamp);
+    if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+    const dateOrder = rightTimestamp - leftTimestamp;
+    return dateOrder !== 0 ? dateOrder : left.prejemnicaId - right.prejemnicaId;
+  });
+
+  const auditRows = await db
+    .select({
+      action: auditLogTable.action,
+      changedBy: auditLogTable.changedBy,
+      changedAt: auditLogTable.changedAt,
+      payload: auditLogTable.payload,
+    })
+    .from(auditLogTable)
+    .where(and(
+      eq(auditLogTable.companyId, companyId),
+      eq(auditLogTable.entityType, "invoice"),
+      eq(auditLogTable.entityId, invoiceId),
+      inArray(auditLogTable.action, ["link_pos_prejemnica", "unlink_pos_prejemnica", "close_pos_109"]),
+    ))
+    .orderBy(desc(auditLogTable.changedAt), desc(auditLogTable.id));
+  const matchHistory = auditRows.flatMap((row) => {
+    const payload = asAuditPayload(row.payload);
+    const prejemnicaId = auditInteger(payload.prejemnicaId);
+    if (prejemnicaId == null) return [];
+    const isLink = row.action === "link_pos_prejemnica";
+    const isClose = row.action === "close_pos_109";
+    const historicalStatus = auditEnum(payload.status, ["confirmed", "closed109", "unlinked"] as const);
+    return [{
+      action: isClose ? "closed109" as const : isLink ? "linked" as const : "unlinked" as const,
+      status: (historicalStatus ?? (isClose ? "closed109" : isLink ? "confirmed" : "unlinked")) as PosMatchHistoryStatus,
+      prejemnicaId,
+      changedBy: row.changedBy,
+      changedAt: row.changedAt,
+      mode: auditEnum(payload.mode, ["delivery_note_invoice", "invoice_with_delivery_notes"] as const),
+      matchMethod: auditEnum(payload.matchMethod, ["manual", "suggested", "exact"] as const),
+    }];
+  });
+
+  return {
+    invoice,
+    body: {
+      links,
+      candidates,
+      matchHistory,
+      preview: {
+        isDirectDeliveryNoteInvoice,
+        linkedNet: linkedNet.toFixed(2),
+        invoiceNet: invoiceNet.toFixed(2),
+        unclosed109: Decimal.max(new Decimal(0), linkedNet.minus(invoiceNet)).toFixed(2),
+        allReceiptsBooked: isDirectDeliveryNoteInvoice || allReceiptsBooked,
+        canPost: reasons.length === 0,
+        reasons,
+      },
+    },
+  };
+}
+
 // ─── GET /companies/:companyId/invoices ───────────────────────────────────────
 router.get(
   "/companies/:companyId/invoices",
@@ -197,6 +763,7 @@ router.get(
         id: invoicesTable.id,
         companyId: invoicesTable.companyId,
         type: invoicesTable.type,
+        sourceType: invoicesTable.sourceType,
         counterpartyId: invoicesTable.counterpartyId,
         counterpartyName: counterpartiesTable.name,
         periodId: invoicesTable.periodId,
@@ -204,6 +771,11 @@ router.get(
         invoiceNumber: invoicesTable.invoiceNumber,
         invoiceDate: invoicesTable.invoiceDate,
         dueDate: invoicesTable.dueDate,
+        destinationIban: invoicesTable.destinationIban,
+        destinationBic: invoicesTable.destinationBic,
+        paymentModel: invoicesTable.paymentModel,
+        paymentReference: invoicesTable.paymentReference,
+        paymentPurpose: invoicesTable.paymentPurpose,
         status: invoicesTable.status,
         arApAccountId: invoicesTable.arApAccountId,
         vatAccountId: invoicesTable.vatAccountId,
@@ -298,7 +870,10 @@ router.post(
       return;
     }
 
-    const { type, counterpartyId, periodId, invoiceNumber, arApAccountId, vatAccountId, notes, lines } = parsed.data;
+    const {
+      type, counterpartyId, periodId, invoiceNumber, arApAccountId, vatAccountId, notes, lines,
+      destinationIban, destinationBic, paymentModel, paymentReference, paymentPurpose,
+    } = parsed.data;
 
     // Validacije
     const [period] = await db
@@ -327,9 +902,14 @@ router.post(
       const [vatAcc] = await db
         .select({ id: accountsTable.id })
         .from(accountsTable)
-        .where(and(eq(accountsTable.id, vatAccountId), eq(accountsTable.companyId, companyId)))
+        .where(and(
+          eq(accountsTable.id, vatAccountId),
+          eq(accountsTable.companyId, companyId),
+          eq(accountsTable.isActive, true),
+          eq(accountsTable.allowsPosting, true),
+        ))
         .limit(1);
-      if (!vatAcc) { res.status(400).json({ error: "DDV konto ni najden ali ne pripada temu podjetju" }); return; }
+      if (!vatAcc) { res.status(400).json({ error: "DDV konto ni aktiven analitični konto, ki dovoljuje knjiženje" }); return; }
     }
 
     // Preveri vse kontne oznake vrstic — morajo pripadati istemu podjetju
@@ -349,7 +929,18 @@ router.post(
       ? (parsed.data.dueDate as unknown as Date).toISOString().slice(0, 10)
       : null;
 
-    const invoiceId = await db.transaction(async (tx) => {
+    let invoiceId: string;
+    try {
+      invoiceId = await db.transaction(async (tx) => {
+      const sourceDocumentId = type === "received"
+        ? await claimPurchaseSourceDocument(tx, {
+            companyId,
+            counterpartyId,
+            kind: "invoice",
+            documentNumber: invoiceNumber,
+            documentDate: invoiceDate,
+          })
+        : null;
       const [newInv] = await tx
         .insert(invoicesTable)
         .values({
@@ -360,10 +951,16 @@ router.post(
           invoiceNumber,
           invoiceDate,
           dueDate,
+          destinationIban: type === "received" ? destinationIban?.replace(/\s+/g, "").toUpperCase() || null : null,
+          destinationBic: type === "received" ? destinationBic?.replace(/\s+/g, "").toUpperCase() || null : null,
+          paymentModel: type === "received" ? paymentModel?.trim() || null : null,
+          paymentReference: type === "received" ? paymentReference?.trim() || null : null,
+          paymentPurpose: type === "received" ? paymentPurpose?.trim() || null : null,
           arApAccountId,
           vatAccountId: vatAccountId ?? null,
           notes: notes ?? null,
           createdBy: authReq.clerkUserId,
+          sourceDocumentId,
         })
         .returning({ id: invoicesTable.id });
 
@@ -389,10 +986,277 @@ router.post(
       });
 
       return newInv.id;
-    });
+      });
+    } catch (error: any) {
+      if (
+        error?.cause?.code === "23505"
+        || error?.code === "23505"
+        || error?.code === "LEGACY_PURCHASE_SOURCE_CONFLICT"
+      ) {
+        res.status(409).json({
+          error: "Prejeti račun s to dobaviteljevo številko je že zajet",
+        });
+        return;
+      }
+      throw error;
+    }
 
     const result = await fetchInvoiceWithLines(invoiceId);
     res.status(201).json(result);
+  },
+);
+
+// ─── POS pogodbene malice: mesečni zbirni A-račun ────────────────────────────
+router.get(
+  "/companies/:companyId/invoices/pos-contract-summary/preview",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const month = typeof req.query.month === "string" ? req.query.month : "";
+    const counterpartyId = typeof req.query.counterpartyId === "string" ? req.query.counterpartyId : "";
+    if (!await resolveAccess(authReq.clerkUserId, companyId, res)) return;
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !counterpartyId) {
+      res.status(400).json({ error: "Izberite veljaven mesec in pogodbenega partnerja." });
+      return;
+    }
+    const [[counterparty], receipts] = await Promise.all([
+      db
+        .select({ paymentTermsDays: counterpartiesTable.paymentTermsDays })
+        .from(counterpartiesTable)
+        .where(and(
+          eq(counterpartiesTable.id, counterpartyId),
+          eq(counterpartiesTable.companyId, companyId),
+          eq(counterpartiesTable.isActive, true),
+        ))
+        .limit(1),
+      loadUnbilledContractReceipts(companyId, counterpartyId, month),
+    ]);
+    if (!counterparty) {
+      res.status(404).json({ error: "Pogodbeni partner ni najden." });
+      return;
+    }
+    const buckets = await loadContractVatBuckets(receipts.map((receipt) => receipt.id));
+    const gross = receipts.reduce((sum, receipt) => sum.plus(receipt.grossAmount), new Decimal(0));
+    const paymentTermsDays = Math.max(0, Number(counterparty.paymentTermsDays ?? 0));
+    res.json({
+      month,
+      receiptCount: receipts.length,
+      grossAmount: gross.toFixed(2),
+      paymentTermsDays,
+      receipts,
+      vatBuckets: buckets.map((bucket) => ({
+        vatRate: bucket.vatRate.toFixed(2),
+        netAmount: bucket.net.toFixed(2),
+        vatAmount: bucket.vat.toFixed(2),
+        grossAmount: bucket.gross.toFixed(2),
+      })),
+    });
+  },
+);
+
+router.post(
+  "/companies/:companyId/invoices/pos-contract-summary",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za izdelavo A-računa potrebujete vlogo računovodja ali lastnik." });
+      return;
+    }
+    const month = typeof req.body?.month === "string" ? req.body.month : "";
+    const counterpartyId = typeof req.body?.counterpartyId === "string" ? req.body.counterpartyId : "";
+    const invoiceNumber = typeof req.body?.invoiceNumber === "string" ? req.body.invoiceNumber.trim() : "";
+    const invoiceDate = typeof req.body?.invoiceDate === "string" ? req.body.invoiceDate : "";
+    const requestedDueDate = typeof req.body?.dueDate === "string" && req.body.dueDate ? req.body.dueDate : null;
+    if (
+      !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+      || !/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate)
+      || (requestedDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(requestedDueDate))
+      || !counterpartyId
+      || !invoiceNumber
+    ) {
+      res.status(400).json({ error: "Manjkajo veljaven mesec, partner, številka ali datum A-računa." });
+      return;
+    }
+    const currentMonthParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Ljubljana",
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(new Date());
+    const currentMonth = `${currentMonthParts.find((part) => part.type === "year")?.value}-${currentMonthParts.find((part) => part.type === "month")?.value}`;
+    if (month >= currentMonth) {
+      res.status(409).json({ error: "Zbirni A-račun je dovoljeno izdelati šele po koncu poslovnega meseca." });
+      return;
+    }
+    const [counterparty] = await db
+      .select({
+        id: counterpartiesTable.id,
+        paymentTermsDays: counterpartiesTable.paymentTermsDays,
+      })
+      .from(counterpartiesTable)
+      .where(and(
+        eq(counterpartiesTable.id, counterpartyId),
+        eq(counterpartiesTable.companyId, companyId),
+        eq(counterpartiesTable.isActive, true),
+      ))
+      .limit(1);
+    if (!counterparty) {
+      res.status(404).json({ error: "Pogodbeni partner ni najden." });
+      return;
+    }
+    const [settings] = await db
+      .select({
+        arAccountId: posBookingSettingsTable.kirArAccountId,
+        transitAccountId: posBookingSettingsTable.contractReceivableTransitAccountId,
+      })
+      .from(posBookingSettingsTable)
+      .where(eq(posBookingSettingsTable.companyId, companyId))
+      .limit(1);
+    if (!settings?.arAccountId || !settings.transitAccountId) {
+      res.status(409).json({
+        error: "V POS → ERP nastavitvah nastavite konto terjatev KIR/AR in prehodni konto pogodbenih malic.",
+      });
+      return;
+    }
+    const [period] = await db
+      .select({ id: accountingPeriodsTable.id })
+      .from(accountingPeriodsTable)
+      .where(and(
+        eq(accountingPeriodsTable.companyId, companyId),
+        lte(accountingPeriodsTable.startDate, invoiceDate),
+        gte(accountingPeriodsTable.endDate, invoiceDate),
+        notInArray(accountingPeriodsTable.status, ["locked"]),
+      ))
+      .limit(1);
+    if (!period) {
+      res.status(409).json({ error: "Za datum A-računa ni odprtega računovodskega obdobja." });
+      return;
+    }
+    const receipts = await loadUnbilledContractReceipts(companyId, counterpartyId, month);
+    if (receipts.length === 0) {
+      res.status(409).json({ error: "Za izbrani mesec ni neobračunanih pogodbenih POS računov." });
+      return;
+    }
+    const receiptGross = receipts.reduce((sum, receipt) => sum.plus(receipt.grossAmount), new Decimal(0));
+    const buckets = await loadContractVatBuckets(receipts.map((receipt) => receipt.id));
+    const bucketGross = buckets.reduce((sum, bucket) => sum.plus(bucket.gross), new Decimal(0));
+    if (receiptGross.minus(bucketGross).abs().gt("0.02")) {
+      res.status(409).json({ error: "Vsota POS postavk se ne ujema z vsoto dnevnih računov; A-račun ni ustvarjen." });
+      return;
+    }
+    const refs = [...new Set(receipts.map((receipt) => `POS:PRODAJA:${receipt.businessDate}:E${receipt.unitId}`))];
+    const dailyEntries = await db
+      .select({ id: journalEntriesTable.id, reference: journalEntriesTable.reference })
+      .from(journalEntriesTable)
+      .where(and(
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.status, "posted"),
+        eq(journalEntriesTable.createdBy, "pos-sync"),
+        inArray(journalEntriesTable.reference, refs),
+      ));
+    const entryByRef = new Map(dailyEntries.map((entry) => [entry.reference, entry.id]));
+    if (refs.some((ref) => !entryByRef.has(ref))) {
+      res.status(409).json({
+        error: "Vsak dnevni POS račun mora biti zajet v potrjeni dnevni prodajni temeljnici na prehodnem kontu.",
+      });
+      return;
+    }
+    const transitLines = await db
+      .select({ entryId: journalEntryLinesTable.entryId })
+      .from(journalEntryLinesTable)
+      .where(and(
+        inArray(journalEntryLinesTable.entryId, dailyEntries.map((entry) => entry.id)),
+        eq(journalEntryLinesTable.accountId, settings.transitAccountId),
+        eq(journalEntryLinesTable.side, "debit"),
+      ));
+    const transitEntryIds = new Set(transitLines.map((line) => line.entryId));
+    if (dailyEntries.some((entry) => !transitEntryIds.has(entry.id))) {
+      res.status(409).json({
+        error: "Potrjena dnevna temeljnica pogodbenih malic ne uporablja nastavljenega prehodnega konta.",
+      });
+      return;
+    }
+    const paymentTermsDays = Math.max(0, Number(counterparty.paymentTermsDays ?? 0));
+    const dueDate = requestedDueDate ?? resolveContractSummaryDueDate(invoiceDate, paymentTermsDays);
+
+    let invoiceId: string;
+    try {
+      invoiceId = await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`${companyId}:${counterpartyId}:${month}:contract-summary`}))`);
+        const [existing] = await tx
+          .select({ id: invoicesTable.id })
+          .from(invoicesTable)
+          .where(and(
+            eq(invoicesTable.companyId, companyId),
+            eq(invoicesTable.sourceType, "pos-contract-summary"),
+            eq(invoicesTable.sourcePeriod, month),
+            eq(invoicesTable.counterpartyId, counterpartyId),
+          ))
+          .limit(1);
+        if (existing) throw new Error("CONTRACT_SUMMARY_EXISTS");
+        const [invoice] = await tx
+          .insert(invoicesTable)
+          .values({
+            companyId,
+            type: "issued",
+            sourceType: "pos-contract-summary",
+            sourcePeriod: month,
+            counterpartyId,
+            periodId: period.id,
+            invoiceNumber,
+            invoiceDate,
+            dueDate,
+            status: "draft",
+            arApAccountId: settings.arAccountId!,
+            vatAccountId: null,
+            notes: `Mesečni zbirni A-račun pogodbenih malic za ${month}; prihodki in DDV so knjiženi na dnevnih POS računih.`,
+            createdBy: authReq.clerkUserId,
+          })
+          .returning({ id: invoicesTable.id });
+        await tx.insert(invoiceLinesTable).values(
+          buckets.map((bucket, sequence) => ({
+            invoiceId: invoice.id,
+            description: `Pogodbene malice ${month} · DDV ${bucket.vatRate.toFixed(2)} %`,
+            quantity: "1.000",
+            unitPrice: bucket.net.toFixed(4),
+            vatRate: bucket.vatRate.toFixed(2),
+            vatBase: bucket.net.toFixed(2),
+            vatAmount: bucket.vat.toFixed(2),
+            accountId: settings.transitAccountId!,
+            sequence,
+          })),
+        );
+        await tx.insert(posContractInvoiceReceiptsTable).values(
+          receipts.map((receipt) => ({
+            companyId,
+            invoiceId: invoice.id,
+            receiptId: receipt.id,
+            dailyEntryId: entryByRef.get(`POS:PRODAJA:${receipt.businessDate}:E${receipt.unitId}`)!,
+            grossAmount: new Decimal(receipt.grossAmount).toFixed(2),
+          })),
+        );
+        await tx.insert(auditLogTable).values({
+          companyId,
+          entityType: "invoice",
+          entityId: invoice.id,
+          action: "create_pos_contract_summary",
+          changedBy: authReq.clerkUserId,
+          payload: { month, receiptCount: receipts.length, grossAmount: receiptGross.toFixed(2) },
+        });
+        return invoice.id;
+      });
+    } catch (error: any) {
+      if (error?.message === "CONTRACT_SUMMARY_EXISTS" || error?.code === "23505" || error?.cause?.code === "23505") {
+        res.status(409).json({ error: "Za tega partnerja in mesec zbirni A-račun že obstaja ali pa je bil dnevni račun že vključen." });
+        return;
+      }
+      throw error;
+    }
+    res.status(201).json(await fetchInvoiceWithLines(invoiceId));
   },
 );
 
@@ -421,6 +1285,539 @@ router.get(
   },
 );
 
+// ─── POS prejemnice / konto 109 ───────────────────────────────────────────────
+router.get(
+  "/companies/:companyId/invoices/:id/pos-prejemnice",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+
+    const result = await getInvoicePosReceiptLinksResponse(companyId, id);
+    if (!result) { res.status(404).json({ error: "Račun ni najden" }); return; }
+    if (result.invoice.type !== "received") {
+      res.status(400).json({ error: "POS prejemnice lahko povežete samo s prejetim računom" });
+      return;
+    }
+    res.json(result.body);
+  },
+);
+
+router.put(
+  "/companies/:companyId/invoices/:id/pos-prejemnice",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za povezovanje prejemnic potrebujete vlogo računovodja ali lastnik" });
+      return;
+    }
+
+    const parsed = LinkInvoicePosReceiptBody.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+    const [invoice] = await db
+      .select({
+        id: invoicesTable.id,
+        type: invoicesTable.type,
+        status: invoicesTable.status,
+        counterpartyId: invoicesTable.counterpartyId,
+        invoiceNumber: invoicesTable.invoiceNumber,
+        sourceDocumentId: invoicesTable.sourceDocumentId,
+      })
+      .from(invoicesTable)
+      .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+      .limit(1);
+    if (!invoice) { res.status(404).json({ error: "Račun ni najden" }); return; }
+    if (invoice.type !== "received") {
+      res.status(400).json({ error: "POS prejemnice lahko povežete samo s prejetim računom" });
+      return;
+    }
+    if (invoice.status !== "draft") {
+      res.status(400).json({ error: "Prejemnice lahko spreminjate samo na osnutku računa" });
+      return;
+    }
+
+    const [receipt] = await db
+      .select({
+        id: prejemniceTable.id,
+        enotaId: prejemniceTable.enotaId,
+        dobaviteljId: prejemniceTable.dobaviteljId,
+        documentNumber: prejemniceTable.stDokumenta,
+        documentDate: prejemniceTable.datumDokumenta,
+        vatBase: prejemniceTable.ddvOsnova,
+        vatAmount: prejemniceTable.ddvZnesek,
+        amount: prejemniceTable.skupajVrednost,
+        companyId: enoteTable.companyId,
+        sourceDocumentId: prejemniceTable.sourceDocumentId,
+      })
+      .from(prejemniceTable)
+      .innerJoin(enoteTable, eq(enoteTable.id, prejemniceTable.enotaId))
+      .where(eq(prejemniceTable.id, parsed.data.prejemnicaId))
+      .limit(1);
+    if (!receipt || receipt.companyId !== companyId) {
+      res.status(404).json({ error: "Prejemnica ni najdena v aktivnem podjetju" });
+      return;
+    }
+    if (receipt.dobaviteljId !== invoice.counterpartyId) {
+      res.status(400).json({ error: "Prejemnica in račun morata imeti istega dobavitelja" });
+      return;
+    }
+    if (new Decimal(receipt.amount).lte(0)) {
+      res.status(400).json({ error: "Prejemnica brez pozitivne finančne vrednosti ne more zapirati konta 109" });
+      return;
+    }
+    if (
+      parsed.data.mode === "delivery_note_invoice" &&
+      (!receipt.documentNumber || !receipt.documentDate || receipt.vatBase == null || receipt.vatAmount == null)
+    ) {
+      res.status(400).json({
+        error: "Način »Dobavnica je račun« zahteva številko in datum dokumenta ter popolne DDV podatke na prejemnici.",
+      });
+      return;
+    }
+    if (
+      parsed.data.mode === "delivery_note_invoice"
+      && invoice.sourceDocumentId
+      && receipt.sourceDocumentId
+      && invoice.sourceDocumentId !== receipt.sourceDocumentId
+    ) {
+      res.status(409).json({
+        error: "Prejemnica in račun imata različni izvorni listini; načina »Dobavnica je račun« ni mogoče uporabiti",
+      });
+      return;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        await lockPosReceiptForReconciliation(tx, companyId, receipt.enotaId, receipt.id);
+        await lockInvoiceForPosLinks(tx, id);
+        const [lockedInvoice] = await tx
+          .select({
+            status: invoicesTable.status,
+            invoiceNumber: invoicesTable.invoiceNumber,
+            sourceDocumentId: invoicesTable.sourceDocumentId,
+            dueDate: invoicesTable.dueDate,
+            destinationIban: invoicesTable.destinationIban,
+            destinationBic: invoicesTable.destinationBic,
+            paymentModel: invoicesTable.paymentModel,
+            paymentReference: invoicesTable.paymentReference,
+            paymentPurpose: invoicesTable.paymentPurpose,
+          })
+          .from(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+          .limit(1);
+        if (!lockedInvoice || lockedInvoice.status !== "draft") {
+          throw new Error("INVOICE_POS_LINKS_LOCKED");
+        }
+        const [lockedReceipt] = await tx
+          .select({
+            documentNumber: prejemniceTable.stDokumenta,
+            amount: prejemniceTable.skupajVrednost,
+            vatBase: prejemniceTable.ddvOsnova,
+            vatAmount: prejemniceTable.ddvZnesek,
+            grossAmount: prejemniceTable.brutoSkupaj,
+            currency: prejemniceTable.valuta,
+            sourceDocumentId: prejemniceTable.sourceDocumentId,
+            dueDate: prejemniceTable.datumZapadlosti,
+            destinationIban: prejemniceTable.dobaviteljIban,
+            destinationBic: prejemniceTable.dobaviteljBic,
+            paymentModel: prejemniceTable.placilniModel,
+            paymentReference: prejemniceTable.placilniSklic,
+            paymentPurpose: prejemniceTable.placilniNamen,
+          })
+          .from(prejemniceTable)
+          .innerJoin(enoteTable, and(
+            eq(enoteTable.id, prejemniceTable.enotaId),
+            eq(enoteTable.companyId, companyId),
+          ))
+          .where(and(
+            eq(prejemniceTable.id, receipt.id),
+            eq(prejemniceTable.enotaId, receipt.enotaId),
+          ))
+          .limit(1);
+        if (!lockedReceipt) {
+          throw new ReceiptEditConflict("RECEIPT_NOT_FOUND", "Prejemnica ni najdena.");
+        }
+        const invoiceLineAmounts = await tx
+          .select({
+            quantity: invoiceLinesTable.quantity,
+            unitPrice: invoiceLinesTable.unitPrice,
+            vatRate: invoiceLinesTable.vatRate,
+          })
+          .from(invoiceLinesTable)
+          .where(eq(invoiceLinesTable.invoiceId, id));
+        const invoiceNet = invoiceLineAmounts.reduce(
+          (sum, line) => sum.plus(new Decimal(line.quantity).mul(line.unitPrice)),
+          new Decimal(0),
+        ).toDecimalPlaces(2);
+        const receiptNet = new Decimal(lockedReceipt.amount);
+        const invoiceVat = invoiceLineAmounts.reduce((sum, line) => {
+          const net = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+          return sum.plus(net.mul(line.vatRate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP));
+        }, new Decimal(0)).toDecimalPlaces(2);
+        const invoiceGross = invoiceNet.plus(invoiceVat);
+        const invoiceCanonicalNumber = normalizePurchaseDocumentNumber(lockedInvoice.invoiceNumber);
+        const receiptCanonicalNumber = normalizePurchaseDocumentNumber(lockedReceipt.documentNumber);
+        const canonicalNumberEqual = Boolean(
+          invoiceCanonicalNumber
+          && receiptCanonicalNumber
+          && invoiceCanonicalNumber === receiptCanonicalNumber,
+        );
+        const netAmountEqual = invoiceNet.eq(receiptNet);
+        const effectiveMatchMethod = parsed.data.matchMethod === "manual"
+          ? "manual"
+          : canonicalNumberEqual && netAmountEqual
+            ? "exact"
+            : "suggested";
+        const existingLinkModes = await tx.select({ mode: posInvoiceLinksTable.mode })
+          .from(posInvoiceLinksTable)
+          .where(and(
+            eq(posInvoiceLinksTable.companyId, companyId),
+            eq(posInvoiceLinksTable.invoiceId, id),
+          ));
+        if (
+          (parsed.data.mode === "delivery_note_invoice" && existingLinkModes.length > 0)
+          || existingLinkModes.some(link => link.mode === "delivery_note_invoice")
+        ) {
+          throw new Error("MODE_A_REQUIRES_SINGLE_RECEIPT");
+        }
+        if (parsed.data.mode === "delivery_note_invoice") {
+          const receiptVat = lockedReceipt.vatAmount == null ? null : new Decimal(lockedReceipt.vatAmount);
+          const receiptGross = lockedReceipt.grossAmount == null
+            ? receiptVat == null ? null : receiptNet.plus(receiptVat)
+            : new Decimal(lockedReceipt.grossAmount);
+          if (
+            lockedReceipt.currency !== "EUR"
+            || !canonicalNumberEqual
+            || !netAmountEqual
+            || receiptVat == null
+            || !receiptVat.eq(invoiceVat)
+            || receiptGross == null
+            || !receiptGross.eq(invoiceGross)
+            || (lockedReceipt.vatBase != null && !new Decimal(lockedReceipt.vatBase).eq(invoiceNet))
+          ) {
+            throw new Error("MODE_A_IDENTITY_MISMATCH");
+          }
+          const receiptVatLines = await tx.select({
+            rate: prejemnicePostavkeTable.ddvStopnja,
+            preferredNet: prejemnicePostavkeTable.ddvOsnova,
+            net: prejemnicePostavkeTable.netoZnesek,
+            fallbackNet: prejemnicePostavkeTable.skupaj,
+            vat: prejemnicePostavkeTable.ddvZnesek,
+          }).from(prejemnicePostavkeTable)
+            .where(eq(prejemnicePostavkeTable.prejemnicaId, receipt.id));
+          if (receiptVatLines.length === 0 || receiptVatLines.some(line => line.rate == null || line.vat == null)) {
+            throw new Error("MODE_A_IDENTITY_MISMATCH");
+          }
+          const receiptBuckets = new Map<string, { net: Decimal; vat: Decimal }>();
+          for (const line of receiptVatLines) {
+            const rate = new Decimal(line.rate!).toString();
+            const bucket = receiptBuckets.get(rate) ?? { net: new Decimal(0), vat: new Decimal(0) };
+            bucket.net = bucket.net.plus(line.preferredNet ?? line.net ?? line.fallbackNet);
+            bucket.vat = bucket.vat.plus(line.vat!);
+            receiptBuckets.set(rate, bucket);
+          }
+          const invoiceBuckets = new Map<string, { net: Decimal; vat: Decimal }>();
+          for (const line of invoiceLineAmounts) {
+            const rate = new Decimal(line.vatRate).toString();
+            const net = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+            const bucket = invoiceBuckets.get(rate) ?? { net: new Decimal(0), vat: new Decimal(0) };
+            bucket.net = bucket.net.plus(net);
+            bucket.vat = bucket.vat.plus(net.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP));
+            invoiceBuckets.set(rate, bucket);
+          }
+          if (
+            receiptBuckets.size !== invoiceBuckets.size
+            || [...receiptBuckets].some(([rate, bucket]) => {
+              const invoiceBucket = invoiceBuckets.get(rate);
+              return !invoiceBucket
+                || !bucket.net.toDecimalPlaces(2).eq(invoiceBucket.net.toDecimalPlaces(2))
+                || !bucket.vat.toDecimalPlaces(2).eq(invoiceBucket.vat.toDecimalPlaces(2));
+            })
+          ) {
+            throw new Error("MODE_A_IDENTITY_MISMATCH");
+          }
+        }
+        let resultingInvoiceSourceDocumentId = lockedInvoice.sourceDocumentId;
+        let resultingReceiptSourceDocumentId = lockedReceipt.sourceDocumentId;
+        if (parsed.data.mode === "delivery_note_invoice") {
+          if (
+            lockedInvoice.sourceDocumentId
+            && lockedReceipt.sourceDocumentId
+            && lockedInvoice.sourceDocumentId !== lockedReceipt.sourceDocumentId
+          ) {
+            throw new Error("MODE_A_SOURCE_MISMATCH");
+          }
+          const [postedReceiptBooking] = await tx
+            .select({ journalEntryId: posReceiptBookingSourcesTable.journalEntryId })
+            .from(posReceiptBookingSourcesTable)
+            .innerJoin(
+              journalEntriesTable,
+              and(
+                eq(journalEntriesTable.id, posReceiptBookingSourcesTable.journalEntryId),
+                eq(journalEntriesTable.companyId, companyId),
+                eq(journalEntriesTable.status, "posted"),
+              ),
+            )
+            .where(eq(posReceiptBookingSourcesTable.prejemnicaId, receipt.id))
+            .limit(1);
+          if (!lockedReceipt.sourceDocumentId && postedReceiptBooking) {
+            throw new Error("MODE_A_POSTED_RECEIPT_MISSING_SOURCE");
+          }
+          let sharedSourceId = lockedInvoice.sourceDocumentId ?? lockedReceipt.sourceDocumentId;
+          if (!sharedSourceId) {
+            sharedSourceId = await claimPurchaseSourceDocument(tx, {
+              companyId,
+              counterpartyId: invoice.counterpartyId,
+              kind: "invoice",
+              documentNumber: receipt.documentNumber,
+              documentDate: receipt.documentDate,
+              excludeInvoiceId: id,
+              excludePosReceiptId: receipt.id,
+            });
+          } else {
+            await tx.execute(sql`
+              SELECT pg_advisory_xact_lock(hashtext(${sharedSourceId}))
+            `);
+          }
+          resultingInvoiceSourceDocumentId = sharedSourceId;
+          resultingReceiptSourceDocumentId = sharedSourceId;
+          await tx.update(invoicesTable)
+            .set({
+              sourceDocumentId: sharedSourceId,
+              dueDate: lockedReceipt.dueDate ?? lockedInvoice.dueDate,
+              destinationIban: lockedReceipt.destinationIban?.replace(/\s+/g, "").toUpperCase()
+                ?? lockedInvoice.destinationIban,
+              destinationBic: lockedReceipt.destinationBic?.replace(/\s+/g, "").toUpperCase()
+                ?? lockedInvoice.destinationBic,
+              paymentModel: lockedReceipt.paymentModel ?? lockedInvoice.paymentModel,
+              paymentReference: lockedReceipt.paymentReference ?? lockedInvoice.paymentReference,
+              paymentPurpose: lockedReceipt.paymentPurpose ?? lockedInvoice.paymentPurpose,
+            })
+            .where(eq(invoicesTable.id, id));
+          if (!lockedReceipt.sourceDocumentId) {
+            await tx.update(prejemniceTable)
+              .set({ sourceDocumentId: sharedSourceId })
+              .where(eq(prejemniceTable.id, receipt.id));
+          }
+        }
+        await tx.insert(posInvoiceLinksTable).values({
+          companyId,
+          invoiceId: id,
+          prejemnicaId: receipt.id,
+          enotaId: receipt.enotaId,
+          mode: parsed.data.mode,
+          matchMethod: effectiveMatchMethod,
+          matchedBy: authReq.clerkUserId,
+        });
+        await tx.insert(auditLogTable).values({
+          companyId,
+          entityType: "invoice",
+          entityId: id,
+          action: "link_pos_prejemnica",
+          changedBy: authReq.clerkUserId,
+          payload: {
+            prejemnicaId: receipt.id,
+            enotaId: receipt.enotaId,
+            status: "confirmed",
+            mode: parsed.data.mode,
+            matchMethod: effectiveMatchMethod,
+            requestedMatchMethod: parsed.data.matchMethod ?? null,
+            canonicalNumberEqual,
+            netAmountEqual,
+            invoiceCanonicalNumber,
+            receiptCanonicalNumber,
+            invoiceNetAmount: invoiceNet.toFixed(2),
+            receiptNetAmount: receiptNet.toFixed(2),
+            invoiceSourceDocumentId: resultingInvoiceSourceDocumentId,
+            receiptSourceDocumentId: resultingReceiptSourceDocumentId,
+          },
+        });
+      });
+    } catch (error: unknown) {
+      if (error instanceof ReceiptEditConflict) {
+        res.status(error.code === "RECEIPT_BOOKING_POSTED" ? 409 : 404)
+          .json({ error: error.message, code: error.code });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_POS_LINKS_LOCKED") {
+        res.status(400).json({ error: "Prejemnic ni mogoče spreminjati, ker je račun medtem poknjižen." });
+        return;
+      }
+      if (error instanceof Error && error.message === "MODE_A_REQUIRES_SINGLE_RECEIPT") {
+        res.status(409).json({ error: "Način »Dobavnica je račun« dovoljuje natanko eno povezano prejemnico." });
+        return;
+      }
+      if (error instanceof Error && error.message === "MODE_A_IDENTITY_MISMATCH") {
+        res.status(409).json({ error: "Dobavnica in račun nimata popolnoma enake identitete, neto, DDV in bruto vrednosti." });
+        return;
+      }
+      if (error instanceof Error && error.message === "MODE_A_POSTED_RECEIPT_MISSING_SOURCE") {
+        res.status(409).json({
+          error: "Poknjižena prejemnica nima izvorne listine. Potrebna je računovodska razrešitev ali uporaba načina »Račun z dobavnicami«; izvora prejemnice ni dovoljeno naknadno spreminjati.",
+        });
+        return;
+      }
+      if (error instanceof Error && error.message === "MODE_A_SOURCE_MISMATCH") {
+        res.status(409).json({
+          error: "Prejemnica in račun imata različni izvorni listini; načina »Dobavnica je račun« ni mogoče uporabiti",
+        });
+        return;
+      }
+      const code = (error as { code?: string; cause?: { code?: string } }).code
+        ?? (error as { cause?: { code?: string } }).cause?.code;
+      if (code === "23505" || code === "LEGACY_PURCHASE_SOURCE_CONFLICT") {
+        res.status(409).json({ error: "Ta prejemnica je že povezana z drugim računom in je ni mogoče dvakrat zapreti." });
+        return;
+      }
+      throw error;
+    }
+
+    const result = await getInvoicePosReceiptLinksResponse(companyId, id);
+    res.json(result!.body);
+  },
+);
+
+router.delete(
+  "/companies/:companyId/invoices/:id/pos-prejemnice/:prejemnicaId",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+    const prejemnicaId = Number(extractParam(req.params.prejemnicaId));
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za razvezovanje prejemnic potrebujete vlogo računovodja ali lastnik" });
+      return;
+    }
+    if (!Number.isInteger(prejemnicaId)) {
+      res.status(400).json({ error: "Neveljaven ID prejemnice" });
+      return;
+    }
+
+    const [invoice] = await db
+      .select({ status: invoicesTable.status })
+      .from(invoicesTable)
+      .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+      .limit(1);
+    if (!invoice) { res.status(404).json({ error: "Račun ni najden" }); return; }
+    if (invoice.status !== "draft") {
+      res.status(400).json({ error: "Prejemnice lahko razvežete samo na osnutku računa" });
+      return;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        const [linkedReceipt] = await tx
+          .select({ enotaId: prejemniceTable.enotaId })
+          .from(posInvoiceLinksTable)
+          .innerJoin(prejemniceTable, eq(prejemniceTable.id, posInvoiceLinksTable.prejemnicaId))
+          .innerJoin(enoteTable, and(
+            eq(enoteTable.id, prejemniceTable.enotaId),
+            eq(enoteTable.companyId, companyId),
+          ))
+          .where(and(
+            eq(posInvoiceLinksTable.companyId, companyId),
+            eq(posInvoiceLinksTable.invoiceId, id),
+            eq(posInvoiceLinksTable.prejemnicaId, prejemnicaId),
+          ))
+          .limit(1);
+        if (!linkedReceipt) throw new ReceiptEditConflict("RECEIPT_NOT_FOUND", "Povezana prejemnica ni najdena.");
+
+        // Enak vrstni red kot pri povezovanju: najprej prejemnica, nato račun.
+        await lockPosReceiptForReconciliation(tx, companyId, linkedReceipt.enotaId, prejemnicaId);
+        await lockInvoiceForPosLinks(tx, id);
+        const [lockedInvoice] = await tx
+          .select({ status: invoicesTable.status })
+          .from(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+          .limit(1);
+        if (!lockedInvoice || lockedInvoice.status !== "draft") {
+          throw new Error("INVOICE_POS_LINKS_LOCKED");
+        }
+        const [linkMetadata] = await tx
+          .select({
+            id: posInvoiceLinksTable.id,
+            enotaId: posInvoiceLinksTable.enotaId,
+            mode: posInvoiceLinksTable.mode,
+            matchMethod: posInvoiceLinksTable.matchMethod,
+            matchedBy: posInvoiceLinksTable.matchedBy,
+            matchedAt: posInvoiceLinksTable.matchedAt,
+            invoiceSourceDocumentId: invoicesTable.sourceDocumentId,
+            receiptSourceDocumentId: prejemniceTable.sourceDocumentId,
+          })
+          .from(posInvoiceLinksTable)
+          .innerJoin(invoicesTable, and(
+            eq(invoicesTable.id, posInvoiceLinksTable.invoiceId),
+            eq(invoicesTable.companyId, companyId),
+          ))
+          .innerJoin(prejemniceTable, eq(prejemniceTable.id, posInvoiceLinksTable.prejemnicaId))
+          .where(and(
+            eq(posInvoiceLinksTable.companyId, companyId),
+            eq(posInvoiceLinksTable.invoiceId, id),
+            eq(posInvoiceLinksTable.prejemnicaId, prejemnicaId),
+          ))
+          .limit(1);
+        if (!linkMetadata) {
+          throw new ReceiptEditConflict("RECEIPT_NOT_FOUND", "Povezana prejemnica ni najdena.");
+        }
+        const deleted = await tx
+          .delete(posInvoiceLinksTable)
+          .where(and(
+            eq(posInvoiceLinksTable.companyId, companyId),
+            eq(posInvoiceLinksTable.invoiceId, id),
+            eq(posInvoiceLinksTable.prejemnicaId, prejemnicaId),
+          ))
+          .returning({ id: posInvoiceLinksTable.id });
+        if (deleted.length > 0) {
+          await tx.insert(auditLogTable).values({
+            companyId,
+            entityType: "invoice",
+            entityId: id,
+            action: "unlink_pos_prejemnica",
+            changedBy: authReq.clerkUserId,
+            payload: {
+              prejemnicaId,
+              enotaId: linkMetadata.enotaId,
+              status: "unlinked",
+              linkId: linkMetadata.id,
+              mode: linkMetadata.mode,
+              matchMethod: linkMetadata.matchMethod,
+              matchedBy: linkMetadata.matchedBy,
+              matchedAt: linkMetadata.matchedAt.toISOString(),
+              invoiceSourceDocumentId: linkMetadata.invoiceSourceDocumentId,
+              receiptSourceDocumentId: linkMetadata.receiptSourceDocumentId,
+            },
+          });
+        }
+      });
+    } catch (error: unknown) {
+      if (error instanceof ReceiptEditConflict) {
+        res.status(error.code === "RECEIPT_BOOKING_POSTED" ? 409 : 404)
+          .json({ error: error.message, code: error.code });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_POS_LINKS_LOCKED") {
+        res.status(409).json({ error: "Prejemnic ni mogoče spreminjati, ker je račun medtem poknjižen." });
+        return;
+      }
+      throw error;
+    }
+    const result = await getInvoicePosReceiptLinksResponse(companyId, id);
+    res.json(result!.body);
+  },
+);
+
 // ─── PATCH /companies/:companyId/invoices/:id ─────────────────────────────────
 router.patch(
   "/companies/:companyId/invoices/:id",
@@ -444,7 +1841,17 @@ router.patch(
     }
 
     const [existing] = await db
-      .select({ id: invoicesTable.id, status: invoicesTable.status })
+      .select({
+        id: invoicesTable.id,
+        status: invoicesTable.status,
+        type: invoicesTable.type,
+        sourceType: invoicesTable.sourceType,
+        sourcePeriod: invoicesTable.sourcePeriod,
+        counterpartyId: invoicesTable.counterpartyId,
+        invoiceNumber: invoicesTable.invoiceNumber,
+        invoiceDate: invoicesTable.invoiceDate,
+        sourceDocumentId: invoicesTable.sourceDocumentId,
+      })
       .from(invoicesTable)
       .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
       .limit(1);
@@ -452,6 +1859,21 @@ router.patch(
     if (!existing) { res.status(404).json({ error: "Račun ni najden" }); return; }
     if (existing.status !== "draft") {
       res.status(400).json({ error: "Samo osnutke je mogoče urejati" });
+      return;
+    }
+    if (
+      existing.sourceType === "pos-contract-summary"
+      && (
+        parsed.data.counterpartyId !== undefined
+        || parsed.data.periodId !== undefined
+        || parsed.data.arApAccountId !== undefined
+        || parsed.data.vatAccountId !== undefined
+        || parsed.data.lines !== undefined
+      )
+    ) {
+      res.status(409).json({
+        error: "Pri zbirnem A-računu lahko spremenite le številko, datum, rok plačila in opombo; partner, konti ter specifikacija so zaklenjeni.",
+      });
       return;
     }
 
@@ -475,8 +1897,13 @@ router.patch(
     }
     if (parsed.data.vatAccountId) {
       const [v] = await db.select({ id: accountsTable.id }).from(accountsTable)
-        .where(and(eq(accountsTable.id, parsed.data.vatAccountId), eq(accountsTable.companyId, companyId))).limit(1);
-      if (!v) { res.status(400).json({ error: "DDV konto ne pripada temu podjetju" }); return; }
+        .where(and(
+          eq(accountsTable.id, parsed.data.vatAccountId),
+          eq(accountsTable.companyId, companyId),
+          eq(accountsTable.isActive, true),
+          eq(accountsTable.allowsPosting, true),
+        )).limit(1);
+      if (!v) { res.status(400).json({ error: "DDV konto ni aktiven analitični konto, ki dovoljuje knjiženje" }); return; }
     }
     if (lines && lines.length > 0) {
       const updateLineAccountIds = [...new Set(lines.map((l) => l.accountId))];
@@ -488,14 +1915,82 @@ router.patch(
       }
     }
 
-    await db.transaction(async (tx) => {
+    try {
+      await db.transaction(async (tx) => {
+        await lockInvoiceForPosLinks(tx, id);
+        const [lockedInvoice] = await tx
+          .select({
+            status: invoicesTable.status,
+            type: invoicesTable.type,
+            counterpartyId: invoicesTable.counterpartyId,
+            invoiceNumber: invoicesTable.invoiceNumber,
+            invoiceDate: invoicesTable.invoiceDate,
+            sourceDocumentId: invoicesTable.sourceDocumentId,
+          })
+          .from(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+          .limit(1);
+        if (!lockedInvoice || lockedInvoice.status !== "draft") {
+          throw new Error("INVOICE_UPDATE_LOCKED");
+        }
       const updateData: Record<string, unknown> = { ...headerFields };
+      if (parsed.data.destinationIban !== undefined) {
+        updateData.destinationIban = parsed.data.destinationIban?.replace(/\s+/g, "").toUpperCase() || null;
+      }
+      if (parsed.data.destinationBic !== undefined) {
+        updateData.destinationBic = parsed.data.destinationBic?.replace(/\s+/g, "").toUpperCase() || null;
+      }
+      if (parsed.data.paymentModel !== undefined) updateData.paymentModel = parsed.data.paymentModel?.trim() || null;
+      if (parsed.data.paymentReference !== undefined) updateData.paymentReference = parsed.data.paymentReference?.trim() || null;
+      if (parsed.data.paymentPurpose !== undefined) updateData.paymentPurpose = parsed.data.paymentPurpose?.trim() || null;
       if (invoiceDate) updateData.invoiceDate = (invoiceDate as unknown as Date).toISOString().slice(0, 10);
       if (dueDate !== undefined) updateData.dueDate = dueDate ? (dueDate as unknown as Date).toISOString().slice(0, 10) : null;
+        let replacementSourceDocumentId: string | null = null;
+        if (lockedInvoice.type === "received") {
+          const effectiveCounterpartyId = parsed.data.counterpartyId ?? lockedInvoice.counterpartyId;
+          const effectiveInvoiceNumber = parsed.data.invoiceNumber ?? lockedInvoice.invoiceNumber;
+          const effectiveInvoiceDate = invoiceDate
+            ? (invoiceDate as unknown as Date).toISOString().slice(0, 10)
+            : lockedInvoice.invoiceDate;
+          const identityChanged = effectiveCounterpartyId !== lockedInvoice.counterpartyId
+            || normalizePurchaseDocumentNumber(effectiveInvoiceNumber)
+              !== normalizePurchaseDocumentNumber(lockedInvoice.invoiceNumber);
+          if (identityChanged) {
+            const existingLinks = await tx.select({ id: posInvoiceLinksTable.id })
+              .from(posInvoiceLinksTable)
+              .where(and(
+                eq(posInvoiceLinksTable.companyId, companyId),
+                eq(posInvoiceLinksTable.invoiceId, id),
+              ))
+              .limit(1);
+            if (existingLinks.length > 0) {
+              throw new Error("INVOICE_IDENTITY_HAS_POS_LINKS");
+            }
+            replacementSourceDocumentId = await claimPurchaseSourceDocument(tx, {
+              companyId,
+              counterpartyId: effectiveCounterpartyId,
+              kind: "invoice",
+              documentNumber: effectiveInvoiceNumber,
+              documentDate: effectiveInvoiceDate,
+              excludeInvoiceId: id,
+            });
+            updateData.sourceDocumentId = replacementSourceDocumentId;
+          }
+        }
 
-      await tx.update(invoicesTable).set(updateData as any).where(eq(invoicesTable.id, id));
+        const updated = await tx
+          .update(invoicesTable)
+          .set(updateData as any)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId), eq(invoicesTable.status, "draft")))
+          .returning({ id: invoicesTable.id });
+        if (updated.length === 0) throw new Error("INVOICE_UPDATE_LOCKED");
+        if (replacementSourceDocumentId) {
+          await tx.update(documentsTable)
+            .set({ sourceDocumentId: replacementSourceDocumentId })
+            .where(eq(documentsTable.linkedInvoiceId, id));
+        }
 
-      if (lines && lines.length > 0) {
+        if (lines && lines.length > 0) {
         // Zamenjaj vrstice
         await tx.delete(invoiceLinesTable).where(eq(invoiceLinesTable.invoiceId, id));
         await tx.insert(invoiceLinesTable).values(
@@ -511,15 +2006,38 @@ router.patch(
         );
       }
 
-      await tx.insert(auditLogTable).values({
+        await tx.insert(auditLogTable).values({
         companyId,
         entityType: "invoice",
         entityId: id,
         action: "update",
         changedBy: authReq.clerkUserId,
         payload: null,
+        });
       });
-    });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === "INVOICE_UPDATE_LOCKED") {
+        res.status(400).json({ error: "Račun je medtem poknjižen in ga ni več mogoče urejati." });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_IDENTITY_HAS_POS_LINKS") {
+        res.status(409).json({
+          error: "Dobavitelja ali številke računa ni mogoče spremeniti, dokler je račun povezan s POS prejemnico",
+        });
+        return;
+      }
+      if (
+        (error as any)?.code === "23505"
+        || (error as any)?.cause?.code === "23505"
+        || (error as any)?.code === "LEGACY_PURCHASE_SOURCE_CONFLICT"
+      ) {
+        res.status(409).json({
+          error: "Prejeti račun s to dobaviteljevo številko je že zajet ali zahteva razrešitev stare identitete",
+        });
+        return;
+      }
+      throw error;
+    }
 
     const result = await fetchInvoiceWithLines(id);
     res.json(result);
@@ -547,12 +2065,16 @@ router.post(
         id: invoicesTable.id,
         status: invoicesTable.status,
         type: invoicesTable.type,
+        sourceType: invoicesTable.sourceType,
+        sourcePeriod: invoicesTable.sourcePeriod,
         periodId: invoicesTable.periodId,
         arApAccountId: invoicesTable.arApAccountId,
         vatAccountId: invoicesTable.vatAccountId,
         invoiceNumber: invoicesTable.invoiceNumber,
         invoiceDate: invoicesTable.invoiceDate,
         counterpartyId: invoicesTable.counterpartyId,
+        updatedAt: invoicesTable.updatedAt,
+        sourceDocumentId: invoicesTable.sourceDocumentId,
       })
       .from(invoicesTable)
       .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
@@ -561,6 +2083,12 @@ router.post(
     if (!invoice) { res.status(404).json({ error: "Račun ni najden" }); return; }
     if (invoice.status !== "draft") {
       res.status(400).json({ error: "Samo osnutke je mogoče knjižiti" });
+      return;
+    }
+    if (invoice.type === "received" && !invoice.sourceDocumentId) {
+      res.status(409).json({
+        error: "Prejeti račun nima razrešene identitete izvorne listine",
+      });
       return;
     }
 
@@ -577,6 +2105,7 @@ router.post(
 
     const lines = await db
       .select({
+        id: invoiceLinesTable.id,
         accountId: invoiceLinesTable.accountId,
         quantity: invoiceLinesTable.quantity,
         unitPrice: invoiceLinesTable.unitPrice,
@@ -603,17 +2132,216 @@ router.post(
     });
 
     const totalGross = lineCalcs.reduce((s, l) => s + l.grossTotal, 0);
+    const totalNet = lineCalcs.reduce((s, l) => s + l.lineTotal, 0);
+    const isContractSummary = invoice.sourceType === "pos-contract-summary";
+    let contractTransitAccountId: string | null = null;
+    let contractReceiptLinks: Array<{
+      id: string;
+      receiptId: number;
+      dailyEntryId: string;
+      grossAmount: string;
+    }> = [];
+    if (isContractSummary) {
+      const [settings] = await db
+        .select({ transitAccountId: posBookingSettingsTable.contractReceivableTransitAccountId })
+        .from(posBookingSettingsTable)
+        .where(eq(posBookingSettingsTable.companyId, companyId))
+        .limit(1);
+      contractTransitAccountId = settings?.transitAccountId ?? null;
+      if (!contractTransitAccountId) {
+        res.status(409).json({ error: "Prehodni konto pogodbenih malic ni nastavljen." });
+        return;
+      }
+      contractReceiptLinks = await db
+        .select({
+          id: posContractInvoiceReceiptsTable.id,
+          receiptId: posContractInvoiceReceiptsTable.receiptId,
+          dailyEntryId: posContractInvoiceReceiptsTable.dailyEntryId,
+          grossAmount: posContractInvoiceReceiptsTable.grossAmount,
+        })
+        .from(posContractInvoiceReceiptsTable)
+        .where(and(
+          eq(posContractInvoiceReceiptsTable.companyId, companyId),
+          eq(posContractInvoiceReceiptsTable.invoiceId, id),
+        ));
+      if (contractReceiptLinks.length === 0) {
+        res.status(409).json({ error: "Zbirni A-račun nima povezane specifikacije dnevnih POS računov." });
+        return;
+      }
+      const linkedGross = contractReceiptLinks.reduce(
+        (sum, link) => sum.plus(link.grossAmount),
+        new Decimal(0),
+      );
+      if (linkedGross.minus(totalGross).abs().gt("0.02")) {
+        res.status(409).json({ error: "Vsota specifikacije dnevnih POS računov se ne ujema z A-računom." });
+        return;
+      }
+      const validDailyEntries = await db
+        .select({ id: journalEntriesTable.id })
+        .from(journalEntriesTable)
+        .innerJoin(
+          journalEntryLinesTable,
+          eq(journalEntryLinesTable.entryId, journalEntriesTable.id),
+        )
+        .where(and(
+          inArray(journalEntriesTable.id, contractReceiptLinks.map((link) => link.dailyEntryId)),
+          eq(journalEntriesTable.companyId, companyId),
+          eq(journalEntriesTable.status, "posted"),
+          eq(journalEntryLinesTable.accountId, contractTransitAccountId),
+          eq(journalEntryLinesTable.side, "debit"),
+        ));
+      const validIds = new Set(validDailyEntries.map((entry) => entry.id));
+      if (contractReceiptLinks.some((link) => !validIds.has(link.dailyEntryId))) {
+        res.status(409).json({
+          error: "Ena od dnevnih temeljnic ni več potrjena ali ne knjiži na prehodni konto pogodbenih malic.",
+        });
+        return;
+      }
+    }
+
+    // Pri ločeni dobavnici je zalogovni del že knjižen na prehodni konto.
+    // Pri načinu delivery_note_invoice je ista listina hkrati dobavnica in račun,
+    // zato jo knjižimo neposredno kot prejeti račun brez prehodnega konta.
+    const posLinks = invoice.type === "received"
+      ? await getInvoicePosReceiptLinksResponse(companyId, id)
+      : null;
+    const hasPosLinks = Boolean(posLinks && posLinks.body.links.length > 0);
+    const isDirectDeliveryNoteInvoice = Boolean(
+      hasPosLinks
+      && posLinks!.body.links.every((link) => link.mode === "delivery_note_invoice"),
+    );
+    const linkedReceiptDate = isDirectDeliveryNoteInvoice
+      ? posLinks!.body.links[0]!.receiptDate
+      : null;
+    const inputVatRecognitionDate = linkedReceiptDate instanceof Date
+      ? linkedReceiptDate.toISOString().slice(0, 10)
+      : linkedReceiptDate
+        ? String(linkedReceiptDate).slice(0, 10)
+        : invoice.invoiceDate;
+    if (invoice.type === "received" && invoice.sourceDocumentId) {
+      const sameSourcePosReceipts = await db.select({ id: prejemniceTable.id })
+        .from(prejemniceTable)
+        .innerJoin(enoteTable, eq(prejemniceTable.enotaId, enoteTable.id))
+        .where(and(
+          eq(enoteTable.companyId, companyId),
+          eq(prejemniceTable.sourceDocumentId, invoice.sourceDocumentId),
+        ));
+      const linkedReceiptIds = new Set(posLinks?.body.links.map((link) => link.prejemnicaId) ?? []);
+      const unlinkedSameSource = sameSourcePosReceipts.filter((receipt) => !linkedReceiptIds.has(receipt.id));
+      if (unlinkedSameSource.length > 0) {
+        res.status(409).json({
+          error: "Račun ima POS prejemnico istega vira; pred knjiženjem jo eksplicitno povežite z računom",
+        });
+        return;
+      }
+    }
+    let pos109AccountId: string | null = null;
+    const postedReceiptFacts = new Map<number, PostedReceiptBookingFacts>();
+    let posSettings: {
+      inputVatAccountId: string | null;
+      inputVat22AccountId: string | null;
+      inputVat95AccountId: string | null;
+      inputVat5AccountId: string | null;
+    } | null = null;
+    if (hasPosLinks && !isDirectDeliveryNoteInvoice) {
+      const reasons = posLinks!.body.preview.reasons;
+      if (reasons.length > 0) {
+        res.status(400).json({ error: `Račun ostane osnutek: ${reasons.join(" ")}` });
+        return;
+      }
+      const [settings] = await db
+        .select({
+          nabavaObracunAccountId: posBookingSettingsTable.nabavaObracunAccountId,
+          inputVatAccountId: posBookingSettingsTable.inputVatAccountId,
+          inputVat22AccountId: posBookingSettingsTable.inputVat22AccountId,
+          inputVat95AccountId: posBookingSettingsTable.inputVat95AccountId,
+          inputVat5AccountId: posBookingSettingsTable.inputVat5AccountId,
+        })
+        .from(posBookingSettingsTable)
+        .where(eq(posBookingSettingsTable.companyId, companyId))
+        .limit(1);
+      if (!settings?.nabavaObracunAccountId) {
+        res.status(400).json({ error: "Konto obračuna nabave 109 ni nastavljen v POS → ERP nastavitvah." });
+        return;
+      }
+      pos109AccountId = settings.nabavaObracunAccountId;
+      posSettings = settings;
+      for (const link of [...posLinks!.body.links].sort((a, b) => a.prejemnicaId - b.prejemnicaId)) {
+        const facts = await loadPostedReceiptBookingFacts(db, companyId, link.prejemnicaId, pos109AccountId);
+        if (
+          !facts
+          || !new Decimal(facts.bookedNet).eq(link.netAmount)
+          || (link.vatAmount != null && !new Decimal(facts.bookedVat).eq(link.vatAmount))
+          || (link.grossAmount != null && !new Decimal(facts.booked109Gross).eq(link.grossAmount))
+        ) {
+          res.status(409).json({
+            error: "Račun ostane osnutek: potrjena POS temeljnica se ne ujema več z avtoritativnimi podatki prejemnice.",
+          });
+          return;
+        }
+        postedReceiptFacts.set(link.prejemnicaId, facts);
+      }
+      if (postedReceiptFacts.size !== posLinks!.body.links.length) {
+        res.status(400).json({
+          error: "Račun ostane osnutek: vsaka povezana prejemnica mora izhajati iz potrjene POS temeljnice, ki dejansko knjiži v dobro konto 109.",
+        });
+        return;
+      }
+    }
 
     // Poišči DDV konto za vrstice z vatRate > 0
-    const vatLines = lineCalcs.filter((l) => l.vatR > 0 && l.vatAmt > 0);
-    let vatAccountIdResolved: string | null = null;
-    if (vatLines.length > 0) {
-      vatAccountIdResolved = await resolveVatAccount(
-        companyId,
-        invoice.type,
-        invoice.vatAccountId,
-        vatLines[0].vatR,
-      );
+    const vatLines = isContractSummary
+      ? []
+      : lineCalcs.filter((l) => l.vatR > 0 && l.vatAmt > 0);
+    const vatRates = [...new Set(vatLines.map((line) => line.vatR))];
+    const vatAccountByRate = new Map<number, string>();
+    for (const rate of vatRates) {
+      const posAccount = rate === 22
+        ? posSettings?.inputVat22AccountId
+        : rate === 9.5
+          ? posSettings?.inputVat95AccountId
+          : rate === 5
+            ? posSettings?.inputVat5AccountId
+            : null;
+      const resolved = posAccount
+        ?? posSettings?.inputVatAccountId
+        ?? await resolveVatAccount(companyId, invoice.type, invoice.vatAccountId, rate);
+      if (!resolved) {
+        if (hasPosLinks && !isDirectDeliveryNoteInvoice) {
+          res.status(400).json({ error: `Vstopni DDV konto za stopnjo ${rate}% ni nastavljen.` });
+          return;
+        }
+      } else {
+        vatAccountByRate.set(rate, resolved);
+      }
+    }
+
+    const fursVatCodeByRate = new Map<number, string>();
+    if (hasPosLinks && vatRates.length > 0) {
+      // vat_code je globalni, verzioniran FURS šifrant (namenoma brez company_id);
+      // per-company nastavitve kontov so razrešene zgoraj prek vat_codes/POS nastavitev.
+      const vatCodes = await db
+        .select({ id: vatCodeTable.id, rate: vatCodeTable.rate })
+        .from(vatCodeTable)
+        .where(
+          and(
+            eq(vatCodeTable.direction, "IN"),
+            lte(vatCodeTable.validFrom, inputVatRecognitionDate),
+            or(isNull(vatCodeTable.validTo), gte(vatCodeTable.validTo, inputVatRecognitionDate)),
+          ),
+        )
+        .orderBy(desc(vatCodeTable.validFrom));
+      for (const code of vatCodes) {
+        const rate = Number(code.rate);
+        if (!fursVatCodeByRate.has(rate)) fursVatCodeByRate.set(rate, code.id);
+      }
+      const missingRates = vatRates.filter((rate) => !fursVatCodeByRate.has(rate));
+      if (missingRates.length > 0) {
+        res.status(400).json({
+          error: `Za vstopni DDV manjkajo FURS DDV kode za stopnje: ${missingRates.join(", ")}%.`,
+        });
+        return;
+      }
     }
 
     const [counterparty] = await db
@@ -632,9 +2360,30 @@ router.post(
       side: "debit" | "credit";
       amount: string;
       description: string | null;
+      partnerId?: string | null;
+      vatCodeId?: string | null;
+      vatAmount?: string | null;
     }[] = [];
+    let posVatLedgerLines: VatLine[] | null = hasPosLinks ? [] : null;
+    let posClosureSummary: {
+      matchedGross: string;
+      matchedNet: string;
+      matchedVat: string;
+      invoiceNetRemainder: string;
+      invoiceVatRemainder: string;
+      roundingAdjustment: string;
+    } | null = null;
 
-    if (invoice.type === "issued") {
+    if (isContractSummary) {
+      journalLines.push(...buildContractSummaryPostingLines({
+        invoiceNumber: invoice.invoiceNumber,
+        month: invoice.sourcePeriod,
+        counterpartyId: invoice.counterpartyId,
+        receivableAccountId: invoice.arApAccountId,
+        transitAccountId: contractTransitAccountId!,
+        grossAmount: totalGross,
+      }));
+    } else if (invoice.type === "issued") {
       // Debet: terjatve (skupni znesek z DDV)
       journalLines.push({
         accountId: invoice.arApAccountId,
@@ -651,61 +2400,245 @@ router.post(
           description: l.description ?? null,
         });
       }
-      // Kredit: DDV
-      if (vatAccountIdResolved) {
-        const totalVat = vatLines.reduce((s, l) => s + l.vatAmt, 0);
+      // Kredit: DDV po stopnjah
+      for (const rate of vatRates) {
+        const vatAccountId = vatAccountByRate.get(rate);
+        if (!vatAccountId) continue;
+        const totalVatAtRate = vatLines.filter((line) => line.vatR === rate).reduce((sum, line) => sum + line.vatAmt, 0);
         journalLines.push({
-          accountId: vatAccountIdResolved,
+          accountId: vatAccountId,
           side: "credit",
-          amount: totalVat.toFixed(2),
-          description: "DDV na izhodni račun",
+          amount: totalVatAtRate.toFixed(2),
+          description: `DDV na izhodni račun ${rate}%`,
         });
       }
     } else {
-      // Debet: stroški po vrsticah
-      for (const l of lineCalcs) {
+      const matchedBuckets = new Map<string, { net: Decimal; vat: Decimal; gross: Decimal }>();
+      let matchedGross = new Decimal(0);
+      for (const facts of postedReceiptFacts.values()) {
+        matchedGross = matchedGross.plus(facts.booked109Gross);
+        for (const bucket of facts.buckets) {
+          const key = `${bucket.vatCodeId ?? "none"}:${new Decimal(bucket.rate).toString()}`;
+          const current = matchedBuckets.get(key) ?? { net: new Decimal(0), vat: new Decimal(0), gross: new Decimal(0) };
+          current.net = current.net.plus(bucket.net);
+          current.vat = current.vat.plus(bucket.vat);
+          current.gross = current.gross.plus(bucket.net).plus(bucket.vat);
+          matchedBuckets.set(key, current);
+        }
+      }
+      const invoiceBucketTotals = new Map<string, { net: Decimal; vat: Decimal }>();
+      const exactInvoiceLines = lineCalcs.map(line => {
+        const rate = new Decimal(line.vatRate).toString();
+        const net = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const vat = net.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const vatCodeId = new Decimal(rate).eq(0) ? null : fursVatCodeByRate.get(Number(rate)) ?? null;
+        const key = `${vatCodeId ?? "none"}:${rate}`;
+        const total = invoiceBucketTotals.get(key) ?? { net: new Decimal(0), vat: new Decimal(0) };
+        total.net = total.net.plus(net);
+        total.vat = total.vat.plus(vat);
+        invoiceBucketTotals.set(key, total);
+        return { ...line, rate, net, vat, vatCodeId, key };
+      });
+      for (const [key, matched] of matchedBuckets) {
+        const invoiceBucket = invoiceBucketTotals.get(key);
+        if (!invoiceBucket || matched.net.gt(invoiceBucket.net) || matched.vat.gt(invoiceBucket.vat)) {
+          res.status(409).json({ error: "POS prejemnice se po DDV stopnji/kodi ne ujemajo z računom." });
+          return;
+        }
+      }
+      const matchedNetTotal = [...matchedBuckets.values()].reduce((sum, bucket) => sum.plus(bucket.net), new Decimal(0));
+      const matchedVatTotal = [...matchedBuckets.values()].reduce((sum, bucket) => sum.plus(bucket.vat), new Decimal(0));
+      if (!matchedGross.eq(matchedNetTotal.plus(matchedVatTotal))) {
+        res.status(409).json({ error: "Avtoritativna POS knjižba ne uskladi bruto, neto in DDV zneskov." });
+        return;
+      }
+      const exactInvoiceNetTotal = [...invoiceBucketTotals.values()]
+        .reduce((sum, bucket) => sum.plus(bucket.net), new Decimal(0));
+      const exactInvoiceVatTotal = [...invoiceBucketTotals.values()]
+        .reduce((sum, bucket) => sum.plus(bucket.vat), new Decimal(0));
+      posClosureSummary = {
+        matchedGross: money(matchedGross),
+        matchedNet: money(matchedNetTotal),
+        matchedVat: money(matchedVatTotal),
+        invoiceNetRemainder: money(exactInvoiceNetTotal.minus(matchedNetTotal)),
+        invoiceVatRemainder: money(exactInvoiceVatTotal.minus(matchedVatTotal)),
+        roundingAdjustment: "0.00",
+      };
+      if (matchedGross.gt(0)) {
         journalLines.push({
-          accountId: l.accountId,
+          accountId: pos109AccountId!,
           side: "debit",
-          amount: l.lineTotal.toFixed(2),
-          description: l.description ?? null,
+          amount: money(matchedGross),
+          description: `Zaprtje obračuna nabave 109 — ${invoice.invoiceNumber}`,
+          partnerId: invoice.counterpartyId,
         });
       }
-      // Debet: vstopni DDV
-      if (vatAccountIdResolved) {
-        const totalVat = vatLines.reduce((s, l) => s + l.vatAmt, 0);
+      const remainingMatchedNet = new Map(
+        [...matchedBuckets].map(([key, bucket]) => [key, bucket.net]),
+      );
+      for (const line of exactInvoiceLines) {
+        const bucketRemaining = remainingMatchedNet.get(line.key) ?? new Decimal(0);
+        const transferred = Decimal.min(line.net, bucketRemaining);
+        remainingMatchedNet.set(line.key, bucketRemaining.minus(transferred));
+        const remainder = line.net.minus(transferred);
+        if (remainder.gt(0)) {
+          journalLines.push({
+            accountId: line.accountId,
+            side: "debit",
+            amount: money(remainder),
+            description: line.description ?? null,
+            vatCodeId: line.vatCodeId,
+            vatAmount: null,
+          });
+        }
+      }
+      for (const [key, invoiceBucket] of invoiceBucketTotals) {
+        const matchedBucket = matchedBuckets.get(key);
+        const matchedVat = matchedBucket?.vat ?? new Decimal(0);
+        const remainderVat = invoiceBucket.vat.minus(matchedVat);
+        if (remainderVat.lte(0)) continue;
+        const rate = key.slice(key.lastIndexOf(":") + 1);
+        const vatCodeId = key.split(":")[0] === "none" ? null : key.split(":")[0];
+        const vatAccountId = vatAccountByRate.get(Number(rate));
+        if (!vatAccountId) continue;
         journalLines.push({
-          accountId: vatAccountIdResolved,
+          accountId: vatAccountId,
           side: "debit",
-          amount: totalVat.toFixed(2),
-          description: "Vstopni DDV",
+          amount: money(remainderVat),
+          description: `Vstopni DDV ${rate}%`,
         });
+        if (posVatLedgerLines && vatCodeId) {
+          posVatLedgerLines.push({
+            lineId: `invoice-${id}-vat-bucket-${posVatLedgerLines.length}`,
+            vatCodeId,
+            amount: money(invoiceBucket.net.minus(matchedBucket?.net ?? 0)),
+            vatAmount: money(remainderVat),
+            vatDeductionPercent: "100.00",
+            partnerId: invoice.counterpartyId,
+            description: `Vstopni DDV ${rate}%`,
+          });
+        } else if (!posVatLedgerLines) {
+          const expenseLine = journalLines.find(line =>
+            line.side === "debit" && line.vatCodeId === vatCodeId);
+          if (expenseLine) expenseLine.vatAmount = money(remainderVat);
+        }
       }
       // Kredit: obveznosti (skupni znesek z DDV)
       journalLines.push({
         accountId: invoice.arApAccountId,
         side: "credit",
-        amount: totalGross.toFixed(2),
+        amount: exactInvoiceLines
+          .reduce((sum, line) => sum.plus(line.net).plus(line.vat), new Decimal(0))
+          .toFixed(2),
         description: entryDescription,
+        partnerId: invoice.counterpartyId,
       });
     }
 
-    // Vstavi v DB (transakcija)
-    await db.transaction(async (tx) => {
-      const [entry] = await tx
+    // Vstavi v DB (transakcija). Status prevzamemo atomarno, zato dve sočasni
+    // zahtevi ne moreta ustvariti dveh temeljnic ali dveh KPR vpisov.
+    try {
+      await db.transaction(async (tx) => {
+        for (const link of [...(posLinks?.body.links ?? [])].sort((a, b) => a.prejemnicaId - b.prejemnicaId)) {
+          await lockPosReceiptForReconciliation(tx, companyId, link.enotaId, link.prejemnicaId);
+        }
+        await lockInvoiceForPosLinks(tx, id);
+        if (invoice.sourceDocumentId) {
+          await tx.execute(sql`
+            SELECT pg_advisory_xact_lock(hashtext(${invoice.sourceDocumentId}))
+          `);
+        }
+        const [currentInvoice] = await tx
+          .select({ status: invoicesTable.status, updatedAt: invoicesTable.updatedAt })
+          .from(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+          .limit(1);
+        if (!currentInvoice || currentInvoice.status !== "draft" || currentInvoice.updatedAt.getTime() !== invoice.updatedAt.getTime()) {
+          throw new Error("INVOICE_CHANGED_DURING_POST");
+        }
+        const currentLinks = await tx
+          .select({
+            id: posInvoiceLinksTable.id,
+            prejemnicaId: posInvoiceLinksTable.prejemnicaId,
+            enotaId: posInvoiceLinksTable.enotaId,
+            receiptNet: prejemniceTable.skupajVrednost,
+            receiptVat: prejemniceTable.ddvZnesek,
+            receiptGross: prejemniceTable.brutoSkupaj,
+          })
+          .from(posInvoiceLinksTable)
+          .innerJoin(prejemniceTable, eq(prejemniceTable.id, posInvoiceLinksTable.prejemnicaId))
+          .where(and(eq(posInvoiceLinksTable.companyId, companyId), eq(posInvoiceLinksTable.invoiceId, id)));
+        const currentLinkIds = currentLinks.map((link) => link.id).sort().join(",");
+        const previewLinkIds = posLinks?.body.links.map((link) => link.id).sort().join(",") ?? "";
+        if (currentLinkIds !== previewLinkIds) throw new Error("INVOICE_POS_LINKS_CHANGED");
+        if (!isDirectDeliveryNoteInvoice) {
+          for (const link of [...currentLinks].sort((a, b) => a.prejemnicaId - b.prejemnicaId)) {
+            const currentFacts = await loadPostedReceiptBookingFacts(tx, companyId, link.prejemnicaId, pos109AccountId!);
+            const previewFacts = postedReceiptFacts.get(link.prejemnicaId);
+            if (
+              !currentFacts
+              || !previewFacts
+              || JSON.stringify(currentFacts) !== JSON.stringify(previewFacts)
+              || !new Decimal(currentFacts.bookedNet).eq(link.receiptNet)
+              || (link.receiptVat != null && !new Decimal(currentFacts.bookedVat).eq(link.receiptVat))
+              || (link.receiptGross != null && !new Decimal(currentFacts.booked109Gross).eq(link.receiptGross))
+            ) {
+              throw new Error("INVOICE_POS_FACTS_CHANGED");
+            }
+          }
+        }
+        if (invoice.sourceDocumentId) {
+          const sameSourcePosReceipts = await tx.select({ id: prejemniceTable.id })
+            .from(prejemniceTable)
+            .innerJoin(enoteTable, eq(prejemniceTable.enotaId, enoteTable.id))
+            .where(and(
+              eq(enoteTable.companyId, companyId),
+              eq(prejemniceTable.sourceDocumentId, invoice.sourceDocumentId),
+            ));
+          const linkedReceiptIds = new Set(currentLinks.map((link) => link.prejemnicaId));
+          if (sameSourcePosReceipts.some((receipt) => !linkedReceiptIds.has(receipt.id))) {
+            throw new Error("INVOICE_SOURCE_POS_RECEIPT_UNLINKED");
+          }
+          const sameSourceGoodsReceipt = await tx.select({ id: goodsReceiptsTable.id })
+            .from(goodsReceiptsTable)
+            .where(eq(goodsReceiptsTable.sourceDocumentId, invoice.sourceDocumentId))
+            .limit(1);
+          if (sameSourceGoodsReceipt.length > 0) {
+            throw new Error("INVOICE_SOURCE_GOODS_RECEIPT_UNMATCHED");
+          }
+        }
+        const [claimedInvoice] = await tx
+          .update(invoicesTable)
+          .set({ status: "posted" })
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+              eq(invoicesTable.status, "draft"),
+            ),
+          )
+          .returning({ id: invoicesTable.id });
+        if (!claimedInvoice) throw new Error("INVOICE_POST_ALREADY_CLAIMED");
+
+        const [entry] = await tx
         .insert(journalEntriesTable)
         .values({
           companyId,
           periodId: invoice.periodId,
+          documentDate: invoice.invoiceDate,
           entryDate: invoice.invoiceDate,
+          taxDate: invoice.invoiceDate,
+          receiptDate: inputVatRecognitionDate,
           description: entryDescription,
           reference: invoice.invoiceNumber,
           status: "posted",
+          postedAt: new Date(),
+          sourceType: "document",
           createdBy: authReq.clerkUserId,
         })
         .returning({ id: journalEntriesTable.id });
 
-      await tx.insert(journalEntryLinesTable).values(
+        await tx.insert(journalEntryLinesTable).values(
         journalLines.map((l, i) => ({
           entryId: entry.id,
           accountId: l.accountId,
@@ -713,23 +2646,115 @@ router.post(
           amount: l.amount,
           description: l.description,
           sequence: i,
+          partnerId: l.partnerId ?? null,
+          vatCodeId: l.vatCodeId ?? null,
+          vatAmount: l.vatAmount ?? null,
         })),
       );
 
-      await tx
-        .update(invoicesTable)
-        .set({ status: "posted", linkedEntryId: entry.id })
-        .where(eq(invoicesTable.id, id));
+        const vatLedgerLines: VatLine[] = posVatLedgerLines ?? journalLines
+          .filter((line) => line.vatCodeId != null)
+          .map((line, index) => ({
+            lineId: `invoice-${id}-line-${index}`,
+            vatCodeId: line.vatCodeId!,
+            amount: line.amount,
+            vatAmount: line.vatAmount ?? null,
+            vatDeductionPercent: "100.00",
+            partnerId: invoice.counterpartyId,
+            description: line.description,
+          }));
+        if (vatLedgerLines.length > 0) {
+        const entryMeta: EntryMeta = {
+          id: entry.id,
+          companyId,
+          documentDate: invoice.invoiceDate,
+          entryDate: invoice.invoiceDate,
+          taxDate: invoice.invoiceDate,
+          receiptDate: inputVatRecognitionDate,
+          reference: invoice.invoiceNumber,
+          sourceType: "document",
+        };
+          await createVatLedgerEntries(tx, entryMeta, vatLedgerLines, authReq.clerkUserId);
+        }
 
-      await tx.insert(auditLogTable).values({
+        await tx
+          .update(invoicesTable)
+          .set({ linkedEntryId: entry.id })
+          .where(eq(invoicesTable.id, id));
+
+        await tx.insert(auditLogTable).values({
         companyId,
         entityType: "invoice",
         entityId: id,
         action: "post",
         changedBy: authReq.clerkUserId,
         payload: { linkedEntryId: entry.id },
+        });
+        if (hasPosLinks && !isDirectDeliveryNoteInvoice) {
+          await tx.insert(auditLogTable).values(
+            currentLinks.map(link => {
+              const facts = postedReceiptFacts.get(link.prejemnicaId)!;
+              const linkMeta = posLinks!.body.links.find(item => item.prejemnicaId === link.prejemnicaId)!;
+              return {
+                companyId,
+                entityType: "invoice",
+                entityId: id,
+                action: "close_pos_109",
+                changedBy: authReq.clerkUserId,
+                payload: {
+                  status: "closed109",
+                  linkId: link.id,
+                  prejemnicaId: link.prejemnicaId,
+                  enotaId: link.enotaId,
+                  mode: linkMeta.mode,
+                  matchMethod: linkMeta.matchMethod,
+                  sourceEntryId: facts.sourceEntryId,
+                  booked109Gross: facts.booked109Gross,
+                  bookedNet: facts.bookedNet,
+                  bookedVat: facts.bookedVat,
+                  buckets: facts.buckets,
+                  invoiceEntryId: entry.id,
+                  invoiceNetAmount: money(totalNet),
+                  invoiceGrossAmount: money(totalGross),
+                  invoiceRemainder: posClosureSummary,
+                  actor: authReq.clerkUserId,
+                },
+              };
+            }),
+          );
+        }
       });
-    });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === "INVOICE_CHANGED_DURING_POST") {
+        res.status(409).json({ error: "Račun se je med pripravo spremenil; osvežite ga in ponovno potrdite knjiženje." });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_POS_LINKS_CHANGED") {
+        res.status(409).json({ error: "Povezane prejemnice so se med pripravo spremenile; osvežite račun in ponovno potrdite knjiženje." });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_POS_FACTS_CHANGED") {
+        res.status(409).json({ error: "POS knjižbe so se med pripravo spremenile; osvežite račun in poskusite znova." });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_SOURCE_POS_RECEIPT_UNLINKED") {
+        res.status(409).json({
+          error: "Račun ima POS prejemnico istega vira; pred knjiženjem jo eksplicitno povežite z računom",
+        });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_SOURCE_GOODS_RECEIPT_UNMATCHED") {
+        res.status(409).json({
+          error: "Račun ima ERP prejemnico istega vira; poknjižite ga prek ujemanja prejemnice",
+        });
+        return;
+      }
+      if (error instanceof Error && error.message === "INVOICE_POST_ALREADY_CLAIMED") {
+        res.status(400).json({ error: "Račun je bil medtem že poknjižen; osvežite seznam računov." });
+        return;
+      }
+      throw error;
+    }
 
     const result = await fetchInvoiceWithLines(id);
     res.json(result);
@@ -775,6 +2800,20 @@ router.post(
       res.status(400).json({ error: "Samo knjižene račune je mogoče razveljaviti" });
       return;
     }
+    const [matchedGoodsReceipt] = await db.select({ id: goodsReceiptsTable.id })
+      .from(goodsReceiptsTable)
+      .where(and(
+        eq(goodsReceiptsTable.companyId, companyId),
+        eq(goodsReceiptsTable.matchedInvoiceId, id),
+        eq(goodsReceiptsTable.status, "matched"),
+      ))
+      .limit(1);
+    if (matchedGoodsReceipt) {
+      res.status(409).json({
+        error: "Račun je povezan z ERP prejemnico; pred razveljavitvijo najprej razvežite ujemanje",
+      });
+      return;
+    }
 
     const targetPeriodId = parsed.data.periodId ?? invoice.periodId;
     const [targetPeriod] = await db
@@ -809,7 +2848,19 @@ router.post(
           .where(eq(journalEntryLinesTable.entryId, invoice.linkedEntryId))
           .orderBy(asc(journalEntryLinesTable.sequence));
 
-        await db.transaction(async (tx) => {
+        try {
+          await db.transaction(async (tx) => {
+          await lockInvoiceForPosLinks(tx, id);
+          const linkedReceipt = await tx.execute(sql`
+            SELECT id FROM goods_receipts
+             WHERE company_id = ${companyId}
+               AND matched_invoice_id = ${id}
+               AND status = 'matched'
+             FOR UPDATE
+          `);
+          if (linkedReceipt.rows.length > 0) {
+            throw new Error("INVOICE_HAS_MATCHED_GOODS_RECEIPT");
+          }
           const [reversalEntry] = await tx
             .insert(journalEntriesTable)
             .values({
@@ -850,7 +2901,16 @@ router.post(
             changedBy: authReq.clerkUserId,
             payload: { reversalEntryId: reversalEntry.id, reason: parsed.data.reason },
           });
-        });
+          });
+        } catch (error) {
+          if (error instanceof Error && error.message === "INVOICE_HAS_MATCHED_GOODS_RECEIPT") {
+            res.status(409).json({
+              error: "Račun je povezan z ERP prejemnico; pred razveljavitvijo najprej razvežite ujemanje",
+            });
+            return;
+          }
+          throw error;
+        }
       }
     } else {
       // Brez temeljnice — samo razveljavimo račun

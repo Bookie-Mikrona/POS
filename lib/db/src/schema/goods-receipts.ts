@@ -7,6 +7,7 @@ import {
   timestamp,
   index,
   check,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { companiesTable } from "./companies";
@@ -15,6 +16,7 @@ import { accountingPeriodsTable } from "./accounting-periods";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
 import { invoicesTable } from "./invoices";
+import { purchaseSourceDocumentsTable } from "./purchase-source-documents";
 
 /**
  * ERP Prejemnica brez računa — blago prispe z dobavnico, račun sledi.
@@ -111,6 +113,11 @@ export const goodsReceiptsTable = pgTable(
       () => journalEntriesTable.id,
       { onDelete: "set null" },
     ),
+    /** Identiteta dobavnice; ne sme biti ponovno zajeta kot druga ERP prejemnica. */
+    sourceDocumentId: uuid("source_document_id").references(
+      () => purchaseSourceDocumentsTable.id,
+      { onDelete: "restrict" },
+    ),
 
     notes: text("notes"),
 
@@ -122,6 +129,7 @@ export const goodsReceiptsTable = pgTable(
     index("ix_goods_receipts_company").on(t.companyId),
     index("ix_goods_receipts_company_status").on(t.companyId, t.status),
     index("ix_goods_receipts_counterparty").on(t.counterpartyId),
+    uniqueIndex("goods_receipts_source_document_unique").on(t.sourceDocumentId),
     check("goods_receipts_status_check", sql`status IN ('open', 'matched', 'voided')`),
   ],
 );

@@ -1,0 +1,122 @@
+kako je z odpadki hrane, ki ostanejo na krožnikih gostov
+
+Odpadki hrane, ki ostanejo na krožnikih gostov (t. i. pomije ali preostanki po postrežbi), sodijo v kategorijo biološko razgradljivih kuhinjskih odpadkov in spadajo pod stroge veterinarske ter okoljske predpise (HACCP in Uredba ES č. 1069/2009 o živalskih stranskih proizvodih).
+
+Ključna pravila za ravnanje z ostanki hrane z krožnikov
+
+Prepoved ponovne uporabe: Hrana, ki je bila enkrat postrežena gostu in se vrne v kuhinjo, se pod nobenim pogojem ne sme ponovno uporabiti, predelati ali mešati s svežo hrano.
+
+Prepoved krmljenja živali: Ostankov hrane z krožnikov (zaradi tveganja za prenos bolezni) po zakonodaji EU ni dovoljeno uporabljati za krmljenje domačih živali ali prašičev.
+
+Prepoved odlaganja med mešane odpadke ali v odtok: Kuhinjskih odpadkov se ne sme metati v navadne zabojnike za mešane komunalne odpadke ali jih zmeljati ter sprati v kanalizacijo.
+
+Postopek zbiranja in odstranjevanja v obratu
+
+Ločeno zbiranje ob pomivanju: V prostoru za pomivanje posode se ostanki hrane z vrnjenih krožnikov takoj odstranijo v posebne, namenske posode ali zabojnike z pokrovom, ki so jasno označeni (npr. Kuhinjski odpadki / ŽSP kategorija 3).
+
+Hranjenje odpadkov: Do odvoza morajo biti ti zabojniki shranjeni v namenskem hladilnem prostoru ali v zaprtih posodah na ločenem mestu, da se prepreči smrad, gnitje ter privabljanje glodavcev in mrčesa.
+
+Odvoz preko pooblaščenega prevzemnika: Gostinski obrat mora imeti sklenjeno pogodbo s pooblaščenim zbiralcem bioloških odpadkov (npr. Komunala, Bioopadki, KOTO ipd.). Prevzemnik izda evidencni list o oddaji odpadkov.
+
+Končna obdelava: Ti odpadki se predelajo v bioplinskih elektrarnah (za proizvodnjo elektrike in toplote) ali v industrijskih kompostarnah.
+
+Vodenje evidenc in optimizacija v ERP/POS sistemih
+
+Evidenca odpadkov: Obrat mora voditi evidenco o količini nastalih in oddanih bioloških odpadkov (letno poročilo za ARSO/FURS ob nadzoru).
+
+Zmanjševanje ostankov na krožnikih: Če opazite, da na krožnikih sistematično ostaja velika količina hrane, je to signal za:
+
+Prilagoditev normativov (zmanjšanje porcij ali sprememba prilog).
+
+Uvedbo možnosti izbire velikosti porcije (npr. mala/velika porcija).
+
+Ponujanje embalaže gostom, da preostalo hrano odnesejo domov (kar zmanjša biološke odpadke v obratu).
+
+kakšna je zakonsko predpisana evidenca
+
+Zakonsko predpisano evidenco o kuhinjskih odpadkih (kamor sodijo tudi ostanki hrane s krožnikov) v Sloveniji urejata Uredba o odpadkih in Uredba o ravnanju z odpadnimi užitnimi olji in mastmi ter kuhinjskimi odpadki.
+
+Vsak gostinski obrat mora kot povzročitelj odpadkov voditi naslednje zakonsko obvezne evidencijske dokumente:
+
+1. Evidenčni listi o oddaji odpadkov (e-EPL)
+
+Za vsako oddajo bioloških kuhinjskih odpadkov pooblaščenemu prevzemniku (npr. Komunala, KOTO ipd.) mora obrat imeti potrjen evidenčni list.
+
+Odvezo in evidenco se danes primarno vodi elektronsko preko informacijskega sistema IS-Odpadki (na portalu ARSO).
+
+Evidenčni list vsebuje podatke o povzročitelju, kodi odpadka (npr. 20 01 08 – kuhinjski odpadki), količini v kilogramih ter podatke o prevzemniku.
+
+2. Dnevna ali mesečna interna evidenca nastanka odpadkov
+Obrat mora voditi interno evidenco (v fizični ali elektronski obliki), iz katere so razvidni:
+
+Datum nastanka in količina zbranih odpadkov.
+
+Koda vrst odpadkov:
+
+20 01 08: Biološko razgradljivi kuhinjski odpadki (ostanki hrane, pomije).
+
+20 01 25: Užitno olje in masti (odpadno olje iz cvrtnikov).
+
+Trenutna zaloga odpadkov, ki čaka na odvoz v skladišču ali hladilni komori.
+
+3. Letno poročilo o nastanku odpadkov (Poročilo za ARSO)
+
+Gostinski obrat mora enkrat letno (običajno do 31. marca za preteklo leto) oddati letno poročilo o nastalih odpadkih in ravnanju z njimi preko aplikacije IS-Odpadki na Agencijo RS za okolje (ARSO).
+
+Izjema velja le za mikro obrate, če letno proizvedejo skupaj manj kot 150 kg nevarnih ali manj kot 2 toni ne-nevarnih odpadkov in jih predajajo komunalnemu podjetju, vendar morajo kljub temu hraniti evidenčne liste.
+
+4. HACCP dokumentacija (Higienska evidenca)
+V okviru HACCP načrta mora obrat voditi:
+
+Evidenco o čiščenju in razkuževanju posod ter prostora za shranjevanje odpadkov.
+
+Evidenco o obratovanju hladilne komore/omare za odpadke (če jo obrat ima za preprečevanje gnitja in smradu).
+
+Pogodbo s pooblaščenim prevzemnikom bioloških odpadkov in odpadnih olj.
+
+Hranjenje dokumentacije
+
+Vse evidenčne liste, pogodbe in interna poročila mora gostinski obrat hraniti najmanj 5 let ter jih na zahtevo predložiti Inšpekciji za okolje in energijo ali Upravi za varno hrano, veterinarstvo in varstvo rastlin (UVHVVR).
+
+kakšni so predpisani obrazci
+
+Za vodenje evidenc o bioloških kuhinjskih odpadkih in odpadnih oljih v gostinstvu zakonodaja v Sloveniji ne predpisuje več tiskanih papirnih obrazcev iz knjigarne, temveč uporabo predpisanih elektronskih obrazcev in informacijskih sistemov.
+
+Za izpolnjevanje zakonskih obveznosti se uporabljajo naslednji predpisani obrazci in sistemi:
+
+1. Elektronski evidenčni list (e-EPL)
+
+Kje se izpolnjuje: V informacijskem sistemu ARSO IS-Odpadki.
+
+Namen: Obrazec spremlja vsako posamezno pošiljko bioloških odpadkov ali odpadnega olja od gostinskega obrata do prevzemnika.
+
+Kdo ga potrdi: Obrazec v sistemu pripravi ali prevzemnik ali povzročitelj (gostinec), ob prevzemu pa ga elektronsko potrdita obe stranki.
+
+2. ODP-nastanek (Letno poročilo o nastanku odpadkov)
+
+Kje se oddaja: Preko aplikacije IS-Odpadki na portalu ARSO.
+
+Rok za oddajo: Do 31. marca za preteklo koledarsko leto.
+
+Vsebina: Predpisana struktura poročila vsebuje podatke o skupnih letnih količinah nastalih kuhinjskih odpadkov (koda 20 01 08) in odpadnega olja (koda 20 01 25) ter šifre prevzemnikov.
+
+3. HACCP interni kontrolni listi (Obrazci za higienski nadzor)
+Čeprav točni obrazci niso togo predpisani z enim vzorcem, morajo vsebovati zakonsko zahtevane elemente po smernicah dobre higienske prakse:
+
+Obrazec za evidenco čiščenja prostora in posod za odpadke: Vsebuje datum, opravljeno nalogo, uporabljeno čistilo ter podpis odgovorne osebe.
+
+Obrazec za nadzor temperatur hladilnice za odpadke: Vsebuje dnevni vnos izmerjene temperature (če obrat uporablja hladilno komoro/omaro za ostanke hrane).
+
+Evidenčni list prevzema odpadnih olj in pomij (interni): Tabela v fizični ali elektronski obliki (datum, količina v kg/L, podpis prevzemnika), ki služi kot podlaga za preverjanje pred izdajo e-EPL.
+
+Povzetek obvezne dokumentacije na vpogled inšpekciji
+
+Na lokaciji obrata morate imeti za primer inšpekcijskega nadzora (Okoljska inšpekcija / UVHVVR) vedno pripravljeno:
+
+Veljavno pogodbo s pooblaščenim prevzemnikom bioloških odpadkov.
+
+Izpise ali elektronski dostop do e-EPL za zadnjih 5 let.
+
+Potrjeno letno poročilo ODP-nastanek za preteklo leto.
+
+HACCP dokumentacijo z izpolnjenimi interni kontrolnimi listi.

@@ -184,6 +184,107 @@ export async function posljiEmailRacun(
   }
 }
 
+/**
+ * Pošlje e-SLOG e-račun na kupčev e-naslov za e-račune (eRacunEmail).
+ * Priloži PDF (kot attachment) in XML (kot attachment).
+ * Ločeno od posljiEmailRacun (ki pošlje samo HTML brez prilog).
+ */
+export async function posljiEslogEmail(
+  smtp: SmtpKonfiguracija,
+  prejemnikEmail: string,
+  racun: {
+    stevilkaRacuna: string;
+    skupaj: number;
+    ddv: number;
+    datumIzdaje: string;   // "YYYY-MM-DD"
+    kupecNaziv: string | null;
+  },
+  xml: string,
+  pdf: Buffer,
+  nazivPodjetja: string,
+): Promise<{ uspeh: boolean; napaka?: string }> {
+  if (!smtp.smtpAktiven) {
+    return { uspeh: false, napaka: "Pošiljanje e-pošte ni aktivirano (SMTP ni aktiven)" };
+  }
+  if (!smtp.smtpHost || !smtp.smtpUser || !smtp.smtpPassword || !smtp.smtpFrom) {
+    return { uspeh: false, napaka: "SMTP nastavitve niso popolne (strežnik, uporabnik, geslo, pošiljatelj)" };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.smtpHost,
+    port: smtp.smtpPort || 587,
+    secure: smtp.smtpPort === 465,
+    auth: { user: smtp.smtpUser, pass: smtp.smtpPassword },
+    tls: { rejectUnauthorized: true },
+  });
+
+  const osnova = racun.skupaj - racun.ddv;
+  const pdfIme = `eracun-${racun.stevilkaRacuna.replace(/[^a-zA-Z0-9\-_.]/g, "_")}.pdf`;
+  const xmlIme = `eracun-${racun.stevilkaRacuna.replace(/[^a-zA-Z0-9\-_.]/g, "_")}.xml`;
+
+  const subject = `e-Račun ${racun.stevilkaRacuna} — ${nazivPodjetja}`;
+  const html = `
+<div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background: #f9fafb; border-radius: 8px;">
+  <h2 style="color: #1a1a2e; margin-bottom: 4px;">${nazivPodjetja}</h2>
+  <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 20px;">Elektronski račun (e-SLOG 2.0)</p>
+  <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 20px; margin-bottom: 16px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <tr>
+        <td style="color: #888; padding: 5px 0;">Številka e-računa:</td>
+        <td style="text-align: right; font-weight: bold; font-family: monospace; color: #1a1a2e;">${racun.stevilkaRacuna}</td>
+      </tr>
+      <tr>
+        <td style="color: #888; padding: 5px 0;">Datum:</td>
+        <td style="text-align: right; color: #1a1a2e;">${racun.datumIzdaje}</td>
+      </tr>
+      ${racun.kupecNaziv ? `<tr><td style="color: #888; padding: 5px 0;">Kupec:</td><td style="text-align: right; color: #1a1a2e;">${racun.kupecNaziv}</td></tr>` : ""}
+      <tr style="border-top: 1px solid #e5e7eb;">
+        <td style="color: #888; padding: 8px 0 5px;">Osnova (brez DDV):</td>
+        <td style="text-align: right; color: #1a1a2e; padding-top: 8px;">${osnova.toFixed(2)} €</td>
+      </tr>
+      <tr>
+        <td style="color: #888; padding: 5px 0;">DDV:</td>
+        <td style="text-align: right; color: #1a1a2e;">${racun.ddv.toFixed(2)} €</td>
+      </tr>
+      <tr style="border-top: 2px solid #e5e7eb;">
+        <td style="font-weight: bold; font-size: 16px; color: #1a1a2e; padding-top: 8px;">Skupaj za plačilo:</td>
+        <td style="text-align: right; font-weight: bold; font-size: 18px; color: #2563eb; padding-top: 8px;">${racun.skupaj.toFixed(2)} €</td>
+      </tr>
+    </table>
+  </div>
+  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+    <p style="margin: 0; font-size: 13px; color: #1e40af;">
+      <strong>Priložena dokumenta:</strong><br>
+      📄 ${pdfIme} — PDF račun<br>
+      📋 ${xmlIme} — e-SLOG 2.0 XML (UBL 2.1)
+    </p>
+  </div>
+  <p style="color: #aaa; font-size: 12px; margin: 0; text-align: center;">
+    Hvala za vaše poslovanje.
+  </p>
+</div>
+`;
+  const text = `${nazivPodjetja}\ne-Račun ${racun.stevilkaRacuna}\nDatum: ${racun.datumIzdaje}\nOsnova: ${osnova.toFixed(2)} €\nDDV: ${racun.ddv.toFixed(2)} €\nSkupaj: ${racun.skupaj.toFixed(2)} €\n\nPriložena: ${pdfIme}, ${xmlIme}`;
+
+  try {
+    await transporter.sendMail({
+      from: smtp.smtpFrom,
+      to: prejemnikEmail,
+      subject,
+      text,
+      html,
+      attachments: [
+        { filename: pdfIme, content: pdf, contentType: "application/pdf" },
+        { filename: xmlIme, content: xml, contentType: "application/xml; charset=utf-8" },
+      ],
+    });
+    return { uspeh: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { uspeh: false, napaka: msg };
+  }
+}
+
 export async function posljiTestnoEmail(
   smtp: SmtpKonfiguracija,
   prejemnik: string,

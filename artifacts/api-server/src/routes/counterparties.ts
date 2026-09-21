@@ -1,9 +1,8 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import {
   db,
   counterpartiesTable,
-  accountingRolesTable,
   counterpartyAccountTemplatesTable,
   accountsTable,
 } from "@workspace/db";
@@ -13,33 +12,12 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { ajpesLookup, viesLookup, VIES_COUNTRIES } from "../lib/ajpesSim";
+import { resolveSifrantAccess } from "../lib/resolveSifrantAccess";
 
 const router: IRouter = Router();
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
-}
-
-async function resolveAccess(
-  clerkUserId: string,
-  companyId: string,
-  res: Response,
-): Promise<{ role: "owner" | "accountant" | "viewer" } | null> {
-  const [row] = await db
-    .select({ role: accountingRolesTable.role })
-    .from(accountingRolesTable)
-    .where(
-      and(
-        eq(accountingRolesTable.clerkUserId, clerkUserId),
-        eq(accountingRolesTable.companyId, companyId),
-      ),
-    )
-    .limit(1);
-  if (!row) {
-    res.status(403).json({ error: "Dostop do tega podjetja ni dovoljen" });
-    return null;
-  }
-  return { role: row.role };
 }
 
 // POST /companies/:companyId/counterparties/ajpes-lookup
@@ -50,7 +28,7 @@ router.post(
     const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
 
-    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "partnerji", res);
     if (!access) return;
 
     const { taxId } = req.body as { taxId?: string };
@@ -88,7 +66,7 @@ router.get(
     const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
 
-    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "partnerji", res);
     if (!access) return;
 
     const { type, search, includeInactive } = req.query as Record<string, string | undefined>;
@@ -99,7 +77,16 @@ router.get(
     if (includeInactive !== "true") {
       conditions.push(eq(counterpartiesTable.isActive, true));
     }
-    if (type) conditions.push(eq(counterpartiesTable.type, type as any));
+    if (type) {
+      // "supplier" → supplier + both; "customer" → customer + both; "both" → exact match
+      if (type === "supplier") {
+        conditions.push(inArray(counterpartiesTable.type, ["supplier", "both"]));
+      } else if (type === "customer") {
+        conditions.push(inArray(counterpartiesTable.type, ["customer", "both"]));
+      } else {
+        conditions.push(eq(counterpartiesTable.type, type as any));
+      }
+    }
 
     let rows = await db
       .select()
@@ -130,7 +117,7 @@ router.post(
     const authReq = req as AuthenticatedRequest;
     const companyId = extractParam(req.params.companyId);
 
-    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "partnerji", res);
     if (!access) return;
     if (access.role === "viewer") {
       res.status(403).json({ error: "Za ustvarjanje partnerjev potrebujete vlogo računovodja ali lastnik" });
@@ -161,7 +148,7 @@ router.get(
     const companyId = extractParam(req.params.companyId);
     const id = extractParam(req.params.id);
 
-    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "partnerji", res);
     if (!access) return;
 
     const [row] = await db
@@ -193,7 +180,7 @@ router.get(
     const companyId = extractParam(req.params.companyId);
     const id = extractParam(req.params.id);
 
-    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "partnerji", res);
     if (!access) return;
 
     const [cp] = await db
@@ -212,6 +199,7 @@ router.get(
         accountId: counterpartyAccountTemplatesTable.accountId,
         accountCode: accountsTable.code,
         accountName: accountsTable.name,
+        accountIsActive: accountsTable.isActive,
         documentType: counterpartyAccountTemplatesTable.documentType,
         lastLineDescription: counterpartyAccountTemplatesTable.lastLineDescription,
         usageCount: counterpartyAccountTemplatesTable.usageCount,
@@ -223,6 +211,7 @@ router.get(
         and(
           eq(counterpartyAccountTemplatesTable.companyId, companyId),
           eq(counterpartyAccountTemplatesTable.counterpartyId, id),
+          eq(accountsTable.isActive, true),
         ),
       )
       .orderBy(desc(counterpartyAccountTemplatesTable.usageCount));
@@ -240,7 +229,7 @@ router.patch(
     const companyId = extractParam(req.params.companyId);
     const id = extractParam(req.params.id);
 
-    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "partnerji", res);
     if (!access) return;
     if (access.role === "viewer") {
       res.status(403).json({ error: "Za urejanje partnerjev potrebujete vlogo računovodja ali lastnik" });

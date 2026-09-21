@@ -16,6 +16,7 @@ import { requireEnota, type PosRequest } from '../../middlewares/pos';
 import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
 import { zaznajFormat } from '../../lib/uvoz/uvoz-service';
 import { dekodiraj, zaznajLocilo } from '../../lib/uvoz/parser-csv';
+import { XlsxBranjeNapaka, preberiXlsxMatriko } from '../../lib/uvoz/xlsx-branje';
 import {
   predogledCenika,
   razcleniCenik,
@@ -37,6 +38,32 @@ const jsonVarno = (v: unknown) =>
 
 const posljiJson = (res: Response, koda: number, telo: unknown) =>
   res.status(koda).type('application/json').send(jsonVarno(telo));
+
+export async function preberiXlsxVzorec(raw: Buffer): Promise<{
+  vrstice: string[][];
+  glavaIdx: number;
+  predlogStolpcev: ReturnType<typeof ugibajStolpce>;
+}> {
+  const vrstice = (await preberiXlsxMatriko(raw)).slice(0, 25);
+
+  let glavaIdx = 0;
+  let najbolje = -1;
+  vrstice.slice(0, 10).forEach((v, i) => {
+    const neprazne = v.filter((c) => String(c).trim()).length;
+    const besedilne = v.filter((c) => /[a-zčšž]/i.test(String(c))).length;
+    const ocena = neprazne + besedilne;
+    if (ocena > najbolje) {
+      najbolje = ocena;
+      glavaIdx = i;
+    }
+  });
+
+  return {
+    vrstice,
+    glavaIdx,
+    predlogStolpcev: ugibajStolpce(vrstice[glavaIdx] ?? []),
+  };
+}
 
 // =====================================================================
 // Shema konfiguracije profila
@@ -110,18 +137,22 @@ const konfigSchema = z.object({
 
 router.get('/profili', requireEnota, async (req: PosRequest, res) => {
   const q = z
-    .object({ dobaviteljId: z.coerce.number().int().positive().optional() })
+    .object({
+      dobaviteljId: z.string().trim().uuid().optional(),
+      tip: z.enum(['PREJEMNICA', 'CENIK']).optional(),
+    })
     .parse(req.query);
 
   const { rows: vrstice } = await db.execute(sql`
     SELECT p.id, p.naziv, p.format, p.cene_bruto, p.prepoznava,
-           p.konfiguracija, p.aktivno, p.ustvarjeno,
+           p.konfiguracija, p.aktivno, p.ustvarjeno, p.tip,
            d.naziv AS dobavitelj, p.dobavitelj_id
       FROM uvoz_profil p
       JOIN partnerji d ON d.id = p.dobavitelj_id
      WHERE p.enota_id = ${req.enotaId}
-       AND (${q.dobaviteljId ?? null}::bigint IS NULL
+       AND (${q.dobaviteljId ?? null}::uuid IS NULL
             OR p.dobavitelj_id = ${q.dobaviteljId ?? null})
+       AND (${q.tip ?? null}::text IS NULL OR p.tip = ${q.tip ?? null})
      ORDER BY d.naziv, p.naziv
   `);
 
@@ -165,12 +196,27 @@ router.post(
         .slice(0, 25)
         .map((v) => v.split(locilo!));
     } else {
-      const XLSX = await import('xlsx');
-      const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      vrstice = XLSX.utils
-        .sheet_to_json<string[]>(ws, { header: 1, raw: false, defval: '', blankrows: true })
-        .slice(0, 25);
+      let vzorec: Awaited<ReturnType<typeof preberiXlsxVzorec>>;
+      try {
+        vzorec = await preberiXlsxVzorec(req.file.buffer);
+      } catch (e) {
+        const napaka = e instanceof XlsxBranjeNapaka ? e : null;
+        return posljiJson(res, 400, {
+          koda: napaka?.koda ?? 'ZAJ018',
+          sporocilo: napaka?.message ?? 'Datoteke .xlsx ni bilo mogoče prebrati.',
+          naVoljo: napaka?.naVoljo,
+        });
+      }
+      vrstice = vzorec.vrstice;
+      return posljiJson(res, 200, {
+        zaznanFormat: format,
+        potrebenProfil: true,
+        kodiranje,
+        locilo,
+        glavaIdx: vzorec.glavaIdx,
+        predlogStolpcev: vzorec.predlogStolpcev,
+        vrstice,
+      });
     }
 
     // Poišči vrstico, ki je najbolj verjetno glava: največ nepraznih celic
@@ -200,13 +246,52 @@ router.post(
 );
 
 // =====================================================================
+// Shemi za validacijo profil-telesa (morata biti pred router.post)
+// =====================================================================
+
+// Shema konfiguracije za uvoz cenika (ločena od prejemnic)
+const cenikProfilSchema = z.object({
+  kodiranje: z.string().optional(),
+  locilo: z.string().max(1).optional(),
+  decimalnoLocilo: z.enum([',', '.']).optional(),
+  glavaVsebuje: z.array(z.string()).optional(),
+  prvaVrsticaPodatkov: z.number().int().min(1).optional(),
+  list: z.string().optional(),
+  stolpci: z.object({
+    naziv: z.number().int().min(0),
+    cena: z.number().int().min(0),
+    sifra: z.number().int().min(0).optional(),
+    gtin: z.number().int().min(0).optional(),
+    enota: z.number().int().min(0).optional(),
+    enotVPaketu: z.number().int().min(0).optional(),
+    ddv: z.number().int().min(0).optional(),
+  }),
+});
+
+// Ločena shema za cenik profil (brez kolicina/rabatOdst, doda enotVPaketu/ddv)
+const cenikProfilShraniTelo = z.object({
+  dobaviteljId: z.string().trim().uuid(),
+  naziv: z.string().min(1).max(120),
+  format: z.enum(['CSV', 'XLSX']),
+  ceneBruto: z.boolean().default(false),
+  prepoznava: z
+    .object({
+      imeDatotekeRegex: z.string().optional(),
+      glavaVsebuje: z.array(z.string()).optional(),
+    })
+    .default({}),
+  konfiguracija: cenikProfilSchema,
+});
+
+// =====================================================================
 // POST /api/pos/uvoz/profili
 // =====================================================================
 
 const profilTelo = z.object({
-  dobaviteljId: z.coerce.number().int().positive(),
+  dobaviteljId: z.string().trim().uuid(),
   naziv: z.string().min(1).max(120),
   format: z.enum(['CSV', 'XLSX']),
+  tip: z.enum(['PREJEMNICA', 'CENIK']).default('PREJEMNICA'),
   ceneBruto: z.boolean().default(false),
   prepoznava: z
     .object({
@@ -219,20 +304,30 @@ const profilTelo = z.object({
 });
 
 router.post('/profili', requireEnota, async (req: PosRequest, res) => {
-  const v = profilTelo.safeParse(req.body);
-  if (!v.success) {
-    return posljiJson(res, 400, { koda: 'ZAJ014', napake: v.error.issues });
+  // Cenik profil ima drugačno shemo konfiguracije od prejemnica profila
+  const tip = (req.body as { tip?: string }).tip ?? 'PREJEMNICA';
+
+  let telo: { dobaviteljId: string; naziv: string; format: string; tip: string; ceneBruto: boolean; prepoznava: unknown; konfiguracija: unknown } | null = null;
+
+  if (tip === 'CENIK') {
+    const v = cenikProfilShraniTelo.safeParse(req.body);
+    if (!v.success) return posljiJson(res, 400, { koda: 'ZAJ014', napake: v.error.issues });
+    telo = { ...v.data, tip: 'CENIK' };
+  } else {
+    const v = profilTelo.safeParse(req.body);
+    if (!v.success) return posljiJson(res, 400, { koda: 'ZAJ014', napake: v.error.issues });
+    telo = { ...v.data, tip: 'PREJEMNICA' };
   }
 
   const [p] = (await db.execute<{ id: number }>(sql`
     INSERT INTO uvoz_profil (
-      podjetje_id, dobavitelj_id, naziv, format, cene_bruto,
+      enota_id, dobavitelj_id, naziv, format, tip, cene_bruto,
       prepoznava, konfiguracija)
     VALUES (
-      ${req.enotaId}, ${v.data.dobaviteljId}, ${v.data.naziv},
-      ${v.data.format}, ${v.data.ceneBruto},
-      ${JSON.stringify(v.data.prepoznava)}::jsonb,
-      ${JSON.stringify(v.data.konfiguracija)}::jsonb)
+      ${req.enotaId}, ${telo.dobaviteljId}, ${telo.naziv},
+      ${telo.format}, ${telo.tip}, ${telo.ceneBruto as boolean},
+      ${JSON.stringify(telo.prepoznava)}::jsonb,
+      ${JSON.stringify(telo.konfiguracija)}::jsonb)
     RETURNING id
   `)).rows;
 
@@ -303,7 +398,7 @@ router.post(
     const r = new CsvRazclenjevalnik(k.data as never);
     const dto =
       format === 'XLSX'
-        ? r.razcleniXlsx(req.file.buffer, req.file.originalname)
+        ? await r.razcleniXlsx(req.file.buffer, req.file.originalname)
         : r.razcleni(req.file.buffer, req.file.originalname);
 
     return posljiJson(res, 200, { zaznanFormat: format, dto });
@@ -313,24 +408,6 @@ router.post(
 // =====================================================================
 // CENIK
 // =====================================================================
-
-const cenikProfilSchema = z.object({
-  kodiranje: z.string().optional(),
-  locilo: z.string().max(1).optional(),
-  decimalnoLocilo: z.enum([',', '.']).optional(),
-  glavaVsebuje: z.array(z.string()).optional(),
-  prvaVrsticaPodatkov: z.number().int().min(1).optional(),
-  list: z.string().optional(),
-  stolpci: z.object({
-    naziv: z.number().int().min(0),
-    cena: z.number().int().min(0),
-    sifra: z.number().int().min(0).optional(),
-    gtin: z.number().int().min(0).optional(),
-    enota: z.number().int().min(0).optional(),
-    enotVPaketu: z.number().int().min(0).optional(),
-    ddv: z.number().int().min(0).optional(),
-  }),
-});
 
 /**
  * POST /api/pos/uvoz/cenik/predogled
@@ -346,7 +423,7 @@ router.post(
   async (req: PosRequest, res) => {
     const vhod = z
       .object({
-        dobaviteljId: z.coerce.number().int().positive(),
+        dobaviteljId: z.string().trim().uuid(),
         profil: z.string(),
       })
       .safeParse(req.body);
@@ -365,11 +442,11 @@ router.post(
     }
 
     const format = zaznajFormat(req.file.buffer, req.file.originalname);
-    const { vrstice, napake } = razcleniCenik(
-      req.file.buffer,
-      profil.data as CenikProfil,
-      format === 'XLSX',
-    );
+    const razclenjen =
+      format === 'XLSX'
+        ? await razcleniCenik(req.file.buffer, profil.data as CenikProfil, true)
+        : razcleniCenik(req.file.buffer, profil.data as CenikProfil);
+    const { vrstice, napake } = razclenjen;
 
     if (!vrstice.length) {
       return posljiJson(res, 422, { koda: 'ZAJ023', napake });
@@ -391,7 +468,7 @@ router.post(
  * uparjanje tu ne ponavlja.
  */
 const cenikPotrdiTelo = z.object({
-  dobaviteljId: z.coerce.number().int().positive(),
+  dobaviteljId: z.string().trim().uuid(),
   vrstice: z
     .array(
       z.object({
@@ -458,7 +535,7 @@ router.get(
   async (req: PosRequest, res) => {
     const q = z
       .object({
-        dobaviteljId: z.coerce.number().int().positive(),
+        dobaviteljId: z.string().trim().uuid(),
         iskanje: z.string().optional(),
         stran: z.coerce.number().int().min(0).default(0),
         velikost: z.coerce.number().int().min(1).max(500).default(100),

@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  useListShranjeniKupci,
-  useCreateShranjenKupec,
-  useUpdateShranjenKupec,
-  useDeleteShranjenKupec,
-  useOsveziShranjenKupec,
-  useGetPartnerCenik,
-  useUpsertPartnerCenikItem,
-  useDeletePartnerCenikItem,
+  useListPartnerji,
+  useCreatePartner,
+  useUpdatePartner,
+  useDeletePartner,
+  useOsveziPartnerja,
+  useGetPartnerjiCenik,
+  useUpsertPartnerjiCenikItem,
+  useDeletePartnerjiCenikItem,
   useListArtikli,
-  getListShranjeniKupciQueryKey,
+  getListPartnerjiQueryKey,
   getGetKupciPogostiQueryKey,
-  getGetPartnerCenikQueryKey,
+  getGetPartnerjiCenikQueryKey,
   getEnotaId,
-  type ShranjenKupec,
+  type Partner,
   type PartnerCenikItem,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -128,7 +128,7 @@ function zaznajVrsto(naziv?: string | null, zavezanecDdv?: boolean | null, matic
   return null;
 }
 
-function kupecVForm(k: ShranjenKupec): KupecForm {
+function kupecVForm(k: Partner): KupecForm {
   return {
     vrstaPartnerja: (k.vrstaPartnerja as VrstaPartnerja) ?? null,
     naziv: k.naziv ?? "",
@@ -186,30 +186,32 @@ interface InetisRezultat {
 }
 
 export default function Partnerji() {
-  const { data: kupci, isLoading } = useListShranjeniKupci();
-  const createMutation = useCreateShranjenKupec();
-  const updateMutation = useUpdateShranjenKupec();
-  const deleteMutation = useDeleteShranjenKupec();
-  const osveziMutation = useOsveziShranjenKupec();
+  const { data: kupci, isLoading } = useListPartnerji();
+  const createMutation = useCreatePartner();
+  const updateMutation = useUpdatePartner();
+  const deleteMutation = useDeletePartner();
+  const osveziMutation = useOsveziPartnerja();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [iskanje, setIskanje] = useState("");
   const [editOpen, setEditOpen] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [cenikDodajArtikelId, setCenikDodajArtikelId] = useState<string>("");
   const [cenikDodajCena, setCenikDodajCena] = useState<string>("");
 
-  const upsertCenikMutation = useUpsertPartnerCenikItem();
-  const deleteCenikMutation = useDeletePartnerCenikItem();
+  const upsertCenikMutation = useUpsertPartnerjiCenikItem();
+  const deleteCenikMutation = useDeletePartnerjiCenikItem();
   const { data: vsiArtikli } = useListArtikli();
-  const { data: cenikData, refetch: refetchCenik } = useGetPartnerCenik(editId ?? 0);
+  const { data: cenikData, refetch: refetchCenik } = useGetPartnerjiCenik(editId ?? "", {
+    query: { enabled: editId !== null } as any,
+  });
   const [form, setForm] = useState<KupecForm>(prazenForm());
   const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteNaziv, setDeleteNaziv] = useState("");
   const [poisciLoading, setPoisciLoading] = useState(false);
-  const [osvezevanje, setOsvezevanje] = useState<Set<number>>(new Set());
+  const [osvezevanje, setOsvezevanje] = useState<Set<string>>(new Set());
 
   // Mini-dialog: dodaj po davčni številki
   const [hitriDodajOpen, setHitriDodajOpen] = useState(false);
@@ -284,7 +286,7 @@ export default function Partnerji() {
         eRacunSifraPu: data.eRacunSifraPu ?? "",
         eRacunBic: data.eRacunBic ?? "",
       });
-      setEditId(data.id ?? null);
+      setEditId(data.id != null ? String(data.id) : null);
       setHitriDodajOpen(false);
       setEditOpen(true);
       toast({ title: "Partner najden", description: data.naziv ?? "Podatki uvoženi iz registra." });
@@ -303,29 +305,29 @@ export default function Partnerji() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hitriDavcna, hitriDodajOpen]);
 
-  function odpriUredi(k: ShranjenKupec) {
+  function odpriUredi(k: Partner) {
     setEditId(k.id);
     setForm(kupecVForm(k));
     setEditOpen(true);
   }
 
-  function odpriDelete(k: ShranjenKupec) {
+  function odpriDelete(k: Partner) {
     setDeleteId(k.id);
     setDeleteNaziv(k.naziv ?? "");
   }
 
-  async function handleOsvezi(k: ShranjenKupec) {
+  async function handleOsvezi(k: Partner) {
     setOsvezevanje(prev => new Set(prev).add(k.id));
     try {
       await osveziMutation.mutateAsync({ id: k.id });
-      await queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListPartnerjiQueryKey() });
       await queryClient.invalidateQueries({ queryKey: getGetKupciPogostiQueryKey() });
       toast({ title: "Podatki osveženi", description: `„${k.naziv}" posodobljen iz registra.` });
     } catch (err: unknown) {
       const errData = (err as { response?: { data?: { napaka?: string; kodaNapake?: string } } })?.response?.data;
       const napaka = errData?.napaka ?? "Napaka pri iskanju v registru.";
-      if (errData?.kodaNapake === "VIES_NO_DATA") {
-        // VIES ne vrača podatkov za to državo — odpri urejevalnik za ročen vnos
+      if (errData?.kodaNapake === "VIES_NO_DATA" || errData?.kodaNapake === "INETIS_NI_ZADETKOV") {
+        // Register nima podatkov — odpri urejevalnik za ročen vnos
         toast({ title: "Ročni vnos potreben", description: napaka });
         odpriUredi(k);
       } else {
@@ -445,7 +447,7 @@ export default function Partnerji() {
         await createMutation.mutateAsync({ data: payload });
         toast({ title: "Partner dodan", description: `"${payload.naziv}" je bil dodan v šifrant.` });
       }
-      void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getListPartnerjiQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getGetKupciPogostiQueryKey() });
       setEditOpen(false);
     } catch {
@@ -464,7 +466,7 @@ export default function Partnerji() {
     }
     try {
       await upsertCenikMutation.mutateAsync({ id: editId, artikelId, data: { cena } });
-      void queryClient.invalidateQueries({ queryKey: getGetPartnerCenikQueryKey(editId) });
+      void queryClient.invalidateQueries({ queryKey: getGetPartnerjiCenikQueryKey(editId) });
       void refetchCenik();
       setCenikDodajArtikelId("");
       setCenikDodajCena("");
@@ -478,7 +480,7 @@ export default function Partnerji() {
     if (editId == null) return;
     try {
       await deleteCenikMutation.mutateAsync({ id: editId, artikelId });
-      void queryClient.invalidateQueries({ queryKey: getGetPartnerCenikQueryKey(editId) });
+      void queryClient.invalidateQueries({ queryKey: getGetPartnerjiCenikQueryKey(editId) });
       void refetchCenik();
     } catch {
       toast({ title: "Napaka", description: "Cenika ni bilo mogoče odstraniti.", variant: "destructive" });
@@ -492,7 +494,7 @@ export default function Partnerji() {
       {
         onSuccess: () => {
           toast({ title: "Partner izbrisan", description: `"${deleteNaziv}" je bil odstranjen.` });
-          void queryClient.invalidateQueries({ queryKey: getListShranjeniKupciQueryKey() });
+          void queryClient.invalidateQueries({ queryKey: getListPartnerjiQueryKey() });
           void queryClient.invalidateQueries({ queryKey: getGetKupciPogostiQueryKey() });
           setDeleteId(null);
         },
@@ -799,6 +801,7 @@ export default function Partnerji() {
                         onChange={v => setField("davcnaStevilka", v)}
                         placeholder="12345678"
                         naslov="Davčna številka"
+                        inputMode="numeric"
                         className="flex-1"
                       />
                       <Button
@@ -820,7 +823,7 @@ export default function Partnerji() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Matična številka</Label>
-                    <KlavijaturaInput value={form.maticnaStevilka} onChange={v => setField("maticnaStevilka", v)} placeholder="1234567000" naslov="Matična številka" />
+                    <KlavijaturaInput value={form.maticnaStevilka} onChange={v => setField("maticnaStevilka", v)} placeholder="1234567000" naslov="Matična številka" inputMode="numeric" />
                   </div>
                   {form.vrstaPartnerja === "kmet" && (
                     <div className="col-span-2 space-y-1">
@@ -830,6 +833,7 @@ export default function Partnerji() {
                         onChange={v => setField("kmgMid", v)}
                         placeholder="100012345"
                         naslov="KMG-MID"
+                        inputMode="numeric"
                       />
                     </div>
                   )}
@@ -853,7 +857,7 @@ export default function Partnerji() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Poštna številka</Label>
-                    <KlavijaturaInput value={form.postnaStevilka} onChange={v => setField("postnaStevilka", v)} placeholder="1000" naslov="Poštna številka" />
+                    <KlavijaturaInput value={form.postnaStevilka} onChange={v => setField("postnaStevilka", v)} placeholder="1000" naslov="Poštna številka" inputMode="numeric" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Kraj</Label>
@@ -905,6 +909,7 @@ export default function Partnerji() {
                           onChange={v => setField("eRacunSifraPu", v)}
                           placeholder="npr. 67679"
                           naslov="Šifra proračunskega uporabnika (KPU)"
+                          inputMode="numeric"
                         />
                         <p className="text-[10px] text-muted-foreground leading-snug">
                           Obvezno za UJP omrežje — šifra iz dnevne UJP datoteke.
@@ -941,6 +946,7 @@ export default function Partnerji() {
                           onChange={v => setField("eRacunEmail", v)}
                           placeholder="racuni@sola.si"
                           naslov="E-pošta za e-račune"
+                          type="email"
                         />
                         <p className="text-[10px] text-muted-foreground leading-snug">
                           Neobvezno — e-poštni naslov za dostavo e-računov, če se razlikuje od splošnega.
@@ -957,11 +963,11 @@ export default function Partnerji() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs">E-pošta</Label>
-                    <KlavijaturaInput value={form.email} onChange={v => setField("email", v)} placeholder="info@podjetje.si" naslov="E-pošta" />
+                    <KlavijaturaInput value={form.email} onChange={v => setField("email", v)} placeholder="info@podjetje.si" naslov="E-pošta" type="email" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Telefon</Label>
-                    <KlavijaturaInput value={form.telefon} onChange={v => setField("telefon", v)} placeholder="+386 1 234 5678" naslov="Telefon" />
+                    <KlavijaturaInput value={form.telefon} onChange={v => setField("telefon", v)} placeholder="+386 1 234 5678" naslov="Telefon" type="tel" inputMode="tel" />
                   </div>
                 </div>
               </section>
@@ -1030,7 +1036,7 @@ export default function Partnerji() {
                               const nova = parseFloat(e.currentTarget.value.replace(",", "."));
                               if (!isNaN(nova) && nova >= 0 && nova !== v.cena) {
                                 void upsertCenikMutation.mutateAsync({ id: editId, artikelId: v.artikelId, data: { cena: nova } })
-                                  .then(() => { void queryClient.invalidateQueries({ queryKey: getGetPartnerCenikQueryKey(editId) }); void refetchCenik(); })
+                                  .then(() => { void queryClient.invalidateQueries({ queryKey: getGetPartnerjiCenikQueryKey(editId) }); void refetchCenik(); })
                                   .catch(() => toast({ title: "Napaka", description: "Cene ni bilo mogoče shraniti.", variant: "destructive" }));
                               }
                             }}

@@ -3,3 +3,16 @@
 
 # No need to store the pnpm store twice.
 .local
+
+# Dependencies are installed again inside the publishing build image.
+node_modules
+
+# Local repository and tool caches are not runtime inputs.
+.git
+.cache
+.gradle
+.gradle-*
+
+# Native/mobile build intermediates are not needed by the published services.
+**/.cxx
+**/build

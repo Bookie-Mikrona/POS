@@ -1,7 +1,7 @@
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -46,10 +46,37 @@ const rootRedirectPlugin = {
   },
 };
 
+/** Generate the service worker from the actual Rollup output, never guesses. */
+const fiscalSafePwaPlugin: Plugin = {
+  name: 'pos-generated-service-worker',
+  apply: 'build' as const,
+  generateBundle(_options, bundle) {
+    const assets = Object.values(bundle)
+      .map(entry => `${basePath}${entry.fileName}`)
+      .filter(url => !url.includes('/api/'));
+    const cacheName = `bookie-pos-shell-${Date.now()}`;
+    const source = `
+const CACHE=${JSON.stringify(cacheName)};
+const PRECACHE=${JSON.stringify(assets)};
+self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(PRECACHE)));self.skipWaiting();});
+self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener("fetch",event=>{
+  const request=event.request;
+  if(request.method!=="GET")return;
+  const url=new URL(request.url);
+  if(url.origin!==self.location.origin||url.pathname.includes("/api/")||request.headers.has("authorization")||request.credentials==="include")return;
+  if(request.mode==="navigate"){event.respondWith(fetch(request).catch(()=>caches.match(${JSON.stringify(`${basePath}index.html`)})));return;}
+  if(PRECACHE.includes(url.pathname))event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));
+});`;
+    this.emitFile({ type: 'asset', fileName: 'sw.js', source });
+  },
+};
+
 export default defineConfig({
   base: basePath,
   plugins: [
     rootRedirectPlugin,
+    fiscalSafePwaPlugin,
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
@@ -89,8 +116,16 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    headers: {
+      // Prepreči Android Chrome predpomnilnik med razvojem
+      'Cache-Control': 'no-store',
+    },
     fs: {
       strict: true,
+      allow: [
+        path.resolve(import.meta.dirname),
+        path.resolve(import.meta.dirname, '..', '..', 'fiscal-service', 'contract'),
+      ],
     },
     proxy: {
       // Posreduj /pos/api/... → API strežnik na :8080 kot /api/...

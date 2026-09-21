@@ -1,0 +1,608 @@
+#!/usr/bin/env python3
+"""Generate the long-form POS Gostinstvo user manual from reviewed Markdown."""
+
+from __future__ import annotations
+
+import html
+import re
+from datetime import date
+from pathlib import Path
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
+    KeepTogether,
+    PageBreak,
+    PageTemplate,
+    Paragraph,
+    Image as RLImage,
+    Spacer,
+    Table,
+    TableStyle,
+)
+from reportlab.platypus.tableofcontents import TableOfContents
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
+OUTPUT = ROOT / "docs" / "POS-Gostinstvo-prirocnik-v8.0.pdf"
+LOGO = ROOT / "docs" / "mikrona-logo.png"
+
+SOURCE_FILES = [
+    ("I", "Dostop in priprava sistema", "01-operativno-delo.md"),
+    ("II", "Začetek izmene in delovno okolje", "02-placila-racuni-furs-tisk.md"),
+    ("III", "Mize, rezervacije in naročila", "03-meni-artikli-normativi.md"),
+    ("IV", "Meni, artikli, normativi in alergeni", "04-zaloge-dokumenti.md"),
+    ("V", "Priprava, KDS, QR meni in telefonska naročila", "05-pripravljena-hrana-qr-telefon.md"),
+    ("VI", "Plačilo, račun, FURS in tisk", "06-izmene-porocila-nastavitve.md"),
+    ("VII", "Zaloge, dokumenti, pripravljena hrana in dogodki", "07-zacetek-dela-dostop.md"),
+    ("VIII", "Konec izmene, poročila in POS→ERP", "08-nastavitve-po-sklopih.md"),
+    ("IX", "Nastavitve, naprave, uporabniki in varnost", "09-postopki-po-vlogah.md"),
+    ("X", "Hitri postopki po vlogah", "10-odlocitvena-drevesa-kontrolni-seznami.md"),
+    ("XI", "Odpravljanje težav in izredni primeri", "11-vnos-uvoz-prejemnice-ocr.md"),
+    ("XII", "Slovar in kontrolni seznami", "12-spremembe-in-dopolnitve.md"),
+]
+
+BLUE = colors.HexColor("#163A5F")
+TEAL = colors.HexColor("#087F8C")
+PALE_BLUE = colors.HexColor("#EAF2F8")
+PALE_TEAL = colors.HexColor("#E7F4F3")
+PALE_YELLOW = colors.HexColor("#FFF6D8")
+INK = colors.HexColor("#1C2733")
+MUTED = colors.HexColor("#566573")
+LINE = colors.HexColor("#CCD6DD")
+
+
+def register_fonts() -> None:
+    regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    # The Replit font bundle contains the regular and bold DejaVu faces.
+    # Register the regular face for italic markup as well so Slovenian glyphs
+    # remain available and PDF generation is portable across the workspace.
+    italic = regular
+    pdfmetrics.registerFont(TTFont("Manual", regular))
+    pdfmetrics.registerFont(TTFont("Manual-Bold", bold))
+    pdfmetrics.registerFont(TTFont("Manual-Italic", italic))
+    pdfmetrics.registerFontFamily(
+        "Manual",
+        normal="Manual",
+        bold="Manual-Bold",
+        italic="Manual-Italic",
+        boldItalic="Manual-Bold",
+    )
+
+
+def make_styles():
+    sample = getSampleStyleSheet()
+    styles = {
+        "cover_title": ParagraphStyle(
+            "CoverTitle",
+            parent=sample["Title"],
+            fontName="Manual-Bold",
+            fontSize=29,
+            leading=35,
+            alignment=TA_CENTER,
+            textColor=BLUE,
+            spaceAfter=10 * mm,
+        ),
+        "cover_subtitle": ParagraphStyle(
+            "CoverSubtitle",
+            fontName="Manual",
+            fontSize=15,
+            leading=22,
+            alignment=TA_CENTER,
+            textColor=TEAL,
+        ),
+        "cover_meta": ParagraphStyle(
+            "CoverMeta",
+            fontName="Manual",
+            fontSize=10.5,
+            leading=16,
+            alignment=TA_CENTER,
+            textColor=MUTED,
+        ),
+        "part": ParagraphStyle(
+            "Part",
+            fontName="Manual-Bold",
+            fontSize=24,
+            leading=30,
+            textColor=BLUE,
+            spaceAfter=9 * mm,
+            alignment=TA_CENTER,
+        ),
+        "h1": ParagraphStyle(
+            "Heading1Manual",
+            fontName="Manual-Bold",
+            fontSize=19,
+            leading=24,
+            textColor=BLUE,
+            spaceBefore=7 * mm,
+            spaceAfter=4 * mm,
+            keepWithNext=True,
+        ),
+        "h2": ParagraphStyle(
+            "Heading2Manual",
+            fontName="Manual-Bold",
+            fontSize=14.2,
+            leading=19,
+            textColor=TEAL,
+            spaceBefore=6 * mm,
+            spaceAfter=3 * mm,
+            keepWithNext=True,
+        ),
+        "h3": ParagraphStyle(
+            "Heading3Manual",
+            fontName="Manual-Bold",
+            fontSize=11.8,
+            leading=16,
+            textColor=BLUE,
+            spaceBefore=4.5 * mm,
+            spaceAfter=2.2 * mm,
+            keepWithNext=True,
+        ),
+        "h4": ParagraphStyle(
+            "Heading4Manual",
+            fontName="Manual-Bold",
+            fontSize=10.5,
+            leading=15,
+            textColor=TEAL,
+            spaceBefore=3.5 * mm,
+            spaceAfter=1.8 * mm,
+            keepWithNext=True,
+        ),
+        "body": ParagraphStyle(
+            "BodyManual",
+            fontName="Manual",
+            fontSize=10.35,
+            leading=15.2,
+            alignment=TA_JUSTIFY,
+            textColor=INK,
+            spaceAfter=2.7 * mm,
+            splitLongWords=True,
+        ),
+        "bullet": ParagraphStyle(
+            "BulletManual",
+            fontName="Manual",
+            fontSize=10.2,
+            leading=15,
+            leftIndent=7 * mm,
+            firstLineIndent=0,
+            textColor=INK,
+            spaceAfter=1.6 * mm,
+        ),
+        "number": ParagraphStyle(
+            "NumberManual",
+            fontName="Manual",
+            fontSize=10.2,
+            leading=15,
+            leftIndent=9 * mm,
+            firstLineIndent=-7 * mm,
+            textColor=INK,
+            spaceAfter=1.7 * mm,
+        ),
+        "quote": ParagraphStyle(
+            "QuoteManual",
+            fontName="Manual",
+            fontSize=10.1,
+            leading=15,
+            leftIndent=7 * mm,
+            rightIndent=4 * mm,
+            borderColor=TEAL,
+            borderWidth=1.2,
+            borderPadding=(4 * mm, 4 * mm, 4 * mm, 5 * mm),
+            backColor=PALE_TEAL,
+            textColor=INK,
+            spaceBefore=2 * mm,
+            spaceAfter=4 * mm,
+        ),
+        "table_head": ParagraphStyle(
+            "TableHead",
+            fontName="Manual-Bold",
+            fontSize=8.3,
+            leading=11,
+            textColor=colors.white,
+            alignment=TA_LEFT,
+        ),
+        "table_body": ParagraphStyle(
+            "TableBody",
+            fontName="Manual",
+            fontSize=8.15,
+            leading=11.2,
+            textColor=INK,
+        ),
+        "toc_title": ParagraphStyle(
+            "TocTitle",
+            fontName="Manual-Bold",
+            fontSize=22,
+            leading=28,
+            textColor=BLUE,
+            spaceAfter=8 * mm,
+        ),
+    }
+    return styles
+
+
+def inline_markup(text: str) -> str:
+    text = html.escape(text.strip())
+    text = re.sub(r"`([^`]+)`", r"<font name='Manual-Bold'>\1</font>", text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<i>\1</i>", text)
+    text = text.replace("EUR", "EUR")
+    return text
+
+
+def clean_source(text: str) -> str:
+    # A draft agent appended repeated paragraphs after the real conclusion.
+    marker = "\n### Kontrolna ponovitev:"
+    if marker in text:
+        text = text.split(marker, 1)[0].rstrip() + "\n"
+
+    # Izdaja 8.0 je referenčni priročnik, ne učbenik ali delovni zvezek.
+    # Odstranimo celotne učne odseke do naslednjega naslova iste ali višje
+    # ravni; tako v dokumentu ne ostanejo odgovori, ocenjevanje ali del naloge.
+    excluded_heading = re.compile(
+        r"\b("
+        r"vaj[ae]?|nalog[ae]?|nasveti?|preverjanje\s+znanja|ocenjena|ocenjevanje|"
+        r"trener\w*|mentor\w*|scenarij\w*|primeri\s+iz\s+prakse|"
+        r"ključ\s+odgovorov|vprašanja\s+za\s+ponovitev|"
+        r"kontrolni\s+seznami?|kontrolna\s+ponovitev|načrt\s+uvajanja|usposabljanje"
+        r")\b",
+        re.IGNORECASE,
+    )
+    filtered: list[str] = []
+    skipped_level: int | None = None
+    for line in text.splitlines():
+        heading = re.match(r"^(#{1,6})\s+(.+)$", line.strip())
+        if heading:
+            level = len(heading.group(1))
+            title = re.sub(r"[*`]", "", heading.group(2))
+            if skipped_level is not None and level <= skipped_level:
+                skipped_level = None
+            if skipped_level is None and excluded_heading.search(title):
+                skipped_level = level
+                continue
+        if skipped_level is not None:
+            continue
+        if re.match(r"^\s*(Nasvet|Naloga|Vaja|Preverjanje znanja)\s*:", line, re.IGNORECASE):
+            continue
+        filtered.append(line)
+    return "\n".join(filtered).strip() + "\n"
+
+
+def is_table_separator(line: str) -> bool:
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell or "") for cell in cells)
+
+
+def split_table_row(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def table_flowable(rows: list[list[str]], styles, width: float) -> Table:
+    column_count = max(len(row) for row in rows)
+    normalized = [row + [""] * (column_count - len(row)) for row in rows]
+    wrapped = []
+    for row_index, row in enumerate(normalized):
+        style = styles["table_head"] if row_index == 0 else styles["table_body"]
+        wrapped.append([Paragraph(inline_markup(cell), style) for cell in row])
+
+    if column_count == 2:
+        col_widths = [width * 0.29, width * 0.71]
+    elif column_count == 3:
+        col_widths = [width * 0.24, width * 0.36, width * 0.40]
+    elif column_count == 4:
+        col_widths = [width * 0.20, width * 0.25, width * 0.27, width * 0.28]
+    else:
+        col_widths = [width / column_count] * column_count
+
+    table = Table(wrapped, colWidths=col_widths, repeatRows=1, hAlign="LEFT")
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), BLUE),
+                ("GRID", (0, 0), (-1, -1), 0.45, LINE),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2.3 * mm),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2.3 * mm),
+                ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PALE_BLUE]),
+            ]
+        )
+    )
+    return table
+
+
+def markdown_to_flowables(text: str, styles, content_width: float):
+    lines = clean_source(text).splitlines()
+    story = []
+    paragraph_lines: list[str] = []
+
+    def flush_paragraph() -> None:
+        if paragraph_lines:
+            joined = " ".join(part.strip() for part in paragraph_lines)
+            story.append(Paragraph(inline_markup(joined), styles["body"]))
+            paragraph_lines.clear()
+
+    index = 0
+    while index < len(lines):
+        raw = lines[index].rstrip()
+        stripped = raw.strip()
+
+        if not stripped or stripped == "---":
+            flush_paragraph()
+            index += 1
+            continue
+
+        if stripped.startswith("|") and index + 1 < len(lines) and is_table_separator(lines[index + 1]):
+            flush_paragraph()
+            rows = [split_table_row(stripped)]
+            index += 2
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                rows.append(split_table_row(lines[index]))
+                index += 1
+            story.append(table_flowable(rows, styles, content_width))
+            story.append(Spacer(1, 3.5 * mm))
+            continue
+
+        heading = re.match(r"^(#{1,4})\s+(.+)$", stripped)
+        if heading:
+            flush_paragraph()
+            level = len(heading.group(1))
+            title = heading.group(2).strip()
+            para = Paragraph(inline_markup(title), styles[f"h{level}"])
+            para._manual_heading_level = level
+            para._manual_heading_text = re.sub(r"[*`]", "", title)
+            story.append(para)
+            index += 1
+            continue
+
+        if stripped.startswith(">"):
+            flush_paragraph()
+            quote_parts = []
+            while index < len(lines) and lines[index].strip().startswith(">"):
+                quote_parts.append(lines[index].strip().lstrip(">").strip())
+                index += 1
+            story.append(Paragraph(inline_markup(" ".join(quote_parts)), styles["quote"]))
+            continue
+
+        bullet = re.match(r"^[-*]\s+(.+)$", stripped)
+        if bullet:
+            flush_paragraph()
+            body = bullet.group(1)
+            marker = "☐" if body.startswith("[ ]") else "•"
+            body = re.sub(r"^\[[ xX]\]\s*", "", body)
+            story.append(Paragraph(inline_markup(body), styles["bullet"], bulletText=marker))
+            index += 1
+            continue
+
+        numbered = re.match(r"^(\d+)\.\s+(.+)$", stripped)
+        if numbered:
+            flush_paragraph()
+            prefix = numbered.group(1) + "."
+            story.append(
+                Paragraph(
+                    f"<b>{prefix}</b>&nbsp;&nbsp;{inline_markup(numbered.group(2))}",
+                    styles["number"],
+                )
+            )
+            index += 1
+            continue
+
+        paragraph_lines.append(stripped)
+        index += 1
+
+    flush_paragraph()
+    return story
+
+
+class ManualDocTemplate(BaseDocTemplate):
+    def __init__(self, filename: str, styles, **kwargs):
+        super().__init__(filename, **kwargs)
+        self.styles = styles
+        self._outline_level = -1
+        frame = Frame(
+            self.leftMargin,
+            self.bottomMargin,
+            self.width,
+            self.height,
+            id="manual-frame",
+        )
+        self.addPageTemplates(
+            [PageTemplate(id="manual", frames=[frame], onPage=self.draw_page)]
+        )
+
+    def beforeDocument(self) -> None:
+        # ReportLab does not allow a PDF outline to jump over a level.
+        # Markdown remains semantically unchanged; only PDF bookmarks are
+        # clamped when a source goes directly from e.g. H2 to H4.
+        self._outline_level = -1
+
+    def draw_page(self, canvas, doc) -> None:
+        canvas.saveState()
+        page = canvas.getPageNumber()
+        if page > 1:
+            canvas.setStrokeColor(LINE)
+            canvas.setLineWidth(0.4)
+            canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
+            canvas.setFont("Manual", 8.2)
+            canvas.setFillColor(MUTED)
+            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — referenčni priročnik v8.0")
+            canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
+        canvas.restoreState()
+
+    def afterFlowable(self, flowable) -> None:
+        level = getattr(flowable, "_manual_heading_level", None)
+        if level is None:
+            return
+        text = getattr(flowable, "_manual_heading_text", flowable.getPlainText())
+        key = f"heading-{self.seq.nextf('heading')}"
+        self.canv.bookmarkPage(key)
+        outline_level = min(level - 1, self._outline_level + 1)
+        self.canv.addOutlineEntry(
+            text,
+            key,
+            level=outline_level,
+            closed=outline_level > 1,
+        )
+        self._outline_level = outline_level
+        self.notify("TOCEntry", (level - 1, text, self.page, key))
+
+
+def build_story(styles, doc):
+    story = []
+    story.extend(
+        [
+            RLImage(str(LOGO), width=43 * mm, height=44 * mm),
+            Spacer(1, 7 * mm),
+            Paragraph("Mikrona d.o.o.", styles["cover_meta"]),
+            Spacer(1, 8 * mm),
+            Spacer(1, 36 * mm),
+            Paragraph("POS Gostinstvo", styles["cover_title"]),
+            Paragraph("Jedrnat referenčni uporabniški priročnik · izdaja 8.0", styles["cover_subtitle"]),
+            Spacer(1, 13 * mm),
+            Table(
+                [["Različica", "8.0"], ["Obseg", "priprava, operativno delo, prodaja, zaloge, poročila in administracija"], ["Datum izdaje", date.today().strftime("%d. %m. %Y")]],
+                colWidths=[40 * mm, 110 * mm],
+                style=TableStyle(
+                    [
+                        ("FONTNAME", (0, 0), (0, -1), "Manual-Bold"),
+                        ("FONTNAME", (1, 0), (1, -1), "Manual"),
+                        ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), INK),
+                        ("GRID", (0, 0), (-1, -1), 0.5, LINE),
+                        ("BACKGROUND", (0, 0), (0, -1), PALE_BLUE),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 3 * mm),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 3 * mm),
+                        ("TOPPADDING", (0, 0), (-1, -1), 3 * mm),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3 * mm),
+                    ]
+                ),
+            ),
+            Spacer(1, 18 * mm),
+            Paragraph(
+                "Priročnik je namenjen natakarjem, kuhinji, točilnici, vodjem izmene, skrbnikom zalog, administratorjem in računovodskim uporabnikom. Opisuje dejanske delovne postopke, pomen polj, posledice potrditev ter ravnanje ob napakah.",
+                styles["cover_meta"],
+            ),
+            PageBreak(),
+            Paragraph("Kako uporabljate priročnik", styles["h1"]),
+            Paragraph(
+                "Priročnik je razdeljen na dvanajst vsebinskih delov. Za iskani postopek uporabite kazalo, preverite predpogoje in sledite oštevilčenim korakom. Opozorila označujejo dejanja, ki jih ne smete ponavljati ali izvajati brez dovoljenja.",
+                styles["body"],
+            ),
+            Paragraph(
+                "<b>Pomembno:</b> vidnost gumbov je odvisna od vaše vloge, izbrane poslovne enote, blagajne in naprave. Če navedenega gumba ne vidite, ne uporabljajte prijave druge osebe. Obrnite se na vodjo ali administratorja.",
+                styles["quote"],
+            ),
+            Paragraph("Kazalo", styles["toc_title"]),
+        ]
+    )
+
+    toc = TableOfContents()
+    toc.levelStyles = [
+        ParagraphStyle(
+            "TOC0",
+            fontName="Manual-Bold",
+            fontSize=10.2,
+            leading=15,
+            leftIndent=0,
+            firstLineIndent=0,
+            textColor=BLUE,
+            spaceBefore=2 * mm,
+        ),
+        ParagraphStyle(
+            "TOC1",
+            fontName="Manual",
+            fontSize=9.2,
+            leading=13,
+            leftIndent=7 * mm,
+            firstLineIndent=0,
+            textColor=INK,
+        ),
+        ParagraphStyle(
+            "TOC2",
+            fontName="Manual",
+            fontSize=8.6,
+            leading=12,
+            leftIndent=14 * mm,
+            firstLineIndent=0,
+            textColor=MUTED,
+        ),
+        ParagraphStyle(
+            "TOC3",
+            fontName="Manual",
+            fontSize=8.2,
+            leading=11,
+            leftIndent=21 * mm,
+            firstLineIndent=0,
+            textColor=MUTED,
+        ),
+    ]
+    story.extend([toc, PageBreak()])
+
+    for numeral, title, filename in SOURCE_FILES:
+        path = SOURCE_DIR / filename
+        if not path.exists():
+            raise FileNotFoundError(path)
+        part = Paragraph(f"DEL {numeral}<br/><br/>{html.escape(title)}", styles["part"])
+        part._manual_heading_level = 1
+        part._manual_heading_text = f"DEL {numeral}: {title}"
+        story.extend(
+            [
+                Spacer(1, 45 * mm),
+                part,
+                Spacer(1, 10 * mm),
+                Paragraph(
+                    "V tem delu so zbrani preverjeni postopki in reševanje napak za navedeno področje.",
+                    styles["cover_meta"],
+                ),
+                PageBreak(),
+            ]
+        )
+        story.extend(markdown_to_flowables(path.read_text(encoding="utf-8"), styles, doc.width))
+        story.append(PageBreak())
+
+    story.extend([
+        PageBreak(),
+        Spacer(1, 45 * mm),
+        Paragraph("Konec priročnika", styles["part"]),
+        Paragraph(
+            "Ob spremembah nastavitev ali postopkov vedno preverite trenutno stanje v svoji poslovni enoti.",
+            styles["cover_meta"],
+        ),
+    ])
+    return story
+
+
+def main() -> None:
+    register_fonts()
+    styles = make_styles()
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    doc = ManualDocTemplate(
+        str(OUTPUT),
+        styles,
+        pagesize=A4,
+        leftMargin=19 * mm,
+        rightMargin=19 * mm,
+        topMargin=18 * mm,
+        bottomMargin=21 * mm,
+        title="POS Gostinstvo — referenčni uporabniški priročnik v8.0",
+        author="Bookie",
+        subject="Uporabniški priročnik za POS Gostinstvo",
+        creator="Bookie POS Gostinstvo",
+    )
+    story = build_story(styles, doc)
+    doc.multiBuild(story)
+    print(OUTPUT)
+
+
+if __name__ == "__main__":
+    main()

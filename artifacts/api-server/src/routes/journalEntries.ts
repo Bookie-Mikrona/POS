@@ -10,9 +10,13 @@ import {
   accountingRolesTable,
   auditLogTable,
   counterpartiesTable,
+  invoicesTable,
   costCentersTable,
   projectsTable,
   departmentsTable,
+  vatCodesTable,
+  posReceiptBookingSourcesTable,
+  prejemniceTable,
 } from "@workspace/db";
 import {
   CreateJournalEntryBody,
@@ -27,6 +31,12 @@ import {
   type EntryMeta,
   type VatLine,
 } from "../lib/vatLedger";
+import { resolveCompanyVatCodeLinks } from "../lib/journalVatCodeLinks";
+import { getPosReceiptBookingVatEvidence } from "../lib/posReceiptBooking";
+import {
+  deleteDraftJournalEntry,
+  JournalEntryDeletionError,
+} from "../lib/journalEntryDeletion";
 
 const router: IRouter = Router();
 
@@ -68,6 +78,7 @@ async function fetchEntryWithLines(entryId: string) {
       documentDate: journalEntriesTable.documentDate,
       entryDate: journalEntriesTable.entryDate,
       taxDate: journalEntriesTable.taxDate,
+      receiptDate: journalEntriesTable.receiptDate,
       description: journalEntriesTable.description,
       reference: journalEntriesTable.reference,
       status: journalEntriesTable.status,
@@ -109,6 +120,7 @@ async function fetchEntryWithLines(entryId: string) {
       departmentId: journalEntryLinesTable.departmentId,
       departmentName: departmentsTable.name,
       vatCodeId: journalEntryLinesTable.vatCodeId,
+      companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
       vatAmount: journalEntryLinesTable.vatAmount,
       vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
     })
@@ -307,7 +319,8 @@ router.post(
       return;
     }
 
-    const { periodId, description, reference, lines, autoPost, sourceType } = parsed.data;
+    const { periodId, description, reference, lines: requestedLines, autoPost, sourceType } = parsed.data;
+    let lines = requestedLines;
 
     // Preveri period pripada podjetju
     const [period] = await db
@@ -345,6 +358,7 @@ router.post(
         allowsPosting: accountsTable.allowsPosting,
         requiresPartner: accountsTable.requiresPartner,
         requiresCostCenter: accountsTable.requiresCostCenter,
+        costCenterPolicy: accountsTable.costCenterPolicy,
         requiresProject: accountsTable.requiresProject,
       })
       .from(accountsTable)
@@ -362,6 +376,7 @@ router.post(
     const allCostCenterIds = [...new Set(lines.map((l) => l.costCenterId).filter((x): x is string => !!x))];
     const allProjectIds = [...new Set(lines.map((l) => l.projectId).filter((x): x is string => !!x))];
     const allDepartmentIds = [...new Set(lines.map((l) => l.departmentId).filter((x): x is string => !!x))];
+    const allCompanyVatCodeIds = [...new Set(lines.map((l) => l.companyVatCodeId).filter((x): x is string => !!x))];
 
     if (allPartnerIds.length > 0) {
       const found = await db
@@ -403,6 +418,21 @@ router.post(
         return;
       }
     }
+    if (allCompanyVatCodeIds.length > 0) {
+      const found = await db
+        .select({ id: vatCodesTable.id, fursCodeId: vatCodesTable.fursCodeId })
+        .from(vatCodesTable)
+        .where(and(
+          inArray(vatCodesTable.id, allCompanyVatCodeIds),
+          eq(vatCodesTable.companyId, companyId),
+        ));
+      const resolved = resolveCompanyVatCodeLinks(requestedLines, found);
+      if (resolved.error !== null) {
+        res.status(400).json({ error: resolved.error });
+        return;
+      }
+      lines = resolved.lines;
+    }
 
     // §69, §70 — Validacija kontov in dimenzij
     for (const line of lines) {
@@ -420,8 +450,12 @@ router.post(
         res.status(400).json(accountingError("PARTNER_REQUIRED", `Za konto ${acc.code} je poslovni partner obvezen.`, { account: acc.code, dimension: "PARTNER" }));
         return;
       }
-      if (acc.requiresCostCenter && !line.costCenterId) {
+      if ((acc.costCenterPolicy === "required" || acc.requiresCostCenter) && !line.costCenterId) {
         res.status(400).json(accountingError("COST_CENTER_REQUIRED", `Za konto ${acc.code} je stroškovno mesto obvezno.`, { account: acc.code, dimension: "COST_CENTER" }));
+        return;
+      }
+      if (acc.costCenterPolicy === "not_allowed" && line.costCenterId) {
+        res.status(400).json(accountingError("COST_CENTER_NOT_ALLOWED", `Za konto ${acc.code} stroškovno mesto ni dovoljeno.`, { account: acc.code, dimension: "COST_CENTER" }));
         return;
       }
       if (acc.requiresProject && !line.projectId) {
@@ -444,6 +478,9 @@ router.post(
     const taxDate = parsed.data.taxDate
       ? (parsed.data.taxDate as unknown as Date).toISOString().slice(0, 10)
       : null;
+    const receiptDate = (parsed.data as Record<string, unknown>).receiptDate
+      ? ((parsed.data as Record<string, unknown>).receiptDate as Date).toISOString().slice(0, 10)
+      : null;
     const now = new Date();
 
     const entry = await db.transaction(async (tx) => {
@@ -455,6 +492,7 @@ router.post(
           documentDate,
           entryDate,
           taxDate,
+          receiptDate,
           description,
           reference: reference ?? null,
           status: autoPost ? "posted" : "draft",
@@ -478,6 +516,7 @@ router.post(
           projectId: l.projectId ?? null,
           departmentId: l.departmentId ?? null,
           vatCodeId: l.vatCodeId ?? null,
+          companyVatCodeId: l.companyVatCodeId ?? null,
           vatAmount: l.vatAmount != null ? String(l.vatAmount) : null,
           vatDeductionPercent: l.vatDeductionPercent != null ? String(l.vatDeductionPercent) : null,
         })),
@@ -504,6 +543,7 @@ router.post(
             documentDate,
             entryDate,
             taxDate,
+            receiptDate,
             reference: reference ?? null,
             sourceType: (sourceType ?? "manual") as string,
           };
@@ -558,6 +598,48 @@ router.get(
   },
 );
 
+// ─── DELETE /companies/:companyId/entries/:id ───────────────────────────────
+router.delete(
+  "/companies/:companyId/entries/:id",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za brisanje osnutka potrebujete vlogo računovodja ali lastnik" });
+      return;
+    }
+
+    try {
+      const deleted = await deleteDraftJournalEntry(companyId, id, authReq.clerkUserId);
+
+      if (!deleted) {
+        res.status(404).json({ error: "Temeljnica ni najdena" });
+        return;
+      }
+      res.json({ deleted: true, id });
+    } catch (error: any) {
+      if (error instanceof JournalEntryDeletionError && error.code === "NOT_DELETABLE") {
+        res.status(400).json({ error: "Izbrisati je mogoče samo osnutek temeljnice" });
+        return;
+      }
+      if (error instanceof JournalEntryDeletionError && error.code === "REPORTED_VAT") {
+        res.status(409).json({ error: "Osnutka ni mogoče izbrisati, ker vsebuje DDV podatke, vključene v poročilo" });
+        return;
+      }
+      if (error?.code === "23503") {
+        res.status(409).json({ error: "Osnutka ni mogoče izbrisati, ker je povezan z drugim zaščitenim poslovnim zapisom" });
+        return;
+      }
+      throw error;
+    }
+  },
+);
+
 // ─── POST /companies/:companyId/entries/:id/post ──────────────────────────────
 router.post(
   "/companies/:companyId/entries/:id/post",
@@ -582,6 +664,7 @@ router.post(
         documentDate: journalEntriesTable.documentDate,
         entryDate: journalEntriesTable.entryDate,
         taxDate: journalEntriesTable.taxDate,
+        receiptDate: journalEntriesTable.receiptDate,
         reference: journalEntriesTable.reference,
         sourceType: journalEntriesTable.sourceType,
       })
@@ -597,6 +680,41 @@ router.post(
       res.status(400).json(accountingError("ENTRY_NOT_BALANCED", "Samo osnutke je mogoče knjižiti"));
       return;
     }
+    const [unconfirmedReceipt] = await db
+      .select({ id: prejemniceTable.id })
+      .from(posReceiptBookingSourcesTable)
+      .innerJoin(
+        prejemniceTable,
+        eq(prejemniceTable.id, posReceiptBookingSourcesTable.prejemnicaId),
+      )
+      .where(and(
+        eq(posReceiptBookingSourcesTable.journalEntryId, id),
+        eq(prejemniceTable.status, "draft"),
+      ))
+      .limit(1);
+    if (unconfirmedReceipt) {
+      res.status(409).json(accountingError(
+        "ENTRY_NOT_BALANCED",
+        "Temeljnice ni mogoče knjižiti, dokler prejemnica ni potrjena.",
+      ));
+      return;
+    }
+    const receiptBookingSources = await db
+      .select({
+        receiptId: prejemniceTable.id,
+        enotaId: prejemniceTable.enotaId,
+      })
+      .from(posReceiptBookingSourcesTable)
+      .innerJoin(
+        prejemniceTable,
+        eq(prejemniceTable.id, posReceiptBookingSourcesTable.prejemnicaId),
+      )
+      .where(eq(posReceiptBookingSourcesTable.journalEntryId, id));
+    const posReceiptVatLines = (
+      await Promise.all(receiptBookingSources.map((source) =>
+        getPosReceiptBookingVatEvidence(companyId, source.enotaId, source.receiptId)
+      ))
+    ).flat();
 
     const [period] = await db
       .select({ status: accountingPeriodsTable.status })
@@ -619,6 +737,7 @@ router.post(
         costCenterId: journalEntryLinesTable.costCenterId,
         projectId: journalEntryLinesTable.projectId,
         vatCodeId: journalEntryLinesTable.vatCodeId,
+        companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
         vatAmount: journalEntryLinesTable.vatAmount,
         vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
         description: journalEntryLinesTable.description,
@@ -641,6 +760,7 @@ router.post(
           allowsPosting: accountsTable.allowsPosting,
           requiresPartner: accountsTable.requiresPartner,
           requiresCostCenter: accountsTable.requiresCostCenter,
+          costCenterPolicy: accountsTable.costCenterPolicy,
           requiresProject: accountsTable.requiresProject,
         })
         .from(accountsTable)
@@ -661,8 +781,12 @@ router.post(
           res.status(400).json(accountingError("PARTNER_REQUIRED", `Za konto ${acc.code} je poslovni partner obvezen.`, { account: acc.code, dimension: "PARTNER" }));
           return;
         }
-        if (acc.requiresCostCenter && !line.costCenterId) {
+        if ((acc.costCenterPolicy === "required" || acc.requiresCostCenter) && !line.costCenterId) {
           res.status(400).json(accountingError("COST_CENTER_REQUIRED", `Za konto ${acc.code} je stroškovno mesto obvezno.`, { account: acc.code, dimension: "COST_CENTER" }));
+          return;
+        }
+        if (acc.costCenterPolicy === "not_allowed" && line.costCenterId) {
+          res.status(400).json(accountingError("COST_CENTER_NOT_ALLOWED", `Za konto ${acc.code} stroškovno mesto ni dovoljeno.`, { account: acc.code, dimension: "COST_CENTER" }));
           return;
         }
         if (acc.requiresProject && !line.projectId) {
@@ -679,6 +803,16 @@ router.post(
           .update(journalEntriesTable)
           .set({ status: "posted", approvedBy: authReq.clerkUserId, postedAt: now })
           .where(eq(journalEntriesTable.id, id));
+        // SŠP zbirni dokument je vezan na dnevno POS temeljnico. Dokler je
+        // temeljnica osnutek, ni poravnaven; ob potrditvi postane viden
+        // generičnemu payment toku kot odprta terjatev.
+        await tx
+          .update(invoicesTable)
+          .set({ status: "posted" })
+          .where(and(
+            eq(invoicesTable.linkedEntryId, id),
+            eq(invoicesTable.status, "draft"),
+          ));
 
         // Revizijski dnevnik je del transakcije
         await tx.insert(auditLogTable).values({
@@ -693,17 +827,19 @@ router.post(
         // ── KIR/KPR: Samodejno knjiženje DDV v vat_ledger ──────────────────
         // Za vsako vrstico z vatCodeId ustvari vrstico(e) v vat_ledger.
         // RC kode (EU pridobitve, 76.a, uvoz) → 2 vrstici s pair_id.
-        const vatLines: VatLine[] = lines
-          .filter((l) => l.vatCodeId != null)
-          .map((l) => ({
-            lineId: l.id,
-            vatCodeId: l.vatCodeId!,
-            amount: l.amount,
-            vatAmount: l.vatAmount ?? null,
-            vatDeductionPercent: l.vatDeductionPercent ?? null,
-            partnerId: l.partnerId ?? null,
-            description: l.description ?? null,
-          }));
+        const vatLines: VatLine[] = receiptBookingSources.length > 0
+          ? posReceiptVatLines
+          : lines
+            .filter((l) => l.vatCodeId != null)
+            .map((l) => ({
+              lineId: l.id,
+              vatCodeId: l.vatCodeId!,
+              amount: l.amount,
+              vatAmount: l.vatAmount ?? null,
+              vatDeductionPercent: l.vatDeductionPercent ?? null,
+              partnerId: l.partnerId ?? null,
+              description: l.description ?? null,
+            }));
 
         if (vatLines.length > 0) {
           const entryMeta: EntryMeta = {
@@ -712,6 +848,7 @@ router.post(
             documentDate: entry.documentDate ?? null,
             entryDate: entry.entryDate,
             taxDate: entry.taxDate ?? null,
+            receiptDate: entry.receiptDate ?? null,
             reference: entry.reference ?? null,
             sourceType: entry.sourceType,
           };
@@ -806,6 +943,7 @@ router.post(
         projectId: journalEntryLinesTable.projectId,
         departmentId: journalEntryLinesTable.departmentId,
         vatCodeId: journalEntryLinesTable.vatCodeId,
+        companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
         vatAmount: journalEntryLinesTable.vatAmount,
         vatDeductionPercent: journalEntryLinesTable.vatDeductionPercent,
       })
@@ -844,6 +982,10 @@ router.post(
           costCenterId: l.costCenterId ?? null,
           projectId: l.projectId ?? null,
           departmentId: l.departmentId ?? null,
+          vatCodeId: l.vatCodeId ?? null,
+          companyVatCodeId: l.companyVatCodeId ?? null,
+          vatAmount: l.vatAmount ?? null,
+          vatDeductionPercent: l.vatDeductionPercent ?? null,
         })),
       );
 

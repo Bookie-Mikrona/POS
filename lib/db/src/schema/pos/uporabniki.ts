@@ -26,6 +26,7 @@ export const posUporabnikiTable = pgTable("pos_uporabniki", {
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique("pos_uporabniki_clerk_company_unique").on(t.clerkUserId, t.companyId),
+  unique("pos_uporabniki_id_company_unique").on(t.id, t.companyId),
 ]);
 
 export type PosUporabnik = typeof posUporabnikiTable.$inferSelect;

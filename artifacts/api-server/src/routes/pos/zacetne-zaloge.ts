@@ -6,6 +6,7 @@ import type { PosRequest } from "../../middlewares/pos";
 import { broadcast } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { bookZacetnaZaloga } from "../../lib/posSyncBooking";
+import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,7 @@ router.get("/zacetne-zaloge", async (req, res): Promise<void> => {
 
 router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
@@ -60,13 +62,14 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
   }
   const zalogeMap = new Map(currentZaloge.map(z => [z.artikelId, Number(z.kolicina)]));
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
+  const docDatum = datum ? new Date(datum) : new Date();
 
   const { zacetnaZaloga, postavkeResult } = await db.transaction(async (tx) => {
     const [zacetnaZaloga] = await tx.insert(zacetneZalogeTable).values({
       enotaId: tenotaId,
       leto,
       stevilka,
-      datum: datum ? new Date(datum) : new Date(),
+      datum: docDatum,
       opomba: opomba ?? null}).returning();
 
     const postavkeResult = [];
@@ -89,7 +92,10 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
         cenaKos: String(cenaKos),
         vrednost: String(kolicina * cenaKos),
         opomba: `Začetne zaloge ${leto}`,
-        referencaId: zacetnaZaloga.id});
+        referencaId: zacetnaZaloga.id,
+        actorSnapshot,
+        effectiveAtSnapshot: docDatum,
+        sourceSnapshot: "zacetne-zaloge"});
 
       const art = artikelMap.get(p.artikelId);
       postavkeResult.push({
@@ -116,6 +122,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
     : String(zacetnaZaloga.datum).slice(0, 10);
   const bookingResult = await bookZacetnaZaloga(
     companyId,
+    tenotaId,
     zacetnaZaloga.leto,
     zzDatum,
     postavke.map((p: any) => ({
@@ -187,6 +194,7 @@ router.get("/zacetne-zaloge/:id", async (req, res): Promise<void> => {
 
 router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -221,10 +229,15 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       const oldPostavke = await tx.select().from(zacetneZalogePostavkeTable)
         .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
 
-      // Pobriši stare gibi in postavke (zaloge bomo recompute-ali na koncu)
-      await tx.delete(zalogaGibiTable).where(
-        sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.opomba} LIKE ${'Začetne zaloge%'}`
-      );
+      // Stare gibe ohrani in jih razveljavi z nasprotnimi knjižbami.
+      const reversedArtikelIds = await appendStockMovementReversals(tx, {
+        referenceId: id,
+        sourceSnapshots: ["zacetne-zaloge"],
+        actorSnapshot: actorSnapshot ?? null,
+        reversalSourceSnapshot: "zacetne-zaloge_reversal",
+        note: `Storno začetnih zalog ${existing.leto}`,
+        legacyKind: "zacetne-zaloge",
+      });
       await tx.delete(zacetneZalogePostavkeTable).where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
 
       // Vstavi nove postavke in gibi
@@ -246,11 +259,19 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
           cenaKos: String(cenaKos),
           vrednost: String(kolicina * cenaKos),
           opomba: `Začetne zaloge ${existing.leto}`,
-          referencaId: id});
+          referencaId: id,
+          actorSnapshot,
+          effectiveAtSnapshot: updates.datum ?? existing.datum,
+          sourceSnapshot: "zacetne-zaloge"});
       }
 
-      // Posodobi zaloge z WAC recomputom
-      await recomputeZaloge(artikelIds, tx);
+      // Posodobi vse zaloge, ki so jih prizadele stare ali nove postavke.
+      const affectedArtikelIds = [...new Set([
+        ...oldPostavke.map((p) => p.artikelId),
+        ...reversedArtikelIds,
+        ...artikelIds,
+      ])];
+      await recomputeZaloge(affectedArtikelIds, tx);
 
       await tx.update(zacetneZalogeTable).set(updates)
         .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
@@ -270,10 +291,44 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
     putBookingResult = await bookZacetnaZaloga(
       putCompanyId,
+      tenotaId,
       existing.leto,
       putDatum,
       novePutPostavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
     ).catch(err => { console.warn("[ZZ booking PUT]", err); return null; });
+  } else if (parsed.data.datum !== undefined && updates.datum!.getTime() !== existing.datum.getTime()) {
+    await db.transaction(async (tx) => {
+      const existingPostavke = await tx.select().from(zacetneZalogePostavkeTable)
+        .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
+      const artikelIds = existingPostavke.flatMap((p) => p.artikelId == null ? [] : [p.artikelId]);
+      const reversedArtikelIds = await appendStockMovementReversals(tx, {
+        referenceId: id,
+        sourceSnapshots: ["zacetne-zaloge"],
+        actorSnapshot: actorSnapshot ?? null,
+        reversalSourceSnapshot: "zacetne-zaloge_reversal",
+        note: `Storno začetnih zalog ${existing.leto} zaradi spremembe datuma`,
+        legacyKind: "zacetne-zaloge",
+      });
+      for (const p of existingPostavke) {
+        if (p.artikelId == null) continue;
+        await tx.insert(zalogaGibiTable).values({
+          artikelId: p.artikelId,
+          tip: "inventura",
+          kolicina: p.kolicina,
+          cenaKos: p.cenaKos,
+          vrednost: String(Number(p.kolicina) * Number(p.cenaKos)),
+          opomba: `Začetne zaloge ${existing.leto}`,
+          referencaId: id,
+          actorSnapshot,
+          effectiveAtSnapshot: updates.datum,
+          sourceSnapshot: "zacetne-zaloge",
+        });
+      }
+      await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
+      await tx.update(zacetneZalogeTable).set(updates)
+        .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
+    });
+    broadcast("update", { type: "zaloge" });
   } else {
     await db.update(zacetneZalogeTable).set(updates)
       .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
@@ -315,7 +370,8 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
 
 /**
  * POST /zacetne-zaloge/:id/poknjizi
- * Ročno (re)knjiženje začetne zaloge v ERP — ustvari ali osveži POS:ZZ:{leto} temeljnico.
+ * Ročno (re)knjiženje začetne zaloge v ERP — ustvari ali osveži temeljnico
+ * svoje enote, označeno s stroškovnim mestom.
  */
 router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Promise<void> => {
   const companyId = (req as PosRequest).companyId;
@@ -342,6 +398,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
 
   const result = await bookZacetnaZaloga(
     companyId,
+    (req as any).enotaId ?? 1,
     zz.leto,
     datum,
     postavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
@@ -352,11 +409,12 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
     return;
   }
 
-  res.json({ ref: result.created ?? `POS:ZZ:${zz.leto}` });
+  res.json({ ref: result.created ?? null });
 });
 
 router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
+  const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -364,25 +422,32 @@ router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<voi
     .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
   if (!existing) { res.status(404).json({ error: "Začetne zaloge niso najdene" }); return; }
 
-  const postavke = await db.select().from(zacetneZalogePostavkeTable)
-    .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
+  await db.transaction(async (tx) => {
+    const postavke = await tx.select().from(zacetneZalogePostavkeTable)
+      .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
+    const reversedArtikelIds = await appendStockMovementReversals(tx, {
+      referenceId: id,
+      sourceSnapshots: ["zacetne-zaloge"],
+      actorSnapshot: actorSnapshot ?? null,
+      reversalSourceSnapshot: "zacetne-zaloge_reversal",
+      note: `Storno začetnih zalog ${existing.leto}`,
+      legacyKind: "zacetne-zaloge",
+    });
 
-  for (const p of postavke) {
-    await db.update(zalogeTable).set({
-      kolicina: String(Number(p.steviloPrejsnje)),
-      zadnjaPosodobitev: new Date()}).where(eq(zalogeTable.artikelId, p.artikelId));
-  }
+    await tx.delete(zacetneZalogePostavkeTable).where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
+    await tx.delete(zacetneZalogeTable).where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
 
-  await db.delete(zalogaGibiTable).where(
-    sql`${zalogaGibiTable.referencaId} = ${id} AND ${zalogaGibiTable.opomba} LIKE ${'Začetne zaloge%'}`
-  );
-  await db.delete(zacetneZalogePostavkeTable).where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
-  await db.delete(zacetneZalogeTable).where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
+    const affectedArtikelIds = [...new Set([
+      ...postavke.map((p) => p.artikelId),
+      ...reversedArtikelIds,
+    ])];
+    await recomputeZaloge(affectedArtikelIds, tx);
+  });
 
-  // Pobriši osnutek ERP temeljnice — pokliči z [] da bookZacetnaZaloga počisti obstoječi osnutek
+  // Pobriši osnutek ERP temeljnice svoje enote — [] sproži čiščenje osnutka.
   const delCompanyId = (req as PosRequest).companyId;
   const delDatum = existing.datum instanceof Date ? existing.datum.toISOString().slice(0, 10) : String(existing.datum).slice(0, 10);
-  bookZacetnaZaloga(delCompanyId, existing.leto, delDatum, [])
+  bookZacetnaZaloga(delCompanyId, tenotaId, existing.leto, delDatum, [])
     .catch(err => console.warn("[ZZ booking DEL]", err));
 
   broadcast("update", { type: "zaloge" });

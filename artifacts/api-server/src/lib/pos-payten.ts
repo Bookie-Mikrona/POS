@@ -212,7 +212,7 @@ function buildMessage00(zahteva: PaytenZahteva): Buffer {
  *   06 = communication error
  *   07 = sleep mode
  */
-interface ParsedMessage {
+export interface ParsedMessage {
   msgId: string;
   txFlag?: string;
   txNum?: string;
@@ -258,7 +258,7 @@ function parseTerminalMessage(data: Buffer): ParsedMessage {
  *   [11] MID (field 31)
  *   [12] Card brand / company name (field 33)
  */
-function interpretResponse(parsed: ParsedMessage): PaytenOdgovor {
+export function interpretResponse(parsed: ParsedMessage): PaytenOdgovor {
   const { msgId, txFlag, txNum, tailFields, raw } = parsed;
 
   if (msgId === "22" || msgId === "26") {

@@ -10,6 +10,7 @@ import {
   useBulkPozicijaMize,
   useUpdateNastavitve,
   useUpdateNapraveTerminali,
+  useEnrollPaytenAndroidBridge,
   useListNatakari,
   useCreateNatakar,
   useUpdateNatakar,
@@ -28,6 +29,8 @@ import {
   useCreateEnota,
   useUpdateEnota,
   useDeleteEnota,
+  useGetCurrentPublicIp,
+  useListCostCenters,
   useListBlagajne,
   useCreateBlagajna,
   useUpdateBlagajna,
@@ -37,6 +40,7 @@ import {
   useDeleteNaprava,
   getListTestniZagoniQueryOptions,
   getGetNastavitveQueryKey,
+  getGetProstorTlorisQueryKey,
   getListMizeQueryKey,
   getListNatakariQueryKey,
   getListPoslovniProstoriQueryKey,
@@ -45,13 +49,19 @@ import {
   getListBlagajneQueryKey,
   getListNapraveQueryKey,
   customFetch,
+  getAuthToken,
+  getEnotaId,
 } from "@workspace/api-client-react";
 import type { TestniZagonPogled, Enota, BlagajnaPogled, Naprava } from "@workspace/api-client-react";
 import { useNaprava } from "@/contexts/NapravaContext";
+import { prikaziZavihekEnote, smeUpravljatiEnote } from "@/lib/enoteTabVidnost";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { SecretInput } from "@/components/SecretInput";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -66,13 +76,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2, Wifi, WifiOff, Save, RefreshCw, Pencil, UserPlus, UserCheck, UserX, Building2, CheckCircle2, AlertCircle, Loader2, PlusCircle, XCircle, RotateCcw, ShieldCheck, Upload, FileKey, AlertTriangle, KeyRound, Users, Shield, EyeOff, Eye, Mail, Send, Search, FlaskConical, ChevronDown, ChevronRight, LayoutDashboard, HardDrive, CloudUpload, FolderDown, Database, Percent, Mic, Plus, X, Printer } from "lucide-react";
+import { Trash2, Wifi, WifiOff, Save, RefreshCw, Pencil, UserPlus, UserCheck, UserX, Building2, CheckCircle2, AlertCircle, Loader2, PlusCircle, XCircle, RotateCcw, ShieldCheck, Upload, FileKey, FileText, AlertTriangle, KeyRound, Users, Shield, EyeOff, Eye, Mail, Send, Search, FlaskConical, ChevronDown, ChevronRight, LayoutDashboard, HardDrive, CloudUpload, FolderDown, Database, Percent, Mic, Plus, X, Printer, Download, BookOpen, Store, LocateFixed } from "lucide-react";
 import { useGlasovniSinonimi } from "@/hooks/use-glasovni-sinonimi";
+import { TipPolicySettings } from "@/components/TipPolicySettings";
 import { useGlasovniUkaz, jePodprtGlasovniVnos } from "@/hooks/use-glasovni-ukaz";
+import { KdsSettings } from "@/components/KdsSettings";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { Nastavitve, Miza, Natakari, PoslovniProstor, Prostor } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNastavitve } from "@/contexts/NastavitveContext";
+import { posFetch } from "@/lib/pos-auth-headers";
+import { DostavaSettings } from "@/components/DostavaSettings";
+import { NaseljaSettings } from "@/components/NaseljaSettings";
+import { HappyHourSettings } from "@/components/HappyHourSettings";
+import { FiscalServicePairing } from "@/components/FiscalServicePairing";
+import { LocalGatewaySettings } from "@/components/LocalGatewaySettings";
+import { GatewaySyncReviewPanel } from "@/components/GatewaySyncReviewPanel";
+import {
+  ALL_UNIT_CAPABILITIES,
+  CAPABILITY_LABELS,
+  HOSPITALITY_PROFILES,
+  SERVICE_MODE_LABELS,
+  profileDefaults,
+  type HospitalityProfile,
+  type ServiceMode,
+  type UnitCapability,
+} from "@/lib/unitProfiles";
+import { parseSettingsNavigation, type SettingsTab } from "@/lib/settings-navigation";
+import { resolveVisibleSettingsTab } from "@/lib/settings-tab-visibility";
 
 interface UporabnikAdmin {
   id: number; username: string; ime: string | null; email: string | null; vloga: string; aktiven: boolean;
@@ -285,172 +316,7 @@ function GlasovniUkaziZavihek() {
   );
 }
 
-// ── TlorisEditor ─────────────────────────────────────────────────────────────
-const TLORIS_W = 700;
-const TLORIS_H = 440;
-const TLORIS_CW = 88; // card width in canvas units
-const TLORIS_CH = 54; // card height in canvas units
-
-interface TlorisEditorProps {
-  mize: Miza[];
-  onSave: (pozicije: { id: number; posX: number; posY: number }[]) => void;
-  isSaving: boolean;
-}
-
-function TlorisEditor({ mize, onSave, isSaving }: TlorisEditorProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const initPozicije = useCallback(() => {
-    const init: Record<number, { x: number; y: number }> = {};
-    mize.forEach((m, i) => {
-      if (m.posX != null && m.posY != null) {
-        init[m.id] = { x: m.posX, y: m.posY };
-      } else {
-        const col = i % 7;
-        const row = Math.floor(i / 7);
-        init[m.id] = { x: col * 96 + 8, y: row * 70 + 8 };
-      }
-    });
-    return init;
-  }, [mize]);
-
-  const [pozicije, setPozicije] = useState<Record<number, { x: number; y: number }>>(initPozicije);
-
-  // Sync if mize prop changes (e.g. after save refreshes data)
-  useEffect(() => {
-    setPozicije(prev => {
-      const updated = { ...prev };
-      mize.forEach((m, i) => {
-        if (m.posX != null && m.posY != null) {
-          updated[m.id] = { x: m.posX, y: m.posY };
-        } else if (!updated[m.id]) {
-          const col = i % 7;
-          const row = Math.floor(i / 7);
-          updated[m.id] = { x: col * 96 + 8, y: row * 70 + 8 };
-        }
-      });
-      return updated;
-    });
-  }, [mize]);
-
-  const dragging = useRef<{
-    id: number;
-    startX: number;
-    startY: number;
-    origX: number;
-    origY: number;
-    scale: number;
-  } | null>(null);
-
-  const getScale = () => {
-    if (!containerRef.current) return 1;
-    return containerRef.current.clientWidth / TLORIS_W;
-  };
-
-  const handleMouseDown = (e: React.MouseEvent, mizaId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const pos = pozicije[mizaId] ?? { x: 0, y: 0 };
-    dragging.current = { id: mizaId, startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, scale: getScale() };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!dragging.current) return;
-    const { id, startX, startY, origX, origY, scale } = dragging.current;
-    const newX = Math.max(0, Math.min(TLORIS_W - TLORIS_CW, origX + (e.clientX - startX) / scale));
-    const newY = Math.max(0, Math.min(TLORIS_H - TLORIS_CH, origY + (e.clientY - startY) / scale));
-    setPozicije(prev => ({ ...prev, [id]: { x: newX, y: newY } }));
-  };
-
-  const handleUp = () => { dragging.current = null; };
-
-  const handleTouchStart = (e: React.TouchEvent, mizaId: number) => {
-    const touch = e.touches[0];
-    const pos = pozicije[mizaId] ?? { x: 0, y: 0 };
-    dragging.current = { id: mizaId, startX: touch.clientX, startY: touch.clientY, origX: pos.x, origY: pos.y, scale: getScale() };
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const { id, startX, startY, origX, origY, scale } = dragging.current;
-    const newX = Math.max(0, Math.min(TLORIS_W - TLORIS_CW, origX + (touch.clientX - startX) / scale));
-    const newY = Math.max(0, Math.min(TLORIS_H - TLORIS_CH, origY + (touch.clientY - startY) / scale));
-    setPozicije(prev => ({ ...prev, [id]: { x: newX, y: newY } }));
-  };
-
-  const handleSave = () => {
-    onSave(mize.map(m => ({
-      id: m.id,
-      posX: Math.round(pozicije[m.id]?.x ?? 0),
-      posY: Math.round(pozicije[m.id]?.y ?? 0),
-    })));
-  };
-
-  if (mize.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4 text-center">V tem prostoru ni miz.</p>;
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Povlecite mize na željeno mesto v prostoru, nato kliknite »Shrani tloris«.</p>
-      <div
-        ref={containerRef}
-        className="relative border-2 border-dashed border-border rounded-lg bg-stone-50 overflow-hidden select-none w-full"
-        style={{ aspectRatio: `${TLORIS_W}/${TLORIS_H}`, touchAction: "none" }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleUp}
-        onMouseLeave={handleUp}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleUp}
-      >
-        {/* Subtle dot grid */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
-          <defs>
-            <pattern id="tloris-dots" x="0" y="0"
-              width={`${(50 / TLORIS_W) * 100}%`}
-              height={`${(50 / TLORIS_H) * 100}%`}
-              patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="currentColor" className="text-gray-300" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#tloris-dots)" />
-        </svg>
-
-        {mize.map(m => {
-          const pos = pozicije[m.id] ?? { x: 0, y: 0 };
-          return (
-            <div
-              key={m.id}
-              className="absolute cursor-grab active:cursor-grabbing rounded-md border bg-white shadow-sm flex flex-col items-center justify-center text-center select-none hover:shadow-md hover:border-primary transition-all z-10"
-              style={{
-                left: `${(pos.x / TLORIS_W) * 100}%`,
-                top: `${(pos.y / TLORIS_H) * 100}%`,
-                width: `${(TLORIS_CW / TLORIS_W) * 100}%`,
-                height: `${(TLORIS_CH / TLORIS_H) * 100}%`,
-              }}
-              onMouseDown={e => handleMouseDown(e, m.id)}
-              onTouchStart={e => handleTouchStart(e, m.id)}
-            >
-              <span className="text-[clamp(8px,1.3vw,13px)] font-semibold leading-tight px-1 truncate w-full text-center">
-                {m.ime || `M${m.stevilka}`}
-              </span>
-              <span className="text-[clamp(6px,0.9vw,10px)] text-muted-foreground leading-tight">
-                {m.kapaciteta}×
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <Button onClick={handleSave} disabled={isSaving} size="sm">
-        {isSaving
-          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Shranjujem…</>
-          : <><Save className="w-3.5 h-3.5 mr-1.5" />Shrani tloris</>}
-      </Button>
-    </div>
-  );
-}
+import { TlorisEditor } from "@/components/TlorisEditor";
 
 export default function Settings() {
   const { user: prijavljen, updateUser } = useAuth();
@@ -458,6 +324,7 @@ export default function Settings() {
   const jeSuperAdmin = prijavljen?.vloga === "superadmin";
   const jeAdminEnote = prijavljen?.vloga === "admin_enote";
   const jeUporabnik = !jeAdmin && !jeAdminEnote && !jeSuperAdmin;
+  const lahkoNastaviNatakarPin = jeAdmin || jeAdminEnote;
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -474,6 +341,7 @@ export default function Settings() {
   const { nastavitve, nastavitveLoading } = useNastavitve();
   const updateNastavitve = useUpdateNastavitve();
   const updateNapraveTerminali = useUpdateNapraveTerminali();
+  const enrollPaytenBridge = useEnrollPaytenAndroidBridge();
   const { data: natakari } = useListNatakari();
   const createNatakar = useCreateNatakar();
   const updateNatakar = useUpdateNatakar();
@@ -492,6 +360,12 @@ export default function Settings() {
   const [napravEditTerminal, setNapravEditTerminal] = useState<string>("");
   const [napravEditDovoljeneMize, setNapravEditDovoljeneMize] = useState<number[]>([]);
   const [napravEditPragZaupanja, setNapravEditPragZaupanja] = useState<number>(0);
+  const [napravEditTiskalnikSirina, setNapravEditTiskalnikSirina] = useState<30 | 32 | 58 | 80 | null>(null);
+  const [napravEditJeWindows, setNapravEditJeWindows] = useState(false);
+  const [napravEditCodePage, setNapravEditCodePage] = useState<"cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap">("cp1250");
+  const [napravEditAiSvetovalecAktiven, setNapravEditAiSvetovalecAktiven] = useState(false);
+  const [qrAiAsistentAktiven, setQrAiAsistentAktiven] = useState(false);
+  const [toastTocilnicaAktiven, setToastTocilnicaAktiven] = useState(true);
 
   // ── Add miza form ──────────────────────────────────────────
   const [stevilka, setStevilka] = useState("");
@@ -592,22 +466,59 @@ export default function Settings() {
   const createEnota = useCreateEnota();
   const updateEnota = useUpdateEnota();
   const deleteEnota = useDeleteEnota();
+  const currentPublicIp = useGetCurrentPublicIp({ query: { enabled: false, retry: false } as any });
   const [eIme, setEIme] = useState("");
   const [eOpis, setEOpis] = useState("");
   const [eAktiven, setEAktiven] = useState(true);
+  const [eCostCenterId, setECostCenterId] = useState("");
+  const [eProfile, setEProfile] = useState<HospitalityProfile>("restaurant");
   const [editEnotaOpen, setEditEnotaOpen] = useState(false);
   const [editingEnota, setEditingEnota] = useState<Enota | null>(null);
   const [editEIme, setEditEIme] = useState("");
   const [editEOpis, setEditEOpis] = useState("");
   const [editEAktiven, setEditEAktiven] = useState(true);
+  const [editEStudentskiBonAktiven, setEditEStudentskiBonAktiven] = useState(false);
   const [editEZacetekDnevaUra, setEditEZacetekDnevaUra] = useState("04:00");
+  const [editECostCenterId, setEditECostCenterId] = useState("");
+  const [editEQrLatitude, setEditEQrLatitude] = useState("");
+  const [editEQrLongitude, setEditEQrLongitude] = useState("");
+  const [editEQrWifiNetworks, setEditEQrWifiNetworks] = useState("");
+  const [editEQrWifiSsid, setEditEQrWifiSsid] = useState("");
+  const [editEQrWifiPassword, setEditEQrWifiPassword] = useState("");
+  const [editEProfile, setEditEProfile] = useState<HospitalityProfile>("restaurant");
+  const [editECapabilities, setEditECapabilities] = useState<UnitCapability[]>([]);
+  const [editEIsTemporary, setEditEIsTemporary] = useState(false);
+  const [editEServiceMode, setEditEServiceMode] = useState<ServiceMode>("mixed");
+  const [editETemporaryLocation, setEditETemporaryLocation] = useState("");
+  const [editEParentUnitId, setEditEParentUnitId] = useState("");
+  const [editEActiveFrom, setEditEActiveFrom] = useState("");
+  const [editEActiveTo, setEditEActiveTo] = useState("");
+  const [qrLokacijoIscem, setQrLokacijoIscem] = useState(false);
+
+  // STM (stroškovna mesta) za dodelitev enotam — samo aktivna
+  const { data: costCentersData } = useListCostCenters(
+    prijavljen?.companyId ?? "",
+    {},
+    { query: { enabled: !!prijavljen?.companyId && (jeAdmin || jeAdminEnote) && !jeSuperAdmin } as any },
+  );
+  const stroskovnaMesta = costCentersData?.costCenters ?? [];
 
   const handleCreateEnota = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eIme.trim()) return;
     try {
-      await createEnota.mutateAsync({ data: { ime: eIme.trim(), opis: eOpis.trim() || null, aktiven: eAktiven } });
-      setEIme(""); setEOpis(""); setEAktiven(true);
+      const defaults = profileDefaults(eProfile);
+      await createEnota.mutateAsync({ data: {
+        ime: eIme.trim(),
+        opis: eOpis.trim() || null,
+        aktiven: eAktiven,
+        costCenterId: eCostCenterId || null,
+        hospitalityProfile: eProfile,
+        serviceMode: defaults.serviceMode,
+        capabilities: defaults.capabilities,
+        isTemporary: defaults.temporary ?? false,
+      } });
+      setEIme(""); setEOpis(""); setEAktiven(true); setECostCenterId(""); setEProfile("restaurant");
       queryClient.invalidateQueries({ queryKey: getListEnoteQueryKey() });
       toast({ title: "Enota dodana" });
     } catch { toast({ title: "Napaka pri dodajanju enote", variant: "destructive" }); }
@@ -616,18 +527,153 @@ export default function Settings() {
   const openEditEnota = (e: Enota) => {
     setEditingEnota(e); setEditEIme(e.ime); setEditEOpis(e.opis ?? ""); setEditEAktiven(e.aktiven);
     setEditEZacetekDnevaUra(e.zacetekDnevaUra ?? "04:00");
+    setEditECostCenterId(e.costCenterId ?? "");
+    setEditEStudentskiBonAktiven(e.studentskiBonAktiven ?? false);
+    setEditEQrLatitude(e.qrLatitude == null ? "" : String(e.qrLatitude));
+    setEditEQrLongitude(e.qrLongitude == null ? "" : String(e.qrLongitude));
+    setEditEQrWifiNetworks((e.qrWifiNetworks ?? []).join("\n"));
+    setEditEQrWifiSsid(e.qrWifiSsid ?? "");
+    setEditEQrWifiPassword(e.qrWifiPassword ?? "");
+    const profile = (e.hospitalityProfile ?? "restaurant") as HospitalityProfile;
+    setEditEProfile(profile);
+    setEditECapabilities((e.capabilities ?? profileDefaults(profile).capabilities) as UnitCapability[]);
+    setEditEIsTemporary(e.isTemporary ?? false);
+    setEditEServiceMode((e.serviceMode ?? profileDefaults(profile).serviceMode) as ServiceMode);
+    setEditETemporaryLocation(e.temporaryLocation ?? "");
+    setEditEParentUnitId(e.parentUnitId == null ? "" : String(e.parentUnitId));
+    setEditEActiveFrom(e.activeFrom ? String(e.activeFrom).slice(0, 16) : "");
+    setEditEActiveTo(e.activeTo ? String(e.activeTo).slice(0, 16) : "");
     setEditEnotaOpen(true);
+  };
+
+  const dolociQrLokacijo = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Brskalnik ne podpira določanja lokacije", variant: "destructive" });
+      return;
+    }
+    setQrLokacijoIscem(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setEditEQrLatitude(position.coords.latitude.toFixed(6));
+        setEditEQrLongitude(position.coords.longitude.toFixed(6));
+        setQrLokacijoIscem(false);
+        toast({
+          title: "Lokacija določena",
+          description: `Natančnost naprave: približno ${Math.round(position.coords.accuracy)} m. Spremembo še shranite.`,
+        });
+      },
+      () => {
+        setQrLokacijoIscem(false);
+        toast({
+          title: "Lokacije ni bilo mogoče določiti",
+          description: "Preverite dovoljenje za lokacijo in poskusite znova.",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+  };
+
+  const dodajTrenutniJavniIp = async () => {
+    const result = await currentPublicIp.refetch();
+    if (!result.data) {
+      toast({ title: "Javnega IP-ja ni bilo mogoče prebrati", variant: "destructive" });
+      return;
+    }
+    if (!result.data.veljavenZaQrWifi) {
+      toast({
+        title: "Zaznani naslov ni primeren",
+        description: `API je zaznal ${result.data.javniIp || "neznan naslov"}, ki ni globalno usmerljiv javni IP.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const existing = editEQrWifiNetworks.split(/[\n,]+/).map(value => value.trim()).filter(Boolean);
+    if (!existing.includes(result.data.javniIp)) {
+      setEditEQrWifiNetworks([...existing, result.data.javniIp].join("\n"));
+    }
+    toast({
+      title: "Javni IP lokalnega Wi-Fi-ja je dodan",
+      description: `${result.data.javniIp} — spremembo še shranite.`,
+    });
   };
 
   const handleUpdateEnota = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEnota) return;
     try {
-      await updateEnota.mutateAsync({ id: editingEnota.id, data: { ime: editEIme.trim(), opis: editEOpis.trim() || null, aktiven: editEAktiven, zacetekDnevaUra: editEZacetekDnevaUra } });
+      const qrLatitude = editEQrLatitude.trim() === "" ? null : Number(editEQrLatitude);
+      const qrLongitude = editEQrLongitude.trim() === "" ? null : Number(editEQrLongitude);
+      const qrWifiNetworks = [...new Set(
+        editEQrWifiNetworks.split(/[\n,]+/).map(value => value.trim()).filter(Boolean),
+      )];
+      if (qrWifiNetworks.length > 20) {
+        toast({ title: "Vnesete lahko največ 20 javnih IP-jev ali CIDR-obsegov", variant: "destructive" });
+        return;
+      }
+      if (editEQrWifiSsid.trim().length > 64) {
+        toast({ title: "Ime Wi-Fi omrežja lahko vsebuje največ 64 znakov", variant: "destructive" });
+        return;
+      }
+      if (editEQrWifiPassword.length > 128) {
+        toast({ title: "Geslo Wi-Fi omrežja lahko vsebuje največ 128 znakov", variant: "destructive" });
+        return;
+      }
+      if (
+        (qrLatitude === null) !== (qrLongitude === null)
+        || (qrLatitude !== null && (!Number.isFinite(qrLatitude) || qrLatitude < -90 || qrLatitude > 90))
+        || (qrLongitude !== null && (!Number.isFinite(qrLongitude) || qrLongitude < -180 || qrLongitude > 180))
+      ) {
+        toast({ title: "Lokacija QR menija ni veljavna", variant: "destructive" });
+        return;
+      }
+      await updateEnota.mutateAsync({
+        id: editingEnota.id,
+        data: {
+          ime: editEIme.trim(),
+          opis: editEOpis.trim() || null,
+          aktiven: editEAktiven,
+          zacetekDnevaUra: editEZacetekDnevaUra,
+          costCenterId: editECostCenterId || null,
+          qrLatitude,
+          qrLongitude,
+          qrWifiNetworks,
+          qrWifiSsid: editEQrWifiSsid.trim() || null,
+          qrWifiPassword: editEQrWifiPassword || null,
+          studentskiBonAktiven: editEStudentskiBonAktiven,
+          hospitalityProfile: editEProfile,
+          serviceMode: editEServiceMode,
+          capabilities: editECapabilities,
+          isTemporary: editEIsTemporary,
+          temporaryLocation: editEIsTemporary ? editETemporaryLocation.trim() || null : null,
+          parentUnitId: editEParentUnitId ? Number(editEParentUnitId) : null,
+          activeFrom: editEActiveFrom ? new Date(editEActiveFrom).toISOString() : null,
+          activeTo: editEActiveTo ? new Date(editEActiveTo).toISOString() : null,
+        },
+      });
+      if (prijavljen?.enotaId === editingEnota.id) {
+        updateUser({
+          hospitalityProfile: editEProfile,
+          capabilities: editECapabilities,
+          enote: prijavljen.enote?.map(unit => unit.id === editingEnota.id
+            ? { ...unit, hospitalityProfile: editEProfile, capabilities: editECapabilities }
+            : unit),
+        });
+      }
       setEditEnotaOpen(false);
       queryClient.invalidateQueries({ queryKey: getListEnoteQueryKey() });
       toast({ title: "Enota posodobljena" });
-    } catch { toast({ title: "Napaka pri posodabljanju enote", variant: "destructive" }); }
+    } catch (error: unknown) {
+      let description: string | undefined;
+      if (error && typeof error === "object" && "response" in error) {
+        const payload = await (error as { response: Response }).response.json().catch(() => null) as {
+          napaka?: string;
+          blockers?: Array<{ description?: string }>;
+        } | null;
+        description = payload?.blockers?.map(blocker => blocker.description).filter(Boolean).join(" ") || payload?.napaka;
+      }
+      toast({ title: "Enote ni bilo mogoče posodobiti", description, variant: "destructive" });
+    }
   };
 
   const handleDeleteEnota = async (id: number) => {
@@ -658,6 +704,8 @@ export default function Settings() {
   const [editNDavcna, setEditNDavcna] = useState("");
   const [editNAktiven, setEditNAktiven] = useState(true);
   const [editNClerkUserId, setEditNClerkUserId] = useState<string | null>(null);
+  const [editNPosPin, setEditNPosPin] = useState("");
+  const [editNPosPinSaving, setEditNPosPinSaving] = useState(false);
   const [posUporabniki, setPosUporabniki] = useState<Array<{ id: number; clerkUserId: string; ime: string; priimek: string; enotaIme?: string | null }>>([]);
 
   // ── Poslovni prostori ──────────────────────────────────────
@@ -694,8 +742,6 @@ export default function Settings() {
   const [ppVin, setPpVin] = useState("");
   const [ppPremicninaTip, setPpPremicninaTip] = useState<"A" | "B" | "C">("C");
   const [ppVeljavnost, setPpVeljavnost] = useState(new Date().toISOString().slice(0, 10));
-  const [ppCertPot, setPpCertPot] = useState("");
-  const [ppCertGeslo, setPpCertGeslo] = useState("");
 
   // ── Nastavitve ─────────────────────────────────────────────
   const [terminalIp, setTerminalIp] = useState("");
@@ -703,7 +749,7 @@ export default function Settings() {
   const [terminalTimeout, setTerminalTimeout] = useState("30000");
   const [terminalAktiven, setTerminalAktiven] = useState(false);
   const [paytenAndroidAktiven, setPaytenAndroidAktiven] = useState(false);
-  const [paytenAndroidPackageName, setPaytenAndroidPackageName] = useState("com.payten.mpos");
+  const [paytenBridgePairing, setPaytenBridgePairing] = useState(false);
   const [nazivRestavracije, setNazivRestavracije] = useState("");
   const [naslovRestavracije, setNaslovRestavracije] = useState("");
   const [naslovUlica, setNaslovUlica] = useState("");
@@ -714,17 +760,31 @@ export default function Settings() {
   const [poslovniProstor, setPoslovniProstor] = useState("PP001");
   const [elektronskaNaprava, setElektronskaNaprava] = useState("B001");
   const [ponudnikDavcna, setPonudnikDavcna] = useState("");
-  const [certifikatPot, setCertifikatPot] = useState("");
-  const [certifikatGeslo, setCertifikatGeslo] = useState("");
   const [racunPozdrav1, setRacunPozdrav1] = useState("Hvala za obisk!");
   const [racunPozdrav2, setRacunPozdrav2] = useState("Vracamo se — se vidimo.");
   const [fursNacin, setFursNacin] = useState<"simulacija" | "testno" | "produkcija">("simulacija");
   const [fursProxyUrl, setFursProxyUrl] = useState("");
   const [simulirajFursNapako, setSimulirajFursNapako] = useState(false);
+  const [dovoliNegativneZaloge, setDovoliNegativneZaloge] = useState(true);
+  const [picaPremerMala, setPicaPremerMala] = useState(0);
+  const [picaPremerNormalna, setPicaPremerNormalna] = useState(0);
+  const [picaPremerDruzinska, setPicaPremerDruzinska] = useState(0);
+  const pizzaNormativnaOsnova = picaPremerNormalna > 0
+    ? picaPremerNormalna
+    : [picaPremerMala, picaPremerDruzinska].find((premer) => premer > 0) ?? 0;
+  const pizzaKoeficient = (premer: number) => {
+    if (premer <= 0 || pizzaNormativnaOsnova <= 0) return null;
+    const povrsina = 3.14 * (premer / 2) ** 2;
+    const osnovnaPovrsina = 3.14 * (pizzaNormativnaOsnova / 2) ** 2;
+    return povrsina / osnovnaPovrsina;
+  };
   const [grupiranjeNacin, setGrupiranjeNacin] = useState<"izklopljeno" | "staro" | "novo">("novo");
   const [grupiranjeNacinShranjujem, setGrupiranjeNacinShranjujem] = useState(false);
   const [agentTiskalnikIme, setAgentTiskalnikIme] = useState("");
-  const [tiskalnikSirina, setTiskalnikSirina] = useState<58 | 80>(58);
+  const [tiskalnikSirina, setTiskalnikSirina] = useState<30 | 32 | 58 | 80>(58);
+  const [tiskalnikCodePage, setTiskalnikCodePage] = useState<"cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap">("cp1250");
+  const [scannerBridgeStatus, setScannerBridgeStatus] = useState<"checking" | "ok" | "offline" | "idle">("idle");
+  const [scannerBridgeVersion, setScannerBridgeVersion] = useState<string | null>(null);
   const [podjetjeTrr, setPodjetjeTrr] = useState<Array<{ iban: string; bic: string }>>([]);
   const [prodajalecIban, setProdajalecIban] = useState("");
   const [prodajalecBic, setProdajalecBic] = useState("");
@@ -734,9 +794,6 @@ export default function Settings() {
   const [racunDdvKlavzula, setRacunDdvKlavzula] = useState("");
   const [racunZbirnaKlavzula, setRacunZbirnaKlavzula] = useState(false);
   const [racunPravnaKlavzula, setRacunPravnaKlavzula] = useState("");
-  const [happyHourOd, setHappyHourOd] = useState("");
-  const [happyHourDo, setHappyHourDo] = useState("");
-  const [happyHourShranjujem, setHappyHourShranjujem] = useState(false);
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("587");
   const [smtpUser, setSmtpUser] = useState("");
@@ -751,6 +808,30 @@ export default function Settings() {
   const [smtpFrom, setSmtpFrom] = useState("");
   const [smtpAktiven, setSmtpAktiven] = useState(false);
   const [smtpPokaziGeslo, setSmtpPokaziGeslo] = useState(false);
+
+  // ── bizBox per-podjetje poverilnice ────────────────────────
+  // ── Nastavitve: accordion + iskanje ────────────────────────────
+  const [nastavitveSearch, setNavSearch] = useState("");
+  const [nsAkkordeon, setNsAkkordeon] = useState<string[]>([]);
+
+  const [bizboxUser, setBizboxUser] = useState("");
+  const [bizboxNovGeslo, setBizboxNovGeslo] = useState("");
+  const [bizboxGesloNastavljeno, setBizboxGesloNastavljeno] = useState(false);
+  const [bizboxOkolje, setBizboxOkolje] = useState<"test" | "prod">("test");
+  const [bizboxPosiljateljDavcna, setBizboxPosiljateljDavcna] = useState("");
+  const [bizboxShranjujem, setBizboxShranjujem] = useState(false);
+  const [bizboxNaložen, setBizboxNaložen] = useState(false);
+
+  // ── e-Račun registracija podjetja (admin ureja prek /api/companies/:id/eracun-nastavitve)
+  const [erPrejemnik, setErPrejemnik] = useState(false);
+  const [erOmrezje, setErOmrezje] = useState("");
+  const [erNaslov, setErNaslov] = useState("");
+  const [erEmail, setErEmail] = useState("");
+  const [erSifraPu, setErSifraPu] = useState("");
+  const [erBic, setErBic] = useState("");
+  const [erNaložen, setErNaložen] = useState(false);
+  const [erShranjujem, setErShranjujem] = useState(false);
+
   const [sumupAktiven, setSumupAktiven] = useState(false);
   const [sumupNovApiKey, setSumupNovApiKey] = useState("");
   const [sumupApiKeyNastavljen, setSumupApiKeyNastavljen] = useState(false);
@@ -794,15 +875,15 @@ export default function Settings() {
   // ── P12 certifikat upload ──────────────────────────────────
   const p12FileRef = useRef<HTMLInputElement>(null);
   const [p12Geslo, setP12Geslo] = useState("");
-  const [p12Ime, setP12Ime] = useState("furs-cert.pem");
   const [p12Uploading, setP12Uploading] = useState(false);
   const [p12Rezultat, setP12Rezultat] = useState<{
-    uspeh: boolean; certPot?: string; subjekt?: string; veljavnoDo?: string; dniDoIzteka?: number; napaka?: string
+    uspeh: boolean; nastavljen?: boolean; subject?: string | null; veljaDo?: string | null; napaka?: string
   } | null>(null);
 
   interface CertInfo {
-    najden: boolean; certPot?: string; subjekt?: string; izdajatelj?: string;
-    veljavnoOd?: string; veljavnoDo?: string; dniDoIzteka?: number; opozorilo?: boolean; napaka?: string
+    nastavljen: boolean;
+    subject: string | null;
+    veljaDo: string | null;
   }
   const { data: certInfo, refetch: refetchCert } = useQuery<CertInfo>({
     queryKey: ["certifikat-info"],
@@ -821,20 +902,19 @@ export default function Settings() {
       const fd = new FormData();
       fd.append("datoteka", file);
       fd.append("geslo", p12Geslo);
-      fd.append("ime", p12Ime || "furs-cert.pem");
-      const res = await fetch(`${base}/api/certifikat/nalozi`, { method: "POST", body: fd });
+      const res = await fetch(`${base}/api/certifikat/nalozi`, { method: "POST", credentials: "include", body: fd });
       const data = await res.json() as typeof p12Rezultat;
       setP12Rezultat(data);
       if (data?.uspeh) {
-        void refetchCert();
+        await refetchCert();
         localStorage.removeItem("certExpiryCache");
-        toast({ title: "Certifikat uspešno naložen v bazo", description: data.subjekt ?? "Certifikat shranjen" });
+        toast({ title: "Certifikat uspešno naložen v podjetje", description: data.subject ?? "Certifikat shranjen" });
         if (p12FileRef.current) p12FileRef.current.value = "";
-        setP12Geslo("");
       }
     } catch {
       setP12Rezultat({ uspeh: false, napaka: "Omrežna napaka" });
     } finally {
+      setP12Geslo("");
       setP12Uploading(false);
     }
   };
@@ -899,15 +979,15 @@ export default function Settings() {
         (nastavitve.ponudnikDavcna || "") ||
         (prijavljen?.podjetjeDavcna ?? "")
       );
-      setCertifikatPot((nastavitve as Nastavitve & { certifikatPot?: string }).certifikatPot ?? "");
-      setCertifikatGeslo((nastavitve as Nastavitve & { certifikatGeslo?: string }).certifikatGeslo ?? "");
       setRacunPozdrav1(nastavitve.racunPozdrav1 ?? "Hvala za obisk!");
       setRacunPozdrav2(nastavitve.racunPozdrav2 ?? "Vracamo se — se vidimo.");
       setFursProxyUrl((nastavitve as Nastavitve & { fursProxyUrl?: string }).fursProxyUrl ?? "");
       setSimulirajFursNapako((nastavitve as Nastavitve & { simulirajFursNapako?: boolean }).simulirajFursNapako ?? false);
+      setDovoliNegativneZaloge((nastavitve as Nastavitve & { dovoliNegativneZaloge?: boolean }).dovoliNegativneZaloge ?? true);
+      setPicaPremerMala((nastavitve as Nastavitve & { picaPremerMala?: number }).picaPremerMala ?? 0);
+      setPicaPremerNormalna((nastavitve as Nastavitve & { picaPremerNormalna?: number }).picaPremerNormalna ?? 0);
+      setPicaPremerDruzinska((nastavitve as Nastavitve & { picaPremerDruzinska?: number }).picaPremerDruzinska ?? 0);
       setGrupiranjeNacin(((nastavitve as Nastavitve & { grupiranjeNacin?: string }).grupiranjeNacin ?? "novo") as "izklopljeno" | "staro" | "novo");
-      setHappyHourOd((nastavitve as any).happyHourOd ?? "");
-      setHappyHourDo((nastavitve as any).happyHourDo ?? "");
       setToGoTopliNapitekStopnja(((nastavitve as any).toGoTopliNapitekStopnja ?? "konservativno") as "konservativno" | "liberalno");
       const fn = ((nastavitve as Nastavitve & { fursNacin?: string }).fursNacin ?? "simulacija") as "simulacija" | "testno" | "produkcija";
       setFursNacin(fn);
@@ -932,8 +1012,66 @@ export default function Settings() {
       setIzredniPinNapaka(null);
       setSmtpFrom((nastavitve as Nastavitve & { smtpFrom?: string }).smtpFrom ?? "");
       setSmtpAktiven((nastavitve as Nastavitve & { smtpAktiven?: boolean }).smtpAktiven ?? false);
+      setQrAiAsistentAktiven((nastavitve as Nastavitve & { qrAiAsistentAktiven?: boolean }).qrAiAsistentAktiven ?? false);
+      setToastTocilnicaAktiven((nastavitve as Nastavitve & { toastTocilnicaAktiven?: boolean }).toastTocilnicaAktiven ?? true);
     }
   }, [nastavitve, prijavljen]);
+
+  // ── Nalaganje per-podjetje bizBox poverilnic (ločen endpoint) ───────────────
+  useEffect(() => {
+    if (!jeAdmin) return;
+    (async () => {
+      try {
+        const token = await getAuthToken();
+        const enotaId = getEnotaId();
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        if (enotaId) headers["X-Enota-Id"] = enotaId;
+        const r = await fetch(`${import.meta.env.BASE_URL}api/bizbox-nastavitve`, {
+          credentials: "include",
+          headers,
+        });
+        if (!r.ok) return;
+        const data = await r.json() as { gesloNastavljeno?: boolean; bizboxUser?: string; bizboxOkolje?: string; posiljateljDavcna?: string | null };
+        setBizboxGesloNastavljeno(data.gesloNastavljeno ?? false);
+        setBizboxUser(data.bizboxUser ?? "");
+        setBizboxOkolje((data.bizboxOkolje ?? "test") as "test" | "prod");
+        setBizboxPosiljateljDavcna(data.posiljateljDavcna ?? "");
+        setBizboxNovGeslo("");
+        setBizboxNaložen(true);
+      } catch { /* omrežna napaka — nič */ }
+    })();
+  }, [jeAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── e-Račun registracija: nalaganje (samo admin, za lastno podjetje)
+  useEffect(() => {
+    if (!jeAdmin || jeSuperAdmin) return;
+    const companyId = prijavljen?.companyId;
+    if (!companyId) return;
+    (async () => {
+      try {
+        const r = await fetch(`${import.meta.env.BASE_URL}api/companies/${companyId}/eracun-nastavitve`, {
+          credentials: "include",
+        });
+        if (!r.ok) return;
+        const data = await r.json() as {
+          eRacunPrejemnik?: boolean | null;
+          eRacunOmrezje?: string | null;
+          eRacunNaslov?: string | null;
+          eRacunEmail?: string | null;
+          eRacunSifraPu?: string | null;
+          eRacunBic?: string | null;
+        };
+        setErPrejemnik(data.eRacunPrejemnik ?? false);
+        setErOmrezje(data.eRacunOmrezje ?? "");
+        setErNaslov(data.eRacunNaslov ?? "");
+        setErEmail(data.eRacunEmail ?? "");
+        setErSifraPu(data.eRacunSifraPu ?? "");
+        setErBic(data.eRacunBic ?? "");
+        setErNaložen(true);
+      } catch { /* omrežna napaka */ }
+    })();
+  }, [jeAdmin, jeSuperAdmin, prijavljen?.companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-fill iz podatkov podjetja, kadar nastavitve niso naložene (npr. 400) ────
   useEffect(() => {
@@ -958,7 +1096,7 @@ export default function Settings() {
     if (c.terminalPort !== undefined) setTerminalPort(String(c.terminalPort));
     if (c.terminalTimeoutMs !== undefined) setTerminalTimeout(String(c.terminalTimeoutMs));
     if (c.paytenAndroidAktiven !== undefined) setPaytenAndroidAktiven(c.paytenAndroidAktiven);
-    if (c.paytenAndroidPackageName !== undefined) setPaytenAndroidPackageName(c.paytenAndroidPackageName);
+    setPaytenBridgePairing(Boolean((c as any).paytenBridgePaired));
     if (c.sumupAktiven !== undefined) setSumupAktiven(c.sumupAktiven);
     if (c.sumupTerminalSerial !== undefined) setSumupTerminalSerial(c.sumupTerminalSerial);
     if (c.sumupApiKeyNastavljen !== undefined) setSumupApiKeyNastavljen(c.sumupApiKeyNastavljen);
@@ -974,8 +1112,26 @@ export default function Settings() {
     if (c.vivaTapToPayAktiven !== undefined) setVivaTapToPayAktiven(c.vivaTapToPayAktiven);
     if (c.agentTiskalnikIme !== undefined) setAgentTiskalnikIme(c.agentTiskalnikIme);
     if (c.tiskalnikSirina !== undefined) setTiskalnikSirina(c.tiskalnikSirina);
+    if (c.tiskalnikCodePage === "cp852" || c.tiskalnikCodePage === "cp1250" || c.tiskalnikCodePage === "wpc1250" || c.tiskalnikCodePage === "ascii-translit" || c.tiskalnikCodePage === "bitmap") setTiskalnikCodePage(c.tiskalnikCodePage);
     if (c.vivaTapToPaySourceCode !== undefined) setVivaTapToPaySourceCode(c.vivaTapToPaySourceCode);
   }, [trenutnaNaprava]);
+
+  // ── Scanner Bridge health check ────────────────────────────
+  const checkScannerBridge = useCallback(async () => {
+    setScannerBridgeStatus("checking");
+    try {
+      const r = await fetch("http://127.0.0.1:8765/health", { signal: AbortSignal.timeout(2000) });
+      if (r.ok) {
+        const d = await r.json() as { version?: string };
+        setScannerBridgeVersion(d.version ?? null);
+        setScannerBridgeStatus("ok");
+      } else {
+        setScannerBridgeStatus("offline");
+      }
+    } catch {
+      setScannerBridgeStatus("offline");
+    }
+  }, []);
 
   // ── Backup handlers ────────────────────────────────────────
   const fetchBackupi = async () => {
@@ -993,35 +1149,39 @@ export default function Settings() {
     }
   };
 
-  const handleUstvariBackup = async (format: "json" | "sql" = "json") => {
-    if (format === "sql") setBackupUstvariSqlLoading(true); else setBackupUstvariLoading(true);
+  const handleUstvariBackup = async () => {
+    setBackupUstvariSqlLoading(true);
     try {
-      const r = await fetch(`${base}/api/backup/ustvari?format=${format}`, { method: "POST", credentials: "include" });
+      const r = await fetch(`${base}/api/backup/ustvari?format=sql`, { method: "POST", credentials: "include" });
       if (!r.ok) { const d = await r.json() as { error: string }; throw new Error(d.error); }
       await fetchBackupi();
-      toast({ title: format === "sql" ? "SQL kopija ustvarjena" : "JSON kopija ustvarjena" });
+      toast({ title: "SQL kopija ustvarjena" });
     } catch (err) {
       toast({ title: "Napaka", description: (err as Error).message, variant: "destructive" });
     } finally {
-      if (format === "sql") setBackupUstvariSqlLoading(false); else setBackupUstvariLoading(false);
+      setBackupUstvariSqlLoading(false);
     }
   };
 
   const handleBrisiBackup = async (ime: string) => {
     if (!confirm(`Res izbrisati "${ime}"? Tega dejanja ni mogoče razveljaviti.`)) return;
     try {
-      await fetch(`${base}/api/backup/${encodeURIComponent(ime)}`, { method: "DELETE", credentials: "include" });
+      const response = await fetch(`${base}/api/backup/${encodeURIComponent(ime)}`, { method: "DELETE", credentials: "include" });
+      if (!response.ok) {
+        const data = await response.json() as { error?: string };
+        throw new Error(data.error ?? "Brisanje kopije ni uspelo.");
+      }
       await fetchBackupi();
       toast({ title: "Kopija izbrisana" });
-    } catch {
-      toast({ title: "Napaka pri brisanju", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Napaka pri brisanju", description: (err as Error).message, variant: "destructive" });
     }
   };
 
   const handleObnoviBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!confirm("POZOR: Obnovitev bo prepisala vse trenutne podatke v bazi! Nadaljujete?")) {
+    if (!confirm("POZOR: Obnovitev bo prepisala vse trenutne podatke v bazi. Tik pred obnovitvijo bo ustvarjena dodatna zaščitna kopija. Nadaljujete?")) {
       e.target.value = "";
       return;
     }
@@ -1031,7 +1191,7 @@ export default function Settings() {
       form.append("datoteka", file);
       const r = await fetch(`${base}/api/backup/obnovi`, { method: "POST", body: form, credentials: "include" });
       if (!r.ok) { const d = await r.json() as { error: string }; throw new Error(d.error); }
-      toast({ title: "Baza uspešno obnovljena", description: "Stran se bo osvežila." });
+      toast({ title: "Baza uspešno obnovljena", description: "Pred obnovitvijo je nastala dodatna zaščitna kopija. Stran se bo osvežila." });
       setTimeout(() => window.location.reload(), 2000);
     } catch (err) {
       toast({ title: "Napaka pri obnovitvi", description: (err as Error).message, variant: "destructive" });
@@ -1129,6 +1289,9 @@ export default function Settings() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListMizeQueryKey() });
+          if (prostorId !== "none") {
+            queryClient.invalidateQueries({ queryKey: getGetProstorTlorisQueryKey(parseInt(prostorId)) });
+          }
           setStevilka(""); setIme(""); setKapaciteta("4"); setProstorId("none");
           toast({ title: "Miza dodana" });
         },
@@ -1164,7 +1327,9 @@ export default function Settings() {
           stevilka: parseInt(editStevilka),
           ime: editIme || null,
           kapaciteta: parseInt(editKapaciteta),
-          status: editingMiza.status as "prosta" | "zasedena" | "rezervirana",
+          // Podatkovne rezervacije se upravljajo samo prek rezervacijskega API-ja.
+          // Pri urejanju številke/ime rezervirane mize zato obstoječi status ohranimo.
+          status: editingMiza.status === "rezervirana" ? undefined : editingMiza.status,
           prostorId: editProstorId !== "none" ? parseInt(editProstorId) : null,
         },
       },
@@ -1203,6 +1368,7 @@ export default function Settings() {
     setEditNDavcna(n.davcnaStevilka ?? "");
     setEditNAktiven(n.aktiven);
     setEditNClerkUserId(n.clerkUserId ?? null);
+    setEditNPosPin("");
     // Naloži seznam POS uporabnikov (za dropdown vezave)
     if (prijavljen?.companyId) {
       const companyId = prijavljen.companyId;
@@ -1240,6 +1406,41 @@ export default function Settings() {
     );
   };
 
+  const handleSetNatakarPosPin = async () => {
+    if (!editingNatakar || !/^\d{4,12}$/.test(editNPosPin)) {
+      toast({
+        title: "PIN mora imeti 4 do 12 številk",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEditNPosPinSaving(true);
+    try {
+      const response = await posFetch(
+        `${base}/api/quick-switch/natakarji/${editingNatakar.id}/pin`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin: editNPosPin }),
+        },
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error ?? "PIN-a ni bilo mogoče nastaviti.");
+      }
+      setEditNPosPin("");
+      toast({ title: "POS PIN je nastavljen" });
+    } catch (error) {
+      toast({
+        title: "PIN-a ni bilo mogoče nastaviti",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setEditNPosPinSaving(false);
+    }
+  };
+
   const handleDeleteNatakar = (id: number) => {
     deleteNatakar.mutate({ id }, {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNatakariQueryKey() }),
@@ -1267,8 +1468,6 @@ export default function Settings() {
       setPpVin(pp.vin ?? "");
       setPpPremicninaTip((pp.premicninaTip as "A" | "B" | "C") ?? "C");
       setPpVeljavnost(pp.veljavnostOd ?? new Date().toISOString().slice(0, 10));
-      setPpCertPot(pp.certifikatPot ?? "");
-      setPpCertGeslo(pp.certifikatGeslo ?? "");
       setPpEnotaId((pp as any).enotaId ?? "");
     } else {
       setEditingPp(null);
@@ -1278,7 +1477,6 @@ export default function Settings() {
       setPpKatastrska(""); setPpStavba(""); setPpDelStavbe("");
       setPpTablica(""); setPpVin(""); setPpPremicninaTip("C");
       setPpVeljavnost(new Date().toISOString().slice(0, 10));
-      setPpCertPot(""); setPpCertGeslo("");
       setPpEnotaId("");
     }
     setPpDialogOpen(true);
@@ -1301,8 +1499,6 @@ export default function Settings() {
     vin: ppVin || null,
     premicninaTip: ppPremicninaTip || null,
     veljavnostOd: ppVeljavnost || null,
-    certifikatPot: ppCertPot || null,
-    certifikatGeslo: ppCertGeslo || null,
     ...(jeAdmin && ppEnotaId ? { enotaId: ppEnotaId } : {}),
   });
 
@@ -1385,6 +1581,75 @@ export default function Settings() {
     }
   };
 
+  // ── e-Račun registracija shranjevanje ──────────────────────
+  const handleSaveEracunRegistracija = async () => {
+    const companyId = prijavljen?.companyId;
+    if (!companyId) return;
+    setErShranjujem(true);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/companies/${companyId}/eracun-nastavitve`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          eRacunPrejemnik: erPrejemnik,
+          eRacunOmrezje: erOmrezje || null,
+          eRacunNaslov: erNaslov || null,
+          eRacunEmail: erEmail || null,
+          eRacunSifraPu: erSifraPu || null,
+          eRacunBic: erBic || null,
+        }),
+      });
+      const data = await r.json() as { error?: string };
+      if (!r.ok) {
+        toast({ title: "Napaka", description: data.error ?? "Napaka pri shranjevanju", variant: "destructive" });
+      } else {
+        toast({ title: "e-Račun nastavitve shranjene" });
+      }
+    } catch {
+      toast({ title: "Napaka", description: "Omrežna napaka", variant: "destructive" });
+    } finally {
+      setErShranjujem(false);
+    }
+  };
+
+  // ── bizBox per-podjetje poverilnice shranjevanje ───────────
+  const handleSaveBizbox = async () => {
+    if (!bizboxUser.trim()) return;
+    setBizboxShranjujem(true);
+    try {
+      const body: Record<string, string | null> = {
+        bizboxUser: bizboxUser.trim(),
+        bizboxOkolje,
+        posiljateljDavcna: bizboxPosiljateljDavcna.trim() || null,
+      };
+      if (bizboxNovGeslo) body["bizboxPass"] = bizboxNovGeslo;
+      const token = await getAuthToken();
+      const enotaId = getEnotaId();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (enotaId) headers["X-Enota-Id"] = enotaId;
+      const r = await fetch(`${import.meta.env.BASE_URL}api/bizbox-nastavitve`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const data = await r.json() as { uspeh?: boolean; error?: string };
+      if (!r.ok) {
+        toast({ title: "Napaka", description: data.error ?? "Napaka pri shranjevanju", variant: "destructive" });
+      } else {
+        setBizboxGesloNastavljeno(true);
+        setBizboxNovGeslo("");
+        toast({ title: "bizBox poverilnice shranjene", description: "Geslo je šifrirano v bazi." });
+      }
+    } catch {
+      toast({ title: "Napaka", description: "Omrežna napaka", variant: "destructive" });
+    } finally {
+      setBizboxShranjujem(false);
+    }
+  };
+
   // ── FURS echo test ─────────────────────────────────────────
   const handleFursEcho = async () => {
     setFursEchoTesting(true);
@@ -1401,25 +1666,6 @@ export default function Settings() {
   };
 
   // ── Nastavitve handlers ────────────────────────────────────
-  const handleSaveHappyHour = async () => {
-    setHappyHourShranjujem(true);
-    try {
-      const r = await fetch(`${import.meta.env.BASE_URL}api/nastavitve/happy-hour-urnik`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ happyHourOd, happyHourDo }),
-      });
-      if (!r.ok) throw new Error("Napaka");
-      await queryClient.invalidateQueries({ queryKey: getGetNastavitveQueryKey() });
-      toast({ title: "Happy Hour shranjen" });
-    } catch {
-      toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" });
-    } finally {
-      setHappyHourShranjujem(false);
-    }
-  };
-
   const handleSaveToGoTopli = async () => {
     setToGoTopliShranjujem(true);
     try {
@@ -1469,11 +1715,13 @@ export default function Settings() {
       ponudnikDavcna,
       racunPozdrav1,
       racunPozdrav2,
-      certifikatPot,
-      certifikatGeslo,
       fursNacin,
       fursProxyUrl,
       simulirajFursNapako,
+      dovoliNegativneZaloge,
+      picaPremerMala,
+      picaPremerNormalna,
+      picaPremerDruzinska,
       grupiranjeNacin,
       prodajalecIban,
       prodajalecBic,
@@ -1489,6 +1737,8 @@ export default function Settings() {
       ...(smtpNovGeslo ? { smtpPassword: smtpNovGeslo } : {}),
       smtpFrom,
       smtpAktiven,
+      qrAiAsistentAktiven,
+      toastTocilnicaAktiven,
       ...(izredniNovPin ? { izrednaIzdajaPIN: izredniNovPin } : {}),
     } as Nastavitve;
     if (izredniNovPin || izredniPinPotrdi) {
@@ -1499,6 +1749,7 @@ export default function Settings() {
     updateNastavitve.mutate({ data: body }, {
       onSuccess: (data) => {
         queryClient.setQueryData(getGetNastavitveQueryKey(), data);
+        void queryClient.invalidateQueries({ queryKey: getGetNastavitveQueryKey() });
         setConnectionResult(null);
         setIzredniNovPin("");
         setIzredniPinPotrdi("");
@@ -1509,6 +1760,33 @@ export default function Settings() {
     });
   };
 
+  const handlePairPaytenBridge = async () => {
+    setPaytenBridgePairing(true);
+    try {
+      // The native app owns identity creation. Trigger its explicit pairing
+      // activity before ever trusting the loopback service.
+      window.location.href = "bookie-viva-bridge://pair";
+      type BridgeIdentity = { ok?: boolean; keyId?: string; publicKeyBase64Url?: string };
+      let identity: BridgeIdentity | null = null;
+      for (let attempt = 0; attempt < 8 && !identity; attempt++) {
+        await new Promise(resolve => window.setTimeout(resolve, 750));
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 1_500);
+        try {
+          const response = await fetch("http://127.0.0.1:8092/identity", { signal: controller.signal });
+          const candidate = await response.json() as BridgeIdentity;
+          if (response.ok && candidate?.ok && candidate.keyId && candidate.publicKeyBase64Url) identity = candidate;
+        } catch { /* bridge is still starting or absent */ } finally { window.clearTimeout(timer); }
+      }
+      if (!identity) throw new Error("Bookie Bridge ni dosegljiv. Namestite ali odprite uradni Bookie Bridge in poskusite znova.");
+      const paired = await enrollPaytenBridge.mutateAsync({ data: { keyId: identity.keyId!, publicKeyBase64Url: identity.publicKeyBase64Url! } });
+      await refreshNaprava();
+      toast({ title: "Bookie Bridge je sparjen", description: `Prstni odtis: ${paired.fingerprint}` });
+    } catch (error) {
+      toast({ title: "Bridge ni mogoče spariti", description: error instanceof Error ? error.message : "Preverite, ali Bookie Bridge teče na tej napravi.", variant: "destructive" });
+    } finally { setPaytenBridgePairing(false); }
+  };
+
   const handleSaveTerminali = () => {
     updateNapraveTerminali.mutate({
       data: {
@@ -1517,7 +1795,6 @@ export default function Settings() {
         terminalPort: parseInt(terminalPort) || 9000,
         terminalTimeoutMs: parseInt(terminalTimeout) || 30000,
         paytenAndroidAktiven,
-        paytenAndroidPackageName,
         sumupAktiven,
         sumupTerminalSerial,
         ...(sumupNovApiKey ? { sumupApiKey: sumupNovApiKey } : {}),
@@ -1659,31 +1936,65 @@ export default function Settings() {
   const backupFileRef = useRef<HTMLInputElement>(null);
 
   // ── Upravljanje uporabnikov (samo admin) ───────────────────
-  const superAdminZavihki = ["nastavitve", "varnostne-kopije", "moj-profil"];
   const [aktivniZavihek, setAktivniZavihek] = useState<string>(
     () => {
       const shranjeni = sessionStorage.getItem("settings.aktivniZavihek") ?? "mize";
-      if (jeSuperAdmin && !superAdminZavihki.includes(shranjeni)) return "nastavitve";
-      return shranjeni;
+      const candidate = ["mize", "natakari", "dostava", "kds", "enote", "knjizenje", "nastavitve", "varnostne-kopije", "moj-profil", "glasovni-ukazi"].includes(shranjeni)
+        ? shranjeni as SettingsTab : "mize";
+      const deepLink = parseSettingsNavigation(`/nastavitve?${window.location.search.slice(1)}`);
+      return resolveVisibleSettingsTab(deepLink?.tab ?? candidate, prijavljen?.vloga);
     }
   );
 
   useEffect(() => {
-    if (jeSuperAdmin && !superAdminZavihki.includes(aktivniZavihek)) {
-      setAktivniZavihek("nastavitve");
-    } else if (jeUporabnik && (aktivniZavihek === "mize" || aktivniZavihek === "natakari")) {
-      setAktivniZavihek("nastavitve");
-    } else if (!jeSuperAdmin && aktivniZavihek === "varnostne-kopije") {
-      setAktivniZavihek("mize");
-    } else if (jeAdminEnote && aktivniZavihek === "enote") {
-      setAktivniZavihek("mize");
-    }
-  }, [jeAdmin, jeAdminEnote, jeSuperAdmin, aktivniZavihek]); // eslint-disable-line react-hooks/exhaustive-deps
+    const visible = resolveVisibleSettingsTab(aktivniZavihek as SettingsTab, prijavljen?.vloga);
+    if (visible !== aktivniZavihek) setAktivniZavihek(visible);
+  }, [aktivniZavihek, prijavljen?.vloga]);
 
   useEffect(() => { sessionStorage.setItem("settings.aktivniZavihek", aktivniZavihek); }, [aktivniZavihek]);
 
   // ── Nastavitve sub-section scroll persistence ───────────────
-  const NASTAVITVE_CARD_IDS = ["ns-furs", "ns-smtp", "ns-certifikat", "ns-prostori", "ns-terminal", "ns-testi"] as const;
+      // ── Nastavitve: iskanje + accordion helpers ──────────────────────────
+      const NS_SEARCH_MAP: Record<string, string[]> = {
+        "ns-furs":                ["furs","podjetje","naziv","davčna","naslov","trr","iban","bic","fiskalizacija","proxy","pozdrav","opomba","račun"],
+        "ns-certifikat":          ["certifikat","p12","pfx","pem","furs","digitalni"],
+        "ns-prostori":            ["prostori","poslovni prostor","furs","prostor"],
+        "ns-blagajne":            ["blagajna","blagajne","furs","identifikator"],
+        "ns-eracun-registracija": ["eračun","e-račun","omrežje","bizbox","zzi","ujp","peppol","iban","registracija","prejemnik"],
+        "ns-bizbox":              ["bizbox","zzi","eračun","geslo","poverilnice"],
+        "ns-naprave":             ["naprava","naprave","tiskalnik"],
+        "ns-terminal":            ["terminal","payten","android","ip","port","plačilo"],
+        "ns-sumup":               ["sumup","kartica","terminal","api"],
+        "ns-viva":                ["viva","wallet","kartica","tap to pay"],
+        "ns-android-tiskalnik":   ["tiskalnik","android","bluetooth","bt","apk","most"],
+        "ns-agent":               ["tiskalnik","windows","agent","token","58mm","80mm","usb"],
+        "ns-scanner-bridge":      ["scanner","optični","čitalnik","hp","windows","barcode"],
+        "ns-happy-hour":          ["happy hour","znižanje","akcija","urnik","cena"],
+        "ns-zaloge":              ["zaloge","negativna zaloga","zalog"],
+        "ns-prikaz":              ["prikaz naročil","združevanje","artiklov","panel"],
+        "ns-izredni-pin":         ["pin","izredna izdaja","pin koda","skrbnik"],
+        "ns-ddv-razresev":        ["ddv","razreševalnik","topla pijača","to-go","za s seboj","sladkor"],
+        "ns-smtp":                ["smtp","email","e-pošta","pošta","strežnik"],
+        "ns-ddv-stopnje":         ["ddv","davek","stopnje","22%","9.5%","5%"],
+        "ns-testi":               ["testi","testni zagon","zgodovina","test"],
+      };
+      const nsSearchLower = nastavitveSearch.toLowerCase().trim();
+      const nsSec = (ids: string[]) => {
+        if (!nsSearchLower) return true;
+        return ids.some(id => (NS_SEARCH_MAP[id] ?? []).some(t =>
+          t.toLowerCase().includes(nsSearchLower) || nsSearchLower.includes(t.toLowerCase())));
+      };
+      const nsAkkordeonValue: string[] = nsSearchLower ? [
+        ...((jeAdmin && !jeSuperAdmin) && nsSec(["ns-furs","ns-certifikat","ns-prostori","ns-blagajne"]) ? ["sek-podjetje"] : []),
+        ...(jeAdmin && nsSec(["ns-eracun-registracija","ns-bizbox"]) ? ["sek-eracun"] : []),
+        ...(!jeSuperAdmin && nsSec(["ns-naprave"]) ? ["sek-naprave"] : []),
+        ...(!jeSuperAdmin && nsSec(["ns-terminal","ns-sumup","ns-viva"]) ? ["sek-terminali"] : []),
+        ...(!jeSuperAdmin && nsSec(["ns-android-tiskalnik","ns-agent","ns-scanner-bridge"]) ? ["sek-tiskalniki"] : []),
+        ...((jeAdmin || jeAdminEnote) && nsSec(["ns-happy-hour","ns-zaloge","ns-prikaz","ns-izredni-pin","ns-ddv-razresev"]) ? ["sek-vedenje"] : []),
+        ...(jeSuperAdmin && nsSec(["ns-smtp","ns-ddv-stopnje","ns-testi"]) ? ["sek-sistem"] : []),
+      ] : nsAkkordeon;
+
+      const NASTAVITVE_CARD_IDS: string[] = []; // Accordion nadomešča scroll-restore
   const NASTAVITVE_SCROLL_KEY = "settings.nastavitveKartica";
 
   // Restore scroll to last-visited sub-section when entering nastavitve tab
@@ -1740,14 +2051,30 @@ export default function Settings() {
     navigateTo(`/nastavitve?aktiven=${vrednost}`, { replace: true });
   };
 
-  // Pre-selekcija zavihka iz URL parametra ?tab= (npr. /nastavitve?tab=uporabniki)
+  // URL navigation is read-only: accept only the closed settings contract and
+  // never invoke form handlers or mutations while resolving a deep link.
   useEffect(() => {
-    const params = new URLSearchParams(rawSearch);
-    const tab = params.get("tab");
-    if (tab && tab !== aktivniZavihek) {
-      setAktivniZavihek(tab);
+    const target = parseSettingsNavigation(`/nastavitve?${rawSearch}`);
+    if (!target) return;
+    let timer: number | undefined;
+    const visibleTab = resolveVisibleSettingsTab(target.tab, prijavljen?.vloga);
+    if (visibleTab !== aktivniZavihek) {
+      setAktivniZavihek(visibleTab);
     }
-  }, [rawSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (visibleTab === "nastavitve" && target.tab === "nastavitve" && target.section) {
+      setNsAkkordeon(current => current.includes(target.section!) ? current : [...current, target.section!]);
+      if (target.card) {
+        timer = window.setTimeout(() => {
+          const card = document.getElementById(target.card!);
+          if (!card) return; // Hidden by the current role/platform: retain the safe tab fallback.
+          card.setAttribute("tabindex", "-1");
+          card.scrollIntoView({ behavior: "smooth", block: "start" });
+          card.focus({ preventScroll: true });
+        }, 80);
+      }
+    }
+    return () => { if (timer !== undefined) window.clearTimeout(timer); };
+  }, [rawSearch, aktivniZavihek, prijavljen?.vloga]);
 
   // When navigating to the "uporabniki" tab, ensure the URL has the aktiven param set.
   // If the param is missing, restore the last-used filter from sessionStorage (default: "true").
@@ -2007,14 +2334,17 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-4 sm:p-8 flex-1 overflow-auto max-w-4xl mx-auto w-full">
+    <div className="p-4 sm:p-8 flex-1 overflow-auto w-full">
       <h1 className="text-3xl font-bold tracking-tight mb-4">Nastavitve sistema</h1>
 
       <Tabs value={aktivniZavihek} onValueChange={setAktivniZavihek}>
         <TabsList className="mb-4 flex-wrap h-auto gap-0.5">
           {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="mize">Mize</TabsTrigger>}
           {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="natakari">Natakarji</TabsTrigger>}
-          {jeAdmin && !jeSuperAdmin && <TabsTrigger value="enote">Enote</TabsTrigger>}
+          {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="dostava">Dostava</TabsTrigger>}
+          {!jeSuperAdmin && !jeUporabnik && <TabsTrigger value="kds">KDS</TabsTrigger>}
+          {prikaziZavihekEnote(prijavljen?.vloga) && <TabsTrigger value="enote">Enote</TabsTrigger>}
+          {prijavljen?.vloga === "admin" && <TabsTrigger value="knjizenje">Knjiženje</TabsTrigger>}
           <TabsTrigger value="nastavitve">Nastavitve</TabsTrigger>
           {jeSuperAdmin && <TabsTrigger value="varnostne-kopije">Varnostne kopije</TabsTrigger>}
           <TabsTrigger value="moj-profil">Moj profil</TabsTrigger>
@@ -2052,30 +2382,64 @@ export default function Settings() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Ime prostora</TableHead>
-                    <TableHead className="hidden sm:table-cell">Mize</TableHead>
+                    <TableHead className="hidden sm:table-cell text-center">Mize</TableHead>
+                    <TableHead className="hidden sm:table-cell text-center">Kapaciteta</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {prostori.map(p => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.ime}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground">
-                        {mize?.filter(m => m.prostorId === p.id).length ?? 0} miz
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEditProstor(p)}>
-                            <Pencil className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteProstor(p.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                <>
+                  {prostori.map(p => {
+                    const mizeVProstoru = mize?.filter(m => m.prostorId === p.id) ?? [];
+                    const capacity = mizeVProstoru.reduce((sum, m) => sum + (m.kapaciteta || 0), 0);
+                    return (
+                      <Collapsible key={p.id} asChild open={tlorisSelectedProstorId === p.id} onOpenChange={(open) => setTlorisSelectedProstorId(open ? p.id : null)}>
+                        <tbody className="border-0">
+                          <TableRow>
+                            <TableCell className="font-medium">{p.ime}</TableCell>
+                            <TableCell className="hidden sm:table-cell text-center text-muted-foreground">
+                              {mizeVProstoru.length}
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-center text-muted-foreground">
+                              {capacity} <span className="text-xs">oseb</span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <CollapsibleTrigger asChild>
+                                  <Button variant={tlorisSelectedProstorId === p.id ? "secondary" : "outline"} size="sm" className="mr-2">
+                                    <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" />
+                                    Tloris
+                                  </Button>
+                                </CollapsibleTrigger>
+                                <Button variant="ghost" size="icon" onClick={() => openEditProstor(p)}>
+                                  <Pencil className="w-4 h-4 text-muted-foreground" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProstor(p.id)}>
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          <CollapsibleContent asChild>
+                            <TableRow className="border-0">
+                              <TableCell colSpan={4} className="p-0 border-b">
+                                <div className="bg-muted/30 p-4 border-t border-b">
+                                  <div className="flex justify-between items-center mb-3">
+                                    <h4 className="text-sm font-semibold">Tloris prostora: {p.ime}</h4>
+                                    <p className="text-xs text-muted-foreground">Povlecite mize na željeno mesto in shranite.</p>
+                                  </div>
+                                  <TlorisEditor
+                                    prostorId={p.id}
+                                    mize={mizeVProstoru}
+                                  />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          </CollapsibleContent>
+                        </tbody>
+                      </Collapsible>
+                    );
+                  })}
+                </>
               </Table>
             ) : (
               <p className="text-sm text-muted-foreground">Ni dodanih prostorov. Prostori so opcijski — brez njih so vse mize skupaj.</p>
@@ -2089,7 +2453,7 @@ export default function Settings() {
           <CardDescription>Dodaj, uredi ali odstrani mize v restavraciji.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <form onSubmit={handleCreateMiza} className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-end bg-muted/50 p-4 rounded-lg">
+          <form onSubmit={handleCreateMiza} className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-end bg-muted/50 p-4 rounded-lg">
             <div className="space-y-2">
               <Label>Številka</Label>
               <Input required type="number" value={stevilka} onChange={e => setStevilka(e.target.value)} placeholder="8" />
@@ -2170,67 +2534,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-        {/* ── Tloris editor ──────────────────────────────────── */}
-        {prostori && prostori.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LayoutDashboard className="w-5 h-5" />
-                Tloris prostora
-              </CardTitle>
-              <CardDescription>
-                Povlecite mize na željeno mesto, da nastavite njihov položaj na tlorisu. Tloris se prikazuje na domačem zaslonu.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {prostori.length > 1 && (
-                <div className="flex items-center gap-3">
-                  <Label className="shrink-0">Prostor:</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {prostori.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => setTlorisSelectedProstorId(p.id)}
-                        className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
-                          (tlorisSelectedProstorId ?? prostori[0]?.id) === p.id
-                            ? "bg-foreground text-background border-foreground"
-                            : "bg-background text-foreground border-border hover:bg-muted"
-                        }`}
-                      >
-                        {p.ime}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {(() => {
-                const activeProstorId = tlorisSelectedProstorId ?? prostori[0]?.id;
-                const mizeProstora = (mize ?? []).filter(m => m.prostorId === activeProstorId);
-                const activeProstor = prostori.find(p => p.id === activeProstorId);
-                return (
-                  <TlorisEditor
-                    key={activeProstorId}
-                    mize={mizeProstora}
-                    onSave={(pozicije) => {
-                      bulkPozicija.mutate(
-                        { data: { pozicije } },
-                        {
-                          onSuccess: () => {
-                            queryClient.invalidateQueries({ queryKey: getListMizeQueryKey() });
-                            toast({ title: "Tloris shranjen", description: `Položaji miz za prostor »${activeProstor?.ime ?? ""}« so bili shranjeni.` });
-                          },
-                          onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče shraniti tlorisa.", variant: "destructive" }),
-                        }
-                      );
-                    }}
-                    isSaving={bulkPozicija.isPending}
-                  />
-                );
-              })()}
-            </CardContent>
-          </Card>
-        )}
-
         </TabsContent>
 
         {/* ── Natakari ──────────────────────────────────────────── */}
@@ -2269,6 +2572,7 @@ export default function Settings() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-16">ID</TableHead>
                 <TableHead>Ime in priimek</TableHead>
                 <TableHead className="hidden sm:table-cell">Davčna št.</TableHead>
                 <TableHead>Status</TableHead>
@@ -2279,13 +2583,14 @@ export default function Settings() {
             <TableBody>
               {natakari?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
                     Ni dodanih natakarjev.
                   </TableCell>
                 </TableRow>
               )}
               {natakari?.map(n => (
                 <TableRow key={n.id}>
+                  <TableCell className="font-mono font-semibold">{n.id}</TableCell>
                   <TableCell className="font-medium">{n.ime} {n.priimek}</TableCell>
                   <TableCell className="hidden sm:table-cell font-mono text-sm">{n.davcnaStevilka ?? "—"}</TableCell>
                   <TableCell>
@@ -2318,8 +2623,19 @@ export default function Settings() {
       </Card>
         </TabsContent>
 
-        {/* ── Poslovne enote (samo admin) ────────────────────── */}
-        {jeAdmin && (
+        {!jeSuperAdmin && !jeUporabnik && (
+          <TabsContent value="kds" className="space-y-6">
+            <KdsSettings />
+          </TabsContent>
+        )}
+
+        <TabsContent value="dostava" className="space-y-6">
+          <DostavaSettings enotaId={prijavljen?.enotaId} />
+          <NaseljaSettings />
+        </TabsContent>
+
+        {/* ── Poslovne enote (admin + admin_enote) ────────────── */}
+        {prikaziZavihekEnote(prijavljen?.vloga) && (
         <TabsContent value="enote" className="space-y-6">
           <Card>
             <CardHeader>
@@ -2330,6 +2646,7 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {smeUpravljatiEnote(prijavljen?.vloga) && (
               <form onSubmit={handleCreateEnota} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end bg-muted/50 p-4 rounded-lg">
                 <div className="space-y-2 md:col-span-1">
                   <Label>Ime enote</Label>
@@ -2343,10 +2660,37 @@ export default function Settings() {
                   <Switch checked={eAktiven} onCheckedChange={setEAktiven} />
                   <Label className="cursor-pointer" onClick={() => setEAktiven(v => !v)}>Aktivna</Label>
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Vrsta gostinskega obrata</Label>
+                  <Select value={eProfile} onValueChange={value => setEProfile(value as HospitalityProfile)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(HOSPITALITY_PROFILES).map(([key, definition]) => (
+                        <SelectItem key={key} value={key}>{definition.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-4">
+                  <Label>Stroškovno mesto (STM) <span className="text-muted-foreground font-normal">(neobvezno)</span></Label>
+                  <Select value={eCostCenterId || undefined} onValueChange={value => setECostCenterId(value === "__brez_sm__" ? "" : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Izberite stroškovno mesto (neobvezno)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__brez_sm__">— brez stroškovnega mesta —</SelectItem>
+                      {stroskovnaMesta.map(cc => (
+                        <SelectItem key={cc.id} value={cc.id}>{cc.code} – {cc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Neobvezno. Če ga nastavite, se uporabi pri POS→ERP knjiženju.</p>
+                </div>
                 <Button type="submit" disabled={createEnota.isPending} className="md:col-span-4">
                   <PlusCircle className="w-4 h-4 mr-2" />Dodaj enoto
                 </Button>
               </form>
+              )}
 
               <Table>
                 <TableHeader>
@@ -2354,18 +2698,21 @@ export default function Settings() {
                     <TableHead>Ime</TableHead>
                     <TableHead className="hidden sm:table-cell">Opis</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>STM</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {!enote?.length && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
                         Ni poslovnih enot.
                       </TableCell>
                     </TableRow>
                   )}
-                  {enote?.map(e => (
+                  {enote?.map(e => {
+                    const sm = e.costCenterId ? stroskovnaMesta.find(cc => cc.id === e.costCenterId) : undefined;
+                    return (
                     <TableRow key={e.id}>
                       <TableCell className="font-medium">{e.ime}</TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">{e.opis ?? "—"}</TableCell>
@@ -2375,86 +2722,75 @@ export default function Settings() {
                           : <Badge variant="outline" className="text-muted-foreground"><XCircle className="w-3 h-3 mr-1" />Neaktivna</Badge>
                         }
                       </TableCell>
+                      <TableCell>
+                        {e.costCenterId
+                          ? <span className="text-sm text-muted-foreground">{sm ? `${sm.code} – ${sm.name}` : "SM dodeljeno"}</span>
+                          : <Badge variant="outline" className="text-amber-700 border-amber-300"><AlertCircle className="w-3 h-3 mr-1" />Manjka SM</Badge>
+                        }
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEditEnota(e)}>
                             <Pencil className="w-4 h-4 text-muted-foreground" />
                           </Button>
+                          {smeUpravljatiEnote(prijavljen?.vloga) && (
                           <Button variant="ghost" size="icon" onClick={() => handleDeleteEnota(e.id)}>
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+          {prijavljen?.vloga === "admin" && <TipPolicySettings />}
         </TabsContent>
+        )}
+
+        {/* ── Knjiženje POS temeljnic (samo admin podjetja) ─────────────── */}
+        {prijavljen?.vloga === "admin" && (
+          <TabsContent value="knjizenje" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5" />Konti za temeljnice</CardTitle>
+                <CardDescription>
+                  Določite konte in DDV kode, ki se uporabljajo pri samodejnem knjiženju POS prometa.
+                </CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button onClick={() => navigateTo("/konti-za-temeljnice")} className="gap-2">
+                  <BookOpen className="h-4 w-4" />Odpri nastavitve knjiženja
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
         )}
 
         {/* ── Varnostne kopije ────────────────────────────────── */}
         <TabsContent value="varnostne-kopije" className="space-y-6">
-          {/* iDrive status card */}
+          {/* Persistent backup storage */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CloudUpload className="w-5 h-5" />
-                iDrive Cloud Backup
+                Trajna hramba kopij
               </CardTitle>
               <CardDescription>
-                Samodejno nalagajte varnostne kopije na vaš iDrive račun. Potrebujete okoljski spremenljivki <code className="text-xs bg-muted px-1 rounded">IDRIVE_USERNAME</code> in <code className="text-xs bg-muted px-1 rounded">IDRIVE_GESLO</code>.
+                Kopije so zasebno shranjene v Replit App Storage. Za neodvisno kopijo jih po ustvarjanju prenesite na zunanji medij.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {idriveStatus === null ? (
-                <Button variant="outline" onClick={fetchBackupi} disabled={backupLoading}>
-                  <RefreshCw className={`w-4 h-4 mr-2 ${backupLoading ? "animate-spin" : ""}`} />
-                  Preveri stanje
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                    {idriveStatus.konfiguriran ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-                    ) : idriveStatus.namesecen ? (
-                      <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">
-                        {idriveStatus.konfiguriran
-                          ? `Povezan: ${idriveStatus.username}`
-                          : idriveStatus.namesecen
-                          ? "Odjemalec nameščen, ni konfiguriran"
-                          : "iDrive odjemalec ni nameščen"}
-                      </p>
-                      {!idriveStatus.konfiguriran && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {idriveStatus.namesecen
-                            ? "Nastavite IDRIVE_USERNAME in IDRIVE_GESLO v razdelku Skrivnosti."
-                            : "Kliknite 'Nastavi iDrive' za samodejno namestitev Linux odjemalca."}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      variant={idriveStatus.konfiguriran ? "outline" : "default"}
-                      onClick={handleNastaviIdrive}
-                      disabled={idriveNastavitevLoading}
-                    >
-                      {idriveNastavitevLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CloudUpload className="w-4 h-4 mr-2" />}
-                      {idriveStatus.konfiguriran ? "Znova nastavi" : "Nastavi iDrive"}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={fetchBackupi} disabled={backupLoading}>
-                      <RefreshCw className={`w-4 h-4 ${backupLoading ? "animate-spin" : ""}`} />
-                    </Button>
-                  </div>
+            <CardContent>
+              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                <div>
+                  <p className="font-medium text-sm">Zasebni App Storage je pripravljen</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Prenos datoteke vam omogoča dodatno kopijo zunaj projekta.</p>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
 
@@ -2464,21 +2800,17 @@ export default function Settings() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <HardDrive className="w-5 h-5" />
-                  Lokalne varnostne kopije
+                  Varnostne kopije baze
                 </CardTitle>
-                <CardDescription>Varnostne kopije baze podatkov shranjene na strežniku. Priporočamo reden prenos na zunanji medij ali iDrive.</CardDescription>
+                <CardDescription>Popolne SQL kopije vseh tabel, relacij, sekvenc in podatkov za vsa podjetja.</CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => { void fetchBackupi(); }} variant="outline" size="sm" disabled={backupLoading}>
                   <RefreshCw className={`w-4 h-4 ${backupLoading ? "animate-spin" : ""}`} />
                 </Button>
-                <Button variant="outline" onClick={() => void handleUstvariBackup("sql")} disabled={backupUstvariSqlLoading} title="Popolna SQL kopija (shema + podatki)">
+                <Button variant="outline" onClick={() => void handleUstvariBackup()} disabled={backupUstvariSqlLoading} title="Popolna SQL kopija (shema + podatki)">
                   {backupUstvariSqlLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
                   SQL kopija
-                </Button>
-                <Button onClick={() => void handleUstvariBackup("json")} disabled={backupUstvariLoading} title="JSON kopija — odporna na spremembe sheme">
-                  {backupUstvariLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
-                  JSON kopija
                 </Button>
               </div>
             </CardHeader>
@@ -2487,7 +2819,7 @@ export default function Settings() {
                 <div className="text-center py-8 text-muted-foreground">
                   <HardDrive className="w-10 h-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">Ni varnostnih kopij.</p>
-                  <p className="text-xs mt-1">Kliknite "JSON kopija" ali "SQL kopija" za prvi backup.</p>
+                  <p className="text-xs mt-1">Kliknite »SQL kopija« za prvo popolno kopijo baze.</p>
                   <Button variant="ghost" size="sm" className="mt-3" onClick={() => { void fetchBackupi(); }} disabled={backupLoading}>
                     <RefreshCw className={`w-4 h-4 mr-2 ${backupLoading ? "animate-spin" : ""}`} />
                     Naloži seznam
@@ -2508,8 +2840,8 @@ export default function Settings() {
                       <TableRow key={k.ime}>
                         <TableCell className="font-mono text-xs">
                           <span className="mr-2">{k.ime}</span>
-                          <Badge variant={k.ime.endsWith(".tar.gz") ? "outline" : "secondary"} className="text-[10px] px-1.5 py-0 shrink-0">
-                            {k.ime.endsWith(".tar.gz") ? "SQL" : "JSON"}
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                            SQL
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
@@ -2530,20 +2862,6 @@ export default function Settings() {
                                 <FolderDown className="w-4 h-4 text-muted-foreground" />
                               </a>
                             </Button>
-                            {idriveStatus?.konfiguriran && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Naloži na iDrive"
-                                onClick={() => handleNaloziNaIdrive(k.ime)}
-                                disabled={backupNaloziIme === k.ime}
-                              >
-                                {backupNaloziIme === k.ime
-                                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                                  : <CloudUpload className="w-4 h-4 text-muted-foreground" />
-                                }
-                              </Button>
-                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -2570,20 +2888,20 @@ export default function Settings() {
                 Obnovitev iz datoteke
               </CardTitle>
               <CardDescription>
-                Naložite JSON kopijo <code className="text-xs bg-muted px-1 rounded">.gz</code> ali SQL kopijo <code className="text-xs bg-muted px-1 rounded">.tar.gz</code> za obnovitev baze podatkov.
+                Naložite preverjeno SQL kopijo <code className="text-xs bg-muted px-1 rounded">.sql</code> ali <code className="text-xs bg-muted px-1 rounded">.sql.gz</code> za obnovitev celotne baze.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-3 rounded-lg border border-yellow-200 bg-yellow-50 flex gap-2">
                 <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
                 <p className="text-sm text-yellow-800">
-                  Obnovitev <strong>prepiše vse trenutne podatke</strong> v bazi (naročila, računi, artikli, nastavitve). Tega dejanja ni mogoče razveljaviti. Pred obnovitvijo priporočamo ustvaritev nove kopije.
+                  Obnovitev <strong>prepiše vse trenutne podatke</strong> v bazi (naročila, računi, artikli, nastavitve). Tik pred obnovitvijo sistem samodejno ustvari dodatno zaščitno kopijo.
                 </p>
               </div>
               <input
                 ref={backupFileRef}
                 type="file"
-                accept=".gz,.tar.gz,.sql"
+                accept=".sql,.sql.gz"
                 className="hidden"
                 onChange={handleObnoviBackup}
               />
@@ -2703,220 +3021,88 @@ export default function Settings() {
         </TabsContent>
 
         {/* ── Nastavitve (FURS, SMTP, certifikat, PP, terminal, testi) ── */}
-        <TabsContent value="nastavitve" className="space-y-6">
+        <TabsContent value="nastavitve" className="space-y-3 pb-6">
 
-      {(jeAdmin || jeAdminEnote) && !jeSuperAdmin && (<>
-      {/* ── Happy Hour ──────────────────────────────────────────── */}
-      <Card id="ns-happy-hour">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>⭐ Happy Hour</span>
-          </CardTitle>
-          <CardDescription>Samodejno znižanje cen za označene artikle v določenem časovnem oknu.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Začetek</label>
-              <input
-                type="time"
-                value={happyHourOd}
-                onChange={e => setHappyHourOd(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Konec</label>
-              <input
-                type="time"
-                value={happyHourDo}
-                onChange={e => setHappyHourDo(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
+          {/* ── Iskanje nastavitev ─────────────────────────────────────── */}
+          <div className="relative mb-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Iščite nastavitve…"
+              value={nastavitveSearch}
+              onChange={e => setNavSearch(e.target.value)}
+              className="pl-9 pr-9"
+            />
+            {nastavitveSearch && (
+              <button type="button" onClick={() => setNavSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Počisti iskanje">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground">Za vsak artikel nastavi Happy Hour ceno v meniju Artikli. Ročno vklop/izklop je na voljo v POS aplikaciji (gumb v spodnji navigaciji).</p>
-        </CardContent>
-        <CardFooter className="justify-end border-t pt-4">
-          <Button size="sm" onClick={handleSaveHappyHour} disabled={happyHourShranjujem}>
-            <Save className="h-4 w-4 mr-2" />
-            {happyHourShranjujem ? "Shranjujem..." : "Shrani Happy Hour"}
-          </Button>
-        </CardFooter>
-      </Card>
 
-      {/* ── Prikaz naročil ──────────────────────────────────────── */}
-      <Card id="ns-prikaz">
-        <CardHeader>
-          <CardTitle>Prikaz naročil</CardTitle>
-          <CardDescription>Način združevanja podobnih artiklov v meniju naročila.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(["novo", "staro", "izklopljeno"] as const).map(nacin => {
-            const labels: Record<string, { naziv: string; opis: string }> = {
-              novo:        { naziv: "Novi sistem (drsni panel)", opis: "Variante se odprejo v drsnem panelu od spodaj — velik, jasen prikaz s cenami in razlikovalnim opisom. Priporočeno." },
-              staro:       { naziv: "Stari sistem (mali popover)", opis: "Variante se pokažejo v majhnem oblačičku nad gumbom — kompaktno, brez drsenja." },
-              izklopljeno: { naziv: "Izklopljeno", opis: "Vse artikle prikaži ločeno — brez združevanja podobnih imen." },
-            };
-            const l = labels[nacin]!;
-            return (
-              <label
-                key={nacin}
-                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${grupiranjeNacin === nacin ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
-              >
-                <input
-                  type="radio"
-                  name="grupiranjeNacin"
-                  value={nacin}
-                  checked={grupiranjeNacin === nacin}
-                  onChange={() => setGrupiranjeNacin(nacin)}
-                  className="mt-0.5 accent-primary"
-                />
-                <div>
-                  <p className="text-sm font-medium">{l.naziv}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{l.opis}</p>
-                </div>
-              </label>
-            );
-          })}
-        </CardContent>
-        {jeAdminEnote && !jeAdmin && (
-          <CardFooter className="justify-end border-t pt-4">
-            <Button
-              size="sm"
-              onClick={handleSaveGrupiranje}
-              disabled={grupiranjeNacinShranjujem}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {grupiranjeNacinShranjujem ? "Shranjujem..." : "Shrani prikaz naročil"}
-            </Button>
-          </CardFooter>
-        )}
-      </Card>
-      </>)}
-
-      {/* ── Windows tiskalni agent ──────────────────────────── */}
-      {!jeSuperAdmin && navigator.userAgent.includes("Windows") && (<Card id="ns-agent">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Printer className="w-4 h-4" />
-            Windows tiskalni agent
-          </CardTitle>
-          <CardDescription>
-            Enostavno tihо tiskanje na USB termalni tiskalnik — brez certifikatov in QZ Tray nastavitev.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          {nastavitve?.agentTiskalnikToken ? (
-            <>
-              {/* Korak 1 — ime tiskalnika */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">1. Ime Windows tiskalnika</Label>
-                <p className="text-xs text-muted-foreground">
-                  V PowerShell zaženite <code className="bg-muted px-1 rounded">Get-WmiObject Win32_Printer | Select-Object Name</code> in vpišite točno ime (npr. <code>POS-58</code>).
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    value={agentTiskalnikIme}
-                    onChange={e => setAgentTiskalnikIme(e.target.value)}
-                    placeholder="npr. POS-58"
-                    className="text-sm font-mono"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => updateNapraveTerminali.mutate({ data: { agentTiskalnikIme } }, {
-                      onSuccess: () => { updateTerminalConfig({ agentTiskalnikIme }); toast({ title: "Ime tiskalnika shranjeno" }); },
-                      onError: () => toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" }),
-                    })}
-                    disabled={updateNapraveTerminali.isPending || !agentTiskalnikIme.trim()}
-                  >
-                    {updateNapraveTerminali.isPending ? "Shranjujem…" : "Shrani"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Širina tiskalnika */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">2. Širina tiskalnika</Label>
-                <p className="text-xs text-muted-foreground">
-                  Izberite širino papirja vašega tiskalnika (58 mm ali 80 mm).
-                </p>
-                <div className="flex gap-2 items-center">
-                  <select
-                    className="border rounded px-2 py-1 text-sm bg-background"
-                    value={tiskalnikSirina}
-                    onChange={e => {
-                      const v = Number(e.target.value) as 58 | 80;
-                      setTiskalnikSirina(v);
-                      updateNapraveTerminali.mutate({ data: { tiskalnikSirina: v } }, {
-                        onSuccess: () => { updateTerminalConfig({ tiskalnikSirina: v }); toast({ title: `Širina tiskalnika nastavljena na ${v} mm` }); },
-                        onError: () => toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" }),
-                      });
-                    }}
-                  >
-                    <option value={58}>58 mm (32 stolpcev)</option>
-                    <option value={80}>80 mm (40 stolpcev)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Korak 3 — prenos skripte */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">3. Prenesite in zaženite agent</Label>
-                <p className="text-xs text-muted-foreground">
-                  Prenesite <strong>obe datoteki</strong> in ju shranite v isto mapo (npr. <code className="bg-muted px-1 rounded">C:\POS\</code>).
-                  Nato <strong>dvokliknite <code className="bg-muted px-1 rounded">pozeni-agent.bat</code></strong> — agent se zažene brez varnostnih pozivov
-                  in se samodejno vpiše v <strong>Startup mapo</strong> za samodejni zagon ob vsaki prijavi.
-                </p>
-                {agentTiskalnikIme.trim() ? (
-                  <div className="flex gap-2 flex-wrap">
-                    <a href="/api/print/agent/skript.ps1" download="pos-tiskalnik.ps1" className="inline-flex">
-                      <Button type="button" size="sm" variant="outline" className="gap-2">
-                        <Printer className="w-4 h-4" />
-                        1. pos-tiskalnik.ps1
-                      </Button>
-                    </a>
-                    <a href="/api/print/agent/pozeni.bat" download="pozeni-agent.bat" className="inline-flex">
-                      <Button type="button" size="sm" className="gap-2">
-                        <Printer className="w-4 h-4" />
-                        2. pozeni-agent.bat
-                      </Button>
-                    </a>
+          {jeAdmin && !jeSuperAdmin && (
+            <Card id="ns-qr-ai">
+              <CardHeader>
+                <CardTitle>QR meni</CardTitle>
+                <CardDescription>Nastavitve funkcij, ki so gostom na voljo v javnem QR meniju te enote.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="qr-ai-asistent-aktiven" className="text-base font-semibold">AI asistent</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Ko je omogočen, lahko gost v QR meniju vpraša za priporočila, cene, razpoložljivost in čakalni čas.
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-xs text-amber-600 font-medium">⚠ Najprej vpišite in shranite ime tiskalnika (korak 1)</p>
-                )}
-
-              </div>
-
-              {/* Žeton (za napredne) */}
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">API žeton (za ročno konfiguracijo)</summary>
-                <div className="flex gap-2 items-center mt-2">
-                  <code className="flex-1 rounded bg-muted px-2 py-1 font-mono break-all select-all">
-                    {nastavitve.agentTiskalnikToken}
-                  </code>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(nastavitve.agentTiskalnikToken ?? "").catch(() => {});
-                      toast({ title: "Token kopiran" });
-                    }}
-                  >
-                    Kopiraj
-                  </Button>
+                  <Switch
+                    id="qr-ai-asistent-aktiven"
+                    checked={qrAiAsistentAktiven}
+                    onCheckedChange={setQrAiAsistentAktiven}
+                    data-testid="qr-ai-asistent-aktiven"
+                  />
                 </div>
-              </details>
-            </>
-          ) : (
-            <p className="text-muted-foreground text-xs">Nalagam žeton…</p>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>)}
 
+          {jeAdmin && !jeSuperAdmin && (
+            <Card id="ns-tocilnica-toast">
+              <CardHeader>
+                <CardTitle>Obvestila iz točilnice</CardTitle>
+                <CardDescription>Nastavite prikaz obvestil, ko je pijača pripravljena za postrežbo.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="toast-tocilnica-aktiven" className="text-base font-semibold">Pošiljanje toastov iz točilnice</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Ko je izklopljeno, se obvestila o pripravljenih postavkah iz točilnice ne prikažejo. Kuhinjska obvestila ostanejo vključena.
+                    </p>
+                  </div>
+                  <Switch
+                    id="toast-tocilnica-aktiven"
+                    checked={toastTocilnicaAktiven}
+                    onCheckedChange={setToastTocilnicaAktiven}
+                    data-testid="toast-tocilnica-aktiven"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Accordion type="multiple" value={nsAkkordeonValue} onValueChange={v => { if (!nastavitveSearch) setNsAkkordeon(v); }} className="space-y-1">
+
+            {/* ═══ 1 · Podjetje in FURS ════════════════════════════════════ */}
+            {(jeAdmin && !jeSuperAdmin) && nsSec(["ns-furs","ns-certifikat","ns-prostori","ns-blagajne"]) && (
+              <AccordionItem value="sek-podjetje" id="sek-podjetje" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><Building2 className="h-4 w-4 shrink-0" />Podjetje in FURS</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
+      <FiscalServicePairing />
+       {jeAdmin && !jeSuperAdmin && <LocalGatewaySettings />}
+       <GatewaySyncReviewPanel />
       {/* ── FURS & Račun (samo admin podjetja) ───────────────── */}
       {jeAdmin && !jeSuperAdmin && <Card id="ns-furs">
         <CardHeader>
@@ -3121,7 +3307,7 @@ export default function Settings() {
               <Separator />
 
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Globalni digitalni certifikat za produkcijsko ZOI</p>
-              {(nastavitve as { certifikatNaložen?: boolean })?.certifikatNaložen ? (
+              {certInfo?.nastavljen ? (
                 <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
                   <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
                   <span className="text-sm font-medium text-green-800">Certifikat je naložen v bazo in aktiven</span>
@@ -3281,295 +3467,13 @@ export default function Settings() {
         </CardContent>
       </Card>}
 
-      {/* ── Blagajne (FURS identifikatorji) ─────────────────── */}
-      {jeAdmin && !jeSuperAdmin && (
-      <Card id="ns-blagajne">
-        <CardHeader>
-          <CardTitle>Blagajne (FURS identifikatorji)</CardTitle>
-          <CardDescription>
-            Vsaka blagajna ima edinstveno kombinacijo ID poslovnega prostora (PP) in ID elektronske naprave (B), registriranih pri FURS.
-            Vsaka kombinacija PP+B vzdržuje lastno zaporedje številk računov.
-            Admin podjetja in admin enote izbereta aktivno blagajno v blagajniškem vmesniku.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Admin vidi vse blagajne podjetja, ostali le blagajne trenutne enote */}
-          {(jeAdmin ? (vseBlagajne?.length ?? 0) : (blagajne?.length ?? 0)) === 0 ? (
-            <p className="text-sm text-muted-foreground">Ni dodanih blagajn. Dodajte vsaj eno za ločeno sledenje zaporednih številk računov.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Naziv</TableHead>
-                  {jeAdmin && <TableHead className="hidden sm:table-cell">Enota</TableHead>}
-                  <TableHead>PP ID</TableHead>
-                  <TableHead>B ID</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(jeAdmin ? vseBlagajne! : blagajne!).map(b => (
-                  <TableRow key={b.id}>
-                    <TableCell className="font-medium">{b.ime}</TableCell>
-                    {jeAdmin && (
-                      <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
-                        {enote?.find(e => e.id === (b as any).enotaId)?.ime ?? `Enota ${(b as any).enotaId}`}
-                      </TableCell>
-                    )}
-                    <TableCell><code className="text-xs bg-muted px-1 py-0.5 rounded">{b.ppId}</code></TableCell>
-                    <TableCell><code className="text-xs bg-muted px-1 py-0.5 rounded">{b.bId}</code></TableCell>
-                    <TableCell>
-                      <Badge variant={b.aktivna ? "default" : "secondary"}>{b.aktivna ? "Aktivna" : "Neaktivna"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => openEditBlagajna(b)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteBlagajna(b.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          <Separator />
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dodaj blagajno</p>
-          <form onSubmit={handleCreateBlagajna} className="space-y-3">
-            {jeAdmin && (
-              <div className="space-y-1">
-                <Label>Enota <span className="text-destructive">*</span></Label>
-                <Select value={bEnotaId === "" ? "" : String(bEnotaId)} onValueChange={v => setBEnotaId(v ? Number(v) : "")}>
-                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
-                  <SelectContent>
-                    {(enote ?? []).map(e => (
-                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label>Naziv blagajne</Label>
-                <Input placeholder="Blagajna 1" value={bIme} onChange={e => setBIme(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>ID poslovnega prostora</Label>
-                <Input placeholder="PP001" value={bPpId} onChange={e => setBPpId(e.target.value)} className="font-mono" />
-                <p className="text-xs text-muted-foreground">Registriran pri FURS</p>
-              </div>
-              <div className="space-y-1">
-                <Label>ID elektronske naprave</Label>
-                <Input placeholder="B001" value={bBId} onChange={e => setBBId(e.target.value)} className="font-mono" />
-                <p className="text-xs text-muted-foreground">Registrirana pri FURS</p>
-              </div>
-            </div>
-            <Button type="submit" disabled={createBlagajna.isPending}>
-              {createBlagajna.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Dodajam...</> : <><PlusCircle className="h-4 w-4 mr-2" />Dodaj blagajno</>}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-      )}
-
-      {/* Uredi blagajno dialog */}
-      <Dialog open={bDialogOpen} onOpenChange={setBDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Uredi blagajno</DialogTitle></DialogHeader>
-          <form onSubmit={handleUpdateBlagajna} className="space-y-4">
-            {jeAdmin && (
-              <div className="space-y-1">
-                <Label>Enota</Label>
-                <Select value={editBEnotaId === "" ? "" : String(editBEnotaId)} onValueChange={v => setEditBEnotaId(v ? Number(v) : "")}>
-                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
-                  <SelectContent>
-                    {(enote ?? []).map(e => (
-                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label>Naziv blagajne</Label>
-              <Input value={editBIme} onChange={e => setEditBIme(e.target.value)} placeholder="Blagajna 1" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>ID poslovnega prostora</Label>
-                <Input value={editBPpId} onChange={e => setEditBPpId(e.target.value)} placeholder="PP001" className="font-mono" />
-              </div>
-              <div className="space-y-1">
-                <Label>ID elektronske naprave</Label>
-                <Input value={editBBId} onChange={e => setEditBBId(e.target.value)} placeholder="B001" className="font-mono" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={editBAktivna} onCheckedChange={setEditBAktivna} id="blagajna-aktivna" />
-              <Label htmlFor="blagajna-aktivna">Aktivna</Label>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setBDialogOpen(false)}>Prekliči</Button>
-              <Button type="submit" disabled={!editBIme.trim() || !editBPpId.trim() || !editBBId.trim() || updateBlagajnaMut.isPending}>
-                {updateBlagajnaMut.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem...</> : "Shrani"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── SMTP e-pošta ──────────────────────────────────────── */}
-      {jeSuperAdmin && (
-        <Card id="ns-smtp">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />E-pošta (SMTP)</CardTitle>
-            <CardDescription>
-              Ko je SMTP konfiguriran in aktiven, sistem samodejno pošlje zaposlenim začasno geslo ob resetu računa.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <p className="font-medium text-sm">Pošiljanje e-pošte aktivirano</p>
-                <p className="text-xs text-muted-foreground">Ko je izklopljeno, se e-pošta ne pošilja — geslo sporočite ročno.</p>
-              </div>
-              <Switch checked={smtpAktiven} onCheckedChange={setSmtpAktiven} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2 space-y-2">
-                <Label>SMTP strežnik</Label>
-                <Input placeholder="smtp.gmail.com" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} disabled={!smtpAktiven} />
-              </div>
-              <div className="space-y-2">
-                <Label>Vrata</Label>
-                <Input type="number" placeholder="587" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} disabled={!smtpAktiven} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Uporabniško ime (SMTP)</Label>
-                <Input autoComplete="username" placeholder="pos@restavracija.si" value={smtpUser} onChange={e => setSmtpUser(e.target.value)} disabled={!smtpAktiven} />
-              </div>
-              <div className="space-y-2">
-                <Label>Geslo (SMTP)</Label>
-                {smtpGesloNastavljeno && !smtpNovGeslo && (
-                  <p className="text-xs text-green-700 font-medium">✓ Geslo je nastavljeno — pustite prazno, da ga obdržite</p>
-                )}
-                <div className="relative">
-                  <Input
-                    type={smtpPokaziGeslo ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder={smtpGesloNastavljeno ? "Novo geslo (pustite prazno za ohranitev)" : "geslo ali app password"}
-                    value={smtpNovGeslo}
-                    onChange={e => setSmtpNovGeslo(e.target.value)}
-                    disabled={!smtpAktiven}
-                  />
-                  <button type="button" onClick={() => setSmtpPokaziGeslo(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {smtpPokaziGeslo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2 max-w-sm">
-              <Label>E-pošta pošiljatelja (From)</Label>
-              <Input type="email" placeholder="pos@restavracija.si" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} disabled={!smtpAktiven} />
-              <p className="text-xs text-muted-foreground">Naslov, ki se prikaže kot pošiljatelj v e-pošti.</p>
-            </div>
-
-            {smtpAktiven && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 space-y-1">
-                <p className="font-semibold">Nasveti za konfiguracijo:</p>
-                <ul className="list-disc list-inside space-y-0.5 text-blue-700 text-xs">
-                  <li>Gmail: strežnik <code>smtp.gmail.com</code>, vrata <code>587</code>, uporabite App Password (ne navadnega gesla)</li>
-                  <li>Outlook/Office365: strežnik <code>smtp.office365.com</code>, vrata <code>587</code></li>
-                  <li>Nastavitve shranite s klikom na <strong>Shrani vse nastavitve</strong> spodaj.</li>
-                </ul>
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Preizkus SMTP</p>
-                <p className="text-xs text-muted-foreground">Pošljite testno sporočilo, da preverite delovanje SMTP.</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => { setSmtpTestRezultat(null); setSmtpTestPrejemnik(""); setSmtpTestDialogOpen(true); }}
-                disabled={!smtpGesloNastavljeno && !smtpNovGeslo}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Pošlji testno e-pošto
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Dialog open={smtpTestDialogOpen} onOpenChange={open => { setSmtpTestDialogOpen(open); if (!open) setSmtpTestRezultat(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" />Pošlji testno e-pošto</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSmtpTest} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="smtp-test-prejemnik">Prejemnik testnega sporočila</Label>
-              <Input
-                id="smtp-test-prejemnik"
-                type="email"
-                placeholder="admin@restavracija.si"
-                value={smtpTestPrejemnik}
-                onChange={e => setSmtpTestPrejemnik(e.target.value)}
-                required
-                disabled={smtpTestLoading}
-              />
-              <p className="text-xs text-muted-foreground">Na ta naslov bo poslano kratko testno sporočilo.</p>
-            </div>
-
-            {smtpTestRezultat && (
-              <div className={`rounded-lg border p-3 text-sm ${smtpTestRezultat.uspeh ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
-                {smtpTestRezultat.uspeh ? (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>Testno sporočilo je bilo uspešno poslano!</span>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Pošiljanje ni uspelo</p>
-                      <p className="text-xs mt-1 font-mono break-all">{smtpTestRezultat.napaka}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setSmtpTestDialogOpen(false)}>Zapri</Button>
-              <Button type="submit" disabled={smtpTestLoading || !smtpTestPrejemnik}>
-                {smtpTestLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pošiljam…</> : <><Send className="h-4 w-4 mr-2" />Pošlji</>}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {!jeSuperAdmin && !jeUporabnik && (<>
+      {jeAdmin && !jeSuperAdmin && (<>
       {/* ── Digitalni certifikat FURS ─────────────────────────── */}
       <Card id="ns-certifikat">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileKey className="h-5 w-5" />
-            Digitalni certifikat FURS
+            FURS digitalno potrdilo (certifikat)
             {aktivnaEnotaIme && (
               <Badge variant="outline" className="ml-2 text-xs font-normal text-blue-700 border-blue-200 bg-blue-50">
                 <Building2 className="h-3 w-3 mr-1" />{aktivnaEnotaIme}
@@ -3577,7 +3481,7 @@ export default function Settings() {
             )}
           </CardTitle>
           <CardDescription>
-            Naložite certifikat (.p12), ki ste ga prejeli od FURS. Program ga samodejno pretvori v PEM format in shrani v bazo podatkov — trajno, tudi po restartu.
+            Naložite certifikat (.p12 ali .pfx), ki ste ga prejeli od FURS. Program ga samodejno pretvori v PEM format in šifrirano shrani v bazo podatkov.
             <span className="block mt-1 text-blue-700">Certifikat je shranjen na nivoju podjetja in velja za vse poslovne enote.</span>
           </CardDescription>
         </CardHeader>
@@ -3588,29 +3492,20 @@ export default function Settings() {
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Trenutni certifikat v bazi</p>
             {!certInfo ? (
               <div className="h-10 animate-pulse bg-muted rounded-lg" />
-            ) : certInfo.najden ? (
-              <div className={`rounded-lg border p-4 space-y-2 ${certInfo.opozorilo ? "border-amber-300 bg-amber-50" : "border-green-200 bg-green-50"}`}>
+            ) : certInfo.nastavljen ? (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-2">
                 <div className="flex items-center gap-2">
-                  {certInfo.opozorilo
-                    ? <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                    : <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />}
-                  <span className={`text-sm font-semibold ${certInfo.opozorilo ? "text-amber-800" : "text-green-800"}`}>
-                    {certInfo.opozorilo
-                      ? `Certifikat poteče čez ${certInfo.dniDoIzteka} dni!`
-                      : `Certifikat je veljaven še ${certInfo.dniDoIzteka} dni`}
-                  </span>
+                  <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
+                  <span className="text-sm font-semibold text-green-800">Certifikat naložen</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                  <div><span className="font-medium text-foreground">Subjekt:</span> {certInfo.subjekt}</div>
-                  <div><span className="font-medium text-foreground">Izdajatelj:</span> {certInfo.izdajatelj}</div>
-                  <div><span className="font-medium text-foreground">Veljavno od:</span> {certInfo.veljavnoOd?.slice(0, 10)}</div>
-                  <div><span className="font-medium text-foreground">Poteče:</span> {certInfo.veljavnoDo?.slice(0, 10)}</div>
-                  <div className="col-span-2 font-mono text-xs break-all opacity-70">{certInfo.certPot}</div>
+                  <div><span className="font-medium text-foreground">Subjekt:</span> {certInfo.subject ?? "—"}</div>
+                  <div><span className="font-medium text-foreground">Velja do:</span> {certInfo.veljaDo ? new Intl.DateTimeFormat("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(new Date(certInfo.veljaDo)) : "—"}</div>
                 </div>
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                Certifikat ni najden na strežniku. {certInfo.napaka}
+                Certifikat ni naložen za to podjetje.
               </div>
             )}
           </div>
@@ -3635,34 +3530,22 @@ export default function Settings() {
                 </div>
                 <div className="space-y-2">
                   <Label>Geslo certifikata</Label>
-                  <Input
-                    type="password"
+                  <SecretInput
+                    id="furs-certificate-value"
                     placeholder="Vnesite geslo za .p12"
                     value={p12Geslo}
                     onChange={e => setP12Geslo(e.target.value)}
-                    autoComplete="new-password"
                   />
                   <p className="text-xs text-muted-foreground">Geslo, ki ste ga nastavili ob izvozu certifikata</p>
                 </div>
               </div>
-              <div className="space-y-2 max-w-xs">
-                <Label>Ime datoteke na strežniku</Label>
-                <Input
-                  placeholder="furs-cert.pem"
-                  value={p12Ime}
-                  onChange={e => setP12Ime(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Certifikat se shrani v mapo <code>certs/</code> na strežniku</p>
-              </div>
-
               {p12Rezultat && (
                 <div className={`rounded-lg border p-3 text-sm ${p12Rezultat.uspeh ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
                   {p12Rezultat.uspeh ? (
                     <div className="space-y-1">
                       <p className="font-semibold flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Certifikat uspešno naložen!</p>
-                      {p12Rezultat.subjekt && <p className="text-xs">Subjekt: {p12Rezultat.subjekt}</p>}
-                      {p12Rezultat.veljavnoDo && <p className="text-xs">Poteče: {p12Rezultat.veljavnoDo.slice(0, 10)} ({p12Rezultat.dniDoIzteka} dni)</p>}
-                      <p className="text-xs font-mono opacity-70">{p12Rezultat.certPot}</p>
+                      {p12Rezultat.subject && <p className="text-xs">Subjekt: {p12Rezultat.subject}</p>}
+                      {p12Rezultat.veljaDo && <p className="text-xs">Velja do: {new Intl.DateTimeFormat("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(new Date(p12Rezultat.veljaDo))}</p>}
                     </div>
                   ) : (
                     <p className="font-medium flex items-center gap-2"><AlertCircle className="h-4 w-4" /> {p12Rezultat.napaka}</p>
@@ -3682,8 +3565,8 @@ export default function Settings() {
             <ol className="list-decimal list-inside space-y-0.5">
               <li>Iz FURS portala prejmete datoteko s končnico <code>.p12</code></li>
               <li>Izberite datoteko in vnesite geslo, ki ste ga nastavili pri izvozu</li>
-              <li>Program samodejno pretvori v PEM format in shrani na strežnik</li>
-              <li>Po uspešnem nalaganju posodobite pot v <strong>Nastavitve FURS</strong> zgoraj, če se razlikuje od privzetka</li>
+              <li>Program samodejno pretvori v PEM format in zasebni ključ šifrirano shrani na nivoju podjetja</li>
+              <li>Geslo se uporabi samo med nalaganjem in se ne shrani</li>
             </ol>
           </div>
         </CardContent>
@@ -3795,6 +3678,426 @@ export default function Settings() {
       </Card>
       </>)}
 
+      {/* ── Blagajne (FURS identifikatorji) ─────────────────── */}
+      {jeAdmin && !jeSuperAdmin && (
+      <Card id="ns-blagajne">
+        <CardHeader>
+          <CardTitle>Blagajne (FURS identifikatorji)</CardTitle>
+          <CardDescription>
+            Vsaka blagajna ima edinstveno kombinacijo ID poslovnega prostora (PP) in ID elektronske naprave (B), registriranih pri FURS.
+            Vsaka kombinacija PP+B vzdržuje lastno zaporedje številk računov.
+            Admin podjetja in admin enote izbereta aktivno blagajno v blagajniškem vmesniku.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Admin vidi vse blagajne podjetja, ostali le blagajne trenutne enote */}
+          {(jeAdmin ? (vseBlagajne?.length ?? 0) : (blagajne?.length ?? 0)) === 0 ? (
+            <p className="text-sm text-muted-foreground">Ni dodanih blagajn. Dodajte vsaj eno za ločeno sledenje zaporednih številk računov.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Naziv</TableHead>
+                  {jeAdmin && <TableHead className="hidden sm:table-cell">Enota</TableHead>}
+                  <TableHead>PP ID</TableHead>
+                  <TableHead>B ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(jeAdmin ? vseBlagajne! : blagajne!).map(b => (
+                  <TableRow key={b.id}>
+                    <TableCell className="font-medium">{b.ime}</TableCell>
+                    {jeAdmin && (
+                      <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+                        {enote?.find(e => e.id === (b as any).enotaId)?.ime ?? `Enota ${(b as any).enotaId}`}
+                      </TableCell>
+                    )}
+                    <TableCell><code className="text-xs bg-muted px-1 py-0.5 rounded">{b.ppId}</code></TableCell>
+                    <TableCell><code className="text-xs bg-muted px-1 py-0.5 rounded">{b.bId}</code></TableCell>
+                    <TableCell>
+                      <Badge variant={b.aktivna ? "default" : "secondary"}>{b.aktivna ? "Aktivna" : "Neaktivna"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => openEditBlagajna(b)}><Pencil className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteBlagajna(b.id)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <Separator />
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dodaj blagajno</p>
+          <form onSubmit={handleCreateBlagajna} className="space-y-3">
+            {lahkoNastaviNatakarPin && (
+              <div className="space-y-1">
+                <Label>Enota <span className="text-destructive">*</span></Label>
+                <Select value={bEnotaId === "" ? "" : String(bEnotaId)} onValueChange={v => setBEnotaId(v ? Number(v) : "")}>
+                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
+                  <SelectContent>
+                    {(enote ?? []).map(e => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Naziv blagajne</Label>
+                <Input placeholder="Blagajna 1" value={bIme} onChange={e => setBIme(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>ID poslovnega prostora</Label>
+                <Input placeholder="PP001" value={bPpId} onChange={e => setBPpId(e.target.value)} className="font-mono" />
+                <p className="text-xs text-muted-foreground">Registriran pri FURS</p>
+              </div>
+              <div className="space-y-1">
+                <Label>ID elektronske naprave</Label>
+                <Input placeholder="B001" value={bBId} onChange={e => setBBId(e.target.value)} className="font-mono" />
+                <p className="text-xs text-muted-foreground">Registrirana pri FURS</p>
+              </div>
+            </div>
+            <Button type="submit" disabled={createBlagajna.isPending}>
+              {createBlagajna.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Dodajam...</> : <><PlusCircle className="h-4 w-4 mr-2" />Dodaj blagajno</>}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      )}
+
+      {/* Uredi blagajno dialog */}
+      <Dialog open={bDialogOpen} onOpenChange={setBDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Uredi blagajno</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdateBlagajna} className="space-y-4">
+            {jeAdmin && (
+              <div className="space-y-1">
+                <Label>Enota</Label>
+                <Select value={editBEnotaId === "" ? "" : String(editBEnotaId)} onValueChange={v => setEditBEnotaId(v ? Number(v) : "")}>
+                  <SelectTrigger><SelectValue placeholder="Izberite enoto" /></SelectTrigger>
+                  <SelectContent>
+                    {(enote ?? []).map(e => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.ime}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label>Naziv blagajne</Label>
+              <Input value={editBIme} onChange={e => setEditBIme(e.target.value)} placeholder="Blagajna 1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>ID poslovnega prostora</Label>
+                <Input value={editBPpId} onChange={e => setEditBPpId(e.target.value)} placeholder="PP001" className="font-mono" />
+              </div>
+              <div className="space-y-1">
+                <Label>ID elektronske naprave</Label>
+                <Input value={editBBId} onChange={e => setEditBBId(e.target.value)} placeholder="B001" className="font-mono" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={editBAktivna} onCheckedChange={setEditBAktivna} id="blagajna-aktivna" />
+              <Label htmlFor="blagajna-aktivna">Aktivna</Label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setBDialogOpen(false)}>Prekliči</Button>
+              <Button type="submit" disabled={!editBIme.trim() || !editBPpId.trim() || !editBBId.trim() || updateBlagajnaMut.isPending}>
+                {updateBlagajnaMut.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem...</> : "Shrani"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* ═══ 2 · e-Račun ══════════════════════════════════════════════ */}
+            {jeAdmin && nsSec(["ns-eracun-registracija","ns-bizbox"]) && (
+              <AccordionItem value="sek-eracun" id="sek-eracun" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0" />e-Račun</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
+      {/* ── e-Račun registracija podjetja (admin) ───────────────────── */}
+      {jeAdmin && !jeSuperAdmin && (
+        <Card id="ns-eracun-registracija">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              e-Račun registracija podjetja
+            </CardTitle>
+            <CardDescription>
+              Registracijski podatki podjetja kot prejemnika e-računov. Določajo, prek katerega
+              omrežja podjetje prejema e-račune in kateri naslov/IBAN se uporabi.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!erNaložen && (
+              <p className="text-xs text-muted-foreground">Nalagam nastavitve…</p>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="er-prejemnik"
+                checked={erPrejemnik}
+                onChange={e => setErPrejemnik(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              <label htmlFor="er-prejemnik" className="text-sm font-medium cursor-pointer">
+                Registriran prejemnik e-računov
+              </label>
+            </div>
+            {erPrejemnik && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-1">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Omrežje</label>
+                  <select
+                    value={erOmrezje}
+                    onChange={e => setErOmrezje(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">Izberi…</option>
+                    <option value="BizBox">BizBox</option>
+                    <option value="UJP">UJP (javni sektor)</option>
+                    <option value="PEPPOL">PEPPOL</option>
+                    <option value="ZZI">ZZI</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Naslov / IBAN prejemnika</label>
+                  <input
+                    type="text"
+                    placeholder="SI56…"
+                    value={erNaslov}
+                    onChange={e => setErNaslov(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">e-Račun e-mail</label>
+                  <input
+                    type="email"
+                    placeholder="eracun@podjetje.si"
+                    value={erEmail}
+                    onChange={e => setErEmail(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Šifra PU <span className="text-muted-foreground font-normal">(samo UJP)</span></label>
+                  <input
+                    type="text"
+                    placeholder="001"
+                    value={erSifraPu}
+                    onChange={e => setErSifraPu(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">BIC banke</label>
+                  <input
+                    type="text"
+                    placeholder="BSLJSI2X"
+                    value={erBic}
+                    onChange={e => setErBic(e.target.value.toUpperCase())}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveEracunRegistracija}
+                disabled={erShranjujem}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {erShranjujem
+                  ? <><Loader2 className="h-4 w-4 animate-spin" />Shranjujem…</>
+                  : <><Save className="h-4 w-4" />Shrani e-Račun nastavitve</>
+                }
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── bizBox per-podjetje poverilnice ──────────────────────────── */}
+      {jeAdmin && (
+        <Card id="ns-bizbox">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              bizBox poverilnice (per-podjetje)
+            </CardTitle>
+            <CardDescription>
+              Poverilnice za oddajo e-računov prek bizBox/ZZI omrežja. Geslo je shranjeno
+              AES-256-GCM šifrirano — nikoli v čistopisu. Veljavno za celotno podjetje (vse enote/blagajne).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!bizboxNaložen && (
+              <p className="text-xs text-muted-foreground">Nalagam nastavitve…</p>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Uporabniško ime (bizBox)</label>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  placeholder="npr. podjetje@zzi.si"
+                  value={bizboxUser}
+                  onChange={e => setBizboxUser(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Geslo (bizBox)</label>
+                {bizboxGesloNastavljeno && !bizboxNovGeslo && (
+                  <p className="text-xs text-green-700 font-medium">✓ Geslo je nastavljeno — pustite prazno, da ga obdržite</p>
+                )}
+                <div>
+                  <SecretInput
+                    id="bizbox-credential-value"
+                    placeholder={bizboxGesloNastavljeno ? "Novo geslo (pustite prazno za ohranitev)" : "Vnesite geslo za bizBox"}
+                    value={bizboxNovGeslo}
+                    onChange={e => setBizboxNovGeslo(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Okolje</label>
+                <select
+                  value={bizboxOkolje}
+                  onChange={e => setBizboxOkolje(e.target.value as "test" | "prod")}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="test">Testno (demo.zzi.si)</option>
+                  <option value="prod">Produkcija (ws.zzi.si)</option>
+                </select>
+                {bizboxOkolje === "prod" && (
+                  <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Produkcijsko okolje — e-računi se pošiljajo na ws.zzi.si
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Pošiljateljev eDDress override</label>
+                <input
+                  type="text"
+                  placeholder="Privzeto: davčna podjetja (brez SI)"
+                  value={bizboxPosiljateljDavcna}
+                  onChange={e => setBizboxPosiljateljDavcna(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <p className="text-xs text-muted-foreground">Prazno = uporabi davčno številko podjetja</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5"><Shield className="h-4 w-4" />Varnost</p>
+              <ul className="list-disc list-inside space-y-0.5 text-amber-700 text-xs">
+                <li>Geslo se šifrira z AES-256-GCM pred shranjevanjem v bazo — nikoli ni v čistopisu</li>
+                <li>Ključ za šifriranje (BIZBOX_ENC_KEY) mora biti nastavljen v Replit Secrets</li>
+                <li>Geslo se vrne samo ob dejanskem pošiljanju e-računa (interno, nikoli v odgovoru API)</li>
+                <li>Ob izbrisu nastavitev se poverilnice odstranijo; sistem preklopi na env spremenljivki (fallback)</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveBizbox}
+                disabled={bizboxShranjujem || !bizboxUser.trim() || (!bizboxGesloNastavljeno && !bizboxNovGeslo)}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bizboxShranjujem
+                  ? <><Loader2 className="h-4 w-4 animate-spin" />Shranjujem…</>
+                  : <><Save className="h-4 w-4" />Shrani bizBox poverilnice</>
+                }
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={smtpTestDialogOpen} onOpenChange={open => { setSmtpTestDialogOpen(open); if (!open) setSmtpTestRezultat(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" />Pošlji testno e-pošto</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSmtpTest} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="smtp-test-prejemnik">Prejemnik testnega sporočila</Label>
+              <Input
+                id="smtp-test-prejemnik"
+                type="email"
+                placeholder="admin@restavracija.si"
+                value={smtpTestPrejemnik}
+                onChange={e => setSmtpTestPrejemnik(e.target.value)}
+                required
+                disabled={smtpTestLoading}
+              />
+              <p className="text-xs text-muted-foreground">Na ta naslov bo poslano kratko testno sporočilo.</p>
+            </div>
+
+            {smtpTestRezultat && (
+              <div className={`rounded-lg border p-3 text-sm ${smtpTestRezultat.uspeh ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
+                {smtpTestRezultat.uspeh ? (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>Testno sporočilo je bilo uspešno poslano!</span>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Pošiljanje ni uspelo</p>
+                      <p className="text-xs mt-1 font-mono break-all">{smtpTestRezultat.napaka}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setSmtpTestDialogOpen(false)}>Zapri</Button>
+              <Button type="submit" disabled={smtpTestLoading || !smtpTestPrejemnik}>
+                {smtpTestLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pošiljam…</> : <><Send className="h-4 w-4 mr-2" />Pošlji</>}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* ═══ 3 · Tiskalniki in naprave ════════════════════════════════ */}
+            {!jeSuperAdmin && nsSec(["ns-naprave"]) && (
+              <AccordionItem value="sek-naprave" id="sek-naprave" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><HardDrive className="h-4 w-4 shrink-0" />Tiskalniki in naprave</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
       {/* ── Naprave ────────────────────────────────────────────── */}
       {!jeSuperAdmin && <Card id="ns-naprave">
         <CardHeader>
@@ -3805,26 +4108,54 @@ export default function Settings() {
           {(!naprave || naprave.length === 0) ? (
             <p className="text-sm text-muted-foreground">Ni registriranih naprav.</p>
           ) : (
+            <div className="space-y-4">
+              {naprave.find((n) => n.id === trenutnaNaprava?.id) ? (
+                <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3">
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                    <Badge>Ta naprava</Badge>
+                    <span>{naprave.find((n) => n.id === trenutnaNaprava?.id)?.ime || "Naprava brez imena"}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Trenutni brskalnik · ID naprave #{trenutnaNaprava?.id}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <span>Trenutni brskalnik še ni registriran za izbrano enoto.</span>
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    await refreshNaprava();
+                    await queryClient.invalidateQueries({ queryKey: getListNapraveQueryKey() });
+                  }}>
+                    Registriraj to napravo
+                  </Button>
+                </div>
+              )}
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Status</TableHead>
                   <TableHead>Ime naprave</TableHead>
-                  <TableHead>Ključ</TableHead>
+                  <TableHead>ID naprave</TableHead>
                   <TableHead>Terminal</TableHead>
                   <TableHead>Mize</TableHead>
+                  <TableHead>Tiskalnik</TableHead>
+                  <TableHead>AI svetovalec</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {naprave.map((n) => (
-                  <TableRow key={n.id} className={n.napravaKljuc === napravaKljuc ? "bg-muted/40" : ""}>
+                  <TableRow key={n.id} className={n.id === trenutnaNaprava?.id ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}>
+                    <TableCell>
+                      {n.id === trenutnaNaprava?.id
+                        ? <Badge className="whitespace-nowrap">Ta naprava</Badge>
+                        : <span className="text-xs text-muted-foreground">Druga</span>}
+                    </TableCell>
                     <TableCell>
                       <span className="font-medium">{n.ime || <span className="text-muted-foreground italic">brez imena</span>}</span>
-                      {n.napravaKljuc === napravaKljuc && (
-                        <Badge variant="outline" className="ml-2 text-xs">ta naprava</Badge>
-                      )}
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{n.napravaKljuc.slice(0, 8)}…</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">#{n.id}</TableCell>
                     <TableCell className="text-sm">
                       {n.placilniTerminal === null ? (
                         <span className="text-muted-foreground">globalna veriga</span>
@@ -3839,6 +4170,26 @@ export default function Settings() {
                         <span>{n.dovoljeneMize.length} {n.dovoljeneMize.length === 1 ? "miza" : n.dovoljeneMize.length < 5 ? "mize" : "miz"}</span>
                       )}
                     </TableCell>
+                    <TableCell className="text-sm">
+                      {n.terminalConfig?.tiskalnikTip === "windows" || n.terminalConfig?.agentTiskalnikIme ? (
+                        <span className="inline-flex items-center gap-1"><Printer className="h-3.5 w-3.5 text-muted-foreground" />Windows{n.terminalConfig?.agentTiskalnikIme ? ` (${n.terminalConfig.agentTiskalnikIme})` : ""}</span>
+                      ) : n.terminalConfig?.tiskalnikSirina === 58 ? (
+                        <span className="inline-flex items-center gap-1"><Printer className="h-3.5 w-3.5 text-muted-foreground" />ZCS Z92</span>
+                      ) : n.terminalConfig?.tiskalnikSirina === 32 ? (
+                        <span className="inline-flex items-center gap-1"><Printer className="h-3.5 w-3.5 text-muted-foreground" />BT most — 58 mm</span>
+                      ) : n.terminalConfig?.tiskalnikSirina === 30 ? (
+                        <span className="inline-flex items-center gap-1"><Printer className="h-3.5 w-3.5 text-muted-foreground" />NB80 — 58 mm</span>
+                      ) : n.terminalConfig?.tiskalnikSirina === 80 ? (
+                        <span className="inline-flex items-center gap-1"><Printer className="h-3.5 w-3.5 text-muted-foreground" />NB80/BT — 80 mm</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">samodejno</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {n.terminalConfig?.aiSvetovalecAktiven
+                        ? <Badge variant="secondary">Vključen</Badge>
+                        : <span className="text-xs text-muted-foreground">Izključen</span>}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
@@ -3847,8 +4198,13 @@ export default function Settings() {
                           setNapravEditTerminal(n.placilniTerminal ?? "__global__");
                           setNapravEditDovoljeneMize(n.dovoljeneMize ?? []);
                           setNapravEditPragZaupanja(n.glasovniPragZaupanja ?? 0);
+                          setNapravEditTiskalnikSirina((n.terminalConfig?.tiskalnikSirina ?? null) as 30 | 32 | 58 | 80 | null);
+                          setNapravEditJeWindows(n.terminalConfig?.tiskalnikTip === "windows");
+                          const cp = n.terminalConfig?.tiskalnikCodePage;
+                          setNapravEditCodePage((cp === "cp852" || cp === "wpc1250" || cp === "ascii-translit" || cp === "bitmap") ? cp : "cp1250");
+                          setNapravEditAiSvetovalecAktiven((n.terminalConfig as any)?.aiSvetovalecAktiven ?? false);
                           setNapravEditDialogOpen(true);
-                        }}><Pencil className="h-3.5 w-3.5" /></Button>
+                        }} title={n.id === trenutnaNaprava?.id ? "Uredi to napravo" : `Uredi ${n.ime || "napravo"}`}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={async () => {
                           await deleteNapravaMut.mutateAsync({ id: n.id });
                           await queryClient.invalidateQueries({ queryKey: getListNapraveQueryKey() });
@@ -3860,16 +4216,18 @@ export default function Settings() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </div>
           )}
         </CardContent>
       </Card>}
 
       {!jeSuperAdmin && <Dialog open={napravEditDialogOpen} onOpenChange={setNapravEditDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] flex flex-col gap-0 w-full max-w-[min(32rem,calc(100vw-1rem))]">
+          <DialogHeader className="shrink-0 pb-2">
             <DialogTitle>Uredi napravo</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
             <div className="space-y-1.5">
               <Label htmlFor="naprav-ime">Ime naprave</Label>
               <Input id="naprav-ime" value={napravEditIme} onChange={e => setNapravEditIme(e.target.value)} placeholder="npr. Blagajna 1" />
@@ -3936,7 +4294,61 @@ export default function Settings() {
               />
               <p className="text-xs text-muted-foreground">Ukazi z nižjim zaupanjem se zavrnejo. Privzeto: 50%.</p>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="space-y-1.5">
+              <Label>Vezani tiskalnik</Label>
+              <Select
+                value={napravEditJeWindows ? "windows" : napravEditTiskalnikSirina == null ? "auto" : String(napravEditTiskalnikSirina)}
+                onValueChange={v => {
+                  if (v === "windows") { setNapravEditJeWindows(true); setNapravEditTiskalnikSirina(null); }
+                  else { setNapravEditJeWindows(false); setNapravEditTiskalnikSirina(v === "auto" ? null : Number(v) as 30 | 32 | 58 | 80); }
+                }}
+              >
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-w-[calc(100vw-3rem)]">
+                  <SelectItem value="auto">Samodejno zaznaj</SelectItem>
+                  <SelectItem value="58">ZCS Z92 — 58 mm (30 stolpcev)</SelectItem>
+                  <SelectItem value="32">BT PT210 — 58 mm (32 stolpcev)</SelectItem>
+                  <SelectItem value="80">80 mm (40 stolpcev) — NoryoxNB80 / BT most</SelectItem>
+                  <SelectItem value="30">NoryoxNB80 — 58 mm (30 stolpcev)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Določi kateri tiskalnik je pritrjen na to napravo. Ko je nastavljeno, tiskanje vedno
+                gre na pravi tiskalnik — brez zaznavanja, ki bi lahko izbralo napačnega.
+              </p>
+            </div>
+            {/* Kodna stran — skupna nastavitev za BT, omrežni in Windows agent tisk */}
+            <div className="space-y-1.5">
+              <Label>Kodna stran tiskalnika</Label>
+              <select
+                className="w-full border rounded px-2 py-1.5 text-sm bg-background"
+                value={napravEditCodePage}
+                onChange={e => setNapravEditCodePage(e.target.value as "cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap")}
+              >
+                <option value="cp1250">Windows-1250 n=45 (privzeto)</option>
+                <option value="wpc1250">WPC1250 n=12 — Q10 Back Clip, starejša HW</option>
+                <option value="cp852">OEM 852 n=18 — Latin-2, CP852</option>
+                <option value="ascii-translit">Brez šumnikov — transliteracija (č→c, €→EUR)</option>
+                <option value="bitmap">Slikovni izpis (pravi čšž in €, počasnejši)</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Velja za vse načine tiskanja (Bluetooth, omrežni, Windows agent).
+                Če tiskalnik ne prikaže čšž/€: poskusi WPC1250 n=12, nato OEM 852, nato transliteracijo.
+              </p>
+            </div>
+            
+            <div className="flex flex-row items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label>AI Svetovalec</Label>
+                <p className="text-[10px] text-muted-foreground">
+                  Nevsiljiv pomočnik pri naročilih in blagajni
+                </p>
+              </div>
+              <Switch checked={napravEditAiSvetovalecAktiven} onCheckedChange={setNapravEditAiSvetovalecAktiven} />
+            </div>
+            
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 pt-4 mt-2 border-t">
               <Button variant="outline" onClick={() => setNapravEditDialogOpen(false)}>Prekliči</Button>
               <Button disabled={updateNapravaMut.isPending} onClick={async () => {
                 if (!editingNaprava) return;
@@ -3947,20 +4359,36 @@ export default function Settings() {
                     placilniTerminal: napravEditTerminal === "__global__" ? null : napravEditTerminal,
                     dovoljeneMize: napravEditDovoljeneMize.length > 0 ? napravEditDovoljeneMize : null,
                     glasovniPragZaupanja: napravEditPragZaupanja,
-                  }
+                    tiskalnikSirina: napravEditJeWindows ? undefined : napravEditTiskalnikSirina, // null = samodejno (izbriše ključ v backendovem merge)
+                    tiskalnikTip: napravEditJeWindows ? "windows" : null,  // null = počisti (ne-Windows)
+                    tiskalnikCodePage: napravEditCodePage as "cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap",
+                    aiSvetovalecAktiven: napravEditAiSvetovalecAktiven,
+                  } as any
                 });
                 await queryClient.invalidateQueries({ queryKey: getListNapraveQueryKey() });
                 await refreshNaprava();
                 setNapravEditDialogOpen(false);
                 toast({ title: "Naprava posodobljena" });
               }}>{updateNapravaMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}&nbsp;Shrani</Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* ═══ 4 · Plačilni terminali ═══════════════════════════════════ */}
+            {!jeSuperAdmin && nsSec(["ns-terminal","ns-sumup","ns-viva"]) && (
+              <AccordionItem value="sek-terminali" id="sek-terminali" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4 shrink-0" />Plačilni terminali</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
 
       {/* ── Payten terminal ───────────────────────────────────── */}
-      {!jeSuperAdmin && (<>
+       {!jeSuperAdmin && (<>
       <Card id="ns-terminal">
         <CardHeader>
           <CardTitle>Payten POS Terminal</CardTitle>
@@ -4069,23 +4497,23 @@ export default function Settings() {
           </div>
           {paytenAndroidAktiven && (
             <div className="space-y-2">
-              <Label htmlFor="payten-android-package">Package Name APK-ja</Label>
-              <Input
-                id="payten-android-package"
-                value={paytenAndroidPackageName}
-                onChange={e => setPaytenAndroidPackageName(e.target.value)}
-                placeholder="com.payten.mpos"
-                className="max-w-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Android package name Payten aplikacije (privzeto: <code>com.payten.mpos</code>).
-                Pridobite ga iz Payten dokumentacije ali s strani APK-ja.
-              </p>
+              {(jeAdmin || jeAdminEnote) && (
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant="outline" onClick={handlePairPaytenBridge} disabled={paytenBridgePairing}>
+                    {paytenBridgePairing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <KeyRound className="w-4 h-4 mr-2" />}
+                    Spari Bookie Bridge
+                  </Button>
+                  {(trenutnaNaprava?.terminalConfig as any)?.paytenBridgePaired && (
+                    <Badge variant="secondary">Sparjen ključ: {(trenutnaNaprava?.terminalConfig as any)?.paytenBridgeKeyId}</Badge>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Uradni native Bookie Bridge upravlja paket in podpisni ključ; ročna nastavitev Android paketa ni dovoljena.</p>
             </div>
           )}
         </CardContent>
       </Card>
-      </>)}
+       </>)}
 
       {/* ── SumUp terminal ────────────────────────────────────── */}
       {!jeSuperAdmin && (<>
@@ -4121,23 +4549,14 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label>API ključ (osebni dostopni žeton)</Label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={sumupPokaziApiKey ? "text" : "password"}
+                  <div className="flex-1">
+                    <SecretInput
+                      id="sumup-access-value"
                       placeholder={sumupApiKeyNastavljen ? "••••••••••••••••••••••• (nastavljen)" : "sup_sk_..."}
                       value={sumupNovApiKey}
                       onChange={e => setSumupNovApiKey(e.target.value)}
                       disabled={!sumupAktiven}
-                      className="pr-10"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setSumupPokaziApiKey(v => !v)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      tabIndex={-1}
-                    >
-                      {sumupPokaziApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
                   </div>
                 </div>
                 {sumupApiKeyNastavljen && !sumupNovApiKey && (
@@ -4177,9 +4596,9 @@ export default function Settings() {
       {!jeSuperAdmin && (<>
       <Card id="ns-viva">
         <CardHeader>
-          <CardTitle>Viva Wallet Smart Checkout</CardTitle>
+          <CardTitle>Viva.com plačila</CardTitle>
           <CardDescription>
-            Nastavitve za plačila prek Viva Wallet Smart Checkout QR kode.
+            Nastavitve za Viva Smart Checkout, fizični terminal, Android Terminal in Tap to Pay.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -4189,7 +4608,7 @@ export default function Settings() {
             <>
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <Label className="text-base font-semibold">Viva Wallet aktiven</Label>
+                  <Label className="text-base font-semibold">Viva Smart Checkout aktiven</Label>
                   <p className="text-sm text-muted-foreground">
                     Ko je vklopljeno, se kartična plačila opravijo prek Viva Wallet QR kode.
                     {(nastavitve as Nastavitve & { terminalAktiven?: boolean; sumupAktiven?: boolean })?.terminalAktiven && (
@@ -4277,12 +4696,35 @@ export default function Settings() {
                   </p>
                 </div>
               )}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Bookie Viva Bridge — Android APK</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Namestite na vsako Android napravo, na kateri uporabljate Viva Android Terminal.
+                    Ta različica je univerzalna in deluje na ARM 32-bitnih in ARM 64-bitnih napravah.
+                    Isti most podpira demo in produkcijsko okolje; izbiro določite spodaj z nastavitvijo »Demo način«.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a href={`${base}/api/downloads/BookieVivaBridge.apk`} download="BookieVivaBridge.apk">
+                    <Button type="button" size="sm" className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Prenesi Viva Bridge
+                      <span className="text-xs opacity-70 font-normal">v1.1.0</span>
+                    </Button>
+                  </a>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Po prenosu odprite datoteko v mapi Prenosi in potrdite namestitev.
+                  Če Android napiše »Aplikacija ni nameščena«, najprej odstranite stari Bookie Viva Bridge in nato namestite preneseni APK.
+                </p>
+              </div>
               <Separator className="my-2" />
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label className="text-base font-semibold">Viva Tap to Pay (ista naprava)</Label>
                   <p className="text-sm text-muted-foreground">
-                    SoftPOS — NFC-sposoben Android telefon/tablica neposredno bere kontaktno plačilo stranke (Android 9+, NFC, Google Play).
+                    Tap on Any Device — Viva Terminal aplikacija na isti NFC napravi (Android 8.1+, NFC). Plačilo se začne prek Android inter-app protokola, Bookie pa rezultat pred izdajo računa še preveri pri Viva API-ju.
                     {(nastavitve as Nastavitve & { terminalAktiven?: boolean })?.terminalAktiven && (
                       <span className="text-amber-600 ml-1">⚠ Payten terminal je aktiven — Tap to Pay bo prezrt.</span>
                     )}
@@ -4313,16 +4755,16 @@ export default function Settings() {
                     className="max-w-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Source Code ali POS ID iz Viva.com Merchant portala (neobvezno).
-                    Viva Terminal APK mora biti namesčen na isti napravi in podpirati SoftPOS način.
+                     Source Code ali POS ID iz Viva.com Merchant portala (neobvezno).
+                     Namestite Viva.com Terminal DEMO ali produkcijsko aplikacijo na isto napravo. Demo in produkcijski račun/aplikacija sta ločena; refund/storno preizkusite šele v podprtem produkcijskem okolju.
                   </p>
                 </div>
               )}
               <Separator className="my-2" />
-              {vivaAktiven && (
+              {(vivaAktiven || vivaTerminalAktiven || vivaAndroidTerminalAktiven || vivaTapToPayAktiven) && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="viva-client-id">Client ID</Label>
+                    <Label htmlFor="viva-client-id">Viva Client ID podjetja — Pametne poverilnice za blagajno</Label>
                     <Input
                       id="viva-client-id"
                       value={vivaClientId}
@@ -4331,34 +4773,24 @@ export default function Settings() {
                       className="max-w-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Client ID iz Viva Wallet Developer portala (API Credentials → Smart Checkout).
+                      Vnesite »ID naročnika« iz istoimenskega razdelka v Viva portalu.
+                      Skrbnik ga vnese enkrat; uporablja se na vseh POS napravah istega podjetja.
                     </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="viva-client-secret">
-                      Client Secret
+                      Viva Client Secret podjetja — Pametne poverilnice za blagajno
                       {vivaClientSecretNastavljen && (
                         <span className="ml-2 text-xs font-normal text-green-600">✓ nastavljeno</span>
                       )}
                     </Label>
-                    <div className="relative max-w-sm">
-                      <Input
-                        id="viva-client-secret"
-                        type={vivaPokaziSecret ? "text" : "password"}
+                    <div className="max-w-sm">
+                      <SecretInput
+                        id="viva-client-credential"
                         value={vivaNovClientSecret}
                         onChange={e => setVivaNovClientSecret(e.target.value)}
                         placeholder={vivaClientSecretNastavljen ? "Pustite prazno za ohranitev" : "Vnesite Client Secret"}
-                        className="pr-10"
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setVivaPokaziSecret(v => !v)}
-                      >
-                        {vivaPokaziSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Client Secret iz Viva Wallet Developer portala.
@@ -4399,7 +4831,10 @@ export default function Settings() {
 
       {/* ── Gumb za shranjevanje terminalnih nastavitev ── */}
       {!jeSuperAdmin && (
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-1.5">
+          <p className="text-xs text-muted-foreground text-right">
+            Shrani nastavitve plačilnih terminalov (Payten, SumUp, Viva) za to napravo.
+          </p>
           <Button
             size="lg"
             className="w-full sm:w-auto"
@@ -4410,6 +4845,520 @@ export default function Settings() {
             {updateNapraveTerminali.isPending ? "Shranjujem..." : "Potrdi spremembe"}
           </Button>
         </div>
+      )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* ═══ 5 · Povezave s tiskalniki ════════════════════════════════ */}
+            {!jeSuperAdmin && nsSec(["ns-android-tiskalnik","ns-agent","ns-scanner-bridge"]) && (
+              <AccordionItem value="sek-tiskalniki" id="sek-tiskalniki" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><Printer className="h-4 w-4 shrink-0" />Povezave s tiskalniki</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
+      {/* ── POS Android tiskalnik ─────────────────────────────── */}
+      {!jeSuperAdmin && !navigator.userAgent.includes("Windows") && (
+        <Card id="ns-android-tiskalnik">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Printer className="w-4 h-4" />
+              POS Android tiskalnik
+            </CardTitle>
+            <CardDescription>
+              Nastavitve za vgrajen termalni tiskalnik na tej Android napravi (ZCS Z92, NoryoxNB80 ali BT tiskalnik).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 text-sm">
+
+            {/* Model tiskalnika */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Model tiskalnika</Label>
+              <p className="text-xs text-muted-foreground">
+                Izberite model vgrajenega tiskalnika. Vpliva na število stolpcev na računu
+                (ZCS/NB80 58mm = 30 kol., BT 58mm = 32 kol., 80mm = 40 kol.).
+              </p>
+              <select
+                className="w-full border rounded px-2 py-1 text-sm bg-background"
+                value={tiskalnikSirina}
+                onChange={e => {
+                  const v = Number(e.target.value) as 30 | 32 | 58 | 80;
+                  setTiskalnikSirina(v);
+                  updateNapraveTerminali.mutate({ data: { tiskalnikSirina: v } }, {
+                    onSuccess: () => { updateTerminalConfig({ tiskalnikSirina: v }); toast({ title: `Širina tiskalnika nastavljena na ${v} mm` }); },
+                    onError: () => toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" }),
+                  });
+                }}
+              >
+                <option value={58}>58 mm (30 stolpcev) — ZCS Z92</option>
+                <option value={32}>58 mm (32 stolpcev) — BT tiskalnik (58mm)</option>
+                <option value={30}>58 mm (30 stolpcev) — NoryoxNB80</option>
+                <option value={80}>80 mm (40 stolpcev) — NoryoxNB80 ali BT tiskalnik</option>
+              </select>
+            </div>
+
+            <hr className="border-border" />
+
+            {/* Prenos tiskalniškega mosta */}
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Tiskalni most — Android APK</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Most poveže POS aplikacijo z vgrajenim tiskalnikom prek lokalnega HTTP strežnika na tej napravi.
+                  Namestite APK, ki ustreza vašemu modelu tiskalnika.
+                </p>
+              </div>
+
+              {/* Gumbi za prenos */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                {(tiskalnikSirina === 58) && (
+                  <a className="w-full sm:w-auto" href={`${base}/api/downloads/ZcsPrinterBridge.apk`} download="ZcsPrinterBridge.apk">
+                    <Button type="button" size="sm" className="w-full sm:w-auto h-auto min-h-9 justify-start !whitespace-normal text-left gap-2">
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span className="min-w-0 break-words">ZcsPrinterBridge.apk <span className="text-xs opacity-70 font-normal">ZCS Z92</span></span>
+                    </Button>
+                  </a>
+                )}
+                {(tiskalnikSirina === 32 || tiskalnikSirina === 80) && (
+                  <a className="w-full sm:w-auto" href={`${base}/api/downloads/BtTiskalniMost.apk`} download="BtTiskalniMost.apk">
+                    <Button type="button" size="sm" className="w-full sm:w-auto h-auto min-h-9 justify-start !whitespace-normal text-left gap-2">
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span className="min-w-0 break-words">BtTiskalniMost.apk <span className="text-xs opacity-70 font-normal">BT most ({tiskalnikSirina === 80 ? "80mm" : "58mm"})</span></span>
+                    </Button>
+                  </a>
+                )}
+                {(tiskalnikSirina === 30 || tiskalnikSirina === 80) && (
+                  <a className="w-full sm:w-auto" href={`${base}/api/downloads/NoryoxNB80Bridge.apk`} download="NoryoxNB80Bridge.apk">
+                    <Button type="button" size="sm" className="w-full sm:w-auto h-auto min-h-9 justify-start !whitespace-normal text-left gap-2">
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span className="min-w-0 break-words">NoryoxNB80Bridge.apk <span className="text-xs opacity-70 font-normal">NoryoxNB80</span></span>
+                    </Button>
+                  </a>
+                )}
+              </div>
+
+              {/* Navodila za namestitev */}
+              <div className="space-y-2 pt-1">
+                <p className="text-xs font-semibold text-foreground">Namestitev mosta</p>
+                <ol className="space-y-1.5 text-xs text-muted-foreground list-none">
+                  <li className="flex gap-2">
+                    <span className="shrink-0 font-semibold text-foreground/60 w-4">1.</span>
+                    <span>Tapnite gumb za prenos APK zgoraj. Datoteka se prenese v mapo <code className="bg-muted px-1 rounded">Prenosi</code>.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="shrink-0 font-semibold text-foreground/60 w-4">2.</span>
+                    <span>Odprite <strong>Prenosi</strong> (ali upravljalnik datotek) in tapnite na preneseni APK.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="shrink-0 font-semibold text-foreground/60 w-4">3.</span>
+                    <span>Ob prvem zagonu Android vpraša za dovoljenje <em>»Namestitev iz neznanih virov«</em> — dovolite za brskalnik. To se zgodi samo enkrat.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="shrink-0 font-semibold text-foreground/60 w-4">4.</span>
+                    <span>Tapnite <strong>Namesti</strong> in po namestitvi <strong>Odpri</strong>.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="shrink-0 font-semibold text-foreground/60 w-4">5.</span>
+                    <span>Zaslon prikaže <em>»HTTP strežnik: aktiven · Tiskalnik: AIDL povezan ✓«</em> — most je pripravljen.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="shrink-0 font-semibold text-foreground/60 w-4">6.</span>
+                    <span><strong>Minimizirajte</strong> aplikacijo mosta (ne zapirajte). V POS izberite ustrezen Android most v meniju tiskanja.</span>
+                  </li>
+                </ol>
+              </div>
+
+              {/* Napredne informacije */}
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Napredne informacije</summary>
+                <div className="mt-2 space-y-1 text-muted-foreground">
+                  <p>ZcsPrinterBridge in BtTiskalniMost poslušata na <code className="bg-muted px-1 rounded">http://localhost:8090</code></p>
+                  <p>NoryoxNB80Bridge posluša na <code className="bg-muted px-1 rounded">http://localhost:8091</code></p>
+                  <p>Most je dostopen samo z lokalne naprave (localhost). CORS je omogočen za vse izvore.</p>
+                  <p>Obe aplikaciji se samodejno zaženeta ob ponovnem zagonu naprave (avtostart).</p>
+                </div>
+              </details>
+            </div>
+
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Windows tiskalni agent ──────────────────────────── */}
+      {!jeSuperAdmin && navigator.userAgent.includes("Windows") && (<Card id="ns-agent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Printer className="w-4 h-4" />
+            Windows tiskalni agent
+          </CardTitle>
+          <CardDescription>
+            Enostavno tihо tiskanje na USB termalni tiskalnik — brez certifikatov in QZ Tray nastavitev.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          {nastavitve?.agentTiskalnikToken ? (
+            <>
+              {/* Korak 1 — ime tiskalnika */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">1. Ime Windows tiskalnika</Label>
+                <p className="text-xs text-muted-foreground">
+                  V PowerShell zaženite <code className="bg-muted px-1 rounded">Get-WmiObject Win32_Printer | Select-Object Name</code> in vpišite točno ime (npr. <code>POS-58</code>).
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={agentTiskalnikIme}
+                    onChange={e => setAgentTiskalnikIme(e.target.value)}
+                    placeholder="npr. POS-58"
+                    className="text-sm font-mono"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => updateNapraveTerminali.mutate({ data: { agentTiskalnikIme } }, {
+                      onSuccess: () => { updateTerminalConfig({ agentTiskalnikIme }); toast({ title: "Ime tiskalnika shranjeno" }); },
+                      onError: () => toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" }),
+                    })}
+                    disabled={updateNapraveTerminali.isPending || !agentTiskalnikIme.trim()}
+                  >
+                    {updateNapraveTerminali.isPending ? "Shranjujem…" : "Shrani"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Širina tiskalnika */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">2. Širina in kodna stran tiskalnika</Label>
+                <p className="text-xs text-muted-foreground">
+                  Izberite širino papirja in kodna stran, nastavljeno v tiskalniku. Kodna stran določa pravilno tiskanje znakov č, š, ž.
+                  Preverite jo v nastavitvah tiskalnika (tipično OEM 852 ali Windows-1250).
+                </p>
+                <div className="flex gap-3 flex-wrap items-center">
+                  <select
+                    className="border rounded px-2 py-1 text-sm bg-background"
+                    value={tiskalnikSirina}
+                    onChange={e => {
+                      const v = Number(e.target.value) as 58 | 80;
+                      setTiskalnikSirina(v);
+                      updateNapraveTerminali.mutate({ data: { tiskalnikSirina: v } }, {
+                        onSuccess: () => { updateTerminalConfig({ tiskalnikSirina: v }); toast({ title: `Širina tiskalnika nastavljena na ${v} mm` }); },
+                        onError: () => toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" }),
+                      });
+                    }}
+                  >
+                    <option value={58}>58 mm (32 stolpcev)</option>
+                    <option value={80}>80 mm (40 stolpcev)</option>
+                  </select>
+                  <select
+                    className="border rounded px-2 py-1 text-sm bg-background"
+                    value={tiskalnikCodePage}
+                    onChange={e => {
+                      const v = e.target.value as "cp1250" | "wpc1250" | "cp852" | "ascii-translit" | "bitmap";
+                      setTiskalnikCodePage(v);
+                      updateNapraveTerminali.mutate({ data: { tiskalnikCodePage: v } }, {
+                        onSuccess: () => { updateTerminalConfig({ tiskalnikCodePage: v }); toast({ title: `Kodna stran nastavljena na ${v === "cp852" ? "OEM 852" : v === "wpc1250" ? "WPC1250 (n=12)" : v === "ascii-translit" ? "Transliteracija (brez šumnikov)" : v === "bitmap" ? "Slikovni izpis" : "Windows-1250 (n=45)"}` }); },
+                        onError: () => toast({ title: "Napaka", description: "Nastavitve ni bilo mogoče shraniti.", variant: "destructive" }),
+                      });
+                    }}
+                  >
+                    <option value="cp1250">Windows-1250 n=45 (privzeto)</option>
+                    <option value="wpc1250">WPC1250 n=12 (starejša HW)</option>
+                    <option value="cp852">OEM 852 n=18 (Latin-2, CP852)</option>
+                    <option value="ascii-translit">Brez šumnikov (transliteracija + EUR)</option>
+                    <option value="bitmap">Slikovni izpis (pravi čšž in €, počasnejši)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Korak 3 — prenos skripte */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">3. Prenesite in zaženite agent</Label>
+                <p className="text-xs text-muted-foreground">
+                  Prenesite <strong>obe datoteki</strong> in ju shranite v isto mapo (npr. <code className="bg-muted px-1 rounded">C:\POS\</code>).
+                  Nato <strong>dvokliknite <code className="bg-muted px-1 rounded">pozeni-agent.bat</code></strong> — agent se zažene brez varnostnih pozivov
+                  in se samodejno vpiše v <strong>Startup mapo</strong> za samodejni zagon ob vsaki prijavi.
+                </p>
+                {agentTiskalnikIme.trim() ? (
+                  <div className="flex gap-2 flex-wrap">
+                    <a
+                      href={`${base}/api/print/agent/skript.ps1?token=${encodeURIComponent(nastavitve.agentTiskalnikToken ?? "")}&printer=${encodeURIComponent(agentTiskalnikIme)}&apiBase=${encodeURIComponent(window.location.origin + base + "/api/print/agent")}`}
+                      download="pos-tiskalnik.ps1"
+                      className="inline-flex"
+                    >
+                      <Button type="button" size="sm" variant="outline" className="gap-2">
+                        <Printer className="w-4 h-4" />
+                        1. pos-tiskalnik.ps1
+                      </Button>
+                    </a>
+                    <a href={`${base}/api/print/agent/pozeni.bat`} download="pozeni-agent.bat" className="inline-flex">
+                      <Button type="button" size="sm" className="gap-2">
+                        <Printer className="w-4 h-4" />
+                        2. pozeni-agent.bat
+                      </Button>
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-600 font-medium">⚠ Najprej vpišite in shranite ime tiskalnika (korak 1)</p>
+                )}
+
+              </div>
+
+            </>
+          ) : (
+            <p className="text-muted-foreground text-xs">Nalagam žeton…</p>
+          )}
+        </CardContent>
+      </Card>)}
+
+      {/* ── Scanner Bridge ───────────────────────────────────── */}
+      {!jeSuperAdmin && navigator.userAgent.includes("Windows") && (
+      <Card id="ns-scanner-bridge">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Scanner Bridge — HP optični čitalnik
+          </CardTitle>
+          <CardDescription>
+            Lokalni servis, ki poveže POS aplikacijo z WIA-združljivim optičnim čitalnikom za skeniranje dobavnic in dokumentov.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+
+          {/* Status */}
+          <div className="flex items-center gap-3">
+            {scannerBridgeStatus === "checking" && (
+              <><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Preverjam…</span></>
+            )}
+            {scannerBridgeStatus === "ok" && (
+              <><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span className="text-emerald-700 font-medium">Bridge teče{scannerBridgeVersion ? ` (v${scannerBridgeVersion})` : ""}</span></>
+            )}
+            {scannerBridgeStatus === "offline" && (
+              <><WifiOff className="w-4 h-4 text-red-500" /><span className="text-red-600">Bridge ne teče — zaženite ScannerBridge.exe</span></>
+            )}
+            {scannerBridgeStatus === "idle" && (
+              <><Wifi className="w-4 h-4 text-muted-foreground" /><span className="text-muted-foreground">Status nepreverjen</span></>
+            )}
+            <Button type="button" size="sm" variant="outline" className="ml-auto gap-1.5"
+              onClick={checkScannerBridge}
+              disabled={scannerBridgeStatus === "checking"}>
+              <RefreshCw className={`w-3.5 h-3.5 ${scannerBridgeStatus === "checking" ? "animate-spin" : ""}`} />
+              Preveri
+            </Button>
+          </div>
+
+          {/* Navodila */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-foreground">1. Prenesite ScannerBridge.exe</p>
+              <p className="text-xs text-muted-foreground">
+                Enkratna datoteka — Python ni potreben. Shranite jo kamorkoli (npr. <code className="bg-muted px-1 rounded">C:\Programi\ScannerBridge\</code>).
+              </p>
+              <a href={`${base}/api/downloads/ScannerBridge.exe`} download="ScannerBridge.exe" className="inline-flex">
+                <Button type="button" size="sm" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  ScannerBridge.exe
+                </Button>
+              </a>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-foreground">2. Zaženite ScannerBridge.exe</p>
+              <p className="text-xs text-muted-foreground">
+                Ob prvem zagonu Windows prikaže opozorilo SmartScreen (<em>»Windows je zaščitil računalnik«</em>) — kliknite <strong>Več informacij → Vseeno zaženi</strong>. To se zgodi enkrat.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Nato se ikona pojavi v sistemski vrstici (tray) in bridge se
+                <strong> samodejno vpiše v Windows autostart</strong> —
+                naslednjič se zažene sam ob prijavi.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-foreground">3. Preverite povezavo</p>
+              <p className="text-xs text-muted-foreground">
+                Kliknite <em>Preveri</em> zgoraj — zelena oznaka pomeni, da je bridge dosegljiv in pripravljen za skeniranje.
+              </p>
+            </div>
+          </div>
+
+          {/* Napredne informacije */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Napredne informacije</summary>
+            <div className="mt-2 space-y-1 text-muted-foreground">
+              <p>Bridge posluša na <code className="bg-muted px-1 rounded">http://127.0.0.1:8765</code> — dostopen je samo z lokalne naprave.</p>
+              <p>Autostart vnos: <code className="bg-muted px-1 rounded">HKCU\Software\Microsoft\Windows\CurrentVersion\Run → ScannerBridge</code></p>
+              <p>Odstranitev avtostarta: <code className="bg-muted px-1 rounded">ScannerBridge.exe --uninstall</code></p>
+            </div>
+          </details>
+
+        </CardContent>
+      </Card>)}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* ═══ 5 · POS vedenje ══════════════════════════════════════════ */}
+            {(jeAdmin || jeAdminEnote) && nsSec(["ns-happy-hour","ns-zaloge","ns-prikaz","ns-izredni-pin","ns-ddv-razresev"]) && (
+              <AccordionItem value="sek-vedenje" id="sek-vedenje" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><Store className="h-4 w-4 shrink-0" />POS vedenje</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
+      {(jeAdmin || jeAdminEnote) && !jeSuperAdmin && (<>
+      {/* ── Happy Hour ──────────────────────────────────────────── */}
+      <div id="ns-happy-hour">
+        <HappyHourSettings />
+      </div>
+
+      {/* ── Zaloge ──────────────────────────────────────────────── */}
+      <Card id="ns-zaloge">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>📦 Zaloge</span>
+          </CardTitle>
+          <CardDescription>Nastavitve za upravljanje s zalogami.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-lg border p-3 space-y-3">
+            <div>
+              <p className="font-medium">Velikosti pic</p>
+              <p className="text-sm text-muted-foreground">Vnesite premere v cm. Če so vsi 0, se pice v enoti ne prodajajo.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[["Mala", picaPremerMala, setPicaPremerMala], ["Normalna", picaPremerNormalna, setPicaPremerNormalna], ["Družinska", picaPremerDruzinska, setPicaPremerDruzinska]].map(([naziv, vrednost, setVrednost]) => (
+                <div key={naziv as string} className="space-y-1">
+                  <Label>{naziv as string} (cm)</Label>
+                  <Input type="number" min="0" max="100" step="0.5" value={vrednost as number} onChange={(event) => (setVrednost as (v: number) => void)(Math.max(0, Number(event.target.value) || 0))} />
+                  {(vrednost as number) > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Koeficient normativa: <span className="font-semibold text-foreground">×{pizzaKoeficient(vrednost as number)?.toFixed(4).replace(".", ",")}</span>
+                      {(vrednost as number) === pizzaNormativnaOsnova && " (osnova)"}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Velikost ni aktivna.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className={`flex items-center justify-between rounded-lg border p-3 ${!dovoliNegativneZaloge ? "border-amber-300 bg-amber-50" : ""}`}>
+            <div>
+              <p className="text-sm font-medium">Dovoli negativne zaloge</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {dovoliNegativneZaloge
+                  ? "Vklopljeno — prodaja, izdaja in brisanje prejemnic niso blokirani, tudi če zaloga pade pod nič."
+                  : "Izklopljeno — transakcija, ki bi povzročila negativno zalogo, se zavrne z napako."}
+              </p>
+            </div>
+            <Switch checked={dovoliNegativneZaloge} onCheckedChange={setDovoliNegativneZaloge} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Prikaz naročil ──────────────────────────────────────── */}
+      <Card id="ns-prikaz">
+        <CardHeader>
+          <CardTitle>Prikaz naročil</CardTitle>
+          <CardDescription>Način združevanja podobnih artiklov v meniju naročila.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(["novo", "staro", "izklopljeno"] as const).map(nacin => {
+            const labels: Record<string, { naziv: string; opis: string }> = {
+              novo:        { naziv: "Novi sistem (drsni panel)", opis: "Variante se odprejo v drsnem panelu od spodaj — velik, jasen prikaz s cenami in razlikovalnim opisom. Priporočeno." },
+              staro:       { naziv: "Stari sistem (mali popover)", opis: "Variante se pokažejo v majhnem oblačičku nad gumbom — kompaktno, brez drsenja." },
+              izklopljeno: { naziv: "Izklopljeno", opis: "Vse artikle prikaži ločeno — brez združevanja podobnih imen." },
+            };
+            const l = labels[nacin]!;
+            return (
+              <label
+                key={nacin}
+                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${grupiranjeNacin === nacin ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+              >
+                <input
+                  type="radio"
+                  name="grupiranjeNacin"
+                  value={nacin}
+                  checked={grupiranjeNacin === nacin}
+                  onChange={() => setGrupiranjeNacin(nacin)}
+                  className="mt-0.5 accent-primary"
+                />
+                <div>
+                  <p className="text-sm font-medium">{l.naziv}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{l.opis}</p>
+                </div>
+              </label>
+            );
+          })}
+        </CardContent>
+        {jeAdminEnote && !jeAdmin && (
+          <CardFooter className="justify-end border-t pt-4">
+            <Button
+              size="sm"
+              onClick={handleSaveGrupiranje}
+              disabled={grupiranjeNacinShranjujem}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {grupiranjeNacinShranjujem ? "Shranjujem..." : "Shrani prikaz naročil"}
+            </Button>
+          </CardFooter>
+        )}
+      </Card>
+      </>)}
+
+      {/* ── DDV razreševalnik (topla pijača to-go) ──────────────────── */}
+      {jeAdmin && (
+        <Card id="ns-ddv-razresev">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />DDV razreševalnik — topla pijača za s seboj
+            </CardTitle>
+            <CardDescription>
+              Pravilo za DDV stopnjo tople pijače brez dodanega sladkorja (npr. nesladkan čaj, kava brez sladkorja) pri naročilih "za s seboj".
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="toGoTopli"
+                    value="konservativno"
+                    checked={toGoTopliNapitekStopnja === "konservativno"}
+                    onChange={() => setToGoTopliNapitekStopnja("konservativno")}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">22 % — konservativno</div>
+                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči enako kot pri mizi — 22 %. Privzeta nastavitev; varnejša do izrecnega pojasnila FURS.</div>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input
+                    type="radio"
+                    name="toGoTopli"
+                    value="liberalno"
+                    checked={toGoTopliNapitekStopnja === "liberalno"}
+                    onChange={() => setToGoTopliNapitekStopnja("liberalno")}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">9,5 % — nova ureditev (od 2025)</div>
+                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči z 9,5 % (dobava blaga, enako kot hrana). Velja izključno za ta primer — na noben drug artikel nima vpliva.</div>
+                  </div>
+                </label>
+              </div>
+              <Button size="sm" onClick={handleSaveToGoTopli} disabled={toGoTopliShranjujem}>
+                {toGoTopliShranjujem
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem…</>
+                  : <><Save className="h-4 w-4 mr-2" />Shrani nastavitev</>}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── Skrbniški PIN za izredno izdajo ─────────────────────── */}
@@ -4505,25 +5454,112 @@ export default function Settings() {
           </Card>
         </Collapsible>
       )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-      {/* ── Save button (samo admin) ───────────────────────────── */}
-      {jeAdmin && (
-        <div className="flex justify-end">
-          <Button
-            size="lg"
-            className="w-full sm:w-auto"
-            onClick={handleSaveNastavitve}
-            disabled={nastavitveLoading || updateNastavitve.isPending}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {updateNastavitve.isPending ? "Shranjujem..." : "Shrani vse nastavitve"}
-          </Button>
-        </div>
+            {/* ═══ 6 · Sistem (samo superadmin) ════════════════════════════ */}
+            {jeSuperAdmin && nsSec(["ns-smtp","ns-ddv-stopnje","ns-testi"]) && (
+              <AccordionItem value="sek-sistem" id="sek-sistem" className="border rounded-lg overflow-hidden">
+                <AccordionTrigger className="px-4 py-3.5 text-sm font-semibold hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30 min-h-[44px]">
+                  <span className="flex items-center gap-2"><Database className="h-4 w-4 shrink-0" />Sistem</span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="space-y-4 p-4 pt-2">
+      {/* ── SMTP e-pošta ──────────────────────────────────────── */}
+      {jeSuperAdmin && (
+        <Card id="ns-smtp">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />E-pošta (SMTP)</CardTitle>
+            <CardDescription>
+              Ko je SMTP konfiguriran in aktiven, sistem samodejno pošlje zaposlenim začasno geslo ob resetu računa.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="font-medium text-sm">Pošiljanje e-pošte aktivirano</p>
+                <p className="text-xs text-muted-foreground">Ko je izklopljeno, se e-pošta ne pošilja — geslo sporočite ročno.</p>
+              </div>
+              <Switch checked={smtpAktiven} onCheckedChange={setSmtpAktiven} />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2 space-y-2">
+                <Label>SMTP strežnik</Label>
+                <Input placeholder="smtp.gmail.com" value={smtpHost} onChange={e => setSmtpHost(e.target.value)} disabled={!smtpAktiven} />
+              </div>
+              <div className="space-y-2">
+                <Label>Vrata</Label>
+                <Input type="number" placeholder="587" value={smtpPort} onChange={e => setSmtpPort(e.target.value)} disabled={!smtpAktiven} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Uporabniško ime (SMTP)</Label>
+                <Input autoComplete="username" placeholder="pos@restavracija.si" value={smtpUser} onChange={e => setSmtpUser(e.target.value)} disabled={!smtpAktiven} />
+              </div>
+              <div className="space-y-2">
+                <Label>Geslo (SMTP)</Label>
+                {smtpGesloNastavljeno && !smtpNovGeslo && (
+                  <p className="text-xs text-green-700 font-medium">✓ Geslo je nastavljeno — pustite prazno, da ga obdržite</p>
+                )}
+                <div>
+                  <SecretInput
+                    id="smtp-credential-value"
+                    placeholder={smtpGesloNastavljeno ? "Novo geslo (pustite prazno za ohranitev)" : "geslo ali app password"}
+                    value={smtpNovGeslo}
+                    onChange={e => setSmtpNovGeslo(e.target.value)}
+                    disabled={!smtpAktiven}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 max-w-sm">
+              <Label>E-pošta pošiljatelja (From)</Label>
+              <Input type="email" placeholder="pos@restavracija.si" value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)} disabled={!smtpAktiven} />
+              <p className="text-xs text-muted-foreground">Naslov, ki se prikaže kot pošiljatelj v e-pošti.</p>
+            </div>
+
+            {smtpAktiven && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 space-y-1">
+                <p className="font-semibold">Nasveti za konfiguracijo:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-blue-700 text-xs">
+                  <li>Gmail: strežnik <code>smtp.gmail.com</code>, vrata <code>587</code>, uporabite App Password (ne navadnega gesla)</li>
+                  <li>Outlook/Office365: strežnik <code>smtp.office365.com</code>, vrata <code>587</code></li>
+                  <li>Nastavitve shranite s klikom na <strong>Shrani vse nastavitve</strong> spodaj.</li>
+                </ul>
+              </div>
+            )}
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Preizkus SMTP</p>
+                <p className="text-xs text-muted-foreground">Pošljite testno sporočilo, da preverite delovanje SMTP.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => { setSmtpTestRezultat(null); setSmtpTestPrejemnik(""); setSmtpTestDialogOpen(true); }}
+                disabled={!smtpGesloNastavljeno && !smtpNovGeslo}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Pošlji testno e-pošto
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── DDV stopnje (samo superadmin) ───────────────────────────── */}
       {jeSuperAdmin && (
-        <Card>
+        <Card id="ns-ddv-stopnje">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Percent className="h-5 w-5" />DDV stopnje
@@ -4569,59 +5605,6 @@ export default function Settings() {
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── DDV razreševalnik (topla pijača to-go) ──────────────────── */}
-      {jeAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Percent className="h-5 w-5" />DDV razreševalnik — topla pijača za s seboj
-            </CardTitle>
-            <CardDescription>
-              Pravilo za DDV stopnjo tople pijače brez dodanega sladkorja (npr. nesladkan čaj, kava brez sladkorja) pri naročilih "za s seboj".
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                  <input
-                    type="radio"
-                    name="toGoTopli"
-                    value="konservativno"
-                    checked={toGoTopliNapitekStopnja === "konservativno"}
-                    onChange={() => setToGoTopliNapitekStopnja("konservativno")}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <div className="font-medium text-sm">22 % — konservativno</div>
-                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči enako kot pri mizi — 22 %. Privzeta nastavitev; varnejša do izrecnega pojasnila FURS.</div>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer rounded-lg border p-3 hover:bg-muted/40 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                  <input
-                    type="radio"
-                    name="toGoTopli"
-                    value="liberalno"
-                    checked={toGoTopliNapitekStopnja === "liberalno"}
-                    onChange={() => setToGoTopliNapitekStopnja("liberalno")}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <div className="font-medium text-sm">9,5 % — nova ureditev (od 2025)</div>
-                    <div className="text-xs text-muted-foreground">Nesladkana topla pijača za s seboj se obdavči z 9,5 % (dobava blaga, enako kot hrana). Velja izključno za ta primer — na noben drug artikel nima vpliva.</div>
-                  </div>
-                </label>
-              </div>
-              <Button size="sm" onClick={handleSaveToGoTopli} disabled={toGoTopliShranjujem}>
-                {toGoTopliShranjujem
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem…</>
-                  : <><Save className="h-4 w-4 mr-2" />Shrani nastavitev</>}
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -4828,6 +5811,32 @@ export default function Settings() {
         </Card>
       )}
 
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+          </Accordion>
+
+          {/* ── Shrani vse nastavitve ──────────────────────────────────── */}
+      {/* ── Shrani vse splošne nastavitve (samo admin) ────────────── */}
+      {jeAdmin && (
+        <div className="flex flex-col items-end gap-1.5">
+          <p className="text-xs text-muted-foreground text-right">
+            Shrani vse splošne nastavitve podjetja: naziv, naslov, davčna številka, FURS certifikat, testni način in druge sistemske nastavitve.
+          </p>
+          <Button
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={handleSaveNastavitve}
+            disabled={nastavitveLoading || updateNastavitve.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {updateNastavitve.isPending ? "Shranjujem..." : "Shrani vse nastavitve"}
+          </Button>
+        </div>
+      )}
+
         </TabsContent>
       </Tabs>
 
@@ -4893,7 +5902,7 @@ export default function Settings() {
 
       {/* ── Edit enota dialog ─────────────────────────────────── */}
       <Dialog open={editEnotaOpen} onOpenChange={setEditEnotaOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Uredi poslovno enoto</DialogTitle>
           </DialogHeader>
@@ -4907,9 +5916,224 @@ export default function Settings() {
               <Input placeholder="npr. Osrednja restavracija" value={editEOpis} onChange={e => setEditEOpis(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Vrsta gostinskega obrata</Label>
+              <Select
+                value={editEProfile}
+                onValueChange={value => {
+                  const profile = value as HospitalityProfile;
+                  setEditEProfile(profile);
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(HOSPITALITY_PROFILES).map(([key, definition]) => (
+                    <SelectItem key={key} value={key}>{definition.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{HOSPITALITY_PROFILES[editEProfile].description}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Način strežbe</Label>
+              <Select value={editEServiceMode} onValueChange={value => setEditEServiceMode(value as ServiceMode)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SERVICE_MODE_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Funkcije te enote</Label>
+                  <p className="text-xs text-muted-foreground">Izbira določa namizni in mobilni levi meni za aktivno enoto.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const defaults = profileDefaults(editEProfile);
+                    setEditECapabilities(defaults.capabilities);
+                    setEditEIsTemporary(defaults.temporary ?? false);
+                    setEditEServiceMode(defaults.serviceMode);
+                  }}
+                >
+                  Ponastavi predlogo
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {ALL_UNIT_CAPABILITIES.map(capability => (
+                  <label key={capability} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                    <Switch
+                      checked={editECapabilities.includes(capability)}
+                      onCheckedChange={checked => setEditECapabilities(current =>
+                        checked
+                          ? [...new Set([...current, capability])]
+                          : current.filter(value => value !== capability),
+                      )}
+                    />
+                    <span>{CAPABILITY_LABELS[capability]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label>Začasna ali premična enota</Label>
+                  <p className="text-xs text-muted-foreground">Za veselice, stojnice, catering in mobilne ponudnike.</p>
+                </div>
+                <Switch checked={editEIsTemporary} onCheckedChange={setEditEIsTemporary} />
+              </div>
+              {editEIsTemporary && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Lokacija dogodka ali prodajnega mesta</Label>
+                    <Input
+                      value={editETemporaryLocation}
+                      onChange={event => setEditETemporaryLocation(event.target.value)}
+                      placeholder="npr. Glavni trg 1, Ljubljana – vzhodna stojnica"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Matična enota</Label>
+                    <Select value={editEParentUnitId || "__brez__"} onValueChange={value => setEditEParentUnitId(value === "__brez__" ? "" : value)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__brez__">— brez matične enote —</SelectItem>
+                        {(enote ?? []).filter(unit => unit.id !== editingEnota?.id).map(unit => (
+                          <SelectItem key={unit.id} value={String(unit.id)}>{unit.ime}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Aktivna od</Label>
+                      <Input type="datetime-local" value={editEActiveFrom} onChange={event => setEditEActiveFrom(event.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Aktivna do</Label>
+                      <Input type="datetime-local" value={editEActiveTo} onChange={event => setEditEActiveTo(event.target.value)} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label>Začetek poslovnega dne</Label>
               <Input type="time" value={editEZacetekDnevaUra} onChange={e => setEditEZacetekDnevaUra(e.target.value)} />
               <p className="text-xs text-muted-foreground">Dnevni promet se računa od te ure do iste ure naslednjega dne (privzeto 04:00).</p>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-1">
+                <Label htmlFor="studentski-bon-aktiven">Študentski bon</Label>
+                <p className="text-xs text-muted-foreground">
+                  Omogoči vnos subvencije študentskega bona pri zaključku računa v tej enoti.
+                </p>
+              </div>
+              <Switch
+                id="studentski-bon-aktiven"
+                checked={editEStudentskiBonAktiven}
+                onCheckedChange={setEditEStudentskiBonAktiven}
+                data-testid="studentski-bon-aktiven"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Stroškovno mesto (STM) <span className="text-muted-foreground font-normal">(neobvezno)</span></Label>
+              <Select value={editECostCenterId || undefined} onValueChange={value => setEditECostCenterId(value === "__brez_sm__" ? "" : value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Izberite stroškovno mesto (neobvezno)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__brez_sm__">— brez stroškovnega mesta —</SelectItem>
+                  {stroskovnaMesta.map(cc => (
+                    <SelectItem key={cc.id} value={cc.id}>{cc.code} – {cc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Neobvezno. Če ga nastavite, se uporabi pri POS→ERP knjiženju.</p>
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div>
+                <Label>Lokacija QR menija</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Gost lahko QR meni aktivira samo največ 50 m od te točke.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Širina</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={editEQrLatitude}
+                    onChange={e => setEditEQrLatitude(e.target.value)}
+                    placeholder="46.056947"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Dolžina</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={editEQrLongitude}
+                    onChange={e => setEditEQrLongitude(e.target.value)}
+                    placeholder="14.505751"
+                  />
+                </div>
+              </div>
+              <Button type="button" variant="outline" className="w-full" onClick={dolociQrLokacijo} disabled={qrLokacijoIscem}>
+                {qrLokacijoIscem ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LocateFixed className="mr-2 h-4 w-4" />}
+                {qrLokacijoIscem ? "Določam lokacijo..." : "Uporabi trenutno lokacijo"}
+              </Button>
+              <div className="space-y-2 border-t pt-3">
+                <div className="space-y-2">
+                  <Label>Wi-Fi AP / SSID za goste</Label>
+                  <Input
+                    value={editEQrWifiSsid}
+                    onChange={e => setEditEQrWifiSsid(e.target.value)}
+                    placeholder="npr. Gostilna-Gosti"
+                    maxLength={64}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Geslo Wi-Fi omrežja za goste</Label>
+                  <SecretInput
+                    value={editEQrWifiPassword}
+                    onChange={e => setEditEQrWifiPassword(e.target.value)}
+                    placeholder="Vnesite geslo, ki bo izpisano na QR listu"
+                    nastavljen={Boolean(editEQrWifiPassword)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ime omrežja in geslo bosta vidna na vsakem natisnjenem QR listu za mize te enote.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2 border-t pt-3">
+                <Label>Lokalni Wi-Fi – javni IP/CIDR</Label>
+                <Textarea
+                  value={editEQrWifiNetworks}
+                  onChange={e => setEditEQrWifiNetworks(e.target.value)}
+                  placeholder={"Javni IPv4 lokala\nali javni IPv6/CIDR"}
+                  rows={3}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void dodajTrenutniJavniIp()}
+                  disabled={currentPublicIp.isFetching}
+                >
+                  {currentPublicIp.isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wifi className="mr-2 h-4 w-4" />}
+                  {currentPublicIp.isFetching ? "Preverjam javni IP..." : "Dodaj IP trenutnega Wi-Fi-ja"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Gumb uporabite, ko je POS povezan na Wi-Fi lokala. En javni naslov ali majhen CIDR-obseg na vrstico; zasebni, lokalni in preširoki obsegi so zavrnjeni.
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={editEAktiven} onCheckedChange={setEditEAktiven} />
@@ -4929,6 +6153,11 @@ export default function Settings() {
             <DialogTitle>Uredi natakarja</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            {editingNatakar && (
+              <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                ID natakarja: <span className="font-mono font-semibold">{editingNatakar.id}</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Ime</Label>
@@ -4947,6 +6176,39 @@ export default function Settings() {
               <Switch checked={editNAktiven} onCheckedChange={setEditNAktiven} />
               <Label className="cursor-pointer" onClick={() => setEditNAktiven(v => !v)}>Aktiven</Label>
             </div>
+
+            {jeAdmin && (
+              <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                <div>
+                  <Label htmlFor="edit-natakar-pos-pin" className="flex items-center gap-1.5">
+                    <KeyRound className="h-3.5 w-3.5" />
+                    POS PIN
+                  </Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Natakar se s tem PIN-om prijavi na skupni POS brez lastnega ERP računa.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <SecretInput
+                    id="edit-natakar-pos-pin"
+                    ariaLabel="Novi POS PIN"
+                    value={editNPosPin}
+                    onChange={event => setEditNPosPin(event.target.value.replace(/\D/g, "").slice(0, 12))}
+                    inputMode="numeric"
+                    placeholder="4–12 številk"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={editNPosPinSaving || !/^\d{4,12}$/.test(editNPosPin)}
+                    onClick={() => void handleSetNatakarPosPin()}
+                  >
+                    {editNPosPinSaving ? "Nastavljam..." : "Nastavi PIN"}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* ── Vezava na POS račun (za izmene) ─────────────────── */}
             <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
@@ -5149,15 +6411,8 @@ export default function Settings() {
 
             <Separator />
             <p className="text-sm font-semibold">Certifikat za ta prostor <span className="text-xs font-normal text-muted-foreground">(prepiše globalno nastavitev)</span></p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Pot do PEM ključa</Label>
-                <Input placeholder="/etc/pos/pp001.pem" value={ppCertPot} onChange={e => setPpCertPot(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Geslo PEM ključa</Label>
-                <Input type="password" placeholder="geslo" value={ppCertGeslo} onChange={e => setPpCertGeslo(e.target.value)} />
-              </div>
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              Ta poslovni prostor uporablja FURS certifikat podjetja (nastavi ga v Podjetje/FURS).
             </div>
 
             <Button
@@ -5622,6 +6877,7 @@ export default function Settings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 }

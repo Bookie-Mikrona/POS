@@ -1,0 +1,129 @@
+kako se knjiži knjigovodsko
+
+V gostinskem in trgovskem računovodstvu se povratna embalaža (steklenice, zaboji, KEG sodi) obravnava kot kratkoročna opredmetena osnovna sredstva ali material ter se vodi po kavcijskih cenah.
+
+Za pravilno knjiženje se v kontnem načrtu uporabljajo konti iz razreda 3 (Zaloge materiala in blaga) ter razreda 2 ali 4 (Obveznosti do dobaviteljev).
+
+1. Prejem pijače in povratne embalaže od dobavitelja (Prejeta faktura / Dobavnica)
+
+Ob nabavi pijače dobavitelj na račun ločeno izpiše vrednost pijače in kavcijo za prejeto embalažo.
+
+Debitiramo (V breme / Dvignemo):
+
+Konto 310 / 300 (Zaloga materiala/blaga – pijača) ali 316 (Trgovsko blago v gostinstvu)
+
+Konto 315 (Zaloga povratne embalaže – po kavcijski ceni)
+
+Konto 160 (Vstopni DDV – opomba: na kavcijo za vračljivo embalažo se DDV praviloma ne obračunava, dokler se embalaža vrne)
+
+Kreditiramo (V dobro / Sprostimo):
+
+Konto 220 (Obveznosti do dobaviteljev v državi – za skupni znesek računa)
+
+2. Vračilo prazne embalaže dobavitelju (Vračilnica / Dobroimetje)
+
+Ko dobavitelj prevzame prazne zaboje, steklenice ali KEG sode, izda dobroimetje ali pa se znesek poračuna na naslednji dobavnici.
+
+Debitiramo (V breme):
+
+Konto 220 (Obveznosti do dobaviteljev – zmanjšanje obveznosti za vrednost vrnjene embalaže)
+
+Kreditiramo (V dobro):
+
+Konto 315 (Zaloga povratne embalaže – zmanjšanje zaloge po kavcijski ceni)
+
+3. Knjiženje razbitja, poškodbe ali manjka embalaže (Primanjkljaj ob inventuri)
+
+Če se embalaža razbije, izgubi ali je gostinec ne vrne dobavitelju, se mora zaloga embalaže odpisati.
+
+Debitiramo (V breme):
+
+Konto 480 ali 702 (Drugi poslovni odhodki / Neodpisana vrednost oziroma primanjkljaj embalaže)
+
+Konto 260 (Obračunani izstopni DDV – če gre za primanjkljaj, ki presega dovoljeni kal/razbijanje po pravilih stroke)
+
+Kreditiramo (V dobro):
+
+Konto 315 (Zaloga povratne embalaže – razknjiženje uničene/pogrešane embalaže)
+
+Ključna pravila pri vodenju:
+
+Ločena analitika (Materialno knjigovodstvo): V POS/ERP programu mora imeti vsaka vrsta embalaže svojo šifro (npr. Zaboj Laško, Steklenica 0,5l, KEG sod 30l) z definirano fiksno kavcijsko ceno.
+
+Kavcijski saldo: Vrednost na kontu 315 se mora vedno ujemati z dejanskim stanjem embalaže v skladišču, šanku in pri dobaviteljih (kavcijski saldo z dobaviteljem).
+
+Želiš primer konkretne knjižbe z zneski in analitičnimi konti za vaš POS/ERP sistem?
+
+Da
+da
+
+Tukaj je nazoren, praktičen primer knjiženja prevzema pijače in povratne embalaže ter naknadnega vračila prazne embalaže dobavitelju.
+
+1. Primer dogodka
+Gostinec od dobavitelja prejme pošiljko pijače in račun:
+
+Pijača: 10 zabojnikov piva Laško = 200,00 € (+ 22 % DDV = 44,00 €)
+
+Povratna embalaža (Kavcija):
+
+10 plastičnih zabojev (kavcija: 5,00 €/kos) = 50,00 €
+
+200 steklenic 0,5 l (kavcija: 0,20 €/kos) = 40,00 €
+
+Opomba: Na povratno embalažo (kavcijo) se DDV ne obračunava.
+
+Skupni znesek računa za plačilo: 200,00 + 44,00 + 50,00 + 40,00 = 334,00 €
+
+2. Knjiženje prejete fakture in prevzemnice (Nabava)
+Na podlagi prejete fakture ter materialne prevzemnice v ERP/POS sistemu se opravi naslednji vnos na konte:
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+3160	Zaloga trgovskega blaga / pijače v gostinstvu	200,00 €	
+3150	Zaloga povratne embalaže (zaboji + steklenice)	90,00 €	
+1600	Vstopni DDV (22 % od pijače)	44,00 €	
+2200	Obveznosti do dobaviteljev v državi		334,00 €
+V materialnem skladišču (analitika 3150) se avtomatsko poveča zaloga za 10 zabojev in 200 steklenic.
+
+3. Knjiženje vračila prazne embalaže dobavitelju (Dobroimetje / Vračilnica)
+Gostinec naslednji teden vrne dobavitelju 10 praznih zabojev in 200 praznih steklenic. Dobavitelj izda dobroimetje za embalažo v višini 90,00 €:
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+2200	Obveznosti do dobaviteljev (zmanjšanje obveznosti)	90,00 €	
+3150	Zaloga povratne embalaže (razknjiženje vrnjene embalaže)		90,00 €
+Po tej knjižbi je obveznost do dobavitelja zmanjšana na 244,00 € (kolikor znaša le pijača z DDV), saldo embalaže iz te pošiljke na kontu 3150 pa je usklajen na 0,00 €.
+
+4. Poseben primer: Kaj če se 10 steklenic razbije (Primanjkljaj)?
+Če gostinec vrne le 190 steklenic (10 se jih je razbilo), se 10 razbitih steklenic (vrednost 2,00 €) odpiše:
+
+Konto	Opis konta	Debet (V breme)	Kredit (V dobro)
+4800 / 7020	Odhodki iz primanjkljaja / razbitja embalaže	2,00 €	
+3150	Zaloga povratne embalaže (odpis razbitih steklenic)		2,00 €
+(Če primanjkljaj presega normirane odpisane stopnje/kalo, je treba na znesek 2,00 € dodatno obračunati in odvajati še izstopni DDV na kontu 2600).
+
+coca cola nbc adria na svojih računih-dobavnicah za embalažo obračunava ddv. ali je to pravilno?
+
+Praviloma NE, obračunavanje DDV na čisto garancijo/kavcijo povratne embalaže ni v skladu z zakonodajo.  
+Računovodstvo.net
+
+Če Coca-Cola HBC na vaših računih/dobavnicah za povratno embalažo (npr. gajbe, steklenice 0,25l) prišteva DDV, je treba ločiti dva različna primera:
+
+1. Pravilno ravnanje: Kavcija za embalažo (brez DDV)
+Po 36. členu Zakona o davku na dodano vrednost (ZDDV-1) ter pravilih obdavčitve vračljive embalaže se kavcija obravnava kot denarno varščina (garancijska vrednost).  
+RTV SLO
+
+Pravilo: Ob dobavi pijače v vračljivi embalaži se znesek embalaže/kavcije na računu izpiše ločeno, na ta znesek pa se DDV NE obračuna (0 % DDV).  
+Računovodstvo.net
+
+Zakaj: Embalaža ostaja v lasti dobavitelja, vi jo po uporabi vrnete in dobite celotni znesek kavcije povrnjen (prejmete dobroimetje).  
+Računovodstvo.net
+
+2. Kdaj se DDV na embalažo OBRAČUNA (Dovoljene izjeme)
+Obračun DDV na embalažo na dobavnici/računu je pravno in davčno pravilen le v dveh specifičnih primerih:  
+Računovodstvo.net
+
+Prodaja nepovratne embalaže ali enkratne embalaže:
+Če gre za embalažo, ki se ne vrača (npr. pločevinke, enkratne stekleničke ali kartonska embalaža za enkratno uporabo), je embalaža sestavni del cene blaga in se obdavči z enako stopnjo DDV kot vsebina (pijača).  
+Računovodstvo.net
+
+Odpis / zadržana embalaža (Kazen ali prodaja nevrnjene embalaže):
+Če embalaže niste vrnili v roku ali ste jo poškodovali, se kavcija spremeni v dejansko prodajo embalaže. V tem primeru mora dobavitelj izstaviti račun za prodano embalažo in obračunati DDV.  

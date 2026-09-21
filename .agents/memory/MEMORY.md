@@ -1,9 +1,19 @@
 - [GitHub repozitorij](github-repo.md) — https://github.com/Bookie-Mikrona/POS — edini GitHub remote; ZCS APK koda je v `zcs-z92-print/` (ne artifacts/)
+- [Produkcijska domena](produkcijska-domena.md) — aktivni primarni naslov vedno preveri prek deployment metadata; trenutno Bookie-ERP.replit.app
 - [GitHub ERP push postopek](github-erp-push.md) — Replit ne more direktno pushati na ERP; vmesnik: gitPush erp-source veja → Windows git push erp origin/erp-source:main --force
 - [Claude konzultacija](claude-konzultacija.md) — pri neznanih SDK/hardware/algoritmičnih problemih pokliči Claude najprej, šele nato implementiraj
 - [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
+- [ERP company header](erp-company-header.md) — ERP poročila morajo aktivno podjetje vedno poslati eksplicitno, ne zanašati se na legacy localStorage fallback.
 - [WAC inventory valuation](wac-implementation.md) — drseča tehtana povprečna cena: schema, recompute algo, edge cases
 - [POS plačilni zneski](pos-placilni-zneski.md) — mešana plačila: vedno beri znesek_* stolpce; repr/lastna face value iz postavk; db.execute vrne .rows[0]
+- [QR meni slike in ETA pijač](qr-meni-slike-eta-pijac.md) — široke slike so 3 : 1; čista naročila pijač uporabljajo ločeno barsko vrsto.
+- [QR meni uporabniški izrazi](qr-meni-uporabniski-izrazi.md) — glava kaže mizo in prostor; kategorije so vse vidne; artikel se doda v košarico, naročilo se odda pozneje.
+- [Cene in poraba pic](pizza-cene-po-velikostih.md) — cena sledi velikosti; plačljiv dodatek pri porabi vedno uporablja cel normativ s faktorjem 1.
+- [POS izbira podjetja](pos-izbira-podjetja.md) — več aktivnih POS vlog je dvoumnih; zahtevaj X-Company-Id, en sam vnos se lahko razreši samodejno
+- [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih
+- [QR To Go artikli](qr-to-go-artikli.md) — javni QR meni možnost To Go pokaže le pri artiklu, ki jo ima omogočeno; strežnik izbiro vedno preveri.
+- [Več QR naročil na mizi](qr-vec-narocil-na-mizi.md) — različne naprave ostanejo ločene, POS pa mora na isti mizi prikazati in odpreti vsako naročilo.
+- [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
 - [FURS POS Web GitHub](furs-pos-web-github.md) — izvorni POS projekt na GitHubu; referenca za logiko
 - [Super admin sistem](super-admin.md) — env var SUPER_ADMIN_IDS, company_modules tabela, admin panel na /admin
 - [Komunikacija](komunikacija.md) — izključno slovenščina
@@ -13,12 +23,132 @@
 - [Purchase rate map spec](purchase-rate-map-spec.md) — spec za ERP prejemnice: DB tabela, validacija, 3 pravila (datum dobave, asimetrično opozorilo, ločena kontrola)
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
 - [POS dnevne temeljnice](pos-dnevne-temeljnice.md) — samodejno POS→ERP knjiženje: 3 osnutki na dan, konfiguracija v ERP nastavitve, fire-and-forget trigger v racuni+prejemnice
+- [KDS čas priprave](kds-cas-priprave.md) — kuhinja odšteva do pripravljenosti, čas dostave je vedno le ločena informacija
+- [KDS zasloni po enoti](kds-zasloni-po-enoti.md) — enota določi točilnico, skupno ali ločeno kuhinjo/pico ter izbirno izdajo.
+- [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
+- [Zapiranje POS 109](pos-109-zapiranje.md) — prejemnico je dovoljeno zapreti le iz natančnega POS posnetka v temeljnici in z usklajenim zaklepanjem računa
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
-- [ZCS bridge stale process](zcs-bridge-stale.md) — most "ne najde" po restartu strežnika = star proces drži port; fix: restart terminala + APK
-- [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — SDK buffer ~45 vrstic: batchi po 40; Code 128 ZOI namesto QR; Strategy A re-check ob tisku; zoi polje v JSON
+- [ZCS bridge stale process](zcs-bridge-stale.md) — most "ni dosegljiv" = star proces drži port; fix: restart APK na napravi
+- [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — ✅ delujoč ZCS most; download APK je lahko ločen od source metadata, zato vedno preveri konkretni asset
 - [POS booking analitika](pos-booking-analitika.md) — pos_booking_settings razširjen na 24 stolpcev; prihodki po vrsti_artikla×davek iz postavke tabele; fallback na stare konte
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
 - [Checkpoint skupaj-vidnost-prostor-v1](checkpoint-skupaj-vidnost-prostor-v1.md) — git tag za povratek: kaskadni izbris otrok, proporcionalna kolicina, prostor v glavi, footer vedno viden
 - [Uvoz prejemnic — tech sklad](uvoz-prejemnic-tech.md) — drizzle/node-postgres vrača QueryResult; vsi Claudovi podjetjeId→enotaId; paketi; rute registrirane
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
 - [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
+- [Escape v dropdownu znotraj dialoga](escape-dropdown-dialog.md) — Radix capture vs. React bubble: onEscapeKeyDown na DialogContent je edino pravo mesto; stopPropagation() ne deluje
+- [Native file picker v dialogu](native-file-picker-dialog.md) — Radix dialog lahko interpretira fokus sistemskega izbirnika datotek kot zapiranje; med izbiro prepreči outside close.
+- [Mobilni UI popravki](mobilni-ui-popravki.md) — zbirka mobile-layout popravkov: UparjanjeDialog, Zaloge, Izmene, "Več" plošča, navigacija; pravilo: flex-col sm:flex-row za Select+Button v karticah
+- [lib/db rebuild in migracija](libdb-rebuild-migracija.md) — stale .d.ts po spremembi sheme: rebuild z `cd lib/db && npx tsc -p tsconfig.json`; drizzle date() = ISO string; psql za migracije; tsx za teste
+- [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
+- [Izhodni e-račun Faza A](eracun-faza-a.md) — generator, migracija, prožilnik, prenos XML; POS cene so bruto; Peppol TODO veja v generator.ts
+- [e-SLOG e-mail kanal](eracun-email-kanal.md) — 048+049 migracija; PDF shranjen ob izdaji; POST /eracun/poslji-email; status "poslano_email"; EslogEmailButton
+- [Vitest ESM mock lekcije](vitest-esm-mock.md) — importOriginal nestabilen za tranzitivne uvoz; CHECK constraint je treba sinhronizirati z Drizzle enumom; narocilo_id NOT NULL za DB insert v testih
+- [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
+- [ERP poročila unclassified](erp-reports-unclassified.md) — resolveEffectiveType: SRS override za cifro 0–9, sentinel "unclassified" za ostalo; nikoli tiha izguba; buildBalanceSheet/buildIncomeStatement exportani za teste
+- [ERP receipt_date migracija](erp-receipt-date.md) — journal_entries.receipt_date (009-receipt-date.sql); EntryMeta.receiptDate; vatLedger: receiptDate??documentDate??entryDate; api-zod CreateJournalEntryBody razširjen
+- [POS booking vatCodeId](pos-booking-vatcode.md) — 010+011 migracija; vat5/vat95/vat22VatCodeId v pos_booking_settings; mergeLines sešteje vatAmount; fallback console.warn brez blokade; UI VatCodeSelect 3 stopnje
+- [DDV zaključek temeljnica](ddv-zakljucek-closing.md) — 012 migracija; 160%/260% filter; dryRun predogled; auto-create 2699/1699; duplicate check prek reference polja
+- [Neodbitni vstopni DDV](neodbitni-ddv.md) — 013 migracija (PN5/PN95/UVP5/UVP95); fursVatCodes ruta+hook; vatDeductionPercent UI v temeljnicah; isNonDeductible → privzeto 0%
+- [Register OS Faza 3ab](register-os-3ab.md) — 015 migracija; GLAVA (osnovna_sredstva) + PODZAPISI (os_doknjizbe); skupinaId samo na glavi; vrednosti+datumi na doknjižbah; seq=0 = osnova, seq≥1 = dograditve
+- [OS modul dostop](os-modul-dostop.md) — 016 migracija; os_roles tabela; AVAILABLE_MODULES+osnovna_sredstva; resolveOsAccess≠accounting_roles; Shell: osRole+isErpUser ločeno
+- [OS amortizacija pravilo](os-amortizacija-pravilo.md) — 022 migracija; naslednji_dan|naslednji_mesec; usklajenost izpis/pregled (023 vhodni_podpis); 3b stornacija POST /storno
+- [OS medletni register](os-medletni-register.md) — dinamični register: zacNV/zacPV/zacNed + noveNabave+amortObdobja + konNV/konPV/konNed; endpoint /osnovna-sredstva-register; hook useGetOsRegisterMedletni
+- [OS kronološki pregled + PDF kartica](os-kronoloski-pregled.md) — čista funkcija calcKronoloskiPregled; kartica-pdf endpoint; uvožena odpisana = PV samo za seq=0
+- [OS datum odtujitve](os-datum-odtujitve.md) — SRS/ZDDPO-2 pravilo: mesec odtujitve se NE šteje; glava.datumOdtujitve override > per-doknjizba datumIzpisa; register filtrira dispYear < leto
+- [OS negativna NV korekcija](os-negativna-nv.md) — uvožene korekcijske doknjižbe imajo negativno NV; engine mora vrniti 0 (ne negativno AM); opomba "negativna_osnova"
+- [OS oslabitev — nova letna AM](os-oslabitev-nova-letna-am.md) — SRS 1.35+: nova AM = nova_knjižna/preostala_doba; fiksirana v DB; odpisanaVrednost se ne posodablja
+- [OS register izvoz + enrichment](os-register-izvoz.md) — buildEnrichedRegisterData helper; PDF=landscape A4; XLSX=ExcelJS; oslabiteVObdobja mora biti v vrstici za calcMedletniSeštevki
+- [Šifrant stroškovnih mest](stroskovana-mesta.md) — 030 migracija; tip/parentId/odgovornaOseba; soft-delete logika; vitest mock vzorec za dimensions.ts
+- [Zgodovinski obračun ur](obracun-ur-zgodovinski-snapshot.md) — izmene morajo hraniti nespremenljivo kodo in naziv stroškovnega mesta ob odprtju.
+- [Obračun ur nočnih izmen](obracun-ur-nocne-izmene.md) — izmeno razdeli po lokalnih dnevih Europe/Ljubljana; DST uporablja dejanski pretečeni čas.
+- [Šifranti sidebar arhitektura](sifrant-sidebar.md) — resolveSifrantAccess helper; sidebar Šifranti skupina; superadmin brez bypass; POS v CompanySwitcher
+- [NB80 printer bridge](nb80-printer-bridge.md) — com.noryox.printer AIDL; port 8091; 80mm=40 kol; APK+TS lib+API endpoint implementirani
+- [NYX printer bridge](nyx-printer-bridge.md) — artifacts/nyx-printer-bridge; com.incar.printerservice AIDL; ISTI port 8090 + endpointi kot ZCS; POS frontend brez sprememb
+- [BT tiskalniki — kodna stran](bt-tiskalniki-kodna-stran.md) — Q10 Back Clip = obvezno ascii-translit (GBK firmware); lestvica cp1250→wpc1250→cp852→translit; kodna stran per naprava (ne enota)
+- [Format tabele artiklov](tiskanje-format-tabele.md) — USB 58mm je referenca: dvovrstična postavka (naziv / T1+kol+cena+skupaj); 58mm=32 kolon, ZCS Z92=30
+- [POS partnerji šifrant](pos-partnerji-sifrant.md) — canonical /api/partnerji + legacy aliasi, vsi z resolveSifrantAccess; partner ID je UUID string; format:uuid zlomi Zod codegen
+- [Telefonski naročniki](telefonski-narocniki.md) — vsak telefonski prevzem ali dostava trajno razreši naročnika po normaliziranem telefonu znotraj enote
+- [POS cmdk Vitest](pos-cmdk-vitest.md) — cmdk popup testi v jsdom potrebujejo lokalna ResizeObserver in scrollIntoView polyfilla.
+- [SŠP študentski boni](ssp-studentski-boni.md) — subvencija je terjatev, ne popust; zbirni dokument se odpre šele s potrditvijo dnevne temeljnice.
+- [Prejemnica in e-SLOG izvoz](prejemnica-eslog-izvoz.md) — prejemnice brez popolnih računskih podatkov ne pretvarjaj v e-SLOG Invoice.
+- [Z-poročilo implementacija](z-porocilo-implementacija.md) — GT per blagajna; zaključek dneva in vsi tokovi, ki ustvarijo blokado, delijo enotni zaklep enote.
+- [drizzle-kit push --force nevarnost](drizzle-push-force-danger.md) — PREPOVEDANO: truncira tabele in droopa constrainte; za drift samo ročne RENAME CONSTRAINT migracije
+- [Publish in ročne DB funkcije](publish-rocne-db-funkcije.md) — Publish validira Drizzle shemo pred ročnimi SQL migracijami; generirani stolpci ne smejo klicati teh funkcij
+- [Ročne SQL integritetne migracije](manual-sql-migrations.md) — Drizzle push ne uporabi zgodovinskih SQL omejitev; testni predkorak mora varno preveriti/aplicirati take migracije.
+- [Proračunski kontni plan 2024](srs2024-generator-kontnega-plana.md) — shranjen je ločeno, nikoli kot privzeti plan za d.o.o.; generator validira vseh 1.701 uradnih kod.
+- [Gospodarski kontni plan](gospodarski-kontni-plan.md) — potrjen SRS razdelnik določa 3-mestne sintetike in 7-mestne analitike za d.o.o.
+- [Privzete konto nastavitve](privzete-konto-nastavitve.md) — novi seed je fill-only in serializiran po podjetju; obstoječih podjetij ne spreminja samodejno.
+- [Dostop cron endpointov](cron-endpoint-access.md) — scheduled poti morajo biti pred POS requireEnota in brez CRON_SECRET vedno odpovedati zaprto.
+- [Clerk host-aware SDK](clerk-host-aware-sdk.md) — POS naj uporablja @clerk/react kot ERP; zastareli @clerk/clerk-react ne izvozi publishableKeyFromHost.
+- [Clerk lokalizacija](clerk-lokalizacija.md) — pri tej različici globalni footer ključi niso tipovno podprti; besedilo noge nastavi v signIn/signUp.start.
+- [Clerk POS E2E](clerk-pos-e2e.md) — programska Clerk seja ni dovolj; testni userId potrebuje časovno omejen pos_uporabniki zapis in veljavno aktivno enoto.
+- [POS prehodni 401](pos-transient-401.md) — en sam 401 ne sme odmontirati aplikacije; odjavo potrdi s svežim Clerk žetonom in `/api/pos/auth/me`.
+- [OpenAPI format generator](openapi-uuid-generator.md) — `format: uuid` in `format: uri` generirata nezdružljive Zod 3 klice; taka polja opiši kot string.
+- [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
+- [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
+- [XLSX native numerika](xlsx-native-numerics.md) — typed kanal je opt-in; Excel formule v numeričnih poljih berejo cached number, GTIN in besedilo vedno ostaneta text.
+- [Zunanje slike – SSRF](article-image-reference-ssrf.md) — reference slike morajo povezavo pripeti na preverjen javni IP, omejiti tok in preveriti podpis slike.
+- [Pripravljena in sestavljena hrana](prepared-composite-food.md) — zamrznjena zaloga je operativna; priprava porabi surovine, kalo pa prerazporedi strošek.
+- [Ostanki s krožnikov](plate-waste-separation.md) — ločena okoljska evidenca; brez povezave z zalogo, prodajo, normativi, kalom ali računovodstvom.
+- [Gostinski poslovni dan](gostinski-poslovni-dan.md) — POS promet pred začetno uro sodi v prejšnji dan; meje vedno računaj v Europe/Ljubljana kot interval [od, do).
+- [Mikrona blagovna znamka](mikrona-blagovna-znamka.md) — Mikrona znak je skupna oznaka Bookie aplikacij, ne zamenjava za podatke aktivnega podjetja.
+- [Status mize in naročila](status-mize-narocila.md) — odprtje naročila in zasedba mize sta ena transakcija; sprostitev je vedno pogojena z odsotnostjo odprtih naročil.
+- [Več rezervacij mize](vec-rezervacij-mize.md) — 3h razmik, 2h blokada naročil, 1h rumeno stanje; rezervacijo porabi le izrecen prihod gosta.
+- [Arhiv miz in zgodovina rezervacij](rezervacije-arhiv-in-zgodovina.md) — mize se arhivirajo; rezervacije hranijo posnetke in append-only revizijsko sled.
+- [Kanonični POS tloris](pos-tloris-kanonicni.md) — verzioniran dokument je edini geometrijski zapis; aktivne mize se vedno atomsko uskladijo.
+- [QR lokacijska aktivacija](qr-lokacijska-aktivacija.md) — spletni GPS je približevalna ovira, ne neponaredljiv dokaz; strožja zaščita potrebuje fizični signal.
+- [QR napitnina](qr-napitnina.md) — na odprtem naročilu je trenutna izbrana vrednost; ponovna oddaja jo prepiše in je nikoli ne prišteva prodajnemu znesku.
+- [Davčna politika napitnin](davcna-politika-napitnin.md) — kartični tok ne določa davka; odločata dokumentiran dogovor in dejanski nadzor, provizija pa sledi pogodbenemu bremenu.
+- [Napitnine: delitev in knjiženje](napitnine-delitev-knjizenje.md) — prostovoljna napitnina, obvezni dodatek, delitveni snapshot, plačni izvoz in GK zapiranje so ločeni tokovi.
+- [Prejemnik razdelitve napitnine](napitnine-prejemnik.md) — do uvedbe modula Plače je zaposleni prejemnik vedno vezan na trajni ID natakarja.
+- [POS obnovljivost operacij](pos-obnovljivost-operacij.md) — zunanji/nejasni izidi se rezervirajo pred izvedbo; replay vrne isti rezultat ali zahteva ročno uskladitev.
+- [FURS offline retry](furs-offline-retry.md) — pravno jedro in ZOI sta nespremenljiva; vsak ponovni prenos je nov append-only poskus z novim MessageID in XML.
+- [Zaključek dostave](preklic-dostave.md) — preklicana ali dostavljena dostava izgine iz aktivnega seznama, glavni status naročila pa ostane za ročno obravnavo.
+- [POS prihodki po kategorijah](pos-prihodki-po-kategorijah.md) — prihodkovni konto sledi nespremenljivemu posnetku POS kategorije; DDV ostane agregiran po stopnji.
+- [Podjetniške in FURS DDV kode](company-furs-vat-links.md) — podjetniška koda kaže na točno verzijo FURS kode; temeljnična vrstica hrani oba ločena ID-ja.
+- [Podvojen API watcher](api-workflow-duplicate-watcher.md) — po restartu preveri EADDRINUSE in eno samo procesno drevo; star tsx child lahko še vedno drži port 8080.
+- [Razvojni 502 in glavni Run](dev-preview-main-run.md) — aktivni posamezni workflowi ne izključijo ustavljenega glavnega app stanja; pri 502 preveri in zaženi Run.
+- [Menijski DDV in snapshot postavke](menu-ddv-snapshot.md) — davčna klasifikacija in menijski kontekst sta ločena; zgodovine ne izpeljuj iz trenutnega artikla.
+- [DDV kategorija Pijača-jed](food-drink-ddv.md) — pripravljena pijača-jed ostane 9,5 %; dodan sladkor se pri shranjevanju vedno normalizira na false.
+- [Identiteta nabavnih listin](purchase-source-identity.md) — vrsta listine je klasifikacija, ne del poslovne identitete; ERP match atomarno lastni GL in KPR knjiženje.
+- [Knjiženje POS nabavnih listin](pos-receipt-booking.md) — 109 je samo denar na poti; dobavnico in dobavnico-fakturo knjiži po različnih tokovih 300/310/400, 160 in 220.
+- [Kartično plačilo darilnega bona](gift-voucher-card-payment.md) — gift intent preživi reload; provider se preveri pred FURS, attempt pa se lahko porabi le enkrat.
+- [PostgreSQL advisory lock in pool](postgres-advisory-lock-pool.md) — sejni lock mora držati isto namensko povezavo od pridobitve do sprostitve.
+- [Viva Android callback](viva-android-callback.md) — Android ECR rezultat zahteva native Activity/custom URI; Chrome PWA ob povratku ne prejme transactionId.
+- [Payten Android attestation](payten-android-attestation.md) — status/checksum nista dokaz plačila; podpisan native rezultat mora vezati attempt, napravo, ECR, total in globalno referenco.
+- [Expo APK NDK na Replitu](expo-apk-ndk-replit.md) — Nix Android SDK je read-only; pred Expo root pluginom uporabi že nameščeni NDK, sicer Gradle skuša nameščati manjkajočo verzijo.
+- [Viva Bridge Android ABI](viva-bridge-android-abi.md) — ARM64 je primaren za moderne telefone; armeabi-v7a je ločen preverjen paket za ZCS Z92.
+- [Expo Metro produkcijski build](expo-metro-production-build.md) — Expo CLI 54 in Metro 0.83 se razhajata v dogodkih watcherja; produkcijski izhod piši zunaj opazovanega projekta.
+- [Windows lokalni POS gateway](windows-local-gateway.md) — en Windows single-writer za offline gotovinske račune; LAN zahteva TLS, OS trust, pairing in brez samodejnega failoverja.
+- [API bundle in workspace odvisnosti](api-bundle-workspace-dependencies.md) — zunanje odvisnosti notranjih workspace paketov lahko po Publish pruning-u manjkajo; vključiti jih je treba v bundle.
+- [Identiteta natakarja v poročilih](natakar-report-identity.md) — promet združuj po trajnem natakari ID-ju; ime na računu je le zgodovinski posnetek.
+- [Več Happy Hour pravil](happy-hour-rules.md) — urniki izbirajo dneve, čas in artikle; cena ostane na artiklu, ročni preklop pa velja globalno.
+- [PNPM varnostni overrides](pnpm-security-overrides.md) — globalne varnostne pripone dodajaj v korenski package.json; vzporedni workspace overrides se ne združijo.
+- [Python PDF generator](python-pdf-generator.md) — priročnik generiraj z `uv run python`; neposredni `python3` lahko naloži nezdružljiv Pillow iz `.pythonlibs`.
+- [Kadrovske POS ure](kadrovske-pos-ure.md) — efektivne ure odštejejo neplačane odmore; nadure so po lokalnem dnevu; poprave, potrditve in napitnine ostanejo sledljive.
+- [Natakar na odmoru](natakar-na-odmoru.md) — odprt odmor začasno odstrani natakarja iz izdaje računa; račun se izda brez natakarja.
+- [Operativna poročila – obseg](operativna-porocila-scope.md) — admin vidi vse enote podjetja, admin_enote svojo; poslovni interval se izračuna za vsako enoto posebej.
+- [Mesečni pogodbeni A-račun](pogodbeni-a-racun.md) — dnevni POS knjiži prihodek/DDV, mesečni račun pa samo prenese prehodno terjatev na partnerja.
+- [Profili gostinskih enot](unit-hospitality-profiles.md) — profil je predloga; dejanski meni in dostop določajo ločene zmožnosti aktivne enote.
+- [Dogodkovni prenosi zaloge](event-stock-transfers.md) — zgodovina mora uskladiti poslano = porabljeno + preostalo + vrnjeno in omejiti preostalo na dogodkovno količino.
+- [Izbira elementov tlorisa](floor-plan-pointer-events.md) — loči pointerdown od click; ozadje sme počistiti izbor le pri target === currentTarget.
+- [Večhodni POS in QR meni](multicourse-qr-menu.md) — menijska cena, vina in KDS hodi imajo ločene vloge; napredovanje sledi pairingGroupId + courseSequence.
+- [Izbor blagajne pri izdaji računa](receipt-register-selection.md) — aktivna blagajna zahteva ekspliciten ID trenutne enote; legacy fallback velja le brez aktivnih blagajn.
+- [OpenAPI codegen drift](openapi-codegen-drift.md) — po codegenu preveri generated diff; nepovezane stare pogodbene spremembe ne sodijo v trenutno nalogo.
+- [CodeExecution shell poti](codeexecution-shell-paths.md) — vrstice iz callback shellExec lahko vsebujejo skriti CR; pred uporabo kot readFile/writeFile pot jih vedno trimaj.
+- [POS AI svetovalec](pos-ai-svetovalec.md) — LLM samo svetuje; kritične blokade so deterministične, nad svežim tenant-scoped naročilom in ločene od modela.
+- [Spletna primerjava normativov](normative-web-comparison.md) — citati veljajo le iz tipiziranih iskalnih rezultatov; več virov, deterministične enote, brez samodejnih zapisov.
+- [QR gostujoči AI](qr-gost-ai.md) — javni nasveti uporabljajo tipizirana živa dejstva; zgodovina je opt-in po napravi, ocena pa šele po zaključenem QR naročilu.
+- [Zasebnost QR ocen](qr-feedback-privacy.md) — vodstveni trendi in izvozi so agregirani; komentarji so ločen zaščiten tok brez povezovalnih ID-jev.
+- [KDS preklic nepredanega paketa](kds-preklic-paketa.md) — preklic ohrani append-only audit; brisanje, materializacija in prehodi uporabljajo isti zaklep naročila.
+- [POS actor PIN brez ERP računa](pos-actor-pin.md) — natakar uporablja ID+PIN na skupni prijavi; manjkajoča actor seja ne sme blokirati vodje pri nastavitvi PIN-a.
+- [POS audit identitete](pos-audit-identitete.md) — Clerk izvajalec in natakar actor sta ločena; legacy integer stolpca ne pretipkaj.
+- [Android zaslonska tipkovnica](android-visual-viewport.md) — POS uporablja VisualViewport za višino dialogov in samodejni prikaz aktivnega polja nad tipkovnico.
+- [Drsenje zgornjega Vaul predala](vaul-top-drawer-scroll.md) — seznam v zgornjem predalu mora prevzeti potege; predal se ne sme zapirati ob drsenju vsebine.
+- [Priprava plačil dobaviteljem](supplier-payment-preparation.md) — računi po zapadlosti z delnimi zneski; vsota ne sme preseči stanja izbranega konta 110x.
+- [Evidenca bančnih izpiskov](bank-statement-evidence.md) — vsak uvoz ima glavo, vrstice in odtis datoteke; plačilo je vezano na eno bančno vrstico.
+- [Pametno OCR uparjanje](ocr-pametno-uparjanje.md) — kanonične mere naj razširijo nabor; AI sme le predlagati dovoljen ID in nikoli sam potrditi.
+- [Povratna embalaža](povratna-embalaza.md) — fizična zaloga ostane skupna, dobaviteljski kavcijski saldo pa je ločen append-only promet s snapshot vrednostjo.
+- [Alergenski posnetek prejemnice](prejemnica-alergeni.md) — običajno urejanje ohrani zgodovinski posnetek; nova potrditev velja za novo vrstico ali zamenjan artikel.
+- [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.

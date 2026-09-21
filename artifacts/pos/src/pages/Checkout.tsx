@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { trackEvent } from "@/lib/analytics";
+import { availableShiftOperators } from "@/lib/available-shift-operators";
 import { useSearch, useLocation, Link } from "wouter";
 import {
   useListAktivnaNarocila,
+  useGetNarocilo,
   useCreateRacun,
   useListAktivneIzmene,
   useUpdateNarocilo,
@@ -9,7 +12,10 @@ import {
   useUpdatePostavkaKolicina,
   useSpojiNarocili,
   usePosljiEmailRacuna,
-  useGetPartnerCenik,
+  useGetPartnerjiCenik,
+  useStartPaytenAndroidPayment,
+  useConfirmPaytenAndroidPayment,
+  useTimeoutPaytenAndroidPayment,
   poisciKupca,
   getListAktivnaNarocilaQueryKey,
   getListMizeQueryKey,
@@ -37,23 +43,71 @@ import {
   XCircle, Loader2, Monitor, User, AlertTriangle, AlertCircle,
   Pizza, Plus, Minus, ShieldAlert, KeyRound, ArrowLeft,
   Scissors, GitMerge, Users, Building2, QrCode,
-  Copy, ExternalLink, Check, Mail, FileText, Printer, Landmark,
+  Copy, ExternalLink, Check, Mail, FileText, Printer, Landmark, LockKeyhole,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import type { RacunInputPlacilnaNacin } from "@workspace/api-client-react";
+import type { RacunInputPlacilnaNacin, Narocilo } from "@workspace/api-client-react";
 import { getEnotaId } from "@workspace/api-client-react";
 import { PrintReceiptButton } from "@/components/PrintReceiptButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { DdvNeskladjeAlert } from "@/components/DdvNeskladjeAlert";
+import { formatMizaProstor } from "@/lib/formatMizaProstor";
+import { getPosAuthHeaders, posFetch } from "@/lib/pos-auth-headers";
+import {
+  notifyPosActorSessionChanged,
+  POS_ACTOR_SESSION_CHANGED_EVENT,
+  requestPosActorSession,
+} from "@/lib/pos-actor-session";
+import { QrGostStaffInfo } from "@/components/QrGostStaffInfo";
 import { printTextViaZcsBridge } from "@/lib/zcsAndroidPrinter";
 import {
-  parsePaytenAndroidCallback,
+  formatXPorociloPrintLines,
+  type XPorociloPremik,
+  type XPorociloPromet,
+  type XPorociloStanje,
+} from "@/lib/xPorocilo";
+import { formatZPorociloPrintLines, type ZPorociloSnapshot } from "@/lib/zPorocilo";
+import {
   izracunajAktivniTerminal,
-  type NastavitveTerminal,
   type NapravaTerminalOverride,
 } from "@/lib/paytenAndroid";
+import {
+  buildVivaAndroidSaleIntent,
+  buildBookieVivaBridgeCallbackUrl,
+  buildBookieVivaBridgeLaunchUrl,
+  getVivaCallbackNarociloId,
+  isVivaAndroidSaleCallback,
+  parseVivaAndroidSaleCallback,
+} from "@/lib/vivaAndroidIntent";
+import { applyTipCapture, type TipCaptureMethod } from "@/lib/tipCapture";
+import {
+  clearGiftCardPaymentState,
+  buildCardGiftIssuancePayment,
+  buildGiftSumupPayBody,
+  readGiftCardPaymentState,
+  writeGiftCardPaymentState,
+  type GiftCardPaymentState,
+} from "@/lib/giftCardPaymentState";
+import {
+  cacheOfflineSnapshot,
+  checkLocalFiscalCapability,
+  discoverLocalFiscalCapability,
+  fetchAndCacheOfflineAuthorityBundle,
+  getValidOfflineAuthorityBundle,
+  getCachedOfflineCapability,
+  isOfflineOrderLocked,
+  issueOfflineCashReceipt,
+  legalLjubljanaTimestamp,
+  reserveOfflineOperationId,
+  syncOfflineFiscalReceipts,
+  UnknownFiscalOutcomeError,
+} from "@/lib/offlineFiscal";
+import { issueGatewayCashReceipt, gatewayPosService, localOrderRoute, parseLocalOrderRoute } from "@/lib/gatewayClient";
+import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
+import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
+import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
 
 interface IssuedRacun {
   id: number;
@@ -66,6 +120,7 @@ interface IssuedRacun {
   jeDelni: boolean;
   narociloId: number | null;
   datumCas: Date;
+  znesekNapitnina?: number;
 }
 
 type TerminalStanje = "idle" | "cakanje" | "odobren" | "zavrnjen" | "napaka" | "preklic";
@@ -77,15 +132,97 @@ interface TerminalRezultat {
   napaka?: string | null;
 }
 
+interface DarilniBonStanje {
+  izdano: number;
+  unovceno: number;
+  odprto: number;
+}
+
+interface VivaPaymentIdentifiers {
+  sessionId: string | null;
+  transactionId: string | null;
+  orderCode: string | null;
+}
+
+const VIVA_TAP_TO_PAY_STORAGE_KEYS = {
+  narociloId: "vivaTapToPay_narociloId",
+  placilo: "vivaTapToPay_placilo",
+  attempt: "vivaTapToPay_attempt",
+} as const;
+
+function writeVivaTapToPayStorage(key: string, value: string): void {
+  sessionStorage.setItem(key, value);
+  localStorage.setItem(key, value);
+}
+
+function readVivaTapToPayStorage(key: string): string | null {
+  return sessionStorage.getItem(key) ?? localStorage.getItem(key);
+}
+
+function removeVivaTapToPayStorage(key: string): void {
+  sessionStorage.removeItem(key);
+  localStorage.removeItem(key);
+}
+
+type ZBlocker = {
+  type: string;
+  message: string;
+  items?: Array<{ id: number; label: string }>;
+};
+
 export default function Checkout() {
+  const gatewayOffline = useGatewayOfflineContext();
   const { user } = useAuth();
   const imaTrr = user?.imaTrr ?? false;
-  const { data: narocila, isLoading } = useListAktivnaNarocila({ query: { refetchOnMount: "always", queryKey: getListAktivnaNarocilaQueryKey() } });
+  const search = useSearch();
+  const preselectedId = new URLSearchParams(search).get("narocilo");
+  const gatewayRouteId = preselectedId ? parseLocalOrderRoute(preselectedId) ?? null : null;
+  const gatewayCheckoutMode = !!gatewayRouteId || gatewayOffline.effectiveAuthority === "GATEWAY" ||
+    (!!gatewayRouteId && gatewayOffline.authorityForOrder(gatewayRouteId) === "GATEWAY");
+  const preselectedNarociloId = (() => {
+    if (!preselectedId) return null;
+    const id = parseInt(preselectedId, 10);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  })();
+  const vivaCallbackNarociloId = getVivaCallbackNarociloId(search);
+  const [resumeNarociloId, setResumeNarociloId] = useState<number | null>(vivaCallbackNarociloId);
+  // Pri prihodu iz naročila imamo ID že v URL-ju. Neposreden GET lahko zadene
+  // cache iz Order strani in ne sme čakati na počasnejši seznam vseh naročil.
+  const neposrednoNarociloId = resumeNarociloId ?? preselectedNarociloId;
+  const { data: resumeNarocilo } = useGetNarocilo(neposrednoNarociloId ?? 0, {
+    query: {
+      enabled: neposrednoNarociloId !== null && !gatewayCheckoutMode,
+      retry: false,
+      queryKey: getGetNarociloQueryKey(neposrednoNarociloId ?? 0),
+    },
+  });
+  const { data: cloudNarocila, isLoading } = useListAktivnaNarocila({
+    query: {
+      refetchOnMount: "always",
+      queryKey: getListAktivnaNarocilaQueryKey(),
+    },
+  });
+  const gatewayNarocila: Narocilo[] = (gatewayOffline.snapshot?.orders ?? [])
+    .map(item => {
+      const projection = (item.projection ?? item) as Record<string, any>;
+      const { postavke: _postavke, ...canonicalProjection } = projection;
+      return canonicalProjection;
+    })
+    .map(order => ({
+      ...order, id: String(order.id ?? order.orderId),
+      status: order.status === "OPEN" || order.status === "open" ? "odprto" : order.status,
+      postavke: order.postavke ?? order.lines ?? [],
+      skupaj: Number(order.skupaj ?? order.total ?? 0),
+    })) as unknown as Narocilo[];
+  const narocila = gatewayCheckoutMode ? gatewayNarocila : cloudNarocila;
   const { nastavitve } = useNastavitve();
-  const { data: aktivneIzmene } = useListAktivneIzmene();
+  const { data: aktivneIzmene, isLoading: aktivneIzmeneLoading } = useListAktivneIzmene();
   const { activeBlagajnaId } = useBlagajna();
-  const { naprava } = useNaprava();
+  const { naprava, napravaKljuc } = useNaprava();
   const createRacun = useCreateRacun();
+  const startPaytenAndroidPayment = useStartPaytenAndroidPayment();
+  const confirmPaytenAndroidPayment = useConfirmPaytenAndroidPayment();
+  const timeoutPaytenAndroidPayment = useTimeoutPaytenAndroidPayment();
   const posljiEmail = usePosljiEmailRacuna();
   const updateNarocilo = useUpdateNarocilo();
   const removePostavka = useRemovePostavka();
@@ -93,9 +230,26 @@ export default function Checkout() {
   const spojiMutation = useSpojiNarocili();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const search = useSearch();
   const [, setLocation] = useLocation();
-  const preselectedId = new URLSearchParams(search).get("narocilo");
+  // Keep only the minimum snapshots needed to prove an offline cash receipt
+  // belongs to the currently selected unit.  They are not used for card or
+  // server fiscalisation.
+  useEffect(() => {
+    if (!nastavitve || !user) return;
+    void Promise.all([
+      cacheOfflineSnapshot("unit", { enotaId: user.enotaId, poslovniProstor: nastavitve.poslovniProstor, elektronskaNaprava: nastavitve.elektronskaNaprava }),
+      cacheOfflineSnapshot("operator", { id: user.id, enotaId: user.enotaId }),
+    ]);
+    // Pairing is refreshed only while the POS is online. A failed local check
+    // is intentionally silent here; checkout will explain why issuing is
+    // blocked instead of guessing.
+    void discoverLocalFiscalCapability();
+  }, [nastavitve, user]);
+  useEffect(() => {
+    void syncOfflineFiscalReceipts();
+    const timer = window.setInterval(() => void syncOfflineFiscalReceipts(), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const preselectedGost = (() => {
     const raw = new URLSearchParams(search).get("gost");
     if (!raw) return null;
@@ -106,17 +260,34 @@ export default function Checkout() {
   const autoSplitDoneRef = useRef<number | null>(null);
   // Shranjuje zaračunane postavkeIds in narociloId ob izdaji delnega računa
   const billedInfoRef = useRef<{ narociloId: number; postavkeIds: number[] } | null>(null);
-  // Narocilo ID za samodejno izdajo računa po povratku iz Payten Android Software APK
-  const paytenAndroidAutoIssueNarociloRef = useRef<number | null>(null);
   // Narocilo ID za samodejno izdajo računa po povratku iz Viva Android Terminal APK
   const vivaAndroidAutoIssueNarociloRef = useRef<number | null>(null);
   // Narocilo ID za samodejno izdajo računa po povratku iz Viva Tap to Pay (SoftPOS)
   const vivaTapToPayAutoIssueNarociloRef = useRef<number | null>(null);
   // Zastavica: ali je bil zadnji račun izdan samodejno po Tap to Pay?
   const vivaTapToPayIssueRef = useRef(false);
+  // State sprožilec je potreben, ker se Android callback lahko vrne v novem
+  // brskalniškem kontekstu. Ref sam po sebi ne zagotovi ponovnega renderja,
+  // zato bi lahko ostal prikaz »Plačilo potrjeno«, račun pa se ne bi izdal.
+  const [vivaTapToPayAutoIssueId, setVivaTapToPayAutoIssueId] = useState<number | null>(null);
 
-  const [selectedNarocilo, setSelectedNarocilo] = useState<number | null>(null);
+  const [selectedNarocilo, setSelectedNarocilo] = useState<number | null>(
+    vivaCallbackNarociloId ?? preselectedNarociloId
+  );
+  const [selectedGatewayOrderId, setSelectedGatewayOrderId] = useState<string | null>(gatewayRouteId);
+  const effectiveSelectedOrderKey = gatewayCheckoutMode ? selectedGatewayOrderId : selectedNarocilo;
+  const [pendingPaytenCompletion, setPendingPaytenCompletion] = useState<{ paymentAttemptId: string; amount: number; narociloId: number; placilniNacin: RacunInputPlacilnaNacin; sekundarniNacin: "gotovina" | "kartica" } | null>(null);
+  const paytenRecoverySnapshotRef = useRef<any>(null);
   const [placilniNacin, setPlacilniNacin] = useState<RacunInputPlacilnaNacin>("gotovina");
+  // Napitnino lahko določi samo gost na javnem QR meniju. POS jo ob izdaji
+  // prenese brez prikaza ali možnosti spreminjanja.
+  const [znesekNapitnina, setZnesekNapitnina] = useState(0);
+  const znesekNapitninaRef = useRef(0);
+  const [, setNacinZajemaNapitnine] = useState<TipCaptureMethod>("card");
+  // Terminal callbacks can cause the automatic issue effect before React has
+  // rendered restored state. Keep the selected capture channel synchronously
+  // alongside state so the terminal amount and receipt use the same snapshot.
+  const nacinZajemaNapitnineRef = useRef<TipCaptureMethod>("card");
   const [dniOdloga, setDniOdloga] = useState(8);
   const [fursNacin, setFursNacin] = useState<"simulacija" | "testno" | "produkcija">("simulacija");
 
@@ -125,9 +296,22 @@ export default function Checkout() {
       setFursNacin(((nastavitve as typeof nastavitve & { fursNacin?: string }).fursNacin ?? "simulacija") as "simulacija" | "testno" | "produkcija");
     }
   }, [nastavitve]);
+  useEffect(() => {
+    if (nastavitve?.studentskiBonAktiven === true) return;
+    setZnesekSubvencija(0);
+    setSspReferenca("");
+  }, [nastavitve?.studentskiBonAktiven]);
   const [selectedNatakarId, setSelectedNatakarId] = useState<string>(
     () => localStorage.getItem("pos_last_operator_id") ?? "none"
   );
+  useEffect(() => {
+    const syncSelectedActor = () => {
+      const actorId = localStorage.getItem("pos_last_operator_id");
+      setSelectedNatakarId(actorId ?? "none");
+    };
+    window.addEventListener(POS_ACTOR_SESSION_CHANGED_EVENT, syncSelectedActor);
+    return () => window.removeEventListener(POS_ACTOR_SESSION_CHANGED_EVENT, syncSelectedActor);
+  }, []);
   const [issuedRacun, setIssuedRacun] = useState<IssuedRacun | null>(null);
   interface DdvPostavka {
     ime: string;
@@ -153,18 +337,7 @@ export default function Checkout() {
   const [emailInput, setEmailInput] = useState("");
   const [emailRezultat, setEmailRezultat] = useState<{ uspeh: boolean; napaka?: string | null } | null>(null);
 
-  // ── Izpis prometa ───────────────────────────────────────────
-  interface IzpisPrometaData {
-    skupajPromet: number; steviloRacunov: number; skupajDDV: number;
-    prometPoNacinuPlacila: { gotovina: number; kartica: number; bon: number; sumup: number; bonPica: number; steviloBonov: number; negotovinsko: number; reprezentanca: number; lastna_poraba: number };
-    prometPoBlagajnah: { blagajnaKoda: string; skupaj: number; steviloRacunov: number; odZap: string | null; doZap: string | null }[];
-    prometPoNatakarjih: { natakarIme: string; skupaj: number; gotovina: number; kartica: number; sumup: number; bon: number; bonPica: number; steviloBonov: number; steviloRacunov: number }[];
-    ddvPoStopnjah: { stopnja: number; ddvZnesek: number; osnova: number }[];
-    prihodkiPoVrsti: { storitve: number; blago: number; material: number };
-    izdaniKuponi: number; prejetiKuponi: number;
-    odZap: string | null; doZap: string | null;
-    podjetje: { naziv: string; naslov: string; davcnaStevilka: string };
-  }
+  // ── X-poročilo ───────────────────────────────────────────────
   const poslovniDatumDanes = (zacetekUra: string): string => {
     const [h, m] = zacetekUra.split(":").map(Number);
     const now = new Date();
@@ -183,9 +356,29 @@ export default function Checkout() {
   const [izpisPrometaOpen, setIzpisPrometaOpen] = useState(false);
   const [izpisOd, setIzpisOd] = useState(privzetiDatum);
   const [izpisDo, setIzpisDo] = useState(privzetiDatum);
-  const [izpisData, setIzpisData] = useState<IzpisPrometaData | null>(null);
+  const [izpisData, setIzpisData] = useState<XPorociloPromet | null>(null);
+  const [izpisStanje, setIzpisStanje] = useState<XPorociloStanje | null>(null);
+  const [izpisPremiki, setIzpisPremiki] = useState<XPorociloPremik[]>([]);
   const [izpisLoading, setIzpisLoading] = useState(false);
   const [izpisNapaka, setIzpisNapaka] = useState<string | null>(null);
+
+  // ── Z-poročilo ───────────────────────────────────────────────
+  const [zPorociloOpen, setZPorociloOpen] = useState(false);
+  const [zLoading, setZLoading] = useState(false);
+  const [zSnapshot, setZSnapshot] = useState<ZPorociloSnapshot | null>(null);
+  const [zNapaka, setZNapaka] = useState<string | null>(null);
+  const [zBlokade, setZBlokade] = useState<ZBlocker[]>([]);
+  const [zFinalizingId, setZFinalizingId] = useState<number | null>(null);
+  const [zPoslovniDatum, setZPoslovniDatum] = useState(privzetiDatum);
+  type XCashSnapshot = { pricakovanaGotovina: number; reconciliation: { prestetaGotovina: number; razlika: number; overrideRazlog?: string | null } | null; blockers: ZBlocker[] };
+  const [xCash, setXCash] = useState<XCashSnapshot | null>(null);
+  const [xCashInput, setXCashInput] = useState("");
+  const [xOverrideReason, setXOverrideReason] = useState("");
+  const [xCashLoading, setXCashLoading] = useState(false);
+  const [zOdklepOpen, setZOdklepOpen] = useState(false);
+  const [zOdklepRazlog, setZOdklepRazlog] = useState("");
+  const [zOdklepLoading, setZOdklepLoading] = useState(false);
+  const [zOdklepNapaka, setZOdklepNapaka] = useState<string | null>(null);
 
   const datumRe = /^\d{4}-\d{2}-\d{2}$/;
   const izpisVeljavenOd = datumRe.test(izpisOd);
@@ -195,137 +388,72 @@ export default function Checkout() {
     if (!izpisVeljavenOd || !izpisVeljavenDo) {
       setIzpisNapaka("Vnesite veljavna datuma v obliki LLLL-MM-DD."); return;
     }
-    setIzpisLoading(true); setIzpisNapaka(null); setIzpisData(null);
+    if (izpisOd !== izpisDo) {
+      setIzpisNapaka("X-poročilo je vedno pregled enega poslovnega dne."); return;
+    }
+    if (!activeBlagajnaId) {
+      setIzpisNapaka("Pred prikazom X-poročila izberite blagajno v stranski navigaciji."); return;
+    }
+    setIzpisLoading(true); setIzpisNapaka(null); setIzpisData(null); setIzpisStanje(null); setIzpisPremiki([]);
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-      const enotaId = getEnotaId();
-      const headers: Record<string, string> = {};
-      if (enotaId) headers["X-Enota-Id"] = enotaId;
-      const r = await fetch(`${base}/api/statistike/promet-obdobja?od=${encodeURIComponent(izpisOd.trim())}&do=${encodeURIComponent(izpisDo.trim())}&_t=${Date.now()}`, { credentials: "include", headers });
-      if (!r.ok) {
+      const datum = encodeURIComponent(izpisOd.trim());
+      const blagajnaId = encodeURIComponent(String(activeBlagajnaId));
+      const [prometResponse, stanjeResponse, premikiResponse] = await Promise.all([
+        posFetch(`${base}/api/statistike/promet-obdobja?od=${datum}&do=${datum}&blagajnaId=${blagajnaId}&_t=${Date.now()}`),
+        posFetch(`${base}/api/blagajniski-premiki/stanje?datum=${datum}&blagajnaId=${blagajnaId}`),
+        posFetch(`${base}/api/blagajniski-premiki?datum=${datum}&blagajnaId=${blagajnaId}`),
+      ]);
+      if (!prometResponse.ok || !stanjeResponse.ok || !premikiResponse.ok) {
         let msg = "Napaka pri pridobivanju podatkov.";
-        try { const j = await r.json(); msg = j?.error ?? j?.napaka ?? msg; } catch { /* ignore */ }
+        const failedResponse = [prometResponse, stanjeResponse, premikiResponse].find((response) => !response.ok);
+        try { const j = await failedResponse?.json(); msg = j?.error ?? j?.napaka ?? msg; } catch { /* ignore */ }
         setIzpisNapaka(msg); return;
       }
-      setIzpisData(await r.json() as IzpisPrometaData);
+      const [promet, stanje, premiki] = await Promise.all([
+        prometResponse.json() as Promise<XPorociloPromet>,
+        stanjeResponse.json() as Promise<XPorociloStanje>,
+        premikiResponse.json() as Promise<{ premiki: XPorociloPremik[] }>,
+      ]);
+      setIzpisData(promet);
+      setIzpisStanje(stanje);
+      setIzpisPremiki(premiki.premiki);
     } catch { setIzpisNapaka("Napaka pri pridobivanju podatkov."); }
     finally { setIzpisLoading(false); }
   };
 
   const handleNatisniPromet = async () => {
-    if (!izpisData) return;
-    const EUR = (n: number) => {
-      const s = Math.abs(n).toFixed(2);
-      return (n < 0 ? "-" : " ") + s + " EUR";
-    };
+    if (!izpisData || !izpisStanje) return;
     const zdaj = new Date().toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const { naziv, naslov, davcnaStevilka } = izpisData.podjetje;
-    const standardW = naprava?.terminalConfig?.tiskalnikSirina === 58 ? 32 : 40;
+    // privzetek 58 (→32 kol) samo na mestu uporabe; undefined (samodejno) = ZCS 58mm default
+    const standardW = (naprava?.terminalConfig?.tiskalnikSirina ?? 58) === 58 ? 32 : 40;
     const jeWindows = navigator.userAgent.includes("Windows");
     const jeAndroid = navigator.userAgent.includes("Android");
     const agentIme2 = naprava?.terminalConfig?.agentTiskalnikIme ?? "";
-    const buildLinije = (W: number): string[] => {
-    const vr = (label: string, val: string) => {
-      const pad = Math.max(1, W - label.length - val.length);
-      return label + " ".repeat(pad) + val;
-    };
-    const SEP = "-".repeat(W);
-
-    const natakarVrstice = izpisData.prometPoNatakarjih.flatMap(n => [
-      vr("Prodajal :" + n.natakarIme, ""),
-      vr("Sk.promet:", EUR(n.skupaj)),
-      vr("Gotovina :", EUR(n.gotovina)),
-      vr("Kartica  :", EUR(n.kartica)),
-      ...(n.sumup > 0 ? [vr("SumUp    :", EUR(n.sumup))] : []),
-      vr("Bon      :", EUR(n.bon)),
-      ...(n.bonPica > 0 ? [vr(`Bon pica (${n.steviloBonov}x):`, EUR(n.bonPica))] : []),
-    ]);
-
-    const ddvVrstice = izpisData.ddvPoStopnjah.flatMap(d => {
-      const lbl = `DDV ${d.stopnja.toFixed(1).replace(".", ",")}%`;
-      return [vr(`${lbl} osnova:`, EUR(d.osnova)), vr(`${lbl} DDV   :`, EUR(d.ddvZnesek))];
+    const buildLinije = (width: number): string[] => formatXPorociloPrintLines({
+      width,
+      datum: izpisOd,
+      printedAt: zdaj,
+      promet: izpisData,
+      stanje: izpisStanje,
+      premiki: izpisPremiki,
     });
-
-    const repr = izpisData.prometPoNacinuPlacila.reprezentanca;
-    const lastnaPoraba = izpisData.prometPoNacinuPlacila.lastna_poraba;
-    const skupajVrstice = [
-      vr("Skupaj   :", ""),
-      vr("Sk.promet:", EUR(izpisData.skupajPromet)),
-      vr("Gotovina :", EUR(izpisData.prometPoNacinuPlacila.gotovina)),
-      vr("Kartica  :", EUR(izpisData.prometPoNacinuPlacila.kartica)),
-      ...(izpisData.prometPoNacinuPlacila.sumup > 0 ? [vr("SumUp    :", EUR(izpisData.prometPoNacinuPlacila.sumup))] : []),
-      vr("Bon      :", EUR(izpisData.prometPoNacinuPlacila.bon)),
-      ...(izpisData.prometPoNacinuPlacila.bonPica > 0 ? [vr(`Bon pica (${izpisData.prometPoNacinuPlacila.steviloBonov}x):`, EUR(izpisData.prometPoNacinuPlacila.bonPica))] : []),
-      ...(izpisData.prometPoNacinuPlacila.negotovinsko > 0 ? [vr("TRR      :", EUR(izpisData.prometPoNacinuPlacila.negotovinsko))] : []),
-      ...(repr > 0 || lastnaPoraba > 0 ? [
-        SEP,
-        vr("Navidezni promet", ""),
-        ...(repr > 0 ? [vr("Reprez.  :", EUR(repr))] : []),
-        ...(lastnaPoraba > 0 ? [vr("Last.por.:", EUR(lastnaPoraba))] : []),
-      ] : []),
-    ];
-
-    const blagajneVrstice = izpisData.prometPoBlagajnah.flatMap((b, i) => [
-      ...(i > 0 ? [SEP] : []),
-      vr("Blagajn.:", b.blagajnaKoda + " (" + b.steviloRacunov + " rac.)"),
-      ...(b.odZap ? [vr("Od zap. :", b.odZap), vr("Do zap. :", b.doZap ?? "")] : []),
-    ]);
-
-    const prihodkiVrstaBlok = [
-      SEP,
-      vr("Prihodki po vrsti (neto)", ""),
-      vr("Storitve :", EUR(izpisData.prihodkiPoVrsti.storitve)),
-      vr("Blago    :", EUR(izpisData.prihodkiPoVrsti.blago)),
-      vr("Material :", EUR(izpisData.prihodkiPoVrsti.material)),
-      vr("Sk.neto  :", EUR(izpisData.prihodkiPoVrsti.storitve + izpisData.prihodkiPoVrsti.blago + izpisData.prihodkiPoVrsti.material)),
-    ];
-
-    const kuponskiBlok = (izpisData.izdaniKuponi > 0 || izpisData.prejetiKuponi > 0) ? [
-      SEP,
-      vr("Boni za pico", ""),
-      vr("Izdani kup.:", String(izpisData.izdaniKuponi)),
-      vr("Prejeti kup.:", String(izpisData.prejetiKuponi)),
-    ] : [];
-
-    const ddvFinale = ddvVrstice.length > 0 ? ddvVrstice : [vr("DDV      :", EUR(izpisData.skupajDDV))];
-
-    return [
-      ...(naziv ? [naziv] : []),
-      ...(naslov ? [naslov] : []),
-      ...(davcnaStevilka ? [`ID DDV:${davcnaStevilka}`] : []),
-      SEP,
-      vr("Dat.od:", izpisOd + " do:" + izpisDo),
-      vr("Ura   :", zdaj.slice(-8)),
-      SEP,
-      ...blagajneVrstice,
-      SEP,
-      ...natakarVrstice,
-      SEP,
-      ...skupajVrstice,
-      ...prihodkiVrstaBlok,
-      SEP,
-      vr("Skupaj DDV:", ""),
-      ...ddvFinale,
-      ...kuponskiBlok,
-    ];
-    }; // buildLinije
 
     // Windows agent
     if (jeWindows && agentIme2) {
       const linije = buildLinije(standardW);
       try {
         const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-        const r = await fetch(`${base}/api/print/promet/agent`, {
+        const r = await posFetch(`${base}/api/print/promet/agent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ linije }),
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({})) as { error?: string };
           toast({ title: "Napaka pri tiskanju", description: err.error ?? `Napaka (${r.status})`, variant: "destructive" });
         } else {
-          toast({ title: "Promet v čakalni vrsti", description: "Windows agent bo natisnil izpis v naslednjih sekundah." });
+          toast({ title: "X-poročilo v čakalni vrsti", description: "Windows agent bo natisnil izpis v naslednjih sekundah." });
         }
       } catch {
         toast({ title: "Napaka pri tiskanju", description: "Ni mogoče doseči strežnika.", variant: "destructive" });
@@ -355,7 +483,7 @@ export default function Checkout() {
     // brskalniški tisk — za ne-Android naprave (PC, Mac)
     const linije = buildLinije(standardW);
     const vrHtml = (s: string) => `<div class="vr">${s.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>`;
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Izpis prometa</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>X-poročilo</title>
 <style>
   @page { margin: 3mm 2mm; size: auto; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -375,19 +503,470 @@ ${linije.map(vrHtml).join("\n")}
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
   };
 
+  // ── Z-poročilo handler ───────────────────────────────────────
+  const handleZZakljuci = async () => {
+    if (!activeBlagajnaId) { setZNapaka("Izberite blagajno v stranski navigaciji."); return; }
+    setZLoading(true); setZNapaka(null); setZBlokade([]); setZSnapshot(null);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const r = await posFetch(`${base}/api/z-porocilo/zakljuci`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blagajnaId: activeBlagajnaId, poslovniDatum: zPoslovniDatum }),
+      });
+      const data = await r.json() as ZPorociloSnapshot & {
+        error?: string;
+        napaka?: string;
+        blockers?: ZBlocker[];
+      };
+      if (!r.ok) {
+        setZNapaka(data.error ?? data.napaka ?? `Napaka (${r.status})`);
+        setZBlokade(data.blockers ?? []);
+        return;
+      }
+      setZSnapshot({
+        ...data,
+        grandTotalPrej: Number(data.grandTotalPrej),
+        grandTotalNov: Number(data.grandTotalNov),
+        prometDneva: Number(data.prometDneva),
+        skupajPromet: Number(data.skupajPromet),
+        skupajDdv: Number(data.skupajDdv),
+        gotovina: Number(data.gotovina), kartica: Number(data.kartica), znesekNapitnina: Number(data.znesekNapitnina), sumup: Number(data.sumup),
+        bon: Number(data.bon), bonPica: Number(data.bonPica),
+        negotovinsko: Number(data.negotovinsko), reprezentanca: Number(data.reprezentanca),
+        lastnaPoraba: Number(data.lastnaPoraba),
+        menjalniDenar: Number(data.menjalniDenar), gotovinskaProdaja: Number(data.gotovinskaProdaja),
+        pologiGotovine: Number(data.pologiGotovine), izplacilaJobaviteljem: Number(data.izplacilaJobaviteljem),
+        pologiTrr: Number(data.pologiTrr), stanjeBlagajne: Number(data.stanjeBlagajne),
+        darilniBoniIzdaja: Number(data.darilniBoniIzdaja), darilniBoniUnovcitev: Number(data.darilniBoniUnovcitev),
+        sspSubvencija: Number(data.sspSubvencija),
+        fursPotrjeni: Number(data.fursPotrjeni), fursNepotrjeni: Number(data.fursNepotrjeni),
+      });
+    } catch { setZNapaka("Ni mogoče doseči strežnika."); }
+    finally { setZLoading(false); }
+  };
+
+  const loadXCash = async () => {
+    if (!activeBlagajnaId) return;
+    setXCashLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const response = await posFetch(`${base}/api/x-porocilo?blagajnaId=${activeBlagajnaId}&poslovniDatum=${encodeURIComponent(zPoslovniDatum)}`);
+      const data = await response.json() as XCashSnapshot & { error?: string; napaka?: string };
+      if (!response.ok) { setZNapaka(data.error ?? data.napaka ?? "X-poročila ni mogoče pridobiti."); return; }
+      setXCash(data);
+      setXCashInput(data.reconciliation ? String(data.reconciliation.prestetaGotovina) : "");
+      setXOverrideReason(data.reconciliation?.overrideRazlog ?? "");
+      setZBlokade(data.blockers ?? []);
+    } catch { setZNapaka("Ni mogoče doseči strežnika."); }
+    finally { setXCashLoading(false); }
+  };
+
+  const handleFinalizirajRacun = async (racunId: number) => {
+    if (!requireCurrentActorSession()) return;
+    if (!acquirePaymentGuard("Finalizacija računa je v teku.")) return;
+    setZFinalizingId(racunId);
+    setZNapaka(null);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const response = await posFetch(`${base}/api/racuni/${racunId}/poslovna-finalizacija`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json() as { error?: string; napaka?: string; stevilkaRacuna?: string };
+      if (!response.ok) {
+        setZNapaka(data.error ?? data.napaka ?? `Finalizacije ni mogoče dokončati (${response.status}).`);
+        releasePaymentGuard();
+        return;
+      }
+      toast({
+        title: "Poslovna finalizacija dokončana",
+        description: data.stevilkaRacuna
+          ? `Račun ${data.stevilkaRacuna} je pripravljen za zaključek dneva.`
+          : "Račun je finaliziran.",
+      });
+      await loadXCash();
+      releasePaymentGuard();
+    } catch {
+      setZNapaka("Ni mogoče doseči strežnika.");
+      requirePaymentReconciliation("Izid poslovne finalizacije ni znan. Pred nadaljevanjem preverite račun in nato odklenite plačilni tok.");
+    } finally {
+      setZFinalizingId(null);
+    }
+  };
+
+  const saveCashReconciliation = async () => {
+    if (!activeBlagajnaId || !Number.isFinite(Number(xCashInput))) return;
+    setXCashLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const response = await posFetch(`${base}/api/x-porocilo/uskladitev-gotovine`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blagajnaId: activeBlagajnaId, poslovniDatum: zPoslovniDatum, prestetaGotovina: Number(xCashInput), overrideRazlog: xOverrideReason, idempotencyKey: crypto.randomUUID() }),
+      });
+      const data = await response.json() as { error?: string; napaka?: string };
+      if (!response.ok) { setZNapaka(data.error ?? data.napaka ?? "Uskladitve ni mogoče shraniti."); return; }
+      await loadXCash();
+    } catch { setZNapaka("Ni mogoče doseči strežnika."); }
+    finally { setXCashLoading(false); }
+  };
+
+  const handleZNatisni = async (z: ZPorociloSnapshot) => {
+    const zdaj = new Date().toLocaleTimeString("sl-SI", { hour: "2-digit", minute: "2-digit" });
+    const linije = formatZPorociloPrintLines({
+      width: 32,
+      datum: z.poslovniDatum,
+      printedAt: zdaj,
+      z,
+      promet: {
+        skupajPromet: z.skupajPromet, skupajDDV: z.skupajDdv,
+        prometPoNacinuPlacila: { gotovina: z.gotovina, kartica: z.kartica, sumup: z.sumup, bon: z.bon, bonPica: z.bonPica, steviloBonov: z.steviloBonov, negotovinsko: z.negotovinsko, napitnina: z.znesekNapitnina, reprezentanca: z.reprezentanca, lastna_poraba: z.lastnaPoraba },
+        prometPoBlagajnah: [], prometPoNatakarjih: [], ddvPoStopnjah: z.ddvPoStopnjah, prihodkiPoVrsti: { storitve: 0, blago: 0, material: 0 },
+        izdaniKuponi: 0, prejetiKuponi: 0, podjetje: { naziv: "", naslov: "", davcnaStevilka: "" }, enota: { id: 0, ime: "" },
+      },
+      stanje: { menjalniDenar: z.menjalniDenar, gotovinskaProdaja: z.gotovinskaProdaja, pologiGotovine: z.pologiGotovine, izplacilaDobaviteljem: z.izplacilaJobaviteljem, pologiTrr: z.pologiTrr, stanje: z.stanjeBlagajne },
+      premiki: [],
+    });
+    const vrHtml = (s: string) => `<div class="vr">${s.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Z-porocilo</title><style>@page{margin:3mm 2mm;size:auto}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",Courier,monospace;white-space:pre;color:#000;background:#fff;padding:1mm}.vr{white-space:pre}@media print{body{font-size:8pt;line-height:1.3}}</style></head><body>${linije.map(vrHtml).join("\n")}</body><script>window.onload=function(){window.print();setTimeout(function(){window.close();},1200);}<\/script></html>`;
+    const blob = new Blob([html], { type: "text/html; charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    const popupWin = window.open("about:blank", "_blank", "width=340,height=640");
+    if (popupWin) { popupWin.location.href = blobUrl; setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000); }
+  };
+
+  const handleZOdklep = async () => {
+    if (!zSnapshot) return;
+    if (!zOdklepRazlog.trim()) { setZOdklepNapaka("Razlog odklepa je obvezen."); return; }
+    setZOdklepLoading(true); setZOdklepNapaka(null);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const r = await posFetch(`${base}/api/z-porocilo/${zSnapshot.id}/odkleni`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ razlog: zOdklepRazlog.trim() }),
+      });
+      const data = await r.json() as { error?: string; napaka?: string };
+      if (!r.ok) { setZOdklepNapaka(data.error ?? data.napaka ?? `Napaka (${r.status})`); return; }
+      setZOdklepOpen(false); setZOdklepRazlog(""); setZSnapshot(null);
+      toast({ title: "Z-poročilo odklenjeno", description: "Dan je odklenjen. Nov Z-zaključek bo generiral naslednjo Z-številko." });
+    } catch { setZOdklepNapaka("Ni mogoče doseči strežnika."); }
+    finally { setZOdklepLoading(false); }
+  };
+
   const [terminalStanje, setTerminalStanje] = useState<TerminalStanje>("idle");
   const [terminalRezultat, setTerminalRezultat] = useState<TerminalRezultat | null>(null);
+  // React state alone is not an adequate double-submit guard: two click events
+  // can run before React has rendered the disabled button.  The ref is the
+  // synchronous authority; state only makes the lock visible to the operator.
+  const paymentGuardRef = useRef<"idle" | "in-flight" | "reconciliation-required">("idle");
+  const [paymentGuard, setPaymentGuard] = useState<{
+    state: "idle" | "in-flight" | "reconciliation-required";
+    message: string;
+  }>({ state: "idle", message: "" });
+  const acquirePaymentGuard = (message: string) => {
+    if (paymentGuardRef.current !== "idle") return false;
+    paymentGuardRef.current = "in-flight";
+    setPaymentGuard({ state: "in-flight", message });
+    return true;
+  };
+  const releasePaymentGuard = () => {
+    paymentGuardRef.current = "idle";
+    setPaymentGuard({ state: "idle", message: "" });
+  };
+  const requirePaymentReconciliation = (message: string) => {
+    paymentGuardRef.current = "reconciliation-required";
+    setPaymentGuard({ state: "reconciliation-required", message });
+  };
+  const requireCurrentActorSession = () => {
+    const selectedId = selectedNatakarId !== "none" ? Number(selectedNatakarId) : null;
+    const actorToken = sessionStorage.getItem("pos_actor_session");
+    if (actorToken && selectedId) {
+      try {
+        const encoded = actorToken.split(".")[0];
+        const base64 = encoded!.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))) as { n?: number };
+        if (payload.n === selectedId) return true;
+      } catch {
+        // Pokvarjen ali star žeton se spodaj zamenja z novo PIN potrditvijo.
+      }
+      sessionStorage.removeItem("pos_actor_session");
+    } else if (actorToken) {
+      return true;
+    }
+    if (selectedId) {
+      localStorage.setItem("pos_last_natakar_id", String(selectedId));
+      localStorage.setItem("pos_last_operator_id", String(selectedId));
+    }
+    requestPosActorSession();
+    toast({
+      title: "Vnesite PIN izbranega natakarja",
+      description: "Natakar je že izbran. Vnesite samo njegov PIN in nato izdajo računa ponovno potrdite.",
+      variant: "destructive",
+    });
+    return false;
+  };
+  const resetPaymentGuardAfterReconciliation = () => {
+    // This is deliberately an explicit operator action.  A timeout/network
+    // failure must never silently open the way for a second card charge.
+    releasePaymentGuard();
+    recoveryCompletionAttemptRef.current = null;
+    recoverySelectionTokenRef.current = null;
+    setRecoverableCardPayment(null);
+    setAvailableRecoveries([]);
+    setTerminalStanje("idle");
+    setTerminalRezultat(null);
+  };
+  const paymentOrFinalizationInProgress = paymentGuard.state !== "idle";
   const [vivaCheckoutUrl, setVivaCheckoutUrl] = useState<string | null>(null);
+  const [vivaBridgeLaunchUrl, setVivaBridgeLaunchUrl] = useState<string | null>(null);
+  const [vivaSmartTimeout, setVivaSmartTimeout] = useState(false);
   const [sumupQrCheckoutId, setSumupQrCheckoutId] = useState<string | null>(null);
   const [sumupQrZnesek, setSumupQrZnesek] = useState<number | null>(null);
   const [lastSumupCheckoutId, setLastSumupCheckoutId] = useState<string | null>(null);
-  const [lastVivaTerminalSessionId, setLastVivaTerminalSessionId] = useState<string | null>(null);
+  // State se med isto asinhrono funkcijo ne osveži takoj. Ta ref zato nosi
+  // točno referenco plačila, ki jo je ravnokar potrdil terminal.
+  const currentTerminalReferenceRef = useRef<{ provider: "sumup" | "viva"; value: string } | null>(null);
+  // Viva identifikatorji morajo ostati na voljo isti izdaji računa tudi, ko
+  // React state še ni ponovno izrisal po uspešnem terminalskem pollingu.
+  const vivaPaymentIdentifiersRef = useRef<VivaPaymentIdentifiers>({
+    sessionId: null,
+    transactionId: null,
+    orderCode: null,
+  });
+  // Isti ključ se uporabi za ponovitev istega terminalskega koraka. Nov ključ
+  // nastane šele za drug ponudnik, naročilo ali znesek.
+  const cardPaymentAttemptRef = useRef<{ key: string; provider: "payten" | "sumup" | "viva_smart" | "viva_terminal" | "simulacija"; narociloId: number; znesek: number } | null>(null);
+  type CardProvider = "payten" | "sumup" | "viva_smart" | "viva_terminal" | "simulacija";
+  type RecoverableCardPayment = {
+    paymentAttemptId: string;
+    attemptId: string;
+    provider: CardProvider;
+    narociloId: number;
+    znesek: number;
+    ustvarjeno?: string;
+  };
+  const [recoverableCardPayment, setRecoverableCardPayment] = useState<RecoverableCardPayment | null>(null);
+  const [availableRecoveries, setAvailableRecoveries] = useState<RecoverableCardPayment[]>([]);
+  const [cardRecoveryChecking, setCardRecoveryChecking] = useState(false);
+  const cardRecoveryRequestRef = useRef(0);
+  const recoveryCompletionAttemptRef = useRef<string | null>(null);
+  const recoverySelectionTokenRef = useRef<string | null>(null);
+  const currentCardBindingRef = useRef<{ narociloId: number | null; znesek: number }>({ narociloId: null, znesek: 0 });
+  const cardAttemptStorageKey = (provider: CardProvider, narociloId: number) =>
+    `pos.card-payment-attempt.${provider}.${narociloId}`;
+  const getCardPaymentAttemptId = (provider: CardProvider, narociloId: number, znesek: number) => {
+    const current = cardPaymentAttemptRef.current;
+    if (current && current.provider === provider && current.narociloId === narociloId && current.znesek === znesek) return current.key;
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(cardAttemptStorageKey(provider, narociloId)) ?? "null") as { key?: string; znesek?: number } | null;
+      if (stored?.key && stored.znesek === znesek) return stored.key;
+    } catch { /* invalid old browser storage is replaced below */ }
+    return crypto.randomUUID();
+  };
+  const rememberCardPaymentAttempt = (provider: CardProvider, narociloId: number, znesek: number, key: string) => {
+    cardPaymentAttemptRef.current = { key, provider, narociloId, znesek };
+    sessionStorage.setItem(cardAttemptStorageKey(provider, narociloId), JSON.stringify({ key, znesek }));
+  };
+  const clearCardPaymentAttempt = () => {
+    const current = cardPaymentAttemptRef.current;
+    if (current) sessionStorage.removeItem(cardAttemptStorageKey(current.provider, current.narociloId));
+    cardPaymentAttemptRef.current = null;
+    recoveryCompletionAttemptRef.current = null;
+    recoverySelectionTokenRef.current = null;
+    setRecoverableCardPayment(null);
+    setAvailableRecoveries([]);
+  };
+  const giftCardPaymentStateRef = useRef<GiftCardPaymentState | null>(null);
+  const confirmedGiftCardPaymentRef = useRef<{ idempotencyKey: string; amountCents: number; attemptId: string } | null>(null);
   const [sumupQrLinkKopiran, setSumupQrLinkKopiran] = useState(false);
 
   const [steviloBonov, setSteviloBonov] = useState(0);
   const DARILNI_BON_KORAK = 10;
   const [znesekDarilnegaBona, setZnesekDarilnegaBona] = useState(0);
+  const [znesekSubvencija, setZnesekSubvencija] = useState(0);
+  const [sspReferenca, setSspReferenca] = useState("");
   const [sekundarniNacin, setSekundarniNacin] = useState<"gotovina" | "kartica">("gotovina");
+  const [darilniBonDialogOpen, setDarilniBonDialogOpen] = useState(false);
+  const [darilniBonZnesekIzdaja, setDarilniBonZnesekIzdaja] = useState("");
+  const [darilniBonPlaciloIzdaja, setDarilniBonPlaciloIzdaja] = useState<"gotovina" | "kartica">("gotovina");
+  // Isti ključ ostane živ ob mrežnem ponavljanju iste izdaje, po uspehu pa se
+  // zavrže za naslednji samostojni bon.
+  const darilniBonIdempotencyKeyRef = useRef<string | null>(null);
+  const racunIdempotencyRef = useRef<{ key: string; fingerprint: string } | null>(null);
+  const [darilniBonStanje, setDarilniBonStanje] = useState<DarilniBonStanje | null>(null);
+  const [darilniBonLoading, setDarilniBonLoading] = useState(false);
+  const [darilniBonIzdajanje, setDarilniBonIzdajanje] = useState(false);
+  const [darilniBonNapaka, setDarilniBonNapaka] = useState<string | null>(null);
+
+  useEffect(() => {
+    const restored = readGiftCardPaymentState(sessionStorage, getEnotaId(), napravaKljuc);
+    giftCardPaymentStateRef.current = restored;
+    if (!restored) return;
+    darilniBonIdempotencyKeyRef.current = restored.idempotencyKey;
+    setDarilniBonZnesekIzdaja(current => current || (restored.amountCents / 100).toFixed(2));
+    setDarilniBonPlaciloIzdaja("kartica");
+    if (restored.status === "completed" && restored.attemptId) {
+      confirmedGiftCardPaymentRef.current = {
+        idempotencyKey: restored.idempotencyKey,
+        amountCents: restored.amountCents,
+        attemptId: restored.attemptId,
+      };
+    }
+  }, [napravaKljuc]);
+
+  const naloziDarilniBonStanje = async () => {
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    const response = await posFetch(`${base}/api/darilni-boni/stanje`);
+    if (!response.ok) throw new Error("Stanja darilnih bonov ni bilo mogoče pridobiti.");
+    const stanje = await response.json() as DarilniBonStanje;
+    setDarilniBonStanje(stanje);
+    return stanje;
+  };
+
+  const odpriIzdajoDarilnegaBona = () => {
+    setDarilniBonDialogOpen(true);
+    setDarilniBonNapaka(null);
+    setDarilniBonLoading(true);
+    void naloziDarilniBonStanje()
+      .catch((error: unknown) => setDarilniBonNapaka(error instanceof Error ? error.message : "Napaka pri branju evidence bonov."))
+      .finally(() => setDarilniBonLoading(false));
+  };
+
+  const izdajDarilniBon = async () => {
+    if (!requireCurrentActorSession()) return;
+    if (!acquirePaymentGuard("Izdaja darilnega bona je v teku.")) return;
+    const normalizedAmount = darilniBonZnesekIzdaja.trim().replace(",", ".");
+    if (!/^\d+(?:\.\d{1,2})?$/.test(normalizedAmount)) {
+      setDarilniBonNapaka("Vnesite znesek z največ dvema decimalnima mestoma.");
+      releasePaymentGuard();
+      return;
+    }
+    const znesek = Number(normalizedAmount);
+    const amountCents = Math.round(znesek * 100);
+    if (!Number.isFinite(znesek) || amountCents <= 0 || amountCents > 1_000_000) {
+      setDarilniBonNapaka("Znesek darilnega bona mora biti med 0,01 € in 10.000,00 €.");
+      releasePaymentGuard();
+      return;
+    }
+    setDarilniBonIzdajanje(true);
+    setDarilniBonNapaka(null);
+    try {
+      const persistedPayment = giftCardPaymentStateRef.current
+        ?? readGiftCardPaymentState(sessionStorage, getEnotaId(), napravaKljuc);
+      const idempotencyKey = darilniBonIdempotencyKeyRef.current
+        ?? persistedPayment?.idempotencyKey
+        ?? crypto.randomUUID();
+      darilniBonIdempotencyKeyRef.current = idempotencyKey;
+      if (persistedPayment && persistedPayment.amountCents !== amountCents) {
+        throw new Error("Obstoječi kartični poskus je vezan na drug znesek. Dokončajte ga z istim zneskom.");
+      }
+      if (darilniBonPlaciloIzdaja === "gotovina" && confirmedGiftCardPaymentRef.current) {
+        throw new Error("Kartično plačilo je že potrjeno. Darilni bon izdajte s kartico in z istim zneskom.");
+      }
+      if (darilniBonPlaciloIzdaja === "kartica") {
+        const confirmedPayment = confirmedGiftCardPaymentRef.current;
+        if (confirmedPayment) {
+          if (confirmedPayment.idempotencyKey !== idempotencyKey || confirmedPayment.amountCents !== amountCents) {
+            throw new Error("Za že potrjeno kartično plačilo ponovite izdajo z istim zneskom.");
+          }
+        } else if (!showSumupFlow) {
+          throw new Error("Izbrani kartični terminal za izdajo bona ne vrne varne reference plačila.");
+        } else {
+          const attemptId = await sendGiftToSumup(idempotencyKey, amountCents);
+          if (!attemptId) throw new Error("Kartično plačilo ni bilo potrjeno; darilni bon ni izdan.");
+          confirmedGiftCardPaymentRef.current = {
+            idempotencyKey,
+            amountCents,
+            attemptId,
+          };
+        }
+      }
+
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (napravaKljuc) headers["X-Naprava-Id"] = napravaKljuc;
+      const response = await posFetch(`${base}/api/darilni-boni/izdaja`, {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({
+          znesek: amountCents / 100,
+          placilnaNacin: darilniBonPlaciloIzdaja,
+          idempotencyKey,
+          natakariId: selectedNatakarId !== "none" ? parseInt(selectedNatakarId) : null,
+          blagajnaId: activeBlagajnaId ?? null,
+          ...(darilniBonPlaciloIzdaja === "kartica"
+            ? {
+                paymentAttemptId: buildCardGiftIssuancePayment({
+                  idempotencyKey,
+                  amountCents,
+                  attemptId: confirmedGiftCardPaymentRef.current?.attemptId,
+                }).paymentAttemptId,
+              }
+            : {}),
+        }),
+      });
+      const result = await response.json() as {
+        error?: string;
+        id?: number;
+        stevilkaRacuna?: string;
+        skupaj?: number;
+        status?: string;
+        datumCas?: string;
+        zoi?: string | null;
+        eor?: string | null;
+        fursNapaka?: string | null;
+        stanje?: DarilniBonStanje;
+        opozorilo?: string;
+        pending?: boolean;
+        fursState?: string;
+      };
+      if (!response.ok) throw new Error(result.error ?? "Darilnega bona ni bilo mogoče izdati.");
+      if (response.status === 202 || result.pending || result.fursState === "unknown" || result.fursState === "sending") {
+        throw new Error(result.error ?? "Izid izdaje še ni dokončen. Poskusite ponovno z istim ključem; plačila ne ponavljajte.");
+      }
+      setDarilniBonStanje(result.stanje ?? await naloziDarilniBonStanje());
+      setDarilniBonZnesekIzdaja("");
+      setDarilniBonDialogOpen(false);
+      darilniBonIdempotencyKeyRef.current = null;
+      confirmedGiftCardPaymentRef.current = null;
+      giftCardPaymentStateRef.current = null;
+      clearGiftCardPaymentState(sessionStorage, getEnotaId(), napravaKljuc);
+      setFursNapaka(result.fursNapaka ?? null);
+      if (result.id && result.stevilkaRacuna && result.status && result.datumCas) {
+        setIssuedRacun({
+          id: result.id,
+          stevilkaRacuna: result.stevilkaRacuna,
+          skupaj: result.skupaj ?? znesek,
+          zoi: result.zoi ?? null,
+          eor: result.eor ?? null,
+          status: result.status,
+          opozorilo: result.opozorilo ?? null,
+          jeDelni: false,
+          narociloId: null,
+          datumCas: new Date(result.datumCas),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: getListRacuniQueryKey() });
+      toast({
+        title: "Darilni bon je izdan",
+        description: `${result.stevilkaRacuna ?? "Račun"} · ${znesek.toFixed(2)} €. ${result.opozorilo ?? ""}`.trim(),
+      });
+      releasePaymentGuard();
+    } catch (error) {
+      setDarilniBonNapaka(error instanceof Error ? error.message : "Darilnega bona ni bilo mogoče izdati.");
+      requirePaymentReconciliation("Izid izdaje darilnega bona ni znan. Preverite evidenco bonov in račun, preden odklenete nov poskus.");
+    } finally {
+      setDarilniBonIzdajanje(false);
+    }
+  };
+
+  useEffect(() => {
+    if (placilniNacin !== "bon") return;
+    void naloziDarilniBonStanje().catch(() => {
+      // Evidenca je informativna; opozorilo ob presežku zagotovi strežnik.
+    });
+  }, [placilniNacin]);
 
   const [splitMode, setSplitMode] = useState(false);
   const [splitPostavkeIds, setSplitPostavkeIds] = useState<Set<number>>(new Set());
@@ -402,8 +981,11 @@ ${linije.map(vrHtml).join("\n")}
   const [kupecIscemo, setKupecIscemo] = useState(false);
   const [kupecRocniVnos, setKupecRocniVnos] = useState(false);
   const [kupecZavezanecDdv, setKupecZavezanecDdv] = useState(false);
-  const [kupecId, setKupecId] = useState<number | null>(null);
-  const { data: kupecCenik } = useGetPartnerCenik(kupecId ?? 0);
+  const [kupecId, setKupecId] = useState<string | null>(null);
+  // enabled: false ko kupecId ni izbran — preprečimo klic z ID="" → 404
+  const { data: kupecCenik } = useGetPartnerjiCenik(kupecId ?? "", {
+    query: { enabled: kupecId !== null } as any,
+  });
 
   // Auto-select naročilo iz URL param (?narocilo=ID)
   useEffect(() => {
@@ -419,13 +1001,30 @@ ${linije.map(vrHtml).join("\n")}
 
   // Reset ko se zamenja naročilo
   useEffect(() => {
-    setPlacilniNacin("gotovina");
+    // Viva callbacks restore payment context before the URL auto-selects the
+    // order. Do not overwrite it while their secure confirmation is pending.
+    if (
+      selectedNarocilo !== null &&
+      (vivaAndroidAutoIssueNarociloRef.current === selectedNarocilo
+        || vivaTapToPayAutoIssueNarociloRef.current === selectedNarocilo)
+    ) return;
+    const izbranoNarocilo = narocila?.find((n) => n.id === selectedNarocilo)
+      ?? (resumeNarocilo?.id === selectedNarocilo ? resumeNarocilo : undefined);
+    const predlaganaQrNapitnina = Number(izbranoNarocilo?.znesekNapitnina ?? 0);
+    setPlacilniNacin(predlaganaQrNapitnina > 0 ? "kartica" : "gotovina");
+    setZnesekNapitnina(predlaganaQrNapitnina);
+    znesekNapitninaRef.current = predlaganaQrNapitnina;
+    const nacin = predlaganaQrNapitnina > 0 ? "card" : "cash";
+    setNacinZajemaNapitnine(nacin);
+    nacinZajemaNapitnineRef.current = nacin;
     setSteviloBonov(0);
     setZnesekDarilnegaBona(0);
+    setZnesekSubvencija(0);
+    setSspReferenca("");
     setSplitMode(false);
     setSplitPostavkeIds(new Set());
     autoSplitDoneRef.current = null;
-  }, [selectedNarocilo]);
+  }, [selectedNarocilo, narocila, resumeNarocilo]);
 
   const dovoljeneMizeSet = naprava?.dovoljeneMize?.length
     ? new Set(naprava.dovoljeneMize)
@@ -435,11 +1034,79 @@ ${linije.map(vrHtml).join("\n")}
     (n.postavke?.length ?? 0) > 0 &&
     (dovoljeneMizeSet === null || n.mizaId == null || dovoljeneMizeSet.has(n.mizaId))
   ) ?? []);
-  const selectedOrder = odprta.find(n => n.id === selectedNarocilo);
+  // Po Android callbacku ima neposredni odgovor za naročilo prednost pred
+  // seznamom aktivnih naročil. Seznam se lahko med povratkom osveži in
+  // vsebuje staro ali začasno manjkajočo vrstico, medtem ko je ta odgovor
+  // namenjen prav nadaljevanju izdaje računa.
+  const selectedOrder = gatewayCheckoutMode && selectedGatewayOrderId
+    ? (narocila ?? []).find(n => String(n.id) === selectedGatewayOrderId)
+    : resumeNarocilo?.id === selectedNarocilo
+    ? resumeNarocilo
+    : odprta.find(n => n.id === selectedNarocilo);
+  const gatewayCloudOrderId = (() => {
+    if (!gatewayCheckoutMode || !selectedOrder) return null;
+    const candidate = (selectedOrder as typeof selectedOrder & { cloudOrderId?: unknown }).cloudOrderId;
+    const numeric = typeof candidate === "number" ? candidate : Number(candidate);
+    return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+  })();
+  useEffect(() => {
+    const snapshot = paytenRecoverySnapshotRef.current;
+    if (!snapshot || !selectedOrder) return;
+    setPlacilniNacin(snapshot.placilniNacin);
+    setSekundarniNacin(snapshot.sekundarniNacin);
+    setZnesekDarilnegaBona(snapshot.znesekDarilnegaBona);
+    setSteviloBonov(snapshot.steviloBonov);
+    setZnesekNapitnina(snapshot.znesekNapitnina); znesekNapitninaRef.current = snapshot.znesekNapitnina;
+    setNacinZajemaNapitnine(snapshot.nacinZajemaNapitnine); nacinZajemaNapitnineRef.current = snapshot.nacinZajemaNapitnine;
+  }, [selectedOrder]);
+  const [offlineOrderLocked, setOfflineOrderLocked] = useState(false);
+  useEffect(() => {
+    setOfflineOrderLocked(effectiveSelectedOrderKey != null && isOfflineOrderLocked(effectiveSelectedOrderKey));
+  }, [effectiveSelectedOrderKey]);
+
+  const getNarociloPayload = useCallback(() => {
+    if (!selectedOrder) return null;
+    return {
+      id: selectedOrder.id,
+      nacin: (selectedOrder as any).nacin,
+      status: selectedOrder.status,
+      miza: selectedOrder.mizaId,
+      strankaIme: selectedOrder.strankaIme,
+      telefon: selectedOrder.strankaTelefon,
+      naslovDostave: selectedOrder.dostavaUlica
+        ? [
+            `${selectedOrder.dostavaUlica} ${selectedOrder.dostavaHisnaStevilka ?? ""}`.trim(),
+            selectedOrder.dostavaNaseljeNaziv,
+          ].filter(Boolean).join(", ")
+        : null,
+      skupaj: selectedOrder.skupaj,
+      postavke: (selectedOrder.postavke ?? []).filter((p: any) => !p.parentPostavkaId).map((p: any) => ({
+        naziv: p.ime,
+        kolicina: p.kolicina,
+        skupaj: p.skupaj,
+        opomba: p.opomba
+      }))
+    };
+  }, [selectedOrder]);
+
+  const aiSvetovalec = useAiSvetovalec("blagajna", getNarociloPayload);
+
+  useEffect(() => {
+    const items = selectedOrder?.postavke ?? [];
+    void Promise.all([
+      cacheOfflineSnapshot("catalog", items),
+      cacheOfflineSnapshot("taxes", items.map(postavka => ({ id: postavka.id, davek: postavka.davek }))),
+    ]);
+  }, [selectedOrder]);
 
   // Avtomatsko vklopi razdelitev računa kadar ima naročilo več gostov,
   // ali kadar je bil iz naročila posredovan specifičen gost (?gost=N)
   useEffect(() => {
+    if (gatewayCheckoutMode) {
+      setSplitMode(false);
+      setSplitPostavkeIds(new Set());
+      return;
+    }
     if (!selectedOrder || selectedOrder.id === autoSplitDoneRef.current) return;
     const uncovered = (selectedOrder.postavke ?? []).filter(p => p.racunId === null);
     const gostStevilkaField = (p: typeof uncovered[0]) =>
@@ -465,8 +1132,30 @@ ${linije.map(vrHtml).join("\n")}
     setSplitPostavkeIds(new Set(
       uncovered.filter(p => gostStevilkaField(p) === gostji[0]).map(p => p.id)
     ));
-  }, [selectedOrder, preselectedGost]);
-  const aktivniOperaterji = aktivneIzmene ?? [];
+  }, [selectedOrder, preselectedGost, gatewayCheckoutMode]);
+  const aktivniOperaterji = availableShiftOperators(aktivneIzmene);
+  useEffect(() => {
+    if (selectedNatakarId === "none") return;
+    const selectedShift = aktivniOperaterji.find(item => String(item.natakariId) === selectedNatakarId);
+    if (!selectedShift) return;
+    void discoverLocalFiscalCapability().then(async capability => {
+      if (!capability?.identity || capability.envelopeFormat !== "furs-v2") return;
+      const headers = await getPosAuthHeaders(
+        napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : undefined,
+      );
+      await fetchAndCacheOfflineAuthorityBundle({
+        deviceId: capability.identity.deviceId,
+        waiterId: selectedShift.natakariId,
+        shiftId: selectedShift.id,
+        identity: capability.identity,
+        headers: Object.fromEntries(headers.entries()),
+      });
+    }).catch(() => {
+      // A previous still-valid signed bundle remains usable. Offline issuance
+      // performs full signature, scope, operator and validity checks again.
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNatakarId, aktivneIzmene, napravaKljuc]);
 
   // Druga odprta naročila na isti mizi
   const drugaNarocilaIsteMize = selectedOrder?.mizaId != null
@@ -568,13 +1257,47 @@ ${linije.map(vrHtml).join("\n")}
     : 0;
   const znesekPoKritiZDarilnimBonom = Math.max(0, znesekPreostalega - znesekDarilnegaBonaDejanski);
   const vsePlacanoZDarilnimBonom = placilniNacin === "bon" && znesekDarilnegaBonaDejanski > 0 && znesekPoKritiZDarilnimBonom < 0.005;
+  // SŠP ostane ločen od bonov za pico in darilnih bonov: gre za terjatev, ne popust.
+  const sspDovoljen = nastavitve?.studentskiBonAktiven === true
+    && steviloBonovDejanski === 0
+    && (placilniNacin === "gotovina" || placilniNacin === "kartica");
+  const znesekSubvencijaDejanski = sspDovoljen
+    ? Math.min(Math.max(0, znesekSubvencija), znesekPreostalega)
+    : 0;
+  const znesekZaDoplacilo = Math.max(0, znesekPreostalega - znesekSubvencijaDejanski);
+  const jeKarticniTok = placilniNacin === "kartica"
+    || (placilniNacin === "bon" && sekundarniNacin === "kartica" && !vsePlacanoZDarilnimBonom);
+  const znesekKarticnegaDoplacila = placilniNacin === "bon"
+    ? znesekPoKritiZDarilnimBonom
+    : znesekZaDoplacilo;
+  const placiloOmogocaNapitnino = placilniNacin === "gotovina"
+    || placilniNacin === "kartica"
+    || (placilniNacin === "bon" && !vsePlacanoZDarilnimBonom);
+  const lahkoNapitnina = placiloOmogocaNapitnino
+    && (znesekZaDoplacilo > 0.005 || znesekPoKritiZDarilnimBonom > 0.005);
+  const dejanskiNacinZajemaNapitnine: TipCaptureMethod = jeKarticniTok
+    ? nacinZajemaNapitnineRef.current
+    : "cash";
+  const zajemNapitnine = applyTipCapture(
+    0,
+    znesekKarticnegaDoplacila,
+    lahkoNapitnina ? znesekNapitnina : 0,
+    dejanskiNacinZajemaNapitnine,
+  );
+  const terminalskiZnesek = zajemNapitnine.card;
+  const karticnaNapitnina = dejanskiNacinZajemaNapitnine === "card"
+    ? round2(lahkoNapitnina ? znesekNapitnina : 0)
+    : 0;
 
-  // Per-naprava terminal override: null = globalna veriga, 'none' = brez, spec. vrednost = točno ta terminal
+  // Per-naprava terminal override: null = prioritetna veriga trenutne naprave,
+  // 'none' = brez, spec. vrednost = točno ta terminal.
   const napravaTerminal = naprava?.placilniTerminal ?? null;
+  const terminalConfig = naprava?.terminalConfig ?? null;
 
-  // Prioritetna veriga: Payten HW → Payten Android SW → SumUp → Viva Cloud → Viva Android → Viva TtP → Viva Smart
+  // Prioritetna veriga uporablja izključno zastavice trenutne naprave:
+  // Payten HW → Payten Android SW → SumUp → Viva Cloud → Viva Android → Viva TtP → Viva Smart.
   const _aktivniTerminal = izracunajAktivniTerminal(
-    nastavitve as NastavitveTerminal | null,
+    terminalConfig,
     napravaTerminal as NapravaTerminalOverride,
   );
   const terminalAktiven          = _aktivniTerminal === "payten_hw";
@@ -584,13 +1307,141 @@ ${linije.map(vrHtml).join("\n")}
   const vivaAndroidTerminalAktiven = _aktivniTerminal === "viva_android";
   const vivaTapToPayAktiven      = _aktivniTerminal === "viva_ttp";
   const vivaAktiven              = _aktivniTerminal === "viva_smart";
-  const showTerminalFlow = placilniNacin === "kartica" && terminalAktiven && !vsePlacanoZBoni;
-  const showPaytenAndroidFlow = placilniNacin === "kartica" && paytenAndroidAktiven && !vsePlacanoZBoni;
-  const showSumupFlow = placilniNacin === "kartica" && sumupAktiven && !vsePlacanoZBoni;
-  const showVivaTerminalFlow = placilniNacin === "kartica" && vivaTerminalAktiven && !vsePlacanoZBoni;
-  const showVivaAndroidTerminalFlow = placilniNacin === "kartica" && vivaAndroidTerminalAktiven && !vsePlacanoZBoni;
-  const showVivaTapToPayFlow = placilniNacin === "kartica" && vivaTapToPayAktiven && !vsePlacanoZBoni;
-  const showVivaFlow = placilniNacin === "kartica" && vivaAktiven && !vsePlacanoZBoni;
+  const showTerminalFlow = jeKarticniTok && terminalAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  const showPaytenAndroidFlow = jeKarticniTok && paytenAndroidAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  const showSumupFlow = jeKarticniTok && sumupAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  const showVivaTerminalFlow = jeKarticniTok && vivaTerminalAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  const showVivaAndroidTerminalFlow = jeKarticniTok && vivaAndroidTerminalAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  const showVivaTapToPayFlow = jeKarticniTok && vivaTapToPayAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  const showVivaFlow = jeKarticniTok && vivaAktiven && !vsePlacanoZBoni && znesekKarticnegaDoplacila > 0.005;
+  // This control is intentionally absent from production bundles and from
+  // units without the explicit simulation capability. The server repeats all
+  // checks and remains the authority for both amount and eligibility.
+  const simulationAmount = selectedOrder
+    ? round2(Number(selectedOrder.skupaj) + Number((selectedOrder as typeof selectedOrder & { znesekNapitnina?: number }).znesekNapitnina ?? 0))
+    : 0;
+  const showSimulationFlow = import.meta.env.DEV
+    && nastavitve?.fursNacin === "simulacija"
+    && user?.capabilities?.includes("simulation") === true
+    && placilniNacin === "kartica"
+    && !splitMode
+    && terminalskiZnesek > 0
+    && Math.abs(terminalskiZnesek - simulationAmount) < 0.005;
+  currentCardBindingRef.current = { narociloId: selectedNarocilo, znesek: terminalskiZnesek };
+  const findStoredCardAttempt = (narociloId: number, znesek: number) => {
+    const providers: CardProvider[] = ["payten", "sumup", "viva_smart", "viva_terminal", "simulacija"];
+    for (const provider of providers) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(cardAttemptStorageKey(provider, narociloId)) ?? "null") as { key?: string; znesek?: number } | null;
+        if (stored?.key && stored.znesek === znesek) return { provider, key: stored.key };
+      } catch { /* invalid storage is ignored */ }
+    }
+    return null;
+  };
+  const inspectRecoverableCardPayment = async (
+    provider: CardProvider,
+    narociloId: number,
+    znesek: number,
+    paymentAttemptId: string,
+  ): Promise<boolean> => {
+    const requestId = ++cardRecoveryRequestRef.current;
+    setCardRecoveryChecking(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const params = new URLSearchParams({ narociloId: String(narociloId), znesek: znesek.toFixed(2) });
+      const response = await posFetch(
+        `${base}/api/terminal/card-payment-attempts/${encodeURIComponent(paymentAttemptId)}/recovery?${params}`,
+      );
+      if (!response.ok) return false;
+      const result = await response.json() as {
+        paymentAttemptId: string;
+        attemptId: string;
+        provider: CardProvider;
+        status: string;
+        recoverable: boolean;
+      };
+      const currentBinding = currentCardBindingRef.current;
+      if (
+        requestId !== cardRecoveryRequestRef.current
+        || currentBinding.narociloId !== narociloId
+        || Math.abs(currentBinding.znesek - znesek) >= 0.005
+      ) return false;
+      if (!result.recoverable || result.status !== "completed") return false;
+      const recovered = {
+        paymentAttemptId: result.paymentAttemptId,
+        attemptId: result.attemptId,
+        provider: result.provider,
+        narociloId,
+        znesek,
+      };
+      rememberCardPaymentAttempt(provider, narociloId, znesek, result.paymentAttemptId);
+      setRecoverableCardPayment(recovered);
+      setAvailableRecoveries([recovered]);
+      setTerminalStanje("napaka");
+      setTerminalRezultat({ napaka: "Kartično plačilo je že potrjeno, račun pa še ni izdan. Plačila ne ponavljajte." });
+      requirePaymentReconciliation("Potrjeno plačilo lahko varno povežete z računom brez nove bremenitve.");
+      return true;
+    } catch {
+      return false;
+    } finally {
+      if (requestId === cardRecoveryRequestRef.current) {
+        setCardRecoveryChecking(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedNarocilo || terminalskiZnesek <= 0 || !jeKarticniTok || issuedRacun) return;
+    const stored = findStoredCardAttempt(selectedNarocilo, terminalskiZnesek);
+    if (stored) {
+      void inspectRecoverableCardPayment(stored.provider, selectedNarocilo, terminalskiZnesek, stored.key);
+    }
+    return () => { cardRecoveryRequestRef.current += 1; };
+  // Recovery is intentionally keyed only by the immutable payment binding.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNarocilo, terminalskiZnesek, jeKarticniTok, issuedRacun]);
+  useEffect(() => {
+    // A recovery selection is valid only for the exact immutable checkout
+    // binding that exposed it. Keep browser storage for same-device recovery,
+    // but never carry a displayed candidate or completion marker across a
+    // payment/order change.
+    recoveryCompletionAttemptRef.current = null;
+    recoverySelectionTokenRef.current = null;
+    setRecoverableCardPayment(null);
+    setAvailableRecoveries([]);
+  }, [selectedNarocilo, terminalskiZnesek, jeKarticniTok]);
+  useEffect(() => {
+    if (!selectedNarocilo || terminalskiZnesek <= 0 || !jeKarticniTok || issuedRacun) return;
+    // The same-device path keeps its precise key verification. The broader
+    // discovery query is for a new browser/session and must not race it.
+    if (findStoredCardAttempt(selectedNarocilo, terminalskiZnesek)) return;
+    const requestId = ++cardRecoveryRequestRef.current;
+    const load = async () => {
+      try {
+        const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const params = new URLSearchParams({ narociloId: String(selectedNarocilo), znesek: terminalskiZnesek.toFixed(2) });
+        const response = await posFetch(`${base}/api/terminal/card-payment-attempts/recovery?${params}`);
+        if (!response.ok) return;
+        const result = await response.json() as { attempts?: Array<{ paymentAttemptId: string; attemptId: string; provider: CardProvider; znesek: number; ustvarjeno?: string }> };
+        if (requestId !== cardRecoveryRequestRef.current) return;
+        const attempts = (result.attempts ?? []).filter(attempt =>
+          attempt.paymentAttemptId && attempt.attemptId && Number(attempt.znesek) === terminalskiZnesek,
+        ).map(attempt => ({ ...attempt, narociloId: selectedNarocilo, znesek: terminalskiZnesek }));
+        setAvailableRecoveries(attempts);
+        if (attempts.length > 0) {
+          // Discovery never issues a receipt. It only presents the operator with
+          // a server-filtered choice, which must be confirmed by the button.
+          setRecoverableCardPayment(attempts[0]);
+          setTerminalStanje("napaka");
+          setTerminalRezultat({ napaka: "Najdeno je potrjeno plačilo brez računa. Pred nadaljevanjem ga izrecno izberite." });
+          requirePaymentReconciliation("Izberite potrjeno plačilo, ki ga želite povezati z računom.");
+        }
+      } catch { /* A stored same-device attempt remains available for its existing check. */ }
+    };
+    void load();
+    return () => { cardRecoveryRequestRef.current += 1; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNarocilo, terminalskiZnesek, jeKarticniTok, issuedRacun]);
   // Preverimo samo NEzaračunane postavke (racunId === null) — zaračunane imajo zaklenjene
   // cene in ne smejo vplivati na konsistentnostni pregled pred novo izdajo.
   const nezaracunanePostavkeZaCheck = selectedOrder?.postavke?.filter(p => p.racunId === null) ?? [];
@@ -647,15 +1498,25 @@ ${linije.map(vrHtml).join("\n")}
   const zneskiZaPrikaz: { oznaka: string; znesek: number }[] = [];
   if (selectedOrder) {
     if (steviloBonovDejanski > 0) zneskiZaPrikaz.push({ oznaka: "Bon za pico", znesek: znesekBonov });
+      if (znesekSubvencijaDejanski > 0) zneskiZaPrikaz.push({ oznaka: "Študentski bon (subvencija)", znesek: znesekSubvencijaDejanski });
     if (!vsePlacanoZBoni) {
       if (placilniNacin === "bon") {
         if (znesekDarilnegaBonaDejanski > 0) zneskiZaPrikaz.push({ oznaka: "Darilni bon", znesek: znesekDarilnegaBonaDejanski });
-        if (!vsePlacanoZDarilnimBonom && znesekPoKritiZDarilnimBonom > 0.005)
-          zneskiZaPrikaz.push({ oznaka: sekundarniNacin === "gotovina" ? "Gotovina" : "Kartica", znesek: znesekPoKritiZDarilnimBonom });
+        if (!vsePlacanoZDarilnimBonom && znesekPoKritiZDarilnimBonom > 0.005) {
+          zneskiZaPrikaz.push({
+            oznaka: sekundarniNacin === "gotovina" ? "Gotovina" : "Kartica",
+            znesek: sekundarniNacin === "kartica"
+              ? terminalskiZnesek
+              : round2(znesekPoKritiZDarilnimBonom + zajemNapitnine.cash),
+          });
+          if (sekundarniNacin === "kartica" && zajemNapitnine.cash > 0) {
+            zneskiZaPrikaz.push({ oznaka: "Gotovinska napitnina", znesek: zajemNapitnine.cash });
+          }
+        }
       } else if (placilniNacin === "gotovina") {
-        zneskiZaPrikaz.push({ oznaka: "Gotovina", znesek: znesekPreostalega });
+        zneskiZaPrikaz.push({ oznaka: "Gotovina", znesek: round2(znesekZaDoplacilo + zajemNapitnine.cash) });
       } else if (placilniNacin === "kartica") {
-        zneskiZaPrikaz.push({ oznaka: "Kartica", znesek: znesekPreostalega });
+        zneskiZaPrikaz.push({ oznaka: "Kartica", znesek: terminalskiZnesek });
       } else if (placilniNacin === "reprezentanca") {
         zneskiZaPrikaz.push({ oznaka: "Reprezentanca", znesek: znesekPreostalega });
       } else if (placilniNacin === "lastna_poraba") {
@@ -668,19 +1529,23 @@ ${linije.map(vrHtml).join("\n")}
   // If saved operator is no longer on an active shift, clear selection
   useEffect(() => {
     if (!aktivneIzmene || selectedNatakarId === "none") return;
-    const stillActive = aktivneIzmene.some(i => String(i.natakariId) === selectedNatakarId);
+    const stillActive = aktivniOperaterji.some(i => String(i.natakariId) === selectedNatakarId);
     if (!stillActive) {
       setSelectedNatakarId("none");
       localStorage.removeItem("pos_last_operator_id");
     }
-  }, [aktivneIzmene]);
+  }, [aktivneIzmene, selectedNatakarId]);
 
   const handleNatakarChange = (value: string) => {
-    setSelectedNatakarId(value);
     if (value === "none") {
+      setSelectedNatakarId("none");
       localStorage.removeItem("pos_last_operator_id");
+      localStorage.removeItem("pos_last_natakar_id");
+      sessionStorage.removeItem("pos_actor_session");
+      notifyPosActorSessionChanged();
     } else {
-      localStorage.setItem("pos_last_operator_id", value);
+      localStorage.setItem("pos_last_natakar_id", value);
+      requestPosActorSession();
     }
   };
 
@@ -690,11 +1555,17 @@ ${linije.map(vrHtml).join("\n")}
     setSumupQrCheckoutId(null);
     setSumupQrZnesek(null);
     try {
+      const paymentAttemptId = getCardPaymentAttemptId("sumup", narociloId, znesek);
+      rememberCardPaymentAttempt("sumup", narociloId, znesek, paymentAttemptId);
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/terminal/sumup/pay`, {
+      const res = await posFetch(`${base}/api/terminal/sumup/pay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ narociloId, znesek }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": paymentAttemptId,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        body: JSON.stringify({ narociloId, znesek, znesekNapitninaKartica: karticnaNapitnina, paymentAttemptId }),
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
@@ -702,9 +1573,14 @@ ${linije.map(vrHtml).join("\n")}
         setTerminalRezultat({ napaka: err.error ?? "SumUp napaka" });
         return false;
       }
-      const { checkoutId } = await res.json() as { checkoutId: string };
+      const { checkoutId } = await res.json() as { checkoutId?: string };
+      if (!checkoutId) {
+        setTerminalStanje("napaka");
+        setTerminalRezultat({ napaka: "Prejšnji poskus plačila je v neznanem stanju. Ne začenjajte novega plačila; preverite terminal oziroma podporo." });
+        return false;
+      }
 
-      const serial = (nastavitve as { sumupTerminalSerial?: string } | null)?.sumupTerminalSerial ?? "";
+      const serial = terminalConfig?.sumupTerminalSerial ?? "";
       if (!serial) {
         setSumupQrCheckoutId(checkoutId);
         setSumupQrZnesek(znesek);
@@ -712,11 +1588,15 @@ ${linije.map(vrHtml).join("\n")}
 
       for (let i = 0; i < 90; i++) {
         await new Promise<void>(r => setTimeout(r, 2000));
-        const statusRes = await fetch(`${base}/api/terminal/sumup/status/${encodeURIComponent(checkoutId)}`);
+        const statusRes = await posFetch(
+          `${base}/api/terminal/sumup/status/${encodeURIComponent(checkoutId)}`,
+          { headers: napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {} },
+        );
         const statusData = await statusRes.json() as { status: string; napaka?: string | null };
         if (statusData.status === "PAID") {
           setSumupQrCheckoutId(null);
           setSumupQrZnesek(null);
+          currentTerminalReferenceRef.current = { provider: "sumup", value: checkoutId };
           setLastSumupCheckoutId(checkoutId);
           setTerminalStanje("odobren");
           return true;
@@ -743,15 +1623,107 @@ ${linije.map(vrHtml).join("\n")}
     }
   };
 
+  const sendGiftToSumup = async (idempotencyKey: string, amountCents: number): Promise<string | null> => {
+    setTerminalStanje("cakanje");
+    setTerminalRezultat(null);
+    setSumupQrCheckoutId(null);
+    setSumupQrZnesek(null);
+    const znesek = amountCents / 100;
+    const persistPayment = (state: GiftCardPaymentState) => {
+      giftCardPaymentStateRef.current = state;
+      writeGiftCardPaymentState(sessionStorage, getEnotaId(), napravaKljuc, state);
+    };
+    const restored = giftCardPaymentStateRef.current;
+    persistPayment({
+      idempotencyKey,
+      amountCents,
+      attemptId: restored?.idempotencyKey === idempotencyKey ? restored.attemptId : undefined,
+      status: restored?.idempotencyKey === idempotencyKey ? restored.status : "pending",
+    });
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await posFetch(`${base}/api/terminal/sumup/pay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        body: JSON.stringify(buildGiftSumupPayBody({ idempotencyKey, amountCents })),
+      });
+      const payment = await res.json() as {
+        checkoutId?: string;
+        attemptId?: string;
+        status?: string;
+        recoveryRequired?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !payment.checkoutId || !payment.attemptId) {
+        if (payment.status === "unknown" || payment.recoveryRequired) {
+          persistPayment({ idempotencyKey, amountCents, attemptId: payment.attemptId, status: "unknown" });
+        }
+        throw new Error(payment.error ?? "Prejšnji poskus plačila je v neznanem stanju. Ne sprožite novega plačila.");
+      }
+      persistPayment({
+        idempotencyKey,
+        amountCents,
+        attemptId: payment.attemptId,
+        status: payment.status === "completed" ? "completed" : "pending",
+      });
+      if (!(terminalConfig?.sumupTerminalSerial ?? "")) {
+        setSumupQrCheckoutId(payment.checkoutId);
+        setSumupQrZnesek(znesek);
+      }
+      for (let i = 0; i < 90; i++) {
+        await new Promise<void>(resolve => setTimeout(resolve, 2000));
+        const statusRes = await posFetch(
+          `${base}/api/terminal/sumup/status/${encodeURIComponent(payment.checkoutId)}`,
+          { headers: napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {} },
+        );
+        const status = await statusRes.json() as { status: string; napaka?: string | null };
+        if (status.status === "PAID") {
+          setSumupQrCheckoutId(null);
+          setSumupQrZnesek(null);
+          setTerminalStanje("odobren");
+          persistPayment({ idempotencyKey, amountCents, attemptId: payment.attemptId, status: "completed" });
+          return payment.attemptId;
+        }
+        if (status.status === "FAILED") {
+          if (!status.napaka) {
+            giftCardPaymentStateRef.current = null;
+            confirmedGiftCardPaymentRef.current = null;
+            clearGiftCardPaymentState(sessionStorage, getEnotaId(), napravaKljuc);
+            darilniBonIdempotencyKeyRef.current = null;
+          }
+          throw new Error(status.napaka ?? "SumUp plačilo ni uspelo.");
+        }
+      }
+      persistPayment({ idempotencyKey, amountCents, attemptId: payment.attemptId, status: "unknown" });
+      throw new Error("Čas za SumUp plačilo je potekel. Ne sprožite novega plačila; poskusite znova z istim ključem.");
+    } catch (error) {
+      setSumupQrCheckoutId(null);
+      setSumupQrZnesek(null);
+      setTerminalStanje("napaka");
+      setTerminalRezultat({ napaka: error instanceof Error ? error.message : "Omrežna napaka" });
+      return null;
+    }
+  };
+
   const sendToVivaTerminal = async (narociloId: number, znesek: number): Promise<boolean> => {
     setTerminalStanje("cakanje");
     setTerminalRezultat(null);
     try {
+      const paymentAttemptId = getCardPaymentAttemptId("viva_terminal", narociloId, znesek);
+      rememberCardPaymentAttempt("viva_terminal", narociloId, znesek, paymentAttemptId);
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/terminal/viva/terminal/pay`, {
+      const res = await posFetch(`${base}/api/terminal/viva/terminal/pay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ narociloId, znesek }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": paymentAttemptId,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        body: JSON.stringify({ narociloId, znesek, znesekNapitninaKartica: karticnaNapitnina, paymentAttemptId }),
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
@@ -759,14 +1731,32 @@ ${linije.map(vrHtml).join("\n")}
         setTerminalRezultat({ napaka: err.error ?? "Viva Terminal napaka" });
         return false;
       }
-      const { sessionId } = await res.json() as { sessionId: string };
+      const { sessionId } = await res.json() as { sessionId?: string };
+      if (!sessionId) {
+        setTerminalStanje("napaka");
+        setTerminalRezultat({ napaka: "Prejšnji poskus plačila je v neznanem stanju. Ne začenjajte novega plačila; preverite terminal oziroma podporo." });
+        return false;
+      }
 
       for (let i = 0; i < 90; i++) {
         await new Promise<void>(r => setTimeout(r, 2000));
-        const statusRes = await fetch(`${base}/api/terminal/viva/terminal/status/${encodeURIComponent(sessionId)}`);
-        const statusData = await statusRes.json() as { status: string; napaka?: string | null };
+        const statusRes = await posFetch(
+          `${base}/api/terminal/viva/terminal/status/${encodeURIComponent(sessionId)}`,
+          { headers: napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {} },
+        );
+        const statusData = await statusRes.json() as {
+          status: string;
+          napaka?: string | null;
+          transactionId?: string | null;
+          orderCode?: string | null;
+        };
         if (statusData.status === "PAID") {
-          setLastVivaTerminalSessionId(sessionId);
+          currentTerminalReferenceRef.current = { provider: "viva", value: sessionId };
+          vivaPaymentIdentifiersRef.current = {
+            sessionId,
+            transactionId: statusData.transactionId?.trim() || null,
+            orderCode: statusData.orderCode?.trim() || null,
+          };
           setTerminalStanje("odobren");
           return true;
         } else if (statusData.status === "FAILED") {
@@ -786,16 +1776,73 @@ ${linije.map(vrHtml).join("\n")}
     }
   };
 
+  const preverjajVivaSmartCheckout = async (orderCode: string): Promise<boolean> => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+    for (let i = 0; i < 90; i++) {
+      await new Promise<void>(r => setTimeout(r, 2000));
+      try {
+        const statusRes = await posFetch(
+          `${base}/api/terminal/viva/status/${encodeURIComponent(orderCode)}`,
+          { headers: napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {} },
+        );
+
+        // Statusna HTTP napaka je prehodna. Naročilo lahko Viva objavi z
+        // zamikom, zato QR ostane prikazan in preverjanje teče naprej.
+        if (!statusRes.ok) continue;
+
+        const statusData = await statusRes.json() as {
+          status: string;
+          napaka?: string | null;
+          transactionId?: string | null;
+          orderCode?: string | null;
+          vivaStateId?: number | null;
+          vivaHttpStatus?: number | null;
+        };
+        if (statusData.status === "PAID") {
+          vivaPaymentIdentifiersRef.current = {
+            sessionId: null,
+            transactionId: statusData.transactionId?.trim() || null,
+            orderCode: statusData.orderCode?.trim() || orderCode,
+          };
+          setTerminalStanje("odobren");
+          return true;
+        }
+        if (statusData.status === "FAILED") {
+          setTerminalStanje("napaka");
+          setTerminalRezultat({ napaka: statusData.napaka ?? "Viva Wallet plačilo neuspešno" });
+          return false;
+        }
+      } catch {
+        // Omrežna/parsna napaka statusa ni dokaz neuspešnega plačila.
+      }
+    }
+
+    setVivaSmartTimeout(true);
+    setTerminalStanje("napaka");
+    setTerminalRezultat({
+      napaka: "Časovna omejitev — plačilo ni bilo potrjeno v roku. Plačilo je lahko še v obdelavi; ponovno preverite stanje ali prekličite postopek.",
+    });
+    return false;
+  };
+
   const sendToViva = async (narociloId: number, znesek: number): Promise<boolean> => {
     setTerminalStanje("cakanje");
     setTerminalRezultat(null);
     setVivaCheckoutUrl(null);
+    setVivaSmartTimeout(false);
     try {
+      const paymentAttemptId = getCardPaymentAttemptId("viva_smart", narociloId, znesek);
+      rememberCardPaymentAttempt("viva_smart", narociloId, znesek, paymentAttemptId);
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/terminal/viva/pay`, {
+      const res = await posFetch(`${base}/api/terminal/viva/pay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ narociloId, znesek }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": paymentAttemptId,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        body: JSON.stringify({ narociloId, znesek, znesekNapitninaKartica: karticnaNapitnina, paymentAttemptId }),
       });
       if (!res.ok) {
         const err = await res.json() as { error?: string };
@@ -803,26 +1850,19 @@ ${linije.map(vrHtml).join("\n")}
         setTerminalRezultat({ napaka: err.error ?? "Viva Wallet napaka" });
         return false;
       }
-      const { orderCode, checkoutUrl } = await res.json() as { orderCode: string; checkoutUrl: string };
-      setVivaCheckoutUrl(checkoutUrl);
-
-      for (let i = 0; i < 90; i++) {
-        await new Promise<void>(r => setTimeout(r, 2000));
-        const statusRes = await fetch(`${base}/api/terminal/viva/status/${encodeURIComponent(orderCode)}`);
-        const statusData = await statusRes.json() as { status: string; napaka?: string | null };
-        if (statusData.status === "PAID") {
-          setTerminalStanje("odobren");
-          return true;
-        } else if (statusData.status === "FAILED") {
-          setTerminalStanje("napaka");
-          setTerminalRezultat({ napaka: statusData.napaka ?? "Viva Wallet plačilo neuspešno" });
-          return false;
-        }
+      const { orderCode, checkoutUrl } = await res.json() as { orderCode?: string; checkoutUrl?: string };
+      if (!orderCode || !checkoutUrl) {
+        setTerminalStanje("napaka");
+        setTerminalRezultat({ napaka: "Prejšnji poskus plačila je v neznanem stanju. Ne začenjajte novega plačila; preverite terminal oziroma podporo." });
+        return false;
       }
-
-      setTerminalStanje("napaka");
-      setTerminalRezultat({ napaka: "Čas za Viva Wallet plačilo je potekel (3 min)" });
-      return false;
+      setVivaCheckoutUrl(checkoutUrl);
+      vivaPaymentIdentifiersRef.current = {
+        sessionId: null,
+        transactionId: null,
+        orderCode,
+      };
+      return preverjajVivaSmartCheckout(orderCode);
     } catch (err) {
       setTerminalStanje("napaka");
       setTerminalRezultat({ napaka: err instanceof Error ? err.message : "Omrežna napaka" });
@@ -834,11 +1874,17 @@ ${linije.map(vrHtml).join("\n")}
     setTerminalStanje("cakanje");
     setTerminalRezultat(null);
     try {
+      const paymentAttemptId = getCardPaymentAttemptId("payten", narociloId, znesek);
+      rememberCardPaymentAttempt("payten", narociloId, znesek, paymentAttemptId);
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/terminal/pay`, {
+      const res = await posFetch(`${base}/api/terminal/pay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ narociloId, znesek }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": paymentAttemptId,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        body: JSON.stringify({ narociloId, znesek, znesekNapitninaKartica: karticnaNapitnina, paymentAttemptId }),
       });
       const data = await res.json() as {
         status: string;
@@ -875,6 +1921,38 @@ ${linije.map(vrHtml).join("\n")}
     }
   };
 
+  const sendToSimulation = async (narociloId: number, znesek: number): Promise<boolean> => {
+    setTerminalStanje("cakanje");
+    setTerminalRezultat(null);
+    const paymentAttemptId = getCardPaymentAttemptId("simulacija", narociloId, znesek);
+    rememberCardPaymentAttempt("simulacija", narociloId, znesek, paymentAttemptId);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/terminal/simulation/pay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": paymentAttemptId,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ narociloId, znesek, paymentAttemptId }),
+      });
+      const data = await response.json() as { status?: string; error?: string };
+      if (!response.ok || data.status !== "completed") {
+        setTerminalStanje("napaka");
+        setTerminalRezultat({ napaka: data.error ?? "Simuliranega plačila ni bilo mogoče potrditi." });
+        return false;
+      }
+      setTerminalStanje("odobren");
+      return true;
+    } catch (error) {
+      setTerminalStanje("napaka");
+      setTerminalRezultat({ napaka: error instanceof Error ? error.message : "Omrežna napaka" });
+      return false;
+    }
+  };
+
   const izracunajZneske = () => {
     const zneski: {
       znesekGotovina?: number | null;
@@ -882,6 +1960,8 @@ ${linije.map(vrHtml).join("\n")}
       znesekBon?: number | null;
       steviloBonov?: number | null;
       znesekBonPica?: number | null;
+      znesekSubvencija?: number | null;
+      sspReferenca?: string | null;
       izdaniKuponi?: number | null;
       znesekNegotovinsko?: number | null;
     } = {
@@ -890,6 +1970,8 @@ ${linije.map(vrHtml).join("\n")}
       znesekBon: null,
       steviloBonov: steviloBonovDejanski > 0 ? steviloBonovDejanski : null,
       znesekBonPica: steviloBonovDejanski > 0 ? znesekBonov : null,
+      znesekSubvencija: znesekSubvencijaDejanski > 0 ? znesekSubvencijaDejanski : null,
+      sspReferenca: sspReferenca.trim() || null,
       izdaniKuponi: skupnoStevicoPic > 0 ? skupnoStevicoPic - steviloBonovDejanski : null,
       znesekNegotovinsko: null,
     };
@@ -897,13 +1979,16 @@ ${linije.map(vrHtml).join("\n")}
     if (placilniNacin === "bon") {
       if (znesekDarilnegaBonaDejanski > 0) zneski.znesekBon = znesekDarilnegaBonaDejanski;
       if (!vsePlacanoZDarilnimBonom && znesekPoKritiZDarilnimBonom > 0.005) {
-        if (sekundarniNacin === "gotovina") zneski.znesekGotovina = znesekPoKritiZDarilnimBonom;
-        else zneski.znesekKartica = znesekPoKritiZDarilnimBonom;
+        if (sekundarniNacin === "gotovina") zneski.znesekGotovina = round2(znesekPoKritiZDarilnimBonom + zajemNapitnine.cash);
+        else {
+          zneski.znesekKartica = terminalskiZnesek;
+          if (zajemNapitnine.cash > 0) zneski.znesekGotovina = zajemNapitnine.cash;
+        }
       }
     } else if (placilniNacin === "gotovina") {
-      zneski.znesekGotovina = znesekPreostalega;
+      zneski.znesekGotovina = round2(znesekZaDoplacilo + zajemNapitnine.cash);
     } else if (placilniNacin === "kartica") {
-      zneski.znesekKartica = znesekPreostalega;
+      zneski.znesekKartica = terminalskiZnesek;
     } else if (placilniNacin === "negotovinsko") {
       zneski.znesekNegotovinsko = znesekPreostalega;
     } else if (placilniNacin === "reprezentanca") {
@@ -914,8 +1999,39 @@ ${linije.map(vrHtml).join("\n")}
     return zneski;
   };
 
-  const issueRacun = (bypassOpts?: { preskociDDVPreverjanje: boolean; skrbnisPIN: string }) => {
+  const issueRacun = async (bypassOpts?: { preskociDDVPreverjanje: boolean; skrbnisPIN: string }) => {
     if (!selectedNarocilo) return;
+    if (!requireCurrentActorSession()) {
+      if (paymentGuardRef.current === "in-flight") releasePaymentGuard();
+      return;
+    }
+    // Automatic terminal callbacks enter here without a click handler.  Claim
+    // the same guard in that case, while preserving the guard already claimed
+    // by the regular payment handler.
+    if (paymentGuardRef.current === "idle" && !acquirePaymentGuard("Izdaja računa je v teku.")) return;
+    if (paymentGuardRef.current === "reconciliation-required") return;
+    if (aiSvetovalec.aktiven) {
+      try {
+        const pregled = await aiSvetovalec.preveriPredIzdajo(selectedNarocilo);
+        if (pregled?.blokirano) {
+          releasePaymentGuard();
+          toast({
+            title: "Izdaja blokirana",
+            description: pregled.kriticneNapake.join(" "),
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (error) {
+        releasePaymentGuard();
+        toast({
+          title: "Izdaja začasno blokirana",
+          description: error instanceof Error ? error.message : "Kritičnih kontrol ni mogoče izvesti.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const natakariId = selectedNatakarId !== "none" ? parseInt(selectedNatakarId) : null;
     const dejanskiNacin: RacunInputPlacilnaNacin = vsePlacanoZBoni ? "bon_pica" : placilniNacin;
     const zneski = izracunajZneske();
@@ -928,12 +2044,47 @@ ${linije.map(vrHtml).join("\n")}
       kupecId: kupecId ?? undefined,
     } : {};
     const sumupCheckoutPolje = lastSumupCheckoutId ? { sumupCheckoutId: lastSumupCheckoutId } : {};
-    const vivaTerminalPolje = lastVivaTerminalSessionId ? { vivaTerminalSessionId: lastVivaTerminalSessionId } : {};
+    const vivaPaymentIdentifiers = vivaPaymentIdentifiersRef.current;
+    const vivaTerminalPolje = vivaPaymentIdentifiers.sessionId
+      ? { vivaTerminalSessionId: vivaPaymentIdentifiers.sessionId }
+      : {};
+    const vivaTransactionPolje = vivaPaymentIdentifiers.transactionId
+      ? { vivaTransactionId: vivaPaymentIdentifiers.transactionId }
+      : {};
+    const vivaOrderCodePolje = vivaPaymentIdentifiers.orderCode
+      ? { vivaOrderCode: vivaPaymentIdentifiers.orderCode }
+      : {};
     const dniOdlogaPolje = dejanskiNacin === "negotovinsko" ? { dniOdloga } : {};
+    const paymentAttemptPolje = zneski.znesekKartica && zneski.znesekKartica > 0
+      ? { paymentAttemptId: cardPaymentAttemptRef.current?.key }
+      : {};
+    const recoverySelectionPolje = recoveryCompletionAttemptRef.current
+      ? {
+          recoverySelectedAttemptId: recoveryCompletionAttemptRef.current,
+          recoverySelectionToken: recoverySelectionTokenRef.current,
+        }
+      : {};
+    const racunData = { narociloId: selectedNarocilo, placilnaNacin: dejanskiNacin, fursNacin, natakariId, blagajnaId: activeBlagajnaId ?? null, znesekNapitnina: lahkoNapitnina ? znesekNapitninaRef.current : 0, tipPaymentMethod: lahkoNapitnina && znesekNapitninaRef.current > 0 ? dejanskiNacinZajemaNapitnine : undefined, ...zneski, ...bypassOpts, ...(postavkeIds ? { postavkeIds } : {}), ...kupecPolja, ...sumupCheckoutPolje, ...vivaTerminalPolje, ...vivaTransactionPolje, ...vivaOrderCodePolje, ...paymentAttemptPolje, ...recoverySelectionPolje, ...dniOdlogaPolje };
+    const fingerprint = JSON.stringify(racunData);
+    const idempotencyKey = racunIdempotencyRef.current?.fingerprint === fingerprint
+      ? racunIdempotencyRef.current.key
+      : crypto.randomUUID();
+    racunIdempotencyRef.current = { key: idempotencyKey, fingerprint };
     createRacun.mutate(
-      { data: { narociloId: selectedNarocilo, placilnaNacin: dejanskiNacin, fursNacin, natakariId, blagajnaId: activeBlagajnaId ?? null, ...zneski, ...bypassOpts, ...(postavkeIds ? { postavkeIds } : {}), ...kupecPolja, ...sumupCheckoutPolje, ...vivaTerminalPolje, ...dniOdlogaPolje } },
+      { data: { ...racunData, idempotencyKey } },
       {
         onSuccess: (racun) => {
+          trackEvent("receipt_issued", {
+            payment_method: dejanskiNacin,
+            partial: racun.jeDelni ?? false,
+            split_payment: splitMode,
+            fiscal_state: racun.fursNapaka ? "warning" : "ok",
+          });
+          racunIdempotencyRef.current = null;
+          clearCardPaymentAttempt();
+          // Native Bridge recovery evidence survives navigation and is cleared
+          // only after the fiscal receipt mutation itself succeeded.
+          localStorage.removeItem(PAYTEN_BRIDGE_STORAGE);
           setDdvNapaka(null);
           setPinDialogOpen(false);
           setPinInput("");
@@ -956,10 +2107,13 @@ ${linije.map(vrHtml).join("\n")}
             jeDelni,
             narociloId: racun.narociloId ?? null,
             datumCas: new Date(racun.datumCas ?? racun.ustvarjeno),
+            znesekNapitnina: lahkoNapitnina ? znesekNapitninaRef.current : 0,
           });
           queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListMizeQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListRacuniQueryKey() });
+          vivaPaymentIdentifiersRef.current = { sessionId: null, transactionId: null, orderCode: null };
+          releasePaymentGuard();
           if (vivaTapToPayIssueRef.current) {
             vivaTapToPayIssueRef.current = false;
             const smtpAktiven = (nastavitve as { smtpAktiven?: boolean } | null)?.smtpAktiven ?? false;
@@ -971,7 +2125,49 @@ ${linije.map(vrHtml).join("\n")}
           }
         },
         onError: (err: unknown) => {
+          // Po potrjenem terminalskem plačilu ne puščaj uporabnika na zaslonu
+          // »izdajam račun«, če strežniška izdaja odpove.
+          setTerminalStanje("idle");
           const body = (err as { data?: { code?: string; error?: string } })?.data;
+          const status = (err as { status?: number })?.status;
+          if (status === 409 && body?.code === "ORDER_ALREADY_CLOSED") {
+            racunIdempotencyRef.current = null;
+            setSelectedNarocilo(null);
+            setIssuedRacun(null);
+            setDdvNapaka(null);
+            releasePaymentGuard();
+            void queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+            void queryClient.invalidateQueries({ queryKey: getListMizeQueryKey() });
+            void queryClient.invalidateQueries({ queryKey: getListRacuniQueryKey() });
+            toast({
+              title: "Račun je že izdan",
+              description: "Naročilo je bilo zaključeno na drugem terminalu. Vračam vas na pregled miz.",
+              variant: "destructive",
+            });
+            setLocation("/");
+            return;
+          }
+          if (status === 401) {
+            toast({
+              title: "Prijavna seja je potekla",
+              description: "Račun ni bil izdan. Po ponovni prijavi lahko varno ponovite izdajo.",
+              variant: "destructive",
+              duration: 10000,
+            });
+          }
+          // A mutation error can be a lost response after FURS/receipt
+          // creation. Keep the attempt and its idempotency key locked until
+          // the operator has reconciled the outcome explicitly.
+          requirePaymentReconciliation("Izid izdaje računa ni znan. Preverite seznam računov oziroma FURS in šele nato odklenite nov poskus.");
+          const currentAttempt = cardPaymentAttemptRef.current;
+          if (currentAttempt) {
+            void inspectRecoverableCardPayment(
+              currentAttempt.provider,
+              currentAttempt.narociloId,
+              currentAttempt.znesek,
+              currentAttempt.key,
+            );
+          }
           if (body?.code === "MISSING_ZACETNE_ZALOGE") {
             toast({ title: "Začetne zaloge niso vnesene", description: body.error ?? "Pred izdajo računa vnesite začetne zaloge v razdelku Zaloge.", variant: "destructive", duration: 8000 });
             return;
@@ -1012,140 +2208,276 @@ ${linije.map(vrHtml).join("\n")}
     );
   };
 
-  // Payten Android Software — same-device integration via Android Intent URL.
-  // Payten APK (package configurable) mora biti namesčen na isti Android napravi.
-  // Callback: APK doda resultCode=0 (uspeh) ali resultCode!=0 (napaka) v callbackUrl.
-  const handlePaytenAndroidPay = () => {
+  useEffect(() => {
+    if (!pendingPaytenCompletion || !selectedOrder || selectedOrder.id !== pendingPaytenCompletion.narociloId) return;
+    // Selection effects may clear an in-memory ref while the durable native
+    // context rehydrates. Restore only the already server-confirmed binding.
+    if (cardPaymentAttemptRef.current?.key !== pendingPaytenCompletion.paymentAttemptId) {
+      cardPaymentAttemptRef.current = { key: pendingPaytenCompletion.paymentAttemptId, provider: "payten", narociloId: pendingPaytenCompletion.narociloId, znesek: pendingPaytenCompletion.amount };
+    }
+    const attempt = cardPaymentAttemptRef.current;
+    if (placilniNacin !== pendingPaytenCompletion.placilniNacin || sekundarniNacin !== pendingPaytenCompletion.sekundarniNacin) return;
+    if (attempt?.key !== pendingPaytenCompletion.paymentAttemptId || attempt.provider !== "payten"
+      || attempt.narociloId !== selectedOrder.id || Math.abs(attempt.znesek - pendingPaytenCompletion.amount) > 0.005
+      || Math.abs(terminalskiZnesek - pendingPaytenCompletion.amount) > 0.005) {
+      requirePaymentReconciliation("Obnovljeni Payten podatki se ne ujemajo z naročilom; račun ni bil izdan.");
+      setPendingPaytenCompletion(null);
+      return;
+    }
+    setTerminalStanje("odobren");
+    paymentGuardRef.current = "in-flight";
+    setPaymentGuard({ state: "in-flight", message: "Zaključujem račun s potrjenim Payten Bridge plačilom." });
+    setPendingPaytenCompletion(null);
+    issueRacun();
+  // issueRacun intentionally runs once after restored state is rendered.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPaytenCompletion, selectedOrder, terminalskiZnesek, placilniNacin, sekundarniNacin]);
+
+  // Native Bookie Bridge is the only trusted Payten Android completion path.
+  const PAYTEN_BRIDGE_STORAGE = "paytenBridgePayment";
+  const handlePaytenAndroidPay = async () => {
     if (!selectedNarocilo || !selectedOrder) return;
-    const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-    const amountCents = Math.round(terminalZnesek * 100);
-    const merchantReference = crypto.randomUUID();
-    const packageName = (nastavitve as { paytenAndroidPackageName?: string } | null)?.paytenAndroidPackageName ?? "com.payten.mpos";
-
-    // Shrani narociloId za obnovitev po povratku
-    sessionStorage.setItem("paytenAndroid_narociloId", String(selectedNarocilo));
-
-    // Callback URL: vrne se na blagajno s predizbranim naročilom
-    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-    const callbackUrl = `${window.location.origin}${base}/blagajna?narocilo=${selectedNarocilo}&paytenAndroid=1`;
-
-    const intentParams = new URLSearchParams({
-      amount: String(amountCents),
-      currency: "978",
-      merchantReference,
-      callbackUrl,
-    });
-    const fallbackUrl = encodeURIComponent("https://www.payten.com/");
-    const intentUrl = `intent://payment?${intentParams.toString()}#Intent;scheme=payten;package=${packageName};S.browser_fallback_url=${fallbackUrl};end`;
-
-    window.location.href = intentUrl;
+    const paymentAttemptId = getCardPaymentAttemptId("payten", selectedNarocilo, terminalskiZnesek);
+    rememberCardPaymentAttempt("payten", selectedNarocilo, terminalskiZnesek, paymentAttemptId);
+    let reservation: { paymentAttemptId: string; attemptId: string; status: string; launchUrl?: string; pollToken?: string; expiresAt?: string };
+    try {
+      reservation = await startPaytenAndroidPayment.mutateAsync({
+        data: {
+          znesek: terminalskiZnesek,
+          znesekNapitninaKartica: karticnaNapitnina,
+          narociloId: selectedNarocilo,
+          paymentAttemptId,
+        },
+      });
+    } catch {
+      requirePaymentReconciliation("Payten Android poskusa ni bilo mogoče varno rezervirati na strežniku. Ne začenjajte plačila.");
+      setTerminalStanje("napaka");
+      setTerminalRezultat({ napaka: "Payten Android: strežniška rezervacija plačila ni uspela." });
+      return;
+    }
+    if (reservation.status === "unknown" || reservation.status === "completed" || !reservation.launchUrl || !reservation.pollToken) {
+      requirePaymentReconciliation("Za ta Payten Android poskus je potrebna strežniška uskladitev. Ne začenjajte novega plačila.");
+      setTerminalStanje("napaka");
+      setTerminalRezultat({ napaka: "Payten Android: obstoječi poskus ni primeren za novo bremenitev." });
+      return;
+    }
+    localStorage.setItem(PAYTEN_BRIDGE_STORAGE, JSON.stringify({
+      paymentAttemptId: reservation.paymentAttemptId, attemptId: reservation.attemptId, pollToken: reservation.pollToken,
+      expiresAt: reservation.expiresAt, narociloId: selectedNarocilo, provider: "payten", amount: terminalskiZnesek,
+      paymentSnapshot: { placilniNacin, sekundarniNacin, znesekDarilnegaBona, steviloBonov, znesekNapitnina, nacinZajemaNapitnine: nacinZajemaNapitnineRef.current },
+    }));
+    setTerminalStanje("cakanje");
+    window.location.href = reservation.launchUrl;
   };
 
-  // Zaznaj povratek iz Payten Android Software APK (ob prvem namestitvi komponente).
-  // Payten APK doda v callbackUrl: resultCode=0 (uspeh) ali resultCode!=0 (napaka).
+  // Poll only the token-gated loopback result. Browser URL callbacks are not proof.
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const storedId = sessionStorage.getItem("paytenAndroid_narociloId");
-    sessionStorage.removeItem("paytenAndroid_narociloId");
-
-    const rezultat = parsePaytenAndroidCallback(searchParams, storedId);
-    if (rezultat.tip === "ni_callback") return;
-
-    // Počisti callback parametre iz URL (ohrani ?narocilo= za auto-select)
-    const newUrl = new URL(window.location.href);
-    ["paytenAndroid", "resultCode", "transactionId", "merchantReference"].forEach(k => newUrl.searchParams.delete(k));
-    window.history.replaceState(null, "", newUrl.toString());
-
-    // Obnovi plačilni način — plačilo je bilo vedno kartično
-    setPlacilniNacin("kartica");
-
-    if (rezultat.tip === "uspeh") {
-      // APK je potrdil plačilo — nastavi zastavico za samodejno izdajo računa
-      paytenAndroidAutoIssueNarociloRef.current = rezultat.narociloId;
-      setTerminalStanje("odobren");
-    } else if (rezultat.tip === "napaka") {
-      // APK je sporočil napako (nekoda 0)
-      setTerminalStanje("napaka");
-      setTerminalRezultat({ napaka: rezultat.napakaSporocilo });
-    } else {
-      // brez_potrditve — APK ni vrnil resultCode (fail-safe)
-      setTerminalStanje("napaka");
-      setTerminalRezultat({ napaka: "Payten Android: plačilo ni bilo potrjeno (ni rezultata). Preverite terminal in poskusite znova." });
+    let context: { paymentAttemptId: string; attemptId: string; pollToken: string; expiresAt?: string; narociloId?: number; provider?: string; amount?: number; paymentSnapshot?: any } | null = null;
+    try { context = JSON.parse(localStorage.getItem(PAYTEN_BRIDGE_STORAGE) ?? "null"); } catch { return; }
+    if (!context?.paymentAttemptId || !context.pollToken) return;
+    if (Number.isInteger(context.narociloId) && context.narociloId! > 0) {
+      setResumeNarociloId(context.narociloId!);
+      setSelectedNarocilo(context.narociloId!);
+      cardPaymentAttemptRef.current = { key: context.paymentAttemptId, provider: "payten", narociloId: context.narociloId!, znesek: Number(context.amount ?? 0) };
+      const snapshot = context.paymentSnapshot;
+      if (!snapshot || (snapshot.placilniNacin !== "kartica" && !(snapshot.placilniNacin === "bon" && snapshot.sekundarniNacin === "kartica"))
+        || !Number.isFinite(snapshot.znesekDarilnegaBona) || !Number.isFinite(snapshot.steviloBonov)
+        || !Number.isFinite(snapshot.znesekNapitnina) || (snapshot.nacinZajemaNapitnine !== "card" && snapshot.nacinZajemaNapitnine !== "cash")) {
+        requirePaymentReconciliation("Shranjen Payten Bridge kontekst ni popoln; račun ni bil izdan.");
+        return;
+      }
+      paytenRecoverySnapshotRef.current = snapshot;
+      setPlacilniNacin(snapshot.placilniNacin);
+      setSekundarniNacin(snapshot.sekundarniNacin);
+      setZnesekDarilnegaBona(snapshot.znesekDarilnegaBona);
+      setSteviloBonov(snapshot.steviloBonov);
+      setZnesekNapitnina(snapshot.znesekNapitnina); znesekNapitninaRef.current = snapshot.znesekNapitnina;
+      setNacinZajemaNapitnine(snapshot.nacinZajemaNapitnine); nacinZajemaNapitnineRef.current = snapshot.nacinZajemaNapitnine;
     }
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled) return;
+      if (context!.expiresAt && Date.now() > Date.parse(context!.expiresAt)) {
+        await timeoutPaytenAndroidPayment.mutateAsync({ data: { paymentAttemptId: context!.paymentAttemptId } }).catch(() => {});
+        requirePaymentReconciliation("Čas čakanja na podpisan Payten rezultat je potekel; račun ni bil izdan.");
+        setTerminalStanje("napaka"); return;
+      }
+      try {
+        const r = await fetch(`http://127.0.0.1:8092/payten-result?attemptId=${encodeURIComponent(context!.attemptId)}&pollToken=${encodeURIComponent(context!.pollToken)}`);
+        const result = await r.json() as { pending?: boolean; ok?: boolean; envelope?: unknown };
+        if (result.ok && !result.pending && result.envelope) {
+          const confirmed = await confirmPaytenAndroidPayment.mutateAsync({ data: { paymentAttemptId: context!.paymentAttemptId, envelope: result.envelope as any } });
+          if (confirmed.status === "COMPLETED") {
+            // Other checkout effects may run while the order is rehydrating;
+            // reassert the durable server attempt immediately before gating
+            // fiscal finalisation.
+            cardPaymentAttemptRef.current = { key: context!.paymentAttemptId, provider: "payten", narociloId: context!.narociloId!, znesek: Number(context!.amount) };
+            setPendingPaytenCompletion({ paymentAttemptId: context!.paymentAttemptId, amount: Number(context!.amount), narociloId: context!.narociloId!, placilniNacin: context!.paymentSnapshot.placilniNacin, sekundarniNacin: context!.paymentSnapshot.sekundarniNacin }); return;
+          }
+        }
+      } catch { /* bridge may be temporarily unavailable; deadline remains authoritative */ }
+      if (!cancelled) window.setTimeout(poll, 1500);
+    };
+    // Let restored payment state commit before a fast local bridge response can
+    // trigger receipt finalisation.
+    const initialPoll = window.setTimeout(() => { void poll(); }, 0);
+    return () => { cancelled = true; window.clearTimeout(initialPoll); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Ko je narocilo naloženo po povratku iz Payten Android Software, samodejno izda račun
-  useEffect(() => {
-    const pendingId = paytenAndroidAutoIssueNarociloRef.current;
-    if (!pendingId) return;
-    if (selectedNarocilo !== pendingId) return;
-    if (!selectedOrder) return;
-    if (placilniNacin !== "kartica") return;
-
-    paytenAndroidAutoIssueNarociloRef.current = null;
-    issueRacun();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNarocilo, selectedOrder, placilniNacin]);
-
-  // Viva Android Terminal — same-device integration via Android Intent URL.
-  // Ref: https://developer.vivawallet.com/integration-reference/card-terminals-sdk/android-ecr-sdk/
-  // The Viva.com Terminal APK (package: com.vivawallet.android.bankapp) must be installed on the same device.
-  // URI scheme: vivapayclient | Amount in cents | Callback URL receives ?statusCode=0 on success.
+  // Viva Android Terminal — same-device Viva inter-app sale request.
+  // Tap to Pay is a Terminal-app/device ability, so both Android paths use
+  // the documented `action=sale` protocol and differ only by their BOOKIE callback.
   const handleVivaAndroidPay = () => {
-    if (!selectedNarocilo || !selectedOrder) return;
-    const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-    const amountCents = Math.round(terminalZnesek * 100);
-    const clientTransactionId = crypto.randomUUID();
-    const sourceCode = (nastavitve as { vivaAndroidSourceCode?: string } | null)?.vivaAndroidSourceCode ?? "";
-
-    // Store narociloId so we can restore it on callback return
-    sessionStorage.setItem("vivaAndroid_narociloId", String(selectedNarocilo));
-
-    // Callback URL: returns to this checkout page with narocilo pre-selected
-    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-    const callbackUrl = `${window.location.origin}${base}/blagajna?narocilo=${selectedNarocilo}&vivaAndroid=1`;
-
-    const intentParams = new URLSearchParams({
-      amount: String(amountCents),
-      clientTransactionId,
-      callbackUrl,
-      ...(sourceCode ? { sourceCode } : {}),
-    });
-    const fallbackUrl = encodeURIComponent("https://www.vivawallet.com/");
-    const intentUrl = `intent://pay?${intentParams.toString()}#Intent;scheme=vivapayclient;package=com.vivawallet.android.bankapp;S.browser_fallback_url=${fallbackUrl};end`;
-
-    window.location.href = intentUrl;
+    void handleVivaTapToPayPay("android");
   };
 
-  // Viva Tap to Pay on Android — SoftPOS prek Android Intent URL.
-  // Ref: https://developer.vivawallet.com/integration-reference/card-terminals-sdk/android-ecr-sdk/
-  // Viva Terminal APK mora biti namesčen na isti napravi in podpirati SoftPOS (taptopay) način.
-  const handleVivaTapToPayPay = () => {
+  // Viva Tap to Pay on Android — SoftPOS uses the same documented Viva sale
+  // intent as Android Terminal; the Terminal app/device selects the NFC capability.
+  const handleVivaTapToPayPay = async (mode: "android" | "tap-to-pay" = "tap-to-pay") => {
     if (!selectedNarocilo || !selectedOrder) return;
-    const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-    const amountCents = Math.round(terminalZnesek * 100);
-    const clientTransactionId = crypto.randomUUID();
-    const sourceCode = (nastavitve as { vivaTapToPaySourceCode?: string } | null)?.vivaTapToPaySourceCode ?? "";
+    const amountCents = Math.round(terminalskiZnesek * 100);
+    const paymentAttemptId = getCardPaymentAttemptId("viva_terminal", selectedNarocilo, terminalskiZnesek);
+    rememberCardPaymentAttempt("viva_terminal", selectedNarocilo, terminalskiZnesek, paymentAttemptId);
+    const sourceCode = mode === "android"
+      ? terminalConfig?.vivaAndroidSourceCode ?? ""
+      : terminalConfig?.vivaTapToPaySourceCode ?? "";
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    setTerminalStanje("cakanje");
+    setTerminalRezultat(null);
+    setVivaBridgeLaunchUrl(null);
+    const response = await posFetch(`${base}/api/terminal/viva/tap-to-pay/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": paymentAttemptId,
+        ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+      },
+      body: JSON.stringify({
+        narociloId: selectedNarocilo,
+        znesek: terminalskiZnesek,
+        znesekNapitninaKartica: karticnaNapitnina,
+        paymentAttemptId,
+      }),
+    });
+    const start = await response.json() as { clientTransactionId?: string; error?: string; status?: string; recoveryRequired?: boolean };
+    if (!response.ok || !start.clientTransactionId) {
+      if (response.status === 409) {
+        sessionStorage.removeItem(cardAttemptStorageKey("viva_terminal", selectedNarocilo));
+        cardPaymentAttemptRef.current = null;
+        setTerminalStanje("napaka");
+        setTerminalRezultat({
+          napaka: start.error
+            ? `${start.error} Preverite, da prejšnje plačilo ni bilo izvedeno, nato ponovno pritisnite »Izdaj račun« z novim ključem.`
+            : "Viva je zavrnila rezervacijo plačila (409). Preverite, da prejšnje plačilo ni bilo izvedeno, nato ponovno pritisnite »Izdaj račun«.",
+        });
+        return;
+      }
+      setTerminalStanje("napaka");
+      setTerminalRezultat({ napaka: start.error ?? "Viva Android plačila ni bilo mogoče začeti." });
+      return;
+    }
+    if (start.recoveryRequired || start.status === "completed" || start.status === "unknown") {
+      setTerminalStanje("napaka");
+      setTerminalRezultat({
+        napaka: start.status === "completed"
+          ? "To plačilo je že potrjeno. Obnovite izdajo računa; ne sprožite novega plačila."
+          : "Izid prejšnjega plačila ni znan. Preverite Viva Terminal oziroma portal; novega plačila ne sprožite.",
+      });
+      return;
+    }
 
-    // Shrani narociloId za obnovitev po povratku
-    sessionStorage.setItem("vivaTapToPay_narociloId", String(selectedNarocilo));
+    // Android lahko povratni HTTPS naslov odpre v novem zavihku/PWA kontekstu.
+    // sessionStorage med kontekstoma ni skupen, zato isti preverljivi kontekst
+    // hranimo tudi v localStorage. Strežnik ga ob confirm še vedno preveri
+    // proti predhodno rezerviranemu paymentAttemptId.
+    writeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.narociloId, String(selectedNarocilo));
+    writeVivaTapToPayStorage(
+      VIVA_TAP_TO_PAY_STORAGE_KEYS.placilo,
+      JSON.stringify({ placilniNacin, sekundarniNacin, znesekDarilnegaBona, steviloBonov, znesekNapitnina, nacinZajemaNapitnine: nacinZajemaNapitnineRef.current }),
+    );
+    writeVivaTapToPayStorage(
+      VIVA_TAP_TO_PAY_STORAGE_KEYS.attempt,
+      JSON.stringify({ paymentAttemptId, clientTransactionId: start.clientTransactionId }),
+    );
 
     // Callback URL: vrne se na blagajno s predizbranim naročilom
-    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-    const callbackUrl = `${window.location.origin}${base}/blagajna?narocilo=${selectedNarocilo}&vivaTapToPay=1`;
+    const returnUrl = `${window.location.origin}${base}/blagajna?narocilo=${selectedNarocilo}&vivaTapToPay=1`;
+    const callbackUrl = buildBookieVivaBridgeCallbackUrl(returnUrl, start.clientTransactionId);
 
-    const intentParams = new URLSearchParams({
-      amount: String(amountCents),
-      clientTransactionId,
+    const intentUrl = buildVivaAndroidSaleIntent({
+      amountCents,
+      clientTransactionId: start.clientTransactionId,
       callbackUrl,
-      ...(sourceCode ? { sourceCode } : {}),
+      sourceCode,
+      demo: Boolean(terminalConfig?.vivaDemoNacin),
     });
-    const fallbackUrl = encodeURIComponent("https://www.vivawallet.com/");
-    const intentUrl = `intent://taptopay?${intentParams.toString()}#Intent;scheme=vivapayclient;package=com.vivawallet.android.bankapp;S.browser_fallback_url=${fallbackUrl};end`;
 
-    window.location.href = intentUrl;
+    const bridgeLaunchUrl = buildBookieVivaBridgeLaunchUrl(intentUrl, callbackUrl);
+    setVivaBridgeLaunchUrl(bridgeLaunchUrl);
   };
+
+  const obnoviAndroidPlacilo = (storedPlacilo: string | null) => {
+    try {
+      const placilo = JSON.parse(storedPlacilo ?? "{}") as { placilniNacin?: RacunInputPlacilnaNacin; sekundarniNacin?: "gotovina" | "kartica"; znesekDarilnegaBona?: number; steviloBonov?: number; znesekNapitnina?: number; nacinZajemaNapitnine?: TipCaptureMethod };
+      setPlacilniNacin(placilo.placilniNacin ?? "kartica");
+      setSekundarniNacin(placilo.sekundarniNacin ?? "kartica");
+      setZnesekDarilnegaBona(placilo.znesekDarilnegaBona ?? 0);
+      setSteviloBonov(placilo.steviloBonov ?? 0);
+      const tip = placilo.znesekNapitnina ?? 0;
+      setZnesekNapitnina(tip); znesekNapitninaRef.current = tip;
+      const nacin = placilo.nacinZajemaNapitnine === "cash" || placilo.nacinZajemaNapitnine === "card"
+        ? placilo.nacinZajemaNapitnine
+        : (placilo.placilniNacin === "kartica" || (placilo.placilniNacin === "bon" && placilo.sekundarniNacin === "kartica"))
+          ? "card" : "cash";
+      setNacinZajemaNapitnine(nacin);
+      nacinZajemaNapitnineRef.current = nacin;
+    } catch { setPlacilniNacin("kartica"); }
+  };
+
+  useEffect(() => {
+    if (!vivaBridgeLaunchUrl || terminalStanje !== "cakanje") return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+      if (stopped) return;
+      try {
+        const stored = readVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.attempt);
+        const attempt = stored
+          ? JSON.parse(stored) as { clientTransactionId?: string }
+          : null;
+        const clientTransactionId = attempt?.clientTransactionId?.trim();
+        if (clientTransactionId) {
+          const response = await fetch(
+            `http://localhost:8092/result?clientTransactionId=${encodeURIComponent(clientTransactionId)}`,
+          );
+          const result = await response.json() as { pending?: boolean; returnUrl?: string };
+          if (!result.pending && result.returnUrl) {
+            const target = new URL(result.returnUrl);
+            if (target.origin === window.location.origin && target.pathname.endsWith("/pos/blagajna")) {
+              window.location.replace(target.toString());
+              return;
+            }
+          }
+        }
+      } catch {
+        // Bridge 1.0.7 in starejši nima lokalnega rezultatnega kanala.
+      }
+      if (!stopped) timer = setTimeout(poll, document.hidden ? 1500 : 500);
+    };
+
+    const onVisible = () => {
+      if (!document.hidden) void poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    void poll();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [vivaBridgeLaunchUrl, terminalStanje]);
 
   // Zaznaj povratek iz Viva Android Terminal APK (ob prvem namestitvi komponente).
   // Viva APK doda v callbackUrl: vivaResult=ok|fail, transactionId, clientTransactionId, errorCode.
@@ -1160,25 +2492,33 @@ ${linije.map(vrHtml).join("\n")}
     window.history.replaceState(null, "", newUrl.toString());
 
     const storedId = sessionStorage.getItem("vivaAndroid_narociloId");
+    const storedPlacilo = sessionStorage.getItem("vivaAndroid_placilo");
     sessionStorage.removeItem("vivaAndroid_narociloId");
+    sessionStorage.removeItem("vivaAndroid_placilo");
     if (!storedId) return;
     const narId = parseInt(storedId);
     if (isNaN(narId)) return;
 
-    // Obnovi plačilni način — plačilo je bilo vedno kartično
-    setPlacilniNacin("kartica");
-
-    const vivaResult = params.get("vivaResult");
-    if (vivaResult === "ok") {
+    const rezultat = parseVivaAndroidSaleCallback(params);
+    if (rezultat.kind === "approved") {
+      obnoviAndroidPlacilo(storedPlacilo);
       // APK je potrdil plačilo — nastavi zastavico za samodejno izdajo računa
+      vivaPaymentIdentifiersRef.current = {
+        sessionId: null,
+        transactionId: rezultat.transactionId,
+        orderCode: null,
+      };
       vivaAndroidAutoIssueNarociloRef.current = narId;
+      setResumeNarociloId(narId);
+      setSelectedNarocilo(narId);
       setTerminalStanje("odobren");
-    } else if (vivaResult === "fail") {
+    } else if (rezultat.kind === "failed") {
+      setZnesekNapitnina(0); znesekNapitninaRef.current = 0;
       // APK je sporočil napako
-      const errorCode = params.get("errorCode") ?? "?";
       setTerminalStanje("napaka");
-      setTerminalRezultat({ napaka: `Viva Android Terminal: plačilo neuspešno (koda ${errorCode})` });
+      setTerminalRezultat({ napaka: `Viva Android Terminal: plačilo neuspešno (${rezultat.reason})` });
     } else {
+      setZnesekNapitnina(0); znesekNapitninaRef.current = 0;
       // APK ni vrnil vivaResult — fail-safe: ne izdajamo računa brez potrditve
       setTerminalStanje("napaka");
       setTerminalRezultat({ napaka: "Viva Android Terminal: plačilo ni bilo potrjeno (ni rezultata). Preverite terminal in poskusite znova." });
@@ -1192,44 +2532,122 @@ ${linije.map(vrHtml).join("\n")}
     if (!pendingId) return;
     if (selectedNarocilo !== pendingId) return;
     if (!selectedOrder) return;
-    if (placilniNacin !== "kartica") return;
+    if (!jeKarticniTok) return;
 
     vivaAndroidAutoIssueNarociloRef.current = null;
     issueRacun();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNarocilo, selectedOrder, placilniNacin]);
+  }, [selectedNarocilo, selectedOrder, placilniNacin, sekundarniNacin, jeKarticniTok]);
 
   // Zaznaj povratek iz Viva Tap to Pay (SoftPOS) ob prvem namestitvi komponente.
   // Viva APK doda v callbackUrl: vivaResult=ok|fail, transactionId, clientTransactionId, errorCode.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("vivaTapToPay") !== "1") return;
+    const callbackClientTransactionId = params.get("clientTransactionId")?.trim() ?? "";
+    const callbackNarociloId = params.get("narocilo")?.trim() ?? "";
+    const storedId = readVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.narociloId)
+      ?? (callbackNarociloId || null);
+    const storedPlacilo = readVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.placilo);
+    // clientTransactionId je isti strežniško rezervirani idempotency key.
+    // Callback ga sme uporabiti kot stateless obnovo, ker confirm nato pri Vivi
+    // preveri transactionId, znesek in merchant reference; sam URL ni dokaz plačila.
+    const storedAttempt = readVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.attempt)
+      ?? (callbackClientTransactionId
+        ? JSON.stringify({
+            paymentAttemptId: callbackClientTransactionId,
+            clientTransactionId: callbackClientTransactionId,
+          })
+        : null);
+    const hasStoredAttempt = Boolean(storedId && storedAttempt);
+    if (!isVivaAndroidSaleCallback(params, "vivaTapToPay", hasStoredAttempt)) {
+      // Sam obstoj shranjenega poskusa ne pomeni povratka iz Vive. Ob običajnem
+      // odpiranju blagajne brez callback parametrov ga pustimo nedotaknjenega
+      // in ne prikažemo lažne terminalske napake.
+      return;
+    }
 
     // Počisti callback parametre iz URL (ohrani ?narocilo= za auto-select)
     const newUrl = new URL(window.location.href);
-    ["vivaTapToPay", "vivaResult", "transactionId", "clientTransactionId", "errorCode"].forEach(k => newUrl.searchParams.delete(k));
+    ["vivaTapToPay", "vivaResult", "status", "transactionId", "orderCode", "clientTransactionId", "errorCode", "message"].forEach(k => newUrl.searchParams.delete(k));
     window.history.replaceState(null, "", newUrl.toString());
 
-    const storedId = sessionStorage.getItem("vivaTapToPay_narociloId");
-    sessionStorage.removeItem("vivaTapToPay_narociloId");
     if (!storedId) return;
     const narId = parseInt(storedId);
     if (isNaN(narId)) return;
 
-    // Obnovi plačilni način — plačilo je bilo vedno kartično
-    setPlacilniNacin("kartica");
-
-    const vivaResult = params.get("vivaResult");
-    if (vivaResult === "ok") {
-      // APK je potrdil plačilo — nastavi zastavico za samodejno izdajo računa
-      vivaTapToPayAutoIssueNarociloRef.current = narId;
-      setTerminalStanje("odobren");
-    } else if (vivaResult === "fail") {
+    const rezultat = parseVivaAndroidSaleCallback(params);
+    if (rezultat.kind === "approved") {
+      let attempt: { paymentAttemptId?: string; clientTransactionId?: string } = {};
+      try { attempt = JSON.parse(storedAttempt ?? "{}") as typeof attempt; } catch { /* fail-safe below */ }
+      const callbackOrderCode = params.get("orderCode")?.trim() ?? "";
+      if ((!rezultat.transactionId && !callbackOrderCode) || !attempt.paymentAttemptId || !attempt.clientTransactionId || callbackClientTransactionId !== attempt.clientTransactionId) {
+        setTerminalStanje("napaka");
+        setTerminalRezultat({ napaka: "Viva Tap to Pay: povratni podatki ne ustrezajo začetemu plačilu. Račun ni bil izdan." });
+        return;
+      }
+      // Naročilo naloži neposredno in vzporedno s strežniškim preverjanjem Vive.
+      // Izdaja ostane blokirana do statusa PAID, zato hitrejši fetch ne oslabi
+      // potrjevanja plačila ali zaščite pred podvojitvijo.
+      setResumeNarociloId(narId);
+      setSelectedNarocilo(narId);
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      void posFetch(`${base}/api/terminal/viva/tap-to-pay/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": attempt.paymentAttemptId,
+          ...(napravaKljuc ? { "X-Naprava-Id": napravaKljuc } : {}),
+        },
+        body: JSON.stringify({
+          paymentAttemptId: attempt.paymentAttemptId,
+          clientTransactionId: attempt.clientTransactionId,
+          transactionId: rezultat.transactionId,
+          orderCode: callbackOrderCode || undefined,
+        }),
+      }).then(async response => {
+        const confirmed = await response.json() as {
+          status?: string;
+          transactionId?: string;
+          error?: string;
+          napaka?: string;
+        };
+        if (!response.ok || confirmed.status !== "PAID") {
+          setTerminalStanje("napaka");
+          setTerminalRezultat({ napaka: confirmed.error ?? confirmed.napaka ?? "Viva transakcije ni bilo mogoče potrditi. Preverite terminal; novega plačila ne sprožite." });
+          return;
+        }
+        removeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.narociloId);
+        removeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.placilo);
+        removeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.attempt);
+        obnoviAndroidPlacilo(storedPlacilo);
+        rememberCardPaymentAttempt(
+          "viva_terminal",
+          narId,
+          Number((Number(terminalskiZnesek)).toFixed(2)),
+          attempt.paymentAttemptId!,
+        );
+        vivaPaymentIdentifiersRef.current = {
+          sessionId: null,
+          transactionId: confirmed.transactionId ?? rezultat.transactionId,
+          orderCode: callbackOrderCode || null,
+        };
+        vivaTapToPayAutoIssueNarociloRef.current = narId;
+        setVivaTapToPayAutoIssueId(narId);
+        setTerminalStanje("odobren");
+      }).catch(() => {
+        setTerminalStanje("napaka");
+        setTerminalRezultat({ napaka: "Viva transakcije trenutno ni mogoče preveriti. Preverite terminal; novega plačila ne sprožite." });
+      });
+    } else if (rezultat.kind === "failed") {
+      removeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.narociloId);
+      removeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.placilo);
+      removeVivaTapToPayStorage(VIVA_TAP_TO_PAY_STORAGE_KEYS.attempt);
+      setZnesekNapitnina(0); znesekNapitninaRef.current = 0;
       // APK je sporočil napako
-      const errorCode = params.get("errorCode") ?? "?";
       setTerminalStanje("napaka");
-      setTerminalRezultat({ napaka: `Viva Tap to Pay: plačilo neuspešno (koda ${errorCode})` });
+      setTerminalRezultat({ napaka: `Viva Tap to Pay: plačilo neuspešno (${rezultat.reason})` });
     } else {
+      setZnesekNapitnina(0); znesekNapitninaRef.current = 0;
       // APK ni vrnil vivaResult — fail-safe: ne izdajamo računa brez potrditve
       setTerminalStanje("napaka");
       setTerminalRezultat({ napaka: "Viva Tap to Pay: plačilo ni bilo potrjeno (ni rezultata). Preverite terminal in poskusite znova." });
@@ -1239,37 +2657,356 @@ ${linije.map(vrHtml).join("\n")}
 
   // Ko je narocilo naloženo po povratku iz Viva Tap to Pay, samodejno izda račun
   useEffect(() => {
-    const pendingId = vivaTapToPayAutoIssueNarociloRef.current;
+    const pendingId = vivaTapToPayAutoIssueId;
     if (!pendingId) return;
     if (selectedNarocilo !== pendingId) return;
     if (!selectedOrder) return;
-    if (placilniNacin !== "kartica") return;
+    // Če se je callback odprl v novem brskalniškem kontekstu brez shranjenega
+    // plačilnega snapshot-a, je varni privzeti tok kartica. Ne ostani na
+    // zaslonu »Plačilo potrjeno« samo zato, ker je začetni state gotovina.
+    if (!jeKarticniTok) {
+      setPlacilniNacin("kartica");
+      setSekundarniNacin("kartica");
+      return;
+    }
 
     vivaTapToPayAutoIssueNarociloRef.current = null;
+    setVivaTapToPayAutoIssueId(null);
     vivaTapToPayIssueRef.current = true;
     issueRacun();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNarocilo, selectedOrder, placilniNacin]);
+  }, [vivaTapToPayAutoIssueId, selectedNarocilo, selectedOrder, placilniNacin, sekundarniNacin, jeKarticniTok, terminalStanje]);
 
   const handleIzdajRacun = async () => {
-    if (!selectedNarocilo || !selectedOrder) return;
+    const selectedOrderKey = gatewayCheckoutMode ? selectedGatewayOrderId : selectedNarocilo;
+    if (!selectedOrderKey || !selectedOrder) return;
+    if (!requireCurrentActorSession()) return;
+    if (isOfflineOrderLocked(selectedOrderKey)) {
+      setOfflineOrderLocked(true);
+      toast({ title: "Naročilo je zaklenjeno", description: "Za naročilo že obstaja lokalna fiskalna operacija. Pred spremembo ali novo izdajo jo uskladite v lokalni vrsti.", variant: "destructive" });
+      return;
+    }
+    if (aiSvetovalec.aktiven && selectedNarocilo !== null) {
+      try {
+        const pregled = await aiSvetovalec.preveriPredIzdajo(selectedNarocilo);
+        if (pregled?.blokirano) {
+          toast({ title: "Izdaja blokirana", description: pregled.kriticneNapake.join(" "), variant: "destructive" });
+          return;
+        }
+      } catch (error) {
+        toast({
+          title: "Plačilo začasno blokirano",
+          description: error instanceof Error ? error.message : "Kritičnih kontrol ni mogoče izvesti.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    // Fiscalization consumes the same sticky authority decision as Home and
+    // Order; it must never perform a second navigator/network decision.
+    const gatewayOfflineAuthority = gatewayCheckoutMode;
+    const gatewayUnavailable = gatewayOfflineAuthority && !gatewayOffline.healthy;
+    // Fiskalnega dokumenta ali nove kartične avtorizacije nikoli ne ustvarimo
+    // lokalno. Kartični attempt/idempotency key ostane v sessionStorage in se
+    // ob ponovnem poskusu po vrnitvi povezave ponovno uporabi.
+    if (gatewayUnavailable) {
+      toast({ title: "LAN gateway ni dosegljiv", description: "Samodejni preklop fiskalne avtoritete je blokiran.", variant: "destructive" });
+      return;
+    }
+    if (gatewayOfflineAuthority) {
+      // No mixed tender, vouchers, subsidy or tips can enter the local fiscal
+      // flow.  The service receives one canonical, cash-only receipt.
+      if (placilniNacin !== "gotovina" || znesekNapitninaRef.current > 0 || splitMode) {
+        toast({ title: "Offline je dovoljena samo gotovina", description: "Kartica, mešana plačila, boni, subvencije, delni računi in napitnina zahtevajo povezavo.", variant: "destructive" });
+        return;
+      }
+      const capabilityCheck = gatewayOfflineAuthority
+        ? { capability: await getCachedOfflineCapability(), reason: undefined }
+        : await checkLocalFiscalCapability();
+      const cachedDevice = capabilityCheck.capability;
+      const enotaId = Number(user?.enotaId);
+      if (gatewayOfflineAuthority) {
+        if (!cachedDevice?.identity || !Number.isInteger(enotaId) || !nastavitve) {
+          toast({ title: "Gateway izdaja je blokirana", description: "Manjka identiteta POS nastavitve.", variant: "destructive" });
+          return;
+        }
+      } else if (capabilityCheck.reason || !cachedDevice?.identity || !Number.isInteger(enotaId) || !nastavitve) {
+        toast({ title: "Offline fiskalna izdaja je blokirana", description: capabilityCheck.reason ?? "Storitev nima provisionirane identitete za izbrano enoto, prostor in napravo.", variant: "destructive" });
+        return;
+      }
+      try {
+        if (!acquirePaymentGuard("Lokalna fiskalna izdaja je v teku.")) return;
+        const legalTimestamp = legalLjubljanaTimestamp();
+        const items = (selectedOrder.postavke ?? []).filter(postavka => postavka.racunId == null);
+        const waiterId = Number(selectedNatakarId);
+        const selectedShift = aktivniOperaterji.find(item => item.natakariId === waiterId);
+        if (!selectedShift) throw new Error("Izbrana izmena ni več aktivna.");
+        const authorityBundle = await getValidOfflineAuthorityBundle(cachedDevice!.identity, waiterId, selectedShift.id);
+        let gatewayOrderVersion = 0;
+        if (gatewayOfflineAuthority && gatewayOffline.scope) {
+          const snapshot = await gatewayPosService(gatewayOffline.scope).snapshot();
+            gatewayOrderVersion = Number(snapshot.orders.find(order => String(order.orderId) === String(selectedGatewayOrderId))?.version ?? 0);
+        }
+          const sourceRefFor = (postavka: any) => gatewayOfflineAuthority
+            ? String(postavka.lineId ?? postavka.id)
+            : `cloud:${selectedNarocilo}:${postavka.id}`;
+         const sourceRefs = new Set(items.map((postavka: any) => sourceRefFor(postavka)));
+         const orderedItems = [...items].sort((a: any, b: any) =>
+           (a.parentSourceLineRef || a.parentPostavkaId ? 1 : 0) -
+           (b.parentSourceLineRef || b.parentPostavkaId ? 1 : 0));
+         const canonicalBySource = new Map<string, { vatRate: number; articleId: number | null }>();
+         const soldLines = orderedItems.map(postavka => {
+          const articleId = (postavka as typeof postavka & { artikelId?: number | null }).artikelId ?? null;
+          const modifierId = (postavka as typeof postavka & { modifikatorId?: number | null }).modifikatorId ?? null;
+            const parentSourceLineRef = gatewayOfflineAuthority
+              ? ((postavka as any).parentSourceLineRef
+                ?? ((postavka as any).parentPostavkaId != null
+                  ? String((postavka as any).parentPostavkaId) : null))
+              : ((postavka as any).parentPostavkaId != null
+                ? `cloud:${selectedNarocilo}:${(postavka as any).parentPostavkaId}` : null);
+           const parent = parentSourceLineRef
+             ? orderedItems.find((candidate: any) => sourceRefFor(candidate) === parentSourceLineRef)
+             : null;
+           if (parentSourceLineRef && (!parent || !sourceRefs.has(parentSourceLineRef))) {
+             throw new Error(`Modifikator ${postavka.id} nima veljavne nadrejene postavke.`);
+           }
+           const modifierFact = modifierId == null ? undefined
+             : authorityBundle.modifiers.find(entry => entry.modifierId === modifierId);
+           if (modifierId != null && !modifierFact) {
+             throw new Error(`Modifikator ${modifierId} ni v veljavnem authority bundlu.`);
+           }
+           if (modifierId != null && !parentSourceLineRef) {
+             throw new Error(`Modifikator ${modifierId} nima nadrejene postavke.`);
+           }
+           if (modifierId == null && articleId === null) {
+             throw new Error(`Vrstica ${postavka.id} nima podpisanega articleId.`);
+           }
+           const parentArticleId = (parent as any)?.artikelId ?? (parent as any)?.articleId;
+           if (modifierFact && modifierFact.articleIds?.length &&
+               !modifierFact.articleIds.includes(Number(parentArticleId))) {
+             throw new Error(`Modifikator ${modifierId} ni dovoljen za nadrejeni artikel.`);
+           }
+           const facts = modifierFact ? [] : authorityBundle.catalog.filter(entry => entry.articleId === articleId);
+           if (!modifierFact && !facts.length) throw new Error(`Artikel ${articleId} ni v veljavnem authority bundlu.`);
+           const authoritativeVatRate = modifierFact
+             ? modifierFact.vatRule === "inherit_parent"
+               ? canonicalBySource.get(parentSourceLineRef!)?.vatRate
+               : Number(modifierFact.vatRate)
+             : Number(facts[0]!.vatRate);
+           if (!Number.isFinite(authoritativeVatRate)) {
+             throw new Error(`Za vrstico ${postavka.id} ni mogoče določiti podpisane DDV stopnje.`);
+           }
+           const vatRate = authoritativeVatRate as number;
+           if (postavka.davek != null && Math.abs(Number(postavka.davek) - vatRate) > 0.001) {
+             throw new Error(`DDV vrstice ${postavka.id} se ne ujema s podpisanim authority bundlom.`);
+           }
+           const quantity = Number(postavka.kolicina);
+           const authoritativeUnitGross = modifierFact ? Number(modifierFact.priceDelta) : Number(facts[0].unitGross);
+           const lineGross = Number(postavka.skupaj);
+           if (!Number.isFinite(quantity) || quantity <= 0 ||
+               !Number.isFinite(authoritativeUnitGross) || !Number.isFinite(lineGross) ||
+               round2(lineGross) !== round2(quantity * authoritativeUnitGross)) {
+              throw new Error(`Cena, količina ali bruto znesek vrstice ${postavka.id} odstopa od podpisanega bundla.`);
+          }
+           const canonical = {
+            id: Number((postavka as any).cloudLineId ?? 0),
+             sourceLineRef: sourceRefFor(postavka),
+            cloudLineId: Number.isSafeInteger(Number((postavka as any).cloudLineId))
+              && Number((postavka as any).cloudLineId) > 0
+              ? Number((postavka as any).cloudLineId) : null,
+             articleId, modifierId, name: modifierFact?.name ?? facts[0]!.name,
+            quantity, unitGross: authoritativeUnitGross, gross: lineGross,
+             vatRate,
+             normativeFactor: modifierFact?.normativeQuantity == null ? null : Number(modifierFact.normativeQuantity),
+             articleKind: modifierFact ? "modifier" : facts[0].articleKind,
+             note: (postavka as any).opomba ?? null, toGo: Boolean((postavka as any).toGo),
+             courseNumber: (postavka as any).courseNumber ?? null,
+              courseSequence: (postavka as any).courseSequence ?? null,
+              courseNameSnapshot: (postavka as any).courseNameSnapshot ?? null,
+             pairingGroupId: (postavka as any).pairingGroupId ?? null,
+             parentCloudLineId: (postavka as any).parentCloudLineId ?? null,
+             parentSourceLineRef,
+           };
+           canonicalBySource.set(sourceRefFor(postavka), { vatRate, articleId });
+           return canonical;
+        });
+         const gross = Number(soldLines.reduce((sum, line) => sum + line.gross, 0).toFixed(2));
+         const taxes = new Map<string, { taxable: number; tax: number }>();
+         for (const line of soldLines) {
+           const itemNet = round2(line.vatRate > 0 ? line.gross / (1 + line.vatRate / 100) : line.gross);
+           const itemTax = round2(line.gross - itemNet);
+           const key = line.vatRate.toFixed(2);
+           const current = taxes.get(key) ?? { taxable: 0, tax: 0 };
+           current.taxable += itemNet;
+           current.tax += itemTax;
+           taxes.set(key, current);
+         }
+         const taxLines = [...taxes.entries()].map(([rate, value]) => ({
+           rate, taxable: Number(value.taxable.toFixed(2)).toFixed(2), tax: Number(value.tax.toFixed(2)).toFixed(2),
+         }));
+         const totalTax = Number(taxLines.reduce((sum, line) => sum + Number(line.tax), 0).toFixed(2));
+         if (items.length > authorityBundle.policies.maxLines || gross > Number(authorityBundle.policies.maxReceiptGross)) {
+           throw new Error("Račun presega podpisane omejitve authority bundla.");
+         }
+        const normative = new Map<number, number>();
+        const stockFacts = new Map<number, number>();
+        for (const line of soldLines) {
+           const modifierFacts = line.modifierId == null ? [] : authorityBundle.modifiers.filter(entry => entry.modifierId === line.modifierId);
+           const sourceFacts = line.modifierId == null
+             ? authorityBundle.catalog.filter(entry => entry.articleId === line.articleId && entry.inputArticleId !== null)
+             : modifierFacts;
+           for (const fact of sourceFacts.filter(entry => entry.inputArticleId !== null)) {
+            const inputId = fact.inputArticleId!;
+            const quantity = line.quantity * Number(fact.normativeQuantity ?? "0");
+            normative.set(inputId, (normative.get(inputId) ?? 0) + quantity);
+            stockFacts.set(inputId, Number(fact.unitWac ?? "0"));
+          }
+        }
+        const vatGroups = [...taxes.entries()].map(([rate, value]) => ({
+           rate: Number(rate), gross: round2(value.taxable + value.tax), vat: round2(value.tax),
+        }));
+        // All editable facts have now passed the signed-bundle checks. Persist
+        // the operation boundary before constructing or POSTing the plan.
+         const sourceOrderRef = String(selectedOrderKey);
+         const operationId = reserveOfflineOperationId(sourceOrderRef);
+        const finalizationPlanTemplate = {
+           version: 2 as const, source: "offline" as const, sourceAuthority: gatewayOfflineAuthority ? "GATEWAY" as const : "CLOUD_OFFLINE" as const, sourceOperationId: operationId,
+           receiptContext: {
+             companyId: authorityBundle.server.companyId, enotaId,
+             orderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+             cloudOrderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+             sourceOrderRef, isPartial: false,
+           },
+          soldLines,
+           cloudBaseline: gatewayOfflineAuthority
+             ? ((selectedOrder as any)?.baseLines ?? []).filter((line: any) => line.cloudLineId != null).map((line: any) => ({
+               cloudLineId: Number(line.cloudLineId), articleId: line.articleId ?? line.artikelId ?? null,
+               modifierId: line.modifierId ?? line.modifikatorId ?? null, name: line.name ?? line.ime ?? null,
+               quantity: Number(line.quantity ?? line.kolicina), unitGross: Number(line.unitGross ?? line.cenaKos),
+               gross: Number(line.gross ?? line.skupaj), vatRate: Number(line.vatRate ?? line.davek),
+               note: line.note ?? line.opomba ?? null, toGo: Boolean(line.toGo ?? line.to_go),
+                courseNumber: line.courseNumber ?? null, courseSequence: line.courseSequence ?? null,
+                courseNameSnapshot: line.courseNameSnapshot ?? null, pairingGroupId: line.pairingGroupId ?? null,
+               parentCloudLineId: line.parentCloudLineId ?? line.parentPostavkaId ?? null,
+               parentSourceLineRef: line.parentSourceLineRef ?? null,
+             })) : undefined,
+          normativeSnapshot: [...normative].map(([articleId, quantity]) => ({ articleId, quantity: -quantity })),
+          totals: { gross, net: Number((gross - totalTax).toFixed(2)), vat: Number(totalTax.toFixed(2)), vatGroups },
+          payment: {
+            method: "gotovina" as const, cash: gross, card: 0 as const, voucher: 0 as const,
+            pizzaVoucher: 0 as const, nonCash: 0 as const, terminalReferenceReservationId: null,
+            cardPaymentAttemptId: null, giftVoucherRedemption: 0 as const,
+          },
+          operator: {
+            waiterId: authorityBundle.operator.waiterId, name: authorityBundle.operator.name,
+            taxNumber: authorityBundle.operator.taxNumber, shiftId: authorityBundle.operator.shiftId,
+            actor: String(user?.id ?? ""),
+          },
+           closure: {
+             allLinesCovered: true, closeOrder: true,
+             orderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+             cloudOrderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+             sourceOrderRef, tableId: selectedOrder.mizaId ?? null, clearTipAmount: true,
+           },
+          tip: { amount: 0 as const, mode: null, policyId: null, feeAmount: 0 as const, netAmount: 0 as const },
+          stockMovements: [...normative].map(([articleId, quantity]) => ({
+            articleId, quantity: -quantity, unitWac: stockFacts.get(articleId) ?? 0,
+            value: Number((-quantity * (stockFacts.get(articleId) ?? 0)).toFixed(4)),
+            note: `offline:${operationId}`, effectiveAt: legalTimestamp,
+          })),
+          // Receipt finalization has no KDS mutation; never infer one from live
+          // order state during delayed server execution.
+          kds: { effects: [] },
+          accounting: { companyId: authorityBundle.server.companyId, businessDate: legalTimestamp.slice(0, 10), syncAfterCommit: true },
+          // The service allocates the sequence and replaces this premise-label
+          // seed with the complete PP-B-sequence legal number.
+          print: { receiptNumber: cachedDevice.identity.premiseLabel, issuedAt: legalTimestamp, customerName: null, customerAddress: null, customerTaxNumber: null },
+        };
+        const issueInput = {
+           orderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+          request: {
+            operationId,
+            authorityBundle,
+            orderEventSnapshot: {
+               orderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+               cloudOrderId: gatewayOfflineAuthority ? gatewayCloudOrderId : selectedNarocilo,
+               sourceOrderRef,
+              orderVersion: gatewayOfflineAuthority
+                ? gatewayOrderVersion
+                : Number((selectedOrder as typeof selectedOrder & { version?: number }).version ?? 0),
+              eventId: null,
+              capturedAt: legalTimestamp,
+              lineIds: soldLines.map(line => line.id),
+            },
+            finalizationPlanTemplate,
+            legalTimestamp,
+            interruptionStartedAt: legalTimestamp,
+          },
+        };
+        const receipt = await (gatewayOfflineAuthority
+          ? (() => issueGatewayCashReceipt<Record<string, any>>(issueInput.request)
+              .then(result => ({
+                number: result.canonicalPayload.finalizationPlan.receipt.legalNumber,
+                zoi: result.canonicalPayload.legalInvoice.zoi,
+              })))()
+          : issueOfflineCashReceipt({
+            orderId: selectedNarocilo ?? selectedGatewayOrderId!,
+            request: issueInput.request,
+          }));
+        if (gatewayOfflineAuthority && selectedGatewayOrderId) {
+          gatewayOffline.unpinOrder(selectedGatewayOrderId);
+        }
+        setOfflineOrderLocked(true);
+        toast({ title: "Offline gotovinski račun je izdan", description: `${receipt.number} · ZOI ${receipt.zoi}. EOR še ni prejet; račun čaka na prenos.` });
+      } catch (error) {
+         setOfflineOrderLocked(isOfflineOrderLocked(selectedOrderKey));
+        toast({
+          title: error instanceof UnknownFiscalOutcomeError ? "Izid izdaje ni znan" : "Offline izdaja ni uspela",
+          description: error instanceof Error ? error.message : "Računa ni bilo mogoče varno izdati.",
+          variant: "destructive",
+        });
+      } finally { releasePaymentGuard(); }
+      return;
+    }
+    if (gatewayCheckoutMode || selectedNarocilo === null) return;
+    if (jeKarticniTok && selectedNarocilo !== null && terminalskiZnesek > 0) {
+      const inspectedNarociloId = selectedNarocilo;
+      const inspectedAmount = terminalskiZnesek;
+      const stored = findStoredCardAttempt(selectedNarocilo, terminalskiZnesek);
+      if (stored) {
+        const recoverable = await inspectRecoverableCardPayment(
+          stored.provider,
+          inspectedNarociloId,
+          inspectedAmount,
+          stored.key,
+        );
+        if (recoverable) return;
+        const currentBinding = currentCardBindingRef.current;
+        if (
+          currentBinding.narociloId !== inspectedNarociloId
+          || Math.abs(currentBinding.znesek - inspectedAmount) >= 0.005
+        ) return;
+      }
+    }
+    if (!acquirePaymentGuard("Plačilo oziroma izdaja računa je v teku.")) return;
+    vivaPaymentIdentifiersRef.current = { sessionId: null, transactionId: null, orderCode: null };
 
-    if (showTerminalFlow) {
-      const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-      const odobren = await sendToTerminal(selectedNarocilo, terminalZnesek);
-      if (!odobren) return;
+    if (showSimulationFlow) {
+      const odobren = await sendToSimulation(selectedNarocilo, simulationAmount);
+      if (!odobren) { requirePaymentReconciliation("Simuliranega plačila ni bilo mogoče varno potrditi."); return; }
+    } else if (showTerminalFlow) {
+      const odobren = await sendToTerminal(selectedNarocilo, terminalskiZnesek);
+      if (!odobren) { requirePaymentReconciliation("Terminal ni vrnil varnega zaključka. Preverite plačilo, preden odklenete nov poskus."); return; }
     } else if (showPaytenAndroidFlow) {
       // Payten Android Intent — navigira stran; račun se izda po povratku prek callback URL
       handlePaytenAndroidPay();
       return;
     } else if (showSumupFlow) {
-      const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-      const odobren = await sendToSumup(selectedNarocilo, terminalZnesek);
-      if (!odobren) return;
+      const odobren = await sendToSumup(selectedNarocilo, terminalskiZnesek);
+      if (!odobren) { requirePaymentReconciliation("SumUp plačilo ni varno zaključeno. Preverite terminal oziroma QR plačilo, preden odklenete nov poskus."); return; }
     } else if (showVivaTerminalFlow) {
-      const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-      const odobren = await sendToVivaTerminal(selectedNarocilo, terminalZnesek);
-      if (!odobren) return;
+      const odobren = await sendToVivaTerminal(selectedNarocilo, terminalskiZnesek);
+      if (!odobren) { requirePaymentReconciliation("Viva terminal plačilo ni varno zaključeno. Preverite terminal, preden odklenete nov poskus."); return; }
     } else if (showVivaAndroidTerminalFlow) {
       // Android Intent — navigira stran; račun se izda po povratku prek callback URL
       handleVivaAndroidPay();
@@ -1279,9 +3016,8 @@ ${linije.map(vrHtml).join("\n")}
       handleVivaTapToPayPay();
       return;
     } else if (showVivaFlow) {
-      const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
-      const odobren = await sendToViva(selectedNarocilo, terminalZnesek);
-      if (!odobren) return;
+      const odobren = await sendToViva(selectedNarocilo, terminalskiZnesek);
+      if (!odobren) { requirePaymentReconciliation("Viva Wallet plačilo ni varno zaključeno. Preverite stanje plačila, preden odklenete nov poskus."); return; }
     }
 
     issueRacun();
@@ -1289,7 +3025,27 @@ ${linije.map(vrHtml).join("\n")}
 
   const handleRetryTerminal = async () => {
     if (!selectedNarocilo || !selectedOrder) return;
-    const terminalZnesek = steviloBonovDejanski > 0 ? znesekPreostalega : effectiveSkupaj;
+    if (!requireCurrentActorSession()) return;
+    const inspectedNarociloId = selectedNarocilo;
+    const inspectedAmount = terminalskiZnesek;
+    const stored = findStoredCardAttempt(selectedNarocilo, terminalskiZnesek);
+    if (stored) {
+      const recoverable = await inspectRecoverableCardPayment(
+        stored.provider,
+        inspectedNarociloId,
+        inspectedAmount,
+        stored.key,
+      );
+      if (recoverable) return;
+      const currentBinding = currentCardBindingRef.current;
+      if (
+        currentBinding.narociloId !== inspectedNarociloId
+        || Math.abs(currentBinding.znesek - inspectedAmount) >= 0.005
+      ) return;
+    }
+    if (!acquirePaymentGuard("Ponovno preverjanje oziroma plačilo je v teku.")) return;
+    vivaPaymentIdentifiersRef.current = { sessionId: null, transactionId: null, orderCode: null };
+    const terminalZnesek = terminalskiZnesek;
     if (showPaytenAndroidFlow) {
       // Payten Android Intent — navigira stran
       handlePaytenAndroidPay();
@@ -1313,6 +3069,71 @@ ${linije.map(vrHtml).join("\n")}
           ? await sendToSumup(selectedNarocilo, terminalZnesek)
           : await sendToTerminal(selectedNarocilo, terminalZnesek);
     if (odobren) issueRacun();
+    else requirePaymentReconciliation("Terminal ni vrnil varnega zaključka. Preverite plačilo, preden odklenete nov poskus.");
+  };
+
+  const handleRecoverPaidReceipt = async (selectedRecovery = recoverableCardPayment) => {
+    const recovery = selectedRecovery;
+    if (!recovery || createRacun.isPending || cardRecoveryChecking) return;
+    if (!requireCurrentActorSession()) return;
+    const currentBinding = currentCardBindingRef.current;
+    if (
+      currentBinding.narociloId !== recovery.narociloId
+      || Math.abs(currentBinding.znesek - recovery.znesek) >= 0.005
+    ) return;
+    cardPaymentAttemptRef.current = {
+      key: recovery.paymentAttemptId,
+      provider: recovery.provider,
+      narociloId: recovery.narociloId,
+      znesek: recovery.znesek,
+    };
+    setCardRecoveryChecking(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(
+        `${base}/api/terminal/card-payment-attempts/${encodeURIComponent(recovery.attemptId)}/recovery/select`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ narociloId: recovery.narociloId, znesek: recovery.znesek }),
+        },
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { error?: string };
+        toast({ title: "Plačila ni mogoče obnoviti", description: data.error ?? "Izbrano plačilo ni več na voljo.", variant: "destructive" });
+        return;
+      }
+      const selection = await response.json() as { selectionToken?: string };
+      if (!selection.selectionToken) {
+        toast({ title: "Plačila ni mogoče obnoviti", description: "Strežnik ni potrdil izbire plačila.", variant: "destructive" });
+        return;
+      }
+      recoverySelectionTokenRef.current = selection.selectionToken;
+    } catch {
+      toast({ title: "Plačila ni mogoče obnoviti", description: "Ni mogoče potrditi izbire plačila.", variant: "destructive" });
+      return;
+    } finally {
+      setCardRecoveryChecking(false);
+    }
+    paymentGuardRef.current = "in-flight";
+    recoveryCompletionAttemptRef.current = recovery.attemptId;
+    setPaymentGuard({ state: "in-flight", message: "Zaključujem račun z že potrjenim plačilom." });
+    setTerminalStanje("odobren");
+    issueRacun();
+  };
+
+  const handleVivaTimeoutRecheck = async () => {
+    const orderCode = vivaPaymentIdentifiersRef.current.orderCode;
+    if (!orderCode) return;
+    if (!requireCurrentActorSession()) return;
+    if (!acquirePaymentGuard("Preverjanje Viva plačila je v teku.")) return;
+
+    setVivaSmartTimeout(false);
+    setTerminalRezultat(null);
+    setTerminalStanje("cakanje");
+    const odobren = await preverjajVivaSmartCheckout(orderCode);
+    if (odobren) issueRacun();
+    else requirePaymentReconciliation("Viva plačila ni bilo mogoče varno potrditi. Preverite stanje, preden odklenete nov poskus.");
   };
 
   const handleNewRacun = () => {
@@ -1320,15 +3141,22 @@ ${linije.map(vrHtml).join("\n")}
     setTerminalStanje("idle");
     setTerminalRezultat(null);
     setVivaCheckoutUrl(null);
+    setVivaSmartTimeout(false);
     setSumupQrCheckoutId(null);
     setSumupQrZnesek(null);
     setLastSumupCheckoutId(null);
-    setLastVivaTerminalSessionId(null);
+    cardPaymentAttemptRef.current = null;
+    setZnesekNapitnina(0);
+    znesekNapitninaRef.current = 0;
+    vivaPaymentIdentifiersRef.current = { sessionId: null, transactionId: null, orderCode: null };
     setFursNapaka(null);
+    setResumeNarociloId(null);
+    setVivaTapToPayAutoIssueId(null);
     setSplitMode(false);
     setSplitPostavkeIds(new Set());
     const preostalaOdprta = odprta.filter(n => n.id !== selectedNarocilo);
     setSelectedNarocilo(null);
+    setSelectedGatewayOrderId(null);
     if (preostalaOdprta.length === 0) {
       setLocation("/");
     }
@@ -1343,8 +3171,11 @@ ${linije.map(vrHtml).join("\n")}
     setSumupQrCheckoutId(null);
     setSumupQrZnesek(null);
     setLastSumupCheckoutId(null);
-    setLastVivaTerminalSessionId(null);
+    cardPaymentAttemptRef.current = null;
+    vivaPaymentIdentifiersRef.current = { sessionId: null, transactionId: null, orderCode: null };
     setFursNapaka(null);
+    setResumeNarociloId(null);
+    setVivaTapToPayAutoIssueId(null);
     setSplitMode(false);
     setSplitPostavkeIds(new Set());
     setSteviloBonov(0);
@@ -1358,7 +3189,8 @@ ${linije.map(vrHtml).join("\n")}
 
     // Get fresh order data from cache
     const allNarocila = queryClient.getQueryData<typeof narocila>(getListAktivnaNarocilaQueryKey());
-    const order = allNarocila?.find(n => n.id === narociloId);
+    const order = allNarocila?.find(n => n.id === narociloId)
+      ?? (resumeNarocilo?.id === narociloId ? resumeNarocilo : undefined);
     if (!order) return;
 
     const vsePostavke = order.postavke ?? [];
@@ -1437,7 +3269,7 @@ ${linije.map(vrHtml).join("\n")}
   };
 
   const handleZdruziIzbrana = async () => {
-    if (!selectedNarocilo || združiIzbrana.size === 0) return;
+    if (gatewayCheckoutMode || !selectedNarocilo || združiIzbrana.size === 0) return;
     const izbranaList = drugaNarocilaIsteMize.filter(n => združiIzbrana.has(n.id));
     try {
       for (const n of izbranaList) {
@@ -1452,7 +3284,7 @@ ${linije.map(vrHtml).join("\n")}
   };
 
   const handleZdruziPosamezno = async (virNarociloId: number) => {
-    if (!selectedNarocilo) return;
+    if (gatewayCheckoutMode || !selectedNarocilo) return;
     setSpojiPosameznoId(virNarociloId);
     try {
       await spojiMutation.mutateAsync({ id: selectedNarocilo, data: { virNarociloId } });
@@ -1465,7 +3297,9 @@ ${linije.map(vrHtml).join("\n")}
     }
   };
 
-  if (isLoading) return (
+  // Pri neposrednem prihodu na konkretno naročilo ne blokiraj prikaza zaradi
+  // osveževanja seznama ostalih naročil. Ta seznam se lahko naloži v ozadju.
+  if (isLoading && !selectedOrder) return (
     <div className="p-8 space-y-3">
       <Skeleton className="h-[400px]" />
     </div>
@@ -1595,6 +3429,12 @@ ${linije.map(vrHtml).join("\n")}
                 <span className="text-muted-foreground">Znesek:</span>
                 <span className="font-bold">{issuedRacun.skupaj.toFixed(2)} €</span>
               </div>
+              {issuedRacun.znesekNapitnina && issuedRacun.znesekNapitnina > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Napitnina:</span>
+                  <span className="font-bold">{issuedRacun.znesekNapitnina.toFixed(2)} €</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm items-center">
                 <span className="text-muted-foreground">FURS:</span>
                 {fursNapaka ? (
@@ -1620,7 +3460,7 @@ ${linije.map(vrHtml).join("\n")}
                   )}
                 </>
               )}
-              {issuedRacun.zoi && (
+                  {issuedRacun.zoi && !fursUspeh && (
                 <div className="pt-2 border-t space-y-2">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">ZOI:</p>
@@ -1648,14 +3488,30 @@ ${linije.map(vrHtml).join("\n")}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <PrintReceiptButton
-              racunId={issuedRacun.id}
-              stevilkaRacuna={issuedRacun.stevilkaRacuna}
-              variant="default"
-              size="lg"
-              className="w-full"
-              onAfterPrint={issuedRacun.jeDelni ? handleIzdajPreostanek : handleNewRacun}
-            />
+            {fursUspeh ? (
+              <>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground" data-testid="status-samodejni-tisk">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Račun je potrjen. Samodejno tiskam …
+                </div>
+                <PrintReceiptButton
+                  racunId={issuedRacun.id}
+                  stevilkaRacuna={issuedRacun.stevilkaRacuna}
+                  className="hidden"
+                  autoPrint
+                  onAfterPrint={issuedRacun.jeDelni ? handleIzdajPreostanek : handleNewRacun}
+                />
+              </>
+            ) : (
+              <PrintReceiptButton
+                racunId={issuedRacun.id}
+                stevilkaRacuna={issuedRacun.stevilkaRacuna}
+                variant="default"
+                size="lg"
+                className="w-full"
+                onAfterPrint={issuedRacun.jeDelni ? handleIzdajPreostanek : handleNewRacun}
+              />
+            )}
             {smtpAktiven && (
               <Button
                 variant="outline"
@@ -1678,6 +3534,25 @@ ${linije.map(vrHtml).join("\n")}
   }
 
   // ── Terminal waiting / result overlay ─────────────────────
+  if (terminalStanje === "odobren") {
+    return (
+      <div className="p-8 flex items-center justify-center flex-1">
+        <Card className="w-full max-w-sm text-center">
+          <CardContent className="pt-10 pb-8 space-y-4">
+            <Loader2 className="h-14 w-14 mx-auto animate-spin text-primary" />
+            <p className="text-xl font-semibold">Plačilo potrjeno</p>
+            <p className="text-muted-foreground text-sm">
+              Izdajam račun, čakam na FURS in pripravljam stran za tiskanje.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Ne zapirajte blagajne in ne ponavljajte plačila.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (terminalStanje === "cakanje") {
     if (sumupQrCheckoutId) {
       const qrUrl = `https://pay.sumup.com/b2b/v2/${sumupQrCheckoutId}`;
@@ -1759,7 +3634,7 @@ ${linije.map(vrHtml).join("\n")}
                 <QRCodeSVG value={vivaCheckoutUrl} size={200} />
               </div>
               <p className="font-bold text-2xl text-primary">
-                {(steviloBonovDejanski > 0 ? znesekPreostalega : displaySkupaj).toFixed(2)} €
+                {terminalskiZnesek.toFixed(2)} €
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1778,6 +3653,33 @@ ${linije.map(vrHtml).join("\n")}
         </div>
       );
     }
+    if ((showVivaAndroidTerminalFlow || showVivaTapToPayFlow) && vivaBridgeLaunchUrl) {
+      return (
+        <div className="p-8 flex items-center justify-center flex-1">
+          <Card className="w-full max-w-sm text-center">
+            <CardContent className="pt-8 pb-8 space-y-5">
+              <CreditCard className="h-14 w-14 mx-auto text-primary" />
+              <div className="space-y-2">
+                <p className="text-xl font-semibold">Plačilo je pripravljeno</p>
+                <p className="text-muted-foreground text-sm">
+                  Plačilni poskus je varno rezerviran. Z naslednjim dotikom odprite Viva Terminal.
+                </p>
+              </div>
+              <p className="font-bold text-2xl text-primary">{terminalskiZnesek.toFixed(2)} €</p>
+              <Button className="w-full" size="lg" asChild>
+                <a href={vivaBridgeLaunchUrl} data-testid="link-odpri-viva-terminal">
+                  <ExternalLink className="h-5 w-5 mr-2" />
+                  Odpri Viva Terminal
+                </a>
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Če Viva ne prikaže jasnega rezultata, plačila ne ponavljajte.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="p-8 flex items-center justify-center flex-1">
         <Card className="w-full max-w-sm text-center">
@@ -1787,7 +3689,7 @@ ${linije.map(vrHtml).join("\n")}
             <p className="text-muted-foreground text-sm">
               Stranka naj vstavi ali prisloni kartico na terminal.
             </p>
-            <p className="font-bold text-2xl text-primary">{selectedOrder?.skupaj.toFixed(2)} €</p>
+            <p className="font-bold text-2xl text-primary">{terminalskiZnesek.toFixed(2)} €</p>
           </CardContent>
         </Card>
       </div>
@@ -1811,15 +3713,59 @@ ${linije.map(vrHtml).join("\n")}
             <p className="text-muted-foreground text-sm">Račun ni bil izdan.</p>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button className="w-full" onClick={handleRetryTerminal} data-testid="button-retry-terminal">
-              Poskusi znova
-            </Button>
-            <Button variant="outline" className="w-full" onClick={() => {
+            {paymentGuard.state === "reconciliation-required" ? (
+              <>
+                <Alert className="text-left border-amber-300 bg-amber-50">
+                  <AlertTriangle className="h-4 w-4 text-amber-700" />
+                  <AlertTitle>Preverjanje plačila je potrebno</AlertTitle>
+                  <AlertDescription data-testid="status-payment-guard">{paymentGuard.message}</AlertDescription>
+                </Alert>
+                {recoverableCardPayment && (
+                  <div className="w-full space-y-2">
+                    {availableRecoveries.length > 1 && (
+                      <p className="text-left text-sm text-muted-foreground" data-testid="text-recovery-choice">
+                        Izberite potrjeno plačilo za ta račun:
+                      </p>
+                    )}
+                    {(availableRecoveries.length ? availableRecoveries : [recoverableCardPayment]).map((recovery, index) => (
+                      <Button
+                        key={recovery.attemptId}
+                        className="w-full"
+                        onClick={() => void handleRecoverPaidReceipt(recovery)}
+                        disabled={createRacun.isPending || cardRecoveryChecking}
+                        data-testid={index === 0 ? "button-recover-paid-receipt" : `button-recover-paid-receipt-${recovery.attemptId}`}
+                      >
+                        <Receipt className="h-4 w-4 mr-2" />
+                        {availableRecoveries.length > 1
+                          ? `Izberi ${recovery.provider} plačilo (${recovery.znesek.toFixed(2)} €${recovery.ustvarjeno ? `, ${new Date(recovery.ustvarjeno).toLocaleString("sl-SI", { timeZone: "Europe/Ljubljana" })}` : ""})`
+                          : "Zaključi račun brez novega plačila"}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                {!recoverableCardPayment && (
+                  <Button variant="outline" className="w-full" onClick={resetPaymentGuardAfterReconciliation} data-testid="button-reset-payment-guard">
+                    Po preverjanju odkleni nov poskus
+                  </Button>
+                )}
+              </>
+            ) : vivaSmartTimeout && showVivaFlow && vivaPaymentIdentifiersRef.current.orderCode ? (
+              <Button className="w-full" onClick={handleVivaTimeoutRecheck} data-testid="button-recheck-viva-status">
+                Ponovno preveri stanje plačila
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={handleRetryTerminal} data-testid="button-retry-terminal">
+                Poskusi znova
+              </Button>
+            )}
+            <Button variant="outline" className="w-full" disabled={paymentOrFinalizationInProgress} onClick={() => {
               setTerminalStanje("idle");
               setTerminalRezultat(null);
+              setVivaSmartTimeout(false);
+              setVivaCheckoutUrl(null);
               setPlacilniNacin("gotovina");
             }} data-testid="button-change-payment">
-              Zamenjaj način plačila
+               Zamenjaj plačilo
             </Button>
           </CardFooter>
         </Card>
@@ -1830,6 +3776,82 @@ ${linije.map(vrHtml).join("\n")}
   // ── Main checkout form ─────────────────────────────────────
   return (
     <div className="flex-1 overflow-auto bg-muted/10">
+      {/* ── Dialog: razvojna izdaja večnamenskega darilnega bona ─────────── */}
+      <Dialog open={darilniBonDialogOpen} onOpenChange={(open) => {
+        setDarilniBonDialogOpen(open);
+        if (!open) setDarilniBonNapaka(null);
+      }}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-izdaja-darilnega-bona">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-violet-600" />
+              Prodaj darilni bon
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Alert>
+              <Gift className="h-4 w-4" />
+              <AlertTitle>Predplačilo brez DDV</AlertTitle>
+              <AlertDescription>
+                Bon se vodi skupno za podjetje brez kode, serijske številke ali roka veljavnosti. Ob unovčitvi nastane običajen obdavčen račun.
+              </AlertDescription>
+            </Alert>
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              {darilniBonLoading ? (
+                <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Nalagam evidenco …</span>
+              ) : darilniBonStanje ? (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div><p className="text-xs text-muted-foreground">Izdano</p><p className="font-semibold">{darilniBonStanje.izdano.toFixed(2)} €</p></div>
+                  <div><p className="text-xs text-muted-foreground">Unovčeno</p><p className="font-semibold">{darilniBonStanje.unovceno.toFixed(2)} €</p></div>
+                  <div><p className="text-xs text-muted-foreground">Odprto</p><p className={`font-semibold ${darilniBonStanje.odprto < 0 ? "text-destructive" : "text-green-700"}`}>{darilniBonStanje.odprto.toFixed(2)} €</p></div>
+                </div>
+              ) : <span className="text-muted-foreground">Stanje evidence ni na voljo.</span>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="darilni-bon-znesek">Znesek bona</Label>
+              <Input
+                id="darilni-bon-znesek"
+                type="text"
+                inputMode="decimal"
+                placeholder="npr. 25,00"
+                value={darilniBonZnesekIzdaja}
+                onChange={(event) => setDarilniBonZnesekIzdaja(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") void izdajDarilniBon(); }}
+                autoFocus
+                data-testid="input-darilni-bon-znesek"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Prejeto plačilo</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "gotovina" as const, label: "Gotovina", Icon: Banknote },
+                  { value: "kartica" as const, label: "Kartica", Icon: CreditCard },
+                ].map(({ value, label, Icon }) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={darilniBonPlaciloIzdaja === value ? "default" : "outline"}
+                    className="gap-2"
+                    onClick={() => setDarilniBonPlaciloIzdaja(value)}
+                  >
+                    <Icon className="h-4 w-4" /> {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {darilniBonNapaka && <p className="text-sm text-destructive">{darilniBonNapaka}</p>}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDarilniBonDialogOpen(false)} disabled={darilniBonIzdajanje || paymentOrFinalizationInProgress}>Prekliči</Button>
+            <Button onClick={() => void izdajDarilniBon()} disabled={darilniBonIzdajanje || paymentOrFinalizationInProgress} data-testid="button-izdaj-darilni-bon">
+              {darilniBonIzdajanje ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Gift className="h-4 w-4 mr-2" />}
+              Izdaj bon
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── PIN dialog za izredno izdajo ─────────────────────── */}
       <Dialog open={pinDialogOpen} onOpenChange={(open) => { if (!open) { setPinDialogOpen(false); setPinInput(""); setPinNapaka(null); } }}>
         <DialogContent className="sm:max-w-sm" data-testid="dialog-izredni-pin">
@@ -1866,11 +3888,11 @@ ${linije.map(vrHtml).join("\n")}
             </Button>
             <Button
               onClick={handleIzrednaIzdajaPIN}
-              disabled={createRacun.isPending}
+              disabled={createRacun.isPending || paymentOrFinalizationInProgress}
               className="bg-amber-600 hover:bg-amber-700"
               data-testid="button-potrdi-izredni-pin"
             >
-              {createRacun.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldAlert className="h-4 w-4 mr-2" />}
+              {createRacun.isPending || paymentOrFinalizationInProgress ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldAlert className="h-4 w-4 mr-2" />}
               Potrdi izredno izdajo
             </Button>
           </DialogFooter>
@@ -1954,28 +3976,35 @@ ${linije.map(vrHtml).join("\n")}
         </DialogContent>
       </Dialog>
 
-      {/* ── Dialog: Izpis prometa ──────────────────────────── */}
-      <Dialog open={izpisPrometaOpen} onOpenChange={(o) => { setIzpisPrometaOpen(o); if (!o) { setIzpisData(null); setIzpisNapaka(null); } }}>
+      {/* ── Dialog: X-poročilo ─────────────────────────────── */}
+      <Dialog open={izpisPrometaOpen} onOpenChange={(o) => { setIzpisPrometaOpen(o); if (!o) { setIzpisData(null); setIzpisStanje(null); setIzpisPremiki([]); setIzpisNapaka(null); } }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-600" />
-              Izpis prometa
+              X-poročilo
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {!activeBlagajnaId && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Blagajna ni izbrana</AlertTitle>
+                <AlertDescription>Za X-poročilo najprej izberite aktivno blagajno v stranski navigaciji.</AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Od</Label>
-                <Input type="date" value={izpisOd} onChange={e => { setIzpisOd(e.target.value); setIzpisData(null); }} />
+                <Label className="text-xs text-muted-foreground">Poslovni dan</Label>
+                <Input type="date" value={izpisOd} onChange={e => { setIzpisOd(e.target.value); setIzpisDo(e.target.value); setIzpisData(null); setIzpisStanje(null); }} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Do</Label>
-                <Input type="date" value={izpisDo} onChange={e => { setIzpisDo(e.target.value); setIzpisData(null); }} />
+                <Label className="text-xs text-muted-foreground">Blagajna</Label>
+                <Input value={activeBlagajnaId ? `Izbrana blagajna #${activeBlagajnaId}` : "Ni izbrana"} disabled />
               </div>
             </div>
-            <Button className="w-full" onClick={handleIzpisPromet} disabled={izpisLoading}>
-              {izpisLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Nalagam...</> : "Prikaži promet"}
+            <Button className="w-full" onClick={handleIzpisPromet} disabled={izpisLoading || !activeBlagajnaId}>
+              {izpisLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Nalagam...</> : "Prikaži X-poročilo"}
             </Button>
             {izpisNapaka && <p className="text-sm text-destructive">{izpisNapaka}</p>}
             {izpisData && (
@@ -1984,6 +4013,7 @@ ${linije.map(vrHtml).join("\n")}
                 {izpisData.podjetje.naziv && (
                   <div className="text-center text-sm">
                     <p className="font-semibold">{izpisData.podjetje.naziv}</p>
+                    {izpisData.enota.ime && <p className="font-medium text-primary">Poslovna enota: {izpisData.enota.ime}</p>}
                     {izpisData.podjetje.naslov && <p className="text-muted-foreground text-xs">{izpisData.podjetje.naslov}</p>}
                     {izpisData.podjetje.davcnaStevilka && <p className="text-muted-foreground text-xs">ID za DDV: {izpisData.podjetje.davcnaStevilka}</p>}
                   </div>
@@ -1994,12 +4024,13 @@ ${linije.map(vrHtml).join("\n")}
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Način plačila</p>
                   <div className="rounded-md border divide-y text-sm">
                     <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Gotovina</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.gotovina.toFixed(2)} €</span></div>
-                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.kartica.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica (bremenitev)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.kartica.toFixed(2)} €</span></div>
+                    {izpisData.prometPoNacinuPlacila.napitnina !== 0 && <div className="flex justify-between px-3 py-1.5 text-amber-900 bg-amber-50/50"><span>Napitnine (ločeno)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.napitnina.toFixed(2)} €</span></div>}
                     {izpisData.prometPoNacinuPlacila.sumup > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">SumUp</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.sumup.toFixed(2)} €</span></div>}
                     <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.bon.toFixed(2)} €</span></div>
                     {izpisData.prometPoNacinuPlacila.bonPica > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon za pico ({izpisData.prometPoNacinuPlacila.steviloBonov}×)</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.bonPica.toFixed(2)} €</span></div>}
                     {izpisData.prometPoNacinuPlacila.negotovinsko > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">TRR</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.negotovinsko.toFixed(2)} €</span></div>}
-                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Skupaj</span><span>{izpisData.skupajPromet.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Prodajni skupaj</span><span>{izpisData.skupajPromet.toFixed(2)} €</span></div>
                     {(izpisData.prometPoNacinuPlacila.reprezentanca > 0 || izpisData.prometPoNacinuPlacila.lastna_poraba > 0) && (
                       <>
                         <div className="px-3 py-1 bg-muted/20"><span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Navidezni promet</span></div>
@@ -2007,6 +4038,41 @@ ${linije.map(vrHtml).join("\n")}
                         {izpisData.prometPoNacinuPlacila.lastna_poraba > 0 && <div className="flex justify-between px-3 py-1.5 opacity-70"><span className="text-muted-foreground">Lastna poraba</span><span className="font-medium">{izpisData.prometPoNacinuPlacila.lastna_poraba.toFixed(2)} €</span></div>}
                       </>
                     )}
+                  </div>
+                </div>
+
+                {izpisStanje && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Blagajniški dnevnik — gibanje gotovine</p>
+                    <div className="rounded-md border divide-y text-sm">
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Menjalni denar</span><span className="font-medium">{izpisStanje.menjalniDenar.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Gotovinska prodaja</span><span className="font-medium">{izpisStanje.gotovinskaProdaja.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Prejemi gotovine</span><span className="font-medium">{izpisStanje.pologiGotovine.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">− Izplačila dobaviteljem</span><span className="font-medium">{izpisStanje.izplacilaDobaviteljem.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">− Pologi na TRR</span><span className="font-medium">{izpisStanje.pologiTrr.toFixed(2)} €</span></div>
+                      <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>Teoretično stanje</span><span>{izpisStanje.stanje.toFixed(2)} €</span></div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Podroben dnevnik premikov</p>
+                  <div className="rounded-md border divide-y text-sm">
+                    {izpisPremiki.length === 0 ? (
+                      <p className="px-3 py-2 text-muted-foreground">Za ta poslovni dan ni premikov.</p>
+                    ) : izpisPremiki.map((premik) => (
+                      <div key={premik.id} className="px-3 py-2 space-y-0.5">
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium">{premik.tip.replaceAll("_", " ")}</span>
+                          <span className="font-semibold whitespace-nowrap">{premik.znesek.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span>{new Date(premik.datumCas).toLocaleTimeString("sl-SI", { hour: "2-digit", minute: "2-digit" })} · {premik.status === "OSNUTEK" ? "Osnutek — neknjiženo" : premik.status === "STORNIRAN" ? "Storno" : "Potrjeno"}</span>
+                          {premik.partnerNaziv && <span className="truncate">{premik.partnerNaziv}</span>}
+                        </div>
+                        {premik.opis && <p className="text-xs text-muted-foreground">{premik.opis}</p>}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -2117,22 +4183,237 @@ ${linije.map(vrHtml).join("\n")}
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-2">
+      {/* ── Dialog: Z-poročilo ─────────────────────────────── */}
+      <Dialog open={zPorociloOpen} onOpenChange={(o) => { setZPorociloOpen(o); if (o) void loadXCash(); else { setZSnapshot(null); setZNapaka(null); setZBlokade([]); setXCash(null); } }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LockKeyhole className="h-5 w-5 text-orange-600" />
+              Z-poročilo — dnevni zaključek
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {!activeBlagajnaId && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Blagajna ni izbrana</AlertTitle>
+                <AlertDescription>Za Z-poročilo najprej izberite aktivno blagajno v stranski navigaciji.</AlertDescription>
+              </Alert>
+            )}
+            {!zSnapshot && (
+              <>
+                <div className="rounded-md border p-3 space-y-2">
+                  <Label htmlFor="z-poslovni-datum">Poslovni dan za zaključek</Label>
+                  <Input
+                    id="z-poslovni-datum"
+                    type="date"
+                    value={zPoslovniDatum}
+                    max={privzetiDatum}
+                    onChange={(event) => {
+                      setZPoslovniDatum(event.target.value);
+                      setXCash(null);
+                      setZBlokade([]);
+                      setZNapaka(null);
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Če je bil zaključek izpuščen, izberite pretekli poslovni dan in zaključite najprej njega.
+                  </p>
+                </div>
+                <div className="rounded-md border p-3 space-y-3" data-testid="x-cash-reconciliation">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">X-pregled in uskladitev gotovine</p>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => void loadXCash()} disabled={xCashLoading || !activeBlagajnaId}>Osveži</Button>
+                  </div>
+                  {xCash && <>
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pričakovana gotovina</span><strong>{xCash.pricakovanaGotovina.toFixed(2)} €</strong></div>
+                    {xCash.reconciliation && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Zabeležena razlika</span><strong className={xCash.reconciliation.razlika === 0 ? "text-green-700" : "text-orange-700"}>{xCash.reconciliation.razlika.toFixed(2)} €</strong></div>}
+                    <Input type="number" step="0.01" min="0" value={xCashInput} onChange={event => setXCashInput(event.target.value)} placeholder="Prešteta gotovina" aria-label="Prešteta gotovina" />
+                    <Input value={xOverrideReason} onChange={event => setXOverrideReason(event.target.value)} placeholder="Razlog odstopanja (ob razliki obvezen)" aria-label="Razlog odstopanja" />
+                    <Button type="button" variant="outline" className="w-full" onClick={() => void saveCashReconciliation()} disabled={xCashLoading || !xCashInput}>Potrdi uskladitev</Button>
+                  </>}
+                  {!xCash && !xCashLoading && <p className="text-sm text-muted-foreground">Odprite X-pregled za pričakovano stanje blagajne.</p>}
+                </div>
+                <Alert className="border-orange-300 bg-orange-50 text-orange-900">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <AlertTitle className="text-orange-900 font-semibold">Enkratno dejanje</AlertTitle>
+                  <AlertDescription className="text-orange-800 text-sm">
+                    Z-poročilo zaklene blagajno za izbrani poslovni dan {zPoslovniDatum}. Po zaključku ustvarjanje novih računov za ta dan ni več mogoče.
+                    Odklep zahteva administratorski dostop in obvezen razlog.
+                  </AlertDescription>
+                </Alert>
+                {zNapaka && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Dneva ni mogoče zaključiti</AlertTitle>
+                    <AlertDescription>
+                      <p>{zNapaka}</p>
+                      {zBlokade.length > 0 && (
+                        <ul className="mt-2 list-disc space-y-1 pl-5" data-testid="z-porocilo-blokade">
+                          {zBlokade.map((blocker) => (
+                            <li key={blocker.type}>
+                              <div>{blocker.message}</div>
+                              {blocker.type === "BUSINESS_FINALIZATION_PENDING" && blocker.items?.map((item) => (
+                                <div key={item.id} className="mt-1 flex items-center justify-between gap-2 rounded border bg-background px-2 py-1">
+                                  <span className="font-medium">{item.label}</span>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => void handleFinalizirajRacun(item.id)}
+                                    disabled={zFinalizingId !== null || paymentOrFinalizationInProgress}
+                                  >
+                                    {zFinalizingId === item.id
+                                      ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Obdelujem...</>
+                                      : "Dokončaj"}
+                                  </Button>
+                                </div>
+                              ))}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Button
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                  onClick={handleZZakljuci}
+                  disabled={zLoading || !activeBlagajnaId}
+                >
+                  {zLoading
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Zapisujem zaključek...</>
+                    : <><LockKeyhole className="h-4 w-4 mr-2" />Zaključi dan (Z-poročilo)</>}
+                </Button>
+              </>
+            )}
+            {zSnapshot && (
+              <div className="space-y-4">
+                <div className="rounded-md border bg-green-50 border-green-200 p-4 text-center">
+                  <p className="text-green-800 font-bold text-lg">Z-POROČILO USPEŠNO</p>
+                  <p className="text-green-700 text-sm">Z-številka: <strong>#{zSnapshot.zStevilka}</strong></p>
+                  <p className="text-green-700 text-sm">Poslovni dan: <strong>{zSnapshot.poslovniDatum}</strong></p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Grand Total</p>
+                  <div className="rounded-md border divide-y text-sm">
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">GT prej</span><span className="font-medium">{zSnapshot.grandTotalPrej.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">+ Promet dneva</span><span className="font-medium">{zSnapshot.prometDneva.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5 bg-muted/40 font-semibold"><span>GT nov (kumulativa)</span><span>{zSnapshot.grandTotalNov.toFixed(2)} €</span></div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Promet dneva</p>
+                  <div className="rounded-md border divide-y text-sm">
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Skupaj promet</span><span className="font-medium">{zSnapshot.skupajPromet.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Gotovina</span><span className="font-medium">{zSnapshot.gotovina.toFixed(2)} €</span></div>
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Kartica (bremenitev)</span><span className="font-medium">{(zSnapshot.kartica + zSnapshot.sumup).toFixed(2)} €</span></div>
+                    {zSnapshot.znesekNapitnina !== 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Napitnine (ločeno)</span><span className="font-medium">{zSnapshot.znesekNapitnina.toFixed(2)} €</span></div>}
+                    {zSnapshot.bon > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Bon</span><span className="font-medium">{zSnapshot.bon.toFixed(2)} €</span></div>}
+                    <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Število računov</span><span className="font-medium">{zSnapshot.steviloRacunov}</span></div>
+                  </div>
+                </div>
+                {(zSnapshot.fursPotrjeni > 0 || zSnapshot.fursNepotrjeni > 0) && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">FURS</p>
+                    <div className="rounded-md border divide-y text-sm">
+                      <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground">Potrjeni</span><span className="font-medium text-green-700">{zSnapshot.fursPotrjeni}</span></div>
+                      {zSnapshot.fursNepotrjeni > 0 && <div className="flex justify-between px-3 py-1.5"><span className="text-muted-foreground text-red-600">! Nepotrjeni</span><span className="font-medium text-red-600">{zSnapshot.fursNepotrjeni}</span></div>}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => handleZNatisni(zSnapshot)}>
+                    <Printer className="h-4 w-4 mr-2" /> Natisni
+                  </Button>
+                  <Button variant="outline" className="flex-1 border-red-300 text-red-700 hover:bg-red-50" onClick={() => { setZOdklepOpen(true); setZOdklepRazlog(""); setZOdklepNapaka(null); }}>
+                    <KeyRound className="h-4 w-4 mr-2" /> Admin odklep
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Admin odklep Z-poročila ─────────────────── */}
+      <Dialog open={zOdklepOpen} onOpenChange={(o) => { setZOdklepOpen(o); if (!o) { setZOdklepRazlog(""); setZOdklepNapaka(null); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <KeyRound className="h-5 w-5" /> Admin odklep Z-poročila
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>Odklep razvelavi zaklep tega poslovnega dne. Razlog bo revizijsko shranjen.</AlertDescription>
+            </Alert>
+            <div className="space-y-1">
+              <Label>Razlog odklepa (obvezno)</Label>
+              <Input
+                value={zOdklepRazlog}
+                onChange={e => setZOdklepRazlog(e.target.value)}
+                placeholder="Npr. Napačen vnos — potrebna storno korekcija"
+              />
+            </div>
+            {zOdklepNapaka && <p className="text-sm text-destructive">{zOdklepNapaka}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setZOdklepOpen(false)} disabled={zOdklepLoading}>Prekliči</Button>
+            <Button variant="destructive" onClick={handleZOdklep} disabled={zOdklepLoading || !zOdklepRazlog.trim()}>
+              {zOdklepLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Odklepam...</> : "Odkleni"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="checkout-layout grid grid-cols-1 md:grid-cols-2">
         {/* Left: open orders */}
         <div className="flex flex-col md:border-r">
-          {nastavitve?.nazivRestavracije && (
-            <div className="flex items-center justify-center px-4 py-1.5 bg-background/80 backdrop-blur-sm border-b border-border/40">
-              <Link href="/nastavitve" className="text-xs font-medium text-muted-foreground/70 tracking-wide truncate hover:text-foreground hover:underline transition-colors">
-                {nastavitve.nazivRestavracije}
-              </Link>
+          <div className="px-3 pt-2 pb-1 sm:p-4 md:p-6 space-y-1">
+          <div className="space-y-1">
+            <h1 className="text-xl font-bold tracking-tight">Blagajna</h1>
+            <div className="grid w-full grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" className="h-8 w-full min-w-0 gap-1 px-1.5 text-[10px] sm:text-xs" onClick={odpriIzdajoDarilnegaBona} disabled={paymentOrFinalizationInProgress} data-testid="button-odpri-izdajo-darilnega-bona" title="Prodaj darilni bon">
+                <Gift className="h-3.5 w-3.5 shrink-0 text-violet-600" />
+                <span className="truncate">Darilni bon</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-full min-w-0 gap-1 px-1.5 text-[10px] sm:text-xs"
+                onClick={() => setIzpisPrometaOpen(true)}
+                title="Izpis prometa"
+                aria-label="Izpis prometa"
+              >
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Izpis prometa</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 w-full min-w-0 gap-1 px-1.5 text-[10px] sm:text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                onClick={() => {
+                  setZPorociloOpen(true);
+                  setZSnapshot(null);
+                  setZNapaka(null);
+                  void loadXCash();
+                }}
+                title="Z-poročilo — dnevni zaključek"
+                aria-label="Z-poročilo — dnevni zaključek"
+              >
+                <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Z-poročilo</span>
+              </Button>
             </div>
-          )}
-          <div className="p-8 space-y-4">
-          <h1 className="text-3xl font-bold tracking-tight">Blagajna</h1>
-          <h2 className="text-xl font-semibold">Odprta naročila</h2>
+          </div>
+          <h2 className="text-base font-semibold">Odprta naročila</h2>
           {odprta.length === 0 ? (
             <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
+              <CardContent className="p-3 py-2 text-center text-xs text-muted-foreground">
                 Ni odprtih naročil za izdajo računa.
               </CardContent>
             </Card>
@@ -2141,14 +4422,34 @@ ${linije.map(vrHtml).join("\n")}
               <Card
                 key={narocilo.id}
                 className={`cursor-pointer transition-all hover:border-primary ${
-                  selectedNarocilo === narocilo.id ? "border-primary ring-2 ring-primary border-2" : ""
+                  (gatewayCheckoutMode ? selectedGatewayOrderId === String(narocilo.id) : selectedNarocilo === narocilo.id)
+                    ? "border-primary ring-2 ring-primary border-2" : ""
                 }`}
-                onClick={() => { setSelectedNarocilo(narocilo.id); setDdvNapaka(null); }}
+                onClick={() => {
+                  if (gatewayCheckoutMode) setSelectedGatewayOrderId(String(narocilo.id));
+                  else setSelectedNarocilo(narocilo.id);
+                  setDdvNapaka(null);
+                }}
                 data-testid={`card-narocilo-${narocilo.id}`}
               >
+                <QrGostStaffInfo
+                  vir={narocilo.vir}
+                  predvidenPrevzem={narocilo.predvidenPrevzem}
+                  pripravljeno={(narocilo.postavke ?? []).filter(p => p.racunId === null && p.parentPostavkaId == null).length > 0 &&
+                    (narocilo.postavke ?? []).filter(p => p.racunId === null && p.parentPostavkaId == null).every(p => !!p.pripravljeno)}
+                  compact
+                  className="mx-6 mt-3"
+                />
                 <CardHeader className="pb-2">
                   <div className="flex justify-between">
-                    <CardTitle>{narocilo.mizaIme ?? (narocilo.mizaStevilka != null ? `Miza ${narocilo.mizaStevilka}` : "Direktna prodaja")}</CardTitle>
+                     <div className="flex items-center gap-2">
+                       <CardTitle>{formatMizaProstor(narocilo)}</CardTitle>
+                       {narocilo.vir === "qr_gost" && (
+                         <Badge className="bg-violet-100 text-violet-800 border border-violet-200" data-testid={`badge-qr-gost-${narocilo.id}`}>
+                           QR gost
+                         </Badge>
+                       )}
+                     </div>
                     <span className="font-bold text-xl text-primary">
                       {(narocilo.postavke ?? []).filter(p => p.racunId === null).reduce((s, p) => s + Number(p.skupaj), 0).toFixed(2)} €
                     </span>
@@ -2173,7 +4474,13 @@ ${linije.map(vrHtml).join("\n")}
                   })()}
                   <button
                     className="flex items-center gap-1 text-xs font-medium text-primary border border-primary/40 rounded px-2 py-1 hover:bg-primary/10 transition-colors mt-1"
-                    onClick={e => { e.stopPropagation(); setLocation(narocilo.id === selectedNarocilo && aktivniGost !== null ? `/narocilo/${narocilo.id}?gost=${aktivniGost}` : `/narocilo/${narocilo.id}`); }}
+                     disabled={gatewayCheckoutMode}
+                     onClick={e => {
+                       e.stopPropagation();
+                       if (gatewayCheckoutMode) return;
+                        const routeId = gatewayCheckoutMode ? localOrderRoute(String(narocilo.id)) : String(narocilo.id);
+                        setLocation(narocilo.id === selectedNarocilo && aktivniGost !== null ? `/narocilo/${routeId}?gost=${aktivniGost}` : `/narocilo/${routeId}`);
+                     }}
                   >
                     <ArrowLeft className="w-3 h-3" />
                     Na naročilo
@@ -2186,25 +4493,31 @@ ${linije.map(vrHtml).join("\n")}
         </div>{/* /flex-col md:border-r */}
 
         {/* Right: payment */}
-        <div className="p-8 space-y-2">
+          <div className="px-3 pt-0 pb-1 sm:p-4 md:p-6 space-y-1">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Zaključek računa</h2>
-            <Button variant="outline" size="sm" onClick={() => setIzpisPrometaOpen(true)}>
-              <FileText className="h-4 w-4 mr-2" />
-              Izpis prometa
-            </Button>
+            <h2 className="text-base font-semibold">Zaključek računa</h2>
           </div>
           <Card className="sticky top-0">
-            <CardContent className="pt-4 space-y-3">
+            <CardContent className="p-2 pt-1 pb-1 sm:p-3 space-y-1">
               {selectedOrder ? (
                 <>
+                  {aiSvetovalec.aktiven && (
+                    <AiSvetovalecPanel 
+                      loading={aiSvetovalec.loading}
+                      data={aiSvetovalec.data}
+                      error={aiSvetovalec.error}
+                      onRefresh={(vprasanje) => aiSvetovalec.performCheck(vprasanje)}
+                      isBlagajna={true}
+                      className="mb-2"
+                    />
+                  )}
                   {/* Banner: druga odprta naročila na isti mizi */}
                   {drugaNarocilaIsteMize.length > 0 && (
                     <Alert className="border-amber-400 bg-amber-50 text-amber-900" data-testid="alert-druga-narocila-mize">
                       <GitMerge className="h-4 w-4 text-amber-600" />
                       <AlertTitle className="text-amber-900 font-semibold">
                         {selectedOrder.mizaIme ?? selectedOrder.mizaStevilka != null
-                          ? <>Na mizi <strong>{selectedOrder.mizaIme ?? `Miza ${selectedOrder.mizaStevilka}`}</strong> je še {steviloNarocilaLabel(drugaNarocilaIsteMize.length)}</>
+                          ? <>Na mizi <strong>{formatMizaProstor(selectedOrder)}</strong> je še {steviloNarocilaLabel(drugaNarocilaIsteMize.length)}</>
                           : <>Je še {steviloNarocilaLabel(drugaNarocilaIsteMize.length)}</>
                         }
                       </AlertTitle>
@@ -2220,7 +4533,7 @@ ${linije.map(vrHtml).join("\n")}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold text-amber-900 text-sm">
-                                    {n.mizaIme ?? (n.mizaStevilka != null ? `Miza ${n.mizaStevilka}` : "Direktna prodaja")} — naročilo #{n.id}
+                                    {formatMizaProstor(n)} — naročilo #{n.id}
                                   </span>
                                   <span className="font-bold text-amber-900 text-sm">
                                     {Number(n.skupaj).toFixed(2)} €
@@ -2243,7 +4556,7 @@ ${linije.map(vrHtml).join("\n")}
                                   variant="outline"
                                   className="border-amber-500 text-amber-900 hover:bg-amber-200 text-xs px-2 py-1 h-auto w-full"
                                   onClick={() => { void handleZdruziPosamezno(n.id); }}
-                                  disabled={spojiMutation.isPending}
+                                   disabled={gatewayCheckoutMode || spojiMutation.isPending}
                                   data-testid={`button-združi-narocilo-${n.id}`}
                                 >
                                   {spojiPosameznoId === n.id ? (
@@ -2257,7 +4570,11 @@ ${linije.map(vrHtml).join("\n")}
                                   size="sm"
                                   variant="outline"
                                   className="border-amber-500 text-amber-900 hover:bg-amber-200 text-xs px-2 py-1 h-auto w-full"
-                                  onClick={() => { setSelectedNarocilo(n.id); setDdvNapaka(null); }}
+                                   onClick={() => {
+                                     if (gatewayCheckoutMode) setSelectedGatewayOrderId(String(n.id));
+                                     else setSelectedNarocilo(n.id);
+                                     setDdvNapaka(null);
+                                   }}
                                   data-testid={`button-odpri-narocilo-${n.id}`}
                                 >
                                   Odpri naročilo #{n.stevilkaNarocila ?? n.id}
@@ -2272,7 +4589,7 @@ ${linije.map(vrHtml).join("\n")}
                             variant="default"
                             className="bg-amber-600 hover:bg-amber-700 text-white border-0"
                             onClick={handleOdpriZdruziDialog}
-                            disabled={spojiMutation.isPending}
+                            disabled={gatewayCheckoutMode || spojiMutation.isPending}
                             data-testid="button-združi-vsa-narocila"
                           >
                             <GitMerge className="h-3.5 w-3.5 mr-1.5" />
@@ -2282,7 +4599,12 @@ ${linije.map(vrHtml).join("\n")}
                             size="sm"
                             variant="outline"
                             className="border-amber-500 text-amber-900 hover:bg-amber-100"
-                            onClick={() => setLocation(aktivniGost !== null ? `/narocilo/${selectedNarocilo}?gost=${aktivniGost}` : `/narocilo/${selectedNarocilo}`)}
+                            disabled={gatewayCheckoutMode}
+                            onClick={() => {
+                              if (gatewayCheckoutMode || selectedNarocilo === null) return;
+                              const routeId = gatewayCheckoutMode ? localOrderRoute(String(selectedNarocilo)) : String(selectedNarocilo);
+                              setLocation(aktivniGost !== null ? `/narocilo/${routeId}?gost=${aktivniGost}` : `/narocilo/${routeId}`);
+                            }}
                             data-testid="button-nazaj-na-narocilo"
                           >
                             <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
@@ -2299,7 +4621,16 @@ ${linije.map(vrHtml).join("\n")}
                       <User className="h-4 w-4" />
                       Natakar
                     </Label>
-                    {aktivniOperaterji.length === 0 ? (
+                    {aktivneIzmeneLoading ? (
+                      <div
+                        className="flex min-h-10 items-center gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Nalagam aktivne izmene …
+                      </div>
+                    ) : (aktivneIzmene?.length ?? 0) === 0 ? (
                       <Alert className="border-red-300 bg-red-50 text-red-900 py-2">
                         <AlertCircle className="h-4 w-4 text-red-600" />
                         <AlertTitle className="text-red-900 font-semibold text-sm">Ni odprtih izmen</AlertTitle>
@@ -2322,6 +4653,11 @@ ${linije.map(vrHtml).join("\n")}
                             ))}
                           </SelectContent>
                         </Select>
+                        {aktivniOperaterji.length === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Vsi natakarji z odprto izmeno so trenutno na odmoru.
+                          </p>
+                        )}
                       </>
                     )}
                   </div>
@@ -2330,7 +4666,7 @@ ${linije.map(vrHtml).join("\n")}
 
                   <div className="rounded-lg bg-muted/50 p-2 space-y-0.5">
                     <div className="flex justify-between text-sm font-medium">
-                      <span>{selectedOrder.mizaIme ?? (selectedOrder.mizaStevilka != null ? `Miza ${selectedOrder.mizaStevilka}` : "Direktna prodaja")}</span>
+                      <span>{formatMizaProstor(selectedOrder)}</span>
                       <span className="text-primary font-bold">
                         {splitMode
                           ? <>{displaySkupaj.toFixed(2)} € <span className="text-xs font-normal text-muted-foreground">/ {displayNezaracunaneSkupaj.toFixed(2)} €</span></>
@@ -2779,6 +5115,61 @@ ${linije.map(vrHtml).join("\n")}
                   {/* Separator samo ko je bon za pico aktiven */}
                   {showBonZaPico && steviloBonovDejanski > 0 && <Separator />}
 
+                  {nastavitve?.studentskiBonAktiven === true && steviloBonovDejanski === 0 && (
+                    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <Label htmlFor="ssp-subvencija" className="text-sm font-medium text-emerald-950">
+                            Študentski bon — subvencija
+                          </Label>
+                          <p className="mt-0.5 text-xs text-emerald-800">
+                            Subvencija se vodi kot terjatev do MDDSZ/ŠOS; DDV in vrednost računa ostaneta nespremenjena.
+                          </p>
+                        </div>
+                        {znesekSubvencijaDejanski > 0 && (
+                          <Badge className="shrink-0 bg-emerald-700">{znesekSubvencijaDejanski.toFixed(2)} €</Badge>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="ssp-subvencija" className="text-xs text-emerald-900">Subvencija (€)</Label>
+                          <Input
+                            id="ssp-subvencija"
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            max={znesekPreostalega}
+                            step="0.01"
+                            value={znesekSubvencija === 0 ? "" : znesekSubvencija}
+                            onChange={(event) => {
+                              const value = Number(event.target.value);
+                              setZnesekSubvencija(Number.isFinite(value) ? Math.max(0, value) : 0);
+                            }}
+                            disabled={placilniNacin !== "gotovina" && placilniNacin !== "kartica"}
+                            data-testid="ssp-subvencija-input"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="ssp-referenca" className="text-xs text-emerald-900">Lokalna/NFC referenca (neobvezno)</Label>
+                          <Input
+                            id="ssp-referenca"
+                            maxLength={128}
+                            value={sspReferenca}
+                            onChange={(event) => setSspReferenca(event.target.value)}
+                            disabled={placilniNacin !== "gotovina" && placilniNacin !== "kartica"}
+                            placeholder="NFC ali lokalna koda"
+                            data-testid="ssp-referenca-input"
+                          />
+                        </div>
+                      </div>
+                      {znesekSubvencijaDejanski > 0 && (
+                        <p className="text-xs font-medium text-emerald-900">
+                          Doplačilo {placilniNacin === "kartica" ? "s kartico" : "z gotovino"}: {znesekZaDoplacilo.toFixed(2)} €
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {!vsePlacanoZBoni && (
                     <div className="space-y-2">
                       <Label className="text-sm">
@@ -2791,8 +5182,17 @@ ${linije.map(vrHtml).join("\n")}
                         value={placilniNacin}
                         onValueChange={(v: RacunInputPlacilnaNacin) => {
                           setPlacilniNacin(v);
+                          if (v === "gotovina" || v === "kartica") {
+                            const nacin = v === "kartica" ? "card" : "cash";
+                            setNacinZajemaNapitnine(nacin);
+                            nacinZajemaNapitnineRef.current = nacin;
+                          }
                           setTerminalStanje("idle");
                           if (v !== "bon") setZnesekDarilnegaBona(0);
+                          if (v !== "gotovina" && v !== "kartica") {
+                            setZnesekSubvencija(0);
+                            setSspReferenca("");
+                          }
                         }}
                         className={`grid gap-3 ${kupecNaziv || kupecDavcna ? "grid-cols-3" : "grid-cols-3"} sm:${kupecNaziv || kupecDavcna ? "grid-cols-6" : "grid-cols-5"}`}
                       >
@@ -2844,8 +5244,13 @@ ${linije.map(vrHtml).join("\n")}
                       {/* Darilni bon — znesek input (samo ko je bon izbran) */}
                       {placilniNacin === "bon" && (
                         <div className="mt-3 space-y-3">
+                          {darilniBonStanje && (
+                            <p className={`rounded-md border px-3 py-2 text-xs ${darilniBonStanje.odprto < 0 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
+                              Skupna evidenca darilnih bonov: odprto <strong>{darilniBonStanje.odprto.toFixed(2)} €</strong>. Bon nima individualnega preostanka; ta znesek se ob unovčitvi porabi na računu.
+                            </p>
+                          )}
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-muted-foreground flex-1">Znesek darilnega bona</span>
+                            <span className="text-sm text-muted-foreground flex-1">Znesek darilnega bona (brez preostanka)</span>
                             <button
                               type="button"
                               onClick={() => setZnesekDarilnegaBona(v => Math.max(0, v - DARILNI_BON_KORAK))}
@@ -2887,7 +5292,12 @@ ${linije.map(vrHtml).join("\n")}
                                       <button
                                         key={value}
                                         type="button"
-                                        onClick={() => setSekundarniNacin(value)}
+                                        onClick={() => {
+                                          setSekundarniNacin(value);
+                                            const nacin = value === "kartica" ? "card" : "cash";
+                                            setNacinZajemaNapitnine(nacin);
+                                            nacinZajemaNapitnineRef.current = nacin;
+                                        }}
                                         className={`flex-1 flex items-center justify-center gap-2 rounded-md border-2 p-2 text-sm transition-colors ${
                                           sekundarniNacin === value
                                             ? "border-primary text-primary bg-primary/5"
@@ -2913,79 +5323,25 @@ ${linije.map(vrHtml).join("\n")}
                     </div>
                   )}
 
-                  {/* Terminal info banner when kartica is selected */}
-                  {!vsePlacanoZBoni && placilniNacin === "kartica" && (
-                    <div className={`rounded-lg border p-3 text-sm flex items-start gap-3 ${
-                      terminalAktiven || paytenAndroidAktiven || sumupAktiven || vivaTerminalAktiven || vivaAndroidTerminalAktiven || vivaTapToPayAktiven || vivaAktiven
-                        ? "bg-blue-50 border-blue-200 text-blue-800"
-                        : "bg-muted border-muted-foreground/20 text-muted-foreground"
-                    }`}>
-                      {terminalAktiven ? (
-                        <>
-                          <Monitor className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo posredovano na <strong>Payten terminal</strong>.
-                            Stranka naj pripravi kartico.
-                          </span>
-                        </>
-                      ) : paytenAndroidAktiven ? (
-                        <>
-                          <CreditCard className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo opravljeno prek <strong>Payten Android Software</strong> na tej napravi.
-                            Odpre se aplikacija Payten POS; po plačilu se vrnete sem.
-                          </span>
-                        </>
-                      ) : sumupAktiven ? (
-                        <>
-                          <CreditCard className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo poslano prek <strong>SumUp</strong>.
-                            Stranka naj pripravi kartico ali mobilni telefon.
-                          </span>
-                        </>
-                      ) : vivaTerminalAktiven ? (
-                        <>
-                          <CreditCard className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo poslano na <strong>Viva Cloud Terminal</strong>.
-                            Stranka naj pripravi kartico.
-                          </span>
-                        </>
-                      ) : vivaAndroidTerminalAktiven ? (
-                        <>
-                          <CreditCard className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo opravljeno prek <strong>Viva Terminal APK</strong> na tej napravi.
-                            Odpre se aplikacija Viva terminal; po plačilu se vrnete sem.
-                          </span>
-                        </>
-                      ) : vivaTapToPayAktiven ? (
-                        <>
-                          <CreditCard className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo opravljeno prek <strong>Viva Tap to Pay</strong> (SoftPOS) na tej napravi.
-                            Prinesite kartico stranke k telefonu/tablici; po plačilu se vrnete sem.
-                          </span>
-                        </>
-                      ) : vivaAktiven ? (
-                        <>
-                          <CreditCard className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Plačilo bo opravljeno prek <strong>Viva Wallet</strong>.
-                            Stranka skenira QR kodo s telefonom.
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Monitor className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            POS terminal ni aktiviran. Omogočite Payten, SumUp ali Viva Wallet v <strong>Nastavitvah</strong>.
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  {/* Opozorilo prikažemo samo, če ni aktiviran noben način kartičnega plačila. */}
+                  {!vsePlacanoZBoni &&
+                    jeKarticniTok &&
+                    !(
+                      terminalAktiven ||
+                      paytenAndroidAktiven ||
+                      sumupAktiven ||
+                      vivaTerminalAktiven ||
+                      vivaAndroidTerminalAktiven ||
+                      vivaTapToPayAktiven ||
+                      vivaAktiven
+                    ) && (
+                      <div className="rounded-lg border border-muted-foreground/20 bg-muted p-3 text-sm flex items-start gap-3 text-muted-foreground">
+                        <Monitor className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>
+                          POS terminal ni aktiviran. Omogočite Payten, SumUp ali Viva Wallet v <strong>Nastavitvah</strong>.
+                        </span>
+                      </div>
+                    )}
 
                   <Separator />
 
@@ -3072,20 +5428,31 @@ ${linije.map(vrHtml).join("\n")}
 
                 </>
               ) : (
-                <div className="py-8 text-center text-muted-foreground">
+                <div className="py-1 text-center text-[11px] text-muted-foreground">
                   Izberite naročilo za izdajo računa
                 </div>
               )}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="p-1">
+              {paymentOrFinalizationInProgress && (
+                <p className="mb-1 flex w-full items-center justify-center gap-1 text-center text-[11px] text-muted-foreground" data-testid="status-payment-guard">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {paymentGuard.message}
+                </p>
+              )}
               <Button
-                className="w-full h-14 text-lg"
-                size="lg"
-                disabled={!selectedNarocilo || createRacun.isPending || aktivniOperaterji.length === 0 || (aktivniOperaterji.length > 0 && selectedNatakarId === "none") || imaNeskladjePostavk || (splitMode && splitPostavkeIds.size === 0)}
+                className="w-full min-h-7 h-auto py-0.5 text-[11px] leading-tight"
+                size="sm"
+                disabled={!effectiveSelectedOrderKey || activeBlagajnaId == null || offlineOrderLocked || createRacun.isPending || cardRecoveryChecking || paymentOrFinalizationInProgress || aktivniOperaterji.length === 0 || selectedNatakarId === "none" || imaNeskladjePostavk || (splitMode && splitPostavkeIds.size === 0)}
                 onClick={handleIzdajRacun}
                 data-testid="button-izdaj-racun"
               >
-                {showTerminalFlow ? (
+                {showSimulationFlow ? (
+                  <>
+                    <CreditCard className="w-5 h-5 mr-2" />
+                    {createRacun.isPending ? "Izdajanje..." : "Simuliraj kartično plačilo in izdaj račun"}
+                  </>
+                ) : showTerminalFlow ? (
                   <>
                     <CreditCard className="w-5 h-5 mr-2" />
                     {createRacun.isPending ? "Izdajanje..." : "Pošlji na terminal in izdaj račun"}

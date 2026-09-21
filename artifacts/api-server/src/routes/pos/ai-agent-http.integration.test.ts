@@ -1,0 +1,338 @@
+import { createHmac } from "node:crypto";
+import express from "express";
+import request from "supertest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { eq, inArray } from "drizzle-orm";
+
+vi.mock("@clerk/express", () => ({
+  getAuth: (req: express.Request) => ({ userId: req.header("x-test-user") ?? null }),
+}));
+
+vi.mock("@workspace/integrations-anthropic-ai", () => ({
+  anthropic: { messages: { create: vi.fn() } },
+}));
+
+import {
+  artikliTable,
+  companiesTable,
+  db,
+  enoteTable,
+  izmeneTable,
+  kdsNalogiTable,
+  kdsPostajeTable,
+  napraveTable,
+  narocilaTable,
+  natakariTable,
+  posAiAgentAuditTable,
+  posUporabnikiTable,
+  postavkeTable,
+} from "@workspace/db";
+import {
+  posActorContext,
+  requireEnota,
+  requireUnitCapability,
+} from "../../middlewares/pos";
+import router, { verifyCourseClarificationToken } from "./glasovni-ukaz";
+
+const run = `agent-http-${Math.random().toString(36).slice(2, 10)}`;
+const clerkUserId = `${run}-clerk`;
+const previousSessionSecret = process.env.SESSION_SECRET;
+const previousActorSecret = process.env.POS_ACTOR_SESSION_SECRET;
+
+let companyId = "";
+let enotaA = 0;
+let enotaB = 0;
+let napravaA = { id: 0, key: "" };
+let napravaB = { id: 0, key: "" };
+let actorA = 0;
+let actorB = 0;
+let shiftA = 0;
+let shiftB = 0;
+let shiftAEnotaB = 0;
+let orderId = 0;
+let otherOrderId = 0;
+let juhaId = 0;
+let vinoId = 0;
+let juhaKdsId = 0;
+let vinoKdsId = 0;
+
+const app = express();
+app.use(express.json());
+app.use((req, _res, next) => {
+  req.log = { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } as never;
+  next();
+});
+app.use(requireEnota, requireUnitCapability, posActorContext);
+app.use(router);
+app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  res.status(500).json({ error: error.message });
+});
+
+function aiDeviceToken(device: { id: number; key: string }, enotaId: number): string {
+  const payload = Buffer.from(`${device.id}:${enotaId}:${device.key}`).toString("base64url");
+  const signature = createHmac("sha256", process.env.SESSION_SECRET!).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function actorToken(input: { actorId: number; shiftId: number; enotaId: number }): string {
+  const payload = Buffer.from(JSON.stringify({
+    n: input.actorId,
+    s: input.shiftId,
+    e: Date.now() + 60_000,
+    c: companyId,
+    u: input.enotaId,
+  })).toString("base64url");
+  const signature = createHmac("sha256", process.env.POS_ACTOR_SESSION_SECRET!)
+    .update(payload)
+    .digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function agentRequest(input: {
+  enotaId?: number;
+  device?: { id: number; key: string };
+  actorSession?: string;
+  body: Record<string, unknown>;
+}) {
+  const enotaId = input.enotaId ?? enotaA;
+  const device = input.device ?? napravaA;
+  let result = request(app)
+    .post("/ai/agent")
+    .set("x-test-user", clerkUserId)
+    .set("x-company-id", companyId)
+    .set("x-enota-id", String(enotaId))
+    .set("x-naprava-id", device.key)
+    .set("x-ai-device-token", aiDeviceToken(device, enotaId));
+  if (input.actorSession) result = result.set("x-pos-actor-session", input.actorSession);
+  return result.send(input.body);
+}
+
+async function assignmentRows() {
+  return db.select({
+    id: postavkeTable.id,
+    courseNumber: postavkeTable.courseNumber,
+    courseSequence: postavkeTable.courseSequence,
+    pairingGroupId: postavkeTable.pairingGroupId,
+  }).from(postavkeTable)
+    .where(inArray(postavkeTable.id, [juhaId, vinoId]))
+    .orderBy(postavkeTable.id);
+}
+
+async function assignmentKdsRows() {
+  return db.select({
+    id: kdsNalogiTable.id,
+    courseNumber: kdsNalogiTable.courseNumber,
+    courseSequence: kdsNalogiTable.courseSequence,
+    pairingGroupId: kdsNalogiTable.pairingGroupId,
+  }).from(kdsNalogiTable)
+    .where(inArray(kdsNalogiTable.id, [juhaKdsId, vinoKdsId]))
+    .orderBy(kdsNalogiTable.id);
+}
+
+beforeAll(async () => {
+  process.env.SESSION_SECRET = `${run}-session-secret`;
+  process.env.POS_ACTOR_SESSION_SECRET = `${run}-actor-secret`;
+
+  const [company] = await db.insert(companiesTable).values({
+    podjetjeDavcna: `SI_${run}`,
+    naziv: run,
+  }).returning({ id: companiesTable.id });
+  companyId = company!.id;
+
+  [enotaA, enotaB] = (await db.insert(enoteTable).values([
+    { companyId, ime: `${run} A`, capabilities: ["checkout"] },
+    { companyId, ime: `${run} B`, capabilities: ["checkout"] },
+  ]).returning({ id: enoteTable.id })).map(row => row.id) as [number, number];
+
+  await db.insert(posUporabnikiTable).values({
+    clerkUserId,
+    companyId,
+    enotaId: null,
+    vloga: "admin",
+    ime: "HTTP",
+    priimek: "Test",
+  });
+
+  [actorA, actorB] = (await db.insert(natakariTable).values([
+    { companyId, ime: "Prvi", priimek: run },
+    { companyId, ime: "Drugi", priimek: run },
+  ]).returning({ id: natakariTable.id })).map(row => row.id) as [number, number];
+
+  [shiftA, shiftB, shiftAEnotaB] = (await db.insert(izmeneTable).values([
+    { enotaId: enotaA, natakariId: actorA },
+    { enotaId: enotaA, natakariId: actorB },
+    { enotaId: enotaB, natakariId: actorA },
+  ]).returning({ id: izmeneTable.id })).map(row => row.id) as [number, number, number];
+
+  napravaA.key = `${run}-device-a`;
+  napravaB.key = `${run}-device-b`;
+  [napravaA.id, napravaB.id] = (await db.insert(napraveTable).values([
+    { enotaId: enotaA, ime: `${run} A`, napravaKljuc: napravaA.key, nastavitveJson: JSON.stringify({ aiSvetovalecAktiven: true }) },
+    { enotaId: enotaB, ime: `${run} B`, napravaKljuc: napravaB.key, nastavitveJson: JSON.stringify({ aiSvetovalecAktiven: true }) },
+  ]).returning({ id: napraveTable.id })).map(row => row.id) as [number, number];
+
+  const [article] = await db.insert(artikliTable).values({
+    enotaId: enotaA,
+    ime: run,
+    cena: "1",
+    davek: "22",
+    vrstniRed: 1,
+  }).returning({ id: artikliTable.id });
+
+  [orderId, otherOrderId] = (await db.insert(narocilaTable).values([
+    { enotaId: enotaA, stevilkaNarocila: 910001 },
+    { enotaId: enotaA, stevilkaNarocila: 910002 },
+  ]).returning({ id: narocilaTable.id })).map(row => row.id) as [number, number];
+
+  const lines = await db.insert(postavkeTable).values([
+    { narociloId: orderId, artikelId: article!.id, ime: "Juha", kolicina: 1, cenaKos: "1", skupaj: "1", davek: "22" },
+    { narociloId: orderId, artikelId: article!.id, ime: "Vino", kolicina: 1, cenaKos: "1", skupaj: "1", davek: "22" },
+    {
+      narociloId: orderId, artikelId: article!.id, ime: "Referenca dva", kolicina: 1,
+      cenaKos: "0", skupaj: "0", davek: "22", courseNumber: 2, courseSequence: 2,
+      courseNameSnapshot: "Ribji hod", pairingGroupId: `${run}:ref:2`,
+    },
+    {
+      narociloId: orderId, artikelId: article!.id, ime: "Referenca tri", kolicina: 1,
+      cenaKos: "0", skupaj: "0", davek: "22", courseNumber: 3, courseSequence: 3,
+      courseNameSnapshot: "Ribjemu hod", pairingGroupId: `${run}:ref:3`,
+    },
+  ]).returning({ id: postavkeTable.id, ime: postavkeTable.ime });
+  juhaId = lines.find(line => line.ime === "Juha")!.id;
+  vinoId = lines.find(line => line.ime === "Vino")!.id;
+
+  const [station] = await db.insert(kdsPostajeTable).values({
+    enotaId: enotaA,
+    ime: `${run} kitchen`,
+    tip: "kitchen",
+    vrstniRed: 1,
+  }).returning({ id: kdsPostajeTable.id });
+  [juhaKdsId, vinoKdsId] = (await db.insert(kdsNalogiTable).values([
+    { enotaId: enotaA, postajaId: station!.id, narociloId: orderId, postavkaId: juhaId, stanje: "aktivno" },
+    { enotaId: enotaA, postajaId: station!.id, narociloId: orderId, postavkaId: vinoId, stanje: "zadrzano" },
+  ]).returning({ id: kdsNalogiTable.id })).map(row => row.id) as [number, number];
+});
+
+afterAll(async () => {
+  if (actorA || actorB) {
+    await db.delete(posAiAgentAuditTable).where(inArray(posAiAgentAuditTable.actorNatakarId, [actorA, actorB]));
+  }
+  if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
+  if (previousSessionSecret === undefined) delete process.env.SESSION_SECRET;
+  else process.env.SESSION_SECRET = previousSessionSecret;
+  if (previousActorSecret === undefined) delete process.env.POS_ACTOR_SESSION_SECRET;
+  else process.env.POS_ACTOR_SESSION_SECRET = previousActorSecret;
+});
+
+describe("POST /ai/agent protected batch clarification", () => {
+  it("preveri zaščite, ne mutira pred pojasnilom in nadaljevanje izvede samo v pravem kontekstu", async () => {
+    const body = {
+      ukaz: "vino k ribjemu hodu, juha na prvi hod",
+      narociloId: orderId,
+    };
+    const actorASession = actorToken({ actorId: actorA, shiftId: shiftA, enotaId: enotaA });
+
+    const withoutActor = await agentRequest({ body });
+    expect(withoutActor.status).toBe(401);
+
+    const wrongDevice = await request(app)
+      .post("/ai/agent")
+      .set("x-test-user", clerkUserId)
+      .set("x-company-id", companyId)
+      .set("x-enota-id", String(enotaA))
+      .set("x-naprava-id", napravaA.key)
+      .set("x-ai-device-token", "invalid")
+      .set("x-pos-actor-session", actorASession)
+      .send(body);
+    expect(wrongDevice.status).toBe(403);
+
+    const pending = await agentRequest({ actorSession: actorASession, body });
+    expect(pending.status, JSON.stringify(pending.body)).toBe(200);
+    expect(pending.body).toMatchObject({
+      action: "explain",
+      courseClarification: {
+        token: expect.any(String),
+        options: [
+          { courseNumber: 2, courseName: "Ribji hod" },
+          { courseNumber: 3, courseName: "Ribjemu hod" },
+        ],
+      },
+    });
+    expect(await assignmentRows()).toEqual([
+      { id: juhaId, courseNumber: null, courseSequence: null, pairingGroupId: null },
+      { id: vinoId, courseNumber: null, courseSequence: null, pairingGroupId: null },
+    ]);
+    expect((await assignmentKdsRows()).map(row => [
+      row.courseNumber,
+      row.courseSequence,
+      row.pairingGroupId,
+    ])).toEqual([
+      [null, null, null],
+      [null, null, null],
+    ]);
+
+    const token = pending.body.courseClarification.token as string;
+    const tokenPayload = verifyCourseClarificationToken(token);
+    expect(tokenPayload).toMatchObject({
+      v: 2,
+      narociloId: orderId,
+      targetPostavkaId: vinoId,
+      assignments: [{ postavkaId: juhaId, courseNumber: 1 }],
+    });
+    const continuationBody = { ukaz: "3", narociloId: orderId, courseClarificationToken: token };
+
+    const wrongActor = await agentRequest({
+      actorSession: actorToken({ actorId: actorB, shiftId: shiftB, enotaId: enotaA }),
+      body: continuationBody,
+    });
+    expect(wrongActor.status).toBe(200);
+    expect(wrongActor.body).toMatchObject({ action: "explain", odgovor: expect.stringContaining("spremenili") });
+
+    const wrongUnit = await agentRequest({
+      enotaId: enotaB,
+      device: napravaB,
+      actorSession: actorToken({ actorId: actorA, shiftId: shiftAEnotaB, enotaId: enotaB }),
+      body: continuationBody,
+    });
+    expect(wrongUnit.status).toBe(200);
+    expect(wrongUnit.body).toMatchObject({ action: "explain", odgovor: expect.stringContaining("spremenili") });
+
+    const wrongOrder = await agentRequest({
+      actorSession: actorASession,
+      body: { ...continuationBody, narociloId: otherOrderId },
+    });
+    expect(wrongOrder.status).toBe(200);
+    expect(wrongOrder.body).toMatchObject({ action: "explain", odgovor: expect.stringContaining("spremenili") });
+    expect((await assignmentRows()).every(row => row.courseNumber === null)).toBe(true);
+
+    const completed = await agentRequest({ actorSession: actorASession, body: continuationBody });
+    expect(completed.status, JSON.stringify(completed.body)).toBe(200);
+    expect(completed.body).toMatchObject({
+      action: "assign_courses",
+      changed: true,
+      assignmentOutcomes: expect.arrayContaining([
+        expect.objectContaining({ postavkaId: juhaId, courseNumber: 1, naziv: "Juha" }),
+        expect.objectContaining({ postavkaId: vinoId, courseNumber: 3, naziv: "Vino" }),
+      ]),
+    });
+    const saved = await assignmentRows();
+    expect(saved.map(row => [row.id, row.courseNumber, row.courseSequence])).toEqual([
+      [juhaId, 1, 1],
+      [vinoId, 3, 3],
+    ]);
+    expect((await assignmentKdsRows()).map(row => [
+      row.id,
+      row.courseNumber,
+      row.courseSequence,
+      row.pairingGroupId,
+    ])).toEqual([
+      [juhaKdsId, 1, 1, saved[0]!.pairingGroupId],
+      [vinoKdsId, 3, 3, saved[1]!.pairingGroupId],
+    ]);
+
+    const replay = await agentRequest({ actorSession: actorASession, body: continuationBody });
+    expect(replay.status).toBe(200);
+    expect(replay.body).toMatchObject({ action: "explain", odgovor: expect.stringContaining("spremenili") });
+    expect(await assignmentRows()).toEqual(saved);
+  });
+});

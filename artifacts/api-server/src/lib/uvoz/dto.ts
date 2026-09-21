@@ -24,6 +24,23 @@ Decimal.set({
 export const zaokrozi = (d: Decimal.Value, mest = 2): Decimal =>
   new Decimal(d).toDecimalPlaces(mest, Decimal.ROUND_HALF_UP);
 
+/**
+ * Primerjalni ključ za nazive artiklov in dobaviteljev.
+ *
+ * Ostane v aplikaciji (ne v SQL funkciji), da je uvoz uporaben tudi v
+ * produkcijski bazi, kjer Publish ne namešča lastnih PostgreSQL razširitev.
+ */
+export function normalizirajNaziv(vrednost: string | null | undefined): string {
+  return (vrednost ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/(\d),(\d)/g, '$1.$2')
+    .replace(/[^a-z0-9. ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ---------------------------------------------------------------------
 // Resnost opozoril
 // ---------------------------------------------------------------------
@@ -46,6 +63,8 @@ export const opozoriloSchema = z.object({
   opomba: z.string().nullable().optional(),
 });
 export type Opozorilo = z.infer<typeof opozoriloSchema>;
+/** Alias — za združljivost z rutami, ki uvažajo UvozOpozorilo. */
+export type UvozOpozorilo = Opozorilo;
 
 // ---------------------------------------------------------------------
 // Decimal v Zod
@@ -139,10 +158,30 @@ export const postavkaSchema = z.object({
   // rabati
   rabat1Odst: decimalSchema.default(() => new Decimal(0)),
   rabat2Odst: decimalSchema.default(() => new Decimal(0)),
+  /**
+   * Ali je rabat ŽE upoštevan v izvCena.
+   *
+   * Pri strukturiranih formatih (UBL, e-SLOG 2.0, CII D16B, e-SLOG 1.6.1)
+   * je cena po EN 16931 BT-146 definiciji neto (po rabatu); odstotek je
+   * le pojasnilo, kako je iz bruto nastala neto. Ponovna uporaba bi zalogo
+   * podcenila za % rabata.
+   *
+   * Pri CSV je odvisno od dobavitelja — stolpec je običajno bruto cena
+   * z ločenim rabatom, zato ostaja false.
+   */
+  rabatVkljucenVCeni: z.boolean().default(false),
 
   // davek
   ddvStopnja: decimalSchema.nullable().default(null),
   ddvKategorija: z.string().nullable().default(null),
+  /** Davčna osnova vrstice, kadar je eksplicitno navedena na dokumentu. */
+  ddvOsnova: decimalSchema.nullable().default(null),
+  /** Znesek DDV vrstice, kadar je eksplicitno naveden oziroma izračunljiv. */
+  ddvZnesek: decimalSchema.nullable().default(null),
+  /** FURS/DDV koda iz dobaviteljevega dokumenta, če jo format vsebuje. */
+  ddvKoda: z.string().nullable().default(null),
+  /** Materialne vrstice privzeto ostanejo del zaloge. */
+  vrsticaTip: z.enum(['zaloga', 'poraba_surovin', 'prevoz']).default('zaloga'),
 
   // sledljivost
   lot: z.string().nullable().default(null),
@@ -171,10 +210,19 @@ export const prejemDtoSchema = z.object({
   dobaviteljTelefon: z.string().nullable().default(null),
   dobaviteljIban: z.string().nullable().default(null),
   dobaviteljBic: z.string().nullable().default(null),
+  dobaviteljMaticna: z.string().nullable().default(null),
 
   // dokument
   stDokumenta: z.string().nullable().default(null),
   datumDokumenta: z.string().date().nullable().default(null),
+  datumDobave: z.string().date().nullable().default(null),
+  datumOpravljeneStoritve: z.string().date().nullable().default(null),
+  /** Rok plačila dobaviteljevega dokumenta. */
+  datumZapadlosti: z.string().date().nullable().default(null),
+  placilniNacin: z.string().nullable().default(null),
+  placilniModel: z.string().nullable().default(null),
+  placilniSklic: z.string().nullable().default(null),
+  placilniNamen: z.string().nullable().default(null),
   vrstaDokumenta: z
     .enum(['RACUN', 'DOBAVNICA', 'DOBROPIS', 'BREMEPIS'])
     .default('RACUN'),
@@ -193,6 +241,8 @@ export const prejemDtoSchema = z.object({
         razlog: z.string().nullable().default(null),
         znesek: decimalSchema,
         ddvStopnja: decimalSchema.nullable().default(null),
+        /** Zaloga poveča nabavno vrednost, strosek ostane ločen strošek. */
+        obravnava: z.enum(['zaloga', 'strosek']).default('zaloga'),
       }),
     )
     .default([]),

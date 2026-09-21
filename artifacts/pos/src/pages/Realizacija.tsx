@@ -7,6 +7,7 @@ import { Printer, Search, FileText, List, AlignJustify } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
 import { getEnotaId } from "@workspace/api-client-react";
+import { poslovniDatumZaCas } from "@/lib/posCas";
 
 interface DdvStopnja {
   stopnja: number;
@@ -26,6 +27,7 @@ interface RealizacijaRacun {
   skupaj: number;
   gotovina: number;
   kartica: number;
+  napitnina: number;
   bon: number;
   bonPica: number;
   negotovinsko: number;
@@ -55,7 +57,7 @@ interface RealizacijaData {
   zacetekUra: string;
   skupaj: {
     osnova: number; ddv: number; skupaj: number;
-    gotovina: number; kartica: number; bon: number; bonPica: number;
+    gotovina: number; kartica: number; napitnina: number; bon: number; bonPica: number;
     negotovinsko: number; reprezentanca: number; lastna_poraba: number;
     izdaniKuponi: number; prejetiKuponi: number;
   };
@@ -83,17 +85,13 @@ function fmtStopnja(s: number) {
 }
 
 function poslovniDatum(iso: string, zacetekUra = "04:00"): string {
-  const [hStr, mStr] = zacetekUra.split(":");
-  const h = parseInt(hStr ?? "4", 10);
-  const m = parseInt(mStr ?? "0", 10);
-  const d = new Date(iso);
-  const dateLJ = d.toLocaleDateString("sv-SE", { timeZone: LJ });
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: LJ, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
-  const hLJ = parseInt(parts.find(p => p.type === "hour")?.value ?? "0", 10);
-  const mLJ = parseInt(parts.find(p => p.type === "minute")?.value ?? "0", 10);
-  const afterCutoff = hLJ > h || (hLJ === h && mLJ >= m);
-  const targetDate = afterCutoff ? new Date(dateLJ + "T12:00:00Z") : (() => { const pd = new Date(dateLJ + "T12:00:00Z"); pd.setUTCDate(pd.getUTCDate() - 1); return pd; })();
-  return targetDate.toLocaleDateString("sl-SI", { timeZone: LJ, day: "2-digit", month: "2-digit", year: "numeric" });
+  const date = poslovniDatumZaCas(iso, zacetekUra);
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("sl-SI", {
+    timeZone: LJ,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function groupByDate(racuni: RealizacijaRacun[], zacetekUra: string) {
@@ -110,13 +108,14 @@ function dayTotal(rows: RealizacijaRacun[]) {
   return rows.reduce((a, r) => ({
     skupaj: a.skupaj + r.skupaj,
     gotovina: a.gotovina + r.gotovina, kartica: a.kartica + r.kartica,
+    napitnina: a.napitnina + r.napitnina,
     bon: a.bon + r.bon, bonPica: a.bonPica + r.bonPica,
     negotovinsko: a.negotovinsko + r.negotovinsko,
     reprezentanca: a.reprezentanca + r.reprezentanca,
     lastna_poraba: a.lastna_poraba + r.lastna_poraba,
     izdaniKuponi: a.izdaniKuponi + r.izdaniKuponi,
     prejetiKuponi: a.prejetiKuponi + r.prejetiKuponi,
-  }), { skupaj: 0, gotovina: 0, kartica: 0, bon: 0, bonPica: 0, negotovinsko: 0, reprezentanca: 0, lastna_poraba: 0, izdaniKuponi: 0, prejetiKuponi: 0 });
+  }), { skupaj: 0, gotovina: 0, kartica: 0, napitnina: 0, bon: 0, bonPica: 0, negotovinsko: 0, reprezentanca: 0, lastna_poraba: 0, izdaniKuponi: 0, prejetiKuponi: 0 });
 }
 
 
@@ -221,7 +220,8 @@ function generirajPrometLinije(
         vrstice.push(sep("-"));
         vrstice.push(lr(`Skupaj ${rows.length} rač.:`, eur2(dt.skupaj)));
         if (dt.gotovina) vrstice.push(lr("  Gotovina:", eur2(dt.gotovina)));
-        if (dt.kartica) vrstice.push(lr("  Kartica:", eur2(dt.kartica)));
+        if (dt.kartica) vrstice.push(lr("  Kartica (bremenitev):", eur2(dt.kartica)));
+        if (dt.napitnina) vrstice.push(lr("  Napitnine (ločeno):", eur2(dt.napitnina)));
         if (dt.bon) vrstice.push(lr("  Bon:", eur2(dt.bon)));
         if (hasBonPica && dt.bonPica) vrstice.push(lr("  Bon pica:", eur2(dt.bonPica)));
         if (dt.reprezentanca) vrstice.push(lr("  Reprezentanca:", eur2(dt.reprezentanca)));
@@ -239,10 +239,11 @@ function generirajPrometLinije(
 
   // ── SKUPAJ ────────────────────────────────────
   vrstice.push(sep("="));
-  vrstice.push(lr(`SKUPAJ ${data.racuni.length} računov:`, eur2(data.skupaj.skupaj)));
+  vrstice.push(lr(`PRODAJA ${data.racuni.length} računov:`, eur2(data.skupaj.skupaj)));
   vrstice.push(sep("-"));
   if (data.skupaj.gotovina) vrstice.push(lr("Gotovina:", eur2(data.skupaj.gotovina)));
-  if (data.skupaj.kartica) vrstice.push(lr("Kartica:", eur2(data.skupaj.kartica)));
+  if (data.skupaj.kartica) vrstice.push(lr("Kartica (bremenitev):", eur2(data.skupaj.kartica)));
+  if (data.skupaj.napitnina) vrstice.push(lr("Napitnine (ločeno):", eur2(data.skupaj.napitnina)));
   if (data.skupaj.bon) vrstice.push(lr("Bon:", eur2(data.skupaj.bon)));
   if (hasBonPica && data.skupaj.bonPica) vrstice.push(lr("Bon pica:", eur2(data.skupaj.bonPica)));
   if (data.skupaj.reprezentanca) vrstice.push(lr("Reprezentanca:", eur2(data.skupaj.reprezentanca)));
@@ -299,7 +300,7 @@ function generirajArtikliLinije(data: RealizacijaData): string[] {
 }
 
 export default function Realizacija() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = poslovniDatumZaCas();
   const [od, setOd] = useState(today);
   const [doParam, setDoParam] = useState(today);
   const [data, setData] = useState<RealizacijaData | null>(null);
@@ -406,6 +407,7 @@ export default function Realizacija() {
   const showMonthlyTotals = monthGroups.length > 1;
   const hasBonPica = data ? data.skupaj.bonPica > 0 : false;
   const hasNegotovinsko = data ? data.skupaj.negotovinsko > 0 : false;
+  const hasNapitnina = data ? data.skupaj.napitnina !== 0 : false;
   const hasReprezentanca = data ? data.racuni.some(r => r.reprezentanca > 0) : false;
   const hasLastnaPoraba = data ? data.racuni.some(r => r.lastna_poraba > 0) : false;
   const TH = `${COL_CLASS} font-semibold whitespace-nowrap`;
@@ -431,7 +433,8 @@ export default function Realizacija() {
   const placilniTh = (
     <>
       <th className={TH}>Gotovina</th>
-      <th className={TH}>Kartica</th>
+      <th className={TH}>Kartica (bremenitev)</th>
+      {hasNapitnina && <th className={TH}>Napitnine</th>}
       {hasNegotovinsko && <th className={TH}>TRR</th>}
       {hasLastnaPoraba && <th className={TH}>L. raba</th>}
       {hasReprezentanca && <th className={TH}>Repr.</th>}
@@ -489,11 +492,12 @@ export default function Realizacija() {
     );
   }
 
-  function placilniTd(dt: { gotovina: number; kartica: number; bon: number; bonPica: number; negotovinsko: number; reprezentanca: number; lastna_poraba: number; izdaniKuponi: number; prejetiKuponi: number }) {
+  function placilniTd(dt: { gotovina: number; kartica: number; napitnina: number; bon: number; bonPica: number; negotovinsko: number; reprezentanca: number; lastna_poraba: number; izdaniKuponi: number; prejetiKuponi: number }) {
     return (
       <>
         <td className={COL_CLASS}>{eurSkupaj(dt.gotovina)}</td>
         <td className={COL_CLASS}>{eurSkupaj(dt.kartica)}</td>
+        {hasNapitnina && <td className={COL_CLASS}>{eurSkupaj(dt.napitnina)}</td>}
         {hasNegotovinsko && <td className={COL_CLASS}>{eurSkupaj(dt.negotovinsko)}</td>}
         {hasLastnaPoraba && <td className={COL_CLASS}>{eurSkupaj(dt.lastna_poraba)}</td>}
         {hasReprezentanca && <td className={COL_CLASS}>{eurSkupaj(dt.reprezentanca)}</td>}
@@ -685,6 +689,7 @@ export default function Realizacija() {
                                       {ddvTd(r.ddvPoStopnjah)}
                                       <td className={COL_CLASS}>{eur(r.gotovina)}</td>
                                       <td className={COL_CLASS}>{eur(r.kartica)}</td>
+                                       {hasNapitnina && <td className={COL_CLASS}>{eur(r.napitnina)}</td>}
                                       {hasNegotovinsko && <td className={COL_CLASS}>{eur(r.negotovinsko)}</td>}
                                       {hasLastnaPoraba && <td className={COL_CLASS}>{eur(r.lastna_poraba)}</td>}
                                       {hasReprezentanca && <td className={COL_CLASS}>{eur(r.reprezentanca)}</td>}
@@ -729,7 +734,7 @@ export default function Realizacija() {
                           <span className="uppercase tracking-wide">SKUPAJ</span>
                           <span className="ml-1 font-normal text-muted-foreground">({data.racuni.length})</span>
                         </td>
-                        {skupajTd(data.skupaj.skupaj, true)}
+                      {skupajTd(data.skupaj.skupaj, true)}
                         {blagoStoritevTd(sumBS(data.racuni))}
                         {ddvTd(data.ddvPoStopnjah)}
                         {placilniTd(data.skupaj)}
@@ -741,9 +746,10 @@ export default function Realizacija() {
                 {/* Summary cards */}
                 <div className="no-print mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                   {[
-                    { label: "Skupaj z DDV", value: data.skupaj.skupaj, bold: true },
+                    { label: "Prodaja z DDV", value: data.skupaj.skupaj, bold: true },
                     { label: "Gotovina", value: data.skupaj.gotovina },
-                    { label: "Kartica", value: data.skupaj.kartica },
+                    { label: "Kartica (bremenitev)", value: data.skupaj.kartica },
+                    ...(hasNapitnina ? [{ label: "Napitnine (ločeno)", value: data.skupaj.napitnina }] : []),
                     ...(hasNegotovinsko ? [{ label: "TRR", value: data.skupaj.negotovinsko }] : []),
                     { label: "Darilni bon", value: data.skupaj.bon },
                     ...(hasBonPica ? [{ label: "Bon za pico", value: data.skupaj.bonPica }] : []),

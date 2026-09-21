@@ -1,0 +1,242 @@
+[
+  {
+    "id": "a5c9ed05-eb46-4370-b167-487c2d909c9e",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide01.tsx",
+    "title": "Dobrodošli v novi generaciji gostinskega poslovanja",
+    "description": "Bookie POS Gostinstvo · Hitrejše delo. Več pregleda. Manj skrbi.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "8b71f600-896a-4e8a-9dea-b0335115f8ad",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide02.tsx",
+    "title": "Vaše izkušnje ostajajo. Orodje postaja boljše.",
+    "description": "Ne spreminjamo bistva vašega dela · Odstranjujemo nepotrebne korake · Informacije povežemo na enem mestu · Prehod je postopen in voden",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dda47ff1-dcbd-406c-a888-c41bfc0acbb3",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide03.tsx",
+    "title": "Ko stari program začne zavirati delo",
+    "description": "Preveč ročnih korakov · Podatki na več mestih · Težko iskanje napak in razlik · Omejeno delo z novimi napravami · Premalo pregleda v realnem času",
+    "speakerNotes": ""
+  },
+  {
+    "id": "222f13e8-868a-46a4-a347-763b33fe1778",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide04.tsx",
+    "title": "En sistem za celoten delovni dan",
+    "description": "Od odprtja izmene do Z-poročila · Od naročila do kuhinje in računa · Od prejema zaloge do poročil · Od POS prometa do ERP knjiženja",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f708eaf6-438c-44ae-93dd-0a2208a7676c",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide05.tsx",
+    "title": "Za vsak tip gostinskega obrata",
+    "description": "Restavracija in gostilna · Bar in kavarna · Hitra prehrana · Picerija · Food truck in catering · Dogodki ter začasne lokacije",
+    "speakerNotes": ""
+  },
+  {
+    "id": "685a1355-b175-46e4-8447-3d000216a38f",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide06.tsx",
+    "title": "Delo se začne z jasnim pregledom",
+    "description": "Prava poslovna enota · Prava blagajna · Prava uporabniška vloga · Samo funkcije, ki jih zaposleni potrebuje · Manj možnosti za napačen vnos",
+    "speakerNotes": ""
+  },
+  {
+    "id": "5984dd85-e0f0-4957-ae7c-09143a433c15",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide07.tsx",
+    "title": "Mize, kot jih poznate — le pregledneje",
+    "description": "Grafični tloris prostora · Proste, zasedene in rezervirane mize · Kapaciteta in status na prvi pogled · Hitro odpiranje naročila",
+    "speakerNotes": ""
+  },
+  {
+    "id": "5a78ebc9-d654-464b-a9a7-25d02c5f727a",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide08.tsx",
+    "title": "Več naročil na isti mizi? Brez težav.",
+    "description": "Ločena naročila za isto omizje · Različni natakarji ali gostje · Delni računi · Manj zmede pri večjih skupinah",
+    "speakerNotes": ""
+  },
+  {
+    "id": "7042d1b2-8107-4060-90c2-f34927f40bc1",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide09.tsx",
+    "title": "Rezervacije postanejo del istega toka",
+    "description": "Gost, telefon, ura in opomba · Pregled prihajajočih rezervacij · Prihod gosta z enim korakom · Naročilo se odpre neposredno iz rezervacije",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b21e49-ce70-4969-a042-c0a21e1da190",
+    "position": 10,
+    "filepath": "src/pages/slides/Slide10.tsx",
+    "title": "Naročilo sledi načinu dela osebja",
+    "description": "Hiter izbor kategorij in artiklov · Količine, opombe in dodatki · Premik na drugo mizo · Združevanje in delitev naročil · Jasno stanje vsake postavke",
+    "speakerNotes": ""
+  },
+  {
+    "id": "26ab3168-c7d8-45ff-a08c-c8acfa761b01",
+    "position": 11,
+    "filepath": "src/pages/slides/Slide11.tsx",
+    "title": "Pice brez ročnih opomb in ugibanja",
+    "description": "Velikosti in pripadajoče cene · Privzeti ter dodatni dodatki · Razrez pice · Pravilni normativi glede na velikost · Možnost glasovnega vnosa",
+    "speakerNotes": ""
+  },
+  {
+    "id": "466e1aa2-0f41-4af7-98cc-43fb760667c4",
+    "position": 12,
+    "filepath": "src/pages/slides/Slide12.tsx",
+    "title": "Večhodni meni ostane pod nadzorom",
+    "description": "Hodi v pravilnem zaporedju · Povezovanje jedi in vin · Naslednji hod se sprosti ob pravem času · Kuhinja vidi samo tisto, kar mora pripraviti",
+    "speakerNotes": ""
+  },
+  {
+    "id": "ecc015fd-0eac-426a-b072-2875cf9b1cb2",
+    "position": 13,
+    "filepath": "src/pages/slides/Slide13.tsx",
+    "title": "Kuhinja, pica, bar in izdaja govorijo isti jezik",
+    "description": "Samodejno usmerjanje postavk · Ločeni zasloni po postajah · Časi priprave · Potrditev in zaključek priprave · Pregled izdaje naročila",
+    "speakerNotes": ""
+  },
+  {
+    "id": "861e800d-f255-41df-9cb6-e1160858d28c",
+    "position": 14,
+    "filepath": "src/pages/slides/Slide14.tsx",
+    "title": "Manj hoje. Manj klicanja. Manj nesporazumov.",
+    "description": "Natakar odda naročilo enkrat · Postavka pride na pravo postajo · Spremembe so vidne ekipi · Status priprave je dostopen takoj",
+    "speakerNotes": ""
+  },
+  {
+    "id": "38192c2c-6418-4173-8ce1-8a6ecf9edecf",
+    "position": 15,
+    "filepath": "src/pages/slides/Slide15.tsx",
+    "title": "Telefonska naročila brez ponovnega prepisovanja",
+    "description": "Prepoznava obstoječega naročnika po telefonu · Osebni prevzem ali dostava · Naslov in opombe na enem mestu · Status dostave ostane sledljiv",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c9d10ddf-ae82-4c64-9620-97f356ff4dec",
+    "position": 16,
+    "filepath": "src/pages/slides/Slide16.tsx",
+    "title": "QR meni, ki dopolnjuje osebje",
+    "description": "Gost pregleduje ponudbo na telefonu · Slike, različice, dodatki in alergeni · Naročilo z mize ali za prevzem · Klic natakarja · Osebje ohrani nadzor",
+    "speakerNotes": ""
+  },
+  {
+    "id": "2026f041-9fe6-43fb-8ac3-fc9b439dac8c",
+    "position": 17,
+    "filepath": "src/pages/slides/Slide17.tsx",
+    "title": "Plačilo po želji gosta",
+    "description": "Gotovina · Kartica · Mešano plačilo · Napitnina · Boni in subvencije · Razdelitev računa",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b3cb9c84-fd4c-41f0-bd6b-f1aaf2dbc482",
+    "position": 18,
+    "filepath": "src/pages/slides/Slide18.tsx",
+    "title": "Povezava s sodobnimi terminali",
+    "description": "Payten · SumUp · Viva Smart in Viva Cloud · Viva Android in Tap-to-Pay · Evidenca stanja terminalskega poskusa",
+    "speakerNotes": ""
+  },
+  {
+    "id": "6fe17dbd-1206-468d-9eba-527e243f22db",
+    "position": 19,
+    "filepath": "src/pages/slides/Slide19.tsx",
+    "title": "Računi in FURS v istem varnem toku",
+    "description": "EOR in ZOI · Testni in produkcijski način · Ponatis računa · Polni storno računa · Pregled računov ter statusov",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e01a5e71-653b-4044-a5dc-c951dfba0bff",
+    "position": 20,
+    "filepath": "src/pages/slides/Slide20.tsx",
+    "title": "Tudi izpad interneta ni konec dela",
+    "description": "Offline fiskalna čakalna vrsta · Varen ponovni prenos · Pregled statusa računa · Nadaljevanje po ponovni povezavi · Jasna obravnava neznanega izida",
+    "speakerNotes": ""
+  },
+  {
+    "id": "faeac231-3a38-4b0e-90b3-51fd3c6b09fa",
+    "position": 21,
+    "filepath": "src/pages/slides/Slide21.tsx",
+    "title": "Zaloga se premika skupaj s prodajo",
+    "description": "Normativi povezujejo prodajo in porabo · Drseča tehtana povprečna cena — WAC · Kartica artikla · Začetna stanja · Pregled količine in vrednosti",
+    "speakerNotes": ""
+  },
+  {
+    "id": "97a63b96-c356-497f-9784-30caa7be5ed8",
+    "position": 22,
+    "filepath": "src/pages/slides/Slide22.tsx",
+    "title": "Prejemnice in inventure brez nepotrebnega prepisovanja",
+    "description": "Ročni vnos ali uvoz dokumenta · CSV, XLSX, PDF in XML · OCR ter uparjanje artiklov · Prejemnice, inventure in izdajnice · Sledljiv rezultat obdelave",
+    "speakerNotes": ""
+  },
+  {
+    "id": "74535832-6e36-44ce-9c62-cb8c66396cf7",
+    "position": 23,
+    "filepath": "src/pages/slides/Slide23.tsx",
+    "title": "Pripravljena hrana ima svojo zgodbo",
+    "description": "Priprava porabi surovine · Strošek porcije · Odtajanje in zamrznjena količina · Kalo in odpis · Ostanki s krožnikov ostanejo ločena okoljska evidenca",
+    "speakerNotes": ""
+  },
+  {
+    "id": "cdd33e1e-6de8-4acc-8555-a7875329ce49",
+    "position": 24,
+    "filepath": "src/pages/slides/Slide24.tsx",
+    "title": "Dogodek ali začasna lokacija? Sistem gre z vami.",
+    "description": "Začasna dogodkovna enota · Priprava artiklov in zaloge · Prenos na dogodek · Poraba, preostanek in vračilo · Celotna zgodovina dogodka",
+    "speakerNotes": ""
+  },
+  {
+    "id": "39243176-a938-43f1-89e0-ee860f1a1408",
+    "position": 25,
+    "filepath": "src/pages/slides/Slide25.tsx",
+    "title": "Poročila niso več samo pogled nazaj",
+    "description": "Promet po obdobju · Artikli, kategorije in natakarji · Plačilna sredstva in DDV · Izmene, napitnine in zaloga · X- in Z-poročilo",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c5c2cb66-4a7b-4f56-8600-ceed866d2066",
+    "position": 26,
+    "filepath": "src/pages/slides/Slide26.tsx",
+    "title": "POS in računovodstvo sta povezana",
+    "description": "Dnevne POS→ERP temeljnice · Nastavitve kontov in DDV kod · Manj ročnega prepisovanja · Boljša sled od prometa do knjiženja",
+    "speakerNotes": ""
+  },
+  {
+    "id": "89ef492c-599d-4074-bc84-3c2f3f52ed72",
+    "position": 27,
+    "filepath": "src/pages/slides/Slide27.tsx",
+    "title": "Deluje z opremo, ki jo gostinstvo potrebuje",
+    "description": "Blagajniški in kuhinjski tiskalniki · ZCS, NB80, NYX in Windows tisk · Kartični terminali · KDS zasloni · Registracija naprav po enoti",
+    "speakerNotes": ""
+  },
+  {
+    "id": "1dc8e973-baab-4a4d-b0e8-0d980422e059",
+    "position": 28,
+    "filepath": "src/pages/slides/Slide28.tsx",
+    "title": "Koristi za celotno ekipo",
+    "description": "Kaj pridobijo zaposleni · Kaj pridobijo vodje in lastniki",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3eaa9fd5-1351-4cdd-8321-e77b85afabdf",
+    "position": 29,
+    "filepath": "src/pages/slides/Slide30.tsx",
+    "title": "Prehod je pot, ne skok v neznano",
+    "description": "Najprej simulacija na dejanski opremi · Nato pilot na eni lokaciji · Dnevna kontrola računov, FURS in ERP · Usposabljanje uporabnikov · Postopna širitev po potrjenem uspehu",
+    "speakerNotes": ""
+  },
+  {
+    "id": "1177e619-20d2-4cd8-8124-53e08ddf1b1d",
+    "position": 30,
+    "filepath": "src/pages/slides/Slide31.tsx",
+    "title": "Naprej samozavestno — skupaj",
+    "description": "Bookie POS Gostinstvo · Vaše izkušnje. Sodobnejše orodje. Boljši pregled. · Naslednji korak: predstavitev na vaši lokaciji in dogovor za pilot.",
+    "speakerNotes": ""
+  }
+]

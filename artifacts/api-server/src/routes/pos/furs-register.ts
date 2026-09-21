@@ -1,9 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { ne } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { requireEnota } from "../../middlewares/pos";
+import { requireEnota, type PosRequest } from "../../middlewares/pos";
 import { readAll, toResponse } from "./nastavitve";
-import { registrirajPoslovniProstor } from "../../lib/pos-furs";
+import { pridobiCompanyCert, registrirajPoslovniProstor } from "../../lib/pos-furs";
 
 const router: IRouter = Router();
 
@@ -59,13 +59,9 @@ router.post("/furs/registriraj-poslovni-prostor", requireEnota, async (req, res)
     return;
   }
 
-  // certPem/certKljuc sta samo v nastavitveMap (ne v toResponse — zaupni podatki)
-  const certPem = nastavitveMap["certifikatPem"] || undefined;
-  const certKljuc = nastavitveMap["certifikatKljuc"] || undefined;
-  const certifikatPot = nastavitve.certifikatPot || undefined;
-  const certifikatGeslo = nastavitve.certifikatGeslo || undefined;
   const proxyUrl = nastavitve.fursProxyUrl || undefined;
   const jeFursNacin: "simulacija" | "testno" | "produkcija" = fursNacin ?? nastavitve.fursNacin;
+  const companyCert = await pridobiCompanyCert((req as PosRequest).companyId);
 
   const odgovor = await registrirajPoslovniProstor(
     {
@@ -83,10 +79,8 @@ router.post("/furs/registriraj-poslovni-prostor", requireEnota, async (req, res)
       vin: vin || undefined,
       premicninaTip: premicninaTip as import("../../lib/pos-furs").FursPremicninaTip | undefined,
       veljavnostOd,
-      certPem,
-      certKljuc,
-      certifikatPot,
-      certifikatGeslo,
+      certPem: companyCert?.certPem,
+      certKljuc: companyCert?.certKljuc,
       proxyUrl},
     jeFursNacin
   );

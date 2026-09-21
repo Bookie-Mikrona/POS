@@ -6,7 +6,7 @@ export type ErrorType<T = unknown> = ApiError<T>;
 
 export type BodyType<T> = T;
 
-export type AuthTokenGetter = () => Promise<string | null> | string | null;
+export type AuthTokenGetter = (options?: { skipCache?: boolean }) => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
@@ -19,6 +19,30 @@ let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _napravaIdGetter: (() => string | null) | null = null;
 let _enotaIdGetter: (() => string | null) | null = null;
+let _posActorSessionGetter: (() => string | null) | null = null;
+/** Callback, ki se pokliče, ko klic vrne 401 in ga refresh žetona ne reši. */
+let _on401Handler: (() => void) | null = null;
+
+/**
+ * Polira za veljaven žeton do maxWaitMs (privzeto 2500ms), vsakih ~150ms.
+ * Vrne žeton takoj ko postane na voljo, ali null po preteku časa.
+ * Namen: Clerk po sveži prijavi potrebuje kratek čas da JWT pripravi; brez tega
+ * bi klic šel ven brez Authorization → 401, čeprav seja obstaja.
+ */
+async function awaitToken(maxWaitMs = 2500): Promise<string | null> {
+  const pollMs = 150;
+  const maxAttempts = Math.ceil(maxWaitMs / pollMs);
+  for (let i = 0; i < maxAttempts; i++) {
+    if (_authTokenGetter) {
+       const t = await _authTokenGetter();
+      if (t) return t;
+    }
+    if (i < maxAttempts - 1) {
+      await new Promise<void>(r => setTimeout(r, pollMs));
+    }
+  }
+  return null;
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -58,11 +82,24 @@ export function setNapravaIdGetter(getter: (() => string | null) | null): void {
 export function setEnotaIdGetter(getter: (() => string | null) | null): void {
   _enotaIdGetter = getter;
 }
+/** Supplies the short-lived, server-signed POS actor selection. */
+export function setPosActorSessionGetter(getter: (() => string | null) | null): void {
+  _posActorSessionGetter = getter;
+}
+
+/**
+ * Registriraj callback, ki se sproži, ko klic vrne 401 in ga token-refresh retry
+ * ne reši (potekla seja). Uporabi za preusmeritev na /sign-in.
+ * Pass `null` to clear.
+ */
+export function setOn401Handler(handler: (() => void) | null): void {
+  _on401Handler = handler;
+}
 
 /** Returns the current auth bearer token (or null). Useful for direct fetch() calls outside the generated client. */
-export async function getAuthToken(): Promise<string | null> {
+export async function getAuthToken(options?: { skipCache?: boolean }): Promise<string | null> {
   if (!_authTokenGetter) return null;
-  return _authTokenGetter();
+  return _authTokenGetter(options);
 }
 
 /** Returns the current enota ID string (or null). Useful for direct fetch() calls outside the generated client. */
@@ -378,11 +415,19 @@ export async function customFetch<T = unknown>(
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
+  // Če getToken() vrne null (Clerk JWT se še inicializira po sveži prijavi),
+  // počakamo do ~2s — preprečimo, da zahtevek gre ven brez žetona.
   if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+    let token = await _authTokenGetter();
+    if (!token) token = await awaitToken(2000);
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
+    // Še vedno null po 2s: pošlji brez Auth — server vrne 401 → retry spodaj bo počakal
+  }
+  if (_posActorSessionGetter && !headers.has("x-pos-actor-session")) {
+    const actorSession = _posActorSessionGetter();
+    if (actorSession) headers.set("x-pos-actor-session", actorSession);
   }
 
   const companyId = (() => {
@@ -411,6 +456,43 @@ export async function customFetch<T = unknown>(
   const response = await fetch(input, { ...init, method, headers });
 
   if (!response.ok) {
+    // ── 401: enkratni token-refresh retry ────────────────────────────────────
+    // Pokrije prehodni race (Clerk JWT se po sveži prijavi inicializira z zamudo).
+    // 1. Pridobi svež žeton prek _authTokenGetter (ki zdaj kliče skipCache:true →
+    //    aktiven Clerk refresh). Če vrne null, počakaj do ~2.5s (awaitToken).
+    // 2. Retry SAMO enkrat z novim žetonom.
+    // 3. Šele ko po čakanju žetona ni → seja dejansko mrtva → _on401Handler.
+    if (response.status === 401 && _authTokenGetter) {
+       let freshToken = await _authTokenGetter({ skipCache: true });
+      if (!freshToken) freshToken = await awaitToken(2500);
+      if (freshToken) {
+        const retryHeaders = new Headers(headers);
+        retryHeaders.set("authorization", `Bearer ${freshToken}`);
+        // Actor selection and business unit can change while the first
+        // request is in flight. Re-read only the headers managed by their
+        // configured getters; leave caller and other managed headers intact.
+        if (_posActorSessionGetter) {
+          retryHeaders.delete("x-pos-actor-session");
+          const actorSession = _posActorSessionGetter();
+          if (actorSession) retryHeaders.set("x-pos-actor-session", actorSession);
+        }
+        if (_enotaIdGetter) {
+          retryHeaders.delete("x-enota-id");
+          const enotaId = _enotaIdGetter();
+          if (enotaId) retryHeaders.set("x-enota-id", enotaId);
+        }
+        const retryResponse = await fetch(input, { ...init, method, headers: retryHeaders });
+        if (retryResponse.ok) {
+          return (await parseSuccessBody(retryResponse, responseType, requestInfo)) as T;
+        }
+        // Retry prav tako 401 → seja potekla; sproži handler in vrzi napako
+        if (retryResponse.status === 401) _on401Handler?.();
+        const retryError = await parseErrorBody(retryResponse, method);
+        throw new ApiError(retryResponse, retryError, requestInfo);
+      }
+      // Po ~2.5s čakanja žetona še vedno ni → seja dejansko mrtva
+      _on401Handler?.();
+    }
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }

@@ -1,0 +1,34 @@
+V slovenski zakonodaji samostojnega »Pravilnika o napitninah« kot predpisanega državnega akta ni, mora pa vsak gostinski obrat, ki preema ali deli napitnine (zlasti pri kartičnih plačilih), to področje urediti z internim pravilnikom podjetja.
+
+1. Zakonska in davčna podlaga
+Oblika prejetja:
+
+Gotovinska napitnina: Če gost pusti napitnino v gotovini in jo natakarji obdržijo mimo blagajne, je to z vidika podjetja neopredmeteno, a mora biti urejeno med zaposlenimi.
+
+Kartična napitnina (preko POS terminala): Vse več gostov plačuje s kartico. Če se napitnina vtipka na POS terminalu, sredstva pridejo na bančni račun podjetja in se morajo evidentirati.
+
+Obdavčitev napitnin:
+
+Napitnina ni prihodek podjetja in ne podlega DDV-ju (ne obdavči se z 22 % ali 9,5 % DDV), saj ne gre za plačilo gostinske storitve ali artikla.
+
+Napitnina velja za drug prejemek iz delovnega razmerja (ali prejemek tretje osebe) in je predmet obdavčitve z dohodnino ter prispevki, ko se izplača zaposlenim.
+
+2. Kaj mora vsebovati interni Pravilnik o delitvi napitnin?
+Če želite v vašem POS/ERP sistemu in poslovanju zakonito in pregledno voditi napitnine (zlasti tiste, prejete preko kartic), mora interni akt določati:
+
+Namen in opredelitev: Jasna definicija, da je napitnina prostovoljni dar stranke zaposlenim in ne prihodek podjetja.
+
+Način zbiranja: Kako se spremljajo gotovinske in kartične napitnine (npr. poseben gumb »Napitnina« na POS blagajni, ki ne generira DDV).
+
+Ključ za delitev napitnin:
+
+Ali pripada 100 % natakarju, ki je izdal račun?
+
+Ali se zbira v skupni »bazen« (tipping pool) in deli med vse prisotne (npr. 70 % strežba / 30 % kuhinja in pomivalnica)?
+
+Obdobje in način izplačila: Izplačilo prek plačilne liste (obračun dohodnine/prispevkov) ali izplačilo iz gotovinske blagajne na podlagi blagajniškega izdatka.
+
+3. Nastavitev v POS / ERP sistemu
+Za pravilno delovanje blagajne se napitnina nastavi kot:
+
+Neobdavčen artikel / Prehodna postavka (Konto 285 ali 275 - Druge kratkoročne obveznosti): Vrednost se ne prišteva med prodajne prihodke lokala (razred 76), ampak se knjiži kot obveznost podjetja do zaposlenih, ki se zapre ob izplačilu.

@@ -1,0 +1,61 @@
+ali so alergeni tudi pri pijači
+
+Da, označevanje alergenov je obvezno tudi za pijače (tako alkoholne kot brezkalkoholne).
+
+Zakonodaja (Uredba EU 1169/2011) ne dela razlike med hrano in pijačo – če pijača vsebuje katero od 14 predpisanih skupin alergenov ali sledi teh alergenov, mora biti to jasno navedeno.
+
+Pogostost in primeri alergenov v pijačah
+
+Žveplov dioksid in sulfiti (nad 10 mg/l ili 10 mg/kg):
+
+Vino: Praktično vsa vina vsebujejo sulfite (konservans). Obvezno mora biti navedeno "vsebuje sulfite".
+
+Pivo in jabolčni tat (cider): Pogosto prisotni kot konservans ali stranski produkt fermentacije.
+
+Suho sadje v toplih napitkih / kompotih.
+
+Žita, ki vsebujejo gluten (ječmen, pšenica, rž, oves):
+
+Pivo: Ječmenov in pšenični slad (vsebuje gluten).
+
+Kavna nadomestki: Proja, divka, cikorija (pogosto vsebujejo ječmen ali rž).
+
+Nekatere žgane pijače / likerji: Če vsebujejo dodana sladna slada ali neprečiščene pšenične destilate (čeprav so čisti destilati običajno brez glutena, se pri dodanih aromah gluten lahko pojavi).
+
+Mleko in mlečni izdelki (vključno z laktozo):
+
+Mlečni kavni napitki: Kapučino, bela kava, macchiato, kava s smetano.
+
+Likerji: Kremni likerji (npr. Baileys vsebuje smetano/mleko).
+
+Stout piva (Milk Stout): Vsebujejo dodano laktozo.
+
+Koktajli: Napitki z dodatkom smetane, mleka ali jogurta (npr. Piña Colada, White Russian).
+
+Jajca:
+
+Likerji: Jajčni liker (npr. Bombardino, Advocat).
+
+Koktajli: Klasični koktajli z dodatkom beljaka za penu (npr. Whiskey Sour).
+
+Vino (sledi): Pri bistrenju vin se včasih uporabljajo beljakovine iz jajčnega beljaka (jačni albumin) ali mleka (kazein).
+
+Oraščki (orehi, mandlji, lešniki ...):
+
+Likerji in žganja: Orehovec (orehi), Amaretto (lahko vsebuje izvlečke mandljev ali koščic), lešnikovi likerji.
+
+Rastlinski napitki / rastlinsko "mleko": Mandljevo, lešnikovo ali orahovo mleko v kavi.
+
+Sezam, soja, zelena, arašidi:
+
+Zelena: Paradižnikov sok in koktajli (npr. Bloody Mary pogosto vsebuje stebelno zeleno ali sol z zeleno ter Worcestershire omako, ki lahko vsebuje ribe/sojo).
+
+Sojino ali ovseno mleko: Prisotno kot alternativa kravjemu mleku za kavo.
+
+Kako to vpliva na sistem (ERP / Normative / QR meni)
+
+Surovine pijač morajo imeti šifrant alergenov: Enako kot pri hrani morajo imeti vse nabavne surovine pijač (stekleničena pijača, sodno pivo, vino, mleko, sirupi, dodatki) vnesene alergene.
+
+Mešani napitki in koktajli: Pri mešanih pijačah (npr. Gin Tonic z dodatki, koktajli, kave) se alergeni samodejno preračunajo iz normativa vseh uporabljenih sestavin (npr. kava + mleko + lešnikov sirup → vsebuje mleko, oraščke).
+
+Prikaz v QR meniju in na ceniku: Gost mora imeti podatek o alergenih pri pijači dostopen na enak način kot pri hrani (na ceniku, QR meniju ali normativnem listu).

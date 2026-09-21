@@ -373,28 +373,28 @@ class ZcsPrinterBridge(private val context: Context) {
                 setStyle(PrnTextStyle.BOLD)
             }
 
-            // ZCS SDK ima interno mejo bufferja (~45 vrstic). Natisnemo v sklopih po 40 vrstic,
-            // da se prepreči samodejni flush pred koncem vsebine in predčasni QR izpis.
-            val BATCH_SIZE = 40
-            var batchStart = 0
-            var r1 = 0
-            while (batchStart < lines.size) {
-                val batchEnd = minOf(batchStart + BATCH_SIZE, lines.size)
-                for (i in batchStart until batchEnd) {
-                    val isBold = formati != null && i < formati.size && formati[i] == "B"
-                    printer.setPrintAppendString(lines[i], if (isBold) boldFormat else format)
+            // Omejimo vsak setPrintAppendString na ~800 znakov da se izognemo OOM pri
+            // renderiranju velikih bitmapov (vzrok intermittentne odrezave pri dolgih računih).
+            // Vse dele računa (besedilo + QR/Code128 + zaključni odmik) najprej
+            // dodamo v isto SDK vrsto in jo nato zaženemo natanko enkrat.
+            // Kratki računi (< ~27 vrstic) = 1 klic, daljši = 2+ klica.
+            val MAX_CHARS = 800
+            var chunkStart = 0
+            while (chunkStart < lines.size) {
+                val sb = StringBuilder()
+                var j = chunkStart
+                while (j < lines.size && sb.length < MAX_CHARS) {
+                    val line = if (lines[j].isBlank()) " " else lines[j]
+                    if (sb.isNotEmpty()) sb.append("\n")
+                    sb.append(line)
+                    j++
                 }
-                r1 = printer.setPrintStart()
-                Log.i(TAG, "printText: sklop ${batchStart + 1}-$batchEnd natisnjeno (koda $r1)")
-                batchStart = batchEnd
+                val isBold = formati != null && chunkStart < formati.size && formati[chunkStart] == "B"
+                printer.setPrintAppendString(sb.toString(), if (isBold) boldFormat else format)
+                Log.i(TAG, "printText: chunk ${chunkStart}–${j - 1} (${j - chunkStart} vrstic, ${sb.length} znakov)")
+                chunkStart = j
             }
-            Log.i(TAG, "printText: besedilo natisnjeno (${lines.size} vrstic skupaj)")
-
-            // Zaključi text batch — 2 prazni vrstici (~14 mm) + print
-            repeat(2) { printer.setPrintAppendString(" ", format) }
-            printer.setPrintStart()
-
-            // QR koda ali Code 128 prek nativnih ZCS SDK metod
+            // QR koda ali Code 128 gre v isto opravilo kot besedilo.
             val trailerFmt = PrnStrFormat().apply {
                 setTextSize(PRINT_TEXT_SIZE)
                 setFont(PrnTextFont.MONOSPACE)
@@ -402,22 +402,23 @@ class ZcsPrinterBridge(private val context: Context) {
             }
             if (!qrUrl.isNullOrBlank()) {
                 printer.setPrintAppendQRCode(qrUrl, 200, 200, Layout.Alignment.ALIGN_CENTER)
-                // ~5 mm praznega prostora po QR kodi za odtrganje
-                repeat(2) { printer.setPrintAppendString(" ", trailerFmt) }
-                printer.setPrintStart()
-                Log.i(TAG, "printText: QR koda natisnjena")
             } else if (!zoi.isNullOrBlank()) {
                 printer.setPrintAppendBarCode(
                     context, zoi.uppercase(), 400, 80, false,
                     Layout.Alignment.ALIGN_CENTER, BarcodeFormat.CODE_128
                 )
-                repeat(2) { printer.setPrintAppendString(" ", trailerFmt) }
-                printer.setPrintStart()
-                Log.i(TAG, "printText: Code 128 natisnjena (ZOI)")
             }
 
-            Log.i(TAG, "printText: zaključeno")
-            PrintResult.ok()
+            // ~5 mm praznega prostora po QR/Code128 za varno odtrganje.
+            repeat(2) { printer.setPrintAppendString(" ", trailerFmt) }
+
+            val result = printer.setPrintStart()
+            Log.i(TAG, "printText: enotno opravilo, ${lines.size} vrstic, QR=${!qrUrl.isNullOrBlank()}, koda $result")
+            if (result == SdkResult.SDK_OK || result == 0) {
+                PrintResult.ok()
+            } else {
+                PrintResult.error("ZCS tisk napaka (koda $result)")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "ZCS printText napaka: ${e.message}", e)
             PrintResult.error("Napaka: ${e.message}")

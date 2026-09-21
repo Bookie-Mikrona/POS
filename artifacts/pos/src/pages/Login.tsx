@@ -79,7 +79,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6 p-8 rounded-2xl border shadow-lg bg-card">
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">POS Cockpit</h1>
+          <h1 className="text-2xl font-bold tracking-tight">POS Gostinstvo</h1>
           <p className="text-sm text-muted-foreground">Prijavite se za nadaljevanje</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

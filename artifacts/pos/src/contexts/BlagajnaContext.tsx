@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const BLAGAJNA_STORAGE_KEY = "pos_active_blagajna_id";
@@ -20,12 +20,14 @@ export function BlagajnaProvider({ children }: { children: ReactNode }) {
     return !isNaN(parsed) ? parsed : null;
   });
 
-  const setActiveBlagajnaId = (id: number | null) => {
+  // useCallback zagotovi stabilno referenco — brez tega bi vsak re-render
+  // BlagajnaProvider ustvaril novo funkcijo in sprožil useEffect v BlagajnaSwitcherju.
+  const setActiveBlagajnaId = useCallback((id: number | null) => {
     if (jeUporabnik) return;
     setLocalBlagajnaIdState(id);
     if (id !== null) localStorage.setItem(BLAGAJNA_STORAGE_KEY, String(id));
     else localStorage.removeItem(BLAGAJNA_STORAGE_KEY);
-  };
+  }, [jeUporabnik]);
 
   const activeBlagajnaId = jeUporabnik ? (user?.blagajnaId ?? null) : localBlagajnaId;
 

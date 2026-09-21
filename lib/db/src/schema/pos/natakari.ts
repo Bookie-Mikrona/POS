@@ -1,4 +1,4 @@
-import { pgTable, text, serial, uuid, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, uuid, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { companiesTable } from "../companies";
 
 /**
@@ -15,6 +15,9 @@ export const natakariTable = pgTable("natakari", {
   priimek: text("priimek").notNull(),
   davcnaStevilka: text("davcna_stevilka"),
   aktiven: boolean("aktiven").notNull().default(true),
+  posPinHash: text("pos_pin_hash"),
+  posPinFailedAttempts: integer("pos_pin_failed_attempts").notNull().default(0),
+  posPinLockedUntil: timestamp("pos_pin_locked_until", { withTimezone: true }),
   ustvarjeno: timestamp("ustvarjeno", { withTimezone: true }).notNull().defaultNow(),
 });
 

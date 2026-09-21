@@ -1,13 +1,15 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, asc, like } from "drizzle-orm";
+import { eq, and, asc, like, inArray } from "drizzle-orm";
 import {
   db,
   vatCodesTable,
+  vatCodeTable,
   accountsTable,
   accountingRolesTable,
 } from "@workspace/db";
 import { CreateVatCodeBody, UpdateVatCodeBody } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { isSuperAdmin } from "../middlewares/requireSuperAdmin";
 
 const router: IRouter = Router();
 
@@ -20,6 +22,9 @@ async function resolveAccess(
   companyId: string,
   res: Response,
 ): Promise<{ role: "owner" | "accountant" | "viewer" } | null> {
+  // Superadmin ima poln dostop do vseh podjetij (SUPER_ADMIN_IDS env var)
+  if (isSuperAdmin(clerkUserId)) return { role: "owner" };
+
   const [row] = await db
     .select({ role: accountingRolesTable.role })
     .from(accountingRolesTable)
@@ -48,6 +53,7 @@ async function fetchVatCodeWithAccounts(id: string) {
       behavior: vatCodesTable.behavior,
       accountOutputId: vatCodesTable.accountOutputId,
       accountInputId: vatCodesTable.accountInputId,
+      fursCodeId: vatCodesTable.fursCodeId,
       validFrom: vatCodesTable.validFrom,
       validTo: vatCodesTable.validTo,
       isActive: vatCodesTable.isActive,
@@ -68,12 +74,36 @@ async function fetchVatCodeWithAccounts(id: string) {
   const [inAcc] = row.accountInputId
     ? await db.select({ code: accountsTable.code }).from(accountsTable).where(eq(accountsTable.id, row.accountInputId)).limit(1)
     : [null];
+  const [fursCode] = row.fursCodeId
+    ? await db
+        .select({
+          code: vatCodeTable.code,
+          description: vatCodeTable.description,
+          direction: vatCodeTable.direction,
+        })
+        .from(vatCodeTable)
+        .where(eq(vatCodeTable.id, row.fursCodeId))
+        .limit(1)
+    : [null];
 
   return {
     ...row,
     accountOutputCode: outAcc?.code ?? null,
     accountInputCode: inAcc?.code ?? null,
+    fursCode: fursCode?.code ?? null,
+    fursCodeDescription: fursCode?.description ?? null,
+    fursCodeDirection: fursCode?.direction ?? null,
   };
+}
+
+async function fursCodeExists(id: string | null | undefined): Promise<boolean> {
+  if (id == null) return true;
+  const [row] = await db
+    .select({ id: vatCodeTable.id })
+    .from(vatCodeTable)
+    .where(eq(vatCodeTable.id, id))
+    .limit(1);
+  return Boolean(row);
 }
 
 /** Slovenian standard VAT codes */
@@ -110,6 +140,7 @@ router.get(
         behavior: vatCodesTable.behavior,
         accountOutputId: vatCodesTable.accountOutputId,
         accountInputId: vatCodesTable.accountInputId,
+        fursCodeId: vatCodesTable.fursCodeId,
         validFrom: vatCodesTable.validFrom,
         validTo: vatCodesTable.validTo,
         isActive: vatCodesTable.isActive,
@@ -125,6 +156,7 @@ router.get(
     const outputIds = rows.map((r) => r.accountOutputId).filter(Boolean) as string[];
     const inputIds = rows.map((r) => r.accountInputId).filter(Boolean) as string[];
     const allAccIds = [...new Set([...outputIds, ...inputIds])];
+    const fursCodeIds = [...new Set(rows.map((r) => r.fursCodeId).filter(Boolean))] as string[];
 
     const accRows = allAccIds.length
       ? await db.select({ id: accountsTable.id, code: accountsTable.code }).from(accountsTable).where(
@@ -132,11 +164,26 @@ router.get(
         )
       : [];
     const accMap = new Map(accRows.map((a) => [a.id, a.code]));
+    const fursRows = fursCodeIds.length
+      ? await db
+          .select({
+            id: vatCodeTable.id,
+            code: vatCodeTable.code,
+            description: vatCodeTable.description,
+            direction: vatCodeTable.direction,
+          })
+          .from(vatCodeTable)
+          .where(inArray(vatCodeTable.id, fursCodeIds))
+      : [];
+    const fursMap = new Map(fursRows.map((code) => [code.id, code]));
 
     const vatCodes = rows.map((r) => ({
       ...r,
       accountOutputCode: r.accountOutputId ? (accMap.get(r.accountOutputId) ?? null) : null,
       accountInputCode: r.accountInputId ? (accMap.get(r.accountInputId) ?? null) : null,
+      fursCode: r.fursCodeId ? (fursMap.get(r.fursCodeId)?.code ?? null) : null,
+      fursCodeDescription: r.fursCodeId ? (fursMap.get(r.fursCodeId)?.description ?? null) : null,
+      fursCodeDirection: r.fursCodeId ? (fursMap.get(r.fursCodeId)?.direction ?? null) : null,
     }));
 
     res.json({ vatCodes });
@@ -175,6 +222,14 @@ router.post(
       .select({ id: accountsTable.id, code: accountsTable.code })
       .from(accountsTable)
       .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true)));
+    const globalFursCodes = await db
+      .select({ id: vatCodeTable.id, code: vatCodeTable.code, rate: vatCodeTable.rate })
+      .from(vatCodeTable);
+    const fursCandidates = new Map<string, string[]>();
+    for (const code of globalFursCodes) {
+      const key = `${code.code}|${Number(code.rate)}`;
+      fursCandidates.set(key, [...(fursCandidates.get(key) ?? []), code.id]);
+    }
 
     function findAccountByPrefix(prefix: string | null): string | null {
       if (!prefix) return null;
@@ -192,6 +247,9 @@ router.post(
           behavior: c.behavior,
           accountOutputId: findAccountByPrefix(c.outputPrefix),
           accountInputId: findAccountByPrefix(c.inputPrefix),
+          fursCodeId: fursCandidates.get(`${c.code}|${Number(c.rate)}`)?.length === 1
+            ? fursCandidates.get(`${c.code}|${Number(c.rate)}`)![0]
+            : null,
           isActive: true,
         })),
       ).returning({ id: vatCodesTable.id });
@@ -224,7 +282,7 @@ router.post(
       return;
     }
 
-    const { code, name, rate, behavior, accountOutputId, accountInputId, validFrom, validTo, notes } = parsed.data;
+    const { code, name, rate, behavior, accountOutputId, accountInputId, fursCodeId, validFrom, validTo, notes } = parsed.data;
 
     // Preveri unikatnost kode
     const [existing] = await db
@@ -248,6 +306,10 @@ router.post(
         .where(and(eq(accountsTable.id, accountInputId), eq(accountsTable.companyId, companyId))).limit(1);
       if (!acc) { res.status(400).json({ error: "Konto vstopnega DDV ne obstaja" }); return; }
     }
+    if (!await fursCodeExists(fursCodeId)) {
+      res.status(400).json({ error: "Izbrana FURS DDV koda ne obstaja" });
+      return;
+    }
 
     const toDateStr = (d: unknown): string | null => {
       if (!d) return null;
@@ -263,6 +325,7 @@ router.post(
       behavior: (behavior ?? "standard") as any,
       accountOutputId: accountOutputId ?? null,
       accountInputId: accountInputId ?? null,
+      fursCodeId: fursCodeId ?? null,
       validFrom: toDateStr(validFrom),
       validTo: toDateStr(validTo),
       notes: notes ?? null,
@@ -302,7 +365,7 @@ router.patch(
       .limit(1);
     if (!existing) { res.status(404).json({ error: "DDV koda ni najdena" }); return; }
 
-    const { name, rate, behavior, accountOutputId, accountInputId, validFrom, validTo, isActive, notes } = parsed.data;
+    const { name, rate, behavior, accountOutputId, accountInputId, fursCodeId, validFrom, validTo, isActive, notes } = parsed.data;
 
     if (accountOutputId) {
       const [acc] = await db.select({ id: accountsTable.id }).from(accountsTable)
@@ -313,6 +376,10 @@ router.patch(
       const [acc] = await db.select({ id: accountsTable.id }).from(accountsTable)
         .where(and(eq(accountsTable.id, accountInputId), eq(accountsTable.companyId, companyId))).limit(1);
       if (!acc) { res.status(400).json({ error: "Konto vstopnega DDV ne obstaja" }); return; }
+    }
+    if (!await fursCodeExists(fursCodeId)) {
+      res.status(400).json({ error: "Izbrana FURS DDV koda ne obstaja" });
+      return;
     }
 
     const toDateStr = (d: unknown): string | null => {
@@ -327,6 +394,7 @@ router.patch(
       ...(behavior !== undefined && { behavior: behavior as any }),
       ...(accountOutputId !== undefined && { accountOutputId }),
       ...(accountInputId !== undefined && { accountInputId }),
+      ...(fursCodeId !== undefined && { fursCodeId }),
       ...(validFrom !== undefined && { validFrom: toDateStr(validFrom) }),
       ...(validTo !== undefined && { validTo: toDateStr(validTo) }),
       ...(isActive !== undefined && { isActive }),

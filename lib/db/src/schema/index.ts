@@ -8,7 +8,9 @@ export * from "./dimensions";
 export * from "./journal-entries";
 export * from "./audit-log";
 export * from "./counterparties";
+export * from "./purchase-source-documents";
 export * from "./invoices";
+export * from "./bank-statements";
 export * from "./payments";
 export * from "./vat-codes";
 export * from "./vat-code";
@@ -24,6 +26,17 @@ export * from "./system-settings";
 export * from "./pos/index";
 export * from "./vat-submissions";
 export * from "./goods-receipts";
+export * from "./pos-invoice-links";
+export * from "./pos-contract-invoices";
+export * from "./pos-receipt-booking-sources";
+export * from "./pos-credit-note-allocations";
+export * from "./ddv-zakljucek-settings";
+export * from "./offline-gateway";
+// ── Osnovna sredstva (Register OS) ───────────────────────────────────────────
+export * from "./osnovna-sredstva";
+export * from "./os-roles";
+export * from "./os-amortizacija-nastavitve";
+export * from "./os-amortizacija-obracun";
 // ── Skupni registri ──────────────────────────────────────────────────────────
 export * from "./ujp-prejemniki";
 export * from "./ajpes-subjekti";

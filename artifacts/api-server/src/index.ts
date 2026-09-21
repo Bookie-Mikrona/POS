@@ -2,6 +2,10 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { zaženiNočnoČiščenje } from "./lib/sessionScheduler";
 import { zaženiZapiranjeIzmene } from "./lib/izmeneScheduler";
+import { zazeniSproscanjeRezervacijMiz } from "./lib/rezervacijeMizScheduler";
+import { startMonthlyPosBookingScheduler } from "./lib/monthlyPosBookingScheduler";
+import { startOfflineFiscalRunner } from "./services/pos/offline-fiscal-runner";
+import { startQrHistoryRetentionScheduler } from "./lib/qrHistoryRetention";
 
 const rawPort = process.env["PORT"];
 
@@ -30,4 +34,16 @@ app.listen(port, (err) => {
 
   // Samodejno zapiranje izmene ob začetku novega delovnega dne (per-enota ura)
   zaženiZapiranjeIzmene();
+
+  // Ob zagonu in nato vsako minuto sprosti potečene rezervacije miz.
+  zazeniSproscanjeRezervacijMiz();
+
+  // Mesečni POS zbirnik se ustvari prvi delovni dan meseca ob 06:00.
+  startMonthlyPosBookingScheduler();
+
+  // Default-off durable retry runner for immutable offline FURS v2 cores.
+  startOfflineFiscalRunner();
+
+  // QR naprava ostane povezljiva z zaključeno zgodovino največ 30 dni.
+  startQrHistoryRetentionScheduler();
 });

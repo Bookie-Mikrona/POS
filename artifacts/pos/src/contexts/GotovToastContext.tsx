@@ -7,6 +7,7 @@ export type GotovToastItem = {
   opomba: string | null;
   mizaIme: string | null;
   mizaStevilka: number | null;
+  prostorIme: string | null;
   vir: "kuhinja" | "tocilnica" | null;
   phase: "active" | "minimized" | "dismissed";
   arrivedAt: number;

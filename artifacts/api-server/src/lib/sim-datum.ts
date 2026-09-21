@@ -3,12 +3,18 @@ import { db, nastavitveTable } from "@workspace/db";
 
 export const SIM_DATUM_KEY = "sim_datum";
 
-/** Returns the simulation date string (YYYY-MM-DD) or null if not active. */
-export async function getSimDatumString(enotaId: number): Promise<string | null> {
+/**
+ * Returns the simulation date string (YYYY-MM-DD) or null if not active.
+ *
+ * sim_datum je nastavitev na ravni podjetja (shranjena za enota_id=1 kot privzeto).
+ * Ne filtriramo po enotaId, da ne bi prišlo do mismatch-a med različnimi enotami.
+ */
+export async function getSimDatumString(_enotaId?: number): Promise<string | null> {
   const [row] = await db
     .select({ vrednost: nastavitveTable.vrednost })
     .from(nastavitveTable)
-    .where(and(eq(nastavitveTable.enotaId, enotaId), eq(nastavitveTable.kljuc, SIM_DATUM_KEY)));
+    .where(eq(nastavitveTable.kljuc, SIM_DATUM_KEY))
+    .limit(1);
   return row?.vrednost ?? null;
 }
 

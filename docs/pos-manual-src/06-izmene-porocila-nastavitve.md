@@ -1,0 +1,1576 @@
+# 06 Plačilo, račun, FURS in tisk
+
+## 1. Namen sklopa
+
+Ta sklop opisuje zaključek prodaje: plačilo, izdajo računa, davčno potrjevanje
+FURS, tisk, ponatis in storno.
+
+Izmeno odprete in zaprete po sklopu 08. Naročilo in priprava sta v sklopu 05.
+
+## 2. Predpogoji
+
+1. Uporabnik je prijavljen v pravilno enoto in blagajno.
+2. Za blagajniško delo je odprta izmena, kadar jo enota zahteva.
+3. Naročilo vsebuje pravilne artikle, količine, popuste in kanal predaje.
+4. Nastavljeni so dovoljeni načini plačila.
+5. Terminal je povezan in pripravljen, če se uporablja kartica.
+6. Tiskalnik oziroma tiskalniški most je dosegljiv, če tiskate lokalno.
+7. Certifikat FURS je veljaven, kadar se posluje v produkcijskem načinu.
+
+> **Opozorilo:** Računa, ki je že fiskaliziran, ne »popravljajte« z novim
+> neuradnim računom. Uporabite dovoljen postopek storna oziroma vračila.
+
+## 3. Pregled pred plačilom
+
+1. Odprite naročilo in primerjajte postavke z naročilom gosta.
+2. Preverite cene, količine, popust in zaokroževanje.
+3. Preverite, ali naročilo pripada pravi mizi, prevzemu ali dostavi.
+4. Preverite, ali so vsi potrebni hodi poslani v pripravo.
+5. Potrdite skupni znesek z gostom.
+6. Šele nato izberite **Plačilo**.
+
+Ne spreminjajte postavk, medtem ko terminal že obdeluje plačilo. Najprej
+zaključite ali razrešite stanje terminala.
+
+## 4. Načini plačila
+
+Na voljo so samo načini, ki jih je za enoto omogočil skrbnik.
+
+Običajno so to gotovina, kartica oziroma terminal in drugi konfigurirani načini.
+
+### 4.1 Gotovina
+
+1. Izberite **Gotovina**.
+2. Vnesite prejeti znesek, če ga POS zahteva.
+3. Povejte gostu izračunano vračilo.
+4. Preštejte vračilo in ga izročite.
+5. Dokončajte plačilo.
+6. Preverite uspešno izdani račun in predajte izvod gostu.
+
+Gotovinskega plačila ne zaključujte, če je blagajna fizično nedosegljiva ali
+če poslovanje deluje v režimu, ki gotovine ne dovoljuje brez povezave.
+
+### 4.2 Kartica oziroma terminal
+
+1. Izberite kartico ali terminalski način plačila.
+2. Preverite znesek na POS in na terminalu.
+3. Gost izvede plačilo na terminalu.
+4. Počakajte na dokončni odgovor terminala.
+5. Ne ponavljajte transakcije, če se odgovor izgubi.
+6. Ko POS pokaže uspeh, zaključite račun.
+7. Gostu izročite račun in morebitno potrdilo terminala.
+
+Znesek na terminalu mora biti enak znesku izbrane plačilne postavke, ne nujno
+celotnemu računu pri deljenem plačilu.
+
+### 4.3 Drugi dovoljeni načini
+
+1. Izberite samo dejansko prejeti način.
+2. Preverite morebitno referenco ali dokazilo po pravilih enote.
+3. Dokončajte plačilo.
+4. Na računu preverite prikaz načina plačila.
+
+Ne uporabljajte drugega načina samo zato, da bi račun zaključili hitreje.
+Razlika oteži uskladitev prometa in blagajne.
+
+## 5. Deljeno plačilo
+
+Deljeno plačilo razdeli znesek enega naročila na več plačilnih postavk.
+
+### 5.1 Postopek
+
+1. Na zaslonu plačila izberite delitev plačila.
+2. Vnesite prvi znesek in izberite njegov način plačila.
+3. Potrdite prvo plačilo samo po dejanskem prejemu.
+4. Preverite preostanek.
+5. Dodajte naslednje plačilo z zneskom in načinom.
+6. Ponovite do ničelnega preostanka.
+7. Šele pri ničelnem preostanku zaključite račun.
+8. Preverite, da račun prikazuje vse načine in zneske.
+
+### 5.2 Dve osebi, ločeni postavki
+
+Če gostje plačajo različne jedi, najprej pravilno razdelite postavke oziroma
+ustvarite ločena naročila po veljavnem postopku. Delitev zneska ne popravi
+napačne razdelitve jedi, napitnin ali popustov.
+
+### 5.3 Napaka pri deljenem plačilu
+
+1. Ustavite postopek pred zaključkom računa.
+2. Zapišite že potrjeni znesek in način.
+3. Ne obremenite kartice ponovno brez preverjanja terminala.
+4. Preverite stanje plačil na naročilu.
+5. Nadaljujte samo z neplačanim preostankom.
+6. Če je račun že izdan, uporabite storno ali vračilo po pravilih.
+
+## 6. Neznano stanje terminala
+
+Neznano stanje nastopi, ko terminal pokaže uspeh, POS pa nima potrditve, ali
+ko POS čaka, terminal pa je prekinil povezavo.
+
+To stanje ni samodejno zavrnitev.
+
+### 6.1 Obvezen postopek
+
+1. Ne pritisnite plačila znova.
+2. Gostu povejte, da preverjate stanje transakcije.
+3. Na terminalu preverite končni prikaz, potrdilo ali zgodovino.
+4. V POS preverite, ali je plačilo že evidentirano.
+5. Primerjajte znesek, čas in referenco transakcije.
+6. Če je bilo plačilo odobreno, dokončajte obnovitev po prikazanem postopku.
+7. Če je bilo zavrnjeno, začnite novo plačilo šele po jasni zavrnitvi.
+8. Če stanja ni mogoče dokazati, pokličite vodjo oziroma podporo terminala.
+
+> **Opozorilo:** Neznano stanje obravnavajte kot možno uspešno bremenitev.
+> Dvojna obremenitev gosta je hujša od nekajminutnega čakanja.
+
+### 6.2 Plačilna obnovitev
+
+Ko POS ponudi obnovitev, preverite podatke pred potrditvijo.
+
+1. Izberite pravilen odprti račun oziroma naročilo.
+2. Preverite znesek in terminalsko referenco.
+3. Potrdite obnovitev le za isto transakcijo.
+4. Po uspehu preverite eno samo plačilno postavko.
+5. Natisnite račun šele po dokončnem stanju.
+
+Če obnovitev ni na voljo, ne ustvarjajte nadomestnega kartičnega plačila.
+Eskalirajte s časom, zneskom, blagajno in terminalsko referenco.
+
+## 7. Omejitve pri delu brez povezave
+
+POS lahko ima posebej določen režim dela brez povezave in lokalno pooblastilo.
+
+Uporabljajte ga samo, kadar sistem jasno pokaže, da je za to napravo omogočen.
+
+1. Ne domnevajte, da je offline način na voljo.
+2. Upoštevajte opozorilo POS o omejitvah plačil.
+3. Gotovine ne sprejemajte v offline režimu, kadar jo POS izrecno omeji.
+4. Ne obhajajte omejitve z izbiro napačnega plačilnega načina.
+5. Po vrnitvi povezave preverite uspešno sinhronizacijo računov.
+
+Offline omejitev ščiti sledljivost računov in fiskalno obdelavo. Če sistem
+gotovine ne dovoli, z gostom dogovorite dovoljen alternativni način ali
+odložite zaključek skladno s poslovnim pravilom.
+
+## 8. Izdaja in davčno potrjevanje računa
+
+### 8.1 Običajen potek
+
+1. Zaključite plačilo.
+2. POS ustvari račun.
+3. Sistem pripravi podatke za FURS.
+4. Ob uspešni registraciji račun prejme EOR.
+5. Račun vsebuje zahtevane identifikacijske podatke.
+6. Račun natisnite ali predajte po izbranem načinu.
+
+### 8.2 EOR in ZOI
+
+**ZOI** je zaščitna oznaka izdajatelja.
+
+**EOR** je enkratna identifikacijska oznaka odgovora FURS.
+
+Na uspešno potrjenem računu preverite, da sta prikazana pravilna identifikatorja,
+kadar sta za konkreten režim zahtevana.
+
+Odsotnost EOR pri računu v produkciji pomeni, da je potrebna preveritev stanja,
+ne pa samodejno, da račun ne obstaja.
+
+### 8.3 FURS napaka in ponovni poskus
+
+Če POS pokaže, da račun ni registriran pri FURS:
+
+1. Računa ne izdajajte drugič.
+2. Zabeležite številko računa, čas in sporočilo napake.
+3. Preverite, ali je prikazan status napake oziroma manjkajoč EOR.
+4. Po vzpostavitvi povezave uporabite dejanje **FURS retry**, če je na voljo.
+5. Počakajte na rezultat ponovnega pošiljanja.
+6. Preverite, da je račun dobil EOR oziroma da ni več označen kot napaka.
+7. Če ponovni poskus ne uspe, obvestite odgovorno osebo s podatki računa.
+
+Ponovni poskus pošlje obstoječi račun. Ne ustvarja nove prodaje in ne rešuje
+napačne vsebine računa.
+
+### 8.4 Potek certifikata
+
+Opozorilo o poteku certifikata zahteva takojšnje ukrepanje skrbnika.
+
+Blagajnik ne nalaga certifikata na lastno pobudo. Pred izdajo nadaljnjih računov
+obvesti odgovorno osebo in ravna po internem postopku.
+
+## 9. Tisk računa
+
+### 9.1 Prvi tisk
+
+1. Po uspešnem zaključku počakajte na status uspešno izdanega računa.
+2. Izberite tisk, kadar se ne sproži samodejno.
+3. Preverite pravi tiskalnik.
+4. Preverite, ali je na izpisu številka računa, znesek in identifikatorji.
+5. Izvod predajte gostu oziroma ga priložite paketu.
+
+### 9.2 Napaka tiskalnika
+
+1. Ne zaključujte novega plačila.
+2. Preverite papir, pokrov, napajanje in povezavo tiskalnika.
+3. Preverite, ali lokalni tiskalniški most deluje.
+4. Odpravite fizično napako.
+5. Uporabite **Ponatis** obstoječega računa.
+6. Primerjajte številko ponatisa z računom na zaslonu.
+
+Tiskovna napaka ne pomeni, da račun ni izdan. Ponatis nikoli ni nov račun.
+
+### 9.3 Ponatis
+
+1. Odprite evidenco računov.
+2. Poiščite račun po številki, času ali znesku.
+3. Preverite, da ste odprli pravi račun.
+4. Izberite ponatis.
+5. Preverite uspeh tiskanja.
+6. Izvod označite oziroma obravnavajte skladno z internimi pravili.
+
+## 10. Storno in vračilo
+
+Storno spremeni že izdan račun samo prek sledljivega postopka.
+
+Uporablja se za upravičeno odpravo že zaključenega prometa, ne za popravljanje
+odprte košarice.
+
+### 10.1 Pred stornom
+
+1. Poiščite izvirni račun v evidenci.
+2. Preverite številko, datum, znesek, plačilo in razlog.
+3. Preverite, ali je treba razveljaviti celoten izvirni račun.
+   POS podpira storno celotnega računa, ne izbire posameznih vrstic ali količin.
+   Če je bila napačna le ena postavka, se najprej stornira celotni izvirnik,
+   nato se po dovoljenem postopku ustvari in izda nov, pravilen račun.
+4. Preverite pravice uporabnika in interno odobritev.
+5. Ne izvajajte storna samo zato, ker je tisk slab.
+
+### 10.2 Izvedba
+
+1. Odprite pravi izvirni račun.
+2. Izberite dejanje storno oziroma vračilo.
+3. Preverite, da storno zajema celoten znesek in vse postavke izvirnega računa.
+4. Vnesite resničen razlog po politiki podjetja.
+5. Preverite znesek celotnega računa pred potrditvijo.
+6. Potrdite storno.
+7. Preverite, da je ustvarjen sledljiv storno dokument za celoten izvirnik.
+8. Če je potreben popravek, ustvarite novo pravilno naročilo in ga zaključite
+   kot novo prodajo po običajnem postopku.
+9. Gostu vrnite denar le z dovoljenim in evidentiranim postopkom.
+
+### 10.3 Po stornu
+
+1. Preverite povezavo storno dokumenta z izvirnim računom.
+2. Preverite fiskalni status dokumenta.
+3. Natisnite dokument, če je zahtevan.
+4. Preverite vpliv na plačilni način in poročila.
+5. Če je bil artikel vrnjen, nadaljujte s postopkom zaloge iz sklopa 07.
+
+## 11. Končne kontrole sklopa
+
+Pred odhodom gosta oziroma predajo paketa preverite:
+
+1. skupni znesek je pravilen;
+2. vsak deljeni znesek je prejet samo enkrat;
+3. stanje terminala je znano;
+4. račun je izdan enkrat;
+5. FURS napaka je zabeležena in poslana v ponovni poskus, kadar je potreben;
+6. EOR in ZOI sta preverjena skladno z režimom;
+7. gost je prejel račun oziroma je račun priložen naročilu;
+8. storno je izveden samo prek sledljivega dokumenta.
+
+## 12. Zaslon plačila: branje, polja in blokade
+
+### 12.1 Kaj preveriti na postavitvi
+
+Zaslon plačila vedno pripada trenutno izbranemu odprtemu naročilu.
+V glavi preverite številko naročila, mizo oziroma kanal in poslovno enoto.
+V seznamu postavk preverite količino, popust, DDV in skupni bruto znesek.
+V območju plačil preverite že dodane plačilne vrstice.
+Preostanek je znesek, ki še ni pokrit z veljavnimi plačilnimi vrsticami.
+Gumb za izdajo ne sme biti uporabljen, dokler preostanek ni pravilen.
+Povzetek gotovine kaže prejeti znesek in vračilo, kadar je vnos omogočen.
+Kartični del kaže znesek, ponudnika in stanje poskusa.
+Posebna plačila odprite samo, kadar jih enota dejansko podpira.
+Stanje »v obdelavi« je blokada za spreminjanje naročila in nov poskus plačila.
+
+| Podatek | Pomen | Kontrola uporabnika |
+| --- | --- | --- |
+| skupni znesek | obveznost naročila | primerjaj z naročilom gosta |
+| plačano | potrjene plačilne vrstice | ne sklepaj iz klika gumba |
+| preostanek | znesek za nadaljnje plačilo | mora biti nič pred izdajo |
+| način | evidenčni način plačila | mora ustrezati dejanskemu prejemu |
+| napitnina | dodatno plačilo gosta | potrdi z gostom pred terminalom |
+| referenca | sled terminala ali nakazila | preveri čas in znesek |
+| status | potek terminalskega poskusa | ne zamenjaj neznanega z zavrnitvijo |
+
+### 12.2 Zaporedje, ki prepreči napake
+
+Najprej zaklenite dogovor z gostom o znesku.
+Nato določite, ali bo en sam ali več plačilnih načinov.
+Pri kartici najprej nastavite točen kartični del zneska.
+Pri gotovini najprej preštejte prejeti denar.
+Pri darilnem bonu preverite, ali je za enoto omogočena skupna evidenca bonov
+in kolikšen znesek računa se sme pokriti z bonom.
+Pri TRR najprej preverite, ali je način za to enoto omogočen.
+Šele po potrditvi posamezne vrstice dodajte naslednjo vrstico.
+Računa ne izdate za znesek, ki je zgolj obljubljen.
+
+### 12.3 Stanja plačilne vrstice
+
+`predlagano` pomeni, da je uporabnik izbral znesek, ne da je denar prejet.
+`v_obdelavi` pomeni, da terminal ali ponudnik še vrača končni odgovor.
+`potrjeno` pomeni, da se vrstica všteva v plačano vrednost.
+`zavrnjeno` pomeni, da denar ni potrjen in vrstica ne sme zapreti računa.
+`neznano` pomeni, da je treba najprej opraviti obnovitev oziroma uskladitev.
+`preklicano` pomeni, da poskus ni veljavna plačilna vrstica.
+Uporabnik ne sme prepisovati stanja z izbiro drugega načina.
+
+## 13. Podprti načini plačila in njihove kontrole
+
+### 13.1 Gotovina
+
+Gotovina je fizično prejeta valuta, ne kasnejša obljuba gosta.
+Vnesite prejeti znesek, če blagajna uporablja vnos prejete gotovine.
+POS izračuna vračilo iz razlike med prejetim zneskom in gotovinskim delom.
+Vračilo preštejte pred gostom in ga evidentirajte samo enkrat.
+Pri mešanem plačilu je gotovinski del lahko manjši od skupnega računa.
+Primer: račun 23,50 EUR; kartica 20,00 EUR; gotovina 3,50 EUR.
+Ne evidentirajte 23,50 EUR gotovine, če gost kartico plača za 20,00 EUR.
+Ne uporabljajte gotovine namesto kartice, kadar terminalski rezultat ni znan.
+
+### 13.2 Kartica
+
+Kartica je podprta samo prek nastavljenega terminalskega toka.
+Znesek na terminalu mora ustrezati trenutno izbranemu kartičnemu delu.
+Gost potrdi plačilo na terminalu, ne na zaslonu POS namesto terminala.
+Uspešen pisk ni sam po sebi dovolj; počakajte na končni status.
+Terminalski listek ni razlog za novo bremenitev, če POS še čaka.
+Pri delitvi mora vsak kartični poskus imeti svoj znesek in sled.
+Kartice ne uporabljajte za izdajo gotovinskega vračila brez dovoljenega postopka.
+
+### 13.3 Darilni bon oziroma darilna kartica
+
+Darilni bon je podprt samo, kadar je omogočen v konfiguraciji enote.
+Checkout prikazuje skupno evidenco: izdano, unovčeno in odprto vrednost.
+Sistem ne vodi identifikatorja, serijske številke ali individualnega preostanka
+posameznega bona; osebje teh podatkov ne vnaša in jih ne preverja.
+Pri plačilu se izbere znesek računa, ki ga pokrije darilni bon v okviru
+prikazane skupne odprte vrednosti.
+Del računa lahko pokrije bon, preostanek pa drug omogočen način plačila.
+Primer: račun 35,00 EUR; skupno odprto 15,00 EUR; bon pokrije 15,00 EUR,
+kartica pa 20,00 EUR.
+Izdaja novega darilnega bona uporablja ločen dialog z zneskom in plačilom
+gotovina ali kartica; ni povezano z individualno kartico ali kuponsko številko.
+Če skupne evidence ni mogoče pridobiti ali je stanje neustrezno, plačila z
+darilnim bonom ne potrdite brez uspešnega sistemskega prikaza.
+
+### 13.4 Bon za pico in drugi namenski boni
+
+Namenski bon velja samo za artikle in pogoje, ki jih določi enota.
+Bon za pico se v poročilih vodi ločeno od splošnega darilnega bona, kadar je omogočen.
+Natakar pred potrditvijo preveri, ali izbrani artikli izpolnjujejo pogoj bona.
+Preostanek, ki ga bon ne pokrije, se plača z veljavnim dodatnim načinom.
+Ne pretvarjajte namenskega bona v gotovino.
+Ne uporabljajte splošnega načina »bon«, kadar je za pico nastavljen ločen način.
+
+### 13.5 Subvencionirana prehrana
+
+Subvencijo uporabite samo, če jo konfiguracija enote in pogodbeni tok podpirata.
+Pred potrditvijo preverite upravičenost, znesek subvencije in doplačilo gosta.
+Subvencija ni popust, ki ga blagajnik prosto vnese.
+Če preverjanje upravičenosti ni uspešno, ne zaključite računa kot subvencioniranega.
+Doplačilo se evidentira kot ločena plačilna vrstica z dejanskim načinom.
+Primer: obrok 8,90 EUR; subvencija 3,80 EUR; kartica 5,10 EUR.
+Evidenca mora ločiti vrednost subvencije od kartičnega ali gotovinskega doplačila.
+
+### 13.6 Odloženo plačilo in reprezentanca
+
+Odloženo plačilo je dovoljeno le, če ga enota izrecno omogoča in uporabnik ima pravico.
+Izberite pravi subjekt oziroma razlog, če obrazec to zahteva.
+Odloženo ne pomeni »gost bo morda prišel kasneje«.
+Pred potrditvijo preverite, kdo prevzema obveznost in katera referenca jo povezuje.
+Reprezentanca je evidenčni poslovni razlog, ne prikrito zasebno plačilo.
+Ne izberite reprezentance zato, da bi zaprli odprto naročilo brez denarja.
+Vodja redno preverja odprte odložene obveznosti po internem postopku.
+
+### 13.7 TRR oziroma negotovinsko nakazilo
+
+TRR uporabite samo za dejansko dogovorjeno nakazilo in kadar je način na voljo.
+Vnesite zahtevano referenco, sklic ali dokument, če ga obrazec zahteva.
+Nakazilo v pripravi ni enako prejetemu nakazilu, razen če politika to izrecno določa.
+Ne izberite TRR namesto kartice ob izpadu terminala brez odobritve.
+V poročilih se TRR lahko prikaže kot negotovinsko ločeno od kartic.
+Primer: poslovna stranka predloži potrjen sklic; operater ga preveri in evidentira po pravilih enote.
+
+### 13.8 Lastna poraba in posebni promet
+
+Lastna poraba je poseben evidenčni tok, kadar ga enota omogoča.
+Uporabnik izbere samo dejanski in odobren razlog.
+Lastna poraba ne sme prikrivati napake artikla, reklamacije ali neplačanega obroka.
+Če način ni na voljo, uporabnik ne išče obvoza z napačnim plačilom.
+Za vprašanje o davčni obravnavi se obrne na odgovorno osebo, ne ugiba na blagajni.
+
+## 14. Delni računi, delitev postavk in mešana plačila
+
+### 14.1 Delitev ni vedno enaka
+
+Delitev po osebah pomeni, da najprej razporedite postavke.
+Delitev po znesku pomeni, da ostane vsebina naročila ista, plačil je več.
+Delni račun pomeni dovoljeni ločen dokument za izbrani del prometa.
+Mešano plačilo pomeni več načinov na istem računu.
+Preden izberete funkcijo, vprašajte gosta, ali želi ločene račune ali samo več načinov.
+Napačna izbira lahko spremeni prikaz artiklov, popustov in napitnine.
+
+### 14.2 Delitev postavk
+
+Najprej določite, katere postavke pripadajo posameznemu gostu.
+Pri skupni jedi se z gostom dogovorite o dovoljenem načinu delitve.
+Popust pripišite pravilnemu delu, ne samovoljno prvemu računu.
+Napitnino dodajte po razdelitvi, če jo plača samo ena oseba.
+Preverite, da nobena postavka ne ostane dvakrat ali brez prejemnika.
+Šele nato vsako nastalo naročilo zaključite po običajnem postopku.
+
+### 14.3 Mešana plačila
+
+Primer: račun znaša 47,60 EUR.
+Gost želi 30,00 EUR s kartico in 17,60 EUR z gotovino.
+Najprej nastavite kartico na 30,00 EUR.
+Po uspešni kartici preverite preostanek 17,60 EUR.
+Nato sprejmite gotovino za 17,60 EUR oziroma vnesite prejeti znesek.
+Pred izdajo preverite, da je plačano 47,60 EUR in preostanek 0,00 EUR.
+Na računu preverite obe plačilni vrstici.
+
+### 14.4 Delno potrjen kartični poskus
+
+Če prva kartica uspe za 20,00 EUR, to je veljavno plačilo.
+Ne stornirajte je samo zato, ker druga kartica za preostanek ni uspela.
+Preostanek se izračuna iz uspešno potrjenih 20,00 EUR.
+Z gostom se dogovorite za drug dovoljeni način samo za preostanek.
+Če je prvi poskus neznan, ne obravnavajte 20,00 EUR kot prosti preostanek.
+
+### 14.5 Kontrolni seznam delitve
+
+- [ ] Gost je povedal, ali želi ločene račune ali delitev plačila.
+- [ ] Postavke so razdeljene pred plačilom, kadar je to potrebno.
+- [ ] Popusti niso podvojeni.
+- [ ] Kartični znesek ustreza samo kartičnemu delu.
+- [ ] Gotovina pokriva samo preostanek.
+- [ ] Znesek plačila z bonom ne presega prikazane skupne odprte evidence bonov.
+- [ ] Končni preostanek je 0,00 EUR.
+- [ ] Na računu so vsi dejanski načini.
+
+## 15. Napitnina
+
+Napitnina je prostovoljna odločitev gosta.
+Znesek napitnine vedno jasno ponovite gostu pred potrditvijo.
+Pri terminalu preverite, ali terminal prikazuje skupni znesek s napitnino.
+Napitnina ni nadomestilo za različno vračilo.
+Pri deljenem plačilu določite, katera oseba daje napitnino.
+Primer: račun 18,00 EUR, gost odobri kartico 20,00 EUR; napitnina je 2,00 EUR.
+Če gost spremeni odločitev pred zaključkom, popravite pred zagonom terminala.
+Po uspešni bremenitvi se napitnine ne zmanjšuje z novim neuradnim plačilom.
+V poročilih je napitnina ločen podatek, zato mora biti evidentirana pravilno.
+
+## 16. Terminalski ponudniki in varna obnovitev
+
+### 16.1 Izbrani terminal
+
+Aktivni terminal določa konfiguracija in prednostna veriga naprave.
+Strojni Payten TCP ima lahko prednost pred drugimi nastavitvami.
+Payten Android se uporablja, kadar je za napravo aktiven ustrezen tok.
+Viva Cloud oziroma Viva terminal uporablja svoj potrditveni tok.
+Viva Android terminal in Viva Tap to Pay se vrneta v POS prek povratne povezave.
+SumUp lahko uporablja terminal ali QR potek glede na konfiguracijo.
+Simulacija ni produkcijski dokaz plačila.
+Blagajnik uporablja ponudnika, ki ga POS ponudi; ne izbira ga po videzu terminala.
+
+### 16.2 Idempotentni poskus
+
+Kartični poskus ima identifikator plačilnega poskusa.
+Ta identifikator veže ponudnika, naročilo in znesek.
+Enak poskus se ob obnovitvi preverja, ne ustvarja kot novo plačilo.
+Ne osvežujte strani z namenom, da bi dobili nov poskus za isti znesek.
+Ne zaganjajte drugega terminala za isti znesek, dokler prvi ni znan.
+Če POS pokaže obnovljiv poskus, preverite isti ponudnik, naročilo in znesek.
+
+### 16.3 Neznan rezultat: odločitev
+
+Terminal lahko kaže plačano, POS pa čaka na odgovor.
+POS lahko kaže napako, terminal pa nima jasnega zaključka.
+Oba primera sta `neznano`, dokler se ne preveri status.
+Najprej ustavite ponavljanje klikov.
+Nato zabeležite čas, znesek, ponudnika in vidno referenco.
+Preverite zgodovino terminala oziroma statusni zahtevek v POS.
+Če odgovor potrdi plačilo, uporabite obnovitev istega poskusa.
+Če odgovor potrdi zavrnitev, šele nato začnite nov poskus.
+Če odgovora ni, predajte primer podpori brez druge bremenitve.
+
+### 16.4 Primer SumUp QR
+
+Gost skenira QR in zaključi plačilo na svojem telefonu.
+POS čaka na status zaključka.
+Ne ustvarite kartičnega poskusa na drugem terminalu.
+Če status ostane neznan, preverite isti `checkoutId` oziroma prikazan poskus.
+Šele potrjeni status omogoča izdajo računa.
+Neuspešen oziroma potekel QR se obravnava kot zavrnitev šele po jasnem statusu.
+
+### 16.5 Primer Viva povratne povezave
+
+POS zažene Viva Android ali Tap to Pay in čaka na povratek.
+Uporabnik se po plačilu vrne v isti tok POS.
+Povratni podatek mora pripadati istemu naročilu.
+Če se aplikacija zapre, ponovno odprite plačilo in preverite obnovljiv poskus.
+Ne začnite nove prodaje, dokler ni preverjeno stanje prejšnjega.
+
+### 16.6 Incidentni obrazec za terminal
+
+Zapišite številko naročila.
+Zapišite točen znesek.
+Zapišite ponudnika terminala.
+Zapišite čas začetka in čas vidnega rezultata.
+Zapišite referenco oziroma `paymentAttemptId`, če je prikazan.
+Zapišite, kaj kaže terminal in kaj kaže POS.
+Ne zapisujte PIN-a, celotne številke kartice ali občutljivih podatkov gosta.
+
+## 17. Delo brez povezave
+
+### 17.1 Kaj pomeni omejeni režim
+
+Offline režim ni splošno dovoljenje za običajno prodajo brez nadzora.
+Na voljo je samo napravi in postopku, ki ga sistem izrecno označi.
+Lokalno ustvarjen zapis se mora po povezavi sinhronizirati in fiskalno obdelati.
+Uporabnik ne spremeni načina plačila zato, da bi premagal varnostno blokado.
+Če POS blokira gotovino offline, je ta omejitev obvezna.
+Če terminal nima povezave, kartica ni samodejno dovoljena offline.
+
+### 17.2 Pred odločitvijo
+
+Preverite, ali je izgubljena povezava POS, terminala ali obeh.
+Preverite prikazano opozorilo in dovoljene možnosti.
+Povejte gostu, da je potreben dovoljen alternativni postopek.
+Ne ustvarite ročnega računa zunaj sistema kot nadomestek brez navodila odgovorne osebe.
+Vodji posredujte število prizadetih naročil in čas začetka izpada.
+
+### 17.3 Po vrnitvi povezave
+
+Ne izdajajte istih računov drugič.
+Preverite čakalno vrsto oziroma stanje sinhronizacije.
+Preverite, kateri računi nimajo EOR ali imajo status napake.
+Uporabite FURS retry samo za obstoječe račune.
+Primerjajte število offline računov z dejanskim seznamom naročil.
+Eskalirajte vsak zapis, ki ostane v negotovem stanju.
+
+## 18. FURS: podatki, stanja in ponovni poskus
+
+### 18.1 Kaj sistem hrani
+
+Račun ima lastno številko in čas izdaje.
+ZOI je zaščitna oznaka izdajatelja za konkretni račun.
+EOR je oznaka, ki jo vrne FURS po uspešni potrditvi.
+Status FURS pove, ali je pošiljanje potrjeno, v teku ali neuspešno.
+FURS odgovor je povezan z obstoječim računom, ne z novim klikom izdaje.
+Certifikat podjetja mora biti veljaven za produkcijsko fiskalizacijo.
+
+### 18.2 Interpretacija stanj
+
+`potrjeno` pomeni, da je račun prejel EOR.
+`sending` pomeni, da se zahtevek obdeluje in se ne ponavlja ročno.
+`napaka` pomeni, da je treba preveriti razlog in postopek retry.
+Manjkajoč EOR na nestorniranem produkcijskem računu zahteva pregled.
+`storniran` ni kandidat za splošni opozorilni seznam manjkajočega EOR na enak način kot aktiven račun.
+`testni` se obravnava skladno s testnim režimom in ni dokaz produkcijske registracije.
+
+### 18.3 FURS retry
+
+Retry začnite po vrnitvi povezave ali po odpravi potrjenega vzroka.
+Pred retry zapišite seznam številk računov, ki so prizadete.
+Uporabite dejanje **FURS retry**, kadar je na voljo.
+Sistem ponovno pošlje obstoječi fiskalni zapis.
+Po zaključku preverite število uspešnih in neuspešnih računov.
+Za vsak uspešen primer preverite EOR oziroma odstranitev oznake napake.
+Za neuspešen primer shranite sporočilo in ga posredujte odgovorni osebi.
+Ne izdajajte nadomestnega računa, ker retry še traja.
+
+### 18.4 Certifikat
+
+Opozorilo o poteku certifikata se obravnava pred dejanskim potekom.
+Skrbnik pripravi in naloži nov certifikat po odobrenem varnostnem postopku.
+Blagajnik ne deli certifikata, ključa ali gesla prek klepeta.
+Po menjavi odgovorna oseba preveri veljavnost in produkcijsko nastavitev.
+Če certifikat manjka, se izpad eskalira pred nadaljnjimi izdajami.
+
+### 18.5 FURS vaja
+
+Račun 2025-01-184 je izdan, vendar nima EOR in prikazuje napako.
+Ali izdate nov račun?
+Pravilni odgovor: ne.
+Katere podatke zapišete?
+Pravilni odgovor: številko, čas, sporočilo napake in stanje.
+Kaj naredite ob vrnitvi povezave?
+Pravilni odgovor: retry obstoječega računa in pregled rezultata.
+
+## 19. Tisk, elektronska predaja in BizBox
+
+### 19.1 Tiskalni tok
+
+Tisk se izvede šele, ko obstaja uspešno izdan račun.
+Lokalni tiskalniški most mora biti dosegljiv za lokalni tisk.
+Pred prvim tiskom preverite izbran fizični tiskalnik.
+Papir, pokrov, napajanje in povezava so ločene fizične kontrole.
+Ne klikajte plačila znova, kadar je težava samo tisk.
+Ne uporabljajte tiskovne napake kot razloga za storno.
+
+### 19.2 Ponatis
+
+Ponatis se začne v evidenci obstoječih računov.
+Iščite po številki računa, času, znesku ali drugem dovoljenem kriteriju.
+Pred klikom primerjajte poslovno enoto in znesek.
+Ponatis ima isti vsebinski račun; ne ustvarja nove prodaje.
+Če tiskalnik natisne več kopij, to ni več računov.
+Priročnik enote določa, kako se kopija označi oziroma preda gostu.
+
+### 19.3 E-račun in BizBox
+
+E-račun je elektronska predaja dokumenta po konfiguriranem poslovnem toku.
+BizBox uporabite samo, kadar je partner in kanal ustrezno nastavljen.
+Pred pošiljanjem preverite prejemnika, identifikator partnerja in dokument.
+Ne pošiljajte e-računa na podlagi podobnega imena prejemnika.
+Status oddaje ni isto kot dokaz prejema ali plačila, razen če integracija izrecno tako določa.
+Napako e-računa dokumentirajte z ID dokumenta, časom in sporočilom.
+Tisk gostove kopije in pošiljanje e-računa sta ločena postopka.
+Fiskalni račun se ne izdaja ponovno zato, ker BizBox predaja odpove.
+
+## 20. Storno, vračilo in kartično povračilo
+
+### 20.1 Izbira pravilnega postopka
+
+Odprto, še neizdano naročilo popravite po postopku naročila.
+Izdani račun popravljate samo s sledljivim stornom oziroma vračilom.
+Celotni storno zajame ves prvotni dokument.
+POS ne podpira delnega storna po izbranih postavkah ali količinah.
+Če je popravek le dela vsebine, se stornira celotni izvirni račun in se po
+stornu ustvari novo naročilo z dejansko pravilno vsebino ter izda nov račun.
+Vračilo denarja mora imeti odobritev, razlog in sled do izvirnega računa.
+Storno ne izbriše zgodovine izvirnega računa.
+
+### 20.2 Primer popravka ene postavke
+
+Gost vrne eno pijačo z računa, ki vsebuje tri pijače.
+Poiščite izvirni račun.
+Ne iščite izbire ene pijače ali količine ena: taka funkcija ni podprta.
+Stornirajte celoten izvirni račun po odobrenem postopku.
+Vnesite dejanski razlog vračila.
+Potrdite dokument in preverite povezavo z izvirnikom.
+Za promet, ki po popravku ostane veljaven, ustvarite novo naročilo z dvema
+pravilnima pijačama in ga zaključite kot nov račun.
+Vračilo plačila izvedite samo z dovoljenim plačilnim postopkom.
+
+### 20.3 Kartično vračilo
+
+Kartična bremenitev se ne vrača z gotovino, če politika ali ponudnik zahteva kartično povračilo.
+Najprej preverite izvirno kartično plačilo in referenco.
+Uporabite odobren tok povračila pri ponudniku.
+Ne sprožite nove prodaje z negativnim zneskom kot neuradno rešitev.
+Če je kartični rezultat vračila neznan, uporabite enaka pravila obnovitve kot pri prodaji.
+
+## 21. Povezava s poročili brez zaključevanja izmene
+
+Plačilne vrste se v realizaciji prikazujejo po načinu, na primer gotovina, kartica, TRR in bon.
+Napitnina se vodi ločeno, kadar jo poročilo podpira.
+Darilni bon in bon za pico sta lahko ločeni kategoriji.
+Storno je v evidenci označen in povezan z izvirnikom.
+X in Z poročila ter fizično zapiranje izmene so obravnavani v sklopu 08.
+V tem sklopu preverjamo le, da je posamezni račun pravilno izdan in sledljiv.
+Ne uporabljajte dnevnega poročila kot zamenjavo za takojšnje razreševanje neznanega terminalskega stanja.
+
+## 22. Incidentne vaje in preverjanje znanja
+
+### 22.1 Dvojni klik kartice
+
+Gost je kartico prislonil, povezava POS se prekine, uporabnik pa želi znova klikniti.
+Pravilno dejanje je ustaviti nov poskus.
+Preverite terminal, znesek, čas in referenco.
+Uporabite obnovitev istega poskusa, kadar je na voljo.
+Nov poskus začnite samo po jasni zavrnitvi.
+
+### 22.2 Papirja ni
+
+Račun je uspešno izdan, tiskalnik pa nima papirja.
+Pravilno dejanje je odpraviti papir in narediti ponatis.
+Napačno dejanje je znova zaračunati gostu.
+Napačno dejanje je storno samo zaradi manjkajočega izpisa.
+
+### 22.3 Mešano plačilo
+
+Račun je 60,00 EUR.
+Prikazana skupna odprta evidenca bonov omogoča pokritje 25,00 EUR, gost pa
+uporabi kartico za preostanek.
+Kolikšen je kartični znesek?
+Pravilni odgovor: 35,00 EUR, če je bon veljaven in unovčen.
+Kaj preverite pred izdajo?
+Pravilni odgovor: obe potrjeni vrstici in preostanek 0,00 EUR.
+
+### 22.4 FURS izpad
+
+FURS retry pokaže dva uspešna in en neuspešen račun.
+Kaj preverite pri uspešnih?
+Pravilni odgovor: EOR oziroma status potrditve.
+Kaj naredite pri neuspešnem?
+Pravilni odgovor: zabeležite napako in eskalirate obstoječi račun.
+
+### 22.5 Zaključni kontrolni seznam
+
+- [ ] Naročilo in znesek sta potrjena z gostom.
+- [ ] Izbrani način ustreza dejanskemu prejemu.
+- [ ] Vsak terminalski poskus ima znano stanje.
+- [ ] Delitve ne podvajajo postavk ali popustov.
+- [ ] Napitnina je potrjena z gostom.
+- [ ] Bon, subvencija, TRR ali odloženo plačilo so uporabljeni samo ob omogočenem toku.
+- [ ] Račun je izdan enkrat.
+- [ ] FURS status je pregledan in morebitna napaka ima sled.
+- [ ] Tiskovna napaka je rešena s ponatisom.
+- [ ] Storno je povezan z izvirnim računom.
+
+## 23. Zaslonske kontrole po korakih
+
+### 23.1 Glava računa
+
+Preverite poslovno enoto pred vsakim zaključkom.
+Preverite blagajno, kadar je prikazana.
+Preverite številko naročila pred izbiro plačila.
+Preverite mizo, prevzem ali dostavo.
+Preverite, ali je naročilo še odprto.
+Preverite, da ne urejate druge kartice gosta.
+Ne menjajte naročila med terminalskim poskusom.
+
+### 23.2 Seznam postavk
+
+Vsaka vrstica vsebuje artikel in količino.
+Cena vrstice mora ustrezati potrjenemu naročilu.
+Popust preverite pred plačilom.
+Spremembo artikla opravite pred zagonom terminala.
+Postavka brez priprave ni razlog za spremembo plačila.
+Ne uporabljajte plačilnega zaslona za popravljanje alergenske opombe.
+
+### 23.3 Območje zneskov
+
+Skupaj je celotni bruto znesek.
+Plačano je vsota potrjenih plačilnih vrstic.
+Preostanek je razlika med skupaj in plačano.
+Vračilo je razlika prejete gotovine in gotovinskega dela.
+Napitnina se preveri ločeno od osnovnega računa.
+Negativen preostanek je opozorilo za pregled, ne razlog za izdajo.
+
+### 23.4 Gumbi in njihove meje
+
+Gumb gotovina ne potrdi prejetega denarja samodejno.
+Gumb kartica začne ponudnikov tok.
+Gumb delitev ne razporedi artiklov brez uporabnikove izbire.
+Gumb izdaja ustvari račun samo po veljavnih plačilih.
+Gumb ponatis ne ustvarja računa.
+Gumb FURS retry ne spreminja vsebine računa.
+Gumb storno ne izbriše izvirnika.
+
+## 24. Plačilne kombinacije: primeri odločanja
+
+### 24.1 Gotovina in kartica
+
+Račun 12,40 EUR.
+Gost da 10,00 EUR gotovine.
+Preostanek je 2,40 EUR.
+Kartico obremenite za 2,40 EUR.
+Ne vnesite 12,40 EUR na terminal.
+Račun mora prikazati oba načina.
+
+### 24.2 Kartica in darilni bon
+
+Račun 50,00 EUR.
+Veljavni bon pokriva 18,00 EUR.
+Kartica pokriva 32,00 EUR.
+Najprej preverite bon.
+Nato zaženite kartico za preostanek.
+Če bon ni potrjen, kartica ne sme sklepati napačnega preostanka.
+
+### 24.3 Subvencija in gotovina
+
+Obrok znaša 9,50 EUR.
+Sistem potrdi subvencijo 4,00 EUR.
+Gost plača 5,50 EUR gotovine.
+Potrdite subvencijo po njenem toku.
+Preštejte gotovinski del.
+Preverite ločeni vrstici pred izdajo.
+
+### 24.4 TRR in kartica
+
+TRR se uporablja samo ob dovoljenem poslovnem dogovoru.
+Če TRR pokrije 100,00 EUR od 130,00 EUR, kartica pokrije 30,00 EUR.
+Vnesite zahtevano referenco TRR.
+Ne zamenjajte nedokazanega nakazila s potrjenim plačilom.
+Kartico začnite samo za preostanek.
+
+### 24.5 Odloženo in nič drugega
+
+Odloženo plačilo lahko zapre račun le, če je način omogočen.
+Preverite partnerja oziroma nosilca obveznosti.
+Preverite pooblastilo uporabnika.
+Zapišite zahtevano referenco.
+Ne dodajajte gotovinske vrstice, če gotovine ni bilo.
+
+### 24.6 Bon in vračilo
+
+Bon ne daje samodejne pravice do gotovinskega vračila.
+Pri vračilu poiščite izvirni dokument.
+Preverite uporabljeni način plačila.
+Uporabite odobren postopek vračila za bon.
+Ne ustvarite novega bona brez sledljive povezave, če tega tok ne predvideva.
+
+### 24.7 Napitnina pri delitvi
+
+Dve osebi delita račun 40,00 EUR.
+Prva plača kartico 20,00 EUR brez napitnine.
+Druga plača kartico 23,00 EUR.
+Napitnina druge osebe je 3,00 EUR.
+Ne porazdelite napitnine samodejno na obe kartici.
+Pred potrditvijo ponovite oba zneska.
+
+## 25. Matrika terminalskih stanj
+
+| Ponudnik/tok | Začetek | Potrjeno | Neznano | Naslednje dejanje |
+| --- | --- | --- | --- | --- |
+| Payten TCP | POS pošlje znesek | odgovor terminala | prekinjen odgovor | preveri isti poskus |
+| Payten Android | zunanji Android tok | potrjen povratek | aplikacija se ne vrne | odpri obnovitev |
+| Viva Cloud | zahtevek terminalu | plačan status | čakanje ali časovna omejitev | preveri status |
+| Viva Android | intent in povratna povezava | veljaven callback | povratek manjka | ne začni nove prodaje |
+| Viva Tap to Pay | SoftPOS tok | uspešen callback | aplikacija prekinjena | preveri isti identifikator |
+| SumUp terminal | plačilni poskus | completed | recovery required | preveri `paymentAttemptId` |
+| SumUp QR | checkout QR | completed | pending/unknown | preveri `checkoutId` |
+
+### 25.1 Skupna pravila matrike
+
+`completed` pomeni, da je lahko plačilo potrjeno v POS.
+`pending` pomeni, da uporabnik čaka ali preveri status istega poskusa.
+`failed` pomeni zavrnitev samo, kadar jo ponudnik jasno vrne.
+`unknown` zahteva uskladitev in prepoved nove bremenitve.
+`recovery required` je navodilo za obnovitev, ne za ponovni klik plačila.
+Referenca ponudnika se primerja z naročilom in zneskom.
+Različen znesek pomeni, da se poskus ne pripiše samodejno.
+
+### 25.2 Payten Android
+
+Pred zagonom preverite, da je Android terminal pravi za enoto.
+POS začne plačilni tok z izbranim zneskom.
+Gost plača na terminalu.
+POS pričakuje potrditveni povratek.
+Če povratka ni, ne predpostavite zavrnitve.
+Preverite potrditveni tok istega plačila.
+Šele nato nadaljujte z izdajo ali z novim načinom.
+
+### 25.3 Viva Cloud in Smart terminal
+
+Viva zahtevek pripada istemu naročilu.
+Znesek na napravi mora biti enak znesku POS.
+Če stanje ostane PENDING, počakajte oziroma preverite status.
+Če stanje postane PAID, POS nadaljuje z izdajo.
+Če stanje postane FAILED, račun ni plačan s to vrstico.
+Časovna omejitev ne pomeni samodejne zavrnitve brez statusa.
+
+### 25.4 SumUp
+
+SumUp plačilo ima poskus in checkout.
+POS hrani poskus za obnovitev istega naročila in zneska.
+Če POS javi neznano stanje, ne ustvarite drugega poskusa.
+Če je serial nastavljen, se uporabi terminalski potek.
+Brez seriala je lahko prikazan QR checkout.
+Gostovo plačilo QR počaka na potrjen status.
+Račun se ne izda, dokler status ni dokončen.
+
+## 26. Časovnice napak in obnovitev
+
+### 26.1 Izgubljen odgovor terminala
+
+10:02 POS začne kartico za 24,90 EUR.
+10:02 terminal pokaže odobreno.
+10:03 POS pokaže napako povezave.
+10:03 blagajnik ne klikne kartice drugič.
+10:04 blagajnik zabeleži znesek in referenco.
+10:04 blagajnik preveri terminalski status.
+10:05 POS obnovi isti uspešni poskus.
+10:05 račun se izda enkrat.
+
+### 26.2 FURS po izdaji
+
+10:10 račun nastane po uspešnem plačilu.
+10:10 ZOI je del fiskalnega zapisa.
+10:10 pošiljanje FURS se začne.
+10:11 povezava FURS odpove.
+10:11 račun ostane obstoječi račun z oznako napake.
+10:30 povezava se vrne.
+10:31 odgovorna oseba zažene retry.
+10:31 FURS vrne EOR za isti račun.
+10:32 osebje preveri EOR in status.
+
+### 26.3 Napačen retry
+
+Blagajnik vidi manjkajoč EOR.
+Blagajnik ustvari nov račun iste vsebine.
+To je napačno, ker lahko podvoji prodajo.
+Pravilno je poiskati izvirni račun.
+Pravilno je preveriti njegov fiskalni status.
+Pravilno je uporabiti retry obstoječega zapisa.
+
+### 26.4 Offline časovnica
+
+11:00 naprava pokaže omejen offline režim.
+11:01 blagajnik prebere dovoljene načine.
+11:02 sistem blokira nedovoljeni gotovinski tok.
+11:03 blagajnik ne izbere lažnega TRR načina.
+11:20 povezava se vrne.
+11:21 blagajnik pregleda sinhronizacijo.
+11:22 odgovorna oseba pregleda račune brez EOR.
+
+## 27. Račun: vsebina in predaja
+
+### 27.1 Kontrola pred predajo
+
+Preverite številko računa.
+Preverite datum in čas.
+Preverite skupni znesek.
+Preverite načine in zneske plačila.
+Preverite ZOI in EOR skladno z režimom.
+Preverite oznako storna, kadar gre za storno dokument.
+Preverite, da gost dobi pravi izvod.
+
+### 27.2 Račun za prevzem
+
+Račun priložite pravemu paketu.
+Številko računa ne zamenjajte z oznako To Go.
+Gostu povejte, kje prevzame paket.
+Tiskovna težava ne zadrži statusa plačila.
+Ponatis poiščite po obstoječem računu.
+
+### 27.3 Račun za dostavo
+
+Račun se priloži paketu ali preda po nastavljenem načinu.
+Kurir preveri, da račun pripada naročilu.
+Kurir ne zamenjuje fiskalnega računa s svojim dostavnim seznamom.
+Če gost zahteva kopijo, se uporabi dovoljen ponatis ali elektronski tok.
+
+### 27.4 Elektronska predaja
+
+Prejemnik e-računa mora biti pravilno določen.
+BizBox kanal se uporabi samo pri nastavljeni integraciji.
+Preverite partnerjev identifikator pred pošiljanjem.
+Ne izmišljajte e-naslova ali identifikatorja partnerja.
+Napaka predaje ne spremeni že izdanega računa.
+Napako eskalirajte z ID dokumenta in časom.
+
+## 28. Vloge pri plačilu in reklamaciji
+
+### 28.1 Blagajnik
+
+Blagajnik potrdi znesek in dejanski način.
+Blagajnik varuje gosta pred dvojno bremenitvijo.
+Blagajnik ne razkriva občutljivih kartičnih podatkov.
+Blagajnik evidentira incidentne podatke.
+Blagajnik eskalira negotova stanja.
+
+### 28.2 Vodja izmene
+
+Vodja odobri postopke, ki zahtevajo pravico.
+Vodja uskladi terminal, tisk in FURS incident.
+Vodja preveri, da se ne izda nadomestni podvojeni račun.
+Vodja presodi upravičenost storna in vračila.
+Vodja preda odprte incidente naslednji odgovorni osebi.
+
+### 28.3 Kurir oziroma natakar
+
+Kurir ne potrjuje plačila, ki ga ni videl.
+Natakar ne spreminja računa med kartičnim tokom.
+Oseba na izdaji priloži pravi račun pravemu paketu.
+Vsak član ekipe takoj sporoči izgubljeno potrdilo ali dvojni tisk.
+
+## 29. Trenerjevi skripti in ocenjevanje
+
+### 29.1 Skript: neznana kartica
+
+Trener reče: »Terminal kaže uspeh, POS pa čaka.«
+Udeleženec mora ustaviti ponovni klik.
+Udeleženec mora navesti znesek, čas in referenco.
+Udeleženec mora izbrati obnovitev istega poskusa.
+Trener oceni kot neuspeh vsak nov kartični poskus pred preverjanjem.
+
+### 29.2 Skript: deljeni račun
+
+Trener pripravi račun 76,00 EUR.
+Prvi gost uporabi bon 20,00 EUR.
+Drugi gost uporabi kartico 30,00 EUR.
+Tretji gost da 26,00 EUR gotovine.
+Udeleženec mora pravilno izračunati vsak preostanek.
+Udeleženec mora pred izdajo pokazati preostanek 0,00 EUR.
+
+### 29.3 Skript: ponatis
+
+Trener odstrani papir po uspešni izdaji.
+Udeleženec ne sme znova zaračunati.
+Udeleženec preveri tiskalnik.
+Udeleženec poišče izvirni račun.
+Udeleženec izvede ponatis.
+Udeleženec razloži, zakaj ponatis ni nov račun.
+
+### 29.4 Skript: popravek že izdanega računa
+
+Trener pokaže račun s tremi artikli.
+Gost vrača en artikel.
+Udeleženec pove, da POS ne omogoča izbire ene vrstice ali količine za storno.
+Udeleženec izbere storno celotnega izvirnega računa in navede razlog.
+Udeleženec preveri povezavo z izvirnikom.
+Udeleženec navede, da se nato ustvari novo naročilo s pravilno vsebino in da
+se plačilno vračilo izvede le po dovoljenem toku.
+
+### 29.5 Odgovorna navodila za ocenjevanje
+
+Pravilen odgovor vedno začne z identifikacijo izvirnega naročila ali računa.
+Pravilen odgovor pri neznanem stanju vedno prepove novo bremenitev.
+Pravilen odgovor pri FURS vedno ohrani isti račun.
+Pravilen odgovor pri tisku vedno uporabi ponatis.
+Pravilen odgovor pri storno vedno ohrani sled do izvirnika.
+Pravilen odgovor pri offline vedno upošteva vidne omejitve POS.
+
+## 30. Redki, vendar pomembni plačilni primeri
+
+### 30.1 Že delno plačano naročilo
+
+Odprite isto naročilo, ne novega naročila.
+Preglejte potrjene plačilne vrstice.
+Preverite njihov znesek, način in referenco.
+Izračunajte preostanek iz prikaza POS.
+Ne ponovite že potrjene kartične vrstice.
+Dodajte le dovoljeni način za preostanek.
+Račun izdate šele, ko preostanek doseže nič.
+
+### 30.2 Kartica uspe, izdaja pa odpove
+
+Kartično plačilo je lahko uspešno, čeprav izdaja računa še ni zaključena.
+Ne bremenite gosta drugič.
+Ohranite isti `paymentAttemptId`.
+Preverite, ali POS ponuja dokončanje iste izdaje.
+Zapišite naročilo, znesek, ponudnika in čas.
+Če račun obstaja, preverite FURS in tisk ločeno.
+Če račun ne obstaja, eskalirajte z dokazom uspešne bremenitve.
+
+### 30.3 Preklop terminala
+
+Terminala ne menjajte med aktivnim poskusom.
+Najprej razrešite stanje prvega ponudnika.
+Če prvi ponudnik jasno vrne zavrnitev, lahko izberete drugi dovoljeni tok.
+Novi ponudnik začne nov poskus samo za neplačani znesek.
+V evidenci incidenta navedite oba ponudnika in razlog preklopa.
+Ne razlagajte novega terminala kot avtomatičen dokaz prve zavrnitve.
+
+### 30.4 Pozen callback ponudnika
+
+Povratni klic se lahko vrne po ponovnem odprtju POS.
+Callback mora pripadati istemu naročilu.
+Callback mora pripadati istemu poskusu oziroma znesku.
+Ne pripišite poznega uspeha drugemu naročilu z enakim zneskom.
+Če je bil račun medtem pravilno razrešen, vodja pregleda morebitno neskladje.
+Uporabnik ne izvaja ročnega dvojnega knjiženja.
+
+### 30.5 Delno plačilo in storno
+
+Pred stornom preverite vse uporabljene načine plačila.
+Tudi če je bila napaka le v delu računa, storno v POS razveljavi celoten račun.
+Vodja določi dovoljeni tok vračila skladno s politiko in ponudnikom.
+Vračilo ohrani povezavo z izvirnim računom in razlogom.
+Če mora del prometa ostati prodan, se po celotnem storno izda nov pravilen
+račun za dejansko pravilno vsebino.
+Ne izplačajte gotovine iz navade, če je bil promet kartični ali bon.
+
+## 31. Fiskalna čakalna vrsta in administrativne meje
+
+### 31.1 Kaj osebje sme narediti
+
+Blagajnik prebere status računa.
+Blagajnik zapiše številko, čas in vidno napako.
+Blagajnik uporabi ponovni poskus, kadar je dovoljen v uporabniškem vmesniku.
+Blagajnik preveri, ali je EOR prispel.
+Blagajnik ne ureja certifikatnega ključa.
+Blagajnik ne spreminja surovega odgovora FURS.
+
+### 31.2 Kaj opravi skrbnik
+
+Skrbnik preveri veljavnost certifikata.
+Skrbnik preveri konfiguracijo fiskalizacije.
+Skrbnik pregleda tehnično napako in surov odgovor po pravicah.
+Skrbnik ne spreminja izvirnega računa, da bi popravil odgovor FURS.
+Skrbnik eskalira nejasne odzive s celotno sledjo dokumenta.
+
+### 31.3 Dokazi v offline vrsti
+
+Offline zapis ima identiteto računa.
+Offline zapis hrani ZOI in fiskalno stanje.
+Ponovitev uporablja isti nespremenljivi fiskalni zapis.
+Uspešen odziv doda EOR.
+Neuspešen odziv ohrani razlog za pregled.
+Ponovitev ni nova prodaja.
+Ročno brisanje zapisa ni operativni postopek blagajnika.
+
+### 31.4 Stanja odziva FURS
+
+| Stanje | Pomen za blagajnika | Dovoljeno dejanje |
+| --- | --- | --- |
+| sending | pošiljanje še teče | počakaj in ne izdaj ponovno |
+| confirmed/EOR | FURS je potrdil račun | preveri identifikator |
+| napaka | prenos ni potrjen | zapiši in retry po postopku |
+| replay | obstoječi poskus se ponovi | ne ustvarjaj novega računa |
+| storniran | dokument je sledljivo razveljavljen | preveri povezavo z izvirnikom |
+
+## 32. Tiskalni most in kopije
+
+### 32.1 Most odpove po izdaji
+
+Račun lahko obstaja, če lokalni tiskalniški most ni dosegljiv.
+Najprej preverite status izdaje na POS.
+Nato preverite napajanje in povezavo tiskalnika.
+Nato preverite lokalni most po navodilu podpore.
+Ko je fizična napaka odpravljena, izberite ponatis.
+Ne ustvarite novega računa.
+Ne izvajajte storna samo zaradi izpisa.
+
+### 32.2 Več natisnjenih kopij
+
+Več fizičnih kopij ne pomeni več fiskalnih računov.
+Vsaka kopija mora biti obravnavana skladno s politiko enote.
+Gostu predajte pravo kopijo.
+Ne mešajte kopije druge mize z računom prve mize.
+Če je kopija napačnega računa izpostavljena, ravnajte po postopku varstva podatkov.
+
+### 32.3 Nepravilen tiskalnik
+
+Preverite ime tiskalnika pred tiskom.
+Če račun odide na kuhinjski tiskalnik, račun ni neizdan.
+Poiščite isti račun v evidenci.
+Natisnite dovoljeno kopijo na pravi napravi.
+Vodji sporočite konfiguracijsko napako po konici.
+
+## 33. BizBox in e-račun: primeri
+
+### 33.1 Pravilna priprava
+
+Partner je izbran po potrjenem identifikatorju.
+Dokument je pravilen izvirni račun oziroma dovoljen dokument.
+BizBox kanal je omogočen za partnerja.
+Prejemnik in reference so pregledani pred oddajo.
+Osebje zabeleži uspeh ali napako predaje.
+
+### 33.2 Napačen partner
+
+Ime partnerja je podobno, identifikator pa se ne ujema.
+Ne pošiljajte dokumenta.
+Preverite identifikator pri odgovorni osebi.
+Ne popravljajte izdanega računa s spreminjanjem prejemnika brez dovoljenega postopka.
+Če je dokument že poslan napačnemu kanalu, takoj eskalirajte z ID dokumenta.
+
+### 33.3 BizBox ni dosegljiv
+
+Fiskalni račun ostane obstoječ dokument.
+Napaka BizBox ni FURS napaka.
+Ne pošiljajte novega fiskalnega računa.
+Zapišite kanal, čas in sporočilo.
+Ponovite elektronsko predajo samo po dovoljenem integracijskem postopku.
+
+## 34. Primeri storna in vračila
+
+### 34.1 Celotni storno
+
+Gostu je bil izdan napačen celoten račun.
+Poiščite izvirni račun po številki.
+Preverite, da račun res pripada dogodku.
+Izberite celotni storno.
+Vnesite dejanski razlog.
+Preverite nov sledljiv dokument.
+Preverite fiskalni status storna.
+
+### 34.2 Popravek računa, kjer je napačna ena količina
+
+Izvirnik vsebuje tri enake sladice.
+Gost vrne eno sladico.
+POS nima delnega storna količine ena.
+Izberite storno celotnega izvirnega računa, torej vseh treh sladic.
+Preverite, da povezava kaže na izvirnik.
+Nato odprite novo naročilo z dvema pravilnima sladicama in ga po potrebi
+zaključite z novim računom.
+Vračilo izvede pooblaščena oseba z dovoljenim načinom.
+
+### 34.3 Reklamacija po kartici
+
+Najprej preverite izvirno kartično plačilo.
+Nato preverite, ali je potreben storno računa, vračilo ali oba postopka.
+Ne dajajte gotovine, če pravila zahtevajo kartično povračilo.
+Pri neznanem rezultatu povračila ne poženite drugega povračila.
+Zapišite referenco prvotne bremenitve in povračila.
+
+## 35. Ocenjena zaključna vaja plačila
+
+### Primer
+
+Naročilo znaša 84,00 EUR.
+Gost uporabi subvencijo 4,00 EUR, bon 20,00 EUR in kartico za preostanek.
+Terminal pokaže uspeh za kartico, POS pa izgubi povezavo.
+Po obnovitvi je račun izdan, tiskalnik pa je brez papirja.
+FURS odgovor je začasno v stanju napaka.
+
+### Pričakovani odgovori
+
+Preostanek po subvenciji in bonu je 60,00 EUR.
+Kartični poskus se ne ponovi brez preveritve istega poskusa.
+Po uspešni obnovitvi račun ostane en sam.
+Papir se odpravi in uporabi ponatis.
+Za FURS se zapiše račun in napaka.
+Po vrnitvi povezave se uporabi retry obstoječega računa.
+
+### Točkovanje
+
+2 točki za pravilni izračun 60,00 EUR.
+2 točki za prepoved nove kartične bremenitve.
+2 točki za pravilen ponatis.
+2 točki za ohranitev istega računa pri FURS.
+2 točki za razlikovanje BizBox, tisk in FURS incidenta.
+Uspeh je najmanj 8 od 10 točk.
+
+## 36. Paketi študij primerov za zaključek prodaje
+
+### 36.1 Miza z delitvijo po artiklih
+
+Miza naroči dve glavni jedi in skupno steklenico vode.
+Gostova najprej določita, katere postavke pripadajo komu.
+Skupna voda se razdeli samo po dogovorjenem dovoljenem postopku.
+Prvi račun se plača z gotovino.
+Drugi račun se plača s kartico.
+Blagajnik preveri, da popust ni dvakrat uporabljen.
+Vsak račun se izda enkrat za svoj preostanek.
+
+### 36.2 Prevzem z bonom in napitnino
+
+To Go račun je 28,00 EUR.
+Skupna odprta evidenca darilnih bonov omogoča pokritje 10,00 EUR.
+Gost želi kartico 20,00 EUR.
+Blagajnik potrdi, da je 2,00 EUR napitnine vključeno v kartični znesek.
+Bon in kartica sta ločeni potrjeni vrstici.
+Preostanek osnovnega računa je nič.
+Račun jasno pokaže uporabljena načina in napitnino po konfiguraciji.
+
+### 36.3 Poslovna dostava s TRR
+
+Poslovni naročnik uporablja odobren TRR tok.
+Operater preveri partnerja in zahtevano referenco.
+TRR pokrije dogovorjeni del računa.
+Preostanek se lahko plača z drugim dovoljenim načinom.
+Neizkazano nakazilo se ne označi kot potrjeno brez pravila enote.
+Račun se ne podvaja, če partner kasneje vpraša po kopiji.
+
+### 36.4 Kartica, pozni odgovor in tisk
+
+Kartica za 19,80 EUR na terminalu uspe.
+POS izgubi odgovor in pokaže neznano stanje.
+Blagajnik preveri isti poskus.
+Obnovitev potrdi plačilo.
+Račun se uspešno izda.
+Lokalni tiskalniški most odpove.
+Blagajnik odpravi most in izvede ponatis istega računa.
+
+## 37. Matrika združljivosti metod
+
+| Prvi način | Drugi način | Dovoljena logika | Kritična kontrola |
+| --- | --- | --- | --- |
+| gotovina | kartica | pokrij preostanek | terminal dobi samo preostanek |
+| bon | kartica | bon nato preostanek | preveri skupno odprto evidenco bonov |
+| subvencija | gotovina | subvencija plus doplačilo | preveri upravičenost |
+| TRR | kartica | odobren del plus preostanek | preveri referenco TRR |
+| odloženo | brez drugega | le ob pravici | preveri nosilca obveznosti |
+| kartica | kartica | drugi poskus le po jasni zavrnitvi prvega | neznanega ne ponovi |
+| kartica | gotovina | gotovina šele po zavrnjeni/razrešeni kartici | brez dvojne obremenitve |
+| bon | gotovina | bon plus preostanek | bon ni gotovinsko vračilo |
+
+Tabela ne razveljavlja omejitev posamezne konfiguracije enote.
+Če način ni prikazan, ga uporabnik ne more nadomestiti z drugim imenom.
+
+## 38. Delovni list obnovitve
+
+### 38.1 Podatki, ki jih izpolnite
+
+Številka naročila: __________.
+Številka računa, če obstaja: __________.
+Znesek poskusa: __________.
+Ponudnik terminala: __________.
+Čas začetka: __________.
+Vidni rezultat terminala: __________.
+Stanje POS: __________.
+Referenca oziroma identifikator poskusa: __________.
+Naslednje dovoljeno dejanje: __________.
+
+### 38.2 Odločitveni pregled
+
+Ali terminal jasno kaže zavrnitev?
+Če da, lahko preverite neplačani preostanek.
+Ali terminal ali ponudnik kaže uspeh?
+Če da, uporabite obnovitev istega poskusa.
+Ali je rezultat neznan?
+Če da, ne začnite nove bremenitve.
+Ali račun že obstaja?
+Če da, preverite ločeno FURS in tisk.
+
+## 39. Dokazni seznami incidentov
+
+### 39.1 Terminal
+
+- [ ] naročilo in znesek sta zapisana;
+- [ ] ponudnik in čas sta zapisana;
+- [ ] referenca je zapisana, če je prikazana;
+- [ ] uporabnik ni ponovil neznanega poskusa;
+- [ ] obnovitev se nanaša na isti poskus.
+
+### 39.2 FURS in offline
+
+- [ ] izvirna številka računa je zapisana;
+- [ ] ZOI/EOR status je pregledan;
+- [ ] sporočilo napake je shranjeno po politiki;
+- [ ] retry se izvaja nad obstoječim računom;
+- [ ] certifikata ali surovega odgovora ne ureja nepooblaščena oseba.
+
+### 39.3 Tisk
+
+- [ ] status izdaje je preverjen pred posegom v tisk;
+- [ ] preverjeni so papir, pokrov, napajanje in povezava;
+- [ ] preverjen je tiskalniški most;
+- [ ] izbran je ponatis izvirnega računa;
+- [ ] ni ustvarjeno novo plačilo ali nov račun.
+
+## 40. Dialogi blagajnika in vodje
+
+### 40.1 Neznana Viva transakcija
+
+Blagajnik: »Viva terminal kaže plačano, POS čaka.«
+Vodja: »Ne začenjaj nove kartice; zapiši znesek in čas.«
+Blagajnik: »Preverjam isti status in identifikator.«
+Vodja: »Če je potrjeno, dokončaj isti račun; če ni, eskaliraj.«
+
+### 40.2 FURS brez EOR
+
+Blagajnik: »Račun obstaja, EOR pa manjka in kaže napako.«
+Vodja: »Ne izdajaj novega računa.«
+Blagajnik: »Zapisal sem številko in sporočilo.«
+Vodja: »Po povezavi izvedemo retry obstoječega računa.«
+
+### 40.3 Napačen tisk
+
+Blagajnik: »Račun se je natisnil na napačni napravi.«
+Vodja: »Račun je že izdan; poišči ga v evidenci.«
+Blagajnik: »Izvedem ponatis na pravilnem tiskalniku.«
+Vodja: »Po konici prijavi nastavitev mostu.«
+
+## 41. Časovno vodene incidentne vaje
+
+### 41.1 Vaja 60 sekund: terminal
+
+Trener pokaže `unknown` po kartici.
+Udeleženec ima minuto za prvo odločitev.
+Pravilen prvi stavek je prepoved nove bremenitve.
+Udeleženec navede znesek, ponudnika, čas in referenco.
+Kritična napaka je izbor gotovine brez razrešitve kartice.
+
+### 41.2 Vaja 90 sekund: FURS
+
+Trener pokaže izdan račun brez EOR.
+Udeleženec ima 90 sekund za razlago postopka.
+Mora ohraniti številko izvirnega računa.
+Mora navesti retry po odpravi vzroka.
+Ne sme predlagati nove izdaje.
+
+### 41.3 Vaja 120 sekund: storno
+
+Trener pokaže račun s tremi postavkami.
+Gost vrača eno postavko.
+Udeleženec mora pojasniti, da izbira posamezne količine ni na voljo.
+Udeleženec mora izbrati storno celotnega računa in navesti razlog.
+Udeleženec mora navesti povezavo z izvirnikom.
+Udeleženec mora razlikovati storno dokument od ponatisa in nato opisati nov
+pravilen račun za postavke, ki po popravku ostanejo.
+
+## 42. Kompetenčna vprašanja in utemeljitve
+
+### Vprašanje 1
+
+Zakaj kartičnega poskusa v stanju `unknown` ne ponovimo?
+Odgovor: gost je lahko že obremenjen.
+Utemeljitev: najprej se preveri in obnovi isti identifikator poskusa.
+
+### Vprašanje 2
+
+Kaj naredite, če tisk odpove po uspešni izdaji?
+Odgovor: odpravite tisk in uporabite ponatis.
+Utemeljitev: izdaja računa in fizični tisk sta ločena koraka.
+
+### Vprašanje 3
+
+Kaj naredite pri manjkajočem EOR?
+Odgovor: preverite status in retry obstoječega računa.
+Utemeljitev: nov račun bi lahko podvojil promet.
+
+### Vprašanje 4
+
+Ali lahko bon pokrije del računa in kartica preostanek?
+Odgovor: da, kadar sta oba načina omogočena in bon potrjen.
+Utemeljitev: kartični znesek je samo dejanski preostanek.
+
+### Vprašanje 5
+
+Kaj dokazuje BizBox napaka?
+Odgovor: težavo elektronske predaje, ne neobstoja fiskalnega računa.
+Utemeljitev: elektronska predaja, tisk in FURS so ločeni tokovi.
+
+## 43. Banka trenerjevih vprašanj za blagajno
+
+### 43.1 Plačilni zaslon
+
+Vprašanje: Kaj pomeni preostanek?
+Odgovor: še nepokriti del računa.
+Razlog: izdaja čaka na pravilen ničelni preostanek.
+Vprašanje: Kdaj spremeniš postavko?
+Odgovor: pred terminalskim tokom.
+Razlog: med obdelavo se naročilo ne spreminja.
+Vprašanje: Kaj preveriš pred izdajo?
+Odgovor: znesek, potrjene vrstice in preostanek.
+Razlog: klik plačila ni prejem denarja.
+Vprašanje: Kaj pomeni potrjena vrstica?
+Odgovor: dejansko evidentirano plačilo.
+Razlog: všteva se v plačano vrednost.
+
+### 43.2 Mešana plačila
+
+Vprašanje: Račun je 30, bon 12. Koliko kartica?
+Odgovor: 18 EUR.
+Razlog: kartica pokrije samo preostanek.
+Vprašanje: Ali gotovina nadomesti neznano kartico?
+Odgovor: ne.
+Razlog: kartica je lahko že uspešna.
+Vprašanje: Kdaj razdeliš postavke?
+Odgovor: ko gostje želijo ločene račune.
+Razlog: delitev zneska ne spremeni lastništva jedi.
+Vprašanje: Kdo določi napitnino?
+Odgovor: gost.
+Razlog: napitnina ni samodejno vračilo.
+
+### 43.3 Terminal
+
+Vprašanje: Kaj je prvi korak pri `unknown`?
+Odgovor: prepovej nov poskus.
+Razlog: zaščiti gosta pred dvojno bremenitvijo.
+Vprašanje: Kaj primerjaš pri obnovitvi?
+Odgovor: ponudnika, naročilo, znesek in identifikator.
+Razlog: obnovitev velja za isti poskus.
+Vprašanje: Kdaj preklopiš ponudnika?
+Odgovor: po jasni razrešitvi prvega toka.
+Razlog: pozni callback je lahko uspešen.
+Vprašanje: Kaj je `pending`?
+Odgovor: stanje, ki še nima končnega rezultata.
+Razlog: ne pomeni zavrnitve.
+
+### 43.4 FURS
+
+Vprašanje: Kaj je ZOI?
+Odgovor: zaščitna oznaka izdajatelja.
+Razlog: je del fiskalne sledljivosti.
+Vprašanje: Kaj je EOR?
+Odgovor: identifikator uspešnega odgovora FURS.
+Razlog: preverja se pri potrjenem računu.
+Vprašanje: Kaj narediš brez EOR?
+Odgovor: preveriš status in retry istega računa.
+Razlog: nov račun podvoji prodajo.
+Vprašanje: Kdo ureja certifikat?
+Odgovor: pooblaščeni skrbnik.
+Razlog: blagajnik ne upravlja ključev.
+
+### 43.5 Tisk in dokumenti
+
+Vprašanje: Kaj narediš ob praznem papirju?
+Odgovor: odpraviš papir in ponatisneš.
+Razlog: tiskovna napaka ne izniči računa.
+Vprašanje: Ali ponatis ustvarja prodajo?
+Odgovor: ne.
+Razlog: uporablja isti izvirni račun.
+Vprašanje: Kaj pomeni BizBox napaka?
+Odgovor: elektronska predaja ni uspela.
+Razlog: fiskalni račun lahko še vedno obstaja.
+Vprašanje: Kaj ohrani storno?
+Odgovor: povezavo z izvirnikom.
+Razlog: sledljivost ni brisanje zgodovine.
+
+## 44. Zaključni primeri presoje
+
+Primer: gost da 50 EUR za račun 43 EUR.
+Dejanje: vnesite prejeti znesek in preverite vračilo 7 EUR.
+Utemeljitev: vračilo se ne ugiba.
+
+Primer: prvi kartični poskus je `pending`.
+Dejanje: ne zaženite druge kartice.
+Utemeljitev: končni rezultat še ni znan.
+
+Primer: terminal zavrne kartico za 12 EUR.
+Dejanje: preverite zavrnitev in nato ponudite drug dovoljeni način.
+Utemeljitev: jasna zavrnitev sprosti neplačani preostanek.
+
+Primer: skupna odprta evidenca bonov je manjša od računa.
+Dejanje: bon pokrije prikazani dovoljeni del, plača pa se samo preostanek.
+Utemeljitev: POS uporablja skupno evidenco, ne individualne vrednosti bona.
+
+Primer: subvencija ni potrjena.
+Dejanje: ne zaključite računa kot subvencioniranega.
+Utemeljitev: subvencija ni ročni popust.
+
+Primer: POS pokaže plačano, račun pa nima EOR.
+Dejanje: račun ostane isti; preverite FURS status.
+Utemeljitev: plačilo in fiskalni odgovor sta ločena.
+
+Primer: FURS retry uspe po izpadu.
+Dejanje: preverite EOR na obstoječem računu.
+Utemeljitev: retry ne naredi nove izdaje.
+
+Primer: tiskalnik natisne dve kopiji.
+Dejanje: ne stornirajte računa.
+Utemeljitev: fizični kopiji nista dve prodaji.
+
+Primer: BizBox kanal zavrne prejemnika.
+Dejanje: eskalirajte partnerja in ID dokumenta.
+Utemeljitev: ne izdajajte novega fiskalnega računa.
+
+Primer: gost vrne eno od dveh postavk.
+Dejanje: stornirajte celotni izvirni račun in nato ustvarite novo pravilno
+naročilo samo za postavko, ki po popravku ostane.
+Utemeljitev: POS ne podpira delnega storna; oba dokumenta ostaneta sledljiva.
+
+Primer: kartično vračilo ima neznan rezultat.
+Dejanje: preverite isti povračilni poskus.
+Utemeljitev: tudi vračilo se ne sme podvojiti.
+
+Primer: uporabnik želi nastaviti TRR ob izpadu terminala.
+Dejanje: preverite, ali je TRR dejansko dovoljen in dogovorjen.
+Utemeljitev: napačen način pokvari evidenco prometa.
+
+Primer: manager zahteva surov FURS odgovor.
+Dejanje: obravnavate ga po administrativnih pravicah.
+Utemeljitev: blagajnik ne spreminja tehničnih zapisov.
+
+Primer: račun je že izdan, tiskalni most ni dosegljiv.
+Dejanje: odpravite most in naredite ponatis.
+Utemeljitev: stanje izdaje ostaja uspešno.
+
+Primer: kupec zahteva kopijo že izdanega računa.
+Dejanje: poiščite izvirnik in uporabite ponatis.
+Utemeljitev: kopija ne sproži novega plačila.
+
+Primer: preostanek ni nič.
+Dejanje: računa še ne izdate.
+Utemeljitev: preveriti je treba plačilne vrstice.

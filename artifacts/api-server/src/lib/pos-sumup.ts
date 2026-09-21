@@ -75,15 +75,25 @@ export async function preveriStatus(
   checkoutId: string,
   apiKey: string,
 ): Promise<"PAID" | "PENDING" | "FAILED"> {
+  return (await preveriCheckout(checkoutId, apiKey)).status;
+}
+
+/** Strežniško preveri stanje in znesek že ustvarjenega SumUp checkouta. */
+export async function preveriCheckout(
+  checkoutId: string,
+  apiKey: string,
+): Promise<{ status: "PAID" | "PENDING" | "FAILED"; amount: number | null; currency: string | null }> {
   const res = await fetch(
     `${SUMUP_BASE}/v0.1/checkouts/${encodeURIComponent(checkoutId)}`,
     { headers: { Authorization: `Bearer ${apiKey}` } },
   );
-  if (!res.ok) return "FAILED";
-  const checkout = await res.json() as SumUpCheckout;
-  if (checkout.status === "PAID") return "PAID";
-  if (checkout.status === "FAILED" || checkout.status === "EXPIRED" || checkout.status === "CANCELLED") {
-    return "FAILED";
+  if (!res.ok) {
+    throw new Error(`SumUp preverjanje checkouta ni uspelo: ${res.status} ${res.statusText}`);
   }
-  return "PENDING";
+  const checkout = await res.json() as SumUpCheckout;
+  if (checkout.status === "PAID") return { status: "PAID", amount: checkout.amount, currency: checkout.currency };
+  if (checkout.status === "FAILED" || checkout.status === "EXPIRED" || checkout.status === "CANCELLED") {
+    return { status: "FAILED", amount: checkout.amount, currency: checkout.currency };
+  }
+  return { status: "PENDING", amount: checkout.amount, currency: checkout.currency };
 }

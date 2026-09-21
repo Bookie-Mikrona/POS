@@ -1,0 +1,71 @@
+kako se registrira in vodi napitnina, ki jo je gost dodal skupnemu znesku zapitka in plačal s plačilno kartico
+
+Kadar gost napitnino doda skupnemu znesku računa in jo plača s plačilno kartico na POS terminalu (možnost 1. Združena POS transakcija), se proces registrira, vodi in knjiži v štirih glavnih korakih:
+
+1. Registracija na davčni blagajni (POS/Vnos)
+Ločen vnos: Ob zaključevanju računa v blagajniškem programu vnesete vrednost konzumacije (npr. 80 €) in ločeno znesek napitnine (npr. 10 €).
+
+Skupni znesek transakcije: Blagajna pošlje na POS terminal zahtevo za skupno avtorizacijo v višini 90 €.
+
+Prikaz na računu in izpisku:
+
+Izpis POS terminala: Prikazuje celotno bančno avtorizacijo (90 €).
+
+Izdani račun (FURS): Osnova za DDV ostane 80 €. Napitnina (10 €) mora biti na računu ali priloženem izpisku jasno izkazana kot ločena postavka, ki ni predmet DDV.
+
+2. Knjiženje in računovodska sled
+Namen prejetih sredstev je treba računovodsko ločiti od rednih prihodkov podjetja:
+
+Prihodki od prodaje (Konto skupine 76): Knjiži se neto vrednost prodanih storitev oz. blaga (80 € + pripadajoči DDV).
+
+Prehodni konto za napitnine (Konto skupine 28/220): Znesek napitnine (10 €) ne predstavlja prihoda podjetja, temveč obveznost podjetja do zaposlenih (prehodna postavka).
+
+Priliv na TRR: Bančni priliv s strani procesorja kartic (zmanjšan za provizijo banke) zapira celotno terjatev iz POS poslovanja (90 €).
+
+3. Izplačilo napitnine zaposlenim in davčni vidik
+Vsa sredstva, ki prispejo na TRR podjetja, morajo biti pri izplačilu ustrezno davčno obdelana:
+
+Evidenca po zaposlenih: Podjetje vodi interno evidenco o tem, kateremu delavcu oz. ekipi pripada zbrana kartična napitnina.
+
+Obravnava prejemka: Sredstva se zaposlenim izplačajo preko bančnega računa (praviloma skupaj s plačo ali kot ločen poračun).
+
+Dohodnina in prispevki: Ker napitnino izplača delodajalec preko svojega TRR, se znesek z vidika FURS obravnava kot drug prejemek iz delovnega razmerja ter je podvržen obračunu dohodnine in ustrezno predpisanim prispevkom.
+
+4. Pregled poteka transakcije
+Faza	Akcija	Znesek	Računovodski / Davčni vpliv
+Izdaja računa	Vnos v blagajno	80,00 € + 10,00 €	Osnova za DDV = 80 €; Napitnina = 10 € (izvzem iz DDV)
+POS Plačilo	Kartična avtorizacija	90,00 €	Nastanek terjatve do procesorja kartic za poln znesek
+Knjiženje	Razdelitev priliva	90,00 €	80 € (+DDV) na prihodke podjetja; 10 € na obveznost do zaposlenih
+Izplačilo	Poračun zaposlenemu	10,00 € (- dajatve)	Razknjiženje obveznosti; izplačilo na osebni TRR delavca
+ali lahko napitnina izplača natakarju (študentu) v gotovini
+
+Ne, kartično napitnino, ki je prispela na TRR podjetja, ni dovoljeno neposredno izplačati natakarju (ali študentu) v gotovini iz blagajniškega izkupička, ne da bi to ustrezno dokumentirali in davčno obdelali.
+
+Čeprav v praksi gostinci pogosto želijo študentu izročiti gotovino iz blagajne, s čimer "zamenjajo" kartično napitnino za gotovinsko, s stališča FURS in zakonodaje s tem nastaneta dva ključna problema:
+
+1. Blagajniški presežek / primanjkljaj
+Če iz gotovinske blagajne vzamete npr. 10 € gotovine in jo date študentu, bo v blagajni nastal primanjkljaj gotovine glede na registrirane gotovinske račune.
+
+FURS ob nadzoru primerja stanja registrskih blagajn s dejanskim denarjem v predalu. Nenapovedano jemanje gotovine iz blagajne velja za kršitev blagajniškega poslovanja.
+
+2. Davčna obravnava in izplačilo preko napotnice
+Ker je napitnina prispela na podjetje preko kartice, je postala evidentiran prejemek podjetja (obveznost do zaposlenega/študenta).
+
+Za študente: Vsa izplačila študentom morajo potekati preko pooblaščenih študentskih servisov na temelju študentske napotnice.
+
+Če študentu izplačate denar "na roke", to velja za nepredvideno gotovinsko izplačilo ali neporavnane obveznosti.
+
+Kako pravno in računovodsko pravilno izvesti izplačilo študentu?
+Vključitev v študentski obračun (priporočeno):
+
+Znesek zbrane kartične napitnine se študentu prišteje k mesečnemu obračunu ur na študentski napotnici (kot dodatek ali višja urna postavka).
+
+Študentski servis nato ta celotni znesek (ura + napitnina) izplača študentu neposredno na njegov osebni TRR.
+
+Izjemno izplačilo preko gotovinskega akontiranja / blagajniškega izdatka:
+
+Če bi študentu denar res želeli izplačati v gotovini, mora podjetje sestaviti Blagajniški izdatek (izplačilo iz blagajne/blagajniškega maksimuma, ne pa iz tekočega gotovinskega izkupička računa).
+
+Vendar mora biti to izplačilo še vedno ustrezno davčno poročano (npr. preko obračuna študentskega dela ali REK obrazca), zato gotovinsko izplačilo v praksi ne prinaša nobenih davčnih prihrankov ali poenostavitev.
+
+Povzetek: Gotovino lahko natakar oz. študent obdrži neposredno le v primeru, ko mu jo gost izroči v gotovini iz rok v roke (kar ne vstopa v POS terminal in blagajno podjetja). Vse, kar gre skozi POS terminal, pa mora slediti uradni poti nakazila.

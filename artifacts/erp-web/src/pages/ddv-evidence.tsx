@@ -9,24 +9,35 @@
  *  - Opozorila/napake po D.4 pravilih
  *  - Gumb "Izvozi XML" (placeholder)
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "@/contexts/CompanyContext";
 import {
   useGetVatLedgerReport,
   useListVatSubmissions,
   useCreateVatSubmission,
+  useDdvZakljucekOsnutek,
   vatSubmissionsQueryKey,
   type KirRow,
   type KprRow,
   type VatWarning,
   type ReconRow,
   type VatSubmission,
+  type DdvZakljucekOsnutekResponse,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -36,7 +47,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Download, FileText, ChevronRight,
-  Clock, CheckCheck, XCircle, Loader2,
+  Clock, CheckCheck, XCircle, Loader2, BookOpen,
 } from "lucide-react";
 
 // ─── Konstante ───────────────────────────────────────────────────────────────
@@ -100,7 +111,7 @@ const KIR_STOLPCI = [
   { key: "p14", label: "P14 (DDV 22%)" },
   { key: "p15", label: "P15 (DDV 9,5%)" },
   { key: "p16", label: "P16 (DDV 5%)" },
-  { key: "p17", label: "P17 (EU-B 22%)" },
+  { key: "p17", label: "P17 (neodbitni DDV)" },
   { key: "p18", label: "P18 (EU-S 22%)" },
   { key: "p19", label: "P19 (EU-B 9,5%)" },
   { key: "p20", label: "P20 (EU-S 9,5%)" },
@@ -346,13 +357,102 @@ function RekonPanel({
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
         <div className="text-right">
           <div className="text-sm font-medium text-muted-foreground">
-            {isObveznost ? "Neto DDV obveznost (f51)" : "Neto DDV presežek"}
+            {isObveznost
+              ? "Neto DDV obveznost za plačilo (polje 51)"
+              : "Presežek DDV za vračilo/prenos (polje 52)"}
           </div>
           <div className={`text-xl font-bold tabular-nums ${isObveznost ? "text-red-700" : "text-emerald-700"}`}>
             {fmtEur(Math.abs(netoDdv))} €
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Presežek DDV — izbira vračilo / prenos ───────────────────────────────────
+
+/**
+ * Prikaže se SAMO kadar netoDdv < 0 (vstopni DDV > izhodni DDV = presežek v korist zavezanca).
+ * Računovodja mora aktivno izbrati med vračilom na TRR ali prenosom v naslednje obdobje
+ * — brez izbire je izvoz XML onemogočen.
+ */
+function PresezekPanel({
+  znesek,
+  choice,
+  onChoice,
+}: {
+  znesek: number;
+  choice: "vracilo" | "prenos" | null;
+  onChoice: (v: "vracilo" | "prenos") => void;
+}) {
+  return (
+    <div className="border rounded-lg border-emerald-200 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-950/20 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <span className="font-semibold text-emerald-900 dark:text-emerald-200 text-sm">
+          Presežek DDV (polje 52) — {fmtEur(znesek)} €
+        </span>
+        <span className="text-xs text-emerald-700 dark:text-emerald-400">
+          Vstopni DDV presega izhodni. Izberite, kako boste ravnali s presežkom:
+        </span>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        {/* Možnost A: Vračilo na TRR */}
+        <button
+          type="button"
+          onClick={() => onChoice("vracilo")}
+          className={[
+            "text-left rounded-lg border p-3 transition-all",
+            choice === "vracilo"
+              ? "border-emerald-500 bg-emerald-100 ring-1 ring-emerald-500 dark:bg-emerald-900/40"
+              : "border-border bg-background hover:border-emerald-300",
+          ].join(" ")}
+        >
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${choice === "vracilo" ? "border-emerald-600 bg-emerald-600" : "border-muted-foreground"}`}>
+              {choice === "vracilo" && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+            </div>
+            <span className="font-medium text-sm">Zahtevam vračilo presežka na TRR</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            V XML se nastavi <code className="font-mono">VRACILO=true</code>. FURS nakaže v
+            21 dneh od predložitve. Pred izplačilom FURS lahko izvede pobot z drugimi davčnimi
+            obveznostmi; pri večjih zneskih lahko zahteva dokazila.
+          </p>
+        </button>
+
+        {/* Možnost B: Prenos v naslednje obdobje */}
+        <button
+          type="button"
+          onClick={() => onChoice("prenos")}
+          className={[
+            "text-left rounded-lg border p-3 transition-all",
+            choice === "prenos"
+              ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500 dark:bg-blue-900/30"
+              : "border-border bg-background hover:border-blue-300",
+          ].join(" ")}
+        >
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${choice === "prenos" ? "border-blue-600 bg-blue-600" : "border-muted-foreground"}`}>
+              {choice === "prenos" && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+            </div>
+            <span className="font-medium text-sm">Prenos v naslednje obdobje</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            V XML se nastavi <code className="font-mono">VRACILO=false</code>. Presežek se vodi
+            kot dobroimetje pri FURS in samodejno pokrije obveznost v prihodnjem davčnem obdobju.
+          </p>
+        </button>
+      </div>
+
+      {!choice && (
+        <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>Izbira je obvezna — brez nje izvoz XML ni mogoč.</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -534,6 +634,16 @@ export function KirKprEvidenceTab() {
     return `07${String(m).padStart(2, "0")}`;
   });
   const [exportError, setExportError] = useState<string | null>(null);
+  // Izbira za presežek DDV: null = ni izbrano, "vracilo" = zahteva vračilo, "prenos" = prenos v naslednje
+  const [vraciloChoice, setVraciloChoice] = useState<"vracilo" | "prenos" | null>(null);
+  // DDV zaključna temeljnica
+  const [zakljucekDialogOpen, setZakljucekDialogOpen] = useState(false);
+  const [zakljucekPreview, setZakljucekPreview] = useState<DdvZakljucekOsnutekResponse | null>(null);
+  const [zakljucekCreated, setZakljucekCreated] = useState<{ entryId: string; period: string } | null>(null);
+  const [zakljucekError, setZakljucekError] = useState<string | null>(null);
+
+  // Ponastavi izbiro in zaključek ob menjavi obdobja
+  useEffect(() => { setVraciloChoice(null); setZakljucekCreated(null); }, [year, period]);
 
   // Ko se zamenja mode, nastavi privzeto obdobje
   const handleModeChange = (mode: "mesecno" | "trimesecno") => {
@@ -557,12 +667,59 @@ export function KirKprEvidenceTab() {
   );
 
   const createSubmission = useCreateVatSubmission(activeCompany?.id ?? "");
+  const ddvZakljucek = useDdvZakljucekOsnutek(activeCompany?.id ?? "");
+
+  const handleZakljucekPreview = useCallback(async () => {
+    if (!activeCompany?.id) return;
+    setZakljucekError(null);
+    setZakljucekCreated(null);
+    try {
+      const preview = await ddvZakljucek.mutateAsync({
+        year,
+        period,
+        vraciloChoice: vraciloChoice,
+        dryRun: true,
+      });
+      setZakljucekPreview(preview);
+      setZakljucekDialogOpen(true);
+    } catch (err: unknown) {
+      setZakljucekError(err instanceof Error ? err.message : "Napaka pri predogledu");
+      setZakljucekPreview(null);
+      setZakljucekDialogOpen(true);
+    }
+  }, [activeCompany, year, period, vraciloChoice, ddvZakljucek]);
+
+  const handleZakljucekCreate = useCallback(async () => {
+    if (!activeCompany?.id) return;
+    setZakljucekError(null);
+    try {
+      const result = await ddvZakljucek.mutateAsync({
+        year,
+        period,
+        vraciloChoice: vraciloChoice,
+        dryRun: false,
+      });
+      setZakljucekCreated({ entryId: result.entryId!, period: result.period });
+      setZakljucekPreview(result);
+      trackEvent("vat_close_draft_created", {
+        period_granularity: periodMode === "mesecno" ? "monthly" : "quarterly",
+        refund_choice: vraciloChoice ?? "none",
+      });
+    } catch (err: unknown) {
+      setZakljucekError(err instanceof Error ? err.message : "Napaka pri ustvarjanju osnutka");
+    }
+  }, [activeCompany, year, period, vraciloChoice, ddvZakljucek, periodMode]);
 
   const handleExport = useCallback(async () => {
     if (!activeCompany?.id) return;
     setExportError(null);
     try {
-      const result = await createSubmission.mutateAsync({ year, period });
+      // Prenesi vracilo: true samo če je računovodja eksplicitno izbral vračilo
+      const result = await createSubmission.mutateAsync({
+        year,
+        period,
+        vracilo: vraciloChoice === "vracilo",
+      });
       // Sproži download takoj
       const a = document.createElement("a");
       a.href = result.downloadUrl;
@@ -576,12 +733,16 @@ export function KirKprEvidenceTab() {
       const msg = err instanceof Error ? err.message : "Napaka pri izvozu XML";
       setExportError(msg);
     }
-  }, [activeCompany, year, period, createSubmission, queryClient]);
+  }, [activeCompany, year, period, vraciloChoice, createSubmission, queryClient]);
 
   const hasErrors = data?.hasErrors ?? false;
   const totalWarnings = (data?.errorCount ?? 0) + (data?.warningCount ?? 0);
   const isEmpty = (data?.kirCount ?? 0) + (data?.kprCount ?? 0) === 0;
-  const canExport = !hasErrors && !isEmpty && !!data;
+  // Izračun presežka za prikaz PresezekPanel in blokado izvoza
+  const netoDdvNum = parseFloat(data?.reconSummary?.netoDdv ?? "0");
+  const isPresezek = netoDdvNum < -0.005;
+  // Kadar je presežek, zahtevamo eksplicitno izbiro pred izvozom
+  const canExport = !hasErrors && !isEmpty && !!data && (!isPresezek || vraciloChoice !== null);
 
   return (
     <div className="space-y-5">
@@ -649,6 +810,7 @@ export function KirKprEvidenceTab() {
           title={
             hasErrors ? "Odpravite napake preden izvozite XML"
             : isEmpty ? "V tem obdobju ni vpisov za izvoz"
+            : isPresezek && !vraciloChoice ? "Izberite vračilo ali prenos presežka (spodaj) preden izvozite XML"
             : "Generiraj in prenesi KIR/KPR XML za FURS"
           }
         >
@@ -729,6 +891,18 @@ export function KirKprEvidenceTab() {
             <RekonPanel recon={data.recon} summary={data.reconSummary} />
           </section>
 
+          {/* Presežek DDV — izbira vračilo / prenos (samo kadar netoDdv < 0) */}
+          {isPresezek && (
+            <section>
+              <h3 className="text-base font-semibold mb-2">Odločitev o presežku DDV</h3>
+              <PresezekPanel
+                znesek={Math.abs(netoDdvNum)}
+                choice={vraciloChoice}
+                onChoice={setVraciloChoice}
+              />
+            </section>
+          )}
+
           {/* Prazna evidenca notice */}
           {data.kirCount === 0 && data.kprCount === 0 && (
             <Alert>
@@ -740,6 +914,45 @@ export function KirKprEvidenceTab() {
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Zaključna DDV temeljnica */}
+          <section>
+            <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Zaključna DDV temeljnica
+            </h3>
+            <div className="rounded-lg border bg-card px-4 py-3 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Zapre salde vseh 160x (vstopni DDV) in 260x (izstopni DDV) kontov za to obdobje
+                ter neto razliko zapiše na konto 2699 (obveznost) ali 1699 (presežek).
+                Temeljnica se ustvari kot <strong>osnutek</strong> — računovodja jo ročno potrdi.
+              </p>
+              {zakljucekCreated ? (
+                <Alert className="border-green-300 bg-green-50 text-green-800">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Osnutek ustvarjen — {zakljucekCreated.period}</AlertTitle>
+                  <AlertDescription>
+                    Temeljnica je shranjena kot osnutek. Pojdite na{" "}
+                    <a href="/temeljnice" className="underline font-medium hover:text-green-900">
+                      Temeljnice
+                    </a>
+                    {" "}in jo potrdite.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={handleZakljucekPreview}
+                  disabled={ddvZakljucek.isPending}
+                >
+                  {ddvZakljucek.isPending
+                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    : <BookOpen className="h-4 w-4 mr-2" />}
+                  Pripravi zaključno temeljnico (osnutek)
+                </Button>
+              )}
+            </div>
+          </section>
         </div>
       ) : null}
 
@@ -753,6 +966,132 @@ export function KirKprEvidenceTab() {
           />
         </section>
       )}
+
+      {/* DDV zaključek — dialog predogleda */}
+      <Dialog open={zakljucekDialogOpen} onOpenChange={setZakljucekDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Zaključna DDV temeljnica — predogled</DialogTitle>
+            <DialogDescription>
+              {zakljucekPreview
+                ? `Obdobje ${zakljucekPreview.period} · ${zakljucekPreview.periodFrom} – ${zakljucekPreview.periodTo}`
+                : "Predogled"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {zakljucekError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{zakljucekError}</AlertDescription>
+            </Alert>
+          )}
+
+          {zakljucekPreview?.existingEntry && !zakljucekCreated && (
+            <Alert className="border-amber-300 bg-amber-50 text-amber-800">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Za to obdobje že obstaja zaključna temeljnica (status:{" "}
+                <strong>{zakljucekPreview.existingEntry.status}</strong>).
+                Preden ustvarite novo, preverite obstoječo v{" "}
+                <a href="/temeljnice" className="underline font-medium">Temeljnicah</a>.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {zakljucekPreview && (
+            <div className="space-y-3">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">Konto</TableHead>
+                    <TableHead>Naziv</TableHead>
+                    <TableHead className="w-16 text-center">Stran</TableHead>
+                    <TableHead className="w-28 text-right">Znesek (EUR)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {zakljucekPreview.lines.map((line: import("@workspace/api-client-react").DdvZakljucekClosingLine, i: number) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-mono text-xs">{line.code}</TableCell>
+                      <TableCell className="text-sm">{line.name}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant="outline"
+                          className={line.side === "debit"
+                            ? "border-blue-300 text-blue-700 bg-blue-50"
+                            : "border-green-300 text-green-700 bg-green-50"}
+                        >
+                          {line.side === "debit" ? "D" : "K"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {parseFloat(line.amount).toLocaleString("sl-SI", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="border-t-2 font-semibold">
+                    <TableCell colSpan={3} className="text-right text-xs text-muted-foreground pr-2">
+                      Skupaj D / K
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {parseFloat(zakljucekPreview.debitTotal).toLocaleString("sl-SI", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+
+              <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                <span className="text-muted-foreground">Neto DDV:</span>
+                <span className={`font-semibold ${zakljucekPreview.netType === "obveznost" ? "text-red-600" : "text-green-700"}`}>
+                  {parseFloat(zakljucekPreview.netAmount).toLocaleString("sl-SI", { minimumFractionDigits: 2 })} EUR
+                  {" — "}{zakljucekPreview.netType}
+                  {zakljucekPreview.netType === "presežek" && zakljucekPreview.vraciloChoice === "vracilo" && " (zahteva za vračilo)"}
+                  {zakljucekPreview.netType === "presežek" && zakljucekPreview.vraciloChoice === "prenos" && " (prenos v naslednje)"}
+                </span>
+              </div>
+
+              {zakljucekCreated && (
+                <Alert className="border-green-300 bg-green-50 text-green-800">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Osnutek ustvarjen</AlertTitle>
+                  <AlertDescription>
+                    Temeljnica je shranjena. Odprite{" "}
+                    <a href="/temeljnice" className="underline font-medium hover:text-green-900">
+                      Temeljnice
+                    </a>
+                    {" "}in jo potrdite.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {zakljucekCreated ? (
+              <Button variant="outline" onClick={() => setZakljucekDialogOpen(false)}>
+                Zapri
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setZakljucekDialogOpen(false)}>
+                  Prekliči
+                </Button>
+                {zakljucekPreview && !zakljucekPreview.existingEntry && (
+                  <Button
+                    onClick={handleZakljucekCreate}
+                    disabled={ddvZakljucek.isPending}
+                  >
+                    {ddvZakljucek.isPending
+                      ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      : <BookOpen className="h-4 w-4 mr-2" />}
+                    Ustvari osnutek
+                  </Button>
+                )}
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

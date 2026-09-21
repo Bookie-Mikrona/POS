@@ -13,17 +13,73 @@ import {
   journalEntryLinesTable,
   invoicesTable,
   invoiceLinesTable,
+  enoteTable,
+  posBookingSettingsTable,
+  companiesTable,
+  bankStatementLinesTable,
+  bankStatementsTable,
 } from "@workspace/db";
 import {
   CreatePaymentBody,
   VoidPaymentBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { getLatestBankStatementBalance } from "../lib/bankStatementBalances";
 
 const router: IRouter = Router();
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
+}
+
+function xml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function normalizeIban(value: string | null | undefined): string {
+  return String(value ?? "").replace(/\s+/g, "").toUpperCase();
+}
+
+function isValidIban(value: string): boolean {
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(value)) return false;
+  const rearranged = value.slice(4) + value.slice(0, 4);
+  let remainder = 0;
+  for (const char of rearranged) {
+    const digits = /\d/.test(char) ? char : String(char.charCodeAt(0) - 55);
+    for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97;
+  }
+  return remainder === 1;
+}
+
+function sepaAgentXml(bic: string | null | undefined): string {
+  const normalized = String(bic ?? "").replace(/\s+/g, "").toUpperCase();
+  return /^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(normalized)
+    ? `<FinInstnId><BIC>${xml(normalized)}</BIC></FinInstnId>`
+    : `<FinInstnId><Othr><Id>NOTPROVIDED</Id></Othr></FinInstnId>`;
+}
+
+/**
+ * SŠP invoices are deliberately identified only by the POS sync's canonical
+ * number.  Never derive an enota from a free-text description or reference.
+ * Both daily and monthly POS bookings exist, hence the two date variants.
+ */
+function sspInvoiceIdentity(invoiceNumber: string): { unitId: number; dateToken: string } | null {
+  const match = /^POS-SSP-(\d{4}-\d{2}(?:-\d{2})?)-E([1-9]\d*)$/.exec(invoiceNumber);
+  if (!match) return null;
+  const unitId = Number(match[2]);
+  return Number.isSafeInteger(unitId) ? { unitId, dateToken: match[1] } : null;
+}
+
+function hasMatchingPosSalesReference(
+  reference: string | null,
+  identity: { unitId: number; dateToken: string },
+): boolean {
+  return reference === `POS:PRODAJA:${identity.dateToken}:E${identity.unitId}`;
 }
 
 async function resolveAccess(
@@ -177,8 +233,11 @@ async function refreshInvoiceStatuses(
       .select({
         gross: sql<string>`
           COALESCE(SUM(
-            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) +
-            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)
+            COALESCE(
+              ${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric,
+              (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) +
+              (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)
+            )
           ), 0)
         `,
       })
@@ -295,6 +354,9 @@ router.post(
     const { counterpartyId, periodId, direction, amount, bankAccountId, arApAccountId, reference, notes, allocations } = parsed.data;
     // `force` is not in the Zod schema intentionally — it's an override flag for duplicate detection
     const force = (req.body as any).force === true;
+    const bankStatementLineId = typeof (req.body as any).bankStatementLineId === "string"
+      ? (req.body as any).bankStatementLineId
+      : null;
 
     // ── Duplicate detection (server-side enforcement) ──────────────────────────
     // Reject if a draft or posted payment with the same company, direction,
@@ -354,11 +416,50 @@ router.post(
       .limit(1);
     if (!counterparty) { res.status(404).json({ error: "Partner ni najden" }); return; }
 
-    const [bankAcc] = await db.select({ id: accountsTable.id })
+    const [bankAcc] = await db.select({ id: accountsTable.id, code: accountsTable.code, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
       .from(accountsTable)
       .where(and(eq(accountsTable.id, bankAccountId), eq(accountsTable.companyId, companyId)))
       .limit(1);
     if (!bankAcc) { res.status(400).json({ error: "Bančni konto ni najden ali ne pripada temu podjetju" }); return; }
+    if (!bankAcc.isActive || bankAcc.allowsPosting === false) {
+      res.status(400).json({ error: "Izbrani bančni konto ni aktiven ali ne dovoljuje knjiženja" });
+      return;
+    }
+    if (bankStatementLineId) {
+      const [statementLine] = await db.select({ id: bankStatementLinesTable.id })
+        .from(bankStatementLinesTable)
+        .innerJoin(bankStatementsTable, eq(bankStatementsTable.id, bankStatementLinesTable.statementId))
+        .where(and(
+          eq(bankStatementLinesTable.id, bankStatementLineId),
+          eq(bankStatementsTable.companyId, companyId),
+          eq(bankStatementsTable.bankAccountId, bankAccountId),
+        ))
+        .limit(1);
+      if (!statementLine) {
+        res.status(400).json({ error: "Vrstica bančnega izpiska ne pripada izbranemu podjetju ali bančnemu kontu" });
+        return;
+      }
+    }
+    if (direction === "outbound" && !bankStatementLineId) {
+      if (!bankAcc.code.startsWith("110")) {
+        res.status(400).json({ error: "Za izplačilo dobavitelju izberite bančni konto skupine 110" });
+        return;
+      }
+      const balanceEvidence = await getLatestBankStatementBalance(companyId, bankAccountId);
+      if (!balanceEvidence) {
+        res.status(400).json({
+          error: "Za izbrani TRR ni evidentiranega končnega stanja bančnega izpiska. Najprej evidentirajte izpisek s končnim stanjem.",
+        });
+        return;
+      }
+      const availableBalance = parseFloat(balanceEvidence.balance);
+      if (amount > availableBalance + 0.005) {
+        res.status(400).json({
+          error: `Skupni znesek plačila (${amount.toFixed(2)}) presega zadnje evidentirano stanje izbranega TRR (${availableBalance.toFixed(2)}) na dan ${balanceEvidence.evidenceDate}`,
+        });
+        return;
+      }
+    }
 
     const [arApAcc] = await db.select({ id: accountsTable.id })
       .from(accountsTable)
@@ -368,6 +469,10 @@ router.post(
 
     // Validacija poravnav
     if (allocations && allocations.length > 0) {
+      if (new Set(allocations.map((allocation) => allocation.invoiceId)).size !== allocations.length) {
+        res.status(400).json({ error: "Isti račun je lahko v posameznem plačilu izbran samo enkrat" });
+        return;
+      }
       const totalAllocated = allocations.reduce((s, a) => s + a.allocatedAmount, 0);
       if (totalAllocated > amount + 0.005) {
         res.status(400).json({ error: `Vsota poravnav (${totalAllocated.toFixed(2)}) presega znesek plačila (${amount.toFixed(2)})` });
@@ -385,6 +490,9 @@ router.post(
           status: invoicesTable.status,
           counterpartyId: invoicesTable.counterpartyId,
           type: invoicesTable.type,
+          invoiceNumber: invoicesTable.invoiceNumber,
+          arApAccountId: invoicesTable.arApAccountId,
+          linkedEntryId: invoicesTable.linkedEntryId,
         })
         .from(invoicesTable)
         .where(and(inArray(invoicesTable.id, invoiceIds), eq(invoicesTable.companyId, companyId)));
@@ -414,6 +522,61 @@ router.post(
         });
         return;
       }
+      // SŠP is a receivable to the configured public payer, never a discount.
+      // Enforce the configured partner and receivable account even when callers
+      // use the generic payment endpoint directly.
+      const sspInvoices = validInvoices.filter((invoice) => sspInvoiceIdentity(invoice.invoiceNumber));
+      if (sspInvoices.length > 0) {
+        if (direction !== "inbound") {
+          res.status(400).json({ error: "SŠP terjatve je mogoče poravnati samo s prejetim plačilom" });
+          return;
+        }
+        const [settings] = await db
+          .select({
+            subsidyCounterpartyId: posBookingSettingsTable.subsidyCounterpartyId,
+            subsidyReceivableAccountId: posBookingSettingsTable.subsidyReceivableAccountId,
+          })
+          .from(posBookingSettingsTable)
+          .where(eq(posBookingSettingsTable.companyId, companyId))
+          .limit(1);
+        if (!settings?.subsidyCounterpartyId || !settings.subsidyReceivableAccountId) {
+          res.status(400).json({ error: "SŠP nastavitve partnerja ali konta terjatev niso konfigurirane" });
+          return;
+        }
+        const linkedEntryIds = sspInvoices.flatMap((invoice) => invoice.linkedEntryId ? [invoice.linkedEntryId] : []);
+        const linkedEntries = linkedEntryIds.length === 0 ? [] : await db
+          .select({
+            id: journalEntriesTable.id,
+            status: journalEntriesTable.status,
+            reference: journalEntriesTable.reference,
+          })
+          .from(journalEntriesTable)
+          .where(and(
+            eq(journalEntriesTable.companyId, companyId),
+            inArray(journalEntriesTable.id, linkedEntryIds),
+          ));
+        const linkedEntryMap = new Map(linkedEntries.map((entry) => [entry.id, entry]));
+        const invalidSsp = sspInvoices.some((invoice) =>
+          invoice.counterpartyId !== settings.subsidyCounterpartyId ||
+          invoice.arApAccountId !== settings.subsidyReceivableAccountId ||
+          invoice.linkedEntryId === null ||
+          linkedEntryMap.get(invoice.linkedEntryId)?.status !== "posted" ||
+          !hasMatchingPosSalesReference(
+            linkedEntryMap.get(invoice.linkedEntryId)?.reference ?? null,
+            sspInvoiceIdentity(invoice.invoiceNumber)!,
+          ),
+        );
+        const validSspBankAccount = bankAcc.code.startsWith("11") || bankAcc.code.startsWith("22");
+        if (
+          invalidSsp ||
+          !validSspBankAccount ||
+          counterpartyId !== settings.subsidyCounterpartyId ||
+          arApAccountId !== settings.subsidyReceivableAccountId
+        ) {
+          res.status(400).json({ error: "SŠP plačilo mora uporabiti konfiguriranega partnerja, konto terjatev in bančni ali blagajniški konto" });
+          return;
+        }
+      }
       // 5. Poravnava po posameznem računu ne sme preseči preostalega odprtega zneska
       // Pridobi trenutno že poravnane zneske iz posted plačil
       const existingAllocs = await db
@@ -436,7 +599,7 @@ router.post(
       const grossRows = await db
         .select({
           invoiceId: invoiceLinesTable.invoiceId,
-          gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
+          gross: sql<string>`COALESCE(SUM(COALESCE(${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric, (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100))), 0)`,
         })
         .from(invoiceLinesTable)
         .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
@@ -470,6 +633,7 @@ router.post(
         bankAccountId,
         arApAccountId,
         notes: notes ?? null,
+        bankStatementLineId,
         createdBy: authReq.clerkUserId,
       }).returning({ id: paymentsTable.id });
 
@@ -520,6 +684,107 @@ router.get(
 
     const result = await fetchPaymentWithAllocations(id);
     res.json(result);
+  },
+);
+
+// ─── GET /companies/:companyId/payments/:id/sepa.xml ──────────────────────────
+router.get(
+  "/companies/:companyId/payments/:id/sepa.xml",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const id = extractParam(req.params.id);
+    const access = await resolveAccess(authReq.clerkUserId, companyId, res);
+    if (!access) return;
+    if (access.role === "viewer") {
+      res.status(403).json({ error: "Za izvoz plačil potrebujete vlogo računovodja ali lastnik" });
+      return;
+    }
+
+    const [row] = await db
+      .select({
+        status: paymentsTable.status,
+        direction: paymentsTable.direction,
+        paymentDate: paymentsTable.paymentDate,
+        amount: paymentsTable.amount,
+        reference: paymentsTable.reference,
+        notes: paymentsTable.notes,
+        companyName: companiesTable.naziv,
+        companyTrr: companiesTable.trr,
+        creditorName: counterpartiesTable.name,
+        creditorIban: counterpartiesTable.iban,
+        creditorTrr: counterpartiesTable.trr,
+        creditorBic: counterpartiesTable.eRacunBic,
+      })
+      .from(paymentsTable)
+      .innerJoin(companiesTable, eq(companiesTable.id, paymentsTable.companyId))
+      .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, paymentsTable.counterpartyId))
+      .where(and(eq(paymentsTable.id, id), eq(paymentsTable.companyId, companyId)))
+      .limit(1);
+    if (!row) { res.status(404).json({ error: "Plačilo ni najdeno" }); return; }
+    if (row.direction !== "outbound") { res.status(400).json({ error: "SEPA nalog je mogoče izvoziti samo za izplačilo" }); return; }
+    if (row.status !== "draft") { res.status(400).json({ error: "SEPA nalog je mogoče izvoziti samo iz osnutka plačila" }); return; }
+
+    const invoiceInstructions = await db
+      .select({
+        invoiceNumber: invoicesTable.invoiceNumber,
+        destinationIban: invoicesTable.destinationIban,
+        destinationBic: invoicesTable.destinationBic,
+        paymentModel: invoicesTable.paymentModel,
+        paymentReference: invoicesTable.paymentReference,
+        paymentPurpose: invoicesTable.paymentPurpose,
+      })
+      .from(paymentAllocationsTable)
+      .innerJoin(invoicesTable, and(
+        eq(invoicesTable.id, paymentAllocationsTable.invoiceId),
+        eq(invoicesTable.companyId, companyId),
+      ))
+      .where(eq(paymentAllocationsTable.paymentId, id));
+    const invoiceIbans = [...new Set(
+      invoiceInstructions.map((item) => normalizeIban(item.destinationIban)).filter(Boolean),
+    )];
+    if (invoiceIbans.length > 1) {
+      res.status(400).json({
+        error: "Povezani računi imajo različne TRR-je za plačilo. Ustvarite ločeno plačilo za vsak ciljni TRR.",
+      });
+      return;
+    }
+
+    const debtor = row.companyTrr?.[0];
+    const creditor = row.creditorTrr?.[0];
+    const debtorIban = normalizeIban(debtor?.iban);
+    const creditorIban = invoiceIbans[0] || normalizeIban(row.creditorIban || creditor?.iban);
+    const invoiceBic = invoiceInstructions.find((item) => normalizeIban(item.destinationIban) === creditorIban)?.destinationBic;
+    if (!isValidIban(debtorIban)) { res.status(400).json({ error: "Podjetje nima veljavnega privzetega IBAN-a" }); return; }
+    if (!isValidIban(creditorIban)) { res.status(400).json({ error: "Dobavitelj nima veljavnega IBAN-a" }); return; }
+
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) { res.status(400).json({ error: "Znesek plačila ni veljaven" }); return; }
+    const amountText = amount.toFixed(2);
+    const messageId = `BOOKIE-${id.replaceAll("-", "").slice(0, 28)}`;
+    const invoiceReferences = [...new Set(invoiceInstructions.map((item) => {
+      const reference = item.paymentReference || item.invoiceNumber;
+      return [item.paymentModel, reference].filter(Boolean).join(" ");
+    }).filter(Boolean))].join("; ");
+    const invoicePurposes = [...new Set(invoiceInstructions.map((item) => item.paymentPurpose).filter(Boolean))].join("; ");
+    const purpose = (invoicePurposes || invoiceReferences || row.notes || row.reference || `Plačilo ${row.creditorName}`).slice(0, 140);
+    const document = `<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+  <CstmrCdtTrfInitn>
+    <GrpHdr><MsgId>${xml(messageId)}</MsgId><CreDtTm>${xml(new Date().toISOString())}</CreDtTm><NbOfTxs>1</NbOfTxs><CtrlSum>${amountText}</CtrlSum><InitgPty><Nm>${xml(row.companyName)}</Nm></InitgPty></GrpHdr>
+    <PmtInf>
+      <PmtInfId>${xml(messageId)}</PmtInfId><PmtMtd>TRF</PmtMtd><NbOfTxs>1</NbOfTxs><CtrlSum>${amountText}</CtrlSum>
+      <PmtTpInf><SvcLvl><Cd>SEPA</Cd></SvcLvl></PmtTpInf><ReqdExctnDt>${xml(row.paymentDate)}</ReqdExctnDt>
+      <Dbtr><Nm>${xml(row.companyName)}</Nm></Dbtr><DbtrAcct><Id><IBAN>${debtorIban}</IBAN></Id></DbtrAcct><DbtrAgt>${sepaAgentXml(debtor?.bic)}</DbtrAgt><ChrgBr>SLEV</ChrgBr>
+      <CdtTrfTxInf><PmtId><EndToEndId>NOTPROVIDED</EndToEndId></PmtId><Amt><InstdAmt Ccy="EUR">${amountText}</InstdAmt></Amt><CdtrAgt>${sepaAgentXml(invoiceBic || row.creditorBic || creditor?.bic)}</CdtrAgt><Cdtr><Nm>${xml(row.creditorName)}</Nm></Cdtr><CdtrAcct><Id><IBAN>${creditorIban}</IBAN></Id></CdtrAcct><RmtInf><Ustrd>${xml(purpose)}</Ustrd></RmtInf></CdtTrfTxInf>
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>`;
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="SEPA-${id.slice(0, 8)}.xml"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(document);
   },
 );
 
@@ -586,10 +851,10 @@ router.post(
       payment.direction === "inbound"
         ? [
             { accountId: payment.bankAccountId, side: "debit" as const, amount: amount.toFixed(2), description },
-            { accountId: payment.arApAccountId, side: "credit" as const, amount: amount.toFixed(2), description },
+            { accountId: payment.arApAccountId, side: "credit" as const, amount: amount.toFixed(2), description, partnerId: payment.counterpartyId },
           ]
         : [
-            { accountId: payment.arApAccountId, side: "debit" as const, amount: amount.toFixed(2), description },
+            { accountId: payment.arApAccountId, side: "debit" as const, amount: amount.toFixed(2), description, partnerId: payment.counterpartyId },
             { accountId: payment.bankAccountId, side: "credit" as const, amount: amount.toFixed(2), description },
           ];
 
@@ -634,6 +899,9 @@ router.post(
             counterpartyId: invoicesTable.counterpartyId,
             type: invoicesTable.type,
             status: invoicesTable.status,
+            invoiceNumber: invoicesTable.invoiceNumber,
+            arApAccountId: invoicesTable.arApAccountId,
+            linkedEntryId: invoicesTable.linkedEntryId,
           })
           .from(invoicesTable)
           .where(and(inArray(invoicesTable.id, invoiceIds), eq(invoicesTable.companyId, companyId)))
@@ -651,6 +919,59 @@ router.post(
           }
           if (inv.status !== "posted" && inv.status !== "paid") {
             throw Object.assign(new Error("Poravnava vsebuje neknjiženi račun"), { statusCode: 400 });
+          }
+        }
+        const sspInvoices = lockedInvoices.filter((invoice) => sspInvoiceIdentity(invoice.invoiceNumber));
+        if (sspInvoices.length > 0) {
+          const [settings] = await tx
+            .select({
+              subsidyCounterpartyId: posBookingSettingsTable.subsidyCounterpartyId,
+              subsidyReceivableAccountId: posBookingSettingsTable.subsidyReceivableAccountId,
+            })
+            .from(posBookingSettingsTable)
+            .where(eq(posBookingSettingsTable.companyId, companyId))
+            .limit(1);
+          const linkedEntryIds = sspInvoices.flatMap((invoice) => invoice.linkedEntryId ? [invoice.linkedEntryId] : []);
+          const linkedEntries = linkedEntryIds.length === 0 ? [] : await tx
+            .select({
+              id: journalEntriesTable.id,
+              status: journalEntriesTable.status,
+              reference: journalEntriesTable.reference,
+            })
+            .from(journalEntriesTable)
+            .where(and(
+              eq(journalEntriesTable.companyId, companyId),
+              inArray(journalEntriesTable.id, linkedEntryIds),
+            ))
+            .for("update");
+          const linkedEntryMap = new Map(linkedEntries.map((entry) => [entry.id, entry]));
+          const [bankAccount] = await tx
+            .select({ code: accountsTable.code, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
+            .from(accountsTable)
+            .where(and(eq(accountsTable.id, payment.bankAccountId), eq(accountsTable.companyId, companyId)))
+            .limit(1);
+          const validSspBankAccount = Boolean(bankAccount?.isActive) &&
+            bankAccount?.allowsPosting !== false &&
+            (bankAccount.code.startsWith("11") || bankAccount.code.startsWith("22"));
+          if (
+            payment.direction !== "inbound" ||
+            !settings?.subsidyCounterpartyId ||
+            !settings.subsidyReceivableAccountId ||
+            !validSspBankAccount ||
+            payment.counterpartyId !== settings.subsidyCounterpartyId ||
+            payment.arApAccountId !== settings.subsidyReceivableAccountId ||
+            sspInvoices.some((invoice) =>
+              invoice.counterpartyId !== settings.subsidyCounterpartyId ||
+              invoice.arApAccountId !== settings.subsidyReceivableAccountId ||
+              invoice.linkedEntryId === null ||
+              linkedEntryMap.get(invoice.linkedEntryId)?.status !== "posted" ||
+              !hasMatchingPosSalesReference(
+                linkedEntryMap.get(invoice.linkedEntryId)?.reference ?? null,
+                sspInvoiceIdentity(invoice.invoiceNumber)!,
+              ),
+            )
+          ) {
+            throw Object.assign(new Error("SŠP plačilo mora knjižiti v dobro konfiguriranega konta terjatev"), { statusCode: 400 });
           }
         }
 
@@ -676,7 +997,7 @@ router.post(
         const grossRows = await tx
           .select({
             invoiceId: invoiceLinesTable.invoiceId,
-            gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
+            gross: sql<string>`COALESCE(SUM(COALESCE(${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric, (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100))), 0)`,
           })
           .from(invoiceLinesTable)
           .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
@@ -728,6 +1049,7 @@ router.post(
           amount: l.amount,
           description: l.description,
           sequence: i,
+          partnerId: l.partnerId ?? null,
         })),
       );
 
@@ -821,6 +1143,7 @@ router.post(
           amount: journalEntryLinesTable.amount,
           description: journalEntryLinesTable.description,
           sequence: journalEntryLinesTable.sequence,
+          partnerId: journalEntryLinesTable.partnerId,
         })
         .from(journalEntryLinesTable)
         .where(eq(journalEntryLinesTable.entryId, payment.linkedEntryId))
@@ -846,6 +1169,7 @@ router.post(
             amount: l.amount,
             description: l.description,
             sequence: l.sequence,
+            partnerId: l.partnerId,
           })),
         );
 
@@ -905,16 +1229,22 @@ router.get(
     const access = await resolveAccess(authReq.clerkUserId, companyId, res);
     if (!access) return;
 
-    const { counterpartyId, type, asOfDate } = req.query as Record<string, string | undefined>;
+    const { counterpartyId, type, asOfDate, sspOnly, unitId, invoiceDateFrom, invoiceDateTo } =
+      req.query as Record<string, string | undefined>;
     const refDate = asOfDate ?? new Date().toISOString().slice(0, 10);
 
     // Odprte postavke = knjiženi računi (posted ali paid) z preostalim zneskom > 0
-    const conditions: ReturnType<typeof eq>[] = [
+    const conditions: any[] = [
       eq(invoicesTable.companyId, companyId),
       // posted or paid (paid can still have remaining if partially void was applied)
     ];
     if (counterpartyId) conditions.push(eq(invoicesTable.counterpartyId, counterpartyId));
     if (type) conditions.push(eq(invoicesTable.type, type as any));
+    if (invoiceDateFrom) conditions.push(gte(invoicesTable.invoiceDate, invoiceDateFrom));
+    if (invoiceDateTo) conditions.push(lte(invoicesTable.invoiceDate, invoiceDateTo));
+    // Preserve the historic generic endpoint behaviour; the dedicated SŠP
+    // view, however, treats "stanje na dan" as an accounting cut-off.
+    if (sspOnly === "true") conditions.push(lte(invoicesTable.invoiceDate, refDate));
 
     // Pridobi vse knjižene/plačane račune
     const invoices = await db
@@ -926,19 +1256,53 @@ router.get(
         type: invoicesTable.type,
         counterpartyId: invoicesTable.counterpartyId,
         counterpartyName: counterpartiesTable.name,
+        arApAccountId: invoicesTable.arApAccountId,
         status: invoicesTable.status,
+        linkedEntryId: invoicesTable.linkedEntryId,
+        linkedEntryStatus: journalEntriesTable.status,
+        linkedEntryReference: journalEntriesTable.reference,
       })
       .from(invoicesTable)
       .innerJoin(counterpartiesTable, eq(counterpartiesTable.id, invoicesTable.counterpartyId))
+      .leftJoin(journalEntriesTable, eq(journalEntriesTable.id, invoicesTable.linkedEntryId))
       .where(and(...conditions, sql`${invoicesTable.status} IN ('posted', 'paid')`))
-      .orderBy(asc(invoicesTable.invoiceDate));
+      .orderBy(asc(sql`COALESCE(${invoicesTable.dueDate}, ${invoicesTable.invoiceDate})`), asc(invoicesTable.invoiceDate));
 
-    if (invoices.length === 0) {
+    // The SŠP view is intentionally stricter than generic open items: it only
+    // exposes POS-sync receivables whose linked POS sales entry is posted.
+    // The invoice number is the sole identity source; a canonical POS
+    // reference, if present, must merely corroborate that identity.
+    const requestedUnitId = unitId == null || unitId === "" ? undefined : Number(unitId);
+    if (requestedUnitId !== undefined && (!Number.isSafeInteger(requestedUnitId) || requestedUnitId < 1)) {
+      res.status(400).json({ error: "Enota ni veljavna" });
+      return;
+    }
+    const sspOnlyRequested = sspOnly === "true";
+    const sspIdentities = new Map<string, { unitId: number; dateToken: string }>();
+    for (const invoice of invoices) {
+      const identity = sspInvoiceIdentity(invoice.invoiceNumber);
+      if (identity) sspIdentities.set(invoice.id, identity);
+    }
+    const sspUnitIds = [...new Set([...sspIdentities.values()].map((identity) => identity.unitId))];
+    const unitRows = sspUnitIds.length === 0 ? [] : await db
+      .select({ id: enoteTable.id, name: enoteTable.ime })
+      .from(enoteTable)
+      .where(and(eq(enoteTable.companyId, companyId), inArray(enoteTable.id, sspUnitIds)));
+    const units = new Map(unitRows.map((unit) => [unit.id, unit]));
+    const eligibleInvoices = invoices.filter((invoice) => {
+      if (!sspOnlyRequested) return true;
+      const identity = sspIdentities.get(invoice.id);
+      if (!identity || !units.has(identity.unitId) || invoice.linkedEntryStatus !== "posted") return false;
+      if (!hasMatchingPosSalesReference(invoice.linkedEntryReference, identity)) return false;
+      return requestedUnitId === undefined || identity.unitId === requestedUnitId;
+    });
+
+    if (eligibleInvoices.length === 0) {
       res.json({ items: [], totalRemaining: "0.00" });
       return;
     }
 
-    const invoiceIds = invoices.map((i) => i.id);
+    const invoiceIds = eligibleInvoices.map((i) => i.id);
 
     // Pridobi bruto zneske iz vrstic
     const grossRows = await db
@@ -946,8 +1310,11 @@ router.get(
         invoiceId: invoiceLinesTable.invoiceId,
         gross: sql<string>`
           COALESCE(SUM(
-            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) +
-            (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)
+            COALESCE(
+              ${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric,
+              (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) +
+              (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)
+            )
           ), 0)
         `,
       })
@@ -970,6 +1337,7 @@ router.get(
         and(
           inArray(paymentAllocationsTable.invoiceId, invoiceIds),
           eq(paymentsTable.status, "posted"),
+          ...(sspOnlyRequested ? [lte(paymentsTable.paymentDate, refDate)] : []),
         ),
       )
       .groupBy(paymentAllocationsTable.invoiceId);
@@ -981,7 +1349,7 @@ router.get(
     let totalRemaining = 0;
     const items = [];
 
-    for (const inv of invoices) {
+    for (const inv of eligibleInvoices) {
       const gross = grossMap.get(inv.id) ?? 0;
       const allocated = allocMap.get(inv.id) ?? 0;
       const remaining = gross - allocated;
@@ -1001,11 +1369,16 @@ router.get(
         dueDate: inv.dueDate,
         counterpartyId: inv.counterpartyId,
         counterpartyName: inv.counterpartyName,
+        arApAccountId: inv.arApAccountId,
         invoiceType: inv.type,
         totalGross: gross.toFixed(2),
         allocatedAmount: allocated.toFixed(2),
         remainingAmount: remaining.toFixed(2),
         daysOverdue,
+        ...(sspOnlyRequested ? {
+          unitId: sspIdentities.get(inv.id)!.unitId,
+          unitName: units.get(sspIdentities.get(inv.id)!.unitId)!.name,
+        } : {}),
       });
     }
 
@@ -1059,7 +1432,7 @@ router.get(
     const grossRows = await db
       .select({
         invoiceId: invoiceLinesTable.invoiceId,
-        gross: sql<string>`COALESCE(SUM((${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100)), 0)`,
+        gross: sql<string>`COALESCE(SUM(COALESCE(${invoiceLinesTable.vatBase}::numeric + ${invoiceLinesTable.vatAmount}::numeric, (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric) + (${invoiceLinesTable.quantity}::numeric * ${invoiceLinesTable.unitPrice}::numeric * ${invoiceLinesTable.vatRate}::numeric / 100))), 0)`,
       })
       .from(invoiceLinesTable)
       .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))

@@ -2,10 +2,13 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { getNapravaId } from "@/lib/naprava";
+import { useNastavitve } from "@/contexts/NastavitveContext";
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { nastavitve } = useNastavitve();
+  const toastTocilnicaAktiven = nastavitve?.toastTocilnicaAktiven ?? true;
 
   useEffect(() => {
     if (!user || user.moraZamenjatiGeslo) return;
@@ -26,8 +29,17 @@ export function useRealtimeSync() {
       es.addEventListener("update", (e: MessageEvent) => {
         try {
           const data = JSON.parse(e.data) as { type: string; id?: number };
+          if (data.type === "kds") {
+            // FIRE, bump, and ack are broadcast as KDS updates. Keep station
+            // screens prompt instead of waiting for their polling fallback.
+            void queryClient.invalidateQueries({ queryKey: ["kds"] });
+          }
+          if (data.type === "izmene") {
+            void queryClient.invalidateQueries({ queryKey: ["/api/izmene/aktivne"] });
+          }
           void queryClient.invalidateQueries({ queryKey: ["/api/narocila/aktivna"] });
           void queryClient.invalidateQueries({ queryKey: ["/api/mize"] });
+          void queryClient.invalidateQueries({ queryKey: ["/api/mize/razpolozljivost"] });
           if (data.id) {
             void queryClient.invalidateQueries({ queryKey: [`/api/narocila/${data.id}`] });
           } else {
@@ -52,8 +64,10 @@ export function useRealtimeSync() {
             opomba: string | null;
             mizaIme: string | null;
             mizaStevilka: number | null;
+            prostorIme?: string | null;
             vir: "kuhinja" | "tocilnica" | null;
           };
+          if (data.vir === "tocilnica" && !toastTocilnicaAktiven) return;
           window.dispatchEvent(new CustomEvent("gotov-toast", {
             detail: {
               id: `${data.postavkaId}-${Date.now()}`,
@@ -62,6 +76,7 @@ export function useRealtimeSync() {
               opomba: data.opomba ?? null,
               mizaIme: data.mizaIme,
               mizaStevilka: data.mizaStevilka,
+              prostorIme: data.prostorIme ?? null,
               vir: data.vir ?? null,
             },
           }));
@@ -88,5 +103,5 @@ export function useRealtimeSync() {
       if (retryTimer) clearTimeout(retryTimer);
       es?.close();
     };
-  }, [queryClient, user]);
+  }, [queryClient, user, toastTocilnicaAktiven]);
 }

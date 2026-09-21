@@ -66,7 +66,12 @@ export type AktivniTerminalTip =
   | "viva_smart"
   | "brez_terminala";
 
-/** Nastavitve, relevantne za izbiro terminala */
+/**
+ * Javna, per-naprava terminalska konfiguracija, relevantna za izbiro terminala.
+ *
+ * Ta oblika ustreza `naprava.terminalConfig`. Nastavitve podjetja/enote niso
+ * vir za izbiro plačilnega terminala.
+ */
 export interface NastavitveTerminal {
   terminalAktiven?: boolean;
   paytenAndroidAktiven?: boolean;
@@ -93,20 +98,21 @@ export type NapravaTerminalOverride =
  * Vrne kateri terminal je dejansko aktiven glede na prioritetno verigo:
  *   Payten HW → Payten Android SW → SumUp → Viva Cloud → Viva Android → Viva TtP → Viva Smart
  *
- * Ko ima naprava specifičen override (napravaTerminal !== null), le-ta zamenja globalno verigo:
+ * Ko ima naprava specifičen override (napravaTerminal !== null), le-ta zamenja
+ * prioritetno verigo per-naprava:
  *   - Specifični terminal ("payten_hw", "sumup", …) → ta terminal je aktiven
  *   - "none" → naprava je konfigurirana brez terminala; globalna veriga se ignorira
- *   - null → ni overrida; uporabljena je globalna prioritetna veriga
+ *   - null → ni overrida; uporabljena je prioritetna veriga zastavic naprave
  *
- * @param nastavitve     Globalne nastavitve (iz baze)
- * @param napravaTerminal Per-napravo override, "none" za brez terminala, ali null za globalno verigo
+ * @param terminalConfig Javne terminalske zastavice trenutne naprave
+ * @param napravaTerminal Per-napravo override, "none" za brez terminala, ali null za prioritetno verigo
  */
 export function izracunajAktivniTerminal(
-  nastavitve: NastavitveTerminal | null,
+  terminalConfig: NastavitveTerminal | null,
   napravaTerminal: NapravaTerminalOverride,
 ): AktivniTerminalTip {
   if (napravaTerminal === "none") {
-    // Naprava je izrecno konfigurirana brez terminala — globalna veriga se ne upošteva
+     // Naprava je izrecno konfigurirana brez terminala — prioritetna veriga se ne upošteva
     return "brez_terminala";
   }
   if (napravaTerminal !== null) {
@@ -122,13 +128,13 @@ export function izracunajAktivniTerminal(
     }
   }
 
-  // napravaTerminal === null → uporabi globalno prioritetno verigo
-  if (nastavitve?.terminalAktiven)            return "payten_hw";
-  if (nastavitve?.paytenAndroidAktiven)       return "payten_android";
-  if (nastavitve?.sumupAktiven)               return "sumup";
-  if (nastavitve?.vivaTerminalAktiven)        return "viva_cloud";
-  if (nastavitve?.vivaAndroidTerminalAktiven) return "viva_android";
-  if (nastavitve?.vivaTapToPayAktiven)        return "viva_ttp";
-  if (nastavitve?.vivaAktiven)               return "viva_smart";
+   // napravaTerminal === null → uporabi prioritetno verigo zastavic trenutne naprave
+   if (terminalConfig?.terminalAktiven)            return "payten_hw";
+   if (terminalConfig?.paytenAndroidAktiven)       return "payten_android";
+   if (terminalConfig?.sumupAktiven)               return "sumup";
+   if (terminalConfig?.vivaTerminalAktiven)        return "viva_cloud";
+   if (terminalConfig?.vivaAndroidTerminalAktiven) return "viva_android";
+   if (terminalConfig?.vivaTapToPayAktiven)        return "viva_ttp";
+   if (terminalConfig?.vivaAktiven)                return "viva_smart";
   return "brez_terminala";
 }

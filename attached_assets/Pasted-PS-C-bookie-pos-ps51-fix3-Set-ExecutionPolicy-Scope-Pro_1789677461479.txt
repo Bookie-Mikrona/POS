@@ -1,0 +1,72 @@
+PS C:\bookie\pos-ps51-fix3> Set-ExecutionPolicy -Scope Process Bypass -Force
+PS C:\bookie\pos-ps51-fix3> Set-Location 'C:\bookie\pos-ps51-fix4'
+PS C:\bookie\pos-ps51-fix4>
+PS C:\bookie\pos-ps51-fix4> $syntaxErrors = @()
+PS C:\bookie\pos-ps51-fix4>
+PS C:\bookie\pos-ps51-fix4> Get-ChildItem -Path . -Filter '*.ps1' -File |
+>>   ForEach-Object {
+>>     $tokens = $null
+>>     $errors = $null
+>>
+>>     [System.Management.Automation.Language.Parser]::ParseFile(
+>>       $_.FullName,
+>>       [ref]$tokens,
+>>       [ref]$errors
+>>     ) | Out-Null
+>>
+>>     foreach ($errorItem in $errors) {
+>>       $syntaxErrors += [PSCustomObject]@{
+>>         File    = $_.Name
+>>         Line    = $errorItem.Extent.StartLineNumber
+>>         Column  = $errorItem.Extent.StartColumnNumber
+>>         Message = $errorItem.Message
+>>       }
+>>     }
+>>   }
+PS C:\bookie\pos-ps51-fix4>
+PS C:\bookie\pos-ps51-fix4> $syntaxErrors | Format-Table -AutoSize
+PS C:\bookie\pos-ps51-fix4> "Syntax error count: $($syntaxErrors.Count)"
+Syntax error count: 0
+PS C:\bookie\pos-ps51-fix4> $testThumbprint = '3264A826C58FA06EF656534024195A546DFD84BC'
+PS C:\bookie\pos-ps51-fix4>
+PS C:\bookie\pos-ps51-fix4> Get-ChildItem Cert:\CurrentUser\My |
+>>   Where-Object {
+>>     $_.Thumbprint -eq $testThumbprint
+>>   } |
+>>   Format-List Subject, Thumbprint, HasPrivateKey, NotAfter
+
+
+Subject       : CN=Bookie Local Gateway TEST ONLY
+Thumbprint    : 3264A826C58FA06EF656534024195A546DFD84BC
+HasPrivateKey : True
+NotAfter      : 17.10.2026 20:22:25
+
+
+
+PS C:\bookie\pos-ps51-fix4> .\build-release.ps1 `
+>>   -Version '1.0.0' `
+>>   -CertificateThumbprint $testThumbprint `
+>>   -TestOnly
+Collecting PyInstaller==6.11.1 (from -r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3))
+  Downloading pyinstaller-6.11.1-py3-none-win_amd64.whl.metadata (8.3 kB)
+Requirement already satisfied: setuptools>=42.0.0 in C:\Users\Aco\AppData\Local\Programs\Python\Python313\Lib\site-packages (from PyInstaller==6.11.1->-r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3)) (83.0.0)
+Requirement already satisfied: altgraph in C:\Users\Aco\AppData\Local\Programs\Python\Python313\Lib\site-packages (from PyInstaller==6.11.1->-r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3)) (0.17.5)
+Requirement already satisfied: pyinstaller-hooks-contrib>=2024.9 in C:\Users\Aco\AppData\Local\Programs\Python\Python313\Lib\site-packages (from PyInstaller==6.11.1->-r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3)) (2026.6)
+Requirement already satisfied: packaging>=22.0 in C:\Users\Aco\AppData\Local\Programs\Python\Python313\Lib\site-packages (from PyInstaller==6.11.1->-r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3)) (26.2)
+Collecting pefile!=2024.8.26,>=2022.5.30 (from PyInstaller==6.11.1->-r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3))
+  Downloading pefile-2023.2.7-py3-none-any.whl.metadata (1.4 kB)
+Requirement already satisfied: pywin32-ctypes>=0.2.1 in C:\Users\Aco\AppData\Local\Programs\Python\Python313\Lib\site-packages (from PyInstaller==6.11.1->-r C:\bookie\pos-ps51-fix4\requirements-build.txt (line 3)) (0.2.3)
+Downloading pyinstaller-6.11.1-py3-none-win_amd64.whl (1.3 MB)
+   ---------------------------------------- 1.3/1.3 MB 7.0 MB/s  0:00:00
+Downloading pefile-2023.2.7-py3-none-any.whl (71 kB)
+Installing collected packages: pefile, PyInstaller
+  Attempting uninstall: pefile
+    Found existing installation: pefile 2024.8.26
+    Uninstalling pefile-2024.8.26:
+      Successfully uninstalled pefile-2024.8.26
+  Attempting uninstall: PyInstaller
+    Found existing installation: pyinstaller 6.21.0
+    Uninstalling pyinstaller-6.21.0:
+      Successfully uninstalled pyinstaller-6.21.0
+
+Successfully installed PyInstaller-6.11.1 pefile-2023.2.7

@@ -27,6 +27,20 @@ import posBookingSettingsRouter from "./posBookingSettings";
 import vatLedgerReportRouter from "./vatLedgerReport";
 import vatSubmissionsRouter from "./vatSubmissions";
 import goodsReceiptsRouter from "./goodsReceipts";
+import creditNotePackagingRouter from "./creditNotePackaging";
+import downloadsRouter from "./downloads";
+import ddvZakljucekRouter from "./ddvZakljucek";
+import { fursVatCodesRouter } from "./fursVatCodes";
+import osnovnaSredstvaRouter from "./osnovnaSredstva";
+import osUvozRouter from "./osUvoz";
+import osAmortizacijaRouter from "./osAmortizacija";
+import osAmortizacijaKnjizenjRouter from "./osAmortizacijaKnjizenje";
+import externalExportsRouter from "./externalExports";
+import companiesBizboxRouter from "./companies-bizbox";
+import backupRouter from "./backup";
+import tipsRouter from "./tips";
+import { requireObracunUrAccess } from "../middlewares/pos";
+import { getObracunUrHandler } from "./pos/izmene";
 
 const router: IRouter = Router();
 
@@ -34,6 +48,7 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(meRouter);
 router.use(companiesRouter);
+router.use(companiesBizboxRouter);
 router.use(accountsRouter);
 router.use(periodsRouter);
 router.use(journalEntriesRouter);
@@ -54,9 +69,23 @@ router.use(superadminRouter);
 router.use(ujpRouter);
 router.use(ajpesRouter);
 router.use(posBookingSettingsRouter);
+router.use(tipsRouter);
 router.use(vatLedgerReportRouter);
 router.use(vatSubmissionsRouter);
 router.use(goodsReceiptsRouter);
+router.use(creditNotePackagingRouter);
+router.use(downloadsRouter);
+router.use(ddvZakljucekRouter);
+router.use(fursVatCodesRouter);
+router.use(osnovnaSredstvaRouter);
+router.use(osUvozRouter);
+router.use(osAmortizacijaRouter);
+router.use(osAmortizacijaKnjizenjRouter);
+router.use(externalExportsRouter);
+router.use(backupRouter);
+// Obračun ur je edina POS-pot, ki jo lahko bere tudi ERP računovodja/lastnik.
+// Montaža pred splošnim POS middleware-om ohrani company-level ERP kontekst.
+router.get("/izmene/obracun-ur", requireObracunUrAccess, getObracunUrHandler);
 router.use(posRouter);
 
 export default router;

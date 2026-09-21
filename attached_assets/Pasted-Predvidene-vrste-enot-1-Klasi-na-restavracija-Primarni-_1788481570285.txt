@@ -1,0 +1,256 @@
+Predvidene vrste enot
+1. Klasična restavracija
+Primarni meni:
+
+Mize
+Blagajna
+Kuhinja
+Točilnica
+Rezervacije
+Računi
+Opcije:
+
+prostori, mize in terase,
+naročila pri mizi,
+hod jedi oziroma zaporedje priprave,
+delitev in združevanje računov,
+rezervacije,
+QR-meni,
+prevzem in dostava,
+normativi, zaloge in inventure,
+napitnine,
+izmene in obračun ur.
+2. Gostilna ali gostišče
+Podobno kot klasična restavracija, vendar z možnostjo:
+
+poenostavljene razdelitve kuhinja/točilnica,
+dnevnih kosil,
+skupin in vnaprej dogovorjenih menijev,
+pogostitev,
+povezave z nastanitveno enoto v prihodnji fazi.
+Nastanitvenega modula ne bi vključil v to nalogo, razen podatka, da enota nudi tudi nastanitev.
+
+3. Fine dining restavracija
+Dodatne funkcije:
+
+degustacijski in večhodni meniji,
+obvezno zaporedje hodov,
+sinhronizacija jedi za celo mizo,
+»fire course« oziroma sprožitev naslednjega hoda,
+vinska spremljava,
+alergije in preference gosta,
+rezervacijski depozit,
+trajanje rezervacije,
+opombe za kuhinjo in strežbo,
+cena menija ali cena posameznih hodov.
+Sidebar:
+
+Mize
+Rezervacije
+Večhodni meniji
+Kuhinja
+Točilnica
+Gostje
+Blagajna
+4. Samopostrežna restavracija oziroma ruski šank
+Treba je podpreti več načinov obračuna:
+
+fiksna cena kosila,
+cena po izbrani glavni jedi,
+tehtanje po kilogramu,
+doplačila za dodatne porcije,
+kombinacija menija in dodatkov.
+Sidebar:
+
+Hitra blagajna
+Dnevna ponudba
+Samopostrežni meni
+Kuhinja
+Zaloge
+Računi
+Mize, rezervacije in klasično odpiranje naročila so privzeto skriti.
+
+5. Okrepčevalnica, fast food ali kiosk
+Primarni meni:
+
+Blagajna
+Naročila
+Kuhinja
+Prevzem
+Meni
+Opcije:
+
+številka naročila,
+zaslon za prevzem,
+osebni prevzem,
+dostava,
+telefonska naročila,
+QR-naročanje,
+sestavljivi artikli in dodatki,
+embalaža ter »To Go«,
+brez obveznih miz in rezervacij.
+6. Bar, bife ali pub
+Primarni meni:
+
+Mize ali hitra blagajna
+Točilnica
+Računi
+Izmene
+Opcije:
+
+odprti računi oziroma »tab«,
+happy hour,
+napitnine,
+recepture koktajlov,
+embalaža in povratna embalaža,
+minimalna ali izključena kuhinja,
+nočni poslovni dan,
+varnostna opozorila pri alkoholu.
+7. Kavarna ali slaščičarna
+Primarni meni:
+
+Mize
+Blagajna
+Točilnica
+Vitrina oziroma dnevna ponudba
+Meni
+Opcije:
+
+velikosti napitkov,
+mleko in drugi dodatki,
+prodaja na kos ali težo,
+sladoledne kepice in okusi,
+prednaročila tort,
+prevzem ob določenem času,
+omejene količine dnevne ponudbe.
+8. Turistična kmetija ali osmica
+Opcije:
+
+sezonsko obdobje delovanja,
+omejena dnevna ponudba,
+skupinski meniji,
+rezervacije skupin,
+domači izdelki za prodajo,
+proizvodne serije in sledljivost,
+vnaprej določeno število porcij,
+možna povezava z nastanitvijo.
+9. Društvo, ki organizira veselico
+To naj bo začasna ali dogodkovna enota, vezana na organizatorja oziroma društvo.
+
+Potrebne opcije:
+
+naziv prireditve,
+lokacija,
+začetek in konec dogodka,
+začasni FURS poslovni prostor in blagajne,
+več prodajnih mest: šank, hrana, vstopnice,
+skupne ali ločene zaloge,
+kavcije za kozarce,
+boni oziroma žetoni,
+izmensko osebje in prostovoljci,
+hitri artikli z velikimi gumbi,
+omejena povezava z ERP,
+zaključek dogodka in poročilo po prodajnem mestu,
+prenos neporabljene zaloge nazaj v matično enoto.
+Sidebar:
+
+Hitra prodaja
+Šank
+Kuhinja
+Boni/žetoni
+Kavcije
+Zaloga dogodka
+Izmene
+Zaključek dogodka
+10. Gostilna na mestni novoletni prireditvi ali stojnici
+Dogodek naj bo povezan z matično gostilno, vendar mora biti operativno ločena enota.
+
+Potrebne opcije:
+
+začasna lokacija in obdobje,
+lasten poslovni prostor oziroma elektronska naprava,
+lasten cenik za prireditev,
+omejen nabor artiklov,
+prenos zalog iz matične enote,
+vračilo zaloge po dogodku,
+kavcije za embalažo,
+prodaja brez miz,
+način brez stabilne povezave,
+ločen promet, osebje in stroškovno mesto.
+Sidebar:
+
+Blagajna
+Hitra prodaja
+Zaloga stojnice
+Prenosi zaloge
+Izmene
+Zaključek
+11. Organiziranje porok, rojstnih dni in drugih slavij
+Predlagam profil Pogostitve in slavja, ki lahko deluje:
+
+v lastnem lokalu,
+na zunanji lokaciji,
+kot catering,
+kot kombinacija gostilne in dogodka.
+Potrebne opcije:
+
+dogodek, naročnik in kontakt,
+datum, lokacija in število gostov,
+ponudba oziroma predračun,
+dogovorjeni meni,
+več hodov,
+pijača po porabi ali paket,
+avans in končni račun,
+posebne zahteve in alergije,
+sedežni red oziroma mize,
+načrt osebja,
+izposojena oprema,
+prenos zalog na lokacijo,
+dejanska poraba in vračila,
+stroškovno mesto dogodka,
+donosnost dogodka.
+Sidebar:
+
+Dogodki
+Ponudbe
+Meniji dogodkov
+Osebje
+Zaloga dogodka
+Blagajna
+Obračun dogodka
+12. Premični ponudnik: prikolica, food truck ali predelan kombi
+Potrebne opcije:
+
+vozilo oziroma premična enota,
+trenutna lokacija,
+urnik lokacij,
+začasni poslovni prostor,
+omejene zaloge na vozilu,
+dnevni prenos zaloge iz baze,
+hitra prodaja brez miz,
+številke naročil,
+prevzem,
+priprava na enem KDS-zaslonu,
+delo brez povezave oziroma čakalna vrsta operacij,
+mobilni tiskalnik in terminal,
+zaključek lokacije ali dogodka,
+poročilo po lokaciji.
+Sidebar:
+
+Blagajna
+Naročila
+Kuhinja
+Zaloga vozila
+Lokacije
+Izmene
+Zaključek dneva
+13. Hotel, penzion ali nastanitveni obrat z gostinsko ponudbo
+Za trenutno nalogo bi modelirali samo gostinski del:
+
+zajtrk za goste,
+samopostrežni zajtrk,
+restavracija,
+bar,
+sobna postrežba,
+prenos porabe na sobo.
+Celoten hotelski rezervacijski sistem naj bo ločena prihodnja funkcija.

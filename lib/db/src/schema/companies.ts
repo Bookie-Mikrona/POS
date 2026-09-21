@@ -27,6 +27,8 @@ export const companiesTable = pgTable("companies", {
   idZaDdv: text("id_za_ddv"),
   /** Ali je podjetje DDV zavezanec */
   zavezanecDdv: boolean("zavezanec_ddv"),
+  /** Ali je podjetje izrecno omogočilo politiko obveznega dodatka za storitev. */
+  employerControlledTipsEnabled: boolean("employer_controlled_tips_enabled").notNull().default(false),
   /** Bančni računi (TRR): [{iban, bic}], prvi je privzeti za negotovinsko plačilo */
   trr: jsonb("trr").$type<Array<{ iban: string; bic: string }>>(),
   /** Kontaktni podatki */
@@ -40,6 +42,14 @@ export const companiesTable = pgTable("companies", {
   eRacunNaslov: text("e_racun_naslov"),
   eRacunSifraPu: text("e_racun_sifra_pu"),
   eRacunBic: text("e_racun_bic"),
+  /** Javni FURS certifikat PEM; zasebni ključ je ločeno šifriran. */
+  fursCertifikatPem: text("furs_certifikat_pem"),
+  /** AES-256-GCM šifriran zasebni ključ FURS (nikoli se ne vrača prek API-ja). */
+  fursKljucEnc: text("furs_kljuc_enc"),
+  /** X.509 subject za varen prikaz statusa v UI. */
+  fursCertSubject: text("furs_cert_subject"),
+  /** X.509 notAfter datum certifikata FURS. */
+  fursCertVeljaDo: timestamp("furs_cert_velja_do", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

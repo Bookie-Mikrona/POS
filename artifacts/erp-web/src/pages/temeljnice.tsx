@@ -1,14 +1,21 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react";
 
-import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users } from "lucide-react";
+import { Plus, Search, Filter, AlertCircle, AlertTriangle, FileText, Loader2, ArrowRightLeft, CheckCircle2, Trash2, ChevronRight, Building2, FolderKanban, Users, Info, Receipt, Download, ChevronDown } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
+import {
+  classifyPosJournalReference,
+  getMonthlyPosReferenceMonth,
+} from "@/lib/posJournalReference";
 import {
   useListJournalEntries,
   useGetJournalEntry,
   useCreateJournalEntry,
+  useDeleteJournalEntry,
   usePostJournalEntry,
   useReverseJournalEntry,
   useListPeriods,
@@ -18,6 +25,8 @@ import {
   useListProjects,
   useListDepartments,
   getListJournalEntriesQueryKey,
+  useListCompanyFursVatCodes,
+  useListVatCodes,
   type JournalEntry,
 } from "@workspace/api-client-react";
 
@@ -39,6 +48,44 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFo
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function downloadEntry(companyId: string, entryId: string, format: string, baseName: string, token: string) {
+  const res = await fetch(`${BASE_URL}/api/companies/${companyId}/external-exports/entries/${entryId}/${format}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Napaka pri prenosu (${res.status})`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${baseName}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function downloadPeriod(companyId: string, from: string, to: string, format: string, token: string) {
+  const res = await fetch(`${BASE_URL}/api/companies/${companyId}/external-exports/period/${from}/${to}/${format}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Napaka pri prenosu (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bookie-temeljnice-${from}-${to}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Osnutek",
@@ -51,12 +98,14 @@ const SOURCE_LABELS: Record<string, string> = {
   bank_import: "Banka",
   document: "Dokument",
   ai_suggestion: "AI",
+  amortizacija: "Amortizacija",
 };
 const SOURCE_COLORS: Record<string, string> = {
   manual: "bg-gray-100 text-gray-700",
   bank_import: "bg-blue-100 text-blue-700",
   document: "bg-violet-100 text-violet-700",
   ai_suggestion: "bg-amber-100 text-amber-700",
+  amortizacija: "bg-green-100 text-green-800",
 };
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -74,6 +123,7 @@ export default function Temeljnice() {
   const [costCenterFilter, setCostCenterFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [entryKindFilter, setEntryKindFilter] = useState<string>("all");
 
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
@@ -101,10 +151,44 @@ export default function Temeljnice() {
 
   const entries = entriesData?.entries ?? [];
 
+  const { data: pendingDraftsData } = useListJournalEntries(
+    activeCompany?.id ?? "",
+    { status: "draft" },
+    {
+      query: {
+        enabled: !!activeCompany?.id,
+        staleTime: 30_000,
+        refetchOnWindowFocus: true,
+      } as any,
+    },
+  );
+  const pendingMonthlyEntries = useMemo(
+    () => (pendingDraftsData?.entries ?? []).filter(
+      (entry) => classifyPosJournalReference(entry.reference) === "monthly",
+    ),
+    [pendingDraftsData?.entries],
+  );
+  const pendingMonthlyMonths = useMemo(
+    () => [...new Set(
+      pendingMonthlyEntries
+        .map((entry) => getMonthlyPosReferenceMonth(entry.reference))
+        .filter((month): month is string => Boolean(month)),
+    )].sort(),
+    [pendingMonthlyEntries],
+  );
+  const visibleEntries = useMemo(
+    () => entryKindFilter === "monthly-pos"
+      ? entries.filter((entry) => classifyPosJournalReference(entry.reference) === "monthly")
+      : entries,
+    [entries, entryKindFilter],
+  );
+
   const postMut = usePostJournalEntry();
+  const deleteMut = useDeleteJournalEntry();
 
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [detailEntry, setDetailEntry] = useState<JournalEntry | null>(null);
+  const [exportPeriodOpen, setExportPeriodOpen] = useState(false);
 
   const [stornoOpen, setStornoOpen] = useState(false);
   const [stornoEntry, setStornoEntry] = useState<JournalEntry | null>(null);
@@ -115,6 +199,7 @@ export default function Temeljnice() {
     if (window.confirm("Ali res želite poknjižiti temeljnico? Po knjiženju popravki niso več mogoči.")) {
       postMut.mutate({ companyId: activeCompany.id, id }, {
         onSuccess: () => {
+          trackEvent("journal_entry_posted");
           queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey(activeCompany.id) });
         }
       });
@@ -127,12 +212,41 @@ export default function Temeljnice() {
     setStornoOpen(true);
   };
 
+  const handleDelete = (e: React.MouseEvent | null, entry: JournalEntry) => {
+    e?.stopPropagation();
+    if (!activeCompany || entry.status !== "draft") return;
+    const sourceNote = entry.createdBy === "pos-receipt-booking"
+      ? "\n\nOsnutek boste lahko pozneje ponovno pripravili iz POS prejemnice."
+      : "";
+    if (!window.confirm(`Ali res želite izbrisati osnutek temeljnice »${entry.reference || entry.description}«?${sourceNote}`)) return;
+    deleteMut.mutate({ companyId: activeCompany.id, id: entry.id }, {
+      onSuccess: () => {
+        trackEvent("journal_entry_draft_deleted");
+        setDetailEntry(null);
+        queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey(activeCompany.id) });
+      },
+      onError: (error: any) => {
+        window.alert(error?.data?.error ?? error?.message ?? "Osnutka ni bilo mogoče izbrisati.");
+      },
+    });
+  };
+
   const clearFilters = () => {
     setPeriodFilter("all");
     setStatusFilter("all");
     setCostCenterFilter("all");
     setProjectFilter("all");
     setDepartmentFilter("all");
+    setEntryKindFilter("all");
+  };
+
+  const showPendingMonthlyEntries = () => {
+    setPeriodFilter("all");
+    setStatusFilter("draft");
+    setCostCenterFilter("all");
+    setProjectFilter("all");
+    setDepartmentFilter("all");
+    setEntryKindFilter("monthly-pos");
   };
 
   if (error) {
@@ -153,6 +267,10 @@ export default function Temeljnice() {
           <p className="text-muted-foreground mt-1">Upravljanje z dnevniki in knjiženjem prometa.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setExportPeriodOpen(true)} disabled={!activeCompany}>
+            <Download className="mr-2 h-4 w-4" />
+            Izvozi za računovodstvo
+          </Button>
           {activeCompany?.role !== "viewer" && (
             <Button onClick={() => setNewEntryOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -162,8 +280,39 @@ export default function Temeljnice() {
         </div>
       </div>
 
+      {pendingMonthlyEntries.length > 0 && (
+        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <AlertTitle>
+            {pendingMonthlyEntries.length} {pendingMonthlyEntries.length === 1
+              ? "mesečna POS temeljnica čaka"
+              : "mesečnih POS temeljnic čaka"} na knjiženje
+          </AlertTitle>
+          <AlertDescription className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Meseci: {pendingMonthlyMonths.map((month) =>
+                new Date(`${month}-01T00:00:00Z`).toLocaleDateString("sl-SI", {
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "UTC",
+                }),
+              ).join(", ")}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-fit border-amber-400 bg-white hover:bg-amber-100"
+              onClick={showPendingMonthlyEntries}
+            >
+              Prikaži osnutke
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col gap-4 bg-card p-4 rounded-lg border shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground">Obdobje</Label>
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -175,6 +324,19 @@ export default function Temeljnice() {
                 {periods.map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Vrsta</Label>
+            <Select value={entryKindFilter} onValueChange={setEntryKindFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Vse temeljnice" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Vse temeljnice</SelectItem>
+                <SelectItem value="monthly-pos">Mesečni POS osnutki</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -246,7 +408,7 @@ export default function Temeljnice() {
           )}
         </div>
 
-        {(periodFilter !== "all" || statusFilter !== "all" || costCenterFilter !== "all" || projectFilter !== "all" || departmentFilter !== "all") && (
+        {(periodFilter !== "all" || statusFilter !== "all" || costCenterFilter !== "all" || projectFilter !== "all" || departmentFilter !== "all" || entryKindFilter !== "all") && (
           <div className="flex">
             <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground h-8 px-3 text-xs">
               Počisti filtre
@@ -260,7 +422,7 @@ export default function Temeljnice() {
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-[400px] w-full" />
         </div>
-      ) : entries.length === 0 ? (
+      ) : visibleEntries.length === 0 ? (
         <div className="border border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center bg-card">
           <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
             <FileText className="h-8 w-8 text-muted-foreground" />
@@ -277,20 +439,21 @@ export default function Temeljnice() {
           )}
         </div>
       ) : (
-        <div className="border rounded-lg bg-card overflow-hidden">
+        <div className="border rounded-lg bg-card overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[120px]">Datum</TableHead>
                 <TableHead>Opis</TableHead>
+                <TableHead className="w-[250px]">Referenca</TableHead>
                 <TableHead className="w-[90px]">Izvor</TableHead>
                 <TableHead className="w-[150px]">Obdobje</TableHead>
                 <TableHead className="w-[120px]">Status</TableHead>
-                <TableHead className="w-[160px] text-right">Dejanja</TableHead>
+                <TableHead className="w-[250px] text-right">Dejanja</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(entries as JournalEntryWithDims[]).map(entry => (
+              {(visibleEntries as JournalEntryWithDims[]).map(entry => (
                 <TableRow 
                   key={entry.id} 
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -325,6 +488,21 @@ export default function Temeljnice() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {entry.reference || "—"}
+                      </span>
+                      {classifyPosJournalReference(entry.reference) === "monthly" && (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                          Mesečni
+                        </Badge>
+                      )}
+                      {classifyPosJournalReference(entry.reference) === "daily" && (
+                        <Badge variant="secondary">Dnevni</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {entry.sourceType ? (
                       <Badge variant="secondary" className={`text-[10px] py-0 ${SOURCE_COLORS[entry.sourceType] ?? ""}`}>
                         {SOURCE_LABELS[entry.sourceType] ?? entry.sourceType}
@@ -340,10 +518,22 @@ export default function Temeljnice() {
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
                       {entry.status === "draft" && activeCompany?.role !== "viewer" && (
-                        <Button variant="outline" size="sm" onClick={(e) => handlePost(e, entry.id)} disabled={postMut.isPending}>
-                          {postMut.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-2 h-3 w-3 text-green-600" />}
-                          Poknjiži
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => handleDelete(e, entry)}
+                            disabled={deleteMut.isPending}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            {deleteMut.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Trash2 className="mr-2 h-3 w-3" />}
+                            Izbriši
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={(e) => handlePost(e, entry.id)} disabled={postMut.isPending}>
+                            {postMut.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-2 h-3 w-3 text-green-600" />}
+                            Poknjiži
+                          </Button>
+                        </>
                       )}
                       {entry.status === "posted" && activeCompany?.role !== "viewer" && (
                         <Button variant="outline" size="sm" onClick={(e) => handleStornoClick(e, entry)}>
@@ -370,6 +560,8 @@ export default function Temeljnice() {
           open={!!detailEntry} 
           onOpenChange={(v) => { if (!v) setDetailEntry(null); }}
           onStorno={(entry) => setStornoEntry(entry)}
+          onDelete={(entry) => handleDelete(null, entry)}
+          deletePending={deleteMut.isPending}
         />
       )}
 
@@ -381,7 +573,119 @@ export default function Temeljnice() {
           onSuccess={() => setStornoEntry(null)} 
         />
       )}
+
+      {activeCompany && (
+        <ExportPeriodDialog
+          companyId={activeCompany.id}
+          open={exportPeriodOpen}
+          onOpenChange={setExportPeriodOpen}
+        />
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EXPORT PERIOD DIALOG
+// ---------------------------------------------------------------------------
+
+function ExportPeriodDialog({ companyId, open, onOpenChange }: {
+  companyId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { getToken } = useAuth();
+  const now = new Date();
+  const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  // Zadnji dan meseca: new Date(y, m, 0) vrne lokalni datum — ne smemo toISOString(),
+  // ker UTC+2 lokalno polnoč postane prejšnji dan v UTC. Gradimo iz lokalnih komponent.
+  const _lastDayDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const lastDay = `${_lastDayDate.getFullYear()}-${String(_lastDayDate.getMonth() + 1).padStart(2, "0")}-${String(_lastDayDate.getDate()).padStart(2, "0")}`;
+  const [from, setFrom] = useState(firstDay);
+  const [to, setTo] = useState(lastDay);
+  const [format, setFormat] = useState("csv");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) { setErr(null); }
+  }, [open]);
+
+  const handleDownload = async () => {
+    if (!from || !to || from > to) { setErr("Datum Od mora biti ≤ Do."); return; }
+    setBusy(true);
+    setErr(null);
+    try {
+      const token = await getToken();
+      await downloadPeriod(companyId, from, to, format, token ?? "");
+      onOpenChange(false);
+    } catch (e: any) {
+      setErr(e.message ?? "Napaka pri prenosu.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const formatLabel: Record<string, string> = {
+    csv: "CSV (podpičje, UTF-8 BOM)",
+    xml: "BOOKIE XML v1",
+    pdf: "PDF zbirnik",
+    zip: "ZIP (CSV + XML + PDF)",
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Izvoz temeljnic za zunanje računovodstvo
+          </DialogTitle>
+          <DialogDescription>
+            Prenesite temeljnice v izbranem obdobju v obliki po vaši izbiri.
+            Datoteka vsebuje vse temeljnice (osnutki in poknjižene).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Datum od</Label>
+              <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Datum do</Label>
+              <Input type="date" value={to} onChange={e => setTo(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Format</Label>
+            <Select value={format} onValueChange={setFormat}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(formatLabel).map(([val, label]) => (
+                  <SelectItem key={val} value={val}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {err && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{err}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Prekliči</Button>
+          <Button onClick={handleDownload} disabled={busy || !from || !to}>
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Prenesi {formatLabel[format]?.split(" ")[0]}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -398,14 +702,14 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   const openPeriods = periods.filter(p => p.status === "open");
 
   const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id } as any });
-  const accounts = accountsData?.accounts?.filter(a => a.isActive && !a.parentId) || []; 
-  // Normally you'd select analytic accounts (those that don't have children or are designated as selectable). 
-  // Let's assume accounts without children in the tree, or we just list all active accounts.
-  // Actually, we'll list all active accounts but typically you post to analytic.
+  // activeAccounts: za lookup (najdi že izbrani konto, dimenzije) — vključuje vse aktivne
   const activeAccounts = accountsData?.accounts?.filter(a => a.isActive) || [];
+  // postableAccounts: samo knjižljivi analitični konti (allowsPosting !== false) — za izbiro pri vnosu vrstice
+  const postableAccounts = activeAccounts.filter(a => a.allowsPosting !== false);
 
   const [periodId, setPeriodId] = useState("");
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split("T")[0]);
+  const [receiptDate, setReceiptDate] = useState("");
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [autoPost, setAutoPost] = useState(false);
@@ -423,12 +727,12 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   const departments = departmentsData?.departments ?? [];
 
   const [lines, setLines] = useState([
-    { id: "1", accountId: "", side: "debit" as const, amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "" },
-    { id: "2", accountId: "", side: "credit" as const, amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "" },
+    { id: "1", accountId: "", side: "debit" as const, amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "", companyVatCodeId: "", vatCodeId: "", vatAmount: "", vatDeductionPercent: "100", showVat: false },
+    { id: "2", accountId: "", side: "credit" as const, amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "", companyVatCodeId: "", vatCodeId: "", vatAmount: "", vatDeductionPercent: "100", showVat: false },
   ]);
 
   const addLine = () => {
-    setLines([...lines, { id: Math.random().toString(), accountId: "", side: "debit", amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "" }]);
+    setLines([...lines, { id: Math.random().toString(), accountId: "", side: "debit", amount: "", description: "", partnerId: "", costCenterId: "", projectId: "", departmentId: "", companyVatCodeId: "", vatCodeId: "", vatAmount: "", vatDeductionPercent: "100", showVat: false }]);
   };
 
   const removeLine = (id: string) => {
@@ -437,7 +741,20 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
   };
 
   const updateLine = (id: string, field: string, value: any) => {
-    setLines(lines.map(l => l.id === id ? { ...l, [field]: value } : l));
+    setLines(lines.map(l => {
+      if (l.id !== id) return l;
+      if (field === "accountId") {
+        const account = activeAccounts.find(a => a.id === value);
+        const costCenterPolicy = account?.costCenterPolicy
+          ?? (account?.requiresCostCenter ? "required" : "allowed");
+        return {
+          ...l,
+          accountId: value,
+          costCenterId: costCenterPolicy === "not_allowed" ? "" : l.costCenterId,
+        };
+      }
+      return { ...l, [field]: value };
+    }));
   };
 
   const totals = useMemo(() => {
@@ -450,6 +767,47 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
     });
     return { debit, credit, balanced: Math.abs(debit - credit) < 0.001 };
   }, [lines]);
+
+  const { data: fursCodesData } = useListCompanyFursVatCodes(
+    activeCompany?.id ?? "",
+    {},
+    { query: { enabled: !!activeCompany?.id } as any },
+  );
+  const fursCodes = fursCodesData?.codes ?? [];
+  const { data: companyVatCodesData } = useListVatCodes(
+    activeCompany?.id ?? "",
+    { includeInactive: false },
+    { query: { enabled: !!activeCompany?.id } as any },
+  );
+  const companyVatCodes = (companyVatCodesData?.vatCodes ?? []).filter(code => code.fursCodeId);
+
+  /**
+   * Zamenjava vatCodeId na vrstici:
+   * - Neodbitna koda (isNonDeductible=true, npr. PN22/PN5/PN95): privzeto postavi vatDeductionPercent=0
+   * - Navadna koda: če je bil vatDeductionPercent=0 (iz prejšnje neodbitne), ga vrni na 100
+   * - Samodejno izračuna vatAmount = amount × rate / 100 (če vatAmount prazen)
+   * Računovodja lahko vse vrednosti ročno popravi.
+   */
+  const handleVatCodeChange = (lineId: string, companyVatCodeId: string) => {
+    setLines(prev => prev.map(l => {
+      if (l.id !== lineId) return l;
+      if (!companyVatCodeId) {
+        return { ...l, companyVatCodeId: "", vatCodeId: "", vatAmount: "", vatDeductionPercent: "100" };
+      }
+      const companyCode = companyVatCodes.find(c => c.id === companyVatCodeId);
+      const vatCodeId = companyCode?.fursCodeId ?? "";
+      const code = fursCodes.find(c => c.id === vatCodeId);
+      const newDeductionPct = code?.isNonDeductible ? "0" : (l.vatDeductionPercent === "0" ? "100" : l.vatDeductionPercent);
+      // Auto-izračun vatAmount (samo če je prazen ali nespremenjen)
+      let newVatAmount = l.vatAmount;
+      if (code && parseFloat(l.amount) > 0 && (!l.vatAmount || l.vatAmount === "0")) {
+        const base = parseFloat(l.amount);
+        const rate = parseFloat(code.rate);
+        newVatAmount = (base * rate / 100).toFixed(2);
+      }
+      return { ...l, companyVatCodeId, vatCodeId, vatAmount: newVatAmount, vatDeductionPercent: newDeductionPct };
+    }));
+  };
 
   const createMut = useCreateJournalEntry();
 
@@ -464,6 +822,11 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
       costCenterId: l.costCenterId || null,
       projectId: l.projectId || null,
       departmentId: l.departmentId || null,
+      // DDV polja — samo ko so nastavljena
+      companyVatCodeId: l.companyVatCodeId || null,
+      vatCodeId: l.vatCodeId || null,
+      vatAmount: l.vatCodeId && l.vatAmount ? parseFloat(l.vatAmount) : null,
+      vatDeductionPercent: l.vatCodeId ? parseFloat(l.vatDeductionPercent || "100") : null,
     }));
 
     if (finalLines.length < 2) return;
@@ -473,33 +836,36 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
       data: {
         periodId,
         entryDate,
+        receiptDate: receiptDate || undefined,
         description,
         reference: reference || null,
         autoPost,
         lines: finalLines
-      }
+      } as any
     }, {
       onSuccess: () => {
+        trackEvent("journal_entry_saved", {
+          auto_post: autoPost,
+          line_count_bucket: finalLines.length <= 2 ? "2" : finalLines.length <= 5 ? "3_5" : "6_plus",
+          has_vat: finalLines.some(line => Boolean(line.vatCodeId)),
+          has_dimensions: finalLines.some(line => Boolean(line.partnerId || line.costCenterId || line.projectId || line.departmentId)),
+        });
         queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey(activeCompany.id) });
         onOpenChange(false);
       }
     });
   };
-  useF2Save(handleSave, canSave && !createMut.isPending);
 
-  // set default period if open periods exist
-  useEffect(() => {
-    if (open && openPeriods.length > 0 && !periodId) {
-      setPeriodId(openPeriods[0].id);
-    }
-  }, [open, openPeriods, periodId]);
-
+  // Izračun veljavnosti pred useF2Save (hook mora biti poklican v istem vrstnem redu)
   const validLines = lines.filter(l => l.accountId && parseFloat(l.amount) > 0);
   const dimensionErrors = validLines.some(l => {
     const acc = activeAccounts.find(a => a.id === l.accountId);
     if (!acc) return false;
+    const costCenterPolicy = acc.costCenterPolicy
+      ?? (acc.requiresCostCenter ? "required" : "allowed");
     if (acc.requiresPartner && !l.partnerId) return true;
-    if (acc.requiresCostCenter && !l.costCenterId) return true;
+    if (costCenterPolicy === "required" && !l.costCenterId) return true;
+    if (costCenterPolicy === "not_allowed" && !!l.costCenterId) return true;
     if (acc.requiresProject && !l.projectId) return true;
     return false;
   });
@@ -508,7 +874,16 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
     const acc = activeAccounts.find(a => a.id === l.accountId);
     return acc ? acc.allowsPosting === false : false;
   });
-  const canSave = periodId && description && validLines.length >= 2 && (!autoPost || totals.balanced) && !dimensionErrors && !groupAccountErrors;
+  const canSave = !!(periodId && description && validLines.length >= 2 && (!autoPost || totals.balanced) && !dimensionErrors && !groupAccountErrors);
+
+  useF2Save(handleSave, canSave && !createMut.isPending);
+
+  // set default period if open periods exist
+  useEffect(() => {
+    if (open && openPeriods.length > 0 && !periodId) {
+      setPeriodId(openPeriods[0].id);
+    }
+  }, [open, openPeriods, periodId]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -538,6 +913,15 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Datum prejema računa — §67 ZDDV-1, D4-2 — vidno samo pri vhodnih DDV knjižbah */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              Datum prejema računa
+              <span className="text-xs text-muted-foreground font-normal">(§67 ZDDV-1, KPR D4-2 — opcijsko)</span>
+            </Label>
+            <Input type="date" value={receiptDate} onChange={e => setReceiptDate(e.target.value)} />
           </div>
 
           <div className="space-y-2">
@@ -576,7 +960,7 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                           <SelectValue placeholder="Izberite konto..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {activeAccounts.map(a => (
+                          {postableAccounts.map(a => (
                             <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -618,13 +1002,108 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
                     </div>
                   </div>
 
+                  {/* ── DDV sekcija (neobvezno — vstopni DDV) ─────────────── */}
+                  {(() => {
+                    const selectedCompanyVatCode = companyVatCodes.find(c => c.id === line.companyVatCodeId);
+                    const selectedFursCode = fursCodes.find(c => c.id === line.vatCodeId);
+                    return (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => updateLine(line.id, "showVat", !line.showVat)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-0.5"
+                        >
+                          <ChevronRight className={`h-3 w-3 transition-transform duration-150 ${line.showVat ? "rotate-90" : ""}`} />
+                           DDV (neobvezno)
+                          {line.companyVatCodeId && (
+                            <span className="ml-1 inline-flex items-center gap-0.5 rounded-full border border-blue-300 bg-blue-50 px-1.5 py-0 text-xs text-blue-700 font-medium">
+                              <Receipt className="h-2.5 w-2.5" />
+                              {selectedCompanyVatCode?.code ?? selectedFursCode?.code ?? "DDV"}
+                            </span>
+                          )}
+                        </button>
+
+                        {line.showVat && (
+                          <div className="mt-2 rounded-md border bg-muted/20 p-3 space-y-3">
+                            <div className="grid grid-cols-[1fr_130px] gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Podjetniška DDV koda</Label>
+                                <Select
+                                  value={line.companyVatCodeId || "__none__"}
+                                  onValueChange={val => handleVatCodeChange(line.id, val === "__none__" ? "" : val)}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Izberite kodo…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__none__">— brez DDV —</SelectItem>
+                                    {companyVatCodes.map(c => (
+                                      <SelectItem key={c.id} value={c.id}>
+                                        <span className="font-mono text-xs mr-1">{c.code}</span>
+                                        — {c.name} → {c.fursCode} ({c.fursCodeDirection === "IN" ? "vstopna" : "izstopna"})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">DDV znesek (EUR)</Label>
+                                <Input
+                                  type="number" min="0" step="0.01"
+                                  value={line.vatAmount}
+                                  onChange={e => updateLine(line.id, "vatAmount", e.target.value)}
+                                  className="h-9 text-right"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                Odbitek DDV %
+                                <span
+                                  title="Delež vstopnega DDV, ki ga smete odbiti (npr. 0 % neodbitno, 50 % reprezentanca/obroki, 100 % polno)."
+                                  className="cursor-help"
+                                >
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </span>
+                              </Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number" min="0" max="100" step="1"
+                                  value={line.vatDeductionPercent}
+                                  onChange={e => updateLine(line.id, "vatDeductionPercent", e.target.value)}
+                                  className="h-9 text-right w-24"
+                                />
+                                <span className="text-sm text-muted-foreground">%</span>
+                                {selectedFursCode?.isNonDeductible && (
+                                  <span className="flex items-center gap-1 text-xs text-amber-700">
+                                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                                    Neodbitna koda — DDV gre v P17
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Odbitni DDV → P18/P19/P20 (polji 41–43 DDV-O). Neodbitni del → P17. Računovodja odloči.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Dimenzije ─────────────────────────────────────────── */}
                   {(() => {
                     const selAcc = activeAccounts.find(a => a.id === line.accountId);
                     const reqPartner = selAcc?.requiresPartner ?? false;
-                    const reqCostCenter = selAcc?.requiresCostCenter ?? false;
+                    const costCenterPolicy = selAcc?.costCenterPolicy
+                      ?? (selAcc?.requiresCostCenter ? "required" : "allowed");
+                    const reqCostCenter = costCenterPolicy === "required";
                     const reqProject = selAcc?.requiresProject ?? false;
                     const showPartner = counterparties.length > 0 || reqPartner;
-                    const showCostCenter = costCenters.length > 0 || reqCostCenter;
+                    const showCostCenter = costCenterPolicy !== "not_allowed"
+                      && (costCenters.length > 0 || reqCostCenter);
                     const showProject = projects.length > 0 || reqProject;
                     const showDept = departments.length > 0;
                     return (
@@ -751,8 +1230,31 @@ function NewEntrySheet({ open, onOpenChange }: { open: boolean, onOpenChange: (o
 // DETAIL ENTRY SHEET
 // ---------------------------------------------------------------------------
 
-function DetailEntrySheet({ entry, open, onOpenChange, onStorno }: { entry: JournalEntry, open: boolean, onOpenChange: (open: boolean) => void, onStorno: (entry: JournalEntry) => void }) {
+function DetailEntrySheet({ entry, open, onOpenChange, onStorno, onDelete, deletePending }: {
+  entry: JournalEntry;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onStorno: (entry: JournalEntry) => void;
+  onDelete: (entry: JournalEntry) => void;
+  deletePending: boolean;
+}) {
   const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
+  const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+
+  const handleEntryDownload = async (format: string) => {
+    if (!activeCompany) return;
+    setDownloadBusy(format);
+    try {
+      const token = await getToken();
+      const baseName = entry.reference ? entry.reference.replace(/[^a-zA-Z0-9._-]/g, "_") : `temeljnica-${entry.id.slice(0, 8)}`;
+      await downloadEntry(activeCompany.id, entry.id, format, baseName, token ?? "");
+    } catch (e: any) {
+      alert(e.message ?? "Napaka pri prenosu.");
+    } finally {
+      setDownloadBusy(null);
+    }
+  };
 
   // Pridobi polni zapis temeljnice z vrsticami (list endpoint ne vrne lines)
   const { data: fullEntry, isLoading: linesLoading } = useGetJournalEntry(
@@ -888,8 +1390,43 @@ function DetailEntrySheet({ entry, open, onOpenChange, onStorno }: { entry: Jour
           </div>
         </div>
 
-        <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4">
+        <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4 flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Zapri</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={!!downloadBusy}>
+                {downloadBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Izvozi
+                <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Zunanji računovodski program</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleEntryDownload("csv")}>
+                <FileText className="mr-2 h-4 w-4" />CSV (podpičje, UTF-8)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEntryDownload("xml")}>
+                <FileText className="mr-2 h-4 w-4" />BOOKIE XML v1
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEntryDownload("pdf")}>
+                <FileText className="mr-2 h-4 w-4" />PDF zbirnik
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEntryDownload("zip")}>
+                <FileText className="mr-2 h-4 w-4" />ZIP (CSV + XML + PDF)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {entry.status === "draft" && activeCompany?.role !== "viewer" && (
+            <Button
+              variant="destructive"
+              onClick={() => onDelete(entry)}
+              disabled={deletePending}
+            >
+              {deletePending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Izbriši osnutek
+            </Button>
+          )}
           {entry.status === 'posted' && (
             <Button variant="secondary" onClick={() => { onOpenChange(false); onStorno(entry); }}>
               <ArrowRightLeft className="mr-2 h-4 w-4" />

@@ -1,0 +1,33 @@
+na katere konte v dvostavnem knjigovodstvu se določa stroškovno mesto
+
+V dvostavnem knjigovodstvu se stroškovna mesta določajo na analitične konte razredov 4, 7 in 0. Podatki o stroškovnih mestih omogočajo spremljanje nastanka stroškov ter analizo uspešnosti po posameznih dejavnostih, projektih, objektih ali poslovnih enotah (npr. Šank, Kuhinja, Terasa, Uprava).
+
+1. Razred 4 – Stroški (Glavno področje)
+To je primarno področje, kjer je vnos stroškovnega mesta obvezen ali ključen:
+
+Konto 400–409 (Stroški materiala in embalaže): Poraba pijače, hrane, drobnega inventarja, embalaže po lokacijah/šankih.
+
+Konto 410–419 (Stroški storitev): Najemnine, elektrika, komunalne storitve, vzdrževanje, telefoni za posamezno enoto ali lokacijo.
+
+Konto 470–479 (Stroški dela): Plače, prehrana, prevoz in prispevki zaposlenih, razdeljeni po oddelkih (npr. strežba vs. kuhinja vs. uprava).
+
+Konto 430–439 (Amortizacija): Amortizacija opreme, ki se nahaja na konkretnem stroškovnem mestu (npr. gostinska oprema kuhinje vs. pisarniška oprema).
+
+2. Razred 7 – Poslovni odhodki in prihodki (Spremljanje uspešnosti)
+Za ugotavljanje poslovnega rezultata po posameznih enotah (iskanje dobičkonosnosti po stroškovnih/nosilnih mestih):
+
+Konti razreda 70 / 71 (Nabavna vrednost prodanega blaga in materiala): Prenos stroškov materiala/blaga na posamezno mesto prodaje.
+
+Konti razreda 76 (Poslovni prihodki): Če sistem omogoča vezavo prihodkov na stroškovno/nosilno mesto (npr. prihodki od prodaje po posameznih šankih ali poslovnih enotah).
+
+3. Razred 0 – Opredmetena osnovna sredstva (Naložbe in oprema)
+Stroškovno mesto se pripiše opremi ob nabavi, da se ve, kje se fizično nahaja:
+
+Konti razreda 04 (Oprema in druga osnovna sredstva): Npr. gostinski aparati, registracijske blagajne, vozila (za lažje izvajanje inventure in avtomatski obračun amortizacije na pravo stroškovno mesto v razredu 4).
+
+Kje se stroškovna mesta praviloma NE določajo?
+Razred 1 (Denarna sredstva in terjatve): Bančni računi, blagajna (vodi se po sintetičnih ali analitičnih kontih računov/blagajn, ne po SM).
+
+Razred 2 (Obveznosti): Obveznosti do dobaviteljev, države ali zaposlenih so vezane na partnerja (analitika dobaviteljev), ne na stroškovno mesto.
+
+Razred 9 (Kapital in obveznosti iz financiranja).

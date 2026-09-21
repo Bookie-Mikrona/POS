@@ -1,0 +1,930 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bookie Local Gateway /v1 fiscal protocol",
+    "version": "1.0.0",
+    "description": "Normative cross-platform contract. Implementations MUST NOT add a second local fiscal API."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:17831/v1"
+    }
+  ],
+  "x-production-envelope-format": "furs-v2",
+  "x-furs-v2-golden": {
+    "artifact": "golden-vectors-furs-v2.json",
+    "schema": "bookie-furs-v2-golden-v1",
+    "environmentVariable": "OFFLINE_FISCAL_GOLDEN_ATTESTATION_SHA256"
+  },
+  "x-canonicalization": {
+    "id": "bookie-canonical-json-v1",
+    "encoding": "UTF-8",
+    "rules": [
+      "Objects are emitted with keys sorted by Unicode code point, no whitespace.",
+      "Arrays retain order.",
+      "Strings, booleans, null and numbers use JSON encoding.",
+      "undefined, NaN, Infinity, exponent notation and negative zero are forbidden.",
+      "Legal monetary values and quantities are decimal strings, never JSON numbers."
+    ]
+  },
+  "x-authentication": {
+    "publicPaths": [
+      "GET /capabilities",
+      "POST /pair",
+      "POST /provisioning/proof"
+    ],
+    "headers": [
+      "X-Bookie-Client-Id",
+      "X-Bookie-Timestamp",
+      "X-Bookie-Nonce",
+      "X-Bookie-Signature"
+    ],
+    "signatureInput": "METHOD\\n/v1/path[?canonical-query]\\nX-Bookie-Timestamp\\nX-Bookie-Nonce\\nhex(sha256(raw-body))",
+    "algorithm": "HMAC-SHA256 lowercase hex",
+    "timestampToleranceSeconds": 300,
+    "nonce": "Base64url, at least 128 random bits, accepted once per pairing in the timestamp window",
+    "cors": "An exact configured HTTPS POS origin. Wildcard and reflected origins are forbidden.",
+    "maxBodyBytes": 65536
+  },
+  "x-furs-v2-derivation": [
+    "Verify OfflineAuthorityBundle canonical JSON SHA-256 and RSA-SHA256 signature, scope, authorityVersion, revocation and validity before allocation.",
+    "localReceiptId is RFC 4122 UUIDv5(namespace=operationId,name='receipt'); issueReservationId is UUIDv5(operationId,'issue-reservation'); snapshotId is UUIDv5(operationId,'furs-snapshot'); canonicalArtifactLink is 'offline:' + operationId.",
+    "Atomically allocate the next positive sequence for the bundle PP and B, then legalNumber is PP-B-sequence with the decimal sequence unpadded.",
+    "issuedAt is captured once with the Europe/Ljubljana offset and reused byte-for-byte; it must be inside bundle validity.",
+    "Fill FinalizationPlan.receipt, reservations and furs from these derived values and the sealed canonical FURS artifact; no server database ID is locally invented.",
+    "LegalInvoiceCore is immutable legal evidence and contains no MessageID, InvoiceRequest Id, signed SOAP XML, XMLDSig, payload bytes or transport timestamp.",
+    "Device RSA-SHA256 signature input is canonical JSON of exactly: operationId, deviceId, poslovniProstorId, poslovniProstorOznaka, bIdentifier, sequence, payloadSha256, issuedAt, interruptionStartedAt, operatorReference, orderId, paymentReference and paymentMethod."
+  ],
+  "x-furs-v2-transport": {
+    "messageIdNamespace": "7f14bb3e-89d4-5e84-aec8-1ce261acbe10",
+    "messageId": "RFC4122 UUIDv5(namespace=operationId, name='furs-v2:invoice-message:' + attemptNo)",
+    "invoiceRequestId": "'InvoiceRequest-' + localReceiptId without hyphens + '-' + operationId without hyphens + '-A' + attemptNo",
+    "replay": "There is no FURS status-query endpoint. Every resend appends a new positive attemptNo and builds fresh MessageID, InvoiceRequest Id, header DateTime, XMLDSig and bytes; an old attempt is never retransmitted."
+  },
+  "x-server-sync-authentication": {
+    "headers": ["X-Bookie-Device-Id", "X-Bookie-Timestamp", "X-Bookie-Nonce", "X-Bookie-Body-SHA256", "X-Bookie-Signature"],
+    "signatureInput": "METHOD\\nPATH_WITH_QUERY\\nTIMESTAMP\\nNONCE\\nLOWERCASE_HEX_SHA256_RAW_BODY",
+    "algorithm": "RSA-SHA256",
+    "timestampToleranceSeconds": 300,
+    "nonceMinimumBits": 128,
+    "maxBodyBytes": 65536
+  },
+  "x-device-registration-proof": {
+    "algorithm": "RSA-SHA256",
+    "signatureInputUtf8": "bookie-device-registration-v1\\n<challengeId>\\n<challenge>\\n<lowercase-hex-sha256-SPKI-DER>",
+    "lineSeparator": "LF",
+    "trailingLf": false,
+    "publicKeyEncoding": "Input/output is PEM SubjectPublicKeyInfo canonicalized by parsing and re-exporting with LF line endings and exactly one terminal LF. Fingerprints are SHA-256 over the decoded canonical SubjectPublicKeyInfo DER bytes, never over PEM text and never over trimmed text.",
+    "privateKeyHandling": "The persistent device RSA private key is generated and retained by the loopback service and MUST NOT be returned to POS, browser, or cloud."
+  },
+  "x-provisioning-install": {
+    "authentication": "POST /provisioning/install is loopback/admin-token protected; per-client LAN requests authenticate with X-Bookie-Client-Id plus HMAC timestamp/nonce/signature. Legacy X-Bookie-Pairing is accepted only on loopback.",
+    "atomicValidationOrder": [
+      "reject body larger than 65536 bytes before JSON processing",
+      "validate exact ProvisioningBundle schema",
+      "canonicalize the object excluding payloadSha256 and signatureBase64",
+      "verify payloadSha256 and RSA-SHA256 signature against the locally pinned authority key and keyId",
+      "verify validity interval, contract version and golden attestation",
+      "verify bundle device public-key registration identity and local FURS certificate fingerprint",
+      "enforce anti-rollback rules",
+      "atomically persist bundle, maximum versions and trusted sync/config values"
+    ],
+    "antiRollback": {
+      "sameBundleId": "Only byte-for-byte/canonical equality is idempotently accepted.",
+      "version": "version MUST be greater than the stored maximum version for a different bundleId.",
+      "authorityVersion": "authority.version MUST be greater than or equal to the stored maximum authority version.",
+      "deviceVersion": "revocation.deviceVersion MUST be greater than or equal to the stored maximum device version.",
+      "minimumAcceptedVersion": "Reject when version is less than revocation.minimumAcceptedVersion or the locally stored minimum accepted version. Persist the maximum minimumAcceptedVersion.",
+      "deviceIdentity": "After first install, device.id, companyId, enotaId, poslovniProstorId, poslovniProstorOznaka, bIdentifier and publicKeyFingerprintSha256 are immutable unless a local administrator explicitly resets provisioning. The fingerprint MUST equal the locally generated persistent device SPKI key fingerprint."
+    }
+  },
+  "x-loopback-admin-certificate": {
+    "listen": "127.0.0.1 only; never exposed on LAN interfaces",
+    "origin": "null for the service-hosted form, or the exact configured HTTPS admin origin; all other Origin values are rejected",
+    "authentication": "OS administrator privilege plus an expiring single-use local confirmation token displayed/approved on the same machine",
+    "csrf": "POST requires a SameSite=Strict HttpOnly session cookie and matching one-time X-Bookie-Local-Confirmation header; token is consumed atomically",
+    "maxBodyBytes": 10485760,
+    "secretHandling": "PKCS#12 bytes and password are accepted only by the loopback service, are never returned or logged, and never transit POS or cloud.",
+    "response": "Only certificate fingerprint and validity metadata are returned.",
+    "bundleBinding": "Import MUST fail unless the certificate SHA-256 fingerprint equals the installed ProvisioningBundle furs.expectedCertificateFingerprint."
+  },
+  "paths": {
+    "/capabilities": {
+      "get": {
+        "summary": "Non-sensitive service identity and readiness",
+        "responses": {
+          "200": {
+            "description": "Capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/$defs/Capability"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pair": {
+      "post": {
+        "summary": "Exchange a one-time locally displayed code for a pairing secret",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/$defs/PairRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paired"
+          },
+          "401": {
+            "description": "Code invalid, expired, or already consumed"
+          },
+          "429": {
+            "description": "Pairing attempts throttled"
+          }
+        }
+      }
+    },
+    "/provisioning/proof": {
+      "post": {
+        "summary": "Generate or reuse the persistent device RSA key and prove possession over a server challenge",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalProvisioningProofRequest" } } } },
+        "responses": { "200": { "description": "Public-key proof; private key never leaves the service", "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalProvisioningProofResponse" } } } } }
+      }
+    },
+    "/provisioning/install": {
+      "post": {
+        "summary": "Atomically validate and install the exact server-signed provisioning bundle",
+        "description": "Loopback-only. Requires established pairing authentication. Enforces x-provisioning-install including anti-rollback.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/$defs/ProvisioningBundle" } } } },
+        "responses": {
+          "200": { "description": "Installed or exact idempotent replay", "content": { "application/json": { "schema": { "$ref": "#/$defs/ProvisioningInstallResponse" } } } },
+          "409": { "description": "Rollback, identity, fingerprint, validity, attestation, or authority conflict" },
+          "413": { "description": "Body exceeds 65536 bytes" }
+        }
+      }
+    },
+    "/admin/certificate": {
+      "get": {
+        "summary": "Render or describe the loopback-only certificate import flow",
+        "responses": { "200": { "description": "No certificate secret is returned", "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalCertificateStatus" } } } } }
+      },
+      "post": {
+        "summary": "Import PKCS#12 directly into the loopback service",
+        "description": "Requires OS administrator privilege, strict loopback/origin checks, SameSite session CSRF protection, and an expiring one-time local confirmation.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalCertificateImport" } } } },
+        "responses": {
+          "200": { "description": "Imported; secrets are discarded from the request path", "content": { "application/json": { "schema": { "$ref": "#/$defs/LocalCertificateStatus" } } } },
+          "409": { "description": "Fingerprint does not match installed provisioning bundle" },
+          "413": { "description": "Body exceeds 10485760 bytes" }
+        }
+      }
+    },
+    "/receipts/cash": {
+      "post": {
+        "summary": "Durably seal one cash receipt",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/$defs/CashIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "New sealed receipt"
+          },
+          "200": {
+            "description": "Byte-equivalent sealed envelope from an exact operation replay"
+          },
+          "409": {
+            "description": "operationId exists with a different canonical request"
+          },
+          "503": {
+            "description": "Service is not production-ready"
+          }
+        }
+      }
+    },
+    "/receipts/{operationId}": {
+      "get": {
+        "summary": "Resolve an issuance whose transport result was unknown",
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sealed envelope"
+          },
+          "404": {
+            "description": "Operation is not present in the authoritative ledger"
+          }
+        }
+      }
+    },
+    "/queue": {
+      "get": {
+        "summary": "Authoritative durable queue used to rebuild the browser projection",
+        "responses": {
+          "200": {
+            "description": "Queue snapshot"
+          }
+        }
+      }
+    },
+    "/sync": {
+      "post": {
+        "summary": "Request one controlled sync pass; unknown submissions are not retried",
+        "responses": {
+          "202": {
+            "description": "Sync pass accepted"
+          },
+          "409": {
+            "description": "Manual reconciliation is required"
+          }
+        }
+      }
+    },
+    "/gateway/health": {
+      "get": { "summary": "Gateway health and diagnostic status", "responses": { "200": { "description": "Health" } } }
+    },
+    "/gateway/capabilities": {
+      "get": { "summary": "Supported LAN operations", "responses": { "200": { "description": "Capabilities" } } }
+    },
+    "/gateway/snapshot": {
+      "get": { "summary": "Current gateway projections", "responses": { "200": { "description": "Snapshot" } } }
+    },
+    "/gateway/events": {
+      "get": { "summary": "Resume append-only event stream", "responses": { "200": { "description": "Events" } } }
+    }
+  },
+  "$defs": {
+    "Decimal": {
+      "type": "string",
+      "pattern": "^-?(0|[1-9][0-9]*)\\.[0-9]{2,3}$"
+    },
+    "PairRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "clientName"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[0-9]{6}$"
+        },
+        "clientName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      }
+    },
+    "Capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "protocolVersion",
+        "baseUrl",
+        "ready",
+        "envelopeFormat",
+        "paymentMethods",
+        "maxBodyBytes",
+        "calendarPolicy"
+      ],
+      "properties": {
+        "service": {
+          "const": "Bookie Fiscal Service"
+        },
+        "protocolVersion": {
+          "const": "1.0"
+        },
+        "baseUrl": {
+          "const": "http://127.0.0.1:17831/v1"
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "readinessProblems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "envelopeFormat": {
+            "const": "furs-v2"
+        },
+        "paymentMethods": {
+          "const": [
+            "cash"
+          ]
+        },
+        "maxBodyBytes": {
+          "const": 65536
+        },
+        "calendarPolicy": {
+          "const": "SI-BUSINESS-DAY-V1"
+        },
+        "identity": {
+          "type": "object",
+          "description": "Required whenever ready=true; omitted while provisioning is incomplete.",
+          "additionalProperties": false,
+          "required": [
+            "deviceId",
+            "unitId",
+            "premiseId",
+            "premiseLabel",
+            "bIdentifier"
+          ],
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "unitId": {
+              "type": "integer"
+            },
+            "premiseId": {
+              "type": "integer"
+            },
+            "premiseLabel": {
+              "type": "string"
+            },
+            "bIdentifier": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "LegacyCashIssueRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationId",
+        "orderSnapshot",
+        "unit",
+        "company",
+        "premise",
+        "device",
+        "operator",
+        "legalTimestamp",
+        "interruptionStartedAt",
+        "taxLines",
+        "payments",
+        "totals",
+        "currency",
+        "printPayload"
+      ],
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "orderSnapshot": {
+          "type": "object",
+          "required": [
+            "id",
+            "version",
+            "immutable",
+            "items"
+          ],
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "version": {
+              "type": [
+                "integer",
+                "string"
+              ]
+            },
+            "immutable": {
+              "const": true
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1
+            }
+          }
+        },
+        "unit": {
+          "type": "object",
+          "required": [
+            "id"
+          ]
+        },
+        "company": {
+          "type": "object",
+          "required": [
+            "taxNumber",
+            "name"
+          ]
+        },
+        "premise": {
+          "type": "object",
+          "required": [
+            "id",
+            "label"
+          ]
+        },
+        "device": {
+          "type": "object",
+          "required": [
+            "id",
+            "bIdentifier"
+          ]
+        },
+        "operator": {
+          "type": "object",
+          "required": [
+            "reference"
+          ]
+        },
+        "legalTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 with the Europe/Ljubljana offset in effect; Z suffix is forbidden."
+        },
+        "interruptionStartedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "taxLines": {
+          "type": "array",
+          "minItems": 1
+        },
+        "payments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "method",
+              "amount"
+            ],
+            "properties": {
+              "method": {
+                "const": "cash"
+              },
+              "amount": {
+                "$ref": "#/$defs/Decimal"
+              }
+            }
+          }
+        },
+        "totals": {
+          "type": "object",
+          "required": [
+            "net",
+            "tax",
+            "gross"
+          ]
+        },
+        "currency": {
+          "const": "EUR"
+        },
+        "printPayload": {
+          "type": "object",
+          "description": "Complete immutable legal print model; print state is not part of this payload."
+        }
+      }
+    },
+    "OfflineAuthorityBundle": {
+      "type": "object", "additionalProperties": false,
+      "description": "bundleSha256 and signatureBase64 are computed over bookie-canonical-json-v1 of this object with those two fields omitted.",
+      "required": ["schema", "bundleId", "server", "scope", "contract", "validity", "operator", "catalog", "modifiers", "policies", "authority", "bundleSha256", "signatureBase64"],
+      "properties": {
+        "schema": { "const": "bookie-offline-authority-v1" },
+        "bundleId": { "type": "string", "format": "uuid" },
+        "server": { "type": "object", "required": ["companyId", "enotaId"], "properties": { "companyId": { "type": "string" }, "enotaId": { "type": "integer" } } },
+        "scope": { "type": "object", "required": ["deviceId", "premiseId", "bIdentifier"], "properties": { "deviceId": { "type": "string" }, "premiseId": { "type": "integer" }, "bIdentifier": { "type": "string" } } },
+        "contract": { "type": "object", "required": ["version", "goldenAttestationSha256", "authorityVersion"], "properties": {
+          "version": { "const": "furs-v2" }, "goldenAttestationSha256": { "type": "string" }, "authorityVersion": { "type": "integer", "minimum": 1 }
+        } },
+        "validity": { "type": "object", "required": ["validFrom", "validUntil", "outageSubmissionBusinessDays"], "properties": {
+          "validFrom": { "type": "string", "format": "date-time" }, "validUntil": { "type": "string", "format": "date-time" }, "outageSubmissionBusinessDays": { "const": 2 }
+        } },
+        "operator": { "type": "object", "required": ["waiterId", "name", "taxNumber", "shiftId"], "properties": {
+          "waiterId": { "type": ["integer", "null"] }, "name": { "type": ["string", "null"] }, "taxNumber": { "type": ["string", "null"] }, "shiftId": { "type": ["integer", "null"] }
+        } },
+        "catalog": { "type": "array", "items": { "type": "object", "required": ["articleId", "name", "unitGross", "vatRate", "articleKind", "inputArticleId", "normativeQuantity", "unitWac"] } },
+        "modifiers": { "type": "array", "items": { "type": "object", "required": ["modifierId", "name", "priceDelta", "inputArticleId", "normativeQuantity", "unitWac"] } },
+        "policies": { "type": "object", "required": ["paymentMethods", "maxReceiptGross", "maxLines", "stock", "kds", "accounting", "staleOrder"] },
+        "authority": { "type": "object", "required": ["keyId", "algorithm", "publicKeyPem"], "properties": {
+          "keyId": { "type": "string" }, "algorithm": { "const": "RSA-SHA256" }, "publicKeyPem": { "type": "string" }
+        } },
+        "bundleSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "signatureBase64": { "type": "string", "contentEncoding": "base64" }
+      }
+    },
+    "FinalizationPlanTemplate": {
+      "type": "object", "additionalProperties": false,
+      "description": "Server-authorized immutable effect inputs. Locally allocated receipt identity, issueReservationId, snapshotId and FURS artifact fields are deliberately absent.",
+      "required": ["version", "source", "sourceOperationId", "receiptContext", "soldLines", "normativeSnapshot", "totals", "payment", "operator", "closure", "tip", "stockMovements", "kds", "accounting", "print"],
+      "properties": {
+        "version": { "const": 2 }, "source": { "const": "offline" }, "sourceOperationId": { "type": "string", "format": "uuid" },
+        "receiptContext": { "type": "object", "required": ["companyId", "enotaId", "orderId", "isPartial"] },
+        "soldLines": { "$ref": "#/$defs/FinalizationPlan/properties/soldLines" },
+        "normativeSnapshot": { "$ref": "#/$defs/FinalizationPlan/properties/normativeSnapshot" },
+        "totals": { "$ref": "#/$defs/FinalizationPlan/properties/totals" },
+        "payment": { "$ref": "#/$defs/FinalizationPlan/properties/payment" },
+        "operator": { "$ref": "#/$defs/FinalizationPlan/properties/operator" },
+        "closure": { "$ref": "#/$defs/FinalizationPlan/properties/closure" },
+        "tip": { "$ref": "#/$defs/FinalizationPlan/properties/tip" },
+        "stockMovements": { "$ref": "#/$defs/FinalizationPlan/properties/stockMovements" },
+        "kds": { "$ref": "#/$defs/FinalizationPlan/properties/kds" },
+        "accounting": { "$ref": "#/$defs/FinalizationPlan/properties/accounting" },
+        "print": { "$ref": "#/$defs/FinalizationPlan/properties/print" }
+      }
+    },
+    "CashIssueRequest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operationId", "authorityBundle", "orderEventSnapshot", "finalizationPlanTemplate", "legalTimestamp", "interruptionStartedAt"],
+      "properties": {
+        "operationId": { "type": "string", "format": "uuid" },
+        "authorityBundle": { "$ref": "#/$defs/OfflineAuthorityBundle" },
+        "orderEventSnapshot": { "type": "object", "additionalProperties": false, "required": ["orderId", "orderVersion", "eventId", "capturedAt", "lineIds"], "properties": {
+          "orderId": { "type": "integer" }, "orderVersion": { "type": ["integer", "string"] }, "eventId": { "type": ["integer", "null"] },
+          "capturedAt": { "type": "string", "format": "date-time" }, "lineIds": { "type": "array", "items": { "type": "integer" }, "minItems": 1 }
+        } },
+        "finalizationPlanTemplate": { "$ref": "#/$defs/FinalizationPlanTemplate" },
+        "legalTimestamp": { "type": "string", "format": "date-time" },
+        "interruptionStartedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "FinalizationPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source", "sourceOperationId", "receipt", "soldLines", "normativeSnapshot", "totals", "payment", "operator", "closure", "tip", "stockMovements", "kds", "accounting", "print", "reservations", "furs"],
+      "properties": {
+        "version": { "const": 2 },
+        "source": { "const": "offline" },
+        "sourceOperationId": { "type": "string", "format": "uuid" },
+        "receipt": {
+          "type": "object", "additionalProperties": false,
+          "required": ["localReceiptId", "companyId", "enotaId", "orderId", "legalNumber", "pp", "b", "ppBSequence", "issuedAt", "isPartial"],
+          "properties": {
+            "localReceiptId": { "type": "string", "format": "uuid", "description": "UUIDv5(operationId, 'receipt'); cross-platform identity." },
+            "serverRacunId": { "type": "integer", "minimum": 1, "description": "Optional server-only execution output. Offline producers must omit this property." },
+            "companyId": { "type": "string", "format": "uuid" },
+            "enotaId": { "type": "integer" }, "orderId": { "type": "integer" }, "legalNumber": { "type": "string" },
+            "pp": { "type": "string" }, "b": { "type": "string" }, "ppBSequence": { "type": "integer", "minimum": 1 },
+            "issuedAt": { "type": "string", "format": "date-time" }, "isPartial": { "type": "boolean" }
+          }
+        },
+        "soldLines": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "articleId", "modifierId", "name", "quantity", "unitGross", "gross", "vatRate", "normativeFactor", "articleKind"],
+            "properties": {
+              "id": { "type": "integer" }, "articleId": { "type": ["integer", "null"] },
+              "modifierId": { "type": ["integer", "null"] }, "name": { "type": "string" },
+              "quantity": { "type": "number" }, "unitGross": { "type": "number" }, "gross": { "type": "number" },
+              "vatRate": { "type": "number" }, "normativeFactor": { "type": ["number", "null"] },
+              "articleKind": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "normativeSnapshot": {
+          "type": "array", "items": {
+            "type": "object", "additionalProperties": false, "required": ["articleId", "quantity"],
+            "properties": { "articleId": { "type": "integer" }, "quantity": { "type": "number" } }
+          }
+        },
+        "totals": {
+          "type": "object", "additionalProperties": false, "required": ["gross", "net", "vat", "vatGroups"],
+          "properties": {
+            "gross": { "type": "number" }, "net": { "type": "number" }, "vat": { "type": "number" },
+            "vatGroups": { "type": "array", "items": {
+              "type": "object", "additionalProperties": false, "required": ["rate", "gross", "vat"],
+              "properties": { "rate": { "type": "number" }, "gross": { "type": "number" }, "vat": { "type": "number" } }
+            } }
+          }
+        },
+        "payment": {
+          "type": "object", "additionalProperties": false,
+          "required": ["method", "cash", "card", "voucher", "pizzaVoucher", "nonCash", "terminalReferenceReservationId", "cardPaymentAttemptId", "giftVoucherRedemption"],
+          "properties": {
+            "method": { "const": "gotovina" }, "cash": { "type": "number" }, "card": { "const": 0 },
+            "voucher": { "const": 0 }, "pizzaVoucher": { "const": 0 }, "nonCash": { "const": 0 },
+            "terminalReferenceReservationId": { "type": "null" }, "cardPaymentAttemptId": { "type": "null" },
+            "giftVoucherRedemption": { "const": 0 }
+          }
+        },
+        "operator": { "type": "object", "additionalProperties": false, "required": ["waiterId", "name", "taxNumber", "shiftId", "actor"], "properties": {
+          "waiterId": { "type": ["integer", "null"] }, "name": { "type": ["string", "null"] }, "taxNumber": { "type": ["string", "null"] },
+          "shiftId": { "type": ["integer", "null"] }, "actor": { "type": "string" }
+        } },
+        "closure": { "type": "object", "additionalProperties": false, "required": ["allLinesCovered", "closeOrder", "orderId", "tableId", "clearTipAmount"], "properties": {
+          "allLinesCovered": { "type": "boolean" }, "closeOrder": { "type": "boolean" }, "orderId": { "type": "integer" },
+          "tableId": { "type": ["integer", "null"] }, "clearTipAmount": { "type": "boolean" }
+        } },
+        "tip": { "type": "object", "additionalProperties": false, "required": ["amount", "mode", "policyId", "feeAmount", "netAmount"], "properties": {
+          "amount": { "const": 0 }, "mode": { "type": "null" }, "policyId": { "type": "null" }, "feeAmount": { "const": 0 }, "netAmount": { "const": 0 }
+        } },
+        "stockMovements": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["articleId", "quantity", "unitWac", "value", "note", "effectiveAt"], "properties": {
+          "articleId": { "type": "integer" }, "quantity": { "type": "number" }, "unitWac": { "type": "number" },
+          "value": { "type": "number" }, "note": { "type": "string" }, "effectiveAt": { "type": "string", "format": "date-time" }
+        } } },
+        "kds": { "type": "object", "additionalProperties": false, "required": ["effects"], "properties": {
+          "effects": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["kind", "lineId"], "properties": {
+            "kind": { "type": "string" }, "lineId": { "type": "integer" }
+          } } }
+        } },
+        "accounting": { "type": "object", "additionalProperties": false, "required": ["companyId", "businessDate", "syncAfterCommit"], "properties": {
+          "companyId": { "type": "string", "format": "uuid" }, "businessDate": { "type": "string", "format": "date" }, "syncAfterCommit": { "type": "boolean" }
+        } },
+        "print": { "type": "object", "additionalProperties": false, "required": ["receiptNumber", "issuedAt", "customerName", "customerAddress", "customerTaxNumber"], "properties": {
+          "receiptNumber": { "type": "string" }, "issuedAt": { "type": "string", "format": "date-time" },
+          "customerName": { "type": ["string", "null"] }, "customerAddress": { "type": ["string", "null"] }, "customerTaxNumber": { "type": ["string", "null"] }
+        } },
+        "reservations": { "type": "object", "additionalProperties": false, "required": ["issueReservationId"], "properties": { "issueReservationId": { "type": "string", "format": "uuid" } } },
+        "furs": { "type": "object", "additionalProperties": false, "required": ["snapshotId", "requestHash", "canonicalArtifactLink"], "properties": {
+          "snapshotId": { "type": "string", "format": "uuid" }, "requestHash": { "type": "string" }, "canonicalArtifactLink": { "type": "string" }
+        } }
+      }
+    },
+    "LegacyFursV1CanonicalPayload": {
+      "type": "object", "additionalProperties": false,
+      "description": "Quarantine-only legacy v1 evidence. Implementations MUST NOT transmit its signed XML.",
+      "required": ["envelopeVersion", "authorityBundle", "finalizationPlan", "finalizationPlanSha256", "fursArtifact"],
+      "properties": {
+        "envelopeVersion": { "const": "furs-v1" },
+        "authorityBundle": { "$ref": "#/$defs/OfflineAuthorityBundle" },
+        "finalizationPlan": { "$ref": "#/$defs/FinalizationPlan" },
+        "finalizationPlanSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "fursArtifact": {
+          "type": "object", "additionalProperties": false,
+          "required": ["signedXmlBase64", "signedXmlSha256", "zoi", "certificateFingerprint", "canonicalFields"],
+          "properties": {
+            "signedXmlBase64": { "type": "string", "contentEncoding": "base64" },
+            "signedXmlSha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "zoi": { "type": "string" }, "certificateFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "canonicalFields": {
+              "type": "object",
+              "required": ["messageId", "invoiceRequestId"],
+              "properties": {
+                "messageId": { "type": "string", "format": "uuid" },
+                "invoiceRequestId": { "type": "string", "pattern": "^InvoiceRequest-[a-f0-9]{32}-[a-f0-9]{32}$" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "LegalInvoiceCore": {
+      "type": "object", "additionalProperties": false,
+      "description": "Immutable legal evidence. Transport-specific IDs, XMLDSig and bytes are forbidden.",
+      "required": ["envelopeVersion", "operationId", "localReceiptId", "authorityBundle", "finalizationPlan", "finalizationPlanSha256", "legalInvoice", "zoiSignatureBase64", "certificateFingerprint", "deviceKeyFingerprintSha256", "deviceSignatureBase64"],
+      "properties": {
+        "envelopeVersion": { "const": "furs-v2" },
+        "operationId": { "type": "string", "format": "uuid" },
+        "localReceiptId": { "type": "string", "format": "uuid" },
+        "authorityBundle": { "$ref": "#/$defs/OfflineAuthorityBundle" },
+        "finalizationPlan": { "$ref": "#/$defs/FinalizationPlan" },
+        "finalizationPlanSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "legalInvoice": { "type": "object", "additionalProperties": false, "required": ["taxNumber", "issueDateTime", "invoiceNumber", "businessPremiseId", "electronicDeviceId", "invoiceAmount", "paymentAmount", "numberingStructure", "taxesPerSeller", "zoiInput", "zoi"], "properties": {
+          "taxNumber": { "type": "string" }, "issueDateTime": { "type": "string" }, "invoiceNumber": { "type": "integer" },
+          "businessPremiseId": { "type": "string" }, "electronicDeviceId": { "type": "string" }, "invoiceAmount": { "$ref": "#/$defs/Decimal" }, "paymentAmount": { "$ref": "#/$defs/Decimal" },
+          "numberingStructure": { "const": "B" }, "operatorTaxNumber": { "type": "string" }, "customerTaxNumber": { "type": "string" },
+          "taxesPerSeller": { "type": "array" }, "zoiInput": { "type": "string" }, "zoi": { "type": "string", "pattern": "^[a-f0-9]{32}$" }
+        } },
+        "zoiSignatureBase64": { "type": "string", "contentEncoding": "base64" },
+        "certificateFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "deviceKeyFingerprintSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "deviceSignatureBase64": { "type": "string", "contentEncoding": "base64" }
+      }
+    },
+    "FursTransportAttempt": {
+      "type": "object", "additionalProperties": false,
+      "description": "Append-only server-built FURS transport evidence. A fresh attempt is required for every resend.",
+      "required": ["attemptNo", "messageId", "invoiceRequestId", "transmissionTime", "signedXmlBase64", "signedXmlSha256", "xmlDsigSignatureBase64"],
+      "properties": {
+        "attemptNo": { "type": "integer", "minimum": 1 }, "messageId": { "type": "string", "format": "uuid" },
+        "invoiceRequestId": { "type": "string", "pattern": "^InvoiceRequest-[a-f0-9]{32}-[a-f0-9]{32}-A[1-9][0-9]*$" },
+        "transmissionTime": { "type": "string", "format": "date-time" }, "signedXmlBase64": { "type": "string", "contentEncoding": "base64" },
+        "signedXmlSha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }, "xmlDsigSignatureBase64": { "type": "string", "contentEncoding": "base64" }
+      }
+    },
+    "LocalProvisioningProofRequest": {
+      "type": "object", "additionalProperties": false, "required": ["challengeId", "challenge"],
+      "properties": { "challengeId": { "type": "string", "format": "uuid" }, "challenge": { "type": "string" } }
+    },
+    "LocalProvisioningProofResponse": {
+      "type": "object", "additionalProperties": false,
+      "required": ["challengeId", "publicKeyPem", "proofSignatureBase64", "keyFingerprintSha256"],
+      "properties": {
+        "challengeId": { "type": "string", "format": "uuid" }, "publicKeyPem": { "type": "string" },
+        "proofSignatureBase64": { "type": "string", "contentEncoding": "base64" },
+        "keyFingerprintSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "Lowercase SHA-256 of SubjectPublicKeyInfo DER bytes." }
+      }
+    },
+    "ProvisioningChallenge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["challengeId", "challenge", "expiresAt"],
+      "properties": {
+        "challengeId": { "type": "string", "format": "uuid" },
+        "challenge": { "type": "string", "contentEncoding": "base64url" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "DeviceRegistrationProof": {
+      "type": "object", "additionalProperties": false,
+      "description": "Local service generates and retains the RSA private key. Browser conveys only this public-key proof to the authenticated admin endpoint.",
+      "required": ["challengeId", "publicKeyPem", "proofSignatureBase64", "platform", "bIdentifier", "expectedFursCertFingerprint", "goldenAttestationSha256"],
+      "properties": {
+        "challengeId": { "type": "string", "format": "uuid" },
+        "publicKeyPem": { "type": "string" },
+        "proofSignatureBase64": { "type": "string", "contentEncoding": "base64" },
+        "platform": { "enum": ["android", "windows"] },
+        "bIdentifier": { "type": "string" },
+        "expectedFursCertFingerprint": { "type": "string" },
+        "goldenAttestationSha256": { "type": "string" }
+      }
+    },
+    "ProvisioningBundle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "bundleId", "version", "device", "authority", "furs", "pos", "sync", "contract", "authentication", "revocation", "validity", "payloadSha256", "signatureBase64"],
+      "properties": {
+        "schema": { "const": "bookie-offline-provisioning-v1" },
+        "bundleId": { "type": "string", "format": "uuid" },
+        "version": { "type": "integer", "minimum": 1 },
+        "device": {
+          "type": "object", "additionalProperties": false,
+          "required": ["id", "companyId", "enotaId", "poslovniProstorId", "poslovniProstorOznaka", "bIdentifier", "publicKeyFingerprintSha256"],
+          "properties": {
+            "id": { "type": "string", "format": "uuid" }, "companyId": { "type": "string", "format": "uuid" },
+            "enotaId": { "type": "integer", "minimum": 1 }, "poslovniProstorId": { "type": "integer", "minimum": 1 },
+            "poslovniProstorOznaka": { "type": "string", "minLength": 1, "maxLength": 20 },
+            "bIdentifier": { "type": "string", "minLength": 1, "maxLength": 20 },
+            "publicKeyFingerprintSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "Lowercase SHA-256 of SubjectPublicKeyInfo DER bytes." }
+          }
+        },
+        "authority": {
+          "type": "object", "additionalProperties": false, "required": ["keyId", "publicKeyPem", "version", "algorithm"],
+          "properties": {
+            "keyId": { "type": "string", "minLength": 1 }, "publicKeyPem": { "type": "string", "pattern": "^-----BEGIN PUBLIC KEY-----" },
+            "version": { "type": "integer", "minimum": 1 }, "algorithm": { "const": "RSA-SHA256" }
+          }
+        },
+        "furs": {
+          "type": "object", "additionalProperties": false, "required": ["expectedCertificateFingerprint"],
+          "properties": { "expectedCertificateFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } }
+        },
+        "pos": {
+          "type": "object", "additionalProperties": false, "required": ["allowedHttpsOrigins"],
+          "properties": { "allowedHttpsOrigins": {
+            "type": "array", "minItems": 1, "uniqueItems": true,
+            "items": { "type": "string", "format": "uri", "pattern": "^https://" }
+          } }
+        },
+        "sync": {
+          "type": "object", "additionalProperties": false,
+          "required": ["httpsBaseUrl", "ingestPath", "statusPathTemplate", "configPath", "maxBodyBytes"],
+          "properties": {
+            "httpsBaseUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "ingestPath": { "const": "/api/offline-fiscal/sync/receipts/ingest" },
+            "statusPathTemplate": { "const": "/api/offline-fiscal/sync/receipts/status/{operationId}" },
+            "configPath": { "const": "/api/offline-fiscal/sync/config" },
+            "maxBodyBytes": { "const": 65536 }
+          }
+        },
+        "contract": {
+          "type": "object", "additionalProperties": false, "required": ["version", "goldenAttestationSha256"],
+          "properties": {
+            "version": { "const": "furs-v2" },
+            "goldenAttestationSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        "authentication": {
+          "type": "object", "additionalProperties": false,
+          "required": ["timestampToleranceSeconds", "nonceMinBits", "nonceRetentionSeconds", "signatureInput"],
+          "properties": {
+            "timestampToleranceSeconds": { "type": "integer", "minimum": 1, "maximum": 300 },
+            "nonceMinBits": { "type": "integer", "minimum": 128 },
+            "nonceRetentionSeconds": { "type": "integer", "minimum": 600 },
+            "signatureInput": { "const": "METHOD\\nPATH_WITH_QUERY\\nTIMESTAMP\\nNONCE\\nLOWERCASE_HEX_SHA256_RAW_BODY" }
+          }
+        },
+        "revocation": {
+          "type": "object", "additionalProperties": false, "required": ["deviceVersion", "minimumAcceptedVersion"],
+          "properties": {
+            "deviceVersion": { "type": "integer", "minimum": 1 },
+            "minimumAcceptedVersion": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "validity": {
+          "type": "object", "additionalProperties": false, "required": ["validFrom", "validUntil"],
+          "properties": {
+            "validFrom": { "type": "string", "format": "date-time" },
+            "validUntil": { "type": "string", "format": "date-time" }
+          }
+        },
+        "payloadSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "signatureBase64": { "type": "string", "contentEncoding": "base64" }
+      }
+    },
+    "ProvisioningInstallResponse": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "bundleId", "version", "authorityVersion", "deviceVersion", "minimumAcceptedVersion", "validUntil"],
+      "properties": {
+        "status": { "enum": ["installed", "already-installed"] }, "bundleId": { "type": "string", "format": "uuid" },
+        "version": { "type": "integer", "minimum": 1 }, "authorityVersion": { "type": "integer", "minimum": 1 },
+        "deviceVersion": { "type": "integer", "minimum": 1 }, "minimumAcceptedVersion": { "type": "integer", "minimum": 1 },
+        "validUntil": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LocalCertificateImport": {
+      "type": "object", "additionalProperties": false, "required": ["pkcs12Base64", "password"],
+      "properties": {
+        "pkcs12Base64": { "type": "string", "contentEncoding": "base64", "maxLength": 13981016 },
+        "password": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "LocalCertificateStatus": {
+      "type": "object", "additionalProperties": false,
+      "required": ["installed", "fingerprint", "validFrom", "validUntil", "matchesProvisioningBundle"],
+      "properties": {
+        "installed": { "type": "boolean" },
+        "fingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+        "validFrom": { "type": ["string", "null"], "format": "date-time" },
+        "validUntil": { "type": ["string", "null"], "format": "date-time" },
+        "matchesProvisioningBundle": { "type": "boolean" }
+      }
+    },
+    "DeviceSyncStatus": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operationId", "localReceiptId", "fursState", "eor", "receivedAt"],
+      "properties": {
+        "operationId": { "type": "string", "format": "uuid" },
+        "localReceiptId": { "type": "string", "format": "uuid" },
+        "fursState": { "enum": ["received_pending_review", "pending", "sending", "confirmed", "failed", "unknown", "quarantined"] },
+        "eor": { "type": ["string", "null"] }, "receivedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SealedEnvelope": {
+      "type": "object",
+      "description": "Exact server-ingest request. Top-level fields are the canonical routing source; matching plan fields are validated mirrors. Legal number and ZOI exist only in canonicalPayload.",
+      "required": [
+        "operationId",
+        "deviceId",
+        "poslovniProstorId",
+        "poslovniProstorOznaka",
+        "bIdentifier",
+        "sequence",
+        "issuedAt",
+        "interruptionStartedAt",
+        "orderId",
+        "operatorReference",
+        "paymentReference",
+        "paymentMethod",
+        "canonicalPayload",
+        "payloadSha256",
+        "deviceSignature",
+        "signingPublicKeyFingerprintSha256"
+      ],
+      "properties": {
+        "operationId": { "type": "string", "format": "uuid" },
+        "deviceId": { "type": "string", "format": "uuid" },
+        "poslovniProstorId": { "type": "integer" },
+        "poslovniProstorOznaka": { "type": "string" }, "bIdentifier": { "type": "string" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "interruptionStartedAt": { "type": "string", "format": "date-time" },
+        "orderId": { "type": "integer" },
+        "operatorReference": { "type": ["string", "null"] },
+        "paymentReference": { "type": ["string", "null"] },
+        "paymentMethod": { "const": "cash" },
+        "canonicalPayload": { "$ref": "#/$defs/LegalInvoiceCore" },
+        "payloadSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "deviceSignature": { "type": "string", "contentEncoding": "base64" },
+        "signingPublicKeyFingerprintSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

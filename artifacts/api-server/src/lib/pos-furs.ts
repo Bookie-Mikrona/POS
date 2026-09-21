@@ -1,59 +1,70 @@
+// @ts-nocheck
 import crypto from "crypto";
-import fs from "fs";
 import https from "https";
-import path from "path";
 import { spawnSync } from "child_process";
 import { SignedXml } from "xml-crypto";
+import { DOMParser } from "@xmldom/xmldom";
+import { eq } from "drizzle-orm";
+import { companiesTable, db } from "@workspace/db";
+import { desifrirajBizboxGeslo } from "./kripto-bizbox";
+
+// Workspace pins xmldom 0.9, which (unlike 0.8 used by xml-crypto) requires
+// an explicit MIME type. xml-crypto calls this API with one argument.
+const xmldomParse = DOMParser.prototype.parseFromString;
+if (!(DOMParser.prototype.parseFromString as any).__bookieXmlCryptoCompat) {
+  const compatibleParse = function(this: DOMParser, source: string, mimeType?: string) {
+    return xmldomParse.call(this, source, mimeType ?? "application/xml");
+  };
+  (compatibleParse as any).__bookieXmlCryptoCompat = true;
+  DOMParser.prototype.parseFromString = compatibleParse as typeof DOMParser.prototype.parseFromString;
+}
 
 // ---------- P12/PEM certifikat nalagalnik ----------
 
 interface CertPem { key: string; cert: string }
 
+export interface CompanyFursCert {
+  certPem: string;
+  certKljuc: string;
+}
+
+export function fursSigningContextFingerprint(
+  fursNacin: "simulacija" | "testno" | "produkcija",
+  certPem?: string,
+): string {
+  if (fursNacin === "simulacija") return "simulation";
+  if (!certPem) return "missing-certificate";
+  return `sha256:${crypto.createHash("sha256").update(certPem.replace(/\r\n/g, "\n").trim()).digest("hex")}`;
+}
+
 /**
- * Naloži certifikat in zasebni ključ v PEM formatu.
- * Podpira .pem (cert+key skupaj) in .p12/.pfx (z geslom).
- * P12 z RC2-40-CBC zahteva openssl legacy flag — to je standardni FURS testni cert format.
+ * Prebere izključno certifikat zahtevanega podjetja. Zasebni ključ obstaja
+ * samo v lokalnem rezultatu tega klica; nikoli se ne zapisuje ali logira.
  */
-export function nalagajCertPem(certPot: string, geslo?: string): CertPem {
-  if (!fs.existsSync(certPot)) throw new Error(`Certifikat ni najden: ${certPot}`);
+export async function pridobiCompanyCert(companyId: string): Promise<CompanyFursCert | null> {
+  const [company] = await db
+    .select({
+      fursCertifikatPem: companiesTable.fursCertifikatPem,
+      fursKljucEnc: companiesTable.fursKljucEnc,
+    })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
 
-  if (/\.p12$/i.test(certPot) || /\.pfx$/i.test(certPot)) {
-    const passArg = `pass:${geslo ?? ""}`;
-    const keyRes = spawnSync("openssl", [
-      "pkcs12", "-legacy", "-in", certPot, "-nocerts", "-nodes", "-passin", passArg,
-    ], { encoding: "utf8" });
-    const certRes = spawnSync("openssl", [
-      "pkcs12", "-legacy", "-in", certPot, "-nokeys", "-passin", passArg,
-    ], { encoding: "utf8" });
-
-    const keyOut = keyRes.stdout ?? "";
-    const certOut = certRes.stdout ?? "";
-
-    // Ekstrahiraj samo PEM bloke (openssl pkcs12 doda bag attributes)
-    const keyMatch = keyOut.match(/-----BEGIN (?:RSA )?PRIVATE KEY-----[\s\S]+?-----END (?:RSA )?PRIVATE KEY-----/);
-    const certMatch = certOut.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/);
-
-    if (!keyMatch) throw new Error("P12: zasebni ključ ni bil ekstrahiran (napačno geslo ali format)");
-    if (!certMatch) throw new Error("P12: certifikat ni bil ekstrahiran");
-
-    // Konvertira PKCS#8 v RSA traditional če je treba — xml-crypto zahteva RSA PEM
-    const keyPkcs8 = keyMatch[0];
-    const rsaRes = spawnSync("openssl", ["rsa", "-in", "/dev/stdin"], {
-      input: keyPkcs8,
-      encoding: "utf8",
-    });
-    const key = rsaRes.stdout?.includes("BEGIN RSA PRIVATE KEY") ? rsaRes.stdout : keyPkcs8;
-
-    return { key, cert: certMatch[0] };
+  if (!company?.fursCertifikatPem || !company.fursKljucEnc) {
+    return null;
   }
 
-  // PEM datoteka
-  const pem = fs.readFileSync(certPot, "utf8");
-  const keyMatch = pem.match(/-----BEGIN (?:RSA )?PRIVATE KEY-----[\s\S]+?-----END (?:RSA )?PRIVATE KEY-----/);
-  const certMatch = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/);
-  if (!keyMatch) throw new Error("PEM: zasebni ključ ni najden");
-  if (!certMatch) throw new Error("PEM: certifikat ni najden");
-  return { key: keyMatch[0], cert: certMatch[0] };
+  try {
+    return {
+      certPem: company.fursCertifikatPem,
+      certKljuc: desifrirajBizboxGeslo(company.fursKljucEnc),
+    };
+  } catch {
+    // Ne preklopi tiho na legacy certifikat, če obstaja pokvarjen company zapis.
+    // Pomembno: napaka namerno ne vsebuje nobenega dela šifropisa ali ključa.
+    throw new Error("FURS certifikata podjetja ni mogoče dešifrirati.");
+  }
 }
 
 /** Ustvari CertPem iz PEM nizov (cert in zasebni ključ sta že v PEM obliki, shranjeni v bazi). */
@@ -66,129 +77,12 @@ function nalagajCertPemIzNiza(cert: string, kljuc: string): CertPem {
   return { cert, key };
 }
 
-/** Razreši CertPem iz PEM nizov (iz baze) ali iz datoteke na disku — prioriteta: baza > disk. */
-function resolveCertPem(certPot?: string, geslo?: string, certPem?: string, certKljuc?: string): CertPem | null {
+/** Razreši izključno PEM certifikat in ključ, ki sta bila varno naložena za podjetje. */
+function resolveCertPem(certPem?: string, certKljuc?: string): CertPem | null {
   if (certPem && certKljuc) {
     try { return nalagajCertPemIzNiza(certPem, certKljuc); } catch { return null; }
   }
-  if (certPot && fs.existsSync(certPot)) {
-    try { return nalagajCertPem(certPot, geslo); } catch { return null; }
-  }
   return null;
-}
-
-// ---------- CA certifikat ----------
-
-/**
- * Vrne PEM Tax CA Test certifikata iz istega direktorija kot certPot.
- * taxcatest.pem je v isti mapi kot klientski cert (test-furs.pem).
- */
-function beriCACert(certPot: string, testniNacin: boolean): string | null {
-  const dir = path.dirname(certPot);
-  const caFile = testniNacin ? "taxca-test.pem" : "taxca-prod.pem";
-  const caPath = path.join(dir, caFile);
-  if (!fs.existsSync(caPath)) return null;
-  const pem = fs.readFileSync(caPath, "utf8");
-  return pem.includes("BEGIN CERTIFICATE") ? pem : null;
-}
-
-/** Vrne pot do CA cert glede na testni/produkcijski način */
-function caCertPot(certPot: string, testniNacin: boolean): string {
-  return path.join(path.dirname(certPot), testniNacin ? "taxca-test.pem" : "taxca-prod.pem");
-}
-
-// ---------- FURS HTTP client (JSON/JWT, mutual TLS) ----------
-
-async function fursFetch(
-  url: string,
-  body: string,
-  certPot?: string,
-  contentType = "application/json; charset=UTF-8",
-  testniNacin = true,
-  geslo?: string
-): Promise<{ statusCode: number; body: string; headers: Record<string, string | string[] | undefined> }> {
-    const parsed = new URL(url);
-
-    let clientCert: string | undefined;
-    let clientKey: Buffer | undefined;
-    if (certPot && fs.existsSync(certPot)) {
-      try {
-        const { key, cert } = nalagajCertPem(certPot, geslo);
-        const caCert = beriCACert(certPot, testniNacin);
-        clientCert = cert + (caCert ? "\n" + caCert : "");
-        clientKey = Buffer.from(key);
-      } catch { /* ni cert — nadaljuj brez */ }
-    }
-
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-      minVersion: "TLSv1.2",
-      cert: clientCert,
-      key: clientKey,
-    });
-
-    return new Promise((resolve, reject) => {
-      const bodyBytes = Buffer.byteLength(body, "utf8");
-      const req = https.request(
-        {
-          hostname: parsed.hostname,
-          port: parsed.port || 443,
-          path: parsed.pathname + parsed.search,
-          method: "POST",
-          headers: {
-            "Content-Type": contentType,
-            "Content-Length": bodyBytes,
-            "Accept": "application/json",
-          },
-          rejectUnauthorized: false,
-          agent,
-        },
-        (res) => {
-          let data = "";
-          res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
-          res.on("end", () => resolve({
-            statusCode: res.statusCode ?? 0,
-            body: data,
-            headers: res.headers as Record<string, string | string[] | undefined>,
-          }));
-        }
-      );
-      req.setTimeout(15000, () => { req.destroy(new Error("FURS timeout")); });
-      req.on("error", reject);
-      req.write(body);
-      req.end();
-    });
-}
-
-/**
- * Ustvari RS256 JWT za FURS REST API.
- * Header vsebuje x5c z verigo certifikatov (leaf + CA če je na voljo).
- * Telo zahtevka: {"token": "<jwt>"}
- */
-function buildFursJWT(payload: object, certPot: string, testniNacin = true, geslo?: string): string {
-  const { key, cert: certPem } = nalagajCertPem(certPot, geslo);
-
-  const toDerB64 = (c: string) =>
-    c.replace(/-----BEGIN CERTIFICATE-----/, "")
-     .replace(/-----END CERTIFICATE-----/, "")
-     .replace(/\s+/g, "");
-
-  // x5c: leaf cert + CA cert — RFC 7515 §4.1.6
-  const x5c: string[] = [toDerB64(certPem)];
-  const caCert = beriCACert(certPot, testniNacin);
-  const caMatch = caCert?.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/);
-  if (caMatch) x5c.push(toDerB64(caMatch[0]));
-
-  const jwtHeader = Buffer.from(JSON.stringify({ alg: "RS256", x5c })).toString("base64url");
-  const jwtPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signingInput = `${jwtHeader}.${jwtPayload}`;
-
-  const signer = crypto.createSign("SHA256");
-  signer.update(signingInput, "utf8");
-  signer.end();
-  const signature = signer.sign(key).toString("base64url");
-
-  return `${signingInput}.${signature}`;
 }
 
 function decodeJWTPayload(token: string): Record<string, unknown> | null {
@@ -226,11 +120,48 @@ export interface FursRacunData {
   jeStorno?: boolean;
   izvornaStevRacuna?: string;
   izvornaStevRacunaDatumCas?: Date;
-  certifikatPot?: string;
-  certifikatGeslo?: string;
   certPem?: string;
   certKljuc?: string;
   proxyUrl?: string;
+}
+
+/**
+ * Iz nespremenljivega payloada izvornega računa izdela storno payload.
+ * Cene in davčne stopnje se nikoli ne rekonstruirajo: obrnejo se samo
+ * predznačeni zneski/količine, vsi drugi davčni in poslovni podatki ostanejo.
+ */
+export function zgradiStornoPayloadIzSnapshota<T extends {
+  stevilkaRacuna: string;
+  datumCas: string;
+  skupaj: number;
+  ddv: number;
+  postavke: Array<{
+    ime: string;
+    kolicina: number;
+    cenaKos: number;
+    davek: number;
+    skupaj?: number;
+  }>;
+}>(original: T, novaStevilka: string, novDatumCas: string): T & {
+  jeStorno: true;
+  izvornaStevRacuna: string;
+  izvornaStevRacunaDatumCas: string;
+} {
+  return {
+    ...original,
+    stevilkaRacuna: novaStevilka,
+    datumCas: novDatumCas,
+    skupaj: round2(-original.skupaj),
+    ddv: round2(-original.ddv),
+    postavke: original.postavke.map((postavka) => ({
+      ...postavka,
+      kolicina: -postavka.kolicina,
+      ...(postavka.skupaj === undefined ? {} : { skupaj: round2(-postavka.skupaj) }),
+    })),
+    jeStorno: true,
+    izvornaStevRacuna: original.stevilkaRacuna,
+    izvornaStevRacunaDatumCas: original.datumCas,
+  };
 }
 
 export interface FursOdgovor {
@@ -239,6 +170,224 @@ export interface FursOdgovor {
   uspeh: boolean;
   napaka?: string;
   surovOdgovor: string;
+  /** True only when delivery to FURS cannot be proven either way. */
+  deliveryUnknown?: boolean;
+}
+
+export type FursDeliveryOutcome = "confirmed" | "failed" | "unknown";
+
+export interface CanonicalFursInvoiceFields {
+  readonly messageId: string;
+  readonly invoiceRequestId: string;
+  readonly taxNumber: string;
+  readonly issueDateTime: string;
+  readonly invoiceNumber: number;
+  readonly businessPremiseId: string;
+  readonly electronicDeviceId: string;
+  readonly invoiceAmount: string;
+  readonly paymentAmount: string;
+  readonly numberingStructure: "B";
+  readonly customerTaxNumber?: string;
+  readonly operatorTaxNumber?: string;
+  readonly taxesPerSeller: readonly Readonly<{
+    taxRate: string;
+    taxableAmount: string;
+    taxAmount: string;
+  }>[];
+  readonly referenceInvoice?: Readonly<{
+    businessPremiseId: string;
+    electronicDeviceId: string;
+    invoiceNumber: number;
+    issueDateTime: string;
+  }>;
+  readonly zoiInput: string;
+  readonly zoi: string;
+  readonly certificateFingerprint: string;
+}
+
+/**
+ * A durable FURS request. `signedXml` is the exact UTF-8 SOAP document whose
+ * hash is in `payloadHash`; transport must never rebuild or re-sign it.
+ */
+export interface SignedFursInvoiceRequest {
+  readonly signedXml: string;
+  readonly signedXmlBytes: Buffer;
+  readonly invoiceXml: string;
+  readonly zoi: string;
+  readonly certificateFingerprint: string;
+  readonly canonicalFields: Readonly<CanonicalFursInvoiceFields>;
+  readonly payloadHash: string;
+}
+
+/**
+ * Immutable evidence received from a device.  It intentionally has no SOAP
+ * MessageID, InvoiceRequest Id, transmission timestamp, XMLDSig, or XML
+ * bytes: those belong to one server-side transport attempt only.
+ */
+export interface LegalInvoiceCore {
+  readonly envelopeVersion: "furs-v2";
+  readonly operationId: string;
+  readonly localReceiptId: string;
+  readonly authorityBundle: unknown;
+  readonly finalizationPlan: unknown;
+  readonly finalizationPlanSha256: string;
+  readonly legalInvoice: Readonly<Omit<CanonicalFursInvoiceFields, "messageId" | "invoiceRequestId">>;
+  readonly zoiSignatureBase64: string;
+  readonly certificateFingerprint: string;
+  readonly deviceKeyFingerprintSha256: string;
+  readonly deviceSignatureBase64: string;
+}
+
+export interface BuildLegalCoreInput {
+  readonly operationId: string;
+  readonly localReceiptId: string;
+  readonly authorityBundle: unknown;
+  readonly finalizationPlan: unknown;
+  readonly finalizationPlanSha256: string;
+  readonly data: FursRacunData;
+  /** SPKI DER SHA-256, without the sha256: prefix. */
+  readonly deviceKeyFingerprintSha256: string;
+  /** Device private key signs the core's canonical JSON excluding this signature. */
+  readonly devicePrivateKey: string;
+}
+
+export interface FursTransportAttempt {
+  readonly attemptNo: number;
+  readonly messageId: string;
+  readonly invoiceRequestId: string;
+  readonly transmissionTime: string;
+  readonly signedXml: string;
+  readonly signedXmlBytes: Buffer;
+  readonly signedXmlSha256: string;
+  readonly xmlDsigSignatureBase64: string;
+}
+
+function fursV2CanonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(fursV2CanonicalJson).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+    .map(([key, child]) => `${JSON.stringify(key)}:${fursV2CanonicalJson(child)}`).join(",")}}`;
+}
+
+function fursV2UuidV5(operationId: string, name: string): string {
+  const namespace = operationId.replace(/-/g, "");
+  if (!/^[0-9a-f]{32}$/i.test(namespace)) throw new Error("operationId must be a UUID.");
+  const hash = crypto.createHash("sha1").update(Buffer.concat([Buffer.from(namespace, "hex"), Buffer.from(name)])).digest();
+  hash[6] = (hash[6]! & 0x0f) | 0x50;
+  hash[8] = (hash[8]! & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Build immutable FURS v2 legal evidence and sign it with the device key. */
+export function buildLegalCore(input: BuildLegalCoreInput): LegalInvoiceCore {
+  if (!input.data.certPem || !input.data.certKljuc) throw new Error("FURS certificate and key are required for LegalInvoiceCore.");
+  const provisional = zgradiInPodpisiFursRacun(input.data, 22,
+    fursV2UuidV5(input.operationId, "furs-v2:provisional"), "provisional");
+  const { messageId: _messageId, invoiceRequestId: _invoiceRequestId, ...legalInvoice } = provisional.canonicalFields;
+  const zoiSignature = crypto.createSign("RSA-SHA256");
+  zoiSignature.update(legalInvoice.zoiInput, "utf8"); zoiSignature.end();
+  const unsigned = {
+    envelopeVersion: "furs-v2" as const, operationId: input.operationId, localReceiptId: input.localReceiptId,
+    authorityBundle: input.authorityBundle, finalizationPlan: input.finalizationPlan,
+    finalizationPlanSha256: input.finalizationPlanSha256, legalInvoice,
+    zoiSignatureBase64: zoiSignature.sign(input.data.certKljuc).toString("base64"),
+    certificateFingerprint: provisional.certificateFingerprint,
+    deviceKeyFingerprintSha256: input.deviceKeyFingerprintSha256,
+  };
+  const signer = crypto.createSign("RSA-SHA256");
+  signer.update(fursV2CanonicalJson(unsigned), "utf8"); signer.end();
+  return Object.freeze({ ...unsigned, deviceSignatureBase64: signer.sign(input.devicePrivateKey).toString("base64") });
+}
+
+/** Verify the exact FURS ZOI input/signature/certificate fingerprint in immutable core evidence. */
+export function legalInvoiceZoiInput(
+  legal: Pick<CanonicalFursInvoiceFields, "taxNumber" | "issueDateTime" | "invoiceNumber" | "businessPremiseId" | "electronicDeviceId" | "invoiceAmount">,
+): string {
+  const match = legal.issueDateTime.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) throw new Error("Legal invoice IssueDateTime must be Slovenian local YYYY-MM-DDTHH:mm:ss.");
+  const [, year, month, day, hour, minute, second] = match;
+  if (!/^\d{8}$/.test(legal.taxNumber) || !Number.isInteger(legal.invoiceNumber) || legal.invoiceNumber < 1 ||
+      !/^-?\d+\.\d{2}$/.test(legal.invoiceAmount)) {
+    throw new Error("Legal invoice fields cannot form an official ZOI input.");
+  }
+  const legalNumber = `${legal.businessPremiseId}-${legal.electronicDeviceId}-${legal.invoiceNumber}`;
+  return `${legal.taxNumber}${day}.${month}.${year} ${hour}:${minute}:${second}${legal.invoiceAmount}${legalNumber}${legal.businessPremiseId}${legal.electronicDeviceId}`;
+}
+
+export function verifyZOI(core: Pick<LegalInvoiceCore, "legalInvoice" | "zoiSignatureBase64" | "certificateFingerprint">, publicKeyPem: string, certificateFingerprintExpected?: string): boolean {
+  if (certificateFingerprintExpected && core.certificateFingerprint !== certificateFingerprintExpected) return false;
+  let expectedInput: string;
+  try {
+    expectedInput = legalInvoiceZoiInput(core.legalInvoice);
+  } catch {
+    return false;
+  }
+  if (Buffer.from(core.legalInvoice.zoiInput, "utf8").compare(Buffer.from(expectedInput, "utf8")) !== 0) return false;
+  const verifier = crypto.createVerify("RSA-SHA256");
+  verifier.update(expectedInput, "utf8"); verifier.end();
+  return verifier.verify(publicKeyPem, Buffer.from(core.zoiSignatureBase64, "base64"))
+    && crypto.createHash("md5").update(Buffer.from(core.zoiSignatureBase64, "base64")).digest("hex") === core.legalInvoice.zoi;
+}
+
+/**
+ * Builds a fresh signed SOAP attempt. Each positive attempt number produces a
+ * unique MessageID and request Id; callers must persist its bytes before I/O.
+ */
+export function buildSignedTransportAttempt(core: LegalInvoiceCore, data: FursRacunData, attemptNo: number, transmissionTime: Date | string): FursTransportAttempt {
+  if (!Number.isInteger(attemptNo) || attemptNo < 1) throw new Error("attemptNo must be a positive integer.");
+  const messageId = fursV2UuidV5(core.operationId, `furs-v2:invoice-message:${attemptNo}`);
+  const invoiceRequestId = `InvoiceRequest-${core.localReceiptId.replace(/-/g, "")}-${core.operationId.replace(/-/g, "")}-A${attemptNo}`;
+  const transmissionDate = new Date(transmissionTime);
+  if (Number.isNaN(transmissionDate.valueOf())) throw new Error("transmissionTime must be a valid date.");
+  if (!data.certPem || !data.certKljuc) throw new Error("FURS certificate and key are required for a transport attempt.");
+  const invoiceXml = buildInvoiceXML(data, core.legalInvoice.zoi, 22, messageId, invoiceRequestId)
+    .replace(/(<fu:Header><fu:MessageID>[^<]+<\/fu:MessageID><fu:DateTime>)[^<]+/,
+      `$1${toSloTimestamp(transmissionDate)}`);
+  const signedXml = podpisiXML(buildSOAPEnvelope(invoiceXml), data.certPem, data.certKljuc);
+  const signedXmlBytes = Buffer.from(signedXml, "utf8");
+  if (certificateFingerprint(data.certPem) !== core.certificateFingerprint) {
+    throw new Error("Transport attempt does not match immutable legal core.");
+  }
+  const signature = signedXml.match(/<Signature[^>]*>[\s\S]*?<SignatureValue>([^<]+)<\/SignatureValue>[\s\S]*?<\/Signature>/)?.[1];
+  if (!signature) throw new Error("Generated XMLDSig is missing.");
+  return Object.freeze({
+    attemptNo, messageId, invoiceRequestId, transmissionTime: transmissionDate.toISOString(),
+    signedXml, signedXmlBytes,
+    signedXmlSha256: `sha256:${crypto.createHash("sha256").update(signedXmlBytes).digest("hex")}`, xmlDsigSignatureBase64: signature,
+  });
+}
+
+export interface FursSignedTransportOptions {
+  fursNacin: Exclude<FursNacin, "simulacija">;
+  proxyUrl?: string;
+  certPem: string;
+  certKljuc: string;
+}
+
+export interface FursSignedTransportResult extends FursOdgovor {
+  outcome: FursDeliveryOutcome;
+  payloadHash: string;
+}
+
+export type FursSoapTransport = (
+  soapBody: string | Buffer,
+  soapAction: string,
+  testniNacin: boolean,
+  proxyUrl?: string,
+  certPem?: string,
+  certKljuc?: string,
+) => Promise<{ statusCode: number; body: string; headers: Record<string, string | string[] | undefined> }>;
+
+export function classifyFursDeliveryOutcome(response: Pick<FursOdgovor, "uspeh" | "eor" | "deliveryUnknown">): FursDeliveryOutcome {
+  if (response.uspeh && typeof response.eor === "string" && response.eor.trim()) return "confirmed";
+  return response.deliveryUnknown ? "unknown" : "failed";
+}
+
+/** The sole lifecycle state eligible for automatic retry claims. */
+export function isFursBatchRetryable(state: string): boolean {
+  return state === "failed";
 }
 
 /**
@@ -494,13 +643,13 @@ export function fursQrUrl(zoi: string, davcnaStevilka: string, datumCas: Date): 
  */
 export function izracunajZOIRSA(
   content: string,
-  certifikatPot?: string,
-  certifikatGeslo?: string,
   certKljucPem?: string
 ): string {
   try {
-    const pem = certKljucPem ?? (certifikatPot ? fs.readFileSync(certifikatPot, "utf-8") : "");
-    const privateKey = crypto.createPrivateKey({ key: pem, passphrase: certifikatGeslo });
+    if (!certKljucPem) {
+      throw new Error("FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.");
+    }
+    const privateKey = crypto.createPrivateKey({ key: certKljucPem });
     const sign = crypto.createSign("SHA256");
     sign.update(content, "utf8");
     sign.end();
@@ -526,14 +675,11 @@ export function izracunajZOILokalno(
   blagajnaId: string,
   fursNacin: FursNacin,
   certKljuc?: string,
-  certifikatPot?: string,
-  certifikatGeslo?: string,
 ): string {
   if (fursNacin === "simulacija") {
     return izracunajZOI(stevilkaRacuna, datumCas, skupaj, davcnaStevilka);
   }
-  const hasCert = !!certKljuc || !!(certifikatPot && fs.existsSync(certifikatPot));
-  if (!hasCert) {
+  if (!certKljuc) {
     return izracunajZOI(stevilkaRacuna, datumCas, skupaj, davcnaStevilka);
   }
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -541,7 +687,7 @@ export function izracunajZOILokalno(
   const ts = `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
   const content = `${davcnaStevilka}${ts}${skupaj.toFixed(2)}${stevilkaRacuna}${poslovniProstor}${blagajnaId}`;
   try {
-    return izracunajZOIRSA(content, certifikatPot, certifikatGeslo, certKljuc);
+    return izracunajZOIRSA(content, certKljuc);
   } catch {
     return izracunajZOI(stevilkaRacuna, datumCas, skupaj, davcnaStevilka);
   }
@@ -577,13 +723,12 @@ export async function posljiNaFURS(
   }
 
   // Testni ali produkcijski način: zahteva certifikat FURS
-  const hasCert = !!(data.certPem && data.certKljuc) || !!(data.certifikatPot && fs.existsSync(data.certifikatPot));
-  if (!hasCert) {
+  if (!data.certPem || !data.certKljuc) {
     return {
       eor: "",
       zoi: "",
       uspeh: false,
-      napaka: `${fursNacin === "testno" ? "Testni" : "Produkcijski"} način zahteva certifikat FURS. Naložite certifikat v nastavitvah.`,
+      napaka: "FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.",
       surovOdgovor: "",
     };
   }
@@ -614,8 +759,6 @@ export interface FursPoslovniProstorData {
   stevilkaDelaStavbe?: string;
   veljavnostOd: string;
   zapri?: boolean;
-  certifikatPot?: string;
-  certifikatGeslo?: string;
   certPem?: string;
   certKljuc?: string;
   proxyUrl?: string;
@@ -642,11 +785,10 @@ export async function registrirajPoslovniProstor(
     };
   }
 
-  const hasCert = !!(data.certPem && data.certKljuc) || !!(data.certifikatPot && fs.existsSync(data.certifikatPot));
-  if (!hasCert) {
+  if (!data.certPem || !data.certKljuc) {
     return {
       uspeh: false,
-      napaka: `${fursNacin === "testno" ? "Testni" : "Produkcijski"} način zahteva certifikat FURS. Naložite certifikat v nastavitvah.`,
+      napaka: "FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.",
       surovOdgovor: "",
     };
   }
@@ -662,14 +804,22 @@ export async function registrirajPoslovniProstor(
  * URL je /v1/cash_registers (brez sub-poti) — SOAPAction header določa vrsto.
  * MessageType: InvoiceRequest=0→/invoices, BusinessPremise=1→/invoices/register, Echo=2→/echo
  */
-const FURS_PROXY_SECRET = "restavracija-pos-furs-proxy-2026"; // noscan — skupni ključ bookie.si FURS proxy strežnika, ni produkcijsko geslo
+export function sanitizeFursTransportError(error: unknown): string {
+  let message = error instanceof Error ? error.message : "FURS transportna napaka";
+  const proxySecret = process.env.FURS_PROXY_SECRET;
+  if (proxySecret) message = message.split(proxySecret).join("[REDACTED]");
+  message = message
+    .replace(/-----BEGIN [^-]+-----[\s\S]*?-----END [^-]+-----/g, "[REDACTED]")
+    .slice(0, 500);
+  return message || "FURS transportna napaka";
+}
+
+class FursProxyConfigurationError extends Error {}
 
 async function fursFetchSOAP(
-  soapBody: string,
-  certPot: string,
+  soapBody: string | Buffer,
   soapAction: string,
   testniNacin = true,
-  geslo?: string,
   proxyUrl?: string,
   certPem?: string,
   certKljuc?: string
@@ -677,30 +827,29 @@ async function fursFetchSOAP(
 
   // Če je nastavljen proxy URL, posreduj zahtevek prek proxy-ja (obide IP omejetev FURS WAF)
   if (proxyUrl) {
+    const proxySecret = process.env.FURS_PROXY_SECRET?.trim();
+    if (!proxySecret) throw new FursProxyConfigurationError("FURS proxy ni konfiguriran: manjka FURS_PROXY_SECRET.");
     const parsed = new URL(proxyUrl);
-    // Dodaj secret kot query param — fallback za shared hosting, ki strippa custom headerje
-    parsed.searchParams.set("s", FURS_PROXY_SECRET);
-    const isHttps = parsed.protocol === "https:";
-    const mod = isHttps ? https : await import("http");
+    if (parsed.protocol !== "https:") throw new FursProxyConfigurationError("FURS proxy mora uporabljati preverjeno HTTPS povezavo.");
     return new Promise((resolve, reject) => {
-      const bodyBytes = Buffer.byteLength(soapBody, "utf8");
+      const bodyBytes = Buffer.isBuffer(soapBody) ? soapBody.length : Buffer.byteLength(soapBody, "utf8");
       const opts = {
         hostname: parsed.hostname,
-        port: parsed.port || (isHttps ? 443 : 80),
-        path: parsed.pathname + parsed.search,
+        port: parsed.port || 443,
+        path: parsed.pathname,
         method: "POST",
         headers: {
           "Content-Type": "text/xml; charset=UTF-8",
           "Content-Length": bodyBytes,
-          "X-Proxy-Secret": FURS_PROXY_SECRET,
+          "X-Proxy-Secret": proxySecret,
           "X-Furs-Action": soapAction,
           "X-Furs-Url": testniNacin ? "test" : "prod",
           ...(certPem  ? { "X-Furs-Cert-Pem": Buffer.from(certPem).toString("base64") }  : {}),
           ...(certKljuc ? { "X-Furs-Cert-Key": Buffer.from(certKljuc).toString("base64") } : {}),
         },
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       };
-      const req = (mod as typeof https).request(opts, (res) => {
+      const req = https.request(opts, (res) => {
         let data = "";
         res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
         res.on("end", () => resolve({
@@ -722,13 +871,12 @@ async function fursFetchSOAP(
     : "https://blagajne.fu.gov.si:9003";
   const parsed = new URL(`${base}/v1/cash_registers`);
 
-  const agentOpts: https.AgentOptions = { rejectUnauthorized: false, minVersion: "TLSv1.2" };
+  const agentOpts: https.AgentOptions = { rejectUnauthorized: true, minVersion: "TLSv1.2" };
 
-  const mTlsCert = resolveCertPem(certPot, geslo, certPem, certKljuc);
+  const mTlsCert = resolveCertPem(certPem, certKljuc);
   if (mTlsCert) {
     try {
-      const caCert = certPot ? beriCACert(certPot, testniNacin) : null;
-      agentOpts.cert = mTlsCert.cert + (caCert ? "\n" + caCert : "");
+      agentOpts.cert = mTlsCert.cert;
       agentOpts.key = Buffer.from(mTlsCert.key);
     } catch { /* ni veljavnega certa — nadaljuj brez */ }
   }
@@ -736,7 +884,7 @@ async function fursFetchSOAP(
   const agent = new https.Agent(agentOpts);
 
   return new Promise((resolve, reject) => {
-    const bodyBytes = Buffer.byteLength(soapBody, "utf8");
+    const bodyBytes = Buffer.isBuffer(soapBody) ? soapBody.length : Buffer.byteLength(soapBody, "utf8");
     const req = https.request({
       hostname: parsed.hostname,
       port: parsed.port || 443,
@@ -748,7 +896,7 @@ async function fursFetchSOAP(
         "Accept": "text/xml",
         "SOAPAction": soapAction,
       },
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
       agent,
     }, (res) => {
       let data = "";
@@ -769,11 +917,11 @@ async function fursFetchSOAP(
 /**
  * Podpiše XML element z Id="test" z XMLDSig (RSA-SHA256, enveloped, C14N).
  * Podpis se vstavi znotraj elementa (append).
- * Podpira PEM iz baze (certPem/certKljuc) ali datoteke na disku (certPot).
+ * Uporablja izključno PEM certifikat in ključ podjetja iz šifrirane baze.
  */
-export function podpisiXML(innerXml: string, certPot: string, geslo?: string, certPem?: string, certKljuc?: string): string {
-  const certData = resolveCertPem(certPot, geslo, certPem, certKljuc);
-  if (!certData) throw new Error("Certifikat ni na voljo za XMLDSig podpis");
+export function podpisiXML(innerXml: string, certPem?: string, certKljuc?: string): string {
+  const certData = resolveCertPem(certPem, certKljuc);
+  if (!certData) throw new Error("FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.");
   const { key: keyMatch, cert: certMatch } = certData;
 
   const certDer = certMatch
@@ -798,6 +946,8 @@ export function podpisiXML(innerXml: string, certPot: string, geslo?: string, ce
       `</X509IssuerSerial>`;
   } catch { /* brez IssuerSerial če ekstrakcija spodleti */ }
 
+  const requestId = innerXml.match(/<fu:(?:InvoiceRequest|BusinessPremiseRequest|Echo)\b[^>]*\bId=['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]/)?.[1] ?? "test";
+  const requestXPath = `//*[@Id='${requestId}']`;
   const sig = new SignedXml({
     privateKey: keyMatch,
     signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
@@ -806,7 +956,7 @@ export function podpisiXML(innerXml: string, certPot: string, geslo?: string, ce
   });
 
   sig.addReference({
-    xpath: "//*[@Id='test']",
+    xpath: requestXPath,
     // Enveloped-signature izloči <Signature> element; C14N nato kanonizira rezultat pred digestiranjem.
     // Oba transforma sta potrebna — brez eksplicitnega C14N FURS in xml-crypto ne uskladita serializacije.
     transforms: [
@@ -814,7 +964,7 @@ export function podpisiXML(innerXml: string, certPot: string, geslo?: string, ce
       "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
     ],
     digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-    uri: "#test",
+    uri: `#${requestId}`,
     isEmptyUri: false,
   });
 
@@ -822,7 +972,7 @@ export function podpisiXML(innerXml: string, certPot: string, geslo?: string, ce
     `<X509Data>${issuerSerial}<X509Certificate>${certDer}</X509Certificate></X509Data>`;
 
   sig.computeSignature(innerXml, {
-    location: { reference: "//*[@Id='test']", action: "append" },
+    location: { reference: requestXPath, action: "append" },
   });
 
   return sig.getSignedXml();
@@ -923,7 +1073,7 @@ function buildSOAPBPXML(data: FursPoslovniProstorData): string {
  * Izvožena za integracijske teste (preverjanje TaxesPerSeller vs InvoiceAmount). */
 /** Formatira datum v lokalni slovenskem času (Europe/Ljubljana) brez timezone sufiksa.
  * FURS zahteva IssueDateTime kot lokalni čas brez Z — to je vzrok S001 če pošljemo UTC+Z. */
-function toSloTimestamp(date: Date): string {
+export function toSloTimestamp(date: Date): string {
   // sv-SE locale daje ISO-like format YYYY-MM-DD HH:MM:SS → zamenjamo presledek s T
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Europe/Ljubljana",
@@ -933,7 +1083,18 @@ function toSloTimestamp(date: Date): string {
   }).format(date).replace(" ", "T");
 }
 
-export function buildInvoiceXML(data: FursRacunData, zoi?: string, splosnaSt = 22): string {
+function toSloZoiTimestamp(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Ljubljana",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("day")}.${value("month")}.${value("year")} ${value("hour")}:${value("minute")}:${value("second")}`;
+}
+
+export function buildInvoiceXML(data: FursRacunData, zoi?: string, splosnaSt = 22, messageId = crypto.randomUUID(), invoiceRequestId = "test"): string {
   const issueDt = toSloTimestamp(data.datumCas);
 
   // Format: PP001-B001-NNNNNN — vzemi 6-mestno zaporedno številko.
@@ -1008,10 +1169,9 @@ export function buildInvoiceXML(data: FursRacunData, zoi?: string, splosnaSt = 2
   //   TaxNumber → IssueDateTime → NumberingStructure → InvoiceIdentifier →
   //   CustomerVATNumber (opt) → InvoiceAmount → ReturnsAmount (opt) →
   //   PaymentAmount → TaxesPerSeller → OperatorTaxNumber (opt) → ... → ProtectedID
-  const msgId = crypto.randomUUID();
   return (
-    `<fu:InvoiceRequest xmlns:fu='http://www.fu.gov.si/' Id='test'>` +
-    `<fu:Header><fu:MessageID>${msgId}</fu:MessageID><fu:DateTime>${issueDt}</fu:DateTime></fu:Header>` +
+    `<fu:InvoiceRequest xmlns:fu='http://www.fu.gov.si/' Id='${invoiceRequestId}'>` +
+    `<fu:Header><fu:MessageID>${messageId}</fu:MessageID><fu:DateTime>${issueDt}</fu:DateTime></fu:Header>` +
     `<fu:Invoice>` +
     `<fu:TaxNumber>${data.davcnaStevilka ?? "12345678"}</fu:TaxNumber>` +
     `<fu:IssueDateTime>${issueDt}</fu:IssueDateTime>` +
@@ -1033,6 +1193,119 @@ export function buildInvoiceXML(data: FursRacunData, zoi?: string, splosnaSt = 2
   );
 }
 
+function certificateFingerprint(certPem: string): string {
+  try {
+    return `sha256:${new crypto.X509Certificate(certPem).fingerprint256.replace(/:/g, "").toLowerCase()}`;
+  } catch {
+    return fursSigningContextFingerprint("produkcija", certPem);
+  }
+}
+
+/** Deep-freezes the small canonical metadata object returned to persistence callers. */
+function immutableCanonicalFields(fields: CanonicalFursInvoiceFields): Readonly<CanonicalFursInvoiceFields> {
+  const taxesPerSeller = Object.freeze(fields.taxesPerSeller.map((tax) => Object.freeze({ ...tax })));
+  const referenceInvoice = fields.referenceInvoice
+    ? Object.freeze({ ...fields.referenceInvoice })
+    : undefined;
+  return Object.freeze({ ...fields, taxesPerSeller, referenceInvoice });
+}
+
+/**
+ * @deprecated FURS v1 request evidence is quarantine-only. New code must use
+ * buildLegalCore followed by buildSignedTransportAttempt for each send.
+ *
+ * Canonically constructs and signs an invoice without performing any I/O.
+ * Supplying `messageId` makes the complete request deterministic (useful when
+ * restoring a request from durable offline state); online submission generates
+ * it once and then transports the returned bytes unchanged.
+ */
+export function zgradiInPodpisiFursRacun(
+  data: FursRacunData,
+  splosnaSt = 22,
+  messageId = crypto.randomUUID(),
+  invoiceRequestId = "test",
+): SignedFursInvoiceRequest {
+  if (!data.certPem || !data.certKljuc) {
+    throw new Error("FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.");
+  }
+
+  const taxNumber = data.davcnaStevilka ?? "12345678";
+  const businessPremiseId = data.poslovnaProstor ?? "PP001";
+  const electronicDeviceId = data.blagajnaId ?? "B001";
+  const zoiInput = `${taxNumber}${toSloZoiTimestamp(data.datumCas)}${data.skupaj.toFixed(2)}${data.stevilkaRacuna}${businessPremiseId}${electronicDeviceId}`;
+  let zoi: string;
+  try {
+    zoi = izracunajZOIRSA(zoiInput, data.certKljuc);
+  } catch {
+    // Preserve the existing online fallback semantics.
+    zoi = izracunajZOI(data.stevilkaRacuna, data.datumCas, data.skupaj, taxNumber);
+  }
+
+  const invoiceXml = buildInvoiceXML(data, zoi, splosnaSt, messageId, invoiceRequestId);
+  const signedXml = podpisiXML(buildSOAPEnvelope(invoiceXml), data.certPem, data.certKljuc);
+  const signedXmlBytes = Buffer.from(signedXml, "utf8");
+  const certFingerprint = certificateFingerprint(data.certPem);
+  const vatGroups = new Map<number, { taxable: number; tax: number }>();
+  for (const item of data.postavke) {
+    const lineTotal = round2(item.kolicina * item.cenaKos);
+    const tax = round2((lineTotal * item.davek) / (100 + item.davek));
+    const taxable = round2(lineTotal - tax);
+    const current = vatGroups.get(item.davek) ?? { taxable: 0, tax: 0 };
+    vatGroups.set(item.davek, { taxable: current.taxable + taxable, tax: current.tax + tax });
+  }
+  if (vatGroups.size === 0) {
+    vatGroups.set(splosnaSt, { taxable: round2(data.skupaj - data.ddv), tax: data.ddv });
+  }
+  const taxesPerSeller = Array.from(vatGroups.entries())
+    .sort(([left], [right]) => left - right)
+    .map(([rate, amounts]) => ({
+      taxRate: rate.toFixed(2),
+      taxableAmount: amounts.taxable.toFixed(2),
+      taxAmount: amounts.tax.toFixed(2),
+    }));
+  let referenceInvoice: CanonicalFursInvoiceFields["referenceInvoice"];
+  if (data.jeStorno && data.izvornaStevRacuna) {
+    const match = data.izvornaStevRacuna.match(/^(.+)-(.+)-\d+$/);
+    referenceInvoice = {
+      businessPremiseId: match?.[1] ?? businessPremiseId,
+      electronicDeviceId: match?.[2] ?? electronicDeviceId,
+      invoiceNumber: extractFursSeqNum(data.izvornaStevRacuna),
+      issueDateTime: data.izvornaStevRacunaDatumCas
+        ? toSloTimestamp(data.izvornaStevRacunaDatumCas)
+        : toSloTimestamp(data.datumCas),
+    };
+  }
+  const canonicalFields = immutableCanonicalFields({
+    messageId,
+    invoiceRequestId,
+    taxNumber,
+    issueDateTime: toSloTimestamp(data.datumCas),
+    invoiceNumber: extractFursSeqNum(data.stevilkaRacuna),
+    businessPremiseId,
+    electronicDeviceId,
+    invoiceAmount: data.skupaj.toFixed(2),
+    paymentAmount: data.skupaj.toFixed(2),
+    numberingStructure: "B",
+    ...(data.kupecDavcnaStevilka ? { customerTaxNumber: data.kupecDavcnaStevilka } : {}),
+    ...(data.operatorDavcna ? { operatorTaxNumber: data.operatorDavcna } : {}),
+    taxesPerSeller,
+    ...(referenceInvoice ? { referenceInvoice } : {}),
+    zoiInput,
+    zoi,
+    certificateFingerprint: certFingerprint,
+  });
+
+  return Object.freeze({
+    signedXml,
+    signedXmlBytes,
+    invoiceXml,
+    zoi,
+    certificateFingerprint: certFingerprint,
+    canonicalFields,
+    payloadHash: `sha256:${crypto.createHash("sha256").update(signedXmlBytes).digest("hex")}`,
+  });
+}
+
 /**
  * Registrira poslovni prostor pri FURS z SOAP+XMLDSig.
  * Potrjena metoda (dekompilujan SLOTaxService.dll).
@@ -1041,9 +1314,8 @@ export async function registrirajPoslovniProstorSOAP(
   data: FursPoslovniProstorData,
   fursNacin: FursNacin = "simulacija"
 ): Promise<FursPpOdgovor> {
-  const hasCert = !!(data.certPem && data.certKljuc) || !!(data.certifikatPot && fs.existsSync(data.certifikatPot));
-  if (!hasCert) {
-    return { uspeh: false, napaka: "Zahteva certifikat FURS.", surovOdgovor: "" };
+  if (!data.certPem || !data.certKljuc) {
+    return { uspeh: false, napaka: "FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.", surovOdgovor: "" };
   }
   const testniNacinUrl = fursNacin !== "produkcija";
   try {
@@ -1053,8 +1325,8 @@ export async function registrirajPoslovniProstorSOAP(
     // ker FURS pri verifikaciji vidi BusinessPremiseRequest znotraj celotnega SOAP dokumenta.
     // Brez tega C14N med podpisovanjem in verifikacijo producira različen output → S003.
     const soapBody = buildSOAPEnvelope(innerXml);
-    const signedSoap = podpisiXML(soapBody, data.certifikatPot ?? "", data.certifikatGeslo, data.certPem, data.certKljuc);
-    const fursOdgovor = await fursFetchSOAP(signedSoap, data.certifikatPot ?? "", "/invoices/register", testniNacinUrl, data.certifikatGeslo, data.proxyUrl, data.certPem, data.certKljuc);
+    const signedSoap = podpisiXML(soapBody, data.certPem, data.certKljuc);
+    const fursOdgovor = await fursFetchSOAP(signedSoap, "/invoices/register", testniNacinUrl, data.proxyUrl, data.certPem, data.certKljuc);
     const surovOdgovor = `[POSLAN XML]\n${innerXml}\n\n[HTTP ${fursOdgovor.statusCode}]\n${fursOdgovor.body}`;
     if (jeFursWafZavrnitev(fursOdgovor.body)) {
       return { uspeh: false, napaka: "FURS WAF je zavrnil zahtevek: strežnik ni dosegljiv z vašega IP naslova. Potrebujete proxy strežnik v Sloveniji.", surovOdgovor };
@@ -1066,7 +1338,7 @@ export async function registrirajPoslovniProstorSOAP(
     const uspeh = fursOdgovor.statusCode >= 200 && fursOdgovor.statusCode < 300;
     return { uspeh, surovOdgovor };
   } catch (err) {
-    const napaka = err instanceof Error ? err.message : "Neznana napaka";
+    const napaka = sanitizeFursTransportError(err);
     return { uspeh: false, napaka, surovOdgovor: JSON.stringify({ napaka }) };
   }
 }
@@ -1088,57 +1360,109 @@ export async function posljiNaFURSSOAP(
     const eor = crypto.randomUUID();
     return { eor, zoi, uspeh: true, surovOdgovor: JSON.stringify({ opomba: "lokalna simulacija" }) };
   }
-  const testniNacinUrl = fursNacin !== "produkcija";
-
   // FURS SOAP klic z RSA ZOI + XMLDSig podpisom.
-  const hasCert = !!(data.certPem && data.certKljuc) || !!(data.certifikatPot && fs.existsSync(data.certifikatPot));
-  if (!hasCert) {
-    return { eor: "", zoi: "", uspeh: false, napaka: "Testni/produkcijski način zahteva certifikat FURS (nastavitve → certifikat).", surovOdgovor: "" };
-  }
-
-  // Produkcija: RSA ZOI (kot zahteva FURS v produkciji)
-  let zoi: string;
-  try {
-    const dt = data.datumCas;
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const ts = `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
-    const content = `${davcna}${ts}${data.skupaj.toFixed(2)}${data.stevilkaRacuna}${data.poslovnaProstor ?? "PP001"}${data.blagajnaId ?? "B001"}`;
-    zoi = izracunajZOIRSA(content, data.certifikatPot, data.certifikatGeslo, data.certKljuc);
-  } catch {
-    zoi = izracunajZOI(data.stevilkaRacuna, data.datumCas, data.skupaj, davcna);
+  if (!data.certPem || !data.certKljuc) {
+    return { eor: "", zoi: "", uspeh: false, napaka: "FURS certifikat ni naložen za to podjetje — naložite ga v Podjetje/FURS.", surovOdgovor: "" };
   }
 
   try {
-    const invoiceXml = buildInvoiceXML(data, zoi, splosnaSt);
-    const soapBody = buildSOAPEnvelope(invoiceXml);
-    const signedSoap = podpisiXML(soapBody, data.certifikatPot ?? "", data.certifikatGeslo, data.certPem, data.certKljuc);
-    const fursOdgovor = await fursFetchSOAP(signedSoap, data.certifikatPot ?? "", "/invoices", testniNacinUrl, data.certifikatGeslo, data.proxyUrl, data.certPem, data.certKljuc);
-    const surovOdgovor = `[POSLAN XML]\n${invoiceXml}\n\n[HTTP ${fursOdgovor.statusCode}]\n${fursOdgovor.body}`;
-
-    if (jeFursWafZavrnitev(fursOdgovor.body)) {
-      return { eor: "", zoi, uspeh: false, napaka: "FURS WAF je zavrnil zahtevek: strežnik ni dosegljiv z vašega IP naslova. Potrebujete proxy strežnik v Sloveniji.", surovOdgovor };
-    }
-    const fursNapaka = parseFursSoapError(fursOdgovor.body);
-    if (fursNapaka) {
-      return { eor: "", zoi, uspeh: false, napaka: `${fursNapaka.koda}: ${fursNapaka.sporocilo}`, surovOdgovor };
-    }
-
-    if (fursOdgovor.statusCode >= 200 && fursOdgovor.statusCode < 300) {
-      const eorMatch = fursOdgovor.body.match(/<(?:fu:)?UniqueInvoiceID>(.*?)<\/(?:fu:)?UniqueInvoiceID>/);
-      const zoiMatch = fursOdgovor.body.match(/<(?:fu:)?ProtectedID>(.*?)<\/(?:fu:)?ProtectedID>/);
-      const resultEor = fursOdgovor.body.match(/<EOR>(.*?)<\/EOR>/)?.[1];
-      const resultZoi = fursOdgovor.body.match(/<ZOI>(.*?)<\/ZOI>/)?.[1];
-      const eor = eorMatch?.[1] ?? resultEor ?? "";
-      const zoiOdgovor = zoiMatch?.[1] ?? resultZoi ?? zoi;
-      if (eor) return { eor, zoi: zoiOdgovor, uspeh: true, surovOdgovor };
-    }
-
-    return { eor: "", zoi, uspeh: false, napaka: `FURS napaka HTTP ${fursOdgovor.statusCode}`, surovOdgovor };
+    const signedRequest = buildAndSignCanonicalFursInvoice(
+      data,
+      crypto.randomUUID(),
+      splosnaSt,
+    );
+    return await posljiPodpisanFursRacun(signedRequest, {
+      fursNacin,
+      proxyUrl: data.proxyUrl,
+      certPem: data.certPem,
+      certKljuc: data.certKljuc,
+    });
   } catch (err) {
-    const napaka = err instanceof Error ? err.message : "Neznana napaka";
-    return { eor: "", zoi, uspeh: false, napaka, surovOdgovor: JSON.stringify({ napaka }) };
+    const napaka = sanitizeFursTransportError(err);
+    return {
+      eor: "", zoi: "", uspeh: false, napaka,
+      surovOdgovor: JSON.stringify({ napaka }),
+      // Construction/signing happens before delivery, so failure here is known.
+      deliveryUnknown: false,
+    };
   }
 }
+
+/**
+ * Sends an already-signed request byte-for-byte and only parses/classifies the
+ * response. It never rebuilds canonical fields and never accesses a signer.
+ */
+export async function posljiPodpisanFursRacun(
+  request: SignedFursInvoiceRequest,
+  options: FursSignedTransportOptions,
+  transport: FursSoapTransport = fursFetchSOAP,
+): Promise<FursSignedTransportResult> {
+  const expectedHash = `sha256:${crypto.createHash("sha256").update(request.signedXmlBytes).digest("hex")}`;
+  if (expectedHash !== request.payloadHash || !request.signedXmlBytes.equals(Buffer.from(request.signedXml, "utf8"))) {
+    throw new Error("Podpisani FURS payload se ne ujema s shranjenim SHA-256 hashom.");
+  }
+
+  const base = { zoi: request.zoi, payloadHash: request.payloadHash };
+  try {
+    const response = await transport(
+      request.signedXmlBytes,
+      "/invoices",
+      options.fursNacin !== "produkcija",
+      options.proxyUrl,
+      options.certPem,
+      options.certKljuc,
+    );
+    const surovOdgovor = `[POSLAN XML]\n${request.invoiceXml}\n\n[HTTP ${response.statusCode}]\n${response.body}`;
+
+    if (jeFursWafZavrnitev(response.body)) {
+      return { ...base, eor: "", uspeh: false, napaka: "FURS WAF je zavrnil zahtevek: strežnik ni dosegljiv z vašega IP naslova. Potrebujete proxy strežnik v Sloveniji.", surovOdgovor, outcome: "failed" };
+    }
+    const fursNapaka = parseFursSoapError(response.body);
+    if (fursNapaka) {
+      return { ...base, eor: "", uspeh: false, napaka: `${fursNapaka.koda}: ${fursNapaka.sporocilo}`, surovOdgovor, outcome: "failed" };
+    }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      const eor = response.body.match(/<(?:fu:)?UniqueInvoiceID>(.*?)<\/(?:fu:)?UniqueInvoiceID>/)?.[1]
+        ?? response.body.match(/<EOR>(.*?)<\/EOR>/)?.[1] ?? "";
+      const responseZoi = response.body.match(/<(?:fu:)?ProtectedID>(.*?)<\/(?:fu:)?ProtectedID>/)?.[1]
+        ?? response.body.match(/<ZOI>(.*?)<\/ZOI>/)?.[1] ?? request.zoi;
+      if (eor) return { ...base, eor, zoi: responseZoi, uspeh: true, surovOdgovor, outcome: "confirmed" };
+    }
+    return {
+      ...base, eor: "", uspeh: false,
+      napaka: `FURS napaka HTTP ${response.statusCode}`,
+      surovOdgovor, deliveryUnknown: true, outcome: "unknown",
+    };
+  } catch (err) {
+    const napaka = sanitizeFursTransportError(err);
+    const deliveryUnknown = !(err instanceof FursProxyConfigurationError);
+    return {
+      ...base, eor: "", uspeh: false, napaka,
+      surovOdgovor: JSON.stringify({ napaka }),
+      deliveryUnknown,
+      outcome: deliveryUnknown ? "unknown" : "failed",
+    };
+  }
+}
+
+/**
+ * @deprecated Use buildLegalCore/buildSignedTransportAttempt. This remains for
+ * current route callers and legacy-v1 evidence parsing only.
+ *
+ * Strictly deterministic construction seam: callers must persist/give the
+ * MessageID rather than allowing this function to read randomness or time.
+ */
+export function buildAndSignCanonicalFursInvoice(
+  data: FursRacunData,
+  messageId: string,
+  splosnaSt = 22,
+  invoiceRequestId = "test",
+): SignedFursInvoiceRequest {
+  return zgradiInPodpisiFursRacun(data, splosnaSt, messageId, invoiceRequestId);
+}
+
+/** English API alias for the raw transport seam. */
+export const submitSignedFursInvoice = posljiPodpisanFursRacun;
 
 /** Izvleče FURS ErrorCode/ErrorMessage iz SOAP telesa. Vrne null če ni napake. */
 function parseFursSoapError(body: string): { koda: string; sporocilo: string } | null {
@@ -1169,9 +1493,7 @@ const diagErr = (e: unknown): DiagResult => ({ statusCode: -1, body: String(e), 
  * Vrne: { uspeh, statusCode, body }
  */
 export async function fursSOAPEcho(
-  certPot: string,
   fursNacin: FursNacin = "simulacija",
-  geslo?: string,
   proxyUrl?: string,
   certPem?: string,
   certKljuc?: string
@@ -1183,8 +1505,8 @@ export async function fursSOAPEcho(
     const echoInner = `<fu:EchoRequest xmlns:fu='http://www.fu.gov.si/' Id='test'>echo-soap-test</fu:EchoRequest>`;
     // wrap-then-sign: najprej SOAP ovitek, nato podpis celotnega dokumenta
     const echoSoap = buildSOAPEnvelope(echoInner);
-    const echoSoapSigned = podpisiXML(echoSoap, certPot, geslo, certPem, certKljuc);
-    const odgovor = await fursFetchSOAP(echoSoapSigned, certPot, "/echo", fursNacin !== "produkcija", geslo, proxyUrl, certPem, certKljuc);
+    const echoSoapSigned = podpisiXML(echoSoap, certPem, certKljuc);
+    const odgovor = await fursFetchSOAP(echoSoapSigned, "/echo", fursNacin !== "produkcija", proxyUrl, certPem, certKljuc);
     const uspeh = odgovor.statusCode >= 200 && odgovor.statusCode < 300 &&
       (odgovor.body.includes("EchoResponse") || odgovor.body.includes("echo"));
     return { uspeh, statusCode: odgovor.statusCode, body: odgovor.body };
@@ -1222,6 +1544,23 @@ export async function fursEchoDiagnostika(certPot: string, testniNacin = true, g
   /** L: SOAP BusinessPremise na base URL z SOAPAction: /invoices/register + XMLDSig */
   soapBP: DiagResult;
 }> {
+  return {
+    certNajden: false,
+    caCertPrenesen: false,
+    echoGet: diagErr("Legacy FURS diagnostika je odstranjena."),
+    echoPost: diagErr("Legacy FURS diagnostika je odstranjena."),
+    echoPostPayload: diagErr("Legacy FURS diagnostika je odstranjena."),
+    jwtWrapped: diagErr("Legacy FURS diagnostika je odstranjena."),
+    jwtRaw: diagErr("Legacy FURS diagnostika je odstranjena."),
+    jwtTestSupplier: diagErr("Legacy FURS diagnostika je odstranjena."),
+    jwtNeveljaven: diagErr("Legacy FURS diagnostika je odstranjena."),
+    jwtBrezWrapper: diagErr("Legacy FURS diagnostika je odstranjena."),
+    xmlRaw: diagErr("Legacy FURS diagnostika je odstranjena."),
+    xmlEcho: diagErr("Legacy FURS diagnostika je odstranjena."),
+    soapEcho: diagErr("Legacy FURS diagnostika je odstranjena."),
+    soapBP: diagErr("Legacy FURS diagnostika je odstranjena."),
+  };
+  if (false) {
   const certNajden = fs.existsSync(certPot);
 
   const base = testniNacin
@@ -1241,7 +1580,7 @@ export async function fursEchoDiagnostika(certPot: string, testniNacin = true, g
         clientKey2 = Buffer.from(key);
       } catch { /* ni cert */ }
       const agent = new https.Agent({
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
         cert: clientCert2,
         key: clientKey2,
       });
@@ -1416,7 +1755,7 @@ export async function fursEchoDiagnostika(certPot: string, testniNacin = true, g
       const echoInner = `<fu:EchoRequest xmlns:fu='http://www.fu.gov.si/' Id='test'>echo-soap-test</fu:EchoRequest>`;
       const echoSigned = podpisiXML(echoInner, certPot, geslo);
       const echoSoap = buildSOAPEnvelope(echoSigned);
-      soapEcho = await fursFetchSOAP(echoSoap, certPot, "/echo", testniNacin, geslo);
+      soapEcho = await fursFetchSOAP(echoSoap, "/echo", testniNacin, undefined, certPot, geslo);
     } catch (e) { soapEcho = diagErr(e); }
 
     // L: SOAP BusinessPremise na base URL z SOAPAction: /invoices/register + XMLDSig
@@ -1435,19 +1774,21 @@ export async function fursEchoDiagnostika(certPot: string, testniNacin = true, g
         kraj: "Ljubljana",
         postnaStevilka: "1000",
         veljavnostOd: "2020-08-25",
-        certifikatPot: certPot,
-        certifikatGeslo: geslo,
+        certPem: "",
+        certKljuc: "",
       };
       const bpInner = buildSOAPBPXML(bpData);
       const bpSigned = podpisiXML(bpInner, certPot, geslo);
       const bpSoap = buildSOAPEnvelope(bpSigned);
-      soapBP = await fursFetchSOAP(bpSoap, certPot, "/invoices/register", testniNacin, geslo);
+      soapBP = await fursFetchSOAP(bpSoap, "/invoices/register", testniNacin, undefined, certPot, geslo);
     } catch (e) { soapBP = diagErr(e); }
   }
 
   const caCertPrenesen = fs.existsSync(caCertPot(certPot, testniNacin));
   return { certNajden, caCertPrenesen, echoGet, echoPost, echoPostPayload, jwtWrapped, jwtRaw, jwtTestSupplier, jwtNeveljaven, jwtBrezWrapper, xmlRaw, xmlEcho, soapEcho, soapBP };
 }
+
+  }
 
 // ---------- JSON payload gradniki ----------
 

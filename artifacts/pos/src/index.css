@@ -144,12 +144,99 @@
 }
 
 @layer base {
+  :root {
+    --pos-visual-viewport-height: 100dvh;
+    --pos-visual-viewport-offset-top: 0px;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: var(--pos-visual-viewport-height);
+  }
+
   * {
     @apply border-border;
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  @supports (-moz-appearance: none) {
+    html {
+      font-size: 90%;
+    }
+  }
+
+  [role="dialog"] {
+    top: calc(
+      var(--pos-visual-viewport-offset-top)
+      + var(--pos-visual-viewport-height) / 2
+    ) !important;
+    max-height: calc(var(--pos-visual-viewport-height) - 1rem) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+
+  [data-pos-keyboard-overlay] {
+    top: var(--pos-visual-viewport-offset-top);
+    height: var(--pos-visual-viewport-height);
+    overflow-y: auto;
+    align-items: flex-start;
+  }
+
+  [data-pos-keyboard-overlay] > * {
+    margin-block: auto;
+  }
+
+  [data-pos-mobile-more-menu] {
+    top: auto !important;
+    bottom: 0;
+    height: min(85dvh, calc(var(--pos-visual-viewport-height) - 0.5rem));
+    max-height: calc(var(--pos-visual-viewport-height) - 0.5rem) !important;
+  }
+}
+
+/* Sidebar naj ostane drseč, vendar brez vidnega traku drsnika. */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Enoten, zgoščen začetek vsebine na vseh POS straneh. */
+.pos-page-content > :first-child {
+  padding-top: 0.75rem !important;
+}
+
+.pos-page-content > .checkout-layout {
+  padding-top: 0 !important;
+}
+
+.pos-page-content h1 {
+  font-size: 1.25rem !important;
+  line-height: 1.25 !important;
+}
+
+.pos-page-content > :first-child h1 {
+  margin-top: 0 !important;
+}
+
+/* Pri straneh, kjer je naslov prvi element, naj bo razmik do vsebine majhen. */
+.pos-page-content > :first-child > h1 + *,
+.pos-page-content > :first-child > div:first-child > h1 + *,
+.pos-page-content > :first-child > div:first-child:has(h1) + * {
+  margin-top: 0.75rem !important;
 }
 
 @keyframes pos-flash {

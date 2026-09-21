@@ -8,7 +8,7 @@ import {
   accountingPeriodsTable,
 } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
-import { syncPosBookingForDay } from "../../lib/posSyncBooking";
+import { syncPosBookingForDay, syncPosBookingForMonth } from "../../lib/posSyncBooking";
 
 const router: IRouter = Router();
 
@@ -114,7 +114,7 @@ router.get("/temeljnice", async (req, res): Promise<void> => {
  * Zahteva requireEnota (nastavi req.companyId).
  */
 router.post("/temeljnice/sync/:datum", async (req, res): Promise<void> => {
-  const companyId = (req as PosRequest).companyId;
+  const companyId = (req as unknown as PosRequest).companyId;
   const { datum } = req.params;
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
@@ -128,6 +128,26 @@ router.post("/temeljnice/sync/:datum", async (req, res): Promise<void> => {
   } catch (err) {
     console.error("[POS sync ročni]", err);
     res.status(500).json({ error: "Napaka pri sinhronizaciji temeljnic" });
+  }
+});
+
+/**
+ * POST /temeljnice/sync-mesec/:mesec
+ *
+ * Ročni mesečni zbirnik za že zaključen mesec (YYYY-MM).
+ */
+router.post("/temeljnice/sync-mesec/:mesec", async (req, res): Promise<void> => {
+  const companyId = (req as unknown as PosRequest).companyId;
+  const { mesec } = req.params;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mesec)) {
+    res.status(400).json({ error: "Neveljaven mesec — pričakujem YYYY-MM" });
+    return;
+  }
+  try {
+    res.json(await syncPosBookingForMonth(companyId, mesec));
+  } catch (err) {
+    console.error("[POS mesečni sync ročni]", err);
+    res.status(500).json({ error: "Napaka pri mesečni sinhronizaciji temeljnic" });
   }
 });
 

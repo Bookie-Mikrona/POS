@@ -1,0 +1,13 @@
+# Mapa za nativne knjižnice ZCS SDK
+#
+# Pred gradnjo APK sem moraš ročno dodati:
+#   libSmartPosJni.so  (~374 KB)
+#   libEmvCoreJni.so   (~162 KB)
+#
+# Pridobi ju iz prednameščene SmartPosTest APK na ZCS terminalu:
+#   adb pull /system/pre_install/SmartPosTest-*.apk .
+#   unzip SmartPosTest-*.apk "lib/armeabi-v7a/*.so" -d extracted
+#   cp extracted/lib/armeabi-v7a/*.so <ta mapa>/
+#
+# Datoteke .so niso v git (binarke) — ta .gitkeep samo ohranja mapo.
+# Glej README.md za podrobnosti.

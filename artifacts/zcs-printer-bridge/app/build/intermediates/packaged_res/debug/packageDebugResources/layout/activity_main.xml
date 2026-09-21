@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ZCS Tiskalni Most"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Lokalni HTTP posrednik za vgrajen ZCS tiskalnik"
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="32dp"/>
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Se zaganja..."
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:background="#F5F5F5"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/tvUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        android:padding="16dp"
+        android:background="#E8F5E9"
+        android:layout_marginBottom="32dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Aplikacija mora teči v ozadju med celotno izmeno. Minimizajte jo — ne ustavljajte je."
+        android:textSize="13sp"
+        android:textColor="#F57C00"
+        android:padding="12dp"
+        android:background="#FFF3E0"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/btnStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ustavi strežnik"
+        android:backgroundTint="#D32F2F"/>
+
+</LinearLayout>

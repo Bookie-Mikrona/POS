@@ -2,44 +2,72 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, sql } from "drizzle-orm";
 import { db, napraveTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
+import { createHmac } from "node:crypto";
 
 const router: IRouter = Router();
+
+const VELJAVNE_KODNE_STRANI = ["cp1250", "wpc1250", "cp852", "ascii-translit", "bitmap"] as const;
+type KodnaStranica = typeof VELJAVNE_KODNE_STRANI[number];
 
 function sanitizeTerminalConfig(nastavitveJson: string | null | undefined): Record<string, unknown> | null {
   if (!nastavitveJson) return null;
   try {
     const raw = JSON.parse(nastavitveJson) as Record<string, unknown>;
+    // tiskalnikCodePage: vrni samo veljavne vrednosti, sicer undefined (ne dodaj polja)
+    const cp: KodnaStranica | undefined = typeof raw.tiskalnikCodePage === "string" &&
+      (VELJAVNE_KODNE_STRANI as readonly string[]).includes(raw.tiskalnikCodePage)
+        ? raw.tiskalnikCodePage as KodnaStranica : undefined;
     return {
-      terminalAktiven:          Boolean(raw.terminalAktiven ?? false),
-      terminalIp:               String(raw.terminalIp ?? "192.168.1.100"),
-      terminalPort:             Number(raw.terminalPort ?? 9000),
-      terminalTimeoutMs:        Number(raw.terminalTimeoutMs ?? 30000),
-      paytenAndroidAktiven:     Boolean(raw.paytenAndroidAktiven ?? false),
-      paytenAndroidPackageName: String(raw.paytenAndroidPackageName ?? "com.payten.mpos"),
-      sumupAktiven:             Boolean(raw.sumupAktiven ?? false),
-      sumupTerminalSerial:      String(raw.sumupTerminalSerial ?? ""),
-      sumupApiKeyNastavljen:    !!(raw.sumupApiKey),
-      vivaAktiven:              Boolean(raw.vivaAktiven ?? false),
-      vivaClientId:             String(raw.vivaClientId ?? ""),
+      terminalAktiven:            Boolean(raw.terminalAktiven ?? false),
+      terminalIp:                 String(raw.terminalIp ?? "192.168.1.100"),
+      terminalPort:               Number(raw.terminalPort ?? 9000),
+      terminalTimeoutMs:          Number(raw.terminalTimeoutMs ?? 30000),
+      paytenAndroidAktiven:       Boolean(raw.paytenAndroidAktiven ?? false),
+      // The native Bookie Bridge owns its package identity; never expose a
+      // configurable arbitrary Android package in the active payment flow.
+      paytenBridgePaired:         Boolean(raw.paytenBridgeKeyId && raw.paytenBridgePublicKey),
+      ...(typeof raw.paytenBridgeKeyId === "string" ? { paytenBridgeKeyId: raw.paytenBridgeKeyId } : {}),
+      sumupAktiven:               Boolean(raw.sumupAktiven ?? false),
+      sumupTerminalSerial:        String(raw.sumupTerminalSerial ?? ""),
+      sumupApiKeyNastavljen:      !!(raw.sumupApiKey),
+      vivaAktiven:                Boolean(raw.vivaAktiven ?? false),
+      vivaClientId:               String(raw.vivaClientId ?? ""),
       vivaClientSecretNastavljen: !!(raw.vivaClientSecret),
-      vivaSourceCode:           String(raw.vivaSourceCode ?? ""),
-      vivaDemoNacin:            Boolean(raw.vivaDemoNacin ?? false),
-      vivaTerminalAktiven:      Boolean(raw.vivaTerminalAktiven ?? false),
-      vivaTerminalId:           String(raw.vivaTerminalId ?? ""),
+      vivaSourceCode:             String(raw.vivaSourceCode ?? ""),
+      vivaDemoNacin:              Boolean(raw.vivaDemoNacin ?? false),
+      vivaTerminalAktiven:        Boolean(raw.vivaTerminalAktiven ?? false),
+      vivaTerminalId:             String(raw.vivaTerminalId ?? ""),
       vivaAndroidTerminalAktiven: Boolean(raw.vivaAndroidTerminalAktiven ?? false),
-      vivaAndroidSourceCode:    String(raw.vivaAndroidSourceCode ?? ""),
-      vivaTapToPayAktiven:      Boolean(raw.vivaTapToPayAktiven ?? false),
-      vivaTapToPaySourceCode:   String(raw.vivaTapToPaySourceCode ?? ""),
-      agentTiskalnikIme:        String(raw.agentTiskalnikIme ?? ""),
-      tiskalnikSirina:          Number(raw.tiskalnikSirina ?? 58)};
+      vivaAndroidSourceCode:      String(raw.vivaAndroidSourceCode ?? ""),
+      vivaTapToPayAktiven:        Boolean(raw.vivaTapToPayAktiven ?? false),
+      vivaTapToPaySourceCode:     String(raw.vivaTapToPaySourceCode ?? ""),
+      agentTiskalnikIme:          String(raw.agentTiskalnikIme ?? ""),
+      aiSvetovalecAktiven:        Boolean(raw.aiSvetovalecAktiven ?? false),
+      // tiskalnikSirina: brez privzetka 58 — undefined pomeni "samodejno zaznaj"
+      ...(raw.tiskalnikSirina != null ? { tiskalnikSirina: Number(raw.tiskalnikSirina) as 30 | 32 | 58 | 80 } : {}),
+      // tiskalnikCodePage: samo veljavne vrednosti; undefined če ni nastavljeno ali ni veljavno
+      ...(cp !== undefined ? { tiskalnikCodePage: cp } : {}),
+      // tiskalnikTip: "windows" ali undefined; prazno/manjkajoče → ne vrnemo polja
+      ...(raw.tiskalnikTip ? { tiskalnikTip: String(raw.tiskalnikTip) } : {}),
+    };
   } catch {
     return null;
   }
 }
 
-function napravaToResponse(row: typeof napraveTable.$inferSelect) {
+function createAiAccessToken(row: typeof napraveTable.$inferSelect): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) return "";
+  const payload = Buffer.from(`${row.id}:${row.enotaId}:${row.napravaKljuc}`).toString("base64url");
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function napravaToResponse(row: typeof napraveTable.$inferSelect, includePrivateIdentity = false) {
   return {
     ...row,
+    napravaKljuc: includePrivateIdentity ? row.napravaKljuc : "",
+    ...(includePrivateIdentity ? { aiAccessToken: createAiAccessToken(row) } : {}),
     nastavitveJson: undefined,
     terminalConfig: sanitizeTerminalConfig(row.nastavitveJson)};
 }
@@ -49,7 +77,7 @@ router.get("/naprave", async (req, res): Promise<void> => {
   const rows = await db.select().from(napraveTable).where(
     and(eq(napraveTable.enotaId, tenotaId))
   );
-  res.json(rows.map(napravaToResponse));
+  res.json(rows.map((row) => napravaToResponse(row)));
 });
 
 router.post("/naprave/registracija", async (req, res): Promise<void> => {
@@ -82,7 +110,7 @@ router.post("/naprave/registracija", async (req, res): Promise<void> => {
   }
 
   const isNew = existing.length === 0;
-  res.status(isNew ? 201 : 200).json(napravaToResponse(naprava));
+  res.status(isNew ? 201 : 200).json(napravaToResponse(naprava, true));
 });
 
 router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> => {
@@ -97,16 +125,35 @@ router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> =
 
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  if (Object.hasOwn(req.body ?? {}, "paytenBridgeKeyId") || Object.hasOwn(req.body ?? {}, "paytenBridgePublicKey") || Object.hasOwn(req.body ?? {}, "nastavitveJson")) {
+    res.status(403).json({ error: "Payten Bridge ključ upravlja samo varen postopek sparjanja." }); return;
+  }
 
-  const [obstojecaNaprava] = await db.select().from(napraveTable).where(
+  let [obstojecaNaprava] = await db.select().from(napraveTable).where(
     and(eq(napraveTable.enotaId, tenotaId),
       eq(napraveTable.napravaKljuc, napravaKljuc)
     )
   );
 
+  // Naprava ni v DB — samodejno jo registriraj (upsert), nato nadaljuj z nastavitvami.
+  // To reši primer ko je bila naprava registrirana v drugem okolju (dev/prod),
+  // ali ko je prišlo do race conditiona (nastavitve odprte pred koncem registracije).
   if (!obstojecaNaprava) {
-    res.status(404).json({ error: "Naprava ni najdena." });
-    return;
+    const ua = req.headers["user-agent"] ?? "";
+    const imeNaprave = /Windows/.test(ua) ? "Windows naprava"
+      : /Android/.test(ua) ? "Android naprava"
+      : /iPad/.test(ua) ? "iPad"
+      : /iPhone/.test(ua) ? "iPhone"
+      : /Macintosh|Mac OS X/.test(ua) ? "Mac naprava"
+      : "Naprava";
+    const [created] = await db.insert(napraveTable)
+      .values({ enotaId: tenotaId, napravaKljuc, ime: imeNaprave })
+      .onConflictDoUpdate({
+        target: [napraveTable.enotaId, napraveTable.napravaKljuc],
+        set: { ime: imeNaprave },
+      })
+      .returning();
+    obstojecaNaprava = created;
   }
 
   let obstojeciConfig: Record<string, unknown> = {};
@@ -138,7 +185,9 @@ router.put("/naprave/terminali", requireEnota, async (req, res): Promise<void> =
   if (d.vivaTapToPayAktiven !== undefined)      novConfig.vivaTapToPayAktiven      = d.vivaTapToPayAktiven;
   if (d.vivaTapToPaySourceCode !== undefined)   novConfig.vivaTapToPaySourceCode   = d.vivaTapToPaySourceCode;
   if (d.agentTiskalnikIme !== undefined)        novConfig.agentTiskalnikIme        = d.agentTiskalnikIme;
+  if (d.aiSvetovalecAktiven !== undefined)      novConfig.aiSvetovalecAktiven      = Boolean(d.aiSvetovalecAktiven);
   if (d.tiskalnikSirina !== undefined)          novConfig.tiskalnikSirina          = d.tiskalnikSirina;
+  if (d.tiskalnikCodePage !== undefined)        novConfig.tiskalnikCodePage        = d.tiskalnikCodePage;
 
   const [updated] = await db.update(napraveTable)
     .set({ nastavitveJson: JSON.stringify(novConfig) })
@@ -152,12 +201,41 @@ router.put("/naprave/:id", async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
+  if (Object.hasOwn(req.body ?? {}, "nastavitveJson") || Object.hasOwn(req.body ?? {}, "paytenBridgeKeyId") || Object.hasOwn(req.body ?? {}, "paytenBridgePublicKey")) {
+    res.status(403).json({ error: "Payten Bridge ključ upravlja samo varen postopek sparjanja." }); return;
+  }
 
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error }); return; }
+  const { tiskalnikSirina, tiskalnikCodePage, tiskalnikTip, aiSvetovalecAktiven, ...ostalo } = req.body as Record<string, unknown>;
+
+  // Nastavitve tiskalnika se shranjujejo v nastavitveJson (ne kot stolpec).
+  // null = IZBRIŠI ključ iz konfiguracije (samodejno zaznaj / počisti).
+  // undefined = pusti kakršen je (polje ni bilo v payloadu).
+  // vrednost = nastavi/posodobi.
+  let nastavitveJsonUpdate: string | undefined;
+  if (tiskalnikSirina !== undefined || tiskalnikCodePage !== undefined || tiskalnikTip !== undefined || aiSvetovalecAktiven !== undefined) {
+    const [obstoječa] = await db.select({ nastavitveJson: napraveTable.nastavitveJson })
+      .from(napraveTable).where(eq(napraveTable.id, id)).limit(1);
+    let merged: Record<string, unknown> = {};
+    if (obstoječa?.nastavitveJson) {
+      try { merged = JSON.parse(obstoječa.nastavitveJson) as Record<string, unknown>; } catch { /* nič */ }
+    }
+    // tiskalnikSirina: null → izbriši (samodejno), vrednost → nastavi, undefined → pusti
+    if (tiskalnikSirina === null)      { delete merged.tiskalnikSirina; }
+    else if (tiskalnikSirina !== undefined) { merged.tiskalnikSirina = tiskalnikSirina; }
+    // tiskalnikCodePage: null ali "" → izbriši, vrednost → nastavi
+    if (tiskalnikCodePage === null || tiskalnikCodePage === "") { delete merged.tiskalnikCodePage; }
+    else if (tiskalnikCodePage !== undefined) { merged.tiskalnikCodePage = tiskalnikCodePage; }
+    // tiskalnikTip: null ali "" → izbriši (ne-Windows), vrednost → nastavi
+    if (tiskalnikTip === null || tiskalnikTip === "") { delete merged.tiskalnikTip; }
+    else if (tiskalnikTip !== undefined) { merged.tiskalnikTip = tiskalnikTip; }
+    if (aiSvetovalecAktiven !== undefined) {
+      merged.aiSvetovalecAktiven = Boolean(aiSvetovalecAktiven);
+    }
+    nastavitveJsonUpdate = JSON.stringify(merged);
+  }
 
   const [updated] = await db.update(napraveTable)
-    .set(parsed.data)
+    .set({ ...ostalo, ...(nastavitveJsonUpdate !== undefined ? { nastavitveJson: nastavitveJsonUpdate } : {}) })
     .where(and(
       eq(napraveTable.id, id),
       sql`true`,

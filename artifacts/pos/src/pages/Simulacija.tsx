@@ -96,7 +96,7 @@ export default function Simulacija() {
     try {
       await customFetch("/api/sim/datum", { method: "DELETE" });
       setSim({ active: false, datum: null });
-      setNovDatum(todayIso());
+      setNovDatum(todayEuro());
       status("ok", "Simulacijski datum odstranjen. Sistem uporablja pravi čas.");
     } catch (e: any) {
       status("err", e?.data?.error ?? e?.message ?? "Napaka");

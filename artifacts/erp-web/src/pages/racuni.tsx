@@ -12,8 +12,39 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   Trash2,
-  X
+  X,
+  Link2,
+  Unlink,
+  Landmark,
+  Package,
+  Download,
+  Clock,
+  CheckCircle,
+  History,
+  CalendarRange,
 } from "lucide-react";
+import { useAuth } from "@clerk/react";
+
+const BASE_URL_RACUNI = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function downloadEslogPaket(companyId: string, receiptId: number, invoiceNumber: string, token: string) {
+  const res = await fetch(`${BASE_URL_RACUNI}/api/companies/${companyId}/external-exports/receipts/${receiptId}/eracun-paket.zip`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Napaka pri prenosu (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `prejeti-racun-${invoiceNumber.replace(/[^a-zA-Z0-9._-]/g, "_")}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
@@ -22,11 +53,17 @@ import {
   useCreateInvoice,
   usePostInvoice,
   useVoidInvoice,
+  useGetInvoicePosReceiptLinks,
+  useLinkInvoicePosReceipt,
+  useUnlinkInvoicePosReceipt,
   useListCounterparties,
   useListPeriods,
   useListAccounts,
   getListInvoicesQueryKey,
-  type InvoiceRecord
+  getGetInvoicePosReceiptLinksQueryKey,
+  type InvoiceRecord,
+  type InvoicePosReceiptMatchHistoryEntry
+  ,customFetch
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -80,10 +117,11 @@ export default function Racuni() {
   const invoices = data?.invoices ?? [];
 
   const [newSheetOpen, setNewSheetOpen] = useState(false);
+  const [contractSummaryOpen, setContractSummaryOpen] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState<InvoiceRecord | null>(null);
 
   const postMut = usePostInvoice();
-  
+
   const handlePost = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!activeCompany) return;
@@ -122,10 +160,18 @@ export default function Racuni() {
         </div>
         <div className="flex items-center gap-2">
           {activeCompany?.role !== "viewer" && (
-            <Button onClick={() => setNewSheetOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nov račun
-            </Button>
+            <>
+              {activeTab === "issued" && (
+                <Button variant="outline" onClick={() => setContractSummaryOpen(true)}>
+                  <CalendarRange className="mr-2 h-4 w-4" />
+                  Mesečni A-račun
+                </Button>
+              )}
+              <Button onClick={() => setNewSheetOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nov račun
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -170,7 +216,7 @@ export default function Racuni() {
             </Select>
           </div>
         </div>
-        
+
         {(periodFilter !== "all" || statusFilter !== "all") && (
           <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground ml-auto sm:ml-0 mt-4 sm:mt-0">
             Počisti filtre
@@ -217,7 +263,7 @@ export default function Racuni() {
             </TableHeader>
             <TableBody>
               {invoices.map(inv => (
-                <TableRow 
+                <TableRow
                   key={inv.id}
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => setDetailInvoice(inv)}
@@ -232,8 +278,8 @@ export default function Racuni() {
                   <TableCell className="text-right text-muted-foreground">{parseFloat(inv.totalVat).toFixed(2)}</TableCell>
                   <TableCell className="text-right font-semibold">{parseFloat(inv.totalGross).toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={STATUS_VARIANTS[inv.status]} 
+                    <Badge
+                      variant={STATUS_VARIANTS[inv.status]}
                       className={
                         inv.status === 'posted' ? 'bg-green-600 hover:bg-green-700' :
                         inv.status === 'paid' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''
@@ -267,10 +313,19 @@ export default function Racuni() {
       )}
 
       {newSheetOpen && (
-        <NewInvoiceSheet 
-          open={newSheetOpen} 
-          onOpenChange={setNewSheetOpen} 
+        <NewInvoiceSheet
+          open={newSheetOpen}
+          onOpenChange={setNewSheetOpen}
           defaultType={activeTab as "issued" | "received"}
+        />
+      )}
+
+      {contractSummaryOpen && activeCompany && (
+        <ContractSummaryDialog
+          open={contractSummaryOpen}
+          onOpenChange={setContractSummaryOpen}
+          companyId={activeCompany.id}
+          onCreated={() => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey(activeCompany.id) })}
         />
       )}
 
@@ -297,6 +352,172 @@ export default function Racuni() {
   );
 }
 
+type ContractSummaryPreview = {
+  month: string;
+  receiptCount: number;
+  grossAmount: string;
+  paymentTermsDays: number;
+  receipts: Array<{ id: number; invoiceNumber: string; businessDate: string; grossAmount: string; unitName: string }>;
+  vatBuckets: Array<{ vatRate: string; netAmount: string; vatAmount: string; grossAmount: string }>;
+};
+
+function previousMonth(): string {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 1, 1);
+  return date.toISOString().slice(0, 7);
+}
+
+function ContractSummaryDialog({
+  open,
+  onOpenChange,
+  companyId,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  companyId: string;
+  onCreated: () => void;
+}) {
+  const { data } = useListCounterparties(
+    companyId,
+    { includeInactive: false },
+    { query: { enabled: open } as any },
+  );
+  const partners = (data?.counterparties ?? []).filter((partner: any) =>
+    partner.type === "customer" || partner.type === "both",
+  );
+  const [month, setMonth] = useState(previousMonth);
+  const [counterpartyId, setCounterpartyId] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState("");
+  const [preview, setPreview] = useState<ContractSummaryPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadPreview = async () => {
+    if (!counterpartyId || !month) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await customFetch<ContractSummaryPreview>(
+        `/api/companies/${companyId}/invoices/pos-contract-summary/preview?month=${encodeURIComponent(month)}&counterpartyId=${encodeURIComponent(counterpartyId)}`,
+      );
+      setPreview(result);
+      if (!dueDate && result.paymentTermsDays > 0) {
+        const date = new Date(`${invoiceDate}T00:00:00Z`);
+        date.setUTCDate(date.getUTCDate() + result.paymentTermsDays);
+        setDueDate(date.toISOString().slice(0, 10));
+      }
+    } catch (reason) {
+      setPreview(null);
+      setError(reason instanceof Error ? reason.message : "Predogleda ni bilo mogoče pripraviti.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createSummary = async () => {
+    if (!preview || !invoiceNumber.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await customFetch(`/api/companies/${companyId}/invoices/pos-contract-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month,
+          counterpartyId,
+          invoiceNumber: invoiceNumber.trim(),
+          invoiceDate,
+          dueDate: dueDate || null,
+        }),
+      });
+      onCreated();
+      onOpenChange(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "A-računa ni bilo mogoče ustvariti.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Mesečni zbirni A-račun</DialogTitle>
+          <DialogDescription>
+            Združi fiskalizirane pogodbene POS račune. Prihodki in DDV ostanejo knjiženi samo dnevno;
+            mesečni dokument ob potrditvi prenese prehodno terjatev na partnerja.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Poslovni mesec</Label>
+            <Input type="month" value={month} onChange={(event) => { setMonth(event.target.value); setPreview(null); }} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Pogodbeni partner</Label>
+            <Select value={counterpartyId} onValueChange={(value) => { setCounterpartyId(value); setPreview(null); }}>
+              <SelectTrigger><SelectValue placeholder="Izberite partnerja" /></SelectTrigger>
+              <SelectContent>
+                {partners.map((partner: any) => (
+                  <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Številka A-računa</Label>
+            <Input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} placeholder="npr. AR-2026-08-001" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Datum izdaje</Label>
+            <Input type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.target.value)} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Rok plačila</Label>
+            <Input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+          </div>
+        </div>
+        <Button variant="outline" onClick={loadPreview} disabled={loading || !counterpartyId || !month}>
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+          Pripravi predogled
+        </Button>
+        {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+        {preview && (
+          <div className="space-y-3 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <div><strong>{preview.receiptCount}</strong> dnevnih POS računov</div>
+              <div className="text-lg font-semibold">{Number(preview.grossAmount).toFixed(2)} €</div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {preview.vatBuckets.map((bucket) =>
+                `${Number(bucket.vatRate).toFixed(1)} %: osnova ${Number(bucket.netAmount).toFixed(2)} €, DDV ${Number(bucket.vatAmount).toFixed(2)} €`,
+              ).join(" · ")}
+            </div>
+            <div className="max-h-32 overflow-y-auto text-xs">
+              {preview.receipts.map((receipt) => (
+                <div key={receipt.id} className="flex justify-between border-t py-1.5">
+                  <span>{receipt.businessDate} · {receipt.invoiceNumber} · {receipt.unitName}</span>
+                  <span>{Number(receipt.grossAmount).toFixed(2)} €</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Prekliči</Button>
+          <Button onClick={createSummary} disabled={loading || !preview || preview.receiptCount === 0 || !invoiceNumber.trim()}>
+            Ustvari osnutek A-računa
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // NEW INVOICE SHEET
 // ---------------------------------------------------------------------------
@@ -315,7 +536,8 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
   const openPeriods = periods.filter(p => p.status === "open");
 
   const { data: accountsData } = useListAccounts(activeCompany?.id ?? "", {}, { query: { enabled: !!activeCompany?.id && open } as any });
-  const accounts = accountsData?.accounts?.filter(a => a.isActive) || [];
+  // Samo knjižljivi konti — skupinski/sintetični konti (allowsPosting=false) niso na voljo za izbiro
+  const accounts = accountsData?.accounts?.filter(a => a.isActive && a.allowsPosting !== false) || [];
 
   // AR/AP Accounts: 120 (Kupci) / 220 (Dobavitelji) - as an example, adjust as needed. Often 140/430.
   const arapPrefix = defaultType === "issued" ? "120" : "220";
@@ -335,6 +557,11 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
     invoiceNumber: "",
     invoiceDate: new Date().toISOString().split("T")[0],
     dueDate: "",
+    destinationIban: "",
+    destinationBic: "",
+    paymentModel: "",
+    paymentReference: "",
+    paymentPurpose: "",
     arApAccountId: "",
     vatAccountId: "",
     notes: ""
@@ -373,7 +600,7 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
 
   const handleSave = () => {
     if (!activeCompany) return;
-    
+
     const validLines = lines.filter(l => l.description && l.accountId).map(l => ({
       description: l.description,
       quantity: parseFloat(l.quantity) || 1,
@@ -393,6 +620,11 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
         invoiceNumber: formData.invoiceNumber,
         invoiceDate: formData.invoiceDate,
         dueDate: formData.dueDate || null,
+        destinationIban: formData.type === "received" ? formData.destinationIban || null : null,
+        destinationBic: formData.type === "received" ? formData.destinationBic || null : null,
+        paymentModel: formData.type === "received" ? formData.paymentModel || null : null,
+        paymentReference: formData.type === "received" ? formData.paymentReference || null : null,
+        paymentPurpose: formData.type === "received" ? formData.paymentPurpose || null : null,
         arApAccountId: formData.arApAccountId,
         vatAccountId: (formData.vatAccountId && formData.vatAccountId !== "none") ? formData.vatAccountId : null,
         notes: formData.notes || null,
@@ -433,7 +665,15 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
             </div>
             <div className="space-y-2">
               <Label>Partner <span className="text-destructive">*</span></Label>
-              <Select value={formData.counterpartyId} onValueChange={val => setFormData(p => ({ ...p, counterpartyId: val }))}>
+              <Select value={formData.counterpartyId} onValueChange={val => {
+                const partner = validCounterparties.find((item) => item.id === val);
+                setFormData(p => ({
+                  ...p,
+                  counterpartyId: val,
+                  destinationIban: defaultType === "received" ? (partner?.iban || "") : "",
+                  destinationBic: "",
+                }));
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Izberite partnerja" />
                 </SelectTrigger>
@@ -477,6 +717,39 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
               <Input type="date" value={formData.dueDate} onChange={e => setFormData(p => ({ ...p, dueDate: e.target.value }))} />
             </div>
           </div>
+
+          {formData.type === "received" && (
+            <div className="space-y-4 rounded-md border bg-muted/10 p-4">
+              <div>
+                <h3 className="text-sm font-semibold">Plačilna navodila dobavitelja</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vnesite podatke, navedene na tem računu. Uporabljeni bodo pri SEPA izvozu.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>TRR / IBAN za plačilo</Label>
+                  <Input value={formData.destinationIban} onChange={e => setFormData(p => ({ ...p, destinationIban: e.target.value }))} placeholder="SI56 ..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>BIC</Label>
+                  <Input value={formData.destinationBic} onChange={e => setFormData(p => ({ ...p, destinationBic: e.target.value }))} placeholder="BIC banke" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Model</Label>
+                  <Input value={formData.paymentModel} onChange={e => setFormData(p => ({ ...p, paymentModel: e.target.value }))} placeholder="SI00" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sklic</Label>
+                  <Input value={formData.paymentReference} onChange={e => setFormData(p => ({ ...p, paymentReference: e.target.value }))} placeholder="Sklic prejemnika" />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Namen plačila</Label>
+                  <Input value={formData.paymentPurpose} onChange={e => setFormData(p => ({ ...p, paymentPurpose: e.target.value }))} placeholder="Namen, naveden na računu" />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 p-4 border rounded-md bg-muted/10">
             <div className="space-y-2">
@@ -531,7 +804,7 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
                       </Button>
                     )}
                   </div>
-                  
+
                   <div className="grid grid-cols-[80px_100px_80px_1fr] gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">Kol.</Label>
@@ -612,9 +885,24 @@ function NewInvoiceSheet({ open, onOpenChange, defaultType }: { open: boolean, o
 // DETAIL INVOICE SHEET
 // ---------------------------------------------------------------------------
 
-function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { open: boolean, onOpenChange: (open: boolean) => void, invoice: InvoiceRecord, onVoid: () => void }) {
+export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { open: boolean, onOpenChange: (open: boolean) => void, invoice: InvoiceRecord, onVoid: () => void }) {
   const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const [eslogBusy, setEslogBusy] = useState<number | null>(null);
+
+  const handleEslogDownload = async (prejemnicaId: number, documentNumber: string | null) => {
+    if (!activeCompany) return;
+    setEslogBusy(prejemnicaId);
+    try {
+      const token = await getToken();
+      await downloadEslogPaket(activeCompany.id, prejemnicaId, documentNumber ?? String(prejemnicaId), token ?? "");
+    } catch (e: any) {
+      alert(e.message ?? "Napaka pri prenosu e-SLOG paketa.");
+    } finally {
+      setEslogBusy(null);
+    }
+  };
 
   const { data: fullInvoice, isLoading } = useGetInvoice(
     activeCompany?.id ?? "",
@@ -624,6 +912,69 @@ function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { open: boo
 
   const lines = fullInvoice?.lines ?? [];
   const postMut = usePostInvoice();
+  const [posLinkMode, setPosLinkMode] = useState<"delivery_note_invoice" | "invoice_with_delivery_notes">("invoice_with_delivery_notes");
+  const {
+    data: posReceiptsData,
+    isLoading: posReceiptsLoading,
+  } = useGetInvoicePosReceiptLinks(
+    activeCompany?.id ?? "",
+    invoice.id,
+    { query: { enabled: !!activeCompany?.id && open && invoice.type === "received" } as any },
+  );
+  const linkPosReceiptMut = useLinkInvoicePosReceipt();
+  const unlinkPosReceiptMut = useUnlinkInvoicePosReceipt();
+
+  const [linkCandidate, setLinkCandidate] = useState<{
+    prejemnicaId: number;
+    matchMethod: "manual" | "suggested" | "exact";
+    enotaName: string;
+    documentNumber: string | null;
+    netAmount: string | number;
+    reason: string;
+    financeComplete: boolean;
+    bookedTo109: boolean;
+  } | null>(null);
+
+  const [unlinkCandidate, setUnlinkCandidate] = useState<{
+    prejemnicaId: number;
+    enotaName: string;
+    documentNumber: string | null;
+  } | null>(null);
+
+  const refreshPosReceipts = () => {
+    if (!activeCompany) return;
+    queryClient.invalidateQueries({
+      queryKey: getGetInvoicePosReceiptLinksQueryKey(activeCompany.id, invoice.id),
+    });
+  };
+
+  const confirmLink = () => {
+    if (!activeCompany || !linkCandidate) return;
+    linkPosReceiptMut.mutate({
+      companyId: activeCompany.id,
+      id: invoice.id,
+      data: { prejemnicaId: linkCandidate.prejemnicaId, mode: posLinkMode, matchMethod: linkCandidate.matchMethod },
+    }, {
+      onSuccess: () => {
+        refreshPosReceipts();
+        setLinkCandidate(null);
+      }
+    });
+  };
+
+  const confirmUnlink = () => {
+    if (!activeCompany || !unlinkCandidate) return;
+    unlinkPosReceiptMut.mutate({
+      companyId: activeCompany.id,
+      id: invoice.id,
+      prejemnicaId: unlinkCandidate.prejemnicaId,
+    }, {
+      onSuccess: () => {
+        refreshPosReceipts();
+        setUnlinkCandidate(null);
+      }
+    });
+  };
 
   const handlePost = () => {
     if (!activeCompany) return;
@@ -671,6 +1022,32 @@ function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { open: boo
               <div className="font-medium">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("sl-SI") : "-"}</div>
             </div>
           </div>
+
+          {invoice.type === "received" && (
+            <div className="rounded-lg border bg-muted/10 p-4 text-sm">
+              <h3 className="font-semibold mb-3">Plačilna navodila dobavitelja</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                <div>
+                  <div className="text-muted-foreground mb-1">TRR / IBAN za ta račun</div>
+                  <div className="font-mono font-medium break-all">{fullInvoice?.destinationIban || invoice.destinationIban || "Ni navedeno"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-1">BIC</div>
+                  <div className="font-medium">{fullInvoice?.destinationBic || invoice.destinationBic || "Ni navedeno"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-1">Model in sklic</div>
+                  <div className="font-medium">
+                    {[fullInvoice?.paymentModel || invoice.paymentModel, fullInvoice?.paymentReference || invoice.paymentReference].filter(Boolean).join(" ") || "Ni navedeno"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-1">Namen</div>
+                  <div className="font-medium">{fullInvoice?.paymentPurpose || invoice.paymentPurpose || "Ni navedeno"}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold">Postavke</h3>
@@ -731,6 +1108,340 @@ function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { open: boo
             </div>
           </div>
 
+          {invoice.type === "received" && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Landmark className="h-4 w-4 text-primary" />
+                    POS prejemnice — zapiranje 109
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Prejemnice so lahko iz različnih enot, vendar morajo pripadati istemu dobavitelju.
+                  </p>
+                </div>
+                {invoice.status === "draft" && (
+                  <div className="w-full sm:w-[250px]">
+                    <Select value={posLinkMode} onValueChange={(value) => setPosLinkMode(value as typeof posLinkMode)}>
+                      <SelectTrigger className="h-9" data-testid="select-pos-link-mode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="invoice_with_delivery_notes">B — račun z dobavnicami</SelectItem>
+                        <SelectItem value="delivery_note_invoice">A — dobavnica je račun</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {posLinkMode === "delivery_note_invoice" && invoice.status === "draft" && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Način A je dovoljen samo, če ima prejemnica številko in datum dokumenta ter popolne DDV podatke.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {posReceiptsLoading ? (
+                <Skeleton className="h-32 w-full" />
+              ) : (
+                <div className="space-y-6">
+                  {posReceiptsData?.preview?.isDirectDeliveryNoteInvoice ? (
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-md border border-green-200 bg-green-50 text-sm">
+                      <div>
+                        <div className="font-semibold text-green-800">Neposredni prejeti račun</div>
+                        <div className="text-green-700">Faktura-dobavnica se knjiži brez prehodnega konta 109.</div>
+                      </div>
+                      <Badge className="bg-green-600 hover:bg-green-700">Pripravljeno</Badge>
+                    </div>
+                  ) : posReceiptsData?.preview ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-md border bg-muted/20 text-sm">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Povezano na 109</div>
+                        <div className="font-semibold">{Number(posReceiptsData.preview.linkedNet).toFixed(2)} €</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Neto račun</div>
+                        <div className="font-semibold">{Number(posReceiptsData.preview.invoiceNet).toFixed(2)} €</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Presežek 109</div>
+                        <div className="font-semibold">{Number(posReceiptsData.preview.unclosed109).toFixed(2)} €</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Stanje</div>
+                        <Badge variant={posReceiptsData.preview.canPost ? "default" : "outline"} className={posReceiptsData.preview.canPost ? "bg-green-600 hover:bg-green-700" : ""}>
+                          {posReceiptsData.preview.canPost ? "Pripravljeno" : "Preverjanje"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {(posReceiptsData?.preview.reasons?.length ?? 0) > 0 && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Račun ostane osnutek</AlertTitle>
+                      <AlertDescription>
+                        <ul className="list-disc pl-4 mt-1 space-y-1 text-sm">
+                          {posReceiptsData?.preview.reasons.map((reason: string) => <li key={reason}>{reason}</li>)}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Links Table */}
+                  {(posReceiptsData?.links?.length ?? 0) > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Link2 className="h-4 w-4" />
+                        Povezane prejemnice
+                      </h4>
+                      <div className="border rounded-md overflow-hidden bg-card">
+                        <Table>
+                          <TableHeader className="bg-muted/50">
+                            <TableRow>
+                              <TableHead>Enota / prejemnica</TableHead>
+                              <TableHead>Dokument</TableHead>
+                              <TableHead>Metoda in status</TableHead>
+                              <TableHead className="text-right">Neto</TableHead>
+                              <TableHead className="w-[120px]" />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {posReceiptsData?.links.map((link: any) => (
+                              <TableRow key={link.id}>
+                                <TableCell>
+                                  <div className="font-medium">{link.enotaName}</div>
+                                  <div className="text-xs text-muted-foreground">Prejemnica {link.receiptNumber ?? `#${link.prejemnicaId}`}</div>
+                                </TableCell>
+                                <TableCell className="text-sm">{link.documentNumber ?? "Brez številke"}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1 items-start">
+                                    <Badge variant="outline" className="text-[10px] font-mono whitespace-nowrap bg-muted/30">
+                                      {link.matchMethod === "exact" ? "Natančno" : link.matchMethod === "suggested" ? "Predlog" : "Ročno"}
+                                    </Badge>
+                                    {link.mode === "delivery_note_invoice" ? (
+                                      <Badge className="bg-green-600 hover:bg-green-700 text-[10px]">Faktura-dobavnica</Badge>
+                                    ) : (
+                                      <Badge
+                                        variant={link.status === "closed109" ? "default" : "secondary"}
+                                        className={link.status === "closed109" ? "bg-green-600 hover:bg-green-700 text-[10px]" : "text-[10px]"}
+                                      >
+                                        {link.status === "closed109" ? "109 zaprt" : "Potrjeno v osnutku"}
+                                      </Badge>
+                                    )}
+                                    {link.matchedAt && (
+                                      <div className="text-[10px] text-muted-foreground mt-1">
+                                        Povezal/a {link.matchedBy}<br/>
+                                        {new Date(link.matchedAt).toLocaleString("sl-SI")}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">
+                                  <div className="flex flex-col items-end gap-1">
+                                    <span>{Number(link.netAmount).toFixed(2)} €</span>
+                                    {link.mode === "delivery_note_invoice" ? (
+                                      <Badge variant="outline" className="text-[10px] border-green-200 text-green-700 bg-green-50 px-1 py-0.5 h-auto">Brez 109</Badge>
+                                    ) : link.bookedTo109 ? (
+                                      <Badge variant="outline" className="text-[10px] border-green-200 text-green-700 bg-green-50 px-1 py-0.5 h-auto">Knjiženo v 109</Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-[10px] border-amber-200 text-amber-700 bg-amber-50 px-1 py-0.5 h-auto">Čaka 109</Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 px-2 text-xs text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                                      onClick={() => handleEslogDownload(link.prejemnicaId, link.documentNumber ?? null)}
+                                      disabled={eslogBusy === link.prejemnicaId}
+                                      title="Prenesi e-SLOG paket (XML + PDF + izvirnik)"
+                                      data-testid={`button-download-eslog-${link.prejemnicaId}`}
+                                    >
+                                      {eslogBusy === link.prejemnicaId
+                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        : <Package className="h-3.5 w-3.5" />}
+                                      <span className="ml-1 sr-only sm:not-sr-only">e-SLOG</span>
+                                    </Button>
+                                    {invoice.status === "draft" && link.status !== "closed109" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={() => setUnlinkCandidate({
+                                          prejemnicaId: link.prejemnicaId,
+                                          enotaName: link.enotaName,
+                                          documentNumber: link.documentNumber
+                                        })}
+                                        disabled={unlinkPosReceiptMut.isPending}
+                                        title="Razveži prejemnico"
+                                        data-testid={`button-unlink-receipt-${link.prejemnicaId}`}
+                                      >
+                                        <Unlink className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Candidates Table */}
+                  {invoice.status === "draft" && (posReceiptsData?.candidates?.length ?? 0) > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        Predlagane prejemnice ({posReceiptsData?.candidates?.length})
+                      </h4>
+                      <div className="border rounded-md overflow-hidden bg-card">
+                        <Table>
+                          <TableHeader className="bg-muted/30">
+                            <TableRow>
+                              <TableHead>Prejemnica / Enota</TableHead>
+                              <TableHead>Dokument</TableHead>
+                              <TableHead>Zanesljivost in razlog</TableHead>
+                              <TableHead className="text-right">Neto / 109 status</TableHead>
+                              <TableHead className="w-[112px]" />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {posReceiptsData?.candidates.map((candidate: any) => {
+                              const isExact = candidate.matchMethod === "exact";
+                              return (
+                                <TableRow key={candidate.prejemnicaId}>
+                                  <TableCell>
+                                    <div className="font-medium">{candidate.enotaName}</div>
+                                    <div className="text-xs text-muted-foreground">#{candidate.prejemnicaId}</div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="text-sm">{candidate.documentNumber ?? "-"}</div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-1 items-start">
+                                      <Badge variant={isExact ? "default" : "secondary"} className={isExact ? "bg-blue-600 hover:bg-blue-700 text-[10px]" : "text-[10px]"}>
+                                        {isExact ? "Natančno ujemanje" : `Predlog (${Math.round((candidate.confidence ?? 0) * 100)}%)`}
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">{candidate.reason}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex flex-col items-end gap-1">
+                                      <span className="font-medium">{Number(candidate.netAmount).toFixed(2)} €</span>
+                                      {candidate.bookedTo109 ? (
+                                        <Badge variant="outline" className="text-[10px] border-green-200 text-green-700 bg-green-50 px-1 py-0.5 h-auto">Knjiženo v 109</Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-[10px] border-amber-200 text-amber-700 bg-amber-50 px-1 py-0.5 h-auto">Čaka 109</Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button
+                                      variant={isExact ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => setLinkCandidate({
+                                        prejemnicaId: candidate.prejemnicaId,
+                                        matchMethod: isExact ? "exact" : "suggested",
+                                        enotaName: candidate.enotaName,
+                                        documentNumber: candidate.documentNumber,
+                                        netAmount: candidate.netAmount,
+                                        reason: candidate.reason,
+                                        financeComplete: candidate.financeComplete,
+                                        bookedTo109: candidate.bookedTo109
+                                      })}
+                                      disabled={linkPosReceiptMut.isPending || (posLinkMode === "delivery_note_invoice" && !candidate.financeComplete)}
+                                      title={posLinkMode === "delivery_note_invoice" && !candidate.financeComplete ? "Za način A manjkajo finančni podatki." : undefined}
+                                      data-testid={`button-link-candidate-${candidate.prejemnicaId}`}
+                                    >
+                                      <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                                      Poveži
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* History Log */}
+                  {(posReceiptsData?.matchHistory?.length ?? 0) > 0 && (
+                    <div className="space-y-2 pt-4">
+                      <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+                        <History className="h-4 w-4" />
+                        Zgodovina povezav
+                      </h4>
+                      <div className="border rounded-md p-0 bg-card overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-muted/20">
+                            <TableRow>
+                              <TableHead className="w-[140px] text-xs">Čas</TableHead>
+                              <TableHead className="text-xs">Uporabnik</TableHead>
+                              <TableHead className="text-xs">Akcija</TableHead>
+                              <TableHead className="text-xs">Prejemnica</TableHead>
+                              <TableHead className="text-xs">Status / Metoda</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {posReceiptsData?.matchHistory.map((entry: InvoicePosReceiptMatchHistoryEntry, i: number) => {
+                              const isUnlink = entry.action === "unlinked";
+                              const isClosed109 = entry.action === "closed109";
+                              return (
+                                <TableRow key={i} className={isUnlink ? "opacity-75" : ""}>
+                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {new Date(entry.changedAt).toLocaleString("sl-SI")}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {entry.changedBy}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={`text-[10px] ${
+                                      isUnlink ? "text-destructive border-destructive/30 bg-destructive/5"
+                                      : isClosed109 ? "text-emerald-700 border-emerald-200 bg-emerald-50"
+                                      : "text-blue-700 border-blue-200 bg-blue-50"
+                                    }`}>
+                                      {isUnlink ? "Razveza" : isClosed109 ? "Zaprtje 109" : "Povezava"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono">
+                                    {entry.prejemnicaId ? `#${entry.prejemnicaId}` : "-"}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">
+                                    {entry.status === "closed109" ? "109 zaprt" : entry.status === "confirmed" ? "Osnutek" : entry.status === "unlinked" ? "Razvezano" : entry.status}
+                                    {entry.matchMethod && ` • ${entry.matchMethod === 'exact' ? 'Natančno' : entry.matchMethod === 'suggested' ? 'Predlog' : 'Ročno'}`}
+                                    {entry.mode && ` • ${entry.mode === 'delivery_note_invoice' ? 'Način A' : 'Način B'}`}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty history state if no links and no candidates and no history */}
+                  {(posReceiptsData?.links?.length === 0) && (posReceiptsData?.candidates?.length === 0) && (posReceiptsData?.matchHistory?.length === 0) && (
+                    <div className="text-center p-6 border rounded-md bg-muted/10 text-muted-foreground text-sm">
+                      Ni najdenih prejemnic za tega dobavitelja.
+                    </div>
+                  )}
+
+                </div>
+              )}
+            </div>
+          )}
+
           {invoice.notes && (
             <div className="space-y-1">
               <div className="text-sm font-semibold">Opombe</div>
@@ -766,6 +1477,123 @@ function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { open: boo
           )}
         </SheetFooter>
       </SheetContent>
+
+      <Dialog open={!!linkCandidate} onOpenChange={(open) => {
+        if (!open) {
+          setLinkCandidate(null);
+          linkPosReceiptMut.reset();
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Potrditev povezave</DialogTitle>
+            <DialogDescription>
+              Preglejte podatke pred povezavo prejemnice z računom.
+            </DialogDescription>
+          </DialogHeader>
+          {linkCandidate && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-muted-foreground">Prejemnica:</div>
+                <div className="font-medium text-right">#{linkCandidate.prejemnicaId} ({linkCandidate.enotaName})</div>
+
+                <div className="text-muted-foreground">Dokument:</div>
+                <div className="font-medium text-right">{linkCandidate.documentNumber ?? "-"}</div>
+
+                <div className="text-muted-foreground">Neto znesek:</div>
+                <div className="font-medium text-right">{Number(linkCandidate.netAmount).toFixed(2)} €</div>
+
+                <div className="text-muted-foreground">Način povezave:</div>
+                <div className="font-medium text-right">
+                  {posLinkMode === "delivery_note_invoice" ? "A — dobavnica je račun" : "B — račun z dobavnicami"}
+                </div>
+
+                <div className="text-muted-foreground">Metoda ujemanja:</div>
+                <div className="font-medium text-right">
+                  {linkCandidate.matchMethod === "exact" ? "Natančno" : linkCandidate.matchMethod === "suggested" ? "Predlagano" : "Ročno"}
+                </div>
+
+                <div className="text-muted-foreground">Knjiženo v 109:</div>
+                <div className="font-medium text-right flex items-center justify-end gap-1">
+                  {linkCandidate.bookedTo109 ? (
+                    <><CheckCircle className="h-3.5 w-3.5 text-green-600" /> Da</>
+                  ) : (
+                    <><Clock className="h-3.5 w-3.5 text-amber-600" /> Ne</>
+                  )}
+                </div>
+              </div>
+
+              {posLinkMode === "delivery_note_invoice" && !linkCandidate.financeComplete && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Prejemnica nima popolnih finančnih podatkov (DDV / zneski), zato je ni mogoče neposredno povezati kot način A (dobavnica je račun).
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {linkPosReceiptMut.error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{(linkPosReceiptMut.error as any)?.data?.error || (linkPosReceiptMut.error as any)?.error || "Prišlo je do napake pri povezovanju."}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setLinkCandidate(null); linkPosReceiptMut.reset(); }} disabled={linkPosReceiptMut.isPending}>Prekliči</Button>
+            <Button
+              onClick={confirmLink}
+              disabled={linkPosReceiptMut.isPending || (posLinkMode === "delivery_note_invoice" && linkCandidate?.financeComplete === false)}
+              data-testid="button-confirm-link"
+            >
+              {linkPosReceiptMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Potrdi povezavo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!unlinkCandidate} onOpenChange={(open) => {
+        if (!open) {
+          setUnlinkCandidate(null);
+          unlinkPosReceiptMut.reset();
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Razveži prejemnico</DialogTitle>
+            <DialogDescription>
+              Ali res želite razvezati prejemnico od tega računa? Razvezane prejemnice bodo na voljo za ponovno povezavo, če se ujemajo po dobavitelju.
+            </DialogDescription>
+          </DialogHeader>
+          {unlinkCandidate && (
+            <div className="grid gap-2 py-4 text-sm bg-muted/20 p-4 rounded-md border mt-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Prejemnica:</span>
+                <span className="font-medium">#{unlinkCandidate.prejemnicaId} ({unlinkCandidate.enotaName})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Dokument:</span>
+                <span className="font-medium">{unlinkCandidate.documentNumber ?? "-"}</span>
+              </div>
+            </div>
+          )}
+          {unlinkPosReceiptMut.error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{(unlinkPosReceiptMut.error as any)?.data?.error || (unlinkPosReceiptMut.error as any)?.error || "Prišlo je do napake pri razvezovanju."}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUnlinkCandidate(null); unlinkPosReceiptMut.reset(); }} disabled={unlinkPosReceiptMut.isPending}>Prekliči</Button>
+            <Button variant="destructive" onClick={confirmUnlink} disabled={unlinkPosReceiptMut.isPending} data-testid="button-confirm-unlink">
+              {unlinkPosReceiptMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Razveži prejemnico
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
