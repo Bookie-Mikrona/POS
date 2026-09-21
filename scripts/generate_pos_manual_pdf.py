@@ -225,6 +225,16 @@ def make_styles():
             textColor=BLUE,
             spaceAfter=8 * mm,
         ),
+        "caption": ParagraphStyle(
+            "ImageCaption",
+            fontName="Manual",
+            fontSize=8.4,
+            leading=11.5,
+            alignment=TA_CENTER,
+            textColor=MUTED,
+            spaceBefore=1.5 * mm,
+            spaceAfter=5 * mm,
+        ),
     }
     return styles
 
@@ -350,6 +360,29 @@ def markdown_to_flowables(text: str, styles, content_width: float):
                 index += 1
             story.append(table_flowable(rows, styles, content_width))
             story.append(Spacer(1, 3.5 * mm))
+            continue
+
+        image = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", stripped)
+        if image:
+            flush_paragraph()
+            caption, relative_path = image.groups()
+            image_path = ROOT / relative_path
+            if not image_path.exists():
+                raise FileNotFoundError(image_path)
+            rendered = RLImage(str(image_path))
+            scale = min(
+                content_width / rendered.imageWidth,
+                (112 * mm) / rendered.imageHeight,
+                1,
+            )
+            rendered.drawWidth = rendered.imageWidth * scale
+            rendered.drawHeight = rendered.imageHeight * scale
+            story.append(rendered)
+            if caption:
+                story.append(Paragraph(inline_markup(caption), styles["caption"]))
+            else:
+                story.append(Spacer(1, 4 * mm))
+            index += 1
             continue
 
         heading = re.match(r"^(#{1,4})\s+(.+)$", stripped)

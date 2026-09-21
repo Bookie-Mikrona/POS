@@ -767,3 +767,17 @@ mtime_ms = 1789710575527
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/3eb07219-b797-428e-a93e-54975bd8d8d0/e27fccc6-2b71-4512-841b-57a54d24580b"
 storage_version_token = "1789710587075104"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "KWx48HdATxNACQPLvzKLn"
+uri = "file://docs/POS-Gostinstvo-racunovodski-prirocnik-v1.1.pdf"
+type = "pdf"
+title = "POS Gostinstvo — računovodski priročnik v1.1"
+description = "Dopolnjen priročnik s temeljnicami za prodajo samo kave, kave s piškotom ter nastavitev in prodajo artiklov To Go z embalažo in DDV kontrolami."
+logical_id = "fa58db97-b1f9-463a-91e5-29c51634bc44"
+content_hash = "sha256:50992a5d44de817127943a0131bd623614c3f49ef2b2033b6ec452e6016a78cf"
+size = 3620007
+mtime_ms = 1790007305088
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/fa58db97-b1f9-463a-91e5-29c51634bc44/e16b064e-8a15-4065-8456-bcd2b1a56130"
+storage_version_token = "1790007366568344"
+content_type = "application/pdf"
