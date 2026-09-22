@@ -453,7 +453,7 @@ export default function BancniIzpis() {
       setInvalidAccountsCleared(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountsData, bankAccounts.length, arAccounts.length, apAccounts.length]);
+  }, [accountsData, configLoaded, bankAccounts.length, arAccounts.length, apAccounts.length]);
 
   // ─── Step 1: Upload & Parse ────────────────────────────────────────────────
 
