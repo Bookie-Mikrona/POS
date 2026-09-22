@@ -1,0 +1,48 @@
+Subject: Billing review and service credit request — completed POS functionality lost after Git history transfer
+
+Hello Replit Support,
+
+I am requesting a billing review and an appropriate service credit for recovery work required after previously completed functionality disappeared from my Replit project following a Git history transfer/merge sequence.
+
+Project: Bookie POS Gostinstvo
+Regression confirmed: 22 September 2026
+
+The missing functionality had already been implemented before the transfer. The complete pre-regression tree is still preserved:
+
+- Recovery branch: recovery/before-c65-rollback-20260922
+- Pre-regression tree: c65df01b620eb5283e60996ee2fb3a05514c2a80
+- Current audited HEAD: 46593d57cbf67981336a01ee5851f7e5a494a015
+
+A source-tree and database audit confirmed these high-confidence losses:
+
+1. The complete Malice management and ordering flow: meal groups, group pricing, daily offers, article assignments, partner-specific prices, beneficiaries, contracts, and approximately 20 API operations.
+2. The Kosila page and daily lunch flow: offer creation, publication, closure, quotation, and adding lunch to an order.
+3. The Dnevni meni page still exists but its route and navigation entry disappeared, making it unreachable.
+4. The public restaurant profile page, preview, logo/image workflow, image processing, and public visit tracking.
+5. The in-app POS manual, capture page, chapter data, version 9.0 assets, and 20 guide screenshots.
+6. Parts of paid-voucher delivery alerts/retry support and Stripe monitoring safeguards.
+7. Related statistics, integration, database-isolation, object-storage, import, bank-statement, and release-validation tests.
+8. Three database schema source files and 22 forward-only migration files, although the corresponding Malice tables still exist in the development database.
+
+Within the audited project areas:
+
+- 384 files differ in total; this includes legitimate newer work and is not a count of lost files.
+- 114 paths are deleted relative to the preserved pre-regression tree.
+- The deleted paths include 22 POS frontend files, 35 API server files, 3 schema files, 22 migrations, 27 documentation files, and 4 scripts.
+
+This does not appear to be an intentional feature removal. The current reachable history has no normal path-level deletion commits for the affected feature groups. The repository instead shows a transfer/rollback-style merge lineage, while the complete tree remains on the recovery branch. No replacement was found for Malice, Kosila, the public page, or the in-app manual.
+
+Recovery cannot safely be performed by resetting the branch. The current branch also contains valid newer work. Selective recovery is required across frontend routes, backend APIs, OpenAPI contracts, generated clients, schemas, migrations, and tests. There is also a migration-number collision at migration 199, so historical migrations cannot be replayed blindly.
+
+I paused broad recovery before authorizing more Agent usage because this would charge me again to reconstruct functionality that had already been completed before the transfer.
+
+Requested resolution:
+
+1. Review the project history and Agent/compute charges associated with the original implementation, the Git history transfer/merge operation, the forensic audit, and the required recovery.
+2. Apply an appropriate service credit covering the reasonable Agent usage needed to restore the previously completed functionality.
+3. Advise whether Replit can assist with or supervise the selective recovery while preserving current valid work.
+4. Tell me which project IDs, checkpoints, usage exports, or logs you need.
+
+I have a detailed eight-page technical incident report and exact deleted-path inventory available. The current support form does not provide a file-attachment option. Please tell me how to send the report, or reply by email so I can provide it.
+
+Thank you.

@@ -977,3 +977,17 @@ mtime_ms = 1790108626863
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/d20f75a5-bb50-4474-ae6d-b87d460e950c/1a9dc11c-bab1-4c54-9fab-976eb7cc1106"
 storage_version_token = "1790108698674714"
 content_type = "text/plain"
+
+[[outputs]]
+id = "AQfmjBx89H6_nWgPXZIQe"
+uri = "file://reports/replit-support-form-inline-request-2026-09-22.txt"
+type = "text"
+title = "Support Form Request — No Attachment Needed"
+description = "Compact English request containing the verified facts for direct paste into the Replit support form."
+logical_id = "981f469e-87e2-497d-8dd4-148538956f3b"
+content_hash = "sha256:45c231a85e2c225fc3c7fcc04393408faeb108690184475debecac4ed74a9137"
+size = 3901
+mtime_ms = 1790109561792
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/981f469e-87e2-497d-8dd4-148538956f3b/3315660b-7cb4-4aa7-99ef-57d4a504a993"
+storage_version_token = "1790109566594298"
+content_type = "text/plain"
