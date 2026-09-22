@@ -91,6 +91,41 @@ describe("useRealtimeSync", () => {
     expect(EventSourceSpy).toHaveBeenCalledOnce();
   });
 
+  it("ob dogodku spremembe paketa osveži pravice samo istega podjetja", () => {
+    const refreshAuthorization = vi.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 1,
+        username: "test",
+        ime: "Test",
+        vloga: "blagajnik",
+        podjetjeDavcna: "12345678",
+        companyId: "podjetje-a",
+        moraZamenjatiGeslo: false,
+      },
+      loading: false,
+      login: vi.fn(),
+      updateUser: vi.fn(),
+      refreshAuthorization,
+      logout: vi.fn(),
+    });
+
+    renderHook(() => useRealtimeSync());
+    const handler = esInstance.addEventListener.mock.calls.find(
+      ([eventName]) => eventName === "auth:pos-plan-changed",
+    )?.[1] as (event: MessageEvent) => void;
+
+    act(() => handler(new MessageEvent("auth:pos-plan-changed", {
+      data: JSON.stringify({ companyId: "drugo-podjetje", plan: "lite" }),
+    })));
+    expect(refreshAuthorization).not.toHaveBeenCalled();
+
+    act(() => handler(new MessageEvent("auth:pos-plan-changed", {
+      data: JSON.stringify({ companyId: "podjetje-a", plan: "standard" }),
+    })));
+    expect(refreshAuthorization).toHaveBeenCalledOnce();
+  });
+
   it("ob izklopu utiša samo toast iz točilnice", () => {
     mockUseNastavitve.mockReturnValue({
       nastavitve: { toastTocilnicaAktiven: false },
@@ -241,7 +276,7 @@ describe("useRealtimeSync", () => {
     rerender();
     expect(EventSourceSpy).toHaveBeenCalledTimes(1);
 
-    // After the user logs back in (user object identity changes), a new EventSource is created
+    // Po novi prijavi se spremeni identiteta seje, zato se odpre nov EventSource.
     const secondInstance = {
       addEventListener: vi.fn(),
       close: vi.fn(),
@@ -251,7 +286,7 @@ describe("useRealtimeSync", () => {
     });
 
     mockUseAuth.mockReturnValue({
-      user: { ...activeUser },
+      user: { ...activeUser, id: 2, companyId: "drugo-podjetje" },
       loading: false,
       login: vi.fn(),
       updateUser: vi.fn(),

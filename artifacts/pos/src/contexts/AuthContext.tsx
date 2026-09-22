@@ -70,6 +70,7 @@ interface AuthCtx {
   authStatus: PosAuthStatus;
   login: (u: Uporabnik) => void;
   updateUser: (patch: Partial<Uporabnik>) => void;
+  refreshAuthorization?: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authStatus, setAuthStatus] = useState<PosAuthStatus>("loading");
   const queryClient = useQueryClient();
   const revalidatingUnauthorizedRef = useRef(false);
+  const refreshingAuthorizationRef = useRef<Promise<void> | null>(null);
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
   const clerkUserId = clerkUser?.id ?? null;
@@ -298,6 +300,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /**
+   * Ponovno prebere strežniško določene pravice, ko superadmin spremeni paket.
+   * Nikoli ne zanašaj lokalne vrednosti paketa kot vir resnice.
+   */
+  const refreshAuthorization = useCallback(async () => {
+    if (refreshingAuthorizationRef.current || !isSignedIn) {
+      await refreshingAuthorizationRef.current;
+      return;
+    }
+
+    const refresh = (async () => {
+      try {
+        const token = await getTokenRef.current({ skipCache: true });
+        if (!token) return;
+        const response = await fetch("/api/pos/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const data = await response.json() as PosAuthMeResponse;
+        setPosUser(current => {
+          if (!current || current.companyId !== (data.companyId ?? undefined)) return current;
+          const activeUnit = data.enote?.find(unit => unit.id === current.enotaId);
+          return {
+            ...current,
+            enote: data.enote,
+            hospitalityProfile: activeUnit?.hospitalityProfile ?? data.enotaHospitalityProfile ?? current.hospitalityProfile,
+            capabilities: activeUnit?.capabilities ?? data.enotaCapabilities ?? [],
+            posPlan: data.posPlan ?? undefined,
+            posPlanCapabilities: data.posPlanCapabilities ?? [],
+          };
+        });
+        await queryClient.invalidateQueries({ refetchType: "active" });
+      } catch {
+        // Omrežna napaka ne sme odjaviti uporabnika; SSE se bo ponovno povezal.
+      }
+    })();
+    refreshingAuthorizationRef.current = refresh;
+    try {
+      await refresh;
+    } finally {
+      refreshingAuthorizationRef.current = null;
+    }
+  }, [isSignedIn, queryClient]);
+
   const logout = useCallback(async () => {
     queryClient.removeQueries({ queryKey: getGetNastavitveQueryKey() });
     clearReturnUrl();
@@ -316,6 +363,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authStatus,
       login,
       updateUser,
+      refreshAuthorization,
       logout,
     }}>
       {children}

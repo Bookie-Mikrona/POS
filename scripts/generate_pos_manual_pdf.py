@@ -32,7 +32,8 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
-OUTPUT = ROOT / "docs" / "POS-Gostinstvo-prirocnik-v8.3.pdf"
+MANUAL_VERSION = "8.4"
+OUTPUT = ROOT / "docs" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
 LOGO = ROOT / "docs" / "mikrona-logo.png"
 
 SOURCE_FILES = [
@@ -62,6 +63,59 @@ PALE_YELLOW = colors.HexColor("#FFF6D8")
 INK = colors.HexColor("#1C2733")
 MUTED = colors.HexColor("#566573")
 LINE = colors.HexColor("#CCD6DD")
+
+PACKAGE_LABELS = {
+    "lite": "Lite",
+    "standard": "Standard",
+    "extended": "Extended",
+}
+
+# Naslov se razvrsti po najzahtevnejši funkciji, ki jo izrecno omenja.
+# Vse osnovne funkcije in splošna navodila so na voljo od paketa Lite.
+PACKAGE_HEADING_PATTERNS = {
+    "extended": re.compile(
+        r"(?:rezervaci|dostav|qr\b|večhod|multi.?course|dogod|pogostit|"
+        r"prenos\w*\s+zalog|dariln|boni?\b|simulaci)",
+        re.IGNORECASE,
+    ),
+    "standard": re.compile(
+        r"(?:\bmiz|kds\b|kuhinj|točilnic|pripravljen\w*\s+hrana|"
+        r"sestavljen\w*\s+(?:hrana|izdelk)|odpad|krožnik|telefon|naročnik)",
+        re.IGNORECASE,
+    ),
+}
+
+
+def package_for_heading(title: str) -> str:
+    for package in ("extended", "standard"):
+        if PACKAGE_HEADING_PATTERNS[package].search(title):
+            return package
+    return "lite"
+
+
+def inheritable_package_for_heading(title: str) -> str | None:
+    matches = [
+        package
+        for package in ("extended", "standard")
+        if PACKAGE_HEADING_PATTERNS[package].search(title)
+    ]
+    # Mešani naslovi, npr. »mize, rezervacije in naročila«, opisujejo več
+    # paketov. Njihove oznake zato ne smemo prenesti na vse podnaslove.
+    return matches[0] if len(matches) == 1 else None
+
+
+def package_badge(package: str) -> str:
+    label = PACKAGE_LABELS[package]
+    colors_by_package = {
+        "lite": ("#EAF2F8", "#163A5F"),
+        "standard": ("#E7F4F3", "#087F8C"),
+        "extended": ("#FFF0D8", "#8A4B08"),
+    }
+    background, foreground = colors_by_package[package]
+    return (
+        f'<font size="7.5" color="{foreground}" backColor="{background}">'
+        f"&nbsp;<b>POS {label}</b>&nbsp;</font>"
+    )
 
 
 def register_fonts() -> None:
@@ -342,6 +396,8 @@ def markdown_to_flowables(text: str, styles, content_width: float):
     lines = clean_source(text).splitlines()
     story = []
     paragraph_lines: list[str] = []
+    inherited_heading_packages: dict[int, str] = {}
+    package_rank = {"lite": 0, "standard": 1, "extended": 2}
 
     def flush_paragraph() -> None:
         if paragraph_lines:
@@ -398,9 +454,32 @@ def markdown_to_flowables(text: str, styles, content_width: float):
             flush_paragraph()
             level = len(heading.group(1))
             title = heading.group(2).strip()
-            para = Paragraph(inline_markup(title), styles[f"h{level}"])
+            own_package = package_for_heading(title)
+            inherited = [
+                package
+                for parent_level, package in inherited_heading_packages.items()
+                if parent_level < level
+            ]
+            package = max(
+                [own_package, *inherited],
+                key=lambda item: package_rank[item],
+            )
+            inheritable = inheritable_package_for_heading(title)
+            if inheritable is None:
+                inherited_heading_packages.pop(level, None)
+            else:
+                inherited_heading_packages[level] = inheritable
+            for child_level in list(inherited_heading_packages):
+                if child_level > level:
+                    del inherited_heading_packages[child_level]
+            para = Paragraph(
+                f"{inline_markup(title)}&nbsp;&nbsp;{package_badge(package)}",
+                styles[f"h{level}"],
+            )
             para._manual_heading_level = level
-            para._manual_heading_text = re.sub(r"[*`]", "", title)
+            para._manual_heading_text = (
+                f"{re.sub(r'[*`]', '', title)} [POS {PACKAGE_LABELS[package]}]"
+            )
             story.append(para)
             index += 1
             continue
@@ -475,7 +554,11 @@ class ManualDocTemplate(BaseDocTemplate):
             canvas.line(18 * mm, 16.5 * mm, A4[0] - 18 * mm, 16.5 * mm)
             canvas.setFont("Manual", 8.2)
             canvas.setFillColor(MUTED)
-            canvas.drawString(18 * mm, 11.5 * mm, "POS Gostinstvo — referenčni priročnik v8.3")
+            canvas.drawString(
+                18 * mm,
+                11.5 * mm,
+                f"POS Gostinstvo — referenčni priročnik v{MANUAL_VERSION}",
+            )
             canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
         canvas.restoreState()
 
@@ -507,10 +590,25 @@ def build_story(styles, doc):
             Spacer(1, 8 * mm),
             Spacer(1, 36 * mm),
             Paragraph("POS Gostinstvo", styles["cover_title"]),
-            Paragraph("Celovit uporabniški in referenčni priročnik · izdaja 8.3", styles["cover_subtitle"]),
+            Paragraph(
+                f"Celovit uporabniški in referenčni priročnik · izdaja {MANUAL_VERSION}",
+                styles["cover_subtitle"],
+            ),
             Spacer(1, 13 * mm),
             Table(
-                [["Različica", "8.3"], ["Obseg", "priprava, operativno delo, prodaja, zaloge, poročila in administracija"], ["Datum izdaje", date.today().strftime("%d.%m.%Y")]],
+                [[
+                    "Različica",
+                    MANUAL_VERSION,
+                ], [
+                    "Obseg",
+                    "priprava, operativno delo, prodaja, zaloge, poročila in administracija",
+                ], [
+                    "Paketi",
+                    "Lite, Standard in Extended",
+                ], [
+                    "Datum izdaje",
+                    date.today().strftime("%d.%m.%Y"),
+                ]],
                 colWidths=[40 * mm, 110 * mm],
                 style=TableStyle(
                     [
@@ -543,6 +641,30 @@ def build_story(styles, doc):
                 "<b>Pomembno:</b> vidnost gumbov je odvisna od vaše vloge, izbrane poslovne enote, blagajne in naprave. Če navedenega gumba ne vidite, ne uporabljajte prijave druge osebe. Obrnite se na vodjo ali administratorja.",
                 styles["quote"],
             ),
+            Paragraph("Oznake paketov", styles["h2"]),
+            Paragraph(
+                "Ob vsakem naslovu je oznaka najnižjega paketa, v katerem je opisana funkcija na voljo. "
+                "Višji paket vedno vključuje tudi funkcije nižjih paketov. Strežniške pravice podjetja, "
+                "zmožnosti poslovne enote in uporabniška vloga še vedno določajo dejanski dostop.",
+                styles["body"],
+            ),
+            Table(
+                [
+                    [Paragraph(package_badge("lite"), styles["body"]), Paragraph("<b>Lite</b> — prodaja, izmene, računi, meni, zaloga, statistika, poročila, temeljnice, blagajniški premiki, ure in nastavitve.", styles["body"])],
+                    [Paragraph(package_badge("standard"), styles["body"]), Paragraph("<b>Standard</b> — vse iz Lite ter mize, kuhinja, točilnica, pripravljena hrana, odpad in telefonska naročila.", styles["body"])],
+                    [Paragraph(package_badge("extended"), styles["body"]), Paragraph("<b>Extended</b> — vse iz Standard ter rezervacije, dostava, QR meni, večhodni meniji, dogodki, prenosi zaloge in darilni boni.", styles["body"])],
+                ],
+                colWidths=[35 * mm, 115 * mm],
+                style=TableStyle([
+                    ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 2.5 * mm),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 2.5 * mm),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2 * mm),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2 * mm),
+                ]),
+            ),
+            Spacer(1, 5 * mm),
             Paragraph("Kazalo", styles["toc_title"]),
         ]
     )
@@ -644,7 +766,7 @@ def main() -> None:
         rightMargin=19 * mm,
         topMargin=18 * mm,
         bottomMargin=21 * mm,
-        title="POS Gostinstvo — celovit uporabniški in referenčni priročnik v8.3",
+        title=f"POS Gostinstvo — celovit uporabniški in referenčni priročnik v{MANUAL_VERSION}",
         author="Bookie",
         subject="Uporabniški priročnik za POS Gostinstvo",
         creator="Bookie POS Gostinstvo",

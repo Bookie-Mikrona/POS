@@ -3,12 +3,13 @@ import type { Response } from "express";
 interface SseClient {
   res: Response;
   napravaId: string | null;
+  companyId: string;
 }
 
 const clients = new Set<SseClient>();
 
-export function addClient(res: Response, napravaId: string | null): void {
-  clients.add({ res, napravaId });
+export function addClient(res: Response, napravaId: string | null, companyId: string): void {
+  clients.add({ res, napravaId, companyId });
 }
 
 export function removeClient(res: Response): void {
@@ -40,6 +41,19 @@ export function broadcastTo(napravaId: string, event: string, data: unknown): vo
       } catch {
         clients.delete(client);
       }
+    }
+  }
+}
+
+/** Podjetniški dogodki nikoli ne smejo zapustiti meja podjetja. */
+export function broadcastToCompany(companyId: string, event: string, data: unknown): void {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of clients) {
+    if (client.companyId !== companyId) continue;
+    try {
+      client.res.write(msg);
+    } catch {
+      clients.delete(client);
     }
   }
 }

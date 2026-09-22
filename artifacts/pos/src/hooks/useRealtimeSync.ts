@@ -6,7 +6,7 @@ import { useNastavitve } from "@/contexts/NastavitveContext";
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, refreshAuthorization } = useAuth();
   const { nastavitve } = useNastavitve();
   const toastTocilnicaAktiven = nastavitve?.toastTocilnicaAktiven ?? true;
 
@@ -87,6 +87,20 @@ export function useRealtimeSync() {
         } catch { /* nop */ }
       });
 
+      es.addEventListener("auth:pos-plan-changed", (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data) as { companyId?: string };
+          if (data.companyId === user?.companyId) {
+            void refreshAuthorization?.();
+          }
+        } catch { /* nop */ }
+      });
+
+      es.addEventListener("open", () => {
+        // Ob ponovni povezavi preveri pravice, da ne zgrešimo dogodka med izpadom.
+        void refreshAuthorization?.();
+      });
+
       es.addEventListener("error", () => {
         es?.close();
         es = null;
@@ -103,5 +117,13 @@ export function useRealtimeSync() {
       if (retryTimer) clearTimeout(retryTimer);
       es?.close();
     };
-  }, [queryClient, user, toastTocilnicaAktiven]);
+  }, [
+    queryClient,
+    refreshAuthorization,
+    toastTocilnicaAktiven,
+    user?.companyId,
+    user?.enotaId,
+    user?.id,
+    user?.moraZamenjatiGeslo,
+  ]);
 }

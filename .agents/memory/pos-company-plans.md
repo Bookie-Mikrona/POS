@@ -8,3 +8,5 @@ Paket `Lite | Standard | Extended` je na nivoju podjetja in predstavlja zgornjo 
 **Why:** Ena aplikacija mora podpirati različne komercialne pakete brez podvojenih različic in brez možnosti, da bi nastavitev enote obšla strežniško paketno omejitev.
 
 **How to apply:** Vsako novo paketno funkcijo dodaj v osrednji katalog, preslikaj vse zasebne in javne poti ter jo preveri na strežniku. Obstoječa POS podjetja pri prvi migraciji dobijo Extended; odsoten zapis vedno pomeni Lite. `self_service` se ne sme vključiti ali oglaševati, dokler nima dejanskega toka.
+
+Pri spremembi paketa morajo odprte POS seje ponovno prebrati `/pos/auth/me`. Realtime obvestilo se sme poslati le povezavam istega podjetja; globalni POS SSE broadcast ni primeren za avtorizacijske podatke.

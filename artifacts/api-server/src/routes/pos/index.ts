@@ -19,6 +19,7 @@ import {
   requireVerifiedPosActor,
   requireSpecificUnitCapability,
   requireUnitCapability,
+  type PosRequest,
 } from "../../middlewares/pos";
 import { posOrderOperationIdempotency } from "../../middlewares/pos-operation-idempotency";
 import { addClient, removeClient } from "../../lib/pos-sse";
@@ -122,7 +123,7 @@ const eventsHandler: RequestHandler = (req: Request, res: Response) => {
   res.write("event: ping\ndata: {}\n\n");
 
   const napravaId = typeof req.query.napravaId === "string" ? req.query.napravaId : null;
-  addClient(res, napravaId);
+  addClient(res, napravaId, (req as PosRequest).companyId);
 
   const keepalive = setInterval(() => {
     try { res.write("event: ping\ndata: {}\n\n"); }

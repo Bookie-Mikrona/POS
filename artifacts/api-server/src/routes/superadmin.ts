@@ -16,6 +16,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAu
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
+import { broadcastToCompany } from "../lib/pos-sse";
 
 const router: IRouter = Router();
 
@@ -219,6 +220,10 @@ router.put(
         plan: companyPosPlansTable.plan,
         enabledAt: companyPosPlansTable.enabledAt,
       });
+    broadcastToCompany(companyId, "auth:pos-plan-changed", {
+      companyId,
+      plan: saved!.plan,
+    });
     res.json(saved);
   },
 );

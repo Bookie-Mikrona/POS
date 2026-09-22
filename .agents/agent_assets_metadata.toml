@@ -921,3 +921,17 @@ mtime_ms = 1790083887771
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/6303ef5e-8112-42ca-98d7-eb542559fe74/09323a71-1379-45ae-ad51-406af0175748"
 storage_version_token = "1790083908974313"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "agFl7Un_WvBHb_XY2Yd2h"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.4.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik v8.4"
+description = "Posodobljen uporabniški priročnik z vidnimi oznakami paketov POS Lite, Standard in Extended pri naslovih ter paketno legendo."
+logical_id = "6558538b-62b9-4a13-93d3-a9a43e725fc9"
+content_hash = "sha256:538519fa6b424e7ae0fa2688df93e1c0ce069494f14b6b22e0b62a8ed1529cc0"
+size = 2553681
+mtime_ms = 1790086200927
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/6558538b-62b9-4a13-93d3-a9a43e725fc9/2253f6b0-52d4-4cc2-bd8f-1b6b96c18925"
+storage_version_token = "1790086238388240"
+content_type = "application/pdf"
