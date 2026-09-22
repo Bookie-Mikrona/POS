@@ -31,6 +31,21 @@ author = "agent"
 task = "workflow.run"
 args = "pos-events-release"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "pos-manual-packages"
+
+[[workflows.workflow]]
+name = "pos-manual-packages"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uv run python -m pytest -q tests/test_generate_pos_manual_pdf.py"
+
+[workflows.workflow.metadata]
+isValidation = true
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
