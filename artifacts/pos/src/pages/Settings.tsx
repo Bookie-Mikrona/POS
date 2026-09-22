@@ -763,6 +763,7 @@ export default function Settings() {
   const [racunPozdrav1, setRacunPozdrav1] = useState("Hvala za obisk!");
   const [racunPozdrav2, setRacunPozdrav2] = useState("Vracamo se — se vidimo.");
   const [fursNacin, setFursNacin] = useState<"simulacija" | "testno" | "produkcija">("simulacija");
+  const [offlineFiscalEnabled, setOfflineFiscalEnabled] = useState(false);
   const [fursProxyUrl, setFursProxyUrl] = useState("");
   const [simulirajFursNapako, setSimulirajFursNapako] = useState(false);
   const [dovoliNegativneZaloge, setDovoliNegativneZaloge] = useState(true);
@@ -992,6 +993,7 @@ export default function Settings() {
       const fn = ((nastavitve as Nastavitve & { fursNacin?: string }).fursNacin ?? "simulacija") as "simulacija" | "testno" | "produkcija";
       setFursNacin(fn);
       setPpFursNacin(fn);
+      setOfflineFiscalEnabled((nastavitve as Nastavitve & { offlineFiscalEnabled?: boolean }).offlineFiscalEnabled ?? false);
       setPodjetjeTrr((nastavitve as Nastavitve & { podjetjeTrr?: Array<{ iban: string; bic: string }> }).podjetjeTrr ?? []);
       setProdajalecIban((nastavitve as Nastavitve & { prodajalecIban?: string }).prodajalecIban ?? "");
       setProdajalecBic((nastavitve as Nastavitve & { prodajalecBic?: string }).prodajalecBic ?? "");
@@ -1716,6 +1718,7 @@ export default function Settings() {
       racunPozdrav1,
       racunPozdrav2,
       fursNacin,
+      offlineFiscalEnabled,
       fursProxyUrl,
       simulirajFursNapako,
       dovoliNegativneZaloge,
@@ -3100,7 +3103,7 @@ export default function Settings() {
                 </AccordionTrigger>
                 <AccordionContent className="pb-0">
                   <div className="space-y-4 p-4 pt-2">
-      <FiscalServicePairing />
+      <FiscalServicePairing unitEnabled={offlineFiscalEnabled} />
        {jeAdmin && !jeSuperAdmin && <LocalGatewaySettings />}
        <GatewaySyncReviewPanel />
       {/* ── FURS & Račun (samo admin podjetja) ───────────────── */}
@@ -3253,6 +3256,21 @@ export default function Settings() {
                     <p className="text-amber-700">Za produkcijsko ZOI podpisovanje je potreben produkcijski digitalni certifikat FURS. Testni certifikat ne deluje na produkcijskem strežniku.</p>
                   </div>
                 )}
+              </div>
+
+              <div className={`flex items-center justify-between gap-4 rounded-lg border p-3 ${offlineFiscalEnabled ? "border-amber-300 bg-amber-50" : ""}`}>
+                <div>
+                  <Label htmlFor="offline-fiscal-enabled" className="font-medium text-sm">Offline delovanje te poslovne enote</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Omogoči izdajo gotovinskih računov prek lokalne Windows storitve ob prekinitvi internetne povezave. Privzeto je izključeno.
+                  </p>
+                </div>
+                <Switch
+                  id="offline-fiscal-enabled"
+                  checked={offlineFiscalEnabled}
+                  onCheckedChange={setOfflineFiscalEnabled}
+                  data-testid="offline-fiscal-enabled"
+                />
               </div>
 
               <div className={`flex items-center justify-between rounded-lg border p-3 ${simulirajFursNapako ? "border-red-300 bg-red-50" : ""}`}>

@@ -15,7 +15,7 @@ import {
   type FiscalCapability,
 } from "@/lib/offlineFiscal";
 
-export function FiscalServicePairing() {
+export function FiscalServicePairing({ unitEnabled }: { unitEnabled: boolean }) {
   const [code, setCode] = useState("");
   const [enabled, setEnabled] = useState(isLocalFiscalServiceEnabled);
   const [clientName, setClientName] = useState(() => localStorage.getItem("bookie.fiscal.v1.clientName") ?? "POS blagajna");
@@ -24,6 +24,13 @@ export function FiscalServicePairing() {
   const [capability, setCapability] = useState<FiscalCapability>();
   const [problem, setProblem] = useState<string>();
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!unitEnabled && enabled) {
+      setLocalFiscalServiceEnabled(false);
+      setEnabled(false);
+    }
+  }, [enabled, unitEnabled]);
 
   const refresh = async () => {
     const result = await checkLocalFiscalCapability();
@@ -61,6 +68,12 @@ export function FiscalServicePairing() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!unitEnabled ? (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>Offline delovanje za aktivno poslovno enoto ni omogočeno. Najprej ga omogočite v nastavitvah FURS in shranite spremembe.</p>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
           <div>
             <p className="font-medium">Lokalna gotovinska izdaja</p>
@@ -71,6 +84,7 @@ export function FiscalServicePairing() {
           <Button
             type="button"
             variant={enabled ? "default" : "outline"}
+            disabled={!unitEnabled}
             onClick={() => {
               const next = !enabled;
               setLocalFiscalServiceEnabled(next);

@@ -79,9 +79,10 @@ const DEFAULTS: Record<string, string> = {
   studentskiBonAktiven: "false",
   qrAiAsistentAktiven: "false",
   toastTocilnicaAktiven: "true",
+  offlineFiscalEnabled: "false",
 };
 
-const BREZ_FALLBACKA_MED_ENOTAMI = new Set(["qrAiAsistentAktiven"]);
+const BREZ_FALLBACKA_MED_ENOTAMI = new Set(["qrAiAsistentAktiven", "offlineFiscalEnabled"]);
 
 /**
  * Ključi, ki so shranjeni na nivoju podjetja (enota_id=0, podjetje_davcna=X).
@@ -168,6 +169,7 @@ function toResponse(map: Record<string, string>) {
     testniNacin:        (map["fursNacin"]
       ? map["fursNacin"] !== "produkcija"
       : (map["testniNacin"] ?? DEFAULTS["testniNacin"]) === "true"),
+    offlineFiscalEnabled: (map["offlineFiscalEnabled"] ?? DEFAULTS["offlineFiscalEnabled"]) === "true",
     fursProxyUrl:       map["fursProxyUrl"]        ?? DEFAULTS["fursProxyUrl"],
     simulirajFursNapako: (map["simulirajFursNapako"] ?? "false") === "true",
     grupiranjeNacin: (map["grupiranjeNacin"] ?? "novo") as "izklopljeno" | "staro" | "novo",
@@ -335,6 +337,11 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  if ((parsed.data as { offlineFiscalEnabled?: unknown }).offlineFiscalEnabled !== undefined
+      && typeof (parsed.data as { offlineFiscalEnabled?: unknown }).offlineFiscalEnabled !== "boolean") {
+    res.status(400).json({ error: "Nastavitev offline delovanja mora biti logična vrednost." });
+    return;
+  }
 
   const fursNacinNew = (parsed.data as { fursNacin?: string }).fursNacin as "simulacija" | "testno" | "produkcija" | undefined;
   const fursNacinVal: "simulacija" | "testno" | "produkcija" = fursNacinNew
@@ -381,6 +388,9 @@ router.put("/nastavitve", requireAdmin, async (req, res): Promise<void> => {
       : {}),
     qrAiAsistentAktiven: String((parsed.data as { qrAiAsistentAktiven?: boolean }).qrAiAsistentAktiven ?? false),
     toastTocilnicaAktiven: String((parsed.data as { toastTocilnicaAktiven?: boolean }).toastTocilnicaAktiven ?? true),
+    ...((parsed.data as { offlineFiscalEnabled?: boolean }).offlineFiscalEnabled !== undefined
+      ? { offlineFiscalEnabled: String((parsed.data as { offlineFiscalEnabled: boolean }).offlineFiscalEnabled) }
+      : {}),
   };
 
   const pizzaPremeri = [

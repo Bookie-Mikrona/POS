@@ -11,6 +11,7 @@ import {
 import type { PosRequest } from "../../middlewares/pos";
 import { ingestOfflineReceipt } from "./offline-fiscal";
 import { createProvisioningBundle } from "../../services/pos/offline-provisioning";
+import { isOfflineFiscalEnabled } from "../../services/pos/offline-fiscal-policy";
 
 const router = Router();
 export const gatewayReviewRouter = Router();
@@ -83,6 +84,9 @@ export async function requireDeviceSync(req: Request, res: Response, next: NextF
     .where(eq(offlineFiscalDevicesTable.id, deviceId)).limit(1);
   if (!row || row.device.status !== "active" || !row.device.productionEnabled) {
     res.status(403).json({ error: "Device ni aktiven za produkcijski sync." }); return;
+  }
+  if (!await isOfflineFiscalEnabled(row.device.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za poslovno enoto ni omogočeno." }); return;
   }
   if (!req.path.endsWith("/config")) {
     const [config] = await db.select({ id: offlineProvisioningBundlesTable.id }).from(offlineProvisioningBundlesTable).where(and(

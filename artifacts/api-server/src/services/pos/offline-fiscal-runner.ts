@@ -25,6 +25,10 @@ export async function runOfflineFiscalOnce(options: {
       SELECT r.id, r.enota_id, e.company_id
        FROM offline_fiscal_receipts r
       JOIN enote e ON e.id = r.enota_id
+       JOIN nastavitve offline_setting
+         ON offline_setting.enota_id = r.enota_id
+        AND offline_setting.kljuc = 'offlineFiscalEnabled'
+        AND offline_setting.vrednost = 'true'
        LEFT JOIN racuni linked_racun ON linked_racun.id = r.racun_id
       LEFT JOIN LATERAL (
         SELECT count(*)::integer AS attempt_count, max(created_at) AS last_attempt_at

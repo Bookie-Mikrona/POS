@@ -20,6 +20,7 @@ import { claimAndSubmitOfflineReceipt } from "../../services/pos/offline-fiscal-
 import { readAll, toResponse } from "./nastavitve";
 import { canonicalAuthorityJson, issueOfflineAuthorityBundle } from "../../services/pos/offline-authority";
 import { createProvisioningBundle, deviceRegistrationProofInput, normalizeDevicePublicKey } from "../../services/pos/offline-provisioning";
+import { isOfflineFiscalEnabled } from "../../services/pos/offline-fiscal-policy";
 
 const router: IRouter = Router();
 
@@ -97,6 +98,9 @@ function verifyCanonicalVat(plan: FinalizationPlan, authorityPayload: any, compa
 
 router.post("/offline-fiscal/provisioning/challenges", requirePosAdminRole, async (req, res) => {
   const context = req as PosRequest;
+  if (!await isOfflineFiscalEnabled(context.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za aktivno poslovno enoto ni omogočeno." }); return;
+  }
   const poslovniProstorId = Number(req.body?.poslovniProstorId);
   const [premise] = await db.select({ id: poslovniProstoriTable.id }).from(poslovniProstoriTable).where(and(
     eq(poslovniProstoriTable.id, poslovniProstorId), eq(poslovniProstoriTable.enotaId, context.enotaId),
@@ -112,6 +116,9 @@ router.post("/offline-fiscal/provisioning/challenges", requirePosAdminRole, asyn
 
 router.post("/offline-fiscal/provisioning/register", requirePosAdminRole, async (req, res) => {
   const context = req as PosRequest; const body = req.body as Record<string, any>;
+  if (!await isOfflineFiscalEnabled(context.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za aktivno poslovno enoto ni omogočeno." }); return;
+  }
   const [challenge] = await db.select().from(offlineProvisioningChallengesTable).where(and(
     eq(offlineProvisioningChallengesTable.id, String(body.challengeId)),
     eq(offlineProvisioningChallengesTable.enotaId, context.enotaId),
@@ -262,6 +269,9 @@ async function receiptResponse(row: typeof offlineFiscalReceiptsTable.$inferSele
  */
 async function ingestV2LegalCore(req: Request, res: Response): Promise<void> {
   const context = req as PosRequest;
+  if (!await isOfflineFiscalEnabled(context.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za aktivno poslovno enoto ni omogočeno." }); return;
+  }
   const core = req.body as LegalInvoiceCore;
   const bundle = core?.authorityBundle as Record<string, any> | undefined;
   const plan = core?.finalizationPlan as FinalizationPlan | undefined;
@@ -383,6 +393,9 @@ async function ingestV2LegalCore(req: Request, res: Response): Promise<void> {
 /** Admin-only provisioning. The private key is neither accepted nor stored. */
 router.post("/offline-fiscal/devices", requirePosAdminRole, async (req: Request, res: Response) => {
   const context = req as PosRequest;
+  if (!await isOfflineFiscalEnabled(context.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za aktivno poslovno enoto ni omogočeno." }); return;
+  }
   const body = req.body as Record<string, unknown>;
   if (body.contractVersion === "furs-v1") {
     res.status(410).json({ error: "furs-v1 zahteva challenge/proof provisioning; neposredna registracija ključa je onemogočena." }); return;
@@ -423,6 +436,9 @@ router.post("/offline-fiscal/devices", requirePosAdminRole, async (req: Request,
 
 router.post("/offline-fiscal/devices/:id/activate", requirePosAdminRole, async (req, res) => {
   const context = req as PosRequest;
+  if (!await isOfflineFiscalEnabled(context.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za aktivno poslovno enoto ni omogočeno." }); return;
+  }
   const [candidate] = await db.select().from(offlineFiscalDevicesTable)
     .where(and(eq(offlineFiscalDevicesTable.id, String(req.params.id)), eq(offlineFiscalDevicesTable.enotaId, context.enotaId))).limit(1);
   if (!candidate) { res.status(404).json({ error: "Naprava ni najdena." }); return; }
@@ -460,6 +476,9 @@ router.post("/offline-fiscal/devices/:id/revoke", requirePosAdminRole, async (re
 });
 router.post("/offline-fiscal/devices/:id/authority-bundles", requirePosAdminRole, async (req, res) => {
   const context = req as PosRequest;
+  if (!await isOfflineFiscalEnabled(context.enotaId)) {
+    res.status(403).json({ error: "Offline fiskalno delovanje za aktivno poslovno enoto ni omogočeno." }); return;
+  }
   const waiterId = Number(req.body?.waiterId);
   const shiftId = Number(req.body?.shiftId);
   if (!Number.isInteger(waiterId) || !Number.isInteger(shiftId)) {

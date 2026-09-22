@@ -50,3 +50,9 @@ Izbrani fiskalni URL je del povezovalnih poverilnic POS-a; vsi poznejši zahtevk
 **Why:** Fiksni privzeti naslov po uspešni povezavi preusmeri nadaljnje zahtevke na napačna vrata ali napravo in onemogoči dokazni preizkus nestandardnih vrat.
 
 **How to apply:** Dovoli HTTP samo za loopback, za LAN zahtevaj HTTPS, pot `/v1` normaliziraj ter cilj spremeni samo z odstranitvijo in novo povezavo.
+
+Offline fiskalno delovanje je poslovna nastavitev posamezne enote in je privzeto izključeno; lokalna nastavitev brskalnika sama po sebi nikoli ni dovoljenje.
+
+**Why:** Težava ali nedokončana uvedba lokalne storitve v eni enoti ne sme vplivati na druge enote ali omogočiti izdaje prek starih lokalnih podatkov.
+
+**How to apply:** Strežnik mora pred registracijo, izdajo authority podatkov, sprejemom računov in sinhronizacijo preveriti nastavitev enote. Globalna okoljska zastavica ostane dodatna varovalka.
