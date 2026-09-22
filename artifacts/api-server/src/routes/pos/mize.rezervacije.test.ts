@@ -29,6 +29,7 @@ const RUN_ID = randomUUID().slice(0, 8);
 let companyId: string;
 let enotaId: number;
 let drugaEnotaId: number;
+let tretjaEnotaId: number;
 let telefonZaporedna = 100_000;
 
 function appZaEnoto(izbranaEnotaId: number, vloga = "admin", companyContext: string | null = companyId) {
@@ -79,7 +80,12 @@ beforeAll(async () => {
     companyId, ime: `Druga enota ${RUN_ID}`,
   }).returning({ id: enoteTable.id });
   drugaEnotaId = drugaEnota!.id;
+  const [tretjaEnota] = await db.insert(enoteTable).values({
+    companyId, ime: `Tretja enota ${RUN_ID}`,
+  }).returning({ id: enoteTable.id });
+  tretjaEnotaId = tretjaEnota!.id;
 });
+
 
 beforeEach(() => {
   broadcastMock.mockClear();
@@ -582,5 +588,68 @@ describe("rezervacije miz", () => {
       expect.objectContaining({ id: potekla!.id, status: "potekla", potekla: expect.any(Date) }),
       expect.objectContaining({ id: bodoca!.id, status: "aktivna" }),
     ]));
+  });
+
+  it("urnik obvesti vsako enoto samo o njenih sproščenih mizah", async () => {
+    const zdaj = new Date();
+    const [mizaA1, mizaA2, mizaB, mizaBrezSpremembe] = await Promise.all([
+      ustvariMizo(enotaId, 109),
+      ustvariMizo(enotaId, 110),
+      ustvariMizo(drugaEnotaId, 109),
+      ustvariMizo(tretjaEnotaId, 109),
+    ]);
+    const potekla = new Date(zdaj.getTime() - 3 * 60 * 60 * 1000 - 60_000);
+
+    await db.insert(rezervacijeMizTable).values([
+      {
+        enotaId,
+        mizaId: mizaA1.id,
+        strankaIme: "Glavna enota A",
+        telefon: "040 123 461",
+        zacetek: potekla,
+      },
+      {
+        enotaId,
+        mizaId: mizaA2.id,
+        strankaIme: "Glavna enota B",
+        telefon: "040 123 462",
+        zacetek: potekla,
+      },
+      {
+        enotaId: drugaEnotaId,
+        mizaId: mizaB.id,
+        strankaIme: "Druga enota",
+        telefon: "040 123 463",
+        zacetek: potekla,
+      },
+      {
+        enotaId: tretjaEnotaId,
+        mizaId: mizaBrezSpremembe.id,
+        strankaIme: "Enota brez spremembe",
+        telefon: "040 123 464",
+        zacetek: new Date(zdaj.getTime() + 4 * 60 * 60 * 1000),
+      },
+    ]);
+
+    broadcastMock.mockClear();
+    await sprostiPotekleRezervacije(zdaj);
+
+    expect(broadcastMock).toHaveBeenCalledTimes(2);
+    const dogodkiPoEnoti = new Map(
+      broadcastMock.mock.calls.map(([id, event, payload]) => [
+        id,
+        { event, payload },
+      ]),
+    );
+    expect(dogodkiPoEnoti.get(enotaId)?.event).toBe("update");
+    expect(dogodkiPoEnoti.get(enotaId)?.payload).toMatchObject({ type: "miza" });
+    expect(
+      [...dogodkiPoEnoti.get(enotaId)!.payload.ids].sort((a, b) => a - b),
+    ).toEqual([mizaA1.id, mizaA2.id].sort((a, b) => a - b));
+    expect(dogodkiPoEnoti.get(drugaEnotaId)).toEqual({
+      event: "update",
+      payload: { type: "miza", ids: [mizaB.id] },
+    });
+    expect(dogodkiPoEnoti.has(tretjaEnotaId)).toBe(false);
   });
 });
