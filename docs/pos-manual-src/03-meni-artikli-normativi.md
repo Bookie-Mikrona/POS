@@ -1,3 +1,4 @@
+<!-- pos-packages: extended, lite*2, standard*5, extended*5, standard*4, lite*4, extended*4, lite*4, standard, lite, standard, lite*3, standard*5, extended*6, lite, standard, lite, standard, extended, lite*12, extended, lite*15, extended, standard, extended, lite*2, standard*2, lite*2, extended, lite*2, extended*2, lite*6, standard*2, lite*2, standard, extended*2, lite*2, standard*5, lite, standard, extended*7, lite, standard, lite, standard, extended*2, lite*8, extended*7, lite*8, standard, lite*6, extended*6, lite -->
 # 03 Mize, rezervacije in naročila
 
 ## 1. Namen in osnovna pravila

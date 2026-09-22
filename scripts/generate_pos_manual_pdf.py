@@ -32,6 +32,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
+POS_PLAN_SCHEMA = ROOT / "lib" / "db" / "src" / "schema" / "company-pos-plans.ts"
 MANUAL_VERSION = "8.5"
 OUTPUT = ROOT / "docs" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
 PUBLIC_OUTPUT = ROOT / "artifacts" / "pos" / "public" / "POS-Gostinstvo-prirocnik.pdf"
@@ -70,39 +71,60 @@ PACKAGE_LABELS = {
     "standard": "Standard",
     "extended": "Extended",
 }
-
-# Naslov se razvrsti po najzahtevnejši funkciji, ki jo izrecno omenja.
-# Vse osnovne funkcije in splošna navodila so na voljo od paketa Lite.
-PACKAGE_HEADING_PATTERNS = {
-    "extended": re.compile(
-        r"(?:rezervaci|dostav|qr\b|večhod|multi.?course|dogod|pogostit|"
-        r"prenos\w*\s+zalog|dariln|boni?\b|simulaci)",
-        re.IGNORECASE,
-    ),
-    "standard": re.compile(
-        r"(?:\bmiz|kds\b|kuhinj|točilnic|pripravljen\w*\s+hrana|"
-        r"sestavljen\w*\s+(?:hrana|izdelk)|odpad|krožnik|telefon|naročnik)",
-        re.IGNORECASE,
-    ),
-}
+PACKAGE_MANIFEST = re.compile(
+    r"^\s*<!--\s*pos-packages:\s*(.*?)\s*-->\s*$",
+    re.MULTILINE,
+)
 
 
-def package_for_heading(title: str) -> str:
-    for package in ("extended", "standard"):
-        if PACKAGE_HEADING_PATTERNS[package].search(title):
-            return package
-    return "lite"
+def load_pos_plan_catalog() -> tuple[str, ...]:
+    source = POS_PLAN_SCHEMA.read_text(encoding="utf-8")
+    match = re.search(
+        r"export\s+const\s+POS_PLANS\s*=\s*\[([^\]]+)\]\s*as\s+const",
+        source,
+    )
+    if not match:
+        raise ValueError(f"V {POS_PLAN_SCHEMA} ni mogoče prebrati POS_PLANS.")
+    plans = tuple(re.findall(r'["\']([a-z][a-z0-9_-]*)["\']', match.group(1)))
+    if not plans or len(plans) != len(set(plans)):
+        raise ValueError(f"POS_PLANS v {POS_PLAN_SCHEMA} je prazen ali podvojen.")
+    if set(plans) != set(PACKAGE_LABELS):
+        raise ValueError(
+            "Oznake priročnika niso usklajene z osrednjim katalogom POS paketov: "
+            f"priročnik={sorted(PACKAGE_LABELS)}, katalog={sorted(plans)}"
+        )
+    return plans
 
 
-def inheritable_package_for_heading(title: str) -> str | None:
-    matches = [
-        package
-        for package in ("extended", "standard")
-        if PACKAGE_HEADING_PATTERNS[package].search(title)
-    ]
-    # Mešani naslovi, npr. »mize, rezervacije in naročila«, opisujejo več
-    # paketov. Njihove oznake zato ne smemo prenesti na vse podnaslove.
-    return matches[0] if len(matches) == 1 else None
+POS_PLAN_CATALOG = load_pos_plan_catalog()
+
+
+def extract_package_manifest(text: str, source_name: str) -> tuple[str, list[str]]:
+    manifests = PACKAGE_MANIFEST.findall(text)
+    if len(manifests) != 1:
+        raise ValueError(
+            f"{source_name}: pričakovana je natanko ena oznaka "
+            "'<!-- pos-packages: ... -->'."
+        )
+
+    packages: list[str] = []
+    for raw_item in manifests[0].split(","):
+        item = raw_item.strip()
+        match = re.fullmatch(r"([a-z][a-z0-9_-]*)(?:\*(\d+))?", item)
+        if not match:
+            raise ValueError(f"{source_name}: neveljavna oznaka paketa '{item}'.")
+        package, raw_count = match.groups()
+        if package not in POS_PLAN_CATALOG:
+            raise ValueError(
+                f"{source_name}: paket '{package}' ni v osrednjem katalogu "
+                f"({', '.join(POS_PLAN_CATALOG)})."
+            )
+        count = int(raw_count or "1")
+        if count < 1:
+            raise ValueError(f"{source_name}: ponovitev paketa mora biti vsaj 1.")
+        packages.extend([package] * count)
+
+    return PACKAGE_MANIFEST.sub("", text, count=1), packages
 
 
 def package_badge(package: str) -> str:
@@ -439,12 +461,31 @@ def renumber_headings(text: str, chapter_number: int) -> str:
     return "\n".join(numbered)
 
 
-def markdown_to_flowables(text: str, styles, content_width: float, chapter_number: int):
-    lines = renumber_headings(clean_source(text), chapter_number).splitlines()
+def markdown_to_flowables(
+    text: str,
+    styles,
+    content_width: float,
+    chapter_number: int,
+    source_name: str,
+):
+    cleaned, heading_packages = extract_package_manifest(
+        clean_source(text),
+        source_name,
+    )
+    lines = renumber_headings(cleaned, chapter_number).splitlines()
+    heading_count = sum(
+        bool(re.match(r"^#{1,4}\s+.+$", line.strip()))
+        for line in lines
+    )
+    if len(heading_packages) != heading_count:
+        raise ValueError(
+            f"{source_name}: manifest vsebuje {len(heading_packages)} oznak, "
+            f"najdenih pa je {heading_count} naslovov. Vsak naslov mora imeti "
+            "izrecno oznako paketa."
+        )
     story = []
     paragraph_lines: list[str] = []
-    inherited_heading_packages: dict[int, str] = {}
-    package_rank = {"lite": 0, "standard": 1, "extended": 2}
+    heading_package_index = 0
 
     def flush_paragraph() -> None:
         if paragraph_lines:
@@ -501,24 +542,8 @@ def markdown_to_flowables(text: str, styles, content_width: float, chapter_numbe
             flush_paragraph()
             level = len(heading.group(1))
             title = heading.group(2).strip()
-            own_package = package_for_heading(title)
-            inherited = [
-                package
-                for parent_level, package in inherited_heading_packages.items()
-                if parent_level < level
-            ]
-            package = max(
-                [own_package, *inherited],
-                key=lambda item: package_rank[item],
-            )
-            inheritable = inheritable_package_for_heading(title)
-            if inheritable is None:
-                inherited_heading_packages.pop(level, None)
-            else:
-                inherited_heading_packages[level] = inheritable
-            for child_level in list(inherited_heading_packages):
-                if child_level > level:
-                    del inherited_heading_packages[child_level]
+            package = heading_packages[heading_package_index]
+            heading_package_index += 1
             para = Paragraph(
                 f"{inline_markup(title)}&nbsp;&nbsp;{package_badge(package)}",
                 styles[f"h{level}"],
@@ -837,7 +862,13 @@ def build_story(styles, doc):
                 PageBreak(),
             ]
         )
-        flowables = markdown_to_flowables(source, styles, doc.width, chapter_number)
+        flowables = markdown_to_flowables(
+            source,
+            styles,
+            doc.width,
+            chapter_number,
+            filename,
+        )
         if not flowables:
             raise ValueError(f"{filename} po filtriranju nima vsebine")
         story.extend(flowables)

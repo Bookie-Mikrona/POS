@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*28, standard*8, lite*18, standard, lite*7, standard*3, lite*3 -->
 # 01 Dostop in priprava sistema
 
 ## 1. Namen, meje poglavja in odgovornost

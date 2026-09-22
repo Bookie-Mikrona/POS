@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*22, extended, lite*3, standard*4, lite*20, extended, lite, standard, extended, standard*4, lite*10, standard, extended*2, lite, extended, lite*4, extended*5, lite*14, extended, lite*2, extended, standard, extended, standard*6, extended*7, lite*7, standard, lite, extended*3, lite, extended, lite*5, extended*5, lite*10, extended, lite*14 -->
 # 11 Odpravljanje težav in izredni primeri
 
 ## 1. Varen odziv

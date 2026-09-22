@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*6, standard, lite*24, standard, lite*20, standard, lite*71 -->
 # 12 Slovar, kontrolni seznami in kratka zgodovina različice
 
 ## 1. Namen

@@ -1,3 +1,4 @@
+<!-- pos-packages: extended, lite*37, extended*4, lite*6, standard*10, extended*5, lite*11, extended*3, lite*4, standard*7, extended*2, lite*43, extended*11, standard*19, lite*7, extended, lite*12, extended, standard, lite, standard, lite*9, standard*2, extended -->
 # 07 Zaloge, prejemnice, OCR, pripravljena hrana, odpad in dogodki
 
 ## 1. Namen sklopa

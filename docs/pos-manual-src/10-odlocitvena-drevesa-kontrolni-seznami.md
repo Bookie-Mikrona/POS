@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*4, standard, lite*2, standard*4, lite*2, extended, lite*26, standard*5, lite*38, extended*4, lite*2, extended*5, lite*5, standard, lite*9, extended*7, lite*4, extended*2, lite*6 -->
 # 10 Hitri postopki po vlogah
 
 ## 1. Uporaba hitrih postopkov

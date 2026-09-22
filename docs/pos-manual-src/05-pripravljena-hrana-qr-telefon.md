@@ -1,3 +1,4 @@
+<!-- pos-packages: extended, lite*8, standard*6, extended*4, lite*3, extended*6, standard*3, extended, standard, lite*5, standard*7, lite*7, extended*4, standard*5, extended*8, standard, lite, standard*2, extended*3, standard, lite*3, standard*2, lite*8, extended*8, lite*3, standard, lite*10, extended, lite*2, extended, lite, extended*2, lite*2, extended, lite*8, extended*7 -->
 # 05 Priprava, KDS, QR meni in telefonska naročila
 
 ## 1. Namen sklopa

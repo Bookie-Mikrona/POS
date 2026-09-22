@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*24, standard*2, extended, standard*7, lite*8, extended*2, lite*21, standard, lite, standard, extended*2, lite*8, standard, lite -->
 # 02 Začetek izmene in delovno okolje
 
 ## 1. Namen, meja in odgovornost

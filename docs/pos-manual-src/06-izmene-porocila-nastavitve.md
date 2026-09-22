@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*37, extended*2, lite*14, extended, lite*27, extended, lite*3, extended, lite*14, extended, lite*29, standard, lite, extended, lite*23, extended*3, lite*6, extended, lite*10 -->
 # 06 Plačilo, račun, FURS in tisk
 
 ## 1. Namen sklopa

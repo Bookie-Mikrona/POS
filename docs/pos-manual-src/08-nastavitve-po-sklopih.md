@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*137, standard, lite*7, extended, lite*3, standard, lite*28 -->
 # 08 Konec izmene, blagajniški premiki, poročila in POS→ERP
 
 ## 1. Namen sklopa

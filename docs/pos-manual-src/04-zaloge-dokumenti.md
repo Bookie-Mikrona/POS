@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*27, extended*4, lite*48, extended*5, lite*40, standard, lite, extended*6, lite*12, extended*7, lite*41 -->
 # 04 Meni, artikli, normativi in alergeni
 
 ## 1. Namen in odgovornost

@@ -1,3 +1,4 @@
+<!-- pos-packages: lite*10, extended, lite*10, standard, lite*13, extended*4, lite*3, standard, lite, extended, standard, lite*19, extended*5, lite*39 -->
 # 09 Nastavitve, naprave, uporabniki in varnost
 
 ## 1. Namen in meja tega poglavja
