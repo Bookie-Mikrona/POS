@@ -364,12 +364,6 @@ if (-not $AllowUnsignedDevelopment) {
           $packageSig.SignerCertificate.Subject -ne $exeSig.SignerCertificate.Subject) { throw "Packaged script signer does not match the executable signer." }
     }
   }
-  if (-not $isTestPackage) {
-    Add-BookieSignerTrust
-    $installerSig = Assert-Signed $MyInvocation.MyCommand.Path
-    $exeSig = Assert-Signed $exeSource
-    Write-Warning "Verified internal signer and installed it in LocalMachine\Root and LocalMachine\TrustedPublisher."
-  }
 } else {
   Write-Warning "UNSIGNED DEVELOPMENT INSTALL: production LAN use is disabled by policy."
 }
@@ -419,10 +413,14 @@ $helperExisted = Test-Path $helperTarget
 if (-not (Test-Path $helperSource)) { throw "Signed administrator helper is missing." }
 $startMenuDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Bookie Fiscal"
 $startMenuDirExisted = Test-Path $startMenuDir
-$shortcutPath = Join-Path $startMenuDir "Ustvari kodo za POS.lnk"
-$shortcutBackup = Join-Path $backup "Ustvari kodo za POS.lnk"
+$shortcutPath = Join-Path $startMenuDir "Bookie Offline POS.lnk"
+$shortcutBackup = Join-Path $backup "Bookie Offline POS.lnk"
 $shortcutExisted = Test-Path $shortcutPath
 if ($shortcutExisted) { Copy-Item $shortcutPath $shortcutBackup -Force }
+$legacyShortcutPath = Join-Path $startMenuDir "Ustvari kodo za POS.lnk"
+$legacyShortcutBackup = Join-Path $backup "Ustvari kodo za POS.lnk"
+$legacyShortcutExisted = Test-Path $legacyShortcutPath
+if ($legacyShortcutExisted) { Copy-Item $legacyShortcutPath $legacyShortcutBackup -Force }
 $oldConfig = @()
 if ($existing) { $oldConfig = @(Invoke-Native "sc.exe" @("qc","BookieFiscalService") "Read existing SCM configuration") }
 $oldBinLine = $oldConfig | Select-String "BINARY_PATH_NAME"
@@ -457,6 +455,12 @@ $oldFirewall | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $backup "firewal
 $firewallSnapshotCaptured = $true
 $oldRecovery | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $backup "service-recovery.json") -Encoding UTF8
 try {
+  if (-not $AllowUnsignedDevelopment -and -not $isTestPackage) {
+    Add-BookieSignerTrust
+    $installerSig = Assert-Signed $MyInvocation.MyCommand.Path
+    $exeSig = Assert-Signed $exeSource
+    Write-Warning "Verified internal signer and installed it in LocalMachine\Root and LocalMachine\TrustedPublisher."
+  }
   if ($existing) {
     if ($existing.Status -ne "Stopped") { Stop-Service BookieFiscalService -Force; $existing.WaitForStatus("Stopped",[TimeSpan]::FromSeconds(60)) }
   }
@@ -577,15 +581,13 @@ try {
   New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($shortcutPath)
-  $shortcut.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-  $helperTlsArgument = if ($Lan) { " -UseTls" } else { "" }
-  $shortcut.Arguments = "-NoLogo -NoProfile -ExecutionPolicy AllSigned -File `"$helperTarget`" -Port $Port$helperTlsArgument"
+  $shortcut.TargetPath = $oldExe
+  $helperTlsArgument = if ($Lan) { " --tls" } else { "" }
+  $shortcut.Arguments = "--operator --port $Port$helperTlsArgument"
   $shortcut.WorkingDirectory = $InstallPath
-  $shortcut.Description = "Ustvari enkratno kodo za povezavo Bookie POS"
+  $shortcut.Description = "Odpri nadzor samostojnega Bookie POS terminala"
   $shortcut.Save()
-  $shortcutBytes = [IO.File]::ReadAllBytes($shortcutPath)
-  $shortcutBytes[0x15] = $shortcutBytes[0x15] -bor 0x20
-  [IO.File]::WriteAllBytes($shortcutPath, $shortcutBytes)
+  Remove-Item $legacyShortcutPath -Force -ErrorAction SilentlyContinue
   Get-ChildItem $backupRoot -Directory | Sort-Object Name -Descending | Select-Object -Skip 5 | Remove-Item -Recurse -Force
   Write-Host "Bookie Local Gateway installed and healthy. ProgramData identity was preserved."
   if ($isTestPackage) { Write-Host "`n`n*** TEST ONLY / NOT FOR CUSTOMER DISTRIBUTION ***`n*** Controlled Windows lab use only; replace with a production OV-signed package. ***`n`n" }
@@ -606,6 +608,9 @@ try {
       Copy-Item $shortcutBackup $shortcutPath -Force -ErrorAction Stop
     } elseif (-not $shortcutExisted -and (Test-Path $shortcutPath)) {
       Remove-Item $shortcutPath -Force -ErrorAction Stop
+    }
+    if ($legacyShortcutExisted -and (Test-Path $legacyShortcutBackup)) {
+      Copy-Item $legacyShortcutBackup $legacyShortcutPath -Force -ErrorAction Stop
     }
     if (-not $startMenuDirExisted -and (Test-Path $startMenuDir) -and
         @(Get-ChildItem $startMenuDir -Force).Count -eq 0) {

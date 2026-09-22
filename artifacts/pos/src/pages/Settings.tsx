@@ -3104,8 +3104,8 @@ export default function Settings() {
                 <AccordionContent className="pb-0">
                   <div className="space-y-4 p-4 pt-2">
       <FiscalServicePairing unitEnabled={offlineFiscalEnabled} />
-       {jeAdmin && !jeSuperAdmin && <LocalGatewaySettings />}
-       <GatewaySyncReviewPanel />
+       {typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent) && jeAdmin && !jeSuperAdmin && <LocalGatewaySettings />}
+       {typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent) && <GatewaySyncReviewPanel />}
       {/* ── FURS & Račun (samo admin podjetja) ───────────────── */}
       {jeAdmin && !jeSuperAdmin && <Card id="ns-furs">
         <CardHeader>

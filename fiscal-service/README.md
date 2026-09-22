@@ -5,6 +5,12 @@ contain, import, or replace scanner bridge functionality. The API is versioned
 under `/v1` and binds only the canonical
 `http://127.0.0.1:17831/v1` base; LAN mode is HTTPS-only.
 
+Ordinary users operate the installed service through the signed **Bookie
+Offline POS** Windows window. It shows readiness, pending work, synchronization,
+and the POS connection action without exposing PowerShell or protected tokens.
+PowerShell remains an internal installation, signing, and verification
+mechanism for administrators only.
+
 ## Install
 
 On a Windows administrator account:

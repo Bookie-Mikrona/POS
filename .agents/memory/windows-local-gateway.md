@@ -39,11 +39,11 @@ Windows gateway za znane in upravljane stranke uporablja lasten Bookie interni p
 
 **How to apply:** Zasebni podpisni ključ ostane na pooblaščenem signing računalniku in nikoli v paketu; installer sprejme samo pričakovani fingerprint ter javni certifikat doda med Trusted Publishers.
 
-Lokalna fiskalna izdaja je privzeto izključena, skrbniško kodo pa ustvari samo podpisano povišano Windows orodje, ki žeton prebere neposredno iz zaščitene datoteke.
+Lokalna fiskalna izdaja je privzeto izključena. Podpisani Windows EXE ima ločen standard-user operaterski način, ki nikoli ne odpira zaščitene zbirke; samo ustvarjanje povezovalne kode zažene povišan child proces.
 
-**Why:** Blagajnik ne sme uporabljati sistemskih ukazov, kopirati skrbniškega žetona ali prejemati opozoril za lokalno storitev, ki v enoti ni namerno vključena.
+**Why:** Blagajnik ne sme uporabljati sistemskih ukazov, dostopati do ProgramData ali kopirati skrbniškega žetona; UAC pri vsakodnevnem preverjanju in sinhronizaciji bi onemogočil običajno delo.
 
-**How to apply:** Orodje kliče samo loopback, prikaže le šestmestno enkratno kodo in njen rok ter podpira dejanska vrata/TLS način namestitve. POS ne preverja, izdaja ali sinhronizira lokalno, dokler skrbnik možnosti izrecno ne vključi.
+**How to apply:** Operaterski način kliče samo loopback API in se mora izvesti pred inicializacijo storitvenega Store-a. Povišani proces prebere zaščiten žeton ter prikaže le enkratno kodo in rok. Android teh funkcij ne prikazuje.
 
 Izbrani fiskalni URL je del povezovalnih poverilnic POS-a; vsi poznejši zahtevki morajo uporabljati isti naslov, storitev pa v capability odgovoru oglašuje naslov dejanskega zahtevka.
 

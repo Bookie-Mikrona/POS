@@ -86,6 +86,11 @@ def test_signed_http_two_operator_manager_lan_protocol_and_restart():
     try:
         with TestClient(module.app, client=("127.0.0.1", 50000)) as client:
             assert client.get("/v1/gateway/health").status_code == 200
+            operator_status = client.get("/v1/operator/status")
+            assert operator_status.status_code == 200
+            assert operator_status.json()["version"] == module.VERSION
+            assert operator_status.json()["posUrl"] == module.DEFAULT_ORIGIN
+            assert client.post("/v1/operator/sync").status_code == 202
             snap_path = "/v1/gateway/v2/snapshot?companyId=company-http&enotaId=9"
             snap = client.get(snap_path, headers=_signed(operator_a, secret_a, "GET", snap_path))
             assert snap.status_code == 200

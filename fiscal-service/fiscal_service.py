@@ -2066,6 +2066,13 @@ class BackgroundSync:
             self._thread.join(timeout=10)
 
 
+if __name__ == "__main__" and (
+    "--operator" in sys.argv or "--operator-connection-code" in sys.argv
+):
+    from operator_ui import run_from_argv
+    raise SystemExit(run_from_argv(sys.argv[1:]))
+
+
 store = Store(APP_DIR / "fiscal.sqlite3")
 ADMIN_TOKEN_PATH = Path(os.environ.get("BOOKIE_ADMIN_TOKEN_PATH", str(APP_DIR / "admin-token.txt")))
 if not store.get("admin_token"):
@@ -2123,7 +2130,8 @@ async def security(request: Request, call_next):
     public = request.url.path in {"/v1/capabilities", "/v1/pair", "/v1/admin/certificate",
                                   "/v1/admin/connection-code",
                                   "/v1/admin/certificate-session",
-                                  "/v1/gateway/health", "/v1/gateway/capabilities"}
+                                  "/v1/gateway/health", "/v1/gateway/capabilities",
+                                  "/v1/operator/status", "/v1/operator/sync"}
     public = public or request.url.path == "/v1/provisioning/proof"
     # Client administration is intentionally never LAN-authenticated.  The
     # route itself performs the loopback and Windows-admin checks.
@@ -2578,6 +2586,45 @@ def gateway_health():
     }
 
 
+def _require_loopback_operator(request: Request) -> None:
+    host = request.client.host if request.client else ""
+    if host not in {"127.0.0.1", "::1"}:
+        raise HTTPException(403, "LOCAL_OPERATOR_REQUIRED")
+
+
+@app.get("/v1/operator/status")
+def operator_status(request: Request):
+    _require_loopback_operator(request)
+    capability = capabilities(request)
+    health = gateway_health()
+    metadata = json.loads(store.get("metadata") or b"{}")
+    delivery = store.db.execute(
+        "SELECT state,COUNT(*) AS count FROM jobs GROUP BY state").fetchall()
+    print_jobs = store.db.execute(
+        "SELECT state,COUNT(*) AS count FROM print_jobs GROUP BY state").fetchall()
+    return {
+        "ready": capability["ready"],
+        "readinessProblems": capability["readinessProblems"],
+        "identity": capability.get("identity"),
+        "printerConfigured": "printer_not_configured" not in capability["readinessProblems"],
+        "authorityMode": health["authorityMode"],
+        "hasOpenLocalOrders": health["hasOpenLocalOrders"],
+        "pendingEventCount": health["pendingEventCount"],
+        "deliveryCounts": {row["state"]: row["count"] for row in delivery},
+        "printCounts": {row["state"]: row["count"] for row in print_jobs},
+        "posUrl": next(iter(metadata.get("allowedHttpsOrigins") or []), DEFAULT_ORIGIN),
+        "version": VERSION,
+        "checkedAt": health["checkedAt"],
+    }
+
+
+@app.post("/v1/operator/sync", status_code=202)
+def operator_sync(request: Request):
+    _require_loopback_operator(request)
+    sync_worker.wake("operator-ui")
+    return {"status": "accepted"}
+
+
 @app.get("/v1/gateway/capabilities")
 def gateway_capabilities():
     return {
@@ -2892,9 +2939,10 @@ def export(operation_id: str):
     if not r: raise HTTPException(404,"Receipt not found")
     return dict(r)
 
+
 def main():
-    import uvicorn
     global LISTEN_HOST, LISTEN_PORT, LAN_MODE, TLS_CERTFILE, TLS_KEYFILE
+    import uvicorn
     if platform.system() == "Windows" and "--service" in sys.argv:
         import servicemanager
         import win32event

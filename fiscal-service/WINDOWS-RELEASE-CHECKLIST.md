@@ -66,10 +66,13 @@ service is intentionally rejected.
 - [ ] Install the signed candidate in default loopback mode on a nonstandard
       test port, for example `18431`. Run `verify-windows-install.ps1` with the
       same port and retain its redacted JSON evidence.
-- [ ] Open **Start → Bookie Fiscal → Ustvari kodo za POS** as a standard
-      desktop user. Confirm that Windows requests administrator approval and
-      that the resulting window contains only a six-digit code, its expiry,
-      and user instructions. Do not retain the code in screenshots or logs.
+- [ ] Open **Start → Bookie Fiscal → Bookie Offline POS** as a standard
+      desktop user. Confirm that the operator window opens without PowerShell
+      or administrator rights, shows readiness/queue status, and exposes no
+      secret. Select **Koda za povezavo POS-a**, confirm that only this action
+      requests administrator approval, and verify that the resulting window
+      contains only a six-digit code, its expiry, and user instructions. Do
+      not retain the code in screenshots or logs.
 - [ ] In POS, explicitly enable local cash issuance, enter the displayed code,
       and confirm that the browser connects. Remove the browser connection and
       try the same code again; the second attempt must be rejected as expired,
@@ -93,7 +96,7 @@ installation and a manager-approved CLOUD release. The existing and candidate
 installations must use the same LAN mode.
 
 - [ ] Before the candidate upgrade, record SHA-256 for the installed EXE,
-      `Show-ConnectionCode.ps1`, and Start Menu shortcut; also record the
+      internal signed helper, and **Bookie Offline POS** Start Menu shortcut; also record the
       service command, startup/recovery state, running state, and successful
       health response.
 - [ ] Supply a temporary TLS certificate that is valid but intentionally lacks

@@ -210,27 +210,20 @@ if (Test-Path $helper) {
   ) $true "same signer as gateway"
   Assert-StrictAcl $helper $false
 }
-$shortcut = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Bookie Fiscal\Ustvari kodo za POS.lnk"
-Check "Administrator shortcut installed" (Test-Path $shortcut) $true $shortcut
+$shortcut = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Bookie Fiscal\Bookie Offline POS.lnk"
+Check "Operator shortcut installed" (Test-Path $shortcut) $true $shortcut
 if (Test-Path $shortcut) {
   $shell = New-Object -ComObject WScript.Shell
   $shortcutInfo = $shell.CreateShortcut($shortcut)
-  $expectedPowerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-  Check "Administrator shortcut target" (
-    [IO.Path]::GetFullPath($shortcutInfo.TargetPath) -eq [IO.Path]::GetFullPath($expectedPowerShell)
+  Check "Operator shortcut target" (
+    [IO.Path]::GetFullPath($shortcutInfo.TargetPath) -eq [IO.Path]::GetFullPath($exe)
   ) $true $shortcutInfo.TargetPath
-  $expectedHelperArgument = "-File `"$helper`""
-  Check "Administrator shortcut arguments" (
-    $shortcutInfo.Arguments -match "(?i)-ExecutionPolicy\s+AllSigned" -and
-    $shortcutInfo.Arguments.Contains($expectedHelperArgument) -and
-    $shortcutInfo.Arguments -match "(?i)-Port\s+$Port(?:\s|$)" -and
-    (($lanMode -and $shortcutInfo.Arguments -match "(?i)(?:^|\s)-UseTls(?:\s|$)") -or
-     (-not $lanMode -and $shortcutInfo.Arguments -notmatch "(?i)(?:^|\s)-UseTls(?:\s|$)"))
+  Check "Operator shortcut arguments" (
+    $shortcutInfo.Arguments -match "(^|\s)--operator(\s|$)" -and
+    $shortcutInfo.Arguments -match "(^|\s)--port\s+$Port(\s|$)" -and
+    (($lanMode -and $shortcutInfo.Arguments -match "(^|\s)--tls(\s|$)") -or
+     (-not $lanMode -and $shortcutInfo.Arguments -notmatch "(^|\s)--tls(\s|$)"))
   ) $true $shortcutInfo.Arguments
-  $shortcutBytes = [IO.File]::ReadAllBytes($shortcut)
-  Check "Administrator shortcut elevation" (
-    $shortcutBytes.Length -gt 0x15 -and (($shortcutBytes[0x15] -band 0x20) -eq 0x20)
-  ) $true "RunAs flag set"
 }
 if ($lanMode) { Check "LAN host binding" ($configuredHost -eq "0.0.0.0") $true $configuredHost }
 else { Check "Loopback host binding" ($configuredHost -eq "127.0.0.1") $true $configuredHost }

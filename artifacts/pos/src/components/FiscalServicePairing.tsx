@@ -16,6 +16,7 @@ import {
 } from "@/lib/offlineFiscal";
 
 export function FiscalServicePairing({ unitEnabled }: { unitEnabled: boolean }) {
+  const isWindows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
   const [code, setCode] = useState("");
   const [enabled, setEnabled] = useState(isLocalFiscalServiceEnabled);
   const [clientName, setClientName] = useState(() => localStorage.getItem("bookie.fiscal.v1.clientName") ?? "POS blagajna");
@@ -44,6 +45,8 @@ export function FiscalServicePairing({ unitEnabled }: { unitEnabled: boolean }) 
       setProblem(undefined);
     }
   }, [enabled]);
+
+  if (!isWindows) return null;
 
   const pair = async () => {
     setBusy(true);
@@ -111,8 +114,8 @@ export function FiscalServicePairing({ unitEnabled }: { unitEnabled: boolean }) 
             <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                Skrbnik na Windows računalniku odpre meni <strong>Start → Bookie Fiscal →
-                Ustvari kodo za POS</strong>. Prikazano šestmestno kodo nato vnesite spodaj.
+                Na Windows terminalu odprite <strong>Start → Bookie Fiscal → Bookie Offline POS</strong>
+                in izberite <strong>Koda za povezavo POS-a</strong>. Prikazano šestmestno kodo nato vnesite spodaj.
                 Koda velja 10 minut.
               </p>
             </div>

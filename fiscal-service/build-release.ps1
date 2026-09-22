@@ -197,7 +197,8 @@ Invoke-Native $py.Source @("-m","PyInstaller","--noconfirm","--clean","--onefile
   "--distpath",$staging,"--workpath",$work,"--specpath",$work,
   "--version-file",$versionFile,"--collect-all","cryptography","--collect-all","lxml",
   "--hidden-import","sync","--hidden-import","servicemanager","--hidden-import","win32event",
-  "--hidden-import","win32service","--hidden-import","win32serviceutil",
+  "--hidden-import","win32service","--hidden-import","win32serviceutil","--hidden-import","tkinter",
+  "--hidden-import","operator_ui",
   "--add-data","contract;contract",(Join-Path $root "fiscal_service.py")) "PyInstaller build"
 if (-not (Test-Path $exe)) { throw "PyInstaller failed to produce the gateway executable." }
 Remove-Item (Join-Path $staging "version.txt") -Force -ErrorAction SilentlyContinue
