@@ -93,6 +93,7 @@ import {
 import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
 import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
+import { onlyActiveArticles } from "@/lib/activeArticles";
 import { GatewayConflictError, localOrderRoute, parseLocalOrderRoute, type GatewayOrderSnapshot } from "@/lib/gatewayClient";
 
 export function selectOrderKdsNalogi<T extends { narociloId: unknown }>(
@@ -1527,7 +1528,7 @@ export default function Order() {
     const availabilityByArticle = new Map(
       (preparedFoodAvailability?.items ?? []).map((item) => [item.articleId, item.availableQuantity]),
     );
-    const mapped = artikli.map((article) => ({
+    const mapped = onlyActiveArticles(artikli).map((article) => ({
       ...article,
       availableQuantity: availabilityByArticle.get(article.id) ?? null,
     })) as ArtikelItem[];
