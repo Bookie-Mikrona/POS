@@ -155,3 +155,4 @@
 - [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
 - [KIR/KPR izvoz](kirkpr-export-safety.md) — predogled in XML morata uporabljati isti eksplicitni mesečni/trimesečni obseg; nepopolna davčna sled blokira izvoz.
+- [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.

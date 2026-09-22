@@ -15,3 +15,9 @@ for index, page in enumerate(document):
     output = output_dir / f"page-{index + 1:02d}.png"
     pixmap.save(output)
     print(output)
+
+page = document[9]
+pixmap = page.get_pixmap(matrix=pymupdf.Matrix(6, 6), alpha=False)
+output = output_dir / "page-10-hires.png"
+pixmap.save(output)
+print(output)
