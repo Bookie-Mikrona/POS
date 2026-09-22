@@ -11,7 +11,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   artikliTable, companiesTable, db, enoteTable, izmeneTable, narocilaTable,
-  natakariTable, offlineAuthorityBundlesTable, offlineFiscalDevicesTable, modSkupineTable,
+  nastavitveTable, natakariTable, offlineAuthorityBundlesTable, offlineFiscalDevicesTable, modSkupineTable,
   modifikatorjiTable, artModSkupineTable,
   offlineFiscalReceiptsTable, poslovniProstoriTable, postavkeTable,
 } from "@workspace/db";
@@ -22,6 +22,7 @@ import { assertValidFinalizationPlan, deterministicFinalizationUuid, finalizatio
 import { canonicalAuthorityJson } from "../../services/pos/offline-authority";
 import { claimAndSubmitOfflineReceipt, resetOfflineFiscalWorkerHooks, setOfflineFiscalWorkerHooks } from "../../services/pos/offline-fiscal-worker";
 import { runOfflineFiscalOnce } from "../../services/pos/offline-fiscal-runner";
+import { OFFLINE_FISCAL_ENABLED_KEY } from "../../services/pos/offline-fiscal-policy";
 import { ingestOfflineReceipt } from "./offline-fiscal";
 import express from "express";
 import supertest from "supertest";
@@ -69,6 +70,11 @@ describe("cloud-origin offline fiscal PostgreSQL reconciliation", () => {
     }).returning();
     companyId = company!.id;
     const [unit] = await db.insert(enoteTable).values({ companyId, ime: `Native ${scope}` }).returning(); enotaId = unit!.id;
+    await db.insert(nastavitveTable).values({
+      enotaId,
+      kljuc: OFFLINE_FISCAL_ENABLED_KEY,
+      vrednost: "true",
+    });
     const [premise] = await db.insert(poslovniProstoriTable).values({ enotaId, prostorId: `N${scope.slice(0, 4)}` }).returning(); premiseId = premise!.id;
     const [waiter] = await db.insert(natakariTable).values({ companyId, ime: "Native", priimek: "Operator", davcnaStevilka: "87654321" }).returning(); waiterId = waiter!.id;
     const [shift] = await db.insert(izmeneTable).values({ enotaId, natakariId: waiterId }).returning(); shiftId = shift!.id;
