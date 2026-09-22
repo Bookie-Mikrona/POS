@@ -1,7 +1,7 @@
 import { and, eq, lte } from "drizzle-orm";
 import { db, rezervacijeMizTable } from "@workspace/db";
 import { logger } from "./logger";
-import { broadcast } from "./pos-sse";
+import { broadcastToUnit } from "./pos-sse";
 import { EXPIRY_WINDOW_MS } from "./rezervacijeMiz";
 
 export async function sprostiPotekleRezervacije(zdaj = new Date()): Promise<number[]> {
@@ -12,10 +12,18 @@ export async function sprostiPotekleRezervacije(zdaj = new Date()): Promise<numb
       eq(rezervacijeMizTable.status, "aktivna"),
       lte(rezervacijeMizTable.zacetek, new Date(zdaj.getTime() - EXPIRY_WINDOW_MS)),
     ))
-    .returning({ id: rezervacijeMizTable.mizaId });
+    .returning({ id: rezervacijeMizTable.mizaId, enotaId: rezervacijeMizTable.enotaId });
 
   if (sproscene.length > 0) {
-    broadcast("update", { type: "miza", ids: sproscene.map((miza) => miza.id) });
+    const idsByUnit = new Map<number, number[]>();
+    for (const miza of sproscene) {
+      const ids = idsByUnit.get(miza.enotaId) ?? [];
+      ids.push(miza.id);
+      idsByUnit.set(miza.enotaId, ids);
+    }
+    for (const [enotaId, ids] of idsByUnit) {
+      broadcastToUnit(enotaId, "update", { type: "miza", ids });
+    }
     logger.info(
       { mizaIds: sproscene.map((miza) => miza.id), stevilo: sproscene.length },
       "Rezervacije miz: potekle rezervacije sproščene",

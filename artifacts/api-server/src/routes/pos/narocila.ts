@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
 import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";
-import { broadcast, broadcastTo } from "../../lib/pos-sse";
+import { broadcastToDevice, broadcastToUnit } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
 import { splitMulticourseGross } from "../../lib/multicourse-pricing";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
@@ -126,7 +126,7 @@ export function resolveMulticourseSelections(
 /** Server-side guard for every staff item/modifier write (nested paths included). */
 router.use("/narocila/:id/postavke", async (req, res, next): Promise<void> => {
   if (!["POST", "PATCH", "DELETE"].includes(req.method)) { next(); return; }
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Neveljaven ID naročila." }); return; }
   const [narocilo] = await db.select({ mizaId: narocilaTable.mizaId, status: narocilaTable.status })
@@ -909,7 +909,7 @@ async function uskladiToGoTelefonskegaNarocila(
 }
 
 router.get("/dostava/predogled", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   const naseljeId = pozitivniId(req.query.naseljeId);
   if (!naseljeId) {
     res.status(400).json({ error: "Izberite veljavno naselje." });
@@ -951,7 +951,7 @@ router.get("/dostava/predogled", async (req, res): Promise<void> => {
 });
 
 router.get("/narocila/aktivna", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rows = await db
     .select({
       id: narocilaTable.id,
@@ -1050,7 +1050,7 @@ router.get("/narocila/aktivna", async (req, res): Promise<void> => {
 });
 
 router.get("/narocila", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const query = { success: true as const, data: req.query };
   if (!query.success) { res.status(400).json({ error: (query as any).error.message }); return; }
 
@@ -1140,7 +1140,7 @@ router.get("/narocila", async (req, res): Promise<void> => {
 });
 
 router.post("/narocila", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
   const nacin = (parsed.data as { nacin?: string }).nacin ?? "miza";
@@ -1438,7 +1438,7 @@ router.post("/narocila", async (req, res): Promise<void> => {
     await osveziPredvidenPrevzem(row.id, tenotaId, simDatumNarocilo);
   }
   const narocilo = await getNarociloById(row.id, "", tenotaId);
-  broadcast("update", { type: "narocilo" });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo" });
   // Pri praznem naročilu ni KDS postavk. Pri dostavi lahko sinhronizacija
   // zgoraj ustvari dostavno postavko, zato tam ohranimo materializacijo.
   if (ustvarjenaDostava) {
@@ -1448,7 +1448,7 @@ router.post("/narocila", async (req, res): Promise<void> => {
 });
 
 router.get("/narocila/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const posodobljenih = await db.transaction(async (tx) => {
@@ -1498,7 +1498,7 @@ router.get("/narocila/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/narocila/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const parsed = { success: true, data: req.body };
@@ -1852,12 +1852,12 @@ router.put("/narocila/:id", async (req, res): Promise<void> => {
 
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   res.json(narocilo);
 });
 
 router.delete("/narocila/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   try {
@@ -1874,12 +1874,12 @@ router.delete("/narocila/:id", async (req, res): Promise<void> => {
     }
     throw error;
   }
-  broadcast("update", { type: "narocilo" });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo" });
   res.sendStatus(204);
 });
 
 router.post("/narocila/:id/spoji", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const parsed = { success: true, data: req.body };
@@ -1965,12 +1965,12 @@ router.post("/narocila/:id/spoji", async (req, res): Promise<void> => {
   }
 
   const narocilo = await getNarociloById(ciljId, "", tenotaId);
-  broadcast("update", { type: "narocilo" });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo" });
   res.json(narocilo);
 });
 
 router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = AddMulticourseMenuParams.safeParse(req.params);
   const body = AddMulticourseMenuBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -2153,12 +2153,12 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
   await materializirajKdsNaloge(params.data.id, tenotaId);
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno." }); return; }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   res.status(201).json(AddMulticourseMenuResponse.parse(narocilo));
 });
 
 router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = { success: true as const, data: { id: Number(rawId) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
@@ -2531,13 +2531,13 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
 
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   await materializirajKdsNaloge(params.data.id, tenotaId);
   res.status(201).json(narocilo);
 });
 
 router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawPostavkaId = Array.isArray(req.params.postavkaId) ? req.params.postavkaId[0] : req.params.postavkaId;
   const params = { success: true as const, data: { id: Number(rawId), postavkaId: Number(rawPostavkaId) } };
@@ -2760,12 +2760,12 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
 
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   res.json(narocilo);
 });
 
 router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawPostavkaId = Array.isArray(req.params.postavkaId) ? req.params.postavkaId[0] : req.params.postavkaId;
   const id = Number(rawId);
@@ -2869,7 +2869,7 @@ router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<vo
 
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   res.json(narocilo);
 });
 
@@ -2953,17 +2953,17 @@ router.patch("/narocila/:id/postavke/:postavkaId/pripravljeno", async (req, res)
       prostorIme,
       vir: parsed.data.vir ?? null};
     if (postavka.napravaId) {
-      broadcastTo(postavka.napravaId, "postavkaPripravljena", payload);
+      broadcastToDevice(tenotaId, postavka.napravaId, "postavkaPripravljena", payload);
     } else {
-      broadcast("postavkaPripravljena", payload);
+      broadcastToUnit(tenotaId, "postavkaPripravljena", payload);
     }
   }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   res.json({ ok: true });
 });
 
 router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawPostavkaId = Array.isArray(req.params.postavkaId) ? req.params.postavkaId[0] : req.params.postavkaId;
   const params = { success: true as const, data: { id: Number(rawId), postavkaId: Number(rawPostavkaId) } };
@@ -3171,7 +3171,7 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   await updateSkupaj(params.data.id, tenotaId);
   const narocilo = await getNarociloById(params.data.id, "", tenotaId);
   if (!narocilo) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
-  broadcast("update", { type: "narocilo", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "narocilo", id: params.data.id });
   res.status(201).json(narocilo);
 });
 

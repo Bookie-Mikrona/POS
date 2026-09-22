@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { artikliTable, db, izdajnicePostavkeTable, izdajniceTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import type { PosRequest } from "../../middlewares/pos";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { getZalogeObDatumu, recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 
@@ -26,7 +26,7 @@ async function nextStevilkaIzdajnica(year: number, enotaId: number): Promise<str
 }
 
 router.get("/izdajnice", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const rows = await db
     .select({
       id: izdajniceTable.id,
@@ -45,7 +45,7 @@ router.get("/izdajnice", async (req, res): Promise<void> => {
 });
 
 router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const { datum, opomba, postavke } = req.body;
 
@@ -126,7 +126,7 @@ router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
     return { izdajnica, postavkeResult };
   });
 
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(enotaId, "update", { type: "zaloge" });
   res.status(201).json({
     id: izdajnica.id,
     stevilka: izdajnica.stevilka,
@@ -138,7 +138,7 @@ router.post("/izdajnice", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.get("/izdajnice/:id", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -176,7 +176,7 @@ router.get("/izdajnice/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
@@ -296,7 +296,7 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
       .where(and(eq(izdajniceTable.id, id), eq(izdajniceTable.enotaId, enotaId)));
   });
 
-  if (didUpdatePostavke) broadcast("update", { type: "zaloge" });
+  if (didUpdatePostavke) broadcastToUnit(enotaId, "update", { type: "zaloge" });
 
   const [updated] = await db.select().from(izdajniceTable).where(eq(izdajniceTable.id, id));
   const postavkeRows = await db
@@ -323,7 +323,7 @@ router.put("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.delete("/izdajnice/:id", requireEnota, async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
@@ -350,7 +350,7 @@ router.delete("/izdajnice/:id", requireEnota, async (req, res): Promise<void> =>
     if (allAffectedIds.length > 0) await recomputeZaloge(allAffectedIds, tx);
   });
 
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(enotaId, "update", { type: "zaloge" });
   res.status(204).send();
 });
 

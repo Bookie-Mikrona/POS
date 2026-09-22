@@ -6,7 +6,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { companiesTable, db, enoteTable, mizeTable, prostoriTable, tlorisiTable, tlorisPostavkeTable } from "@workspace/db";
 import { GetProstorTlorisParams, GetProstorTlorisResponse, ResetProstorTlorisBody, ResetProstorTlorisParams, ResetProstorTlorisResponse, UpdateProstorTlorisBody, UpdateProstorTlorisParams, UpdateProstorTlorisResponse } from "@workspace/api-zod";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { requireMizaQrAdmin } from "./mize";
 import { generateQrMizePdf } from "../../lib/report-pdf";
 import { createQrActivationSession, setQrActivationCookie } from "../javnoMeni";
@@ -125,7 +125,7 @@ function qrImportDiagnostics(error: z.ZodError): string[] {
 }
 
 router.get("/prostori", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rows = await db.select().from(prostoriTable)
     .where(and(eq(prostoriTable.enotaId, tenotaId)))
     .orderBy(asc(prostoriTable.vrstniRed), asc(prostoriTable.id));
@@ -270,7 +270,7 @@ router.post("/qr-admin/import", requireMizaQrAdmin, async (req, res): Promise<vo
     }
     return { createdRooms: newRooms.length, createdTables: createTables.length, updatedTables: updateTables.length, applied: true };
   });
-  if (report.applied) broadcast("update", { type: "miza" });
+  if (report.applied) broadcastToUnit(enotaId, "update", { type: "miza" });
   res.json({ valid: true, errors: [], ...report });
 });
 
@@ -350,7 +350,7 @@ router.put("/prostori/:id/tloris", async (req, res): Promise<void> => {
   const response = tlorisResponse(result.layout, result.items.map((item: any) => ({
     id: item.id, vrsta: item.kind, mizaId: item.tableId ?? null, x: Math.round(item.x), y: Math.round(item.y), sirina: Math.round(item.width), visina: Math.round(item.height), rotacija: Math.round(item.rotation), zIndex: Math.round(item.zIndex), zaklenjena: item.locked, vidna: item.visible, slog: item.style, podatki: item.data,
   })));
-  broadcast("update", { type: "tloris", prostorId: params.data.id, version: response.version });
+  broadcastToUnit(enotaId, "update", { type: "tloris", prostorId: params.data.id, version: response.version });
   res.json(UpdateProstorTlorisResponse.parse(response));
 });
 
@@ -402,24 +402,24 @@ router.post("/prostori/:id/tloris/reset", async (req, res): Promise<void> => {
   }
   if (result.state === "generatedInvalid") { res.status(400).json({ error: result.error }); return; }
   const response = tlorisResponse(result.layout, result.items);
-  broadcast("update", { type: "tloris", prostorId: params.data.id, version: response.version });
+  broadcastToUnit(enotaId, "update", { type: "tloris", prostorId: params.data.id, version: response.version });
   res.json(ResetProstorTlorisResponse.parse(response));
 });
 
 router.post("/prostori", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
   const [row] = await db.insert(prostoriTable).values({
     enotaId: tenotaId,
     ime: parsed.data.ime,
     vrstniRed: parsed.data.vrstniRed ?? 0}).returning();
-  broadcast("update", { type: "prostor" });
+  broadcastToUnit(tenotaId, "update", { type: "prostor" });
   res.status(201).json(row);
 });
 
 router.put("/prostori/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const parsed = { success: true, data: req.body };
@@ -431,12 +431,12 @@ router.put("/prostori/:id", async (req, res): Promise<void> => {
     .where(and(eq(prostoriTable.id, params.data.id), sql`true`, eq(prostoriTable.enotaId, tenotaId)))
     .returning();
   if (!row) { res.status(404).json({ error: "Prostor ni najden" }); return; }
-  broadcast("update", { type: "prostor" });
+  broadcastToUnit(tenotaId, "update", { type: "prostor" });
   res.json((row));
 });
 
 router.delete("/prostori/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   await db.update(mizeTable)
@@ -444,7 +444,7 @@ router.delete("/prostori/:id", async (req, res): Promise<void> => {
     .where(and(eq(mizeTable.prostorId, params.data.id), sql`true`, eq(mizeTable.enotaId, tenotaId)));
   await db.delete(prostoriTable)
     .where(and(eq(prostoriTable.id, params.data.id), sql`true`, eq(prostoriTable.enotaId, tenotaId)));
-  broadcast("update", { type: "prostor" });
+  broadcastToUnit(tenotaId, "update", { type: "prostor" });
   res.sendStatus(204);
 });
 
@@ -567,7 +567,7 @@ router.post(
         return { context, exportBuffer, exportFormat };
       });
 
-      broadcast("update", { type: "miza" });
+      broadcastToUnit(enotaId, "update", { type: "miza" });
       const safeSpaceName = result.context.prostorIme.replace(/[^a-zA-Z0-9-_]+/g, "-").replace(/^-+|-+$/g, "") || "prostor";
       res.set({
         "Content-Type": qrExportContentType(result.exportFormat),

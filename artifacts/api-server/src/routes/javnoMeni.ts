@@ -50,7 +50,7 @@ import { getNastavitveMap, isMenuEligibleTaxCategory, loadVatRules, resolveRate,
 import { round2 } from "../lib/pos-furs";
 import { splitMulticourseGross } from "../lib/multicourse-pricing";
 import { getSimDatumOrNow } from "../lib/sim-datum";
-import { broadcast } from "../lib/pos-sse";
+import { broadcastToUnit } from "../lib/pos-sse";
 import { osveziPredvidenPrevzem } from "./pos/narocila";
 import { readAll } from "./pos/nastavitve";
 import { cenaPicePoVelikosti, izracunajVelikostiPic, privzetaVelikostPice, type PizzaVelikostId } from "../lib/pica-velikosti";
@@ -900,7 +900,7 @@ router.post(
         res.status(404).json({ error: "Odprto QR naročilo ni najdeno." });
         return;
       }
-      broadcast("update", { type: "narocilo", id: updated.id });
+      broadcastToUnit(context.enotaId, "update", { type: "narocilo", id: updated.id });
       res.json(UpdatePublicOrderTipResponse.parse({ znesekNapitnina: round2(znesekNapitnina) }));
     } catch (error) {
       if (error instanceof Error && (
@@ -2200,7 +2200,7 @@ router.post(
       eq(narocilaTable.id, created!.id),
       eq(narocilaTable.enotaId, context.enotaId),
     ));
-      broadcast("update", { type: "narocilo", id: created!.id });
+      broadcastToUnit(context.enotaId, "update", { type: "narocilo", id: created!.id });
       res.status(201).json(CreateQrGostNarociloResponse.parse({
         narociloId: created!.id,
         stanje: "sprejeto",

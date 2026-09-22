@@ -7,7 +7,7 @@ import {
   kdsNastavitveTable, kdsPostajaMapiranjaTable, kdsPostajeTable,
   kdsPrikazovalnikiTable, kdsPrikazovalnikNaročnineTable, mizeTable, narocilaTable, postavkeTable, prostoriTable,
 } from "@workspace/db";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { canApplyKdsCommand } from "../../lib/kds-state";
 import { planStandardKdsDisplays, resolveKdsRoutingTargets, type KdsProfile } from "../../lib/kds-routing";
 import { ensureKdsUnitConfiguration } from "../../lib/kds-unit-configuration";
@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-const enota = (req: any): number => (req.enotaId as number | undefined) ?? 1;
+const enota = (req: any): number => req.enotaId as number;
 const positive = (value: unknown) => Number.isInteger(Number(value)) && Number(value) > 0 ? Number(value) : null;
 const AssignCourseBody = z.object({
   postavkaId: z.number().int().positive(),
@@ -545,8 +545,8 @@ router.post("/kds/narocila/:narociloId/hod", async (req, res) => {
   try {
     const result = await assignKdsCourse({ narociloId, enotaId: enota(req), ...parsed.data });
     if (result.changed) {
-      broadcast("update", { type: "kds" });
-      broadcast("update", { type: "narocilo", id: narociloId });
+      broadcastToUnit(enota(req), "update", { type: "kds" });
+      broadcastToUnit(enota(req), "update", { type: "narocilo", id: narociloId });
     }
     res.json({ ok: true, ...result });
   } catch (error) {
@@ -611,7 +611,7 @@ router.post("/kds/narocila/:narociloId/tecaji/:courseNumber/fire", async (req, r
       }
       return { released: true, pairingGroupId };
     });
-    if (released.released) broadcast("update", { type: "kds" });
+    if (released.released) broadcastToUnit(enotaId, "update", { type: "kds" });
     res.json({ ok: true, released: courseNumber, pairingGroupId: released.pairingGroupId });
   } catch (error) {
     if (error instanceof Error && ["KDS_ORDER_NOT_OPEN", "KDS_COURSE_NOT_FOUND", "KDS_PREVIOUS_COURSE_NOT_READY", "KDS_COURSE_NOT_HELD"].includes(error.message)) {
@@ -694,7 +694,7 @@ router.post("/kds/narocila/:narociloId/izdaj", async (req, res) => {
       inserted = true;
       return created;
     });
-    if (inserted) broadcast("update", { type: "kds" });
+    if (inserted) broadcastToUnit(enotaId, "update", { type: "kds" });
     res.json({ ok: true, event });
   } catch (error) {
     if (error instanceof Error && ["KDS_ORDER_NOT_OPEN", "KDS_ORDER_DISPATCHED", "KDS_NOT_READY", "KDS_IDEMPOTENCY_KEY_REUSED"].includes(error.message)) {
@@ -705,6 +705,7 @@ router.post("/kds/narocila/:narociloId/izdaj", async (req, res) => {
 });
 
 async function transition(req: any, res: any, tip: "bump" | "ack") {
+  const enotaId = enota(req);
   const id = positive(req.params.id), key = typeof req.body?.idempotencyKey === "string" ? req.body.idempotencyKey.trim() : "";
   if (!id || !key || key.length > 200) { res.status(400).json({ error: "ID in idempotencyKey sta obvezna." }); return; }
   const [ticket] = await db.select().from(kdsNalogiTable).where(and(eq(kdsNalogiTable.id, id), eq(kdsNalogiTable.enotaId, enota(req))));
@@ -757,7 +758,7 @@ async function transition(req: any, res: any, tip: "bump" | "ack") {
     throw error;
   }
   if (changed) {
-    broadcast("update", { type: "kds" });
+    broadcastToUnit(enotaId, "update", { type: "kds" });
   }
   const events = await db.select().from(kdsDogodkiTable).where(eq(kdsDogodkiTable.nalogId, id)).orderBy(asc(kdsDogodkiTable.zaporedje));
   res.json({ ok: true, events });

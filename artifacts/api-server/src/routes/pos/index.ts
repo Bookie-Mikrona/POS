@@ -123,7 +123,8 @@ const eventsHandler: RequestHandler = (req: Request, res: Response) => {
   res.write("event: ping\ndata: {}\n\n");
 
   const napravaId = typeof req.query.napravaId === "string" ? req.query.napravaId : null;
-  addClient(res, napravaId, (req as PosRequest).companyId);
+  const context = req as PosRequest;
+  addClient(res, napravaId, context.companyId, context.enotaId);
 
   const keepalive = setInterval(() => {
     try { res.write("event: ping\ndata: {}\n\n"); }

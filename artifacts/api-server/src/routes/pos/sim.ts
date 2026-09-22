@@ -12,7 +12,7 @@ import { requireEnota, requireSpecificUnitCapability } from "../../middlewares/p
 import type { PosRequest } from "../../middlewares/pos";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { lockPosReceiptForEdit, ReceiptEditConflict } from "../../lib/posReceiptBooking";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { SIM_DATUM_KEY } from "../../lib/sim-datum";
 
 const router: IRouter = Router();
@@ -20,7 +20,7 @@ router.use("/sim", requireEnota, requireSpecificUnitCapability("simulation"));
 
 // ── GET /sim ─────────────────────────────────────────────────────────────────
 router.get("/sim", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const [row] = await db
     .select({ vrednost: nastavitveTable.vrednost })
     .from(nastavitveTable)
@@ -33,7 +33,7 @@ router.get("/sim", async (req, res): Promise<void> => {
 // Nastavi simulacijski datum. Novi datum mora biti >= prejšnjega.
 // Samodejno zapre vse odprte izmene.
 router.post("/sim/datum", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const { datum } = req.body ?? {};
   if (!datum || !/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
     res.status(400).json({ error: "Datum mora biti v obliki YYYY-MM-DD" }); return;
@@ -84,16 +84,16 @@ router.post("/sim/datum", async (req, res): Promise<void> => {
       set: { vrednost: datum },
     });
 
-  broadcast("update", { type: "sim" });
+  broadcastToUnit(enotaId, "update", { type: "sim" });
   res.json({ datum, izmeneZaprte: openIzmene.length });
 });
 
 // ── DELETE /sim/datum ─────────────────────────────────────────────────────────
 router.delete("/sim/datum", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   await db.delete(nastavitveTable)
     .where(and(eq(nastavitveTable.enotaId, enotaId), eq(nastavitveTable.kljuc, SIM_DATUM_KEY)));
-  broadcast("update", { type: "sim" });
+  broadcastToUnit(enotaId, "update", { type: "sim" });
   res.status(204).send();
 });
 
@@ -192,15 +192,15 @@ router.post("/sim/reset", async (req, res): Promise<void> => {
     throw error;
   }
 
-  broadcast("update", { type: "zaloge" });
-  broadcast("update", { type: "narocila" });
+  broadcastToUnit(enotaId, "update", { type: "zaloge" });
+  broadcastToUnit(enotaId, "update", { type: "narocila" });
   res.json({ ok: true });
 });
 
 // ── POST /sim/zacetne-zaloge ──────────────────────────────────────────────────
 // Naključno generira začetne zaloge za vse nabavne artikle.
 router.post("/sim/zacetne-zaloge", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const { datum, leto } = req.body ?? {};
 
@@ -298,7 +298,7 @@ router.post("/sim/zacetne-zaloge", async (req, res): Promise<void> => {
 
   // WAC preračun za vse artikel
   await recomputeZaloge(artikli.map(a => a.id));
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(enotaId, "update", { type: "zaloge" });
 
   res.status(201).json({
     id: zz.id,

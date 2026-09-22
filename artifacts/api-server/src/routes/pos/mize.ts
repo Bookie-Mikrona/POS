@@ -15,7 +15,7 @@ import {
   ListRezervacijaMizeZgodovinaParams,
   ListRezervacijaMizeZgodovinaResponse,
 } from "@workspace/api-zod";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { normalizirajTelefon } from "../../lib/narocniki-telefon";
 import { DISPLAY_WINDOW_MS, ORDER_CUTOFF_MS, RESERVATION_SPACING_MS, zakleniMizo } from "../../lib/rezervacijeMiz";
 import { getCurrentPosBusinessDate } from "../../lib/pos-business-day";
@@ -30,7 +30,7 @@ function actor(req: Request): string | null {
 
 /** Authorize a reservation unit without trusting a caller-supplied unit id. */
 async function canAccessReservationUnit(req: Request, targetEnotaId: number): Promise<boolean> {
-  const currentEnotaId = (req as any).enotaId ?? 1;
+  const currentEnotaId = (req as any).enotaId as number;
   if (targetEnotaId === currentEnotaId) return true;
   const isCompanyAdmin = ["admin", "superadmin"].includes((req as any).vloga);
   const companyId = (req as any).companyId as string | undefined;
@@ -117,7 +117,7 @@ async function enrichMize(rows: Array<typeof mizeTable.$inferSelect>, enotaId: n
 }
 
 router.get("/mize", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const rows = await db.select().from(mizeTable)
     .where(and(eq(mizeTable.enotaId, tenotaId), aktivnaMiza))
     .orderBy(mizeTable.stevilka);
@@ -144,7 +144,7 @@ router.get("/rezervacije", async (req, res): Promise<void> => {
     return;
   }
   const companyId = (req as any).companyId as string | undefined;
-  const currentEnotaId = (req as any).enotaId ?? 1;
+  const currentEnotaId = (req as any).enotaId as number;
   const requestedEnotaId = parsed.data.enotaId;
   const isCompanyAdmin = ["admin", "superadmin"].includes((req as any).vloga);
   if (requestedEnotaId && !await canAccessReservationUnit(req, requestedEnotaId)) {
@@ -175,7 +175,7 @@ router.get("/rezervacije", async (req, res): Promise<void> => {
 });
 
 router.get("/mize/razpolozljivost", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   const parsed = razpolozljivostQuery.safeParse(req.query);
   if (!parsed.success || parsed.data.zacetek.getTime() <= Date.now()) {
     res.status(400).json({ error: "Vnesite veljaven prihodnji začetek in število oseb." });
@@ -235,7 +235,7 @@ router.get("/mize/razpolozljivost", async (req, res): Promise<void> => {
 });
 
 router.post("/mize", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const parsed = CreateMizaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Podatki mize niso veljavni." });
@@ -326,12 +326,12 @@ router.post("/mize", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Izbrani prostor ne obstaja v aktivni enoti." });
     return;
   }
-  broadcast("update", { type: "miza" });
+  broadcastToUnit(tenotaId, "update", { type: "miza" });
   res.status(201).json((await enrichMize([result.row], tenotaId))[0]);
 });
 
 router.get("/mize/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const [row] = await db.select().from(mizeTable)
@@ -344,7 +344,7 @@ router.post(
   "/mize/:id/qr-token",
   requireMizaQrAdmin,
   async (req, res): Promise<void> => {
-    const tenotaId = (req as any).enotaId ?? 1;
+    const tenotaId = (req as any).enotaId as number;
     const mizaId = Number(req.params.id);
     if (!Number.isInteger(mizaId) || mizaId < 1) {
       res.status(400).json({ error: "Neveljaven ID mize" });
@@ -357,7 +357,7 @@ router.post(
       return;
     }
 
-    broadcast("update", { type: "miza", id: mizaId });
+    broadcastToUnit(tenotaId, "update", { type: "miza", id: mizaId });
     res.json({ qrToken, javniUrl: `/meni/${qrToken}` });
   },
 );
@@ -366,7 +366,7 @@ router.get(
   "/mize/:id/qr-token",
   requireMizaQrAdmin,
   async (req, res): Promise<void> => {
-    const tenotaId = (req as any).enotaId ?? 1;
+    const tenotaId = (req as any).enotaId as number;
     const mizaId = Number(req.params.id);
     if (!Number.isInteger(mizaId) || mizaId < 1) {
       res.status(400).json({ error: "Neveljaven ID mize" });
@@ -390,7 +390,7 @@ router.get(
 );
 
 router.put("/mize/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = UpdateMizaParams.safeParse(req.params);
   const parsed = UpdateMizaBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -504,12 +504,12 @@ router.put("/mize/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Miza ni najdena" });
     return;
   }
-  broadcast("update", { type: "miza", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "miza", id: params.data.id });
   res.json((await enrichMize([row], tenotaId))[0]);
 });
 
 router.put("/mize/:id/rezervacija", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = ShraniRezervacijoMizeParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Neveljaven ID mize." });
@@ -636,12 +636,12 @@ router.put("/mize/:id/rezervacija", async (req, res): Promise<void> => {
     return;
   }
 
-  broadcast("update", { type: "miza", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "miza", id: params.data.id });
   res.json(ShraniRezervacijoMizeResponse.parse((await enrichMize([row], tenotaId))[0]));
 });
 
 router.delete("/mize/:id/rezervacija", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = SprostiRezervacijoMizeParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Neveljaven ID mize." });
@@ -680,7 +680,7 @@ router.delete("/mize/:id/rezervacija", async (req, res): Promise<void> => {
     return;
   }
 
-  broadcast("update", { type: "miza", id: params.data.id });
+  broadcastToUnit(tenotaId, "update", { type: "miza", id: params.data.id });
   res.sendStatus(204);
 });
 
@@ -751,21 +751,21 @@ function reservationError(res: Response, error: unknown): void {
 }
 
 router.get("/mize/:id/rezervacije", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1; const mizaId = Number(req.params.id);
+  const enotaId = (req as any).enotaId as number; const mizaId = Number(req.params.id);
   const [miza] = await db.select({ id: mizeTable.id }).from(mizeTable).where(and(eq(mizeTable.id, mizaId), eq(mizeTable.enotaId, enotaId)));
   if (!miza) { res.status(404).json({ error: "Miza ni najdena." }); return; }
   res.json(await db.select().from(rezervacijeMizTable).where(and(eq(rezervacijeMizTable.enotaId, enotaId), eq(rezervacijeMizTable.mizaId, mizaId))).orderBy(rezervacijeMizTable.zacetek));
 });
 router.post("/mize/:id/rezervacije", async (req, res): Promise<void> => {
   const parsed = reservationInput.safeParse(req.body); if (!parsed.success) { res.status(400).json({ error: "Vnesite stranko, telefon in začetek termina." }); return; }
-  try { const row = await shraniRezervacijoVRstico((req as any).enotaId ?? 1, Number(req.params.id), parsed.data, undefined, actor(req)); broadcast("update", { type: "miza", id: Number(req.params.id) }); res.status(201).json(row); } catch (error) { reservationError(res, error); }
+  try { const enotaId = (req as any).enotaId; if (!Number.isInteger(enotaId)) { res.status(400).json({ error: "Aktivna enota ni veljavna." }); return; } const row = await shraniRezervacijoVRstico(enotaId, Number(req.params.id), parsed.data, undefined, actor(req)); broadcastToUnit(enotaId, "update", { type: "miza", id: Number(req.params.id) }); res.status(201).json(row); } catch (error) { reservationError(res, error); }
 });
 router.put("/mize/:id/rezervacije/:rezervacijaId", async (req, res): Promise<void> => {
   const parsed = reservationInput.safeParse(req.body); if (!parsed.success) { res.status(400).json({ error: "Podatki termina niso veljavni." }); return; }
-  try { const row = await shraniRezervacijoVRstico((req as any).enotaId ?? 1, Number(req.params.id), parsed.data, Number(req.params.rezervacijaId), actor(req)); broadcast("update", { type: "miza", id: Number(req.params.id) }); res.json(row); } catch (error) { reservationError(res, error); }
+  try { const enotaId = (req as any).enotaId; if (!Number.isInteger(enotaId)) { res.status(400).json({ error: "Aktivna enota ni veljavna." }); return; } const row = await shraniRezervacijoVRstico(enotaId, Number(req.params.id), parsed.data, Number(req.params.rezervacijaId), actor(req)); broadcastToUnit(enotaId, "update", { type: "miza", id: Number(req.params.id) }); res.json(row); } catch (error) { reservationError(res, error); }
 });
 router.delete("/mize/:id/rezervacije/:rezervacijaId", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1; const mizaId = Number(req.params.id); const id = Number(req.params.rezervacijaId);
+  const enotaId = (req as any).enotaId as number; const mizaId = Number(req.params.id); const id = Number(req.params.rezervacijaId);
   const [row] = await db.transaction(async (tx) => {
     if (!await zakleniMizo(tx, mizaId, enotaId)) return [];
     const updated = await tx.update(rezervacijeMizTable).set({ status: "sprostena", sproscena: new Date(), posodobljeno: new Date() }).where(and(
@@ -775,7 +775,7 @@ router.delete("/mize/:id/rezervacije/:rezervacijaId", async (req, res): Promise<
     return updated;
   });
   if (!row) { res.status(404).json({ error: "Aktivna rezervacija ni najdena." }); return; }
-  broadcast("update", { type: "miza", id: mizaId }); res.sendStatus(204);
+  broadcastToUnit(enotaId, "update", { type: "miza", id: mizaId }); res.sendStatus(204);
 });
 
 router.get("/mize/:id/rezervacije/:rezervacijaId/zgodovina", async (req, res): Promise<void> => {
@@ -812,7 +812,7 @@ const bulkPozicijaBody = z.union([
 ]);
 
 router.patch("/mize/bulk-pozicija", requireMizaQrAdmin, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const parsed = bulkPozicijaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Podatki tlorisa niso veljavni." });
@@ -825,7 +825,7 @@ router.patch("/mize/bulk-pozicija", requireMizaQrAdmin, async (req, res): Promis
 });
 
 router.delete("/mize/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId as number;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
 
@@ -863,7 +863,7 @@ router.delete("/mize/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Miza ni najdena." });
     return;
   }
-  broadcast("update", { type: "miza" });
+  broadcastToUnit(tenotaId, "update", { type: "miza" });
   res.sendStatus(204);
 });
 

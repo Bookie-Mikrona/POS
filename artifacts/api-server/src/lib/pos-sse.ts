@@ -4,12 +4,18 @@ interface SseClient {
   res: Response;
   napravaId: string | null;
   companyId: string;
+  enotaId: number;
 }
 
 const clients = new Set<SseClient>();
 
-export function addClient(res: Response, napravaId: string | null, companyId: string): void {
-  clients.add({ res, napravaId, companyId });
+export function addClient(
+  res: Response,
+  napravaId: string | null,
+  companyId: string,
+  enotaId: number,
+): void {
+  clients.add({ res, napravaId, companyId, enotaId });
 }
 
 export function removeClient(res: Response): void {
@@ -21,9 +27,10 @@ export function removeClient(res: Response): void {
   }
 }
 
-export function broadcast(event: string, data: unknown): void {
+export function broadcastToUnit(enotaId: number, event: string, data: unknown): void {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of clients) {
+    if (client.enotaId !== enotaId) continue;
     try {
       client.res.write(msg);
     } catch {
@@ -32,10 +39,15 @@ export function broadcast(event: string, data: unknown): void {
   }
 }
 
-export function broadcastTo(napravaId: string, event: string, data: unknown): void {
+export function broadcastToDevice(
+  enotaId: number,
+  napravaId: string,
+  event: string,
+  data: unknown,
+): void {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of clients) {
-    if (client.napravaId === napravaId) {
+    if (client.enotaId === enotaId && client.napravaId === napravaId) {
       try {
         client.res.write(msg);
       } catch {

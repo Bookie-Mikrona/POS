@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, sum } from "drizzle-orm";
 import { artikliTable, blagajneTable, darilniBonGibiTable, darilniBonIzdajeTable, db, enoteTable, fursAttemptsTable, fursPayloadSnapshotsTable, izmeneTable, mizeTable, modifikatorjiTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, odmoriTable, partnerCenikiTable, posKarticnaPlacilaAttemptTable, posKarticnaPlacilaReferenceTable, postavkeTable, posBookingSettingsTable, racunFinalizationPlansTable, racunIzdajaZahteveTable, racuniTable, tiskalneNalogeTable, tipDistributionProfileEntriesTable, tipDistributionProfilesTable, vivaVracilaTable, vivaVraciloStatusPrehodiTable, zalogaGibiTable } from "@workspace/db";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { faktorNormativaModifikatorja } from "../../lib/pica-poraba";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { syncPosBookingForDay } from "../../lib/posSyncBooking";
@@ -526,7 +526,7 @@ async function respondWithExistingStorno(res: any, stornoId: number): Promise<vo
 }
 
 router.get("/racuni", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const query = { success: true as const, data: req.query };
   if (!query.success) { res.status(400).json({ error: (query as any).error.message }); return; }
 
@@ -684,7 +684,7 @@ router.get("/racuni/furs-attempts", async (req, res): Promise<void> => {
  * fiskaliziran POS račun z lastno številko, ZOI/EOR in sledjo plačila.
  */
 router.post("/darilni-boni/izdaja", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const companyId = (req as any).companyId as string;
   const requestedAmount = Number(req.body?.znesek);
   const amountCents = Number.isFinite(requestedAmount) ? Math.round(requestedAmount * 100) : NaN;
@@ -1134,7 +1134,7 @@ router.post("/darilni-boni/izdaja", async (req, res): Promise<void> => {
     return;
   }
 
-  broadcast("update", { type: "racun" });
+  broadcastToUnit((req as any).enotaId, "update", { type: "racun" });
   const datum = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Ljubljana" }).format(datumCas);
   setImmediate(() => {
     syncPosBookingForDay(companyId, datum).catch(err => console.warn("[POS sync]", err));
@@ -1155,7 +1155,7 @@ router.post("/darilni-boni/izdaja", async (req, res): Promise<void> => {
 });
 
 router.post("/racuni", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const companyId = (req as any).companyId as string;
   const parsed = CreateRacunBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
@@ -2499,7 +2499,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
     ));
   }
 
-  broadcast("update", { type: "racun" });
+  broadcastToUnit((req as any).enotaId, "update", { type: "racun" });
 
   // POS → ERP samodejni knjižni osnutki (fire-and-forget, ne blokira odgovora)
   setImmediate(() => {
@@ -2781,7 +2781,7 @@ async function expireStaleFursClaim(tenotaId: number, id?: number): Promise<void
 }
 
 router.post("/racuni/retry-furs-batch", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1, actor = (req as any).clerkUserId ?? "pos-batch", companyId = (req as any).companyId;
+  const tenotaId = (req as any).enotaId, actor = (req as any).clerkUserId ?? "pos-batch", companyId = (req as any).companyId;
   await expireStaleFursClaim(tenotaId);
   // Claim the bounded work set in one transaction. SKIP LOCKED means another
   // worker never waits for or sends the same immutable snapshot.
@@ -2819,18 +2819,18 @@ router.post("/racuni/retry-furs-batch", async (req, res): Promise<void> => {
   for (const candidate of candidates) {
     results.push({ id: candidate.id, stevilkaRacuna: candidate.stevilkaRacuna, ...(await retryClaimedFurs(candidate, tenotaId, companyId, actor)) });
   }
-  if (results.some(r => r.uspeh)) broadcast("update", { type: "racun" });
+  if (results.some(r => r.uspeh)) broadcastToUnit(tenotaId, "update", { type: "racun" });
   res.json({ batchId, skupaj: results.length, uspesno: results.filter(r => r.uspeh).length, neuspesno: results.filter(r => !r.uspeh).length, racuni: results });
 });
 
 router.post("/racuni/:id/ponovi-furs", async (req, res): Promise<void> => {
-  const id = Number(req.params.id), tenotaId = (req as any).enotaId ?? 1, actor = (req as any).clerkUserId ?? "pos";
+  const id = Number(req.params.id), tenotaId = (req as any).enotaId, actor = (req as any).clerkUserId ?? "pos";
   if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Neveljaven ID računa." }); return; }
   await expireStaleFursClaim(tenotaId, id);
   const claimed = await claimFailedFurs(id, tenotaId, actor);
   if (!claimed) { res.status(409).json({ error: "Ponoviti je mogoče samo neuspešen, ne-zaklenjen FURS poskus. Neznanega izida ni dovoljeno samodejno poslati." }); return; }
   const result = await retryClaimedFurs(claimed, tenotaId, (req as any).companyId, actor);
-  if (result.uspeh) broadcast("update", { type: "racun" });
+  if (result.uspeh) broadcastToUnit(tenotaId, "update", { type: "racun" });
   res.json({ id, ...result });
 });
 
@@ -3041,7 +3041,7 @@ router.post("/racuni/:id/poslovna-finalizacija", async (req, res): Promise<void>
       }).from(racuniTable).where(eq(racuniTable.id, racunId)).limit(1);
       return updated;
     });
-    broadcast("update", { type: "racun" });
+    broadcastToUnit((req as any).enotaId, "update", { type: "racun" });
     res.json({ ...result, finalized: true });
   } catch (error: unknown) {
     const status = typeof error === "object" && error !== null && "status" in error
@@ -3052,7 +3052,7 @@ router.post("/racuni/:id/poslovna-finalizacija", async (req, res): Promise<void>
 });
 
 router.post("/racuni/:id/poslji-email", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -3098,7 +3098,7 @@ router.post("/racuni/:id/poslji-email", async (req, res): Promise<void> => {
 });
 
 router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
 
@@ -3359,7 +3359,7 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
     .leftJoin(mizeTable, eq(narocilaTable.mizaId, mizeTable.id))
     .where(eq(racuniTable.id, stornoRacun!.id));
 
-  broadcast("update", { type: "racun" });
+  broadcastToUnit((req as any).enotaId, "update", { type: "racun" });
   res.status(stornoOutcome === "confirmed" ? 200 : stornoOutcome === "unknown" ? 202 : 422).json(({
     ...withMiza,
     skupaj: Number(withMiza!.skupaj),
@@ -3381,7 +3381,7 @@ router.post("/racuni/:id/storniraj", async (req, res): Promise<void> => {
 });
 
 router.patch("/racuni/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -3455,7 +3455,7 @@ router.patch("/racuni/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/racuni/:id/postavke", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const racunId = Number(req.params.id);
   if (isNaN(racunId)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -3683,7 +3683,7 @@ export async function batchStatusUpdateHandler(req: Request, res: Response): Pro
 //   2. Fallback: env BIZBOX_USER + BIZBOX_PASS
 // Geslo se NIKOLI ne logira, hardkodira ali vrača v odgovorih.
 router.post("/racuni/:id/eracun/poslji", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const companyId = (req as any).companyId as string;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID računa" }); return; }
@@ -3844,7 +3844,7 @@ router.post("/racuni/:id/eracun/poslji", async (req, res): Promise<void> => {
 //
 // Poverilnici se berejo IZKLJUČNO iz env BIZBOX_USER in BIZBOX_PASS.
 router.post("/racuni/:id/eracun/status", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const companyId = (req as any).companyId as string;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID računa" }); return; }
@@ -3926,7 +3926,7 @@ router.post("/racuni/:id/eracun/status", async (req, res): Promise<void> => {
 
 // ── GET /racuni/:id/eracun.xml — prenos e-SLOG XML datoteke ──────────────────
 router.get("/racuni/:id/eracun.xml", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID računa" }); return; }
 
@@ -3952,7 +3952,7 @@ router.get("/racuni/:id/eracun.xml", async (req, res): Promise<void> => {
 
 // ── GET /racuni/:id/eracun-paket.zip — e-SLOG XML + strežniški PDF ───────────
 router.get("/racuni/:id/eracun-paket.zip", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID računa" }); return; }
 
@@ -4026,7 +4026,7 @@ router.get("/racuni/:id/eracun-paket.zip", async (req, res): Promise<void> => {
 
 // ── POST /racuni/:id/eracun/poslji-email — pošlje e-SLOG XML + PDF na kupčev eRacunEmail ──
 router.post("/racuni/:id/eracun/poslji-email", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID računa" }); return; }
 
@@ -4168,7 +4168,7 @@ router.post("/racuni/:id/eracun/poslji-email", async (req, res): Promise<void> =
 });
 
 router.get("/racuni/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const params = { success: true as const, data: { id: Number(req.params.id) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
 
@@ -4237,7 +4237,7 @@ export function mayViewVivaRefundAudit(vloga: string | undefined): boolean {
 }
 
 router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const vloga = (req as unknown as PosRequest).vloga;
   const lahkoVidiAudit = mayViewVivaRefundAudit(vloga);
   const id = parseInt(String(req.params.id), 10);
@@ -4315,7 +4315,7 @@ router.get("/racuni/:id/vracila", async (req, res): Promise<void> => {
 // NB80 ima 80 mm papir → 40 stolpcev. APK na localhost:8091 sprejme JSON in
 // tiska prek NB80 PrinterService (com.noryox.printer) prek AIDL Binder.
 router.get("/print/racun/:id/nb80", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -4448,7 +4448,7 @@ router.get("/print/racun/:id/nb80", async (req: Request, res: Response): Promise
 // ── GET /print/racun/:id/zcs — JSON za ZCS Android tiskalni most ─────────────
 // ZCS Z92 ima 30 kolon. APK na localhost:8090 sprejme JSON in tiska prek ZCS SDK.
 router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -4589,7 +4589,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
 
 // ── GET /print/racun/:id/html — brskalniški tisk računa ──────────────────────
 router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).send("Neveljaven ID"); return; }
 
@@ -5037,7 +5037,7 @@ async function buildEscPosBytes(
 
 /** ESC/POS binarni izpis — za USB Serial in Bluetooth tiskanje */
 router.get("/print/racun/:id", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -5060,7 +5060,7 @@ router.get("/print/racun/:id", async (req: Request, res: Response): Promise<void
 
 /** Proxy ESC/POS bajte na Wi-Fi/omrežni tiskalnik (TCP port 9100) */
 router.post("/print/racun/:id/network", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -5105,7 +5105,7 @@ router.post("/print/racun/:id/network", async (req: Request, res: Response): Pro
 
 /** Windows tiskalni agent — ustvari tiskalno nalogo v bazi (polling) */
 router.post("/print/racun/:id/agent", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -5143,7 +5143,7 @@ router.post("/print/racun/:id/agent", async (req: Request, res: Response): Promi
 
 /** Operator retry after a printer has exhausted automatic attempts or needs review. */
 router.post("/print/naloge/:id/retry", async (req: Request, res: Response): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID." }); return; }
   const [job] = await db.update(tiskalneNalogeTable).set({

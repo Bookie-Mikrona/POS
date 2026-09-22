@@ -10,7 +10,7 @@ import { answerOperationalQuestion, loadOperationalSnapshot } from "../../lib/op
 import {
   assignKdsCourse, assignKdsCourses, fingerprintKdsCourseAssignmentOrder, KdsCourseAssignmentConflict,
 } from "./kds";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import {
   APPROVED_RECIPE_DOMAINS, compareNormative, filterResearchSources, loadTenantNormative, NormativeComparisonRequestSchema,
   NormativeComparisonResponseSchema, ResearchResponseSchema, canonicalDecimal, getCachedNormativeComparison, signNormativeProposal,
@@ -1882,8 +1882,8 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
           courseNameSnapshot, pairingGroupId: assigned.pairingGroupId,
         });
         if (assigned.changed) {
-          broadcast("update", { type: "kds" });
-          broadcast("update", { type: "narocilo", id: result.narociloId });
+          broadcastToUnit(enotaId, "update", { type: "kds" });
+          broadcastToUnit(enotaId, "update", { type: "narocilo", id: result.narociloId });
         }
         res.json({
           ...result,
@@ -1941,8 +1941,8 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
           })),
         });
         if (assigned.changed) {
-          broadcast("update", { type: "kds" });
-          broadcast("update", { type: "narocilo", id: result.narociloId });
+          broadcastToUnit(enotaId, "update", { type: "kds" });
+          broadcastToUnit(enotaId, "update", { type: "narocilo", id: result.narociloId });
         }
         const names = new Map(result.assignments.map(assignment => [
           `${assignment.postavkaId}:${assignment.courseNumber}`, assignment.naziv,

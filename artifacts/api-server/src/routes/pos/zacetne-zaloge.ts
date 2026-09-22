@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { artikliTable, db, zacetneZalogePostavkeTable, zacetneZalogeTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import type { PosRequest } from "../../middlewares/pos";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { bookZacetnaZaloga } from "../../lib/posSyncBooking";
 import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
@@ -11,7 +11,7 @@ import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 const router: IRouter = Router();
 
 router.get("/zacetne-zaloge", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const rows = await db
     .select({
       id: zacetneZalogeTable.id,
@@ -31,7 +31,7 @@ router.get("/zacetne-zaloge", async (req, res): Promise<void> => {
 });
 
 router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
@@ -113,7 +113,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
     return { zacetnaZaloga, postavkeResult };
   });
 
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
   // Poknjižiti v ERP — počakamo na rezultat in vrnemo skupaj z odgovorom
   const companyId = (req as PosRequest).companyId;
@@ -145,7 +145,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
 });
 
 router.get("/zacetne-zaloge/check-leto/:leto", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const leto = parseInt(req.params.leto);
   if (isNaN(leto)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
   const [row] = await db.select({ id: zacetneZalogeTable.id })
@@ -155,7 +155,7 @@ router.get("/zacetne-zaloge/check-leto/:leto", async (req, res): Promise<void> =
 });
 
 router.get("/zacetne-zaloge/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -193,7 +193,7 @@ router.get("/zacetne-zaloge/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
@@ -277,7 +277,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
         .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
     });
 
-    broadcast("update", { type: "zaloge" });
+    broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
     // Re-booking v ERP — počakamo na rezultat
     const putCompanyId = (req as PosRequest).companyId;
@@ -328,7 +328,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       await tx.update(zacetneZalogeTable).set(updates)
         .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
     });
-    broadcast("update", { type: "zaloge" });
+    broadcastToUnit(tenotaId, "update", { type: "zaloge" });
   } else {
     await db.update(zacetneZalogeTable).set(updates)
       .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, tenotaId)));
@@ -379,7 +379,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
   const [zz] = await db.select().from(zacetneZalogeTable)
-    .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, (req as any).enotaId ?? 1)));
+    .where(and(eq(zacetneZalogeTable.id, id), sql`true`, eq(zacetneZalogeTable.enotaId, (req as any).enotaId)));
   if (!zz) { res.status(404).json({ error: "Začetne zaloge niso najdene" }); return; }
 
   const postavke = await db
@@ -398,7 +398,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
 
   const result = await bookZacetnaZaloga(
     companyId,
-    (req as any).enotaId ?? 1,
+    (req as any).enotaId,
     zz.leto,
     datum,
     postavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
@@ -413,7 +413,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
 });
 
 router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
@@ -450,7 +450,7 @@ router.delete("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<voi
   bookZacetnaZaloga(delCompanyId, tenotaId, existing.leto, delDatum, [])
     .catch(err => console.warn("[ZZ booking DEL]", err));
 
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(tenotaId, "update", { type: "zaloge" });
   res.status(204).send();
 });
 

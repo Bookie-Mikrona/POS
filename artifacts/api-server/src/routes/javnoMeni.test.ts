@@ -54,8 +54,8 @@ const broadcastToMock = vi.hoisted(() => vi.fn());
 const anthropicCreateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../lib/pos-sse", () => ({
-  broadcast: broadcastMock,
-  broadcastTo: broadcastToMock,
+  broadcastToUnit: broadcastMock,
+  broadcastToDevice: broadcastToMock,
 }));
 vi.mock("@workspace/integrations-anthropic-ai", () => ({
   anthropic: { messages: { create: anthropicCreateMock } },
@@ -915,7 +915,7 @@ describe("javni QR meni", () => {
     });
     expect(response.body).not.toHaveProperty("cakaPotrditev");
     expect(response.body.predvidenPrevzem).toEqual(expect.any(String));
-    expect(broadcastMock).toHaveBeenCalledWith("update", {
+    expect(broadcastMock).toHaveBeenCalledWith(enotaId, "update", {
       type: "narocilo",
       id: response.body.narociloId,
     });

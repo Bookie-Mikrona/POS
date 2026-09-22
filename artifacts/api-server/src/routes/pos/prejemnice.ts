@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import { claimPurchaseSourceDocument } from "../../lib/purchaseSourceDocuments";
@@ -208,7 +208,7 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
       return confirmed;
     });
     if (!result) { res.status(404).json({ error: "Prejemnica ni najdena" }); return; }
-    broadcast("update", { type: "zaloge" });
+    broadcastToUnit(enotaId, "update", { type: "zaloge" });
     res.json({ id: result.id, status: result.status });
   } catch (error) {
     if (error instanceof PosReceiptNotReady) {
@@ -310,7 +310,7 @@ async function nextStevilkaPrejemnica(year: number, _davcna: string, tenotaId: n
 }
 
 router.get("/prejemnice", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const rows = await db
     .select({
       id: prejemniceTable.id,
@@ -344,7 +344,7 @@ router.get("/prejemnice", async (req, res): Promise<void> => {
 });
 
 router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const companyId = (req as any).companyId as string;
   const actorSnapshot = (req as any).clerkUserId as string;
   const parsed = { success: true, data: req.body };
@@ -589,7 +589,7 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     throw error;
   }
   const { prejemnica, postavkeResult } = transactionResult;
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
   res.status(201).json({
     id: prejemnica.id,
@@ -758,7 +758,7 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const companyId = (req as any).companyId as string;
   const actorSnapshot = (req as any).clerkUserId as string;
   const id = parseInt(String(req.params.id));
@@ -1121,7 +1121,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
   }
   const [updated] = updatedRows;
 
-  if (didUpdatePostavke) broadcast("update", { type: "zaloge" });
+  if (didUpdatePostavke) broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
   const postavke = await db
     .select({
@@ -1289,7 +1289,7 @@ router.delete("/prejemnice/:id", requireEnota, async (req, res): Promise<void> =
     throw error;
   }
 
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(tenotaId, "update", { type: "zaloge" });
   res.status(204).send();
 });
 

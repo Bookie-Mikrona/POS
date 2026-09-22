@@ -7,7 +7,10 @@ import { companiesTable, db, enoteTable, mizeTable, prostoriTable, tlorisPostavk
 import prostoriRouter from "./prostori";
 import mizeRouter from "./mize";
 
-vi.mock("../../lib/pos-sse", () => ({ broadcast: vi.fn() }));
+vi.mock("../../lib/pos-sse", () => ({
+  broadcastToUnit: vi.fn(),
+  broadcastToDevice: vi.fn(),
+}));
 
 const run = randomUUID().slice(0, 8);
 let companyId: string, otherCompanyId: string, enotaId: number, otherEnotaId: number;

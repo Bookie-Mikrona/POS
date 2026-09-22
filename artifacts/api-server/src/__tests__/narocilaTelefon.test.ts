@@ -231,8 +231,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../lib/pos-sse", () => ({
-  broadcast: vi.fn(),
-  broadcastTo: vi.fn(),
+  broadcastToUnit: vi.fn(),
+  broadcastToDevice: vi.fn(),
   addClient: vi.fn(),
   removeClient: vi.fn(),
 }));

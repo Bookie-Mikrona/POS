@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 import { artikliTable, db, inventurePostavkeTable, inventureTable, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import type { PosRequest } from "../../middlewares/pos";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
 import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
 
@@ -48,7 +48,7 @@ async function fetchZadnjeCene(artikelIds: number[], beforeDate?: Date): Promise
 }
 
 router.get("/inventure", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const rows = await db
     .select({
       id: inventureTable.id,
@@ -67,7 +67,7 @@ router.get("/inventure", async (req, res): Promise<void> => {
 });
 
 router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const parsed = { success: true, data: req.body };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
@@ -151,7 +151,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
 
     return { inventura, postavkeResult };
   });
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
   res.status(201).json({
     id: inventura.id,
@@ -163,7 +163,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.get("/inventure/:id", async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
@@ -202,7 +202,7 @@ router.get("/inventure/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
@@ -351,7 +351,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       .returning();
   });
 
-  if (didUpdatePostavke) broadcast("update", { type: "zaloge" });
+  if (didUpdatePostavke) broadcastToUnit(tenotaId, "update", { type: "zaloge" });
 
   const postavke = await db
     .select({
@@ -384,7 +384,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
 });
 
 router.delete("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
-  const tenotaId = (req as any).enotaId ?? 1;
+  const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
@@ -411,7 +411,7 @@ router.delete("/inventure/:id", requireEnota, async (req, res): Promise<void> =>
     await recomputeZaloge([...new Set([...artikelIds, ...reversedArtikelIds])], tx);
   });
 
-  broadcast("update", { type: "zaloge" });
+  broadcastToUnit(tenotaId, "update", { type: "zaloge" });
   res.status(204).send();
 });
 

@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, dostavaStatusZgodovinaTable, dostavniKurirjiTable, narocilaTable } from "@workspace/db";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import { jeDostavaStatus, jeVeljavenDostavniPrehod, type DostavaStatus } from "../../lib/dostava-status";
 
 const router: IRouter = Router();
@@ -27,14 +27,14 @@ const StatusBody = z.object({
 });
 
 router.get("/dostava/kurirji", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   res.json(await db.select().from(dostavniKurirjiTable)
     .where(eq(dostavniKurirjiTable.enotaId, enotaId)).orderBy(dostavniKurirjiTable.ime));
 });
 
 router.post("/dostava/kurirji", async (req, res): Promise<void> => {
   if (!zahtevaUpravljanjeKurirjev(req, res)) return;
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   const parsed = CourierBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Podatki kurirja niso veljavni." }); return; }
   try {
@@ -48,7 +48,7 @@ router.post("/dostava/kurirji", async (req, res): Promise<void> => {
 
 router.patch("/dostava/kurirji/:id", async (req, res): Promise<void> => {
   if (!zahtevaUpravljanjeKurirjev(req, res)) return;
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || typeof req.body?.aktiven !== "boolean") { res.status(400).json({ error: "Podatki kurirja niso veljavni." }); return; }
   const [kurir] = await db.update(dostavniKurirjiTable).set({ aktiven: req.body.aktiven })
@@ -58,7 +58,7 @@ router.patch("/dostava/kurirji/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/narocila/:id/dostava-zgodovina", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) { res.status(400).json({ error: "Neveljaven ID naročila." }); return; }
   const [order] = await db.select({ id: narocilaTable.id }).from(narocilaTable)
@@ -81,7 +81,7 @@ router.get("/narocila/:id/dostava-zgodovina", async (req, res): Promise<void> =>
 });
 
 router.post("/narocila/:id/dostava-status", async (req, res): Promise<void> => {
-  const enotaId = (req as any).enotaId ?? 1;
+  const enotaId = (req as any).enotaId as number;
   const id = Number(req.params.id);
   const parsed = StatusBody.safeParse(req.body);
   if (!Number.isInteger(id) || !parsed.success || !jeDostavaStatus(parsed.success ? parsed.data.status : "")) {
@@ -117,7 +117,7 @@ router.post("/narocila/:id/dostava-status", async (req, res): Promise<void> => {
       await tx.insert(dostavaStatusZgodovinaTable).values({ narociloId: id, enotaId, status: naslednjiStatus, kurirId: kurirId ?? null, idempotencyKey: input.idempotencyKey, actorId });
       return { repeat: false, status: naslednjiStatus };
     });
-    if (!result.repeat) broadcast("update", { type: "narocilo", id });
+    if (!result.repeat) broadcastToUnit(enotaId, "update", { type: "narocilo", id });
     res.json({ id, status: result.status, idempotent: result.repeat });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";

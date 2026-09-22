@@ -21,8 +21,8 @@ import { assertOpenOrderCanChange } from "../../lib/rezervacijeMiz";
 
 const broadcastMock = vi.hoisted(() => vi.fn());
 vi.mock("../../lib/pos-sse", () => ({
-  broadcast: broadcastMock,
-  broadcastTo: vi.fn(),
+  broadcastToUnit: broadcastMock,
+  broadcastToDevice: vi.fn(),
 }));
 
 const RUN_ID = randomUUID().slice(0, 8);
@@ -421,7 +421,11 @@ describe("rezervacije miz", () => {
       expect.objectContaining({ id: prva.body.id, status: "aktivna" }),
       expect.objectContaining({ id: druga.body.id, status: "sprostena" }),
     ]));
-    expect(broadcastMock).toHaveBeenCalledWith("update", { type: "miza", id: miza.id });
+    expect(broadcastMock).toHaveBeenCalledWith(
+      enotaId,
+      "update",
+      { type: "miza", id: miza.id },
+    );
 
     const izDrugeEnote = await supertest(appZaEnoto(drugaEnotaId))
       .get(`/mize/${miza.id}/rezervacije`);

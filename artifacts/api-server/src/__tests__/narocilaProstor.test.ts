@@ -73,8 +73,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
 const broadcastMock = vi.hoisted(() => vi.fn());
 const broadcastToMock = vi.hoisted(() => vi.fn());
 vi.mock("../lib/pos-sse", () => ({
-  broadcast: broadcastMock,
-  broadcastTo: broadcastToMock,
+  broadcastToUnit: broadcastMock,
+  broadcastToDevice: broadcastToMock,
   addClient: vi.fn(),
   removeClient: vi.fn(),
 }));
@@ -182,9 +182,10 @@ describe("PATCH /narocila/:id/postavke/:postavkaId/pripravljeno — SSE payload"
       .send({ pripravljeno: true, vir: "kuhinja" });
     expect(res.status).toBe(200);
 
-    const call = broadcastMock.mock.calls.find(([event]) => event === "postavkaPripravljena");
+    const call = broadcastMock.mock.calls.find(([, event]) => event === "postavkaPripravljena");
     expect(call).toBeDefined();
-    const payload = call![1] as Record<string, unknown>;
+    expect(call![0]).toBe(1);
+    const payload = call![2] as Record<string, unknown>;
     expect(payload.mizaIme).toBe("Miza 5");
     expect(payload.prostorId).toBe(3);
     expect(payload.prostorIme).toBe("Terasa");
@@ -201,9 +202,10 @@ describe("PATCH /narocila/:id/postavke/:postavkaId/pripravljeno — SSE payload"
       .send({ pripravljeno: true, vir: "kuhinja" });
     expect(res.status).toBe(200);
 
-    const call = broadcastMock.mock.calls.find(([event]) => event === "postavkaPripravljena");
+    const call = broadcastMock.mock.calls.find(([, event]) => event === "postavkaPripravljena");
     expect(call).toBeDefined();
-    const payload = call![1] as Record<string, unknown>;
+    expect(call![0]).toBe(1);
+    const payload = call![2] as Record<string, unknown>;
     expect(payload.prostorId).toBeNull();
     expect(payload.prostorIme).toBeNull();
   });

@@ -12,7 +12,7 @@ import { getCurrentPosBusinessDate } from "../../lib/pos-business-day";
 import { checkPreviousBusinessDayClosed, isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import { getPosActorSessionSecret } from "../../lib/posActorSessionSecret";
 import { writePosActorAudit } from "../../lib/posActorAudit";
-import { broadcast } from "../../lib/pos-sse";
+import { broadcastToUnit } from "../../lib/pos-sse";
 import {
   POS_PIN_LOCK_MS,
   POS_PIN_MAX_FAILURES,
@@ -815,7 +815,7 @@ router.post("/izmene/:id/odmori", async (req, res): Promise<void> => {
     trajanjeUr: created!.konec ? round2((created!.konec.getTime() - created!.zacetek.getTime()) / 3_600_000) : null,
     opomba: created!.opomba, createdBy: created!.createdBy, createdAt: created!.createdAt.toISOString(),
   });
-  broadcast("update", { type: "izmene", enotaId: context.enotaId });
+  broadcastToUnit(context.enotaId, "update", { type: "izmene", enotaId: context.enotaId });
 });
 
 router.post("/izmene/:id/odmori/:odmorId/zapri", async (req, res): Promise<void> => {
@@ -844,7 +844,7 @@ router.post("/izmene/:id/odmori/:odmorId/zapri", async (req, res): Promise<void>
     return [row];
   });
   res.json({ id: updated!.id, izmenaId: updated!.izmenaId, vrsta: updated!.vrsta, zacetek: updated!.zacetek.toISOString(), konec: updated!.konec!.toISOString(), trajanjeUr: round2((updated!.konec!.getTime() - updated!.zacetek.getTime()) / 3_600_000), opomba: updated!.opomba, createdBy: updated!.createdBy, createdAt: updated!.createdAt.toISOString() });
-  broadcast("update", { type: "izmene", enotaId: context.enotaId });
+  broadcastToUnit(context.enotaId, "update", { type: "izmene", enotaId: context.enotaId });
 });
 
 router.post("/izmene/:id/predlozi", async (req, res): Promise<void> => {
