@@ -87,6 +87,7 @@ const EventsPage = lazy(() => import("@/pages/Events"));
 const RezervacijePage = lazy(() => import("@/pages/Rezervacije"));
 const IzdajaPage = lazy(() => import("@/pages/Izdaja"));
 const QrAdministracijaPage = lazy(() => import("@/pages/QrAdministracija"));
+const SuperAdminPage = lazy(() => import("@/pages/SuperAdmin"));
 
 function KdsStationPage({ station }: { station: "bar" | "kitchen" | "pizza" }) {
   const { user } = useAuth();
@@ -922,6 +923,11 @@ function ProtectedRouter() {
           <Route path="/konti-za-temeljnice" component={KontiZaTemeljnicePage} />
           <Route path="/nastavitve" component={SettingsPage} />
           <Route path="/admin/testi" component={TestniZagoniPage} />
+          <Route path="/superadmin" component={SuperAdminPage} />
+          <Route path="/superadmin/eposta" component={SuperAdminPage} />
+          <Route path="/superadmin/backup" component={SuperAdminPage} />
+          <Route path="/superadmin/profil" component={SuperAdminPage} />
+          <Route path="/superadmin/testi" component={SuperAdminPage} />
           <Route component={NotFound} />
           </Switch>
         </Suspense>
@@ -1104,7 +1110,7 @@ function AuthGate() {
   useEffect(() => {
     if (loading || !user) return;
     if (user.vloga === "superadmin" && (location === "/" || location === "/login")) {
-      window.location.replace("/admin");
+      window.location.replace(`${basePath}/superadmin`);
     } else if (location === "/login") {
       setLocation("/");
     }
@@ -1122,7 +1128,7 @@ function AuthGate() {
   // window.location.replace znotraj renderja je nameren "escape iz Reacta" za navigacijo;
   // PreusmeritevZaslon zagotovi, da brskalnik ne naslika ničesar iz POS-a.
   if (user?.vloga === "superadmin" && (location === "/" || location === "/login")) {
-    window.location.replace("/admin");
+    window.location.replace(`${basePath}/superadmin`);
     return <PreusmeritevZaslon />;
   }
 

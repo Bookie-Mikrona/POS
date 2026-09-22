@@ -32,8 +32,9 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
-MANUAL_VERSION = "8.4"
+MANUAL_VERSION = "8.5"
 OUTPUT = ROOT / "docs" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
+PUBLIC_OUTPUT = ROOT / "artifacts" / "pos" / "public" / "POS-Gostinstvo-prirocnik.pdf"
 LOGO = ROOT / "docs" / "mikrona-logo.png"
 
 SOURCE_FILES = [
@@ -165,6 +166,20 @@ def make_styles():
             leading=16,
             alignment=TA_CENTER,
             textColor=MUTED,
+        ),
+        "cover_package_title": ParagraphStyle(
+            "CoverPackageTitle",
+            fontName="Manual-Bold",
+            fontSize=10.2,
+            leading=13,
+            textColor=BLUE,
+        ),
+        "cover_package_body": ParagraphStyle(
+            "CoverPackageBody",
+            fontName="Manual",
+            fontSize=8.2,
+            leading=11,
+            textColor=INK,
         ),
         "part": ParagraphStyle(
             "Part",
@@ -392,8 +407,40 @@ def table_flowable(rows: list[list[str]], styles, width: float) -> Table:
     return table
 
 
-def markdown_to_flowables(text: str, styles, content_width: float):
-    lines = clean_source(text).splitlines()
+def renumber_headings(text: str, chapter_number: int) -> str:
+    """Use clean, sequential display numbers regardless of legacy source gaps."""
+    counters = {2: 0, 3: 0, 4: 0}
+    numbered: list[str] = []
+    for line in text.splitlines():
+        heading = re.match(r"^(#{1,4})\s+(.+)$", line.strip())
+        if not heading:
+            numbered.append(line)
+            continue
+
+        marks, raw_title = heading.groups()
+        level = len(marks)
+        title = re.sub(r"^\d+(?:\.\d+){0,3}\.?\s*", "", raw_title).strip()
+        if level == 1:
+            display_number = str(chapter_number)
+            counters = {2: 0, 3: 0, 4: 0}
+        elif level == 2:
+            counters[2] += 1
+            counters[3] = 0
+            counters[4] = 0
+            display_number = str(counters[2])
+        elif level == 3:
+            counters[3] += 1
+            counters[4] = 0
+            display_number = f"{counters[2]}.{counters[3]}"
+        else:
+            counters[4] += 1
+            display_number = f"{counters[2]}.{counters[3]}.{counters[4]}"
+        numbered.append(f"{marks} {display_number}. {title}")
+    return "\n".join(numbered)
+
+
+def markdown_to_flowables(text: str, styles, content_width: float, chapter_number: int):
+    lines = renumber_headings(clean_source(text), chapter_number).splitlines()
     story = []
     paragraph_lines: list[str] = []
     inherited_heading_packages: dict[int, str] = {}
@@ -528,6 +575,7 @@ class ManualDocTemplate(BaseDocTemplate):
         super().__init__(filename, **kwargs)
         self.styles = styles
         self._outline_level = -1
+        self._content_start_page: int | None = None
         frame = Frame(
             self.leftMargin,
             self.bottomMargin,
@@ -536,7 +584,7 @@ class ManualDocTemplate(BaseDocTemplate):
             id="manual-frame",
         )
         self.addPageTemplates(
-            [PageTemplate(id="manual", frames=[frame], onPage=self.draw_page)]
+            [PageTemplate(id="manual", frames=[frame], onPageEnd=self.draw_page)]
         )
 
     def beforeDocument(self) -> None:
@@ -544,6 +592,7 @@ class ManualDocTemplate(BaseDocTemplate):
         # Markdown remains semantically unchanged; only PDF bookmarks are
         # clamped when a source goes directly from e.g. H2 to H4.
         self._outline_level = -1
+        self._content_start_page = None
 
     def draw_page(self, canvas, doc) -> None:
         canvas.saveState()
@@ -559,7 +608,13 @@ class ManualDocTemplate(BaseDocTemplate):
                 11.5 * mm,
                 f"POS Gostinstvo — referenčni priročnik v{MANUAL_VERSION}",
             )
-            canvas.drawRightString(A4[0] - 18 * mm, 11.5 * mm, f"Stran {page}")
+            if self._content_start_page is not None:
+                logical_page = page - self._content_start_page + 1
+                canvas.drawRightString(
+                    A4[0] - 18 * mm,
+                    11.5 * mm,
+                    f"Stran {logical_page}",
+                )
         canvas.restoreState()
 
     def afterFlowable(self, flowable) -> None:
@@ -567,6 +622,8 @@ class ManualDocTemplate(BaseDocTemplate):
         if level is None:
             return
         text = getattr(flowable, "_manual_heading_text", flowable.getPlainText())
+        if level == 1 and text.startswith("DEL ") and self._content_start_page is None:
+            self._content_start_page = self.page
         key = f"heading-{self.seq.nextf('heading')}"
         self.canv.bookmarkPage(key)
         outline_level = min(level - 1, self._outline_level + 1)
@@ -577,34 +634,32 @@ class ManualDocTemplate(BaseDocTemplate):
             closed=outline_level > 1,
         )
         self._outline_level = outline_level
-        self.notify("TOCEntry", (level - 1, text, self.page, key))
+        toc_page = (
+            self.page - self._content_start_page + 1
+            if self._content_start_page is not None
+            else self.page
+        )
+        self.notify("TOCEntry", (level - 1, text, toc_page, key))
 
 
 def build_story(styles, doc):
     story = []
     story.extend(
         [
-            RLImage(str(LOGO), width=43 * mm, height=44 * mm),
-            Spacer(1, 7 * mm),
+            RLImage(str(LOGO), width=27 * mm, height=28 * mm),
+            Spacer(1, 2 * mm),
             Paragraph("Mikrona d.o.o.", styles["cover_meta"]),
-            Spacer(1, 8 * mm),
-            Spacer(1, 36 * mm),
+            Spacer(1, 11 * mm),
             Paragraph("POS Gostinstvo", styles["cover_title"]),
             Paragraph(
                 f"Celovit uporabniški in referenčni priročnik · izdaja {MANUAL_VERSION}",
                 styles["cover_subtitle"],
             ),
-            Spacer(1, 13 * mm),
+            Spacer(1, 6 * mm),
             Table(
                 [[
                     "Različica",
                     MANUAL_VERSION,
-                ], [
-                    "Obseg",
-                    "priprava, operativno delo, prodaja, zaloge, poročila in administracija",
-                ], [
-                    "Paketi",
-                    "Lite, Standard in Extended",
                 ], [
                     "Datum izdaje",
                     date.today().strftime("%d.%m.%Y"),
@@ -626,7 +681,52 @@ def build_story(styles, doc):
                     ]
                 ),
             ),
-            Spacer(1, 18 * mm),
+            Spacer(1, 7 * mm),
+            Paragraph("Kaj vključuje posamezen paket?", styles["h2"]),
+            Table(
+                [
+                    [
+                        Paragraph("POS Lite", styles["cover_package_title"]),
+                        Paragraph(
+                            "Prodaja in blagajna, izmene, računi, meni, zaloge, statistika, "
+                            "operativna poročila, realizacija, temeljnice, blagajniški premiki, "
+                            "obračun ur in nastavitve.",
+                            styles["cover_package_body"],
+                        ),
+                    ],
+                    [
+                        Paragraph("POS Standard", styles["cover_package_title"]),
+                        Paragraph(
+                            "<b>Vse iz Lite</b> ter mize, kuhinja, točilnica, pripravljena hrana, "
+                            "odpadki s krožnikov in telefonska naročila.",
+                            styles["cover_package_body"],
+                        ),
+                    ],
+                    [
+                        Paragraph("POS Extended", styles["cover_package_title"]),
+                        Paragraph(
+                            "<b>Vse iz Standard</b> ter simulacija, rezervacije, dostava, QR meni, "
+                            "večhodni meniji, dogodki in slavja, prenosi zaloge ter kavcije, boni in žetoni.",
+                            styles["cover_package_body"],
+                        ),
+                    ],
+                ],
+                colWidths=[38 * mm, 112 * mm],
+                style=TableStyle(
+                    [
+                        ("GRID", (0, 0), (-1, -1), 0.5, LINE),
+                        ("BACKGROUND", (0, 0), (0, 0), PALE_BLUE),
+                        ("BACKGROUND", (0, 1), (0, 1), PALE_TEAL),
+                        ("BACKGROUND", (0, 2), (0, 2), PALE_YELLOW),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 3 * mm),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 3 * mm),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2.4 * mm),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.4 * mm),
+                    ]
+                ),
+            ),
+            Spacer(1, 7 * mm),
             Paragraph(
                 "Priročnik je namenjen natakarjem, kuhinji, točilnici, vodjem izmene, skrbnikom zalog, administratorjem in računovodskim uporabnikom. Opisuje dejanske delovne postopke, pomen polj, posledice potrditev ter ravnanje ob napakah.",
                 styles["cover_meta"],
@@ -650,9 +750,9 @@ def build_story(styles, doc):
             ),
             Table(
                 [
-                    [Paragraph(package_badge("lite"), styles["body"]), Paragraph("<b>Lite</b> — prodaja, izmene, računi, meni, zaloga, statistika, poročila, temeljnice, blagajniški premiki, ure in nastavitve.", styles["body"])],
-                    [Paragraph(package_badge("standard"), styles["body"]), Paragraph("<b>Standard</b> — vse iz Lite ter mize, kuhinja, točilnica, pripravljena hrana, odpad in telefonska naročila.", styles["body"])],
-                    [Paragraph(package_badge("extended"), styles["body"]), Paragraph("<b>Extended</b> — vse iz Standard ter rezervacije, dostava, QR meni, večhodni meniji, dogodki, prenosi zaloge in darilni boni.", styles["body"])],
+                    [Paragraph(package_badge("lite"), styles["body"]), Paragraph("<b>Lite</b> — prodaja in blagajna, izmene, računi, meni, zaloge, statistika, operativna poročila, realizacija, temeljnice, blagajniški premiki, obračun ur in nastavitve.", styles["body"])],
+                    [Paragraph(package_badge("standard"), styles["body"]), Paragraph("<b>Standard</b> — vse iz Lite ter mize, kuhinja, točilnica, pripravljena hrana, odpadki s krožnikov in telefonska naročila.", styles["body"])],
+                    [Paragraph(package_badge("extended"), styles["body"]), Paragraph("<b>Extended</b> — vse iz Standard ter simulacija, rezervacije, dostava, QR meni, večhodni meniji, dogodki in slavja, prenosi zaloge ter kavcije, boni in žetoni.", styles["body"])],
                 ],
                 colWidths=[35 * mm, 115 * mm],
                 style=TableStyle([
@@ -711,7 +811,7 @@ def build_story(styles, doc):
     ]
     story.extend([toc, PageBreak()])
 
-    for numeral, title, filename in SOURCE_FILES:
+    for chapter_number, (numeral, title, filename) in enumerate(SOURCE_FILES, start=1):
         path = SOURCE_DIR / filename
         if not path.exists():
             raise FileNotFoundError(path)
@@ -737,7 +837,7 @@ def build_story(styles, doc):
                 PageBreak(),
             ]
         )
-        flowables = markdown_to_flowables(source, styles, doc.width)
+        flowables = markdown_to_flowables(source, styles, doc.width, chapter_number)
         if not flowables:
             raise ValueError(f"{filename} po filtriranju nima vsebine")
         story.extend(flowables)
@@ -773,6 +873,8 @@ def main() -> None:
     )
     story = build_story(styles, doc)
     doc.multiBuild(story)
+    PUBLIC_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    PUBLIC_OUTPUT.write_bytes(OUTPUT.read_bytes())
     print(OUTPUT)
 
 
