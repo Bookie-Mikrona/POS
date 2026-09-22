@@ -57,6 +57,59 @@ Linux and must be performed on a controlled Windows host.
 - [ ] Keep at least five backups. Never restore a backup onto an active
       different gateway identity; fence it and reprovision first.
 
+## One-click POS connection code
+
+Perform these checks on controlled Windows 10/11 hosts. Use separate clean
+snapshots for loopback and LAN mode because changing the mode of an existing
+service is intentionally rejected.
+
+- [ ] Install the signed candidate in default loopback mode on a nonstandard
+      test port, for example `18431`. Run `verify-windows-install.ps1` with the
+      same port and retain its redacted JSON evidence.
+- [ ] Open **Start → Bookie Fiscal → Ustvari kodo za POS** as a standard
+      desktop user. Confirm that Windows requests administrator approval and
+      that the resulting window contains only a six-digit code, its expiry,
+      and user instructions. Do not retain the code in screenshots or logs.
+- [ ] In POS, explicitly enable local cash issuance, enter the displayed code,
+      and confirm that the browser connects. Remove the browser connection and
+      try the same code again; the second attempt must be rejected as expired,
+      invalid, or already used. Generate a new code if the test POS must remain
+      connected.
+- [ ] Confirm that the POS does not probe the local service or show local
+      service warnings while local cash issuance is disabled.
+- [ ] Repeat the installation on a clean LAN snapshot with HTTPS, a fixed
+      private IP, SAN entries for that IP and `localhost`, and a nonstandard
+      test port. Run `verify-windows-install.ps1` with the exported public
+      certificate and confirm the shortcut uses HTTPS through `localhost`.
+- [ ] Record only redacted observations: UAC shown, six-digit format, expiry
+      shown, first use accepted, second use rejected, configured port, and
+      loopback/LAN verification result. Never record the administrator token,
+      one-time code, connection secret, TLS private key, or signing private key.
+
+### Controlled rollback test
+
+Run this only on a fenced Windows test host with a verified previous gateway
+installation and a manager-approved CLOUD release. The existing and candidate
+installations must use the same LAN mode.
+
+- [ ] Before the candidate upgrade, record SHA-256 for the installed EXE,
+      `Show-ConnectionCode.ps1`, and Start Menu shortcut; also record the
+      service command, startup/recovery state, running state, and successful
+      health response.
+- [ ] Supply a temporary TLS certificate that is valid but intentionally lacks
+      the required `localhost` SAN. Keep its private key only on the fenced
+      host. Start the signed candidate upgrade with
+      `-ConfirmSafeCloudRelease`, the existing LAN parameters, and paths to
+      that temporary certificate and key.
+- [ ] Confirm that installation fails with the missing-`localhost` SAN error
+      and explicitly reports that rollback succeeded. This failure occurs
+      after the prior EXE, data, helper, shortcut, service, and firewall state
+      have been captured.
+- [ ] After rollback, confirm that the prior EXE and helper hashes, shortcut
+      hash, service command/startup/recovery settings, firewall state, running
+      state, and health response match the pre-test evidence. Remove the
+      temporary invalid certificate and key.
+
 ## TLS and client trust
 
 - [ ] Check certificate chain trust, validity dates, SAN for the configured
@@ -80,5 +133,7 @@ Linux and must be performed on a controlled Windows host.
 Required evidence filenames: signed release ZIP and manifest, Defender/
 SmartScreen observation, certificate export/fingerprint, install/verify JSON,
 SCM/firewall output, crash-recovery output, printer spool output, and rollback
-record. Do not include tokens, private keys, pairing secrets, or raw database
-exports in evidence.
+record. For the one-click code gate, also include a redacted operator record
+for loopback, LAN/TLS, nonstandard ports, UAC, first/second code use, and
+rollback restoration. Do not include tokens, one-time codes, private keys,
+connection secrets, or raw database exports in evidence.
