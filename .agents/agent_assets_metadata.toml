@@ -949,3 +949,31 @@ mtime_ms = 1790089244324
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/02d3925a-186c-4ad5-b4af-aa2baf41ba67/2877f336-6558-4994-ac55-469835100732"
 storage_version_token = "1790089303998886"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "_U_riB-P8scbw32BnrnIi"
+uri = "file://reports/replit-support-technical-report-2026-09-22.pdf"
+type = "pdf"
+title = "Technical Incident Report — POS Git Transfer Regression"
+description = "Eight-page English evidence report for Replit Support, including confirmed losses, Git references, database and migration risks, quantified impact, and requested billing resolution."
+logical_id = "7ae93cab-d8ae-4d05-9f30-8564eb4fed49"
+content_hash = "sha256:259d0e6f076ba26ff34bbbb49bed4e557712ee0b6d3e2ae0a91070b70dc5ba09"
+size = 57863
+mtime_ms = 1790108689860
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/7ae93cab-d8ae-4d05-9f30-8564eb4fed49/dc50c1aa-6614-4f93-abb9-98866b2a034c"
+storage_version_token = "1790108697840983"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "vhQ05RxFjB-A4FVlslP3F"
+uri = "file://reports/replit-support-credit-request-2026-09-22.txt"
+type = "text"
+title = "Service Credit Request — Ready to Paste"
+description = "English support request formatted for direct copy into Replit's Get Help form."
+logical_id = "d20f75a5-bb50-4474-ae6d-b87d460e950c"
+content_hash = "sha256:629f103d195666d4c94db88a3a86e11d5238e1b56c8139c81ad3f57efb483408"
+size = 4352
+mtime_ms = 1790108626863
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/d20f75a5-bb50-4474-ae6d-b87d460e950c/1a9dc11c-bab1-4c54-9fab-976eb7cc1106"
+storage_version_token = "1790108698674714"
+content_type = "text/plain"

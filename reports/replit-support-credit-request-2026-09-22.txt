@@ -1,0 +1,53 @@
+Subject: Request for billing review and service credit — previously completed POS functionality lost after Git history transfer
+
+Hello Replit Support,
+
+I am requesting a billing review and an appropriate service credit for recovery work required after previously completed functionality disappeared from my Replit project following a Git history transfer/merge sequence.
+
+Project: Bookie POS Gostinstvo
+Date the regression was confirmed: 22 September 2026
+
+The missing functionality was not new scope. It had already been implemented and existed in the project before the transfer. A preserved recovery reference still contains it:
+
+- Recovery branch: recovery/before-c65-rollback-20260922
+- Verified pre-regression tree: c65df01b620eb5283e60996ee2fb3a05514c2a80
+- Current audited HEAD: 46593d57cbf67981336a01ee5851f7e5a494a015
+
+The audit confirmed the following high-confidence losses:
+
+1. The complete Malice management page and ordering flow, including meal groups, group pricing, daily offers, article assignments, partner-specific pricing, beneficiaries, contracts, and approximately 20 API operations.
+2. The Kosila page and daily lunch flow, including offer creation, publication, closure, quotation, and adding lunch to an order.
+3. The Dnevni meni page still exists in source code but its route and navigation entry disappeared, making it unreachable.
+4. The public restaurant profile page, preview, logo/image workflow, image retention/variant handling, and public visit tracking.
+5. The in-app POS manual, capture page, chapter data, version 9.0 manual assets, and 20 guide screenshots.
+6. Parts of public reservation, voucher-delivery, and Stripe monitoring safeguards, including failed voucher-delivery alerts and retry support.
+7. Related statistics, integration, database-isolation, object-storage, import, bank-statement, and release-validation tests.
+8. Three database schema source files and 22 forward-only migration source files, even though the created database tables still exist in the development database.
+
+Within the audited project areas, the comparison contains:
+
+- 384 changed files in total. This includes legitimate newer work and must not be interpreted as 384 lost files.
+- 114 paths that are deleted relative to the preserved pre-regression tree.
+- 22 deleted POS frontend source/test paths.
+- 35 deleted API server source/test paths.
+- 3 deleted database schema source files.
+- 22 deleted migration files.
+- 27 deleted documentation files.
+- 4 deleted validation/generation scripts.
+
+This does not appear as a normal, intentional feature removal. The current reachable history does not contain clear path-level deletion commits for the affected feature groups. Instead, the repository graph contains a transfer/rollback-style merge lineage, while the complete pre-regression tree remains preserved on the recovery branch. There is no identified replacement for Malice, Kosila, the public page, or the manual.
+
+Recovery cannot safely be performed by resetting the branch or blindly restoring all files. The current branch also contains valid newer work. Recovery requires selective reconciliation of frontend routes, backend APIs, OpenAPI contracts, generated clients, database schemas, migrations, and tests. The migration set also contains a numbering collision at migration 199, so blindly replaying historical migrations could damage or duplicate database state.
+
+I paused the recovery before authorizing extensive additional Agent work because I do not believe I should be charged again to reconstruct functionality that had already been completed and was lost during the transfer/history operation.
+
+Requested resolution:
+
+1. Please review the project history and the Agent/compute charges associated with the original implementation, the Git history transfer/merge operation, the forensic audit, and any required recovery.
+2. Please apply an appropriate service credit covering the reasonable Agent usage required to restore the previously completed functionality.
+3. Please advise whether Replit can assist with or supervise the selective recovery so that current valid work is preserved.
+4. Please confirm what additional logs, checkpoints, billing records, or project identifiers you need from me.
+
+I can provide the detailed technical report and exact deleted-path inventory as an attachment.
+
+Thank you.
