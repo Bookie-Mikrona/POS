@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   checkLocalFiscalCapability,
+  FISCAL_SERVICE_BASE_URL,
   isLocalFiscalServiceEnabled,
   isFiscalServicePaired,
   pairFiscalService,
@@ -18,6 +19,7 @@ export function FiscalServicePairing() {
   const [code, setCode] = useState("");
   const [enabled, setEnabled] = useState(isLocalFiscalServiceEnabled);
   const [clientName, setClientName] = useState(() => localStorage.getItem("bookie.fiscal.v1.clientName") ?? "POS blagajna");
+  const [baseUrl, setBaseUrl] = useState(FISCAL_SERVICE_BASE_URL);
   const [paired, setPaired] = useState(isFiscalServicePaired);
   const [capability, setCapability] = useState<FiscalCapability>();
   const [problem, setProblem] = useState<string>();
@@ -39,7 +41,7 @@ export function FiscalServicePairing() {
   const pair = async () => {
     setBusy(true);
     try {
-      await pairFiscalService(code, clientName);
+      await pairFiscalService(code, clientName, baseUrl);
       localStorage.setItem("bookie.fiscal.v1.clientName", clientName);
       setPaired(true);
       setCode("");
@@ -100,7 +102,15 @@ export function FiscalServicePairing() {
                 Koda velja 10 minut.
               </p>
             </div>
-            <div className="grid max-w-lg gap-3 sm:grid-cols-[1fr_10rem_auto] sm:items-end">
+            <div className="grid max-w-2xl gap-3 sm:grid-cols-[1fr_1fr]">
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="fiscal-base-url">Naslov lokalne storitve</Label>
+                <Input id="fiscal-base-url" value={baseUrl} onChange={event => setBaseUrl(event.target.value)}
+                  placeholder={FISCAL_SERVICE_BASE_URL} autoComplete="off" />
+                <p className="text-xs text-muted-foreground">
+                  HTTP je dovoljen samo za ta računalnik; za LAN uporabite zaupanja vreden HTTPS naslov.
+                </p>
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="fiscal-client-name">Ime blagajne</Label>
                 <Input id="fiscal-client-name" value={clientName} onChange={event => setClientName(event.target.value)} maxLength={100} />
@@ -109,7 +119,7 @@ export function FiscalServicePairing() {
                 <Label htmlFor="fiscal-pair-code">Enkratna koda</Label>
                 <Input id="fiscal-pair-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" />
               </div>
-              <Button type="button" onClick={() => void pair()} disabled={busy || code.length !== 6 || !clientName.trim()}>
+              <Button type="button" onClick={() => void pair()} disabled={busy || code.length !== 6 || !clientName.trim() || !baseUrl.trim()}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}Poveži
               </Button>
             </div>

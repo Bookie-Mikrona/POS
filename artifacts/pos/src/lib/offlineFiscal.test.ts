@@ -11,6 +11,8 @@ import {
   legalLjubljanaTimestamp,
   normalizeServerFursState,
   pairFiscalService,
+  getFiscalServiceBaseUrl,
+  normalizeFiscalServiceBaseUrl,
   validateOfflineAuthorityBundle,
   validateBoundaryEnvelope,
   validateLocalReceiptProjection,
@@ -107,6 +109,19 @@ describe("Bookie Fiscal Service v1 contract", () => {
     expect(localStorage.getItem("bookie.fiscal.v1.pairing")).not.toContain("123456");
   });
 
+  it("stores and reuses a nonstandard loopback base URL", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      pairingSecret: "AQIDBA==",
+      contract: "v1",
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    await pairFiscalService("123456", "Register 1", "http://127.0.0.1:18431/v1/");
+    expect(getFiscalServiceBaseUrl()).toBe("http://127.0.0.1:18431/v1");
+  });
+
+  it("requires HTTPS outside loopback and accepts a LAN HTTPS base", () => {
+    expect(normalizeFiscalServiceBaseUrl("https://192.168.1.20:18432/v1")).toBe("https://192.168.1.20:18432/v1");
+    expect(() => normalizeFiscalServiceBaseUrl("http://192.168.1.20:18432/v1")).toThrow(/HTTPS/);
+  });
   it("signs method, v1 path, timestamp, nonce and raw-body hash exactly", async () => {
     localStorage.setItem("bookie.fiscal.v1.pairing", JSON.stringify({ secret: "AQIDBA==", protocolVersion: "1.0" }));
     const body = '{"operationId":"x"}';

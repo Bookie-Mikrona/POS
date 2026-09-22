@@ -44,3 +44,9 @@ Lokalna fiskalna izdaja je privzeto izključena, skrbniško kodo pa ustvari samo
 **Why:** Blagajnik ne sme uporabljati sistemskih ukazov, kopirati skrbniškega žetona ali prejemati opozoril za lokalno storitev, ki v enoti ni namerno vključena.
 
 **How to apply:** Orodje kliče samo loopback, prikaže le šestmestno enkratno kodo in njen rok ter podpira dejanska vrata/TLS način namestitve. POS ne preverja, izdaja ali sinhronizira lokalno, dokler skrbnik možnosti izrecno ne vključi.
+
+Izbrani fiskalni URL je del povezovalnih poverilnic POS-a; vsi poznejši zahtevki morajo uporabljati isti naslov, storitev pa v capability odgovoru oglašuje naslov dejanskega zahtevka.
+
+**Why:** Fiksni privzeti naslov po uspešni povezavi preusmeri nadaljnje zahtevke na napačna vrata ali napravo in onemogoči dokazni preizkus nestandardnih vrat.
+
+**How to apply:** Dovoli HTTP samo za loopback, za LAN zahtevaj HTTPS, pot `/v1` normaliziraj ter cilj spremeni samo z odstranitvijo in novo povezavo.

@@ -2155,7 +2155,7 @@ def require_role(request: Request, *roles: str) -> None:
         raise HTTPException(403, "ROLE_REQUIRED")
 
 @app.get("/v1/capabilities")
-def capabilities():
+def capabilities(request: Request):
     problems: list[str] = []
     metadata = store.get("metadata")
     meta = json.loads(metadata) if metadata else {}
@@ -2176,8 +2176,9 @@ def capabilities():
             problems.append("printer_not_configured")
     if free_bytes(APP_DIR) < 20 * 1024 * 1024: problems.append("disk_low")
     if not Fiscal.has_complete_furs_golden_vector(): problems.append("furs_v2_legal_core_golden_vector_missing")
+    request_base_url = f"{request.url.scheme}://{request.url.netloc}/v1"
     return {"service":"Bookie Local Gateway","legacyService":"Bookie Fiscal Service",
-            "protocolVersion":"1.0","baseUrl":BASE_URL,
+            "protocolVersion":"1.0","baseUrl":request_base_url,
             "ready":not problems,"readinessProblems":problems,"envelopeFormat":"furs-v2",
             "paymentMethods":["cash"],"maxBodyBytes":MAX_BODY,"calendarPolicy":"SI-BUSINESS-DAY-V1",
             **({"identity": {"deviceId": meta.get("deviceId"), "unitId": meta.get("enotaId"),

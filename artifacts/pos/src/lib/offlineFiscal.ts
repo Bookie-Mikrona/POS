@@ -25,7 +25,7 @@ export type OfflineFiscalPrintState = "not_printed" | "printed" | "failed";
 export interface FiscalCapability {
   service: "Bookie Local Gateway" | "Bookie Fiscal Service";
   protocolVersion: "1.0";
-  baseUrl: typeof FISCAL_SERVICE_BASE_URL;
+  baseUrl: string;
   ready: boolean;
   readinessProblems?: string[];
   envelopeFormat: "provisional" | "furs-v2";
@@ -347,13 +347,38 @@ async function sha256Hex(bytes: BufferSource): Promise<string> {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function readPairingCredentials(): { secret: string; clientId?: string } | undefined {
+export function normalizeFiscalServiceBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error("Vnesite veljaven URL lokalne fiskalne storitve.");
+  }
+  const loopback = ["127.0.0.1", "localhost", "::1"].includes(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+    throw new Error("Oddaljena lokalna storitev mora uporabljati HTTPS; HTTP je dovoljen samo za ta računalnik.");
+  }
+  if (url.username || url.password || url.search || url.hash || url.pathname.replace(/\/+$/, "") !== "/v1") {
+    throw new Error("URL mora biti brez uporabniških podatkov in parametrov ter se mora končati z /v1.");
+  }
+  return `${url.origin}/v1`;
+}
+
+function readPairingCredentials(): { secret: string; clientId?: string; baseUrl: string } | undefined {
   try {
     const parsed = JSON.parse(localStorage.getItem(PAIRING_KEY) ?? "null") as {
-      secret?: string; clientId?: string; protocolVersion?: string
+      secret?: string; clientId?: string; protocolVersion?: string; baseUrl?: string
     } | null;
-    return parsed?.protocolVersion === "1.0" && parsed.secret ? { secret: parsed.secret, clientId: parsed.clientId } : undefined;
+    return parsed?.protocolVersion === "1.0" && parsed.secret ? {
+      secret: parsed.secret,
+      clientId: parsed.clientId,
+      baseUrl: normalizeFiscalServiceBaseUrl(parsed.baseUrl ?? FISCAL_SERVICE_BASE_URL),
+    } : undefined;
   } catch { return undefined; }
+}
+
+export function getFiscalServiceBaseUrl(): string {
+  return readPairingCredentials()?.baseUrl ?? FISCAL_SERVICE_BASE_URL;
 }
 
 function randomNonce(): string {
@@ -391,7 +416,7 @@ async function fiscalFetch(path: string, init: RequestInit = {}): Promise<Respon
   if (text.encode(rawBody).byteLength > MAX_BODY_BYTES) throw new Error("Fiskalni zahtevek presega dovoljeno velikost.");
   const relativePath = path.replace(/^\/v1/, "");
   const headers = await authenticatedFiscalHeaders(method, `/v1${relativePath}`, rawBody);
-  return fetch(`${FISCAL_SERVICE_BASE_URL}${relativePath}`, {
+  return fetch(`${getFiscalServiceBaseUrl()}${relativePath}`, {
     ...init,
     method,
     cache: "no-store",
@@ -399,16 +424,17 @@ async function fiscalFetch(path: string, init: RequestInit = {}): Promise<Respon
   });
 }
 
-export async function pairFiscalService(code: string, clientName: string): Promise<void> {
+export async function pairFiscalService(code: string, clientName: string, baseUrl = FISCAL_SERVICE_BASE_URL): Promise<void> {
+  const normalizedBaseUrl = normalizeFiscalServiceBaseUrl(baseUrl);
   const body = JSON.stringify({ code: code.trim(), clientName: clientName.trim() });
-  const response = await fetch(`${FISCAL_SERVICE_BASE_URL}/pair`, {
+  const response = await fetch(`${normalizedBaseUrl}/pair`, {
     method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body,
   });
   if (!response.ok) throw new Error(response.status === 401 ? "Enkratna koda ni veljavna, je potekla ali je že uporabljena." : await response.text());
   const result = await response.json() as { pairingSecret?: string; clientId?: string; contract?: string };
   if (!result.pairingSecret || result.contract !== "v1") throw new Error("Lokalna storitev je vrnila neveljaven odgovor seznanitve.");
   localStorage.setItem(PAIRING_KEY, JSON.stringify({
-    secret: result.pairingSecret, clientId: result.clientId, protocolVersion: "1.0",
+    secret: result.pairingSecret, clientId: result.clientId, protocolVersion: "1.0", baseUrl: normalizedBaseUrl,
   }));
 }
 
@@ -433,7 +459,7 @@ export async function provisionWindowsFiscalService(input: {
   });
   if (!challengeResponse.ok) throw new Error(await challengeResponse.text() || "Provisioning challenge ni uspel.");
   const challenge = await challengeResponse.json() as ProvisioningChallenge;
-  const proofResponse = await fetch(`${FISCAL_SERVICE_BASE_URL}/provisioning/proof`, {
+  const proofResponse = await fetch(`${getFiscalServiceBaseUrl()}/provisioning/proof`, {
     method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ challengeId: challenge.challengeId, challenge: challenge.challenge }),
   });
@@ -461,12 +487,10 @@ export async function provisionWindowsFiscalService(input: {
   return bundle;
 }
 
-export const LOCAL_FURS_CERTIFICATE_ADMIN_URL = `${FISCAL_SERVICE_BASE_URL}/admin/certificate`;
-
 export function openLocalFursCertificateAdmin(): void {
   // The service-hosted page owns the PKCS#12/password fields. Never proxy them
   // through POS state, requests, telemetry, or cloud routes.
-  window.open(LOCAL_FURS_CERTIFICATE_ADMIN_URL, "_blank", "noopener,noreferrer");
+  window.open(`${getFiscalServiceBaseUrl()}/admin/certificate`, "_blank", "noopener,noreferrer");
 }
 
 export async function cacheOfflineSnapshot(key: "unit" | "catalog" | "taxes" | "operator" | "device" | "authorityBundle", value: unknown): Promise<void> {
@@ -556,7 +580,8 @@ export async function getCachedOfflineCapability(): Promise<FiscalCapability | u
 function validateCapability(value: FiscalCapability): string[] {
   const problems: string[] = [];
   if (!["Bookie Local Gateway", "Bookie Fiscal Service"].includes(value.service) ||
-      value.protocolVersion !== "1.0" || value.baseUrl !== FISCAL_SERVICE_BASE_URL) problems.push("različica lokalnega protokola ni podprta");
+      value.protocolVersion !== "1.0" ||
+      normalizeFiscalServiceBaseUrl(value.baseUrl) !== getFiscalServiceBaseUrl()) problems.push("različica lokalnega protokola ni podprta");
   if (!value.ready) problems.push(...(value.readinessProblems?.length ? value.readinessProblems : ["storitev ni pripravljena"]));
   if (value.envelopeFormat !== "furs-v2") problems.push("format FURS ovoja je še začasen");
   if (!value.identity) problems.push("lokalna naprava nima provisionirane identitete");
@@ -566,7 +591,7 @@ function validateCapability(value: FiscalCapability): string[] {
 export async function discoverLocalFiscalCapability(): Promise<FiscalCapability | undefined> {
   if (!isLocalFiscalServiceEnabled()) return undefined;
   try {
-    const response = await fetch(`${FISCAL_SERVICE_BASE_URL}/capabilities`, { cache: "no-store" });
+    const response = await fetch(`${getFiscalServiceBaseUrl()}/capabilities`, { cache: "no-store" });
     if (!response.ok) return undefined;
     const capability = await response.json() as FiscalCapability;
     await cacheOfflineSnapshot("device", capability);
@@ -577,7 +602,7 @@ export async function discoverLocalFiscalCapability(): Promise<FiscalCapability 
 export async function checkLocalFiscalCapability(): Promise<{ capability?: FiscalCapability; reason?: string }> {
   if (!isLocalFiscalServiceEnabled()) return { reason: "Lokalna fiskalna izdaja je izključena." };
   try {
-    const response = await fetch(`${FISCAL_SERVICE_BASE_URL}/capabilities`, { cache: "no-store" });
+    const response = await fetch(`${getFiscalServiceBaseUrl()}/capabilities`, { cache: "no-store" });
     if (!response.ok) return { reason: `Lokalna fiskalna storitev ni dosegljiva (${response.status}).` };
     const capability = await response.json() as FiscalCapability;
     const problems = validateCapability(capability);
