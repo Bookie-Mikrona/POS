@@ -1,12 +1,14 @@
-<!-- pos-packages: lite*6, standard, lite*24, standard, lite*20, standard, lite*71 -->
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c695dd89ad87 package=lite -->
 # 12 Slovar, kontrolni seznami in kratka zgodovina različice
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-99e4d1858853 package=lite -->
 ## 1. Namen
 
 Ta dodatek je skupni sklic izrazov in rednih kontrol.
 Ne ponavlja postopkov za prodajo, plačila, zaloge ali konfiguracijo.
 Za podrobnost uporabite navedeno glavno poglavje.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-370b4f5727ca package=lite -->
 ## 2. Slovar
 
 | Izraz | Pomen | Sklic |
@@ -43,8 +45,10 @@ Za podrobnost uporabite navedeno glavno poglavje.
 | WAC | tehtano povprečje nabavne cene, kadar se uporablja | 07 |
 | Z-poročilo | zaključni pregled prometa po pravilih blagajne | 08 |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1fe7ed7fefa9 package=lite -->
 ## 3. Pred izmeno
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-131d8a1b672a package=lite -->
 ### 3.1 Vsak uporabnik
 
 - Prijavljen je s svojim računom.
@@ -53,6 +57,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Prebere predajo prejšnje izmene.
 - Ne uporablja prijave sodelavca.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-8980add2ef91 package=lite -->
 ### 3.2 Natakar in blagajnik
 
 - Preverita blagajno, poslovni datum in status izmene.
@@ -61,6 +66,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Preverita odprta naročila iz prejšnje predaje.
 - Ne začenjata plačil na napačni blagajni.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e53c84afce40 package=standard -->
 ### 3.3 Kuhinja in bar
 
 - Preverita pravi KDS oziroma točilni pogled.
@@ -68,6 +74,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Preverita dogovorjeno komunikacijo z natakarji.
 - Ne označujeta starih postavk brez preverjanja.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f5974e8164a2 package=lite -->
 ### 3.4 Vodja
 
 - Preveri razpored, enote, blagajne in dostopne naprave.
@@ -75,8 +82,10 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Določi odgovorno osebo za izredne primere.
 - Preveri, da ekipa pozna pot za nejasno kartično plačilo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1a119db562ac package=lite -->
 ## 4. Med izmeno
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-ace96d0784e7 package=lite -->
 ### 4.1 Prodaja in priprava
 
 - Vsako naročilo preverite pred oddajo.
@@ -85,6 +94,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Ne ustvarjajte drugega naročila, če prvo čaka na odgovor.
 - Ne skrivajte napak z brisanjem postavk.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d821aad9a5c7 package=lite -->
 ### 4.2 Plačila in računi
 
 - Pred plačilom preverite naročilo, znesek in plačilni način.
@@ -93,6 +103,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Po izdaji računa preverite dokument v arhivu.
 - Napako FURS obravnavajte po 06 in 11.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-5f6514e51fcf package=lite -->
 ### 4.3 Zaloga in dokumenti
 
 - Dobavo primerjajte s fizičnim blagom.
@@ -100,6 +111,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Ne potrjujte neznanega artikla, pakiranja ali seštevka.
 - Odstopanje evidentirajte po odobrenem postopku.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f23e52a398b1 package=lite -->
 ### 4.4 Varnost
 
 - Naprave ne puščajte odklenjene brez nadzora.
@@ -107,14 +119,17 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Podpori ne pošiljajte skrivnosti in podatkov kartic.
 - Sum nepooblaščenega dostopa takoj prijavite vodji.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-b4eb1d62907c package=lite -->
 ## 5. Po izmeni
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f8356fbd41fc package=lite -->
 ### 5.1 Natakar in priprava
 
 - Predajte odprte mize, nedokončane postavke in dogovore z gosti.
 - Predajte manjkajoče blago, odpade in zamude.
 - Odjavite se s skupne naprave.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-73c2720929fb package=lite -->
 ### 5.2 Blagajnik
 
 - Uskladi gotovino po internem postopku.
@@ -122,12 +137,14 @@ Za podrobnost uporabite navedeno glavno poglavje.
 - Izvede predajo oziroma zaključek izmene.
 - Razliko prijavi; ne izdeluje navideznih popravkov.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f5b6b84d66c5 package=lite -->
 ### 5.3 Vodja
 
 - Pregleda izredne dogodke, odprte dokumente in predaje.
 - Preveri, da so nejasna plačila predana z referencami.
 - Zapiše odstopanja in določi naslednji korak.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-7d67889131fd package=lite -->
 ## 6. Tedenski kontrolni seznam
 
 1. Preglejte odprta naročila, ki presegajo običajno trajanje.
@@ -139,6 +156,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 7. Preglejte odprte zahteve podpori brez pošiljanja skrivnosti.
 8. Potrdite lastnika in rok za vsako nerešeno odstopanje.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-9370d364435e package=lite -->
 ## 7. Mesečni kontrolni seznam
 
 1. Primerjajte aktivne uporabnike s kadrovsko evidenco.
@@ -151,6 +169,7 @@ Za podrobnost uporabite navedeno glavno poglavje.
 8. Preglejte zapise konfiguracijskih sprememb ter potrebne povrnitve.
 9. Potrdite, da so postopki za incidente znani vodjem izmen.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c7e34dbcdf97 package=lite -->
 ## 8. Kratka zgodovina trenutne različice
 
 Različica 8.3 dopolnjuje postopke za povratno embalažo, povezovanje dobropisov,
@@ -167,6 +186,7 @@ To poglavje je omejeno na slovar, redne kontrole in povzetek trenutne strukture.
 Zgodovina ne nadomešča revizijske sledi sistema.
 Za dejanski datum, izvajalca in vsebino spremembe uporabite odobren zapis spremembe oziroma revizijsko sled.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-a51126dafa25 package=lite -->
 ## 9. Kam po podrobnost
 
 | Potreba | Poglavje |
@@ -183,6 +203,7 @@ Za dejanski datum, izvajalca in vsebino spremembe uporabite odobren zapis spreme
 | hitri postopki po vlogah | 10 |
 | težave in izredni primeri | 11 |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e4ecb570a439 package=lite -->
 ## 10. Zaključno pravilo
 
 Pred začetkom preverite kontekst.
@@ -190,6 +211,7 @@ Med delom preverite rezultat vsake pomembne potrditve.
 Po delu predajte odprte zadeve z dejstvi.
 Če je rezultat plačila, računa ali dokumenta nejasen, ga ne ponovite, dokler ne preverite obstoječega zapisa.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f40eac249f03 package=lite -->
 ## 11. Razširjeni slovar in kazalo izrazov
 
 | Izraz | Kratek pomen | Primarni sklic |
@@ -232,6 +254,7 @@ Po delu predajte odprte zadeve z dejstvi.
 | Vloga | dodeljen obseg dovoljenih dejanj uporabnika | 09 |
 | Zasebni ključ | skrivni del digitalnega potrdila; nikoli se ne deli | 06, 09 |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c90608570fec package=lite -->
 ### 11.1 Indeks po opravilu
 
 | Če potrebujete | Pojdite najprej v |
@@ -246,12 +269,14 @@ Po delu predajte odprte zadeve z dejstvi.
 | slediti kratkemu postopku po vlogi | 10 |
 | stabilizirati napako ali incident | 11 |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-22773c15201a package=lite -->
 ## 12. Kontrolni seznami po vlogah
 
 Označite samo dejansko preverjene točke.
 Odstopanje zapišite z lastnikom in naslednjim korakom.
 Če rezultat ni znan, ni »v redu«.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-26f0e22e6422 package=lite -->
 ### 12.1 Natakar – pred izmeno
 
 - [ ] Prijavljen sem s svojim računom.
@@ -262,6 +287,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Poznam pot za alergensko vprašanje.
 - [ ] Ne prevzemam odprtih naročil brez preverjanja.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-fa0d260dc2d5 package=lite -->
 ### 12.2 Natakar – med izmeno
 
 - [ ] Pred oddajo preverim mizo, artikle, količino in opombe.
@@ -272,6 +298,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Nejasno terminalsko plačilo takoj predam.
 - [ ] Gostu ne obljubim rezultata, ki ni preverjen.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-6785c33c389f package=lite -->
 ### 12.3 Natakar – po izmeni
 
 - [ ] Predal sem odprte mize in čakanja gostov.
@@ -280,6 +307,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Odjavil sem se z naprave.
 - [ ] Vodji sem predal opažene napake menija ali KDS.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-74af1ab3579d package=lite -->
 ### 12.4 Blagajnik – pred izmeno
 
 - [ ] Preveril sem blagajno, poslovni datum in stanje izmene.
@@ -288,6 +316,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Preveril sem predajo nejasnih plačil.
 - [ ] Preveril sem odobreno pot za motnjo FURS.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-9304e0c727f1 package=lite -->
 ### 12.5 Blagajnik – med izmeno
 
 - [ ] Pred plačilom preverim naročilo, znesek in način plačila.
@@ -297,6 +326,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Fiskalno opozorilo evidentiram po postopku.
 - [ ] Storno ali popravek izvajam le s pooblastilom.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-60f0475b2d0b package=lite -->
 ### 12.6 Blagajnik – po izmeni
 
 - [ ] Uskladil sem gotovino po internem postopku.
@@ -305,6 +335,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Razliko sem prijavil, ne prikril s popravkom.
 - [ ] Predal sem reference, ne podatkov kartic.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e0dc6ef1075a package=lite -->
 ### 12.7 Kuhinja in bar – pred izmeno
 
 - [ ] Odprt je pravilen KDS oziroma točilni pogled.
@@ -313,6 +344,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Poznam dogovor za alergenske spremembe.
 - [ ] Preveril sem komunikacijski kanal z natakarji.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-8ee76569cfc6 package=lite -->
 ### 12.8 Kuhinja in bar – med izmeno
 
 - [ ] Kartico berem skupaj z opombami in modifikatorji.
@@ -322,6 +354,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Napako ali zamudo neposredno sporočim natakarju.
 - [ ] Ne brišem kartice za prikritje napake.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d129e38adb10 package=lite -->
 ### 12.9 Kuhinja in bar – po izmeni
 
 - [ ] Predal sem čakalne kartice in dejansko stanje priprave.
@@ -329,6 +362,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Označil sem napačne usmeritve ali nejasne artikle.
 - [ ] Zapustil sem pravilen zaslon brez odprte osebne seje.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e90976819aeb package=lite -->
 ### 12.10 Skladiščnik – pred delom
 
 - [ ] Preveril sem enoto, skladišče in dokumentni kontekst.
@@ -336,6 +370,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Poznam odgovorno osebo za potrjevanje.
 - [ ] Preveril sem odprte osnutke in že uvožene dokumente.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c57d2a08cf61 package=lite -->
 ### 12.11 Skladiščnik – med delom
 
 - [ ] Fizično blago primerjam z dokumentom.
@@ -345,6 +380,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Neznane vrstice pustim nepotrjene.
 - [ ] Po potrditvi preverim učinek na zalogo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e3306f3a8590 package=lite -->
 ### 12.12 Skladiščnik – po delu
 
 - [ ] Označil sem osnutke z razlogom in lastnikom.
@@ -352,6 +388,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Preveril sem dokumente, ki čakajo na uskladitev.
 - [ ] Nisem izvažal dokumentov na zasebno napravo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-298a9b013fa1 package=lite -->
 ### 12.13 Vodja izmene – pred izmeno
 
 - [ ] Potrdil sem razpored in pooblastila ekipe.
@@ -360,6 +397,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Preveril sem kritične naprave in nadomestni postopek.
 - [ ] Prebral sem nerešene predaje prejšnje izmene.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-63bef312ffc0 package=lite -->
 ### 12.14 Vodja izmene – med izmeno
 
 - [ ] Odločam na podlagi preverjenih zapisov.
@@ -369,6 +407,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Ne odobrim prikritega brisanja ali navideznih popravkov.
 - [ ] Ob ponovitvi vključim administratorja oziroma podporo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-bf1a16aeef68 package=lite -->
 ### 12.15 Vodja izmene – po izmeni
 
 - [ ] Pregledal sem odprte mize, plačila, dokumente in incidente.
@@ -376,6 +415,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Določil sem roke za odprta odstopanja.
 - [ ] Preveril sem, da so dokazi minimalni in varno shranjeni.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-eb15e3b55cd7 package=lite -->
 ### 12.16 Administrator – redno
 
 - [ ] Dostop temelji na vlogi in potrebi po delu.
@@ -385,8 +425,10 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 - [ ] Testi konfiguracije ne uporabljajo produkcijskih skrivnosti.
 - [ ] Neaktivne uporabnike in naprave obravnavam po postopku.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-fd60423ad4a4 package=lite -->
 ## 13. Časovni koledar kontrol
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-872c049c1e75 package=lite -->
 ### 13.1 Dnevno
 
 1. Preglejte predajo in odprte kritične zadeve.
@@ -396,6 +438,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 5. Preglejte nepotrjene zalogovne osnutke.
 6. Zapišite lastnika vsake nerešene zadeve.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-0817221443bb package=lite -->
 ### 13.2 Tedensko
 
 1. Preglejte razlike gotovine in plačil po internem postopku.
@@ -406,6 +449,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 6. Preglejte spremembe menija, receptur in alergenov.
 7. Preglejte odprte zahtevke podpori in roke.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-b2f7058951ba package=lite -->
 ### 13.3 Mesečno
 
 1. Primerjajte aktivne uporabnike s kadrovsko evidenco.
@@ -416,6 +460,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 6. Preglejte uspešnost usposabljanja in incidente.
 7. Potrdite varno hrambo oziroma izbris izvozov po politiki.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-ecd2163ad248 package=lite -->
 ### 13.4 Letno
 
 1. Obnovite usposabljanje za plačila, FURS, alergene in zasebnost.
@@ -426,8 +471,10 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 6. Preverite inventar naprav in varno ukinitev neuporabljenih.
 7. Posodobite go-live in predajne obrazce po naučenih lekcijah.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-38c8e4226f5f package=lite -->
 ## 14. Učni programi po vlogah
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-cf583f0a311a package=lite -->
 ### 14.1 Skupni uvod za vse
 
 **Cilj.** Uporabnik zna prepoznati kontekst, varovati dostop in varno predati nejasen rezultat.
@@ -442,6 +489,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec pravilno opiše incident brez gesla ali osebnih podatkov.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-4102b752126e package=lite -->
 ### 14.2 Natakar
 
 **Cilj.** Zanesljivo vodi mizo, naročilo, spremembo in predajo pripravi.
@@ -456,6 +504,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec odda testno naročilo s pravilno opombo in prepozna, kdaj ga ne sme oddati drugič.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-62ca9d05c261 package=lite -->
 ### 14.3 Blagajnik
 
 **Cilj.** Pravilno izvede plačilo, izda račun in obravnava nejasen terminalski rezultat.
@@ -470,6 +519,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec v scenariju odobrenega terminala in napake POS ne sproži druge transakcije.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-049fbd97ecbf package=standard -->
 ### 14.4 Kuhinja in bar
 
 **Cilj.** Pravilno bere KDS, vodi stopnje priprave in varno obravnava alergenske spremembe.
@@ -484,6 +534,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec pravilno zadrži dvomljivo kartico in zahteva potrditev.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f7954002ed3e package=lite -->
 ### 14.5 Skladiščnik
 
 **Cilj.** Pregleda dokument, OCR predlog in učinek prejemnice na zalogo.
@@ -498,6 +549,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec zavrne napačno OCR pakiranje ter pripravi popolno predajo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-9bdcefa6be14 package=lite -->
 ### 14.6 Vodja izmene
 
 **Cilj.** Stabilizira operativni incident, določi prioritete in vodi predajo.
@@ -512,6 +564,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec vodi vajo izgube povezave brez podvajanja naročil.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f1e372840952 package=lite -->
 ### 14.7 Administrator
 
 **Cilj.** Upravlja konfiguracijo sledljivo, z najmanjšim potrebnim dostopom in brez prekinitve poslovanja.
@@ -526,6 +579,7 @@ Odstopanje zapišite z lastnikom in naslednjim korakom.
 
 **Praktični dokaz.** Udeleženec izpolni zapis spremembe z načrtom povrnitve.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c365eff13e3d package=lite -->
 ## 15. Preizkusi usposobljenosti
 
 Odgovor ni uspešen samo zato, ker je hiter.
@@ -544,6 +598,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | ERP prenos kaže napako. | Ne ponavljajte na slepo; preverite status paketa in eskalirajte. |
 | Podpora zahteva posnetek. | Pošljite minimalni prikaz in odstranite skrivnosti ter osebne podatke. |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-98f47f1217c9 package=lite -->
 ### 15.1 Ocenjevalni obrazec
 
 | Merilo | Da | Ne | Opomba |
@@ -558,8 +613,10 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 
 Če je odgovor pri plačilu, fiskalnem dokumentu, alergenu ali varnosti negativen, oseba potrebuje ponovitev vaje pred samostojnim delom.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e93daa916519 package=lite -->
 ## 16. Kontrolni seznam za začetek uporabe
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-b01a38bd63ac package=lite -->
 ### 16.1 Poslovni podatki
 
 - [ ] Potrjeni so podjetje, enote, blagajne in poslovni datumi.
@@ -568,6 +625,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 - [ ] Recepture, enote mere in alergeni so pregledani.
 - [ ] Rezervacije, QR in dostava imajo določena pravila.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-4604d5ff00ae package=lite -->
 ### 16.2 Naprave in integracije
 
 - [ ] Vsak terminal ima lastnika, oznako in preverjeno dodelitev.
@@ -577,6 +635,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 - [ ] CTI in dostava sta preverjena brez razkrivanja nepotrebnih podatkov.
 - [ ] POS→ERP prenos ima znanega poslovnega in tehničnega lastnika.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-0ada55a9a4de package=lite -->
 ### 16.3 Varnost in skladnost
 
 - [ ] Uporabniki imajo osebne račune in ustrezne vloge.
@@ -585,6 +644,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 - [ ] Postopek motnje je znan blagajnikom in vodjem.
 - [ ] Izvozi, posnetki in dokumenti imajo določeno varno hrambo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-3b68d66c93c4 package=lite -->
 ### 16.4 Operativni preizkus
 
 - [ ] Izveden je test naročila od mize do KDS.
@@ -595,8 +655,10 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 - [ ] Izveden je test predaje odprte zadeve.
 - [ ] Vodja potrdi, da so odprte točke lastniško dodeljene.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-267e922a949d package=lite -->
 ## 17. Predajni obrazci
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-793ce2c28437 package=lite -->
 ### 17.1 Predaja izmene
 
 | Polje | Vnos |
@@ -613,6 +675,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | Naslednji lastnik in rok | |
 | Potrditev prevzema | |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d5c93805f9b0 package=lite -->
 ### 17.2 Predaja podpori
 
 | Polje | Vnos |
@@ -630,6 +693,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | Kontakt vodje | |
 | Potrdilo: brez gesel, kartic, ključev in žetonov | [ ] |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e46bd9b65051 package=lite -->
 ### 17.3 Predaja konfiguracijske spremembe
 
 | Polje | Vnos |
@@ -644,8 +708,10 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | Lastnik spremljanja | |
 | Revizijska referenca | |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-38ca0d56e261 package=lite -->
 ## 18. Odločitvene matrike
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d269100c3c86 package=lite -->
 ### 18.1 Ali dejanje ponoviti?
 
 | Stanje | Ponovite? | Prvi korak |
@@ -657,6 +723,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | KDS kartica manjka | ne samodejno | preverite naročilo in postajo |
 | dokazano neuspešen ne-kritičen osnutek | po preverjanju | izvedite en ponovni vnos |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-576abd337672 package=lite -->
 ### 18.2 Koga vključiti?
 
 | Dogodek | Prvi lastnik | Dodatno vključite |
@@ -670,6 +737,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | manjkajoč ERP prenos | računovodstvo | administrator |
 | varnostni sum | vodja | skrbnik dostopa |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-7d74b1fa0e5f package=lite -->
 ### 18.3 Stopnja vpliva
 
 | Stopnja | Primer | Odziv |
@@ -679,6 +747,7 @@ Uspešen je, če je varen, preverljiv in v mejah vloge.
 | visoka | plačilo, račun, alergen, velika zalogovna razlika | ustavite prizadeto dejanje in eskalirajte |
 | kritična | varnostni sum, množični izpad, podvojene knjižbe | vodja takoj aktivira incidentni postopek |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-4b1b3ecdf475 package=lite -->
 ## 19. Hranjenje podatkov in varnostni opomniki
 
 Hranite le podatke, ki so potrebni za poslovni dokument, podporo ali zakonsko obveznost.
@@ -704,6 +773,7 @@ Nikoli:
 - ne nameščajte neuradne programske opreme za rešitev tiskanja ali povezave;
 - ne spreminjajte dokazov incidenta, da bi bil prikaz »čistejši«.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-667fe49872d6 package=lite -->
 ## 20. Kratek povzetek različice v8.3
 
 Različica v8.3 je izdelana na podlagi sledljive matrike 67 uporabniških
@@ -724,8 +794,10 @@ sledljivost. Ta zgodovina ne nadomešča revizijske sledi sistema.
 Za dejanski datum, izvajalca in vsebino spremembe uporabite odobren zapis
 spremembe oziroma revizijsko sled.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-67901b0e554a package=lite -->
 ## 21. Referenčne kontrolne kartice
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-f79ac6731650 package=lite -->
 ### 21.1 Kartica: začetek dela na napravi
 
 - [ ] Naprava je fizično nepoškodovana.
@@ -741,6 +813,7 @@ spremembe oziroma revizijsko sled.
 - [ ] Uporabnik ve, komu eskalira.
 - [ ] Uporabnik zaklene napravo ob odhodu.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c04f8d1bb7ea package=lite -->
 ### 21.2 Kartica: preverjanje naročila
 
 - [ ] Prava miza oziroma prodajni kontekst.
@@ -756,6 +829,7 @@ spremembe oziroma revizijsko sled.
 - [ ] Gost je potrdil pomembne spremembe.
 - [ ] Rezultat oddaje je viden.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-a91ae7dedf71 package=lite -->
 ### 21.3 Kartica: preverjanje plačila
 
 - [ ] Naročilo je pravo.
@@ -771,6 +845,7 @@ spremembe oziroma revizijsko sled.
 - [ ] Račun je najden v arhivu.
 - [ ] Gost prejme pravilen izpis oziroma pojasnilo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-a14ce215b75a package=lite -->
 ### 21.4 Kartica: preverjanje računa
 
 - [ ] Račun pripada pravemu naročilu.
@@ -786,6 +861,7 @@ spremembe oziroma revizijsko sled.
 - [ ] Prizadeti dokumenti so označeni.
 - [ ] Vodja dobi nejasne primere.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-de2b60b5ee25 package=standard -->
 ### 21.5 Kartica: preverjanje KDS
 
 - [ ] Odprta je prava postaja.
@@ -801,6 +877,7 @@ spremembe oziroma revizijsko sled.
 - [ ] Dvojnik je preverjen.
 - [ ] Natakar dobi informacijo o zamudi.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-8d381de33ad7 package=lite -->
 ### 21.6 Kartica: preverjanje prejemnice
 
 - [ ] Izvirnik dokumenta je na voljo.
@@ -817,6 +894,7 @@ spremembe oziroma revizijsko sled.
 - [ ] Seštevek je preverjen.
 - [ ] Učinek na zalogo je preverjen.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d0626c71c54f package=lite -->
 ### 21.7 Kartica: preverjanje poročila
 
 - [ ] Ime poročila je zapisano.
@@ -832,8 +910,10 @@ spremembe oziroma revizijsko sled.
 - [ ] Razlika ima lastnika.
 - [ ] Izvoz je shranjen le odobreno.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-8f2674d3dd2f package=lite -->
 ## 22. Register dokazov za podporo
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-45ab10099411 package=lite -->
 ### 22.1 Kaj je koristen dokaz
 
 - natančen čas dogodka;
@@ -853,6 +933,7 @@ spremembe oziroma revizijsko sled.
 - izvedeni varni korak;
 - rezultat preverjanja arhiva.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-228e330a5586 package=lite -->
 ### 22.2 Kaj ni primeren dokaz
 
 - geslo;
@@ -868,6 +949,7 @@ spremembe oziroma revizijsko sled.
 - nepotrebna fotografija prostora;
 - nefiltriran izvoz poročila.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-36b0058b5f9d package=lite -->
 ### 22.3 Kako opisati čas
 
 - navedite datum;
@@ -881,6 +963,7 @@ spremembe oziroma revizijsko sled.
 - navedite zaporedje dejanj;
 - navedite, katera naprava je čas prikazala.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-b40b0d29b84f package=lite -->
 ### 22.4 Kako opisati vpliv
 
 - en gost čaka;
@@ -894,8 +977,10 @@ spremembe oziroma revizijsko sled.
 - ERP prenos čaka;
 - dostop je lahko nepooblaščen.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-06da6864f3e2 package=lite -->
 ## 23. Predloge kratkih obvestil
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-9dfd2f2fb9d2 package=lite -->
 ### 23.1 Obvestilo vodji: nejasno plačilo
 
 »Ob [čas] je pri naročilu [identifikator] za [znesek] terminal pokazal [stanje], POS pa [stanje].
@@ -903,6 +988,7 @@ Drug poskus ni bil izveden.
 Preverjena sta [arhiv/terminal].
 Potrebujem odločitev po postopku neznanega plačila.«
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e0ac84314c6a package=lite -->
 ### 23.2 Obvestilo pripravi: popravek naročila
 
 »Za naročilo [identifikator] velja preverjen popravek: [postavka].
@@ -910,6 +996,7 @@ Prejšnje stanje je [stanje].
 Prosim potrdite, ali je priprava že začeta.
 Če je podatek alergensko pomemben, pripravo zadržite do potrditve.«
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d4634fcf8f15 package=lite -->
 ### 23.3 Obvestilo podpori: tisk
 
 »Ob [čas] račun [identifikator] obstaja v arhivu, ne natisne pa se na [tiskalnik].
@@ -917,6 +1004,7 @@ Preverjeni so papir, napajanje in stanje mostu.
 Nov račun ni bil izdan.
 Vidno sporočilo: [besedilo].«
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-bf9f4b4cbaad package=lite -->
 ### 23.4 Obvestilo podpori: OCR
 
 »Dokument [identifikator] ima OCR neskladje v [polje].
@@ -924,6 +1012,7 @@ Izvirnik kaže [pričakovano], predlog kaže [dejansko].
 Dokument ni potrjen.
 Preverjeni so dobavitelj, datum, številka in duplikat.«
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-01949d36ddc2 package=lite -->
 ### 23.5 Obvestilo ekipi: omejena ponudba
 
 »Artikel [naziv] je začasno omejen od [čas].
@@ -931,11 +1020,13 @@ Ne uporabljajte nadomestnega artikla brez odobritve.
 Za gosta uporabite potrjeno alternativo.
 Vodja bo potrdil ponovno razpoložljivost.«
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-08140b397482 package=lite -->
 ## 24. Potrditve po obnovi
 
 Po vsakem izpadu ali spremembi ne predpostavljajte, da se je stanje samo popravilo.
 Lastnik potrdi obseg in rezultat preverjanja.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c2eb2248cc41 package=lite -->
 ### 24.1 Po obnovi povezave
 
 - [ ] Preverjena je čakalna vrsta.
@@ -947,6 +1038,7 @@ Lastnik potrdi obseg in rezultat preverjanja.
 - [ ] Preverjeni so podvojeni poskusi.
 - [ ] Predaja je posodobljena.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-a22153042a6d package=lite -->
 ### 24.2 Po obnovi tiska
 
 - [ ] Pravi tiskalnik je dosegljiv.
@@ -958,6 +1050,7 @@ Lastnik potrdi obseg in rezultat preverjanja.
 - [ ] Kuhinja ve za morebitne manjkajoče listke.
 - [ ] Test je označen kot test.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-13370cc7cf1d package=lite -->
 ### 24.3 Po obnovi integracije
 
 - [ ] Preverjen je status paketa.
@@ -969,8 +1062,10 @@ Lastnik potrdi obseg in rezultat preverjanja.
 - [ ] Ponovitev ima razlog.
 - [ ] Rezultat je zapisan v revizijsko sled.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-79f64797c563 package=lite -->
 ## 25. Zaključna kontrola dokumentacije
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e379be53d606 package=lite -->
 ### 25.1 Pred začetkom spremembe postopka
 
 - [ ] Določen je poslovni razlog.
@@ -982,6 +1077,7 @@ Lastnik potrdi obseg in rezultat preverjanja.
 - [ ] Določen je načrt povrnitve.
 - [ ] Določena je komunikacija ekipi.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-5eaff08b83bc package=lite -->
 ### 25.2 Po spremembi postopka
 
 - [ ] Postopek je preizkušen.
@@ -993,6 +1089,7 @@ Lastnik potrdi obseg in rezultat preverjanja.
 - [ ] Sprememba je sledljiva.
 - [ ] Zastarelo navodilo ni več v uporabi.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-35b44aaa43b4 package=lite -->
 ### 25.3 Minimalni podatki za pregled incidenta
 
 - [ ] Kaj se je zgodilo.
@@ -1014,6 +1111,7 @@ Dokazi morajo biti zadostni za ponovljivo preverjanje.
 Skrivnosti in nepotrebni osebni podatki nikoli niso dokaz za podporo.
 Po zaključku preverite, da je izboljšava dodeljena ali incident utemeljeno zaprt.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-4243e4a739d6 package=lite -->
 ## 26. Abecedni referenčni slovar
 
 Ta slovar dopolnjuje slovarja v poglavjih 2 in 11.
@@ -1094,6 +1192,7 @@ Sklic označuje poglavje, v katerem se preveri veljavni postopek.
 | Zaključni kriterij | pogoj, brez katerega zadeva ne sme biti označena zaključena | 10 |
 | Zapis spremembe | dokaz kaj, zakaj, kdo, kdaj in s kakšnim rezultatom | 25 |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e1bb87f84134 package=lite -->
 ## 27. Kazalo po temi in cilju
 
 | Tema | Prvo poglavje | Dopolnilni sklic | Kaj preveriti pred uporabo |
@@ -1117,6 +1216,7 @@ Sklic označuje poglavje, v katerem se preveri veljavni postopek.
 | hramba, zasebnost in dokazi | 19 | 34 | zakoniti namen in rok hrambe |
 | sprememba postopka ali dokumentacije | 25 | 35 | lastnika, verzijo in obvestilo |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1f8486e24591 package=lite -->
 ### 27.1 Indeks po vlogi
 
 | Vloga | Primarni delovni sklic | Nujni dopolnilni sklic |
@@ -1130,6 +1230,7 @@ Sklic označuje poglavje, v katerem se preveri veljavni postopek.
 | trener | 14, 15 | 29, 30 |
 | računovodski pregledovalec | 08, 19 | 13, 18, 34 |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2c3ac934aded package=lite -->
 ## 28. Matrika odgovornosti in kontrol
 
 Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznani.
@@ -1155,6 +1256,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 | preverjanje znanja | S | S | S | S | O | I |
 | pregled dokumentacije | S | S | S | S | P | I |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-7df7d293da64 package=lite -->
 ### 28.1 Pravila uporabe matrike
 
 - [ ] Vlogo osebe določite pred začetkom izmene, ne po incidentu.
@@ -1168,8 +1270,10 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Začasni ukrep ima rok ponovne presoje.
 - [ ] Zaključena zadeva ima lastnika dokaza in merilo zaključka.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-933901a4a935 package=lite -->
 ## 29. Razširjeni koledar rednih kontrol
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-3104f0df2950 package=lite -->
 ### 29.1 Dnevne kontrole
 
 - [ ] Vsak uporabnik potrdi osebno prijavo in pravilen delovni kontekst.
@@ -1187,6 +1291,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vodja pregleda dnevne izjeme pred zaključkom odgovorne izmene.
 - [ ] Dokaz: za vsako izjemo obstajata lastnik in naslednji rok.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-5eed10d694e6 package=lite -->
 ### 29.2 Tedenske kontrole
 
 - [ ] Vodja pregleda ponavljajoče se vrste incidentov po enoti.
@@ -1200,6 +1305,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Trener pregleda nova vprašanja iz prakse in posodobi primere.
 - [ ] Dokaz: primeri ne vsebujejo produkcijskih osebnih podatkov.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-9f24ba2cbd39 package=lite -->
 ### 29.3 Mesečne kontrole
 
 - [ ] Vodja potrdi seznam odgovornih oseb za kritične postopke.
@@ -1213,6 +1319,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Trener pregleda zapise usposabljanja in neopravljene ponovitve.
 - [ ] Dokaz: za manjkajoče znanje obstaja rok dopolnilnega usposabljanja.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-862ddf682fe7 package=lite -->
 ### 29.4 Četrtletne kontrole
 
 - [ ] Vodstvo pregleda tveganja po plačilih, zalogi, dostopih in zasebnosti.
@@ -1224,6 +1331,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Trener izvede obnovitveno preverjanje kritičnih scenarijev.
 - [ ] Dokaz: rezultat razlikuje razumevanje od uspešne praktične izvedbe.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2556946acc8b package=lite -->
 ### 29.5 Letne kontrole
 
 - [ ] Vodstvo potrdi lastništvo priročnika in koledar pregledov.
@@ -1235,8 +1343,10 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Trener pregleda učne cilje glede na dejanske incidente leta.
 - [ ] Dokaz: posodobljeni cilji imajo vir spremembe in odobritev.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1b08e79af0da package=lite -->
 ## 30. Učni načrti in učne poti
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-855ee83535d2 package=lite -->
 ### 30.1 Skupna začetna pot
 
 | Enota | Učni cilj | Vaja | Merilo uspeha | Dokaz |
@@ -1247,6 +1357,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 | zasebnost | omeji podatke v zapisu | odstrani nepotrebni osebni podatek | ne deli skrivnosti ali kartičnih podatkov | pregled trenerja |
 | predaja | pripravi odprto zadevo | izpolni predajni obrazec | določi lastnika in rok | obrazec vaje |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c6d94e363a30 package=lite -->
 ### 30.2 Učna pot natakarja
 
 - [ ] Cilj: pred oddajo naročila prepozna gostov kontekst in odprte postavke.
@@ -1259,6 +1370,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vaja: izbere dokaz, ki ga predloži blagajniku ali vodji.
 - [ ] Merilo: ne predlaga ponovitve brez končnega rezultata prvega poskusa.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-287b825ccde0 package=lite -->
 ### 30.3 Učna pot blagajnika
 
 - [ ] Cilj: loči poskus plačila, dokončen rezultat in dokumentiran dokaz.
@@ -1271,6 +1383,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vaja: navede obdobje, enoto, rezultat, izjemo in lastnika.
 - [ ] Merilo: predaja omogoča naslednji osebi ponovljivo preverjanje.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2d2541910d01 package=lite -->
 ### 30.4 Učna pot priprave
 
 - [ ] Cilj: razume, da status priprave opisuje dejansko stanje.
@@ -1283,6 +1396,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vaja: navede čas, postavko, stanje in vpliv na gosta.
 - [ ] Merilo: naslednja oseba lahko nadaljuje brez ugibanja.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-548628b16901 package=lite -->
 ### 30.5 Učna pot skladišča
 
 - [ ] Cilj: loči dokumentarni vir, fizično količino in sistemski predlog.
@@ -1295,6 +1409,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vaja: določi lastnika preveritve pri dobavitelju ali vodji.
 - [ ] Merilo: navede rok in začasni vpliv na razpoložljivost.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-43a93cb96935 package=lite -->
 ### 30.6 Učna pot vodje izmene
 
 - [ ] Cilj: razporedi odgovornost in nadomeščanje pred začetkom dela.
@@ -1307,6 +1422,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vaja: pregleda nepopoln incidentni obrazec.
 - [ ] Merilo: ne zapre zadeve brez merila zaključka.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1128c000a64c package=lite -->
 ### 30.7 Učna pot administratorja
 
 - [ ] Cilj: uporabi načelo najmanjšega obsega dostopa.
@@ -1319,8 +1435,10 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 - [ ] Vaja: anonimizira primer posnetka zaslona.
 - [ ] Merilo: dokaz ohrani bistvo brez skrivnosti in nepotrebnih podatkov.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-772f19ab94a8 package=lite -->
 ## 31. Učni načrti trenerja
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2a4b89b8288f package=lite -->
 ### 31.1 Lekcija: varen delovni kontekst
 
 | Element | Načrt |
@@ -1333,6 +1451,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 | ocena | uspeh pomeni pravilno ustavitev ob nejasnem kontekstu |
 | dokaz | datum, udeleženec, trener, rezultat in potrebna ponovitev |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-858f340732a7 package=lite -->
 ### 31.2 Lekcija: dejstvo, dokaz in predaja
 
 | Element | Načrt |
@@ -1345,6 +1464,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 | ocena | zapis ima vsaj en vir in naslednji čas preverjanja |
 | dokaz | shranjen je le vzorec brez osebnih ali plačilnih podatkov |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-885ca110b154 package=lite -->
 ### 31.3 Lekcija: odločanje ob nejasnem plačilu
 
 | Element | Načrt |
@@ -1357,6 +1477,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 | ocena | izbere pregled obstoječega zapisa ter obvesti pravo vlogo |
 | dokaz | ocenjevalec zabeleži princip, ne številke transakcij |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2abb192aa696 package=lite -->
 ### 31.4 Lekcija: zasebnost v operativnem zapisu
 
 | Element | Načrt |
@@ -1369,6 +1490,7 @@ Legenda: **I** izvede, **P** preveri, **O** odobri oziroma odloči, **S** seznan
 | ocena | ohrani poslovno sledljivost in odstrani presežek |
 | dokaz | rezultat se shrani v učni evidenci, ne v produkcijskem incidentu |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e621ddeac3e6 package=lite -->
 ## 32. Banka praktičnih preverjanj
 
 Pri vsakem primeru ocenjevalec uporablja varne, izmišljene ali anonimizirane podatke.
@@ -1397,6 +1519,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | P-19 | nadomestna oseba nima potrebne pristojnosti | vodja določi varen nadomestni tok, ne obida pravic |
 | P-20 | zadeva se želi zapreti brez potrditve | preveri zaključni kriterij in odpre manjkajočo akcijo |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-eae8d1177932 package=lite -->
 ### 32.1 Ocenjevanje praktičnega dela
 
 - [ ] Kandidat najprej navede, kaj ve in česa ne ve.
@@ -1408,6 +1531,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Kandidat opredeli naslednji čas preveritve.
 - [ ] Ocenjevalec zapiše dokaz doseženega cilja, ne osebne sodbe.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-3d366e4cd3ed package=lite -->
 ## 33. Banka ustnih vprašanj
 
 | Vprašanje | Kaj mora zajeti dober odgovor |
@@ -1428,6 +1552,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | Kaj storite, če navodila niso jasna? | ustavite tvegani korak, zabeležite vprašanje in eskalirate |
 | Kako ločite ponatis od novega dokumenta? | ponatis se nanaša na obstoječi dokument; novega ne ustvarja |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-b245f9a3792f package=lite -->
 ### 33.1 Načela modelnega odgovora
 
 - [ ] Odgovor začne z varnostjo gosta, pravilnostjo evidence in sledljivostjo.
@@ -1438,8 +1563,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Odgovor vsebuje najmanjši potreben podatek za predajo.
 - [ ] Odgovor se sklicuje na poglavje, kadar zahteva podroben postopek.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e0493620b871 package=lite -->
 ## 34. Kontrolni seznami za posebne začetke
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-ed1d7c7759c7 package=lite -->
 ### 34.1 Prvi dan uporabe v enoti
 
 - [ ] Določen je vodja začetka in nadomestna kontaktna oseba.
@@ -1453,6 +1580,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Vodja potrdi, da se kritične nejasnosti ne rešujejo z ugibanjem.
 - [ ] Po začetku se zapišejo le potrjene ugotovitve in ukrepi.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-011e1761fb2e package=lite -->
 ### 34.2 Začasni dogodek
 
 - [ ] Določen je obseg dogodka: enota, čas, ponudba in odgovorne osebe.
@@ -1466,6 +1594,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Začasna navodila imajo lastnika in ne nadomestijo glavnega priročnika.
 - [ ] Zaključek dogodka vključuje predajo, uskladitev in zapis naukov.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-3337dddcd676 package=lite -->
 ### 34.3 Sezonsko ponovno odprtje
 
 - [ ] Vodja pregleda, ali so odgovorne vloge še pravilno določene.
@@ -1479,8 +1608,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Po prvem tednu se izvede kratek pregled ponavljajočih se vprašanj.
 - [ ] Zastarela začasna navodila se umaknejo ali formalno posodobijo.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-e3a11d0076a5 package=lite -->
 ## 35. Obrazci za predajo in incident
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-39d32fb6f8da package=lite -->
 ### 35.1 Obrazec: predaja odgovornosti
 
 | Polje | Vnos |
@@ -1498,6 +1629,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | dokaz ali vir | [vrsta vira in varna referenca] |
 | potrditev prevzema | [datum, čas, vloga] |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-b92c165cba98 package=lite -->
 ### 35.2 Obrazec: prijava incidenta
 
 | Polje | Vnos |
@@ -1515,6 +1647,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | naslednji pregled | [čas in lastnik] |
 | zaključni kriterij | [kaj mora biti preverjeno] |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2797a748d357 package=lite -->
 ### 35.3 Obrazec: odločitev o izjemi
 
 | Polje | Vnos |
@@ -1529,8 +1662,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | potrebna predaja | [komu in kako] |
 | dokaz zaključka | [merilo] |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-d0ddcb73f857 package=lite -->
 ## 36. Dokazi, hramba in zasebnost
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-fd1d878ae96a package=lite -->
 ### 36.1 Pravilo najmanjšega dokaza
 
 - [ ] Najprej določite vprašanje, na katero mora dokaz odgovoriti.
@@ -1544,6 +1679,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Zapišite vir, čas pridobitve in namen uporabe dokaza.
 - [ ] Po poteku odobrene hrambe izvedite varen postopek odstranitve.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1cf1ea375459 package=lite -->
 ### 36.2 Register hrambe
 
 | Vrsta zapisa | Poslovni namen | Minimalna vsebina | Lastnik | Rok hrambe |
@@ -1555,6 +1691,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | uskladitveni zapis | pojasnitev razlike | viri, obdobje, odločitev | blagajnik ali pregledovalec | po internem pravilu |
 | dokaz podpore | rešitev konkretne težave | minimalna varna referenca | lastnik zahtevka | po internem pravilu |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c132c730ca4d package=lite -->
 ### 36.3 Odločanje o zasebnosti
 
 | Vprašanje | Če je odgovor da | Če je odgovor ne |
@@ -1566,8 +1703,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | Ali je rok hrambe znan? | označite lastnika in rok | eskalirajte pred hrambo |
 | Ali je kanal odobren? | pošljite le nujno vsebino | uporabite odobren kanal |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-7edb8e4f4da1 package=lite -->
 ## 37. Odločitvene matrike za vsakodnevno delo
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-bf5673a1ef1a package=lite -->
 ### 37.1 Ali je varno nadaljevati?
 
 | Stanje | Naslednji korak | Ne storite |
@@ -1581,6 +1720,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | sprememba nima povrnitve | dopolnite načrt in odobritev | ne izvajajte spremembe |
 | dokaz je preobsežen | omejite podatke in dostop | ne pošiljajte vsebine na široko |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-341ef9f07e17 package=lite -->
 ### 37.2 Prednostna razvrstitev incidenta
 
 | Vpliv | Časovni pritisk | Odločitev |
@@ -1592,6 +1732,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | vpliv na poročilo brez takojšnje škode | nižji | zapišite razliko, določite rok pregleda |
 | vprašanje brez vpliva in brez tveganja | nižji | usmerite v redni učni ali podporni kanal |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-1228cb2cb800 package=lite -->
 ### 37.3 Kdaj zadevo zaključiti?
 
 - [ ] Zaključite, ko je dosežen vnaprej določen zaključni kriterij.
@@ -1602,8 +1743,10 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Ne zaključite, če začasni ukrep nima datuma pregleda.
 - [ ] Ob zaključku zapišite, kaj je bilo potrjeno in kaj ni bilo v obsegu.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c191d9c9f554 package=lite -->
 ## 38. Vzdrževanje dokumentacije
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-28075e4697e9 package=lite -->
 ### 38.1 Pravila lastništva
 
 - [ ] Vsako poglavje ima imenovanega poslovnega lastnika.
@@ -1615,6 +1758,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Zastarele predloge se odstranijo iz delovnih mest po odobritvi zamenjave.
 - [ ] Kratka zgodovina različice vsebuje le bistvene spremembe.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-2854c542d593 package=lite -->
 ### 38.2 Minimalni zapis spremembe
 
 | Podatek | Zahteva |
@@ -1630,6 +1774,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 | datum veljavnosti | od kdaj se uporablja |
 | naslednji pregled | kdaj se preveri aktualnost |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-0902686525f3 package=lite -->
 ### 38.3 Pregled kakovosti pred objavo
 
 - [ ] Naslovi in sklici vodijo na obstoječa poglavja.
@@ -1642,6 +1787,7 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Zgodovina različice ostane kratka in usmerjena v vpliv uporabnika.
 - [ ] Posodobitev se uskladi z internimi pravili podjetja.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina različic
 
 - **v8.2:** obnovljen celoten referenčni dodatek, dopolnjeni aktualni postopki
@@ -1652,11 +1798,13 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
   uskladitev, kartične izterjave in jasne meje glede internetnih rezervacij,
   spletnih bonov ter Stripe plačil.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-79149e618378 package=lite -->
 ## 40. Kontrolne kartice po organizacijskem modelu
 
 Izberite kartico glede na dejanski model enote.
 Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-7c943aed3102 package=lite -->
 ### 40.1 Majhna enota z več vlogami v eni osebi
 
 - [ ] Vodja pred začetkom pisno določi, katero vlogo oseba opravlja v posameznem času.
@@ -1670,6 +1818,7 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 - [ ] Začasni nadomestni dostop ima enak ali manjši obseg od nujno potrebnega.
 - [ ] Vodja mesečno preveri, ali kombinacija vlog ustvarja ponavljajoče se tveganje.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-ab5ecd8c2ff0 package=lite -->
 ### 40.2 Enota z ločenim blagajnikom in pripravo
 
 - [ ] Natakar spremembo pripravi sporoči z vsebino, časom in vplivom.
@@ -1683,6 +1832,7 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 - [ ] Vodja odloči, ali incident zahteva komunikacijo gostu po internem pravilu.
 - [ ] Zaključek vključuje potrditev, da nobena vloga ne čaka na nejasno odločitev.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-3d77ce130299 package=lite -->
 ### 40.3 Več-enotno poslovanje
 
 - [ ] Vsak zapis vedno navede enoto; skupni opis brez enote ni dovolj.
@@ -1696,6 +1846,7 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 - [ ] Četrtletni pregled primerja ponavljajoče se vrste incidentov med enotami.
 - [ ] Ugotovitve primerjave se pretvorijo v učni cilj ali korektivni ukrep z lastnikom.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-86918d233d6e package=lite -->
 ### 40.4 Sezonska ali občasna enota
 
 - [ ] Pred odprtjem se preveri, ali so lanske predaje in začasne izjeme že zaprte.
@@ -1709,8 +1860,10 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 - [ ] Naslednja sezona ne uporablja starega usposabljanja brez pregleda aktualnosti.
 - [ ] Vodja zapiše nauke, ki imajo jasen vpliv na naslednje odprtje.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-3f97e4b472ba package=lite -->
 ## 41. Podrobna merila za predajo
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-fe01d67c4fd5 package=lite -->
 ### 41.1 Predaja je sprejemljiva, kadar
 
 - [ ] je jasno, katera zadeva je odprta in katera je že zaključena;
@@ -1724,6 +1877,7 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 - [ ] prevzemnik razume, ali lahko sam odloči ali mora eskalirati;
 - [ ] zapis ne vsebuje skrivnosti ali nepotrebnih osebnih podatkov.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c50271a722fe package=lite -->
 ### 41.2 Predajo vrnite v dopolnitev, kadar
 
 - [ ] ni jasno, ali gre za plačilo, naročilo, dokument, zalogo ali dostop;
@@ -1737,6 +1891,7 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 - [ ] zapis vključuje občutljive podatke, ki niso nujni za rešitev;
 - [ ] zaključek zadeve ni ločen od predaje še odprte naloge.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-213efe1048d9 package=lite -->
 ## 42. Register meril kakovosti
 
 | Področje | Merilo | Način pregleda | Ukrep ob odstopanju |
@@ -1752,6 +1907,7 @@ Kartica ne spreminja pristojnosti, določenih v poglavju 28.
 | usposabljanje | cilj in rezultat sta evidentirana | učna evidenca | ponovna vaja |
 | dokumentacija | sklici vodijo na veljavne dele | formalni pregled | popravek pred objavo |
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c1b862acf620 package=lite -->
 ## 43. Zaključno načelo referenčnega dodatka
 
 Ta dodatek pomaga poiskati pravo kontrolo, vlogo in dokaz.
@@ -1761,6 +1917,7 @@ Kadar pristojnost ni jasna, je pravilen naslednji korak eskalacija.
 Kadar je dokaz preobsežen, je pravilen naslednji korak omejitev podatkov.
 Kadar se postopek spremeni, se spremeni tudi usposabljanje, kontrola in lastništvo zapisa.
 
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-ea02c7b405e4 package=lite -->
 ### 43.1 Zadnja vprašanja pred dejanjem
 
 - [ ] Ali vem, za katero enoto, obdobje in vlogo delujem?

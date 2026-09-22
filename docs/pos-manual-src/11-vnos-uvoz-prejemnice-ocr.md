@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*22, extended, lite*3, standard*4, lite*20, extended, lite, standard, extended, standard*4, lite*10, standard, extended*2, lite, extended, lite*4, extended*5, lite*14, extended, lite*2, extended, standard, extended, standard*6, extended*7, lite*7, standard, lite, extended*3, lite, extended, lite*5, extended*5, lite*10, extended, lite*14 -->
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-d38b37b11951 package=lite -->
 # 11 Odpravljanje težav in izredni primeri
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-59495d2a5252 package=lite -->
 ## 1. Varen odziv
 
 Simptom ni dokaz vzroka.
@@ -15,17 +16,21 @@ Zapišite čas, enoto, uporabnika, napravo, številko dokumenta in vidno sporoč
 | zapis manjka v pogledu | lahko je filter ali druga enota | preverite kontekst in iskanje |
 | naprava ne odgovarja | lokalna povezava je lahko prekinjena | ne ustvarjajte nadomestnih dokumentov |
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bd994e8183cc package=lite -->
 ## 2. Brez povezave ali sinhronizacija
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-57f3bfe83f06 package=lite -->
 ### Simptom
 
 POS se ne nalaga, spremembe ostanejo v čakanju, naprava je brez povezave ali podatki med napravami niso enaki.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-8033facd5e62 package=lite -->
 ### Pomen
 
 Lahko gre za lokalno omrežje, prijavno sejo, strežnik ali še nedokončano sinhronizacijo.
 Ni dovoljeno sklepati, da se vnos ni shranil samo zato, ker ga trenutno ne vidite.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-618514689089 package=lite -->
 ### Varen ukrep
 
 1. Ne ponavljajte vnosa ali plačila.
@@ -36,17 +41,21 @@ Ni dovoljeno sklepati, da se vnos ni shranil samo zato, ker ga trenutno ne vidit
 
 Ne čistite predpomnilnika, ne nameščajte programov in ne menjajte enote brez odobritve.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-918b83d49722 package=lite -->
 ## 3. Terminal: neznan rezultat
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-c9b7de8c671e package=lite -->
 ### Simptom
 
 Terminal pokaže odobritev, zavrnitev ali časovno omejitev, POS pa čaka, javi napako ali ne prikaže plačila.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f11a6dda3f67 package=lite -->
 ### Pomen
 
 Plačilo je lahko že odobreno, tudi če POS odgovora ni prejel.
 Drugi poskus lahko gosta bremeni dvakrat.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-69ca08634742 package=lite -->
 ### Varen ukrep
 
 1. Ne zaženite druge transakcije in ne zahtevajte druge kartice.
@@ -59,17 +68,21 @@ Drugi poskus lahko gosta bremeni dvakrat.
 **Nikoli ne plačajte dvakrat zaradi nejasnega rezultata terminala.**
 Podrobni tok plačila in preverjanja računa je v 06.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-0faef2812ce0 package=lite -->
 ## 4. FURS ali potrdilo
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2172257e6be1 package=lite -->
 ### Simptom
 
 Račun pokaže fiskalno napako, manjka EOR, potrdilo je poteklo ali je zavrnjena povezava.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ba4d6d090cdb package=lite -->
 ### Pomen
 
 Vzrok je lahko potrdilo, konfiguracija blagajne, dosegljivost storitve ali poslovni podatek.
 Ne kaže nujno na neizdan račun.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-9b32887d449f package=lite -->
 ### Varen ukrep
 
 1. Preverite številko računa in njegovo stanje v arhivu.
@@ -80,16 +93,20 @@ Ne kaže nujno na neizdan račun.
 
 Potrdila, zasebnega ključa in gesla ne pošiljajte podpori v klepetu ali posnetku zaslona.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1c57255d68d0 package=lite -->
 ## 5. Tiskalni most ali tiskalnik
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bf9271e47290 package=lite -->
 ### Simptom
 
 Račun, kuhinjski listek ali poročilo se ne natisne, čaka ali pride na napačen tiskalnik.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-18942249e9e0 package=lite -->
 ### Pomen
 
 Dokument je lahko veljavno ustvarjen; napaka je lahko v mostu, omrežju, papirju ali usmerjanju.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-06fd694dadeb package=lite -->
 ### Varen ukrep
 
 1. Najprej preverite, ali dokument obstaja v POS-u.
@@ -101,16 +118,20 @@ Dokument je lahko veljavno ustvarjen; napaka je lahko v mostu, omrežju, papirju
 
 Nastavitev mostov je v 09, izdaja računa in tisk pa v 06.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-47a9790362ed package=lite -->
 ## 6. Zastarela enota ali blagajna
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f486a2d55a23 package=lite -->
 ### Simptom
 
 Manjkajo mize, številčenje ni pričakovano, naročilo se ne vidi v pripravi ali je prikazana stara enota oziroma blagajna.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-7d1e3e32ba34 package=lite -->
 ### Pomen
 
 Naprava, uporabnik ali filter lahko uporablja napačen poslovni kontekst.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1a0f52475213 package=lite -->
 ### Varen ukrep
 
 1. Ustavite vnos pred plačilom.
@@ -119,16 +140,20 @@ Naprava, uporabnik ali filter lahko uporablja napačen poslovni kontekst.
 4. Preverite iskanje v pravilni enoti.
 5. Če je enota zaprta ali zastarela, obvestite vodjo oziroma administratorja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-cae5009477b4 package=extended -->
 ## 7. Rezervacija blokira mizo
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-8e72a5f2d7c0 package=lite -->
 ### Simptom
 
 Miza je zasedena ali blokirana, gost pa je ni prevzel oziroma je rezervacija napačna.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-03e134aec4dc package=lite -->
 ### Pomen
 
 Miza je lahko vezana na aktivno rezervacijo, odprto naročilo ali pravilo razporeditve.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ea0bcac7d116 package=lite -->
 ### Varen ukrep
 
 1. Preverite rezervacijo, čas, ime in stanje mize.
@@ -137,16 +162,20 @@ Miza je lahko vezana na aktivno rezervacijo, odprto naročilo ali pravilo razpor
 4. Spremembo rezervacije naj potrdi pooblaščena oseba.
 5. Gostu dodelite drugo mizo le po dogovoru z vodjo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-fbb814376ac3 package=standard -->
 ## 8. KDS, kuhinja ali bar
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ae2849ec2ecc package=standard -->
 ### Simptom
 
 Postavka se ne prikaže, je prikazana dvakrat, ima napačno opombo ali se stanje ne posodobi.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e0f80dbc07b4 package=standard -->
 ### Pomen
 
 Naročilo je lahko neoddano, filtrirano, usmerjeno drugam ali sinhronizirano z zamikom.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e435b9a77078 package=standard -->
 ### Varen ukrep
 
 1. Preverite številko naročila in postavko v POS-u.
@@ -156,17 +185,21 @@ Naročilo je lahko neoddano, filtrirano, usmerjeno drugam ali sinhronizirano z z
 5. Ne označujte postavke pripravljene, če ni pripravljena.
 6. Ob ponavljanju predajte vodji s časom in številko naročila.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a72e15efb72b package=lite -->
 ## 9. Zaloga, prejemnica in OCR
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ad0ebf9c1006 package=lite -->
 ### Simptom
 
 Zaloga je negativna, prejemnica nima smisla, OCR napačno prebere dobavitelja, artikel, količino, ceno ali DDV.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-169e9c894ddc package=lite -->
 ### Pomen
 
 OCR razbere dokument in pripravi predlog; ne potrdi poslovne resničnosti.
 Razlika je lahko v pakiranju, enoti mere, datumu, dvojnem dokumentu ali povezavi artikla.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bcba9aeef14d package=lite -->
 ### Varen ukrep
 
 1. Primerjajte sliko oziroma izvirnik z glavo in postavkami.
@@ -178,16 +211,20 @@ Razlika je lahko v pakiranju, enoti mere, datumu, dvojnem dokumentu ali povezavi
 
 Podrobni vnos in uvoz sta v 07.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a293742848b3 package=lite -->
 ## 10. Napaka dostopa
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-6147a1c67680 package=lite -->
 ### Simptom
 
 Prijava ne uspe, manjka gumb, uporabnik ne vidi enote ali je seja potekla.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-338bd7d01639 package=lite -->
 ### Pomen
 
 Vzrok so lahko napačna prijava, potek seje, vloga, dodelitev enote ali povezava.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f2d0139abfcd package=lite -->
 ### Varen ukrep
 
 1. Uporabite svoj račun in preberite sporočilo.
@@ -196,6 +233,7 @@ Vzrok so lahko napačna prijava, potek seje, vloga, dodelitev enote ali povezava
 4. Ne uporabljajte računa sodelavca in ne ugibajte gesla.
 5. Vodji predajte zahtevo za pravico; administrator preveri profil po 09.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-06acb3f455ba package=lite -->
 ## 11. Podpora brez skrivnosti
 
 Zahtevek naj vsebuje:
@@ -211,12 +249,14 @@ Zahtevek naj vsebuje:
 Ne pošiljajte gesel, PIN-ov, sejnih žetonov, zasebnih ključev, datotek potrdil ali celotnih podatkov kartic.
 Posnetek zaslona pred pošiljanjem preglejte in prikrijte osebne oziroma plačilne podatke.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ca6f236b87fa package=lite -->
 ## 12. Kdaj ustaviti in eskalirati
 
 Takoj eskalirajte sum dvojnega plačila, nejasen fiskalni dokument, sum nepooblaščenega dostopa, izgubo naprave, napačno enoto pri izdanem računu ali ponavljajočo se izgubo sinhronizacije.
 Ne spreminjajte dokazov in ne obljubljajte roka za odpravo, ki ga ne morete potrditi.
 Vodja skrbi za operativno odločitev; administrator za konfiguracijo; podpora za tehnično diagnozo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e92568d5ce6b package=lite -->
 ## 13. Kako brati kartice incidentov
 
 Vsaka kartica spodaj je namenjena prvemu varnemu odzivu.
@@ -238,8 +278,10 @@ Za vsak primer zapišite naslednje podatke:
 
 Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa ali datoteke potrdila.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f3a5369c3422 package=lite -->
 ## 14. Dostop, seja in poslovni kontekst
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-9a692ff56ce7 package=lite -->
 ### 14.1 Prijava se vrne na začetni zaslon
 
 **Simptom.** Po prijavi se zaslon znova odpre za prijavo ali se seja takoj izteče.
@@ -262,6 +304,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Vloga, enota, čas, besedilo napake, vrsta naprave in ali je težava skupna.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ec2d9b8c1387 package=lite -->
 ### 14.2 Manjka gumb ali pogled
 
 **Simptom.** Uporabnik vidi naročila, ne vidi pa plačila, zaloge, poročila ali nastavitve.
@@ -284,6 +327,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Uporabniška vloga, pričakovani pogled, dejanski pogled, enota in čas.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a5664b148b9a package=lite -->
 ### 14.3 Napačna enota, blagajna ali poslovni datum
 
 **Simptom.** Mize, računi, cene ali številčenje niso pričakovani.
@@ -306,6 +350,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Stari in pričakovani kontekst, številka dokumenta ter čas.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-fd944eefbfca package=lite -->
 ### 14.4 Sum zlorabe ali izgubljena naprava
 
 **Simptom.** Vidni so neznani vnosi, neznana prijava ali manjkajoča prijavljena naprava.
@@ -328,8 +373,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Minimalni časovni okvir, naprava, enota, vrsta suma in kontakt vodje.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-da209f1a4202 package=lite -->
 ## 15. Omrežje, realni čas in čakalna vrsta
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-70e2d0f6a45d package=lite -->
 ### 15.1 Sprememba ostane v čakanju
 
 **Simptom.** Ikona sinhronizacije čaka, drug zaslon spremembe ne vidi ali se prikaz ne osveži.
@@ -352,6 +399,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Število čakajočih dejanj, časi, vrsta dejanja in stanje omrežja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-d034c71511b3 package=lite -->
 ### 15.2 Dve napravi kažeta različno stanje
 
 **Simptom.** Natakar vidi naročilo, KDS ali blagajna pa ga ne vidi oziroma vidi drugo stanje.
@@ -374,6 +422,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Obe napravi, zaslona, filtra, čas osvežitve in številka naročila.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1cfd461ce2d6 package=lite -->
 ### 15.3 Aplikacija se vrti ali prikaže prazno stran
 
 **Simptom.** Gumb ostane onemogočen, vrtilnik ne izgine ali seznam nenadoma nima vrstic.
@@ -396,8 +445,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** URL ni potreben; zadostujejo modul, dejanje, čas, identifikator in sporočilo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-259ffb6867d9 package=extended -->
 ## 16. Naročila, mize in rezervacije
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-43418f688575 package=lite -->
 ### 16.1 Naročilo se po oddaji ne prikaže
 
 **Simptom.** Natakar je oddal naročilo, priprava ga ne prejme.
@@ -420,6 +471,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Naročilo, postavke, postaja, časi in prikaz statusa.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bfb68715d079 package=standard -->
 ### 16.2 Miza je nepričakovano zasedena
 
 **Simptom.** Sistem ne dovoli odpreti mize ali pokaže neznano odprto naročilo.
@@ -442,6 +494,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Oznaka mize, naročilo, rezervacija, čas in uporabnik.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e9cdf207cd8e package=extended -->
 ### 16.3 Rezervacija ima napačen čas ali gosta
 
 **Simptom.** Gost ni pričakovan, rezervacija blokira mizo ali podatki ne ustrezajo pogovoru.
@@ -464,8 +517,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Čas, identifikator, stanje mize in neobčutljiv opis neskladja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-0d2ed239ecf5 package=standard -->
 ## 17. KDS, priprava in izdaja
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-53113515a130 package=standard -->
 ### 17.1 KDS kaže podvojeno postavko
 
 **Simptom.** Kuhinja vidi dve enaki postavki ali dve kartici istega naročila.
@@ -488,6 +543,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Naročilo, postavka, količina, časi in postaja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-23d3d1d7a2b4 package=standard -->
 ### 17.2 Napačna opomba ali alergen na KDS
 
 **Simptom.** Priprava prejme drugo opombo, manjka modifikator ali je alergen nejasen.
@@ -510,6 +566,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Naročilo, artikel, prikaza POS/KDS, čas in brez zdravstvenih podrobnosti gosta.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1ce50f673c17 package=standard -->
 ### 17.3 BUMP je bil pritisnjen prezgodaj
 
 **Simptom.** Kartica izgine, jed pa ni pripravljena ali izdana.
@@ -532,8 +589,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Postaja, naročilo, čas, stanje in morebitna napaka zaslona.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-7ed4674c337d package=lite -->
 ## 18. Plačilni terminali in neznana stanja
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-8a132fe29b75 package=lite -->
 ### 18.1 Terminal odobri, POS pa javi napako
 
 **Simptom.** Terminal izpiše odobritev, POS plačila ne pokaže.
@@ -556,6 +615,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Znesek, čas, terminal, referenca in naročilo; nikoli polni podatki kartice.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-df057760403e package=lite -->
 ### 18.2 Terminal zavrne, POS pa kaže plačano
 
 **Simptom.** Potrdilo terminala navaja zavrnitev, naročilo pa je zaključeno.
@@ -578,6 +638,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Račun, znesek, čas, terminal in referenca.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bdcf410086f9 package=lite -->
 ### 18.3 Terminal je nedosegljiv
 
 **Simptom.** POS terminala ne najde, terminal nima signala ali se povezava prekine pred začetkom.
@@ -600,8 +661,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Terminal, enota, čas, ali je bilo plačilo začeto in vidno sporočilo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-39bd95c2d324 package=lite -->
 ## 19. FURS, potrdilo in delo ob motnji
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-dfee66ab92cb package=lite -->
 ### 19.1 Manjka EOR ali fiskalni status
 
 **Simptom.** Račun nima pričakovanega statusa oziroma EOR ali pokaže fiskalno opozorilo.
@@ -624,6 +687,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Račun, čas, enota, blagajna, besedilo in neobčutljiv status.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-525a804fae3a package=lite -->
 ### 19.2 Potrdilo je poteklo ali ni dostopno
 
 **Simptom.** Sistem javlja napako potrdila, preverjanje identitete ali zavrnjeno povezavo.
@@ -646,6 +710,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Samo status, čas, enota in prikazano sporočilo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-65c80e0d39d3 package=lite -->
 ### 19.3 Delo brez internetne povezave
 
 **Simptom.** Povezava do zunanje storitve ni dosegljiva, lokalni POS pa še deluje.
@@ -668,8 +733,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Časovni razpon, enote, število dokumentov in stanje uskladitve.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-80f0fe4807aa package=lite -->
 ## 20. Tisk, tiskalni most in usmerjanje
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-72d118657d54 package=lite -->
 ### 20.1 Račun obstaja, tisk pa manjka
 
 **Simptom.** Račun je v arhivu, fizičnega izpisa ni.
@@ -692,6 +759,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Račun, ciljni tiskalnik, čas, stanje mostu in opis izpisa.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-0d537a48a2ea package=standard -->
 ### 20.2 Kuhinjski listek gre na napačno postajo
 
 **Simptom.** Bar prejme kuhinjsko postavko, kuhinja ne prejme ničesar ali se listek natisne dvakrat.
@@ -714,8 +782,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Artikel, naročilo, obe postaji, most in čas.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-37823913e19b package=extended -->
 ## 21. QR, CTI, telefon in dostava
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-12ea461d61cc package=extended -->
 ### 21.1 QR naročilo se ne pojavi
 
 **Simptom.** Gost odda QR naročilo, osebje ga ne vidi.
@@ -738,6 +808,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Čas, QR/miza, status, naročilo in opis brez podatkov gosta.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-4c185bc37e12 package=lite -->
 ### 21.2 CTI ne prikaže klicatelja
 
 **Simptom.** Ob dohodnem klicu se profil ne odpre ali se odpre napačen profil.
@@ -760,6 +831,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Čas, ponudnik/linija, maskirana številka in opis nepravilnega ujemanja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bc2555914484 package=extended -->
 ### 21.3 Dostava ima nejasen naslov ali status
 
 **Simptom.** Voznik, kuhinja in POS imajo različen status; naslov ni popoln ali je naročilo podvojeno.
@@ -782,8 +854,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Naročilo, čas, status in maskiran opis problema.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2d4400f0a38b package=lite -->
 ## 22. Meni, recepture in alergeni
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-7b9af29c6dff package=lite -->
 ### 22.1 Artikel ni viden ali ima napačno ceno
 
 **Simptom.** Artikel manjka v prodaji, je v napačni kategoriji ali pokaže nepričakovano ceno.
@@ -806,6 +880,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Artikel, enota, pričakovano/dejansko, čas in uporabniška vloga.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2670fe081ba2 package=lite -->
 ### 22.2 Receptura ali zaloga artikla ni logična
 
 **Simptom.** Poraba je previsoka, sestavina manjka ali se zaloga ob prodaji ne spremeni pričakovano.
@@ -828,6 +903,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Artikel, enota mere, obdobje, sprememba in primer dokumenta.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-eba1fc395cf2 package=lite -->
 ### 22.3 Alergenski podatek manjka ali se ne ujema
 
 **Simptom.** Prodajni pogled, predogled ali KDS ne kaže pričakovanega alergena.
@@ -850,8 +926,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Artikel, enota, prikazi in čas; ne zdravstvenih podatkov gosta.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-32084f88cbaf package=extended -->
 ## 23. Zaloga, OCR, uvoz in dogodki
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1fb7a339db4f package=extended -->
 ### 23.1 OCR napačno prebere glavo dokumenta
 
 **Simptom.** Dobavitelj, številka, datum, valuta ali DDV niso pravilni.
@@ -874,6 +952,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Maskiran primer, tip datoteke, čas uvoza in polja z neskladjem.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-3bea6fac2f7b package=extended -->
 ### 23.2 OCR napačno prebere postavko ali pakiranje
 
 **Simptom.** Artikel, EAN, količina, enota mere, nabavna cena ali popust ne ustrezajo dobavi.
@@ -896,6 +975,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Dokument, vrstica, predlog, pričakovano ujemanje in enota mere.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-3873f710f1b4 package=extended -->
 ### 23.3 Uvoz se zdi podvojen
 
 **Simptom.** Ista dobavnica ali prejemnica se pojavi dvakrat oziroma zaloga naraste dvakrat.
@@ -918,6 +998,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Oba identifikatorja, časi, stanja in učinki na zalogo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-92fa6aba87b1 package=extended -->
 ### 23.4 Dogodek ali pripravljena hrana ni usklajena
 
 **Simptom.** Plan, pripravljena količina, poraba ali dejansko stanje za dogodek ne ustrezajo.
@@ -940,8 +1021,10 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Dogodek, obdobje, artikli, količine in stanja dokumentov.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2a1e7b545899 package=lite -->
 ## 24. Poročila in POS→ERP
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-cd22205fc1c8 package=lite -->
 ### 24.1 Poročilo se ne ujema s pričakovanjem
 
 **Simptom.** Promet, DDV, plačila ali količine so drugačni od ročne ocene.
@@ -964,6 +1047,7 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Poročilo, filtri, obdobje, pričakovano/dejansko in vzorčni dokumenti.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-acbc7f08f8e8 package=lite -->
 ### 24.2 POS→ERP prenos manjka ali je podvojen
 
 **Simptom.** Temeljnica, račun ali zalogovni dokument ni v ERP oziroma se pojavi večkrat.
@@ -986,12 +1070,14 @@ Ne vključujte PIN-a, številke kartice, gesla, žetona seje, zasebnega ključa 
 
 **Za podporo.** Paket, obdobje, status, ERP referenca, napaka in brez poverilnic.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-bd6ab7f7bbc5 package=lite -->
 ## 25. Vaje za incidente
 
 Vaje se izvajajo na odobrenem učnem okolju ali z vnaprej določenim nenevarnim scenarijem.
 Ne izvajajte vaje z dejanskim plačilom, dejanskim potrdilom ali brisanjem podatkov.
 Vodja določi opazovalca, časovno omejitev in merilo uspeha.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-86f93c771cf9 package=lite -->
 ### 25.1 Vaja: neznano kartično plačilo
 
 **Scenarij.** Terminal pokaže odobritev, POS pa ostane v čakanju.
@@ -1006,6 +1092,7 @@ Vodja določi opazovalca, časovno omejitev in merilo uspeha.
 
 **Uspeh.** Nihče ne začne druge transakcije in predaja ne vsebuje podatkov kartice.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-5921269eccaa package=lite -->
 ### 25.2 Vaja: izguba povezave med servisom
 
 **Scenarij.** Dve napravi kažeta različno stanje naročila.
@@ -1020,6 +1107,7 @@ Vodja določi opazovalca, časovno omejitev in merilo uspeha.
 
 **Uspeh.** Ni dvojne priprave in vsako odstopanje ima lastnika.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1fb8f6946971 package=lite -->
 ### 25.3 Vaja: fiskalno opozorilo
 
 **Scenarij.** Račun pokaže manjkajoč fiskalni status.
@@ -1034,6 +1122,7 @@ Vodja določi opazovalca, časovno omejitev in merilo uspeha.
 
 **Uspeh.** Računi niso podvojeni, seznam je popoln in skrivnosti niso razkrite.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-c54d260c59b7 package=lite -->
 ### 25.4 Vaja: napačno OCR ujemanje
 
 **Scenarij.** OCR predlaga napačno pakiranje in trikrat višjo količino.
@@ -1048,6 +1137,7 @@ Vodja določi opazovalca, časovno omejitev in merilo uspeha.
 
 **Uspeh.** Ne pride do potrditve na podlagi samega OCR predloga.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-7bac9d4db8cc package=lite -->
 ## 26. Pregled po incidentu
 
 Pregled opravite po stabilizaciji, ne sredi odpravljanja posledic.
@@ -1070,6 +1160,7 @@ Ne vključujte nepotrebnih osebnih ali plačilnih podatkov.
 Posnetke zaslona omejite na nujni del in jih hranite po pravilih podjetja.
 Če vzrok ni potrjen, ga označite kot domnevo in ne kot dejstvo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-57a85adf2682 package=lite -->
 ## 27. Operativna pravila pred posegom
 
 Vsak poseg ima lastnika, čas začetka in določeno mejo, kdaj se ustavi.
@@ -1093,6 +1184,7 @@ Brisanje lokalnih podatkov se ne uporablja kot prva pomoč.
 Nadomestni račun, naročilo ali prejemnica nastane samo po dokazani odsotnosti izvirnika.
 Vodja potrdi vsak ročni obvod, ki vpliva na denar, zalogo ali pripravo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ee35c4b62b42 package=lite -->
 ### 27.1 Minimalni paket eskalacije
 
 Zapišite enoto, blagajno, napravo in prijavljenega uporabnika.
@@ -1108,6 +1200,7 @@ Dodajte številko računa in fiskalni status, kadar gre za izdajo računa.
 Dodajte fotografijo izvirne prejemnice samo skozi odobren kanal.
 Ne pošiljajte celotne baze, izvoza strank ali zasebnega ključa.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-024c8aa3c1c8 package=lite -->
 ## 28. Triage matrika: nujnost in meja ukrepanja
 
 | Razred | Primer | Takoj ustavi | Dovoljen prvi korak | Lastnik |
@@ -1123,6 +1216,7 @@ Ne pošiljajte celotne baze, izvoza strank ali zasebnega ključa.
 | P3 | manjka pogled ali gumb | spremembo pravic | preverjanje vloge/konteksta | administrator |
 | P3 | poročilo odstopa | ročni popravek poročila | preverjanje filtrov | računovodstvo |
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f745bde8abc9 package=lite -->
 ### 28.1 Odločitev »rezultat ni znan«
 
 Rezultat je neznan, kadar zahteva odide, odgovor pa ni zanesljivo prikazan.
@@ -1137,8 +1231,10 @@ Pri OCR je stabilen identifikator uvoz oziroma izvirna datoteka.
 Če po preverjanju ni dokaza, da je izvirnik nastal, odločitev potrdi vodja.
 V zapisnik dodajte, kje ste iskali in v katerem času.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a3d0b1fb599d package=lite -->
 ## 29. Dostop, seja in kontekst: incidentne kartice
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-489876b77da1 package=lite -->
 ### 29.1 Seja se izteče med oddajo
 
 **Dokazi po prednosti:** strežniški zapis naročila, arhiv, nato lokalni prikaz in spomin uporabnika.
@@ -1149,6 +1245,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** deliti prijavno povezavo, uporabljati račun sodelavca ali brisati piškotke na slepo.
 **Po incidentu:** preverite, ali je bila zahteva enkrat sprejeta in ali se je odjava pravilno pokazala.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-b6866f5f46fe package=lite -->
 ### 29.2 Napačna aktivna enota
 
 **Dokazi po prednosti:** prikazan poslovni kontekst, ID enote na zapisu, nato naziv v glavi zaslona.
@@ -1159,6 +1256,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** prepisovati podatke med enotama kot nadomestilo za napačen kontekst.
 **Po incidentu:** vodja preveri privzeto dodelitev uporabnika in naprave.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-5e8225f11616 package=lite -->
 ### 29.3 Napačna blagajna ali naprava
 
 **Dokazi po prednosti:** nastavitev aktivne blagajne, številka računa in naprava, ki je zahtevo poslala.
@@ -1169,6 +1267,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** ročno spreminjati številke računov ali uporabljati drugo blagajno za isti nejasni račun.
 **Po incidentu:** preverite, da lokalno izbrana blagajna ni v sporu z dodelitvijo uporabnika.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-c140e18557a7 package=lite -->
 ### 29.4 Manjka dovoljenje
 
 **Dokazi po prednosti:** strežniški odgovor prepovedano, dodeljena vloga, nato manjkajoči gumb.
@@ -1179,8 +1278,10 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** deliti geslo, trajno dodeliti skrbniških pravic ali obiti potrditev.
 **Po incidentu:** preverite revizijsko sled spremembe pravic.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2694e0c55359 package=lite -->
 ## 30. Realtime, predpomnilnik in čakalne vrste
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-988ae602d4e9 package=extended -->
 ### 30.1 Dogodek v realnem času manjka
 
 **Dokazi po prednosti:** strežniško stanje zapisa, osvežen poizvedbeni pogled, nato indikator povezave.
@@ -1191,6 +1292,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** spreminjati status naročila po spominu ali ročno ustvariti kopijo.
 **Po incidentu:** preverite dostavo naslednjega testnega dogodka v odobrenem okolju.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-0fc20892c204 package=lite -->
 ### 30.2 Lokalna sprememba čaka
 
 **Dokazi po prednosti:** zapis v strežniku po povezavi, status čakalne vrste, nato prikaz gumba.
@@ -1201,6 +1303,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** izklopiti napravo med aktivnim pošiljanjem ali brisati lokalno čakalno vrsto.
 **Po incidentu:** zabeležite, ali je sistem zahtevo izvedel ničkrat ali enkrat.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2317bbae2445 package=lite -->
 ### 30.3 Konflikt dveh naprav
 
 **Dokazi po prednosti:** zadnja strežniška različica, čas sprememb, nato prikaza obeh naprav.
@@ -1211,8 +1314,10 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** izbrati starejši prikaz, ker je videti bolj znan.
 **Po incidentu:** ekipa potrdi, katera različica je bila avtoritativna.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-325c71186712 package=extended -->
 ## 31. Mize, naročila in rezervacije
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-dae3587d6fbc package=standard -->
 ### 31.1 Miza je zasedena brez gosta
 
 **Dokazi po prednosti:** odprto naročilo na mizi, aktivna rezervacija, nato prikaz načrta miz.
@@ -1223,6 +1328,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** brisati naročilo, da bi ikona mize postala prosta.
 **Po incidentu:** preverite samodejno sproščanje potečenih rezervacij in pravilen čas.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f6f0275285db package=extended -->
 ### 31.2 Rezervacija blokira po odhodu gosta
 
 **Dokazi po prednosti:** status in končni čas rezervacije, načrt mize, nato ustno potrdilo osebja.
@@ -1233,6 +1339,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** spreminjati čas rezervacije brez razloga ali ustvariti navideznega gosta.
 **Po incidentu:** preverite, ali je bila ura enote pravilna.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-239401d8a432 package=standard -->
 ### 31.3 Premik naročila med mizami
 
 **Dokazi po prednosti:** izvorna in ciljna miza na strežniškem naročilu, nato prikaz tlorisa.
@@ -1243,8 +1350,10 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** podvojiti postavke na ciljni mizi namesto premika.
 **Po incidentu:** preverite opombe in delitve računa, če obstajajo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-f9f7bb394780 package=standard -->
 ## 32. KDS in priprava
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-23bcd04e9f95 package=standard -->
 ### 32.1 KDS ne prikaže naročila
 
 **Dokazi po prednosti:** strežniški status oddaje, KDS čakalna vrsta, nato natisnjen listek.
@@ -1255,6 +1364,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** BUMP na drugem naročilu, da bi »sprostili« zaslon.
 **Po incidentu:** preverite, da naslednje naročilo prispe brez ročnega posega.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-8271077b1742 package=standard -->
 ### 32.2 KDS pokaže podvojitev
 
 **Dokazi po prednosti:** ID postavke in dogodki oddaje, nato vizualni seznam KDS.
@@ -1265,6 +1375,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** odstraniti dokaz o dvojniku ali tiho prilagoditi zalogo.
 **Po incidentu:** preverite, ali je bil sprožilec ponovni klik ali zakasnjen prikaz.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-af8cd3ffa81b package=standard -->
 ### 32.3 Prezgodnji BUMP
 
 **Dokazi po prednosti:** status postavke v KDS, čas BUMP in zapis priprave.
@@ -1275,6 +1386,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** označiti pripravljeno samo zato, da je zaslon prazen.
 **Po incidentu:** vodja pregleda, ali je bila potrebna ponovna priprava in njen strošek.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-b932c15e86da package=standard -->
 ### 32.4 Alergen ali opomba na KDS ni pravilna
 
 **Dokazi po prednosti:** potrjena postavka naročila, konfiguracija artikla, nato KDS prikaz.
@@ -1285,8 +1397,10 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** predvidevati, da »brez« pomeni enako kot privzeta receptura.
 **Po incidentu:** preverite, ali je sprememba menija potrebna pred nadaljnjo prodajo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-305dd66bc891 package=extended -->
 ## 33. Plačila, ponudniki terminalov in boni
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-789a77bf4085 package=extended -->
 ### 33.1 Odobreno na terminalu, neznano v POS-u
 
 **Dokazi po prednosti:** referenca ponudnika in terminalski izpis, nato evidenca poskusa plačila in račun.
@@ -1297,6 +1411,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** zahtevati PAN, CVV, PIN ali fotografijo kartice.
 **Po incidentu:** gost prejme le potrjeno razlago in po potrebi uradni dokaz ponudnika.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-81cc9d21560d package=extended -->
 ### 33.2 Zavrnjeno na terminalu, plačano v POS-u
 
 **Dokazi po prednosti:** stanje ponudnika, evidence poskusa, nato prikaz POS-a.
@@ -1307,6 +1422,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** stornirati račun zato, da bi prikaz ustrezal terminalu.
 **Po incidentu:** preverite, ali je POS prejel zakasnjen odgovor.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-8b1a7e15b492 package=extended -->
 ### 33.3 Terminal ni dosegljiv
 
 **Dokazi po prednosti:** zdravstveni prikaz ponudnika, lokalna povezava terminala, nato napaka POS-a.
@@ -1317,6 +1433,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** znova zaganjati terminal med transakcijo ali spreminjati konfiguracijo brez skrbnika.
 **Po incidentu:** vodja primerja terminalski dnevni seštevek z evidenco POS.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-af737451a177 package=extended -->
 ### 33.4 Mešano plačilo
 
 **Dokazi po prednosti:** razčlenitev računa, terminalski uspeh za kartični del, nato prikaz skupnega zneska.
@@ -1327,6 +1444,7 @@ V zapisnik dodajte, kje ste iskali in v katerem času.
 **Prepovedano:** zaokrožiti razliko z neoznačeno gotovino ali ustvariti drugi račun.
 **Po incidentu:** preverite, da poročilo po načinu plačila vsebuje vsak del enkrat.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-57ce8e78a1a8 package=extended -->
 ### 33.5 Darilni bon: agregatno stanje
 
 Večnamenski darilni bon se obravnava kot agregat izdaje in unovčitev, ne kot samostojen »popravljen« kupon.
@@ -1340,6 +1458,7 @@ Pri sumu napake najprej preverite izdajo bona, vse zabeležene unovčitve in odp
 **Prepovedano:** popravljati posamezne vrstice mimo agregatne evidence bona.
 **Po incidentu:** računovodstvo potrdi, da ni presežka unovčitev nad evidentirano izdajo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-341c14d0558e package=extended -->
 ### 33.6 Storno računa
 
 Storno se izvaja kot polni storno veljavnega računa, ne kot delno brisanje postavk že izdanega računa.
@@ -1351,8 +1470,10 @@ Storno se izvaja kot polni storno veljavnega računa, ne kot delno brisanje post
 **Prepovedano:** stornirati samo artikle, popust ali napitnino na že izdanem računu.
 **Po incidentu:** preverite poročila, zalogovni učinek in odprta plačila obeh dokumentov.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-92f1ee88679b package=lite -->
 ## 34. FURS, številčenje in offline vrsta
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-6b68eba2cde3 package=lite -->
 ### 34.1 Račun nima potrjenega EOR
 
 **Dokazi po prednosti:** fiskalni status računa, poskus oddaje, nato natisnjeno potrdilo.
@@ -1363,6 +1484,7 @@ Storno se izvaja kot polni storno veljavnega računa, ne kot delno brisanje post
 **Prepovedano:** pošiljati certifikata, zasebnega ključa ali gesla za potrdilo.
 **Po incidentu:** preverite, da je offline vrsta prazna šele po potrjenih odgovorih.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a1b49702de0e package=lite -->
 ### 34.2 Fiskalna vrsta se ne prazni
 
 **Dokazi po prednosti:** seznam čakajočih računov, posamezni statusi poskusov, nato skupni indikator.
@@ -1373,6 +1495,7 @@ Storno se izvaja kot polni storno veljavnega računa, ne kot delno brisanje post
 **Prepovedano:** brisati vrsto, preurejati vrstni red ali menjati poslovni datum.
 **Po incidentu:** naključno preverite EOR za prvi, srednji in zadnji prizadeti račun.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ca1446c2a318 package=lite -->
 ### 34.2A Opozorilni pas za ponovni prenos
 
 Če POS prikaže opozorilni pas za neuspešne FURS prenose, najprej preberite
@@ -1385,6 +1508,7 @@ prizadetih računih in da je offline vrsta prazna. Če del zapisov ostane
 neuspešnih, zabeležite njihove identifikatorje in prikazano napako ter primer
 predajte odgovorni osebi.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e776f6fca1d6 package=lite -->
 ### 34.3 Potrdilo ni veljavno
 
 **Dokazi po prednosti:** sporočilo validacije, datum veljavnosti konfiguracije, nato indikator povezave.
@@ -1395,8 +1519,10 @@ predajte odgovorni osebi.
 **Prepovedano:** pošiljati datoteko potrdila po e-pošti ali zapisati geslo v zahtevek.
 **Po incidentu:** dokumentirajte lastnika in datum naslednjega preverjanja veljavnosti.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-5cee593c1108 package=lite -->
 ## 35. Tiskalni mostovi in fizični izpisi
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ae0b155bdf78 package=lite -->
 ### 35.1 Račun je ustvarjen, izpis manjka
 
 **Dokazi po prednosti:** arhiv računa, status tiskalnega opravila, nato papirni pladenj.
@@ -1407,6 +1533,7 @@ predajte odgovorni osebi.
 **Prepovedano:** ročno sestaviti »račun« na list papirja kot nadomestek uradnega dokumenta.
 **Po incidentu:** preverite papir, napajanje, omrežje in pravilno dodelitev tiskalnika.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-c67086894227 package=standard -->
 ### 35.2 Kuhinjski tisk gre drugam
 
 **Dokazi po prednosti:** usmeritev artikla/postaje, ID tiskalnega opravila, nato fizični listek.
@@ -1417,6 +1544,7 @@ predajte odgovorni osebi.
 **Prepovedano:** spreminjati globalno usmeritev med obratovanjem brez odobritve.
 **Po incidentu:** administrator preveri pravila usmerjanja in testira neprodukcijski primer.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-37fdc4d3441b package=lite -->
 ### 35.3 Most ni aktiven
 
 **Dokazi po prednosti:** stanje mostu na določeni napravi, dosegljivost tiskalnika, nato POS obvestilo.
@@ -1427,8 +1555,10 @@ predajte odgovorni osebi.
 **Prepovedano:** uporabljati skupni račun naprave za dostop do produkcijskih nastavitev.
 **Po incidentu:** preverite ločeno račun, kuhinjo in poročilo, če imajo različne usmeritve.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2efbfc7af3f8 package=extended -->
 ## 36. QR, CTI, telefon in dostava
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-aafa1f1b46be package=extended -->
 ### 36.1 QR naročilo ni vidno v POS-u
 
 **Dokazi po prednosti:** strežniški zapis QR naročila, status oddaje, nato zaslon gosta.
@@ -1439,6 +1569,7 @@ predajte odgovorni osebi.
 **Prepovedano:** zahtevati od gosta ponovno plačilo zaradi neosveženega pogleda.
 **Po incidentu:** preverite, ali je šlo za neuspešno oddajo ali le zamudo prikaza.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-6771471c24e2 package=extended -->
 ### 36.2 QR meni pokaže napačno ceno
 
 **Dokazi po prednosti:** aktivna cena artikla v pravilni enoti, čas veljavnosti, nato predpomnjeni zaslon.
@@ -1449,6 +1580,7 @@ predajte odgovorni osebi.
 **Prepovedano:** ročno dodati neoznačen popust, da bi prikrili razhajanje.
 **Po incidentu:** preverite predpomnjenje na drugi napravi in nastavitev cenika.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-390d32ec2795 package=lite -->
 ### 36.3 CTI ne prepozna klicatelja
 
 **Dokazi po prednosti:** CTI dogodek, čas klica, nato ročni podatek klicatelja.
@@ -1459,6 +1591,7 @@ predajte odgovorni osebi.
 **Prepovedano:** zapisovati celotne osebne podatke v prosto opombo incidenta.
 **Po incidentu:** preverite dovoljenja CTI in ujemanje časovnega pasu.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-acfb2ef50a53 package=extended -->
 ### 36.4 Dostavni naslov je nejasen
 
 **Dokazi po prednosti:** potrjen naslov gosta, zapis naročila, nato opomba dostavljavca.
@@ -1469,8 +1602,10 @@ predajte odgovorni osebi.
 **Prepovedano:** deliti naslov z neudeleženimi osebami ali kopirati ga v javni klepet.
 **Po incidentu:** preverite, ali je bila dostava zadržana, dostavljena ali vrnjena.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-b68db12912e1 package=lite -->
 ## 37. Meni, recepture in alergeni
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-0988c08f3ba9 package=lite -->
 ### 37.1 Artikel manjka na prodajnem zaslonu
 
 **Dokazi po prednosti:** aktivnost artikla za enoto/kanal, kategorija, nato lokalni filter zaslona.
@@ -1481,6 +1616,7 @@ predajte odgovorni osebi.
 **Prepovedano:** spreminjati ceno ali DDV zato, da bi artikel postal viden.
 **Po incidentu:** preverite QR meni, POS in dostavni kanal ločeno.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-255bed8d463c package=lite -->
 ### 37.2 Cena ali DDV ni pravilen
 
 **Dokazi po prednosti:** veljavni cenik in davčna nastavitev, nato predogled naročila in račun.
@@ -1491,6 +1627,7 @@ predajte odgovorni osebi.
 **Prepovedano:** uporabiti polni ali delni storno kot nadomestilo za popravljanje cenika.
 **Po incidentu:** računovodstvo pregleda interval prizadetih računov po pravilih korekcije.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-53eeb9b7052f package=lite -->
 ### 37.3 Receptura porablja napačno zalogo
 
 **Dokazi po prednosti:** receptura, merska enota, potrjena prodaja, nato zalogovni dogodek.
@@ -1501,6 +1638,7 @@ predajte odgovorni osebi.
 **Prepovedano:** spreminjati zgodovinske prodaje ali prepisovati porabe brez revizijske sledi.
 **Po incidentu:** izvedite odobreno inventurno uskladitev z razlogom.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-35aeb6a72411 package=lite -->
 ### 37.4 Alergen v meniju ni potrjen
 
 **Dokazi po prednosti:** potrjena specifikacija dobavitelja/recepture, nastavitev alergena, nato prikaz menija.
@@ -1511,8 +1649,10 @@ predajte odgovorni osebi.
 **Prepovedano:** ugibati po imenu jedi ali obljubiti gostu odsotnost alergena brez dokaza.
 **Po incidentu:** dokumentirajte vir podatka in datum naslednje revizije.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-b02dca4bc7c6 package=extended -->
 ## 38. Prejemnice, OCR, zaloga in dogodki
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-3887b4b291ca package=extended -->
 ### 38.1 OCR napačno prebere dobavitelja ali številko
 
 **Dokazi po prednosti:** izvirni dokument, vidno OCR polje, nato prejšnje evidence dobavitelja.
@@ -1523,6 +1663,7 @@ predajte odgovorni osebi.
 **Prepovedano:** obrezati ali prepisati izvirnik, da bi se OCR »ujemal«.
 **Po incidentu:** označite, ali gre za napako branja ali napačno ujemanje obstoječega partnerja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-1b42ccb76876 package=extended -->
 ### 38.2 OCR napačno prebere pakiranje
 
 **Dokazi po prednosti:** vrstica izvirnika, enota na dobavnici, artikel in pretvorbeni faktor.
@@ -1533,6 +1674,7 @@ predajte odgovorni osebi.
 **Prepovedano:** uporabiti desetkratnik kot »verjeten« popravek brez dokumenta.
 **Po incidentu:** preverite negativne ali nenavadno visoke zaloge prizadete sestavine.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-c34e6adaa1f5 package=extended -->
 ### 38.3 Uvoz je morda podvojen
 
 **Dokazi po prednosti:** identifikator dokumenta, dobavitelj, datum, znesek in obstoječa prejemnica.
@@ -1543,6 +1685,7 @@ predajte odgovorni osebi.
 **Prepovedano:** brisati domnevni dvojnik brez ugotovitve, kateri zapis je knjigovodsko veljaven.
 **Po incidentu:** računovodstvo in skladišče potrdita popravek po odobrenem postopku.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-91d7dc93f2d6 package=extended -->
 ### 38.4 Dogodek porabe ni logičen
 
 **Dokazi po prednosti:** dogodek zaloge, vzročni dokument, receptura in čas prodaje/priprave.
@@ -1553,8 +1696,10 @@ predajte odgovorni osebi.
 **Prepovedano:** združiti več vzrokov v en nepojasnjen odpis.
 **Po incidentu:** preverite razpoložljivost menija, če zaloga določa prodajnost artikla.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-587a88cc5a67 package=lite -->
 ## 39. Poročila in POS→ERP
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-b15a920bffed package=lite -->
 ### 39.1 Poročilo odstopa od dnevnega seštevka
 
 **Dokazi po prednosti:** uporabljeni filtri, poslovni datum, enota/blagajna, nato izvoz vrstic.
@@ -1565,6 +1710,7 @@ predajte odgovorni osebi.
 **Prepovedano:** primerjati različna poslovna datuma kot isti interval.
 **Po incidentu:** vodja shrani uporabljeno definicijo seštevka za revizijo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-fa7ac6040876 package=lite -->
 ### 39.2 POS→ERP prenos manjka
 
 **Dokazi po prednosti:** status prenosa, izvorni POS dokument, nato ERP pogled.
@@ -1575,6 +1721,7 @@ predajte odgovorni osebi.
 **Prepovedano:** ponavljati celoten izvoz samo zato, ker manjka en dokument.
 **Po incidentu:** preverite zaporedne dokumente pred in po manjkajočem primeru.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-609f5a3cd973 package=lite -->
 ### 39.3 POS→ERP prenos je podvojen
 
 **Dokazi po prednosti:** idempotentni ključ/povezava dokumentov, ERP knjižbe, nato skupni zneski.
@@ -1585,8 +1732,10 @@ predajte odgovorni osebi.
 **Prepovedano:** znižati znesek na enem zapisu brez povezane korektivne listine.
 **Po incidentu:** ponovno izračunajte poročilo za prizadeto obdobje.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ae2b925b1380 package=lite -->
 ## 40. Simulacije za vodeno usposabljanje
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-da55b5ae334d package=lite -->
 ### 40.1 Simulacija: seja poteče pri oddaji naročila
 
 **Izhodišče:** natakar odda naročilo, zaslon zahteva novo prijavo.
@@ -1596,6 +1745,7 @@ predajte odgovorni osebi.
 **Razlaga:** potek seje ne pove, ali je strežnik zahtevo že sprejel.
 **Ocena:** kandidat dobi točko le, če navede stop pogoj in vir preverjanja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-05121e25a06b package=lite -->
 ### 40.2 Simulacija: dvojni KDS prikaz
 
 **Izhodišče:** kuhar vidi dve enaki postavki na isti postaji.
@@ -1605,6 +1755,7 @@ predajte odgovorni osebi.
 **Razlaga:** vizualna podobnost ni dokaz, da gre za dve veljavni naročili.
 **Ocena:** kandidat mora navesti uskladitev s servisom in zalogo.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2a99d75a0861 package=lite -->
 ### 40.3 Simulacija: bon in kartica
 
 **Izhodišče:** gost plača del z večnamenskim bonom, kartični del pa ima časovno omejitev.
@@ -1614,6 +1765,7 @@ predajte odgovorni osebi.
 **Razlaga:** bon in terminalski poskus imata ločeni sledi ter ločene stop pogoje.
 **Ocena:** kandidat mora našteti izdajo, gibanja bona in terminalsko referenco.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-c4dfb00ca22e package=lite -->
 ### 40.4 Simulacija: fiskalni izpad
 
 **Izhodišče:** trije računi čakajo na fiskalno potrditev.
@@ -1623,6 +1775,7 @@ predajte odgovorni osebi.
 **Razlaga:** številčenje in pravna sled pripadata izvirnemu dokumentu.
 **Ocena:** kandidat ne sme predlagati pošiljanja certifikata podpori.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-5b776a256cc9 package=lite -->
 ### 40.5 Simulacija: OCR desetkratnik
 
 **Izhodišče:** OCR spremeni 6 paketov po 12 kosov v 720 kosov.
@@ -1632,6 +1785,7 @@ predajte odgovorni osebi.
 **Razlaga:** odpis ne popravi napačne poslovne sledi prejemnice.
 **Ocena:** kandidat mora povedati, kdaj eskalira skladiščniku.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-28022182efa6 package=lite -->
 ## 41. Matrika kakovosti podpore
 
 | Slab odgovor | Zakaj ni dovolj | Kakovosten odgovor |
@@ -1645,6 +1799,7 @@ predajte odgovorni osebi.
 | »Pošljite certifikat.« | razkriva skrivnost | »Pošljite kodo napake, čas in status, ne potrdila ali gesla.« |
 | »V ERP vnesite ročno.« | lahko podvoji knjižbo | »Najprej preverite status prenosa in identifikator dokumenta.« |
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-b3e5abd56a4f package=lite -->
 ### 41.1 Kontrolna vprašanja za dežurnega
 
 Kateri zapis je avtoritativni vir za ta tip incidenta?
@@ -1658,32 +1813,38 @@ Ali uskladitev pokriva tudi fizični svet: kuhinjo, papir, terminal ali zalogo?
 Kdo potrdi, da je incident zaključen?
 Kateri post-incidentni pregled prepreči ponovitev?
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-0852933bcce7 package=lite -->
 ## 42. Končna praktična ocena
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-9ec5c153fb60 package=lite -->
 ### Primer A: natakar vidi vrtenje po plačilu
 
 Pravilni vrstni red je: ustavi ponovitev, zapiši referenco, preveri račun in ponudnika.
 Racionala je, da odobritev terminala lahko obstaja brez odgovora POS-a.
 Nepravilen odgovor je zahteva po drugi kartici pred preverjanjem prvega poskusa.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-88c6a782096f package=lite -->
 ### Primer B: račun je natisnjen, EOR pa manjka
 
 Pravilni vrstni red je: poišči izvirni račun, zapiši fiskalni status, uporabi vrsto.
 Racionala je, da tisk ne dokazuje dokončne fiskalne potrditve.
 Nepravilen odgovor je izdaja novega računa z enakim zneskom.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e27aed131af7 package=lite -->
 ### Primer C: gost zahteva odstranitev ene postavke z že izdanega računa
 
 Pravilni odgovor je: ne delni storno; vodja preveri potrebo po polnem stornu izvirnika.
 Racionala je, da se že izdani račun ne popravlja z brisanjem posamezne vrstice.
 Nepravilen odgovor je sprememba artikla, popusta ali napitnine v obstoječem računu.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-65d3f0d1504a package=extended -->
 ### Primer D: stanje darilnega bona ni pričakovano
 
 Pravilni odgovor je: preveri izdajo in vse unovčitve kot agregat gibanj.
 Racionala je, da posamezna ročna korekcija lahko prikrije presežek unovčitev.
 Nepravilen odgovor je izdaja novega bona ali ročno povečanje salda.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a0e3e8f7e097 package=lite -->
 ### Merilo zaključka
 
 Incident je zaključen šele, ko je rezultat dokazan, ne le ko opozorilo izgine.
@@ -1691,8 +1852,10 @@ Zaključek vsebuje uskladitev prizadetih dokumentov, denarja, priprave ali zalog
 Zaključek vsebuje lastnika odprtega korektivnega ukrepa, če vzrok ni odpravljen.
 Zaključek ne vsebuje skrivnosti, nepotrebnih osebnih podatkov ali domnev kot dejstev.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-e3acc0923cce package=lite -->
 ## 43. Odločitvene kartice za zaključevanje incidentov
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-80765a23e31b package=lite -->
 ### 43.1 Kartica: ali je naročilo res izgubljeno?
 
 Preverite strežniški seznam naročil v pravilni enoti.
@@ -1704,6 +1867,7 @@ Preverite, ali je naročilo vidno samo na KDS ali samo v arhivu.
 Za novo naročilo ponovno potrdite postavke z gostom.
 Po odločitvi preverite, da kuhinja ni prejela obeh različic.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-416146a54783 package=lite -->
 ### 43.2 Kartica: ali je račun veljavno izdan?
 
 Preverite številko računa in status v arhivu.
@@ -1715,6 +1879,7 @@ Obstoječega računa ne zamenjajte z novim zaradi manjkajočega papirja.
 Če je račun storniran, preverite povezavo s celotnim izvirnikom.
 Po zaključku preverite številčenje in poročilo prizadetega obdobja.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-4ccbde667285 package=lite -->
 ### 43.3 Kartica: ali je plačilo dokončno?
 
 Preverite identiteto plačilnega poskusa in njegov namen.
@@ -1726,6 +1891,7 @@ Zavrnjeni poskus ni razlog za ročno označitev kot plačano.
 Pri mešanem plačilu preverite vsak del in skupni seštevek.
 Po zaključku preverite dnevni seštevek ponudnika proti POS evidenci.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-2f3a1ec277b3 package=lite -->
 ### 43.4 Kartica: ali je priprava varna?
 
 Preverite ID postavke, status KDS in aktualno opombo.
@@ -1737,6 +1903,7 @@ Ne BUMP-ajte drugega naročila zaradi praznega zaslona.
 Vodja potrdi ponovno pripravo, kadar je vpliv na alergene ali kakovost.
 Po zaključku sta KDS in servis seznanjena z enim končnim statusom.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a7fe5cf7b75a package=lite -->
 ### 43.5 Kartica: ali je zalogovni popravek upravičen?
 
 Preverite izvirno prejemnico, prodajo ali inventurni zapis.
@@ -1748,6 +1915,7 @@ Vsak popravek potrebuje sledljiv razlog in odgovorno osebo.
 Pri podvojenem uvozu najprej določite veljavni dokument.
 Po zaključku preverite razpoložljivost artikla in porabo recepture.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-8224e62e2fcb package=lite -->
 ### 43.6 Kartica: ali je ERP usklajen?
 
 Preverite izvorni POS dokument in enolični identifikator prenosa.
@@ -1759,6 +1927,7 @@ Računovodstvo potrdi izbrani korektivni dokument.
 Primerjajte znesek, obdobje, konto in enoto med sistemoma.
 Po zaključku ponovno preverite sosednje dokumente v zaporedju.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-6ac702509eb0 package=lite -->
 ## 44. Predaja izmene med odprtim incidentom
 
 Odhajajoči uporabnik preda dejstva, ne razlage brez dokazov.
@@ -1772,6 +1941,7 @@ Računovodstvo prejme le preverjene podatke o fiskalnih ali ERP odstopanjih.
 Osebni podatki se pri predaji omejijo na nujni operativni obseg.
 Predaja se zaključi z naslednjim časom preverjanja in potjo eskalacije.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-235a47de286c package=lite -->
 ## 45. Redni vnos prejemnice brez OCR
 
 OCR ni predpogoj za prejemnico in ni dokaz pravilnosti. Pri ročnem vnosu:
@@ -1791,6 +1961,7 @@ OCR ni predpogoj za prejemnico in ni dokaz pravilnosti. Pri ročnem vnosu:
 ta ročni postopek. Ne predpostavljajte, da obstaja ločen OCR gumb, če ga v vaši
 vlogi in enoti ne vidite.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-a2f5ee90bae8 package=lite -->
 ## 46. Čakalna vrsta offline fiskalizacije
 
 Offline delo je dovoljeno samo na napravi z vnaprej dodeljenim in aktivnim
@@ -1812,6 +1983,7 @@ Napaka ali transportno neznan status ni dovoljenje za novo izdajo računa.
 Pri nejasnem stanju ne brišite čakalne vrste in ne uporabljajte druge blagajne
 kot obvoda.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-227a1ca2e8ef package=lite -->
 ## 47. Kartično plačilo: izterjava neznanega poskusa
 
 Pri neznanem rezultatu najprej poiščite kandidate plačilnega poskusa po
@@ -1829,6 +2001,7 @@ Različni ponudniki imajo lahko različne statuse in časovne omejitve. Navodilo
 Payten, SumUp, Viva ali Tap-to-Pay uporabite samo, če je ta ponudnik dejansko
 vezan na napravo. Viva demo ni dokaz produkcijskega plačila.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-7b82e895ab87 package=lite -->
 ## 48. Vidnost omejitev spletnih funkcij
 
 Javni QR meni omogoča naročanje, klic natakarja in druge opisane QR funkcije,
@@ -1837,6 +2010,7 @@ rezervacije, spletnega nakupa darilnega bona ali Stripe plačila. Če se v podpo
 pojavi zahteva za te funkcije, jo zabeležite kot zahtevo za razvoj oziroma
 integracijo, ne kot incident obstoječega POS-postopka.
 
+<!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ef8d1b709949 package=lite -->
 ## 49. Vir za KPR pri prejetem računu
 
 Po potrditvi prejetega `RACUN` preverite dobavitelja, številko in datum listine,

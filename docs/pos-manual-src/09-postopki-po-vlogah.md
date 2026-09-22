@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*10, extended, lite*10, standard, lite*13, extended*4, lite*3, standard, lite, extended, standard, lite*19, extended*5, lite*39 -->
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-42b3ccb656c5 package=lite -->
 # 09 Nastavitve, naprave, uporabniki in varnost
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d362a39a2a64 package=lite -->
 ## 1. Namen in meja tega poglavja
 
 To je sklic za skrbnike, ne navodilo za vsakodnevno strežbo.
@@ -12,6 +13,7 @@ Nastavitve vedno spreminjajte v pravilnem podjetju in enoti.
 Pred shranitvijo preberite obseg spremembe in po shranitvi preverite rezultat.
 Ne uporabljajte skupnih uporabniških računov.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-ddfd67304389 package=lite -->
 ## 2. Profili in zmožnosti
 
 Profil določa, kaj uporabnik sme videti in narediti.
@@ -32,8 +34,10 @@ Ista oseba ima lahko več profilov, če je to odobreno.
 Administrator ne sme samovoljno dodeliti višjih pravic sebi ali drugi osebi.
 Za občutljive pravice velja interni postopek odobritve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-4817760c8418 package=lite -->
 ## 3. Uporabniki in dostop
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e1f0000e4ea5 package=lite -->
 ### 3.1 Ustvarjanje uporabnika
 
 1. Preverite identiteto osebe in potrebo po dostopu.
@@ -46,6 +50,7 @@ Za občutljive pravice velja interni postopek odobritve.
 Gesla, potrditvenih kod in sejnih povezav ne pošiljajte v skupinski klepet.
 Ne vpisujte jih v komentarje, posnetke zaslona ali zahteve podpori.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f264de757ef1 package=lite -->
 ### 3.2 Sprememba in ukinitev
 
 Ob menjavi dela najprej pregledajte aktivne vloge in naprave.
@@ -54,6 +59,7 @@ Ob odhodu dostop ukinite takoj, ne ob naslednjem mesečnem pregledu.
 Ne brišite zgodovinskih zapisov, naročil ali revizijske sledi uporabnika.
 Če je uporabnik zaklenjen, preverite razlog; ne ustvarjajte dvojnega računa.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-9164cc1f5fd1 package=lite -->
 ### 3.3 Redni pregled
 
 Enkrat mesečno primerjajte aktivne uporabnike s kadrovsko evidenco.
@@ -61,6 +67,7 @@ Preglejte administratorske, blagajniške in zalogovne pravice posebej.
 Preverite uporabnike brez aktivnosti in račune nekdanjih sodelavcev.
 Odstopanje dokumentirajte ter ga odpravi pooblaščeni skrbnik.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-7ad28d5961ed package=lite -->
 ## 4. Enote, blagajne in terminali
 
 Enota je poslovni kontekst prodaje.
@@ -80,6 +87,7 @@ Blagajne ali enote ne menjajte sredi plačilnega postopka.
 Ne ustvarjajte nadomestne blagajne zato, ker obstoječe ne vidite.
 Če je enota zastarela ali ni več aktivna, ustavite prodajo na njej in obvestite skrbnika.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-1651582da1ab package=lite -->
 ## 5. Tiskalni mostovi in tiskalniki
 
 Tiskalni most povezuje POS z lokalnim tiskalnikom.
@@ -102,6 +110,7 @@ Najprej zabeležite trenutno stanje, nato spremenite eno plast in preskusite.
 Če tisk ne uspe, najprej preverite, ali je dokument že izdan; ponatis ni nova izdaja.
 Podrobni postopki tiskanja so v poglavju 06, izredni primeri pa v 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-72b835b1166e package=lite -->
 ## 6. FURS in digitalno potrdilo
 
 Fiskalna konfiguracija je občutljiva nastavitev.
@@ -120,6 +129,7 @@ Pred potekom potrdila načrtujte obnovo.
 Ob napaki ne menjajte potrdila na pamet in ne izdajajte podvojenega računa.
 Račun, EOR in napake preverjajte po postopku iz poglavja 06.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-a914cc6ce1b7 package=extended -->
 ## 7. QR, CTI in druge integracije
 
 QR meni, CTI/telefon, ERP, terminal in dostava so ločeni integracijski tokovi.
@@ -137,6 +147,7 @@ Za vsakega določite lastnika, enoto, namen, način preverjanja in stik za eskal
 V navodilih, izvozih in zahtevkih uporabljajte oznake, ne skrivnosti.
 Po spremembi preverite en reprezentativen, neobčutljiv primer.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f02ac68c4a35 package=lite -->
 ## 8. Varen vrstni red konfiguracije
 
 Konfiguracijo izvajajte izven največje gneče.
@@ -155,6 +166,7 @@ Konfiguracijo izvajajte izven največje gneče.
 
 Pri cenah, davkih, fiskalizaciji, plačilih in kontiranju naj spremembo pregleda druga pooblaščena oseba, kadar to določa interni pravilnik.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-9a08c0f6befa package=lite -->
 ## 9. Prepovedani bližnjici
 
 Ne delite prijave.
@@ -166,6 +178,7 @@ Ne spreminjajte FURS podatkov med odprtim prodajnim tokom.
 Ne nameščajte neznanih programov na napravo tiskalnega mostu.
 Ne pošiljajte baz, celotnih izvozov ali potrdil podpori brez odobritve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-14bf06727fe5 package=lite -->
 ## 10. Predaja skrbniku ali podpori
 
 V zahtevek vključite datum in čas, podjetje/enoto, uporabniško vlogo, napravo, dejanje, vidno sporočilo in številko dokumenta, kadar obstaja.
@@ -173,6 +186,7 @@ Dodajte, ali je bil rezultat preverjen v arhivu oziroma na terminalu.
 Ne dodajajte gesel, PIN-ov, zasebnih ključev, celotnih številk kartic ali sejnih žetonov.
 Pri incidentu najprej zaščitite delo gostov in revizijsko sled, nato zbirajte podatke.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-26677a9796f0 package=lite -->
 ## 11. Sklici
 
 Za dostop glejte 01.
@@ -183,6 +197,7 @@ Za zaloge in dokumente glejte 07.
 Za konec izmene, poročila in POS→ERP glejte 08.
 Za simptome in varne ukrepe glejte 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-4173684e4a33 package=lite -->
 ## 12. Varen vrstni red konfiguracije
 
 Konfiguracija je nadzorovana sprememba, ne zbir naključnih stikal.
@@ -216,6 +231,7 @@ Po shranitvi nastavitev znova odprite in preverite.
 Ne klikajte shranjevanja večkrat.
 Ne urejajte iste nastavitve v dveh brskalnikih.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-a6badbc79332 package=lite -->
 ## 13. Organizacijski objekti
 
 Podjetje je pravna meja podatkov.
@@ -225,6 +241,7 @@ Register je identiteta prodajnega mesta.
 Naprava je fizični odjemalec ali periferija.
 Miza je točka strežbe in ni blagajna.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-848a236fbdef package=lite -->
 ### 13.1 Podjetje
 
 - Preverite uradno ime podjetja.
@@ -243,6 +260,7 @@ Zgodovinskih podjetij ne brišite zaradi krajšega seznama.
 Po spremembi pravnih podatkov preverite vzorčni dokument.
 Neaktivnost nastavite šele po zaključku obveznosti.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-bc0ff46cca9d package=lite -->
 ### 13.2 Enota
 
 - Uporabite nedvoumno ime enote.
@@ -263,6 +281,7 @@ Pred deaktivacijo preverite odprta naročila.
 Pred deaktivacijo preverite nedokončana plačila.
 Ne uporabite enote kot nadomestek za posameznega natakarja.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-829d70eca196 package=lite -->
 ### 13.3 Poslovni prostor
 
 - Potrdite identifikator prostora.
@@ -280,6 +299,7 @@ Ne uporabite identifikatorja zaprte lokacije za novo lokacijo.
 Ne predpostavljajte, da sprememba naslova velja v vseh povezavah.
 Če je fiskalna posledica nejasna, ustavite prodajo in eskalirajte.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d063742e1d8a package=lite -->
 ### 13.4 Register in blagajna
 
 - Izberite pripadajoče podjetje.
@@ -298,6 +318,7 @@ Pri zamenjavi tablice ohranite register, če prodajno mesto ostaja isto.
 Ne ustvarite novega registra za obvoz napake.
 Za odprtje in zaključek izmene glejte 02 in 08.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-91b4b0a6e8bd package=standard -->
 ### 13.5 Mize in območja
 
 - Ime območja naj opisuje fizični prostor.
@@ -315,8 +336,10 @@ Za naročila in mize glejte 03.
 Za meni glejte 04.
 Za pripravljalne oznake glejte 05.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e79b4ff3e3c8 package=lite -->
 ## 14. Uporabniki, vloge in dostop
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d2c21f7b01bb package=lite -->
 ### 14.1 Najmanjše pravice
 
 | Zmožnost | Običajni nosilec | Preverjanje |
@@ -336,6 +359,7 @@ Pravica za ponatis ni pravica za novo izdajo računa.
 Pravica za terminal ni pravica za ponovni bremenitveni poskus.
 Pravica za zalogo ni pravica za fiskalne nastavitve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-71b1a1bb5a49 package=lite -->
 ### 14.2 Dodelitev
 
 1. Prejmite zahtevo z razlogom in odobritvijo.
@@ -356,6 +380,7 @@ Začasnemu dostopu določite datum ukinitve.
 Ob odhodu osebe dostop ukinite takoj.
 Zgodovinskih zapisov uporabnika ne brišite.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-8e5cae4e6da3 package=lite -->
 ### 14.3 Redni pregledi
 
 Tedensko preglejte nove administratorje.
@@ -368,6 +393,7 @@ Mesečno preglejte dostop nekdanjih sodelavcev.
 Vsako odstopanje dobi lastnika in rok odprave.
 Dokaz pregleda hranite po pravilniku.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-966ea2e12405 package=lite -->
 ## 15. Tiskalniki, ZCS, NB80, NYX in Bluetooth
 
 Za vsak izhod določite primarno in odobreno rezervno pot.
@@ -385,6 +411,7 @@ Poročilni tisk ne sme ovirati priprave.
 | Pizza | pizza postaja | vodja kuhinje |
 | Poročilo | pisarniška pot | manager |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-9d4ddb5391b3 package=lite -->
 ### 15.1 Skupna priprava
 
 - Napravo postavite na suho stabilno mesto.
@@ -398,6 +425,7 @@ Poročilni tisk ne sme ovirati priprave.
 - Ne nameščajte neodobrenih programov.
 - Ne uporabite zasebnega računa zaposlenega za most.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-09d8ce92f973 package=lite -->
 ### 15.2 ZCS
 
 ZCS uporabljajte na evidentirani podprti napravi.
@@ -410,6 +438,7 @@ Ne pošiljajte serije preskusov v živo kuhinjo.
 Ob nedosegljivosti zberite ime naprave, čas in status.
 Ne spreminjajte vseh tiskalnikov hkrati.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-2e4a5d0807ae package=lite -->
 ### 15.3 NB80 in NYX
 
 NB80 označite z območjem uporabe.
@@ -423,6 +452,7 @@ Preskusite iz POS-a, ne le iz operacijskega sistema.
 Preverite, da izpis ni podvojen drugje.
 Po menjavi naprave posodobite evidenco sredstev.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-b234325de823 package=lite -->
 ### 15.4 Bluetooth mostovi
 
 Bluetooth uporabite le, kadar je to odobrena rešitev.
@@ -435,6 +465,7 @@ Most fizično zaščitite pred dostopom gostov.
 Zapišite identifikator mostu po internem pravilu.
 Pri nestabilnosti uporabite odobreno rezervno pot.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6b134e3491ff package=lite -->
 ### 15.5 Preskus tiskanja
 
 1. Izberite preskus brez gostove obveznosti.
@@ -446,6 +477,7 @@ Pri nestabilnosti uporabite odobreno rezervno pot.
 7. Preverite neprizadetost drugih izhodov.
 8. Zapišite rezultat in obvestite lastnika.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e126db1a897f package=lite -->
 ## 16. Terminali in ponudniki
 
 POS vodi račun in stanje plačila.
@@ -454,6 +486,7 @@ Ponudnik vrne rezultat in referenco.
 En sam zaslon ni dovoljšen dokaz uspeha.
 Pri neskladju ne ponavljajte bremenitve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-62d091d9bc34 package=lite -->
 ### 16.1 Pred seznanjanjem
 
 - Potrdite ponudnika terminala.
@@ -467,6 +500,7 @@ Pri neskladju ne ponavljajte bremenitve.
 - Pripravite odobren preskus.
 - Obvestite blagajnika o posegu.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-3ddca9d1ee65 package=lite -->
 ### 16.2 Seznanjanje in menjava
 
 1. Odprite nastavitve pravega registra.
@@ -486,8 +520,10 @@ Ne ustvarite novega računa za prikritje nejasnega plačila.
 Za plačilni postopek glejte 06.
 Za incident glejte 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6977730afbde package=extended -->
 ## 17. FURS, QR, CTI, ERP in BizBox
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-0e130c8c4465 package=extended -->
 ### 17.1 FURS
 
 FURS potrdilo je občutljiv poslovni element.
@@ -501,6 +537,7 @@ Spremljajte rok veljavnosti.
 Ob sumu kompromitacije takoj eskalirajte.
 Fiskalne napake rešujte po postopku iz 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-a9185b6f5def package=extended -->
 ### 17.2 QR in CTI
 
 QR koda mora voditi na pravilno javno vsebino.
@@ -520,6 +557,7 @@ Ne zapisujte podatkov kartice v opombo klica.
 Preverite, v katero enoto nastane telefonsko naročilo.
 Preverite ročni postopek ob izpadu telefonije.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6d7eb9563d06 package=extended -->
 ### 17.3 ERP in BizBox
 
 Določite vir resnice za vsak podatek.
@@ -533,6 +571,7 @@ Po spremembi izvedite kontrolni prenos.
 Preverite, da se dokument ni prenesel dvakrat.
 Za zaključni prenos in poročila glejte 08.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-7d30b72d5e43 package=lite -->
 ## 18. Seje, predpomnilnik, varnost in revizija
 
 Seja pripada uporabniku, ne napravi.
@@ -558,6 +597,7 @@ Ob administrativni spremembi zapišite poslovni razlog.
 Ne spreminjajte časa naprave za prilagoditev zapisa.
 Vpogled v revizijo omejite na pooblaščene osebe.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-045f2e9c9a8b package=lite -->
 ## 19. Kopije, zdravje in vrnitev
 
 Varnostna kopija ni isto kot izvoz poročila.
@@ -584,6 +624,7 @@ Preskusite kritični tok v pravilni enoti.
 Zapišite razlog, čas in izvajalca vrnitve.
 Za incident uporabite poglavje 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-dc8e58ddb443 package=lite -->
 ## 20. Katalog zaslonov, polj in stanj
 
 Ta katalog opisuje vidne sklope trenutnih nastavitev.
@@ -593,6 +634,7 @@ Pred urejanjem vedno preverite izbrano enoto.
 Če polja ne vidite, ne iščite obvoda z drugim računom.
 Za dostop in vloge je avtoritativno poglavje 01.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-cad506feb355 package=standard -->
 ### 20.1 Zavihek Mize
 
 Zavihek vsebuje upravljanje prostorov in miz.
@@ -613,6 +655,7 @@ Stanje odprte mize zahteva predajo, ne brisanja.
 Stanje nevidne mize zahteva preverjanje filtra in enote.
 Stanje napačnega prostora zahteva varen prenos po 03.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-2d47a8738d58 package=lite -->
 ### 20.2 Zavihek Natakarji
 
 Zavihek služi operativni dodelitvi natakarjev.
@@ -626,6 +669,7 @@ Preverite vidnost dovoljenega območja.
 Preverite, da ni vidna nedovoljena enota.
 Za življenjski cikel dostopa glejte 01 in 14.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-59f52bf03f27 package=extended -->
 ### 20.3 Zavihek Dostava
 
 Zavihek določa operativne nastavitve dostavnega toka.
@@ -639,6 +683,7 @@ Po spremembi izvedite neprodukcijski scenarij.
 Za telefonsko naročilo glejte 05.
 Za račun in plačilo dostave glejte 06.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e95e125b927e package=standard -->
 ### 20.4 Zavihek KDS
 
 KDS je pripravljalni prikaz, ne dokaz plačila.
@@ -652,6 +697,7 @@ Preverite, katera postaja označi pripravljeno.
 Ne uporabite KDS profila kot rešitev za napačen artikel.
 Za tok priprave glejte 05.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e308c98f0371 package=lite -->
 ### 20.5 Zavihek Enote
 
 Zavihek Enote je namenjen upravljanju operativnih lokacij.
@@ -665,6 +711,7 @@ Preverite KDS in tiskalne poti.
 Preverite terminale, kadar se uporabljajo.
 Ne deaktivirajte enote z odprtim delom.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-fc73cff4571d package=lite -->
 ### 20.6 Zavihek Knjiženje
 
 Zavihek Knjiženje je namenjen administrativni vlogi.
@@ -678,6 +725,7 @@ Za praktični postopek računovodje glejte **DEL X: Hitri postopki po vlogah**, 
 Spremembo dokumentirajte z razlogom in odobritvijo.
 Po spremembi izvedite omejen kontrolni prenos.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-a04d292101f5 package=lite -->
 ### 20.7 Zavihek Nastavitve
 
 Zavihek združuje splošne in napravam povezane nastavitve.
@@ -691,6 +739,7 @@ Po napaki znova odprite kartico in preverite dejansko stanje.
 Za varno zaporedje glejte 12.
 Za vrnitev glejte 19.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f63151294a44 package=lite -->
 ### 20.8 Zavihek Varnostne kopije
 
 Zavihek je viden samo superadministratorju.
@@ -704,6 +753,7 @@ Ne prenašajte kopij na osebne naprave.
 Ne pošiljajte kopije podpori brez odobritve.
 Za načela kopij glejte 19.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e94b35d30fc6 package=lite -->
 ### 20.9 Moj profil
 
 Moj profil služi uporabniku, ne skupini.
@@ -716,6 +766,7 @@ Kopiranje gesla v odložišče obravnavajte kot občutljivo dejanje.
 Po uporabi občutljiv podatek odstranite iz odložišča, kjer je mogoče.
 Ne posredujte zaslona profila z osebnimi podatki.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-51c53c1f4420 package=lite -->
 ### 20.10 Glasovni ukazi
 
 Glasovni ukazi so pomoč pri vnosu, ne samostojna potrditev.
@@ -728,8 +779,10 @@ Ne spreminjajte sinonimov sredi hrupnega servisa.
 Če prepoznava ni zanesljiva, uporabite običajni vnos.
 Za naročila glejte 03.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-0b53d27e79d8 package=lite -->
 ## 21. Polja naprav in njihovi pomeni
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-ee80fe1d4d96 package=lite -->
 ### 21.1 Identiteta naprave
 
 Ime naprave omogoča prepoznavo v seznamu.
@@ -748,6 +801,7 @@ Ne uporabljajte istega imena za dve napravi.
 Ne spreminjajte identitete zato, da prikrijete napako.
 Po fizični menjavi posodobite evidenco in preskus.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6f1d3e28f745 package=lite -->
 ### 21.2 Širina tiskalnika
 
 Nastavitev širine vpliva na izbrano pot tiskanja.
@@ -761,6 +815,7 @@ Za mostno napravo se ne preklopi tiho na Bluetooth seznam.
 Pred spremembo širine zapišite prejšnjo vrednost.
 Po spremembi preverite dejanski izpis, ne le obvestilo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-c7f6d855400b package=lite -->
 ### 21.3 Kodna stran in znaki
 
 Kodna stran določa, kako tiskalnik prejme znake.
@@ -774,6 +829,7 @@ Ne spreminjajte kodne strani zaradi enega nepreverjenega simptoma.
 Preskus vključuje šumnike, številke in običajne postavke.
 Če je izpis nečitljiv, ohranite dokaz in eskalirajte po 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-66a1ec38f7bc package=lite -->
 ### 21.4 Ime tiskalnika agenta
 
 Ime tiskalnika agenta mora ustrezati lokalno nameščenemu cilju.
@@ -785,6 +841,7 @@ Po shranitvi preverite, da agent vidi isti cilj.
 Po preskusu preverite, da se naloga ne tiska drugje.
 Če ime ni dosegljivo, ne ustvarite nadomestne blagajne.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-0572085671ed package=lite -->
 ## 22. Diagnostične matrike naprav
 
 | Simptom | Najprej preverite | Ne naredite | Naslednji korak |
@@ -797,6 +854,7 @@ Po preskusu preverite, da se naloga ne tiska drugje.
 | Dvojni izpis | poti in most | novega naročila | ustavite konfiguracijo |
 | Počasna vrsta | napajanje in povezavo | serije ponovitev | eskalacija 11 |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-97c71eabb3b5 package=lite -->
 ### 22.1 ZCS diagnostika
 
 Ali je ZCS most dosegljiv?
@@ -810,6 +868,7 @@ Ali je tisk uspel po ponovnem poskusu?
 Če da, dokumentirajte kratko nedosegljivost.
 Če ne, zberite status, čas in napravo za 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-5b86121e93f9 package=lite -->
 ### 22.2 NB80 diagnostika
 
 Ali je NB80 most dosegljiv?
@@ -823,6 +882,7 @@ Ali se naloga kopiči?
 Če da, ne pošiljajte novih preskusnih serij.
 Zberite stanje mostu in eskalirajte.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-46f8fe2a92c6 package=lite -->
 ### 22.3 NYX diagnostika
 
 Preverite, ali je NYX evidentiran na pravi lokaciji.
@@ -835,6 +895,7 @@ Preverite, ali izpis ni usmerjen na drugo napravo.
 Preverite kodno stran, kadar so znaki napačni.
 Zapišite čas, napravo in primer izpisa.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-4d2bda85fcbe package=lite -->
 ### 22.4 Bluetooth diagnostika
 
 Preverite, ali je tiskalnik napolnjen in v bližini.
@@ -846,6 +907,7 @@ Ne seznanjajte z osebnim telefonom.
 Po ponovnem parjenju izvedite en preskus.
 Če povezava ostaja nestabilna, preklop odobri vodja in incident gre v 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-be00be5b2e4b package=lite -->
 ## 23. Odvisnosti nastavitev in načrti sprememb
 
 Tabela ne nadomešča postopka v poglavju 09.
@@ -873,6 +935,7 @@ Uporablja se pred odobritvijo spremembe.
 | Uporabniki | odobritev in identiteta | najmanjše pravice | odstranitev nove pravice |
 | Kopije | lastnik in obseg | dokaz pregleda kopije | brez samovoljne obnove |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-3ec1a1c3b4a8 package=lite -->
 ### 23.1 Podjetje in več enot
 
 Primer: podjetje upravlja kavarno in restavracijo.
@@ -893,6 +956,7 @@ Nato preverite, da ostale občutljive pravice ostanejo omejene.
 Po zaključku začasne naloge dostop odstranite.
 Zapis odobritve ohranite za revizijo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6caa81fb88d9 package=lite -->
 ### 23.2 Sposobnosti in scenariji
 
 | Scenarij | Potrebna sposobnost | Ne potrebujete |
@@ -911,8 +975,10 @@ Vodja najprej preveri, ali je potrebna le operativna pomoč.
 Administrator preveri most po postopku naprave.
 Blagajnik ne dobi višje pravice samo zaradi nujnosti.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-b45046411c09 package=lite -->
 ## 24. Načrt uvajanja naprav
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-73c258163153 package=lite -->
 ### 24.1 Pred dostavo
 
 - Določite enoto in register naprave.
@@ -926,6 +992,7 @@ Blagajnik ne dobi višje pravice samo zaradi nujnosti.
 - Pripravite okno za preskus.
 - Obvestite prizadeto osebje.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-04abeaebc722 package=lite -->
 ### 24.2 Namestitev ZCS
 
 ZCS namestite na določeni vzdrževani gostiteljski napravi.
@@ -939,6 +1006,7 @@ Preverite, da izpis doseže pravo pripravljalnico.
 Označite napravo z imenom mostu in lokacijo.
 Zapišite rezultat uvajanja.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-54da6e3c795d package=lite -->
 ### 24.3 Namestitev NB80
 
 NB80 namestite z označenim napajanjem in ciljem.
@@ -951,6 +1019,7 @@ Ne sklepajte, da je vsak ožji papir BLE naprava.
 Po preskusu preverite, da ni dvojnega izpisa.
 Zapišite status in fizično lokacijo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-1fbcf68e0daf package=lite -->
 ### 24.4 Namestitev NYX
 
 NYX dodelite določenemu cilju in enoti.
@@ -962,6 +1031,7 @@ Preverite izpis iz POS, ne le lokalnega testa.
 Preverite, da se izpis ne pojavi na drugem cilju.
 Ob uspehu zapišite primer preskusa.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-011d742f81b9 package=lite -->
 ### 24.5 Namestitev Bluetooth
 
 Bluetooth uporabite le za potrjen primer uporabe.
@@ -973,6 +1043,7 @@ Preverite obnovitev po ponovnem zagonu.
 Preverite, da osebni telefoni niso del poti.
 Za nestabilno povezavo določite rezervni operativni postopek.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-008808349fd2 package=lite -->
 ### 24.6 Omrežje, spanje in energija
 
 Omrežje preverite pred obtoževanjem aplikacije.
@@ -986,6 +1057,7 @@ Ne skrivajte kabla tako, da ga osebje lahko nehote iztakne.
 Ne uporabljajte razdelilca brez ustreznega napajanja.
 Vsako ponavljajočo se težavo z energijo predajte vzdrževanju.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6ee29a17dfaf package=lite -->
 ## 25. Terminali in ponudniki: meje incidenta
 
 Ponudnik je odgovoren za obdelavo terminalske transakcije.
@@ -1004,8 +1076,10 @@ Računovodstvo preverja posledice v poročilih po 08.
 | Uspeh le v POS | vodja/ponudnik | naročilo in čas | brez nove izdaje |
 | Izpad ponudnika | vodja | obseg enot | postopek iz 11 |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d55e0e5975af package=extended -->
 ## 26. Življenjski cikel FURS, QR, CTI in integracij
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-9a158f8b4e22 package=extended -->
 ### 26.1 FURS potrdilo
 
 Načrtujte pregled veljavnosti pred potekom.
@@ -1019,6 +1093,7 @@ Po preverjanju dokumentirajte datum, izvajalca in stanje.
 Starega materiala ne razkrivajte ali pošiljajte po klepetu.
 Ob napaki uporabite incidentni postopek 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d4da06c9cdfa package=extended -->
 ### 26.2 QR objava
 
 Lastnik menija potrdi vsebino pred objavo.
@@ -1031,6 +1106,7 @@ PDF ali tisk QR kod ustvarite šele po potrditvi.
 Rotacijo QR kod dokumentirajte z razlogom in obsegom.
 Ne rotirajte kod med aktivnim dogodkom brez nuje.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-b284d9f53585 package=extended -->
 ### 26.3 CTI po enoti
 
 CTI žeton oziroma povezava je vezan na odobrenega ponudnika in enoto.
@@ -1042,6 +1118,7 @@ Preverite ročni postopek ob nedosegljivosti CTI.
 Žetona ne vpisujte v zahtevek, dokument ali posnetek zaslona.
 Ob menjavi ponudnika prekličite staro povezavo po odobritvi.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-8165478d0f31 package=extended -->
 ### 26.4 ERP in BizBox zdravje
 
 Za vsak prenos določite poslovni vir resnice.
@@ -1055,8 +1132,10 @@ Ne ponovno pošiljajte celotnega obdobja zaradi ene napake.
 Po odpravi preverite obseg in preprečite podvojitev.
 Za poročila uporabite 08.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-dc715c27e4fc package=lite -->
 ## 27. Periodične odgovornosti
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f514765a4669 package=lite -->
 ### 27.1 Mesečni administrativni pregled
 
 - Preglejte aktivne administratorje.
@@ -1070,6 +1149,7 @@ Za poročila uporabite 08.
 - Preglejte dokumentirane vrnitve sprememb.
 - Določite lastnika vsake odprte točke.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-650b910df568 package=lite -->
 ### 27.2 Letni pregled
 
 - Potrdite lastništvo vseh enot.
@@ -1083,8 +1163,10 @@ Za poročila uporabite 08.
 - Potrdite kontaktno pot za incidente.
 - Zapišite odobritev in načrt izboljšav.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-8062f62aafdb package=lite -->
 ## 28. Predloga zahtevka in administrativne laboratorijske vaje
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f0bdc8c05dbc package=lite -->
 ### 28.1 Zahtevek za spremembo
 
 Navedite poslovni razlog.
@@ -1098,6 +1180,7 @@ Navedite čas izvedbe.
 Navedite komunikacijo osebju.
 Navedite lastnika po izvedbi.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-2992fc1c6d73 package=lite -->
 ### 28.2 Lab: nova tiskalna pot
 
 Naloga: dodelite nov tiskalnik pravilni enoti.
@@ -1108,6 +1191,7 @@ Udeleženec preveri, da se izpis ne podvaja.
 Udeleženec zapiše rezultat in vrnitev.
 Uspeh: brez ustvarjanja nove enote ali blagajne.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-310b2379a36c package=lite -->
 ### 28.3 Lab: potek FURS potrdila
 
 Naloga: pripravite načrt zamenjave potrdila.
@@ -1118,6 +1202,7 @@ Udeleženec opiše preverjanje statusa.
 Udeleženec opiše eskalacijo ob neuspehu.
 Uspeh: skrivnost ni vključena v dokumentacijo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-a3c3864df65d package=lite -->
 ### 28.4 Lab: napačna pravica
 
 Naloga: blagajnik vidi administrativni zavihek.
@@ -1127,6 +1212,7 @@ Udeleženec preveri, da plačilna pravica ostane pravilna.
 Udeleženec zapiše odobritev in rezultat.
 Uspeh: ni ustvarjen nov uporabnik in sled ostane ohranjena.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-e59651c55ece package=lite -->
 ## 29. Komisijski paket in pravilo dokazov
 
 To poglavje dopolnjuje uvajanje iz 12, naprave iz 15, terminale iz 16 in integracije iz 17.
@@ -1134,6 +1220,7 @@ Uporablja se pred prvim rednim servisom, ob odprtju nove enote in po pomembni za
 Komisija ne potrjuje nastavitve po spominu.
 Komisija potrjuje opazovan rezultat, zapis vira in osebo, ki je preverila rezultat.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-93126c0a6c66 package=lite -->
 ### 29.1 Naslovnica paketa
 
 | Polje | Vpiše se | Dokaz |
@@ -1157,6 +1244,7 @@ Fotografija tiskalnika ni dokaz pravilnega usmerjanja brez oznake preskusnega pr
 Uspešen lokalni test ni dokaz uspeha iz POS-a.
 Uspešen prikaz v POS-u ni dokaz, da je naprava izpis dejansko prejela.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-ec5af63f33e1 package=lite -->
 ### 29.2 Minimalni dokazni komplet
 
 1. Shranite odobreno zahtevo in obseg.
@@ -1175,6 +1263,7 @@ Ne ustvarite računa, če interni postopek za preskus tega ne dovoljuje.
 Kadar je za dokaz potreben poslovni dokument, upoštevajte postopke iz 06 in 08.
 Kadar rezultat ni jasen, paket označite kot neizpolnjen.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-67ad235676dd package=lite -->
 ## 30. Delovni list odvisnosti podjetja, enote, prostora in registra
 
 Izpolnite en list za vsak register, ki se daje v redno uporabo.
@@ -1182,6 +1271,7 @@ Polja v tem listu so kontrolna vprašanja; niso navodilo za izmišljanje novih o
 V stolpec »vir« zapišite, od kod je bila vrednost preverjena.
 V stolpec »izid« zapišite DA, NE ali NI V OBSEGU.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-4a1a39dbeac3 package=lite -->
 ### 30.1 Podjetje: polje za poljem
 
 | Polje oziroma odvisnost | Preverjanje | Vir | Izid | Pregledal |
@@ -1203,6 +1293,7 @@ V stolpec »izid« zapišite DA, NE ali NI V OBSEGU.
 Če je potrdilo tik pred potekom, naj komisija ne označi uvajanja kot dokončnega brez načrta rotacije.
 Če ni določen lastnik toka, integracije ne sprejmite v produkcijsko uporabo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-03db912c2455 package=lite -->
 ### 30.2 Enota: polje za poljem
 
 | Polje oziroma odvisnost | Preverjanje | Vir | Izid | Pregledal |
@@ -1225,6 +1316,7 @@ Sprememba imena enote ne popravi napačne dodelitve registra.
 Sprememba enote ne sme postati nadomestek za omejevanje posameznega uporabnika.
 Če se lokacija in zapis enote ne ujemata, zadržite sprejem.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-a602ea57d979 package=lite -->
 ### 30.3 Poslovni prostor: polje za poljem
 
 | Polje oziroma odvisnost | Preverjanje | Vir | Izid | Pregledal |
@@ -1244,6 +1336,7 @@ Prostora, ki je zaprt pri FURS, ne uporabljajte za preskus nove prodaje.
 Zapiranje poslovnega prostora je nepreklicno dejanje pri FURS; komisija ga ne izvaja kot navaden test.
 Če uradna evidenca in lokalni zapis nista usklajena, predajte primer po 11.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-cb4890b5deae package=lite -->
 ### 30.4 Register in naprava: polje za poljem
 
 | Polje oziroma odvisnost | Preverjanje | Vir | Izid | Pregledal |
@@ -1266,12 +1359,14 @@ Register ne sme biti povezan z neznanim poslovnim prostorom.
 Naprava ni dokaz identitete registra samo zato, ker stoji ob njem.
 Če je terminal dodeljen drugemu registru, ga ne prepišite med odprtim plačilom.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d0d878cd4c2e package=lite -->
 ## 31. Prevzemni protokoli tiskalnih mostov
 
 Za vsak protokol izvedite en nadzorovan preskus iz 15.5.
 Preskus mora preveriti pravilen cilj, čitljivost, enkratnost in neprizadetost drugega cilja.
 V zapis ne vključujte celotnih podatkov gosta ali občutljivih številk dokumenta.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-ab96bc139d83 package=lite -->
 ### 31.1 ZCS Z92 most
 
 | Korak | Kriterij sprejema | Dokaz |
@@ -1294,6 +1389,7 @@ Zato ne sklepajte o napaki, dokler ni zaključeno predvideno tiskalno opravilo.
 Če most ni dosegljiv, ne nastavite iste naprave kot generični Bluetooth tiskalnik brez odobrene spremembe.
 Če most odgovori, tiskalnik pa ni pripravljen, to zapišite kot neuspešen prevzem, ne kot uspeh mostu.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-8e262e9b63d6 package=lite -->
 ### 31.2 NB80 oziroma NYX most
 
 | Korak | Kriterij sprejema | Dokaz |
@@ -1315,6 +1411,7 @@ Fizična 80-mm rola sama po sebi ne dokazuje pravilne konfiguracije.
 Pri 30-mm konfiguraciji preverite dejanski rezultat, ne zgolj ime tiskalnika.
 Ne spreminjajte hkrati imena cilja, širine in kodne strani.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-0c6480f08b8c package=lite -->
 ### 31.3 BtTiskalniMost in starejša oznaka Q10
 
 | Korak | Kriterij sprejema | Dokaz |
@@ -1334,6 +1431,7 @@ Oznaki »bt« in »q10« pomenita BT tiskalni most, ne nujno dve različni napra
 Ne sprejmite poti samo zato, ker most prepozna tiskalnik; preverite tudi rezultat računa.
 Če je povezava nestabilna, označite prevzem kot pogojen in določite lastnika ter rok.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-962ddc62f0c7 package=lite -->
 ### 31.4 Čisti Web Bluetooth, Web Serial in omrežni tisk
 
 | Družina | Dodatni kriterij | Dokaz |
@@ -1352,12 +1450,14 @@ Ne sprejmite poti samo zato, ker most prepozna tiskalnik; preverite tudi rezulta
 Ne štejte izbire v brskalniku za skupno nastavitev celotne enote.
 Omrežnega naslova ne kopirajte iz druge enote brez preverjene fizične oznake cilja.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-05d3666e0729 package=lite -->
 ## 32. Dokazi o komisijskem prevzemu terminala
 
 Podprte družine nastavitev terminalov so Payten, SumUp in Viva.
 Komisija ne zapisuje PIN-ov, skrivnosti, polnih številk kartic ali poverilnic ponudnika.
 Dokaz uspeha sestavljata rezultat na terminalu in ustrezen rezultat v POS-u.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-1082a96d6d72 package=lite -->
 ### 32.1 Skupni list terminala
 
 | Polje | Vrednost | Vir | Pregledal |
@@ -1374,6 +1474,7 @@ Dokaz uspeha sestavljata rezultat na terminalu in ustrezen rezultat v POS-u.
 | Prejšnja dodelitev |  | zapis pred posegom |  |
 | Rezervni postopek |  | postopek iz 06 oziroma 11 |  |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d151ff8b21bb package=lite -->
 ### 32.2 Payten: prevzem
 
 1. Potrdite, da terminal pripada pravemu ponudniku in podjetju.
@@ -1393,6 +1494,7 @@ Ne sklepajte, da dosegljiv IP pomeni uspešno kartično transakcijo.
 Ne spreminjajte vrat med preskusom, če rezultat še ni pojasnjen.
 Ob neusklajenem rezultatu ne izvedite druge bremenitve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-142b87036608 package=lite -->
 ### 32.3 SumUp: prevzem
 
 1. Potrdite, da je serijska oznaka terminala pravilna.
@@ -1412,6 +1514,7 @@ SumUp terminala ne zamenjajte samo zato, ker gostu poteče čakanje.
 Če se POS in terminal razlikujeta, zaščitite dokaz in eskalirajte po 11.
 Ne uporabljajte istega preskusnega rezultata kot dokaz za drug register.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-afc63c0905a4 package=lite -->
 ### 32.4 Viva: prevzem
 
 1. Potrdite identifikator Viva terminala.
@@ -1431,12 +1534,14 @@ Demo rezultat ni dokaz produkcijske pripravljenosti.
 Produkcijskega okolja ne uporabljajte za neodobreni preizkus.
 Ob menjavi Viva toka znova opravite celoten list terminala.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-fc0e69b37654 package=lite -->
 ## 33. Vaja rotacije FURS potrdila
 
 Vajo izvedite pred potekom in v odobrenem oknu.
 Vaja ni dovoljenje za pošiljanje potrdila ali njegovega gesla po e-pošti.
 Namen vaje je dokazati pripravljenost oseb, dokazov in varne vrnitve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-fb2d14a5ef7d package=lite -->
 ### 33.1 Pripravljalni zapis
 
 | Kontrolna točka | Izid | Dokaz |
@@ -1452,6 +1557,7 @@ Namen vaje je dokazati pripravljenost oseb, dokazov in varne vrnitve.
 | Znana je pot eskalacije |  | kontaktni seznam |
 | Načrt vrnitve ne zahteva razkritja skrivnosti |  | načrt vrnitve |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-48a39acafc0f package=lite -->
 ### 33.2 Potek vaje
 
 1. Preberite obseg in odobritev.
@@ -1470,6 +1576,7 @@ Namen vaje je dokazati pripravljenost oseb, dokazov in varne vrnitve.
 14. Obvestite operativnega lastnika o rezultatu.
 15. Določite datum naslednjega pregleda veljavnosti.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-96499e6ba00a package=lite -->
 ### 33.3 Negativni scenariji vaje
 
 | Scenarij | Pričakovan varen odziv | Dokaz |
@@ -1485,8 +1592,10 @@ Namen vaje je dokazati pripravljenost oseb, dokazov in varne vrnitve.
 Vaja je uspešna, če je mogoče dokazati pravilen postopek brez razkritja potrdila.
 Vaja ni uspešna, če je status nejasen, četudi ni vidne napake.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-9f53ba30b95b package=lite -->
 ## 34. Kontrolni seznam za začetek delovanja integracij
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f87194f58954 package=lite -->
 ### 34.1 QR meni
 
 | Preverjanje | Sprejemni kriterij | Dokaz |
@@ -1505,6 +1614,7 @@ Vaja ni uspešna, če je status nejasen, četudi ni vidne napake.
 QR kode ne tiskajte množično pred sprejemom javnega naslova.
 Ne uporabljajte administratorskega telefona kot edinega dokaza javnega prikaza.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-245b7da9afb4 package=lite -->
 ### 34.2 CTI
 
 | Preverjanje | Sprejemni kriterij | Dokaz |
@@ -1521,6 +1631,7 @@ Ne uporabljajte administratorskega telefona kot edinega dokaza javnega prikaza.
 Testni klic naj uporablja odobren neobčutljiv primer.
 CTI ne daje pravice uporabniku, da vidi vse podatke drugih enot.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-adfbacbf8de3 package=lite -->
 ### 34.3 BizBox
 
 | Preverjanje | Sprejemni kriterij | Dokaz |
@@ -1538,6 +1649,7 @@ CTI ne daje pravice uporabniku, da vidi vse podatke drugih enot.
 BizBox uspeh ne nadomešča računovodskega pregleda vsebine.
 Celotnega obdobja ne pošiljajte znova zaradi enega samega nejasnega statusa.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-40627bbc9813 package=lite -->
 ### 34.4 ERP
 
 | Preverjanje | Sprejemni kriterij | Dokaz |
@@ -1557,6 +1669,7 @@ Celotnega obdobja ne pošiljajte znova zaradi enega samega nejasnega statusa.
 ERP prenos ni nadomestek za varnostno kopijo.
 Če preslikava ni potrjena, ne razširite preskusa na množico dokumentov.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f005f6eb0d33 package=lite -->
 ## 35. Negativni preskusi več enot in zmožnosti
 
 Negativni preskus dokazuje, da sistem pravilno zavrne nedovoljen dostop.
@@ -1582,8 +1695,10 @@ Vsak neuspel negativni preskus je blokada za sprejem, dokler ni odpravljen ali i
 Po negativnem preskusu odstranite ali povrnite začasno uporabljeno testno dodelitev.
 Ne zamenjujte nevidnega gumba z dokazom pravilno omejenega strežniškega dostopa; zabeležite opazovani obseg.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-eb39510397c5 package=lite -->
 ## 36. Predlogi evidenc naprav in vzdrževanja
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-40dfc3bc58eb package=lite -->
 ### 36.1 Inventar naprave
 
 | Polje | Vrednost |
@@ -1614,6 +1729,7 @@ Inventarna oznaka na napravi naj se ujema z zapisom.
 Serijske oznake ne nadomeščajte z vzdevkom osebja.
 Pri odstranitvi naprave ohranite zgodovino in zapišite datum, razlog ter nadomestilo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-01adc3d0a0ec package=lite -->
 ### 36.2 Zapis vzdrževanja
 
 | Polje | Vrednost |
@@ -1639,6 +1755,7 @@ Pri odstranitvi naprave ohranite zgodovino in zapišite datum, razlog ter nadome
 Zapis vzdrževanja ne vsebuje dostopnih kod ali zasebnih ključev.
 Če je bila naprava zamenjana, posodobite inventar in ne samo zapis vzdrževanja.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-7df512af3173 package=lite -->
 ### 36.3 Dnevni pregled operativne naprave
 
 | Kontrola | DA | NE | Opomba |
@@ -1654,12 +1771,14 @@ Zapis vzdrževanja ne vsebuje dostopnih kod ali zasebnih ključev.
 | Rezervni postopek je znan |  |  |  |
 | Odprte napake so predane vodji |  |  |  |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-9f83c475427d package=lite -->
 ## 37. Dokaz varne vrnitve
 
 Vrnitev ni brisanje dokazov ali ustvarjanje novega objekta.
 Vrnitev pomeni omejeno povrnitev zadnje odobrene logične skupine.
 Pred vrnitvijo preverite, da ni aktivnega plačila, fiskalnega toka ali tiskalne vrste, ki bi jo poseg prekinil.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-995abdbae270 package=lite -->
 ### 37.1 List vrnitve
 
 | Polje | Vrednost |
@@ -1682,6 +1801,7 @@ Pred vrnitvijo preverite, da ni aktivnega plačila, fiskalnega toka ali tiskalne
 | Obvestilo osebju |  |
 | Odprta nadaljnja naloga |  |
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-55124a625051 package=lite -->
 ### 37.2 Primeri ustrezne vrnitve
 
 | Sprememba | Varna vrnitev | Dokaz po vrnitvi |
@@ -1699,8 +1819,10 @@ Ne vrnite celotnega obdobja ERP zaradi ene nejasne vrstice.
 Ne izbrišite poslovnega prostora kot način vrnitve fiskalne spremembe.
 Ne ponovite terminalske transakcije kot način preverjanja vrnitve.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f484b7d20c63 package=lite -->
 ## 38. Administrativne laboratorijske vaje z vzorčnimi odgovori
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-f8ce5d9773c6 package=lite -->
 ### 38.1 Lab: nov register v drugi enoti
 
 Primer: podjetje odpre teraso v enoti B, administrator pa trenutno dela v enoti A.
@@ -1721,6 +1843,7 @@ Vzorčni odgovor:
 
 Napačen odgovor je kopiranje registra A in domneva, da se bodo vse povezave same prilagodile.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-d76d9e4b098e package=lite -->
 ### 38.2 Lab: ZCS most po menjavi tablice
 
 Primer: ZCS tablica ostane na istem registru, zamenjana pa je fizična naprava.
@@ -1741,6 +1864,7 @@ Vzorčni odgovor:
 
 Napačen odgovor je ustvarjanje nove blagajne zato, ker nova tablica še nima lokalnih nastavitev.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-ec9ff3759036 package=lite -->
 ### 38.3 Lab: Viva demo nastavitev pred odprtjem
 
 Primer: izvajalec je med pripravo uporabil Viva demo način.
@@ -1761,6 +1885,7 @@ Vzorčni odgovor:
 
 Napačen odgovor je sklep, da demo uspeh pomeni uspeh pri ponudniku v produkciji.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-b3a3c6c3bf96 package=lite -->
 ### 38.4 Lab: ERP dokument je prispel dvakrat
 
 Primer: računovodstvo vidi dva zapisa za isti kontrolni dokument.
@@ -1781,6 +1906,7 @@ Vzorčni odgovor:
 
 Napačen odgovor je brisanje enega ERP zapisa brez revizijske sledi.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-13a89f5a459b package=lite -->
 ### 38.5 Lab: CTI naročilo pristane v napačni enoti
 
 Primer: testni dohodni klic za enoto A ustvari naročilo v B.
@@ -1801,6 +1927,7 @@ Vzorčni odgovor:
 
 Napačen odgovor je kopiranje CTI žetona iz B v A brez pregleda ponudnika in enote.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-2cb50ad1074b package=lite -->
 ## 39. POS PIN in hitra menjava identitete
 
 POS PIN je namenjen hitri izbiri natakarja na skupni POS napravi. Ni nadomestilo
@@ -1826,6 +1953,7 @@ Vodja preveri identiteto, administrator pa PIN ponastavi ali prekliče po
 odobrenem postopku. Vsaka hitra menjava mora ostati v revizijski sledi z
 uporabnikom, časom, enoto in napravo.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-59821f38d5e0 package=lite -->
 ## 40. Obseg naprave in prednost nastavitev
 
 Naprava lahko vidi samo dovoljene mize. Prazen seznam dovoljenih miz pomeni
@@ -1848,6 +1976,7 @@ Nastavitve praga glasovnega prepoznavanja in AI na napravi so pomožne nastavitv
 Ne spreminjajo pravic uporabnika in ne smejo samodejno potrditi plačila, fiskalnega
 dokumenta ali alergenskega podatka.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-c55c860b7f83 package=lite -->
 ## 41. Dokaz revizije in varno zapiranje incidenta
 
 Revizijski zapis mora omogočiti odgovor na vprašanja: kdo je dejanje izvedel,
@@ -1869,6 +1998,7 @@ ali celotne številke kartice. Če je naprava izgubljena ali obstaja sum
 nepooblaščenega dostopa, najprej omejite dostop in ohranite sled; ne popravljajte
 ali brišite zapisov zaradi videza.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-8af3c7184fdf package=lite -->
 ## 42. Meje podprtih ponudnikov in funkcij
 
 Konfiguracijska možnost še ni dokaz, da je ponudnik v posamezni namestitvi
@@ -1887,6 +2017,7 @@ vključujte v konfiguracijski načrt kot razpoložljive. Za rezervacije uporablj
 notranji POS-postopek, darilni bon pa je mogoče izdati oziroma unovčiti samo po
 opisanem POS-toku.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-fd99bbf396dd package=lite -->
 ## 43. Skrbniški kontrolni seznam pred objavo spremembe
 
 - [ ] Potrjeno je pravo podjetje, enota, blagajna in naprava.
@@ -1900,6 +2031,7 @@ opisanem POS-toku.
 - [ ] Osebje je obveščeno o vplivu in začasnih omejitvah.
 - [ ] Neimplementirane funkcije niso predstavljene kot aktivne.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-3be0eef779fa package=lite -->
 ## 44. Preizkus vezave naprave, terminala, tiskalnika in mostu
 
 Pred spremembo zapišite podjetje, enoto, napravo, trenutno vezavo terminala,
@@ -1935,8 +2067,10 @@ Ne menjajte naprave, mostu in usmerjanja tiskanja hkrati, ker tako ni mogoče
 ugotoviti vzroka napake. Preskus ne sme spreminjati prodajnega, fiskalnega ali
 zalogovnega stanja.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-4d82dab3736d package=lite -->
 ## 45. Uporabnik, profil, enota in pravice
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-6e9d8f36e1d6 package=lite -->
 ### 45.1 Ustvarjanje in sprememba
 
 Pred ustvarjanjem preverite identiteto osebe, podjetje, dovoljene enote,
@@ -1957,6 +2091,7 @@ Spremembo profila izvedite najmanjšemu potrebnemu obsegu. Vloga ni naziv
 delovnega mesta; pravica do terminala tudi ni pravica do ponovnega
 bremenitvenega poskusa ali administratorskih nastavitev.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-066a8c3b8443 package=lite -->
 ### 45.2 Ukinitev oziroma varen odvzem dostopa
 
 Ob odhodu ali spremembi dela:
@@ -1972,6 +2107,7 @@ Uporabnika ne brišite samo zato, da bi skrili star zapis, in ne ustvarjajte
 dvojnega računa za obhod zaklepa. Če je odvzem dostopa neuspešen, omejite
 nadaljnje delo, zabeležite napako in obvestite administratorja.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-de051c02514d package=lite -->
 ## 46. Pregled revizijske sledi
 
 Revizijski zapis mora omogočiti najmanj pregled akterja, časa, podjetja,
@@ -2003,6 +2139,7 @@ Splošna doba hrambe revizije v POS-u ni s tem priročnikom določena. Uporabite
 odobreno politiko podjetja in zakonske roke. Revizijskih zapisov ne brišite
 zaradi popravka napačnega podatka; popravek mora ustvariti novo sled.
 
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-c4973d825f23 package=lite -->
 ## 47. Končna kontrola skrbniške spremembe
 
 - [ ] Sprememba je izvedena v pravem podjetju, enoti in napravi.

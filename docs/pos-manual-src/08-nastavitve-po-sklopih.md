@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*137, standard, lite*7, extended, lite*3, standard, lite*28 -->
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5e5ea120d77c package=lite -->
 # 08 Konec izmene, blagajniški premiki, poročila in POS→ERP
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-29b6d71c2c79 package=lite -->
 ## 1. Namen sklopa
 
 Ta sklop zaključuje operativni dan: izmeno, blagajniške premike, X in Z
@@ -9,6 +10,7 @@ poročila, poslovni dan, operativna poročila in prenos temeljnic POS v ERP.
 Nastavitve za artikle, KDS in plačila so predpogoj; vsakodnevno delo z njimi
 je opisano v sklopih 05 do 07.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d313a53b91ba package=lite -->
 ## 2. Predpogoji pred koncem izmene
 
 1. Vsi računi so zaključeni ali imajo znan razlog, zakaj niso.
@@ -23,12 +25,14 @@ je opisano v sklopih 05 do 07.
 > plačila ali zalog. Te izjeme razrešite s sledljivim postopkom pred ali po
 > zaprtju, nikoli s prikrivanjem razlike.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2c5d43596788 package=lite -->
 ## 3. Delovna izmena
 
 Delovna izmena je pripisana uporabniku oziroma natakarskemu profilu in enoti.
 
 Računi, izdani med izmeno, se prikažejo v njenem pregledu.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-738de6604cd9 package=lite -->
 ### 3.1 Odpiranje izmene
 
 1. Odprite **Izmene**.
@@ -41,6 +45,7 @@ Računi, izdani med izmeno, se prikažejo v njenem pregledu.
 Če profil ni vezan na natakarja, lahko sistem ponudi ročno izbiro. To je
 izjemni postopek; skrbnik naj nato uredi povezavo profila.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-587031f5361b package=lite -->
 ### 3.2 Odmori
 
 V pregledani POS izvedbi ni potrjenega samostojnega uporabniškega postopka
@@ -52,6 +57,7 @@ Odmor evidentirajte po odobrenem internem kadrovskem postopku. Ne ustvarjajte
 lažnega zapiranja oziroma ponovnega odpiranja izmene in ne spreminjajte časa
 izmene, da bi nadomestili manjkajočo evidenco odmora.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-43b1a420fffa package=lite -->
 ### 3.3 Zaključek izmene
 
 1. Preverite število računov in promet na kartici izmene.
@@ -63,6 +69,7 @@ izmene, da bi nadomestili manjkajočo evidenco odmora.
 Statusi zgodovine so osnutek, v potrditvi, potrjeno ali zavrnjeno. Zavrnjen
 zapis zahteva popravek oziroma pojasnilo in ponovno pošiljanje v potrditev.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-41a179a9fda7 package=lite -->
 ## 4. Blagajniški premiki
 
 Blagajniški premik evidentira fizični denar, ki ni neposredno plačilo računa.
@@ -70,6 +77,7 @@ Blagajniški premik evidentira fizični denar, ki ni neposredno plačilo računa
 Tipični primeri so polog menjalnega denarja, dvig gotovine v sef ali vračilo
 za vnaprej evidentirani razlog.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8c57d7232140 package=lite -->
 ### 4.1 Kdaj uporabiti premik
 
 Uporabite premik, kadar denar vstopi v blagajno ali jo zapusti, vendar to ni
@@ -78,6 +86,7 @@ prodaja na računu, plačilo dobavitelju v drugem sistemu ali osebna izmenjava.
 Ne uporabite premika za prikrivanje manjka ali viška. Najprej preštejte,
 preverite račune in poiščite dejanski vzrok.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6a6c50fa37d4 package=lite -->
 ### 4.2 Vnos premika
 
 1. Odprite **Blagajniški premiki**.
@@ -90,6 +99,7 @@ preverite račune in poiščite dejanski vzrok.
 8. Potrdite premik.
 9. Fizično denar položite ali odvzemite takoj ob potrditvi.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f8445d7095bc package=lite -->
 ### 4.3 Kontrola premika
 
 1. Preverite, da je premik v zgodovini.
@@ -97,6 +107,7 @@ preverite račune in poiščite dejanski vzrok.
 3. Shranite dokazilo po internem postopku.
 4. Ob koncu izmene vključite premik v pričakovano gotovino.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-426147c7411b package=lite -->
 ### 4.4 Napačen premik
 
 1. Ne ustvarite prikritega nasprotnega premika brez pojasnila.
@@ -104,8 +115,10 @@ preverite račune in poiščite dejanski vzrok.
 3. Uporabite odobren korekcijski postopek.
 4. Preverite končni učinek na blagajno in poročilo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-042db4c7bac0 package=lite -->
 ## 5. Štetje blagajne
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-89d50c75137d package=lite -->
 ### 5.1 Priprava
 
 1. Zaprite blagajno za nove gotovinske prejemke, kadar postopek to zahteva.
@@ -114,6 +127,7 @@ preverite račune in poiščite dejanski vzrok.
 4. Denarja ne štejete skupaj z nezabeleženimi boni ali potrdili.
 5. Uporabite obrazec oziroma zapis štetja, če ga določa enota.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-468868c8a849 package=lite -->
 ### 5.2 Uskladitev
 
 1. Primerjajte prešteto gotovino s pričakovano gotovino.
@@ -126,12 +140,14 @@ preverite račune in poiščite dejanski vzrok.
 Kartičnega prometa ne dodajajte v fizično gotovino. Kartica se usklajuje s
 terminalskim poročilom, ne s predalom blagajne.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-bafbd82d2222 package=lite -->
 ## 6. X poročilo
 
 X poročilo je vmesni operativni pregled prometa.
 
 Ne zaključuje poslovnega dne in ne nadomešča Z poročila.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-4093f7f5ae32 package=lite -->
 ### 6.1 Uporaba
 
 1. Odprite poročila oziroma dnevni izkaz.
@@ -145,6 +161,7 @@ Ne zaključuje poslovnega dne in ne nadomešča Z poročila.
 X poročilo lahko izdate večkrat. Uporabite ga med menjavo osebja ali pred
 vmesnim pologom, ne kot dokaz končnega zaprtja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-671489a385b8 package=lite -->
 ## 7. Z poročilo in poslovni dan
 
 Z poročilo je zaključni izkaz poslovnega dne za izbrano blagajno oziroma
@@ -152,6 +169,7 @@ organizacijsko nastavitev.
 
 Poslovni dan ni nujno enak koledarskemu dnevu, če enota posluje čez polnoč.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e77a9ae84265 package=lite -->
 ### 7.1 Pred Z poročilom
 
 1. Preverite, ali so odprti računi in nejasna terminalska plačila.
@@ -161,6 +179,7 @@ Poslovni dan ni nujno enak koledarskemu dnevu, če enota posluje čez polnoč.
 5. Pridobite terminalski zaključek, kadar ga zahteva ponudnik.
 6. Preverite, da izbirate pravo enoto, blagajno in poslovni datum.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7ab529e43a2f package=lite -->
 ### 7.2 Izvedba Z poročila
 
 1. Odprite dnevni izkaz oziroma Z poročila.
@@ -172,6 +191,7 @@ Poslovni dan ni nujno enak koledarskemu dnevu, če enota posluje čez polnoč.
 7. Potrdite Z poročilo samo, ko je pregled zaključen.
 8. Natisnite oziroma arhivirajte poročilo po pravilih podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c5e74b55839e package=lite -->
 ### 7.3 Po Z poročilu
 
 1. Preverite, da je poslovni dan označen kot zaključen.
@@ -183,12 +203,14 @@ Poslovni dan ni nujno enak koledarskemu dnevu, če enota posluje čez polnoč.
 Če ugotovite napako po Z poročilu, ne odpirajte dneva samovoljno. Zabeležite
 dejstva in uporabite postopek popravka oziroma eskalacije.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-9677c9a7f2d8 package=lite -->
 ## 8. Operativna poročila
 
 Operativna poročila so namenjena vodenju izmene in nadzoru poslovanja.
 
 Ne nadomeščajo računovodskih temeljnic ali zakonske hrambe dokumentov.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-349938de1dc6 package=lite -->
 ### 8.1 Izbira filtra
 
 1. Odprite **Operativna poročila**.
@@ -197,6 +219,7 @@ Ne nadomeščajo računovodskih temeljnic ali zakonske hrambe dokumentov.
 4. Preverite časovni obseg pred branjem številk.
 5. Uporabite isti filter pri primerjavi dveh poročil.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-874aca79ebdd package=lite -->
 ### 8.2 Ključni pregledi
 
 Redno pregledujte:
@@ -209,6 +232,7 @@ Redno pregledujte:
 6. odprta in zaključena naročila;
 7. odpad ter porabo, kadar je vključena v poročilo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-54099a7f6dc3 package=lite -->
 ### 8.3 Interpretacija razlik
 
 1. Najprej preverite filter obdobja in enoto.
@@ -218,6 +242,7 @@ Redno pregledujte:
 5. Primerjajte gotovino z računi in blagajniškimi premiki.
 6. Ne sklepajte o napaki ERP samo iz enega operativnega pogleda.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d88efc637790 package=lite -->
 ## 9. POS→ERP: temeljnice in prenos
 
 POS→ERP prenaša poslovne dogodke v računovodsko obdelavo prek temeljnic oziroma
@@ -226,6 +251,7 @@ knjižb.
 POS je izvor prodajnega dogodka; ERP je okolje za računovodsko obdelavo,
 kontiranje in nadaljnje poročanje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1998857b0961 package=lite -->
 ### 9.1 Predpogoji prenosa
 
 1. Poslovni dan je zaključen, če proces to zahteva.
@@ -234,6 +260,7 @@ kontiranje in nadaljnje poročanje.
 4. Računi, plačila, storna in premiki imajo pregledano stanje.
 5. Uporabnik ima pravico za pregled ali izvoz temeljnic.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-07a5d5da6edb package=lite -->
 ### 9.2 Pregled temeljnic
 
 1. Odprite **Temeljnice** oziroma pregled POS→ERP.
@@ -244,6 +271,7 @@ kontiranje in nadaljnje poročanje.
 6. Preverite, da se zneski uravnotežijo.
 7. Preglejte opozorila ali postavke brez ustreznega konta.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-deccff54a68e package=lite -->
 ### 9.3 Pošiljanje oziroma knjiženje
 
 1. Izberite samo pregledane temeljnice.
@@ -254,6 +282,7 @@ kontiranje in nadaljnje poročanje.
 6. V ERP preverite prejeto referenco in zneske.
 7. Arhivirajte dokaz prenosa po interni politiki.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e9cb701dce48 package=lite -->
 ### 9.4 Neuspešen prenos
 
 1. Ne pošiljajte znova na slepo.
@@ -267,6 +296,7 @@ kontiranje in nadaljnje poročanje.
 Poročilo, ki ne more ustvariti veljavne temeljnice, ni rešeno z ročnim
 ignoriranjem. Napaka mora ostati vidna do pravilne kontne obravnave.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d706fe542b46 package=lite -->
 ## 10. Končni kontrolni seznam
 
 Pred dokončnim odhodom preverite:
@@ -282,6 +312,7 @@ Pred dokončnim odhodom preverite:
 9. temeljnice POS→ERP so uravnotežene in uspešno prenesene;
 10. neuspešni prenosi niso podvojeni in so eskalirani.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-01a0a02da61a package=lite -->
 ## 11. Zaslon izmene in odgovornost blagajne
 
 Izmena pripada osebi, odgovornost blagajne pa pripada blagajni oziroma
@@ -295,6 +326,7 @@ razmejiti odgovornost, čas in fizično gotovino.
 Ne sklepajte, da je oseba, prijavljena na register, samodejno odgovorna za
 celoten poslovni dan.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a7310cff4496 package=lite -->
 ### 11.1 Polja kartice izmene
 
 | Polje | Pomen | Preverjanje |
@@ -311,6 +343,7 @@ celoten poslovni dan.
 | Status | Osnutek, odprto, v potrditvi, potrjeno ali zavrnjeno | Status določa naslednji dovoljen korak. |
 | Opomba | Poslovna razlaga izjem | Pišite dejstva, reference in čas. |
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-780ffc73536e package=lite -->
 ### 11.2 Odpiranje izmene: podroben postopek
 
 1. Prijavite se s svojo prijavo, ne s prijavo sodelavca.
@@ -323,6 +356,7 @@ celoten poslovni dan.
 8. Potrdite odprtje in preverite status odprto.
 9. Šele nato sprejemajte račune, za katere ste odgovorni.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-0a534ebf47d2 package=lite -->
 ### 11.3 Register brez osebne izmene
 
 V nekaterih enotah je register odprt ves dan, osebne izmene pa se menjajo.
@@ -335,6 +369,7 @@ Vodja določi, ali se odgovornost deli po izmenah, uporabnikih ali registru.
 
 Poročilo filtrirajte po pravilnem ključu; promet registra ni nujno promet osebe.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5b15a60efe9e package=lite -->
 ### 11.4 Osebna izmena brez lastnega predala
 
 Če več oseb uporablja isti predal, naj se gotovina šteje ob predaji skupaj.
@@ -344,8 +379,10 @@ fizičnega primanjkljaja brez dogovorjene predaje.
 
 Ne pripisujte razlike zadnji osebi samo zato, ker je zaključila register.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e236179cf025 package=lite -->
 ## 12. Odmori, predaja in odprta naročila
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-290e81bdc6a4 package=lite -->
 ### 12.1 Odmor
 
 Odmor pomeni začasno prekinitev dela uporabnika, ne avtomatskega zaključka
@@ -360,6 +397,7 @@ konec odmora, uporabite odobreno kadrovsko evidenco podjetja. Če je čas odmora
 napačen ali manjka, zabeležite dejanski čas in zahtevajte popravek v tej
 evidenci; ne ustvarjajte izmišljene nove izmene.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-552fc0b46a7a package=lite -->
 ### 12.2 Predaja med osebjem
 
 | Predmet predaje | Predajalec preveri | Prevzemnik potrdi |
@@ -375,6 +413,7 @@ Predaja ni zgolj ustna informacija ob vratih.
 
 Zapisan podatek mora omogočati, da naslednja oseba preveri stanje brez ugibanja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2959fe6a3ce3 package=lite -->
 ### 12.3 Odprta naročila
 
 Odprto naročilo še ni zaključen račun in še ni nujno plačilo.
@@ -390,6 +429,7 @@ postal prazen.
 Če gost odide brez plačila, uporabite postopek podjetja z razlogom in
 odobritvijo, ne lažnega gotovinskega plačila.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-55491efc0f53 package=lite -->
 ### 12.4 Nejasna kartična plačila
 
 Plačilo je nejasno, kadar terminal potrdi, POS ne potrdi, ali obratno.
@@ -404,6 +444,7 @@ predajte vodji po postopku enote.
 
 Kartičnega izpiska ne nadomeščajte z domnevo, da je “verjetno uspelo”.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-ea209ee6897b package=lite -->
 ### 12.5 Primer predaje
 
 Ana ob 15:00 preda register Borutu.
@@ -416,8 +457,10 @@ Ana zapiše številko naročila, čas poskusa in referenco terminala.
 
 Borut prevzame fizično gotovino in odprti naročili ter zabeleži čas predaje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8b9c5f126449 package=lite -->
 ## 13. Blagajniški pologi in dvigi
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5d309890712c package=lite -->
 ### 13.1 Razlika med pologom in dvigom
 
 Polog poveča fizično gotovino v blagajni.
@@ -430,6 +473,7 @@ Vračilo gotovine gostu ni samodejno dvig; sledi postopku vračila računa.
 
 Premik vedno potrebuje poslovni razlog in sled.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1bfbf03f5a0d package=lite -->
 ### 13.2 Polja zaslona premika
 
 | Polje | Navodilo |
@@ -444,6 +488,7 @@ Premik vedno potrebuje poslovni razlog in sled.
 | Uporabnik | Preverite, da je prijavljen dejanski izvajalec. |
 | Datum | Preverite poslovni dan, posebej okoli polnoči. |
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3771de8c1c6b package=lite -->
 ### 13.3 Polog menjalnega denarja
 
 Polog menjalnega denarja opravite pred prodajo ali ob dokumentirani predaji.
@@ -456,6 +501,7 @@ Fizični denar položite v predal neposredno ob potrditvi.
 
 Ne evidentirajte pologa, če denar ostane na mizi ali pri drugi osebi.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7e90f24a1031 package=lite -->
 ### 13.4 Dvig v sef ali banko
 
 Pred dvigom preštejte denar s pričo, kadar je tako določeno.
@@ -468,6 +514,7 @@ Dokazilo o predaji hranite skupaj z dnevno dokumentacijo po pravilih podjetja.
 
 Dvig v sef še ni bančni polog; ne poročajte ga kot banko brez dejanske predaje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c5497403e7ff package=lite -->
 ### 13.5 Napačen premik
 
 Napačne smeri ne prikrivajte z novim premikom brez pojasnila.
@@ -478,6 +525,7 @@ Odgovorna oseba uporabi korekcijski postopek, ki ohrani revizijsko sled.
 
 Po korekciji preverite pričakovano gotovino, zgodovino premikov in dokazila.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e45a6002e1a3 package=lite -->
 ## 14. Pričakovana in prešteta gotovina
 
 Pričakovana gotovina je sistemski izračun iz začetka, gotovinskih računov,
@@ -489,6 +537,7 @@ Razlika je prešteta minus pričakovana gotovina, skladno z oznako na zaslonu.
 
 Vedno preberite oznako predznaka, ne razlagajte minusa na pamet.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-02ce62ff0f03 package=lite -->
 ### 14.1 Formula
 
 Pričakovano = začetna gotovina + gotovinske prodaje + pologi
@@ -500,6 +549,7 @@ Kartice, nakazila, boni in drugi negotovinski načini niso fizična gotovina.
 Če sistem prikazuje drugo formulo, upoštevajte njegovo poimenovanje in preverite
 vključene tipe plačil v poročilu.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-b66d169f3a55 package=lite -->
 ### 14.2 Štetje po apoenih
 
 1. Ločite menjalni denar od kuvert za dvig.
@@ -511,6 +561,7 @@ vključene tipe plačil v poročilu.
 7. Primerjajte seštevek z vnesenim zneskom.
 8. Šele nato potrdite štetje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-514978d4e9d8 package=lite -->
 ### 14.3 Primer uskladitve
 
 Začetni menjalni denar je 150,00 EUR.
@@ -529,6 +580,7 @@ Pričakovana gotovina je 300,00 EUR.
 
 Pred evidentiranjem še enkrat preverite apoene, vračilo in smer dviga.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-96cff12a13d5 package=lite -->
 ### 14.4 Razlika
 
 Razlika ni razlog za prilagajanje zneska štetja.
@@ -543,6 +595,7 @@ Zapišite ugotovljeni razlog ali dejstvo, da razlog še ni znan.
 
 Vodja razreši razliko po internem pravilniku.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-99a97b1113a5 package=lite -->
 ## 15. Poslovni dan, časovni pas in X/Z poročila
 
 Poslovni dan je obračunski rez POS, ne nujno koledarski dan.
@@ -554,6 +607,7 @@ To pomeni, da se prehod poletnega in zimskega časa obravnava v lokalnem času.
 
 Ne primerjajte UTC časa integracije z lokalnim časom računa brez pretvorbe.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7d7923ed6986 package=lite -->
 ### 15.1 Enota, ki dela čez polnoč
 
 Vodja določi uro reza poslovnega dne skladno z nastavitvijo enote.
@@ -565,6 +619,7 @@ Pri poročilu preverite oznako poslovnega datuma, ne samo datum in uro računa.
 
 Ne zaključujte dneva zgodaj samo zato, ker koledar pokaže polnoč.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-08cb36e315f2 package=lite -->
 ### 15.2 X poročilo
 
 X poročilo je vmesni pogled in ga lahko ustvarite večkrat.
@@ -578,6 +633,7 @@ pričakovano gotovino.
 
 X poročilo označite s časom, če ga prilagate interni predaji.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-eed574c73660 package=lite -->
 ### 15.3 Z poročilo
 
 Z poročilo je končni izkaz za poslovni dan oziroma blagajno po nastavitvi.
@@ -591,6 +647,7 @@ Po potrditvi preverite številko poročila, status in arhivski izpis.
 Z poročila ne izvajajte dvakrat zaradi počasnega odziva zaslona; najprej
 preverite zgodovino in status prve zahteve.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f295f324cac9 package=lite -->
 ### 15.4 Dnevni izkaz
 
 Dnevni izkaz združuje promet in pomembne zaključne informacije za izbrani rez.
@@ -601,8 +658,10 @@ Primerjajte gotovino z zapisom štetja in kartice s poročilom terminala.
 
 Različna poročila se ujemajo šele, ko uporabljajo isti poslovni datum in filter.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-b0a21d85d689 package=lite -->
 ## 16. Operativna poročila, filtri in izvoz
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6218105e9f76 package=lite -->
 ### 16.1 Pravilo filtra
 
 Pred branjem številke povejte, kateri poslovni datum, enoto, register,
@@ -614,6 +673,7 @@ Filter datuma računa ni vedno enak filtru poslovnega dne.
 
 Pri primerjavi dveh poročil zapišite oba filtra.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3287027cab92 package=lite -->
 ### 16.2 Referenca poročil
 
 | Poročilo | Vprašanje, na katero odgovarja | Obvezna kontrola |
@@ -627,6 +687,7 @@ Pri primerjavi dveh poročil zapišite oba filtra.
 | Blagajna | Pričakovano in prešteto gotovino | Premiki, vračila in štetje. |
 | Zalogovni odpad | Kje je nastala izguba | Artikel, razlog in obdobje. |
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2a6ddc06d641 package=lite -->
 ### 16.3 Izvoz
 
 Pred izvozom nastavite enake filtre kot na pregledanem zaslonu.
@@ -641,6 +702,7 @@ Izvoz ne spreminjajte ročno, če je namenjen računovodskemu usklajevanju.
 
 Osebne podatke v izvozu obravnavajte skladno s pravicami in politiko podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5c3f8e7d4f5b package=lite -->
 ### 16.4 Razlaga odstopanj
 
 Najprej preverite filter in časovni pas.
@@ -653,6 +715,7 @@ Potem preverite, ali gre za operativno poročilo ali računovodski pogled.
 
 Ena številka brez konteksta ni dokaz napake v sistemu.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7070b65ad4f9 package=lite -->
 ## 17. POS–ERP: dnevni žurnal in kontiranje
 
 POS ustvari prodajne dogodke; ERP jih prejme kot dnevne žurnale oziroma temeljnice
@@ -663,6 +726,7 @@ Dnevni žurnal naj ima jasno referenco POS enote, poslovnega dne in prenosa.
 Ne ustvarjajte ročnega ERP zapisa namesto neuspelega žurnala brez uskladitve
 z računovodstvom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6f5862f8c195 package=lite -->
 ### 17.1 Pred pošiljanjem
 
 1. Preverite, da je pravi poslovni dan zaključen.
@@ -672,6 +736,7 @@ z računovodstvom.
 5. Preverite, da skupno breme ustreza skupnemu dobropisu.
 6. Preverite, da en dan ni že uspešno prenesen.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a3027ea6311a package=lite -->
 ### 17.2 Polja žurnala
 
 | Polje | Pomen | Kontrola |
@@ -686,6 +751,7 @@ z računovodstvom.
 | Bremeni | Debitna stran | Seštevek preverite na ravni žurnala. |
 | Dobropisi | Kreditna stran | Seštevek mora uravnotežiti breme. |
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8ac211d53519 package=lite -->
 ### 17.3 Preslikava kontov
 
 Preslikava določa, kateri konto prejme posamezno vrsto prometa.
@@ -701,6 +767,7 @@ Ne izberite “podobnega” konta samo zato, da bi prenos postal zelen.
 
 Konto mora biti veljaven za vrsto knjižbe in računovodsko politiko podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2d0b46b67083 package=lite -->
 ### 17.4 Statusi in ponovni poskus
 
 Status čakanje pomeni, da žurnal še ni poslan ali obdelan.
@@ -714,6 +781,7 @@ Status neuspešno pomeni, da preberete konkretno napako in odpravite njen vzrok.
 Ponovni poskus uporabite samo za določen neuspešen žurnal in šele po preverjanju,
 da v ERP ni že nastal zapis z isto referenco.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-ebb6c20635db package=lite -->
 ### 17.5 Pogoste napake kontiranja
 
 Manjkajoči konto zahteva nastavitev, ne ročnega ignoriranja vrstice.
@@ -726,6 +794,7 @@ Neuravnotežen žurnal zahteva pregled izvornih vrstic, ne ročno spreminjanje s
 
 Napačna DDV koda zahteva davčni pregled po postopku podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8303bdd9c512 package=lite -->
 ### 17.6 Uskladitev POS–ERP
 
 1. Izberite isti poslovni datum in enoto v obeh sistemih.
@@ -737,6 +806,7 @@ Napačna DDV koda zahteva davčni pregled po postopku podjetja.
 7. Preverite uravnoteženost bremen in dobropisov.
 8. Zabeležite rezultat ter odprte razlike.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8eb49a8c813b package=lite -->
 ### 17.7 Primer dnevnega prenosa
 
 POS dnevni izkaz kaže 1.200,00 EUR gotovine in 2.800,00 EUR kartic.
@@ -749,8 +819,10 @@ prihodek, DDV ločeno in plačilna sredstva na ločenih kontih.
 Ne seštevajte različnih osnov brez razumevanja, ali poročilo že vsebuje DDV,
 vračila ali storne.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c97b259d14c6 package=lite -->
 ## 18. Odpravljanje težav
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1d7e64f8c24b package=lite -->
 ### 18.1 Izmene ni mogoče zapreti
 
 Preverite odprta naročila.
@@ -763,6 +835,7 @@ Preberite sporočilo zaslona in zapišite referenco izjeme.
 
 Ne odpirajte druge izmene za iste račune kot obvoz.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c2c69a5c714b package=lite -->
 ### 18.2 Gotovina se ne ujema
 
 Ponovno preštejte po apoenih.
@@ -775,6 +848,7 @@ Preverite, ali denar za polog ni v kuverti zunaj predala.
 
 Zabeležite razliko in sledite eskalacijskemu postopku.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-b611bdd0b4e4 package=lite -->
 ### 18.3 Kartice se ne ujemajo s terminalom
 
 Primerjajte isto obdobje in isti terminal.
@@ -785,6 +859,7 @@ Preverite vračila kartic in zaključek terminala.
 
 Ne popravljajte kartične razlike z gotovinskim premikom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1a8a2e60010e package=lite -->
 ### 18.4 Žurnal se ne prenese
 
 Preverite status in referenco žurnala.
@@ -797,8 +872,10 @@ Odpravite vzrok z osebo, ki ima pravico do nastavitve.
 
 Ponovite samo neuspešni prenos in preverite rezultat.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-439a5822ddaf package=lite -->
 ## 19. Kontrolni seznami, vaje in preverjanje znanja
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f03ba1714d6f package=lite -->
 ### 19.1 Pred zaključkom izmene
 
 - [ ] Osebna izmena in register sta pravilno določena.
@@ -809,6 +886,7 @@ Ponovite samo neuspešni prenos in preverite rezultat.
 - [ ] Gotovina je prešteta po apoenih.
 - [ ] Razlika je preverjena in pojasnjena oziroma eskalirana.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2e1577f3e458 package=lite -->
 ### 19.2 Pred Z poročilom
 
 - [ ] Izbran je pravilen poslovni dan Europe/Ljubljana.
@@ -818,6 +896,7 @@ Ponovite samo neuspešni prenos in preverite rezultat.
 - [ ] X poročilo ni zamenjano z Z poročilom.
 - [ ] Končno štetje gotovine je dokumentirano.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-19a3778fa9d6 package=lite -->
 ### 19.3 Pred POS–ERP prenosom
 
 - [ ] Dnevni izkaz in žurnal uporabljata isti rez.
@@ -827,6 +906,7 @@ Ponovite samo neuspešni prenos in preverite rezultat.
 - [ ] Referenca je pripravljena za preverjanje v ERP.
 - [ ] Neuspeh ima odpravljeno konkretno napako.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1c518e2ab4e5 package=lite -->
 ### 19.4 Vaja: štetje
 
 Začetna gotovina je 200,00 EUR.
@@ -845,6 +925,7 @@ Odgovor: 165,00 EUR.
 
 Odgovor: ne; razliko ponovno preverite in evidentirate po postopku.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c5255575cf29 package=lite -->
 ### 19.5 Vaja: odprto naročilo
 
 Ob predaji je odprta miza s kartičnim plačilom brez jasnega odgovora terminala.
@@ -857,6 +938,7 @@ Ali gosta samodejno ponovno bremenite?
 
 Odgovor: ne; prvi poskus se mora najprej razjasniti.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a6268aa5f264 package=lite -->
 ### 19.6 Preverjanje znanja
 
 1. Ali X poročilo zaključi poslovni dan?
@@ -879,8 +961,10 @@ Pravilni odgovor: da, kadar tako določa poslovni dan enote.
 
 Pravilni odgovor: status, referenco in konkretno sporočilo napake.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-55fcb8ed59ef package=lite -->
 ## 20. Referenčni postopki po vlogah
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-36e908d3a7a9 package=lite -->
 ### 20.1 Natakar oziroma blagajnik
 
 Odpre lastno izmeno na pravilni enoti.
@@ -899,6 +983,7 @@ Ob koncu prešteje predal po apoenih.
 
 Razlike ne prikriva z novim računom ali premikom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-eadfe49d8a50 package=lite -->
 ### 20.2 Vodja izmene
 
 Preveri, kdo je odgovoren za register.
@@ -917,6 +1002,7 @@ Razporedi odgovornost za nerešene izjeme.
 
 Ne potrjuje dejstev, ki jih ni mogoče preveriti.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3281e80d4ee7 package=lite -->
 ### 20.3 Računovodstvo
 
 Primerja dnevni izkaz in POS žurnal.
@@ -935,6 +1021,7 @@ Dokumentira uskladitev in odprte razlike.
 
 Ne spreminja POS prometa brez sledljivega postopka.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-704019f70baa package=lite -->
 ### 20.4 Skrbnik nastavitev
 
 Upravlja pravice, ne deli skupnih prijav.
@@ -953,8 +1040,10 @@ Zapiše datum, razlog in lastnika spremembe.
 
 Ne spreminja kontov zaradi enkratne razlike brez analize.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-fb1a776a2322 package=lite -->
 ## 21. Dodatni primeri uskladitve
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-aea3a77663df package=lite -->
 ### 21.1 Kartica in gotovina
 
 Poročilo prikazuje 900,00 EUR kartic.
@@ -967,6 +1056,7 @@ Kartice zato ne sodijo v fizično štetje predala.
 
 Kartično razliko raziskujte na terminalu in v statusih plačil.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3622aa035fd4 package=lite -->
 ### 21.2 Pozni račun
 
 Račun je izdan ob 00:10 po lokalnem času.
@@ -979,6 +1069,7 @@ V poročilu preverite poslovni datum, ne predpostavljajte koledarskega.
 
 ERP žurnal primerjajte z istim poslovnim rezom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7890266cbb71 package=lite -->
 ### 21.3 Polog med izmeno
 
 V predalu je zaradi varnosti preveč gotovine.
@@ -991,6 +1082,7 @@ Denar zapre v označeno kuverto in ga fizično preda.
 
 Pričakovana gotovina se zmanjša za 700,00 EUR.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c81c48a9cd91 package=lite -->
 ### 21.4 Neuspešna integracija
 
 Žurnal je neuspešen zaradi manjkajočega konta kartic.
@@ -1005,6 +1097,7 @@ Uporabnik ponovi samo neuspešni žurnal.
 
 Po uspehu primerja znesek in referenco v obeh sistemih.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-489e19e48117 package=lite -->
 ## 22. Hitri vprašalnik pred zaključkom
 
 Ali zaključujem svojo izmeno ali odgovornost registra?
@@ -1035,6 +1128,7 @@ Ali ERP že vsebuje isto referenco?
 
 Ali neuspeh vsebuje konkreten naslednji korak?
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7e3c8066447f package=lite -->
 ## 23. Katalog zaslonov, polj in stanj
 
 Ta katalog opisuje trenutno vedenje, razvidno iz POS zaslonov in storitev.
@@ -1043,6 +1137,7 @@ Imena gumbov se lahko razlikujejo glede na pravice uporabnika.
 
 Katalog ni nadomestilo za pooblastila podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-da039eef6541 package=lite -->
 ### 23.1 Zaslon Izmene
 
 Naslov zaslona je **Izmene**.
@@ -1112,6 +1207,7 @@ Zgodovina osebnega pogleda vsebuje število računov in promet.
 
 Zgodovina osebnega pogleda vsebuje stanje potrditve ur.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8d7192d80de1 package=lite -->
 ### 23.2 Statusi osebne izmene
 
 `osnutek` pomeni zaprto izmeno, ki še ni poslana v potrditev.
@@ -1140,6 +1236,7 @@ Aktivna izmena je določena s praznim časom konca.
 
 Zaprta izmena ima zapisan čas konca.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-358736834218 package=lite -->
 ### 23.3 Osebna izmena in odgovornost registra
 
 Osebna izmena odgovarja na vprašanje, kdo je delal.
@@ -1172,6 +1269,7 @@ Navaden uporabnik lahko izvaja X pregled le za svojo dodeljeno blagajno.
 
 Če blagajna ne pripada enoti, sistem postopke zavrne.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-4973b6040dad package=lite -->
 ### 23.4 Zaslon Blagajniški premiki
 
 Zaslon vsebuje seznam premikov za izbrani kontekst.
@@ -1200,6 +1298,7 @@ Storno se obravnava kot sledljiv nasprotni dogodek.
 
 Storniranega premika ne popravljajte tako, da spreminjate fizično dokumentacijo brez zapisa.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3487713df45b package=lite -->
 ### 23.5 Tipi premikov
 
 `IZPLACILO_DOBAVITELJU` je izplačilo dobavitelju iz gotovine.
@@ -1226,6 +1325,7 @@ Pri uporabniškem opisu je prikazan računovodski namig D 109 / K 100.
 
 Storno nastane iz povezave z že potrjenim izvirnikom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-477135400c48 package=lite -->
 ### 23.6 Polja obrazca premika
 
 Polje **Tip** določi poslovni pomen premika.
@@ -1254,6 +1354,7 @@ Navodilo na zaslonu opozarja, da plačila nad 420 € potrebujejo dokumentiran r
 
 Ne vpisujte osebnih ali kartičnih podatkov, ki niso potrebni za dokaz premika.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-0e051293f1c8 package=lite -->
 ### 23.7 Zaslon X poročila
 
 X poročilo je vmesni, nezaklenjeni posnetek izbranega poslovnega dne.
@@ -1296,6 +1397,7 @@ X ne ponastavi grand totala.
 
 X ne spremeni računov.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7c8c83194bfb package=lite -->
 ### 23.8 Polja uskladitve gotovine
 
 Polje **Prešteta gotovina** je dejansko fizično preštet denar.
@@ -1320,6 +1422,7 @@ Uskladitev z razliko se lahko shrani le z razlago odstopanja.
 
 Shranjena razlaga ni dokaz, da je vzrok že odpravljen.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-b43e966bd6c9 package=lite -->
 ### 23.9 Zaslon zaključkov v operativnih poročilih
 
 Poročilo **Zaključki blagajn** prikazuje rez po enoti, blagajni in poslovnem datumu.
@@ -1348,8 +1451,10 @@ Pri zapisu preverite besedilo vsake blokade.
 
 Blokada vsebuje tip, število in seznam konkretnih postavk.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6ec2c3229d31 package=lite -->
 ## 24. Delovni postopki: izmena, odmor in predaja
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7c9909ce5bec package=lite -->
 ### 24.1 Začetek osebne izmene
 
 1. Prijavite se s svojim uporabniškim računom.
@@ -1382,6 +1487,7 @@ Blokada vsebuje tip, število in seznam konkretnih postavk.
 
 15. Če je ročna izbira profila nujna, jo zabeležite vodji.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6129e3b285d9 package=lite -->
 ### 24.2 Plačan in neplačan odmor
 
 V pregledani POS izvedbi ni dokazanega ločenega postopka za plačan ali
@@ -1393,6 +1499,7 @@ nejasne transakcije dogovorjenemu sodelavcu ter uredite čas po odobrenem
 kadrovsko-evidenčnem postopku. Ne odpirajte druge izmene, da bi nadomestili
 manjkajočo evidenco odmora.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-db51068129b0 package=lite -->
 ### 24.3 Predaja odprtih naročil
 
 Predaja naročila ni zaprtje naročila.
@@ -1423,6 +1530,7 @@ Pri predaji zapišite stanje kuhinje, če je pomembno.
 
 Vodja naj preveri predajo, kadar odhaja zadnja oseba izmene.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-13a1248d223f package=lite -->
 ### 24.4 Predaja gotovine in registra
 
 Predajo predala izvedeta predajalec in prevzemnik skupaj.
@@ -1451,6 +1559,7 @@ Bonov ne prištevajte gotovini, razen če vaš dokumentiran postopek določa dru
 
 Če se štetje ne ujema, razliko evidentirajte in ne prenašajte nejasnosti naprej.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f04846bda359 package=lite -->
 ### 24.5 Nejasno kartično plačilo
 
 Nejasno plačilo pomeni, da rezultat terminalskega procesa ni potrjen.
@@ -1479,6 +1588,7 @@ Primer napake je timeout pri preverjanju plačila.
 
 Dokler zadeva ni razrešena, jo vključite v dnevno predajo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3db08c74596f package=lite -->
 ### 24.6 Zapiranje osebne izmene
 
 Osebno izmeno zaprite šele po koncu svojega dela.
@@ -1508,6 +1618,7 @@ Po potrebi pošljite zaprto izmeno v potrditev.
 
 Dodajte zahtevano pojasnilo po pravilih podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-53949a695e46 package=lite -->
 ### 24.7 Priporočeni zapis predaje
 
 Naslednji zapis je priporočilo, ne trditev o obstoječem čarovniku za predajo.
@@ -1540,8 +1651,10 @@ Podpis oziroma potrditev predajalca: __________.
 
 Podpis oziroma potrditev prevzemnika: __________.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-13922c819d40 package=lite -->
 ## 25. Gotovina: izračun, štetje in dokumentiranje
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-acfa87825673 package=lite -->
 ### 25.1 Trenutna formula pričakovane gotovine
 
 Pričakovana gotovina izhaja iz nastavljenega menjalnega denarja.
@@ -1570,6 +1683,7 @@ Privzeta vrednost je tehnični privzeti podatek.
 
 Vodja naj preveri, ali je nastavitev menjalnega denarja za register pravilna.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-56809f11d72e package=lite -->
 ### 25.2 Delovni list štetja apoenov
 
 Uporabite ločen list za vsak fizični predal.
@@ -1630,6 +1744,7 @@ Razlika: ______ EUR.
 
 Razlog odstopanja: __________.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-26f1368e9e3d package=lite -->
 ### 25.3 Primer brez razlike
 
 Menjalni denar znaša 100,00 EUR.
@@ -1650,6 +1765,7 @@ Razlika je 0,00 EUR.
 
 Uskladitev lahko postane potrjena brez razloga odstopanja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1d0c9dd3ef37 package=lite -->
 ### 25.4 Primer manjka
 
 Pričakovano stanje je 272,30 EUR.
@@ -1674,6 +1790,7 @@ Primer razlage je »Manjko 2,00 EUR po dvakratnem štetju; predano vodji.«
 
 Ne uporabite opisa »napaka« brez zneska, časa in naslednjega ukrepa.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-77256e2932d6 package=lite -->
 ### 25.5 Primer viška
 
 Pričakovano stanje je 272,30 EUR.
@@ -1694,6 +1811,7 @@ Ne spreminjajte preštetega zneska, da bi dosegli nič.
 
 Zapišite višek in način predaje vodji.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-06309968e244 package=lite -->
 ### 25.6 Polog menjalnega denarja
 
 Polog menjalnega denarja pomeni fizični prejem denarja v predal.
@@ -1718,6 +1836,7 @@ Polog ne poveča prometa računa.
 
 Polog ne sme prikrivati viška od prejšnje izmene.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a4e3415781dc package=lite -->
 ### 25.7 Dvig gotovine v sef
 
 Dvig gotovine zmanjša fizično stanje predala.
@@ -1736,6 +1855,7 @@ Prejemnik kuverte naj prevzem potrdi po internem postopku.
 
 Ne uporabljajte dviga kot splošne oznake za neznano porabo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f7136384dd86 package=lite -->
 ### 25.8 Polog na TRR
 
 `POLOG_TRR` dokumentira premik gotovine iz blagajne proti banki.
@@ -1756,6 +1876,7 @@ Bančni izpisek ni sam po sebi dokaz, da je bil POS premik pravilno vnesen.
 
 POS premik in bančni izpisek primerjajte po znesku, datumu in sklicu.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-9edd47f386f0 package=lite -->
 ### 25.9 Izplačilo dobavitelju
 
 Uporabite ga samo za dejansko gotovinsko plačilo dobavitelju.
@@ -1776,6 +1897,7 @@ Potrjeno izplačilo zmanjša pričakovano gotovino.
 
 Ne uporabite izplačila za napitnino ali osebno posojilo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d13200317d56 package=lite -->
 ### 25.10 Storno premika
 
 Storno uporabite, kadar je potrjeni izvirnik poslovno napačen.
@@ -1794,8 +1916,10 @@ V opombo novega premika navedite povezavo na napako in popravek.
 
 Ne stornirajte pravilnega premika samo zato, ker se fizično štetje ne ujema.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-363fb0b91031 package=lite -->
 ## 26. Poslovni dan v časovnem pasu Europe/Ljubljana
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-baaae49efbad package=lite -->
 ### 26.1 Osnovno pravilo
 
 POS uporablja časovni pas `Europe/Ljubljana`.
@@ -1818,6 +1942,7 @@ Za interval velja zgornja meja izključena.
 
 To pomeni `start <= čas < end`.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-105800112d17 package=lite -->
 ### 26.2 Primer pri začetku ob 04:00
 
 Poslovni dan 10.06.2026 se začne 10.06.2026 ob 04:00 v Ljubljani.
@@ -1838,6 +1963,7 @@ Enako pravilo velja za preverjanje odprtih naročil.
 
 Enako pravilo velja za Z poročilo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-68d08c2a408d package=lite -->
 ### 26.3 Primer pri začetku ob 02:00
 
 Enota ima nastavljen začetek dneva 02:00.
@@ -1852,6 +1978,7 @@ Poročilo vedno filtrirajte po poslovnem rezu, kadar preverjate Z.
 
 ERP primerjavo izvedite z istim poslovnim datumom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-fe1779bff78e package=lite -->
 ### 26.4 Prehod na poletni čas
 
 V noči na prehod na poletni čas lokalna ura preskoči naprej.
@@ -1868,6 +1995,7 @@ Za primerjavo uporabljajte meje intervala, ne števila ur.
 
 Dogodek ob dejanskem časovnem žigu pripada eni sami lokalni meji.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5f9b5ce41329 package=lite -->
 ### 26.5 Prehod na zimski čas
 
 V noči na prehod na zimski čas se lokalna ura ponovi.
@@ -1882,6 +2010,7 @@ Pri preiskavi uporabite številko računa, UTC čas in lokalni prikaz.
 
 Za zaključek velja izračun strežnika v časovnem pasu enote.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-57bf77a10592 package=lite -->
 ### 26.6 Primer DST z začetkom ob 04:00
 
 Na dan prehoda ob 02:00 se prehod zgodi pred začetkom poslovnega dne.
@@ -1898,6 +2027,7 @@ Na jesenski ponovitvi sta možna dva dogodka z lokalnim prikazom 02:30.
 
 Oba dogodka ostaneta ločena po časovnem žigu.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f73d314c5ea2 package=lite -->
 ### 26.7 Kako pravilno izbrati poročilni rez
 
 Za X in Z izberite poslovni datum, ne čas tiskanja poročila.
@@ -1914,8 +2044,10 @@ Primer: promet 1. maja ob 01:00 lahko pripada poslovnemu datumu 30. aprila.
 
 Tak promet mora biti primerjan po enakem pravilu v POS in ERP.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-95cfaaf6b3a7 package=lite -->
 ## 27. X, Z in zapiralne blokade
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3699a47e56db package=lite -->
 ### 27.1 Razlika med X in Z
 
 X je pregled trenutnega stanja.
@@ -1938,6 +2070,7 @@ X pomaga pred štetjem.
 
 Z zaključi poslovni rez po izpolnjenih pogojih.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c76bdc54fd0a package=lite -->
 ### 27.2 Kaj vsebuje Z posnetek
 
 Z vsebuje številko Z.
@@ -1980,6 +2113,7 @@ Z vsebuje SŠP subvencijo.
 
 Z vsebuje število FURS potrjenih in nepotrjenih računov.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e74292627fdb package=lite -->
 ### 27.3 Trenutne blokade Z zaključka
 
 `OPEN_SHIFTS` pomeni, da obstaja odprta izmena v poslovnem intervalu.
@@ -2010,6 +2144,7 @@ Dokončajte poslovno finalizacijo navedenega računa.
 
 Zaprite odprti A-račun po pravilih terjatev.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a0df4905d48a package=lite -->
 ### 27.4 Vrstni red odprave blokad
 
 1. Preberite konkretna imena oziroma številke v seznamu blokad.
@@ -2032,6 +2167,7 @@ Zaprite odprti A-račun po pravilih terjatev.
 
 10. Šele nato izvedite Z.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-dcf2eccae5fb package=lite -->
 ### 27.5 Uskladitev kot ločen zapiralni pogoj
 
 Z zahteva uskladitev gotovine za isto enoto, blagajno in poslovni datum.
@@ -2048,6 +2184,7 @@ Uskladitev včerajšnjega dne ne velja za današnji dan.
 
 Ponovno preštetje naj dobi nov dokumentiran postopek, ne prepisovanja starega dokaza.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-b00bb68627b3 package=lite -->
 ### 27.6 Izvedba Z: trenutni postopek
 
 Trenutna storitev ne predstavlja nujno posebnega uporabniškega »čarovnika« za zapiranje.
@@ -2074,6 +2211,7 @@ Sistem preveri shranjeno uskladitev gotovine.
 
 Sistem izdela posnetek in posodobi grand total.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3ea5bb65264b package=lite -->
 ### 27.7 Odklep Z poročila
 
 Odklep zahteva vodjo ali administratorja.
@@ -2098,6 +2236,7 @@ Ponovni zaključek znova nastavi grand total.
 
 Odklep ni način za obhod blokad brez odprave vzroka.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1161b49407f6 package=lite -->
 ### 27.8 Primeri različnih dnevnih zaključkov
 
 **Primer A: miren dan.**
@@ -2150,8 +2289,10 @@ Terjatev obravnavajte po dogovorjenem postopku.
 
 Ne preoblikujte ga v gotovino zaradi zapiranja dneva.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c13bae678db7 package=lite -->
 ## 28. Operativna poročila: namen, filter, uskladitev in izvoz
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-accb1c263236 package=lite -->
 ### 28.1 Splošno pravilo filtrov
 
 Operativna poročila uporabljajo polji **Od datuma** in **Do datuma**.
@@ -2170,6 +2311,7 @@ Zaključke blagajn interpretirajte po poslovnem datumu.
 
 Pri čezpolnočnem delu navaden koledarski filter zahteva dodatno pozornost.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5689396cdd58 package=lite -->
 ### 28.2 Promet: skupni KPI
 
 Namen je hiter pregled skupnega prometa, DDV in števila računov.
@@ -2192,6 +2334,7 @@ Pri več enotah ne primerjajte skupnega KPI z enim Z poročilom.
 
 Za izvoz vključite razpon, enoto in čas izdelave v ime datoteke.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-0c6d879d834e package=lite -->
 ### 28.3 Promet po enotah
 
 Namen je primerjava poslovnih enot.
@@ -2210,6 +2353,7 @@ Odstopanje običajno pomeni drug filter, kasnejšo spremembo podatkov ali napač
 
 Pri izvozu naj bo enota samostojen stolpec.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-df55bebd866d package=lite -->
 ### 28.4 Promet po kategorijah
 
 Namen je analiza prodajne strukture.
@@ -2230,6 +2374,7 @@ Kategorijski seštevek lahko zahteva posebno obravnavo popustov ali sestavljenih
 
 Izvoz uporabite za analizo marže, ne kot dokaz fizične gotovine.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-266cff23f33c package=standard -->
 ### 28.5 Promet po mizah
 
 Namen je pregled prometa in obiska po mizi.
@@ -2248,6 +2393,7 @@ Odprta miza se preverja v zapiralnih blokadah.
 
 Izvoz pomaga pri razporeditvi osebja in analizi zasedenosti.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c1bfc816219a package=lite -->
 ### 28.6 Promet po prostorih
 
 Namen je primerjava terase, dvorane, bara ali drugega prostora.
@@ -2264,6 +2410,7 @@ Promet po prostoru ni dokaz, kdo je izdal račun.
 
 Izvoz uporabite za organizacijo prostora in sezonsko analizo.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-3f32f519b65f package=lite -->
 ### 28.7 Promet po artiklih
 
 Namen je pregled prodaje posameznih artiklov.
@@ -2280,6 +2427,7 @@ Nenavadno visoka količina lahko pomeni promocijo, napako vnosa ali spremembo ce
 
 Izvoz je uporaben za nabavo in proizvodno planiranje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-553f3590f74c package=lite -->
 ### 28.8 Promet in napitnine po zaposlenem
 
 Namen je pregled pripisa prometa in napitnin natakarju.
@@ -2298,6 +2446,7 @@ Napitnino primerjajte z razčlenitvijo napitnin v X oziroma Z.
 
 Izvoz uporabite kot vhod v interno delitev, ne kot samostojni obračun plače.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-0f03d2eb9b12 package=lite -->
 ### 28.9 Promet po načinu plačila
 
 Namen je uskladitev prodaje s kanali plačila.
@@ -2318,6 +2467,7 @@ Deljena plačila zahtevajo preverjanje razčlenjenih zneskov na računu.
 
 Izvoz naj vsebuje način plačila kot ločen stolpec.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-a7a47cdfb5e4 package=lite -->
 ### 28.10 Težave pri kartičnih plačilih
 
 Namen je ločeno spremljanje neuspešnih in nejasnih kartičnih procesov.
@@ -2338,6 +2488,7 @@ Izvoz uporabite za seznam odprtih raziskav.
 
 Zaprite preiskavo z zapisanim izidom po internem postopku.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6d22f2e712a5 package=lite -->
 ### 28.11 Težave pri davčnem potrjevanju FURS
 
 Namen je pregled neuspešnih in nejasnih davčnih potrditev.
@@ -2358,6 +2509,7 @@ Pred Z razrešite navedene račune.
 
 Izvoz uporabite za evidenco ponovnih poskusov in eskalacij.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-af63a0608033 package=lite -->
 ### 28.12 Zaključki blagajn
 
 Namen je nadzor Z zaključkov in uskladitev gotovine.
@@ -2382,6 +2534,7 @@ Odklenjene zapise obravnavajte kot odprto korektivno nalogo.
 
 Izvoz je primeren za dnevni nadzor vodij.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d4c56c3ad360 package=extended -->
 ### 28.13 Dostave in zamude
 
 Namen je nadzor poteka dostav.
@@ -2404,6 +2557,7 @@ Zamuda je operativni signal, ne neposredno računovodsko stanje.
 
 Izvoz uporabite za pogovor s kurirsko službo in izboljšanje rokov.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-4eaba2fbd501 package=lite -->
 ### 28.14 Normativna poraba
 
 Namen je pregled porabe vhodnih artiklov po normativih.
@@ -2422,6 +2576,7 @@ Razlika do inventure zahteva preverjanje odpisa, prejema ali recepture.
 
 Izvoz uporabite za nabavo in notranjo kontrolo porabe.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8c1d14ccca23 package=lite -->
 ### 28.15 Zaloge in inventurna odstopanja
 
 Namen je pregled vrednosti zalog, kritičnih zalog, praznih zalog in odstopanj.
@@ -2446,6 +2601,7 @@ Inventurno odstopanje primerjajte s številko inventure in razlogom.
 
 Izvoz uporabite za plan nabave in zapisnik inventure.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e2fa4d627888 package=lite -->
 ### 28.16 POS naprave
 
 Namen je nadzor dosegljivosti in konfiguracije naprav.
@@ -2470,6 +2626,7 @@ Naprava z napako lahko pojasni zamudo, ne pa samodejno finančne razlike.
 
 Izvoz uporabite za servisni seznam in dokaz eskalacije.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-30a168b41c42 package=standard -->
 ### 28.17 Čas priprave po kuhinji in točilnici
 
 Namen je merjenje dejanske priprave po KDS postaji.
@@ -2492,8 +2649,10 @@ Poročilo ne nadomešča preveritve odprtih naročil.
 
 Izvoz uporabite za razporeditev kapacitet in izboljšanje procesa.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-b25d16a9402a package=lite -->
 ## 29. POS–ERP: žurnali, preslikave in primerjava
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2d76fc456e1a package=lite -->
 ### 29.1 Kaj prenos trenutno omogoča
 
 Pot `/temeljnice` vrne temeljnice podjetja za datum od–do.
@@ -2520,6 +2679,7 @@ Vsaka temeljnica vsebuje ime računovodskega obdobja.
 
 Vsaka vrstica vsebuje konto, naziv, stran, znesek in opis.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-23326b3eed3a package=lite -->
 ### 29.2 Vrste zagona prenosa
 
 Ročni dnevni prenos uporablja datum v poti `/temeljnice/sync/:datum`.
@@ -2542,6 +2702,7 @@ Mesečnega zbirnika ne uporabljajte kot nadomestilo za neurejene dnevne razlike.
 
 Pred ročnim ponovnim zagonom preverite obstoječe reference.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f963a4a116c8 package=lite -->
 ### 29.3 Statusi žurnala
 
 V seznamu je prikazan status temeljnice, kakor je shranjen v ERP.
@@ -2560,6 +2721,7 @@ Status v ERP ni isto kot FURS stanje računa.
 
 Status v ERP ni isto kot status blagajniškega premika.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-661feb6b3094 package=lite -->
 ### 29.4 Načelo dvostavnosti
 
 Vsaka temeljnica mora imeti uravnotežen debet in kredit.
@@ -2576,6 +2738,7 @@ Zaokrožitve dokumentirajte po računovodskih pravilih podjetja.
 
 Ne dodajajte »izravnalnega« konta brez odobrene razlage.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2532451077df package=lite -->
 ### 29.5 Preslikava kontov: plačilni kanali
 
 Gotovinska prodaja se praviloma primerja s kontom blagajne.
@@ -2602,6 +2765,7 @@ To so kontrolne kategorije, ne univerzalne številke kontov.
 
 Konkretne številke kontov nastavite samo po kontnem načrtu podjetja.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-178af6b809ec package=lite -->
 ### 29.6 Preslikava DDV
 
 Osnova in DDV morata biti ločena po uporabljeni stopnji.
@@ -2622,6 +2786,7 @@ Artikli s spremenjeno stopnjo zahtevajo pregled obdobja veljavnosti.
 
 Razlika v DDV pogosto izvira iz drugega datuma, storniranega računa ali napačne preslikave.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-82b413c66a4b package=lite -->
 ### 29.7 Referenca in preprečevanje podvajanja
 
 Referenca žurnala je ključ za primerjavo med POS in ERP.
@@ -2638,6 +2803,7 @@ Ne rešujte napačnega žurnala z nenadzorovanim drugim žurnalom istega dne.
 
 V delovni list zapišite, kdo je preveril podvojitev.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8f4bd75ee331 package=lite -->
 ### 29.8 Ponovni poskus prenosa
 
 Ponovni poskus je upravičen po odpravi konkretnega vzroka.
@@ -2662,6 +2828,7 @@ Preverite status obdobja.
 
 Po uspehu primerjajte izid s POS virom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-9ae99458df44 package=lite -->
 ### 29.9 Dnevni primer primerjave POS–ERP
 
 Z za blagajno prikazuje promet dneva 1.000,00 EUR.
@@ -2688,6 +2855,7 @@ ERP reference morajo nedvoumno povezati dan in vir.
 
 Če bruto promet ne ustreza, preverite datum poslovnega reza in storna.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f5b6a582cc58 package=lite -->
 ### 29.10 Dnevni kontrolni list prenosa
 
 Podjetje: __________.
@@ -2732,8 +2900,10 @@ Preveril: __________.
 
 Datum preveritve: __________.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-732507b11f40 package=lite -->
 ## 30. Vaje, izpiti in modelni odgovori
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-004d961a909a package=lite -->
 ### 30.1 Vaja: ločitev odgovornosti
 
 Ana dela od 08:00 do 14:00 na glavni blagajni.
@@ -2754,6 +2924,7 @@ Register ostane odgovornost skupnega fizičnega predala.
 
 Z poročilo se izvede za blagajno in poslovni datum po vseh zapiralnih pogojih.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-93a2dec5a10e package=lite -->
 ### 30.2 Vaja: odprt odmor
 
 Uporabnik se je začasno umaknil z delovnega mesta, vendar pregledana POS
@@ -2767,6 +2938,7 @@ Modelni odgovor: ne sklepajte, da je zaključek izmene zaradi odmora blokiran.
 Uporabnik uredi predajo odprtih nalog in čas odsotnosti po odobrenem kadrovskem
 postopku, nato preveri pogoje za zaprtje izmene.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8e7443bf1ed3 package=lite -->
 ### 30.3 Vaja: pričakovana gotovina
 
 Menjalni denar je 50,00 EUR.
@@ -2787,6 +2959,7 @@ Izračun je 50 + 400 + 100 - 30 - 300.
 
 Kartična prodaja v ta izračun ne sodi.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-013aa273fc58 package=lite -->
 ### 30.4 Vaja: manjko
 
 X kaže pričakovano gotovino 220,00 EUR.
@@ -2805,6 +2978,7 @@ Vprašanje: ali je razlog potreben?
 
 Modelni odgovor: da, razlog odstopanja je obvezen.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-72b39ea3c9b4 package=lite -->
 ### 30.5 Vaja: meja poslovnega dne
 
 Začetek poslovnega dne je 04:00.
@@ -2821,6 +2995,7 @@ Vprašanje: kateri poslovni datum ima drugi račun?
 
 Modelni odgovor: 12. julij.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-21b1eb9fcddc package=lite -->
 ### 30.6 Vaja: X ali Z
 
 Vodja želi ob 22:00 preveriti stanje gotovine.
@@ -2835,6 +3010,7 @@ X je vmesni pregled in ne zaklene dneva.
 
 Z bi preveril blokade in ga ob odprtih mizah ne bi bilo mogoče zaključiti.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-25e344de4027 package=lite -->
 ### 30.7 Vaja: blokada FURS
 
 Na seznamu blokad je `FURS_UNRESOLVED`.
@@ -2849,6 +3025,7 @@ Razlog gotovinske razlike rešuje samo pogoj uskladitve gotovine.
 
 FURS blokada ostane ločen zapiralni pogoj.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c324e9147cee package=lite -->
 ### 30.8 Vaja: nejasna kartica
 
 Terminal je po timeoutu vrnil nejasen rezultat za 42,50 EUR.
@@ -2865,6 +3042,7 @@ Dogodek zapišite v predajo.
 
 Nejasni kartični zapisi so vidni ločeno v operativnem poročilu.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-5606151e07cd package=lite -->
 ### 30.9 Vaja: odprto naročilo
 
 Naročilo #87 je v statusu `odprto`.
@@ -2879,6 +3057,7 @@ Vodja mora naročilo zaključiti ali ga pravilno obravnavati.
 
 Zaprtje osebne izmene samo po sebi ne odpravi naročila.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-e87298505637 package=lite -->
 ### 30.10 Vaja: storno premika
 
 Potrjeno izplačilo dobavitelju je bilo pomotoma vneseno dvakrat.
@@ -2891,6 +3070,7 @@ Za potrjeni izvirnik uporabite sledljiv storno po pooblastilu.
 
 Nato preverite fizični denar in po potrebi ustvarite pravilen zapis.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d6f7b67606d8 package=lite -->
 ### 30.11 Vaja: polog na TRR
 
 Blagajnik odnese 800,00 EUR na banko.
@@ -2905,6 +3085,7 @@ Scenarij A pomeni, da menjalni denar ostane v blagajni.
 
 V opis se vpiše sklic bančnega pologa.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-24e47a2a98de package=lite -->
 ### 30.12 Vaja: odklep Z
 
 Z je že zaklenil dan.
@@ -2923,6 +3104,7 @@ Vprašanje: kaj sledi?
 
 Modelni odgovor: odprava vzroka in ponovni zaključek.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1182c24ea330 package=lite -->
 ### 30.13 Vaja: podvojen ERP prenos
 
 Pri ročnem prenosu je povezava prekinjena.
@@ -2937,6 +3119,7 @@ Modelni odgovor: referenco, datum, opis, zneske in vrstice v ERP.
 
 Če je prenos delno izveden, začne kontrolirani korektivni postopek.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-f9a27717c0da package=lite -->
 ### 30.14 Kratki izpit: trditve
 
 Trditev: X poročilo zaklene poslovni dan.
@@ -2971,6 +3154,7 @@ Trditev: ERP reference preverimo pred ponovnim prenosom.
 
 Odgovor: pravilno.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8111254fd57b package=lite -->
 ### 30.15 Ustni izpit: modelni odgovori
 
 Vprašanje: zakaj štejemo po apoenih?
@@ -2997,8 +3181,10 @@ Vprašanje: zakaj ne smemo ustvariti drugega ERP žurnala po timeoutu?
 
 Modelni odgovor: ker lahko prvi žurnal že obstaja in bi podvojili knjiženje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-78d8d69600e0 package=lite -->
 ## 31. Priporočila za vodje in računovodstvo
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c6a5c69988c2 package=lite -->
 ### 31.1 Dnevni ritem vodje
 
 Ob začetku dneva preverite, ali so prejšnji relevantni registri zaključeni.
@@ -3017,6 +3203,7 @@ Po Z arhivirajte številko Z in ključne priloge po internem pravilniku.
 
 Po prenosu v ERP primerjajte reference.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-cf938b528631 package=lite -->
 ### 31.2 Dnevni ritem računovodstva
 
 Najprej pridobite seznam zaklenjenih in odklenjenih zaključkov.
@@ -3037,6 +3224,7 @@ Nato preverite blagajniški konto proti Z in uskladitvam.
 
 Odstopanja zapišite z virom, zneskom, lastnikom in rokom.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-dd33652aa719 package=lite -->
 ### 31.3 Meja med trenutnim vedenjem in priporočilom
 
 Trenutno vedenje Z preverja navedene blokade in uskladitev gotovine.
@@ -3057,6 +3245,7 @@ Ne predstavljajte priporočila kot funkcijo, če je v uporabniškem vmesniku ni.
 
 Ne predstavljajte domnevnega čarovnika za zapiranje kot trenutno implementirane funkcije.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-d2630ef3968c package=lite -->
 ## 32. Operativni postopek POS→ERP za skrbnika in računovodstvo
 
 Ta postopek dopolnjuje tehnični opis iz poglavja 29. Uporabniški vmesnik lahko
@@ -3064,6 +3253,7 @@ prikaže nastavitve prenosa v POS, pregled temeljnic pa je lahko v zalednem ERP.
 Če vloga nima zaslona za pregled ali knjiženje, uporabnik ne sme sklepati, da je
 prenos izveden samo zato, ker je bila nastavitev shranjena.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-bc97f1bf2cc1 package=lite -->
 ### 32.1 Nastavitev pravil in urnika
 
 Pooblaščeni skrbnik v nastavitvah preveri:
@@ -3078,6 +3268,7 @@ Pooblaščeni skrbnik v nastavitvah preveri:
 Shranjena nastavitev ni dokaz, da je bil žurnal ustvarjen ali knjižen. Po
 spremembi zapišite čas, izvajalca, enoto in razlog spremembe.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-4c9427fbc207 package=lite -->
 ### 32.2 Dnevni prenos
 
 1. Zaključite oziroma preverite poslovni dan **dd.mm.yyyy**.
@@ -3097,6 +3288,7 @@ Dnevni prenos je namenjen hitremu odkrivanju manjkajočega konta, zaprtega
 obdobja, napačne DDV-preslikave ali komunikacijske napake. Pri ponovitvi
 uporabite isto referenco in preverite idempotentni rezultat.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-32a39dda0e02 package=lite -->
 ### 32.3 Mesečni zbirnik
 
 Mesečni zbirnik uporabite šele, ko so vsi dnevi in enote v mesecu pregledani.
@@ -3114,6 +3306,7 @@ Mesečni zbirnik ni popravek za neurejene dnevne razlike. Če manjka en dan,
 ga najprej obravnavajte z dnevnim postopkom. Pri obsegu, daljšem od dovoljenega
 razpona, uporabite več odobrenih intervalov in ohranite reference.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-2a548c341229 package=lite -->
 ### 32.4 Pregled in knjiženje žurnala
 
 Za vsak žurnal preverite:
@@ -3135,6 +3328,7 @@ izvedite v razpoložljivem ERP-seznamu temeljnic ali ga eskalirajte računovodsk
 vlogi. Priročnik ne predpostavlja zaslona, ki ga konkretna namestitev ne
 prikazuje.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-545782414949 package=lite -->
 ### 32.5 Preslikava kontov in DDV
 
 Pred prvo uporabo in po spremembi kontnega načrta preverite matriko:
@@ -3156,6 +3350,7 @@ zahteva stroškovno mesto ali projekt, ga nastavite pred prenosom in preverite
 uvoz. Opozorilo o neveljavnem kontu mora ostati vidno do izbire veljavnega
 nadomestnega konta; zaprtje okna ni potrditev popravka.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-1aad1efe2d8b package=lite -->
 ### 32.6 Kontrolirana ponovitev in dokaz rezultata
 
 Pri vsakem prenosu ločite **nastavitev**, **ustvarjanje osnutka** in
@@ -3183,8 +3378,10 @@ izvesti z ločenim pooblaščenim dejanjem.
 preskočenih vnosov, prenosa ne označite kot uspešnega. Shranite razpoložljiv
 tehnični odziv in zadevo predajte računovodski oziroma skrbniški vlogi.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-64f9da4de25c package=lite -->
 ## 33. Poročila, realizacija in zaključek gotovine
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-7b824d914ccf package=lite -->
 ### 33.1 Izbira pravega poročila
 
 | Potreba | Uporabite |
@@ -3202,6 +3399,7 @@ datum in vključitev storna/vračil. Datum v prikazu je **dd.mm.yyyy**. Če se
 filter po vrnitvi na stran ponastavi, ga ponovno preverite; ne primerjajte
 poročil z različnimi filtri.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-c4c84f4e09ef package=lite -->
 ### 33.2 Realizacija in plačilne dimenzije
 
 Pri realizaciji ločite:
@@ -3219,6 +3417,7 @@ storne, vračila in odprta naročila. Če se kartice razlikujejo, primerjajte
 ponudnikov zaključek s kartičnim prehodnim kontom. Če se gotovina razlikuje,
 preverite fizično štetje in blagajniške premike.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-45b6f63c6c6e package=lite -->
 ### 33.3 Storno in razveljavitev plačila
 
 Storno računa, vračilo postavke in razveljavitev plačila niso isti postopki.
@@ -3236,6 +3435,7 @@ Pred izvedbo zabeležite račun, plačilo, znesek, razlog in uporabnika.
 storniran. Ne ustvarite novega računa, dokler ne preverite odprtega zneska in
 stanja vseh plačil.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-0b428e4597de package=lite -->
 ### 33.4 Filtri, izvoz in uskladitev poročil
 
 Pri vsakem poročilu zapišite uporabljene filtre:
@@ -3260,6 +3460,7 @@ nadomeščajte z ročnim seštevanjem nepovezanih zaslonov. Shranite uporabljene
 filtre in izvoz razpoložljivega poročila, nato razliko predajte računovodstvu
 z navedbo vira, datuma, zneska in odgovorne osebe.
 
+<!-- pos-heading: id=pos-08-nastavitve-po-sklopih-45bdc1b8062c package=lite -->
 ## 34. Omejitve trenutno razpoložljivih funkcij
 
 V pregledani izvedbi niso potrjeni javna internetna rezervacija, spletni nakup

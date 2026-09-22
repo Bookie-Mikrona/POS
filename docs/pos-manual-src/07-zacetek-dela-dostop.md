@@ -1,6 +1,7 @@
-<!-- pos-packages: extended, lite*37, extended*4, lite*6, standard*10, extended*5, lite*11, extended*3, lite*4, standard*7, extended*2, lite*43, extended*11, standard*19, lite*7, extended, lite*12, extended, standard, lite, standard, lite*9, standard*2, extended -->
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c678dfc890c9 package=extended -->
 # 07 Zaloge, prejemnice, OCR, pripravljena hrana, odpad in dogodki
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-29b6d71c2c79 package=lite -->
 ## 1. Namen sklopa
 
 Ta sklop opisuje evidentiranje zalog in proizvodnih dogodkov.
@@ -10,6 +11,7 @@ pripravljeno oziroma sestavljeno hrano, odpadke s krožnikov in dogodke.
 
 Plačilo ter račun sta v sklopu 06. Zaključek izmene je v sklopu 08.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-23755ca2defc package=lite -->
 ## 2. Predpogoji
 
 1. Delate v pravilni poslovni enoti in skladišču.
@@ -23,6 +25,7 @@ Plačilo ter račun sta v sklopu 06. Zaključek izmene je v sklopu 08.
 > **Opozorilo:** Zaloga ni preglednica za približne popravke. Vsako
 > spremembo evidentirajte z dokumentom, ki pojasni izvor, količino in datum.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-222526ae0f22 package=lite -->
 ## 3. WAC in vrednotenje zaloge
 
 WAC pomeni tehtano povprečno nabavno ceno.
@@ -32,6 +35,7 @@ Pri prejemu se količina in nabavna vrednost vključita v novo povprečno ceno.
 WAC se uporablja za vrednotenje izdaj, porabe, odpadov in pripravljene hrane,
 kadar je tako nastavljeno.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-2230ce8143aa package=lite -->
 ### 3.1 Praktična posledica
 
 1. Nabavna cena na prejemnici mora biti pravilna pred potrditvijo.
@@ -41,11 +45,13 @@ kadar je tako nastavljeno.
 
 WAC ni prodajna cena. Popust za gosta ne spreminja WAC artikla.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-17b9d65489d7 package=lite -->
 ## 4. Začetne zaloge
 
 Začetna zaloga se vnese ob začetku uporabe skladišča ali ob dogovorjenem
 prehodu na sistem.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c5d0ac4d7fe5 package=lite -->
 ### 4.1 Pred vnosom
 
 1. Določite datum in uro reza.
@@ -54,6 +60,7 @@ prehodu na sistem.
 4. Zberite veljavne nabavne vrednosti oziroma WAC po navodilu računovodstva.
 5. Preverite, da artikel pripada pravemu skladišču.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a1bcabf35954 package=lite -->
 ### 4.2 Vnos
 
 1. Odprite **Zaloge** in izberite začetne zaloge.
@@ -65,6 +72,7 @@ prehodu na sistem.
 7. Preglejte ničelne, negativne in nenavadno velike količine.
 8. Potrdite dokument samo po skupnem pregledu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5897b04ceff3 package=lite -->
 ### 4.3 Kontrola po vnosu
 
 1. Odprite kartico vsaj treh reprezentativnih artiklov.
@@ -75,10 +83,12 @@ prehodu na sistem.
 Začetnega stanja ne vnašajte ponovno, če po potrditvi odkrijete napako.
 Uporabite popravek po navodilu odgovorne osebe.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3ad322f01507 package=lite -->
 ## 5. Prejemnica
 
 Prejemnica evidentira prevzem blaga v zalogo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7f7c48654d6f package=lite -->
 ### 5.0 Zaslon prejemnice: pomen polj
 
 | Polje | Kaj vnesete | Kontrola pred potrditvijo |
@@ -102,6 +112,7 @@ Prejemnica evidentira prevzem blaga v zalogo.
 | DDV znesek | Izračun sistema | Primerjajte ga s seštevkom listine ob odstopanju. |
 | Bruto | Končni znesek vrstice | Vsota vrstic mora po pravilih zaokroževanja ustrezati dokumentu. |
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5e074c45ce34 package=lite -->
 ### 5.5 Pravilo štirih primerjav
 
 Pred potrditvijo primerjajte fizično blago z dobavnico.
@@ -116,6 +127,7 @@ Nazadnje primerjajte seštevke, DDV in število vrstic.
 
 Osnutek ni potrdilo o prevzemu in ne spremeni razpoložljive zaloge.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-4c83bcbb270f package=lite -->
 ## 5A. Kartica artikla in sledljivost zaloge
 
 Kartica artikla je časovni zapis vseh potrjenih sprememb za posamezen artikel
@@ -123,6 +135,7 @@ v posameznem skladišču.
 
 Ne kaže samo trenutne količine, temveč pojasnjuje, kako je količina nastala.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d8b1a47ea62b package=lite -->
 ### 5A.1 Branje kartice
 
 1. Odprite **Zaloge > Artikli** in izberite artikel.
@@ -136,6 +149,7 @@ Ne kaže samo trenutne količine, temveč pojasnjuje, kako je količina nastala.
 9. Pri vrednostnem odstopanju preverite WAC pred in po prejemu.
 10. Izvoz kartice označite z artiklom, skladiščem in časom priprave.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-59b5fb0c4ede package=lite -->
 ### 5A.2 Stolpci kartice
 
 | Stolpec | Pomen | Kaj iščete |
@@ -151,6 +165,7 @@ Ne kaže samo trenutne količine, temveč pojasnjuje, kako je količina nastala.
 | WAC | Povprečna cena po dogodku | Skok po napačni ceni ali pakiranju. |
 | Uporabnik | Izvajalec ali potrjevalec | Kdo lahko pojasni zapis. |
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-13330e5339ff package=lite -->
 ### 5A.3 Kartica ni nadomestek za popis
 
 Kartica je evidenca sistema, popis pa ugotovitev dejanskega stanja.
@@ -162,6 +177,7 @@ popišite osem in raziskujte razliko.
 
 Ne spreminjajte kartice neposredno zato, da bi bila podobna štetju.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f88cbc8e149b package=lite -->
 ### 5A.4 Primer WAC
 
 V skladišču je 10 kg kave po WAC 12,00 EUR/kg.
@@ -180,6 +196,7 @@ Dobaviteljeva zadnja cena 15,00 EUR ni samodejno cena izdaje.
 
 Prodajna cena espressa pri tem izračunu ni pomembna.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-80b9e36e6458 package=lite -->
 ### 5A.5 Primer opozorila WAC
 
 Če je na računu cena 150,00 EUR namesto 15,00 EUR, je posledica večja
@@ -191,8 +208,10 @@ Dokument ustavite v osnutku, preverite decimalno mesto in pakiranje.
 
 Po potrditvi uporabljajte samo odobren korekcijski dokument.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-2d85b54d4bb1 package=lite -->
 ## 5B. Artikli, enote, pakiranja in cene
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-61bfa34584e1 package=lite -->
 ### 5B.1 Osnovna enota
 
 Za vsak zalogovni artikel določite osnovno enoto, v kateri sistem vodi stanje.
@@ -206,6 +225,7 @@ Pri konzervah je lahko osnovna enota kos.
 Pri pijači je lahko osnovna enota steklenica ali liter, vendar naj bo izbira
 dosledna skozi prevzem, recepturo, prenos in inventuro.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0e2bc6aa8fcd package=lite -->
 ### 5B.2 Pakiranje
 
 Pakiranje pove, koliko osnovnih enot vsebuje nabavna enota.
@@ -221,6 +241,7 @@ od teh dveh vrednosti.
 
 Pred prvim prevzemom naredite test na enem paketu in preverite kartico.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d3f6e1173b84 package=lite -->
 ### 5B.3 Pretvorbe
 
 | Nabavna navedba | Možna osnovna enota | Potrebna nastavitev |
@@ -232,6 +253,7 @@ Pred prvim prevzemom naredite test na enem paketu in preverite kartico.
 | 24 kos | kos | Karton je 24 kosov. |
 | 1 zaboj | steklenica | Zaboj mora imeti določeno število steklenic. |
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9c20c9364763 package=lite -->
 ### 5B.4 Cena pakiranja
 
 Cena na dokumentu je lahko cena kartona, kosa ali osnovne enote.
@@ -244,6 +266,7 @@ Pred potrditvijo ugotovite, katero ceno zahteva vrstica prejemnice.
 
 Tak vnos bi zalogo ovrednotil na 1.152,00 EUR namesto 48,00 EUR.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-6f856db0fc64 package=lite -->
 ### 5B.5 Nabavna, prodajna in davčna cena
 
 Nabavna cena je podlaga za vrednotenje zaloge.
@@ -258,6 +281,7 @@ Popust gostu spreminja promet računa, ne količine zaloge in ne WAC.
 
 Ne uporabljajte popusta na POS računu za popravljanje nabavne cene.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-710000b5237d package=lite -->
 ### 5B.6 DDV na prejemnici
 
 Preverite, ali dobaviteljeva cena predstavlja neto ali bruto znesek.
@@ -272,12 +296,14 @@ Pri dvomu primerjajte neto, DDV in bruto seštevek z originalom.
 
 Davčno obravnavo spremeni samo pooblaščena oseba.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-6df772cf660f package=lite -->
 ## 5C. OCR, kamera in uvoz dokumentov
 
 OCR in uvoz predlagata podatke; ne potrjujeta resničnosti prevzema.
 
 Odgovornost za potrjeni dokument ostane pri osebi, ki ga pregleda.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-503aaeb66574 package=lite -->
 ### 5C.1 Fotografiranje dokumenta
 
 1. Položite dokument na ravno, dobro osvetljeno podlago.
@@ -288,6 +314,7 @@ Odgovornost za potrjeni dokument ostane pri osebi, ki ga pregleda.
 6. Če je dokument nečitljiv, uporabite originalni PDF ali ročni vnos.
 7. Fotografije ne obdelujte tako, da bi se spremenili podatki listine.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1e27e51385fb package=lite -->
 ### 5C.2 OCR pregled po poljih
 
 | OCR predlog | Obvezno preverjanje |
@@ -301,6 +328,7 @@ Odgovornost za potrjeni dokument ostane pri osebi, ki ga pregleda.
 | DDV | Stopnjo vsake skupine in skupni DDV. |
 | Skupaj | Neto, DDV, bruto in morebitni depozit embalaže. |
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-795f0beaef09 package=lite -->
 ### 5C.3 Uvoz datoteke
 
 Uvozite samo datoteko iz zaupanja vrednega vira.
@@ -317,6 +345,7 @@ Zavrnjene vrstice ne izginejo: preberite razlog in jih obravnavajte.
 
 Po uvozu shranite izvorno datoteko skladno s politiko hrambe.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-318d539e7047 package=lite -->
 ### 5C.4 Ujemanje dobavitelja
 
 Samodejni predlog dobavitelja sprejmite le ob jasnem ujemanju.
@@ -331,6 +360,7 @@ Različne poslovalnice iste skupine so lahko različni dobavitelji v evidenci.
 
 Ne izberite prvega zadetka samo zato, da bi nadaljevali z OCR.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a4110450dc9c package=lite -->
 ### 5C.5 Ujemanje artikla
 
 Predlagani artikel primerjajte z dobaviteljevo šifro, EAN, opisom in pakiranjem.
@@ -346,6 +376,7 @@ Ustvarite zahtevek za novi artikel ali počakajte na odobreno šifro.
 Potrdite trajno povezavo dobaviteljeva šifra–artikel le po pregledu prvega
 in naslednjega dokumenta.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b255976633b0 package=lite -->
 ### 5C.6 Neznana embalaža
 
 Ustavite vrstico, kadar OCR prebere artikel, vendar ne pakiranja.
@@ -358,6 +389,7 @@ Vnesite pravilno pretvorbo pred potrditvijo.
 
 Nikoli ne domnevajte, da sta karton in zaboj enake velikosti.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-41d112385908 package=lite -->
 ### 5C.6A Povratna embalaža: vračilo ali odpis
 
 Pri povratni embalaži vedno ločite dva dogodka:
@@ -409,6 +441,7 @@ Pred uporabo v **Nastavitve → Računovodstvo → POS konti** preverite:
 Številka 4802000 v primeru je ponazoritev; uporabite konto iz kontnega načrta
 podjetja.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-55c8b4bd3823 package=lite -->
 ### 5C.6B Dobropis za že vrnjeno povratno embalažo
 
 Dobropis dobavitelja za embalažo, ki ste jo že fizično vrnili, ni novo vračilo.
@@ -424,6 +457,7 @@ Delno povezovanje je dovoljeno do preostale količine na obeh straneh.
 ohrani revizijsko sled; ne ponavljajte fizičnega vračila in ne brišite
 izvornega dobropisa.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-ad30d51fd555 package=lite -->
 ### 5C.7 Kontrolni seštevki uvoza
 
 Število uvoženih vrstic primerjajte s številom vrstic listine.
@@ -438,6 +472,7 @@ Bruto seštevek primerjajte po dovoljenem pravilu zaokrožitve.
 
 Rabat in vračljivo embalažo obravnavajte ločeno, če tako določa nastavitev.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-cc86837a8914 package=lite -->
 ### 5C.8 Duplikati
 
 Sistem lahko opozori na enako številko dokumenta, dobavitelja, datum ali znesek.
@@ -452,6 +487,7 @@ Enaka številka pri dobropisu ali drugi seriji lahko zahteva dodatno razlago.
 
 Če ne gre za duplikat, v opombo zapišite razlog in nadaljujte samo z dovoljenjem.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-155fd9cd321e package=lite -->
 ### 5C.9 Ničelne vrstice
 
 Vrstica s količino nič ne poveča zaloge in običajno nima poslovnega smisla.
@@ -463,6 +499,7 @@ ceno le, kadar to dovoljuje postopek.
 
 Ničelne vrstice ne uporabljajte za komentar ali ločevanje skupin.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-51b5c90e110e package=lite -->
 ### 5C.10 Pogoste OCR napake
 
 Črka O se lahko prebere kot številka 0.
@@ -479,6 +516,7 @@ Opis se lahko prelomi čez dve vrstici in ustvari napačen artikel.
 
 Končni seštevek se lahko prepozna kot dodatna vrstica artikla.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-dbffee741e35 package=extended -->
 ## 5D. Prenosi zaloge za dogodke
 
 POS podpira prenos zaloge v okviru modula **Dogodki**, ko se blago pošlje v
@@ -486,6 +524,7 @@ začasno dogodkovno enoto in se po dogodku evidentira porabljena, preostala ter
 vrnjena količina. To ni splošni prenos med poljubnimi skladišči, barom ali
 kuhinjo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0543e55ccd2a package=extended -->
 ### 5D.1 Pošiljanje zaloge na dogodek
 
 1. Odprite pravi dogodek in preverite njegovo začasno enoto.
@@ -500,6 +539,7 @@ Splošnega prenosa med običajnimi skladišči ta postopek ne nadomešča. Če p
 ni povezan z dogodkom, uporabite drug odobren zalogovni dokument ali primer
 predajte odgovorni osebi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-179d47d3ec04 package=extended -->
 ### 5D.2 Poraba, preostanek in vračilo
 
 Po dogodku mora veljati:
@@ -513,18 +553,21 @@ Po dogodku mora veljati:
 5. Preverite, da vrnjena količina ne presega preostale dogodkovne količine.
 6. Odstopanje ustavite in raziščite; ne izravnavajte ga z izmišljenim prenosom.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f964e9579db4 package=extended -->
 ### 5D.3 Prenos ni rešitev za manjko
 
 Dogodkovnega prenosa ne ustvarjajte zato, da bi odstranili negativno stanje v
 redni enoti. Najprej preverite zamujeni prejem, prodajo, recepturo, dogodkovno
 porabo, vračilo in inventuro.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-81589b43118b package=lite -->
 ## 5E. Inventura in prilagoditve
 
 Inventura je organiziran popis dejanskih količin na določen datum in uro.
 
 Prilagoditev je sledljiv dokument, ki uredi ugotovljeno razliko po odobritvi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a742320d8547 package=lite -->
 ### 5E.1 Priprava inventure
 
 1. Določite rez: datum, uro, skladišče in odgovorno osebo.
@@ -535,6 +578,7 @@ Prilagoditev je sledljiv dokument, ki uredi ugotovljeno razliko po odobritvi.
 6. Določite način štetja odprte embalaže.
 7. Zagotovite drugo štetje za vrednostno ali količinsko pomembne artikle.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-e6e0016e6a88 package=lite -->
 ### 5E.2 Štetje
 
 Štejte fizično stanje, ne pričakovanega stanja s kartice.
@@ -549,6 +593,7 @@ Blago s pretečenim rokom ločite in označite za odločitev o odpisu.
 
 Neznan artikel fotografirajte ali zapišite tako, da ga je mogoče pozneje določiti.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-ecbb019dded9 package=lite -->
 ### 5E.3 Vnos in odobritev
 
 1. Odprite inventurni dokument za pravilen rez.
@@ -560,6 +605,7 @@ Neznan artikel fotografirajte ali zapišite tako, da ga je mogoče pozneje dolo�
 7. Potrdite prilagoditev šele po zaključku pregleda.
 8. Preverite kartico po potrditvi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-108978817813 package=lite -->
 ### 5E.4 Razlogi za razliko
 
 Razlika je lahko zamujen prejem.
@@ -578,6 +624,7 @@ Razlika je lahko napaka pri prvem ali drugem štetju.
 
 Razlog zapišite na podlagi preverjanja, ne ugibanja.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f663a02d2819 package=lite -->
 ### 5E.5 Negativne zaloge
 
 Negativno stanje pomeni, da je sistem zabeležil več izhodov kot vhodov.
@@ -595,6 +642,7 @@ Preverite, ali prodajni artikel porablja pravi zalogovni artikel.
 
 Ne popravljajte negativnega stanja z izmišljeno prejemnico.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1cd7539ea75c package=standard -->
 ## 5F. Pripravljena in sestavljena hrana
 
 Pripravljena hrana nastane, ko se surovine pretvorijo v zalogovni izdelek.
@@ -603,6 +651,7 @@ Sestavljena hrana oziroma kompozit lahko vsebuje več sestavin in izkoristek.
 
 Prodajni artikel ni samodejno tudi zalogovni polizdelek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d0bcfcb70dc7 package=standard -->
 ### 5F.1 Receptura
 
 Receptura določa vhodne sestavine, njihove količine in izhod.
@@ -618,6 +667,7 @@ Receptura mora odražati dejanski postopek, ne idealnega recepta iz kuharice.
 
 Spremembo recepture datirajte in odobrite pred uporabo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8e587249d6b9 package=lite -->
 ### 5F.2 Proizvodni nalog
 
 1. Izberite skladišče surovin in skladišče izdelka.
@@ -629,6 +679,7 @@ Spremembo recepture datirajte in odobrite pred uporabo.
 7. Potrdite šele, ko je izdelek dejansko pripravljen.
 8. Preglejte izhod na kartici izdelka in porabo na karticah sestavin.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-2c5d25cf6cbc package=standard -->
 ### 5F.3 Primer juhe
 
 Receptura za 20 litrov juhe porabi 4 kg zelenjave, 1 kg mesa in 20 litrov osnove.
@@ -640,6 +691,7 @@ odpadom ali napačnim merjenjem.
 
 Če se je del juhe razlil, ga evidentirajte kot odpad po pravilnem razlogu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8c75098d6fcf package=standard -->
 ### 5F.4 Zamrznjena operativna zaloga
 
 Zamrznjena operativna zaloga je stanje pripravljene hrane za redno delo.
@@ -656,6 +708,7 @@ hrane, ne z ročnim zmanjšanjem brez razloga.
 Pretečen, poškodovan ali temperaturno sporen izdelek obravnavajte kot odpad
 po odobritvi in s konkretnim razlogom.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1afb8e6c1fbe package=standard -->
 ### 5F.5 Sestavljeni izdelki in prodaja
 
 Če prodaja jed porablja sestavine neposredno, mora normativ povezati prodajno
@@ -670,6 +723,7 @@ Dvojna poraba napihne strošek in povzroči navidezni manko.
 
 Manjkajoča povezava povzroči prodajo brez porabe in navidezni presežek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3ed06203a7e9 package=standard -->
 ## 5G. Odpad, krčenje in odpad s krožnikov
 
 Odpad je dokumentirana izguba zaloge, ki ni prodaja in ni prenos.
@@ -678,6 +732,7 @@ Krčenje oziroma shrinkage je širši izraz za nepojasnjene ali operativne izgub
 
 Odpad s krožnikov je hrana, vrnjena po strežbi ali ostanek po gostu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1c95203195b5 package=standard -->
 ### 5G.1 Kategorije odpada
 
 | Kategorija | Primer | Obvezen podatek |
@@ -690,6 +745,7 @@ Odpad s krožnikov je hrana, vrnjena po strežbi ali ostanek po gostu.
 | Temperatura | Prekinjena hladna veriga | Artikel, količina in odločitev odgovorne osebe. |
 | Inventurna razlika | Neugotovljen manko pri popisu | Popis, pregled in odobritev. |
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-de2a0ca163aa package=standard -->
 ### 5G.2 Postopek odpada
 
 1. Ustavite uporabo artikla, če je kakovost ali varnost vprašljiva.
@@ -702,6 +758,7 @@ Odpad s krožnikov je hrana, vrnjena po strežbi ali ostanek po gostu.
 8. Potrdite dokument in fizično odstranite blago skladno s pravili.
 9. Preglejte vpliv na kartico in poročilo odpada.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-283d868ea585 package=standard -->
 ### 5G.3 Odpad s krožnikov
 
 Odpad s krožnikov ne zamenjujte s stornom računa.
@@ -717,6 +774,7 @@ Metodo uporabljajte dosledno, da so poročila primerljiva.
 
 Ne beležite osebnih podatkov gosta v opombo odpada.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0a71566374fb package=standard -->
 ### 5G.4 Analiza krčenja
 
 Primerjajte odpad po artiklu, kategoriji, izmeni in obdobju.
@@ -729,12 +787,14 @@ Inventurna razlika in odpad naj ostaneta ločena, dokler vzrok ni potrjen.
 
 Vodja določi korektivni ukrep: usposabljanje, naročanje, skladiščenje ali nadzor.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-cf413753b64b package=extended -->
 ## 5H. Dogodki, pogostitve in uskladitev
 
 Dogodek je načrtovana ali izredna poraba, ki jo je treba ločiti od redne prodaje.
 
 Primeri so degustacija, interna pogostitev, promocija, catering in zaprta družba.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9be43daed644 package=extended -->
 ### 5H.1 Pred dogodkom
 
 1. Določite naročnika, datum, enoto in odgovorno osebo.
@@ -744,6 +804,7 @@ Primeri so degustacija, interna pogostitev, promocija, catering in zaprta družb
 5. Določite način evidentiranja vračil in neporabljenega blaga.
 6. Preverite, da so cene, DDV in popusti urejeni na prodajni strani, kadar se zaračunava.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-febbfa8cb80c package=extended -->
 ### 5H.2 Med dogodkom
 
 Evidentirajte dodatno izdano blago z referenco dogodka, kadar postopek to omogoča.
@@ -754,6 +815,7 @@ Ne uporabljajte splošnega odpisa kot bližnjice za neobračunano strežbo.
 
 Za odprte pakete določite osebo, ki bo po dogodku preverila preostanek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-71737d3c56fc package=extended -->
 ### 5H.3 Po dogodku
 
 1. Preštejte vračljivo in neporabljeno blago.
@@ -764,6 +826,7 @@ Za odprte pakete določite osebo, ki bo po dogodku preverila preostanek.
 6. Primerjajte zaračunano prodajo z dogovorom oziroma ponudbo.
 7. Zapišite odstopanja in odgovorno osebo za nadaljnji ukrep.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7babdbf303e3 package=extended -->
 ### 5H.4 Primer uskladitve cateringa
 
 Za dogodek je iz skladišča izdanih 60 steklenic vode.
@@ -778,6 +841,7 @@ Preostalih 40 mora imeti razlago v prodaji oziroma pogodbeno evidentirani porabi
 
 Če razlage ni, ne ustvarite samodejne inventurne prilagoditve brez pregleda.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-4b926d964a71 package=lite -->
 ## 5I. Vloge in dovoljenja
 
 | Vloga | Običajna opravila | Česa ne potrjuje brez pooblastila |
@@ -793,8 +857,10 @@ Uporabnik potrjuje samo dokumente, za katere lahko potrdi dejanska dejstva.
 
 Skupna prijava ali prevzem tuje prijave zmanjšuje sledljivost in ni dovoljen.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5a135d11294c package=lite -->
 ## 5J. Odpravljanje težav
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b765d98f1261 package=lite -->
 ### 5J.1 Artikel ni na voljo v prejemnici
 
 Preverite, ali iščete po internem nazivu, šifri ali črtni kodi.
@@ -805,6 +871,7 @@ Preverite, ali je artikel arhiviran ali omejen na drugo skladišče.
 
 Ne nadomestite ga s podobnim artiklom brez potrjene povezave.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5e25a79a808a package=lite -->
 ### 5J.2 Cena se zdi previsoka
 
 Preverite decimalno mesto.
@@ -817,6 +884,7 @@ Preverite, ali je znesek bruto namesto neto.
 
 Primerjajte z listino in prejšnjo potrjeno prejemnico.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8a73a748a5f3 package=lite -->
 ### 5J.3 OCR je ustvaril podvojene vrstice
 
 Primerjajte vrstico z originalnim dokumentom.
@@ -827,6 +895,7 @@ Preverite, da skupna količina po popravku ustreza listini.
 
 Ne potrjujte obeh vrstic zato, ker je skupni znesek “približno” pravilen.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1601e55e01e0 package=lite -->
 ### 5J.4 Inventura ne pojasni razlike
 
 Ponovno preverite največje vrednostne artikle.
@@ -839,8 +908,10 @@ Preverite neodobrene osnutke prejemnic in prenosov.
 
 Eskalirajte razliko z dokumentiranimi ugotovitvami.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0445d3bc5e1a package=lite -->
 ## 5K. Kontrolni seznami, vaje in preverjanje znanja
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d1a368f3d57a package=lite -->
 ### 5K.1 Kontrolni seznam pred potrditvijo prejemnice
 
 - [ ] Prava enota in skladišče sta izbrana.
@@ -853,6 +924,7 @@ Eskalirajte razliko z dokumentiranimi ugotovitvami.
 - [ ] OCR predlogi so pregledani, ne samo sprejeti.
 - [ ] Dokument ima opombo o posebnostih.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c60be91e5705 package=lite -->
 ### 5K.2 Kontrolni seznam inventure
 
 - [ ] Rez in skladišče sta jasna.
@@ -863,6 +935,7 @@ Eskalirajte razliko z dokumentiranimi ugotovitvami.
 - [ ] Prilagoditve so odobrene in sledljive.
 - [ ] Kartice po potrditvi kažejo pričakovano stanje.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-31e7f10e696e package=lite -->
 ### 5K.3 Vaja: prevzem pijače
 
 Dobavitelj pripelje dva kartona po 24 steklenic po 0,33 l.
@@ -879,6 +952,7 @@ Kateri trije seštevki morajo ustrezati računu?
 
 Odgovor: 48 steklenic, 2,00 EUR neto na steklenico, neto/DDV/bruto seštevek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8fb57b5ab0cb package=lite -->
 ### 5K.4 Vaja: dogodek
 
 Na degustacijo je prenesenih 30 kosov izdelka.
@@ -889,6 +963,7 @@ Kje poiščete razlago za preostalih 17 kosov?
 
 Odgovor: v zaračunani prodaji ali odobreni pogodbeni porabi dogodka.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-26ff4ed54a0c package=lite -->
 ### 5K.5 Preverjanje znanja
 
 1. Ali OCR potrdi prejemnico brez pregleda uporabnika?
@@ -912,6 +987,7 @@ splošen prenos med poljubnimi skladišči.
 
 Pravilni odgovor: ne; prodajni popravek in fizični odpad sta ločena dogodka.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-bf8007a6cc2b package=lite -->
 ### 5K.6 Dnevni nadzor zaloge
 
 Vodja pregleda nepotrjene prejemnice pred koncem delovnega dne.
@@ -930,6 +1006,7 @@ Vodja pregleda dogodke z nepojasnjenim preostankom.
 
 Za vsako izjemo določi lastnika in rok razrešitve.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d175cac54ddb package=lite -->
 ### 5K.7 Mesečna uskladitev
 
 Primerjajte knjigovodsko zalogo z zadnjo odobreno inventuro.
@@ -948,6 +1025,7 @@ Preglejte nove trajne povezave OCR artiklov.
 
 Dokumentirajte ugotovitve in odobrene ukrepe.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-270e5e55b0e1 package=lite -->
 ### 5K.8 Hitri vprašalnik za prevzemnika
 
 Ali sem prevzel blago ali le prepisal račun?
@@ -966,6 +1044,7 @@ Ali sem preveril vsak OCR predlog?
 
 Ali lahko pozneje pokažem izvorni dokument?
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-42379175d1a5 package=lite -->
 ### 5.1 Ročni vnos prejemnice
 
 1. Odprite **Zaloge** in izberite novo prejemnico.
@@ -978,6 +1057,7 @@ Ali lahko pozneje pokažem izvorni dokument?
 8. Shranite osnutek, če pregled še ni končan.
 9. Potrdite prejemnico šele po dejanskem prevzemu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-bb363fe6627e package=lite -->
 ### 5.2 Delna dobava
 
 V prejemnico vnesite dejansko prevzete količine, ne količin z naročilnice.
@@ -985,6 +1065,7 @@ V prejemnico vnesite dejansko prevzete količine, ne količin z naročilnice.
 Manjkajoče blago ostane odprto pri dobavitelju oziroma se uredi z naknadnim
 dokumentom. Ne ustvarjajte prejemnice za blago, ki ga ni v skladišču.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-e0d78743c8e5 package=lite -->
 ### 5.3 Napaka pred potrditvijo
 
 1. Popravite vrstico, količino ali ceno v osnutku.
@@ -992,6 +1073,7 @@ dokumentom. Ne ustvarjajte prejemnice za blago, ki ga ni v skladišču.
 3. Preverite, da niste dodali istega artikla dvakrat.
 4. Šele nato potrdite.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8e7b17ce2dd0 package=lite -->
 ### 5.4 Napaka po potrditvi
 
 1. Ne brišite sledi z neformalnim nasprotnim vnosom.
@@ -999,10 +1081,12 @@ dokumentom. Ne ustvarjajte prejemnice za blago, ki ga ni v skladišču.
 3. Odgovorna oseba naj izvede popravek z dovoljenim dokumentom.
 4. Preverite novo stanje in WAC artikla.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7c7dcd849817 package=lite -->
 ## 6. Uvoz prejemnice in OCR
 
 OCR iz dokumenta predlaga podatke; ni potrditev pravilnosti.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-221f8888f075 package=lite -->
 ### 6.1 Postopek OCR
 
 1. Naložite čitljiv izvirnik dokumenta.
@@ -1014,6 +1098,7 @@ OCR iz dokumenta predlaga podatke; ni potrditev pravilnosti.
 7. Preverite skupni znesek z izvirnikom.
 8. Potrdite šele po ročnem pregledu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-86a546e1bdf8 package=lite -->
 ### 6.2 Podvojeni dokument
 
 Sistem lahko opozori, da je dokument že uvožen.
@@ -1027,6 +1112,7 @@ Sistem lahko opozori, da je dokument že uvožen.
 
 Opozorila o duplikatu ne prezrite zaradi podobnega imena datoteke.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5271427d73e5 package=lite -->
 ### 6.3 Nič vrstic po OCR
 
 Če OCR vrne nič vrstic:
@@ -1040,6 +1126,7 @@ Opozorila o duplikatu ne prezrite zaradi podobnega imena datoteke.
 
 Prazna obdelava ni dokaz, da dokument nima postavk.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-81789569be93 package=lite -->
 ### 6.4 Napačna povezava artikla
 
 1. Ne sprejmite predlaganega artikla samo zaradi podobnega naziva.
@@ -1048,10 +1135,12 @@ Prazna obdelava ni dokaz, da dokument nima postavk.
 4. Če artikel manjka, ga ustvarite samo s pooblastilom in pravilnimi podatki.
 5. Preverite, da se nova vrstica ne podvoji.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-bda27484fcc9 package=extended -->
 ## 7. Dogodkovni prenosi in vračila
 
 Ta postopek velja samo za začasno enoto, ustvarjeno v modulu **Dogodki**.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-6505359b3219 package=extended -->
 ### 7.1 Priprava in pošiljanje
 
 1. Odprite dogodek, za katerega pripravljate zalogo.
@@ -1061,6 +1150,7 @@ Ta postopek velja samo za začasno enoto, ustvarjeno v modulu **Dogodki**.
 5. Potrdite prenos v okviru dogodka.
 6. Preverite zapis prenosa v zgodovini dogodka.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9511cb8ef460 package=extended -->
 ### 7.2 Zaključek in vračilo
 
 1. Po koncu dogodka preverite prodano oziroma porabljeno količino.
@@ -1073,10 +1163,12 @@ Ta postopek velja samo za začasno enoto, ustvarjeno v modulu **Dogodki**.
 Dogodkovnega prenosa ne uporabljajte za odpad, redno porabo, prodajo ali
 poljuben premik med običajnimi skladišči.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-237e65aeff63 package=lite -->
 ## 8. Inventura
 
 Inventura primerja knjižno in dejansko stanje.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-12c1e53cb09a package=lite -->
 ### 8.1 Priprava
 
 1. Določite datum in skladišče.
@@ -1085,6 +1177,7 @@ Inventura primerja knjižno in dejansko stanje.
 4. Uredite artikle po lokacijah.
 5. Pripravite merske enote in pretvorbe.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a748dd64c90a package=lite -->
 ### 8.2 Štetje in potrditev
 
 1. Odprite inventuro za pravilno skladišče.
@@ -1096,18 +1189,21 @@ Inventura primerja knjižno in dejansko stanje.
 7. Potrdite inventuro z odgovorno osebo.
 8. Preverite nastale uskladitvene premike.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a93be55043db package=lite -->
 ### 8.3 Obnova po napaki
 
 Če opazite napačno mersko enoto ali skladišče pred potrditvijo, inventuro
 popravite. Po potrditvi ne začnite nove inventure samo zato, da bi skrili
 napako; uporabite sledljiv korekcijski postopek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-fba2cf2aedad package=standard -->
 ## 9. Pripravljena in sestavljena hrana
 
 Pripravljena hrana nastane iz sestavin po recepturi oziroma normativu.
 
 Sestavljen artikel je prodajni ali proizvodni rezultat več sestavin.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-00b759db02bb package=standard -->
 ### 9.1 Pred proizvodnjo
 
 1. Preverite, da je receptura aktualna in odobrena.
@@ -1116,6 +1212,7 @@ Sestavljen artikel je prodajni ali proizvodni rezultat več sestavin.
 4. Preverite razpoložljivost sestavin.
 5. Določite dejansko proizvedeno količino.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-76ae36a3c3ae package=standard -->
 ### 9.2 Evidentiranje priprave
 
 1. Odprite **Pripravljena hrana**.
@@ -1130,6 +1227,7 @@ Sestavljen artikel je prodajni ali proizvodni rezultat več sestavin.
 Ne evidentirajte proizvodnje za jed, ki ni bila narejena. Tudi če je receptura
 pravilna, bi tak vnos popačil zalogo in strošek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d153aa3273df package=standard -->
 ### 9.3 Napaka pri recepturi
 
 1. Ustavite potrditev, če količine ali sestavine niso pravilne.
@@ -1137,6 +1235,7 @@ pravilna, bi tak vnos popačil zalogo in strošek.
 3. Popravite normativ po pooblaščenem postopku.
 4. Nato ponovno pripravite proizvodni vnos.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-308b5f650d13 package=standard -->
 ## 10. Odpad in odpadki s krožnikov
 
 Odpad je dejanska izguba zaloge. Razlog mora biti resničen in sledljiv.
@@ -1144,6 +1243,7 @@ Odpad je dejanska izguba zaloge. Razlog mora biti resničen in sledljiv.
 Odpadki s krožnikov se evidentirajo ločeno, kadar poslovanje spremlja vračila
 hrane po strežbi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-74a10009edec package=standard -->
 ### 10.1 Evidentiranje odpada
 
 1. Odprite ustrezni obrazec za odpad.
@@ -1154,6 +1254,7 @@ hrane po strežbi.
 6. Potrdite odgovorno evidentiranje.
 7. Preverite vpliv na zalogo in vrednost.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f69d4c84ddc4 package=standard -->
 ### 10.2 Odpad s krožnika
 
 1. Odprite **Odpadki s krožnikov**.
@@ -1166,12 +1267,14 @@ hrane po strežbi.
 Ne evidentirajte odpada s krožnika kot prodajo, inventurni manjko ali prenos.
 Pravilna vrsta dogodka omogoča analizo porabe in zavržkov.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3c09926d0532 package=extended -->
 ## 11. Dogodki
 
 Dogodki povezujejo prodajo, pripravo in načrtovanje posebne priložnosti.
 
 Primeri so pogostitev, rezervirani dogodek ali vnaprej načrtovan servis.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3f64df19995a package=extended -->
 ### 11.1 Postopek
 
 1. Odprite **Dogodki**.
@@ -1185,10 +1288,13 @@ Primeri so pogostitev, rezervirani dogodek ali vnaprej načrtovan servis.
 Dogodek ni nadomestek za račun, prejemnico ali inventuro. Vsak poslovni učinek
 ostane evidentiran v svojem ustreznem postopku.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a3cc670ab94e package=lite -->
 ## 12. Končne kontrole sklopa
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-587816d56fab package=lite -->
 ## 13. Referenčni potek po zaslonih in dokazilih
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9e825299b417 package=lite -->
 ### 13.1 Kako brati ta referenčni potek
 
 Ta razdelek je delovni postopek za osebo, ki prejema blago, vodi zalogo in zaključuje dogodek.
@@ -1207,6 +1313,7 @@ Vsaka sprememba artikla spremeni, kateri artikel bo povečal zalogo in katera ka
 
 Za vsak primer spodaj zapišite številko dokumenta, datum in ime osebe, ki je preverila odstopanje.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a8ddd3f788bc package=lite -->
 ### 13.2 Zaslon Zaloge: zavihki in osnovno branje
 
 Na strani **Zaloge** so ločeni pregledi zaloge, prejemnic, izdajnic, inventur in začetnih zalog.
@@ -1231,6 +1338,7 @@ Ne sklepajte, da sta »Paradižnik« in »Paradižnik kg« enak artikel brez pre
 
 Vrednost kartice je odvisna od nabavne vrednosti, zato prodajna cena ni merilo za kontrolo prejemnice.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-e14a548226f5 package=lite -->
 ### 13.3 Obrazec ročne prejemnice: glava dokumenta
 
 Novo prejemnico začnite šele, ko imate dobavnico ali račun in poznate dejansko prevzeto količino.
@@ -1257,6 +1365,7 @@ Dobavnica in račun z isto številko nista nujno isti dokument; preverite vrsto 
 
 Datum prejema uporabite po dejanskem poslovnem dogodku, kadar se razlikuje od datuma izdaje dokumenta.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-02ed5dd9c0e2 package=lite -->
 ### 13.4 Obrazec ročne prejemnice: stolpci vrstice
 
 Vsaka vrstica ima artikel, količino, ceno na kos oziroma osnovno enoto, enote v paketu, popust in DDV.
@@ -1283,6 +1392,7 @@ Oranžen znak pri alergenih pomeni nepreverjen status; ne razlagajte ga kot potr
 
 Rdeča pika ob znaku pomeni, da so navedeni alergeni ali sledi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-735b2d333b9e package=lite -->
 ### 13.5 Pakiranja in osnovne enote: obvezna preveritev
 
 Artikel z osnovno enoto **kg** vodite v kilogramih, tudi če dobavitelj zaračuna zaboj.
@@ -1307,6 +1417,7 @@ Ne spreminjajte osnovne enote ob vsakem novem dobavitelju; s tem bi porušili zg
 
 Če je pakiranje trajno drugačno, preverite artikel in ujemanje dobaviteljeve postavke, ne le trenutne prejemnice.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a35f26417bb1 package=lite -->
 ### 13.6 Popust, DDV in odvisni stroški
 
 Popust zmanjša nabavno vrednost vrstice pred vrednotenjem zaloge.
@@ -1327,6 +1438,7 @@ Pri strošku preverite, ali je znesek neto ali bruto, preden določite DDV.
 
 Ne podvajajte popusta: ne znižajte cene ročno in hkrati ne vnesite še odstotka popusta.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5d78800399f1 package=lite -->
 ### 13.7 WAC: formula in vrstni red kontrole
 
 WAC pomeni tehtano povprečno nabavno ceno zaloge artikla.
@@ -1357,6 +1469,7 @@ Pri 5 % se bruto 10,50 EUR pretvori v neto 10,00 EUR.
 
 Za zaokroževanje ne spreminjajte količine; ločite zaokrožitev prikaza od dejanske enote.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-56176ca4df29 package=lite -->
 ### 13.8 Delovni list WAC 1: enaki kosi
 
 Začetno stanje je 10 kosov s WAC 2,00 EUR.
@@ -1377,6 +1490,7 @@ Napačen odgovor 2,50 EUR nastane iz navadnega povprečja 2,00 in 3,00.
 
 Ta odgovor je napačen, ker je bilo starih kosov dvakrat več kot novih.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3c7941da7c15 package=lite -->
 ### 13.9 Delovni list WAC 2: paket s popustom
 
 Na zalogi je 20 kosov s WAC 1,50 EUR.
@@ -1399,6 +1513,7 @@ Novi WAC je 51,60 / 32 = 1,6125 EUR.
 
 Vnos 24,00 kot cena na kos bi vrednost zaloge povečal za 288,00 EUR in je očitno napačen.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-ec549f66ea5d package=lite -->
 ### 13.10 Delovni list WAC 3: kilogrami
 
 Na zalogi je 8 kg moke s WAC 0,90 EUR/kg.
@@ -1419,6 +1534,7 @@ Novi WAC je 14,40 / 14 = 1,028571 EUR/kg.
 
 Če bi vnesli 7,20 kot ceno na kg, bi šest kilogramov ovrednotili na 43,20 EUR.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-26cac7f63682 package=lite -->
 ### 13.11 Delovni list WAC 4: bruto dokument
 
 Na zalogi je 10 l olja s WAC 4,00 EUR/l neto.
@@ -1439,6 +1555,7 @@ Novi WAC je 60,00 / 14 = 4,285714 EUR/l.
 
 Uporaba bruto 6,10 kot neto cene bi neupravičeno vključila DDV v vrednost zaloge.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1f0c40d26221 package=lite -->
 ### 13.12 Delovni list WAC 5: ničelno začetno stanje
 
 Začetna količina artikla je 0.
@@ -1457,6 +1574,7 @@ Pri ničelni začetni količini WAC prevzame dejansko neto ceno novega prejema.
 
 Najprej preverite zgodovino inventure, prejemnic in porab.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-fd0d40222859 package=lite -->
 ### 13.13 Delovni list WAC 6: odvisni strošek zaloge
 
 Na zalogi je 50 kosov s WAC 1,00 EUR.
@@ -1479,6 +1597,7 @@ Novi WAC je 1,20 EUR na kos.
 
 Odločitev o obravnavi prevoza zato dokumentirajte ob prejemu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c4bc79003039 package=lite -->
 ### 13.14 Ročni prevzem: primer 1, pijača v zabojih
 
 Dobavnica navaja 3 zaboje po 24 steklenic.
@@ -1497,6 +1616,7 @@ Preverite, da končni prejem poveča zalogo za 72 kosov in ne za 3 kose.
 
 Če je eden zaboj odprt s 23 steklenicami, ne potrjujte 3 × 24 brez zapisa odstopanja.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-20feb9be9e20 package=lite -->
 ### 13.15 Ročni prevzem: primer 2, sir v kilogramih
 
 Dobavitelj dobavi dve hlebci s tehtano maso 2,35 kg in 2,48 kg.
@@ -1513,6 +1633,7 @@ Natančnost mase ohranite do mere, ki jo dovoljuje dokument in artikel.
 
 Če dobavnica navaja 4,90 kg, tehtanje pa 4,83 kg, ustavite prevzem in uskladite razliko z dobaviteljem.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-48d2f657eb2a package=lite -->
 ### 13.16 Ročni prevzem: primer 3, delna dobava
 
 Naročilo je vsebovalo 10 kg mesa, dobavitelj pa pripelje 8 kg.
@@ -1525,6 +1646,7 @@ Manjkajočo količino zapišite na listino oziroma reklamaciji po internem posto
 
 Kasnejša dobava 2 kg dobi svojo sledljivo prejemnico oziroma ustrezen dokument.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-23a792ee9add package=lite -->
 ### 13.17 Ročni prevzem: primer 4, brezplačni dodatek
 
 Dobavitelj pošlje 10 kosov, na računu pa zaračuna 9 kosov.
@@ -1539,6 +1661,7 @@ Pred vnosom razjasnite, ali je deseti kos rabat v blagu, promocijski dodatek ali
 
 Razlaga mora biti sledljiva v opombi oziroma dokazilu dobavitelja.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-2f4023f24cb6 package=lite -->
 ### 13.18 Ročni prevzem: primer 5, vračilo dobavitelju
 
 Po potrditvi ugotovite, da so trije kosi poškodovani in jih vrnete.
@@ -1551,6 +1674,7 @@ Povežite dokazilo o vračilu z izvirnim dokumentom.
 
 Preverite kartico artikla pred in po vračilu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1aa489d2fbb9 package=lite -->
 ### 13.19 OCR: izbira načina zajema
 
 Dialog **Uvozi dobavnico** ima načine Datoteka, Kamera in Skeniraj.
@@ -1569,6 +1693,7 @@ Fotografija se za obdelavo zmanjša največ na 1600 × 2000 slikovnih pik.
 
 Zmanjšana slika ni razlog, da preskočite ročni pregled številk.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-781f0184525e package=lite -->
 ### 13.20 OCR: fotografija, ki jo je mogoče preveriti
 
 Dokument položite ravno in zajemite vse štiri robove.
@@ -1583,6 +1708,7 @@ Fotografija z odrezanim desnim stolpcem ni primerna za samodejno potrditev DDV a
 
 Ne uporabljajte slike zaslona s stisnjenim besedilom, če imate izvirni PDF.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0b4dd8b643e2 package=lite -->
 ### 13.21 OCR: datoteka in profil uvoza
 
 Za CSV ali XLSX najprej izberite dobavitelja.
@@ -1597,6 +1723,7 @@ PDF, XML in e-SLOG se pošljejo neposredno brez predizbire dobavitelja v tem kor
 
 Datoteko hranite kot dokazilo po pravilih podjetja, tudi če je uvoz uspel.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-efa34732eca9 package=lite -->
 ### 13.22 OCR: pregled rezultata pred povezovanjem
 
 Po uspešnem zajemu sistem ustvari osnutek prejemnice, ne dokončne knjižbe.
@@ -1613,6 +1740,7 @@ Oznaka bruto zahteva poseben pregled cen, preden ocenjujete WAC.
 
 Samodejna prepoznava ne pomeni, da so pakiranje, popust in DDV brez napake.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5cdfc8b96be5 package=lite -->
 ### 13.23 OCR: ujemanje dobavitelja
 
 Kadar OCR ne najde dobavitelja, se odpre iskanje v šifrantu partnerjev.
@@ -1635,6 +1763,7 @@ TRR dodajte le, kadar ima veljaven IBAN; prazen TRR se ne shrani.
 
 Če davčna številka po normalizaciji že obstaja, sistem izbere obstoječega partnerja namesto ustvarjanja dvojnika.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b40a1d953413 package=lite -->
 ### 13.24 OCR: obogatitev novega dobavitelja
 
 Pri razpoložljivi davčni številki se podatki najprej iščejo po davčni številki.
@@ -1651,6 +1780,7 @@ Ne shranjujte napačnega partnerja samo zato, da bi dokončali uvoz.
 
 Napačen partner oteži iskanje prejemnic in prihodnje samodejno ujemanje.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-691a7f0c7262 package=lite -->
 ### 13.25 OCR: ujemanje artikla
 
 Za vsak neujeti nabavni naziv najprej iščite po imenu za nabavo oziroma imenu artikla.
@@ -1667,6 +1797,7 @@ Ne zapomnite povezave »Voda 0,5« z artiklom 1,5 l samo zato, ker sta oba voda.
 
 Če primernega artikla ni, odprite ustvarjanje novega artikla.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-afe1258ac760 package=lite -->
 ### 13.26 OCR: nov artikel iz neujemane postavke
 
 Pri novem artiklu vnesite naziv in ime za nabavo.
@@ -1687,6 +1818,7 @@ Po ustvarjanju se novi artikel samodejno poveže s trenutno uvozno vrstico.
 
 Pakiranje se pri tem vzame iz novega artikla, če je vneseno, sicer iz OCR vrstice.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-de3c22e3271d package=lite -->
 ### 13.27 OCR: duplikat dokumenta
 
 Status 409 pomeni, da je sistem zaznal že uvoženo dobavnico oziroma sliko.
@@ -1699,6 +1831,7 @@ Ne ustvarite ročne prejemnice za isti dokument, dokler ne preverite zaznanega d
 
 Če sta dokumenta res ločena, zapišite razlikovalni podatek in zahtevajte razjasnitev po odgovornem postopku.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d748cf2594a6 package=lite -->
 ### 13.28 OCR: ničelne in preskočene vrstice
 
 Vrstica s količino nič ne poveča fizične zaloge.
@@ -1717,6 +1850,7 @@ Vrstica brez količine zahteva preveritev enote, pakiranja ali zajema.
 
 Zabeležite, da zaloga ni bila povečana, in opravite ročni prevzem, če je blago dejansko prispelo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-12fae5809f6b package=lite -->
 ### 13.29 OCR: primer 6, popolnoma samodejni uvoz
 
 PDF vsebuje dobavitelja, številko dokumenta, datum in tri znane artikle.
@@ -1731,6 +1865,7 @@ Primerjajte tri količine, pakiranja, neto oziroma bruto cene in DDV z PDF.
 
 Potrdite knjiženje šele po tej primerjavi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8bedf4acd6ac package=lite -->
 ### 13.30 OCR: primer 7, neznan dobavitelj
 
 Fotografija dobro prebere naziv, vendar partner ni v šifrantu.
@@ -1745,6 +1880,7 @@ Dodajte partnerja in nadaljujte uvoz.
 
 Pred knjiženjem ponovno preverite, da se prejemnica nanaša na novoustanovljenega partnerja.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-44f2b9e986ce package=lite -->
 ### 13.31 OCR: primer 8, dva podobna artikla
 
 OCR prebere »Coca-Cola 0,5«.
@@ -1759,6 +1895,7 @@ Uparite pravi okus.
 
 Pakiranje potrdite ločeno, saj pravilno ime še ne zagotavlja pravilne količine.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3c3b69d60d70 package=lite -->
 ### 13.32 OCR: primer 9, branje decimalke
 
 Dokument navaja 1,25 kg, OCR pa prebere 125 kg.
@@ -1771,6 +1908,7 @@ Popravite količino v osnutku po izvirniku.
 
 Ne popravljajte cene navzdol, da bi prikrili napačno količino.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9f3d1b3a608a package=lite -->
 ### 13.33 OCR: primer 10, račun z bruto cenami
 
 OCR označi, da so cene bruto.
@@ -1783,6 +1921,7 @@ Ne primerjajte 12,20 z obstoječim neto WAC 10,00 kot da bi šlo za podražitev.
 
 Znesek DDV ostane davčna informacija, ne nabavna vrednost zaloge.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f9988237e62e package=lite -->
 ### 13.34 Inventura: namen in priprava
 
 Inventura primerja dejansko najdeno stanje s knjižnim stanjem.
@@ -1799,6 +1938,7 @@ Tehtane artikle tehtajte, ne ocenjujte jih po občutku.
 
 Poškodovano blago ločite od prodajnega blaga in ga ne prikrivajte v običajni količini.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d8df85b91265 package=lite -->
 ### 13.35 Inventura: polja in odločitev
 
 V vrstici inventure izberite artikel.
@@ -1813,6 +1953,7 @@ Knjižno stanje je podlaga za razliko, ne navodilo, koliko morate napisati.
 
 Če najdete več, preverite neknjižen prevzem, prenos ali napačno enoto pred potrditvijo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-6ded41e9c96f package=lite -->
 ### 13.36 Inventura: primer 11, manjko zaradi neknjižene porabe
 
 Knjižno stanje moke je 20 kg.
@@ -1827,6 +1968,7 @@ Pred potrditvijo preverite prodajo, normative, pripravo, izdajnico in morebitne 
 
 Ko je razlog potrjen, izvedite inventurno uskladitev skladno z odgovornostmi.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b94a0686b8e7 package=lite -->
 ### 13.37 Inventura: primer 12, presežek zaradi pakiranja
 
 Knjižno stanje je 24 kosov, fizično pa preštejete en zaboj 24 in šest posameznih kosov.
@@ -1839,6 +1981,7 @@ Preverite, ali je bil prejem šestih kosov vnesen kot 0,25 zaboja ali je ostal n
 
 Ne vnašajte 1,25 zaboja, če sistemski artikel uporablja kose.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8240f1188bed package=lite -->
 ### 13.38 Inventura: popravek po napaki
 
 Po potrjeni inventuri ne spreminjajte zgodovine s ponovnim vnosom istega števila brez razloga.
@@ -1851,6 +1994,7 @@ Preverite novo gibanje na kartici artikla.
 
 Če napaka vpliva na več artiklov, pripravite seznam pred izvedbo korekcij.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-67b4737f26dd package=lite -->
 ### 13.39 Negativna zaloga: raziskava, ne hitra rešitev
 
 Negativna zaloga pomeni, da je evidenca izdala oziroma porabila več, kot je imela na voljo.
@@ -1869,6 +2013,7 @@ Preverite normativ artikla in prodajo, ki sta lahko porabila napačno enoto.
 
 Ko najdete vzrok, popravite izvorni poslovni dogodek po dovoljenem postopku.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-97a304a21584 package=lite -->
 ### 13.40 Začetne zaloge: primer 13
 
 Ob začetku uporabe sistema je v skladišču 48 pločevink.
@@ -1885,6 +2030,7 @@ Po vnosu preverite kartico artikla in skupno količino.
 
 Ne vnesite začetne zaloge še enkrat, če prejemnica istega blaga že obstaja.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-36d1a6290c49 package=lite -->
 ### 13.41 Izdajnica: izhod brez ciljnega prevzema
 
 Izdajnica evidentira izhod zaloge iz izbrane enote. Ne ustvarja prejemnega
@@ -1898,6 +2044,7 @@ razlog. Pri odprti embalaži uporabite osnovno mersko enoto, ne zaokroženega
 Če mora blago na začasno dogodkovno enoto, uporabite prenos znotraj modula
 **Dogodki**, ne običajne izdajnice.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0097fcb7dc2b package=extended -->
 ### 13.42 Dogodkovni prenos: primer 14, terenski bar
 
 Začasna dogodkovna enota potrebuje 18 steklenic iz matične enote.
@@ -1912,6 +2059,7 @@ V zgodovini istega dogodka preverite izhodni dokument in stanje začasne enote.
 
 Ne vnašajte 0,75 zaboja, kadar se zaloga vodi v kosih.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-4e1e47516142 package=extended -->
 ### 13.43 Dogodkovni prenos: primer 15, odprt sod
 
 V glavni enoti je 12 l odprte pijače.
@@ -1926,6 +2074,7 @@ Ne pretvarjajte 3,5 l v »en del soda«, ker takšna enota ni sledljiva normativ
 
 Po dogodku preostanek izmerite v litrih za povratni prenos.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-44bfd10ff3e4 package=extended -->
 ### 13.44 Dogodkovni prenos: primer 16, prenos ni manjko
 
 Ob popisu matična enota ne najde 10 kosov, ker so na začasni enoti aktivnega
@@ -1939,6 +2088,7 @@ dogodkovnega prenosa.
 
 Najprej preverite zgodovino dogodka in začasno enoto.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-a31c4d3ab94d package=extended -->
 ### 13.45 Dogodki: statusi
 
 Dogodek ima status Načrtovan, Aktiven, Zaključen ali Preklican.
@@ -1953,6 +2103,7 @@ Preklican dogodek ni razlog za brisanje sledljivih dokumentov, ki so že nastali
 
 Aktivnega ali zaključenega dogodka ni mogoče preprosto izbrisati; najprej ga prekličite, kadar je to poslovno pravilno.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-6da1d1cf232f package=extended -->
 ### 13.46 Dogodki: polja obrazca
 
 Naziv dogodka je obvezen in naj omogoča enolično prepoznavo.
@@ -1973,6 +2124,7 @@ Povezane poslovne enote določite s potrditvenimi polji.
 
 Začasna enota je v seznamu posebej označena.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-278a07adefb5 package=extended -->
 ### 13.47 Dogodki: priprava začasne enote
 
 Gumb **Pripravi enoto** je na voljo za dogodek, ki ni zaključen ali preklican.
@@ -1995,6 +2147,7 @@ Predogled pokaže skupno začetno količino in vrednost zaloge.
 
 Opozorila v predogledu rešite pred potrditvijo priprave.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0bb9a4dbfc5f package=extended -->
 ### 13.48 Dogodki: ponovni klik in idempotentnost
 
 Če je enota za dogodek že pripravljena, ponovni klik ne sme podvojiti cenika, osebja ali zaloge.
@@ -2005,6 +2158,7 @@ To ne pomeni, da je količina na dogodku samodejno usklajena s fizičnim stanjem
 
 Za dodatno zalogo izvedite sledljiv postopek prenosa, ne ponavljajte priprave v upanju na dodaten prenos.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0550ae32bb91 package=extended -->
 ### 13.49 Dogodki: zgodovina prenosov
 
 Gumb **Prenosi** odpre zgodovino za izbrani dogodek.
@@ -2025,6 +2179,7 @@ V oklepaju ob vrnjenem je lahko načrtovana količina osnutka.
 
 Skupaj dokumenta prikazuje skupno količino in skupno vrednost.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b29b37a4cd11 package=extended -->
 ### 13.50 Dogodki: primer 17, predogled pred veselico
 
 Dogodek je Načrtovan in ima povezano začasno enoto.
@@ -2039,6 +2194,7 @@ Spremenite količino na največ razpoložljivo ali uredite dokazljiv dodatni pre
 
 Šele predogled brez nerešenega opozorila je podlaga za potrditev.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-febacbe5d715 package=extended -->
 ### 13.51 Dogodki: primer 18, uskladitev po cateringu
 
 Na dogodek je bilo prenesenih 40 steklenic.
@@ -2053,6 +2209,7 @@ Pripravite povratni prenos za 12 kosov po pravilnem postopku.
 
 Ne označite dveh odprtih kosov kot odpad samo zaradi odprte embalaže.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0e459e028fe6 package=extended -->
 ### 13.52 Dogodki: primer 19, zaključen dogodek
 
 Dogodek dobi status Zaključen.
@@ -2067,6 +2224,7 @@ Po potrditvi preverite, da dokument kaže status zaključen.
 
 Preverite matično enoto in kartico artikla.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-619a6520d11c package=standard -->
 ### 13.53 Pripravljena hrana: namen dnevne evidence
 
 Zaslon **Pripravljena hrana** vodi dnevno evidenco artiklov z operativnim načinom Pripravljena hrana.
@@ -2081,6 +2239,7 @@ Leto lahko spremenite za pregled zgodovine.
 
 Če ni takih artiklov, zaslon izrecno pokaže, da ni artiklov z nastavljenim operativnim načinom.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b24134e24b75 package=standard -->
 ### 13.54 Pripravljena hrana: stolpci
 
 Stolpec Artikel pokaže naziv pripravljenega artikla.
@@ -2101,6 +2260,7 @@ Kalo je izračunana razlika po zaključku.
 
 Stanje je Odprto, Samo ogled ali Zaključeno.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-755585813f87 package=standard -->
 ### 13.55 Pripravljena hrana: upravljalni gumbi
 
 Pri odprti vrstici uporabite +10, −10, +1 in −1 ob vsakem količinskem polju.
@@ -2117,6 +2277,7 @@ Zaključka ne morete sprožiti, kadar je izračunano kalo pri kateri odprti vrst
 
 Zaključena vrstica je nepovratna in se prikazuje samo za ogled.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-aeaa1bc096f9 package=standard -->
 ### 13.56 Pripravljena hrana: formula kala
 
 Skupaj = odtajano + pripravljeno + korekcija.
@@ -2131,6 +2292,7 @@ Negativnega kala ne rešujte s prisilnim zaključkom; gumb je zato onemogočen.
 
 Preverite prodano, zamrznjeno, odtajano, pripravljeno in korekcijo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7c6b8e604fdb package=standard -->
 ### 13.57 Pripravljena hrana: primer 20, dnevna juha
 
 Odtajano je 0 porcij.
@@ -2147,6 +2309,7 @@ Kalo je 40 − 31 − 4 = 5 porcij.
 
 Pred zaključkom preverite, ali pet porcij pomeni dejansko kalo in ne pozabljeno prodajo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1e5e9e78b3b9 package=standard -->
 ### 13.58 Pripravljena hrana: primer 21, odtajanje in zamrzovanje
 
 Odtajate 12 porcij že pripravljene hrane.
@@ -2163,6 +2326,7 @@ Ob koncu zamrznete 3 porcije.
 
 Kalo je 19 − 14 − 3 = 2 porciji.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b067708af42a package=standard -->
 ### 13.59 Pripravljena hrana: primer 22, negativno kalo
 
 Pripravljeno je 10 porcij.
@@ -2179,6 +2343,7 @@ Preverite, ali ste izpustili odtajanje 2 porcij ali napačno vnesli zamrznjeno k
 
 Dokler ni formula nenegativna, ne zaključujte evidence.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c01cfb60b849 package=standard -->
 ### 13.60 Pripravljena hrana: sestavljeni izdelki
 
 Sestavljeni kulinarični izdelek ima normativ iz drugih kulinaričnih artiklov.
@@ -2193,6 +2358,7 @@ Receptura 0,2 kg mesa ni enaka recepturi 0,2 kosa mesa.
 
 Če sestavljeni izdelek uporablja pripravljeno hrano, ločite njegovo prodajo od dnevnega kala pripravljene hrane.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-61c3f59f8614 package=standard -->
 ### 13.61 Pripravljena hrana: primer 23, napačna receptura
 
 Normativ sendviča vsebuje 1 kg sira namesto 0,1 kg.
@@ -2207,6 +2373,7 @@ Popravite normativ po pooblaščenem postopku.
 
 Preverite obdobje, v katerem je bila receptura uporabljena, in dokumentirajte potrebne uskladitve.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d747c16ae377 package=standard -->
 ### 13.62 Odpad pripravljene hrane in odpad s krožnikov nista isto
 
 Kalo pripravljene hrane nastane iz dnevne formule pripravljene, odtajane, korekcije, prodanega in zamrznjenega.
@@ -2225,6 +2392,7 @@ Odpad s krožnikov ne vpliva na računovodstvo v tem modulu.
 
 Ne vnašajte ostankov gostov v kalo pripravljene hrane samo zato, da bi dosegli večjo številko odpada.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-34d2cacb3123 package=standard -->
 ### 13.63 Odpad s krožnikov: glava zaslona
 
 Zaslon prikazuje podjetje, aktivno poslovno enoto in kodo 20 01 08.
@@ -2239,6 +2407,7 @@ Gumb **Izvoz (CSV)** izvozi podatke iz izbranega obdobja.
 
 CSV poimenujte oziroma shranite tako, da je povezava z obdobjem jasna.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-ba70f90b638e package=standard -->
 ### 13.64 Odpad s krožnikov: tri kartice povzetka
 
 Kartica »Nastalo v izbranem obdobju« pokaže vsoto dnevnih vnosov v kg.
@@ -2251,6 +2420,7 @@ Razlika ni samodejno napaka; lahko predstavlja količino, ki še ni bila oddana.
 
 Negativno razliko raziskujte, saj lahko pomeni napačno oddajo ali popravek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-b4e1b25bfcbf package=standard -->
 ### 13.65 Odpad s krožnikov: dnevni vnos
 
 Zavihek **Dnevni vnosi odpadkov** vsebuje obrazec Nov dnevni vnos.
@@ -2269,6 +2439,7 @@ Ročni decimalni vnos se prikaže v kilogramih.
 
 Gumb **Shrani dnevni vnos** po uspehu počisti količino in opombo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f3c74010edd9 package=standard -->
 ### 13.66 Odpad s krožnikov: tabela dnevnih vnosov
 
 Tabela prikazuje Datum, Količino v kg, Opombo in osebo, ki je vnos ustvarila.
@@ -2279,6 +2450,7 @@ Tabela prikazuje Datum, Količino v kg, Opombo in osebo, ki je vnos ustvarila.
 
 Vnesel je sledljiv podatek; ne uporabljajte ga za ugibanje, temveč za razjasnitev z osebo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1c761bdec4f8 package=standard -->
 ### 13.67 Odpad s krožnikov: oddaja prevzemniku
 
 Zavihek **Oddaja prevzemnikom** vsebuje obrazec Evidentiraj oddajo.
@@ -2297,6 +2469,7 @@ Tip zapisa pri novi oddaji je Oddaja.
 
 Gumb **Zabeleži oddajo** shrani sledljivo oddajo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-86ab1083bb75 package=standard -->
 ### 13.68 Odpad s krožnikov: popravki oddaje
 
 Popravek ustvarite z gumbom **Popravek** ob izvirni oddaji.
@@ -2315,6 +2488,7 @@ Opomba oziroma razlog popravka je obvezen.
 
 Popravek ohrani povezavo z ID izvirne oddaje.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-41ed3073ed98 package=standard -->
 ### 13.69 Odpad s krožnikov: tabela oddaj
 
 Tabela prikazuje Datum, Tip, Količino, Prevzemnika oziroma evidenčni list, Opombo in Akcijo.
@@ -2329,6 +2503,7 @@ Gumb z dokumentom odpre A4 PDF za konkreten zapis.
 
 PDF ni dokaz, da je bila količina fizično prevzeta; dokazilo primerjajte s prevzemnikom in evidenčnim listom.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d3ff456665c9 package=standard -->
 ### 13.70 Odpad s krožnikov: primer 24, dnevni ostanki
 
 Po večerji stehtate 3,40 kg ostankov s krožnikov.
@@ -2343,6 +2518,7 @@ Shranite dnevni vnos.
 
 Ne zmanjšate zaloge posamezne jedi, ker ta modul tega ne počne.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5914b955f46b package=standard -->
 ### 13.71 Odpad s krožnikov: primer 25, delni popravek oddaje
 
 Oddaja je bila vnesena kot 20,00 kg.
@@ -2357,6 +2533,7 @@ V opombo zapišite razlog in sklic na dokazilo.
 
 Neto oddano bo 18,50 kg, izvirni zapis pa ostane v sledljivosti.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-584c8bfd3de6 package=lite -->
 ### 13.72 Revizijska obnova: splošno pravilo
 
 Napake po knjiženju popravljajte z novim sledljivim dogodkom, kadar izvirnika ni dovoljeno brisati.
@@ -2371,6 +2548,7 @@ V opombi uporabite dejanski razlog, datum in povezavo z izvirnikom.
 
 Po korekciji preverite količino, vrednost in sled gibanj.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8df6afef378c package=lite -->
 ### 13.73 Revizijska obnova: primer 26, napačen artikel pri OCR
 
 OCR vrstico mleka povežete s smetano.
@@ -2385,6 +2563,7 @@ Izvedite popravek po sledljivem procesu, ki obrne napačno gibanje in evidentira
 
 Preverite kartici mleka in smetane.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-342c9dcdb0e7 package=lite -->
 ### 13.74 Revizijska obnova: primer 27, podvojena fotografija
 
 Ista dobavnica je fotografirana dvakrat.
@@ -2399,6 +2578,7 @@ Primerjajte številko dokumenta, dobavitelja, datum in vrstice.
 
 Če ni enaka, zberite dokaz o razliki in razjasnite zaznavo duplikata.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f162011c05c3 package=lite -->
 ### 13.75 Revizijska obnova: primer 28, napačen datum dokumenta
 
 Prejemnica je vnesena z datumom naslednjega meseca.
@@ -2411,6 +2591,7 @@ Uporabite dovoljen popravljalni postopek in ohranite povezavo z izvirnim dokumen
 
 Ne ustvarjajte druge enake prejemnice s pravilnim datumom brez obravnave prve.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-538f71270174 package=lite -->
 ### 13.76 Revizijska obnova: primer 29, izgubljena povezava med paketom in artiklom
 
 Dobavitelj spremeni embalažo iz 12 na 10 kosov.
@@ -2425,6 +2606,7 @@ Popravite povezavo oziroma pakiranje po postopku ujemanja.
 
 Preverite učinek na količino in WAC.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-dfcb951131bb package=lite -->
 ### 13.77 Kontrolni list pred knjiženjem prejemnice
 
 [ ] Dobavitelj je preverjen po nazivu in po potrebi davčni številki.
@@ -2455,6 +2637,7 @@ Preverite učinek na količino in WAC.
 
 [ ] Predogled knjiženja se ujema z listino.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-62e32a55f10e package=lite -->
 ### 13.78 Kontrolni list po knjiženju
 
 [ ] Prejemnica je vidna v seznamu dokumentov.
@@ -2471,6 +2654,7 @@ Preverite učinek na količino in WAC.
 
 [ ] Dokazilo je shranjeno po internem postopku.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-05b19687fb13 package=extended -->
 ### 13.79 Kontrolni list pred zaključkom dogodka
 
 [ ] Dogodek ima pravilen status.
@@ -2487,6 +2671,7 @@ Preverite učinek na količino in WAC.
 
 [ ] Odpad in manjko nista prikrita kot vračilo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f5965e783853 package=lite -->
 ### 13.80 Kontrolni list dnevne pripravljene hrane
 
 [ ] Odtajana količina se ujema s porabljeno zamrznjeno zalogo.
@@ -2505,6 +2690,7 @@ Preverite učinek na količino in WAC.
 
 [ ] Zaključen dan se ne uporablja za prikrivanje naslednjega dne.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-997867e32eb0 package=lite -->
 ### 13.81 Kratek praktični izpit 1: pakiranje
 
 Naloga: prejemate dva zaboja po 24 kosov, artikel pa je v kosih.
@@ -2519,6 +2705,7 @@ Napačen odgovor 2 prezre pakiranje.
 
 Napačen odgovor 24 prezre drugi zaboj.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-47d90887b57e package=lite -->
 ### 13.82 Kratek praktični izpit 2: bruto cena
 
 Naloga: bruto cena je 10,50 EUR pri 5 % DDV.
@@ -2531,6 +2718,7 @@ Utemeljitev: 10,50 / 1,05 = 10,00.
 
 Napačen odgovor 10,50 bi DDV vključil v vrednost zaloge.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c55e44e8f80b package=lite -->
 ### 13.83 Kratek praktični izpit 3: popust
 
 Naloga: deset kosov po 4,00 EUR neto ima 25 % popust.
@@ -2545,6 +2733,7 @@ Napačen odgovor 40,00 prezre popust.
 
 Napačen odgovor 37,50 uporabi napačen odstotek.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-2b717ee294b4 package=lite -->
 ### 13.84 Kratek praktični izpit 4: WAC
 
 Naloga: 10 kosov s WAC 2,00 EUR in 10 novih kosov po 4,00 EUR.
@@ -2557,6 +2746,7 @@ Utemeljitev: skupna vrednost 20,00 + 40,00 je 60,00 EUR za 20 kosov.
 
 V tem posebnem primeru je navadno povprečje slučajno enako, ker sta količini enaki.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5a36b99e2408 package=lite -->
 ### 13.85 Kratek praktični izpit 5: WAC z neenakimi količinami
 
 Naloga: 30 kosov s WAC 2,00 EUR in 10 novih kosov po 5,00 EUR.
@@ -2569,6 +2759,7 @@ Utemeljitev: (30 × 2,00 + 10 × 5,00) / 40 = 110,00 / 40.
 
 Napačen odgovor 3,50 je neuteženo povprečje cen.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3ace50ac4d08 package=lite -->
 ### 13.86 Kratek praktični izpit 6: OCR dobavitelj
 
 Naloga: OCR ne prepozna dobavitelja.
@@ -2579,6 +2770,7 @@ Odgovor: iščete po nazivu, kratkem nazivu in davčni številki.
 
 Utemeljitev: preprečite dvojnik partnerja in napačno zgodovino dokumentov.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7a2dc472375f package=lite -->
 ### 13.87 Kratek praktični izpit 7: OCR artikel
 
 Naloga: OCR predlaga artikel z enakim imenom, vendar drugo prostornino.
@@ -2589,6 +2781,7 @@ Odgovor: ne, preverite osnovno enoto, prostornino in pakiranje.
 
 Utemeljitev: podobno ime ni dovolj za pravilno zalogo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-0806af55e298 package=lite -->
 ### 13.88 Kratek praktični izpit 8: ničelna vrstica
 
 Naloga: OCR prebere vrstico količina 0.
@@ -2599,6 +2792,7 @@ Odgovor: ne.
 
 Utemeljitev: najprej ugotovite, ali gre za informativno vrstico, rabat ali OCR napako.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-2a9bbc9b1c09 package=lite -->
 ### 13.89 Kratek praktični izpit 9: delna dobava
 
 Naloga: naročeno je 12 kg, dostavljeno 9 kg.
@@ -2609,6 +2803,7 @@ Odgovor: 9 kg.
 
 Utemeljitev: prejemnica evidentira dejanski prevzem.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7cfd5f8c4726 package=lite -->
 ### 13.90 Kratek praktični izpit 10: inventura
 
 Naloga: knjižno je 50 kosov, najdenih 47.
@@ -2621,6 +2816,7 @@ Utemeljitev: dejansko minus knjižno je 47 − 50.
 
 Nato preverite vzrok, ne sklepajte samodejno o odpadu.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-169a49e2f6e7 package=lite -->
 ### 13.91 Kratek praktični izpit 11: prenos
 
 Naloga: v matični enoti prenesete 15 kosov na dogodek.
@@ -2631,6 +2827,7 @@ Odgovor: ne, to je sledljiv prenos med enotama.
 
 Utemeljitev: skupna količina organizacije se s prenosom ne sme zmanjšati.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9332ff59932c package=extended -->
 ### 13.92 Kratek praktični izpit 12: dogodek
 
 Naloga: predogled dogodka opozori na nezadostno zalogo.
@@ -2641,6 +2838,7 @@ Odgovor: ne, zmanjšate količino ali uredite dejanski razpoložljivi vir.
 
 Utemeljitev: opozorilo preprečuje neizvedljiv prenos.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-cef189ebe0ed package=standard -->
 ### 13.93 Kratek praktični izpit 13: pripravljena hrana
 
 Naloga: odtajano 5, pripravljeno 20, korekcija −2, prodano 18, zamrznjeno 3.
@@ -2651,6 +2849,7 @@ Odgovor: 2.
 
 Utemeljitev: 5 + 20 − 2 − 18 − 3 = 2.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-3a3da14d96aa package=lite -->
 ### 13.94 Kratek praktični izpit 14: negativno kalo
 
 Naloga: skupaj 10, prodano 8, zamrznjeno 4.
@@ -2661,6 +2860,7 @@ Odgovor: ne.
 
 Utemeljitev: kalo je −2 in zahteva popravek vhodnih podatkov.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-215bc387d570 package=standard -->
 ### 13.95 Kratek praktični izpit 15: odpad s krožnikov
 
 Naloga: gostje pustijo 2,2 kg ostankov.
@@ -2671,6 +2871,7 @@ Odgovor: ne.
 
 Utemeljitev: modul odpadkov s krožnikov je neodvisna interna evidenca.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-8171c0f555bb package=lite -->
 ### 13.96 Kratek praktični izpit 16: popravek oddaje
 
 Naloga: oddaja 9 kg je za 1 kg previsoka.
@@ -2681,6 +2882,7 @@ Odgovor: −1 kg, povezan z izvirno oddajo.
 
 Utemeljitev: negativni popravek zmanjša neto oddano količino in ohrani sled.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5199d7c75c2d package=lite -->
 ### 13.97 Kratek praktični izpit 17: duplikat
 
 Naloga: uvoz vrne 409 in ID prejemnice.
@@ -2691,6 +2893,7 @@ Odgovor: odprete obstoječo prejemnico in jo primerjate z listino.
 
 Utemeljitev: ponoven uvoz lahko podvoji zalogo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-1740f8ce5a49 package=lite -->
 ### 13.98 Kratek praktični izpit 18: nova embalaža
 
 Naloga: dobavitelj preide z 12 na 10 kosov v paketu.
@@ -2701,6 +2904,7 @@ Odgovor: enote v paketu pri ujemanju in vpliv na količino.
 
 Utemeljitev: staro zapomnjeno ujemanje lahko vsebuje staro embalažo.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-170d07f99c17 package=lite -->
 ### 13.99 Kratek praktični izpit 19: prevoz
 
 Naloga: prevoz 15 EUR naj poveča vrednost zaloge.
@@ -2711,6 +2915,7 @@ Odgovor: Vrednost zaloge.
 
 Utemeljitev: ta nastavitev vključuje strošek v vrednotenje zaloge.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-9d7ce635c12d package=lite -->
 ### 13.100 Kratek praktični izpit 20: ločen strošek
 
 Naloga: računovodska politika prevoz vodi ločeno od zaloge.
@@ -2721,6 +2926,7 @@ Odgovor: Ločen strošek.
 
 Utemeljitev: prevoz ne sme neupravičeno povečati WAC.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-5ca31744c60c package=lite -->
 ### 13.101 Zaključna praktična vaja: celoten tok
 
 Prejmete PDF dobavnice za dva zaboja pijače, 5 kg mesa in eno ničelno promocijsko vrstico.
@@ -2764,11 +2970,13 @@ Ta zadnji vnos ne spreminja zaloge pijače, mesa ali pripravljene hrane.
 9. Odpad ima resničen razlog in količino.
 10. Dogodek ne nadomešča drugih finančnih ali zalogovnih dokumentov.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-25db0c730d52 package=lite -->
 ## 14. Normalni vnos prejemnice in kontrola zaloge
 
 To poglavje opisuje normalen tok. Odpravljanje OCR-napak, podvojenih listin in
 popravljanje že knjiženih dogodkov je opisano v poglavju 13.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-cf3e3ab87887 package=lite -->
 ### 14.1 Ročna prejemnica
 
 Pred vnosom pripravite izvirno dobavnico ali račun. Preverite dobavitelja,
@@ -2793,6 +3001,7 @@ nepopolne vrstice samo zato, da bi zaključili uvoz. Če je dokument že uvožen
 odprite obstoječo prejemnico po prikazanem ID-ju; ne ustvarjajte druge enake
 prejemnice.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-7d2c496d4283 package=lite -->
 ### 14.2 Začetna zaloga, inventura in kartica zaloge
 
 Začetno zalogo uporabite samo pri vzpostavitvi ali odobreni korekciji začetnega
@@ -2813,6 +3022,7 @@ zaloge, prejemnic, porabe po normativu, odpisov, dogodkov in prenosov.
 Inventure ne uporabljajte za skrivanje nepreverjene napake prejemnice ali
 normativa.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-dfe9fff0f507 package=lite -->
 ### 14.3 Nabavna vrednost in WAC
 
 WAC oziroma tehtano povprečno nabavno vrednost preverjajte po potrjeni
@@ -2829,6 +3039,7 @@ vrsto stroška prevoza, enote v paketu, bruto/neto razlago in ali je bil dokumen
 listino. Ponovni izračun je skrbniško oziroma servisno dejanje; uporabnik ga
 ne sme izvajati kot nadomestilo za popravek napačnega dokumenta.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-c4c25559ced7 package=standard -->
 ### 14.4 Pripravljena in sestavljena hrana
 
 Pri pripravljeni hrani ločite pripravo, razpoložljivost, prodajo, zamrzovanje,
@@ -2846,6 +3057,7 @@ razpoložljiva; prodajna razpoložljivost ne pomeni samodejnega povečanja zalog
 stanja z ročnim povečanjem. Preverite recepturo, začetno zalogo, prejemnice,
 porabo in dogodek priprave.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-d858aed654e1 package=standard -->
 ### 14.5 Odpad s krožnikov
 
 Odpad s krožnikov je ločena interna evidenca. Vnesite artikel oziroma skupino,
@@ -2857,6 +3069,7 @@ razlogom. Pred potrditvijo preverite, ali uporabniški vmesnik prikazuje samo
 evidenco odpada ali tudi zalogovni učinek; če učinek ni prikazan, ga ne
 domnevajte.
 
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-f30476d09571 package=extended -->
 ### 14.6 Dogodki in prenosi med enotami
 
 Dogodek uporabite za planirano porabo ali razporeditev zaloge za dogodek.

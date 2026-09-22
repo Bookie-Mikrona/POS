@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*4, standard, lite*2, standard*4, lite*2, extended, lite*26, standard*5, lite*38, extended*4, lite*2, extended*5, lite*5, standard, lite*9, extended*7, lite*4, extended*2, lite*6 -->
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-65ba26d53d5f package=lite -->
 # 10 Hitri postopki po vlogah
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-66697542b0f3 package=lite -->
 ## 1. Uporaba hitrih postopkov
 
 To poglavje je kratek opomnik ob delovnem mestu.
@@ -8,8 +9,10 @@ Ne nadomešča pravilnikov podjetja ali podrobnih postopkov v poglavjih 01–09.
 Vsak korak izvedite enkrat in preverite potrditev.
 Ob nejasnem rezultatu najprej preverite zapis, šele nato ukrepajte.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-2020617e304e package=lite -->
 ## 2. Natakar
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-256f4c615796 package=lite -->
 ### 2.1 Začetek izmene
 
 1. Prijavite se s svojim računom.
@@ -20,6 +23,7 @@ Ob nejasnem rezultatu najprej preverite zapis, šele nato ukrepajte.
 
 Podrobnosti: dostop v 01, priprava izmene v 02 in razpoložljivost artiklov v 04.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-50ef5a8fbfec package=standard -->
 ### 2.2 Miza in naročilo
 
 1. Izberite pravo mizo oziroma kanal.
@@ -32,6 +36,7 @@ Podrobnosti: dostop v 01, priprava izmene v 02 in razpoložljivost artiklov v 04
 Ne odpirajte drugega naročila samo zato, ker je prvi zaslon počasen.
 Za več skupin na isti mizi uporabite postopek iz 03.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-06f5a3de76c1 package=lite -->
 ### 2.3 Plačilo in račun
 
 1. Odprite pravilno naročilo in preverite znesek.
@@ -44,6 +49,7 @@ Za več skupin na isti mizi uporabite postopek iz 03.
 Če terminal kaže odobritev, POS pa nejasen rezultat, ne zaračunajte znova.
 Uporabite postopek »neznan rezultat terminala« v 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-11577c877287 package=lite -->
 ### 2.4 Predaja
 
 1. Dokončajte ali jasno označite odprta naročila.
@@ -51,8 +57,10 @@ Uporabite postopek »neznan rezultat terminala« v 11.
 3. Ne predajajte svoje prijave drugemu uporabniku.
 4. Odjavite se s skupne naprave.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e819e107191c package=standard -->
 ## 3. Kuhinja in bar
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-7a889a4676b0 package=standard -->
 ### 3.1 Prevzem priprave
 
 1. Odprite pravilen pogled Kuhinja ali Točilnica.
@@ -64,6 +72,7 @@ Uporabite postopek »neznan rezultat terminala« v 11.
 Ne označujte pripravljenosti, da bi odstranili vrstico z zaslona.
 Ne spreminjajte plačila ali računa iz pripravljalnega pogleda.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-47b862056316 package=standard -->
 ### 3.2 Sprememba ali preklic
 
 1. Preverite številko naročila in postavko.
@@ -74,14 +83,17 @@ Ne spreminjajte plačila ali računa iz pripravljalnega pogleda.
 
 Podrobnosti: naročila v 03, priprava v 05 in evidentiranje odpada v 07.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-68a511d02f4c package=standard -->
 ### 3.3 Zaključek
 
 1. Preverite neprevzete oziroma odprte postavke.
 2. Predajte informacije o zamudah, manjkajočem blagu in pripravljenih serijah.
 3. Ne zapirajte naročil namesto blagajne.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-037e9cb45fff package=lite -->
 ## 4. Blagajnik
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b9ef6d134aec package=lite -->
 ### 4.1 Pred plačilom
 
 1. Preverite uporabnika, enoto, blagajno in odprto izmeno.
@@ -89,6 +101,7 @@ Podrobnosti: naročila v 03, priprava v 05 in evidentiranje odpada v 07.
 3. Pri deljenem plačilu potrdite zneske in načine pred potrditvijo.
 4. Ne spreminjajte postavk, če je priprava ali plačilo že v teku.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-17853f0af2a5 package=extended -->
 ### 4.2 Kartica, gotovina in bon
 
 1. Zaženite samo en plačilni poskus.
@@ -100,6 +113,7 @@ Podrobnosti: naročila v 03, priprava v 05 in evidentiranje odpada v 07.
 Nejasen terminalski rezultat pomeni: ustavite se, zapišite referenco, preverite pri ponudniku oziroma v zgodovini in nikoli ne plačajte dvakrat.
 Postopek: plačilo in preverjanje računa v 06, izredni primer pa v 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-433265b91b80 package=lite -->
 ### 4.3 Zapiranje
 
 1. Uskladite gotovino po internem postopku.
@@ -108,8 +122,10 @@ Postopek: plačilo in preverjanje računa v 06, izredni primer pa v 11.
 4. Poročilo hranite po pravilih podjetja.
 5. Razliko prijavite; ne popravljajte je z navideznim računom.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-203622e851d8 package=lite -->
 ## 5. Skladiščnik
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-cf240473d3f5 package=lite -->
 ### 5.1 Prejem blaga
 
 1. Preverite dobavitelja, datum in številko dokumenta.
@@ -123,6 +139,7 @@ OCR je predlog, ne dokaz.
 Ne potrjujte nejasnega dobavitelja, artikla ali seštevka.
 Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-63a03e646eb1 package=lite -->
 ### 5.2 Inventura in odstopanje
 
 1. Preštejte fizično stanje po dogovorjeni enoti mere.
@@ -131,8 +148,10 @@ Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 4. Potrdite le pregledano inventuro.
 5. Nenavadno odstopanje predajte vodji.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-403cc4454218 package=lite -->
 ## 6. Vodja izmene
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-37dba0772a1f package=lite -->
 ### 6.1 Odprtje
 
 1. Potrdite razpored uporabnikov, enot in blagajn.
@@ -140,6 +159,7 @@ Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 3. Določite pot za napake, manjkajoče artikle in predajo.
 4. Preverite posebne dogodke, rezervacije in omejitve menija.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-0501736bf1c2 package=lite -->
 ### 6.2 Med servisom
 
 1. Spremljajte odprta naročila, čakalne dobe in konflikte.
@@ -148,6 +168,7 @@ Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 4. Ne zahtevajte od osebja, naj napako skrije z brisanjem.
 5. Ob izpadu preklopite na odobren lokalni postopek.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-5dde01364785 package=lite -->
 ### 6.3 Zaključek
 
 1. Preglejte odprta naročila, blagajniške razlike in nejasna plačila.
@@ -155,8 +176,10 @@ Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 3. Preverite dnevne obveznosti iz 12.
 4. Odstopanja in eskalacije predajte naslednjemu odgovornemu.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3df7c275b5d7 package=lite -->
 ## 7. Manager oziroma administrator
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ae9f97575891 package=lite -->
 ### 7.1 Dnevna administracija
 
 1. Preverite podjetje in enoto pred vsakim posegom.
@@ -165,6 +188,7 @@ Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 4. Spremembo zabeležite in omejeno preskusite.
 5. Spremljajte poročila, neuspele prenose in odprte izjeme.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4e61dfe33e62 package=lite -->
 ### 7.2 Sprememba konfiguracije
 
 1. Določite vpliv, lastnika in čas spremembe.
@@ -177,6 +201,7 @@ Podrobnosti: zaloge in prejemnice v 07, odpravljanje težav pa v 11.
 Za potrdila, mostove, vloge in integracije glejte 09.
 Za zalogovne postopke glejte 07, za poročila in POS→ERP pa 08.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e7c47d30b1cb package=lite -->
 ### 7.3 Incident
 
 1. Zaščitite gosta, denar in revizijsko sled.
@@ -185,6 +210,7 @@ Za zalogovne postopke glejte 07, za poročila in POS→ERP pa 08.
 4. Ne zbirajte skrivnosti ali podatkov kartic.
 5. Uporabite simptom v 11 oziroma eskalirajte podpori.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-47a3cf7724cd package=lite -->
 ## 8. Skupno pravilo za vse vloge
 
 Če je odgovor sistema počasen, zaprite postopek šele po preverjanju zapisa.
@@ -193,6 +219,7 @@ Za zalogovne postopke glejte 07, za poročila in POS→ERP pa 08.
 Če sprememba vpliva na druge, jim to povejte neposredno.
 Če je varnost ali fiskalna sled nejasna, ustavite se in predajte odgovorni osebi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e2c02c806c4f package=lite -->
 ## 9. Skupni operativni ritem
 
 To poglavje pove, kdo izvede naslednji varen korak.
@@ -208,6 +235,7 @@ Za naprave, pravice in integracije glejte 09.
 Za simptom izpada ali napake glejte 11.
 Izraze preverite v 12.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b27bf0533321 package=lite -->
 ### 9.1 Pred začetkom katerekoli izmene
 
 - Prijavite se z lastnim računom.
@@ -221,6 +249,7 @@ Izraze preverite v 12.
 - Ne začnite prodaje brez odprte izmene.
 - Ne rešujte tehničnega izpada z novo napravo ali blagajno.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e569234d625e package=lite -->
 ### 9.2 Odločitev pri vsakem odstopanju
 
 Ali je ogrožen gost, denar ali varnost hrane?
@@ -238,8 +267,10 @@ Ali gre za nastavitev ali napravo?
 Ali je potreben dokaz?
 Če da, zapišite čas, enoto, številko dokumenta in dejanje.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-2ffe335ed0ca package=lite -->
 ## 10. Natakar
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-9dccadd8185d package=lite -->
 ### 10.1 Začetek izmene
 
 1. Prijavite se z osebnim dostopom iz 01.
@@ -253,6 +284,7 @@ Ali je potreben dokaz?
 9. Ne prevzemajte računa brez jasne predaje.
 10. Povejte vodji o napačnem območju ali napravi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-130c0dbcb3d1 package=lite -->
 ### 10.2 Servis
 
 - Pred naročilom potrdite mizo oziroma kanal.
@@ -266,6 +298,7 @@ Ali je potreben dokaz?
 - Ne premikajte naročila med mizami brez razloga.
 - Za spremembe naročila sledite 03 in 05.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-362217df7adf package=lite -->
 ### 10.3 Izjeme
 
 Če gost spremeni naročilo pred začetkom priprave, uredite spremembo v 03.
@@ -277,6 +310,7 @@ Ali je potreben dokaz?
 Če kuhinja ne vidi naloge, preverite status in eskalirajte.
 Če naprava ne odgovarja, ne pošiljajte naročila večkrat; glejte 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-8a1c347013bd package=lite -->
 ### 10.4 Predaja in konec
 
 - Preglejte svoje odprte mize.
@@ -288,6 +322,7 @@ Ali je potreben dokaz?
 - Ne skrivajte odprte mize zaradi konca izmene.
 - Upoštevajte zaključek izmene iz 02 in 08.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-d13c545dda22 package=lite -->
 ### 10.5 Preverjanje znanja
 
 Vprašanje: Kaj naredite ob spremembi že poslanega naročila?
@@ -297,8 +332,10 @@ Odgovor: preverite zapis pred ponovitvijo in nato sledite 11.
 Vprašanje: Kdaj uporabite račun sodelavca?
 Odgovor: nikoli.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-57b0ad4e02f8 package=lite -->
 ## 11. Blagajnik
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-97b1581482c8 package=lite -->
 ### 11.1 Začetek
 
 - Prijavite se z lastnim računom.
@@ -310,6 +347,7 @@ Odgovor: nikoli.
 - Preverite predajo odprtih plačil.
 - Preverite pot za pomoč ob nejasnem plačilu.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ef7f0cbc2b8f package=lite -->
 ### 11.2 Obračun
 
 1. Preverite pravilno naročilo in gosta.
@@ -323,6 +361,7 @@ Odgovor: nikoli.
 9. Predajte račun gostu po pravilih.
 10. Ne nadaljujte, če rezultat ni jasen.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-35d883b27e46 package=lite -->
 ### 11.3 Odločitveno drevo kartice
 
 Ali terminal potrdi plačilo in POS pokaže uspeh?
@@ -337,6 +376,7 @@ Ali je terminal brez povezave?
 Če da, uporabite odobren postopek iz 11 in obvestite vodjo.
 Nikoli ne bremenite kartice še enkrat zaradi domneve.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-2b0837c970c8 package=lite -->
 ### 11.4 Konec
 
 - Preverite odprta naročila.
@@ -347,6 +387,7 @@ Nikoli ne bremenite kartice še enkrat zaradi domneve.
 - Izvedite zaključek po 08.
 - Poročilo hranite po pravilih podjetja.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-bf65782f5c4e package=lite -->
 ### 11.5 Preverjanje znanja
 
 Vprašanje: Terminal pokaže uspeh, POS pa ne.
@@ -354,8 +395,10 @@ Odgovor: ne ponovite plačila; zapišite referenco in preverite po 06.
 Vprašanje: Kako rešite razliko v blagajni?
 Odgovor: dokumentirate in prijavite po 08.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-c1c32e438f15 package=standard -->
 ## 12. Kuhinja
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-45ed94a336d8 package=standard -->
 ### 12.1 Začetek
 
 - Prijavite se z lastnim profilom.
@@ -367,6 +410,7 @@ Odgovor: dokumentirate in prijavite po 08.
 - Preverite prioritete rezervacij in dogodkov.
 - Obvestite vodjo o nedosegljivi napravi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-099d9f327831 package=standard -->
 ### 12.2 Med pripravo
 
 1. Sprejmite nalogo v pravilnem zaporedju.
@@ -380,6 +424,7 @@ Odgovor: dokumentirate in prijavite po 08.
 9. Ne označite prevzema namesto issue postaje.
 10. Predajte pomembne zamude naslednji izmeni.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e8451f6d6cbb package=standard -->
 ### 12.3 Izjeme
 
 Če naloga manjka, preverite čas in številko naročila.
@@ -390,6 +435,7 @@ Odgovor: dokumentirate in prijavite po 08.
 Če je tiskalnik tih, preverite KDS oziroma pot in nato 11.
 Za odpad in zalogovni učinek glejte 07.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-555c88f3c8b8 package=standard -->
 ### 12.4 Konec
 
 - Preglejte naloge v čakanju.
@@ -399,8 +445,10 @@ Za odpad in zalogovni učinek glejte 07.
 - Ne zapirajte naročil namesto blagajne.
 - Očistite postajo po lokalnih pravilih.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-46cced140d25 package=lite -->
 ## 13. Pizza postaja
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ace91e28852b package=lite -->
 ### 13.1 Začetek
 
 - Preverite peč in varnost delovnega prostora.
@@ -410,6 +458,7 @@ Za odpad in zalogovni učinek glejte 07.
 - Preverite čase priprave z vodjo.
 - Preverite naročila s časovno občutljivim prevzemom.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-0eb9b7ce3b7e package=lite -->
 ### 13.2 Servis
 
 1. Preverite velikost, testo in dodatke.
@@ -421,14 +470,17 @@ Za odpad in zalogovni učinek glejte 07.
 7. Predajte issue postaji, ne neposredno neznanemu gostu.
 8. Zabeležite odpad po 07, kadar je potreben.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-9865ac5c87ea package=lite -->
 ### 13.3 Drill
 
 Scenarij: dve pici imata podobno ime, ena pa alergensko opombo.
 Naloga: ponovite variante, ločite pripravo in vprašajte ob nejasnosti.
 Uspeh: priprava ne temelji na domnevi ali barvi listka.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-69602c910902 package=lite -->
 ## 14. Bar
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4e83a0a98ce3 package=lite -->
 ### 14.1 Začetek
 
 - Preverite barsko postajo in izhod nalog.
@@ -438,6 +490,7 @@ Uspeh: priprava ne temelji na domnevi ali barvi listka.
 - Preverite manjkajoče artikle v meniju.
 - Predajte stanje prejšnji izmeni.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-9a7e252ff5b5 package=lite -->
 ### 14.2 Servis
 
 1. Sprejmite nalogo na KDS ali izpisu.
@@ -449,6 +502,7 @@ Uspeh: priprava ne temelji na domnevi ali barvi listka.
 7. Ob manjkajoči zalogi obvestite vodjo in sledite 04 ter 07.
 8. Ne sprejemajte plačil, če za to nimate vloge.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ef5728f4be20 package=lite -->
 ### 14.3 Konec
 
 - Predajte odprte naloge.
@@ -457,8 +511,10 @@ Uspeh: priprava ne temelji na domnevi ali barvi listka.
 - Zavarujte delovno postajo po pravilih.
 - Ne spreminjajte cen ali menija iz bara brez odobritve.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-deaf9e06eecd package=lite -->
 ## 15. Izdajna postaja
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-649003067985 package=lite -->
 ### 15.1 Naloga postaje
 
 Izdajna postaja poveže pripravo, natakarja in gosta.
@@ -466,6 +522,7 @@ Ne spreminja plačila.
 Ne odloča o stornu brez pooblastila.
 Ne označuje jedi kot pripravljene, če jih ni preverila.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-dab0caa62a53 package=lite -->
 ### 15.2 Postopek
 
 1. Preverite številko naročila ali mizo.
@@ -477,6 +534,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 7. Ob manjkajočem delu takoj vprašajte pripravo.
 8. Ne ugibajte, komu pripada naročilo.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-a70bf69ef6b9 package=lite -->
 ### 15.3 Izjeme
 
 Če gost trdi, da je prevzel napačno naročilo, zadržite nadaljnjo predajo.
@@ -484,8 +542,10 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 Če je naročilo že prevzeto v sistemu, ne ustvarite novega brez preverjanja.
 Če je naloga nečitljiva, zberite številko naročila in eskalirajte.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-8b24d4c5dd93 package=lite -->
 ## 16. Skladiščnik
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-fdfe4cee439e package=lite -->
 ### 16.1 Začetek
 
 - Preverite načrt dobav.
@@ -495,6 +555,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 - Preverite odobrene šifrante artiklov.
 - Ne spreminjajte artiklov brez postopka iz 04.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-04c7aa5b61ba package=lite -->
 ### 16.2 Prejem
 
 1. Preverite dobavitelja in dokument.
@@ -508,6 +569,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 9. Preverite učinek na zalogo.
 10. Odstopanje predajte vodji.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-5b75230b7d61 package=lite -->
 ### 16.3 Inventura in konec
 
 - Preštejte fizično stanje v pravilni enoti mere.
@@ -518,8 +580,10 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 - Potrdite samo pregledano inventuro.
 - Predajte nenavadna odstopanja.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-51f9b7812eba package=lite -->
 ## 17. Vodja izmene
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-fb2d3c18a24d package=lite -->
 ### 17.1 Začetek
 
 1. Potrdite razpored in vloge osebja.
@@ -531,6 +595,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 7. Določite nadomestno komunikacijo ob izpadu.
 8. Preberite ne zaključene točke prejšnje izmene.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-1d771771ed79 package=lite -->
 ### 17.2 Med servisom
 
 - Spremljajte odprta naročila in čakalne dobe.
@@ -542,6 +607,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 - Ob FURS ali plačilni napaki preverite, kaj je že nastalo.
 - Ob izpadu uporabite odobren lokalni postopek iz 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-30ec5111837c package=lite -->
 ### 17.3 Predaja
 
 - Preglejte odprta naročila.
@@ -552,8 +618,10 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 - Predajte incident, lastnika in naslednji korak.
 - Zaključek dneva izvedite po 08.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-17a5e8b7a7ba package=lite -->
 ## 18. Manager
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-907b1fdf4215 package=lite -->
 ### 18.1 Dnevni nadzor
 
 - Preverite izjemna poročila po 08.
@@ -564,6 +632,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 - Preverite pritožbe, vračila in odobritve.
 - Ne spreminjajte konfiguracije v največji obremenitvi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-c1b71576c01f package=lite -->
 ### 18.2 Sprememba poslovnega pravila
 
 1. Določite poslovni cilj in lastnika.
@@ -575,8 +644,10 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 7. Preskusite omejen scenarij.
 8. Obvestite osebje in spremljajte učinek.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-803ce2ea6ebe package=lite -->
 ## 19. Administrator
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-317a60a6ffb5 package=lite -->
 ### 19.1 Začetek posega
 
 - Preverite odobritev in poslovni razlog.
@@ -586,6 +657,7 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 - Določite preskus in vrnitev.
 - Ne uporabljajte skupnega administratorskega računa.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-48543f931aa3 package=lite -->
 ### 19.2 Izvedba
 
 1. Spremenite eno povezano skupino nastavitev.
@@ -597,14 +669,17 @@ Ne označuje jedi kot pripravljene, če jih ni preverila.
 7. Obvestite lastnika procesa.
 8. Ob neuspehu varno vrnite spremembo po 09.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-abac5dfff638 package=lite -->
 ### 19.3 Drill
 
 Scenarij: po spremembi tiskalnika kuhinja ne dobi nalog.
 Naloga: ustavite dodatne spremembe, preverite enoto, pot in status mostu.
 Uspeh: ne ustvarite nove enote, nove blagajne ali podvojenih naročil.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b40ffe5c3419 package=lite -->
 ## 20. Računovodja
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3d97ac582abd package=lite -->
 ### 20.1 Dnevno
 
 - Uporabite samo odobren dostop.
@@ -615,6 +690,7 @@ Uspeh: ne ustvarite nove enote, nove blagajne ali podvojenih naročil.
 - Ne popravljajte vira z novim izmišljenim dokumentom.
 - Ne spreminjajte FURS ali uporabniških pravic brez pooblastila.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-0a3568a74f13 package=lite -->
 ### 20.2 Odstopanje
 
 Če poročilo ne ustreza pričakovanju, preverite filter in obdobje.
@@ -623,8 +699,10 @@ Uspeh: ne ustvarite nove enote, nove blagajne ali podvojenih naročil.
 Če je fiskalni podatek vprašljiv, eskalirajte po 11 in 09.
 Če je zalogovni vpliv nejasen, uskladite s skladiščnikom po 07.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3bb8ad7a40b6 package=lite -->
 ## 21. Trener in podpora
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-1d07bf198bd1 package=lite -->
 ### 21.1 Usposabljanje
 
 - Učite po vlogi, ne po administratorskih zaslonih.
@@ -638,6 +716,7 @@ Uspeh: ne ustvarite nove enote, nove blagajne ali podvojenih naročil.
 - Za zaključek uporabite 08.
 - Za nastavitve uporabite 09.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-771248c352c5 package=lite -->
 ### 21.2 Podporni zahtevek
 
 Zberite datum in čas.
@@ -649,6 +728,7 @@ Zberite že izvedene varne korake.
 Ne zbirajte gesel, PIN-ov, ključev ali celih številk kartic.
 Za simptom uporabite 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-8736785c1fe0 package=lite -->
 ### 21.3 Preverjanje znanja vseh vlog
 
 Vprašanje: Kaj naredite, če ne veste, ali je dejanje uspelo?
@@ -658,8 +738,10 @@ Odgovor: uporabite odobren postopek, ne račun sodelavca.
 Vprašanje: Kje najdete pomen izrazov?
 Odgovor: v poglavju 12.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-bf8f3ca49d40 package=lite -->
 ## 22. Razširjeni scenariji po vlogah
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-dc0cfffebbbb package=lite -->
 ### 22.1 Natakar: celoten krog mize
 
 Pred prihodom gosta preverite svoje območje.
@@ -687,6 +769,7 @@ Natakar preda blagajniku jasna navodila.
 Natakar ne začenja terminalskega poskusa brez pravice.
 Blagajnik uporabi postopek iz 06.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-93dd061b0781 package=lite -->
 ### 22.2 Blagajnik: celoten krog plačila
 
 Pred računom preverite naročilo, enoto in register.
@@ -712,6 +795,7 @@ Blagajnik ne izvede novega plačila.
 Blagajnik uporabi dovoljen ponatis ali postopek iz 06.
 Blagajnik prijavi težavo s tiskom po 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-07dd91d3b7ee package=lite -->
 ### 22.3 Kuhinja: celoten krog naloge
 
 Pred servisom prevzemite postajo in odprte naloge.
@@ -731,6 +815,7 @@ Kuhinja ne združi nalog samo zaradi iste mize.
 Kuhinja preveri z issue postajo, kaj je že predano.
 Kuhinja označi samo dejansko dokončano nalogo.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b7cd5295f988 package=lite -->
 ### 22.4 Pizza: celoten krog naročila
 
 Pred servisom preverite postajo, peč in sestavine.
@@ -749,6 +834,7 @@ Preveri izvorno naročilo.
 Vprašanje vrne natakarju ali vodji.
 Pripravo začne šele po razjasnitvi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-8bd791449801 package=lite -->
 ### 22.5 Bar: celoten krog naročila
 
 Pred servisom preverite pijače, garniture in izhod nalog.
@@ -766,6 +852,7 @@ Preveri postajo in številko naročila.
 Obvesti vodjo o napačni poti.
 Administratorja ne kliče za spremembo sredi servisa, razen po 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-2a523bb0ec0e package=lite -->
 ### 22.6 Izdajna postaja: celoten krog predaje
 
 Pred servisom preverite označevanje prevzema.
@@ -781,6 +868,7 @@ Izdajna postaja jasno označi, kaj ostaja.
 Kuhinja ali bar dobi podatek o manjkajočem delu.
 Sistemskega statusa ne zapre, če postopek enote zahteva drugače.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-6581b7e87a93 package=lite -->
 ### 22.7 Skladiščnik: celoten krog dokumenta
 
 Pred dobavo pripravite naročilnico ali pričakovani seznam.
@@ -798,6 +886,7 @@ Primerja fizično oznako in dokument.
 Izbere pravilen artikel ali eskalira nejasnost.
 Po potrditvi preveri količino na zalogi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-739764b29cc4 package=lite -->
 ### 22.8 Vodja izmene: celoten krog vodenja
 
 Pred servisom razdeli postaje in odgovornosti.
@@ -816,6 +905,7 @@ Vodja uporabi odobren nadomestni operativni postopek.
 Vodja zbere podatke za 11.
 Vodja po odpravi preveri, da ni podvojenih nalog.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-6dab286bada5 package=lite -->
 ### 22.9 Manager: celoten krog nadzora
 
 Manager pregleda zaključna poročila iz 08.
@@ -827,6 +917,7 @@ Manager preveri, da osebje prejme izvedljiva navodila.
 Manager spremlja prvi servis po spremembi.
 Manager zahteva naknadni pregled incidenta.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-8e2a8bd7ce96 package=lite -->
 ### 22.10 Administrator: celoten krog spremembe
 
 Administrator prejme odobreno zahtevo.
@@ -840,6 +931,7 @@ Administrator preveri revizijsko sled.
 Administrator dokumentira rezultat ali vrnitev.
 Administrator preda operativnemu lastniku.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b030cc752c16 package=lite -->
 ### 22.11 Računovodja: celoten krog kontrole
 
 Računovodja preveri podjetje, enoto in obdobje.
@@ -851,6 +943,7 @@ Računovodja uskladi zalogovna odstopanja s 07.
 Računovodja eskalira fiskalno nejasnost po 11 in 09.
 Računovodja dokumentira odprta odstopanja.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ecfc45efdb4e package=lite -->
 ## 23. Odločitvene tabele
 
 | Dogodek | Prva vloga | Takojšen varen korak | Sklic |
@@ -868,6 +961,7 @@ Računovodja dokumentira odprta odstopanja.
 | Napaka integracije | računovodja/admin | preveri status prenosa | 08, 09, 11 |
 | Napačen dostop | uporabnik | ne uporablja tujega računa | 01, 09 |
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-90428e6300a0 package=lite -->
 ## 24. Predaje: primeri kakovostnega zapisa
 
 Primer natakarja: »Miza 12 čaka sladico; alergenska opomba preverjena; račun še ni zahtevan.«
@@ -883,8 +977,10 @@ Slaba predaja: »Terminal čuden.«
 Slaba predaja: »Kuhinja ne dela.«
 Dobra predaja vsebuje dejstvo, čas, obseg, lastnika in naslednji korak.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-121655e2bae4 package=lite -->
 ## 25. Vaje za trenerja
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-c670a1e4567a package=lite -->
 ### 25.1 Priprava vaje
 
 Trener določi vlogo in učni cilj.
@@ -894,6 +990,7 @@ Trener opazuje preverjanje konteksta, ne samo hitrost.
 Trener prekine vajo, če udeleženec poskuša nevaren obvod.
 Trener poda povratno informacijo ob dejstvu.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-90bf7b785ece package=lite -->
 ### 25.2 Vaja: dvojno naročilo
 
 Vhod: natakar misli, da POS ni sprejel prvega klika.
@@ -902,6 +999,7 @@ Napačni korak: takoj znova pošlje naročilo.
 Merilo: udeleženec pove, kako preveri stanje.
 Sklic: 03 in 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-7da3490156aa package=lite -->
 ### 25.3 Vaja: nejasen terminal
 
 Vhod: terminal pokaže rezultat, POS pa ostane v čakanju.
@@ -909,6 +1007,7 @@ Pravilni korak: ne ponovi in zapiše referenco.
 Napačni korak: zahteva ponovno kartico.
 Merilo: udeleženec navede sklic 06.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-89f338cbe22e package=lite -->
 ### 25.4 Vaja: sprememba pripravljene jedi
 
 Vhod: gost želi drugo jed, kuhinja je začela pripravo.
@@ -916,6 +1015,7 @@ Pravilni korak: natakar uskladi s kuhinjo.
 Napačni korak: izbriše staro postavko brez preverjanja.
 Merilo: udeleženec loči naročilo 03 in pripravo 05.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-c632ca4e3f56 package=lite -->
 ### 25.5 Vaja: izgubljena seja
 
 Vhod: sodelavec prosi za uporabo že prijavljene naprave.
@@ -923,6 +1023,7 @@ Pravilni korak: uporabi svoj dostop po 01.
 Napačni korak: nadaljuje v tuji seji.
 Merilo: udeleženec pojasni revizijsko sled iz 09.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-0e9cba607ed7 package=lite -->
 ### 25.6 Ocenjevalni obrazec
 
 Udeleženec preveri podjetje in enoto.
@@ -934,8 +1035,10 @@ Udeleženec izvede jasno predajo.
 Udeleženec navede pravilno poglavje.
 Trener zapiše dokaz, datum in naslednji učni korak.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-46d70c1ea089 package=lite -->
 ## 26. Operativni modeli izmene
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-838f7ad6c54f package=lite -->
 ### 26.1 Majhna kavarna: odprtje
 
 Vodja preveri enoto, register in osebje po 02.
@@ -946,6 +1049,7 @@ Vsi preberejo predajo prejšnje izmene.
 Vodja pove, kdo sprejme izjemne odločitve.
 Administrator ne sodeluje v odpiranju, razen pri odobrenem posegu iz 09.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3efb6fd35901 package=lite -->
 ### 26.2 Majhna kavarna: servis
 
 Natakar potrdi mizo in vnos naročila.
@@ -956,6 +1060,7 @@ Ob gneči natakar ne pošilja naročila večkrat.
 Ob nejasni kartici blagajnik ne ponovi bremenitve.
 Ob izpadu tiskanja vodja uporabi 11.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-a4f4158029f8 package=lite -->
 ### 26.3 Majhna kavarna: predaja in konec
 
 Natakar navede odprte mize.
@@ -965,6 +1070,7 @@ Vodja navede incidente in lastnike.
 Zaključek izvedejo po 08.
 Poročil ne nadomeščajo z ustnimi ocenami.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-9a4077b7a58a package=lite -->
 ### 26.4 Restavracija: odprtje
 
 Vodja razdeli območja med natakarje.
@@ -975,6 +1081,7 @@ Blagajnik preveri registre in terminale.
 Skladiščnik sporoči omejitve zaloge.
 Meni se preveri po 04, ne z ustnimi popravki.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-dc8708e979fb package=lite -->
 ### 26.5 Restavracija: servis
 
 Natakarji preverijo mizo, količino in opombe.
@@ -985,6 +1092,7 @@ Izdajna postaja povezuje dele naročila.
 Blagajnik obravnava račun po 06.
 Vodja koordinira, kadar se čakalna doba podaljša.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-cdbfceb88c4b package=lite -->
 ### 26.6 Restavracija: robni primeri
 
 Gost zamenja mizo: natakar preveri odprto naročilo pred prenosom po 03.
@@ -994,6 +1102,7 @@ KDS ne pokaže naloge: vodja prepreči ponovitve in uporabi 11.
 Gost trdi, da je plačal: blagajnik preveri referenco po 06.
 Več postaj zamuja: vodja pove prednostni vrstni red in predajo.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-1f216ce3a8ac package=extended -->
 ### 26.7 Dostavna enota: odprtje
 
 Vodja preveri telefonski in QR tok po 05.
@@ -1003,6 +1112,7 @@ Izdajna postaja preveri predajo vozniku.
 Blagajnik preveri način plačila dostave.
 Administrator preverja CTI le po postopku 09.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-986ade2fc30e package=extended -->
 ### 26.8 Dostavna enota: servis
 
 Sprejemnik potrdi kanal, naslovne podatke in naročilo po 05.
@@ -1012,6 +1122,7 @@ Vozniku se preda pravilen kanal in naročilo.
 Blagajnik ne sklepa, da je dostava plačana brez preverjanja po 06.
 Vodja vodi zamude in nejasnosti.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b0ec623cbf8b package=extended -->
 ### 26.9 Dogodek: odprtje
 
 Vodja preveri začasno postavitev in kapaciteto.
@@ -1021,6 +1132,7 @@ Kuhinja in bar preverita poenostavljen tok po 05.
 Vodja določi pot za izpad povezave po 11.
 Vsi poznajo kontakt vodje in čas predaje.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-64192375854f package=extended -->
 ### 26.10 Dogodek: servis in konec
 
 Natakarji ne delijo prijav zaradi hitrega toka.
@@ -1030,6 +1142,7 @@ Priprava sporoča manjkajoče artikle takoj.
 Ob zaključku se vse izjeme evidentirajo po 08.
 Začasne naprave se vrnejo in preverijo po 09.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-2788427972dd package=lite -->
 ## 27. Matrika odgovornosti
 
 | Dejanje | Izvede | Odobri | Obvesti |
@@ -1049,6 +1162,7 @@ Odobri ne pomeni, da oseba uporabi tuji račun.
 Obvesti ne pomeni razkrivanja skrivnosti.
 Pri incidentu se odgovornost ne izgubi med predajo.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4ecffff5fc9d package=lite -->
 ## 28. Komunikacijski stavki
 
 Natakar gostu: »Preveril bom stanje z ekipo, da bo naročilo pravilno.«
@@ -1066,8 +1180,10 @@ Ne recite sodelavcu, naj uporabi vaš račun.
 Ne recite ekipi, naj napako skrije z novim računom.
 Ne posredujte gesel ali kartičnih podatkov v komunikaciji.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3ffc52b6e9fb package=extended -->
 ## 29. Stopnjevalne simulacije
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4de3ce252497 package=extended -->
 ### 29.1 Stopnja 1: enostavna operativna napaka
 
 Vhod: natakar izbere napačno mizo.
@@ -1075,6 +1191,7 @@ Vloga: natakar preveri naročilo in ga varno prenese po 03.
 Vodja opazuje, ali je priprava že začela delo.
 Merilo: ni dvojnega naročila in predaja je jasna.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3aa204b9b00c package=extended -->
 ### 29.2 Stopnja 2: preplet priprave in plačila
 
 Vhod: gost spremeni jed in želi takoj plačati.
@@ -1083,6 +1200,7 @@ Blagajnik preveri končno stanje po 06.
 Vodja uskladi časovnico.
 Merilo: sprememba ni prikrita in plačilo ni ponovljeno.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e264e8bf70fa package=extended -->
 ### 29.3 Stopnja 3: tehnični izpad
 
 Vhod: KDS in tiskalnik na eni postaji nista dosegljiva.
@@ -1092,6 +1210,7 @@ Administrator zbira konfiguracijske podatke šele po zaščiti servisa.
 Podpora prejme podatke po 11.
 Merilo: naloge niso podvojene in sled ostane jasna.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-1f141298425a package=extended -->
 ### 29.4 Stopnja 4: kombiniran incident
 
 Vhod: terminal kaže uspeh, račun se ne natisne, gost čaka.
@@ -1101,6 +1220,7 @@ Vodja zaščiti komunikacijo z gostom.
 Administrator ne spreminja tiskalnika, dokler ni zaščiten dokaz računa.
 Merilo: plačilo, račun in incident so ločeno preverjeni.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-18995ae91527 package=lite -->
 ## 30. Banka vprašanj in rubrika odgovorov
 
 Vprašanje: Kje preverite pravilen način prijave?
@@ -1133,6 +1253,7 @@ Nezadosten odgovor uporablja račun sodelavca.
 Nezadosten odgovor ustvarja nov dokument za prikritje starega.
 Trener ponovi vajo, kadar odgovor ogroža gosta, denar ali sled.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-fd958baf76b2 package=lite -->
 ## 31. Praktično certificiranje: pravila izvedbe
 
 Ta razdelek določa opazovalne postaje za preverjanje dela v živi vlogi.
@@ -1164,6 +1285,7 @@ Ocenjevalec lahko zahteva pojasnilo, ne sme voditi z namigi.
 Vsaka postaja ima vhod, opazovana dejanja, kritične napake in dokaz.
 Dokaz je številka učnega naročila, dokumenta ali scenarija; ni posnetek skrivnosti.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-1fe10be9cc67 package=lite -->
 ### 31.1 Skupna rubrika
 
 Vsako merilo se oceni z 0, 1 ali 2 točkama.
@@ -1180,6 +1302,7 @@ Ocenjevalec zapiše dejanje, ne oznake osebnosti.
 Primer ustreznega zapisa: »Pred drugo obremenitvijo ni preveril reference prve.«
 Primer neustreznega zapisa: »Bil je nepreviden.«
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b858ae18c04e package=lite -->
 ### 31.2 Skupne kritične napake
 
 Kritična napaka je uporaba računa druge osebe.
@@ -1193,8 +1316,10 @@ Kritična napaka je razkritje gesla, PIN-a, žetona, potrdila ali podatkov karti
 Kritična napaka je brisanje ali skrivanje zapisa namesto predaje odstopanja.
 Kritična napaka je predaja naročila neznanemu prevzemniku brez preveritve cilja.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-14bf6bdcf017 package=lite -->
 ## 32. Opazovalne postaje po vlogah
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-0c3669e7bcf8 package=standard -->
 ### 32.1 Natakar: sprememba mize z že poslano jedjo
 
 Vhod: učna miza 14 ima naročilo 621 z juho in glavno jedjo.
@@ -1220,6 +1345,7 @@ Dobra predaja: »621 preneseno z 14 na 18; juha v pripravi; glavna jed z alergen
 Slaba predaja: »Miza se je premaknila.«
 Dokaz: ocenjevalec zapiše številko učnega naročila in izid prenosa.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-5e0c34db8cf6 package=lite -->
 ### 32.2 Blagajnik: neusklajen rezultat kartice
 
 Vhod: naročilo 734 je pripravljeno za plačilo v vrednosti učnega zneska.
@@ -1245,6 +1371,7 @@ Dobra predaja: »734, 19:14, učni znesek, referenca zapisana; novega poskusa ni
 Slaba predaja: »Kartica ne dela.«
 Dokaz: obrazec vsebuje referenco učnega scenarija brez občutljivih podatkov.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-d343dc27d11c package=lite -->
 ### 32.3 Kuhinja: naloga z alergensko opombo in spremembo
 
 Vhod: KDS prikaže naročilo 812 s testeninami brez navedene sestavine.
@@ -1269,6 +1396,7 @@ Dobra predaja: »812: omaka začeta pred spremembo; nova potrditev čaka; naloga
 Slaba predaja: »Testenine problem.«
 Dokaz: ocenjevalec označi, katera naloga je ostala odprta in zakaj.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ef12ea84c03d package=lite -->
 ### 32.4 Pizza postaja: podobni varianti in manjkajoč dodatek
 
 Vhod: naročilo 901 vsebuje dve pici podobnega imena.
@@ -1294,6 +1422,7 @@ Dobra predaja: »901: ena pizza pripravljena, druga čaka potrditev alternative 
 Slaba predaja: »Ena pizza manjka.«
 Dokaz: zapis vsebuje odločitev o dodatku in osebo, ki jo potrdi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-fbf6e865fd3f package=lite -->
 ### 32.5 Bar: napačna pripravljalna pot in razlitje
 
 Vhod: barski pogled prejme jed, ki očitno ne sodi v bar.
@@ -1318,6 +1447,7 @@ Dobra predaja: »455: dve pijači izdani; kuhinjska postavka napačno na barski 
 Slaba predaja: »Zaslon je bil napačen.«
 Dokaz: ocenjevalec zapiše varno eskalacijo in morebitni zalogovni zapis.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-041cbcb210d5 package=lite -->
 ### 32.6 Izdajna postaja: nepopoln paket za prevzem
 
 Vhod: naročilo 377 za prevzem ima jed iz kuhinje in pijačo iz bara.
@@ -1343,6 +1473,7 @@ Dobra predaja: »377 zadržan na izdaji; kuhinjski del pripravljen, pijača čak
 Slaba predaja: »Kupec čaka.«
 Dokaz: ocenjevalec zapiše identifikator in manjkajočo postavko.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4c0a50fb1309 package=lite -->
 ### 32.7 Skladiščnik: prejemnica z neujemajočim se pakiranjem
 
 Vhod: dobavnica 77 navaja deset pakiranj artikla A.
@@ -1367,6 +1498,7 @@ Dobra predaja: »Dobavnica 77 ni potrjena; artikel A: devet pakiranj fizično, d
 Slaba predaja: »Dobava se ne ujema.«
 Dokaz: ocenjevalec priloži številko učnega dokumenta in stanje potrditev.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-05241df5cebd package=lite -->
 ### 32.8 Vodja izmene: zamašek med pripravo in plačili
 
 Vhod: kuhinja poroča o zamudi pri štirih naročilih.
@@ -1392,6 +1524,7 @@ Dobra predaja: »19:20–19:28: kuhinja 4 naloge, bar 1 napačna pot, plačilo 7
 Slaba predaja: »Bila je gneča.«
 Dokaz: zapis vsebuje obseg, odločitve in reference prizadetih primerov.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-ae7eb27c8565 package=lite -->
 ### 32.9 Manager: odobritev spremembe poslovnega pravila
 
 Vhod: predlog uvaja nov paket pijače za dve enoti.
@@ -1416,6 +1549,7 @@ Dobra predaja: »Paket samo za kavarno; lastnik menija potrdi vsebino; admin pre
 Slaba predaja: »Dodajte paket povsod.«
 Dokaz: odobritev vsebuje enoto, čas, lastnika in kontrolni scenarij.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-619020d87b88 package=lite -->
 ### 32.10 Administrator: preskus spremembe tiskalne poti
 
 Vhod: odobrena zahteva premakne pizza izhod na drugo evidentirano napravo.
@@ -1440,6 +1574,7 @@ Dobra predaja: »Pizza pot spremenjena v enoti X; en kontrolni izpis na novi cil
 Slaba predaja: »Tiskalnik popravljen.«
 Dokaz: evidenca navaja spremembo, preskus, rezultat in vrnitev.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e6cab0a67d7c package=lite -->
 ### 32.11 Računovodja: manjkajoč dokument v prenosu
 
 Vhod: dnevno poročilo enote kaže račun 566.
@@ -1464,6 +1599,7 @@ Dobra predaja: »566 preverjen za podjetje, enoto in obdobje; status prenosa zah
 Slaba predaja: »ERP manjka račune.«
 Dokaz: zapis vključuje številko dokumenta, preverjene filtre in naslednjega lastnika.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-87f47a913e14 package=lite -->
 ### 32.12 Trener: ocenjevanje nevarnega obvoda
 
 Vhod: kandidat v vlogi blagajnika želi uporabiti prijavo odsotnega sodelavca.
@@ -1488,8 +1624,10 @@ Dobra predaja: »Postaja prekinjena pred uporabo tujega računa; ponovitev po la
 Slaba predaja: »Kandidat nima občutka za sistem.«
 Dokaz: trenerjev zapis vsebuje čas, postajo, dejanje, izid in obnovitev.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-31aecd8b6a0d package=extended -->
 ## 33. Simulacije konfliktov med vlogami
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4838fa3c04a9 package=extended -->
 ### 33.1 Natakar in kuhinja: gost zahteva zamenjavo
 
 Vhod: natakar pove, da gost noče več jedi 410.
@@ -1503,6 +1641,7 @@ Nepravilen izid: natakar izbriše postavko, kuhinja pa jo dokonča brez predaje.
 Sklic: 03 za spremembo, 05 za pripravo, 07 za odpad, kadar nastane.
 Dokaz: predaja navaja 410, stanje priprave, odločitev in lastnika.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-c56f92d583d9 package=extended -->
 ### 33.2 Blagajnik in vodja: pritisk za novo kartično plačilo
 
 Vhod: terminal kaže odobritev, POS pa nejasen rezultat.
@@ -1514,6 +1653,7 @@ Nepravilen izid: vodja uporabi avtoriteto za obhod preverjanja.
 Sklic: 06 za plačilni tok in 11 za eskalacijo.
 Dokaz: zapis navede, kdo je zaustavil ponovitev in kateri dokaz je zbran.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-0ce0e3f44f01 package=extended -->
 ### 33.3 Bar in skladiščnik: manjkajoča pijača
 
 Vhod: bar ugotovi, da deklarirana zaloga ne ustreza dejanskemu stanju.
@@ -1526,6 +1666,7 @@ Nepravilen izid: bar izbere nedovoljeno alternativo in skladiščnik popravi sta
 Sklic: 04 za meni in 07 za zalogovni razlog.
 Dokaz: predaja vsebuje artikel, dejansko stanje, omejitev in lastnika.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-619a2972b90a package=extended -->
 ### 33.4 Issue postaja in dostavni sprejemnik: dve podobni dostavi
 
 Vhod: dve dostavni naročili imata enako ime prejemnika.
@@ -1538,6 +1679,7 @@ Nepravilen izid: osebje izbere paket, ker je pripravljen prvi.
 Sklic: 05 za dostavni tok in 06 za plačilni status, če je vprašljiv.
 Dokaz: zapis vsebuje številko naročila, kanal in stanje predaje.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-e9f74a83e11f package=extended -->
 ### 33.5 Manager in administrator: nujna sprememba sredi servisa
 
 Vhod: manager zahteva spremembo tiskalne poti med gnečo.
@@ -1550,6 +1692,7 @@ Nepravilen izid: administrator spremeni več nastavitev, da bi hitro našel reš
 Sklic: 09 za spremembo, 11 za incident in 05 za lokalno pripravo.
 Dokaz: zahtevek vsebuje čas, obseg, preskus in vrnitev.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-1d4cac15e1a2 package=extended -->
 ### 33.6 Računovodja in administrator: zavrnjen prenos
 
 Vhod: računovodja najde zavrnjen dokument v prenosu.
@@ -1562,8 +1705,10 @@ Nepravilen izid: dokument izgine iz sledi ali se obdobje podvoji.
 Sklic: 08 za prenos in poročila, 09 za integracijo, 11 za incident.
 Dokaz: zapis navaja dokument, status, obseg, izvedeni popravek in kontrolo.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-b2eb0700163a package=lite -->
 ## 34. Modeli potrdila in evidenca
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-3de13d44f398 package=lite -->
 ### 34.1 Obvezni podatki evidence
 
 Evidenca vsebuje ime udeleženca in njegovo operativno vlogo.
@@ -1579,6 +1724,7 @@ Evidenca vsebuje ime osebe, ki je potrdila končno usposobljenost.
 Evidenca ne vsebuje gesel, PIN-ov, kartičnih številk, žetonov ali potrdil.
 Evidenca ne nadomešča revizijske sledi poslovnega sistema.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-aa9662fdd582 package=lite -->
 ### 34.2 Kavarna: minimalni certifikacijski komplet
 
 Model kavarne vključuje natakarja, blagajnika, bar, vodjo izmene in trenerja.
@@ -1594,6 +1740,7 @@ Evidenca kavarne navede lastnika odprte plačilne izjeme.
 Primer uspešne vrstice: »Kavarna, bar, postaja 32.5, 9/10, brez kritične napake, ponovitev ni potrebna.«
 Primer neustrezne vrstice: »Bar zna delati.«
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-382f2e86f274 package=lite -->
 ### 34.3 Restavracija: minimalni certifikacijski komplet
 
 Model restavracije vključuje natakarja, blagajnika, kuhinjo, pizza postajo, bar in issue postajo.
@@ -1609,6 +1756,7 @@ Evidenca restavracije navede, katera vloga je lastnik manjkajoče postavke.
 Primer uspešne vrstice: »Restavracija, issue, 377, preverjen komplet, 10/10, brez prezgodnje predaje.«
 Primer neustrezne vrstice: »Naročilo je bilo skoraj celo.«
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-8310b5e03d98 package=extended -->
 ### 34.4 Dostava: minimalni certifikacijski komplet
 
 Model dostave vključuje sprejemnika, kuhinjo, issue postajo, blagajnika in vodjo.
@@ -1624,6 +1772,7 @@ Evidenca dostave navede, kdo je potrdil predajo vozniku oziroma prevzem.
 Primer uspešne vrstice: »Dostava, issue, dve enaki imeni, identiteta potrjena s številko naročila, 9/10.«
 Primer neustrezne vrstice: »Voznik je vedel, kateri paket je njegov.«
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-58e423c42108 package=extended -->
 ### 34.5 Dogodek: minimalni certifikacijski komplet
 
 Model dogodka vključuje natakarja, blagajnika, pripravo, vodjo izmene in administratorja po potrebi.
@@ -1639,8 +1788,10 @@ Evidenca dogodka navede predajo odprtih izjem v zaključek po 08.
 Primer uspešne vrstice: »Dogodek, blagajnik, terminalski neskladni rezultat, ponovitev blokirana, 10/10.«
 Primer neustrezne vrstice: »Dogodek je bil uspešen.«
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-7fdb2ea26d8c package=lite -->
 ## 35. Hitra kartica za POS PIN in napravo
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-46cab12cdc5a package=lite -->
 ### 35.1 POS PIN
 
 - [ ] Uporabljam svoj POS PIN, ne PIN-a sodelavca.
@@ -1650,6 +1801,7 @@ Primer neustrezne vrstice: »Dogodek je bil uspešen.«
 - [ ] Pozabljen ali preklican PIN predam vodji oziroma administratorju.
 - [ ] Hitra menjava ostane v revizijski sledi.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4f5380e469c7 package=lite -->
 ### 35.2 Naprava
 
 - [ ] Vidim samo dovoljene mize oziroma potrjeno območje.
@@ -1659,6 +1811,7 @@ Primer neustrezne vrstice: »Dogodek je bil uspešen.«
 - [ ] Demo Viva rezultat ni označen kot produkcijsko plačilo.
 - [ ] Sprememba ima lastnika, preskus in načrt vrnitve.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-d997151bf80f package=lite -->
 ## 36. Funkcije, ki jih ne smemo obljubiti
 
 V trenutni izvedbi niso na voljo:
@@ -1672,6 +1825,7 @@ odgovorni osebi. Ne ustvarjajte ročnega postopka, ki bi se navzven predstavljal
 kot dokončana rezervacija ali spletno plačilo. Notranja POS-rezervacija,
 izdaja/unovčenje bona na POS-u in QR naročanje so ločeni postopki.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4240d18255f2 package=lite -->
 ## 35. Obnovitev usposobljenosti in končna odločitev
 
 Obnovitev se nanaša na opaženo vrzel, ne na kaznovanje osebe.
@@ -1695,6 +1849,7 @@ Ob ponavljajočem se incidentu vodja lahko zahteva ciljno ponovno postajo.
 Končna odločitev vsebuje »uspešno«, »uspešno po obnovitvi« ali »še ni potrjeno«.
 Odločitev »še ni potrjeno« navede naslednjo konkretno vajo in odgovorno osebo.
 
+<!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-806132e45946 package=lite -->
 ## 37. Računovodja: KIR, KPR in predaja
 
 - [ ] Vsi zaključeni računi, storna in vračila imajo vir za KIR.

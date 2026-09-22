@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*24, standard*2, extended, standard*7, lite*8, extended*2, lite*21, standard, lite, standard, extended*2, lite*8, standard, lite -->
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7c8641ea8e6c package=lite -->
 # 02 Začetek izmene in delovno okolje
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-e4eee7152fb3 package=lite -->
 ## 1. Namen, meja in odgovornost
 
 To je navodilo za pripravo dela po prijavi v POS.
@@ -33,6 +34,7 @@ Vodja odgovarja za urejen prevzem delovnega mesta in za odpravo blokad, ki jih o
 
 Administrator ureja povezavo uporabnika z natakarskim profilom, enoto, blagajno, napravo in nastavitvami.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-c7f3184b2f7b package=lite -->
 ### 1.1 Kaj pomeni pripravljen začetek
 
 Delovno mesto je pripravljeno, ko so izpolnjeni vsi spodnji pogoji.
@@ -57,6 +59,7 @@ Kuhinja, točilnica ali druge KDS-postaje so dosegljive, kadar jih poslovni tok 
 
 Odprta naročila prejšnje ekipe imajo znanega skrbnika.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-30f8990364a0 package=lite -->
 ### 1.2 Vloge
 
 **Uporabnik oziroma natakar** odpre svojo izmeno, preveri svojo enoto in pred začetkom opozori na neskladja.
@@ -71,6 +74,7 @@ Odprta naročila prejšnje ekipe imajo znanega skrbnika.
 
 **Kuhinja oziroma točilnica** potrdi, da sprejema naročila na svoji postaji.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-1651ff1c8225 package=lite -->
 ### 1.3 Enotni avtoritativni potek
 
 Uporabite naslednji vrstni red; ne izvajajte vzporednih skrajšanih postopkov.
@@ -90,8 +94,10 @@ Uporabite naslednji vrstni red; ne izvajajte vzporednih skrajšanih postopkov.
 
 Ne rešujte organizacijske napake z izbiro druge enote, druge blagajne ali profila druge osebe.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-678fa1f8f60e package=lite -->
 ## 2. Poslovni kontekst in prijava
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-80d74e8a559d package=lite -->
 ### 2.1 Preverjanje konteksta
 
 Po prijavi najprej preberite oznake v navigaciji oziroma glavi delovnega okolja.
@@ -116,6 +122,7 @@ To ni napaka, ki bi jo natakar odpravil z ročnim izborom naključnega profila.
 
 Obrnite se na administratorja, da določi enoto.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-e11ed8060153 package=lite -->
 ### 2.2 Povezava uporabnika in natakarskega profila
 
 Pri običajnem uporabniku je račun povezan z natakarskim profilom.
@@ -134,6 +141,7 @@ Uporabite jo samo po navodilu vodje in izberite dejansko osebo, ki začenja delo
 
 Ne izberite odsotnega sodelavca samo zato, da bi odklenili gumb.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-6a6a58c415c8 package=lite -->
 ### 2.3 Aktivni profili
 
 Na seznamu za odpiranje se pojavijo samo aktivni natakarji.
@@ -146,8 +154,10 @@ Ne pomeni, da lahko začnete brez lastne izmene.
 
 Sporočilo **Ni aktivnih natakarjev** pomeni, da mora administrator v nastavitvah urediti profile.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-fa0c688b332b package=lite -->
 ## 3. Zaslon Izmene
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-41e7f78eef4f package=lite -->
 ### 3.1 Osebni pogled
 
 Uporabnik vidi naslov **Izmene** in opis, da odpira ter zapira svojo delovno izmeno.
@@ -164,6 +174,7 @@ To je pregled dela ekipe, ne dovoljenje za upravljanje izmen drugih oseb.
 
 Uporabnik lahko upravlja samo kartico svoje aktivne izmene.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-e4b76bcef829 package=lite -->
 ### 3.2 Administrativni pogled
 
 Administrator vidi kartico **Odpri novo izmeno**.
@@ -176,6 +187,7 @@ Administrator naj pred potrditvijo glasno preveri ime izbranega profila.
 
 Odpiranje za napačno osebo popači pripis dela in poznejši pregled.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-5edd2b7f249f package=lite -->
 ### 3.3 Aktivne izmene
 
 Pri aktivni izmeni se prikažejo ime natakarja, začetek in lokacija.
@@ -190,6 +202,7 @@ Prazno stanje **Ni odprtih izmen na tej enoti** pomeni, da sistem trenutno ne na
 
 Pred odpiranjem nove izmene ponovno preverite enoto in identiteto osebe.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-027a5559c341 package=lite -->
 ### 3.4 Zgodovina in stanja že zaključenih izmen
 
 V osebnem pogledu je razdelek **Moje pretekle izmene**.
@@ -212,6 +225,7 @@ Gumb **Pošlji v potrditev** se prikaže za lastno zaključeno izmeno v stanju `
 
 Ta korak spada v zaključni postopek iz poglavja 08, ne v začetek izmene.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-9dd8f7b48f14 package=lite -->
 ### 3.5 Odpiranje izmene
 
 1. Odprite **Izmene**.
@@ -231,8 +245,10 @@ Ne osvežujte strani in ne klikajte znova zato, ker odziv še ni prikazan.
 
 Po napaki najprej osvežite pregled aktivnih izmen in šele nato odločite o ponovitvi.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-cad15a5c42e7 package=lite -->
 ## 4. Blagajna, odgovornost in začetni denar
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-516dbce78e31 package=lite -->
 ### 4.1 Razlikovanje evidenc
 
 Osebna izmena odgovarja na vprašanje, kdo je delal.
@@ -247,6 +263,7 @@ Privzeta vrednost, prikazana v uporabniškem vmesniku, je 50,00 EUR.
 
 Privzeta vrednost ni dokaz, da je v predalu dejansko 50,00 EUR.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-dbcff6f09bf4 package=lite -->
 ### 4.2 Fizični prevzem
 
 Pred prodajo preverite oznako predala, ključe, dostop in fizično stanje.
@@ -263,6 +280,7 @@ Zapišite prešteti znesek, čas, blagajno in osebo, ki je predala mesto.
 
 Pokličite vodjo izmene pred prvo prodajo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-fdcc2134d05d package=lite -->
 ### 4.3 Polja in omejitve nastavitve
 
 V pogovornem oknu nastavitve je številčno polje za **Začetni menjalni denar**.
@@ -279,6 +297,7 @@ Za blagajniške pologe, dvige in denarne premike uporabite ločen modul in pravi
 
 Njihovo izvajanje ni predmet tega poglavja.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-da04b2254cd7 package=lite -->
 ### 4.4 Posebna primera
 
 Če je osebna izmena odprta, blagajna pa fizično ni predana, ne začnite prodaje.
@@ -287,8 +306,10 @@ Njihovo izvajanje ni predmet tega poglavja.
 
 Če je profil pravilen, naprava pa prikazuje drugo blagajno, ne premeščajte predala brez evidentiranega postopka.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-5ab7de97f71a package=lite -->
 ## 5. Začetne zaloge in razpoložljivost
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7fbeaa83f11c package=lite -->
 ### 5.1 Kdaj so zaloge vstopna zapora
 
 V zalogovno vodenih enotah začetna zaloga določa izhodiščno količino spremljanega obdobja.
@@ -301,6 +322,7 @@ Pred odprtjem lokala preverite leto oziroma obdobje začetnih zalog in pravilno 
 
 Ne potrjujte količin, ki jih niste preverili ali razumeli.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-be3b6ddaf987 package=lite -->
 ### 5.2 Odločitveni postopek
 
 Če so začetne zaloge potrjene in kritični artikli fizično ustrezajo, nadaljujte.
@@ -315,6 +337,7 @@ Ne potrjujte količin, ki jih niste preverili ali razumeli.
 
 Ne popravljajte porabe tako, da artikel ponudite pod drugim imenom.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-a4890deb5bd5 package=lite -->
 ### 5.3 Odprtje zalog
 
 V modulu zalog je dejanje **Uredi začetne zaloge**.
@@ -325,6 +348,7 @@ Pri novem letu prikaže oznako **Nova začetna zaloga (leto)**.
 
 Shranjevanje je namenjeno odgovorni osebi in ne hitremu popravku na prodajnem mestu.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-c6a5a999bb62 package=lite -->
 ### 5.4 Kontrolni seznam kritičnih artiklov
 
 Za kavarno preverite kavo, mleko, rastlinske alternative, sokove in najbolj prodajane sladice.
@@ -339,8 +363,10 @@ Kontrolni seznam ne nadomesti inventure.
 
 Njegov namen je preprečiti obljubo artikla, ki ga ekipa ne more pripraviti.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-69f19319ac27 package=standard -->
 ## 6. Delovno mesto, mize in odprta naročila
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-b9837e8d91c8 package=standard -->
 ### 6.1 Mize in prostori
 
 Odprite pregled miz pred prvim naročilom.
@@ -355,6 +381,7 @@ Rezervacija je vezana na mizo in vsebuje čas začetka, ime stranke, telefon ter
 
 Ne prestavljajte gosta na drugo mizo samo zato, da bi skrijeli nedoslednost na tlorisu.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-18578bf2e12d package=extended -->
 ### 6.2 Rezervacijska zapora
 
 Sistem lahko blokira spremembe naročila, kadar se bliža rezervacija; opozorilo navaja prag manj kot dveh ur.
@@ -367,6 +394,7 @@ Vodja določi, kdo potrjuje prihod gosta in kdo rešuje zamude.
 
 Natakar ne odstranjuje rezervacije samo zato, da bi omogočil novo naročilo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-6ce59470e768 package=standard -->
 ### 6.3 Odprta naročila ob prevzemu
 
 Odprto naročilo je poslovna obveznost, ne prazna kartica na zaslonu.
@@ -383,6 +411,7 @@ Prazno samodejno ustvarjeno naročilo se lahko ob odhodu s strani prekliče.
 
 Zato ga ne uporabljajte kot zabeležko za predajo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-1ccf6fa6fe3f package=standard -->
 ### 6.4 Zapis prevzema odprtih naročil
 
 Uporabite kratek zapis: čas, identifikator naročila, miza oziroma kanal, trenutno stanje, naslednje dejanje in novi skrbnik.
@@ -393,8 +422,10 @@ Primer: `10:25 | Dostava 48 | naslov potrjen, kuhinja prejela | čaka prevzem ku
 
 Ne zapisujte občutljivih podatkov gosta v javno vidno beležko.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-dee36cd74495 package=standard -->
 ## 7. Kuhinja, točilnica in KDS
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-dc8bd86c0e58 package=standard -->
 ### 7.1 Kaj preverjamo
 
 KDS je delovni zaslon za kuhinjo oziroma točilnico.
@@ -409,6 +440,7 @@ Pred začetkom ne preverjajte samo, ali je zaslon prižgan.
 
 Preverite, ali postaja sprejema pravo vrsto postavk.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-abfd99259a4f package=standard -->
 ### 7.2 Preskus pripravljenosti brez ustvarjanja lažnega prometa
 
 Z osebjem postaje preverite izbrani KDS-profil in ime postaje.
@@ -423,6 +455,7 @@ Ne ustvarjajte poskusnega prodajnega naročila, če ga nato ne morete zakonito i
 
 Uporabite dogovorjeno interno preskusno okolje ali zgolj pregled postaje.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-4503b3088e3f package=standard -->
 ### 7.3 Ko postavke ni na postaji
 
 Najprej odprite izvorno naročilo in preverite, ali je postavka res oddana.
@@ -441,6 +474,7 @@ Kuhinji povejte identifikator naročila in točen simptom.
 
 Vodja odloči o varnem nadaljevanju.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-9ea081614639 package=standard -->
 ### 7.4 Stanja KDS pri predaji
 
 Pri predaji navedite, ali je postavka čaka, je prevzeta v delo, je pripravljena ali je predana.
@@ -453,8 +487,10 @@ Za telefonska naročila KDS lahko prikazuje čas priprave, informativni čas dos
 
 Te podatke preverjajte na službenem zaslonu, ne iz spomina.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-73c0a0efe157 package=lite -->
 ## 8. Naprava, seja in menjava delovnega mesta
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-4a139f301985 package=lite -->
 ### 8.1 Začetek na skupni napravi
 
 Pred prijavo preverite, ali je prijavljen predhodnik.
@@ -469,6 +505,7 @@ Naprava ima lahko omejitev na dovoljene mize.
 
 Če prikazuje samo eno dovoljeno mizo, je lahko začetni zaslon prilagojen tej omejitvi.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-58145e0b9fd4 package=lite -->
 ### 8.2 Menjava naprave
 
 Menjava naprave ne pomeni prenosa osebne odgovornosti.
@@ -487,6 +524,7 @@ Odprite ista naročila in primerjajte postavke pred nadaljevanjem.
 
 Šele po tem obvestite ekipo, da je novo mesto pripravljeno.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-a8f6f16460a5 package=lite -->
 ### 8.3 Seja je potekla
 
 Če se pokaže obvestilo, da je seja potekla, ne predpostavljajte, da zadnji klik ni uspel.
@@ -499,6 +537,7 @@ Preverite dejansko stanje na zaslonu.
 
 Šele nato ponovite dejanje, če ga ni med že shranjenimi podatki.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-d089114faab4 package=lite -->
 ### 8.4 Pravilo enega klika
 
 Za dejanja, ki ustvarjajo ali spreminjajo zapis, uporabite en klik.
@@ -509,8 +548,10 @@ Počasna povezava ni razlog za zaporedne klike.
 
 Če ste kliknili dvakrat, takoj preverite rezultat v seznamu oziroma naročilu in o tem obvestite vodjo, kadar obstaja dvom.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-47df355f360d package=lite -->
 ## 9. Različice delovanja po tipu poslovanja
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-93cab476f8ac package=lite -->
 ### 9.1 Kavarna
 
 Pred odprtjem preverite mlin, zalogo mleka, skodelice in barsko KDS-postajo, če jo uporabljate.
@@ -521,6 +562,7 @@ Odprta naročila ob šanku ločite od miznih naročil že pri prevzemu.
 
 Pri menjavi osebja preverite naročila z opombami o rastlinskem mleku, brezkofeinski kavi ali alergenih.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-f6aa444548d0 package=lite -->
 ### 9.2 Restavracija
 
 Preverite prostore, razpored miz, rezervacije in zasedene mize.
@@ -531,6 +573,7 @@ Prevzem odprtih naročil mora vključevati stopnjo vsakega hoda.
 
 Ne spreminjajte mize z bližnjo rezervacijo brez uskladitve z vodjo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-deecf0dbeca8 package=extended -->
 ### 9.3 Dostava in prevzem
 
 Preverite kanal telefonskih in dostavnih naročil.
@@ -541,6 +584,7 @@ Z vodjo preglejte odprta naročila, predvidene čase priprave in skrbnike za pre
 
 Ne potrjujte naslova ali časa po ustnem spominu, če je zapis dostopen v naročilu.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-c261f6636a71 package=extended -->
 ### 9.4 Dogodek oziroma začasno prodajno mesto
 
 Pred začetkom preverite pravo enoto in začasno dodeljeno blagajno.
@@ -553,6 +597,7 @@ Dogovorite se, kdo ima skrbništvo nad zalogo in kdo nad odprtimi naročili.
 
 Ne improvizirajte z delom v zasebnem računu ali drugi enoti.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-b337340e9291 package=lite -->
 ## 10. Matrika napak in varna obnova
 
 | Simptom | Verjeten pomen | Takojšnje dejanje | Kdo reši | Pred nadaljevanjem |
@@ -573,6 +618,7 @@ Ne improvizirajte z delom v zasebnem računu ali drugi enoti.
 | Seja je potekla | prijava ni več veljavna | ponovno se prijavite | uporabnik | pregled shranjenega stanja |
 | Naprava kaže drugo enoto | napačna dodelitev ali seja | odjavite se | administrator | prava enota in naprava |
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-e761163c3654 package=lite -->
 ### 10.1 Zaporedje obnove
 
 Vedno najprej zaustavite novo delo na prizadetem mestu.
@@ -589,6 +635,7 @@ Popravka ne testirajte z ustvarjanjem nepotrebnih prodajnih zapisov.
 
 Po popravku ponovite samo korak, za katerega ste dokazali, da ni uspel.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-dcf6b757475c package=lite -->
 ## 11. Referenca polj in stanj
 
 | Element | Kje je viden | Pomen | Kdo preveri |
@@ -608,8 +655,10 @@ Po popravku ponovite samo korak, za katerega ste dokazali, da ni uspel.
 | KDS-profil | KDS nastavitve | usmerjanje na postaje | administrator |
 | Naprava | delovno okolje | identiteta in omejitve delovne postaje | administrator |
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-e302d4d50fec package=lite -->
 ## 12. Primeri iz prakse
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-1aad07c44f0a package=lite -->
 ### 12.1 Jutranja kavarna
 
 Maja se prijavi na tablico pri šanku.
@@ -628,6 +677,7 @@ Z baristom preveri, da barska postaja sprejema naročila.
 
 Šele nato sprejme prvo naročilo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-1499ee4b24d1 package=lite -->
 ### 12.2 Popoldanska restavracija
 
 Luka prevzame delovno mesto ob 16.00.
@@ -642,6 +692,7 @@ Nato preveri rezervacije večernega termina.
 
 Miza 14 ima bližnjo rezervacijo, zato je ne uporablja za novo veliko skupino.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-dbc6cd5746cb package=lite -->
 ### 12.3 Napačen profil
 
 Na kartici Izmene se prikaže, da uporabniški račun ni vezan na natakarski profil.
@@ -654,6 +705,7 @@ Vodja pooblasti pravilno ročno izbiro ali administrator popravi povezavo.
 
 Po odprtju se preveri, da aktivna izmena res nosi pravo ime.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-a6b3854f19f0 package=lite -->
 ### 12.4 KDS ne prejme pijače
 
 Natakar odda naročilo z vodo in sendvičem.
@@ -666,6 +718,7 @@ Odpre naročilo, preveri postavko in z baristom preveri barsko vrsto ter usmerja
 
 Vodja zabeleži težavo za administratorja, če nastavitev ni pravilna.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-56fb65baedc0 package=lite -->
 ### 12.5 Menjava tablice med konico
 
 Tablica se izprazni, na njej pa ni dejanja v teku.
@@ -678,8 +731,10 @@ Odpre naročilo mize 5 in primerja postavke z zapisom prevzema.
 
 Ekipa ve, da je nova naprava pripravljena.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-71cbcc0c5d47 package=lite -->
 ## 13. Navodila za trenerja
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-04a246d367fa package=lite -->
 ### 13.1 Uvodni prikaz
 
 Trener reče: »Najprej bomo ločili tvojo izmeno od blagajne.«
@@ -690,6 +745,7 @@ Trener pokaže panel enote ter zahteva, da udeleženec glasno prebere enoto in b
 
 Trener odpre stran Izmene in pokaže razliko med osebno kartico ter seznamom aktivnih izmen.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-aca6b838f3de package=lite -->
 ### 13.2 Vodena vaja
 
 Trener reče: »Najdi svojo kartico Začni izmeno; ne odpiraj še.«
@@ -704,6 +760,7 @@ Trener nato simulira manjkajočo enoto.
 
 Udeleženec mora povedati, da administrator določi enoto in da obvoza z drugo enoto ne uporabi.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-31f36f9600e8 package=lite -->
 ### 13.3 Vaja predaje
 
 Trener pripravi dve odprti naročili z različnim stanjem.
@@ -714,6 +771,7 @@ Trener vpraša: »Ali bi dodal postavko znova, če je kuhinja ne vidi?«
 
 Udeleženec mora odgovoriti, da najprej preveri izvorno naročilo in usmerjanje.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-1f3d30b9b675 package=lite -->
 ### 13.4 Opazovalni kriteriji
 
 Trener opazuje, ali udeleženec bere sporočila na zaslonu.
@@ -726,8 +784,10 @@ Trener opazuje, ali ne uporablja tuje seje ali tujega profila.
 
 Trener opazuje, ali zna ločiti začetek izmene od zaključnih postopkov.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-8cbcaa3694d7 package=lite -->
 ## 14. Praktično preverjanje znanja
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-6ba86667c7d6 package=lite -->
 ### 14.1 Naloga
 
 Udeleženec je natakar v restavraciji.
@@ -746,6 +806,7 @@ Kuhinja sporoči, da danes nima ene priloge.
 
 Udeleženec naj opiše pravilen začetek dela v pravilnem vrstnem redu.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-ad0c6843f5d2 package=lite -->
 ### 14.2 Dodatna vprašanja
 
 1. Kaj pomeni, če je gumb za odpiranje izmene onemogočen zaradi nedoločene enote?
@@ -757,8 +818,10 @@ Udeleženec naj opiše pravilen začetek dela v pravilnem vrstnem redu.
 7. Kaj preverite po menjavi naprave?
 8. Ali to poglavje določa postopek plačila ali zaključka izmene?
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-74b056183aa4 package=lite -->
 ## 15. Popoln ključ odgovorov
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-e142c0c59898 package=lite -->
 ### 15.1 Rešitev praktične naloge
 
 Udeleženec najprej preveri, da predhodnik ni prijavljen na skupni napravi, oziroma uredi varno odjavo.
@@ -785,6 +848,7 @@ Gostom ponuja samo potrjeno alternativo.
 
 Pred začetkom preveri, da kuhinjski zaslon prejema pravilne postavke.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-cf3dfbe55351 package=lite -->
 ### 15.2 Odgovori na dodatna vprašanja
 
 1. Enota ni določena za uporabnika; natakar ne odpira izmene in se obrne na administratorja.
@@ -803,6 +867,7 @@ Pred začetkom preveri, da kuhinjski zaslon prejema pravilne postavke.
 
 8. Ne; plačila, računi, davčno potrjevanje in tisk so v poglavju 06, zaključek izmene pa v poglavju 08.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-fe842f859371 package=lite -->
 ## 16. Končna kontrola pred prvo stranko
 
 Preden sprejmete prvo novo naročilo, odgovorite pritrdilno na vsako vprašanje.
@@ -827,8 +892,10 @@ Ali je naprava pripravljena in v moji seji?
 
 Če je odgovor na katero koli vprašanje ne, ne začnite nove prodaje, dokler odgovorna oseba ne potrdi varnega nadaljevanja.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-99b85ad4d501 package=lite -->
 ## 17. Operativne odločitve pred začetkom
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-49c04b863d8e package=lite -->
 ### 17.1 Kdo sme odločiti
 
 Natakar sme preveriti in prijaviti stanje.
@@ -847,6 +914,7 @@ Administrator sme popraviti tehnične dodelitve in nastavitve.
 
 Odgovorna oseba za zaloge sme potrditi zalogovni popravek po internem postopku.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7796b16c2492 package=lite -->
 ### 17.2 Odločitev ob nejasni blagajni
 
 Če oznaka na zaslonu in nalepka na predalu nista enaki, sta možna dva vzroka.
@@ -863,6 +931,7 @@ Vodja preveri razporeditev in fizični prevzem.
 
 Po popravku ponovno preverite kontekst pred odprtjem naročila.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-78a20a7b4e80 package=lite -->
 ### 17.3 Odločitev ob odprti izmeni predhodnika
 
 Odprta izmena predhodnika sama po sebi ne pomeni napake.
@@ -879,6 +948,7 @@ Vodja naj preveri, ali gre za dejansko aktivno delo ali za neurejeno predajo.
 
 Vašo izmeno odprite samo za svoj profil, če so ostali pogoji izpolnjeni.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-b6398db85497 package=lite -->
 ### 17.4 Odločitev ob dveh osebah na istem mestu
 
 Pri skupnem šanku se lahko dve osebi fizično izmenjujeta ob istem predalu.
@@ -893,6 +963,7 @@ Vodja določi, kdo je trenutno skrbnik fizične blagajne.
 
 Ta dogovor naj bo znan pred začetkom prvega naročila.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-5c4f98aef863 package=lite -->
 ### 17.5 Odločitev ob izpadu povezave
 
 Če naprava očitno nima povezave, najprej ne ustvarjajte novih poskusnih zapisov.
@@ -907,8 +978,10 @@ Vodja določi, ali se uporabi nadomestno, že pravilno dodeljeno delovno mesto.
 
 Ne prijavljajte se na zasebno napravo brez odobritve.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-994c2720dde3 package=lite -->
 ## 18. Podroben pregled delovne postaje
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-6888eac8cc94 package=lite -->
 ### 18.1 Strojna oprema
 
 Preverite napajanje tablice ali računalnika.
@@ -925,6 +998,7 @@ Preverite, da se naprava ne polni z neustreznim ali poškodovanim kablom.
 
 Poškodovano opremo prijavite in je ne popravljajte med strežbo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-316088d19a03 package=lite -->
 ### 18.2 Programsko okolje
 
 Odprite POS v podprtem brskalniku oziroma aplikaciji, ki jo uporablja enota.
@@ -941,6 +1015,7 @@ Ponovno preverite povezavo in obvestite odgovorno osebo.
 
 Ne brišite podatkov brskalnika kot prvi ukrep na prodajnem mestu.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-1ed9ae32594e package=lite -->
 ### 18.3 Dostopnost delovnega prostora
 
 Preverite, da je naprava dostopna osebju, ne pa gostom.
@@ -955,6 +1030,7 @@ Ne zapisujte prijavnih podatkov ob napravi.
 
 Če sumite, da je nekdo uporabljal vašo sejo, se odjavite in obvestite vodjo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-aa0f6c6e68e2 package=lite -->
 ### 18.4 Delovna ergonomija
 
 Pred konico uredite polnilni kabel, pisalo, beležko za dovoljene interne zapise in dostop do kuhinje.
@@ -967,8 +1043,10 @@ Odstranite ovire, ki lahko povzročijo padec naprave.
 
 Kratka priprava prostora prepreči menjavo naprave sredi dela.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-93ba699a70c3 package=lite -->
 ## 19. Kakovost podatkov ob začetku
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-90e9640212f0 package=lite -->
 ### 19.1 Enota
 
 Enota pove, pod katero poslovno lokacijo se vodi delo.
@@ -981,6 +1059,7 @@ Zato je pravilna enota predpogoj, ne zgolj informativna oznaka.
 
 Navedite administratorju prikazano in pričakovano ime enote.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-70fd0b0fcad3 package=lite -->
 ### 19.2 Blagajna
 
 Ime blagajne je lahko vidno v kartici izmene in zgodovini.
@@ -991,6 +1070,7 @@ Preverite dodelitev uporabnika oziroma naprave pri vodji.
 
 Pri poročanju vedno navedite tako ime blagajne kot fizično oznako.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-5f917db9834a package=lite -->
 ### 19.3 Čas
 
 Čas začetka se ustvari ob uspešnem odprtju izmene.
@@ -1001,6 +1081,7 @@ Ne zapisujte približnega časa namesto preverjanja zapisa v sistemu.
 
 Ne spreminjajte časa naprave na lastno pobudo.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-96a10ac3272f package=lite -->
 ### 19.4 Oseba
 
 Ime na aktivni izmeni mora ustrezati osebi, ki dejansko dela.
@@ -1013,8 +1094,10 @@ Podobna imena preverite s priimkom.
 
 Ne čakajte do konca izmene.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-5ee4e6c03a6e package=lite -->
 ## 20. Kontrolne točke po kanalih naročil
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-c26c035c7a2b package=standard -->
 ### 20.1 Miza v lokalu
 
 Preverite prostor in številko oziroma ime mize.
@@ -1029,6 +1112,7 @@ Ne domnevajte, da zasedenost mize vedno pomeni neporavnano ali aktivno naročilo
 
 Stanje preverite v naročilu.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-26e5e0cb21de package=lite -->
 ### 20.2 Šank
 
 Preverite, kateri kanal uporablja šank.
@@ -1039,6 +1123,7 @@ Preverite barsko postajo ali dogovor z baristom.
 
 Pri predaji navedite naročila, ki čakajo na pripravo, ne le imena gostov.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-6def99f89614 package=standard -->
 ### 20.3 Telefonsko naročilo
 
 Preverite, kdo spremlja telefonski kanal.
@@ -1049,6 +1134,7 @@ Ne ponavljajte osebnih podatkov gosta na glas v prostoru za goste.
 
 Pri predaji uporabite identifikator naročila in samo potrebne podatke.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-9fcf82e950ba package=extended -->
 ### 20.4 Dostava
 
 Preverite, kdo usklajuje kuhinjo, bar in prevzem.
@@ -1059,6 +1145,7 @@ Preverite, ali KDS pri takem naročilu prikazuje ustrezen čas priprave.
 
 Ne zamenjujte dostavnega naročila z naročilom za mizo zaradi podobnega imena.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7746e3bf8711 package=extended -->
 ### 20.5 Dogodek
 
 Preverite, ali je dogodek vezan na poseben prostor, meni ali začasno napravo.
@@ -1069,8 +1156,10 @@ Preverite komunikacijsko pot z organizatorjem.
 
 Pri množici gostov je posebej pomembna nedvoumna oznaka delovne postaje.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-8de273b68f7d package=lite -->
 ## 21. Sporazumevanje ob začetku
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-bfd86506ccec package=lite -->
 ### 21.1 Minimalno poročilo vodji
 
 Poročilo naj vsebuje dejstvo, ne domneve.
@@ -1089,6 +1178,7 @@ Povejte, ali je prodaja trenutno ustavljena.
 
 Primer: »Nina, Enota Trg, Jedilnica 2, 15.58; moja enota je pravilna, predal pa ima oznako Šank 1; prodaje nisem začela.«
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-76572ec0b482 package=lite -->
 ### 21.2 Poročilo administratorju
 
 Administrator potrebuje dovolj podatkov za tehnično ponovitev težave.
@@ -1101,6 +1191,7 @@ Pri zalogah dodajte artikel, enoto mere in prikazano stanje.
 
 Ne pošiljajte posnetkov zaslona z vidnimi osebnimi podatki gosta, če niso nujni.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-9b7eba1654d8 package=lite -->
 ### 21.3 Potrditev predaje
 
 Predaja ni končana, ko ena oseba govori.
@@ -1113,8 +1204,10 @@ Vodja naj odloči, kadar je skrbništvo sporno.
 
 Po predaji obe osebi preverita, katera seja ostane odprta na napravi.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-2b4efb0ba3c8 package=lite -->
 ## 22. Nadaljnje scenarijske vaje
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-8de4642583a0 package=lite -->
 ### 22.1 Vaja: nedoločena enota
 
 Trener odpre stran Izmene s sporočilom **Enota ni določena**.
@@ -1127,6 +1220,7 @@ Udeleženec ne sme predlagati izbire druge enote zaradi hitrosti.
 
 Uspeh vaje je, da po ureditvi prebere pravilno enoto in šele nato odpre izmeno.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-3e4b862d5006 package=lite -->
 ### 22.2 Vaja: profil že dela
 
 Trener pokaže profil, ki ni na seznamu razpoložljivih natakarjev.
@@ -1139,6 +1233,7 @@ Udeleženec ne odpira druge izmene za izmišljeno osebo.
 
 Vodja določi nadaljnji ukrep.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-5e748e04362f package=lite -->
 ### 22.3 Vaja: blokirana miza
 
 Trener izbere mizo z rezervacijo v manj kot dveh urah.
@@ -1149,6 +1244,7 @@ Udeleženec preveri rezervacijo in uskladi premestitev z vodjo.
 
 Udeleženec ne briše rezervacije.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-29d8a407cebb package=lite -->
 ### 22.4 Vaja: potekla seja
 
 Trener povzroči sporočilo o potekli seji med pregledom naročila.
@@ -1159,6 +1255,7 @@ Udeleženec najprej preveri aktivno izmeno in obstoječe naročilo.
 
 Udeleženec ne ponovi zadnjega dejanja brez preverjanja.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-577d3743f3f7 package=lite -->
 ### 22.5 Vaja: manjkajoča zaloga
 
 Trener skrije kritični artikel iz razpoložljivosti.
@@ -1171,6 +1268,7 @@ Udeleženec ponudi samo potrjeno alternativo.
 
 Udeleženec težavo preda odgovorni osebi za zaloge.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-8289962b6a96 package=lite -->
 ## 23. Samostojna ocenjevalna lista
 
 Ocenjevalec označi vsak dosežen kriterij.
@@ -1211,6 +1309,7 @@ Uspešna izvedba zahteva vse varnostne kriterije.
 
 Manjkajoč varnostni kriterij zahteva ponovitev ustrezne vaje.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-045bd9a9249b package=lite -->
 ## 24. Kaj hitra menjava in obračun ur ne pomenita
 
 Hitra menjava natakarja na skupni napravi je opisana v poglavju 01. Odpiranje
@@ -1218,6 +1317,7 @@ ali zapiranje izmene ostane osebni postopek natakarja oziroma pooblaščenega
 administratorja; izbira druge identitete na napravi ne odpre samodejno nove
 izmene in ne zapre prejšnje.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7ca1bc77efb5 package=lite -->
 ### 24.1 Predaja izmene
 
 Pri predaji:
@@ -1233,6 +1333,7 @@ profila sodelavca. Preverite seznam aktivnih izmen in primer predate vodji.
 Zaključevanje izmene, potrditev zaključene izmene in oddaja zaključka so v
 poglavju 08.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7a3fa2446144 package=lite -->
 ### 24.2 Odmori osebja
 
 V pregledani POS izvedbi ni dokazanega samostojnega uporabniškega postopka
@@ -1247,6 +1348,7 @@ Zato:
 - če podjetje potrebuje obračun odmora v POS-u, mora biti ta funkcija najprej
   uvedena in potrjena, nato pa ločeno dokumentirana.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-a1e95db8efc5 package=standard -->
 ## 25. Telefonska identiteta pri predaji
 
 Telefonsko naročilo mora ostati prepoznavno kot telefonsko oziroma dostavno
@@ -1260,6 +1362,7 @@ pot oziroma jo predajte administratorju. Podrobnosti telefonskega in
 dostavnega toka so v poglavju 05; to poglavje določa samo varno predajo pred
 začetkom dela.
 
+<!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-dfe1c4fde898 package=lite -->
 ## 26. Vir za KIR in povezava popravkov
 
 Zaključen in fiskalno potrjen račun je izvorni dokument za knjigo izdanih

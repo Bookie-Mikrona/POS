@@ -71,9 +71,13 @@ PACKAGE_LABELS = {
     "standard": "Standard",
     "extended": "Extended",
 }
-PACKAGE_MANIFEST = re.compile(
-    r"^\s*<!--\s*pos-packages:\s*(.*?)\s*-->\s*$",
-    re.MULTILINE,
+HEADING_METADATA = re.compile(
+    r"^\s*<!--\s*pos-heading:\s*id=([A-Za-z0-9][A-Za-z0-9._:-]*)\s+"
+    r"package=([a-z][a-z0-9_-]*)\s*-->\s*$"
+)
+HEADING_REF = re.compile(
+    r"\s*<!--\s*pos-heading-ref:\s*id=([A-Za-z0-9][A-Za-z0-9._:-]*)\s+"
+    r"package=([a-z][a-z0-9_-]*)\s*-->\s*$"
 )
 
 
@@ -99,32 +103,79 @@ def load_pos_plan_catalog() -> tuple[str, ...]:
 POS_PLAN_CATALOG = load_pos_plan_catalog()
 
 
-def extract_package_manifest(text: str, source_name: str) -> tuple[str, list[str]]:
-    manifests = PACKAGE_MANIFEST.findall(text)
-    if len(manifests) != 1:
-        raise ValueError(
-            f"{source_name}: pričakovana je natanko ena oznaka "
-            "'<!-- pos-packages: ... -->'."
-        )
+def extract_heading_metadata(
+    text: str,
+    source_name: str,
+    seen_ids: set[str] | None = None,
+    *,
+    preserve_refs: bool = False,
+) -> tuple[str, list[tuple[str, str]]]:
+    """Remove and validate per-heading technical metadata.
 
-    packages: list[str] = []
-    for raw_item in manifests[0].split(","):
-        item = raw_item.strip()
-        match = re.fullmatch(r"([a-z][a-z0-9_-]*)(?:\*(\d+))?", item)
-        if not match:
-            raise ValueError(f"{source_name}: neveljavna oznaka paketa '{item}'.")
-        package, raw_count = match.groups()
-        if package not in POS_PLAN_CATALOG:
+    Metadata is deliberately attached to the heading on the following line;
+    consequently moving a heading block moves its package assignment too.
+    """
+    lines = text.splitlines()
+    metadata: dict[str, str] = {}
+    metadata_in_order: list[tuple[str, str]] = []
+    seen_ids = seen_ids if seen_ids is not None else set()
+    cleaned: list[str] = []
+    pending: tuple[str, str] | None = None
+    for line_number, line in enumerate(lines, start=1):
+        match = HEADING_METADATA.match(line)
+        heading = re.match(r"^\s*#{1,4}\s+.+$", line)
+        if match:
+            if pending is not None:
+                raise ValueError(
+                    f"{source_name}:{line_number}: osiroteli metapodatki "
+                    f"za naslovom '{pending[0]}'."
+                )
+            pending = (match.group(1), match.group(2))
+            continue
+        if heading:
+            if pending is None:
+                raise ValueError(
+                    f"{source_name}:{line_number}: naslov nima metapodatkov "
+                    "(id in package)."
+                )
+            identifier, package = pending
+            if identifier in metadata:
+                raise ValueError(
+                    f"{source_name}:{line_number}: podvojen ID '{identifier}'."
+                )
+            if identifier in seen_ids:
+                raise ValueError(
+                    f"{source_name}:{line_number}: podvojen ID '{identifier}' "
+                    "v drugem viru."
+                )
+            if package not in POS_PLAN_CATALOG:
+                raise ValueError(
+                    f"{source_name}:{line_number}: paket '{package}' ni v "
+                    f"osrednjem katalogu ({', '.join(POS_PLAN_CATALOG)})."
+                )
+            metadata[identifier] = package
+            metadata_in_order.append((identifier, package))
+            seen_ids.add(identifier)
+            pending = None
+            if preserve_refs:
+                cleaned.append(
+                    f"{line} <!-- pos-heading-ref: id={identifier} "
+                    f"package={package} -->"
+                )
+            else:
+                cleaned.append(line)
+            continue
+        if pending is not None:
             raise ValueError(
-                f"{source_name}: paket '{package}' ni v osrednjem katalogu "
-                f"({', '.join(POS_PLAN_CATALOG)})."
+                f"{source_name}:{line_number}: metapodatki niso neposredno "
+                "pred naslovom."
             )
-        count = int(raw_count or "1")
-        if count < 1:
-            raise ValueError(f"{source_name}: ponovitev paketa mora biti vsaj 1.")
-        packages.extend([package] * count)
-
-    return PACKAGE_MANIFEST.sub("", text, count=1), packages
+        cleaned.append(line)
+    if pending is not None:
+        raise ValueError(f"{source_name}: osiroteli metapodatki na koncu datoteke.")
+    if not metadata:
+        raise ValueError(f"{source_name}: manjkajo metapodatki naslovov.")
+    return "\n".join(cleaned), metadata_in_order
 
 
 def package_badge(package: str) -> str:
@@ -467,25 +518,18 @@ def markdown_to_flowables(
     content_width: float,
     chapter_number: int,
     source_name: str,
+    seen_ids: set[str] | None = None,
 ):
-    cleaned, heading_packages = extract_package_manifest(
-        clean_source(text),
+    cleaned, _ = extract_heading_metadata(
+        text,
         source_name,
+        seen_ids,
+        preserve_refs=True,
     )
+    cleaned = clean_source(cleaned)
     lines = renumber_headings(cleaned, chapter_number).splitlines()
-    heading_count = sum(
-        bool(re.match(r"^#{1,4}\s+.+$", line.strip()))
-        for line in lines
-    )
-    if len(heading_packages) != heading_count:
-        raise ValueError(
-            f"{source_name}: manifest vsebuje {len(heading_packages)} oznak, "
-            f"najdenih pa je {heading_count} naslovov. Vsak naslov mora imeti "
-            "izrecno oznako paketa."
-        )
     story = []
     paragraph_lines: list[str] = []
-    heading_package_index = 0
 
     def flush_paragraph() -> None:
         if paragraph_lines:
@@ -542,15 +586,21 @@ def markdown_to_flowables(
             flush_paragraph()
             level = len(heading.group(1))
             title = heading.group(2).strip()
-            package = heading_packages[heading_package_index]
-            heading_package_index += 1
+            metadata = HEADING_REF.search(title)
+            if metadata is None:
+                raise ValueError(
+                    f"{source_name}: naslov po filtriranju nima vezanih metapodatkov."
+                )
+            package = metadata.group(2)
+            title = HEADING_REF.sub("", title).strip()
+            package_label = PACKAGE_LABELS[package]
             para = Paragraph(
                 f"{inline_markup(title)}&nbsp;&nbsp;{package_badge(package)}",
                 styles[f"h{level}"],
             )
             para._manual_heading_level = level
             para._manual_heading_text = (
-                f"{re.sub(r'[*`]', '', title)} [POS {PACKAGE_LABELS[package]}]"
+                f"{re.sub(r'[*`]', '', title)} [POS {package_label}]"
             )
             story.append(para)
             index += 1
@@ -836,6 +886,7 @@ def build_story(styles, doc):
     ]
     story.extend([toc, PageBreak()])
 
+    seen_heading_ids: set[str] = set()
     for chapter_number, (numeral, title, filename) in enumerate(SOURCE_FILES, start=1):
         path = SOURCE_DIR / filename
         if not path.exists():
@@ -868,6 +919,7 @@ def build_story(styles, doc):
             doc.width,
             chapter_number,
             filename,
+            seen_heading_ids,
         )
         if not flowables:
             raise ValueError(f"{filename} po filtriranju nima vsebine")

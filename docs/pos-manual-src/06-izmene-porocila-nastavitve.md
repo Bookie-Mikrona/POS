@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*37, extended*2, lite*14, extended, lite*27, extended, lite*3, extended, lite*14, extended, lite*29, standard, lite, extended, lite*23, extended*3, lite*6, extended, lite*10 -->
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5dbd05388542 package=lite -->
 # 06 Plačilo, račun, FURS in tisk
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-29b6d71c2c79 package=lite -->
 ## 1. Namen sklopa
 
 Ta sklop opisuje zaključek prodaje: plačilo, izdajo računa, davčno potrjevanje
@@ -8,6 +9,7 @@ FURS, tisk, ponatis in storno.
 
 Izmeno odprete in zaprete po sklopu 08. Naročilo in priprava sta v sklopu 05.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-23755ca2defc package=lite -->
 ## 2. Predpogoji
 
 1. Uporabnik je prijavljen v pravilno enoto in blagajno.
@@ -21,6 +23,7 @@ Izmeno odprete in zaprete po sklopu 08. Naročilo in priprava sta v sklopu 05.
 > **Opozorilo:** Računa, ki je že fiskaliziran, ne »popravljajte« z novim
 > neuradnim računom. Uporabite dovoljen postopek storna oziroma vračila.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f29fa827ab3f package=lite -->
 ## 3. Pregled pred plačilom
 
 1. Odprite naročilo in primerjajte postavke z naročilom gosta.
@@ -33,12 +36,14 @@ Izmeno odprete in zaprete po sklopu 08. Naročilo in priprava sta v sklopu 05.
 Ne spreminjajte postavk, medtem ko terminal že obdeluje plačilo. Najprej
 zaključite ali razrešite stanje terminala.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5b50afec97f0 package=lite -->
 ## 4. Načini plačila
 
 Na voljo so samo načini, ki jih je za enoto omogočil skrbnik.
 
 Običajno so to gotovina, kartica oziroma terminal in drugi konfigurirani načini.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-39a5aa78fea2 package=lite -->
 ### 4.1 Gotovina
 
 1. Izberite **Gotovina**.
@@ -51,6 +56,7 @@ Običajno so to gotovina, kartica oziroma terminal in drugi konfigurirani način
 Gotovinskega plačila ne zaključujte, če je blagajna fizično nedosegljiva ali
 če poslovanje deluje v režimu, ki gotovine ne dovoljuje brez povezave.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-60134bb8b52e package=lite -->
 ### 4.2 Kartica oziroma terminal
 
 1. Izberite kartico ali terminalski način plačila.
@@ -64,6 +70,7 @@ Gotovinskega plačila ne zaključujte, če je blagajna fizično nedosegljiva ali
 Znesek na terminalu mora biti enak znesku izbrane plačilne postavke, ne nujno
 celotnemu računu pri deljenem plačilu.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-69dbfc28d041 package=lite -->
 ### 4.3 Drugi dovoljeni načini
 
 1. Izberite samo dejansko prejeti način.
@@ -74,10 +81,12 @@ celotnemu računu pri deljenem plačilu.
 Ne uporabljajte drugega načina samo zato, da bi račun zaključili hitreje.
 Razlika oteži uskladitev prometa in blagajne.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-45c6b576fa50 package=lite -->
 ## 5. Deljeno plačilo
 
 Deljeno plačilo razdeli znesek enega naročila na več plačilnih postavk.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-e6448cf01a92 package=lite -->
 ### 5.1 Postopek
 
 1. Na zaslonu plačila izberite delitev plačila.
@@ -89,12 +98,14 @@ Deljeno plačilo razdeli znesek enega naročila na več plačilnih postavk.
 7. Šele pri ničelnem preostanku zaključite račun.
 8. Preverite, da račun prikazuje vse načine in zneske.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4be8193712e8 package=lite -->
 ### 5.2 Dve osebi, ločeni postavki
 
 Če gostje plačajo različne jedi, najprej pravilno razdelite postavke oziroma
 ustvarite ločena naročila po veljavnem postopku. Delitev zneska ne popravi
 napačne razdelitve jedi, napitnin ali popustov.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5738fa9e584a package=lite -->
 ### 5.3 Napaka pri deljenem plačilu
 
 1. Ustavite postopek pred zaključkom računa.
@@ -104,6 +115,7 @@ napačne razdelitve jedi, napitnin ali popustov.
 5. Nadaljujte samo z neplačanim preostankom.
 6. Če je račun že izdan, uporabite storno ali vračilo po pravilih.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1a33442f256d package=lite -->
 ## 6. Neznano stanje terminala
 
 Neznano stanje nastopi, ko terminal pokaže uspeh, POS pa nima potrditve, ali
@@ -111,6 +123,7 @@ ko POS čaka, terminal pa je prekinil povezavo.
 
 To stanje ni samodejno zavrnitev.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-459555e92073 package=lite -->
 ### 6.1 Obvezen postopek
 
 1. Ne pritisnite plačila znova.
@@ -125,6 +138,7 @@ To stanje ni samodejno zavrnitev.
 > **Opozorilo:** Neznano stanje obravnavajte kot možno uspešno bremenitev.
 > Dvojna obremenitev gosta je hujša od nekajminutnega čakanja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-34166363600e package=lite -->
 ### 6.2 Plačilna obnovitev
 
 Ko POS ponudi obnovitev, preverite podatke pred potrditvijo.
@@ -138,6 +152,7 @@ Ko POS ponudi obnovitev, preverite podatke pred potrditvijo.
 Če obnovitev ni na voljo, ne ustvarjajte nadomestnega kartičnega plačila.
 Eskalirajte s časom, zneskom, blagajno in terminalsko referenco.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-13ba35e21236 package=lite -->
 ## 7. Omejitve pri delu brez povezave
 
 POS lahko ima posebej določen režim dela brez povezave in lokalno pooblastilo.
@@ -154,8 +169,10 @@ Offline omejitev ščiti sledljivost računov in fiskalno obdelavo. Če sistem
 gotovine ne dovoli, z gostom dogovorite dovoljen alternativni način ali
 odložite zaključek skladno s poslovnim pravilom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-679db8ed3790 package=lite -->
 ## 8. Izdaja in davčno potrjevanje računa
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a75dfe444f53 package=lite -->
 ### 8.1 Običajen potek
 
 1. Zaključite plačilo.
@@ -165,6 +182,7 @@ odložite zaključek skladno s poslovnim pravilom.
 5. Račun vsebuje zahtevane identifikacijske podatke.
 6. Račun natisnite ali predajte po izbranem načinu.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c781d5eba652 package=lite -->
 ### 8.2 EOR in ZOI
 
 **ZOI** je zaščitna oznaka izdajatelja.
@@ -177,6 +195,7 @@ kadar sta za konkreten režim zahtevana.
 Odsotnost EOR pri računu v produkciji pomeni, da je potrebna preveritev stanja,
 ne pa samodejno, da račun ne obstaja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d62a942c2527 package=lite -->
 ### 8.3 FURS napaka in ponovni poskus
 
 Če POS pokaže, da račun ni registriran pri FURS:
@@ -192,6 +211,7 @@ ne pa samodejno, da račun ne obstaja.
 Ponovni poskus pošlje obstoječi račun. Ne ustvarja nove prodaje in ne rešuje
 napačne vsebine računa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-110fd4de30a7 package=lite -->
 ### 8.4 Potek certifikata
 
 Opozorilo o poteku certifikata zahteva takojšnje ukrepanje skrbnika.
@@ -199,8 +219,10 @@ Opozorilo o poteku certifikata zahteva takojšnje ukrepanje skrbnika.
 Blagajnik ne nalaga certifikata na lastno pobudo. Pred izdajo nadaljnjih računov
 obvesti odgovorno osebo in ravna po internem postopku.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c1a37202f993 package=lite -->
 ## 9. Tisk računa
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-11d04ae4a7ab package=lite -->
 ### 9.1 Prvi tisk
 
 1. Po uspešnem zaključku počakajte na status uspešno izdanega računa.
@@ -209,6 +231,7 @@ obvesti odgovorno osebo in ravna po internem postopku.
 4. Preverite, ali je na izpisu številka računa, znesek in identifikatorji.
 5. Izvod predajte gostu oziroma ga priložite paketu.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8fe942094c0b package=lite -->
 ### 9.2 Napaka tiskalnika
 
 1. Ne zaključujte novega plačila.
@@ -220,6 +243,7 @@ obvesti odgovorno osebo in ravna po internem postopku.
 
 Tiskovna napaka ne pomeni, da račun ni izdan. Ponatis nikoli ni nov račun.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-43b330e9f510 package=lite -->
 ### 9.3 Ponatis
 
 1. Odprite evidenco računov.
@@ -229,6 +253,7 @@ Tiskovna napaka ne pomeni, da račun ni izdan. Ponatis nikoli ni nov račun.
 5. Preverite uspeh tiskanja.
 6. Izvod označite oziroma obravnavajte skladno z internimi pravili.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1c103e7480cf package=lite -->
 ## 10. Storno in vračilo
 
 Storno spremeni že izdan račun samo prek sledljivega postopka.
@@ -236,6 +261,7 @@ Storno spremeni že izdan račun samo prek sledljivega postopka.
 Uporablja se za upravičeno odpravo že zaključenega prometa, ne za popravljanje
 odprte košarice.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8eb1a655959c package=lite -->
 ### 10.1 Pred stornom
 
 1. Poiščite izvirni račun v evidenci.
@@ -247,6 +273,7 @@ odprte košarice.
 4. Preverite pravice uporabnika in interno odobritev.
 5. Ne izvajajte storna samo zato, ker je tisk slab.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-9b9af1d3e453 package=lite -->
 ### 10.2 Izvedba
 
 1. Odprite pravi izvirni račun.
@@ -260,6 +287,7 @@ odprte košarice.
    kot novo prodajo po običajnem postopku.
 9. Gostu vrnite denar le z dovoljenim in evidentiranim postopkom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a558b5b21662 package=lite -->
 ### 10.3 Po stornu
 
 1. Preverite povezavo storno dokumenta z izvirnim računom.
@@ -268,6 +296,7 @@ odprte košarice.
 4. Preverite vpliv na plačilni način in poročila.
 5. Če je bil artikel vrnjen, nadaljujte s postopkom zaloge iz sklopa 07.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-b0cd2b6574e7 package=lite -->
 ## 11. Končne kontrole sklopa
 
 Pred odhodom gosta oziroma predajo paketa preverite:
@@ -281,8 +310,10 @@ Pred odhodom gosta oziroma predajo paketa preverite:
 7. gost je prejel račun oziroma je račun priložen naročilu;
 8. storno je izveden samo prek sledljivega dokumenta.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-563f4beb8309 package=lite -->
 ## 12. Zaslon plačila: branje, polja in blokade
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-bd01fd09a510 package=lite -->
 ### 12.1 Kaj preveriti na postavitvi
 
 Zaslon plačila vedno pripada trenutno izbranemu odprtemu naročilu.
@@ -306,6 +337,7 @@ Stanje »v obdelavi« je blokada za spreminjanje naročila in nov poskus plačil
 | referenca | sled terminala ali nakazila | preveri čas in znesek |
 | status | potek terminalskega poskusa | ne zamenjaj neznanega z zavrnitvijo |
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-18e40837fcfa package=lite -->
 ### 12.2 Zaporedje, ki prepreči napake
 
 Najprej zaklenite dogovor z gostom o znesku.
@@ -318,6 +350,7 @@ Pri TRR najprej preverite, ali je način za to enoto omogočen.
 Šele po potrditvi posamezne vrstice dodajte naslednjo vrstico.
 Računa ne izdate za znesek, ki je zgolj obljubljen.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-69fa50173ce8 package=lite -->
 ### 12.3 Stanja plačilne vrstice
 
 `predlagano` pomeni, da je uporabnik izbral znesek, ne da je denar prejet.
@@ -328,8 +361,10 @@ Računa ne izdate za znesek, ki je zgolj obljubljen.
 `preklicano` pomeni, da poskus ni veljavna plačilna vrstica.
 Uporabnik ne sme prepisovati stanja z izbiro drugega načina.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-87ca4f5099bc package=lite -->
 ## 13. Podprti načini plačila in njihove kontrole
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-88f0bf58acc6 package=lite -->
 ### 13.1 Gotovina
 
 Gotovina je fizično prejeta valuta, ne kasnejša obljuba gosta.
@@ -341,6 +376,7 @@ Primer: račun 23,50 EUR; kartica 20,00 EUR; gotovina 3,50 EUR.
 Ne evidentirajte 23,50 EUR gotovine, če gost kartico plača za 20,00 EUR.
 Ne uporabljajte gotovine namesto kartice, kadar terminalski rezultat ni znan.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-318a7169c31f package=lite -->
 ### 13.2 Kartica
 
 Kartica je podprta samo prek nastavljenega terminalskega toka.
@@ -351,6 +387,7 @@ Terminalski listek ni razlog za novo bremenitev, če POS še čaka.
 Pri delitvi mora vsak kartični poskus imeti svoj znesek in sled.
 Kartice ne uporabljajte za izdajo gotovinskega vračila brez dovoljenega postopka.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-74cc71e3646b package=extended -->
 ### 13.3 Darilni bon oziroma darilna kartica
 
 Darilni bon je podprt samo, kadar je omogočen v konfiguraciji enote.
@@ -367,6 +404,7 @@ gotovina ali kartica; ni povezano z individualno kartico ali kuponsko številko.
 Če skupne evidence ni mogoče pridobiti ali je stanje neustrezno, plačila z
 darilnim bonom ne potrdite brez uspešnega sistemskega prikaza.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-adb8d5d01893 package=extended -->
 ### 13.4 Bon za pico in drugi namenski boni
 
 Namenski bon velja samo za artikle in pogoje, ki jih določi enota.
@@ -376,6 +414,7 @@ Preostanek, ki ga bon ne pokrije, se plača z veljavnim dodatnim načinom.
 Ne pretvarjajte namenskega bona v gotovino.
 Ne uporabljajte splošnega načina »bon«, kadar je za pico nastavljen ločen način.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-65b77a6f21cf package=lite -->
 ### 13.5 Subvencionirana prehrana
 
 Subvencijo uporabite samo, če jo konfiguracija enote in pogodbeni tok podpirata.
@@ -386,6 +425,7 @@ Doplačilo se evidentira kot ločena plačilna vrstica z dejanskim načinom.
 Primer: obrok 8,90 EUR; subvencija 3,80 EUR; kartica 5,10 EUR.
 Evidenca mora ločiti vrednost subvencije od kartičnega ali gotovinskega doplačila.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-751a66651a7a package=lite -->
 ### 13.6 Odloženo plačilo in reprezentanca
 
 Odloženo plačilo je dovoljeno le, če ga enota izrecno omogoča in uporabnik ima pravico.
@@ -396,6 +436,7 @@ Reprezentanca je evidenčni poslovni razlog, ne prikrito zasebno plačilo.
 Ne izberite reprezentance zato, da bi zaprli odprto naročilo brez denarja.
 Vodja redno preverja odprte odložene obveznosti po internem postopku.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-406452117625 package=lite -->
 ### 13.7 TRR oziroma negotovinsko nakazilo
 
 TRR uporabite samo za dejansko dogovorjeno nakazilo in kadar je način na voljo.
@@ -405,6 +446,7 @@ Ne izberite TRR namesto kartice ob izpadu terminala brez odobritve.
 V poročilih se TRR lahko prikaže kot negotovinsko ločeno od kartic.
 Primer: poslovna stranka predloži potrjen sklic; operater ga preveri in evidentira po pravilih enote.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0826ece3c4fc package=lite -->
 ### 13.8 Lastna poraba in posebni promet
 
 Lastna poraba je poseben evidenčni tok, kadar ga enota omogoča.
@@ -413,8 +455,10 @@ Lastna poraba ne sme prikrivati napake artikla, reklamacije ali neplačanega obr
 Če način ni na voljo, uporabnik ne išče obvoza z napačnim plačilom.
 Za vprašanje o davčni obravnavi se obrne na odgovorno osebo, ne ugiba na blagajni.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0b260bbfaf73 package=lite -->
 ## 14. Delni računi, delitev postavk in mešana plačila
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8002293fe13b package=lite -->
 ### 14.1 Delitev ni vedno enaka
 
 Delitev po osebah pomeni, da najprej razporedite postavke.
@@ -424,6 +468,7 @@ Mešano plačilo pomeni več načinov na istem računu.
 Preden izberete funkcijo, vprašajte gosta, ali želi ločene račune ali samo več načinov.
 Napačna izbira lahko spremeni prikaz artiklov, popustov in napitnine.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-017188f12c5e package=lite -->
 ### 14.2 Delitev postavk
 
 Najprej določite, katere postavke pripadajo posameznemu gostu.
@@ -433,6 +478,7 @@ Napitnino dodajte po razdelitvi, če jo plača samo ena oseba.
 Preverite, da nobena postavka ne ostane dvakrat ali brez prejemnika.
 Šele nato vsako nastalo naročilo zaključite po običajnem postopku.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c9b375eb6d01 package=lite -->
 ### 14.3 Mešana plačila
 
 Primer: račun znaša 47,60 EUR.
@@ -443,6 +489,7 @@ Nato sprejmite gotovino za 17,60 EUR oziroma vnesite prejeti znesek.
 Pred izdajo preverite, da je plačano 47,60 EUR in preostanek 0,00 EUR.
 Na računu preverite obe plačilni vrstici.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-986414ede426 package=lite -->
 ### 14.4 Delno potrjen kartični poskus
 
 Če prva kartica uspe za 20,00 EUR, to je veljavno plačilo.
@@ -451,6 +498,7 @@ Preostanek se izračuna iz uspešno potrjenih 20,00 EUR.
 Z gostom se dogovorite za drug dovoljeni način samo za preostanek.
 Če je prvi poskus neznan, ne obravnavajte 20,00 EUR kot prosti preostanek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4fa290240f6d package=lite -->
 ### 14.5 Kontrolni seznam delitve
 
 - [ ] Gost je povedal, ali želi ločene račune ali delitev plačila.
@@ -462,6 +510,7 @@ Z gostom se dogovorite za drug dovoljeni način samo za preostanek.
 - [ ] Končni preostanek je 0,00 EUR.
 - [ ] Na računu so vsi dejanski načini.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-84ad85a945b6 package=lite -->
 ## 15. Napitnina
 
 Napitnina je prostovoljna odločitev gosta.
@@ -474,8 +523,10 @@ Primer: račun 18,00 EUR, gost odobri kartico 20,00 EUR; napitnina je 2,00 EUR.
 Po uspešni bremenitvi se napitnine ne zmanjšuje z novim neuradnim plačilom.
 V poročilih je napitnina ločen podatek, zato mora biti evidentirana pravilno.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-6b135892121a package=lite -->
 ## 16. Terminalski ponudniki in varna obnovitev
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-6a5b31150607 package=lite -->
 ### 16.1 Izbrani terminal
 
 Aktivni terminal določa konfiguracija in prednostna veriga naprave.
@@ -487,6 +538,7 @@ SumUp lahko uporablja terminal ali QR potek glede na konfiguracijo.
 Simulacija ni produkcijski dokaz plačila.
 Blagajnik uporablja ponudnika, ki ga POS ponudi; ne izbira ga po videzu terminala.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-612513da81ae package=lite -->
 ### 16.2 Idempotentni poskus
 
 Kartični poskus ima identifikator plačilnega poskusa.
@@ -496,6 +548,7 @@ Ne osvežujte strani z namenom, da bi dobili nov poskus za isti znesek.
 Ne zaganjajte drugega terminala za isti znesek, dokler prvi ni znan.
 Če POS pokaže obnovljiv poskus, preverite isti ponudnik, naročilo in znesek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-be7f5e8eb10e package=lite -->
 ### 16.3 Neznan rezultat: odločitev
 
 Terminal lahko kaže plačano, POS pa čaka na odgovor.
@@ -508,6 +561,7 @@ Preverite zgodovino terminala oziroma statusni zahtevek v POS.
 Če odgovor potrdi zavrnitev, šele nato začnite nov poskus.
 Če odgovora ni, predajte primer podpori brez druge bremenitve.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-280e369c637c package=extended -->
 ### 16.4 Primer SumUp QR
 
 Gost skenira QR in zaključi plačilo na svojem telefonu.
@@ -517,6 +571,7 @@ Ne ustvarite kartičnega poskusa na drugem terminalu.
 Šele potrjeni status omogoča izdajo računa.
 Neuspešen oziroma potekel QR se obravnava kot zavrnitev šele po jasnem statusu.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-e7568c666517 package=lite -->
 ### 16.5 Primer Viva povratne povezave
 
 POS zažene Viva Android ali Tap to Pay in čaka na povratek.
@@ -525,6 +580,7 @@ Povratni podatek mora pripadati istemu naročilu.
 Če se aplikacija zapre, ponovno odprite plačilo in preverite obnovljiv poskus.
 Ne začnite nove prodaje, dokler ni preverjeno stanje prejšnjega.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-601cddb4544f package=lite -->
 ### 16.6 Incidentni obrazec za terminal
 
 Zapišite številko naročila.
@@ -535,8 +591,10 @@ Zapišite referenco oziroma `paymentAttemptId`, če je prikazan.
 Zapišite, kaj kaže terminal in kaj kaže POS.
 Ne zapisujte PIN-a, celotne številke kartice ali občutljivih podatkov gosta.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-63dc9e9d65dc package=lite -->
 ## 17. Delo brez povezave
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-9d16fb13e06e package=lite -->
 ### 17.1 Kaj pomeni omejeni režim
 
 Offline režim ni splošno dovoljenje za običajno prodajo brez nadzora.
@@ -546,6 +604,7 @@ Uporabnik ne spremeni načina plačila zato, da bi premagal varnostno blokado.
 Če POS blokira gotovino offline, je ta omejitev obvezna.
 Če terminal nima povezave, kartica ni samodejno dovoljena offline.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c39d1ff2989f package=lite -->
 ### 17.2 Pred odločitvijo
 
 Preverite, ali je izgubljena povezava POS, terminala ali obeh.
@@ -554,6 +613,7 @@ Povejte gostu, da je potreben dovoljen alternativni postopek.
 Ne ustvarite ročnega računa zunaj sistema kot nadomestek brez navodila odgovorne osebe.
 Vodji posredujte število prizadetih naročil in čas začetka izpada.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-89acf2d042d1 package=lite -->
 ### 17.3 Po vrnitvi povezave
 
 Ne izdajajte istih računov drugič.
@@ -563,8 +623,10 @@ Uporabite FURS retry samo za obstoječe račune.
 Primerjajte število offline računov z dejanskim seznamom naročil.
 Eskalirajte vsak zapis, ki ostane v negotovem stanju.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-19068038910a package=lite -->
 ## 18. FURS: podatki, stanja in ponovni poskus
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-48bf171c4c6d package=lite -->
 ### 18.1 Kaj sistem hrani
 
 Račun ima lastno številko in čas izdaje.
@@ -574,6 +636,7 @@ Status FURS pove, ali je pošiljanje potrjeno, v teku ali neuspešno.
 FURS odgovor je povezan z obstoječim računom, ne z novim klikom izdaje.
 Certifikat podjetja mora biti veljaven za produkcijsko fiskalizacijo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-29af314630eb package=lite -->
 ### 18.2 Interpretacija stanj
 
 `potrjeno` pomeni, da je račun prejel EOR.
@@ -583,6 +646,7 @@ Manjkajoč EOR na nestorniranem produkcijskem računu zahteva pregled.
 `storniran` ni kandidat za splošni opozorilni seznam manjkajočega EOR na enak način kot aktiven račun.
 `testni` se obravnava skladno s testnim režimom in ni dokaz produkcijske registracije.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-fbc302f8b031 package=lite -->
 ### 18.3 FURS retry
 
 Retry začnite po vrnitvi povezave ali po odpravi potrjenega vzroka.
@@ -594,6 +658,7 @@ Za vsak uspešen primer preverite EOR oziroma odstranitev oznake napake.
 Za neuspešen primer shranite sporočilo in ga posredujte odgovorni osebi.
 Ne izdajajte nadomestnega računa, ker retry še traja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1e39631c205c package=lite -->
 ### 18.4 Certifikat
 
 Opozorilo o poteku certifikata se obravnava pred dejanskim potekom.
@@ -602,6 +667,7 @@ Blagajnik ne deli certifikata, ključa ali gesla prek klepeta.
 Po menjavi odgovorna oseba preveri veljavnost in produkcijsko nastavitev.
 Če certifikat manjka, se izpad eskalira pred nadaljnjimi izdajami.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-214fc7d79cf1 package=lite -->
 ### 18.5 FURS vaja
 
 Račun št. 184/2025 je izdan, vendar nima EOR in prikazuje napako.
@@ -612,8 +678,10 @@ Pravilni odgovor: številko, čas, sporočilo napake in stanje.
 Kaj naredite ob vrnitvi povezave?
 Pravilni odgovor: retry obstoječega računa in pregled rezultata.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-27b96306b76c package=lite -->
 ## 19. Tisk, elektronska predaja in BizBox
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a7b07222c283 package=lite -->
 ### 19.1 Tiskalni tok
 
 Tisk se izvede šele, ko obstaja uspešno izdan račun.
@@ -623,6 +691,7 @@ Papir, pokrov, napajanje in povezava so ločene fizične kontrole.
 Ne klikajte plačila znova, kadar je težava samo tisk.
 Ne uporabljajte tiskovne napake kot razloga za storno.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a11d4339ec96 package=lite -->
 ### 19.2 Ponatis
 
 Ponatis se začne v evidenci obstoječih računov.
@@ -632,6 +701,7 @@ Ponatis ima isti vsebinski račun; ne ustvarja nove prodaje.
 Če tiskalnik natisne več kopij, to ni več računov.
 Priročnik enote določa, kako se kopija označi oziroma preda gostu.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d46fe0cd5c00 package=lite -->
 ### 19.3 E-račun in BizBox
 
 E-račun je elektronska predaja dokumenta po konfiguriranem poslovnem toku.
@@ -643,8 +713,10 @@ Napako e-računa dokumentirajte z ID dokumenta, časom in sporočilom.
 Tisk gostove kopije in pošiljanje e-računa sta ločena postopka.
 Fiskalni račun se ne izdaja ponovno zato, ker BizBox predaja odpove.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c2dce1ec39e2 package=lite -->
 ## 20. Storno, vračilo in kartično povračilo
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0e124cbdd0e6 package=lite -->
 ### 20.1 Izbira pravilnega postopka
 
 Odprto, še neizdano naročilo popravite po postopku naročila.
@@ -656,6 +728,7 @@ stornu ustvari novo naročilo z dejansko pravilno vsebino ter izda nov račun.
 Vračilo denarja mora imeti odobritev, razlog in sled do izvirnega računa.
 Storno ne izbriše zgodovine izvirnega računa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-eb1e8e8a90cb package=lite -->
 ### 20.2 Primer popravka ene postavke
 
 Gost vrne eno pijačo z računa, ki vsebuje tri pijače.
@@ -668,6 +741,7 @@ Za promet, ki po popravku ostane veljaven, ustvarite novo naročilo z dvema
 pravilnima pijačama in ga zaključite kot nov račun.
 Vračilo plačila izvedite samo z dovoljenim plačilnim postopkom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-db8431ff9692 package=lite -->
 ### 20.3 Kartično vračilo
 
 Kartična bremenitev se ne vrača z gotovino, če politika ali ponudnik zahteva kartično povračilo.
@@ -676,6 +750,7 @@ Uporabite odobren tok povračila pri ponudniku.
 Ne sprožite nove prodaje z negativnim zneskom kot neuradno rešitev.
 Če je kartični rezultat vračila neznan, uporabite enaka pravila obnovitve kot pri prodaji.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-63410587c4ff package=lite -->
 ## 21. Povezava s poročili brez zaključevanja izmene
 
 Plačilne vrste se v realizaciji prikazujejo po načinu, na primer gotovina, kartica, TRR in bon.
@@ -686,8 +761,10 @@ X in Z poročila ter fizično zapiranje izmene so obravnavani v sklopu 08.
 V tem sklopu preverjamo le, da je posamezni račun pravilno izdan in sledljiv.
 Ne uporabljajte dnevnega poročila kot zamenjavo za takojšnje razreševanje neznanega terminalskega stanja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-82f3e850afd4 package=lite -->
 ## 22. Incidentne vaje in preverjanje znanja
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5df438e95caf package=lite -->
 ### 22.1 Dvojni klik kartice
 
 Gost je kartico prislonil, povezava POS se prekine, uporabnik pa želi znova klikniti.
@@ -696,6 +773,7 @@ Preverite terminal, znesek, čas in referenco.
 Uporabite obnovitev istega poskusa, kadar je na voljo.
 Nov poskus začnite samo po jasni zavrnitvi.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-601c5155d4c5 package=lite -->
 ### 22.2 Papirja ni
 
 Račun je uspešno izdan, tiskalnik pa nima papirja.
@@ -703,6 +781,7 @@ Pravilno dejanje je odpraviti papir in narediti ponatis.
 Napačno dejanje je znova zaračunati gostu.
 Napačno dejanje je storno samo zaradi manjkajočega izpisa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a2746b1f22a8 package=lite -->
 ### 22.3 Mešano plačilo
 
 Račun je 60,00 EUR.
@@ -713,6 +792,7 @@ Pravilni odgovor: 35,00 EUR, če je bon veljaven in unovčen.
 Kaj preverite pred izdajo?
 Pravilni odgovor: obe potrjeni vrstici in preostanek 0,00 EUR.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-35c75d535a32 package=lite -->
 ### 22.4 FURS izpad
 
 FURS retry pokaže dva uspešna in en neuspešen račun.
@@ -721,6 +801,7 @@ Pravilni odgovor: EOR oziroma status potrditve.
 Kaj naredite pri neuspešnem?
 Pravilni odgovor: zabeležite napako in eskalirate obstoječi račun.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-77b71e7317bf package=lite -->
 ### 22.5 Zaključni kontrolni seznam
 
 - [ ] Naročilo in znesek sta potrjena z gostom.
@@ -734,8 +815,10 @@ Pravilni odgovor: zabeležite napako in eskalirate obstoječi račun.
 - [ ] Tiskovna napaka je rešena s ponatisom.
 - [ ] Storno je povezan z izvirnim računom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-e6213e988da1 package=lite -->
 ## 23. Zaslonske kontrole po korakih
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-09f97c6adc4e package=lite -->
 ### 23.1 Glava računa
 
 Preverite poslovno enoto pred vsakim zaključkom.
@@ -746,6 +829,7 @@ Preverite, ali je naročilo še odprto.
 Preverite, da ne urejate druge kartice gosta.
 Ne menjajte naročila med terminalskim poskusom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c4d6f3cc8297 package=lite -->
 ### 23.2 Seznam postavk
 
 Vsaka vrstica vsebuje artikel in količino.
@@ -755,6 +839,7 @@ Spremembo artikla opravite pred zagonom terminala.
 Postavka brez priprave ni razlog za spremembo plačila.
 Ne uporabljajte plačilnega zaslona za popravljanje alergenske opombe.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-67c5074810ff package=lite -->
 ### 23.3 Območje zneskov
 
 Skupaj je celotni bruto znesek.
@@ -764,6 +849,7 @@ Vračilo je razlika prejete gotovine in gotovinskega dela.
 Napitnina se preveri ločeno od osnovnega računa.
 Negativen preostanek je opozorilo za pregled, ne razlog za izdajo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-54ffbbca7058 package=lite -->
 ### 23.4 Gumbi in njihove meje
 
 Gumb gotovina ne potrdi prejetega denarja samodejno.
@@ -774,8 +860,10 @@ Gumb ponatis ne ustvarja računa.
 Gumb FURS retry ne spreminja vsebine računa.
 Gumb storno ne izbriše izvirnika.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-75d6e592abdd package=lite -->
 ## 24. Plačilne kombinacije: primeri odločanja
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-64ca1bfaa6cc package=lite -->
 ### 24.1 Gotovina in kartica
 
 Račun 12,40 EUR.
@@ -785,6 +873,7 @@ Kartico obremenite za 2,40 EUR.
 Ne vnesite 12,40 EUR na terminal.
 Račun mora prikazati oba načina.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-066835da618a package=extended -->
 ### 24.2 Kartica in darilni bon
 
 Račun 50,00 EUR.
@@ -794,6 +883,7 @@ Najprej preverite bon.
 Nato zaženite kartico za preostanek.
 Če bon ni potrjen, kartica ne sme sklepati napačnega preostanka.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d4d245a47797 package=lite -->
 ### 24.3 Subvencija in gotovina
 
 Obrok znaša 9,50 EUR.
@@ -803,6 +893,7 @@ Potrdite subvencijo po njenem toku.
 Preštejte gotovinski del.
 Preverite ločeni vrstici pred izdajo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-9c58d6ea6319 package=lite -->
 ### 24.4 TRR in kartica
 
 TRR se uporablja samo ob dovoljenem poslovnem dogovoru.
@@ -811,6 +902,7 @@ Vnesite zahtevano referenco TRR.
 Ne zamenjajte nedokazanega nakazila s potrjenim plačilom.
 Kartico začnite samo za preostanek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-03cfc93c56d5 package=lite -->
 ### 24.5 Odloženo in nič drugega
 
 Odloženo plačilo lahko zapre račun le, če je način omogočen.
@@ -819,6 +911,7 @@ Preverite pooblastilo uporabnika.
 Zapišite zahtevano referenco.
 Ne dodajajte gotovinske vrstice, če gotovine ni bilo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4d88809fb593 package=extended -->
 ### 24.6 Bon in vračilo
 
 Bon ne daje samodejne pravice do gotovinskega vračila.
@@ -827,6 +920,7 @@ Preverite uporabljeni način plačila.
 Uporabite odobren postopek vračila za bon.
 Ne ustvarite novega bona brez sledljive povezave, če tega tok ne predvideva.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-65240e158fd9 package=lite -->
 ### 24.7 Napitnina pri delitvi
 
 Dve osebi delita račun 40,00 EUR.
@@ -836,6 +930,7 @@ Napitnina druge osebe je 3,00 EUR.
 Ne porazdelite napitnine samodejno na obe kartici.
 Pred potrditvijo ponovite oba zneska.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-84c2c3d092ac package=lite -->
 ## 25. Matrika terminalskih stanj
 
 | Ponudnik/tok | Začetek | Potrjeno | Neznano | Naslednje dejanje |
@@ -848,6 +943,7 @@ Pred potrditvijo ponovite oba zneska.
 | SumUp terminal | plačilni poskus | completed | recovery required | preveri `paymentAttemptId` |
 | SumUp QR | checkout QR | completed | pending/unknown | preveri `checkoutId` |
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-de9d183444c8 package=lite -->
 ### 25.1 Skupna pravila matrike
 
 `completed` pomeni, da je lahko plačilo potrjeno v POS.
@@ -858,6 +954,7 @@ Pred potrditvijo ponovite oba zneska.
 Referenca ponudnika se primerja z naročilom in zneskom.
 Različen znesek pomeni, da se poskus ne pripiše samodejno.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-37c9d6a536aa package=lite -->
 ### 25.2 Payten Android
 
 Pred zagonom preverite, da je Android terminal pravi za enoto.
@@ -868,6 +965,7 @@ POS pričakuje potrditveni povratek.
 Preverite potrditveni tok istega plačila.
 Šele nato nadaljujte z izdajo ali z novim načinom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-691ece9e2546 package=lite -->
 ### 25.3 Viva Cloud in Smart terminal
 
 Viva zahtevek pripada istemu naročilu.
@@ -877,6 +975,7 @@ Znesek na napravi mora biti enak znesku POS.
 Če stanje postane FAILED, račun ni plačan s to vrstico.
 Časovna omejitev ne pomeni samodejne zavrnitve brez statusa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-964472ee5182 package=lite -->
 ### 25.4 SumUp
 
 SumUp plačilo ima poskus in checkout.
@@ -887,8 +986,10 @@ Brez seriala je lahko prikazan QR checkout.
 Gostovo plačilo QR počaka na potrjen status.
 Račun se ne izda, dokler status ni dokončen.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-75b740525d9f package=lite -->
 ## 26. Časovnice napak in obnovitev
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-ba5c4a493f1a package=lite -->
 ### 26.1 Izgubljen odgovor terminala
 
 10:02 POS začne kartico za 24,90 EUR.
@@ -900,6 +1001,7 @@ Račun se ne izda, dokler status ni dokončen.
 10:05 POS obnovi isti uspešni poskus.
 10:05 račun se izda enkrat.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-ff48d496bc2b package=lite -->
 ### 26.2 FURS po izdaji
 
 10:10 račun nastane po uspešnem plačilu.
@@ -912,6 +1014,7 @@ Račun se ne izda, dokler status ni dokončen.
 10:31 FURS vrne EOR za isti račun.
 10:32 osebje preveri EOR in status.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a5746797b525 package=lite -->
 ### 26.3 Napačen retry
 
 Blagajnik vidi manjkajoč EOR.
@@ -921,6 +1024,7 @@ Pravilno je poiskati izvirni račun.
 Pravilno je preveriti njegov fiskalni status.
 Pravilno je uporabiti retry obstoječega zapisa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8226a793610c package=lite -->
 ### 26.4 Offline časovnica
 
 11:00 naprava pokaže omejen offline režim.
@@ -931,8 +1035,10 @@ Pravilno je uporabiti retry obstoječega zapisa.
 11:21 blagajnik pregleda sinhronizacijo.
 11:22 odgovorna oseba pregleda račune brez EOR.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f31eca768147 package=lite -->
 ## 27. Račun: vsebina in predaja
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-2a9bc681a1c6 package=lite -->
 ### 27.1 Kontrola pred predajo
 
 Preverite številko računa.
@@ -943,6 +1049,7 @@ Preverite ZOI in EOR skladno z režimom.
 Preverite oznako storna, kadar gre za storno dokument.
 Preverite, da gost dobi pravi izvod.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-82d768c2a40f package=lite -->
 ### 27.2 Račun za prevzem
 
 Račun priložite pravemu paketu.
@@ -951,6 +1058,7 @@ Gostu povejte, kje prevzame paket.
 Tiskovna težava ne zadrži statusa plačila.
 Ponatis poiščite po obstoječem računu.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-7662faddcdd5 package=extended -->
 ### 27.3 Račun za dostavo
 
 Račun se priloži paketu ali preda po nastavljenem načinu.
@@ -958,6 +1066,7 @@ Kurir preveri, da račun pripada naročilu.
 Kurir ne zamenjuje fiskalnega računa s svojim dostavnim seznamom.
 Če gost zahteva kopijo, se uporabi dovoljen ponatis ali elektronski tok.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1534d3e09688 package=lite -->
 ### 27.4 Elektronska predaja
 
 Prejemnik e-računa mora biti pravilno določen.
@@ -967,8 +1076,10 @@ Ne izmišljajte e-naslova ali identifikatorja partnerja.
 Napaka predaje ne spremeni že izdanega računa.
 Napako eskalirajte z ID dokumenta in časom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-648d9bdd1128 package=lite -->
 ## 28. Vloge pri plačilu in reklamaciji
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8660a7950bfc package=lite -->
 ### 28.1 Blagajnik
 
 Blagajnik potrdi znesek in dejanski način.
@@ -977,6 +1088,7 @@ Blagajnik ne razkriva občutljivih kartičnih podatkov.
 Blagajnik evidentira incidentne podatke.
 Blagajnik eskalira negotova stanja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-3c7070d7d4c5 package=lite -->
 ### 28.2 Vodja izmene
 
 Vodja odobri postopke, ki zahtevajo pravico.
@@ -985,6 +1097,7 @@ Vodja preveri, da se ne izda nadomestni podvojeni račun.
 Vodja presodi upravičenost storna in vračila.
 Vodja preda odprte incidente naslednji odgovorni osebi.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-fdf033a209d7 package=lite -->
 ### 28.3 Kurir oziroma natakar
 
 Kurir ne potrjuje plačila, ki ga ni videl.
@@ -992,8 +1105,10 @@ Natakar ne spreminja računa med kartičnim tokom.
 Oseba na izdaji priloži pravi račun pravemu paketu.
 Vsak član ekipe takoj sporoči izgubljeno potrdilo ali dvojni tisk.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0d538dede327 package=lite -->
 ## 29. Trenerjevi skripti in ocenjevanje
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-6a017bc4f9ad package=lite -->
 ### 29.1 Skript: neznana kartica
 
 Trener reče: »Terminal kaže uspeh, POS pa čaka.«
@@ -1002,6 +1117,7 @@ Udeleženec mora navesti znesek, čas in referenco.
 Udeleženec mora izbrati obnovitev istega poskusa.
 Trener oceni kot neuspeh vsak nov kartični poskus pred preverjanjem.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d3039d9065e4 package=lite -->
 ### 29.2 Skript: deljeni račun
 
 Trener pripravi račun 76,00 EUR.
@@ -1011,6 +1127,7 @@ Tretji gost da 26,00 EUR gotovine.
 Udeleženec mora pravilno izračunati vsak preostanek.
 Udeleženec mora pred izdajo pokazati preostanek 0,00 EUR.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-ef07bce04eae package=lite -->
 ### 29.3 Skript: ponatis
 
 Trener odstrani papir po uspešni izdaji.
@@ -1020,6 +1137,7 @@ Udeleženec poišče izvirni račun.
 Udeleženec izvede ponatis.
 Udeleženec razloži, zakaj ponatis ni nov račun.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4957abc1c162 package=lite -->
 ### 29.4 Skript: popravek že izdanega računa
 
 Trener pokaže račun s tremi artikli.
@@ -1030,6 +1148,7 @@ Udeleženec preveri povezavo z izvirnikom.
 Udeleženec navede, da se nato ustvari novo naročilo s pravilno vsebino in da
 se plačilno vračilo izvede le po dovoljenem toku.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-228da9f92819 package=lite -->
 ### 29.5 Odgovorna navodila za ocenjevanje
 
 Pravilen odgovor vedno začne z identifikacijo izvirnega naročila ali računa.
@@ -1039,8 +1158,10 @@ Pravilen odgovor pri tisku vedno uporabi ponatis.
 Pravilen odgovor pri storno vedno ohrani sled do izvirnika.
 Pravilen odgovor pri offline vedno upošteva vidne omejitve POS.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-fad0b39e72cd package=lite -->
 ## 30. Redki, vendar pomembni plačilni primeri
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f0bbc60b8ba0 package=lite -->
 ### 30.1 Že delno plačano naročilo
 
 Odprite isto naročilo, ne novega naročila.
@@ -1051,6 +1172,7 @@ Ne ponovite že potrjene kartične vrstice.
 Dodajte le dovoljeni način za preostanek.
 Račun izdate šele, ko preostanek doseže nič.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d9ce9d722075 package=lite -->
 ### 30.2 Kartica uspe, izdaja pa odpove
 
 Kartično plačilo je lahko uspešno, čeprav izdaja računa še ni zaključena.
@@ -1061,6 +1183,7 @@ Zapišite naročilo, znesek, ponudnika in čas.
 Če račun obstaja, preverite FURS in tisk ločeno.
 Če račun ne obstaja, eskalirajte z dokazom uspešne bremenitve.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-58f322fb1e77 package=lite -->
 ### 30.3 Preklop terminala
 
 Terminala ne menjajte med aktivnim poskusom.
@@ -1070,6 +1193,7 @@ Novi ponudnik začne nov poskus samo za neplačani znesek.
 V evidenci incidenta navedite oba ponudnika in razlog preklopa.
 Ne razlagajte novega terminala kot avtomatičen dokaz prve zavrnitve.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-496ff58320fe package=lite -->
 ### 30.4 Pozen callback ponudnika
 
 Povratni klic se lahko vrne po ponovnem odprtju POS.
@@ -1079,6 +1203,7 @@ Ne pripišite poznega uspeha drugemu naročilu z enakim zneskom.
 Če je bil račun medtem pravilno razrešen, vodja pregleda morebitno neskladje.
 Uporabnik ne izvaja ročnega dvojnega knjiženja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8206229dcc31 package=lite -->
 ### 30.5 Delno plačilo in storno
 
 Pred stornom preverite vse uporabljene načine plačila.
@@ -1089,8 +1214,10 @@ Vračilo ohrani povezavo z izvirnim računom in razlogom.
 račun za dejansko pravilno vsebino.
 Ne izplačajte gotovine iz navade, če je bil promet kartični ali bon.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-206fec9d4304 package=lite -->
 ## 31. Fiskalna čakalna vrsta in administrativne meje
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-116cc9ffe69d package=lite -->
 ### 31.1 Kaj osebje sme narediti
 
 Blagajnik prebere status računa.
@@ -1100,6 +1227,7 @@ Blagajnik preveri, ali je EOR prispel.
 Blagajnik ne ureja certifikatnega ključa.
 Blagajnik ne spreminja surovega odgovora FURS.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-577f4992d1d9 package=lite -->
 ### 31.2 Kaj opravi skrbnik
 
 Skrbnik preveri veljavnost certifikata.
@@ -1108,6 +1236,7 @@ Skrbnik pregleda tehnično napako in surov odgovor po pravicah.
 Skrbnik ne spreminja izvirnega računa, da bi popravil odgovor FURS.
 Skrbnik eskalira nejasne odzive s celotno sledjo dokumenta.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-2512ae7034e1 package=lite -->
 ### 31.3 Dokazi v offline vrsti
 
 Offline zapis ima identiteto računa.
@@ -1118,6 +1247,7 @@ Neuspešen odziv ohrani razlog za pregled.
 Ponovitev ni nova prodaja.
 Ročno brisanje zapisa ni operativni postopek blagajnika.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0b821410fca1 package=lite -->
 ### 31.4 Stanja odziva FURS
 
 | Stanje | Pomen za blagajnika | Dovoljeno dejanje |
@@ -1128,8 +1258,10 @@ Ročno brisanje zapisa ni operativni postopek blagajnika.
 | replay | obstoječi poskus se ponovi | ne ustvarjaj novega računa |
 | storniran | dokument je sledljivo razveljavljen | preveri povezavo z izvirnikom |
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-e3bb94f89d66 package=lite -->
 ## 32. Tiskalni most in kopije
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a49c0fe624df package=lite -->
 ### 32.1 Most odpove po izdaji
 
 Račun lahko obstaja, če lokalni tiskalniški most ni dosegljiv.
@@ -1140,6 +1272,7 @@ Ko je fizična napaka odpravljena, izberite ponatis.
 Ne ustvarite novega računa.
 Ne izvajajte storna samo zaradi izpisa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-316bb8b6fae8 package=lite -->
 ### 32.2 Več natisnjenih kopij
 
 Več fizičnih kopij ne pomeni več fiskalnih računov.
@@ -1148,6 +1281,7 @@ Gostu predajte pravo kopijo.
 Ne mešajte kopije druge mize z računom prve mize.
 Če je kopija napačnega računa izpostavljena, ravnajte po postopku varstva podatkov.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-910a640b56ea package=lite -->
 ### 32.3 Nepravilen tiskalnik
 
 Preverite ime tiskalnika pred tiskom.
@@ -1156,8 +1290,10 @@ Poiščite isti račun v evidenci.
 Natisnite dovoljeno kopijo na pravi napravi.
 Vodji sporočite konfiguracijsko napako po konici.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-78f36e02e6cb package=lite -->
 ## 33. BizBox in e-račun: primeri
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4badd98332dc package=lite -->
 ### 33.1 Pravilna priprava
 
 Partner je izbran po potrjenem identifikatorju.
@@ -1166,6 +1302,7 @@ BizBox kanal je omogočen za partnerja.
 Prejemnik in reference so pregledani pred oddajo.
 Osebje zabeleži uspeh ali napako predaje.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f793f3aef8fa package=lite -->
 ### 33.2 Napačen partner
 
 Ime partnerja je podobno, identifikator pa se ne ujema.
@@ -1174,6 +1311,7 @@ Preverite identifikator pri odgovorni osebi.
 Ne popravljajte izdanega računa s spreminjanjem prejemnika brez dovoljenega postopka.
 Če je dokument že poslan napačnemu kanalu, takoj eskalirajte z ID dokumenta.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-108995300b5a package=lite -->
 ### 33.3 BizBox ni dosegljiv
 
 Fiskalni račun ostane obstoječ dokument.
@@ -1182,8 +1320,10 @@ Ne pošiljajte novega fiskalnega računa.
 Zapišite kanal, čas in sporočilo.
 Ponovite elektronsko predajo samo po dovoljenem integracijskem postopku.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-13c4a57fab41 package=lite -->
 ## 34. Primeri storna in vračila
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5bd18924fadd package=lite -->
 ### 34.1 Celotni storno
 
 Gostu je bil izdan napačen celoten račun.
@@ -1194,6 +1334,7 @@ Vnesite dejanski razlog.
 Preverite nov sledljiv dokument.
 Preverite fiskalni status storna.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5d1c8b8c08f7 package=lite -->
 ### 34.2 Popravek računa, kjer je napačna ena količina
 
 Izvirnik vsebuje tri enake sladice.
@@ -1205,6 +1346,7 @@ Nato odprite novo naročilo z dvema pravilnima sladicama in ga po potrebi
 zaključite z novim računom.
 Vračilo izvede pooblaščena oseba z dovoljenim načinom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-85b64aa6e91f package=lite -->
 ### 34.3 Reklamacija po kartici
 
 Najprej preverite izvirno kartično plačilo.
@@ -1213,8 +1355,10 @@ Ne dajajte gotovine, če pravila zahtevajo kartično povračilo.
 Pri neznanem rezultatu povračila ne poženite drugega povračila.
 Zapišite referenco prvotne bremenitve in povračila.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f24b5df44d9f package=lite -->
 ## 35. Ocenjena zaključna vaja plačila
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-cdf772731727 package=lite -->
 ### Primer
 
 Naročilo znaša 84,00 EUR.
@@ -1223,6 +1367,7 @@ Terminal pokaže uspeh za kartico, POS pa izgubi povezavo.
 Po obnovitvi je račun izdan, tiskalnik pa je brez papirja.
 FURS odgovor je začasno v stanju napaka.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-973ed417cbbd package=lite -->
 ### Pričakovani odgovori
 
 Preostanek po subvenciji in bonu je 60,00 EUR.
@@ -1232,6 +1377,7 @@ Papir se odpravi in uporabi ponatis.
 Za FURS se zapiše račun in napaka.
 Po vrnitvi povezave se uporabi retry obstoječega računa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-922ef26c0c34 package=lite -->
 ### Točkovanje
 
 2 točki za pravilni izračun 60,00 EUR.
@@ -1241,8 +1387,10 @@ Po vrnitvi povezave se uporabi retry obstoječega računa.
 2 točki za razlikovanje BizBox, tisk in FURS incidenta.
 Uspeh je najmanj 8 od 10 točk.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5aa53c062832 package=lite -->
 ## 36. Paketi študij primerov za zaključek prodaje
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-ea127e91749e package=standard -->
 ### 36.1 Miza z delitvijo po artiklih
 
 Miza naroči dve glavni jedi in skupno steklenico vode.
@@ -1253,6 +1401,7 @@ Drugi račun se plača s kartico.
 Blagajnik preveri, da popust ni dvakrat uporabljen.
 Vsak račun se izda enkrat za svoj preostanek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-fd61736c2e52 package=lite -->
 ### 36.2 Prevzem z bonom in napitnino
 
 To Go račun je 28,00 EUR.
@@ -1263,6 +1412,7 @@ Bon in kartica sta ločeni potrjeni vrstici.
 Preostanek osnovnega računa je nič.
 Račun jasno pokaže uporabljena načina in napitnino po konfiguraciji.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0acb734b3460 package=extended -->
 ### 36.3 Poslovna dostava s TRR
 
 Poslovni naročnik uporablja odobren TRR tok.
@@ -1272,6 +1422,7 @@ Preostanek se lahko plača z drugim dovoljenim načinom.
 Neizkazano nakazilo se ne označi kot potrjeno brez pravila enote.
 Račun se ne podvaja, če partner kasneje vpraša po kopiji.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8a1f138c394c package=lite -->
 ### 36.4 Kartica, pozni odgovor in tisk
 
 Kartica za 19,80 EUR na terminalu uspe.
@@ -1282,6 +1433,7 @@ Račun se uspešno izda.
 Lokalni tiskalniški most odpove.
 Blagajnik odpravi most in izvede ponatis istega računa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-02cafb35b3fc package=lite -->
 ## 37. Matrika združljivosti metod
 
 | Prvi način | Drugi način | Dovoljena logika | Kritična kontrola |
@@ -1298,8 +1450,10 @@ Blagajnik odpravi most in izvede ponatis istega računa.
 Tabela ne razveljavlja omejitev posamezne konfiguracije enote.
 Če način ni prikazan, ga uporabnik ne more nadomestiti z drugim imenom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-c00bed004504 package=lite -->
 ## 38. Delovni list obnovitve
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f1d418f10b24 package=lite -->
 ### 38.1 Podatki, ki jih izpolnite
 
 Številka naročila: __________.
@@ -1312,6 +1466,7 @@ Stanje POS: __________.
 Referenca oziroma identifikator poskusa: __________.
 Naslednje dovoljeno dejanje: __________.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-6241b568523a package=lite -->
 ### 38.2 Odločitveni pregled
 
 Ali terminal jasno kaže zavrnitev?
@@ -1323,8 +1478,10 @@ Ali je rezultat neznan?
 Ali račun že obstaja?
 Če da, preverite ločeno FURS in tisk.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-bd7b366b0711 package=lite -->
 ## 39. Dokazni seznami incidentov
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-e31a7b9ed88c package=lite -->
 ### 39.1 Terminal
 
 - [ ] naročilo in znesek sta zapisana;
@@ -1333,6 +1490,7 @@ Ali račun že obstaja?
 - [ ] uporabnik ni ponovil neznanega poskusa;
 - [ ] obnovitev se nanaša na isti poskus.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f1d367cf6414 package=lite -->
 ### 39.2 FURS in offline
 
 - [ ] izvirna številka računa je zapisana;
@@ -1341,6 +1499,7 @@ Ali račun že obstaja?
 - [ ] retry se izvaja nad obstoječim računom;
 - [ ] certifikata ali surovega odgovora ne ureja nepooblaščena oseba.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-070f57082103 package=lite -->
 ### 39.3 Tisk
 
 - [ ] status izdaje je preverjen pred posegom v tisk;
@@ -1349,8 +1508,10 @@ Ali račun že obstaja?
 - [ ] izbran je ponatis izvirnega računa;
 - [ ] ni ustvarjeno novo plačilo ali nov račun.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8d1ba728bc3e package=lite -->
 ## 40. Dialogi blagajnika in vodje
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-898bdfb99694 package=lite -->
 ### 40.1 Neznana Viva transakcija
 
 Blagajnik: »Viva terminal kaže plačano, POS čaka.«
@@ -1358,6 +1519,7 @@ Vodja: »Ne začenjaj nove kartice; zapiši znesek in čas.«
 Blagajnik: »Preverjam isti status in identifikator.«
 Vodja: »Če je potrjeno, dokončaj isti račun; če ni, eskaliraj.«
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-54f9c227a1bc package=lite -->
 ### 40.2 FURS brez EOR
 
 Blagajnik: »Račun obstaja, EOR pa manjka in kaže napako.«
@@ -1365,6 +1527,7 @@ Vodja: »Ne izdajaj novega računa.«
 Blagajnik: »Zapisal sem številko in sporočilo.«
 Vodja: »Po povezavi izvedemo retry obstoječega računa.«
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-0a4bb34272c6 package=lite -->
 ### 40.3 Napačen tisk
 
 Blagajnik: »Račun se je natisnil na napačni napravi.«
@@ -1372,8 +1535,10 @@ Vodja: »Račun je že izdan; poišči ga v evidenci.«
 Blagajnik: »Izvedem ponatis na pravilnem tiskalniku.«
 Vodja: »Po konici prijavi nastavitev mostu.«
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-338ff81e7100 package=lite -->
 ## 41. Časovno vodene incidentne vaje
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4130c08dfe16 package=lite -->
 ### 41.1 Vaja 60 sekund: terminal
 
 Trener pokaže `unknown` po kartici.
@@ -1382,6 +1547,7 @@ Pravilen prvi stavek je prepoved nove bremenitve.
 Udeleženec navede znesek, ponudnika, čas in referenco.
 Kritična napaka je izbor gotovine brez razrešitve kartice.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d343a4a1811a package=lite -->
 ### 41.2 Vaja 90 sekund: FURS
 
 Trener pokaže izdan račun brez EOR.
@@ -1390,6 +1556,7 @@ Mora ohraniti številko izvirnega računa.
 Mora navesti retry po odpravi vzroka.
 Ne sme predlagati nove izdaje.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5d3cf446e917 package=lite -->
 ### 41.3 Vaja 120 sekund: storno
 
 Trener pokaže račun s tremi postavkami.
@@ -1400,40 +1567,48 @@ Udeleženec mora navesti povezavo z izvirnikom.
 Udeleženec mora razlikovati storno dokument od ponatisa in nato opisati nov
 pravilen račun za postavke, ki po popravku ostanejo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-ddd725b46a71 package=lite -->
 ## 42. Kompetenčna vprašanja in utemeljitve
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-5b4d4b6971c4 package=lite -->
 ### Vprašanje 1
 
 Zakaj kartičnega poskusa v stanju `unknown` ne ponovimo?
 Odgovor: gost je lahko že obremenjen.
 Utemeljitev: najprej se preveri in obnovi isti identifikator poskusa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1deb90b8cd50 package=lite -->
 ### Vprašanje 2
 
 Kaj naredite, če tisk odpove po uspešni izdaji?
 Odgovor: odpravite tisk in uporabite ponatis.
 Utemeljitev: izdaja računa in fizični tisk sta ločena koraka.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-06abcdfad659 package=lite -->
 ### Vprašanje 3
 
 Kaj naredite pri manjkajočem EOR?
 Odgovor: preverite status in retry obstoječega računa.
 Utemeljitev: nov račun bi lahko podvojil promet.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-91048c3f1863 package=lite -->
 ### Vprašanje 4
 
 Ali lahko bon pokrije del računa in kartica preostanek?
 Odgovor: da, kadar sta oba načina omogočena in bon potrjen.
 Utemeljitev: kartični znesek je samo dejanski preostanek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-b50e807d93bd package=lite -->
 ### Vprašanje 5
 
 Kaj dokazuje BizBox napaka?
 Odgovor: težavo elektronske predaje, ne neobstoja fiskalnega računa.
 Utemeljitev: elektronska predaja, tisk in FURS so ločeni tokovi.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4abb4a0e8924 package=lite -->
 ## 43. Banka trenerjevih vprašanj za blagajno
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a091a0964c69 package=lite -->
 ### 43.1 Plačilni zaslon
 
 Vprašanje: Kaj pomeni preostanek?
@@ -1449,6 +1624,7 @@ Vprašanje: Kaj pomeni potrjena vrstica?
 Odgovor: dejansko evidentirano plačilo.
 Razlog: všteva se v plačano vrednost.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4f477b3abc4f package=lite -->
 ### 43.2 Mešana plačila
 
 Vprašanje: Račun je 30, bon 12. Koliko kartica?
@@ -1464,6 +1640,7 @@ Vprašanje: Kdo določi napitnino?
 Odgovor: gost.
 Razlog: napitnina ni samodejno vračilo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-8a1b12b4df9c package=lite -->
 ### 43.3 Terminal
 
 Vprašanje: Kaj je prvi korak pri `unknown`?
@@ -1479,6 +1656,7 @@ Vprašanje: Kaj je `pending`?
 Odgovor: stanje, ki še nima končnega rezultata.
 Razlog: ne pomeni zavrnitve.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-798f1e9ec44e package=lite -->
 ### 43.4 FURS
 
 Vprašanje: Kaj je ZOI?
@@ -1494,6 +1672,7 @@ Vprašanje: Kdo ureja certifikat?
 Odgovor: pooblaščeni skrbnik.
 Razlog: blagajnik ne upravlja ključev.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-cda2398a8d53 package=lite -->
 ### 43.5 Tisk in dokumenti
 
 Vprašanje: Kaj narediš ob praznem papirju?
@@ -1509,6 +1688,7 @@ Vprašanje: Kaj ohrani storno?
 Odgovor: povezavo z izvirnikom.
 Razlog: sledljivost ni brisanje zgodovine.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-48d34d92ef2d package=lite -->
 ## 44. Zaključni primeri presoje
 
 Primer: gost da 50 EUR za račun 43 EUR.
@@ -1576,12 +1756,14 @@ Primer: preostanek ni nič.
 Dejanje: računa še ne izdate.
 Utemeljitev: preveriti je treba plačilne vrstice.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-83d83250b914 package=lite -->
 ## 45. Izdaja 8.3: zanesljiva obnova plačil
 
 To poglavje določa enoten postopek za kartični poskus, pri katerem odgovor
 terminala, ponudnika ali POS-a ni takoj jasen. **Neznano** ni enako
 **zavrnjeno** in ni enako **uspešno**.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a02223889287 package=lite -->
 ### 45.1 Enoten postopek pred ponovitvijo
 
 1. Zaklenite nov poskus za isti znesek in ne klikajte plačila ponovno.
@@ -1599,6 +1781,7 @@ Ponovitev je dovoljena samo kot preverjanje oziroma nadaljevanje istega
 idempotentnega poskusa. Nov ključ oziroma nov terminal za isti znesek lahko
 povzroči dvojno bremenitev.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f0050300f5cc package=lite -->
 ### 45.2 Razlike med ponudniki
 
 | Ponudnik oziroma tok | Kaj preveri blagajnik | Varen naslednji korak |
@@ -1616,6 +1799,7 @@ ni pa dokaz produkcijskega plačila. Blagajnik uporablja ponudnika, ki ga POS
 ponudi za izbrano napravo; ponudnika ne zamenja ročno samo zato, ker je prvi tok
 počasen.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-25bf1b0d0857 package=extended -->
 ## 46. Darilni bon: izdaja, unovčitev in neuspešno plačilo
 
 Darilni bon ima dva ločena postopka:
@@ -1626,6 +1810,7 @@ Darilni bon ima dva ločena postopka:
 Bon za pico oziroma subvencionirana prehrana sta ločena toka in se ne smeta
 evidentirati kot splošni darilni bon.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a3714408dd41 package=extended -->
 ### 46.1 Izdaja bona na POS-u
 
 1. Na plačilnem zaslonu odprite dialog **Izdaja darilnega bona**.
@@ -1645,6 +1830,7 @@ ročno in ne ponavljajte kartice brez preverjanja obstoječe rezervacije izdaje.
 Enak idempotentni ključ vrne isti rezultat; drugačen ključ z istimi podatki lahko
 ustvari novo izdajo in je zato prepovedan.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-dfafef0492fe package=extended -->
 ### 46.2 Unovčitev bona
 
 1. Na plačilnem zaslonu izberite **Darilni bon**.
@@ -1660,6 +1846,7 @@ kartice. Pri celotnem kritju bona se kartični tok ne zažene. Darilni bon ne
 omogoča samodejnega gotovinskega vračila; vračilo vedno vežite na izvirni
 račun in odobren postopek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4bf68e5c2525 package=lite -->
 ## 47. Politika napitnin in računovodska sled
 
 Napitnina je ločen znesek in ni prodaja artikla. Ne povečuje osnovice računa,
@@ -1683,6 +1870,7 @@ je z neuradnim negativnim artiklom. Pri celotnem plačilu z darilnim bonom
 napitnina ni dovoljena, razen če konfiguracija izrecno pokaže drugačen podprt
 tok.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-48aca0d07427 package=lite -->
 ## 48. Offline fiskalni tok: naprava, vrsta in uskladitev
 
 Offline fiskalni tok ni splošno dovoljenje za delo brez povezave. Skrbnik mora
@@ -1699,6 +1887,7 @@ Blagajnik sme offline izdati samo račun, ki ga naprava in authority bundle
 izrecno dovolita. Po izdaji se shrani lokalni dokaz s svojim operacijskim
 ključem; isti račun se ne sme ročno ponovno vnesti.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a0841fedff6a package=lite -->
 ### 48.1 Po vrnitvi povezave
 
 Skrbnik v administrativnem panelu pregleda offline vrsto in za vsak zapis izvede
@@ -1716,6 +1905,7 @@ zaključek preverite število sprejetih, potrjenih, neuspešnih in nerešenih
 zapisov, EOR pri potrjenih računih ter razlog pri vsakem neuspešnem zapisu.
 Konflikta ne rešujte z novim računom; najprej uskladite isti operacijski ključ.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-a52cb8a93fbb package=lite -->
 ## 49. FURS, tisk in dokumenti po izdaji
 
 Pri vsakem računu ločite:
@@ -1738,6 +1928,7 @@ izbrani tiskalnik, širino 32/58 mm in povezavo mostu. Nato uporabite **Ponatis*
 Ponatis ne ustvarja novega računa, novo plačilo ali storno samo zaradi slabega
 izpisa pa sta napačna.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-78e171442613 package=lite -->
 ## 50. Storno, vračilo in pregled plačil
 
 POS podpira sledljiv popravek celotnega izdanega računa. Posamezne postavke ali
@@ -1757,6 +1948,7 @@ razveljavljena, kdaj, kdo jo je razveljavil in na kateri izvirni račun se nana�
 Kartično vračilo uporabite prek ponudnika, ki je sprejel izvirno bremenitev;
 ne nadomestite ga z novo prodajo z negativnim zneskom.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-27625fdccff3 package=lite -->
 ## 51. X- in Z-poročilo ter blagajniški premiki
 
 **X-poročilo** je vmesni pregled brez zapiranja blagajniške izmene. Uporabite
@@ -1778,6 +1970,7 @@ blagajniškega premika ohrani izvirni premik in revizijsko sled; ne brišite ga 
 ne ustvarjajte nasprotnega premika brez dovoljenja. Pri razliki zapišite
 pričakovani znesek, dejanski znesek, razliko, razlog in odgovorno osebo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f4775e72353d package=extended -->
 ## 52. Meje spletnih plačil in rezervacij
 
 Trenutna izvedba POS Gostinstvo nima:
@@ -1792,6 +1985,7 @@ plačila. Notranje POS-rezervacije miz niso internetne rezervacije. Ne obljublja
 gostu potrditve spletne rezervacije ali spletnega bona, če tak kanal ni
 izrecno uveden in dokumentiran v novi izdaji programa.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-224d27a50bfd package=lite -->
 ## 53. Računovodski pregled sprememb plačil in storna računa
 
 Ta postopek uporablja vodja izmene, administrator ali računovodja, kadar je
@@ -1799,6 +1993,7 @@ treba razložiti popravek računa, več plačil, razveljavitev plačil ali vrač
 Namen pregleda je ugotoviti dejansko stanje brez novega plačila, brisanja
 izvirnika ali sklepanja samo iz skupnega zneska.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-faaf93b72948 package=lite -->
 ### 53.1 Predpogoji in dokazila
 
 Pripravite:
@@ -1814,6 +2009,7 @@ Pripravite:
 računov oziroma plačil. Ne ustvarjajte novega računa, da bi dobili drug ID za
 isti dogodek.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-9addc8f15f93 package=lite -->
 ### 53.2 Pregled avtoritativnega zapisa
 
 1. Odprite račun oziroma plačilo, ki je predmet poizvedbe. Če v vaši vlogi
@@ -1836,6 +2032,7 @@ in vse druge vrstice. Če je katera vrstica še vedno **v obdelavi** ali
 **neznana**, jo najprej razrešite po postopku za obnovo plačil; ne dodajajte
 novega plačila na slepo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-593801d81c53 package=lite -->
 ### 53.3 Razveljavitev že knjiženega plačila
 
 V pregledani računovodski izvedbi je razveljavitev plačila dovoljena samo
@@ -1862,6 +2059,7 @@ tega podatka ne nadomestite z ročnim vnosom. Za uradni dokaz uporabite
 povezani revizijski zapis oziroma temeljnico, ki jo mora preveriti
 računovodja ali skrbnik.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-fc330fa8ef7e package=lite -->
 ### 53.4 Celotni storno računa in popravek ene postavke
 
 Celotni storno se uporablja za že izdani račun, kadar je treba razveljaviti
@@ -1879,6 +2077,7 @@ Ločen popravek ene postavke ali količine v izdanem računu ni potrjen kot
 samostojen POS postopek. Zato ne iščite ali izmišljajte gumba za delni storno:
 uporabite celotni storno in nov pravilen račun po postopku iz tega poglavja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-54a5c07bce4e package=lite -->
 ### 53.5 Vračilo in kartično povračilo
 
 Pri vračilu:
@@ -1896,6 +2095,7 @@ Ne izvajajte vračila z novo negativno prodajo, ne izdajajte novega računa
 namesto povračila in ne vračajte kartičnega zneska z gotovino, če to ni
 izrecno dovoljen postopek ponudnika oziroma podjetja.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-cc81fc79ac5d package=lite -->
 ### 53.6 Poslovni učinek in varna kontrola po postopku
 
 Po razveljavitvi plačila ali stornu mora računovodja preveriti:
@@ -1912,8 +2112,10 @@ Po razveljavitvi plačila ali stornu mora računovodja preveriti:
 Ne popravljajte ga z dodatnim plačilom, nasprotnim pologom ali ročnim
 spreminjanjem zneska brez odobrenega računovodskega postopka.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-1e2e962a1c72 package=lite -->
 ## 54. Davčni evidenci KIR in KPR ter predaja računovodstvu
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-2846e287831e package=lite -->
 ### 54.1 KIR — knjiga izdanih računov
 
 Zaključen in fiskalno potrjen račun je izvor za KIR, vendar operativno
@@ -1928,6 +2130,7 @@ odobren postopek in shranite povezavo izvirni račun → KIR-vrstica →
 nasprotni dokument. Fiskalna potrditev je dokaz izvornega računa, ne dokaz,
 da je bil KIRKPR XML že pripravljen ali oddan.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-3279682fef0c package=lite -->
 ### 54.2 KPR — knjiga prejetih računov
 
 Prejeti dobaviteljski `RACUN`, `DOBROPIS` ali `BREMEPIS` mora pred potrditvijo
@@ -1941,6 +2144,7 @@ POS-operativni moduli ne predstavljajo samodejne oddaje v eDavke. Predaja
 računovodstvu mora vsebovati izvorno listino, potrjeno temeljnico, KIR/KPR
 status in morebitno zavrnitev ali manjkajočo preslikavo.
 
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-56eb44cda046 package=lite -->
 ### 54.3 Kontrolni seznam pred predajo
 
 - [ ] KIR vsebuje vse zaključene račune, storna in vračila brez odprtih miz.

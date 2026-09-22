@@ -1,6 +1,7 @@
-<!-- pos-packages: lite*28, standard*8, lite*18, standard, lite*7, standard*3, lite*3 -->
+<!-- pos-heading: id=pos-01-operativno-delo-8566baaaa33f package=lite -->
 # 01 Dostop in priprava sistema
 
+<!-- pos-heading: id=pos-01-operativno-delo-07664e3552ad package=lite -->
 ## 1. Namen, meje poglavja in odgovornost
 
 To poglavje opisuje varen dostop do POS Gostinstvo in preverjanje delovnega konteksta.
@@ -17,6 +18,7 @@ Sistem ne sme nadomestiti presoje, ali oznake na zaslonu ustrezajo prostoru, v k
 
 Če kateri koli podatek ni jasen, je varen ukrep ustavitev pred prvim poslovnim vnosom.
 
+<!-- pos-heading: id=pos-01-operativno-delo-d0d450508980 package=lite -->
 ### 1.1 Delovni kontekst
 
 **Podjetje** je poslovni subjekt, pod katerim se vodijo uporabniki, nastavitve in evidence.
@@ -41,6 +43,7 @@ Pravilna enota ne dokazuje pravilne blagajne.
 
 Pravilna blagajna ne pomeni, da naprava vidi vse mize.
 
+<!-- pos-heading: id=pos-01-operativno-delo-2ef216c23f5b package=lite -->
 ### 1.2 Minimalni predpogoji
 
 Uporabnik mora imeti aktiven račun.
@@ -57,6 +60,7 @@ Na fizičnem mestu morajo biti pripravljeni predpisani tiskalnik in plačilni te
 
 Tloris, artikli in prostori morajo biti urejeni pred prvim naročilom v novi enoti.
 
+<!-- pos-heading: id=pos-01-operativno-delo-57645012f048 package=lite -->
 ### 1.3 Kaj ni dokaz pripravljenosti
 
 Odprt zavihek v brskalniku ni dokaz prijavljenega pravega uporabnika.
@@ -71,8 +75,10 @@ Prikaz prejšnjega uporabnika ni dovoljenje za delo v njegovem imenu.
 
 Samodejno obnovljen zaslon po osvežitvi ni dokaz, da je nedokončano dejanje shranjeno.
 
+<!-- pos-heading: id=pos-01-operativno-delo-b947f6f3c045 package=lite -->
 ## 2. Prijava in življenjski cikel seje
 
+<!-- pos-heading: id=pos-01-operativno-delo-7f4b808cbc9b package=lite -->
 ### 2.1 Prijavni tok
 
 POS uporablja prijavno storitev Clerk.
@@ -89,6 +95,7 @@ Dokler se ti podatki nalagajo, uporabnik ne sme sklepati, da je pripravljen za p
 
 Če prijavna storitev potrdi identiteto, POS pa uporabnika zavrne, prijava v POS ni veljavna.
 
+<!-- pos-heading: id=pos-01-operativno-delo-08a018354c5a package=lite -->
 ### 2.2 Kaj uporabnik vidi
 
 Med nalaganjem je stanje prijave še v preverjanju.
@@ -103,6 +110,7 @@ Ob prepovedanem dostopu ima identiteta sejo, vendar zanjo ni veljavne POS-dodeli
 
 Ob napaki dostopa ni dovoljeno nadaljevati z domnevo, da bo kasnejši klik popravil stanje.
 
+<!-- pos-heading: id=pos-01-operativno-delo-7afeaa9af272 package=lite -->
 ### 2.3 Varna prijava
 
 1. Odprite uradni naslov POS Gostinstvo na odobreni napravi.
@@ -120,6 +128,7 @@ Gesla ne delite s sodelavcem, tudi kadar je gneča.
 
 Brskalnik ne sme shraniti gesla na napravi, ki jo uporablja več oseb.
 
+<!-- pos-heading: id=pos-01-operativno-delo-837aaa3a2240 package=lite -->
 ### 2.4 Neuspešna prijava
 
 | Znak | Verjeten pomen | Varen ukrep |
@@ -138,6 +147,7 @@ Skrbniku posredujte čas, napravo in točno besedilo opozorila.
 
 Ne posredujte gesla ali prijavnega žetona.
 
+<!-- pos-heading: id=pos-01-operativno-delo-b43892f0def8 package=lite -->
 ### 2.5 Obnova žetona in zahteva 401
 
 Prijavna storitev lahko žeton seje obnovi brez uporabnikovega posega.
@@ -156,6 +166,7 @@ Zato se odprt obrazec ob prehodni napaki ne sme šteti za izgubljen ali potrjen.
 
 Uporabnik preveri njegov dejanski rezultat, preden dejanje ponovi.
 
+<!-- pos-heading: id=pos-01-operativno-delo-d088583449ec package=lite -->
 ### 2.6 Iztek seje med delom
 
 Če POS zahteva ponovno prijavo, ustavite nadaljnje klike.
@@ -172,6 +183,7 @@ Dejanja ne ponovite samo zato, ker prejšnji zaslon ni več viden.
 
 Pri plačilu posebej preverite, ali je bil račun že ustvarjen ali je plačilni terminal že sprejel znesek.
 
+<!-- pos-heading: id=pos-01-operativno-delo-2cf2f12cf68b package=lite -->
 ### 2.7 Odjava
 
 Odjava prek uporabniškega menija odstrani lokalno izbiro enote.
@@ -186,8 +198,10 @@ Zaklep zaslona ni zamenjava za odjavo, kadar lahko napravo uporabi druga oseba.
 
 Pred odjavo zaključite ali varno predajte odprte postopke v skladu z delovnimi pravili.
 
+<!-- pos-heading: id=pos-01-operativno-delo-5e73cc3279d2 package=lite -->
 ## 3. Zaslon, navigacija in stanja
 
+<!-- pos-heading: id=pos-01-operativno-delo-6f891732564d package=lite -->
 ### 3.1 Orientacija po prijavi
 
 Stranska navigacija je osnovni zemljevid POS.
@@ -200,6 +214,7 @@ Spodnja oziroma glavna navigacija praviloma vsebuje Mize, Blagajna, Izmene in Ra
 
 Viden seznam ni obljuba, da je posamezna funkcija dovoljena za trenutno enoto.
 
+<!-- pos-heading: id=pos-01-operativno-delo-09827912f2af package=lite -->
 ### 3.2 Pomen glavnih zaslonov
 
 | Zaslon | Namen | Preverjanje pred uporabo |
@@ -217,6 +232,7 @@ Naslov brskalnika se prilagodi trenutno odprtemu modulu.
 
 Naslov je pomoč pri orientaciji, ne pa nadomestilo za kontrolo poslovnega konteksta.
 
+<!-- pos-heading: id=pos-01-operativno-delo-09db847928be package=lite -->
 ### 3.3 Stanja nalaganja
 
 Prazen prostor med nalaganjem ne pomeni, da ni podatkov.
@@ -231,6 +247,7 @@ Uspešno obvestilo potrjuje posamezno dejanje, ne celotne pripravljenosti za del
 
 Rdeče obvestilo je razlog za preverjanje posledice, ne ukaz za takojšnje ponavljanje klika.
 
+<!-- pos-heading: id=pos-01-operativno-delo-c72eb05a32dd package=lite -->
 ### 3.4 Funkcije, odvisne od profila enote
 
 Enota ima profil gostinske dejavnosti in nabor omogočenih funkcij.
@@ -247,6 +264,7 @@ Stran Izdaja se prikaže, kadar je v enoti omogočeno usmerjanje priprave.
 
 Ne poskušajte zaobiti omejitve z zaznamkom, starim naslovom ali drugim zavihkom.
 
+<!-- pos-heading: id=pos-01-operativno-delo-e05464a9cd13 package=lite -->
 ### 3.5 Vloga in navigacija
 
 Superadministrator vidi administrativne poti, ki niso namenjene običajnemu delu lokala.
@@ -261,8 +279,10 @@ Ne pomeni nujno napake.
 
 V primeru dvoma najprej preverite vlogo in aktivno enoto, nato se obrnite na skrbnika.
 
+<!-- pos-heading: id=pos-01-operativno-delo-65c8a60d8c17 package=lite -->
 ## 4. Podjetje, enota in blagajna
 
+<!-- pos-heading: id=pos-01-operativno-delo-551a0f3fab41 package=lite -->
 ### 4.1 Podjetje
 
 POS ob prijavi dobi podjetje iz uporabnikove dodelitve.
@@ -277,6 +297,7 @@ Pri delu za dve pravni osebi preverite naziv podjetja pred vsako menjavo okolja.
 
 Odjavite se in naj skrbnik preveri dodelitev.
 
+<!-- pos-heading: id=pos-01-operativno-delo-812d20a072b1 package=lite -->
 ### 4.2 Enota
 
 Enota določa, katere mize, profil in funkcije POS uporablja.
@@ -291,6 +312,7 @@ Zato je po vsaki prijavi administratorja obvezna vidna kontrola enote.
 
 Sprememba enote ponovno registrira napravo za novi kontekst.
 
+<!-- pos-heading: id=pos-01-operativno-delo-bd6c118c4dcd package=lite -->
 ### 4.3 Menjava enote pri pooblaščenem uporabniku
 
 1. V navigaciji odprite izbirnik enote.
@@ -306,6 +328,7 @@ Najprej ugotovite rezultat dejanja v izvorni enoti.
 
 Šele nato preklopite.
 
+<!-- pos-heading: id=pos-01-operativno-delo-f06fcef3dde2 package=lite -->
 ### 4.4 Blagajna
 
 Aktivna blagajna se hrani kot lokalna izbira za vloge, ki smejo izbirati.
@@ -324,6 +347,7 @@ Ime blagajne in oznaka poslovnega prostora sta prikazana med podatki uporabnika.
 
 Opozorila ne preskočite z začetkom prodaje.
 
+<!-- pos-heading: id=pos-01-operativno-delo-024321c0ed71 package=lite -->
 ### 4.5 Kontrola konteksta pred delom
 
 Preberite prikazano ime enote.
@@ -340,6 +364,7 @@ Pri skupnem terminalu preverite tudi osebo, ki je prijavljena.
 
 Če oznaka ni skladna, pokličite vodjo izmene ali administratorja.
 
+<!-- pos-heading: id=pos-01-operativno-delo-0b8227078ecd package=lite -->
 ### 4.6 Primer: natakar z eno enoto
 
 Nina je natakarica v enoti »Mestni trg«.
@@ -354,6 +379,7 @@ Nina ne poskuša odpreti blagajne kolega.
 
 Če ji prikaz manjka, ne prevzame naročil.
 
+<!-- pos-heading: id=pos-01-operativno-delo-3046ff297d76 package=lite -->
 ### 4.7 Primer: vodja dveh enot
 
 Marko je administrator dveh enot istega podjetja.
@@ -368,6 +394,7 @@ Po preklopu preveri, da so se spremenili profil, navigacija in tloris.
 
 Ne uporablja starega zavihka z mizami kot dokaz, da je že v novi enoti.
 
+<!-- pos-heading: id=pos-01-operativno-delo-757aa1ddccc1 package=lite -->
 ### 4.8 Primer: dve podjetji
 
 Administratorka dela za dve ločeni podjetji.
@@ -382,8 +409,10 @@ Za sočasno delo uporablja ločena odobrena brskalniška profila le, če to dovo
 
 Nikoli ne prenaša nastavitev ali računov med podjetjema na podlagi podobnega imena lokala.
 
+<!-- pos-heading: id=pos-01-operativno-delo-ebcbf6334f2e package=standard -->
 ## 5. Naprava in obseg miz
 
+<!-- pos-heading: id=pos-01-operativno-delo-901d95daff35 package=standard -->
 ### 5.1 Ključ naprave
 
 POS za brskalnik ustvari ključ naprave in ga shrani lokalno.
@@ -400,6 +429,7 @@ Ime je lahko na primer iPad, Android naprava, Windows naprava ali Mac naprava.
 
 Skrbnik napravo prepozna po imenu, ključu in enoti.
 
+<!-- pos-heading: id=pos-01-operativno-delo-31da558ebb07 package=standard -->
 ### 5.2 Podatki naprave
 
 Za prijavljeno napravo so lahko nastavljeni plačilni terminal, tiskalnik in dovoljenje miz.
@@ -414,6 +444,7 @@ Tak seznam je omejitev delovne postaje, ne osebna pravica uporabnika.
 
 To je običajno pri ločenih terasah, vrtovih ali strežnih conah.
 
+<!-- pos-heading: id=pos-01-operativno-delo-3e7435374be9 package=standard -->
 ### 5.3 Obseg miz
 
 Najprej preverite izbrano enoto.
@@ -430,6 +461,7 @@ Preverite, ali je miza v drugem prostoru ali enoti.
 
 Šele nato prosite administratorja za spremembo nastavitev naprave.
 
+<!-- pos-heading: id=pos-01-operativno-delo-b5afdc3c8f4a package=standard -->
 ### 5.4 Prvi zagon na novi napravi
 
 1. Uporabite odobren brskalnik in službeni uporabniški profil.
@@ -441,6 +473,7 @@ Preverite, ali je miza v drugem prostoru ali enoti.
 7. Preverite prikaz tlorisa brez poslovnega vnosa.
 8. Za funkcionalni preizkus uporabite odobren interni postopek, ne dejanske prodaje.
 
+<!-- pos-heading: id=pos-01-operativno-delo-349b3a7f0022 package=standard -->
 ### 5.5 Predpomnjeni podatki naprave
 
 POS lahko zadnje znane podatke naprave lokalno predpomni.
@@ -455,6 +488,7 @@ Zabeležite čas, enoto in ime naprave.
 
 Skrbnik naj preveri registracijo in konfiguracijo.
 
+<!-- pos-heading: id=pos-01-operativno-delo-ac0193fab3d1 package=standard -->
 ### 5.6 Tiskalnik in terminal
 
 Konfiguracija naprave lahko vsebuje podatke o lokalnem tiskalniku.
@@ -469,6 +503,7 @@ Pred prvo uporabo preverite papir, napajanje in kabelsko oziroma omrežno poveza
 
 Ne spreminjajte nastavitev terminala na podlagi poskusa gosta.
 
+<!-- pos-heading: id=pos-01-operativno-delo-2f9d693cf9fb package=standard -->
 ### 5.7 Naprava, ki jo uporablja več oseb
 
 Uporabniki se ne izmenjujejo v isti prijavi.
@@ -483,8 +518,10 @@ Naprava lahko ostane ista; uporabniška sled mora biti drugačna.
 
 Ob odhodu ne puščajte odprte strani Mize ali Blagajna.
 
+<!-- pos-heading: id=pos-01-operativno-delo-449f95e90bd0 package=lite -->
 ## 6. Omrežje, osvežitev in ponovna povezava
 
+<!-- pos-heading: id=pos-01-operativno-delo-01beaeef9472 package=lite -->
 ### 6.1 Razlika med zaslonom in strežnikom
 
 Zaslon lahko kaže zadnje znano stanje.
@@ -497,6 +534,7 @@ V negotovosti uporabnik ne sme sklepati iz videza gumba.
 
 Najprej preveri evidenco, nato se odloči o naslednjem koraku.
 
+<!-- pos-heading: id=pos-01-operativno-delo-00eeff1e6f34 package=lite -->
 ### 6.2 Osvežitev strani
 
 Osvežitev ponovno naloži aplikacijo in podatke seje.
@@ -511,6 +549,7 @@ Osvežitev je smiselna, ko je zaslon obstal in ni odprtega neoddano urejenega ob
 
 Ne osvežujte med aktivnim plačilnim postopkom brez navodila odgovorne osebe.
 
+<!-- pos-heading: id=pos-01-operativno-delo-981fcecd452b package=lite -->
 ### 6.3 Vrnitev povezave
 
 Ko se povezava vrne, ne klikajte vseh prejšnjih gumbov zaporedoma.
@@ -525,6 +564,7 @@ Odprite ustrezno evidenco ter preverite zadnje dejanje.
 
 Če sta stanje terminala in stanje POS različna, ustavite postopek in uporabite postopek za neusklajeno plačilo.
 
+<!-- pos-heading: id=pos-01-operativno-delo-c6809a6175c8 package=lite -->
 ### 6.4 Prehodna napaka in potrjena odjava
 
 | Dogodek | Kaj POS lahko stori | Kaj stori uporabnik |
@@ -535,6 +575,7 @@ Odprite ustrezno evidenco ter preverite zadnje dejanje.
 | prepovedana POS-vloga | pokaže prepoved dostopa | kontaktira skrbnika |
 | napaka strežnika | lahko ohrani sejo | zapiše okoliščine in poskusi pozneje po navodilu |
 
+<!-- pos-heading: id=pos-01-operativno-delo-87e13418acae package=lite -->
 ### 6.5 Ponovni zagon brskalnika
 
 Zapiranje brskalnika ni predaja dela.
@@ -547,6 +588,7 @@ Najprej preverite sejo in kontekst.
 
 Nato preverite, ali je bil zadnji poslovni korak izveden.
 
+<!-- pos-heading: id=pos-01-operativno-delo-c632c1afb49f package=lite -->
 ### 6.6 Varni pogoji za ustavitev
 
 Takoj ustavite poslovni vnos, kadar:
@@ -565,8 +607,10 @@ Ustavitev pomeni, da ne ustvarjate novih naročil, računov ali sprememb nastavi
 
 Ustavitev ne pomeni brisanja zavihka, predpomnilnika ali zgodovine brez navodila skrbnika.
 
+<!-- pos-heading: id=pos-01-operativno-delo-32fe78d14c79 package=lite -->
 ## 7. Prvi dan v enoti
 
+<!-- pos-heading: id=pos-01-operativno-delo-56e4c86f05ba package=lite -->
 ### 7.1 Namen uvajanja
 
 Prvi dan je preverjanje dodelitev, ne preizkušanje produkcijske prodaje.
@@ -579,6 +623,7 @@ Skupaj preverita, kaj naprava sme prikazati.
 
 Za vsak manjkajoč podatek se določi odgovorna oseba in rok.
 
+<!-- pos-heading: id=pos-01-operativno-delo-c5cc7eb19e83 package=lite -->
 ### 7.2 Kontrolni seznam prve prijave
 
 - uporabnik uspešno dokonča prijavo;
@@ -598,6 +643,7 @@ Kontrolnega seznama ne potrjujte vnaprej.
 
 Vsako točko preverite na dejanskem mestu dela.
 
+<!-- pos-heading: id=pos-01-operativno-delo-a90a694b31c6 package=lite -->
 ### 7.3 Prvi dan natakarja
 
 Natakar najprej pozna razliko med svojim računom in skupno napravo.
@@ -612,6 +658,7 @@ Natakar zna opisati, komu sporoči manjkajočo mizo.
 
 Natakar ne nastavlja blagajne, naprave ali pravic.
 
+<!-- pos-heading: id=pos-01-operativno-delo-ddb3a2fb2999 package=lite -->
 ### 7.4 Prvi dan vodje enote
 
 Vodja preveri uporabniške dodelitve pred začetkom rednega dela.
@@ -626,6 +673,7 @@ Za vsako napravo evidentira namen, dovoljene mize in priključene naprave.
 
 Ob spremembi postavitve miz posodobi konfiguracijo, ne pa neformalnih navodil osebju.
 
+<!-- pos-heading: id=pos-01-operativno-delo-9d3835445935 package=lite -->
 ### 7.5 Prvi dan administratorja
 
 Administrator se seznani z razliko med podjetjem in enoto.
@@ -638,8 +686,10 @@ Preveri, da se naprava ponovno prijavi z novo enoto.
 
 Zna razložiti, zakaj navaden uporabnik ne more preklopiti fiksne blagajne.
 
+<!-- pos-heading: id=pos-01-operativno-delo-95739f45f218 package=lite -->
 ## 8. Varnost na skupnih delovnih mestih
 
+<!-- pos-heading: id=pos-01-operativno-delo-3e2ce0ae5781 package=lite -->
 ### 8.1 Pravilo osebne identitete
 
 Vsak poslovni poseg mora biti izveden pod računom osebe, ki ga opravlja.
@@ -650,6 +700,7 @@ Vodja ne sme prositi natakarja, naj ostane prijavljen za naslednjo osebo.
 
 Če se sodelavec ne more prijaviti, se uporabi postopek za dostop, ne izposoja računa.
 
+<!-- pos-heading: id=pos-01-operativno-delo-ad428603a471 package=lite -->
 ### 8.2 Fizična zaščita
 
 Tablica ne sme ostati brez nadzora na dostopnem robu pulta.
@@ -662,6 +713,7 @@ Neznan kabel, ključek ali naprava ne sodi v POS delovno postajo brez odobritve.
 
 Ne dovolite gostu, da upravlja brskalnik ali prijavni zaslon.
 
+<!-- pos-heading: id=pos-01-operativno-delo-6df6d94bba9b package=lite -->
 ### 8.3 Brskalniški profil
 
 Službeni profil je namenjen delu v POS.
@@ -674,6 +726,7 @@ Brisanje podatkov brskalnika lahko odstrani lokalne izbire naprave in blagajne.
 
 Tak poseg izvede skrbnik ali oseba po njegovem navodilu.
 
+<!-- pos-heading: id=pos-01-operativno-delo-a292faf359af package=lite -->
 ### 8.4 Kaj je dovoljeno sporočiti podpori
 
 Podpori lahko posredujete čas, opis napake, ime enote, ime naprave in posnetek zaslona brez občutljivih podatkov.
@@ -686,8 +739,10 @@ Podpori ne pošiljajte fotografije osebnih podatkov gosta, kadar za rešitev ni 
 
 Pred pošiljanjem posnetka preverite, ali vsebuje odprto naročilo ali osebne podatke.
 
+<!-- pos-heading: id=pos-01-operativno-delo-0b67482a3642 package=lite -->
 ## 9. Odločanje pri pogostih odstopanjih
 
+<!-- pos-heading: id=pos-01-operativno-delo-197c45e2cd05 package=standard -->
 ### 9.1 Mize niso pravilne
 
 | Vprašanje | Če je odgovor da | Če je odgovor ne |
@@ -698,6 +753,7 @@ Pred pošiljanjem posnetka preverite, ali vsebuje odprto naročilo ali osebne po
 | Ali je miza nova ali preimenovana? | preverite tloris pri vodji | ne ustvarjajte nadomestne mize |
 | Ali je stanje po osvežitvi enako? | prijavite težavo | preverite povezavo in sejo |
 
+<!-- pos-heading: id=pos-01-operativno-delo-a4cc341a62e4 package=lite -->
 ### 9.2 Blagajna ni dodeljena
 
 Ne izbirajte naključne blagajne.
@@ -710,6 +766,7 @@ Pri upravičeni vlogi preverite lokalno izbrano blagajno.
 
 Če manjka tudi poslovni prostor, ustavite delo in zahtevajte ureditev konfiguracije.
 
+<!-- pos-heading: id=pos-01-operativno-delo-8502673c742b package=lite -->
 ### 9.3 Funkcija ni vidna
 
 Najprej preverite aktivno enoto.
@@ -722,6 +779,7 @@ Ne zahtevajte samodejno višje vloge.
 
 Skrbniku opišite poslovno potrebo in točno pot, ki je ne vidite.
 
+<!-- pos-heading: id=pos-01-operativno-delo-344ca19fc5c6 package=lite -->
 ### 9.4 Zaslon pokaže staro stanje
 
 Preverite povezavo naprave.
@@ -734,6 +792,7 @@ Po osvežitvi ponovno preverite sejo in kontekst.
 
 Če se stanje razlikuje od pričakovanega, uporabite evidenco modula za preverjanje dejanskega rezultata.
 
+<!-- pos-heading: id=pos-01-operativno-delo-a2e69c72e7ad package=lite -->
 ### 9.5 Naprava je v napačni enoti
 
 Ne rešujte težave s prijavo drugega uporabnika.
@@ -746,6 +805,7 @@ Po dovoljeni menjavi enote počakajte na ponovno prijavo naprave.
 
 Ne premikajte naprave med lokali brez evidentirane spremembe.
 
+<!-- pos-heading: id=pos-01-operativno-delo-fb8da331543e package=lite -->
 ### 9.6 Nejasen rezultat plačila
 
 Ne zahtevajte drugega plačila, dokler ne preverite prvega.
@@ -760,8 +820,10 @@ Zapišite znesek, čas in referenco, ki je dovoljena po internem postopku.
 
 Ne zaključujte razlike z navideznim naročilom ali nepojasnjenim popustom.
 
+<!-- pos-heading: id=pos-01-operativno-delo-158089c66210 package=lite -->
 ## 10. Realistični scenariji
 
+<!-- pos-heading: id=pos-01-operativno-delo-a8368fcabf1a package=lite -->
 ### 10.1 Terasa na drugi tablici
 
 Sara stoji na terasi in na tablici ne vidi mize 18.
@@ -776,6 +838,7 @@ Vodja potrdi, da je miza 18 dodeljena drugi napravi.
 
 Sara uporabi pravilno napravo oziroma vodja prilagodi dovoljenje miz.
 
+<!-- pos-heading: id=pos-01-operativno-delo-efaede40b842 package=lite -->
 ### 10.2 Menjava administratorja med lokacijama
 
 Vodja zjutraj dela v poslovalnici A in popoldne v poslovalnici B.
@@ -790,6 +853,7 @@ Preveri ime enote, tloris in blagajno.
 
 Šele po tej kontroli nadaljuje z administrativnim delom.
 
+<!-- pos-heading: id=pos-01-operativno-delo-5555f48830e1 package=lite -->
 ### 10.3 Potek seje med naročilom
 
 Uporabnica po daljšem premoru klikne nadaljevanje dela in prejme zahtevo po prijavi.
@@ -802,6 +866,7 @@ Po prijavi preveri, ali se je naročilo že pojavilo na mizi.
 
 Če ni prisotno, ga vnese šele po potrditvi, da prejšnje dejanje ni doseglo sistema.
 
+<!-- pos-heading: id=pos-01-operativno-delo-33fad1a075b7 package=lite -->
 ### 10.4 Nova naprava brez tiskalnika
 
 V lokalu zamenjajo računalnik pri pultu.
@@ -816,6 +881,7 @@ Dokler preverjanje ni dokončano, se prodajno mesto uporablja po dogovorjenem re
 
 Nastavitev se ne kopira na pamet iz druge naprave.
 
+<!-- pos-heading: id=pos-01-operativno-delo-1317a2bfef0b package=lite -->
 ### 10.5 Prijavljen je prejšnji sodelavec
 
 Ob prevzemu pulta Luka vidi ime sodelavca.
@@ -828,6 +894,7 @@ Luka se prijavi s svojim računom.
 
 Nato preveri dodeljeno blagajno, ker sta lahko dodelitvi oseb različni.
 
+<!-- pos-heading: id=pos-01-operativno-delo-0fb80209d1b7 package=lite -->
 ### 10.6 Enota brez kuhinje
 
 Administrator odpre star zaznamek za Kuhinjo.
@@ -842,6 +909,7 @@ Preveri profil enote in poslovni razlog za zahtevano funkcijo.
 
 Če je sprememba upravičena, jo evidentira in uredi v nastavitvah po postopku.
 
+<!-- pos-heading: id=pos-01-operativno-delo-313a4f0df0b3 package=lite -->
 ### 10.7 Izpad brez jasnega konca
 
 Med delom se zaslon ne odziva, terminal pa je pravkar sprejel kartico.
@@ -856,6 +924,7 @@ Po vrnitvi povezave preveri račun v POS.
 
 Če račun ne obstaja, primer preda odgovorni osebi pred novim zaračunavanjem.
 
+<!-- pos-heading: id=pos-01-operativno-delo-7cff0cd7c7dc package=lite -->
 ### 10.8 Dve enoti s podobnim imenom
 
 Podjetje ima enoti »Stari trg« in »Stari trg terasa«.
@@ -868,6 +937,7 @@ Preveri tudi tloris in fizično oznako pulta.
 
 Ob nejasnosti vpraša vodjo, katera enota vodi posamezen prostor.
 
+<!-- pos-heading: id=pos-01-operativno-delo-23bf802c246d package=lite -->
 ### 10.9 Počiščeni podatki brskalnika
 
 Po čiščenju brskalnika POS ustvari nov ključ naprave.
@@ -880,6 +950,7 @@ Vodja napravo ponovno identificira in preveri njen obseg miz ter periferno oprem
 
 Do potrditve se naprava ne uporablja za občutljivo prodajno delo.
 
+<!-- pos-heading: id=pos-01-operativno-delo-a5daf65395e7 package=lite -->
 ### 10.10 Manjka samo poslovni prostor
 
 Natakar vidi enoto in blagajno, poslovni prostor pa je označen kot nedodeljen.
@@ -892,6 +963,7 @@ Vodja preveri povezavo blagajne s poslovnim prostorom.
 
 Po spremembi se natakar ponovno prijavi ali ponovno naloži podatke po navodilu.
 
+<!-- pos-heading: id=pos-01-operativno-delo-d0d277a9c7f3 package=lite -->
 ## 11. Matrika odpravljanja težav
 
 | Simptom | Ne storite | Preverite | Eskalacija |
@@ -919,8 +991,10 @@ Pri eskalaciji navedite:
 - čas dogodka;
 - točno besedilo opozorila.
 
+<!-- pos-heading: id=pos-01-operativno-delo-2176e66d014b package=lite -->
 ## 12. Usposabljanje izvajalcev
 
+<!-- pos-heading: id=pos-01-operativno-delo-579c7ee253c1 package=lite -->
 ### 12.1 Cilji usposabljanja
 
 Po usposabljanju uporabnik razlikuje identiteto, sejo, podjetje, enoto, blagajno in napravo.
@@ -935,6 +1009,7 @@ Ne uporablja računa sodelavca.
 
 Zna opisati težavo tako, da jo lahko skrbnik preveri.
 
+<!-- pos-heading: id=pos-01-operativno-delo-1bb9eff5e806 package=lite -->
 ### 12.2 Program za novega natakarja
 
 | Vsebina | Način preverjanja | Merilo uspeha |
@@ -946,6 +1021,7 @@ Zna opisati težavo tako, da jo lahko skrbnik preveri.
 | seja | reši simuliran potek seje | po prijavi najprej preveri rezultat |
 | pomoč | pripravi prijavo težave | navede potrebne podatke brez skrivnosti |
 
+<!-- pos-heading: id=pos-01-operativno-delo-d4e5a4d30d40 package=lite -->
 ### 12.3 Program za vodjo izmene
 
 Vodja zna preveriti, ali oseba dela pod lastnim računom.
@@ -960,6 +1036,7 @@ Zna pravilno predati primer administratorju.
 
 Ne rešuje pravic z deljenjem prijavnih podatkov.
 
+<!-- pos-heading: id=pos-01-operativno-delo-edfc5dfceea9 package=lite -->
 ### 12.4 Program za administratorja
 
 Administrator razume, da je shranjena enota lahko lokalna preferenca.
@@ -974,8 +1051,10 @@ Zna načrtovati spremembo brez odprtih nejasnih transakcij.
 
 Zna dokumentirati fizično razporeditev naprav in njihovih dovoljenih miz.
 
+<!-- pos-heading: id=pos-01-operativno-delo-be746460411e package=lite -->
 ## 13. Vaje
 
+<!-- pos-heading: id=pos-01-operativno-delo-20feba66b40c package=lite -->
 ### 13.1 Vaja: pregled delovnega konteksta
 
 Prijavite se v učnem okolju s svojim učnim računom.
@@ -992,6 +1071,7 @@ Povejte, kateri podatek bi preverili še pred odpiranjem miz.
 
 **Odgovor:** preverili bi, ali oznake ustrezajo fizičnemu pultu in ali naprava prikazuje pravo delovno cono.
 
+<!-- pos-heading: id=pos-01-operativno-delo-8e9bdb8fa8cb package=lite -->
 ### 13.2 Vaja: manjkajoča miza
 
 Na tablici ne najdete mize, za katero gost že sedi.
@@ -1004,6 +1084,7 @@ Pojasnite, zakaj ne ustvarite nove mize.
 
 **Odgovor:** nova miza lahko razdvoji evidenco in ne odpravi vzroka omejenega prikaza.
 
+<!-- pos-heading: id=pos-01-operativno-delo-0c27749d7afe package=lite -->
 ### 13.3 Vaja: prijavljen sodelavec
 
 Prevzemate skupni računalnik in na njem vidite ime druge osebe.
@@ -1016,6 +1097,7 @@ Kaj preverite po lastni prijavi?
 
 **Odgovor:** podjetje, enoto, poslovni prostor, blagajno in napravo oziroma delovno cono.
 
+<!-- pos-heading: id=pos-01-operativno-delo-f4ae355c8943 package=lite -->
 ### 13.4 Vaja: potek seje
 
 Med urejanjem zaslon zahteva ponovno prijavo.
@@ -1032,6 +1114,7 @@ Kaj preverite po prijavi?
 
 **Odgovor:** ali je zadnje dejanje že zabeleženo v ustrezni evidenci.
 
+<!-- pos-heading: id=pos-01-operativno-delo-f253ec54cd52 package=lite -->
 ### 13.5 Vaja: administrator preklopi enoto
 
 Administrator spremeni enoto v izbirniku.
@@ -1044,6 +1127,7 @@ Zakaj ne nadaljuje iz starega zavihka?
 
 **Odgovor:** stari prikaz lahko pripada prejšnjemu kontekstu in ni dokaz pravilne osvežitve.
 
+<!-- pos-heading: id=pos-01-operativno-delo-7ecfc9b9450e package=lite -->
 ### 13.6 Vaja: nejasno kartično plačilo
 
 Terminal pokaže uspeh, POS pa zaradi izpada povezave nima jasnega zaključka.
@@ -1056,6 +1140,7 @@ Kaj preverite?
 
 **Odgovor:** znesek in čas na terminalu, stanje računa v POS ter postopek odgovorne osebe za plačila.
 
+<!-- pos-heading: id=pos-01-operativno-delo-f769d3d91e9d package=lite -->
 ### 13.7 Vaja: manjka modul Kuhinja
 
 V eni enoti je modul Kuhinja viden, v drugi ne.
@@ -1068,8 +1153,10 @@ Kateri ukrep ni pravilen?
 
 **Odgovor:** ročno odpiranje stare povezave, da bi se omejitev obšla.
 
+<!-- pos-heading: id=pos-01-operativno-delo-bfbc289e1819 package=lite -->
 ## 14. Preverjanje znanja
 
+<!-- pos-heading: id=pos-01-operativno-delo-d5c91472e079 package=lite -->
 ### 14.1 Vprašanja
 
 1. Kaj določa, katere mize so na voljo: samo uporabnikova vloga ali tudi naprava?
@@ -1092,6 +1179,7 @@ Kateri ukrep ni pravilen?
 
 10. Katere podatke posredujete podpori pri manjkajoči mizi?
 
+<!-- pos-heading: id=pos-01-operativno-delo-84647aa8aa40 package=lite -->
 ### 14.2 Ključ odgovorov
 
 1. Na dostop do miz vplivata enota in lahko tudi naprava z dovoljenim seznamom miz.
@@ -1114,6 +1202,7 @@ Kateri ukrep ni pravilen?
 
 10. Uporabnika, enoto, napravo, prostor, ime oziroma številko mize, čas in opis korakov.
 
+<!-- pos-heading: id=pos-01-operativno-delo-ea7da057e340 package=lite -->
 ## 15. Zaključna kontrola dostopa
 
 Pred začetkom rednega dela potrdite naslednje trditve.
@@ -1133,12 +1222,14 @@ Pred začetkom rednega dela potrdite naslednje trditve.
 
 Najprej odpravite nejasnost z vodjo izmene ali administratorjem.
 
+<!-- pos-heading: id=pos-01-operativno-delo-375e2255c798 package=standard -->
 ## 16. Skrbniška potrditev naprave in omejitev miz
 
 Ta postopek je namenjen administratorju pred prvo uporabo nove ali počiščene
 naprave. Vidne mize same po sebi ne dokazujejo, da je naprava pravilno
 registrirana ali da sme uporabnik delati v vseh prikazanih prostorih.
 
+<!-- pos-heading: id=pos-01-operativno-delo-6ec0de9eda05 package=standard -->
 ### 16.1 Preverjanje naprave
 
 1. Prijavite se v pravilno podjetje in enoto.
@@ -1156,6 +1247,7 @@ Pri znakih č, š, ž in EUR preverite tudi kodno stran oziroma nadomestni zapis
 Ne nameščajte drugega tiskalniškega mostu samo zato, ker prvi ne odgovarja;
 zabeležite ime naprave, čas in prikazano napako ter vključite skrbnika.
 
+<!-- pos-heading: id=pos-01-operativno-delo-a0f027ac9214 package=standard -->
 ### 16.2 Dovoljene mize
 
 Administrator lahko napravi določi seznam dovoljenih miz. Prazen seznam ima
@@ -1175,12 +1267,14 @@ Po spremembi:
 Ne ustvarjajte nadomestne mize in ne spreminjajte osebnih pravic uporabnika,
 da bi zaobšli omejitev naprave.
 
+<!-- pos-heading: id=pos-01-operativno-delo-5341e27c8a1a package=lite -->
 ## 17. Hitra menjava natakarja na skupni napravi
 
 Hitra menjava ne zamenja prijave v podjetje. Osnovna seja ostane prijavljena,
 poslovni izvajalec pa se na skupnem POS-u potrdi z lastnim POS PIN-om. Uporabi
 se samo za aktivnega natakarja z odprto izmeno v trenutni enoti.
 
+<!-- pos-heading: id=pos-01-operativno-delo-6dba41607ec4 package=lite -->
 ### 17.1 Nastavitev POS PIN-a
 
 POS PIN nastavi samo administrator, administrator enote ali
@@ -1194,6 +1288,7 @@ superadministrator pri podatkih aktivnega natakarja.
 Pri napačni dolžini ali neaktivnem natakarju nastavitev ni veljavna. Ponovna
 nastavitev PIN-a ponastavi neuspele poskuse in začasno zaklenjeno stanje.
 
+<!-- pos-heading: id=pos-01-operativno-delo-494210f4f3b4 package=lite -->
 ### 17.2 Menjava identitete
 
 1. Na skupni napravi izberite **Izberi natakarja** oziroma
