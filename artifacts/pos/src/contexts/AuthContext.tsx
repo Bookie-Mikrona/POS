@@ -3,7 +3,7 @@ import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetNastavitveQueryKey, setAuthTokenGetter, setEnotaIdGetter, setOn401Handler, setPosActorSessionGetter } from "@workspace/api-client-react";
 import { clearReturnUrl } from "@/lib/returnUrl";
-import type { HospitalityProfile, UnitCapability } from "@/lib/unitProfiles";
+import type { HospitalityProfile, PosPlan, UnitCapability } from "@/lib/unitProfiles";
 
 export const POS_ENOTA_ID_KEY = "pos_enota_id";
 
@@ -30,6 +30,8 @@ export interface Uporabnik {
   enote?: Array<{ id: number; ime: string; hospitalityProfile: HospitalityProfile; capabilities: UnitCapability[] }>;
   hospitalityProfile?: HospitalityProfile | null;
   capabilities?: UnitCapability[];
+  posPlan?: PosPlan;
+  posPlanCapabilities?: UnitCapability[];
   idZaDdv?: string | null;
   jeDdvZavezanec?: boolean;
   imaTrr?: boolean;
@@ -52,6 +54,8 @@ interface PosAuthMeResponse {
   enotaIme: string | null;
   enotaHospitalityProfile: HospitalityProfile | null;
   enotaCapabilities: UnitCapability[];
+  posPlan: PosPlan | null;
+  posPlanCapabilities: UnitCapability[];
   blagajnaId: number | null;
   blagajnaIme: string | null;
   blagajnaPpId: string | null;
@@ -259,6 +263,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ?? data.enotaCapabilities
             ?? []
           ),
+          posPlan: data.posPlan ?? undefined,
+          posPlanCapabilities: data.posPlanCapabilities ?? [],
           idZaDdv: data.idZaDdv ?? null,
           jeDdvZavezanec: data.jeDdvZavezanec ?? false,
           imaTrr: data.imaTrr ?? false,

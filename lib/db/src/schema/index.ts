@@ -1,5 +1,6 @@
 // ── ERP: Dvostavno knjigovodstvo ─────────────────────────────────────────────
 export * from "./company-modules";
+export * from "./company-pos-plans";
 export * from "./companies";
 export * from "./accounting-roles";
 export * from "./accounts";

@@ -8,6 +8,12 @@ export const UNIT_CAPABILITIES = [
 ] as const;
 
 export type UnitCapability = typeof UNIT_CAPABILITIES[number];
+export type PosPlan = "lite" | "standard" | "extended";
+export const POS_PLAN_LABELS: Record<PosPlan, string> = {
+  lite: "Lite",
+  standard: "Standard",
+  extended: "Extended",
+};
 export type HospitalityProfile =
   | "restaurant" | "inn" | "fine_dining" | "self_service" | "fast_food"
   | "bar" | "cafe_pastry" | "tourist_farm" | "festival_society"

@@ -5,7 +5,19 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { getAuth } from "@clerk/express";
 import { and, eq, gte, lte } from "drizzle-orm";
-import { db, posUporabnikiTable, posEventStaffGrantsTable, enoteTable, blagajneTable, companiesTable, natakariTable } from "@workspace/db";
+import {
+  db,
+  posUporabnikiTable,
+  posEventStaffGrantsTable,
+  enoteTable,
+  blagajneTable,
+  companiesTable,
+  natakariTable,
+  companyPosPlansTable,
+  getPosPlanCapabilities,
+  type PosPlan,
+  type UnitCapability,
+} from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -35,6 +47,8 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
       companyId: null,
       enotaId: null,
       enote: [],
+      posPlan: null,
+      posPlanCapabilities: [],
       aktiven: true,
     });
     return;
@@ -85,6 +99,15 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
   }
 
   const uporabnik = rows[0];
+  const [planRow] = await db
+    .select({ plan: companyPosPlansTable.plan })
+    .from(companyPosPlansTable)
+    .where(eq(companyPosPlansTable.companyId, uporabnik.companyId))
+    .limit(1);
+  const posPlan: PosPlan = planRow?.plan ?? "lite";
+  const planCapabilities = getPosPlanCapabilities(posPlan);
+  const effectiveCapabilities = (capabilities: readonly UnitCapability[]) =>
+    capabilities.filter(capability => planCapabilities.includes(capability));
 
   // Poišči natakarjev profil vezan na tega Clerk uporabnika (po clerkUserId + companyId).
   // Natakarji so na nivoju podjetja — ni vezave na posamezno enoto.
@@ -103,7 +126,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
   // Admin vidi vse enote; drugi uporabniki poleg primarne tudi trenutno veljavne dogodkovne dostope.
   let enote: Array<{ id: number; ime: string; hospitalityProfile: string; capabilities: string[] }> = [];
   if (uporabnik.vloga === "admin") {
-    enote = await db
+    const allUnits = await db
       .select({
         id: enoteTable.id,
         ime: enoteTable.ime,
@@ -113,6 +136,10 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
       .from(enoteTable)
       .where(and(eq(enoteTable.companyId, uporabnik.companyId), eq(enoteTable.aktiven, true)))
       .orderBy(enoteTable.id);
+    enote = allUnits.map(unit => ({
+      ...unit,
+      capabilities: effectiveCapabilities(unit.capabilities),
+    }));
   } else {
     const now = new Date();
     const grants = await db.select({
@@ -132,9 +159,14 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
         id: uporabnik.enotaId,
         ime: uporabnik.enotaIme ?? "",
         hospitalityProfile: uporabnik.enotaHospitalityProfile ?? "restaurant",
-        capabilities: uporabnik.enotaCapabilities ?? [],
+        capabilities: effectiveCapabilities(uporabnik.enotaCapabilities ?? []),
       }] : []),
-      ...grants.filter(grant => grant.id !== uporabnik.enotaId),
+      ...grants
+        .filter(grant => grant.id !== uporabnik.enotaId)
+        .map(grant => ({
+          ...grant,
+          capabilities: effectiveCapabilities(grant.capabilities),
+        })),
     ];
   }
 
@@ -157,7 +189,9 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     enotaId: uporabnik.enotaId,
     enotaIme: uporabnik.enotaIme ?? null,
     enotaHospitalityProfile: uporabnik.enotaHospitalityProfile ?? null,
-    enotaCapabilities: uporabnik.enotaCapabilities ?? [],
+    enotaCapabilities: effectiveCapabilities(uporabnik.enotaCapabilities ?? []),
+    posPlan,
+    posPlanCapabilities: planCapabilities,
     blagajnaId: uporabnik.blagajnaId ?? null,
     blagajnaIme: uporabnik.blagajnaIme ?? null,
     blagajnaPpId: uporabnik.blagajnaPpId ?? null,

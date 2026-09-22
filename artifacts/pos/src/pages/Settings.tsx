@@ -320,6 +320,7 @@ import { TlorisEditor } from "@/components/TlorisEditor";
 
 export default function Settings() {
   const { user: prijavljen, updateUser } = useAuth();
+  const dovoljenePaketneFunkcije = prijavljen?.posPlanCapabilities ?? [];
   const jeAdmin = prijavljen?.vloga === "admin" || prijavljen?.vloga === "superadmin";
   const jeSuperAdmin = prijavljen?.vloga === "superadmin";
   const jeAdminEnote = prijavljen?.vloga === "admin_enote";
@@ -652,11 +653,14 @@ export default function Settings() {
         },
       });
       if (prijavljen?.enotaId === editingEnota.id) {
+        const effectiveCapabilities = editECapabilities.filter(capability =>
+          dovoljenePaketneFunkcije.includes(capability),
+        );
         updateUser({
           hospitalityProfile: editEProfile,
-          capabilities: editECapabilities,
+          capabilities: effectiveCapabilities,
           enote: prijavljen.enote?.map(unit => unit.id === editingEnota.id
-            ? { ...unit, hospitalityProfile: editEProfile, capabilities: editECapabilities }
+            ? { ...unit, hospitalityProfile: editEProfile, capabilities: effectiveCapabilities }
             : unit),
         });
       }
@@ -5984,16 +5988,27 @@ export default function Settings() {
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {ALL_UNIT_CAPABILITIES.map(capability => (
-                  <label key={capability} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <label
+                    key={capability}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                      !dovoljenePaketneFunkcije.includes(capability) ? "bg-muted/50 text-muted-foreground" : ""
+                    }`}
+                  >
                     <Switch
                       checked={editECapabilities.includes(capability)}
+                      disabled={!dovoljenePaketneFunkcije.includes(capability)}
                       onCheckedChange={checked => setEditECapabilities(current =>
                         checked
                           ? [...new Set([...current, capability])]
                           : current.filter(value => value !== capability),
                       )}
                     />
-                    <span>{CAPABILITY_LABELS[capability]}</span>
+                    <span className="flex-1">{CAPABILITY_LABELS[capability]}</span>
+                    {!dovoljenePaketneFunkcije.includes(capability) && (
+                      <span className="text-[10px] uppercase tracking-wide">
+                        {capability === "self_service" ? "Ni implementirano" : "Višji paket"}
+                      </span>
+                    )}
                   </label>
                 ))}
               </div>

@@ -5,6 +5,7 @@ import {
   artModSkupineTable,
   artikliTable,
   companiesTable,
+  companyPosPlansTable,
   db,
   enoteTable,
   kategorijeTable,
@@ -22,6 +23,7 @@ import {
   qrGostNarocilaTable,
   qrGostPovratneInformacijeTable,
   rezervacijeMizTable,
+  getPosPlanCapabilities,
 } from "@workspace/db";
 import {
   CreateQrGostNarociloBody,
@@ -487,10 +489,13 @@ async function resolvePublicMenuContext(token: string): Promise<PublicMenuContex
       qrLatitude: enoteTable.qrLatitude,
       qrLongitude: enoteTable.qrLongitude,
       qrWifiNetworks: enoteTable.qrWifiNetworks,
+      enotaCapabilities: enoteTable.capabilities,
+      posPlan: companyPosPlansTable.plan,
     })
     .from(mizeTable)
     .innerJoin(enoteTable, eq(enoteTable.id, mizeTable.enotaId))
     .innerJoin(companiesTable, eq(companiesTable.id, enoteTable.companyId))
+    .leftJoin(companyPosPlansTable, eq(companyPosPlansTable.companyId, enoteTable.companyId))
     .leftJoin(
       prostoriTable,
       and(
@@ -501,9 +506,18 @@ async function resolvePublicMenuContext(token: string): Promise<PublicMenuContex
     .where(and(eq(mizeTable.qrToken, token), eq(enoteTable.aktiven, true)))
     .limit(1);
 
-  if (!context) return null;
+  if (
+    !context
+    || !context.enotaCapabilities.includes("qr_menu")
+    || !getPosPlanCapabilities(context.posPlan).includes("qr_menu")
+  ) return null;
+  const {
+    enotaCapabilities: _enotaCapabilities,
+    posPlan: _posPlan,
+    ...publicContext
+  } = context;
   return {
-    ...context,
+    ...publicContext,
     jeDdvZavezanec: Boolean(context.idZaDdv?.trim()),
     qrLatitude: context.qrLatitude === null ? null : Number(context.qrLatitude),
     qrLongitude: context.qrLongitude === null ? null : Number(context.qrLongitude),

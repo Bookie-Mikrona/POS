@@ -350,6 +350,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["197-offline-fiscal-finalization-retry.sql"],
   },
+  {
+    file: "199-company-pos-plans.sql",
+    classification: "schema",
+    dependsOn: ["198-pos-returnable-packaging-writeoff.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

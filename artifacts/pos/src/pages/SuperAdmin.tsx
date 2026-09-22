@@ -17,6 +17,7 @@ import {
   Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, Search, Key, Trash2,
 } from "lucide-react";
 import TestniZagoniPage from "@/pages/TestniZagoni";
+import { POS_PLAN_LABELS, type PosPlan } from "@/lib/unitProfiles";
 
 interface PodjetjeUporabnik {
   id: number;
@@ -30,11 +31,13 @@ interface PodjetjeUporabnik {
 interface TrrVrstica { iban: string; bic: string; }
 
 interface Podjetje {
+  id: string;
   davcnaStevilka: string;
   naziv: string;
   naslov?: string;
   steviloUporabnikov: number;
   uporabniki: PodjetjeUporabnik[];
+  posPlan: PosPlan;
 }
 
 interface NastavitveGet {
@@ -374,6 +377,31 @@ function UrediUporabnikaDialog({ davcna, user, onUpdated }: { davcna: string; us
 
 function PodjetjeRow({ podjetje, onRefresh }: { podjetje: Podjetje; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [planSaving, setPlanSaving] = useState(false);
+  const { toast } = useToast();
+
+  const changePlan = async (plan: PosPlan) => {
+    setPlanSaving(true);
+    try {
+      await apiFetch(`/api/superadmin/podjetja/${encodeURIComponent(podjetje.id)}/pos-paket`, {
+        method: "PUT",
+        body: JSON.stringify({ plan }),
+      });
+      toast({
+        title: "POS paket posodobljen",
+        description: `${podjetje.naziv} uporablja paket ${POS_PLAN_LABELS[plan]}.`,
+      });
+      onRefresh();
+    } catch (err) {
+      toast({
+        title: "Paketa ni bilo mogoče posodobiti",
+        description: err instanceof Error ? err.message : "Napaka strežnika",
+        variant: "destructive",
+      });
+    } finally {
+      setPlanSaving(false);
+    }
+  };
 
   return (
     <div className="border rounded-xl overflow-hidden">
@@ -390,6 +418,7 @@ function PodjetjeRow({ podjetje, onRefresh }: { podjetje: Podjetje; onRefresh: (
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline">POS {POS_PLAN_LABELS[podjetje.posPlan]}</Badge>
           <Badge variant="secondary">
             <Users className="h-3 w-3 mr-1" />
             {podjetje.steviloUporabnikov}
@@ -400,6 +429,30 @@ function PodjetjeRow({ podjetje, onRefresh }: { podjetje: Podjetje; onRefresh: (
 
       {expanded && (
         <div className="border-t bg-muted/20 px-5 py-4 space-y-4">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">Paket POS Gostinstvo</p>
+                <p className="text-xs text-muted-foreground">
+                  Paket določa največji nabor funkcij, ki jih lahko uporabljajo enote podjetja.
+                </p>
+              </div>
+              <Select
+                value={podjetje.posPlan}
+                onValueChange={value => void changePlan(value as PosPlan)}
+                disabled={planSaving}
+              >
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lite">Lite</SelectItem>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="extended">Extended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-muted-foreground">Uporabniki</p>

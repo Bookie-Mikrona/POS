@@ -14,6 +14,8 @@ import {
   posUporabnikiTable,
   companiesTable,
   accountingRolesTable,
+  companyPosPlansTable,
+  getPosPlanCapabilities,
   type UnitCapability,
 } from "@workspace/db";
 import { and, eq, inArray, gte, lte, sql } from "drizzle-orm";
@@ -60,6 +62,10 @@ const prefixes = (capability: UnitCapability, ...values: string[]): CapabilityPa
  */
 const CAPABILITY_PATHS: CapabilityPathRule[] = [
   {
+    capability: "stock_transfers",
+    matches: path => /^\/pos-events\/[^/]+\/(?:preparation-options|preparation-preview|transfer-history|prepare|returns)(?:\/|$)/.test(path),
+  },
+  {
     capability: "delivery",
     matches: path => /^\/narocila\/[^/]+\/dostava(?:-|\/|$)/.test(path),
   },
@@ -73,15 +79,18 @@ const CAPABILITY_PATHS: CapabilityPathRule[] = [
   },
   prefixes("hours", "/izmene/obracun-ur"),
   prefixes("realization", "/statistike/realizacija"),
+  prefixes("multi_course", "/multicourse-menus"),
+  prefixes("qr_menu", "/qr-admin", "/qr-waiter-requests"),
+  prefixes("deposits_tokens", "/darilni-boni"),
   prefixes("checkout", "/x-porocilo", "/z-porocilo"),
   prefixes("operational_reports", "/operativna-porocila"),
-  prefixes("menu", "/kategorije", "/artikli", "/dnevni-meni", "/modifikatorske-skupine", "/modifikatorji", "/multicourse-menus"),
-  prefixes("tables", "/mize", "/prostori", "/qr-admin", "/qr-waiter-requests"),
+  prefixes("menu", "/kategorije", "/artikli", "/dnevni-meni", "/modifikatorske-skupine", "/modifikatorji"),
+  prefixes("tables", "/mize", "/prostori"),
   prefixes("reservations", "/rezervacije"),
   prefixes("delivery", "/dostava", "/naselja"),
   prefixes("checkout", "/narocila", "/blagajne", "/terminal", "/quick-switch", "/ai/glasovni-ukaz", "/ai/svetovalec"),
   prefixes("checkout", "/ai/agent", "/ai/normativ-primerjava"),
-  prefixes("receipts", "/racuni", "/darilni-boni", "/print", "/kupec"),
+  prefixes("receipts", "/racuni", "/print", "/kupec"),
   prefixes("receipts", "/offline-fiscal"),
   prefixes("shifts", "/izmene", "/odsotnosti", "/natakari"),
   prefixes("settings", "/nastavitve", "/poslovni-prostori", "/naprave", "/glasovni-sinonimi", "/partnerji", "/furs", "/bizbox-nastavitve", "/certifikat"),
@@ -112,8 +121,12 @@ async function enforceUnitCapability(
   const context = req as PosRequest;
   if (context.vloga === "superadmin") { next(); return; }
   const [unit] = await db
-    .select({ capabilities: enoteTable.capabilities })
+    .select({
+      capabilities: enoteTable.capabilities,
+      posPlan: companyPosPlansTable.plan,
+    })
     .from(enoteTable)
+    .leftJoin(companyPosPlansTable, eq(companyPosPlansTable.companyId, enoteTable.companyId))
     .where(and(eq(enoteTable.id, context.enotaId), eq(enoteTable.companyId, context.companyId)))
     .limit(1);
   if (!unit?.capabilities.includes(capability)) {
@@ -121,6 +134,15 @@ async function enforceUnitCapability(
       napaka: "Ta funkcija za aktivno poslovno enoto ni omogočena.",
       koda: "FUNKCIJA_ENOTE_ONEMOGOCENA",
       funkcija: capability,
+    });
+    return;
+  }
+  if (!getPosPlanCapabilities(unit.posPlan).includes(capability)) {
+    res.status(403).json({
+      napaka: "Ta funkcija ni vključena v paketu POS podjetja.",
+      koda: "POS_PAKET_FUNKCIJE_NE_VKLJUCUJE",
+      funkcija: capability,
+      paket: unit.posPlan ?? "lite",
     });
     return;
   }

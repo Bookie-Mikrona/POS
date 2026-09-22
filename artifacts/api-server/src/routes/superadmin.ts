@@ -4,7 +4,14 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, inArray } from "drizzle-orm";
-import { db, companiesTable, posUporabnikiTable } from "@workspace/db";
+import {
+  db,
+  companiesTable,
+  posUporabnikiTable,
+  companyPosPlansTable,
+  POS_PLANS,
+  type PosPlan,
+} from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
@@ -139,6 +146,14 @@ router.get("/superadmin/podjetja", ...superAdminStack, async (_req: Request, res
     })
     .from(posUporabnikiTable)
     .where(inArray(posUporabnikiTable.companyId, companyIds));
+  const plans = await db
+    .select({
+      companyId: companyPosPlansTable.companyId,
+      plan: companyPosPlansTable.plan,
+    })
+    .from(companyPosPlansTable)
+    .where(inArray(companyPosPlansTable.companyId, companyIds));
+  const planByCompany = new Map(plans.map(plan => [plan.companyId, plan.plan]));
 
   const usersByCompany: Record<string, typeof users> = {};
   for (const u of users) {
@@ -157,6 +172,7 @@ router.get("/superadmin/podjetja", ...superAdminStack, async (_req: Request, res
     naslov: naslov(c),
     maticnaStevilka: c.maticnaStevilka,
     trr: c.trr ?? [],
+    posPlan: planByCompany.get(c.id) ?? "lite",
     steviloUporabnikov: (usersByCompany[c.id] ?? []).length,
     uporabniki: (usersByCompany[c.id] ?? []).map(u => ({
       id: u.id,
@@ -168,6 +184,44 @@ router.get("/superadmin/podjetja", ...superAdminStack, async (_req: Request, res
     })),
   })));
 });
+
+router.put(
+  "/superadmin/podjetja/:companyId/pos-paket",
+  ...superAdminStack,
+  async (req: Request, res: Response): Promise<void> => {
+    const companyId = Array.isArray(req.params.companyId)
+      ? req.params.companyId[0]
+      : req.params.companyId;
+    const plan = (req.body as { plan?: unknown }).plan;
+    if (!companyId || !POS_PLANS.includes(plan as PosPlan)) {
+      res.status(400).json({ napaka: "Izbrani POS paket ni veljaven." });
+      return;
+    }
+    const [company] = await db
+      .select({ id: companiesTable.id })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1);
+    if (!company) {
+      res.status(404).json({ napaka: "Podjetje ne obstaja." });
+      return;
+    }
+    const enabledBy = (req as AuthenticatedRequest).clerkUserId;
+    const [saved] = await db
+      .insert(companyPosPlansTable)
+      .values({ companyId, plan: plan as PosPlan, enabledBy })
+      .onConflictDoUpdate({
+        target: companyPosPlansTable.companyId,
+        set: { plan: plan as PosPlan, enabledAt: new Date(), enabledBy },
+      })
+      .returning({
+        companyId: companyPosPlansTable.companyId,
+        plan: companyPosPlansTable.plan,
+        enabledAt: companyPosPlansTable.enabledAt,
+      });
+    res.json(saved);
+  },
+);
 
 // ── GET /superadmin/ddv-lookup?davcna= ─────────────────────────────────────
 // Poišče podjetje na Inetisu — vrne naziv, naslov, matično in TRR.

@@ -12,6 +12,7 @@ const { state } = vi.hoisted(() => ({
       aktiven: boolean;
       idZaDdv: string | null;
       capabilities: string[];
+      posPlan: "lite" | "standard" | "extended" | null;
     } | null,
     updateValues: null as Record<string, unknown> | null,
   },
@@ -34,6 +35,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
     const result = {
       from: (value: unknown) => { table = value; return result; },
       innerJoin: () => result,
+      leftJoin: () => result,
       where: () => result,
       orderBy: () => result,
       limit: () => result,
@@ -153,6 +155,7 @@ beforeEach(() => {
     aktiven: true,
     idZaDdv: null,
     capabilities: [],
+    posPlan: "extended",
   };
   state.updateValues = null;
 });
@@ -172,7 +175,7 @@ describe("requireEnota — dostop po vlogi", () => {
       vloga: "admin",
       dodeljenaEnotaId: null,
     }];
-    state.enota = { id: 2, companyId: "company-a", aktiven: true, idZaDdv: null, capabilities: [] };
+    state.enota = { id: 2, companyId: "company-a", aktiven: true, idZaDdv: null, capabilities: [], posPlan: "extended" };
 
     const response = await request(app()).get("/").set("X-Enota-Id", "2");
 
@@ -181,7 +184,7 @@ describe("requireEnota — dostop po vlogi", () => {
   });
 
   it("deaktivirano enoto zavrne pred vstopom v POS ruto", async () => {
-    state.enota = { id: 1, companyId: "company-a", aktiven: false, idZaDdv: null, capabilities: [] };
+    state.enota = { id: 1, companyId: "company-a", aktiven: false, idZaDdv: null, capabilities: [], posPlan: "extended" };
 
     const response = await request(app()).get("/").set("X-Enota-Id", "1");
 
@@ -194,7 +197,7 @@ describe("requireEnota — dostop po vlogi", () => {
       { id: 1, companyId: "company-a", vloga: "admin", dodeljenaEnotaId: null },
       { id: 2, companyId: "company-b", vloga: "admin", dodeljenaEnotaId: null },
     ];
-    state.enota = { id: 22, companyId: "company-b", aktiven: true, idZaDdv: null, capabilities: [] };
+    state.enota = { id: 22, companyId: "company-b", aktiven: true, idZaDdv: null, capabilities: [], posPlan: "extended" };
 
     const response = await request(app())
       .get("/")
@@ -250,7 +253,7 @@ describe("requireEnota — dostop po vlogi", () => {
       vloga: "admin",
       dodeljenaEnotaId: null,
     }];
-    state.enota = { id: 1, companyId: "company-a", aktiven: false, idZaDdv: null, capabilities: [] };
+    state.enota = { id: 1, companyId: "company-a", aktiven: false, idZaDdv: null, capabilities: [], posPlan: "extended" };
 
     const response = await request(companyScopeApp())
       .put("/enote/1")
@@ -289,6 +292,39 @@ describe("requireUnitCapability — neposredni API dostop", () => {
     const response = await request(capabilityApp()).get("/artikli");
 
     expect(response.status).toBe(200);
+  });
+
+  it("paket Lite zavrne funkcijo, četudi jo ima enota vključeno", async () => {
+    state.enota!.capabilities = ["delivery"];
+    state.enota!.posPlan = "lite";
+
+    const response = await request(capabilityApp()).get("/dostava/kurirji");
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      koda: "POS_PAKET_FUNKCIJE_NE_VKLJUCUJE",
+      funkcija: "delivery",
+      paket: "lite",
+    });
+  });
+
+  it("paket Standard dovoli mize, vendar zavrne rezervacije", async () => {
+    state.enota!.capabilities = ["tables", "reservations"];
+    state.enota!.posPlan = "standard";
+
+    const tablesResponse = await request(capabilityApp()).get("/mize");
+    const reservationsResponse = await request(capabilityApp()).get("/rezervacije");
+
+    expect(tablesResponse.status).toBe(200);
+    expect(reservationsResponse.status).toBe(403);
+    expect(reservationsResponse.body.koda).toBe("POS_PAKET_FUNKCIJE_NE_VKLJUCUJE");
+  });
+
+  it("namenske poti uporabljajo napredne paketne funkcije", () => {
+    expect(resolveUnitCapability("/multicourse-menus")).toBe("multi_course");
+    expect(resolveUnitCapability("/qr-admin/status")).toBe("qr_menu");
+    expect(resolveUnitCapability("/darilni-boni/stanje")).toBe("deposits_tokens");
+    expect(resolveUnitCapability("/pos-events/12/transfer-history")).toBe("stock_transfers");
   });
 
   it("neznano poslovno pot zavrne zaprto", async () => {

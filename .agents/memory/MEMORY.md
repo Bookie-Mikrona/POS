@@ -131,6 +131,7 @@
 - [Operativna poročila – obseg](operativna-porocila-scope.md) — admin vidi vse enote podjetja, admin_enote svojo; poslovni interval se izračuna za vsako enoto posebej.
 - [Mesečni pogodbeni A-račun](pogodbeni-a-racun.md) — dnevni POS knjiži prihodek/DDV, mesečni račun pa samo prenese prehodno terjatev na partnerja.
 - [Profili gostinskih enot](unit-hospitality-profiles.md) — profil je predloga; dejanski meni in dostop določajo ločene zmožnosti aktivne enote.
+- [POS paketi podjetja](pos-company-plans.md) — paket je zgornja meja zmožnosti enot; obstoječi POS tenant dobi Extended, manjkajoč zapis pomeni Lite.
 - [Dogodkovni prenosi zaloge](event-stock-transfers.md) — zgodovina mora uskladiti poslano = porabljeno + preostalo + vrnjeno in omejiti preostalo na dogodkovno količino.
 - [Izbira elementov tlorisa](floor-plan-pointer-events.md) — loči pointerdown od click; ozadje sme počistiti izbor le pri target === currentTarget.
 - [Večhodni POS in QR meni](multicourse-qr-menu.md) — menijska cena, vina in KDS hodi imajo ločene vloge; napredovanje sledi pairingGroupId + courseSequence.

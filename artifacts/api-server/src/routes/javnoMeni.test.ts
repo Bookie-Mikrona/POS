@@ -7,6 +7,7 @@ import {
   artModSkupineTable,
   artikliTable,
   companiesTable,
+  companyPosPlansTable,
   db,
   enoteTable,
   kategorijeTable,
@@ -216,11 +217,17 @@ beforeAll(async () => {
   const [enota] = await db.insert(enoteTable).values({
     companyId,
     ime: `QR enota ${RUN_ID}`,
+    capabilities: ["qr_menu", "multi_course", "prepared_food"],
     qrLatitude: String(TEST_QR_LATITUDE),
     qrLongitude: String(TEST_QR_LONGITUDE),
     qrWifiNetworks: ["8.8.8.0/24", "2606:4700:4700::/48"],
   }).returning({ id: enoteTable.id });
   enotaId = enota!.id;
+  await db.insert(companyPosPlansTable).values({
+    companyId,
+    plan: "extended",
+    enabledBy: "javnoMeni.test",
+  });
   await db.insert(nastavitveTable).values({
     enotaId,
     kljuc: "qrAiAsistentAktiven",
@@ -253,8 +260,14 @@ beforeAll(async () => {
   const [tenantEnota] = await db.insert(enoteTable).values({
     companyId: tenantCompanyId,
     ime: `Tuja tenant enota ${RUN_ID}`,
+    capabilities: ["qr_menu"],
   }).returning({ id: enoteTable.id });
   tenantEnotaId = tenantEnota!.id;
+  await db.insert(companyPosPlansTable).values({
+    companyId: tenantCompanyId,
+    plan: "extended",
+    enabledBy: "javnoMeni.test",
+  });
   const [tenantMiza] = await db.insert(mizeTable).values({
     enotaId: tenantEnotaId,
     stevilka: 99,

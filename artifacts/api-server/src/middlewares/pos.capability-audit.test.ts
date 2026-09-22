@@ -117,14 +117,14 @@ function collectRouterEndpoints(router: IRouter, prefix: string): string[] {
 }
 
 describe("inventar zaščite POS API poti", () => {
-  it("klice QR natakarja varuje z zmožnostjo miz", () => {
-    expect(resolveUnitCapability("/qr-waiter-requests")).toBe("tables");
-    expect(resolveUnitCapability("/qr-waiter-requests/123")).toBe("tables");
+  it("klice QR natakarja varuje z zmožnostjo QR menija", () => {
+    expect(resolveUnitCapability("/qr-waiter-requests")).toBe("qr_menu");
+    expect(resolveUnitCapability("/qr-waiter-requests/123")).toBe("qr_menu");
   });
 
-  it("upravljanje QR miz varuje z zmožnostjo miz", () => {
-    expect(resolveUnitCapability("/qr-admin")).toBe("tables");
-    expect(resolveUnitCapability("/qr-admin/import")).toBe("tables");
+  it("upravljanje QR miz varuje z zmožnostjo QR menija", () => {
+    expect(resolveUnitCapability("/qr-admin")).toBe("qr_menu");
+    expect(resolveUnitCapability("/qr-admin/import")).toBe("qr_menu");
   });
 
   it("X- in Z-poročilo obravnava kot jedrni del zaključka blagajne", () => {
