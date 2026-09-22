@@ -907,3 +907,17 @@ mtime_ms = 1790022568370
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/370bda37-9b87-4f4c-bef7-ff8cf6b46295/ce437f9e-a42f-4c11-a8cf-0add0f7e92ad"
 storage_version_token = "1790022752994385"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "9vRZJU2jpE707e6q4hbpX"
+uri = "file://.agents/outputs/bookie-pos-gostinstvo-paketi.pdf"
+type = "pdf"
+title = "Bookie POS Gostinstvo – predlog paketov"
+description = "PDF z osnutkom paketov Lite, Standard in Extended, predlaganimi cenami ter najpreprostejšo potjo implementacije."
+logical_id = "6303ef5e-8112-42ca-98d7-eb542559fe74"
+content_hash = "sha256:f2a5f118d7d5b464e3ffaee36f80eee5de73c9768f48224ffaa445104171803c"
+size = 59343
+mtime_ms = 1790083887771
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/6303ef5e-8112-42ca-98d7-eb542559fe74/09323a71-1379-45ae-ad51-406af0175748"
+storage_version_token = "1790083908974313"
+content_type = "application/pdf"
