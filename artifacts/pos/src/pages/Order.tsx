@@ -3691,7 +3691,7 @@ export default function Order() {
         ? cenaZaVelikostPice(izbranaVelikostPice ?? "normalna")
         : artCena;
 
-      const RAZREZ_RE = /\brazrez\b/i;
+      const RAZREZ_RE = /\brazrez/i;
       const BREZ_RE = /\bbrez\b/i;
       const picaGroups = artJePica ? (() => {
         const vseMods = artSkupine.flatMap(sk =>
@@ -3699,7 +3699,7 @@ export default function Order() {
         );
         const dodatki = vseMods.filter(m => !BREZ_RE.test(m.ime) && !RAZREZ_RE.test(m.ime));
         const brez = vseMods.filter(m => BREZ_RE.test(m.ime) && !RAZREZ_RE.test(m.ime));
-        const razrez = vseMods.filter(m => RAZREZ_RE.test(m.ime) && !BREZ_RE.test(m.ime));
+        const razrez = vseMods.filter(m => RAZREZ_RE.test(m.ime));
         return [
           { naslov: "Dodatki", barvaClass: "text-green-700", mods: dodatki },
           { naslov: "Brez", barvaClass: "text-orange-600", mods: brez },

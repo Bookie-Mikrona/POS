@@ -32,8 +32,8 @@ const mockModifikator = {
 
 const mockRazrezTrikotni = {
   id: 101,
-  skupinaId: 1,
-  ime: "Trikotni razrez",
+  skupinaId: 2,
+  ime: "Trikotni razrez (New York style)",
   cenaDodatek: 0,
   aktiven: true,
   vrstniRed: 1,
@@ -41,8 +41,8 @@ const mockRazrezTrikotni = {
 
 const mockRazrezStirikotni = {
   id: 102,
-  skupinaId: 1,
-  ime: "Štirikotni razrez",
+  skupinaId: 2,
+  ime: "Kvadratni razrez (Party cut)",
   cenaDodatek: 0,
   aktiven: true,
   vrstniRed: 2,
@@ -50,7 +50,7 @@ const mockRazrezStirikotni = {
 
 const mockRazrezPolovica = {
   id: 103,
-  skupinaId: 1,
+  skupinaId: 2,
   ime: "Razrez na polovico",
   cenaDodatek: 0,
   aktiven: true,
@@ -66,19 +66,50 @@ const mockBrezCebule = {
   vrstniRed: 4,
 };
 
+const mockBrezRazreza = {
+  id: 105,
+  skupinaId: 2,
+  ime: "Brez razreza",
+  cenaDodatek: 0,
+  aktiven: true,
+  vrstniRed: 0,
+};
+
+const mockRazrezCetrtina = {
+  id: 106,
+  skupinaId: 2,
+  ime: "Razrez na četrtino",
+  cenaDodatek: 0,
+  aktiven: true,
+  vrstniRed: 4,
+};
+
 const mockModSkupina = {
   id: 1,
   ime: "Dodatki za pico",
-  obvezna: true,
-  minIzbir: 1,
+  obvezna: false,
+  minIzbir: 0,
   maxIzbir: 99,
   vrstniRed: 0,
   modifikatorji: [
     mockModifikator,
+    mockBrezCebule,
+  ],
+};
+
+const mockRazrezSkupina = {
+  id: 2,
+  ime: "Razrez",
+  obvezna: true,
+  minIzbir: 1,
+  maxIzbir: 1,
+  vrstniRed: 1,
+  modifikatorji: [
+    mockBrezRazreza,
     mockRazrezTrikotni,
     mockRazrezStirikotni,
     mockRazrezPolovica,
-    mockBrezCebule,
+    mockRazrezCetrtina,
   ],
 };
 
@@ -99,8 +130,8 @@ const mockPica = {
   jePica: true,
   jeDodatekZaPico: false,
   privzetiDodatki: [],
-  privzetiModifikatorji: [100],
-  modSkupine: [mockModSkupina],
+  privzetiModifikatorji: [100, 105],
+  modSkupine: [mockModSkupina, mockRazrezSkupina],
 };
 
 const mockNarocilo = {
@@ -256,6 +287,8 @@ vi.mock("@workspace/api-client-react", () => ({
   getListArtikliQueryKey: () => ["/api/artikli"],
   useGetPreparedFoodAvailability: () => ({ data: { businessDate: "2026-08-28", items: [] }, isLoading: false }),
   getGetPreparedFoodAvailabilityQueryKey: () => ["/prepared-food/availability"],
+  useGetKdsNastavitve: () => ({ data: undefined, isLoading: false }),
+  getGetKdsNastavitveQueryKey: () => ["/api/kds/nastavitve"],
   useListKategorije: () => ({ data: [mockKategorija], isLoading: false }),
   getListKategorijeQueryKey: () => ["/api/kategorije"],
   useListDnevniMeni: () => ({ data: [], isLoading: false }),
@@ -591,15 +624,17 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     const dodatki = screen.getByTestId("pizza-mod-group-dodatki");
     const brez = screen.getByTestId("pizza-mod-group-brez");
 
-    expect(within(razrez).getByRole("button", { name: "Trikotni razrez" })).toBeInTheDocument();
-    expect(within(razrez).getByRole("button", { name: "Štirikotni razrez" })).toBeInTheDocument();
+    expect(within(razrez).getByRole("button", { name: "Brez razreza" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(razrez).getByRole("button", { name: "Trikotni razrez (New York style)" })).toBeInTheDocument();
+    expect(within(razrez).getByRole("button", { name: "Kvadratni razrez (Party cut)" })).toBeInTheDocument();
     expect(within(razrez).getByRole("button", { name: "Razrez na polovico" })).toBeInTheDocument();
+    expect(within(razrez).getByRole("button", { name: "Razrez na četrtino" })).toBeInTheDocument();
     expect(within(dodatki).getByRole("button", { name: /Sir/ })).toBeInTheDocument();
     expect(within(dodatki).queryByRole("button", { name: /razrez/i })).not.toBeInTheDocument();
     expect(within(brez).getByRole("button", { name: "Brez čebule" })).toBeInTheDocument();
   });
 
-  it("pri pici dovoli samo en razrez ali nobenega", async () => {
+  it("pri pici dovoli samo en razrez in brez izbire onemogoči potrditev", async () => {
     await act(async () => {
       render(<Wrapper qc={qc}><Order /></Wrapper>);
     });
@@ -609,10 +644,14 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     });
 
     const razrez = await screen.findByTestId("pizza-mod-group-razrez");
-    const trikotni = within(razrez).getByRole("button", { name: "Trikotni razrez" });
-    const stirikotni = within(razrez).getByRole("button", { name: "Štirikotni razrez" });
+    const brezRazreza = within(razrez).getByRole("button", { name: "Brez razreza" });
+    const trikotni = within(razrez).getByRole("button", { name: "Trikotni razrez (New York style)" });
+    const stirikotni = within(razrez).getByRole("button", { name: "Kvadratni razrez (Party cut)" });
+    const potrdi = screen.getByRole("button", { name: "Potrdi" });
 
+    expect(brezRazreza).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(trikotni);
+    expect(brezRazreza).toHaveAttribute("aria-pressed", "false");
     expect(trikotni).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(stirikotni);
@@ -621,6 +660,11 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
 
     fireEvent.click(stirikotni);
     expect(stirikotni).toHaveAttribute("aria-pressed", "false");
+    expect(potrdi).toBeDisabled();
+
+    fireEvent.click(brezRazreza);
+    expect(brezRazreza).toHaveAttribute("aria-pressed", "true");
+    expect(potrdi).not.toBeDisabled();
   });
 
   // ── 4. Zaprtje dialoga → addPostavka se NE pokliče, stanje se ponastavi ────
@@ -730,7 +774,10 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     expect(prviKlic[0].data.velikostPice).toBe("druzinska");
     expect(Array.isArray(prviKlic[0].data.izbranModifikatorji)).toBe(true);
     const modifikatorji = prviKlic[0].data.izbranModifikatorji as Array<{ modifikatorId: number; ime: string; cenaDodatek: number }>;
-    expect(modifikatorji).toEqual([{ modifikatorId: 100, ime: "Sir", cenaDodatek: 0.5 }]);
+    expect(modifikatorji).toEqual([
+      { modifikatorId: 100, ime: "Sir", cenaDodatek: 0.5 },
+      { modifikatorId: 105, ime: "Brez razreza", cenaDodatek: 0 },
+    ]);
   });
 
   // ── 7. Glasovni vnos z več zadetki → razjasnitveni toast, brez addPostavka ──
