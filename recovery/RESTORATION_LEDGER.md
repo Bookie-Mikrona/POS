@@ -4,7 +4,7 @@
 
 - Recovery start (UTC): `2026-09-23T11:09:01Z`
 - Recovery start (Europe/Ljubljana): `2026-09-23T13:09:01+02:00`
-- Elapsed recovery time: `00:41:05`
+- Elapsed recovery time: `00:59:12`
 - Verified recovery cost: `$0.00`
 - Unverified accrued cost: `Pending Replit Account usage export`
 - Cost estimation policy: `No estimated or fabricated dollar values`
@@ -65,6 +65,9 @@ Agent. Consequently:
 | 020 | 2026-09-23T11:50:06Z | 00:41:05 | $0.00 | Reconciled historical migration sources without executing them. | Archived 23 exact SQL snapshots as non-executable evidence; active lineage remains 198 returnable-packaging and 199 company plans. |
 | 021 | 2026-09-23T11:50:06Z | 00:41:05 | $0.00 | Restored POS release manifest validation and object-storage regression coverage. | Release manifest validates 4 groups and 17 suites; validator tests 4/4 passed. |
 | 022 | 2026-09-23T11:50:06Z | 00:41:05 | $0.00 | Added migration collision/archive integrity validation. | Verified 206 active SQL files, 23 inert snapshots, exact preserved hashes, and no restored executable SQL in the active 200–219 range. |
+| 023 | 2026-09-23T12:08:13Z | 00:59:12 | $0.00 | Added and reviewed collision-free forward migration 220 for all restored schema effects. | Transactional development execution was rolled back; archive hashes, partial-upgrade backfills, constraints, indexes, triggers, and test manifest registration were verified. |
+| 024 | 2026-09-23T12:08:13Z | 00:59:12 | $0.00 | Completed integrated validation and independent architecture review. | API release group passed 22 suites/146 tests; targeted API/POS/public-app/library checks passed; final review reported no critical or high restoration blockers. |
+| 025 | 2026-09-23T12:08:13Z | 00:59:12 | $0.00 | Restarted API, POS, and Bookie Obiski managed workflows and reviewed logs. | All three are running; image-retention scheduler started and completed its first scan. Bookie Obiski was registered as an artifact. |
 
 ## Task register
 
@@ -78,4 +81,4 @@ Agent. Consequently:
 | R-05 | Restore voucher-delivery and Stripe safeguards | Complete | Retry, alerts, monitoring, tests |
 | R-06 | Reconcile OpenAPI and generated clients | Complete | Contract diff, codegen, type checks |
 | R-07 | Reconcile schema sources and historical migrations | Complete | Collision-safe migration record; no blind replay |
-| R-08 | Run integrated validation and prepare final report | Not started | Checks, screenshots, final evidence report |
+| R-08 | Run integrated validation and prepare final report | Complete | Checks, screenshots, final evidence report |
