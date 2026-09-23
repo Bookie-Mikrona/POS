@@ -63,6 +63,7 @@ const OrderPage = lazy(() => import("@/pages/Order"));
 const CheckoutPage = lazy(() => import("@/pages/Checkout"));
 const MenuPage = lazy(() => import("@/pages/Menu"));
 const ReceiptsPage = lazy(() => import("@/pages/Receipts"));
+const DnevniMeniPage = lazy(() => import("@/pages/DnevniMeni"));
 const StatsPage = lazy(() => import("@/pages/Stats"));
 const DnevniIzkazPage = lazy(() => import("@/pages/DnevniIzkaz"));
 const OperativnaPorocilaPage = lazy(() => import("@/pages/OperativnaPorocila"));
@@ -88,6 +89,7 @@ const RezervacijePage = lazy(() => import("@/pages/Rezervacije"));
 const IzdajaPage = lazy(() => import("@/pages/Izdaja"));
 const QrAdministracijaPage = lazy(() => import("@/pages/QrAdministracija"));
 const SuperAdminPage = lazy(() => import("@/pages/SuperAdmin"));
+const PrirocnikPage = lazy(() => import("@/manual/PrirocnikPage"));
 
 function KdsStationPage({ station }: { station: "bar" | "kitchen" | "pizza" }) {
   const { user } = useAuth();
@@ -150,6 +152,7 @@ const secondaryNav = [
   { href: "/pripravljena-hrana", label: "Pripravljena hrana", icon: Snowflake },
   { href: "/odpadki-s-kroznikov", label: "Odpadki s krožnikov", icon: Recycle },
   { href: "/meni", label: "Meni", icon: Menu },
+  { href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays },
   { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
   { href: "/odstopanja", label: "Cen. odstopanja", icon: TrendingDown },
   { href: "/uvoz-cenik", label: "Uvoz cenika", icon: Tag },
@@ -163,6 +166,7 @@ const secondaryNav = [
   { href: "/rezervacije", label: "Rezervacije miz", icon: CalendarDays },
   { href: "/narocniki", label: "Telefonski naročniki", icon: Users },
   { href: "/dogodki", label: "Dogodki in slavja", icon: CalendarDays },
+  { href: "/prirocnik", label: "Priročnik", icon: BookOpen },
 ];
 
 function NavLink({ href, label, icon: Icon, active, dot, className = "" }: {
@@ -462,6 +466,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/pripravljena-hrana", label: "Pripravljena hrana" },
       { href: "/odpadki-s-kroznikov", label: "Odpadki s krožnikov" },
       { href: "/meni", label: "Meni" },
+      { href: "/dnevni-meni", label: "Dnevni meni" },
       { href: "/zaloge", label: "Zaloge" },
       { href: "/odstopanja", label: "Cen. odstopanja" },
       { href: "/racuni", label: "Računi" },
@@ -476,6 +481,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/kontni-plan", label: "Kontni plan" },
        { href: "/konti-za-temeljnice", label: "Konti za temeljnice" },
       { href: "/nastavitve", label: "Nastavitve" },
+      { href: "/prirocnik", label: "Priročnik" },
       { href: "/nastavitve?tab=uporabniki", label: "Uporabniki" },
       { href: "/narocilo/", label: "Naročilo" },
       { href: "/simulacija", label: "Simulacija" },
@@ -523,6 +529,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   const allNav = (isSuperAdmin ? [
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
+    { href: "/prirocnik", label: "Priročnik", icon: BookOpen },
     { href: "/superadmin", label: "Super-admin", icon: ShieldCheck },
   ] : [
     { href: "/", label: "Mize", icon: Home },
@@ -536,6 +543,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { href: "/pripravljena-hrana", label: "Pripravljena hrana", icon: Snowflake },
     { href: "/odpadki-s-kroznikov", label: "Odpadki s krožnikov", icon: Recycle },
     { href: "/meni", label: "Meni", icon: Menu },
+    ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
     { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
     { href: "/statistike", label: "Statistike", icon: BarChart3 },
@@ -548,6 +556,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     ...(isAdmin || isAdminEnote ? [{ href: "/obracun-ur", label: "Obračun ur", icon: ClipboardList }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/simulacija", label: "Simulacija", icon: FlaskConical }] : []),
     { href: "/nastavitve", label: "Nastavitve", icon: Settings },
+    { href: "/prirocnik", label: "Priročnik", icon: BookOpen },
     ...(isAdmin ? [{ href: "/admin/testi", label: "Testi", icon: FlaskConical }] : []),
   ]).filter(item => canShowNav(item.href));
 
@@ -562,6 +571,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     ...(kdsNastavitve?.dispatchOmogocen ? [{ href: "/izdaja", label: "Izdaja", icon: CheckSquare }] : []),
      // Preostalo (brez Izmene in Računi, ki so zdaj v primarni vrstici)
      ...secondaryNav.filter(i => i.href !== "/izmene" && i.href !== "/racuni"),
+    ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/operativna-porocila", label: "Operativna poročila", icon: Activity }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/obracun-ur", label: "Obračun ur", icon: ClipboardList }] : []),
@@ -891,9 +901,11 @@ function ProtectedRouter() {
         <Suspense fallback={<NalagamStran />}>
           <Switch>
           <Route path="/" component={HomeGuard} />
+          <Route path="/prirocnik" component={PrirocnikPage} />
           <Route path="/narocilo/:id" component={OrderPage} />
           <Route path="/blagajna" component={CheckoutPage} />
           <Route path="/meni" component={MenuPage} />
+          <Route path="/dnevni-meni" component={DnevniMeniPage} />
           <Route path="/qr-meni" component={QrAdministracijaPage} />
           <Route path="/pripravljena-hrana" component={PreparedFoodPage} />
           <Route path="/odpadki-s-kroznikov" component={PlateWastePage} />
