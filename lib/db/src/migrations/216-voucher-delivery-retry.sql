@@ -1,0 +1,13 @@
+-- test-bootstrap: schema
+-- Historical source record only. Do not execute during selective restoration.
+ALTER TABLE individual_vouchers ADD COLUMN IF NOT EXISTS delivery_attempts integer NOT NULL DEFAULT 0;
+ALTER TABLE individual_vouchers ADD COLUMN IF NOT EXISTS delivery_next_attempt_at timestamptz;
+ALTER TABLE individual_vouchers ADD COLUMN IF NOT EXISTS delivery_last_attempt_at timestamptz;
+ALTER TABLE individual_vouchers ADD COLUMN IF NOT EXISTS delivery_claim_token text;
+ALTER TABLE individual_vouchers ADD COLUMN IF NOT EXISTS delivery_claimed_at timestamptz;
+ALTER TABLE individual_vouchers DROP CONSTRAINT IF EXISTS individual_vouchers_delivery_status_check;
+ALTER TABLE individual_vouchers ADD CONSTRAINT individual_vouchers_delivery_status_check
+  CHECK (delivery_status IN ('pending','sending','sent','failed'));
+CREATE INDEX IF NOT EXISTS ix_individual_vouchers_delivery_retry
+  ON individual_vouchers (delivery_next_attempt_at, checkout_id)
+  WHERE delivery_status IN ('pending','failed','sending');

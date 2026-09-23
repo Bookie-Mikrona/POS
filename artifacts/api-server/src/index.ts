@@ -6,6 +6,7 @@ import { zazeniSproscanjeRezervacijMiz } from "./lib/rezervacijeMizScheduler";
 import { startMonthlyPosBookingScheduler } from "./lib/monthlyPosBookingScheduler";
 import { startOfflineFiscalRunner } from "./services/pos/offline-fiscal-runner";
 import { startQrHistoryRetentionScheduler } from "./lib/qrHistoryRetention";
+import { startVoucherDeliveryRetryScheduler } from "./routes/publicVisits";
 
 const rawPort = process.env["PORT"];
 
@@ -46,4 +47,7 @@ app.listen(port, (err) => {
 
   // QR naprava ostane povezljiva z zaključeno zgodovino največ 30 dni.
   startQrHistoryRetentionScheduler();
+
+  // Retry paid voucher delivery after transient SMTP failures.
+  startVoucherDeliveryRetryScheduler();
 });

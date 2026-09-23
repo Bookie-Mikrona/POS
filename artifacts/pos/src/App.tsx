@@ -13,7 +13,16 @@ import { OfflineFiscalQueueStatus } from "@/components/OfflineFiscalQueueStatus"
 import { LocalGatewayStatusBanner } from "@/components/LocalGatewayStatusBanner";
 import { GatewayOfflineProvider } from "@/lib/gatewayOfflineStore";
 import { QuickSwitch } from "@/components/QuickSwitch";
-import { useListRacuni, useRetryFursBatch, getListRacuniQueryKey, useGetKdsNastavitve, getGetKdsNastavitveQueryKey } from "@workspace/api-client-react";
+import {
+  useListRacuni,
+  useRetryFursBatch,
+  getListRacuniQueryKey,
+  useGetKdsNastavitve,
+  getGetKdsNastavitveQueryKey,
+  useListOpozorilaNeuspeleDostaveBonov,
+  getListOpozorilaNeuspeleDostaveBonovQueryKey,
+  usePonoviDostavoIndividualnegaBona,
+} from "@workspace/api-client-react";
 import { NastavitveProvider, useNastavitve } from "@/contexts/NastavitveContext";
 import { HappyHourProvider, useHappyHour } from "@/contexts/HappyHourContext";
 import { NapravaProvider } from "@/contexts/NapravaContext";
@@ -292,6 +301,74 @@ function FursNapakaRetryBanner() {
       >
         {retry.isPending ? "Pošiljanje…" : "Poskusi zdaj"}
       </button>
+    </div>
+  );
+}
+
+function VoucherDeliveryAlertBanner() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const enotaId = user?.enotaId;
+  const isManager = ["admin", "admin_enote", "superadmin"].includes(user?.vloga ?? "");
+  const baseKey = getListOpozorilaNeuspeleDostaveBonovQueryKey();
+  const queryKey = enotaId ? [...baseKey, enotaId] : baseKey;
+  const { data: alerts = [] } = useListOpozorilaNeuspeleDostaveBonov({
+    query: {
+      queryKey,
+      enabled: isManager && !!enotaId,
+      refetchInterval: 60_000,
+      retry: false,
+    },
+  });
+  const retryDelivery = usePonoviDostavoIndividualnegaBona({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Bon je bil uspešno poslan." });
+        queryClient.invalidateQueries({ queryKey });
+      },
+      onError: (error) => {
+        toast({
+          title: "Ponovna dostava ni uspela",
+          description: error instanceof Error ? error.message : "Poskusite znova pozneje.",
+          variant: "destructive",
+        });
+        queryClient.invalidateQueries({ queryKey });
+      },
+    },
+  });
+  const alert = alerts[0];
+  if (!alert) return null;
+
+  return (
+    <div
+      className="flex flex-col gap-2 border-b border-red-300 bg-red-50 px-4 py-3 text-red-950 sm:flex-row sm:items-center sm:justify-between"
+      data-testid="banner-voucher-delivery-alert"
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />
+        <div className="min-w-0 text-sm">
+          <p className="font-semibold">
+            Plačanega bona za {alert.recipientName} ({alert.recipientEmail}) ni bilo mogoče dostaviti
+            {alerts.length > 1 ? ` · še ${alerts.length - 1} odprtih opozoril` : ""}.
+          </p>
+          <p className="truncate text-xs text-red-800" title={alert.lastError}>
+            Zadnja napaka: {alert.lastError}
+          </p>
+        </div>
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="destructive"
+        className="shrink-0"
+        disabled={retryDelivery.isPending}
+        onClick={() => retryDelivery.mutate({ checkoutId: alert.checkoutId })}
+        data-testid="button-retry-voucher-delivery"
+      >
+        {retryDelivery.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        Ponovi pošiljanje
+      </Button>
     </div>
   );
 }
@@ -713,6 +790,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
         <CertExpiryBanner />
         <FursNapakaRetryBanner />
+        <VoucherDeliveryAlertBanner />
         <OfflineFiscalQueueStatus />
         <LocalGatewayStatusBanner />
         {!isSuperAdmin && <CtiDohodniKlicPopup />}

@@ -22,7 +22,7 @@ import {
 import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import type Stripe from "stripe";
-import { logPublicStripeWebhookFailure } from "../lib/logger";
+import { logger, logPublicStripeWebhookFailure } from "../lib/logger";
 import { getUncachableStripeClient } from "../lib/stripeClient";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import {
@@ -325,7 +325,11 @@ let voucherDeliveryRetryStarted = false;
 export function startVoucherDeliveryRetryScheduler() {
   if (voucherDeliveryRetryStarted) return;
   voucherDeliveryRetryStarted = true;
-  const run = () => { void processPendingVoucherDeliveries().catch((error) => console.error("Voucher delivery retry failed", error)); };
+  const run = () => {
+    void processPendingVoucherDeliveries().catch((error) => {
+      logger.error({ err: error }, "Voucher delivery retry failed");
+    });
+  };
   run();
   setInterval(run, 60_000).unref();
 }

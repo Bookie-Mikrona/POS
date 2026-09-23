@@ -11,7 +11,21 @@ import {
 import { isDatabaseRestoreInProgress } from "./lib/databaseRestoreGuard";
 import router from "./routes";
 import javniMeniRouter from "./routes/javnoMeni";
-import { publicVisitsRouter } from "./routes/publicVisits";
+import { processPublicStripeEvent, publicVisitsRouter } from "./routes/publicVisits";
+import {
+  logPublicStripeWebhookFailure,
+} from "./lib/logger";
+import {
+  getStripeSync,
+  isStripeConnectionError,
+  isStripeWebhookSyncError,
+} from "./lib/stripeClient";
+import { stripeSyncFailureMonitor } from "./lib/stripeSyncFailureMonitor";
+import {
+  nextStripeConnectionObservation,
+  recordStripeConnectionMisconfigured,
+  resolveStripeConnectionMisconfigured,
+} from "./lib/stripeConnectionAlert";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -45,6 +59,109 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+app.post(
+  "/api/javno/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res): Promise<void> => {
+    const signature = req.headers["stripe-signature"];
+    if (!signature || Array.isArray(signature) || !Buffer.isBuffer(req.body)) {
+      res.status(400).json({ error: "Manjka veljaven Stripe podpis." });
+      return;
+    }
+    try {
+      const sync = await getStripeSync();
+      const event = await sync.processWebhook(req.body, signature);
+      try {
+        await resolveStripeConnectionMisconfigured(
+          undefined,
+          nextStripeConnectionObservation(),
+        );
+      } catch (alertError) {
+        req.log.error(
+          { err: alertError, operation: "resolve" },
+          "Stripe connection alert state could not be resolved",
+        );
+      }
+      const recovery = stripeSyncFailureMonitor.recordSuccess();
+      if (recovery) {
+        req.log.info(
+          {
+            reason: "stripe_sync_recovered",
+            failureCount: recovery.failureCount,
+            outageDurationMs: recovery.outageDurationMs,
+          },
+          "Stripe webhook synchronization recovered",
+        );
+      }
+      await processPublicStripeEvent(event, req, res);
+    } catch (error) {
+      if (isStripeWebhookSyncError(error)) {
+        const operationalAlert = stripeSyncFailureMonitor.recordFailure();
+        logPublicStripeWebhookFailure({
+          error,
+          reason: "stripe_sync_failed",
+          retryable: true,
+          requestId: req.id,
+          message: "Stripe webhook synchronization failed",
+        });
+        if (operationalAlert) {
+          req.log.warn(
+            {
+              reason: "stripe_sync_repeated_failures",
+              failureCount: operationalAlert.failureCount,
+              windowMs: operationalAlert.windowMs,
+            },
+            "Repeated Stripe webhook synchronization failures",
+          );
+        }
+        res.status(503).json({
+          error: "Stripe sinhronizacija trenutno ni na voljo.",
+          code: "stripe_sync_unavailable",
+          retryable: true,
+        });
+        return;
+      }
+      if (isStripeConnectionError(error)) {
+        if (error.code === "stripe_connection_misconfigured") {
+          try {
+            await recordStripeConnectionMisconfigured(
+              undefined,
+              nextStripeConnectionObservation(),
+            );
+          } catch (alertError) {
+            req.log.error(
+              { err: alertError, operation: "open" },
+              "Stripe connection alert state could not be recorded",
+            );
+          }
+        }
+        logPublicStripeWebhookFailure({
+          error,
+          reason: error.code,
+          retryable: error.retryable,
+          requestId: req.id,
+          message: "Stripe connection failed before webhook verification",
+        });
+        res.status(error.retryable ? 503 : 500).json({
+          error: error.retryable
+            ? "Stripe povezava trenutno ni na voljo."
+            : "Stripe povezava ni pravilno nastavljena.",
+          code: error.code,
+          retryable: error.retryable,
+        });
+        return;
+      }
+      logPublicStripeWebhookFailure({
+        error,
+        reason: "stripe_signature_or_payload_invalid",
+        retryable: false,
+        requestId: req.id,
+        message: "Stripe webhook rejected",
+      });
+      res.status(400).json({ error: "Stripe dogodka ni mogoče potrditi." });
+    }
+  },
+);
 app.use(express.json({
   limit: "20mb",
   verify: (req, _res, buffer) => { (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer); },
