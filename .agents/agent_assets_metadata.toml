@@ -991,3 +991,17 @@ mtime_ms = 1790109561792
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/981f469e-87e2-497d-8dd4-148538956f3b/3315660b-7cb4-4aa7-99ef-57d4a504a993"
 storage_version_token = "1790109566594298"
 content_type = "text/plain"
+
+[[outputs]]
+id = "k7a3ExqHn5L6NO-DZp_At"
+uri = "file://recovery/FINAL_RESTORATION_REPORT.md"
+type = "text"
+title = "Final Selective Restoration Report"
+description = "English evidence report with scope, migration safety, validation results, Git commits, runtime evidence, and credit-claim reconciliation guidance."
+logical_id = "9649d482-a136-4317-a615-6b94dd788270"
+content_hash = "sha256:d5d19877ffdeadab54cce7f68d47f01f69f99b4db22bcab3be474994134ca3d7"
+size = 4701
+mtime_ms = 1790165336985
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/9649d482-a136-4317-a615-6b94dd788270/cf6be21e-37c6-4a5d-9524-ac430957bf95"
+storage_version_token = "1790165355369022"
+content_type = "text/markdown"
