@@ -10721,6 +10721,7 @@ export interface JavniBonProduct {
 }
 
 export interface JavniBoni {
+  checkoutEnabled: boolean;
   products: JavniBonProduct[];
 }
 
@@ -11084,6 +11085,20 @@ export interface JavniProfilImageUploadRequest {
 export interface JavniProfilImageUploadResponse {
   uploadURL: string;
   objectPath: string;
+}
+
+export interface JavniProfilStripeConnectStatus {
+  connected: boolean;
+  ready: boolean;
+  /** @nullable */
+  accountId: string | null;
+  detailsSubmitted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+}
+
+export interface JavniProfilStripeConnectOnboarding {
+  url: string;
 }
 
 export type StripeWebhookInputPayload = { [key: string]: unknown };

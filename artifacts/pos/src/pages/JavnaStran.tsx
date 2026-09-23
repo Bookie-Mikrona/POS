@@ -10,6 +10,7 @@ import { PublicVenueView, type PreviewVoucherProduct } from "@workspace/public-v
 import { useToast } from "@/hooks/use-toast";
 import { usePublicProfileStagingImages } from "@/hooks/usePublicProfileStagingImages";
 import { useAuth } from "@/contexts/AuthContext";
+import { StripeConnectOnboardingCard } from "@/components/StripeConnectOnboardingCard";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetJavniProfilNastavitve,
@@ -772,6 +773,9 @@ export default function JavnaStran() {
   }, []);
 
   const jeAdmin = ["admin", "admin_enote", "superadmin"].includes(user?.vloga ?? "");
+  // A Stripe account is shared by the whole company, so a unit administrator
+  // must not be offered a company-wide account binding.
+  const jeStripeConnectAdmin = ["admin", "superadmin"].includes(user?.vloga ?? "");
 
   const baseKey = getGetJavniProfilNastavitveQueryKey();
   const queryKey = enotaId ? [...baseKey, enotaId] : baseKey;
@@ -943,6 +947,8 @@ export default function JavnaStran() {
           Upravljajte javno predstavitev vaše enote. Nastavite kontaktne podatke, vizualno podobo, odpiralni čas in ponudbo darilnih bonov, ki bodo na voljo vašim gostom.
         </p>
       </div>
+
+      {jeStripeConnectAdmin && enotaId != null && <StripeConnectOnboardingCard enotaId={enotaId} />}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

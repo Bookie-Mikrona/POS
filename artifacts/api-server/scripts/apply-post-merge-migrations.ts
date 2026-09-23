@@ -67,6 +67,8 @@ const migrations = [
   "188-account-cost-center-policy.sql",
   "198-pos-returnable-packaging-writeoff.sql",
   "199-company-pos-plans.sql",
+  "220-restored-pos-public-features.sql",
+  "221-public-voucher-stripe-connect.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");

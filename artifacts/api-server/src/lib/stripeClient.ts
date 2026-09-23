@@ -102,12 +102,61 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
       false,
     );
   }
+  const secretKey=settings.secret_key.trim();
+  if(!/^sk_(?:test|live)_/.test(secretKey)) {
+    throw new StripeConnectionError(
+      "stripe_connection_misconfigured",
+      "Stripe skrivni ključ nima prepoznavnega test/live načina.",
+      false,
+    );
+  }
   return {
-    secretKey:settings.secret_key,
+    secretKey,
     webhookSecret:settings.webhook_secret?.trim() || undefined,
   };
 }
-export async function getUncachableStripeClient(){const {secretKey}=await getStripeCredentials();return new Stripe(secretKey);}
+export async function getStripePlatformContext() {
+  const { secretKey } = await getStripeCredentials();
+  const stripe = new Stripe(secretKey);
+  return { stripe, livemode: secretKey.startsWith("sk_live_") };
+}
+export async function getUncachableStripeClient(){return (await getStripePlatformContext()).stripe;}
+
+export async function constructConnectedStripeEvent(
+  payload: Buffer | string,
+  signature: string,
+): Promise<Stripe.Event> {
+  let livemode: unknown;
+  try {
+    const decoded = JSON.parse(Buffer.isBuffer(payload) ? payload.toString("utf8") : payload);
+    livemode = decoded?.livemode;
+  } catch (error) {
+    throw new Error("Stripe Connect webhook payload is invalid.", { cause: error });
+  }
+  if (typeof livemode !== "boolean") {
+    throw new Error("Stripe Connect webhook must declare its mode.");
+  }
+  const { stripe, livemode: platformLivemode } = await getStripePlatformContext();
+  if (livemode !== platformLivemode) {
+    throw new Error("Stripe Connect webhook mode does not match the connected platform.");
+  }
+  const secret = livemode
+    ? process.env.STRIPE_CONNECT_WEBHOOK_SECRET_LIVE
+    : process.env.STRIPE_CONNECT_WEBHOOK_SECRET_TEST;
+  if (!secret?.trim()) {
+    throw new StripeConnectionError(
+      "stripe_connection_misconfigured",
+      `Stripe Connect ${livemode ? "live" : "test"} webhook signing secret is not configured.`,
+      false,
+    );
+  }
+  const event = stripe.webhooks.constructEvent(payload, signature, secret.trim());
+  if (!event.account) {
+    throw new Error("Stripe Connect webhook event is missing its connected account.");
+  }
+  return event;
+}
+
 export async function getStripeSync(){
   if(!process.env.DATABASE_URL) {
     throw new StripeConnectionError(

@@ -17,6 +17,7 @@ import {
 } from "./lib/logger";
 import {
   getStripeSync,
+  constructConnectedStripeEvent,
   isStripeConnectionError,
   isStripeWebhookSyncError,
 } from "./lib/stripeClient";
@@ -69,6 +70,18 @@ app.post(
       return;
     }
     try {
+      let hasConnectAccount = false;
+      try {
+        const untrusted = JSON.parse(req.body.toString("utf8"));
+        hasConnectAccount = Object.prototype.hasOwnProperty.call(untrusted ?? {}, "account");
+      } catch {
+        // The platform verifier below will return the canonical invalid-payload response.
+      }
+      if (hasConnectAccount) {
+        const event = await constructConnectedStripeEvent(req.body, signature);
+        await processPublicStripeEvent(event, req, res, event.account ?? null);
+        return;
+      }
       const sync = await getStripeSync();
       const event = await sync.processWebhook(req.body, signature);
       try {

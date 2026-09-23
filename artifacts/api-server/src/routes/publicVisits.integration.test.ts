@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import express from "express";
 import supertest from "supertest";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { companiesTable, db, enoteTable, mizeTable } from "@workspace/db";
@@ -10,6 +11,9 @@ import {
   processPendingVoucherDeliveries,
   processPublicStripeEvent,
   publicVisitsRouter,
+  stripeAccountIsReady,
+  stripeCheckoutEventAccountMatches,
+  voucherStripeIdempotencyKey,
   startsAt,
   voucherDeliveryRetryDelayMinutes,
 } from "./publicVisits";
@@ -152,6 +156,72 @@ afterAll(async () => {
   } catch(error) { await client.query("ROLLBACK"); throw error; }
   finally { client.release(); }
   await db.delete(companiesTable).where(eq(companiesTable.id,companyId));
+});
+
+describe("Stripe Connect voucher safeguards", () => {
+  it("requires a Standard account in the platform mode and all payment capabilities", () => {
+    const ready={id:"acct_ready",type:"standard",details_submitted:true,charges_enabled:true,payouts_enabled:true};
+    expect(stripeAccountIsReady(ready,"acct_ready",false,false)).toBe(true);
+    expect(stripeAccountIsReady(ready,"acct_other",false,false)).toBe(false);
+    expect(stripeAccountIsReady({...ready,payouts_enabled:false},"acct_ready",false,false)).toBe(false);
+    expect(stripeAccountIsReady(ready,"acct_ready",true,false)).toBe(false);
+    expect(stripeAccountIsReady({...ready,type:"express"},"acct_ready",false,false)).toBe(false);
+  });
+
+  it("scopes Stripe idempotency to both the connected account and checkout", () => {
+    const first=voucherStripeIdempotencyKey("acct_one","checkout-one",false);
+    expect(first).toBe(voucherStripeIdempotencyKey("acct_one","checkout-one",false));
+    expect(first).not.toBe(voucherStripeIdempotencyKey("acct_two","checkout-one",false));
+    expect(first).not.toBe(voucherStripeIdempotencyKey("acct_one","checkout-two",false));
+    expect(first).not.toBe(voucherStripeIdempotencyKey("acct_one","checkout-one",true));
+    expect(first).not.toContain("acct_one");
+  });
+
+  it("matches webhook ownership only to its immutable account snapshot", () => {
+    const checkout={connect_account_id:"acct_merchant",stripe_livemode:true};
+    expect(stripeCheckoutEventAccountMatches(checkout,"acct_merchant",true)).toBe(true);
+    expect(stripeCheckoutEventAccountMatches(checkout,"acct_other",true)).toBe(false);
+    expect(stripeCheckoutEventAccountMatches(checkout,"acct_merchant",false)).toBe(false);
+    expect(stripeCheckoutEventAccountMatches(checkout,null,true)).toBe(false);
+    expect(stripeCheckoutEventAccountMatches({connect_account_id:null},null,true)).toBe(true);
+  });
+
+  it("processes only the configured account's update and deauthorization events", async () => {
+    const accountId=`acct_status${run}`;
+    await db.execute(sql`INSERT INTO public_company_stripe_connect(
+      company_id,account_id,livemode,details_submitted,charges_enabled,payouts_enabled)
+      VALUES(${companyId},${accountId},false,true,true,true)
+      ON CONFLICT(company_id) DO UPDATE SET account_id=excluded.account_id,livemode=false,
+        details_submitted=true,charges_enabled=true,payouts_enabled=true`);
+    const updateResponse={statusCode:200,body:undefined as any,status(code:number){this.statusCode=code;return this;},json(body:any){this.body=body;return this;}};
+    await processPublicStripeEvent({
+      id:`evt_account_updated_${run}`,type:"account.updated",account:accountId,livemode:false,
+      data:{object:{id:accountId,type:"standard",details_submitted:true,charges_enabled:false,payouts_enabled:true}},
+    } as any,{log:{error:vi.fn(),warn:vi.fn()}},updateResponse,accountId);
+    expect(updateResponse.statusCode).toBe(200);
+    const updated=(await (db as any).$client.query(
+      "SELECT charges_enabled FROM public_company_stripe_connect WHERE company_id=$1",[companyId],
+    )).rows[0];
+    expect(updated.charges_enabled).toBe(false);
+
+    const mismatch={statusCode:200,body:undefined as any,status(code:number){this.statusCode=code;return this;},json(body:any){this.body=body;return this;}};
+    await processPublicStripeEvent({
+      id:`evt_other_account_${run}`,type:"account.updated",account:"acct_other",livemode:false,
+      data:{object:{id:"acct_other"}},
+    } as any,{log:{error:vi.fn(),warn:vi.fn()}},mismatch,"acct_other");
+    expect(mismatch.statusCode).toBe(200);
+    expect(mismatch.body).toMatchObject({received:true,processed:false,accountMatched:false});
+
+    const disconnect={statusCode:200,body:undefined as any,status(code:number){this.statusCode=code;return this;},json(body:any){this.body=body;return this;}};
+    await processPublicStripeEvent({
+      id:`evt_account_deauthorized_${run}`,type:"account.application.deauthorized",account:accountId,livemode:false,
+      data:{object:{id:"ca_test"}},
+    } as any,{log:{error:vi.fn(),warn:vi.fn()}},disconnect,accountId);
+    expect(disconnect.statusCode).toBe(200);
+    expect((await (db as any).$client.query(
+      "SELECT account_id,livemode,charges_enabled FROM public_company_stripe_connect WHERE company_id=$1",[companyId],
+    )).rows[0]).toEqual({account_id:null,livemode:null,charges_enabled:false});
+  });
 });
 
 describe("javni obiski", () => {
@@ -641,6 +711,53 @@ describe("javni obiski", () => {
     ]));
   });
 
+  it("platform webhook ne izda bona za checkout, ki je posnet na Stripe Connect račun", async () => {
+    sendMail.mockResolvedValue({messageId:"connect-sent"});
+    const sessionId=`cs_connect_${run}`;
+    const client=await (db as any).$client.connect();
+    let checkoutId="";
+    const connectedAccountId=`acct_merchant${run}`;
+    try{
+      checkoutId=(await client.query(`INSERT INTO public_voucher_checkouts(
+        profile_id,company_id,unit_id,idempotency_key,stripe_session_id,expected_amount_cents,
+        buyer_name,buyer_email,recipient_name,recipient_email,items,privacy_accepted_at,status,payment_status,
+        connect_account_id,stripe_livemode,stripe_idempotency_key)
+        VALUES($1,$2,$3,$4,$5,5000,'Kupec','k@example.test','Gost','g@example.test',
+          $6::jsonb,now(),'open','unpaid',$7,false,'test-idempotency') RETURNING id`,
+      [profileId,companyId,unitId,`connect-${run}`,sessionId,JSON.stringify([{variantId:randomUUID(),quantity:1,amountCents:5000,currency:"EUR"}]),connectedAccountId])).rows[0].id;
+    }finally{client.release();}
+
+    const eventPayload=(id:string,account:string|null)=>({
+      id,type:"checkout.session.completed",livemode:false,...(account?{account}:{}),
+      data:{object:{id:sessionId,payment_status:"paid",currency:"eur",amount_total:5000,
+        metadata:{checkout_id:checkoutId,company_id:companyId,unit_id:String(unitId)}}},
+    });
+    const platformResponse={statusCode:200,body:undefined as any,status(code:number){this.statusCode=code;return this;},json(body:any){this.body=body;return this;}};
+    await processPublicStripeEvent(eventPayload(`evt_platform_connect_${run}`,null) as any,{log:{error:vi.fn(),warn:vi.fn()}},platformResponse);
+    expect(platformResponse.statusCode).toBe(409);
+    expect(Number((await (db as any).$client.query(
+      "SELECT count(*)::int AS count FROM individual_vouchers WHERE checkout_id=$1",[checkoutId],
+    )).rows[0].count)).toBe(0);
+
+    const connectResponse={statusCode:200,body:undefined as any,status(code:number){this.statusCode=code;return this;},json(body:any){this.body=body;return this;}};
+    await processPublicStripeEvent(eventPayload(`evt_connect_match_${run}`,connectedAccountId) as any,{log:{error:vi.fn(),warn:vi.fn(),info:vi.fn()}},connectResponse,connectedAccountId);
+    expect(connectResponse.statusCode).toBe(200);
+    expect(connectResponse.body).toMatchObject({received:true,processed:true});
+    expect(Number((await (db as any).$client.query(
+      "SELECT count(*)::int AS count FROM individual_vouchers WHERE checkout_id=$1",[checkoutId],
+    )).rows[0].count)).toBe(1);
+    const secondSuccess={statusCode:200,body:undefined as any,status(code:number){this.statusCode=code;return this;},json(body:any){this.body=body;return this;}};
+    await processPublicStripeEvent({
+      ...eventPayload(`evt_connect_async_${run}`,connectedAccountId),
+      type:"checkout.session.async_payment_succeeded",
+    } as any,{log:{error:vi.fn(),warn:vi.fn(),info:vi.fn()}},secondSuccess,connectedAccountId);
+    expect(secondSuccess.statusCode).toBe(200);
+    expect(secondSuccess.body).toMatchObject({received:true,processed:false});
+    expect(Number((await (db as any).$client.query(
+      "SELECT count(*)::int AS count FROM individual_vouchers WHERE checkout_id=$1",[checkoutId],
+    )).rows[0].count)).toBe(1);
+  });
+
   it("po petem neuspehu ustvari eno opozorilo in ga uspešna ročna dostava reši", async () => {
     sendMail.mockReset();
     sendMail.mockRejectedValue(new Error("SMTP trajno nedosegljiv"));
@@ -811,15 +928,15 @@ describe("javni obiski", () => {
     const api=supertest(internalApp());
     const list=await api.get("/darilni-boni/individualni/stripe-pregledi");
     expect(list.status,list.text).toBe(200);
-    expect(list.body).toEqual([
+    expect(list.body).toEqual(expect.arrayContaining([
       expect.objectContaining({
         eventId,sessionId,checkoutId,companyId,unitId,
         reasonCode:"amount_mismatch",
         expectedAmountCents:5000,receivedAmountCents:5100,
         expectedCurrency:"EUR",receivedCurrency:"EUR",
       }),
-    ]);
-    const reviewId=list.body[0].id;
+    ]));
+    const reviewId=list.body.find((review:any)=>review.eventId===eventId).id;
 
     const repeated=makeResponse();
     await processPublicStripeEvent(event as any,{log:{error:vi.fn()}},repeated);
@@ -834,7 +951,8 @@ describe("javni obiski", () => {
       .send({note:"Plačilo preverjeno v Stripe; bon ni bil izdan."});
     expect(resolved.status,resolved.text).toBe(200);
     expect(resolved.body.status).toBe("resolved");
-    expect((await api.get("/darilni-boni/individualni/stripe-pregledi")).body).toEqual([]);
+    expect((await api.get("/darilni-boni/individualni/stripe-pregledi")).body
+      .filter((review:any)=>review.eventId===eventId)).toEqual([]);
 
     const evidence=await (db as any).$client.query(`
       SELECT

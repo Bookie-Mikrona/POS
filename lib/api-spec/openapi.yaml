@@ -9944,6 +9944,21 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /javni-profil/stripe-connect:
+    get:
+      operationId: getJavniProfilStripeConnect
+      tags: [javniObiski]
+      responses:
+        "200": { description: Status Stripe Connect računa aktivne enote, content: { application/json: { schema: { $ref: "#/components/schemas/JavniProfilStripeConnectStatus" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /javni-profil/stripe-connect/onboarding:
+    post:
+      operationId: createJavniProfilStripeConnectOnboarding
+      tags: [javniObiski]
+      responses:
+        "200": { description: Enkratna povezava za Stripe Connect onboarding, content: { application/json: { schema: { $ref: "#/components/schemas/JavniProfilStripeConnectOnboarding" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /javni-profil/slike/upload-url:
     post:
       operationId: requestJavniProfilImageUpload
@@ -22312,8 +22327,9 @@ components:
         cancelledAt: { type: [string, "null"] }
     JavniBoni:
       type: object
-      required: [products]
+      required: [products, checkoutEnabled]
       properties:
+        checkoutEnabled: { type: boolean }
         products:
           type: array
           items: { $ref: "#/components/schemas/JavniBonProduct" }
@@ -22527,6 +22543,21 @@ components:
       properties:
         uploadURL: { type: string }
         objectPath: { type: string }
+    JavniProfilStripeConnectStatus:
+      type: object
+      required: [connected, ready, accountId, detailsSubmitted, chargesEnabled, payoutsEnabled]
+      properties:
+        connected: { type: boolean }
+        ready: { type: boolean }
+        accountId: { type: ["string", "null"] }
+        detailsSubmitted: { type: boolean }
+        chargesEnabled: { type: boolean }
+        payoutsEnabled: { type: boolean }
+    JavniProfilStripeConnectOnboarding:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
     StripeWebhookInput:
       type: object
       required: [id, type, payload]

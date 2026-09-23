@@ -15,7 +15,6 @@
 - [Več QR naročil na mizi](qr-vec-narocil-na-mizi.md) — različne naprave ostanejo ločene, POS pa mora na isti mizi prikazati in odpreti vsako naročilo.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
 - [FURS POS Web GitHub](furs-pos-web-github.md) — izvorni POS projekt na GitHubu; referenca za logiko
-- [Super admin sistem](super-admin.md) — env var SUPER_ADMIN_IDS, company_modules tabela, admin panel na /admin
 - [Komunikacija](komunikacija.md) — izključno slovenščina
 - [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
@@ -30,9 +29,7 @@
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
 - [ZCS bridge stale process](zcs-bridge-stale.md) — most "ni dosegljiv" = star proces drži port; fix: restart APK na napravi
 - [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — ✅ delujoč ZCS most; download APK je lahko ločen od source metadata, zato vedno preveri konkretni asset
-- [POS booking analitika](pos-booking-analitika.md) — pos_booking_settings razširjen na 24 stolpcev; prihodki po vrsti_artikla×davek iz postavke tabele; fallback na stare konte
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
-- [Checkpoint skupaj-vidnost-prostor-v1](checkpoint-skupaj-vidnost-prostor-v1.md) — git tag za povratek: kaskadni izbris otrok, proporcionalna kolicina, prostor v glavi, footer vedno viden
 - [Uvoz prejemnic — tech sklad](uvoz-prejemnic-tech.md) — drizzle/node-postgres vrača QueryResult; vsi Claudovi podjetjeId→enotaId; paketi; rute registrirane
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
 - [Samodejno iskanje dobavitelja](poisci-dobavitelja.md) — DDG Lite → bizi.si slug → scrape davčne; brez API ključa; vsi 3 MANJKA_DOBAVITELJ bloki pokrite
@@ -41,13 +38,9 @@
 - [Mobilni UI popravki](mobilni-ui-popravki.md) — zbirka mobile-layout popravkov: UparjanjeDialog, Zaloge, Izmene, "Več" plošča, navigacija; pravilo: flex-col sm:flex-row za Select+Button v karticah
 - [lib/db rebuild in migracija](libdb-rebuild-migracija.md) — stale .d.ts po spremembi sheme: rebuild z `cd lib/db && npx tsc -p tsconfig.json`; drizzle date() = ISO string; psql za migracije; tsx za teste
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
-- [Izhodni e-račun Faza A](eracun-faza-a.md) — generator, migracija, prožilnik, prenos XML; POS cene so bruto; Peppol TODO veja v generator.ts
-- [e-SLOG e-mail kanal](eracun-email-kanal.md) — 048+049 migracija; PDF shranjen ob izdaji; POST /eracun/poslji-email; status "poslano_email"; EslogEmailButton
 - [Vitest ESM mock lekcije](vitest-esm-mock.md) — importOriginal nestabilen za tranzitivne uvoz; CHECK constraint je treba sinhronizirati z Drizzle enumom; narocilo_id NOT NULL za DB insert v testih
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
 - [ERP poročila unclassified](erp-reports-unclassified.md) — resolveEffectiveType: SRS override za cifro 0–9, sentinel "unclassified" za ostalo; nikoli tiha izguba; buildBalanceSheet/buildIncomeStatement exportani za teste
-- [ERP receipt_date migracija](erp-receipt-date.md) — journal_entries.receipt_date (009-receipt-date.sql); EntryMeta.receiptDate; vatLedger: receiptDate??documentDate??entryDate; api-zod CreateJournalEntryBody razširjen
-- [POS booking vatCodeId](pos-booking-vatcode.md) — 010+011 migracija; vat5/vat95/vat22VatCodeId v pos_booking_settings; mergeLines sešteje vatAmount; fallback console.warn brez blokade; UI VatCodeSelect 3 stopnje
 - [DDV zaključek temeljnica](ddv-zakljucek-closing.md) — 012 migracija; 160%/260% filter; dryRun predogled; auto-create 2699/1699; duplicate check prek reference polja
 - [Neodbitni vstopni DDV](neodbitni-ddv.md) — 013 migracija (PN5/PN95/UVP5/UVP95); fursVatCodes ruta+hook; vatDeductionPercent UI v temeljnicah; isNonDeductible → privzeto 0%
 - [Register OS Faza 3ab](register-os-3ab.md) — 015 migracija; GLAVA (osnovna_sredstva) + PODZAPISI (os_doknjizbe); skupinaId samo na glavi; vrednosti+datumi na doknjižbah; seq=0 = osnova, seq≥1 = dograditve
@@ -59,7 +52,6 @@
 - [OS negativna NV korekcija](os-negativna-nv.md) — uvožene korekcijske doknjižbe imajo negativno NV; engine mora vrniti 0 (ne negativno AM); opomba "negativna_osnova"
 - [OS oslabitev — nova letna AM](os-oslabitev-nova-letna-am.md) — SRS 1.35+: nova AM = nova_knjižna/preostala_doba; fiksirana v DB; odpisanaVrednost se ne posodablja
 - [OS register izvoz + enrichment](os-register-izvoz.md) — buildEnrichedRegisterData helper; PDF=landscape A4; XLSX=ExcelJS; oslabiteVObdobja mora biti v vrstici za calcMedletniSeštevki
-- [Šifrant stroškovnih mest](stroskovana-mesta.md) — 030 migracija; tip/parentId/odgovornaOseba; soft-delete logika; vitest mock vzorec za dimensions.ts
 - [Zgodovinski obračun ur](obracun-ur-zgodovinski-snapshot.md) — izmene morajo hraniti nespremenljivo kodo in naziv stroškovnega mesta ob odprtju.
 - [Obračun ur nočnih izmen](obracun-ur-nocne-izmene.md) — izmeno razdeli po lokalnih dnevih Europe/Ljubljana; DST uporablja dejanski pretečeni čas.
 - [Šifranti sidebar arhitektura](sifrant-sidebar.md) — resolveSifrantAccess helper; sidebar Šifranti skupina; superadmin brez bypass; POS v CompanySwitcher
@@ -67,7 +59,6 @@
 - [NYX printer bridge](nyx-printer-bridge.md) — artifacts/nyx-printer-bridge; com.incar.printerservice AIDL; ISTI port 8090 + endpointi kot ZCS; POS frontend brez sprememb
 - [BT tiskalniki — kodna stran](bt-tiskalniki-kodna-stran.md) — Q10 Back Clip = obvezno ascii-translit (GBK firmware); lestvica cp1250→wpc1250→cp852→translit; kodna stran per naprava (ne enota)
 - [Format tabele artiklov](tiskanje-format-tabele.md) — USB 58mm je referenca: dvovrstična postavka (naziv / T1+kol+cena+skupaj); 58mm=32 kolon, ZCS Z92=30
-- [POS partnerji šifrant](pos-partnerji-sifrant.md) — canonical /api/partnerji + legacy aliasi, vsi z resolveSifrantAccess; partner ID je UUID string; format:uuid zlomi Zod codegen
 - [Telefonski naročniki](telefonski-narocniki.md) — vsak telefonski prevzem ali dostava trajno razreši naročnika po normaliziranem telefonu znotraj enote
 - [POS cmdk Vitest](pos-cmdk-vitest.md) — cmdk popup testi v jsdom potrebujejo lokalna ResizeObserver in scrollIntoView polyfilla.
 - [SŠP študentski boni](ssp-studentski-boni.md) — subvencija je terjatev, ne popust; zbirni dokument se odpre šele s potrditvijo dnevne temeljnice.
@@ -157,3 +148,4 @@
 - [KIR/KPR izvoz](kirkpr-export-safety.md) — predogled in XML morata uporabljati isti eksplicitni mesečni/trimesečni obseg; nepopolna davčna sled blokira izvoz.
 - [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.
 - [Git prenosi in tihe izgube](git-transfer-tree-audit.md) — po vsakem prenosu primerjaj celotno drevo s stanjem pred prenosom; zgodovina lahko skrije množične izgube.
+- [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.

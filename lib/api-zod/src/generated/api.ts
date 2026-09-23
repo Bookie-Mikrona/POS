@@ -15797,6 +15797,7 @@ export const ListJavniBoniParams = zod.object({
 
 
 export const ListJavniBoniResponse = zod.object({
+  "checkoutEnabled": zod.boolean(),
   "products": zod.array(zod.object({
   "id": zod.string(),
   "naziv": zod.string(),
@@ -16160,6 +16161,21 @@ export const UpdateJavniProfilNastavitveResponse = zod.object({
   "venueName": zod.string(),
   "publicUrl": zod.string()
 }))
+
+
+export const GetJavniProfilStripeConnectResponse = zod.object({
+  "connected": zod.boolean(),
+  "ready": zod.boolean(),
+  "accountId": zod.string().nullable(),
+  "detailsSubmitted": zod.boolean(),
+  "chargesEnabled": zod.boolean(),
+  "payoutsEnabled": zod.boolean()
+})
+
+
+export const CreateJavniProfilStripeConnectOnboardingResponse = zod.object({
+  "url": zod.string()
+})
 
 
 export const requestJavniProfilImageUploadBodyNameMax = 255;

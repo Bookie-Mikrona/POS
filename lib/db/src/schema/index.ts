@@ -23,6 +23,7 @@ export * from "./conversations";
 export * from "./messages";
 export * from "./report-exports";
 export * from "./system-settings";
+export * from "./public-stripe-connect";
 // ── POS: Gostinstvo ──────────────────────────────────────────────────────────
 export * from "./pos/index";
 export * from "./vat-submissions";

@@ -176,6 +176,8 @@ import type {
   JavniProfilImageUploadResponse,
   JavniProfilNastavitve,
   JavniProfilNastavitveInput,
+  JavniProfilStripeConnectOnboarding,
+  JavniProfilStripeConnectStatus,
   JavniRezervacijaInput,
   JournalEntryWithLines,
   KadrovskaVrstica,
@@ -31166,6 +31168,142 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateJavniProfilNastavitveMutationOptions(options));
+    }
+
+export const getGetJavniProfilStripeConnectUrl = () => {
+
+
+
+
+  return `/api/javni-profil/stripe-connect`
+}
+
+export const getJavniProfilStripeConnect = async ( options?: RequestInit): Promise<JavniProfilStripeConnectStatus> => {
+
+  return customFetch<JavniProfilStripeConnectStatus>(getGetJavniProfilStripeConnectUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavniProfilStripeConnectQueryKey = () => {
+    return [
+    `/api/javni-profil/stripe-connect`
+    ] as const;
+    }
+
+
+export const getGetJavniProfilStripeConnectQueryOptions = <TData = Awaited<ReturnType<typeof getJavniProfilStripeConnect>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavniProfilStripeConnect>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavniProfilStripeConnectQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavniProfilStripeConnect>>> = ({ signal }) => getJavniProfilStripeConnect({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavniProfilStripeConnect>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavniProfilStripeConnectQueryResult = NonNullable<Awaited<ReturnType<typeof getJavniProfilStripeConnect>>>
+export type GetJavniProfilStripeConnectQueryError = ErrorType<ForbiddenResponse>
+
+
+
+export function useGetJavniProfilStripeConnect<TData = Awaited<ReturnType<typeof getJavniProfilStripeConnect>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavniProfilStripeConnect>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavniProfilStripeConnectQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateJavniProfilStripeConnectOnboardingUrl = () => {
+
+
+
+
+  return `/api/javni-profil/stripe-connect/onboarding`
+}
+
+export const createJavniProfilStripeConnectOnboarding = async ( options?: RequestInit): Promise<JavniProfilStripeConnectOnboarding> => {
+
+  return customFetch<JavniProfilStripeConnectOnboarding>(getCreateJavniProfilStripeConnectOnboardingUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateJavniProfilStripeConnectOnboardingMutationOptions = <TError = ErrorType<ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJavniProfilStripeConnectOnboarding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createJavniProfilStripeConnectOnboarding>>, TError,void, TContext> => {
+
+const mutationKey = ['createJavniProfilStripeConnectOnboarding'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createJavniProfilStripeConnectOnboarding>>, void> = () => {
+
+
+          return  createJavniProfilStripeConnectOnboarding(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateJavniProfilStripeConnectOnboardingMutationResult = NonNullable<Awaited<ReturnType<typeof createJavniProfilStripeConnectOnboarding>>>
+
+    export type CreateJavniProfilStripeConnectOnboardingMutationError = ErrorType<ForbiddenResponse | ConflictResponse>
+
+    export const useCreateJavniProfilStripeConnectOnboarding = <TError = ErrorType<ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJavniProfilStripeConnectOnboarding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createJavniProfilStripeConnectOnboarding>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateJavniProfilStripeConnectOnboardingMutationOptions(options));
     }
 
 export const getRequestJavniProfilImageUploadUrl = () => {

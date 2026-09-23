@@ -120,6 +120,20 @@ export function VoucherFlow({ restaurant }: VoucherFlowProps) {
     );
   }
 
+  // Never offer a purchase until the venue has its own ready Stripe account.
+  // The server also enforces this at checkout; this is only the public-facing state.
+  if (boni.checkoutEnabled !== true) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="p-12 text-center">
+          <Gift className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-serif mb-2">Spletni nakup bonov trenutno ni na voljo</h3>
+          <p className="text-muted-foreground">Ta restavracija še nima omogočenih spletnih plačil. Za nakup bona se obrnite neposredno nanjo.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isCheckingOut) {
     return (
       <Card className="border-card-border shadow-sm p-6 md:p-8 fade-in">

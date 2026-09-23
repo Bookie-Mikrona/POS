@@ -23,7 +23,7 @@ import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import type Stripe from "stripe";
 import { logger, logPublicStripeWebhookFailure } from "../lib/logger";
-import { getUncachableStripeClient } from "../lib/stripeClient";
+import { getStripePlatformContext } from "../lib/stripeClient";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import {
   createPublicProfileImageVariant,
@@ -70,6 +70,74 @@ function decryptCode(value: string,purpose="voucher") {
 }
 const UUID_V4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function fingerprint(value:unknown){return createHash("sha256").update(JSON.stringify(value)).digest("hex");}
+export function voucherStripeIdempotencyKey(accountId:string,checkoutId:string,livemode:boolean){
+  return `voucher_${createHash("sha256").update(`${livemode?"live":"test"}:${accountId}:${checkoutId}`).digest("hex")}`;
+}
+export function stripeAccountIsReady(account:any,accountId:string,platformLivemode:boolean,accountLivemode:boolean){
+  return account?.id===accountId&&account?.type==="standard"
+    &&Boolean(account.details_submitted)&&Boolean(account.charges_enabled)
+    &&Boolean(account.payouts_enabled)&&accountLivemode===platformLivemode;
+}
+export function stripeCheckoutEventAccountMatches(checkout:any,connectedAccountId:string|null,eventLivemode?:boolean){
+  return connectedAccountId
+    ?checkout?.connect_account_id===connectedAccountId
+      &&(eventLivemode===undefined||checkout?.stripe_livemode===eventLivemode)
+    :!checkout?.connect_account_id;
+}
+function connectAdmin(req:any){return req.vloga==="admin"||req.vloga==="superadmin";}
+function publicAppOrigin(){
+  const configured=process.env.PUBLIC_APP_ORIGIN?.trim();
+  const domain=process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  const origin=(configured|| (domain?`https://${domain}`:"")).replace(/\/+$/,"");
+  if(!origin)return null;
+  try{
+    const parsed=new URL(origin);
+    if(parsed.protocol!=="https:"&&parsed.hostname!=="localhost"&&parsed.hostname!=="127.0.0.1")return null;
+    return parsed.origin;
+  }catch{return null;}
+}
+async function inspectConnectedAccount(companyId:string,stripe:any,platformLivemode:boolean){
+  const saved=rows(await db.execute(sql`SELECT account_id,livemode FROM public_company_stripe_connect WHERE company_id=${companyId} LIMIT 1`))[0];
+  if(!saved?.account_id||saved.livemode!==platformLivemode)return null;
+  const account=await stripe.accounts.retrieve(saved.account_id);
+  const status={
+    connected:account?.id===saved.account_id,
+    detailsSubmitted:Boolean(account?.details_submitted),
+    chargesEnabled:Boolean(account?.charges_enabled),
+    payoutsEnabled:Boolean(account?.payouts_enabled),
+  };
+  await db.execute(sql`UPDATE public_company_stripe_connect
+    SET details_submitted=${status.detailsSubmitted},charges_enabled=${status.chargesEnabled},
+        payouts_enabled=${status.payoutsEnabled},updated_at=now()
+    WHERE company_id=${companyId} AND account_id=${saved.account_id} AND livemode=${platformLivemode}`);
+  return {
+    accountId:saved.account_id as string,
+    livemode:saved.livemode as boolean,
+    ...status,
+    ready:stripeAccountIsReady(account,saved.account_id,platformLivemode,saved.livemode)
+      &&status.connected&&status.detailsSubmitted&&status.chargesEnabled&&status.payoutsEnabled,
+  };
+}
+async function publicCheckoutEnabled(companyId:string){
+  try{
+    const {stripe,livemode}=await getStripePlatformContext();
+    return Boolean((await inspectConnectedAccount(companyId,stripe,livemode))?.ready);
+  }catch{return false;}
+}
+async function consumeStripeConnectOAuthState(state:string){
+  if(!/^[a-f0-9]{64}$/.test(state))return null;
+  const client=await (db as any).$client.connect();
+  try{
+    await client.query("BEGIN");
+    const result=await client.query(`UPDATE public_company_stripe_connect
+      SET oauth_state_hash='processing:'||oauth_state_hash,updated_at=now()
+      WHERE oauth_state_hash=$1 AND oauth_state_expires_at>now()
+      RETURNING company_id`,[hashToken(state)]);
+    await client.query("COMMIT");
+    return result.rows[0]?.company_id??null;
+  }catch(error){await client.query("ROLLBACK");throw error;}
+  finally{client.release();}
+}
 function publicProfileImagePrefix(companyId:string,unitId:number){
   return `/objects/uploads/public-profile/${companyId}/${unitId}/`;
 }
@@ -550,7 +618,95 @@ publicVisitsRouter.get("/javno/restavracije/:slug/boni", async (req, res): Promi
   if (!p) return res.status(404).json({ error: "Restavracija ni najdena." });
   const products = rows(await db.execute(sql`SELECT id,name,description,image_url,active FROM public_voucher_products WHERE profile_id=${p.id} AND active=true ORDER BY name`));
   for (const product of products) product.variants = rows(await db.execute(sql`SELECT id,name,amount_cents,currency,active FROM public_voucher_variants WHERE product_id=${product.id} AND active=true ORDER BY amount_cents`));
-  res.json({ products: products.map(x => ({ id:x.id,naziv:x.name,opis:x.description,imageUrl:publicProfileImageUrl(x.image_url),active:x.active,variants:x.variants.map((v:any)=>({id:v.id,naziv:v.name,amountCents:v.amount_cents,currency:v.currency,active:v.active})) })) });
+  const checkoutEnabled=await publicCheckoutEnabled(p.company_id);
+  res.json({ checkoutEnabled, products: products.map(x => ({ id:x.id,naziv:x.name,opis:x.description,imageUrl:publicProfileImageUrl(x.image_url),active:x.active,variants:x.variants.map((v:any)=>({id:v.id,naziv:v.name,amountCents:v.amount_cents,currency:v.currency,active:v.active})) })) });
+});
+
+publicVisitsRouter.get("/javno-profil/stripe-connect/callback",async(req:any,res):Promise<any>=>{
+  const state=typeof req.query.state==="string"?req.query.state:"";
+  let companyId:string|null=null;
+  try{companyId=await consumeStripeConnectOAuthState(state);}
+  catch(error){
+    req.log.error({err:error},"Stripe Connect OAuth state could not be consumed");
+    return res.status(503).send("Povezave Stripe trenutno ni mogoče dokončati.");
+  }
+  if(!companyId)return res.status(400).send("Povezava Stripe je potekla ali ni veljavna.");
+  const stateClaim=`processing:${hashToken(state)}`;
+  const code=typeof req.query.code==="string"?req.query.code:"";
+  if(!code||req.query.error)return res.status(400).send("Povezava Stripe ni bila potrjena. Znova jo zaženite v nastavitvah.");
+  try{
+    const {stripe,livemode}=await getStripePlatformContext();
+    const oauth=await stripe.oauth.token({grant_type:"authorization_code",code});
+    const accountId=String(oauth.stripe_user_id??"");
+    if(!/^acct_[A-Za-z0-9]+$/.test(accountId)||oauth.livemode!==livemode){
+      return res.status(409).send("Stripe račun ni v pravilnem načinu delovanja.");
+    }
+    const account=await stripe.accounts.retrieve(accountId);
+    if(account.id!==accountId||account.type!=="standard"){
+      return res.status(409).send("Povezati je mogoče samo standardni Stripe račun.");
+    }
+    const saved=rows(await db.execute(sql`UPDATE public_company_stripe_connect
+      SET account_id=${accountId},livemode=${livemode},details_submitted=${Boolean(account.details_submitted)},
+          charges_enabled=${Boolean(account.charges_enabled)},payouts_enabled=${Boolean(account.payouts_enabled)},
+          oauth_state_hash=NULL,oauth_state_expires_at=NULL,updated_at=now()
+      WHERE company_id=${companyId} AND oauth_state_hash=${stateClaim}
+      RETURNING company_id`))[0];
+    if(!saved)return res.status(409).send("Ta povezava Stripe je bila zamenjana. Znova jo zaženite.");
+    return res.status(200).type("text/plain").send("Stripe račun je povezan. Vrnite se v nastavitve poslovanja.");
+  }catch(error){
+    req.log.error({err:error,companyId},"Stripe Connect OAuth callback failed");
+    return res.status(502).send("Stripe povezave ni bilo mogoče dokončati. Poskusite znova.");
+  }
+});
+
+internalVoucherRouter.get("/javni-profil/stripe-connect",async(req:any,res):Promise<any>=>{
+  res.setHeader("Cache-Control","no-store");
+  if(!connectAdmin(req))return res.status(403).json({error:"Upravljanje Stripe povezave zahteva vlogo administratorja podjetja."});
+  const companyId=String(req.companyId??"");
+  if(!UUID_V4.test(companyId))return res.status(400).json({error:"Podjetje ni izbrano."});
+  try{
+    const {stripe,livemode}=await getStripePlatformContext();
+    const status=await inspectConnectedAccount(companyId,stripe,livemode);
+    res.json({
+      connected:Boolean(status?.connected),
+      ready:Boolean(status?.ready),
+      accountId:status?.accountId??null,
+      detailsSubmitted:Boolean(status?.detailsSubmitted),
+      chargesEnabled:Boolean(status?.chargesEnabled),
+      payoutsEnabled:Boolean(status?.payoutsEnabled),
+    });
+  }catch(error){
+    req.log.error({err:error,companyId},"Stripe Connect status lookup failed");
+    res.status(503).json({error:"Stanja Stripe povezave trenutno ni mogoče preveriti."});
+  }
+});
+
+internalVoucherRouter.post("/javni-profil/stripe-connect/onboarding",async(req:any,res):Promise<any>=>{
+  if(!connectAdmin(req))return res.status(403).json({error:"Povezavo Stripe lahko začne samo administrator podjetja."});
+  const companyId=String(req.companyId??"");
+  if(!UUID_V4.test(companyId))return res.status(400).json({error:"Podjetje ni izbrano."});
+  const clientId=process.env.STRIPE_CONNECT_CLIENT_ID?.trim();
+  const origin=publicAppOrigin();
+  if(!clientId||!origin)return res.status(503).json({error:"Stripe Connect OAuth ni pravilno nastavljen."});
+  try{
+    await getStripePlatformContext();
+    const state=randomBytes(32).toString("hex");
+    const stateHash=hashToken(state);
+    await db.execute(sql`INSERT INTO public_company_stripe_connect(company_id,oauth_state_hash,oauth_state_expires_at)
+      VALUES(${companyId},${stateHash},now()+interval '15 minutes')
+      ON CONFLICT(company_id) DO UPDATE SET oauth_state_hash=excluded.oauth_state_hash,
+        oauth_state_expires_at=excluded.oauth_state_expires_at,updated_at=now()`);
+    const authorize=new URL("https://connect.stripe.com/oauth/authorize");
+    authorize.searchParams.set("response_type","code");
+    authorize.searchParams.set("client_id",clientId);
+    authorize.searchParams.set("scope","read_write");
+    authorize.searchParams.set("redirect_uri",`${origin}/api/javno-profil/stripe-connect/callback`);
+    authorize.searchParams.set("state",state);
+    res.json({url:authorize.toString()});
+  }catch(error){
+    req.log.error({err:error,companyId},"Stripe Connect onboarding could not start");
+    res.status(503).json({error:"Stripe povezave trenutno ni mogoče začeti."});
+  }
 });
 
 publicVisitsRouter.post("/javno/restavracije/:slug/boni/checkout", async (req, res): Promise<any> => {
@@ -573,25 +729,72 @@ publicVisitsRouter.post("/javno/restavracije/:slug/boni/checkout", async (req, r
     sporocilo:body.data.sporocilo??null,
     items:body.data.items.map(x=>({productId:x.productId,variantId:x.variantId,quantity:x.quantity})),
   });
-  const inserted = rows(await db.execute(sql`INSERT INTO public_voucher_checkouts(profile_id,company_id,unit_id,idempotency_key,request_fingerprint,expected_amount_cents,buyer_name,buyer_email,recipient_name,recipient_email,message,items,privacy_accepted_at)
-    VALUES(${p.id},${p.company_id},${p.unit_id},${body.data.idempotencyKey},${requestFingerprint},${total},${body.data.buyerIme},${body.data.buyerEmail},${body.data.recipientIme},${body.data.recipientEmail},${body.data.sporocilo ?? null},${JSON.stringify(itemSnapshot)}::jsonb,now())
+  let previous=rows(await db.execute(sql`SELECT * FROM public_voucher_checkouts
+    WHERE profile_id=${p.id} AND idempotency_key=${body.data.idempotencyKey} LIMIT 1`))[0];
+  if(previous&&previous.request_fingerprint!==requestFingerprint)return res.status(409).json({error:"Ključ zahteve je že uporabljen z drugimi podatki."});
+  let stripe:any,platformLivemode:boolean,connectStatus:any;
+  try{
+    ({stripe,livemode:platformLivemode}=await getStripePlatformContext());
+    connectStatus=await inspectConnectedAccount(p.company_id,stripe,platformLivemode);
+  }catch(error){
+    req.log.error({err:error,companyId:p.company_id},"Stripe connection unavailable during voucher checkout");
+    return res.status(503).json({error:"Plačilne povezave trenutno ni mogoče preveriti."});
+  }
+  if(!connectStatus?.ready)return res.status(409).json({error:"Restavracija še nima pripravljene Stripe povezave za plačila."});
+  if(previous?.stripe_session_id){
+    if(previous.connect_account_id!==connectStatus.accountId||previous.stripe_livemode!==platformLivemode){
+      return res.status(409).json({error:"Prejšnja plačilna seja ni vezana na trenutni Stripe račun restavracije. Začnite nov nakup."});
+    }
+    return res.json({sessionId:previous.stripe_session_id,checkoutUrl:previous.checkout_url,status:previous.status,expiresAt:null});
+  }
+  if(previous?.connect_account_id&&(
+    previous.connect_account_id!==connectStatus.accountId||previous.stripe_livemode!==platformLivemode
+  ))return res.status(409).json({error:"Stripe račun se je spremenil. Začnite novo plačilo."});
+  const inserted = rows(await db.execute(sql`INSERT INTO public_voucher_checkouts(
+      profile_id,company_id,unit_id,idempotency_key,request_fingerprint,expected_amount_cents,
+      buyer_name,buyer_email,recipient_name,recipient_email,message,items,privacy_accepted_at,
+      connect_account_id,stripe_livemode,stripe_idempotency_key)
+    VALUES(${p.id},${p.company_id},${p.unit_id},${body.data.idempotencyKey},${requestFingerprint},${total},
+      ${body.data.buyerIme},${body.data.buyerEmail},${body.data.recipientIme},${body.data.recipientEmail},
+      ${body.data.sporocilo ?? null},${JSON.stringify(itemSnapshot)}::jsonb,now(),
+      ${connectStatus.accountId},${platformLivemode},NULL)
     ON CONFLICT(profile_id,idempotency_key) DO UPDATE SET idempotency_key=excluded.idempotency_key RETURNING *`))[0];
   if(inserted.request_fingerprint!==requestFingerprint)return res.status(409).json({error:"Ključ zahteve je že uporabljen z drugimi podatki."});
-  if (inserted.stripe_session_id) return res.json({ sessionId: inserted.stripe_session_id, checkoutUrl: inserted.checkout_url, status: inserted.status, expiresAt: null });
+  if(inserted.stripe_session_id)return res.json({sessionId:inserted.stripe_session_id,checkoutUrl:inserted.checkout_url,status:inserted.status,expiresAt:null});
+  if(!inserted.connect_account_id){
+    const accountSnapshot=rows(await db.execute(sql`UPDATE public_voucher_checkouts SET
+      connect_account_id=${connectStatus.accountId},stripe_livemode=${platformLivemode},
+      stripe_idempotency_key=${voucherStripeIdempotencyKey(connectStatus.accountId,inserted.id,platformLivemode)}
+      WHERE id=${inserted.id} AND stripe_session_id IS NULL AND connect_account_id IS NULL RETURNING *`))[0];
+    if(accountSnapshot)Object.assign(inserted,accountSnapshot);
+    else return res.status(409).json({error:"Stripe račun nakupa ni mogoče varno določiti."});
+  }
+  if(inserted.connect_account_id!==connectStatus.accountId||inserted.stripe_livemode!==platformLivemode){
+    return res.status(409).json({error:"Stripe račun se je spremenil. Začnite novo plačilo."});
+  }
+  if(!inserted.stripe_idempotency_key){
+    const key=voucherStripeIdempotencyKey(inserted.connect_account_id,inserted.id,inserted.stripe_livemode);
+    const savedKey=rows(await db.execute(sql`UPDATE public_voucher_checkouts SET stripe_idempotency_key=${key}
+      WHERE id=${inserted.id} AND stripe_idempotency_key IS NULL AND stripe_session_id IS NULL RETURNING stripe_idempotency_key`))[0];
+    if(!savedKey)return res.status(409).json({error:"Plačilne zahteve ni mogoče varno ponoviti."});
+    inserted.stripe_idempotency_key=savedKey.stripe_idempotency_key;
+  }
+  if(inserted.stripe_idempotency_key!==voucherStripeIdempotencyKey(inserted.connect_account_id,inserted.id,inserted.stripe_livemode)){
+    return res.status(409).json({error:"Varnostni ključ plačila se ne ujema s Stripe računom."});
+  }
   const claimToken=randomBytes(16).toString("hex");
   const claimed=rows(await db.execute(sql`UPDATE public_voucher_checkouts SET creation_token=${claimToken},creation_started_at=now()
     WHERE id=${inserted.id} AND stripe_session_id IS NULL AND (creation_token IS NULL OR creation_started_at < now()-interval '2 minutes') RETURNING id`))[0];
   if(!claimed)return res.status(409).json({error:"Plačilna seja se že ustvarja. Poskusite znova."});
-  const publicHost=(process.env.PUBLIC_APP_ORIGIN??(process.env.REPLIT_DOMAINS?`https://${process.env.REPLIT_DOMAINS.split(",")[0]}`:"")).replace(/\/$/,"");
+  const publicHost=publicAppOrigin();
   if(!publicHost)return res.status(503).json({error:"Javni naslov aplikacije ni nastavljen."});
   try {
-    const stripe=await getUncachableStripeClient();
     const persistedItems=inserted.items as typeof itemSnapshot;
     const session=await stripe.checkout.sessions.create({
       mode:"payment",success_url:`${publicHost}/bookie-obiski/${p.slug}/bon/uspeh?session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${publicHost}/bookie-obiski/${p.slug}`,
       customer_email:inserted.buyer_email,metadata:{checkout_id:inserted.id,company_id:inserted.company_id,unit_id:String(inserted.unit_id)},
       line_items:persistedItems.map(x=>({quantity:x.quantity,price_data:{currency:x.currency.toLowerCase(),unit_amount:x.amountCents,product_data:{name:x.name}}})),
-    },{idempotencyKey:inserted.id});
+    },{idempotencyKey:inserted.stripe_idempotency_key,stripeAccount:inserted.connect_account_id});
     if (!session?.id || !session?.url) throw new Error("Stripe ni vrnil seje.");
     await db.execute(sql`UPDATE public_voucher_checkouts SET stripe_session_id=${session.id},checkout_url=${session.url},status='open',creation_token=NULL WHERE id=${inserted.id} AND creation_token=${claimToken}`);
     res.status(201).json({ sessionId: session.id, checkoutUrl: session.url, status: "open", expiresAt: session.expires_at ? new Date(session.expires_at*1000).toISOString() : null });
@@ -630,9 +833,49 @@ publicVisitsRouter.get("/javno/restavracije/:slug/boni/checkout/:sessionId", asy
   });
 });
 
-export async function processPublicStripeEvent(verifiedEvent:Stripe.Event,req:any,res:any):Promise<any>{
+export async function processPublicStripeEvent(
+  verifiedEvent:Stripe.Event,
+  req:any,
+  res:any,
+  connectedAccountId:string|null=null,
+):Promise<any>{
   const session:any=verifiedEvent.data.object;
-  if (verifiedEvent.type !== "checkout.session.completed") return res.json({ received: true, processed: false });
+  if(connectedAccountId){
+    if(verifiedEvent.account!==connectedAccountId){
+      logPublicStripeWebhookFailure({errorType:"StripeConnectAccountMismatch",reason:"connect_account_mismatch",retryable:false,requestId:req.id,message:"Stripe Connect account identity mismatch"});
+      return res.status(409).json({error:"Stripe Connect račun se ne ujema."});
+    }
+    if(verifiedEvent.type==="account.updated"){
+      const account:any=verifiedEvent.data.object;
+      if(account?.id!==connectedAccountId)return res.status(409).json({error:"Stripe Connect račun se ne ujema."});
+      const updated=rows(await db.execute(sql`UPDATE public_company_stripe_connect
+        SET details_submitted=${Boolean(account.details_submitted)},charges_enabled=${Boolean(account.charges_enabled)},
+            payouts_enabled=${Boolean(account.payouts_enabled)},updated_at=now()
+        WHERE account_id=${connectedAccountId} AND livemode=${verifiedEvent.livemode} RETURNING company_id`))[0];
+      if(!updated){
+        req.log.warn({eventId:verifiedEvent.id,eventType:verifiedEvent.type,connectedAccountId},"Verified Connect account update does not match a configured merchant");
+        return res.json({received:true,processed:false,accountMatched:false});
+      }
+      return res.json({received:true,processed:true});
+    }
+    if(verifiedEvent.type==="account.application.deauthorized"){
+      const disconnected=rows(await db.execute(sql`UPDATE public_company_stripe_connect
+        SET account_id=NULL,livemode=NULL,details_submitted=false,charges_enabled=false,payouts_enabled=false,
+            updated_at=now()
+        WHERE account_id=${connectedAccountId} AND livemode=${verifiedEvent.livemode} RETURNING company_id`))[0];
+      if(!disconnected){
+        req.log.warn({eventId:verifiedEvent.id,eventType:verifiedEvent.type,connectedAccountId},"Verified Connect deauthorization did not match a configured merchant");
+        return res.json({received:true,processed:false,accountMatched:false});
+      }
+      return res.json({received:true,processed:true});
+    }
+  }
+  const isSuccessfulCheckoutEvent=verifiedEvent.type==="checkout.session.completed"
+    ||verifiedEvent.type==="checkout.session.async_payment_succeeded";
+  if(!isSuccessfulCheckoutEvent){
+    if(connectedAccountId)req.log.info({eventId:verifiedEvent.id,eventType:verifiedEvent.type,connectedAccountId},"Verified Stripe Connect event acknowledged without voucher fulfillment");
+    return res.json({ received: true, processed: false });
+  }
   const client = await (db as any).$client.connect();
   const issued: Array<{id:string;code:string;amount:number}> = [];
   let completedCheckout: any;
@@ -644,6 +887,10 @@ export async function processPublicStripeEvent(verifiedEvent:Stripe.Event,req:an
       await client.query("COMMIT");
       const checkout=(await client.query("SELECT c.*,e.ime venue_name FROM public_voucher_checkouts c JOIN enote e ON e.id=c.unit_id WHERE c.stripe_session_id=$1",[session.id])).rows[0];
       if(checkout){
+        if(!stripeCheckoutEventAccountMatches(checkout,connectedAccountId,verifiedEvent.livemode)){
+          req.log.warn({eventId:verifiedEvent.id,eventType:verifiedEvent.type,connectedAccountId,checkoutId:checkout.id},"Duplicate Stripe event account did not match its voucher checkout snapshot");
+          return res.status(409).json({error:"Stripe račun nakupa se ne ujema."});
+        }
         const delivery=await attemptVoucherDelivery(checkout.id);
         if(delivery.attempted&&!delivery.delivered)return res.status(503).json({error:"Dostava bona bo ponovljena."});
       }
@@ -653,7 +900,8 @@ export async function processPublicStripeEvent(verifiedEvent:Stripe.Event,req:an
     const metadataMatches = checkout
       && String(session.metadata?.checkout_id ?? "") === String(checkout.id)
       && String(session.metadata?.company_id ?? "") === String(checkout.company_id)
-      && String(session.metadata?.unit_id ?? "") === String(checkout.unit_id);
+      && String(session.metadata?.unit_id ?? "") === String(checkout.unit_id)
+      && stripeCheckoutEventAccountMatches(checkout,connectedAccountId,verifiedEvent.livemode);
     const currencyMatches = checkout && String(session.currency ?? "").toUpperCase() === checkout.currency;
     const amountMatches = checkout && Number(session.amount_total) === checkout.expected_amount_cents;
     if (!checkout || !metadataMatches || session.payment_status !== "paid" || !currencyMatches || !amountMatches) {
@@ -667,6 +915,10 @@ export async function processPublicStripeEvent(verifiedEvent:Stripe.Event,req:an
       }
       const reason=!checkout
         ?{code:"checkout_not_found",detail:"Nakup za podpisano Stripe sejo ni bil najden."}
+        :connectedAccountId!==null&&!stripeCheckoutEventAccountMatches(checkout,connectedAccountId,verifiedEvent.livemode)
+          ?{code:"connected_account_mismatch",detail:"Stripe Connect račun iz dogodka se ne ujema s shranjenim posnetkom nakupa."}
+          :connectedAccountId===null&&!stripeCheckoutEventAccountMatches(checkout,null)
+            ?{code:"connected_account_mismatch",detail:"Platform Stripe dogodek ne more potrditi nakupa, ki pripada povezanemu računu."}
         :!metadataMatches
           ?{code:"tenant_mismatch",detail:"Identiteta nakupa, podjetje ali enota iz Stripe dogodka se ne ujema."}
           :session.payment_status!=="paid"
@@ -700,6 +952,15 @@ export async function processPublicStripeEvent(verifiedEvent:Stripe.Event,req:an
         message:"Stripe payment requires manual review",
       });
       return res.status(409).json({error:"Plačilo zahteva ročno uskladitev."});
+    }
+    // Stripe can send completed and async_payment_succeeded with different
+    // event IDs for the same session. The checkout lock, not the event ID,
+    // is the final guard against issuing redeemable vouchers twice.
+    if(checkout.status==="complete"){
+      await client.query("COMMIT");
+      const delivery=await attemptVoucherDelivery(checkout.id);
+      if(delivery.attempted&&!delivery.delivered)return res.status(503).json({error:"Dostava bona bo ponovljena."});
+      return res.json({received:true,processed:false});
     }
     const items = checkout.items as Array<{variantId:string;quantity:number;amountCents:number;currency:string}>;
     for (const item of items) {
