@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "wouter";
 import { Search, BookMarked, AlertCircle, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -20,9 +21,11 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function GlavnaKnjiga() {
   const { activeCompany } = useCompany();
+  const [location] = useLocation();
+  const initialAccountId = new URLSearchParams(location.split("?")[1] ?? "").get("accountId") ?? "all";
 
   // Filters state
-  const [accountId, setAccountId] = useState<string>("all");
+  const [accountId, setAccountId] = useState<string>(initialAccountId);
   const [periodId, setPeriodId] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -33,7 +36,7 @@ export default function GlavnaKnjiga() {
     periodId?: string;
     dateFrom?: string;
     dateTo?: string;
-  } | null>(null);
+  } | null>(initialAccountId === "all" ? null : { accountId: initialAccountId });
 
   // Lists for dropdowns
   const { data: accountsData } = useListAccounts(

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Building2,
@@ -15,6 +15,7 @@ import {
   TrendingDown,
   TrendingUp,
   Landmark,
+  ChevronDown,
   ShieldAlert,
   UtensilsCrossed,
 } from "lucide-react";
@@ -35,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance } from "@workspace/api-client-react";
+import { useGetOpenItems, useGetAgedAnalysis, useGetBankBalance, useGetLedger } from "@workspace/api-client-react";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ function fmtEur(value: number | string) {
 // ─── Bank balance card ────────────────────────────────────────────────────────
 
 interface BankBalanceCardProps {
+  companyId: string;
   totalBalance: string | null;
   accounts: Array<{
     accountId: string;
@@ -59,7 +61,24 @@ interface BankBalanceCardProps {
   loading: boolean;
 }
 
-function BankBalanceCard({ totalBalance, accounts, loading }: BankBalanceCardProps) {
+function formatLedgerDate(value: string) {
+  return new Intl.DateTimeFormat("sl-SI", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function BankBalanceCard({ companyId, totalBalance, accounts, loading }: BankBalanceCardProps) {
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
+  const { data: ledgerData, isLoading: ledgerLoading, isError: ledgerError } = useGetLedger(
+    companyId,
+    expandedAccountId ? { accountId: expandedAccountId } : {},
+    { query: { enabled: !!companyId && !!expandedAccountId } as any },
+  );
+  const recentLines = (ledgerData?.lines ?? []).slice(-7).reverse();
+
   return (
     <Card className="shadow-sm border-border/60">
       <CardHeader className="pb-2 flex flex-row items-center gap-3">
@@ -89,11 +108,15 @@ function BankBalanceCard({ totalBalance, accounts, loading }: BankBalanceCardPro
                   const bal = acc.balance == null ? null : parseFloat(acc.balance);
                   const isZero = bal === 0;
                   return (
-                    <Link
-                      key={acc.accountId}
-                      href="/bancni-izpis"
-                    >
-                      <div className={`flex items-center justify-between rounded px-1.5 py-1 text-xs hover:bg-muted/60 transition-colors cursor-pointer group ${isZero ? "text-muted-foreground" : ""}`}>
+                    <div key={acc.accountId}>
+                      <button
+                        type="button"
+                        aria-expanded={expandedAccountId === acc.accountId}
+                        aria-controls={`bank-ledger-${acc.accountId}`}
+                        onClick={() => setExpandedAccountId(current => current === acc.accountId ? null : acc.accountId)}
+                        className={`flex w-full items-center justify-between rounded px-1.5 py-1 text-left text-xs hover:bg-muted/60 transition-colors cursor-pointer group ${isZero ? "text-muted-foreground" : ""}`}
+                      >
+                        <ChevronDown className={`mr-1 h-3 w-3 shrink-0 transition-transform ${expandedAccountId === acc.accountId ? "rotate-180" : ""}`} />
                         <span className="font-mono mr-2 shrink-0 group-hover:text-primary transition-colors">
                           {acc.accountCode}
                         </span>
@@ -103,8 +126,44 @@ function BankBalanceCard({ totalBalance, accounts, loading }: BankBalanceCardPro
                         <span className={`font-semibold tabular-nums shrink-0 ${isZero || bal == null ? "text-muted-foreground" : bal < 0 ? "text-red-600" : "text-emerald-700"}`}>
                           {bal == null ? "Ni evidentirano" : fmtEur(bal)}
                         </span>
-                      </div>
-                    </Link>
+                      </button>
+                      {expandedAccountId === acc.accountId && (
+                        <div id={`bank-ledger-${acc.accountId}`} className="mx-1.5 mb-2 border-l-2 border-border pl-3 pt-1">
+                          {ledgerLoading ? (
+                            <div className="space-y-1.5 py-2">
+                              <Skeleton className="h-8 w-full" />
+                              <Skeleton className="h-8 w-full" />
+                            </div>
+                          ) : ledgerError ? (
+                            <p className="py-2 text-xs text-destructive">Knjižb ni bilo mogoče naložiti.</p>
+                          ) : recentLines.length === 0 ? (
+                            <p className="py-2 text-xs text-muted-foreground">Za ta konto še ni knjižb.</p>
+                          ) : (
+                            <div className="divide-y divide-border/40">
+                              {recentLines.map((line, index) => {
+                                const amount = parseFloat(line.debit) - parseFloat(line.credit);
+                                return (
+                                  <div key={`${line.entryId}-${index}`} className="grid grid-cols-[5.5rem_1fr_auto] gap-2 py-1.5 text-[11px]">
+                                    <span className="text-muted-foreground">{formatLedgerDate(line.entryDate)}</span>
+                                    <span className="truncate" title={line.description}>{line.description}</span>
+                                    <span className={`font-medium tabular-nums ${amount < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                                      {fmtEur(amount)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <div className="flex justify-end pt-1">
+                            <Button variant="link" size="sm" className="h-7 px-0 text-xs" asChild>
+                              <Link href={`/glavna-knjiga?accountId=${encodeURIComponent(acc.accountId)}`}>
+                                Pokaži vse <ArrowUpRight className="ml-1 h-3 w-3" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -474,6 +533,7 @@ export default function Dashboard() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               <BankBalanceCard
+                companyId={activeCompany.id}
                 totalBalance={bankBalanceValue}
                 accounts={bankData?.accounts ?? []}
                 loading={bankLoading}
