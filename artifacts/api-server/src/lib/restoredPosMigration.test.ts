@@ -30,6 +30,12 @@ describe("restored POS forward migration", () => {
     expect(file).not.toMatch(/\bDROP\s+(TABLE|COLUMN)\b/i);
     expect(file).toContain("DROP INDEX IF EXISTS invoices_contract_summary_period_unique");
     expect(file).toContain("DROP CONSTRAINT IF EXISTS invoices_contract_summary_period_unique");
+    const allocationBackfill = file.indexOf("UPDATE malica_allocations AS allocation");
+    const businessDateRequired = file.indexOf(
+      "ALTER TABLE malica_allocations ALTER COLUMN business_date SET NOT NULL",
+    );
+    expect(allocationBackfill).toBeGreaterThan(-1);
+    expect(businessDateRequired).toBeGreaterThan(allocationBackfill);
     expect(file).not.toMatch(/CREATE\s+INDEX\s+CONCURRENTLY/i);
   });
 });

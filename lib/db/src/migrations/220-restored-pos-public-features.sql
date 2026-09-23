@@ -279,6 +279,12 @@ ALTER TABLE postavke
   DROP CONSTRAINT IF EXISTS postavke_package_status_check;
 ALTER TABLE individual_vouchers
   DROP CONSTRAINT IF EXISTS individual_vouchers_delivery_status_check;
+UPDATE malica_allocations AS allocation
+SET business_date = offer.business_date
+FROM malica_sale_snapshots AS snapshot
+JOIN malica_daily_offers AS offer ON offer.id = snapshot.offer_id
+WHERE allocation.sale_snapshot_id = snapshot.id
+  AND allocation.business_date IS NULL;
 ALTER TABLE malica_allocations ALTER COLUMN business_date SET NOT NULL;
 ALTER TABLE malica_allocation_claims ALTER COLUMN invoice_id SET NOT NULL;
 
