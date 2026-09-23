@@ -65,6 +65,7 @@ const MenuPage = lazy(() => import("@/pages/Menu"));
 const ReceiptsPage = lazy(() => import("@/pages/Receipts"));
 const DnevniMeniPage = lazy(() => import("@/pages/DnevniMeni"));
 const MalicePage = lazy(() => import("@/pages/Malice"));
+const KosilaPage = lazy(() => import("@/pages/Kosila"));
 const StatsPage = lazy(() => import("@/pages/Stats"));
 const DnevniIzkazPage = lazy(() => import("@/pages/DnevniIzkaz"));
 const OperativnaPorocilaPage = lazy(() => import("@/pages/OperativnaPorocila"));
@@ -155,6 +156,7 @@ const secondaryNav = [
   { href: "/meni", label: "Meni", icon: Menu },
   { href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays },
   { href: "/malice", label: "Malice", icon: Utensils },
+  { href: "/kosila", label: "Kosila", icon: Utensils },
   { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
   { href: "/odstopanja", label: "Cen. odstopanja", icon: TrendingDown },
   { href: "/uvoz-cenik", label: "Uvoz cenika", icon: Tag },
@@ -470,6 +472,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/meni", label: "Meni" },
       { href: "/dnevni-meni", label: "Dnevni meni" },
       { href: "/malice", label: "Malice" },
+      { href: "/kosila", label: "Kosila" },
       { href: "/zaloge", label: "Zaloge" },
       { href: "/odstopanja", label: "Cen. odstopanja" },
       { href: "/racuni", label: "Računi" },
@@ -548,6 +551,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { href: "/meni", label: "Meni", icon: Menu },
     ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
     { href: "/malice", label: "Malice", icon: Utensils },
+    { href: "/kosila", label: "Kosila", icon: Utensils },
     ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
     { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
     { href: "/statistike", label: "Statistike", icon: BarChart3 },
@@ -911,6 +915,7 @@ function ProtectedRouter() {
           <Route path="/meni" component={MenuPage} />
           <Route path="/dnevni-meni" component={DnevniMeniPage} />
           <Route path="/malice" component={MalicePage} />
+          <Route path="/kosila" component={KosilaPage} />
           <Route path="/qr-meni" component={QrAdministracijaPage} />
           <Route path="/pripravljena-hrana" component={PreparedFoodPage} />
           <Route path="/odpadki-s-kroznikov" component={PlateWastePage} />

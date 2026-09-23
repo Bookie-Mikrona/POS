@@ -437,7 +437,7 @@ export async function getNarociloById(id: number, _davcna: string, tenotaId: num
     ddvNeskladje: ddvNeskladje.imaNeskladje ? ddvNeskladje : null};
 }
 
-async function updateSkupaj(narociloId: number, enotaId: number, executor: typeof db | DbTransaction = db) {
+export async function updateSkupaj(narociloId: number, enotaId: number, executor: typeof db | DbTransaction = db) {
   const postavke = await executor.select({ skupaj: postavkeTable.skupaj })
     .from(postavkeTable)
     .innerJoin(narocilaTable, eq(postavkeTable.narociloId, narocilaTable.id))

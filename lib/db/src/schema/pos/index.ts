@@ -40,6 +40,7 @@ export * from "./viva-vracila";
 export * from "./tiskalne-naloge";
 export * from "./glasovni-sinonimi";
 export * from "./dnevni-meni";
+export * from "./daily-lunch";
 export * from "./malice";
 export * from "./malica-contracts";
 export * from "./partner-ceniki";

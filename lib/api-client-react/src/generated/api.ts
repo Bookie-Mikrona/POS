@@ -72,11 +72,19 @@ import type {
   CreditNotePackagingDocumentsResponse,
   CreditNotePackagingResponse,
   CurrentPublicIp,
+  DailyLunchAddInput,
+  DailyLunchAddResponse,
+  DailyLunchOfferInput,
+  DailyLunchOfferResponse,
+  DailyLunchOfferUpdate,
+  DailyLunchQuoteInput,
+  DailyLunchQuoteResponse,
   DeleteArtikel409,
   DeleteCostCenterDeactivatedResponse,
   DeleteJournalEntryResult,
   DeleteShranjenKupec404,
   DimensionRecord,
+  DnevnaKosilaObdobje,
   DnevniMeniVnos,
   DocumentRecord,
   DodajModifikatorjeInput,
@@ -111,6 +119,7 @@ import type {
   GetAgedAnalysisParams,
   GetArtikelVNormativi200Item,
   GetBalanceSheetParams,
+  GetDnevnaKosilaObdobjeParams,
   GetDostavaPredogledParams,
   GetIncomeStatementParams,
   GetKarticaArtiklaParams,
@@ -190,6 +199,7 @@ import type {
   ListCostCentersResponse,
   ListCounterpartiesParams,
   ListCounterpartiesResponse,
+  ListDailyLunchOffers200,
   ListDepartmentsParams,
   ListDepartmentsResponse,
   ListDnevniMeniParams,
@@ -8342,6 +8352,470 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getQuoteMalicaOrderMutationOptions(options));
     }
 
+export const getListDailyLunchOffersUrl = () => {
+
+
+
+
+  return `/api/daily-lunch-offers`
+}
+
+export const listDailyLunchOffers = async ( options?: RequestInit): Promise<ListDailyLunchOffers200> => {
+
+  return customFetch<ListDailyLunchOffers200>(getListDailyLunchOffersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDailyLunchOffersQueryKey = () => {
+    return [
+    `/api/daily-lunch-offers`
+    ] as const;
+    }
+
+
+export const getListDailyLunchOffersQueryOptions = <TData = Awaited<ReturnType<typeof listDailyLunchOffers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDailyLunchOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDailyLunchOffersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDailyLunchOffers>>> = ({ signal }) => listDailyLunchOffers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDailyLunchOffers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDailyLunchOffersQueryResult = NonNullable<Awaited<ReturnType<typeof listDailyLunchOffers>>>
+export type ListDailyLunchOffersQueryError = ErrorType<unknown>
+
+
+
+export function useListDailyLunchOffers<TData = Awaited<ReturnType<typeof listDailyLunchOffers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDailyLunchOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDailyLunchOffersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDailyLunchOfferUrl = () => {
+
+
+
+
+  return `/api/daily-lunch-offers`
+}
+
+export const createDailyLunchOffer = async (dailyLunchOfferInput: DailyLunchOfferInput, options?: RequestInit): Promise<DailyLunchOfferResponse> => {
+
+  return customFetch<DailyLunchOfferResponse>(getCreateDailyLunchOfferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyLunchOfferInput)
+  }
+);}
+
+
+
+
+
+export const getCreateDailyLunchOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDailyLunchOffer>>, TError,{data: BodyType<DailyLunchOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDailyLunchOffer>>, TError,{data: BodyType<DailyLunchOfferInput>}, TContext> => {
+
+const mutationKey = ['createDailyLunchOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDailyLunchOffer>>, {data: BodyType<DailyLunchOfferInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDailyLunchOffer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDailyLunchOfferMutationResult = NonNullable<Awaited<ReturnType<typeof createDailyLunchOffer>>>
+    export type CreateDailyLunchOfferMutationBody = BodyType<DailyLunchOfferInput>
+    export type CreateDailyLunchOfferMutationError = ErrorType<unknown>
+
+    export const useCreateDailyLunchOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDailyLunchOffer>>, TError,{data: BodyType<DailyLunchOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDailyLunchOffer>>,
+        TError,
+        {data: BodyType<DailyLunchOfferInput>},
+        TContext
+      > => {
+      return useMutation(getCreateDailyLunchOfferMutationOptions(options));
+    }
+
+export const getUpdateDailyLunchOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/daily-lunch-offers/${offerId}`
+}
+
+export const updateDailyLunchOffer = async (offerId: number,
+    dailyLunchOfferUpdate: DailyLunchOfferUpdate, options?: RequestInit): Promise<DailyLunchOfferResponse> => {
+
+  return customFetch<DailyLunchOfferResponse>(getUpdateDailyLunchOfferUrl(offerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyLunchOfferUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateDailyLunchOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDailyLunchOffer>>, TError,{offerId: number;data: BodyType<DailyLunchOfferUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDailyLunchOffer>>, TError,{offerId: number;data: BodyType<DailyLunchOfferUpdate>}, TContext> => {
+
+const mutationKey = ['updateDailyLunchOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDailyLunchOffer>>, {offerId: number;data: BodyType<DailyLunchOfferUpdate>}> = (props) => {
+          const {offerId,data} = props ?? {};
+
+          return  updateDailyLunchOffer(offerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDailyLunchOfferMutationResult = NonNullable<Awaited<ReturnType<typeof updateDailyLunchOffer>>>
+    export type UpdateDailyLunchOfferMutationBody = BodyType<DailyLunchOfferUpdate>
+    export type UpdateDailyLunchOfferMutationError = ErrorType<unknown>
+
+    export const useUpdateDailyLunchOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDailyLunchOffer>>, TError,{offerId: number;data: BodyType<DailyLunchOfferUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDailyLunchOffer>>,
+        TError,
+        {offerId: number;data: BodyType<DailyLunchOfferUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateDailyLunchOfferMutationOptions(options));
+    }
+
+export const getPublishDailyLunchOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/daily-lunch-offers/${offerId}/publish`
+}
+
+export const publishDailyLunchOffer = async (offerId: number, options?: RequestInit): Promise<DailyLunchOfferResponse> => {
+
+  return customFetch<DailyLunchOfferResponse>(getPublishDailyLunchOfferUrl(offerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishDailyLunchOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishDailyLunchOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishDailyLunchOffer>>, TError,{offerId: number}, TContext> => {
+
+const mutationKey = ['publishDailyLunchOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishDailyLunchOffer>>, {offerId: number}> = (props) => {
+          const {offerId} = props ?? {};
+
+          return  publishDailyLunchOffer(offerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishDailyLunchOfferMutationResult = NonNullable<Awaited<ReturnType<typeof publishDailyLunchOffer>>>
+
+    export type PublishDailyLunchOfferMutationError = ErrorType<unknown>
+
+    export const usePublishDailyLunchOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishDailyLunchOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishDailyLunchOffer>>,
+        TError,
+        {offerId: number},
+        TContext
+      > => {
+      return useMutation(getPublishDailyLunchOfferMutationOptions(options));
+    }
+
+export const getCloseDailyLunchOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/daily-lunch-offers/${offerId}/close`
+}
+
+export const closeDailyLunchOffer = async (offerId: number, options?: RequestInit): Promise<DailyLunchOfferResponse> => {
+
+  return customFetch<DailyLunchOfferResponse>(getCloseDailyLunchOfferUrl(offerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCloseDailyLunchOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeDailyLunchOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeDailyLunchOffer>>, TError,{offerId: number}, TContext> => {
+
+const mutationKey = ['closeDailyLunchOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeDailyLunchOffer>>, {offerId: number}> = (props) => {
+          const {offerId} = props ?? {};
+
+          return  closeDailyLunchOffer(offerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseDailyLunchOfferMutationResult = NonNullable<Awaited<ReturnType<typeof closeDailyLunchOffer>>>
+
+    export type CloseDailyLunchOfferMutationError = ErrorType<unknown>
+
+    export const useCloseDailyLunchOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeDailyLunchOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeDailyLunchOffer>>,
+        TError,
+        {offerId: number},
+        TContext
+      > => {
+      return useMutation(getCloseDailyLunchOfferMutationOptions(options));
+    }
+
+export const getQuoteDailyLunchUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/daily-lunch-offers/${offerId}/quote`
+}
+
+export const quoteDailyLunch = async (offerId: number,
+    dailyLunchQuoteInput: DailyLunchQuoteInput, options?: RequestInit): Promise<DailyLunchQuoteResponse> => {
+
+  return customFetch<DailyLunchQuoteResponse>(getQuoteDailyLunchUrl(offerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyLunchQuoteInput)
+  }
+);}
+
+
+
+
+
+export const getQuoteDailyLunchMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteDailyLunch>>, TError,{offerId: number;data: BodyType<DailyLunchQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof quoteDailyLunch>>, TError,{offerId: number;data: BodyType<DailyLunchQuoteInput>}, TContext> => {
+
+const mutationKey = ['quoteDailyLunch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof quoteDailyLunch>>, {offerId: number;data: BodyType<DailyLunchQuoteInput>}> = (props) => {
+          const {offerId,data} = props ?? {};
+
+          return  quoteDailyLunch(offerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QuoteDailyLunchMutationResult = NonNullable<Awaited<ReturnType<typeof quoteDailyLunch>>>
+    export type QuoteDailyLunchMutationBody = BodyType<DailyLunchQuoteInput>
+    export type QuoteDailyLunchMutationError = ErrorType<unknown>
+
+    export const useQuoteDailyLunch = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteDailyLunch>>, TError,{offerId: number;data: BodyType<DailyLunchQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof quoteDailyLunch>>,
+        TError,
+        {offerId: number;data: BodyType<DailyLunchQuoteInput>},
+        TContext
+      > => {
+      return useMutation(getQuoteDailyLunchMutationOptions(options));
+    }
+
+export const getAddDailyLunchToOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila/${id}/daily-lunch`
+}
+
+export const addDailyLunchToOrder = async (id: number,
+    dailyLunchAddInput: DailyLunchAddInput, options?: RequestInit): Promise<DailyLunchAddResponse> => {
+
+  return customFetch<DailyLunchAddResponse>(getAddDailyLunchToOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyLunchAddInput)
+  }
+);}
+
+
+
+
+
+export const getAddDailyLunchToOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDailyLunchToOrder>>, TError,{id: number;data: BodyType<DailyLunchAddInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addDailyLunchToOrder>>, TError,{id: number;data: BodyType<DailyLunchAddInput>}, TContext> => {
+
+const mutationKey = ['addDailyLunchToOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addDailyLunchToOrder>>, {id: number;data: BodyType<DailyLunchAddInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addDailyLunchToOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddDailyLunchToOrderMutationResult = NonNullable<Awaited<ReturnType<typeof addDailyLunchToOrder>>>
+    export type AddDailyLunchToOrderMutationBody = BodyType<DailyLunchAddInput>
+    export type AddDailyLunchToOrderMutationError = ErrorType<void>
+
+    export const useAddDailyLunchToOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDailyLunchToOrder>>, TError,{id: number;data: BodyType<DailyLunchAddInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addDailyLunchToOrder>>,
+        TError,
+        {id: number;data: BodyType<DailyLunchAddInput>},
+        TContext
+      > => {
+      return useMutation(getAddDailyLunchToOrderMutationOptions(options));
+    }
+
 export const getGetMalicaBootstrapUrl = () => {
 
 
@@ -12368,6 +12842,84 @@ export function useListVivaVracila<TData = Awaited<ReturnType<typeof listVivaVra
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListVivaVracilaQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDnevnaKosilaObdobjeUrl = (params: GetDnevnaKosilaObdobjeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/statistike/dnevna-kosila-obdobje?${stringifiedParams}` : `/api/statistike/dnevna-kosila-obdobje`
+}
+
+export const getDnevnaKosilaObdobje = async (params: GetDnevnaKosilaObdobjeParams, options?: RequestInit): Promise<DnevnaKosilaObdobje> => {
+
+  return customFetch<DnevnaKosilaObdobje>(getGetDnevnaKosilaObdobjeUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDnevnaKosilaObdobjeQueryKey = (params?: GetDnevnaKosilaObdobjeParams,) => {
+    return [
+    `/api/statistike/dnevna-kosila-obdobje`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetDnevnaKosilaObdobjeQueryOptions = <TData = Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>, TError = ErrorType<void>>(params: GetDnevnaKosilaObdobjeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDnevnaKosilaObdobjeQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>> = ({ signal }) => getDnevnaKosilaObdobje(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDnevnaKosilaObdobjeQueryResult = NonNullable<Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>>
+export type GetDnevnaKosilaObdobjeQueryError = ErrorType<void>
+
+
+
+export function useGetDnevnaKosilaObdobje<TData = Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>, TError = ErrorType<void>>(
+ params: GetDnevnaKosilaObdobjeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDnevnaKosilaObdobje>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDnevnaKosilaObdobjeQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

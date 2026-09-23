@@ -92,6 +92,7 @@ import {
 } from "@/lib/multicourse-order";
 import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
 import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
+import { DailyLunchOrderFlow } from "@/components/DailyLunchOrderFlow";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 import { onlyActiveArticles } from "@/lib/activeArticles";
 import { GatewayConflictError, localOrderRoute, parseLocalOrderRoute, type GatewayOrderSnapshot } from "@/lib/gatewayClient";
@@ -2801,6 +2802,20 @@ export default function Order() {
 
       {/* ── Desni del — Račun ────────────────────────────────── */}
       <div className={`w-full md:w-[400px] flex-col md:h-full flex-1 min-h-0 bg-background shadow-xl z-10 relative ${mobileTab === "meni" ? "hidden md:flex" : "flex"}`}>
+        {narocilo.status === "odprto" && (
+          <details className="shrink-0 border-b bg-card px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold">Dodaj dnevno kosilo</summary>
+            <div className="pt-3">
+              <DailyLunchOrderFlow
+                narociloId={narocilo.id}
+                onAdded={() => {
+                  queryClient.invalidateQueries({ queryKey: getGetNarociloQueryKey(narocilo.id) });
+                  queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
+                }}
+              />
+            </div>
+          </details>
+        )}
         <div className="shrink-0 p-3 md:p-2.5 border-b bg-card space-y-1.5 md:space-y-0.5">
           <OrderContextLine
             prostorIme={prostorIme}

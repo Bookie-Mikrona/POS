@@ -4258,6 +4258,175 @@ export const QuoteMalicaOrderResponse = zod.object({
 })
 
 
+export const ListDailyLunchOffersResponse = zod.object({
+  "offers": zod.array(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "baseFlatAmount": zod.string(),
+  "starterFlatAmount": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number(),
+  "sortOrder": zod.number()
+}))
+}))
+})
+
+
+export const CreateDailyLunchOfferBody = zod.object({
+  "businessDate": zod.coerce.date(),
+  "baseFlatAmount": zod.string().optional(),
+  "starterFlatAmount": zod.string().optional(),
+  "choices": zod.array(zod.object({
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number()
+}))
+})
+
+export const CreateDailyLunchOfferResponse = zod.object({
+  "offer": zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "baseFlatAmount": zod.string(),
+  "starterFlatAmount": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number(),
+  "sortOrder": zod.number()
+}))
+})
+})
+
+
+export const UpdateDailyLunchOfferParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const UpdateDailyLunchOfferBody = zod.object({
+  "businessDate": zod.coerce.date(),
+  "baseFlatAmount": zod.string().optional(),
+  "starterFlatAmount": zod.string().optional(),
+  "choices": zod.array(zod.object({
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number()
+}))
+})
+
+export const UpdateDailyLunchOfferResponse = zod.object({
+  "offer": zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "baseFlatAmount": zod.string(),
+  "starterFlatAmount": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number(),
+  "sortOrder": zod.number()
+}))
+})
+})
+
+
+export const PublishDailyLunchOfferParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const PublishDailyLunchOfferResponse = zod.object({
+  "offer": zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "baseFlatAmount": zod.string(),
+  "starterFlatAmount": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number(),
+  "sortOrder": zod.number()
+}))
+})
+})
+
+
+export const CloseDailyLunchOfferParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const CloseDailyLunchOfferResponse = zod.object({
+  "offer": zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "baseFlatAmount": zod.string(),
+  "starterFlatAmount": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "role": zod.enum(['starter', 'soup', 'main', 'dessert']),
+  "artikelId": zod.number(),
+  "sortOrder": zod.number()
+}))
+})
+})
+
+
+export const QuoteDailyLunchParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const QuoteDailyLunchBody = zod.object({
+  "mode": zod.enum(['three_course', 'four_course']),
+  "selectedDishes": zod.record(zod.string(), zod.number())
+})
+
+export const QuoteDailyLunchResponse = zod.object({
+  "offerId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "mode": zod.enum(['three_course', 'four_course']),
+  "selectedDishes": zod.record(zod.string(), zod.number()),
+  "mainLivePrice": zod.string().optional(),
+  "baseFlatAmount": zod.string().optional(),
+  "starterFlatAmount": zod.string().optional(),
+  "total": zod.string()
+})
+
+
+export const AddDailyLunchToOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const AddDailyLunchToOrderBody = zod.object({
+  "offerId": zod.number(),
+  "mode": zod.enum(['three_course', 'four_course']),
+  "selectedDishes": zod.record(zod.string(), zod.number()),
+  "idempotencyKey": zod.string().min(1)
+})
+
+export const AddDailyLunchToOrderResponse = zod.object({
+  "orderId": zod.number(),
+  "idempotencyKey": zod.string(),
+  "duplicate": zod.boolean()
+})
+
+
 export const getMalicaBootstrapResponseGroupsItemSortOrderMax = 4;
 
 export const getMalicaBootstrapResponsePricesItemPriceCentsMin = 0;
@@ -6702,6 +6871,43 @@ export const ListVivaVracilaResponseItem = zod.object({
   "ustvarjeno": zod.coerce.date()
 })
 export const ListVivaVracilaResponse = zod.array(ListVivaVracilaResponseItem)
+
+
+export const GetDnevnaKosilaObdobjeQueryParams = zod.object({
+  "od": zod.date(),
+  "do": zod.date()
+})
+
+export const GetDnevnaKosilaObdobjeResponse = zod.object({
+  "od": zod.coerce.date(),
+  "do": zod.coerce.date(),
+  "enote": zod.array(zod.record(zod.string(), zod.unknown())),
+  "dnevi": zod.array(zod.object({
+  "mode": zod.string(),
+  "stevilo": zod.number(),
+  "promet": zod.number(),
+  "povprecnaVrednost": zod.number()
+}).and(zod.object({
+  "datum": zod.coerce.date().optional(),
+  "enotaId": zod.number().optional(),
+  "enota": zod.string().optional()
+}))),
+  "poNacinu": zod.array(zod.object({
+  "mode": zod.string(),
+  "stevilo": zod.number(),
+  "promet": zod.number(),
+  "povprecnaVrednost": zod.number()
+})),
+  "glavneJedi": zod.array(zod.object({
+  "mode": zod.string(),
+  "stevilo": zod.number(),
+  "promet": zod.number(),
+  "povprecnaVrednost": zod.number()
+}).and(zod.object({
+  "artikelId": zod.number().optional(),
+  "ime": zod.string().optional()
+})))
+})
 
 
 /**

@@ -82,6 +82,8 @@ tags:
     description: Veselice, poroke, catering in drugi gostinski dogodki
   - name: kds
     description: Konfiguracija logičnih KDS postaj in prikazovalnikov po enoti
+  - name: daily-lunch
+    description: Unit and business-date scoped daily lunch offers
 paths:
   /companies/{companyId}/credit-note-packaging-documents:
     get:
@@ -2242,6 +2244,74 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MalicaQuote" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /daily-lunch-offers:
+    get:
+      operationId: listDailyLunchOffers
+      tags: [daily-lunch]
+      responses:
+        "200":
+          description: Daily lunch offers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offers]
+                properties:
+                  offers: { type: array, items: { $ref: "#/components/schemas/DailyLunchOffer" } }
+    post:
+      operationId: createDailyLunchOffer
+      tags: [daily-lunch]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchOfferInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchOfferResponse" } } } }
+  /daily-lunch-offers/{offerId}:
+    put:
+      operationId: updateDailyLunchOffer
+      tags: [daily-lunch]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchOfferUpdate" } } }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchOfferResponse" } } } }
+  /daily-lunch-offers/{offerId}/publish:
+    post:
+      operationId: publishDailyLunchOffer
+      tags: [daily-lunch]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: Published, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchOfferResponse" } } } }
+  /daily-lunch-offers/{offerId}/close:
+    post:
+      operationId: closeDailyLunchOffer
+      tags: [daily-lunch]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { description: Closed, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchOfferResponse" } } } }
+  /daily-lunch-offers/{offerId}/quote:
+    post:
+      operationId: quoteDailyLunch
+      tags: [daily-lunch]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchQuoteInput" } } }
+      responses:
+        "200": { description: Quote, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchQuoteResponse" } } } }
+  /narocila/{id}/daily-lunch:
+    post:
+      operationId: addDailyLunchToOrder
+      tags: [daily-lunch]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchAddInput" } } }
+      responses:
+        "201": { description: Lunch added, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchAddResponse" } } } }
+        "200": { description: Idempotent retry, content: { application/json: { schema: { $ref: "#/components/schemas/DailyLunchAddResponse" } } } }
+        "409": { description: Order or availability conflict }
   /malice/bootstrap:
     get:
       operationId: getMalicaBootstrap
@@ -3372,6 +3442,16 @@ paths:
                   $ref: "#/components/schemas/VivaVracilo"
         "404":
           description: Račun ni najden
+  /statistike/dnevna-kosila-obdobje:
+    get:
+      operationId: getDnevnaKosilaObdobje
+      tags: [statistike]
+      parameters:
+        - { name: od, in: query, required: true, schema: { type: string, format: date } }
+        - { name: do, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Daily lunch sales for the period, content: { application/json: { schema: { $ref: "#/components/schemas/DnevnaKosilaObdobje" } } } }
+        "400": { description: Invalid date range }
   /statistike:
     get:
       operationId: getStatistike
@@ -12608,6 +12688,82 @@ components:
             - preklicano
         idempotent:
           type: boolean
+    DailyLunchOfferInput:
+      type: object
+      required: [businessDate, choices]
+      properties:
+        businessDate: { type: string, format: date }
+        baseFlatAmount: { type: string }
+        starterFlatAmount: { type: string }
+        choices:
+          type: array
+          items:
+            type: object
+            required: [role, artikelId]
+            properties:
+              role: { type: string, enum: [starter, soup, main, dessert] }
+              artikelId: { type: integer }
+    DailyLunchOfferUpdate:
+      allOf:
+        - $ref: "#/components/schemas/DailyLunchOfferInput"
+    DailyLunchChoice:
+      type: object
+      required: [id, offerId, role, artikelId, sortOrder]
+      properties:
+        id: { type: integer }
+        offerId: { type: integer }
+        role: { type: string, enum: [starter, soup, main, dessert] }
+        artikelId: { type: integer }
+        sortOrder: { type: integer }
+    DailyLunchOffer:
+      type: object
+      required: [id, enotaId, businessDate, status, baseFlatAmount, starterFlatAmount, choices]
+      properties:
+        id: { type: integer }
+        enotaId: { type: integer }
+        businessDate: { type: string, format: date }
+        status: { type: string, enum: [draft, published, closed] }
+        baseFlatAmount: { type: string }
+        starterFlatAmount: { type: string }
+        choices: { type: array, items: { $ref: "#/components/schemas/DailyLunchChoice" } }
+    DailyLunchOfferResponse:
+      type: object
+      required: [offer]
+      properties:
+        offer: { $ref: "#/components/schemas/DailyLunchOffer" }
+    DailyLunchQuoteInput:
+      type: object
+      required: [mode, selectedDishes]
+      properties:
+        mode: { type: string, enum: [three_course, four_course] }
+        selectedDishes: { type: object, additionalProperties: { type: integer } }
+    DailyLunchQuoteResponse:
+      type: object
+      required: [offerId, businessDate, mode, selectedDishes, total]
+      properties:
+        offerId: { type: integer }
+        businessDate: { type: string, format: date }
+        mode: { type: string, enum: [three_course, four_course] }
+        selectedDishes: { type: object, additionalProperties: { type: integer } }
+        mainLivePrice: { type: string }
+        baseFlatAmount: { type: string }
+        starterFlatAmount: { type: string }
+        total: { type: string }
+    DailyLunchAddInput:
+      type: object
+      required: [offerId, mode, selectedDishes, idempotencyKey]
+      properties:
+        offerId: { type: integer }
+        mode: { type: string, enum: [three_course, four_course] }
+        selectedDishes: { type: object, additionalProperties: { type: integer } }
+        idempotencyKey: { type: string, minLength: 1 }
+    DailyLunchAddResponse:
+      type: object
+      required: [orderId, idempotencyKey, duplicate]
+      properties:
+        orderId: { type: integer }
+        idempotencyKey: { type: string }
+        duplicate: { type: boolean }
     MalicaGroup:
       type: object
       required: [id, enotaId, code, name, sortOrder, active]
@@ -14463,6 +14619,24 @@ components:
         lastna_poraba:
           type: number
           description: Skupni znesek lastne porabe
+    DnevnaKosilaPovzetek:
+      type: object
+      required: [mode, stevilo, promet, povprecnaVrednost]
+      properties:
+        mode: { type: string }
+        stevilo: { type: integer }
+        promet: { type: number }
+        povprecnaVrednost: { type: number }
+    DnevnaKosilaObdobje:
+      type: object
+      required: [od, do, enote, dnevi, poNacinu, glavneJedi]
+      properties:
+        od: { type: string, format: date }
+        do: { type: string, format: date }
+        enote: { type: array, items: { type: object, additionalProperties: true } }
+        dnevi: { type: array, items: { allOf: [{ $ref: "#/components/schemas/DnevnaKosilaPovzetek" }, { type: object, properties: { datum: { type: string, format: date }, enotaId: { type: integer }, enota: { type: string } } }] } }
+        poNacinu: { type: array, items: { $ref: "#/components/schemas/DnevnaKosilaPovzetek" } }
+        glavneJedi: { type: array, items: { allOf: [{ $ref: "#/components/schemas/DnevnaKosilaPovzetek" }, { type: object, properties: { artikelId: { type: integer }, ime: { type: string } } }] } }
     Statistike:
       type: object
       required:

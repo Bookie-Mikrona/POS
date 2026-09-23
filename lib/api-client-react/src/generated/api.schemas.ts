@@ -3044,6 +3044,131 @@ export interface DostavaStatusUpdateResponse {
   idempotent: boolean;
 }
 
+export type DailyLunchOfferInputChoicesItemRole = typeof DailyLunchOfferInputChoicesItemRole[keyof typeof DailyLunchOfferInputChoicesItemRole];
+
+
+export const DailyLunchOfferInputChoicesItemRole = {
+  starter: 'starter',
+  soup: 'soup',
+  main: 'main',
+  dessert: 'dessert',
+} as const;
+
+export type DailyLunchOfferInputChoicesItem = {
+  role: DailyLunchOfferInputChoicesItemRole;
+  artikelId: number;
+};
+
+export interface DailyLunchOfferInput {
+  businessDate: string;
+  baseFlatAmount?: string;
+  starterFlatAmount?: string;
+  choices: DailyLunchOfferInputChoicesItem[];
+}
+
+export type DailyLunchOfferUpdate = DailyLunchOfferInput;
+
+export type DailyLunchChoiceRole = typeof DailyLunchChoiceRole[keyof typeof DailyLunchChoiceRole];
+
+
+export const DailyLunchChoiceRole = {
+  starter: 'starter',
+  soup: 'soup',
+  main: 'main',
+  dessert: 'dessert',
+} as const;
+
+export interface DailyLunchChoice {
+  id: number;
+  offerId: number;
+  role: DailyLunchChoiceRole;
+  artikelId: number;
+  sortOrder: number;
+}
+
+export type DailyLunchOfferStatus = typeof DailyLunchOfferStatus[keyof typeof DailyLunchOfferStatus];
+
+
+export const DailyLunchOfferStatus = {
+  draft: 'draft',
+  published: 'published',
+  closed: 'closed',
+} as const;
+
+export interface DailyLunchOffer {
+  id: number;
+  enotaId: number;
+  businessDate: string;
+  status: DailyLunchOfferStatus;
+  baseFlatAmount: string;
+  starterFlatAmount: string;
+  choices: DailyLunchChoice[];
+}
+
+export interface DailyLunchOfferResponse {
+  offer: DailyLunchOffer;
+}
+
+export type DailyLunchQuoteInputMode = typeof DailyLunchQuoteInputMode[keyof typeof DailyLunchQuoteInputMode];
+
+
+export const DailyLunchQuoteInputMode = {
+  three_course: 'three_course',
+  four_course: 'four_course',
+} as const;
+
+export type DailyLunchQuoteInputSelectedDishes = {[key: string]: number};
+
+export interface DailyLunchQuoteInput {
+  mode: DailyLunchQuoteInputMode;
+  selectedDishes: DailyLunchQuoteInputSelectedDishes;
+}
+
+export type DailyLunchQuoteResponseMode = typeof DailyLunchQuoteResponseMode[keyof typeof DailyLunchQuoteResponseMode];
+
+
+export const DailyLunchQuoteResponseMode = {
+  three_course: 'three_course',
+  four_course: 'four_course',
+} as const;
+
+export type DailyLunchQuoteResponseSelectedDishes = {[key: string]: number};
+
+export interface DailyLunchQuoteResponse {
+  offerId: number;
+  businessDate: string;
+  mode: DailyLunchQuoteResponseMode;
+  selectedDishes: DailyLunchQuoteResponseSelectedDishes;
+  mainLivePrice?: string;
+  baseFlatAmount?: string;
+  starterFlatAmount?: string;
+  total: string;
+}
+
+export type DailyLunchAddInputMode = typeof DailyLunchAddInputMode[keyof typeof DailyLunchAddInputMode];
+
+
+export const DailyLunchAddInputMode = {
+  three_course: 'three_course',
+  four_course: 'four_course',
+} as const;
+
+export type DailyLunchAddInputSelectedDishes = {[key: string]: number};
+
+export interface DailyLunchAddInput {
+  offerId: number;
+  mode: DailyLunchAddInputMode;
+  selectedDishes: DailyLunchAddInputSelectedDishes;
+  /** @minLength 1 */
+  idempotencyKey: string;
+}
+
+export interface DailyLunchAddResponse {
+  orderId: number;
+  idempotencyKey: string;
+  duplicate: boolean;
+}
+
 export interface MalicaGroup {
   id: number;
   enotaId: number;
@@ -4942,6 +5067,35 @@ export interface PrometPoNacinuPlacila {
   reprezentanca?: number;
   /** Skupni znesek lastne porabe */
   lastna_poraba?: number;
+}
+
+export interface DnevnaKosilaPovzetek {
+  mode: string;
+  stevilo: number;
+  promet: number;
+  povprecnaVrednost: number;
+}
+
+export type DnevnaKosilaObdobjeEnoteItem = { [key: string]: unknown };
+
+export type DnevnaKosilaObdobjeDneviItem = DnevnaKosilaPovzetek & {
+  datum?: string;
+  enotaId?: number;
+  enota?: string;
+};
+
+export type DnevnaKosilaObdobjeGlavneJediItem = DnevnaKosilaPovzetek & {
+  artikelId?: number;
+  ime?: string;
+};
+
+export interface DnevnaKosilaObdobje {
+  od: string;
+  do: string;
+  enote: DnevnaKosilaObdobjeEnoteItem[];
+  dnevi: DnevnaKosilaObdobjeDneviItem[];
+  poNacinu: DnevnaKosilaPovzetek[];
+  glavneJedi: DnevnaKosilaObdobjeGlavneJediItem[];
 }
 
 export interface PrometUra {
@@ -10632,6 +10786,10 @@ export type SpojiNarocili400 = {
   error: string;
 };
 
+export type ListDailyLunchOffers200 = {
+  offers: DailyLunchOffer[];
+};
+
 export type ListMalicaEligibleArticlesParams = {
 role?: ListMalicaEligibleArticlesRole;
 groupId?: number;
@@ -10766,6 +10924,11 @@ export const ListFursAttemptsState = {
   failed: 'failed',
   unknown: 'unknown',
 } as const;
+
+export type GetDnevnaKosilaObdobjeParams = {
+od: string;
+do: string;
+};
 
 export type GetOperativnaPorocilaPrometParams = {
 /**

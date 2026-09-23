@@ -79,6 +79,7 @@ import offlineFiscalSyncRouter, { gatewayReviewRouter } from "./offline-fiscal-s
 import multicourseMenuRouter from "./multicourse-menu";
 import embalazaRouter from "./embalaza";
 import maliceRouter from "./malice";
+import dailyLunchRouter from "./daily-lunch";
 
 const router: IRouter = Router();
 
@@ -415,6 +416,7 @@ export const protectedPosRouterMounts: ProtectedPosRouterMount[] = [
   { prefix: "", childRouter: multicourseMenuRouter },
   { prefix: "", childRouter: embalazaRouter },
   { prefix: "", childRouter: maliceRouter },
+  { prefix: "", childRouter: dailyLunchRouter },
 ];
 
 for (const mount of protectedPosRouterMounts) {

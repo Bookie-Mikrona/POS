@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, count, desc, eq, gte, isNotNull, lt, lte, ne, sql, sum } from "drizzle-orm";
-import { artikliTable, blagajneTable, companiesTable, darilniBonGibiTable, db, enoteTable, kategorijeTable, mizeTable, narocilaTable, nastavitveTable, posCashReconciliationsTable, posUporabnikiTable, postavkeTable, prostoriTable, racuniTable, zPorocilaTable } from "@workspace/db";
+import { artikliTable, blagajneTable, companiesTable, darilniBonGibiTable, db, dailyLunchSaleSnapshotsTable, enoteTable, kategorijeTable, mizeTable, narocilaTable, nastavitveTable, posCashReconciliationsTable, posUporabnikiTable, postavkeTable, prostoriTable, racuniTable, zPorocilaTable } from "@workspace/db";
 import type { PosRequest } from "../../middlewares/pos";
 import { getBusinessDayBounds, getCurrentPosBusinessDate } from "../../lib/pos-business-day";
 import { getPosReceiptPrefixPattern } from "../../lib/pos-register-receipt-prefix";
@@ -11,6 +11,50 @@ import qrFeedbackReportRouter from "./qr-feedback-report";
 const router: IRouter = Router();
 
 router.use(qrFeedbackReportRouter);
+
+router.get("/statistike/dnevna-kosila-obdobje", async (req, res): Promise<void> => {
+  const posReq = req as PosRequest;
+  const od = typeof req.query.od === "string" ? req.query.od : "";
+  const doParam = typeof req.query.do === "string" ? req.query.do : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(od) || !/^\d{4}-\d{2}-\d{2}$/.test(doParam) || od > doParam) {
+    res.status(400).json({ error: "Neveljavno obdobje" }); return;
+  }
+  const allowedUnit = posReq.vloga === "admin_enote" ? posReq.enotaId : undefined;
+  const rows = await db.select({ snapshot: dailyLunchSaleSnapshotsTable, enotaId: narocilaTable.enotaId })
+    .from(dailyLunchSaleSnapshotsTable)
+    .innerJoin(narocilaTable, eq(narocilaTable.id, dailyLunchSaleSnapshotsTable.narociloId))
+    .where(and(
+      gte(dailyLunchSaleSnapshotsTable.businessDate, od),
+      lte(dailyLunchSaleSnapshotsTable.businessDate, doParam),
+      ...(allowedUnit ? [eq(narocilaTable.enotaId, allowedUnit)] : []),
+    ));
+  const orders = rows.map((row) => row.snapshot);
+  const articles = await db.select({ id: artikliTable.id, ime: artikliTable.ime }).from(artikliTable);
+  const names = new Map(articles.map((article) => [article.id, article.ime]));
+  const byMode = new Map<string, { stevilo: number; promet: number }>();
+  const byDay = new Map<string, { stevilo: number; promet: number }>();
+  const mains = new Map<number, { ime: string; stevilo: number; promet: number }>();
+  for (const row of orders) {
+    const total = Number(row.total);
+    const mode = row.mode;
+    const modeValue = byMode.get(mode) ?? { stevilo: 0, promet: 0 };
+    modeValue.stevilo += 1; modeValue.promet += total; byMode.set(mode, modeValue);
+    const dayValue = byDay.get(row.businessDate) ?? { stevilo: 0, promet: 0 };
+    dayValue.stevilo += 1; dayValue.promet += total; byDay.set(row.businessDate, dayValue);
+    const mainId = Number((row.selectedDishes as { main?: number }).main);
+    const main = mains.get(mainId) ?? { ime: names.get(mainId) ?? `Artikel ${mainId}`, stevilo: 0, promet: 0 };
+    main.stevilo += 1; main.promet += total; mains.set(mainId, main);
+  }
+  const summarize = (mode: string, value: { stevilo: number; promet: number }) => ({
+    mode, stevilo: value.stevilo, promet: Number(value.promet.toFixed(2)),
+    povprecnaVrednost: value.stevilo ? Number((value.promet / value.stevilo).toFixed(2)) : 0,
+  });
+  res.json({
+    od, do: doParam, enote: [], dnevi: [...byDay.entries()].map(([datum, value]) => ({ datum, enotaId: posReq.enotaId, enota: "", ...summarize("all", value) })),
+    poNacinu: [...byMode.entries()].map(([mode, value]) => summarize(mode, value)),
+    glavneJedi: [...mains.entries()].map(([artikelId, value]) => ({ artikelId, ime: value.ime, ...summarize("all", value) })),
+  });
+});
 
 router.get("/operativna-porocila/promet", async (req, res): Promise<void> => {
   res.setHeader("Cache-Control", "no-store");
