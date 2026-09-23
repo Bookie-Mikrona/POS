@@ -27,10 +27,10 @@ The existing development database may already contain some or all of these
 objects, and the historical scripts do not provide an applied-migration ledger
 or a safe replay contract. Replaying them can duplicate DDL, indexes,
 constraints, or data backfills. The active test migration manifest remains
-explicit and ends at the current `199` lineage. The restored Drizzle schema
-source is the source of truth for fresh-schema comparison; a deployment must
-produce a reviewed, narrowly scoped forward migration for any genuinely
-missing production object.
+explicit and continues with the single reviewed forward migration
+`220-restored-pos-public-features.sql`. That migration is additive and
+idempotent; it preserves the active `198` packaging and `199` company-plan
+lineage while reconciling the archived feature objects.
 
 Do not rename these files back to `.sql`, add them to the test manifest, run
 the post-merge migration helper against a populated database, or apply them to
@@ -39,8 +39,9 @@ must first compare `information_schema` and constraints on a disposable
 database and use a transactionally tracked, collision-free forward number.
 
 The read-only checker `scripts/validate-recovery-migrations.mjs` verifies the
-active numeric lineage, the absence of executable restored `200`–`219` SQL,
-and the complete archive inventory.
+active numeric lineage, SHA-256 equality of every archived snapshot against
+the preserved `c65df01b` blobs, the absence of executable restored `200`–`219`
+SQL, and the complete archive inventory.
 
 The checker permits the pre-existing legacy prefixes `003`, `009`, `010`,
 `011`, `012`, and `029`, which have duplicate zero-padded/base-schema

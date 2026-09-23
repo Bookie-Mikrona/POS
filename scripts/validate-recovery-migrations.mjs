@@ -1,6 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
 const workspaceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const activeDir = path.join(workspaceDir, "lib", "db", "src", "migrations");
@@ -67,7 +69,19 @@ export async function validateRecoveryMigrations() {
       throw new Error(`Historical archive file is unexpectedly empty or non-SQL: ${file}`);
     }
   }
-  return { activeSqlFiles: active.length, archiveFiles: archive.length };
+  for (const file of archive) {
+    const current = await readFile(path.join(archiveDir, file));
+    const preserved = execFileSync(
+      "git",
+      ["-C", workspaceDir, "show", `c65df01b620eb5283e60996ee2fb3a05514c2a80:lib/db/src/migrations/${file.replace(/\.txt$/, "")}`],
+    );
+    const currentHash = createHash("sha256").update(current).digest("hex");
+    const preservedHash = createHash("sha256").update(preserved).digest("hex");
+    if (currentHash !== preservedHash) {
+      throw new Error(`Historical archive hash mismatch: ${file}`);
+    }
+  }
+  return { activeSqlFiles: active.length, archiveFiles: archive.length, hashesVerified: archive.length };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

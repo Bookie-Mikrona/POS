@@ -85,6 +85,7 @@ const CAPABILITY_PATHS: CapabilityPathRule[] = [
   prefixes("checkout", "/x-porocilo", "/z-porocilo"),
   prefixes("operational_reports", "/operativna-porocila"),
   prefixes("menu", "/kategorije", "/artikli", "/dnevni-meni", "/modifikatorske-skupine", "/modifikatorji"),
+  prefixes("menu", "/malice", "/daily-lunch-offers"),
   prefixes("tables", "/mize", "/prostori"),
   prefixes("reservations", "/rezervacije"),
   prefixes("delivery", "/dostava", "/naselja"),
