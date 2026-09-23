@@ -116,6 +116,23 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
   };
 }
 export async function getStripePlatformContext() {
+  // The Replit Stripe connector can be proxy-only and omit secret_key. Connect's
+  // OAuth and account-scoped SDK calls need a platform key in that case.
+  const production = process.env.NODE_ENV === "production";
+  const configuredKey = (production
+    ? process.env.STRIPE_PLATFORM_SECRET_KEY_LIVE
+    : process.env.STRIPE_PLATFORM_SECRET_KEY_TEST)?.trim();
+  if (configuredKey) {
+    const expectedPrefix = production ? "sk_live_" : "sk_test_";
+    if (!configuredKey.startsWith(expectedPrefix)) {
+      throw new StripeConnectionError(
+        "stripe_connection_misconfigured",
+        `Stripe platformni ključ mora biti ${production ? "živi" : "testni"}.`,
+        false,
+      );
+    }
+    return { stripe: new Stripe(configuredKey), livemode: production };
+  }
   const { secretKey } = await getStripeCredentials();
   const stripe = new Stripe(secretKey);
   return { stripe, livemode: secretKey.startsWith("sk_live_") };

@@ -17,7 +17,7 @@ vi.mock("stripe-replit-sync", () => ({
   },
 }));
 
-import { getStripeSync, isStripeConnectionError, isStripeWebhookSyncError } from "./stripeClient";
+import { getStripePlatformContext, getStripeSync, isStripeConnectionError, isStripeWebhookSyncError } from "./stripeClient";
 
 const payload = JSON.stringify({
   id: "evt_restore_test",
@@ -27,6 +27,9 @@ const payload = JSON.stringify({
 });
 
 beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
+  vi.stubEnv("STRIPE_PLATFORM_SECRET_KEY_TEST", "");
+  vi.stubEnv("STRIPE_PLATFORM_SECRET_KEY_LIVE", "");
   vi.stubEnv("DATABASE_URL", "postgresql://restore-test");
   vi.stubEnv("REPLIT_CONNECTORS_HOSTNAME", "connectors.test");
   vi.stubEnv("REPL_IDENTITY", "restore-test");
@@ -34,9 +37,29 @@ beforeEach(() => {
   mocks.processEvent.mockReset();
 });
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 describe("Stripe client safeguards", () => {
+  it("uses a separately configured test platform key when the connector cannot expose one", async () => {
+    vi.stubEnv("STRIPE_PLATFORM_SECRET_KEY_TEST", "sk_test_connect");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const context = await getStripePlatformContext();
+    expect(context.livemode).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("never uses a test platform key in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("STRIPE_PLATFORM_SECRET_KEY_TEST", "sk_test_connect");
+    vi.stubEnv("STRIPE_PLATFORM_SECRET_KEY_LIVE", "sk_test_wrong_mode");
+    const error = await getStripePlatformContext().catch((value) => value);
+    expect(error).toMatchObject({ code: "stripe_connection_misconfigured", retryable: false });
+  });
+
   it("classifies a missing connector as a non-retryable configuration error", async () => {
     vi.stubEnv("REPLIT_CONNECTORS_HOSTNAME", "");
     const error = await getStripeSync().catch((value) => value);
