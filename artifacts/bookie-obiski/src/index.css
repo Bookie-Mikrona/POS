@@ -1,0 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+@source "../../../lib/public-venue-ui/src";
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 40 33% 96%;
+  --foreground: 160 10% 15%;
+  --border: 40 15% 85%;
+  --input: 40 15% 85%;
+  --ring: 160 30% 25%;
+
+  --card: 40 33% 98%;
+  --card-foreground: 160 10% 15%;
+  --card-border: 40 15% 85%;
+
+  --popover: 40 33% 98%;
+  --popover-foreground: 160 10% 15%;
+  --popover-border: 40 15% 85%;
+
+  --primary: 160 38% 17%;
+  --primary-foreground: 40 33% 96%;
+  --primary-border: hsl(160 38% 17%);
+
+  --secondary: 40 20% 90%;
+  --secondary-foreground: 160 38% 17%;
+  --secondary-border: hsl(40 20% 90%);
+
+  --muted: 40 20% 90%;
+  --muted-foreground: 160 10% 40%;
+  --muted-border: hsl(40 20% 90%);
+
+  --accent: 15 45% 45%; /* A warm terracotta accent */
+  --accent-foreground: 40 33% 96%;
+  --accent-border: hsl(15 45% 45%);
+
+  --destructive: 0 60% 40%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-border: hsl(0 60% 40%);
+
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: 'Fraunces', serif;
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* Minimal dark mode for specific contrast needs, but app defaults to light warm mode */
+  --background: 160 20% 10%;
+  --foreground: 40 33% 96%;
+  --border: 160 15% 20%;
+  --input: 160 15% 20%;
+  --ring: 160 30% 40%;
+  --card: 160 20% 12%;
+  --card-foreground: 40 33% 96%;
+  --card-border: 160 15% 20%;
+  --popover: 160 20% 12%;
+  --popover-foreground: 40 33% 96%;
+  --popover-border: 160 15% 20%;
+  --primary: 40 33% 96%;
+  --primary-foreground: 160 38% 17%;
+  --secondary: 160 15% 20%;
+  --secondary-foreground: 40 33% 96%;
+  --muted: 160 15% 20%;
+  --muted-foreground: 160 10% 60%;
+  --accent: 15 45% 55%;
+  --accent-foreground: 160 20% 10%;
+  --destructive: 0 50% 50%;
+  --destructive-foreground: 40 33% 96%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+/* Base structural styles */
+.restaurant-container {
+  @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12;
+}
+
+/* Animations for layout changes */
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

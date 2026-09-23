@@ -11,6 +11,11 @@ import {
 } from './objectAcl';
 
 const REPLIT_SIDECAR_ENDPOINT = 'http://127.0.0.1:1106';
+const APP_STORAGE_ENV_KEYS = [
+  'DEFAULT_OBJECT_STORAGE_BUCKET_ID',
+  'PUBLIC_OBJECT_SEARCH_PATHS',
+  'PRIVATE_OBJECT_DIR',
+] as const;
 
 export const objectStorageClient = new Storage({
   credentials: {
@@ -38,37 +43,122 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
+function normalizeObjectStorageRoot(
+  rawPath: string,
+  variableName: 'PRIVATE_OBJECT_DIR' | 'PUBLIC_OBJECT_SEARCH_PATHS',
+): string {
+  const normalizedDir = rawPath.trim().replace(/\/+$/, '');
+  const parts = normalizedDir.split('/');
+  const bucketName = parts[1];
+  const rootParts = parts.slice(2);
+  const validBucketName =
+    typeof bucketName === 'string' &&
+    bucketName.length >= 3 &&
+    bucketName.length <= 63 &&
+    /^[a-z0-9][a-z0-9._-]*[a-z0-9]$/.test(bucketName) &&
+    !bucketName.includes('..') &&
+    !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(bucketName);
+  const validRoot =
+    rootParts.length > 0 &&
+    rootParts.every(
+      (part) =>
+        part.length > 0 &&
+        part !== '.' &&
+        part !== '..' &&
+        /^[a-zA-Z0-9._-]+$/.test(part),
+    );
+  if (
+    !normalizedDir.startsWith('/') ||
+    parts[0] !== '' ||
+    !validBucketName ||
+    !validRoot
+  ) {
+    throw new Error(
+      `Invalid ${variableName}: expected /bucket/root with safe path segments`,
+    );
+  }
+  return normalizedDir;
+}
+
+function normalizePrivateObjectDir(dir: string | undefined): string {
+  if (!dir?.trim()) {
+    throw new Error(
+      "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
+        'tool and set PRIVATE_OBJECT_DIR env var.',
+    );
+  }
+  return normalizeObjectStorageRoot(dir, 'PRIVATE_OBJECT_DIR');
+}
+
+function normalizePublicObjectSearchPaths(
+  pathsString: string | undefined,
+): string[] {
+  if (!pathsString?.trim()) {
+    throw new Error(
+      "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
+        'tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).',
+    );
+  }
+
+  const paths = pathsString
+    .split(',')
+    .map((path) => path.trim())
+    .filter(Boolean)
+    .map((path) =>
+      normalizeObjectStorageRoot(path, 'PUBLIC_OBJECT_SEARCH_PATHS'),
+    );
+  return Array.from(new Set(paths));
+}
+
+export type ObjectStorageReadiness =
+  | {
+      enabled: false;
+      reason: 'app_storage_not_configured';
+    }
+  | {
+      enabled: true;
+      privateObjectDir: string;
+      publicObjectSearchPaths?: string[];
+    };
+
+export function evaluateObjectStorageReadiness(
+  environment: NodeJS.ProcessEnv = process.env,
+): ObjectStorageReadiness {
+  const enabled = APP_STORAGE_ENV_KEYS.some(
+    (key) => environment[key]?.trim(),
+  );
+  if (!enabled) {
+    return {
+      enabled: false,
+      reason: 'app_storage_not_configured',
+    };
+  }
+
+  const publicObjectSearchPaths = environment.PUBLIC_OBJECT_SEARCH_PATHS?.trim()
+    ? normalizePublicObjectSearchPaths(environment.PUBLIC_OBJECT_SEARCH_PATHS)
+    : undefined;
+  return {
+    enabled: true,
+    privateObjectDir: normalizePrivateObjectDir(
+      environment.PRIVATE_OBJECT_DIR,
+    ),
+    ...(publicObjectSearchPaths
+      ? { publicObjectSearchPaths }
+      : {}),
+  };
+}
+
 export class ObjectStorageService {
   constructor() {}
 
   getPublicObjectSearchPaths(): Array<string> {
-    const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || '';
-    const paths = Array.from(
-      new Set(
-        pathsStr
-          .split(',')
-          .map((path) => path.trim())
-          .filter((path) => path.length > 0),
-      ),
+    return normalizePublicObjectSearchPaths(
+      process.env.PUBLIC_OBJECT_SEARCH_PATHS,
     );
-    if (paths.length === 0) {
-      throw new Error(
-        "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          'tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).',
-      );
-    }
-    return paths;
   }
 
   getPrivateObjectDir(): string {
-    const dir = process.env.PRIVATE_OBJECT_DIR || '';
-    if (!dir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          'tool and set PRIVATE_OBJECT_DIR env var.',
-      );
-    }
-    return dir;
+    return normalizePrivateObjectDir(process.env.PRIVATE_OBJECT_DIR);
   }
 
   async searchPublicObject(filePath: string): Promise<File | null> {
@@ -149,7 +239,7 @@ export class ObjectStorageService {
     return new Response(webStream, { headers });
   }
 
-  async getObjectEntityUploadURL(): Promise<string> {
+  async getObjectEntityUploadURL(relativeDir = 'uploads'): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
       throw new Error(
@@ -158,8 +248,15 @@ export class ObjectStorageService {
       );
     }
 
+    const normalizedDir = relativeDir.replace(/^\/+|\/+$/g, '');
+    if (
+      !normalizedDir ||
+      normalizedDir.split('/').some((part) => !part || part === '.' || part === '..' || !/^[a-zA-Z0-9_-]+$/.test(part))
+    ) {
+      throw new Error('Invalid object upload directory');
+    }
     const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
+    const fullPath = `${privateObjectDir}/${normalizedDir}/${objectId}`;
 
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
@@ -211,6 +308,119 @@ export class ObjectStorageService {
     } catch {
       return null;
     }
+  }
+
+  async listObjectEntityPage(
+    relativePrefix: string,
+    options: { pageSize: number; pageToken?: string },
+  ): Promise<{
+    objects: Array<{
+      objectPath: string;
+      timeCreated: Date | null;
+    }>;
+    nextPageToken: string | null;
+  }> {
+    const normalizedPrefix = relativePrefix.replace(/^\/+|\/+$/g, '');
+    if (
+      !normalizedPrefix ||
+      normalizedPrefix.split('/').some((part) =>
+        !part || part === '.' || part === '..' || !/^[a-zA-Z0-9_-]+$/.test(part),
+      )
+    ) {
+      throw new Error('Invalid object listing prefix');
+    }
+    if (
+      !Number.isInteger(options.pageSize) ||
+      options.pageSize < 1 ||
+      options.pageSize > 1000
+    ) {
+      throw new Error('Invalid object listing page size');
+    }
+
+    const privateObjectDir = this.getPrivateObjectDir().replace(/\/+$/, '');
+    const { bucketName, objectName: privateObjectName } = parseObjectPath(privateObjectDir);
+    const prefix = `${privateObjectName.replace(/\/+$/, '')}/${normalizedPrefix}/`;
+    const [files, nextQuery] = await objectStorageClient.bucket(bucketName).getFiles({
+      autoPaginate: false,
+      maxResults: options.pageSize,
+      pageToken: options.pageToken,
+      prefix,
+    });
+
+    const objects = files.map((file) => {
+      const relativePath = file.name.slice(privateObjectName.length).replace(/^\/+/, '');
+      const rawTimeCreated = file.metadata.timeCreated;
+      const parsedTimeCreated = rawTimeCreated ? new Date(String(rawTimeCreated)) : null;
+      return {
+        objectPath: `/objects/${relativePath}`,
+        timeCreated: parsedTimeCreated && !Number.isNaN(parsedTimeCreated.getTime())
+          ? parsedTimeCreated
+          : null,
+      };
+    });
+
+    return {
+      objects,
+      nextPageToken:
+        typeof nextQuery?.pageToken === 'string' && nextQuery.pageToken
+          ? nextQuery.pageToken
+          : null,
+    };
+  }
+
+  async deleteObjectEntity(objectPath: string): Promise<void> {
+    const file = await this.getObjectEntityFile(objectPath);
+    await file.delete({ ignoreNotFound: true });
+  }
+
+  async copyObjectEntityToNewPath(
+    sourcePath: string,
+    relativeDir: string,
+  ): Promise<string> {
+    const source = await this.getObjectEntityFile(sourcePath);
+    const normalizedDir = relativeDir.replace(/^\/+|\/+$/g, '');
+    if (
+      !normalizedDir ||
+      normalizedDir.split('/').some((part) => !part || part === '.' || part === '..' || !/^[a-zA-Z0-9_-]+$/.test(part))
+    ) {
+      throw new Error('Invalid object destination directory');
+    }
+    const objectId = randomUUID();
+    const privateObjectDir = this.getPrivateObjectDir().replace(/\/+$/, '');
+    const { bucketName, objectName } = parseObjectPath(
+      `${privateObjectDir}/${normalizedDir}/${objectId}`,
+    );
+    await source.copy(objectStorageClient.bucket(bucketName).file(objectName));
+    return `/objects/${normalizedDir}/${objectId}`;
+  }
+
+  async saveObjectEntityToNewPath(
+    relativeDir: string,
+    contents: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    const normalizedDir = relativeDir.replace(/^\/+|\/+$/g, '');
+    if (
+      !normalizedDir ||
+      normalizedDir.split('/').some((part) =>
+        !part || part === '.' || part === '..' || !/^[a-zA-Z0-9_-]+$/.test(part),
+      )
+    ) {
+      throw new Error('Invalid object destination directory');
+    }
+    const objectId = randomUUID();
+    const privateObjectDir = this.getPrivateObjectDir().replace(/\/+$/, '');
+    const { bucketName, objectName } = parseObjectPath(
+      `${privateObjectDir}/${normalizedDir}/${objectId}`,
+    );
+    await objectStorageClient.bucket(bucketName).file(objectName).save(contents, {
+      resumable: false,
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000, immutable',
+      },
+    });
+    return `/objects/${normalizedDir}/${objectId}`;
   }
 
   normalizeObjectEntityPath(rawPath: string): string {

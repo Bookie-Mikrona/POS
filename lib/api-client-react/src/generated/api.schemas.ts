@@ -10589,6 +10589,517 @@ export interface OfflineFiscalClaimResult {
   replay: boolean;
 }
 
+export interface JavnaRestavracijaBranding {
+  /** @nullable */
+  primaryColor: string | null;
+  /** @nullable */
+  logoUrl: string | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
+}
+
+export interface JavnaRestavracijaKontakt {
+  /** @nullable */
+  telefon: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  spletnaStran: string | null;
+}
+
+export interface JavnoOpeningInterval {
+  od: string;
+  do: string;
+}
+
+export interface JavnoOpeningHours {
+  /**
+     * @minimum 1
+     * @maximum 7
+     */
+  dan: number;
+  odprto: boolean;
+  intervals: JavnoOpeningInterval[];
+}
+
+export interface JavnaRestavracija {
+  slug: string;
+  ime: string;
+  /** @nullable */
+  opis: string | null;
+  branding: JavnaRestavracijaBranding;
+  kontakt: JavnaRestavracijaKontakt;
+  openingHours: JavnoOpeningHours[];
+  /** @minimum 1 */
+  maxPartySize: number;
+  /** @nullable */
+  naslov?: string | null;
+  aktivna?: boolean;
+}
+
+export interface JavnoRazpolozljivostSlot {
+  cas: string;
+  naVoljo: boolean;
+  /** @nullable */
+  preostalo?: number | null;
+}
+
+export interface JavnaRazpolozljivost {
+  datum: string;
+  steviloOseb: number;
+  slots: JavnoRazpolozljivostSlot[];
+}
+
+export interface JavniRezervacijaInput {
+  /**
+     * @minLength 36
+     * @maxLength 36
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+     */
+  idempotencyKey: string;
+  /** @minimum 1 */
+  steviloOseb: number;
+  datum: string;
+  cas: string;
+  /** @minLength 1 */
+  ime: string;
+  /** @minLength 3 */
+  email: string;
+  /** @minLength 1 */
+  telefon: string;
+  /** @nullable */
+  opomba?: string | null;
+  privacyAccepted: true;
+}
+
+export type JavnaRezervacijaStatus = typeof JavnaRezervacijaStatus[keyof typeof JavnaRezervacijaStatus];
+
+
+export const JavnaRezervacijaStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+  completed: 'completed',
+} as const;
+
+export interface JavnaRezervacija {
+  id: string;
+  status: JavnaRezervacijaStatus;
+  managementToken: string;
+  steviloOseb: number;
+  datum: string;
+  cas: string;
+  ime: string;
+  email: string;
+  /** @nullable */
+  telefon?: string | null;
+  /** @nullable */
+  opomba?: string | null;
+  createdAt?: string;
+  /** @nullable */
+  cancelledAt?: string | null;
+}
+
+export interface JavniBonVariant {
+  id: string;
+  naziv: string;
+  /** @minimum 1 */
+  amountCents: number;
+  currency: string;
+  active: boolean;
+}
+
+export interface JavniBonProduct {
+  id: string;
+  naziv: string;
+  /** @nullable */
+  opis: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  variants: JavniBonVariant[];
+  active: boolean;
+}
+
+export interface JavniBoni {
+  products: JavniBonProduct[];
+}
+
+export interface JavniBonCheckoutItem {
+  productId: string;
+  variantId: string;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  quantity: number;
+}
+
+export interface JavniBonCheckoutInput {
+  /**
+     * @minLength 36
+     * @maxLength 36
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+     */
+  idempotencyKey: string;
+  /** @minItems 1 */
+  items: JavniBonCheckoutItem[];
+  /** @minLength 1 */
+  buyerIme: string;
+  /** @minLength 3 */
+  buyerEmail: string;
+  /** @minLength 1 */
+  recipientIme: string;
+  /** @minLength 3 */
+  recipientEmail: string;
+  /** @nullable */
+  sporocilo?: string | null;
+  privacyAccepted: true;
+}
+
+export type JavniBonCheckoutStatusProperty = typeof JavniBonCheckoutStatusProperty[keyof typeof JavniBonCheckoutStatusProperty];
+
+
+export const JavniBonCheckoutStatusProperty = {
+  created: 'created',
+  open: 'open',
+  complete: 'complete',
+  expired: 'expired',
+} as const;
+
+export interface JavniBonCheckout {
+  sessionId: string;
+  checkoutUrl: string;
+  status: JavniBonCheckoutStatusProperty;
+  /** @nullable */
+  expiresAt?: string | null;
+}
+
+export type JavniBonCheckoutStatusStatus = typeof JavniBonCheckoutStatusStatus[keyof typeof JavniBonCheckoutStatusStatus];
+
+
+export const JavniBonCheckoutStatusStatus = {
+  created: 'created',
+  open: 'open',
+  complete: 'complete',
+  expired: 'expired',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * @nullable
+ */
+export type JavniBonCheckoutStatusPaymentStatus = typeof JavniBonCheckoutStatusPaymentStatus[keyof typeof JavniBonCheckoutStatusPaymentStatus] | null;
+
+
+export const JavniBonCheckoutStatusPaymentStatus = {
+  paid: 'paid',
+  unpaid: 'unpaid',
+  no_payment_required: 'no_payment_required',
+} as const;
+
+/**
+ * @nullable
+ */
+export type JavniBonCheckoutStatusDeliveryStatus = typeof JavniBonCheckoutStatusDeliveryStatus[keyof typeof JavniBonCheckoutStatusDeliveryStatus] | null;
+
+
+export const JavniBonCheckoutStatusDeliveryStatus = {
+  pending: 'pending',
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface JavniBonCheckoutStatus {
+  sessionId: string;
+  status: JavniBonCheckoutStatusStatus;
+  /** @nullable */
+  paymentStatus?: JavniBonCheckoutStatusPaymentStatus;
+  /** @nullable */
+  checkoutUrl?: string | null;
+  voucherIds?: string[];
+  /** @nullable */
+  deliveryStatus?: JavniBonCheckoutStatusDeliveryStatus;
+  deliveryAttempts?: number;
+  /** @nullable */
+  deliveryNextAttemptAt?: string | null;
+  /** @nullable */
+  deliveryError?: string | null;
+}
+
+export type DostavaIndividualnegaBonaDeliveryStatus = typeof DostavaIndividualnegaBonaDeliveryStatus[keyof typeof DostavaIndividualnegaBonaDeliveryStatus];
+
+
+export const DostavaIndividualnegaBonaDeliveryStatus = {
+  pending: 'pending',
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface DostavaIndividualnegaBona {
+  checkoutId: string;
+  recipientName: string;
+  recipientEmail: string;
+  createdAt: string;
+  voucherCount: number;
+  deliveryStatus: DostavaIndividualnegaBonaDeliveryStatus;
+  deliveryAttempts: number;
+  /** @nullable */
+  deliveryNextAttemptAt?: string | null;
+  /** @nullable */
+  deliveryLastAttemptAt?: string | null;
+  /** @nullable */
+  deliveryError?: string | null;
+}
+
+export interface OpozoriloNeuspeleDostaveBona {
+  id: string;
+  checkoutId: string;
+  recipientName: string;
+  recipientEmail: string;
+  lastError: string;
+  createdAt: string;
+  retryPath: string;
+}
+
+export type PonovljenaDostavaIndividualnegaBonaDeliveryStatus = typeof PonovljenaDostavaIndividualnegaBonaDeliveryStatus[keyof typeof PonovljenaDostavaIndividualnegaBonaDeliveryStatus];
+
+
+export const PonovljenaDostavaIndividualnegaBonaDeliveryStatus = {
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface PonovljenaDostavaIndividualnegaBona {
+  checkoutId: string;
+  deliveryStatus: PonovljenaDostavaIndividualnegaBonaDeliveryStatus;
+  message: string;
+}
+
+export interface StripePregledBona {
+  id: string;
+  eventId: string;
+  sessionId: string;
+  /** @nullable */
+  checkoutId?: string | null;
+  companyId: string;
+  unitId: number;
+  /** @nullable */
+  metadataCompanyId?: string | null;
+  /** @nullable */
+  metadataUnitId?: string | null;
+  reasonCode: string;
+  reason: string;
+  /** @nullable */
+  expectedAmountCents?: number | null;
+  /** @nullable */
+  receivedAmountCents?: number | null;
+  /** @nullable */
+  expectedCurrency?: string | null;
+  /** @nullable */
+  receivedCurrency?: string | null;
+  /** @nullable */
+  paymentStatus?: string | null;
+  createdAt: string;
+}
+
+export interface ResiStripePregledBonaInput {
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  note: string;
+}
+
+export type ResenStripePregledBonaStatus = typeof ResenStripePregledBonaStatus[keyof typeof ResenStripePregledBonaStatus];
+
+
+export const ResenStripePregledBonaStatus = {
+  resolved: 'resolved',
+} as const;
+
+export interface ResenStripePregledBona {
+  id: string;
+  status: ResenStripePregledBonaStatus;
+  message: string;
+}
+
+export interface JavniProfilInterval {
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  od: string;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  do: string;
+}
+
+export interface JavniProfilDan {
+  /**
+     * @minimum 1
+     * @maximum 7
+     */
+  dan: number;
+  odprto: boolean;
+  intervals: JavniProfilInterval[];
+}
+
+export interface JavniProfilIzjema {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  datum: string;
+  zaprto: boolean;
+  intervals: JavniProfilInterval[];
+}
+
+export interface JavniProfilBonVariant {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  naziv: string;
+  /**
+     * @minimum 1
+     * @maximum 10000000
+     */
+  amountCents: number;
+  active: boolean;
+}
+
+export interface JavniProfilBon {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  naziv: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  opis?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  imageUrl?: string | null;
+  active: boolean;
+  variants: JavniProfilBonVariant[];
+}
+
+export interface JavniProfilNastavitveInput {
+  /**
+     * @minLength 3
+     * @maxLength 80
+     * @pattern ^[a-z0-9]+(?:-[a-z0-9]+)*$
+     */
+  slug: string;
+  active: boolean;
+  /**
+     * @maxLength 4000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  address?: string | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  website?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  primaryColor: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  logoUrl?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  coverImageUrl?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  maxPartySize: number;
+  /**
+     * @minimum 15
+     * @maximum 240
+     */
+  slotMinutes: number;
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  slotCapacity: number;
+  openingHours: JavniProfilDan[];
+  dateExceptions: JavniProfilIzjema[];
+  products: JavniProfilBon[];
+}
+
+export type JavniProfilNastavitve = JavniProfilNastavitveInput & {
+  id: string;
+  unitId: number;
+  companyId: string;
+  venueName: string;
+  publicUrl: string;
+};
+
+export type JavniProfilImageUploadRequestContentType = typeof JavniProfilImageUploadRequestContentType[keyof typeof JavniProfilImageUploadRequestContentType];
+
+
+export const JavniProfilImageUploadRequestContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface JavniProfilImageUploadRequest {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 5242880
+     */
+  size: number;
+  contentType: JavniProfilImageUploadRequestContentType;
+}
+
+export interface JavniProfilImageUploadResponse {
+  uploadURL: string;
+  objectPath: string;
+}
+
+export type StripeWebhookInputPayload = { [key: string]: unknown };
+
+export interface StripeWebhookInput {
+  id: string;
+  type: string;
+  payload: StripeWebhookInputPayload;
+}
+
+export interface StripeWebhookResult {
+  received: boolean;
+  /** @nullable */
+  eventId?: string | null;
+}
+
 /**
  * Validation error
  */
@@ -11488,5 +11999,18 @@ state?: string;
 
 export type ReconcileOfflineFiscalReceiptBody = {
   note?: string;
+};
+
+export type GetJavnaRazpolozljivostParams = {
+datum: string;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+steviloOseb: number;
+};
+
+export type DeleteJavniProfilImage200 = {
+  deleted: boolean;
 };
 

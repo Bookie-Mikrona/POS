@@ -15642,3 +15642,652 @@ export const ClaimOfflineFiscalReceiptResponse = zod.object({
 })
 
 
+export const GetJavnaRestavracijaParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const getJavnaRestavracijaResponseOpeningHoursItemDanMax = 7;
+
+
+
+
+export const GetJavnaRestavracijaResponse = zod.object({
+  "slug": zod.string(),
+  "ime": zod.string(),
+  "opis": zod.string().nullable(),
+  "branding": zod.object({
+  "primaryColor": zod.string().nullable(),
+  "logoUrl": zod.string().nullable(),
+  "coverImageUrl": zod.string().nullish()
+}),
+  "kontakt": zod.object({
+  "telefon": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "spletnaStran": zod.string().nullable()
+}),
+  "openingHours": zod.array(zod.object({
+  "dan": zod.number().min(1).max(getJavnaRestavracijaResponseOpeningHoursItemDanMax),
+  "odprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string(),
+  "do": zod.string()
+}))
+})),
+  "maxPartySize": zod.number().min(1),
+  "naslov": zod.string().nullish(),
+  "aktivna": zod.boolean().optional()
+})
+
+
+export const GetJavnaRazpolozljivostParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const getJavnaRazpolozljivostQuerySteviloOsebMax = 50;
+
+
+
+export const GetJavnaRazpolozljivostQueryParams = zod.object({
+  "datum": zod.date(),
+  "steviloOseb": zod.coerce.number().min(1).max(getJavnaRazpolozljivostQuerySteviloOsebMax)
+})
+
+export const GetJavnaRazpolozljivostResponse = zod.object({
+  "datum": zod.coerce.date(),
+  "steviloOseb": zod.number(),
+  "slots": zod.array(zod.object({
+  "cas": zod.string(),
+  "naVoljo": zod.boolean(),
+  "preostalo": zod.number().nullish()
+}))
+})
+
+
+export const CreateJavnaRezervacijaParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const createJavnaRezervacijaBodyIdempotencyKeyMin = 36;
+export const createJavnaRezervacijaBodyIdempotencyKeyMax = 36;
+
+
+export const createJavnaRezervacijaBodyIdempotencyKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const createJavnaRezervacijaBodyEmailMin = 3;
+
+
+
+
+export const CreateJavnaRezervacijaBody = zod.object({
+  "idempotencyKey": zod.string().min(createJavnaRezervacijaBodyIdempotencyKeyMin).max(createJavnaRezervacijaBodyIdempotencyKeyMax).regex(createJavnaRezervacijaBodyIdempotencyKeyRegExp),
+  "steviloOseb": zod.number().min(1),
+  "datum": zod.coerce.date(),
+  "cas": zod.string(),
+  "ime": zod.string().min(1),
+  "email": zod.string().min(createJavnaRezervacijaBodyEmailMin),
+  "telefon": zod.string().min(1),
+  "opomba": zod.string().nullish(),
+  "privacyAccepted": zod.boolean()
+})
+
+export const CreateJavnaRezervacijaResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "managementToken": zod.string(),
+  "steviloOseb": zod.number(),
+  "datum": zod.coerce.date(),
+  "cas": zod.string(),
+  "ime": zod.string(),
+  "email": zod.string(),
+  "telefon": zod.string().nullish(),
+  "opomba": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "cancelledAt": zod.string().nullish()
+})
+
+
+export const GetJavnaRezervacijaParams = zod.object({
+  "slug": zod.coerce.string(),
+  "managementToken": zod.coerce.string()
+})
+
+export const GetJavnaRezervacijaResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "managementToken": zod.string(),
+  "steviloOseb": zod.number(),
+  "datum": zod.coerce.date(),
+  "cas": zod.string(),
+  "ime": zod.string(),
+  "email": zod.string(),
+  "telefon": zod.string().nullish(),
+  "opomba": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "cancelledAt": zod.string().nullish()
+})
+
+
+export const CancelJavnaRezervacijaParams = zod.object({
+  "slug": zod.coerce.string(),
+  "managementToken": zod.coerce.string()
+})
+
+export const CancelJavnaRezervacijaResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'confirmed', 'cancelled', 'completed']),
+  "managementToken": zod.string(),
+  "steviloOseb": zod.number(),
+  "datum": zod.coerce.date(),
+  "cas": zod.string(),
+  "ime": zod.string(),
+  "email": zod.string(),
+  "telefon": zod.string().nullish(),
+  "opomba": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "cancelledAt": zod.string().nullish()
+})
+
+
+export const ListJavniBoniParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+
+
+
+export const ListJavniBoniResponse = zod.object({
+  "products": zod.array(zod.object({
+  "id": zod.string(),
+  "naziv": zod.string(),
+  "opis": zod.string().nullable(),
+  "imageUrl": zod.string().nullish(),
+  "variants": zod.array(zod.object({
+  "id": zod.string(),
+  "naziv": zod.string(),
+  "amountCents": zod.number().min(1),
+  "currency": zod.string(),
+  "active": zod.boolean()
+})),
+  "active": zod.boolean()
+}))
+})
+
+
+export const CreateJavniBonCheckoutParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const createJavniBonCheckoutBodyIdempotencyKeyMin = 36;
+export const createJavniBonCheckoutBodyIdempotencyKeyMax = 36;
+
+
+export const createJavniBonCheckoutBodyIdempotencyKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const createJavniBonCheckoutBodyItemsItemQuantityMax = 20;
+
+
+
+export const createJavniBonCheckoutBodyBuyerEmailMin = 3;
+
+
+export const createJavniBonCheckoutBodyRecipientEmailMin = 3;
+
+
+
+export const CreateJavniBonCheckoutBody = zod.object({
+  "idempotencyKey": zod.string().min(createJavniBonCheckoutBodyIdempotencyKeyMin).max(createJavniBonCheckoutBodyIdempotencyKeyMax).regex(createJavniBonCheckoutBodyIdempotencyKeyRegExp),
+  "items": zod.array(zod.object({
+  "productId": zod.string(),
+  "variantId": zod.string(),
+  "quantity": zod.number().min(1).max(createJavniBonCheckoutBodyItemsItemQuantityMax)
+})).min(1),
+  "buyerIme": zod.string().min(1),
+  "buyerEmail": zod.string().min(createJavniBonCheckoutBodyBuyerEmailMin),
+  "recipientIme": zod.string().min(1),
+  "recipientEmail": zod.string().min(createJavniBonCheckoutBodyRecipientEmailMin),
+  "sporocilo": zod.string().nullish(),
+  "privacyAccepted": zod.boolean()
+})
+
+export const CreateJavniBonCheckoutResponse = zod.object({
+  "sessionId": zod.string(),
+  "checkoutUrl": zod.string(),
+  "status": zod.enum(['created', 'open', 'complete', 'expired']),
+  "expiresAt": zod.string().nullish()
+})
+
+
+export const GetJavniBonCheckoutParams = zod.object({
+  "slug": zod.coerce.string(),
+  "sessionId": zod.coerce.string()
+})
+
+export const GetJavniBonCheckoutResponse = zod.object({
+  "sessionId": zod.string(),
+  "status": zod.enum(['created', 'open', 'complete', 'expired', 'cancelled']),
+  "paymentStatus": zod.union([zod.literal('paid'),zod.literal('unpaid'),zod.literal('no_payment_required'),zod.literal(null)]).nullish(),
+  "checkoutUrl": zod.string().nullish(),
+  "voucherIds": zod.array(zod.string()).optional(),
+  "deliveryStatus": zod.union([zod.literal('pending'),zod.literal('sending'),zod.literal('sent'),zod.literal('failed'),zod.literal(null)]).nullish(),
+  "deliveryAttempts": zod.number().optional(),
+  "deliveryNextAttemptAt": zod.string().nullish(),
+  "deliveryError": zod.string().nullish()
+})
+
+
+export const getJavniProfilNastavitveResponseOneSlugMin = 3;
+export const getJavniProfilNastavitveResponseOneSlugMax = 80;
+
+
+export const getJavniProfilNastavitveResponseOneSlugRegExp = new RegExp('^[a-z0-9]+(?:-[a-z0-9]+)*$');
+export const getJavniProfilNastavitveResponseOneDescriptionMax = 4000;
+
+export const getJavniProfilNastavitveResponseOneAddressMax = 500;
+
+export const getJavniProfilNastavitveResponseOnePhoneMax = 100;
+
+export const getJavniProfilNastavitveResponseOneEmailMax = 320;
+
+export const getJavniProfilNastavitveResponseOneWebsiteMax = 2000;
+
+export const getJavniProfilNastavitveResponseOnePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const getJavniProfilNastavitveResponseOneLogoUrlMax = 2000;
+
+export const getJavniProfilNastavitveResponseOneCoverImageUrlMax = 2000;
+
+export const getJavniProfilNastavitveResponseOneMaxPartySizeMax = 100;
+
+export const getJavniProfilNastavitveResponseOneSlotMinutesMin = 15;
+export const getJavniProfilNastavitveResponseOneSlotMinutesMax = 240;
+
+export const getJavniProfilNastavitveResponseOneSlotCapacityMax = 10000;
+
+export const getJavniProfilNastavitveResponseOneOpeningHoursItemDanMax = 7;
+
+export const getJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemOdRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemDoRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getJavniProfilNastavitveResponseOneDateExceptionsItemDatumRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemOdRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemDoRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getJavniProfilNastavitveResponseOneProductsItemNazivMax = 160;
+
+export const getJavniProfilNastavitveResponseOneProductsItemOpisMax = 2000;
+
+export const getJavniProfilNastavitveResponseOneProductsItemImageUrlMax = 2000;
+
+export const getJavniProfilNastavitveResponseOneProductsItemVariantsItemNazivMax = 120;
+
+export const getJavniProfilNastavitveResponseOneProductsItemVariantsItemAmountCentsMax = 10000000;
+
+
+
+export const GetJavniProfilNastavitveResponse = zod.object({
+  "slug": zod.string().min(getJavniProfilNastavitveResponseOneSlugMin).max(getJavniProfilNastavitveResponseOneSlugMax).regex(getJavniProfilNastavitveResponseOneSlugRegExp),
+  "active": zod.boolean(),
+  "description": zod.string().max(getJavniProfilNastavitveResponseOneDescriptionMax).nullish(),
+  "address": zod.string().max(getJavniProfilNastavitveResponseOneAddressMax).nullish(),
+  "phone": zod.string().max(getJavniProfilNastavitveResponseOnePhoneMax).nullish(),
+  "email": zod.string().max(getJavniProfilNastavitveResponseOneEmailMax).nullish(),
+  "website": zod.string().max(getJavniProfilNastavitveResponseOneWebsiteMax).nullish(),
+  "primaryColor": zod.string().regex(getJavniProfilNastavitveResponseOnePrimaryColorRegExp),
+  "logoUrl": zod.string().max(getJavniProfilNastavitveResponseOneLogoUrlMax).nullish(),
+  "coverImageUrl": zod.string().max(getJavniProfilNastavitveResponseOneCoverImageUrlMax).nullish(),
+  "maxPartySize": zod.number().min(1).max(getJavniProfilNastavitveResponseOneMaxPartySizeMax),
+  "slotMinutes": zod.number().min(getJavniProfilNastavitveResponseOneSlotMinutesMin).max(getJavniProfilNastavitveResponseOneSlotMinutesMax),
+  "slotCapacity": zod.number().min(1).max(getJavniProfilNastavitveResponseOneSlotCapacityMax),
+  "openingHours": zod.array(zod.object({
+  "dan": zod.number().min(1).max(getJavniProfilNastavitveResponseOneOpeningHoursItemDanMax),
+  "odprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string().regex(getJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemOdRegExp),
+  "do": zod.string().regex(getJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemDoRegExp)
+}))
+})),
+  "dateExceptions": zod.array(zod.object({
+  "datum": zod.string().regex(getJavniProfilNastavitveResponseOneDateExceptionsItemDatumRegExp),
+  "zaprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string().regex(getJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemOdRegExp),
+  "do": zod.string().regex(getJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemDoRegExp)
+}))
+})),
+  "products": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "naziv": zod.string().min(1).max(getJavniProfilNastavitveResponseOneProductsItemNazivMax),
+  "opis": zod.string().max(getJavniProfilNastavitveResponseOneProductsItemOpisMax).nullish(),
+  "imageUrl": zod.string().max(getJavniProfilNastavitveResponseOneProductsItemImageUrlMax).nullish(),
+  "active": zod.boolean(),
+  "variants": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "naziv": zod.string().min(1).max(getJavniProfilNastavitveResponseOneProductsItemVariantsItemNazivMax),
+  "amountCents": zod.number().min(1).max(getJavniProfilNastavitveResponseOneProductsItemVariantsItemAmountCentsMax),
+  "active": zod.boolean()
+}))
+}))
+}).and(zod.object({
+  "id": zod.string(),
+  "unitId": zod.number(),
+  "companyId": zod.string(),
+  "venueName": zod.string(),
+  "publicUrl": zod.string()
+}))
+
+
+export const updateJavniProfilNastavitveBodySlugMin = 3;
+export const updateJavniProfilNastavitveBodySlugMax = 80;
+
+
+export const updateJavniProfilNastavitveBodySlugRegExp = new RegExp('^[a-z0-9]+(?:-[a-z0-9]+)*$');
+export const updateJavniProfilNastavitveBodyDescriptionMax = 4000;
+
+export const updateJavniProfilNastavitveBodyAddressMax = 500;
+
+export const updateJavniProfilNastavitveBodyPhoneMax = 100;
+
+export const updateJavniProfilNastavitveBodyEmailMax = 320;
+
+export const updateJavniProfilNastavitveBodyWebsiteMax = 2000;
+
+export const updateJavniProfilNastavitveBodyPrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateJavniProfilNastavitveBodyLogoUrlMax = 2000;
+
+export const updateJavniProfilNastavitveBodyCoverImageUrlMax = 2000;
+
+export const updateJavniProfilNastavitveBodyMaxPartySizeMax = 100;
+
+export const updateJavniProfilNastavitveBodySlotMinutesMin = 15;
+export const updateJavniProfilNastavitveBodySlotMinutesMax = 240;
+
+export const updateJavniProfilNastavitveBodySlotCapacityMax = 10000;
+
+export const updateJavniProfilNastavitveBodyOpeningHoursItemDanMax = 7;
+
+export const updateJavniProfilNastavitveBodyOpeningHoursItemIntervalsItemOdRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveBodyOpeningHoursItemIntervalsItemDoRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveBodyDateExceptionsItemDatumRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateJavniProfilNastavitveBodyDateExceptionsItemIntervalsItemOdRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveBodyDateExceptionsItemIntervalsItemDoRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveBodyProductsItemNazivMax = 160;
+
+export const updateJavniProfilNastavitveBodyProductsItemOpisMax = 2000;
+
+export const updateJavniProfilNastavitveBodyProductsItemImageUrlMax = 2000;
+
+export const updateJavniProfilNastavitveBodyProductsItemVariantsItemNazivMax = 120;
+
+export const updateJavniProfilNastavitveBodyProductsItemVariantsItemAmountCentsMax = 10000000;
+
+
+
+export const UpdateJavniProfilNastavitveBody = zod.object({
+  "slug": zod.string().min(updateJavniProfilNastavitveBodySlugMin).max(updateJavniProfilNastavitveBodySlugMax).regex(updateJavniProfilNastavitveBodySlugRegExp),
+  "active": zod.boolean(),
+  "description": zod.string().max(updateJavniProfilNastavitveBodyDescriptionMax).nullish(),
+  "address": zod.string().max(updateJavniProfilNastavitveBodyAddressMax).nullish(),
+  "phone": zod.string().max(updateJavniProfilNastavitveBodyPhoneMax).nullish(),
+  "email": zod.string().max(updateJavniProfilNastavitveBodyEmailMax).nullish(),
+  "website": zod.string().max(updateJavniProfilNastavitveBodyWebsiteMax).nullish(),
+  "primaryColor": zod.string().regex(updateJavniProfilNastavitveBodyPrimaryColorRegExp),
+  "logoUrl": zod.string().max(updateJavniProfilNastavitveBodyLogoUrlMax).nullish(),
+  "coverImageUrl": zod.string().max(updateJavniProfilNastavitveBodyCoverImageUrlMax).nullish(),
+  "maxPartySize": zod.number().min(1).max(updateJavniProfilNastavitveBodyMaxPartySizeMax),
+  "slotMinutes": zod.number().min(updateJavniProfilNastavitveBodySlotMinutesMin).max(updateJavniProfilNastavitveBodySlotMinutesMax),
+  "slotCapacity": zod.number().min(1).max(updateJavniProfilNastavitveBodySlotCapacityMax),
+  "openingHours": zod.array(zod.object({
+  "dan": zod.number().min(1).max(updateJavniProfilNastavitveBodyOpeningHoursItemDanMax),
+  "odprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string().regex(updateJavniProfilNastavitveBodyOpeningHoursItemIntervalsItemOdRegExp),
+  "do": zod.string().regex(updateJavniProfilNastavitveBodyOpeningHoursItemIntervalsItemDoRegExp)
+}))
+})),
+  "dateExceptions": zod.array(zod.object({
+  "datum": zod.string().regex(updateJavniProfilNastavitveBodyDateExceptionsItemDatumRegExp),
+  "zaprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string().regex(updateJavniProfilNastavitveBodyDateExceptionsItemIntervalsItemOdRegExp),
+  "do": zod.string().regex(updateJavniProfilNastavitveBodyDateExceptionsItemIntervalsItemDoRegExp)
+}))
+})),
+  "products": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "naziv": zod.string().min(1).max(updateJavniProfilNastavitveBodyProductsItemNazivMax),
+  "opis": zod.string().max(updateJavniProfilNastavitveBodyProductsItemOpisMax).nullish(),
+  "imageUrl": zod.string().max(updateJavniProfilNastavitveBodyProductsItemImageUrlMax).nullish(),
+  "active": zod.boolean(),
+  "variants": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "naziv": zod.string().min(1).max(updateJavniProfilNastavitveBodyProductsItemVariantsItemNazivMax),
+  "amountCents": zod.number().min(1).max(updateJavniProfilNastavitveBodyProductsItemVariantsItemAmountCentsMax),
+  "active": zod.boolean()
+}))
+}))
+})
+
+export const updateJavniProfilNastavitveResponseOneSlugMin = 3;
+export const updateJavniProfilNastavitveResponseOneSlugMax = 80;
+
+
+export const updateJavniProfilNastavitveResponseOneSlugRegExp = new RegExp('^[a-z0-9]+(?:-[a-z0-9]+)*$');
+export const updateJavniProfilNastavitveResponseOneDescriptionMax = 4000;
+
+export const updateJavniProfilNastavitveResponseOneAddressMax = 500;
+
+export const updateJavniProfilNastavitveResponseOnePhoneMax = 100;
+
+export const updateJavniProfilNastavitveResponseOneEmailMax = 320;
+
+export const updateJavniProfilNastavitveResponseOneWebsiteMax = 2000;
+
+export const updateJavniProfilNastavitveResponseOnePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateJavniProfilNastavitveResponseOneLogoUrlMax = 2000;
+
+export const updateJavniProfilNastavitveResponseOneCoverImageUrlMax = 2000;
+
+export const updateJavniProfilNastavitveResponseOneMaxPartySizeMax = 100;
+
+export const updateJavniProfilNastavitveResponseOneSlotMinutesMin = 15;
+export const updateJavniProfilNastavitveResponseOneSlotMinutesMax = 240;
+
+export const updateJavniProfilNastavitveResponseOneSlotCapacityMax = 10000;
+
+export const updateJavniProfilNastavitveResponseOneOpeningHoursItemDanMax = 7;
+
+export const updateJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemOdRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemDoRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveResponseOneDateExceptionsItemDatumRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemOdRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemDoRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateJavniProfilNastavitveResponseOneProductsItemNazivMax = 160;
+
+export const updateJavniProfilNastavitveResponseOneProductsItemOpisMax = 2000;
+
+export const updateJavniProfilNastavitveResponseOneProductsItemImageUrlMax = 2000;
+
+export const updateJavniProfilNastavitveResponseOneProductsItemVariantsItemNazivMax = 120;
+
+export const updateJavniProfilNastavitveResponseOneProductsItemVariantsItemAmountCentsMax = 10000000;
+
+
+
+export const UpdateJavniProfilNastavitveResponse = zod.object({
+  "slug": zod.string().min(updateJavniProfilNastavitveResponseOneSlugMin).max(updateJavniProfilNastavitveResponseOneSlugMax).regex(updateJavniProfilNastavitveResponseOneSlugRegExp),
+  "active": zod.boolean(),
+  "description": zod.string().max(updateJavniProfilNastavitveResponseOneDescriptionMax).nullish(),
+  "address": zod.string().max(updateJavniProfilNastavitveResponseOneAddressMax).nullish(),
+  "phone": zod.string().max(updateJavniProfilNastavitveResponseOnePhoneMax).nullish(),
+  "email": zod.string().max(updateJavniProfilNastavitveResponseOneEmailMax).nullish(),
+  "website": zod.string().max(updateJavniProfilNastavitveResponseOneWebsiteMax).nullish(),
+  "primaryColor": zod.string().regex(updateJavniProfilNastavitveResponseOnePrimaryColorRegExp),
+  "logoUrl": zod.string().max(updateJavniProfilNastavitveResponseOneLogoUrlMax).nullish(),
+  "coverImageUrl": zod.string().max(updateJavniProfilNastavitveResponseOneCoverImageUrlMax).nullish(),
+  "maxPartySize": zod.number().min(1).max(updateJavniProfilNastavitveResponseOneMaxPartySizeMax),
+  "slotMinutes": zod.number().min(updateJavniProfilNastavitveResponseOneSlotMinutesMin).max(updateJavniProfilNastavitveResponseOneSlotMinutesMax),
+  "slotCapacity": zod.number().min(1).max(updateJavniProfilNastavitveResponseOneSlotCapacityMax),
+  "openingHours": zod.array(zod.object({
+  "dan": zod.number().min(1).max(updateJavniProfilNastavitveResponseOneOpeningHoursItemDanMax),
+  "odprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string().regex(updateJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemOdRegExp),
+  "do": zod.string().regex(updateJavniProfilNastavitveResponseOneOpeningHoursItemIntervalsItemDoRegExp)
+}))
+})),
+  "dateExceptions": zod.array(zod.object({
+  "datum": zod.string().regex(updateJavniProfilNastavitveResponseOneDateExceptionsItemDatumRegExp),
+  "zaprto": zod.boolean(),
+  "intervals": zod.array(zod.object({
+  "od": zod.string().regex(updateJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemOdRegExp),
+  "do": zod.string().regex(updateJavniProfilNastavitveResponseOneDateExceptionsItemIntervalsItemDoRegExp)
+}))
+})),
+  "products": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "naziv": zod.string().min(1).max(updateJavniProfilNastavitveResponseOneProductsItemNazivMax),
+  "opis": zod.string().max(updateJavniProfilNastavitveResponseOneProductsItemOpisMax).nullish(),
+  "imageUrl": zod.string().max(updateJavniProfilNastavitveResponseOneProductsItemImageUrlMax).nullish(),
+  "active": zod.boolean(),
+  "variants": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "naziv": zod.string().min(1).max(updateJavniProfilNastavitveResponseOneProductsItemVariantsItemNazivMax),
+  "amountCents": zod.number().min(1).max(updateJavniProfilNastavitveResponseOneProductsItemVariantsItemAmountCentsMax),
+  "active": zod.boolean()
+}))
+}))
+}).and(zod.object({
+  "id": zod.string(),
+  "unitId": zod.number(),
+  "companyId": zod.string(),
+  "venueName": zod.string(),
+  "publicUrl": zod.string()
+}))
+
+
+export const requestJavniProfilImageUploadBodyNameMax = 255;
+
+export const requestJavniProfilImageUploadBodySizeMax = 5242880;
+
+
+
+export const RequestJavniProfilImageUploadBody = zod.object({
+  "name": zod.string().min(1).max(requestJavniProfilImageUploadBodyNameMax),
+  "size": zod.number().min(1).max(requestJavniProfilImageUploadBodySizeMax),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp'])
+})
+
+export const RequestJavniProfilImageUploadResponse = zod.object({
+  "uploadURL": zod.string(),
+  "objectPath": zod.string()
+})
+
+
+export const DeleteJavniProfilImageParams = zod.object({
+  "objectId": zod.coerce.string()
+})
+
+export const DeleteJavniProfilImageResponse = zod.object({
+  "deleted": zod.boolean()
+})
+
+
+export const GetJavnaProfilImageParams = zod.object({
+  "objectId": zod.coerce.string()
+})
+
+export const GetJavnaProfilImageResponse = zod.unknown()
+
+
+export const ListDostaveIndividualnihBonovResponseItem = zod.object({
+  "checkoutId": zod.string(),
+  "recipientName": zod.string(),
+  "recipientEmail": zod.string(),
+  "createdAt": zod.string(),
+  "voucherCount": zod.number(),
+  "deliveryStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
+  "deliveryAttempts": zod.number(),
+  "deliveryNextAttemptAt": zod.string().nullish(),
+  "deliveryLastAttemptAt": zod.string().nullish(),
+  "deliveryError": zod.string().nullish()
+})
+export const ListDostaveIndividualnihBonovResponse = zod.array(ListDostaveIndividualnihBonovResponseItem)
+
+
+export const ListOpozorilaNeuspeleDostaveBonovResponseItem = zod.object({
+  "id": zod.string(),
+  "checkoutId": zod.string(),
+  "recipientName": zod.string(),
+  "recipientEmail": zod.string(),
+  "lastError": zod.string(),
+  "createdAt": zod.string(),
+  "retryPath": zod.string()
+})
+export const ListOpozorilaNeuspeleDostaveBonovResponse = zod.array(ListOpozorilaNeuspeleDostaveBonovResponseItem)
+
+
+export const PonoviDostavoIndividualnegaBonaParams = zod.object({
+  "checkoutId": zod.coerce.string()
+})
+
+export const PonoviDostavoIndividualnegaBonaResponse = zod.object({
+  "checkoutId": zod.string(),
+  "deliveryStatus": zod.enum(['sent', 'failed']),
+  "message": zod.string()
+})
+
+
+export const ListStripePreglediBonovResponseItem = zod.object({
+  "id": zod.string(),
+  "eventId": zod.string(),
+  "sessionId": zod.string(),
+  "checkoutId": zod.string().nullish(),
+  "companyId": zod.string(),
+  "unitId": zod.number(),
+  "metadataCompanyId": zod.string().nullish(),
+  "metadataUnitId": zod.string().nullish(),
+  "reasonCode": zod.string(),
+  "reason": zod.string(),
+  "expectedAmountCents": zod.number().nullish(),
+  "receivedAmountCents": zod.number().nullish(),
+  "expectedCurrency": zod.string().nullish(),
+  "receivedCurrency": zod.string().nullish(),
+  "paymentStatus": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListStripePreglediBonovResponse = zod.array(ListStripePreglediBonovResponseItem)
+
+
+export const ResiStripePregledBonaParams = zod.object({
+  "reviewId": zod.coerce.string()
+})
+
+export const resiStripePregledBonaBodyNoteMin = 3;
+export const resiStripePregledBonaBodyNoteMax = 1000;
+
+
+
+export const ResiStripePregledBonaBody = zod.object({
+  "note": zod.string().min(resiStripePregledBonaBodyNoteMin).max(resiStripePregledBonaBodyNoteMax)
+})
+
+export const ResiStripePregledBonaResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['resolved']),
+  "message": zod.string()
+})
+
+
+export const HandleJavniStripeWebhookHeader = zod.object({
+  "stripe-signature": zod.string()
+})
+
+export const HandleJavniStripeWebhookBody = zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "payload": zod.record(zod.string(), zod.unknown())
+})
+
+export const HandleJavniStripeWebhookResponse = zod.object({
+  "received": zod.boolean(),
+  "eventId": zod.string().nullish()
+})
+
+

@@ -39,8 +39,9 @@ import externalExportsRouter from "./externalExports";
 import companiesBizboxRouter from "./companies-bizbox";
 import backupRouter from "./backup";
 import tipsRouter from "./tips";
-import { requireObracunUrAccess } from "../middlewares/pos";
+import { requireEnota, requireObracunUrAccess } from "../middlewares/pos";
 import { getObracunUrHandler } from "./pos/izmene";
+import { internalVoucherRouter } from "./publicVisits";
 
 const router: IRouter = Router();
 
@@ -83,6 +84,7 @@ router.use(osAmortizacijaRouter);
 router.use(osAmortizacijaKnjizenjRouter);
 router.use(externalExportsRouter);
 router.use(backupRouter);
+router.use(requireEnota, internalVoucherRouter);
 // Obračun ur je edina POS-pot, ki jo lahko bere tudi ERP računovodja/lastnik.
 // Montaža pred splošnim POS middleware-om ohrani company-level ERP kontekst.
 router.get("/izmene/obracun-ur", requireObracunUrAccess, getObracunUrHandler);

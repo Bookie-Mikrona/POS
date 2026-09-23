@@ -81,6 +81,7 @@ import type {
   DailyLunchQuoteResponse,
   DeleteArtikel409,
   DeleteCostCenterDeactivatedResponse,
+  DeleteJavniProfilImage200,
   DeleteJournalEntryResult,
   DeleteShranjenKupec404,
   DimensionRecord,
@@ -88,6 +89,7 @@ import type {
   DnevniMeniVnos,
   DocumentRecord,
   DodajModifikatorjeInput,
+  DostavaIndividualnegaBona,
   DostavaPredogled,
   DostavaStatusUpdate,
   DostavaStatusUpdateResponse,
@@ -122,6 +124,7 @@ import type {
   GetDnevnaKosilaObdobjeParams,
   GetDostavaPredogledParams,
   GetIncomeStatementParams,
+  GetJavnaRazpolozljivostParams,
   GetKarticaArtiklaParams,
   GetLedgerParams,
   GetObracunUrParams,
@@ -162,6 +165,18 @@ import type {
   IzdajnicaUrediVnos,
   Izmena,
   IzmenaInput,
+  JavnaRazpolozljivost,
+  JavnaRestavracija,
+  JavnaRezervacija,
+  JavniBonCheckout,
+  JavniBonCheckoutInput,
+  JavniBonCheckoutStatus,
+  JavniBoni,
+  JavniProfilImageUploadRequest,
+  JavniProfilImageUploadResponse,
+  JavniProfilNastavitve,
+  JavniProfilNastavitveInput,
+  JavniRezervacijaInput,
   JournalEntryWithLines,
   KadrovskaVrstica,
   KadrovskiAudit,
@@ -301,6 +316,7 @@ import type {
   OperativnaPorocilaPromet,
   OperativnaPorocilaZakljucki,
   OperativnaPorocilaZaloge,
+  OpozoriloNeuspeleDostaveBona,
   OsveziShranjenKupec400,
   OsveziShranjenKupec404,
   ParseBankStatementBody,
@@ -327,6 +343,7 @@ import type {
   PoisciKupca404,
   PoisciKupcaParams,
   PonoviPosiljanjeInput,
+  PonovljenaDostavaIndividualnegaBona,
   PopravekIzmeneInput,
   PosBookingSettings,
   PosBookingSettingsInput,
@@ -383,6 +400,8 @@ import type {
   RegisterDocumentBody,
   RegistracijaProstoraOdgovor,
   RegistracijaProstoraTelo,
+  ResenStripePregledBona,
+  ResiStripePregledBonaInput,
   ResolveUnknownVivaRefundBody,
   ResolveUnknownVivaRefundResponse,
   RetryFursBatchOdgovor,
@@ -401,6 +420,9 @@ import type {
   SpojiNarocilaInput,
   SpojiNarocili400,
   Statistike,
+  StripePregledBona,
+  StripeWebhookInput,
+  StripeWebhookResult,
   SumupPayBody,
   SumupPayOdgovor,
   SumupStatusOdgovor,
@@ -30432,5 +30454,1327 @@ export const useClaimOfflineFiscalReceipt = <TError = ErrorType<ConflictResponse
         TContext
       > => {
       return useMutation(getClaimOfflineFiscalReceiptMutationOptions(options));
+    }
+
+export const getGetJavnaRestavracijaUrl = (slug: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}`
+}
+
+export const getJavnaRestavracija = async (slug: string, options?: RequestInit): Promise<JavnaRestavracija> => {
+
+  return customFetch<JavnaRestavracija>(getGetJavnaRestavracijaUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavnaRestavracijaQueryKey = (slug: string,) => {
+    return [
+    `/api/javno/restavracije/${slug}`
+    ] as const;
+    }
+
+
+export const getGetJavnaRestavracijaQueryOptions = <TData = Awaited<ReturnType<typeof getJavnaRestavracija>>, TError = ErrorType<NotFoundResponse>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaRestavracija>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavnaRestavracijaQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavnaRestavracija>>> = ({ signal }) => getJavnaRestavracija(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavnaRestavracija>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavnaRestavracijaQueryResult = NonNullable<Awaited<ReturnType<typeof getJavnaRestavracija>>>
+export type GetJavnaRestavracijaQueryError = ErrorType<NotFoundResponse>
+
+
+
+export function useGetJavnaRestavracija<TData = Awaited<ReturnType<typeof getJavnaRestavracija>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaRestavracija>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavnaRestavracijaQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetJavnaRazpolozljivostUrl = (slug: string,
+    params: GetJavnaRazpolozljivostParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/javno/restavracije/${slug}/razpolozljivost?${stringifiedParams}` : `/api/javno/restavracije/${slug}/razpolozljivost`
+}
+
+export const getJavnaRazpolozljivost = async (slug: string,
+    params: GetJavnaRazpolozljivostParams, options?: RequestInit): Promise<JavnaRazpolozljivost> => {
+
+  return customFetch<JavnaRazpolozljivost>(getGetJavnaRazpolozljivostUrl(slug,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavnaRazpolozljivostQueryKey = (slug: string,
+    params?: GetJavnaRazpolozljivostParams,) => {
+    return [
+    `/api/javno/restavracije/${slug}/razpolozljivost`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetJavnaRazpolozljivostQueryOptions = <TData = Awaited<ReturnType<typeof getJavnaRazpolozljivost>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(slug: string,
+    params: GetJavnaRazpolozljivostParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaRazpolozljivost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavnaRazpolozljivostQueryKey(slug,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavnaRazpolozljivost>>> = ({ signal }) => getJavnaRazpolozljivost(slug,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavnaRazpolozljivost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavnaRazpolozljivostQueryResult = NonNullable<Awaited<ReturnType<typeof getJavnaRazpolozljivost>>>
+export type GetJavnaRazpolozljivostQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+
+
+export function useGetJavnaRazpolozljivost<TData = Awaited<ReturnType<typeof getJavnaRazpolozljivost>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
+ slug: string,
+    params: GetJavnaRazpolozljivostParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaRazpolozljivost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavnaRazpolozljivostQueryOptions(slug,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateJavnaRezervacijaUrl = (slug: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/rezervacije`
+}
+
+export const createJavnaRezervacija = async (slug: string,
+    javniRezervacijaInput: JavniRezervacijaInput, options?: RequestInit): Promise<JavnaRezervacija> => {
+
+  return customFetch<JavnaRezervacija>(getCreateJavnaRezervacijaUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(javniRezervacijaInput)
+  }
+);}
+
+
+
+
+
+export const getCreateJavnaRezervacijaMutationOptions = <TError = ErrorType<BadRequestResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJavnaRezervacija>>, TError,{slug: string;data: BodyType<JavniRezervacijaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createJavnaRezervacija>>, TError,{slug: string;data: BodyType<JavniRezervacijaInput>}, TContext> => {
+
+const mutationKey = ['createJavnaRezervacija'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createJavnaRezervacija>>, {slug: string;data: BodyType<JavniRezervacijaInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  createJavnaRezervacija(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateJavnaRezervacijaMutationResult = NonNullable<Awaited<ReturnType<typeof createJavnaRezervacija>>>
+    export type CreateJavnaRezervacijaMutationBody = BodyType<JavniRezervacijaInput>
+    export type CreateJavnaRezervacijaMutationError = ErrorType<BadRequestResponse | ConflictResponse>
+
+    export const useCreateJavnaRezervacija = <TError = ErrorType<BadRequestResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJavnaRezervacija>>, TError,{slug: string;data: BodyType<JavniRezervacijaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createJavnaRezervacija>>,
+        TError,
+        {slug: string;data: BodyType<JavniRezervacijaInput>},
+        TContext
+      > => {
+      return useMutation(getCreateJavnaRezervacijaMutationOptions(options));
+    }
+
+export const getGetJavnaRezervacijaUrl = (slug: string,
+    managementToken: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/rezervacije/${managementToken}`
+}
+
+export const getJavnaRezervacija = async (slug: string,
+    managementToken: string, options?: RequestInit): Promise<JavnaRezervacija> => {
+
+  return customFetch<JavnaRezervacija>(getGetJavnaRezervacijaUrl(slug,managementToken),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavnaRezervacijaQueryKey = (slug: string,
+    managementToken: string,) => {
+    return [
+    `/api/javno/restavracije/${slug}/rezervacije/${managementToken}`
+    ] as const;
+    }
+
+
+export const getGetJavnaRezervacijaQueryOptions = <TData = Awaited<ReturnType<typeof getJavnaRezervacija>>, TError = ErrorType<NotFoundResponse>>(slug: string,
+    managementToken: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaRezervacija>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavnaRezervacijaQueryKey(slug,managementToken);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavnaRezervacija>>> = ({ signal }) => getJavnaRezervacija(slug,managementToken, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && managementToken !== null && managementToken !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavnaRezervacija>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavnaRezervacijaQueryResult = NonNullable<Awaited<ReturnType<typeof getJavnaRezervacija>>>
+export type GetJavnaRezervacijaQueryError = ErrorType<NotFoundResponse>
+
+
+
+export function useGetJavnaRezervacija<TData = Awaited<ReturnType<typeof getJavnaRezervacija>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string,
+    managementToken: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaRezervacija>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavnaRezervacijaQueryOptions(slug,managementToken,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCancelJavnaRezervacijaUrl = (slug: string,
+    managementToken: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/rezervacije/${managementToken}`
+}
+
+export const cancelJavnaRezervacija = async (slug: string,
+    managementToken: string, options?: RequestInit): Promise<JavnaRezervacija> => {
+
+  return customFetch<JavnaRezervacija>(getCancelJavnaRezervacijaUrl(slug,managementToken),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelJavnaRezervacijaMutationOptions = <TError = ErrorType<NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelJavnaRezervacija>>, TError,{slug: string;managementToken: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelJavnaRezervacija>>, TError,{slug: string;managementToken: string}, TContext> => {
+
+const mutationKey = ['cancelJavnaRezervacija'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelJavnaRezervacija>>, {slug: string;managementToken: string}> = (props) => {
+          const {slug,managementToken} = props ?? {};
+
+          return  cancelJavnaRezervacija(slug,managementToken,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelJavnaRezervacijaMutationResult = NonNullable<Awaited<ReturnType<typeof cancelJavnaRezervacija>>>
+
+    export type CancelJavnaRezervacijaMutationError = ErrorType<NotFoundResponse | ConflictResponse>
+
+    export const useCancelJavnaRezervacija = <TError = ErrorType<NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelJavnaRezervacija>>, TError,{slug: string;managementToken: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelJavnaRezervacija>>,
+        TError,
+        {slug: string;managementToken: string},
+        TContext
+      > => {
+      return useMutation(getCancelJavnaRezervacijaMutationOptions(options));
+    }
+
+export const getListJavniBoniUrl = (slug: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/boni`
+}
+
+export const listJavniBoni = async (slug: string, options?: RequestInit): Promise<JavniBoni> => {
+
+  return customFetch<JavniBoni>(getListJavniBoniUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJavniBoniQueryKey = (slug: string,) => {
+    return [
+    `/api/javno/restavracije/${slug}/boni`
+    ] as const;
+    }
+
+
+export const getListJavniBoniQueryOptions = <TData = Awaited<ReturnType<typeof listJavniBoni>>, TError = ErrorType<NotFoundResponse>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJavniBoni>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJavniBoniQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJavniBoni>>> = ({ signal }) => listJavniBoni(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJavniBoni>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJavniBoniQueryResult = NonNullable<Awaited<ReturnType<typeof listJavniBoni>>>
+export type ListJavniBoniQueryError = ErrorType<NotFoundResponse>
+
+
+
+export function useListJavniBoni<TData = Awaited<ReturnType<typeof listJavniBoni>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJavniBoni>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJavniBoniQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateJavniBonCheckoutUrl = (slug: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/boni/checkout`
+}
+
+export const createJavniBonCheckout = async (slug: string,
+    javniBonCheckoutInput: JavniBonCheckoutInput, options?: RequestInit): Promise<JavniBonCheckout> => {
+
+  return customFetch<JavniBonCheckout>(getCreateJavniBonCheckoutUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(javniBonCheckoutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateJavniBonCheckoutMutationOptions = <TError = ErrorType<BadRequestResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJavniBonCheckout>>, TError,{slug: string;data: BodyType<JavniBonCheckoutInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createJavniBonCheckout>>, TError,{slug: string;data: BodyType<JavniBonCheckoutInput>}, TContext> => {
+
+const mutationKey = ['createJavniBonCheckout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createJavniBonCheckout>>, {slug: string;data: BodyType<JavniBonCheckoutInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  createJavniBonCheckout(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateJavniBonCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createJavniBonCheckout>>>
+    export type CreateJavniBonCheckoutMutationBody = BodyType<JavniBonCheckoutInput>
+    export type CreateJavniBonCheckoutMutationError = ErrorType<BadRequestResponse | ConflictResponse>
+
+    export const useCreateJavniBonCheckout = <TError = ErrorType<BadRequestResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJavniBonCheckout>>, TError,{slug: string;data: BodyType<JavniBonCheckoutInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createJavniBonCheckout>>,
+        TError,
+        {slug: string;data: BodyType<JavniBonCheckoutInput>},
+        TContext
+      > => {
+      return useMutation(getCreateJavniBonCheckoutMutationOptions(options));
+    }
+
+export const getGetJavniBonCheckoutUrl = (slug: string,
+    sessionId: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/boni/checkout/${sessionId}`
+}
+
+export const getJavniBonCheckout = async (slug: string,
+    sessionId: string, options?: RequestInit): Promise<JavniBonCheckoutStatus> => {
+
+  return customFetch<JavniBonCheckoutStatus>(getGetJavniBonCheckoutUrl(slug,sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavniBonCheckoutQueryKey = (slug: string,
+    sessionId: string,) => {
+    return [
+    `/api/javno/restavracije/${slug}/boni/checkout/${sessionId}`
+    ] as const;
+    }
+
+
+export const getGetJavniBonCheckoutQueryOptions = <TData = Awaited<ReturnType<typeof getJavniBonCheckout>>, TError = ErrorType<NotFoundResponse>>(slug: string,
+    sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavniBonCheckout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavniBonCheckoutQueryKey(slug,sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavniBonCheckout>>> = ({ signal }) => getJavniBonCheckout(slug,sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavniBonCheckout>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavniBonCheckoutQueryResult = NonNullable<Awaited<ReturnType<typeof getJavniBonCheckout>>>
+export type GetJavniBonCheckoutQueryError = ErrorType<NotFoundResponse>
+
+
+
+export function useGetJavniBonCheckout<TData = Awaited<ReturnType<typeof getJavniBonCheckout>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string,
+    sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavniBonCheckout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavniBonCheckoutQueryOptions(slug,sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetJavniProfilNastavitveUrl = () => {
+
+
+
+
+  return `/api/javni-profil`
+}
+
+export const getJavniProfilNastavitve = async ( options?: RequestInit): Promise<JavniProfilNastavitve> => {
+
+  return customFetch<JavniProfilNastavitve>(getGetJavniProfilNastavitveUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavniProfilNastavitveQueryKey = () => {
+    return [
+    `/api/javni-profil`
+    ] as const;
+    }
+
+
+export const getGetJavniProfilNastavitveQueryOptions = <TData = Awaited<ReturnType<typeof getJavniProfilNastavitve>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavniProfilNastavitve>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavniProfilNastavitveQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavniProfilNastavitve>>> = ({ signal }) => getJavniProfilNastavitve({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavniProfilNastavitve>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavniProfilNastavitveQueryResult = NonNullable<Awaited<ReturnType<typeof getJavniProfilNastavitve>>>
+export type GetJavniProfilNastavitveQueryError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+
+
+export function useGetJavniProfilNastavitve<TData = Awaited<ReturnType<typeof getJavniProfilNastavitve>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavniProfilNastavitve>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavniProfilNastavitveQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateJavniProfilNastavitveUrl = () => {
+
+
+
+
+  return `/api/javni-profil`
+}
+
+export const updateJavniProfilNastavitve = async (javniProfilNastavitveInput: JavniProfilNastavitveInput, options?: RequestInit): Promise<JavniProfilNastavitve> => {
+
+  return customFetch<JavniProfilNastavitve>(getUpdateJavniProfilNastavitveUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(javniProfilNastavitveInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateJavniProfilNastavitveMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJavniProfilNastavitve>>, TError,{data: BodyType<JavniProfilNastavitveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateJavniProfilNastavitve>>, TError,{data: BodyType<JavniProfilNastavitveInput>}, TContext> => {
+
+const mutationKey = ['updateJavniProfilNastavitve'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateJavniProfilNastavitve>>, {data: BodyType<JavniProfilNastavitveInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateJavniProfilNastavitve(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateJavniProfilNastavitveMutationResult = NonNullable<Awaited<ReturnType<typeof updateJavniProfilNastavitve>>>
+    export type UpdateJavniProfilNastavitveMutationBody = BodyType<JavniProfilNastavitveInput>
+    export type UpdateJavniProfilNastavitveMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | ConflictResponse>
+
+    export const useUpdateJavniProfilNastavitve = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJavniProfilNastavitve>>, TError,{data: BodyType<JavniProfilNastavitveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateJavniProfilNastavitve>>,
+        TError,
+        {data: BodyType<JavniProfilNastavitveInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateJavniProfilNastavitveMutationOptions(options));
+    }
+
+export const getRequestJavniProfilImageUploadUrl = () => {
+
+
+
+
+  return `/api/javni-profil/slike/upload-url`
+}
+
+export const requestJavniProfilImageUpload = async (javniProfilImageUploadRequest: JavniProfilImageUploadRequest, options?: RequestInit): Promise<JavniProfilImageUploadResponse> => {
+
+  return customFetch<JavniProfilImageUploadResponse>(getRequestJavniProfilImageUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(javniProfilImageUploadRequest)
+  }
+);}
+
+
+
+
+
+export const getRequestJavniProfilImageUploadMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestJavniProfilImageUpload>>, TError,{data: BodyType<JavniProfilImageUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestJavniProfilImageUpload>>, TError,{data: BodyType<JavniProfilImageUploadRequest>}, TContext> => {
+
+const mutationKey = ['requestJavniProfilImageUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestJavniProfilImageUpload>>, {data: BodyType<JavniProfilImageUploadRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestJavniProfilImageUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestJavniProfilImageUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestJavniProfilImageUpload>>>
+    export type RequestJavniProfilImageUploadMutationBody = BodyType<JavniProfilImageUploadRequest>
+    export type RequestJavniProfilImageUploadMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    export const useRequestJavniProfilImageUpload = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestJavniProfilImageUpload>>, TError,{data: BodyType<JavniProfilImageUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestJavniProfilImageUpload>>,
+        TError,
+        {data: BodyType<JavniProfilImageUploadRequest>},
+        TContext
+      > => {
+      return useMutation(getRequestJavniProfilImageUploadMutationOptions(options));
+    }
+
+export const getDeleteJavniProfilImageUrl = (objectId: string,) => {
+
+
+
+
+  return `/api/javni-profil/slike/${objectId}`
+}
+
+export const deleteJavniProfilImage = async (objectId: string, options?: RequestInit): Promise<DeleteJavniProfilImage200> => {
+
+  return customFetch<DeleteJavniProfilImage200>(getDeleteJavniProfilImageUrl(objectId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteJavniProfilImageMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteJavniProfilImage>>, TError,{objectId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteJavniProfilImage>>, TError,{objectId: string}, TContext> => {
+
+const mutationKey = ['deleteJavniProfilImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteJavniProfilImage>>, {objectId: string}> = (props) => {
+          const {objectId} = props ?? {};
+
+          return  deleteJavniProfilImage(objectId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteJavniProfilImageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteJavniProfilImage>>>
+
+    export type DeleteJavniProfilImageMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+
+    export const useDeleteJavniProfilImage = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteJavniProfilImage>>, TError,{objectId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteJavniProfilImage>>,
+        TError,
+        {objectId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteJavniProfilImageMutationOptions(options));
+    }
+
+export const getGetJavnaProfilImageUrl = (objectId: string,) => {
+
+
+
+
+  return `/api/javno/slike/${objectId}`
+}
+
+export const getJavnaProfilImage = async (objectId: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetJavnaProfilImageUrl(objectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJavnaProfilImageQueryKey = (objectId: string,) => {
+    return [
+    `/api/javno/slike/${objectId}`
+    ] as const;
+    }
+
+
+export const getGetJavnaProfilImageQueryOptions = <TData = Awaited<ReturnType<typeof getJavnaProfilImage>>, TError = ErrorType<NotFoundResponse>>(objectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaProfilImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJavnaProfilImageQueryKey(objectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJavnaProfilImage>>> = ({ signal }) => getJavnaProfilImage(objectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: objectId !== null && objectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJavnaProfilImage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJavnaProfilImageQueryResult = NonNullable<Awaited<ReturnType<typeof getJavnaProfilImage>>>
+export type GetJavnaProfilImageQueryError = ErrorType<NotFoundResponse>
+
+
+
+export function useGetJavnaProfilImage<TData = Awaited<ReturnType<typeof getJavnaProfilImage>>, TError = ErrorType<NotFoundResponse>>(
+ objectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJavnaProfilImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJavnaProfilImageQueryOptions(objectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDostaveIndividualnihBonovUrl = () => {
+
+
+
+
+  return `/api/darilni-boni/individualni/dostave`
+}
+
+export const listDostaveIndividualnihBonov = async ( options?: RequestInit): Promise<DostavaIndividualnegaBona[]> => {
+
+  return customFetch<DostavaIndividualnegaBona[]>(getListDostaveIndividualnihBonovUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDostaveIndividualnihBonovQueryKey = () => {
+    return [
+    `/api/darilni-boni/individualni/dostave`
+    ] as const;
+    }
+
+
+export const getListDostaveIndividualnihBonovQueryOptions = <TData = Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDostaveIndividualnihBonovQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>> = ({ signal }) => listDostaveIndividualnihBonov({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDostaveIndividualnihBonovQueryResult = NonNullable<Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>>
+export type ListDostaveIndividualnihBonovQueryError = ErrorType<ForbiddenResponse>
+
+
+
+export function useListDostaveIndividualnihBonov<TData = Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDostaveIndividualnihBonov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDostaveIndividualnihBonovQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListOpozorilaNeuspeleDostaveBonovUrl = () => {
+
+
+
+
+  return `/api/darilni-boni/individualni/dostave/opozorila`
+}
+
+export const listOpozorilaNeuspeleDostaveBonov = async ( options?: RequestInit): Promise<OpozoriloNeuspeleDostaveBona[]> => {
+
+  return customFetch<OpozoriloNeuspeleDostaveBona[]>(getListOpozorilaNeuspeleDostaveBonovUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOpozorilaNeuspeleDostaveBonovQueryKey = () => {
+    return [
+    `/api/darilni-boni/individualni/dostave/opozorila`
+    ] as const;
+    }
+
+
+export const getListOpozorilaNeuspeleDostaveBonovQueryOptions = <TData = Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOpozorilaNeuspeleDostaveBonovQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>> = ({ signal }) => listOpozorilaNeuspeleDostaveBonov({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOpozorilaNeuspeleDostaveBonovQueryResult = NonNullable<Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>>
+export type ListOpozorilaNeuspeleDostaveBonovQueryError = ErrorType<ForbiddenResponse>
+
+
+
+export function useListOpozorilaNeuspeleDostaveBonov<TData = Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpozorilaNeuspeleDostaveBonov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOpozorilaNeuspeleDostaveBonovQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPonoviDostavoIndividualnegaBonaUrl = (checkoutId: string,) => {
+
+
+
+
+  return `/api/darilni-boni/individualni/dostave/${checkoutId}/ponovi`
+}
+
+export const ponoviDostavoIndividualnegaBona = async (checkoutId: string, options?: RequestInit): Promise<PonovljenaDostavaIndividualnegaBona> => {
+
+  return customFetch<PonovljenaDostavaIndividualnegaBona>(getPonoviDostavoIndividualnegaBonaUrl(checkoutId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPonoviDostavoIndividualnegaBonaMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ponoviDostavoIndividualnegaBona>>, TError,{checkoutId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ponoviDostavoIndividualnegaBona>>, TError,{checkoutId: string}, TContext> => {
+
+const mutationKey = ['ponoviDostavoIndividualnegaBona'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ponoviDostavoIndividualnegaBona>>, {checkoutId: string}> = (props) => {
+          const {checkoutId} = props ?? {};
+
+          return  ponoviDostavoIndividualnegaBona(checkoutId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PonoviDostavoIndividualnegaBonaMutationResult = NonNullable<Awaited<ReturnType<typeof ponoviDostavoIndividualnegaBona>>>
+
+    export type PonoviDostavoIndividualnegaBonaMutationError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | void>
+
+    export const usePonoviDostavoIndividualnegaBona = <TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ponoviDostavoIndividualnegaBona>>, TError,{checkoutId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof ponoviDostavoIndividualnegaBona>>,
+        TError,
+        {checkoutId: string},
+        TContext
+      > => {
+      return useMutation(getPonoviDostavoIndividualnegaBonaMutationOptions(options));
+    }
+
+export const getListStripePreglediBonovUrl = () => {
+
+
+
+
+  return `/api/darilni-boni/individualni/stripe-pregledi`
+}
+
+export const listStripePreglediBonov = async ( options?: RequestInit): Promise<StripePregledBona[]> => {
+
+  return customFetch<StripePregledBona[]>(getListStripePreglediBonovUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStripePreglediBonovQueryKey = () => {
+    return [
+    `/api/darilni-boni/individualni/stripe-pregledi`
+    ] as const;
+    }
+
+
+export const getListStripePreglediBonovQueryOptions = <TData = Awaited<ReturnType<typeof listStripePreglediBonov>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStripePreglediBonov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStripePreglediBonovQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStripePreglediBonov>>> = ({ signal }) => listStripePreglediBonov({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStripePreglediBonov>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStripePreglediBonovQueryResult = NonNullable<Awaited<ReturnType<typeof listStripePreglediBonov>>>
+export type ListStripePreglediBonovQueryError = ErrorType<ForbiddenResponse>
+
+
+
+export function useListStripePreglediBonov<TData = Awaited<ReturnType<typeof listStripePreglediBonov>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStripePreglediBonov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStripePreglediBonovQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResiStripePregledBonaUrl = (reviewId: string,) => {
+
+
+
+
+  return `/api/darilni-boni/individualni/stripe-pregledi/${reviewId}/resi`
+}
+
+export const resiStripePregledBona = async (reviewId: string,
+    resiStripePregledBonaInput: ResiStripePregledBonaInput, options?: RequestInit): Promise<ResenStripePregledBona> => {
+
+  return customFetch<ResenStripePregledBona>(getResiStripePregledBonaUrl(reviewId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(resiStripePregledBonaInput)
+  }
+);}
+
+
+
+
+
+export const getResiStripePregledBonaMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resiStripePregledBona>>, TError,{reviewId: string;data: BodyType<ResiStripePregledBonaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resiStripePregledBona>>, TError,{reviewId: string;data: BodyType<ResiStripePregledBonaInput>}, TContext> => {
+
+const mutationKey = ['resiStripePregledBona'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resiStripePregledBona>>, {reviewId: string;data: BodyType<ResiStripePregledBonaInput>}> = (props) => {
+          const {reviewId,data} = props ?? {};
+
+          return  resiStripePregledBona(reviewId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResiStripePregledBonaMutationResult = NonNullable<Awaited<ReturnType<typeof resiStripePregledBona>>>
+    export type ResiStripePregledBonaMutationBody = BodyType<ResiStripePregledBonaInput>
+    export type ResiStripePregledBonaMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+
+    export const useResiStripePregledBona = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resiStripePregledBona>>, TError,{reviewId: string;data: BodyType<ResiStripePregledBonaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resiStripePregledBona>>,
+        TError,
+        {reviewId: string;data: BodyType<ResiStripePregledBonaInput>},
+        TContext
+      > => {
+      return useMutation(getResiStripePregledBonaMutationOptions(options));
+    }
+
+export const getHandleJavniStripeWebhookUrl = () => {
+
+
+
+
+  return `/api/javno/stripe/webhook`
+}
+
+export const handleJavniStripeWebhook = async (stripeWebhookInput: StripeWebhookInput, options?: RequestInit): Promise<StripeWebhookResult> => {
+
+  return customFetch<StripeWebhookResult>(getHandleJavniStripeWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(stripeWebhookInput)
+  }
+);}
+
+
+
+
+
+export const getHandleJavniStripeWebhookMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof handleJavniStripeWebhook>>, TError,{data: BodyType<StripeWebhookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof handleJavniStripeWebhook>>, TError,{data: BodyType<StripeWebhookInput>}, TContext> => {
+
+const mutationKey = ['handleJavniStripeWebhook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof handleJavniStripeWebhook>>, {data: BodyType<StripeWebhookInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  handleJavniStripeWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type HandleJavniStripeWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof handleJavniStripeWebhook>>>
+    export type HandleJavniStripeWebhookMutationBody = BodyType<StripeWebhookInput>
+    export type HandleJavniStripeWebhookMutationError = ErrorType<BadRequestResponse>
+
+    export const useHandleJavniStripeWebhook = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof handleJavniStripeWebhook>>, TError,{data: BodyType<StripeWebhookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof handleJavniStripeWebhook>>,
+        TError,
+        {data: BodyType<StripeWebhookInput>},
+        TContext
+      > => {
+      return useMutation(getHandleJavniStripeWebhookMutationOptions(options));
     }
 

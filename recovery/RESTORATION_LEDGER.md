@@ -4,7 +4,7 @@
 
 - Recovery start (UTC): `2026-09-23T11:09:01Z`
 - Recovery start (Europe/Ljubljana): `2026-09-23T13:09:01+02:00`
-- Elapsed recovery time: `00:17:31`
+- Elapsed recovery time: `00:33:24`
 - Verified recovery cost: `$0.00`
 - Unverified accrued cost: `Pending Replit Account usage export`
 - Cost estimation policy: `No estimated or fabricated dollar values`
@@ -56,6 +56,9 @@ Agent. Consequently:
 | 011 | 2026-09-23T11:26:32Z | 00:17:31 | $0.00 | Restored Kosila schema source, offer lifecycle, authoritative quote, statistics, UI, and tests. | Historical migrations 213 and 214 were not restored or executed. |
 | 012 | 2026-09-23T11:26:32Z | 00:17:31 | $0.00 | Restored the daily-lunch order mutation and integrated it into the current order flow. | Added order locking, scope checks, idempotency, server pricing, snapshots, package lines, totals, and KDS materialization. |
 | 013 | 2026-09-23T11:26:32Z | 00:17:31 | $0.00 | Regenerated API clients and ran focused Kosila validation. | API/POS/library type checks, codegen, focused API and POS tests, and patch-integrity check passed. |
+| 014 | 2026-09-23T11:42:25Z | 00:33:24 | $0.00 | Restored the Public Restaurant Page, shared public venue UI, public-facing artifact, profile image lifecycle, and public visit handling. | Tenant-scoped object paths and stricter current storage validation were preserved. |
+| 015 | 2026-09-23T11:42:25Z | 00:33:24 | $0.00 | Restored required public API contracts and regenerated typed clients. | Initial historical-contract churn was rejected; the final diff preserves every pre-phase API path/export and adds only 17 required public paths. |
+| 016 | 2026-09-23T11:42:25Z | 00:33:24 | $0.00 | Ran Public Page validation. | API tests 27/27, POS tests 6/6, API/POS/public-artifact/library type checks, codegen, and patch-integrity check passed. |
 
 ## Task register
 
@@ -65,7 +68,7 @@ Agent. Consequently:
 | R-01 | Restore POS Manual and Daily Menu reachability | Complete | Routes, navigation, source, assets, focused checks |
 | R-02 | Restore Malice end to end | Complete | UI, API, contracts, schema source, tests |
 | R-03 | Restore Kosila end to end | Complete | UI, API, contracts, schema source, tests |
-| R-04 | Restore Public Restaurant Page | Not started | UI, images, public visits, tests |
+| R-04 | Restore Public Restaurant Page | Complete | UI, images, public visits, tests |
 | R-05 | Restore voucher-delivery and Stripe safeguards | Not started | Retry, alerts, monitoring, tests |
 | R-06 | Reconcile OpenAPI and generated clients | Not started | Contract diff, codegen, type checks |
 | R-07 | Reconcile schema sources and historical migrations | Not started | Collision-safe migration record; no blind replay |

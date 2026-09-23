@@ -13,6 +13,9 @@
       "path": "./lib/api-zod"
     },
     {
+      "path": "./lib/public-venue-ui"
+    },
+    {
       "path": "./lib/integrations-anthropic-ai"
     },
     {

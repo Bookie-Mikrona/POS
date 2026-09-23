@@ -11,6 +11,7 @@ import {
 import { isDatabaseRestoreInProgress } from "./lib/databaseRestoreGuard";
 import router from "./routes";
 import javniMeniRouter from "./routes/javnoMeni";
+import { publicVisitsRouter } from "./routes/publicVisits";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -53,6 +54,7 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 // Javni QR meni je namerno registriran pred Clerk middleware in pred
 // requireEnota: dostop določa samo nepredvidljiv token mize.
 app.use("/api", javniMeniRouter);
+app.use("/api", publicVisitsRouter);
 
 // Clerk middleware — resolves publishable key from host
 app.use(

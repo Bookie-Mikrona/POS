@@ -18,3 +18,31 @@ export const logger = pino({
         },
       }),
 });
+
+export function logPublicStripeWebhookFailure(input: {
+  error?: unknown;
+  errorType?: string;
+  reason: string;
+  retryable: boolean;
+  requestId: unknown;
+  message: string;
+}): void {
+  const errorType = input.errorType ?? (
+    input.error && typeof input.error === "object" && "name" in input.error &&
+    typeof input.error.name === "string"
+      ? input.error.name
+      : "UnknownError"
+  );
+  logger.error(
+    {
+      errorType,
+      reason: input.reason,
+      retryable: input.retryable,
+      requestId:
+        typeof input.requestId === "string" || typeof input.requestId === "number"
+          ? input.requestId
+          : "unknown",
+    },
+    input.message,
+  );
+}

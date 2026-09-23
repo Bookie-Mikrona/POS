@@ -9831,6 +9831,249 @@ paths:
         "200": { description: Idempotent replay status, content: { application/json: { schema: { $ref: "#/components/schemas/OfflineFiscalClaimResult" } } } }
         "202": { description: Claim processed, content: { application/json: { schema: { $ref: "#/components/schemas/OfflineFiscalClaimResult" } } } }
         "409": { $ref: "#/components/responses/Conflict" }
+  /javno/restavracije/{slug}:
+    get:
+      operationId: getJavnaRestavracija
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Javni profil restavracije, content: { application/json: { schema: { $ref: "#/components/schemas/JavnaRestavracija" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /javno/restavracije/{slug}/razpolozljivost:
+    get:
+      operationId: getJavnaRazpolozljivost
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: datum, in: query, required: true, schema: { type: string, format: date } }
+        - { name: steviloOseb, in: query, required: true, schema: { type: integer, minimum: 1, maximum: 50 } }
+      responses:
+        "200": { description: Razpoložljivi termini, content: { application/json: { schema: { $ref: "#/components/schemas/JavnaRazpolozljivost" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /javno/restavracije/{slug}/rezervacije:
+    post:
+      operationId: createJavnaRezervacija
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JavniRezervacijaInput" }
+      responses:
+        "201": { description: Rezervacija je ustvarjena, content: { application/json: { schema: { $ref: "#/components/schemas/JavnaRezervacija" } } } }
+        "200": { description: Idempotentno ponovljena rezervacija, content: { application/json: { schema: { $ref: "#/components/schemas/JavnaRezervacija" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /javno/restavracije/{slug}/rezervacije/{managementToken}:
+    get:
+      operationId: getJavnaRezervacija
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: managementToken, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Podrobnosti rezervacije, content: { application/json: { schema: { $ref: "#/components/schemas/JavnaRezervacija" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: cancelJavnaRezervacija
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: managementToken, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Preklicana rezervacija, content: { application/json: { schema: { $ref: "#/components/schemas/JavnaRezervacija" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /javno/restavracije/{slug}/boni:
+    get:
+      operationId: listJavniBoni
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Ponudba darilnih bonov, content: { application/json: { schema: { $ref: "#/components/schemas/JavniBoni" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /javno/restavracije/{slug}/boni/checkout:
+    post:
+      operationId: createJavniBonCheckout
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JavniBonCheckoutInput" }
+      responses:
+        "201": { description: Stripe Checkout seja, content: { application/json: { schema: { $ref: "#/components/schemas/JavniBonCheckout" } } } }
+        "200": { description: Idempotentno ponovljen Checkout, content: { application/json: { schema: { $ref: "#/components/schemas/JavniBonCheckout" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /javno/restavracije/{slug}/boni/checkout/{sessionId}:
+    get:
+      operationId: getJavniBonCheckout
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: sessionId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Status nakupa bona, content: { application/json: { schema: { $ref: "#/components/schemas/JavniBonCheckoutStatus" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /javni-profil:
+    get:
+      operationId: getJavniProfilNastavitve
+      tags: [javniObiski]
+      responses:
+        "200": { description: Nastavitve javnega profila aktivne enote, content: { application/json: { schema: { $ref: "#/components/schemas/JavniProfilNastavitve" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      operationId: updateJavniProfilNastavitve
+      tags: [javniObiski]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JavniProfilNastavitveInput" }
+      responses:
+        "200": { description: Shranjene nastavitve javnega profila, content: { application/json: { schema: { $ref: "#/components/schemas/JavniProfilNastavitve" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /javni-profil/slike/upload-url:
+    post:
+      operationId: requestJavniProfilImageUpload
+      tags: [javniObiski]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JavniProfilImageUploadRequest" }
+      responses:
+        "200":
+          description: Podpisan naslov za neposreden prenos slike v App Storage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JavniProfilImageUploadResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /javni-profil/slike/{objectId}:
+    delete:
+      operationId: deleteJavniProfilImage
+      tags: [javniObiski]
+      parameters:
+        - { name: objectId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Rezultat varnega čiščenja slike, ki ni več v uporabi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /javno/slike/{objectId}:
+    get:
+      operationId: getJavnaProfilImage
+      tags: [javniObiski]
+      parameters:
+        - { name: objectId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Javno objavljena slika profila ali bona
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /darilni-boni/individualni/dostave:
+    get:
+      operationId: listDostaveIndividualnihBonov
+      tags: [darilniBoni]
+      responses:
+        "200":
+          description: Stanja dostave plačanih individualnih bonov
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DostavaIndividualnegaBona" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /darilni-boni/individualni/dostave/opozorila:
+    get:
+      operationId: listOpozorilaNeuspeleDostaveBonov
+      tags: [darilniBoni]
+      responses:
+        "200":
+          description: Odprta opozorila po izčrpanih poskusih dostave
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OpozoriloNeuspeleDostaveBona" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /darilni-boni/individualni/dostave/{checkoutId}/ponovi:
+    post:
+      operationId: ponoviDostavoIndividualnegaBona
+      tags: [darilniBoni]
+      parameters:
+        - { name: checkoutId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Bon je bil dostavljen, content: { application/json: { schema: { $ref: "#/components/schemas/PonovljenaDostavaIndividualnegaBona" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { description: Dostava trenutno ni uspela }
+  /darilni-boni/individualni/stripe-pregledi:
+    get:
+      operationId: listStripePreglediBonov
+      tags: [darilniBoni]
+      responses:
+        "200":
+          description: Podpisana Stripe plačila, ki zahtevajo ročno uskladitev
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StripePregledBona" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /darilni-boni/individualni/stripe-pregledi/{reviewId}/resi:
+    post:
+      operationId: resiStripePregledBona
+      tags: [darilniBoni]
+      parameters:
+        - { name: reviewId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResiStripePregledBonaInput" }
+      responses:
+        "200": { description: Primer je ročno rešen, content: { application/json: { schema: { $ref: "#/components/schemas/ResenStripePregledBona" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /javno/stripe/webhook:
+    post:
+      operationId: handleJavniStripeWebhook
+      tags: [javniObiski]
+      parameters:
+        - { name: stripe-signature, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StripeWebhookInput" }
+      responses:
+        "200": { description: Webhook sprejet, content: { application/json: { schema: { $ref: "#/components/schemas/StripeWebhookResult" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
 components:
   securitySchemes:
     bearerAuth:
@@ -21978,3 +22221,322 @@ components:
         state: { type: string, enum: [confirmed, failed, unknown, sending, needs_review] }
         eor: { type: [string, "null"] }
         replay: { type: boolean }
+    JavnaRestavracija:
+      type: object
+      required: [slug, ime, opis, branding, kontakt, openingHours, maxPartySize]
+      properties:
+        slug: { type: string }
+        ime: { type: string }
+        opis: { type: [string, "null"] }
+        branding: { $ref: "#/components/schemas/JavnaRestavracijaBranding" }
+        kontakt: { $ref: "#/components/schemas/JavnaRestavracijaKontakt" }
+        openingHours:
+          type: array
+          items: { $ref: "#/components/schemas/JavnoOpeningHours" }
+        maxPartySize: { type: integer, minimum: 1 }
+        naslov: { type: [string, "null"] }
+        aktivna: { type: boolean }
+    JavnaRestavracijaBranding:
+      type: object
+      required: [primaryColor, logoUrl]
+      properties:
+        primaryColor: { type: [string, "null"] }
+        logoUrl: { type: [string, "null"] }
+        coverImageUrl: { type: [string, "null"] }
+    JavnaRestavracijaKontakt:
+      type: object
+      required: [telefon, email, spletnaStran]
+      properties:
+        telefon: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        spletnaStran: { type: [string, "null"] }
+    JavnoOpeningHours:
+      type: object
+      required: [dan, odprto, intervals]
+      properties:
+        dan: { type: integer, minimum: 1, maximum: 7 }
+        odprto: { type: boolean }
+        intervals:
+          type: array
+          items: { $ref: "#/components/schemas/JavnoOpeningInterval" }
+    JavnoOpeningInterval:
+      type: object
+      required: [od, do]
+      properties:
+        od: { type: string }
+        do: { type: string }
+    JavnaRazpolozljivost:
+      type: object
+      required: [datum, steviloOseb, slots]
+      properties:
+        datum: { type: string, format: date }
+        steviloOseb: { type: integer }
+        slots:
+          type: array
+          items: { $ref: "#/components/schemas/JavnoRazpolozljivostSlot" }
+    JavnoRazpolozljivostSlot:
+      type: object
+      required: [cas, naVoljo]
+      properties:
+        cas: { type: string }
+        naVoljo: { type: boolean }
+        preostalo: { type: [integer, "null"] }
+    JavniRezervacijaInput:
+      type: object
+      required: [idempotencyKey, steviloOseb, datum, cas, ime, email, telefon, privacyAccepted]
+      properties:
+        idempotencyKey: { type: string, minLength: 36, maxLength: 36, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" }
+        steviloOseb: { type: integer, minimum: 1 }
+        datum: { type: string, format: date }
+        cas: { type: string }
+        ime: { type: string, minLength: 1 }
+        email: { type: string, minLength: 3 }
+        telefon: { type: string, minLength: 1 }
+        opomba: { type: [string, "null"] }
+        privacyAccepted: { type: boolean, const: true }
+    JavnaRezervacija:
+      type: object
+      required: [id, status, managementToken, steviloOseb, datum, cas, ime, email]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [pending, confirmed, cancelled, completed] }
+        managementToken: { type: string }
+        steviloOseb: { type: integer }
+        datum: { type: string, format: date }
+        cas: { type: string }
+        ime: { type: string }
+        email: { type: string }
+        telefon: { type: [string, "null"] }
+        opomba: { type: [string, "null"] }
+        createdAt: { type: string }
+        cancelledAt: { type: [string, "null"] }
+    JavniBoni:
+      type: object
+      required: [products]
+      properties:
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/JavniBonProduct" }
+    JavniBonProduct:
+      type: object
+      required: [id, naziv, opis, variants, active]
+      properties:
+        id: { type: string }
+        naziv: { type: string }
+        opis: { type: [string, "null"] }
+        imageUrl: { type: [string, "null"] }
+        variants:
+          type: array
+          items: { $ref: "#/components/schemas/JavniBonVariant" }
+        active: { type: boolean }
+    JavniBonVariant:
+      type: object
+      required: [id, naziv, amountCents, currency, active]
+      properties:
+        id: { type: string }
+        naziv: { type: string }
+        amountCents: { type: integer, minimum: 1 }
+        currency: { type: string }
+        active: { type: boolean }
+    JavniBonCheckoutInput:
+      type: object
+      required: [idempotencyKey, items, buyerIme, buyerEmail, recipientIme, recipientEmail, privacyAccepted]
+      properties:
+        idempotencyKey: { type: string, minLength: 36, maxLength: 36, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" }
+        items:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/JavniBonCheckoutItem" }
+        buyerIme: { type: string, minLength: 1 }
+        buyerEmail: { type: string, minLength: 3 }
+        recipientIme: { type: string, minLength: 1 }
+        recipientEmail: { type: string, minLength: 3 }
+        sporocilo: { type: [string, "null"] }
+        privacyAccepted: { type: boolean, const: true }
+    JavniBonCheckoutItem:
+      type: object
+      required: [productId, variantId, quantity]
+      properties:
+        productId: { type: string }
+        variantId: { type: string }
+        quantity: { type: integer, minimum: 1, maximum: 20 }
+    JavniBonCheckout:
+      type: object
+      required: [sessionId, checkoutUrl, status]
+      properties:
+        sessionId: { type: string }
+        checkoutUrl: { type: string }
+        status: { type: string, enum: [created, open, complete, expired] }
+        expiresAt: { type: [string, "null"] }
+    JavniBonCheckoutStatus:
+      type: object
+      required: [sessionId, status]
+      properties:
+        sessionId: { type: string }
+        status: { type: string, enum: [created, open, complete, expired, cancelled] }
+        paymentStatus: { type: [string, "null"], enum: [paid, unpaid, no_payment_required, null] }
+        checkoutUrl: { type: [string, "null"] }
+        voucherIds: { type: array, items: { type: string } }
+        deliveryStatus: { type: ["string", "null"], enum: [pending, sending, sent, failed, null] }
+        deliveryAttempts: { type: integer }
+        deliveryNextAttemptAt: { type: ["string", "null"] }
+        deliveryError: { type: ["string", "null"] }
+    DostavaIndividualnegaBona:
+      type: object
+      required: [checkoutId, recipientName, recipientEmail, createdAt, voucherCount, deliveryStatus, deliveryAttempts]
+      properties:
+        checkoutId: { type: string }
+        recipientName: { type: string }
+        recipientEmail: { type: string }
+        createdAt: { type: string }
+        voucherCount: { type: integer }
+        deliveryStatus: { type: string, enum: [pending, sending, sent, failed] }
+        deliveryAttempts: { type: integer }
+        deliveryNextAttemptAt: { type: ["string", "null"] }
+        deliveryLastAttemptAt: { type: ["string", "null"] }
+        deliveryError: { type: ["string", "null"] }
+    OpozoriloNeuspeleDostaveBona:
+      type: object
+      required: [id, checkoutId, recipientName, recipientEmail, lastError, createdAt, retryPath]
+      properties:
+        id: { type: string }
+        checkoutId: { type: string }
+        recipientName: { type: string }
+        recipientEmail: { type: string }
+        lastError: { type: string }
+        createdAt: { type: string }
+        retryPath: { type: string }
+    PonovljenaDostavaIndividualnegaBona:
+      type: object
+      required: [checkoutId, deliveryStatus, message]
+      properties:
+        checkoutId: { type: string }
+        deliveryStatus: { type: string, enum: [sent, failed] }
+        message: { type: string }
+    StripePregledBona:
+      type: object
+      required: [id, eventId, sessionId, companyId, unitId, reasonCode, reason, createdAt]
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        sessionId: { type: string }
+        checkoutId: { type: ["string", "null"] }
+        companyId: { type: string }
+        unitId: { type: integer }
+        metadataCompanyId: { type: ["string", "null"] }
+        metadataUnitId: { type: ["string", "null"] }
+        reasonCode: { type: string }
+        reason: { type: string }
+        expectedAmountCents: { type: ["integer", "null"] }
+        receivedAmountCents: { type: ["integer", "null"] }
+        expectedCurrency: { type: ["string", "null"] }
+        receivedCurrency: { type: ["string", "null"] }
+        paymentStatus: { type: ["string", "null"] }
+        createdAt: { type: string }
+    ResiStripePregledBonaInput:
+      type: object
+      required: [note]
+      properties:
+        note: { type: string, minLength: 3, maxLength: 1000 }
+    ResenStripePregledBona:
+      type: object
+      required: [id, status, message]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [resolved] }
+        message: { type: string }
+    JavniProfilInterval:
+      type: object
+      required: [od, do]
+      properties:
+        od: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        do: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+    JavniProfilDan:
+      type: object
+      required: [dan, odprto, intervals]
+      properties:
+        dan: { type: integer, minimum: 1, maximum: 7 }
+        odprto: { type: boolean }
+        intervals: { type: array, items: { $ref: "#/components/schemas/JavniProfilInterval" } }
+    JavniProfilIzjema:
+      type: object
+      required: [datum, zaprto, intervals]
+      properties:
+        datum: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        zaprto: { type: boolean }
+        intervals: { type: array, items: { $ref: "#/components/schemas/JavniProfilInterval" } }
+    JavniProfilBonVariant:
+      type: object
+      required: [naziv, amountCents, active]
+      properties:
+        id: { type: string }
+        naziv: { type: string, minLength: 1, maxLength: 120 }
+        amountCents: { type: integer, minimum: 1, maximum: 10000000 }
+        active: { type: boolean }
+    JavniProfilBon:
+      type: object
+      required: [naziv, active, variants]
+      properties:
+        id: { type: string }
+        naziv: { type: string, minLength: 1, maxLength: 160 }
+        opis: { type: ["string", "null"], maxLength: 2000 }
+        imageUrl: { type: ["string", "null"], maxLength: 2000 }
+        active: { type: boolean }
+        variants: { type: array, items: { $ref: "#/components/schemas/JavniProfilBonVariant" } }
+    JavniProfilNastavitveInput:
+      type: object
+      required: [slug, active, primaryColor, maxPartySize, slotMinutes, slotCapacity, openingHours, dateExceptions, products]
+      properties:
+        slug: { type: string, minLength: 3, maxLength: 80, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+        active: { type: boolean }
+        description: { type: ["string", "null"], maxLength: 4000 }
+        address: { type: ["string", "null"], maxLength: 500 }
+        phone: { type: ["string", "null"], maxLength: 100 }
+        email: { type: ["string", "null"], maxLength: 320 }
+        website: { type: ["string", "null"], maxLength: 2000 }
+        primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        logoUrl: { type: ["string", "null"], maxLength: 2000 }
+        coverImageUrl: { type: ["string", "null"], maxLength: 2000 }
+        maxPartySize: { type: integer, minimum: 1, maximum: 100 }
+        slotMinutes: { type: integer, minimum: 15, maximum: 240 }
+        slotCapacity: { type: integer, minimum: 1, maximum: 10000 }
+        openingHours: { type: array, items: { $ref: "#/components/schemas/JavniProfilDan" } }
+        dateExceptions: { type: array, items: { $ref: "#/components/schemas/JavniProfilIzjema" } }
+        products: { type: array, items: { $ref: "#/components/schemas/JavniProfilBon" } }
+    JavniProfilNastavitve:
+      allOf:
+        - $ref: "#/components/schemas/JavniProfilNastavitveInput"
+        - type: object
+          required: [id, unitId, companyId, venueName, publicUrl]
+          properties:
+            id: { type: string }
+            unitId: { type: integer }
+            companyId: { type: string }
+            venueName: { type: string }
+            publicUrl: { type: string }
+    JavniProfilImageUploadRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        size: { type: integer, minimum: 1, maximum: 5242880 }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+    JavniProfilImageUploadResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: { type: string }
+        objectPath: { type: string }
+    StripeWebhookInput:
+      type: object
+      required: [id, type, payload]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        payload: { type: object, additionalProperties: true }
+    StripeWebhookResult:
+      type: object
+      required: [received]
+      properties:
+        received: { type: boolean }
+        eventId: { type: [string, "null"] }

@@ -19,7 +19,7 @@ import { HappyHourProvider, useHappyHour } from "@/contexts/HappyHourContext";
 import { NapravaProvider } from "@/contexts/NapravaContext";
 import { AutoStartProvider } from "@/contexts/AutoStartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, Users, ClipboardList, BookOpen, TrendingDown, Tag, Banknote, Recycle, Info, Activity, CalendarDays, QrCode, Utensils } from "lucide-react";
+import { Home, Wallet, Menu, Receipt, BarChart3, Settings, ChefHat, Clock, MoreHorizontal, GlassWater, PackageOpen, AlertTriangle, X, LogOut, ShieldCheck, KeyRound, Eye, EyeOff, Loader2, FlaskConical, Mail, HardDrive, UserCircle, FileText, Users, ClipboardList, BookOpen, TrendingDown, Tag, Banknote, Recycle, Info, Activity, CalendarDays, QrCode, Utensils, Globe2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EnotaSwitcher } from "@/components/EnotaSwitcher";
 import { BlagajnaSwitcher } from "@/components/BlagajnaSwitcher";
@@ -92,6 +92,7 @@ const IzdajaPage = lazy(() => import("@/pages/Izdaja"));
 const QrAdministracijaPage = lazy(() => import("@/pages/QrAdministracija"));
 const SuperAdminPage = lazy(() => import("@/pages/SuperAdmin"));
 const PrirocnikPage = lazy(() => import("@/manual/PrirocnikPage"));
+const JavnaStranPage = lazy(() => import("@/pages/JavnaStran"));
 
 function KdsStationPage({ station }: { station: "bar" | "kitchen" | "pizza" }) {
   const { user } = useAuth();
@@ -157,6 +158,7 @@ const secondaryNav = [
   { href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays },
   { href: "/malice", label: "Malice", icon: Utensils },
   { href: "/kosila", label: "Kosila", icon: Utensils },
+  { href: "/javna-stran", label: "Javna stran", icon: Globe2 },
   { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
   { href: "/odstopanja", label: "Cen. odstopanja", icon: TrendingDown },
   { href: "/uvoz-cenik", label: "Uvoz cenika", icon: Tag },
@@ -473,6 +475,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       { href: "/dnevni-meni", label: "Dnevni meni" },
       { href: "/malice", label: "Malice" },
       { href: "/kosila", label: "Kosila" },
+      { href: "/javna-stran", label: "Javna stran" },
       { href: "/zaloge", label: "Zaloge" },
       { href: "/odstopanja", label: "Cen. odstopanja" },
       { href: "/racuni", label: "Računi" },
@@ -552,6 +555,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
     { href: "/malice", label: "Malice", icon: Utensils },
     { href: "/kosila", label: "Kosila", icon: Utensils },
+    ...(isAdmin || isAdminEnote ? [{ href: "/javna-stran", label: "Javna stran", icon: Globe2 }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
     { href: "/zaloge", label: "Zaloge", icon: PackageOpen },
     { href: "/statistike", label: "Statistike", icon: BarChart3 },
@@ -581,6 +585,7 @@ function Layout({ children }: { children: React.ReactNode }) {
      ...secondaryNav.filter(i => i.href !== "/izmene" && i.href !== "/racuni"),
     ...(isAdmin || isAdminEnote ? [{ href: "/dnevni-meni", label: "Dnevni meni", icon: CalendarDays }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/qr-meni", label: "QR meni", icon: QrCode }] : []),
+    ...(isAdmin || isAdminEnote ? [{ href: "/javna-stran", label: "Javna stran", icon: Globe2 }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/operativna-porocila", label: "Operativna poročila", icon: Activity }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/obracun-ur", label: "Obračun ur", icon: ClipboardList }] : []),
     ...(isAdmin || isAdminEnote ? [{ href: "/simulacija", label: "Simulacija", icon: FlaskConical }] : []),
@@ -916,6 +921,7 @@ function ProtectedRouter() {
           <Route path="/dnevni-meni" component={DnevniMeniPage} />
           <Route path="/malice" component={MalicePage} />
           <Route path="/kosila" component={KosilaPage} />
+          <Route path="/javna-stran" component={JavnaStranPage} />
           <Route path="/qr-meni" component={QrAdministracijaPage} />
           <Route path="/pripravljena-hrana" component={PreparedFoodPage} />
           <Route path="/odpadki-s-kroznikov" component={PlateWastePage} />

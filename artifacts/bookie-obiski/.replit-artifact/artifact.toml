@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/bookie-obiski/"
+title = "Bookie Obiski"
+description = "Javna spletna stran restavracij za rezervacijo miz in varen nakup individualnih darilnih bonov prek Stripe Checkout."
+version = "1.0.0"
+id = "artifacts/bookie-obiski"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/bookie-obiski/" ]
+localPort = 19571
+
+[services.development]
+run = "pnpm --filter @workspace/bookie-obiski run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bookie-obiski", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/bookie-obiski/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19571"
+BASE_PATH = "/bookie-obiski/"
