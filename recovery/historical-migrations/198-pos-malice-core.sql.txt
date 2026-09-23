@@ -1,0 +1,134 @@
+-- test-bootstrap: schema
+-- Core normalized model for daily Malice offers, future prices, roles, and partner prices.
+ALTER TABLE artikli
+  ADD COLUMN IF NOT EXISTS malica_vloga text NOT NULL DEFAULT 'none';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'artikli_malica_vloga_check'
+  ) THEN
+    ALTER TABLE artikli ADD CONSTRAINT artikli_malica_vloga_check
+      CHECK (malica_vloga IN ('none', 'main', 'soup', 'dessert'));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS malica_groups (
+  id serial PRIMARY KEY,
+  enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  code text NOT NULL,
+  name text NOT NULL,
+  sort_order integer NOT NULL,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT malica_groups_enota_code_uq UNIQUE (enota_id, code),
+  CONSTRAINT malica_groups_enota_order_uq UNIQUE (enota_id, sort_order),
+  CONSTRAINT malica_groups_sort_order_check CHECK (sort_order BETWEEN 1 AND 4)
+);
+
+CREATE TABLE IF NOT EXISTS malica_group_prices (
+  id serial PRIMARY KEY,
+  group_id integer NOT NULL REFERENCES malica_groups(id) ON DELETE CASCADE,
+  enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  price_cents integer NOT NULL CHECK (price_cents >= 0),
+  valid_from date NOT NULL,
+  valid_to date,
+  status text NOT NULL DEFAULT 'scheduled' CHECK (status IN ('draft', 'scheduled', 'active', 'past')),
+  reason text,
+  created_by text,
+  confirmed_by text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  confirmed_at timestamptz,
+  CONSTRAINT malica_group_prices_dates_check CHECK (valid_to IS NULL OR valid_to > valid_from)
+);
+CREATE INDEX IF NOT EXISTS ix_malica_group_prices_lookup
+  ON malica_group_prices(enota_id, group_id, valid_from);
+
+CREATE TABLE IF NOT EXISTS malica_article_assignments (
+  id serial PRIMARY KEY,
+  enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  artikel_id integer NOT NULL REFERENCES artikli(id) ON DELETE CASCADE,
+  group_id integer REFERENCES malica_groups(id) ON DELETE CASCADE,
+  role text NOT NULL CHECK (role IN ('none', 'main', 'soup', 'dessert')),
+  malica_price_cents integer CHECK (malica_price_cents IS NULL OR malica_price_cents >= 0),
+  auto_sync_price boolean NOT NULL DEFAULT true,
+  valid_from date,
+  valid_to date,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT malica_article_assignments_unit_article_uq UNIQUE (enota_id, artikel_id),
+  CONSTRAINT malica_article_assignments_role_group_check CHECK (
+    (role = 'main' AND group_id IS NOT NULL) OR (role <> 'main' AND group_id IS NULL)
+  )
+);
+CREATE INDEX IF NOT EXISTS ix_malica_article_assignments_role
+  ON malica_article_assignments(enota_id, role, group_id);
+
+CREATE TABLE IF NOT EXISTS malica_daily_offers (
+  id serial PRIMARY KEY,
+  enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  business_date date NOT NULL,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'closed')),
+  version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+  published_at timestamptz,
+  published_by text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT malica_daily_offers_unit_date_version_uq UNIQUE (enota_id, business_date, version)
+);
+CREATE INDEX IF NOT EXISTS ix_malica_daily_offers_unit_date
+  ON malica_daily_offers(enota_id, business_date);
+
+CREATE TABLE IF NOT EXISTS malica_daily_main_items (
+  id serial PRIMARY KEY,
+  offer_id integer NOT NULL REFERENCES malica_daily_offers(id) ON DELETE CASCADE,
+  group_id integer NOT NULL REFERENCES malica_groups(id) ON DELETE RESTRICT,
+  artikel_id integer NOT NULL REFERENCES artikli(id) ON DELETE RESTRICT,
+  position integer NOT NULL DEFAULT 0,
+  enabled boolean NOT NULL DEFAULT true,
+  article_name_snapshot text NOT NULL,
+  price_cents_snapshot integer NOT NULL CHECK (price_cents_snapshot >= 0),
+  available_quantity numeric(14,4),
+  CONSTRAINT malica_daily_main_items_offer_article_uq UNIQUE (offer_id, artikel_id)
+);
+CREATE INDEX IF NOT EXISTS ix_malica_daily_main_items_offer_group
+  ON malica_daily_main_items(offer_id, group_id);
+
+CREATE TABLE IF NOT EXISTS malica_daily_included_courses (
+  id serial PRIMARY KEY,
+  offer_id integer NOT NULL REFERENCES malica_daily_offers(id) ON DELETE CASCADE,
+  course_type text NOT NULL CHECK (course_type IN ('soup', 'dessert')),
+  artikel_id integer NOT NULL REFERENCES artikli(id) ON DELETE RESTRICT,
+  article_name_snapshot text NOT NULL,
+  quantity numeric(14,4) NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  reserved_quantity numeric(14,4) NOT NULL DEFAULT 0 CHECK (reserved_quantity >= 0),
+  consumed_quantity numeric(14,4) NOT NULL DEFAULT 0 CHECK (consumed_quantity >= 0),
+  enabled boolean NOT NULL DEFAULT true,
+  CONSTRAINT malica_daily_courses_offer_type_article_uq UNIQUE (offer_id, course_type, artikel_id)
+);
+CREATE INDEX IF NOT EXISTS ix_malica_daily_courses_offer_type
+  ON malica_daily_included_courses(offer_id, course_type);
+
+CREATE TABLE IF NOT EXISTS malica_partner_group_prices (
+  id serial PRIMARY KEY,
+  enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  kupec_id uuid NOT NULL REFERENCES counterparties(id) ON DELETE CASCADE,
+  group_id integer NOT NULL REFERENCES malica_groups(id) ON DELETE CASCADE,
+  price_cents integer NOT NULL CHECK (price_cents >= 0),
+  valid_from date NOT NULL,
+  valid_to date,
+  active boolean NOT NULL DEFAULT true,
+  created_by text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT malica_partner_group_prices_uq UNIQUE (enota_id, kupec_id, group_id),
+  CONSTRAINT malica_partner_group_prices_dates_check CHECK (valid_to IS NULL OR valid_to > valid_from)
+);
+CREATE INDEX IF NOT EXISTS ix_malica_partner_group_prices_lookup
+  ON malica_partner_group_prices(enota_id, kupec_id, group_id);
+
+INSERT INTO malica_groups (enota_id, code, name, sort_order)
+SELECT e.id, 'MALICA_' || n, 'Malica ' || n, n
+FROM enote e CROSS JOIN generate_series(1, 4) AS n
+ON CONFLICT DO NOTHING;

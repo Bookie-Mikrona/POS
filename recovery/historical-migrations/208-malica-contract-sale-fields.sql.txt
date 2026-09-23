@@ -1,0 +1,7 @@
+-- test-bootstrap: schema
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS contract_id integer REFERENCES malica_contracts(id) ON DELETE RESTRICT;
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS contract_version integer;
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS regular_gross_cents integer;
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS partner_covered_cents integer;
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS guest_payable_cents integer;
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS surcharge_cents integer NOT NULL DEFAULT 0;

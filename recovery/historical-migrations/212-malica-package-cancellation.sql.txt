@@ -1,0 +1,14 @@
+-- test-bootstrap: schema
+ALTER TABLE postavke
+  ADD COLUMN IF NOT EXISTS package_status text NOT NULL DEFAULT 'active';
+
+ALTER TABLE postavke
+  DROP CONSTRAINT IF EXISTS postavke_package_status_check;
+
+ALTER TABLE postavke
+  ADD CONSTRAINT postavke_package_status_check
+  CHECK (package_status IN ('active', 'cancelled'));
+
+CREATE INDEX IF NOT EXISTS ix_postavke_live_malica_package
+  ON postavke (narocilo_id, pairing_group_id, package_status)
+  WHERE pairing_group_id LIKE 'malica:%';

@@ -1,0 +1,6 @@
+-- test-bootstrap: schema
+-- Idempotency key for composite Malica order lines.
+ALTER TABLE postavke ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_postavke_narocilo_idempotency
+  ON postavke(narocilo_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;

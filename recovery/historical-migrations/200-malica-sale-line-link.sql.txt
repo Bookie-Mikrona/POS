@@ -1,0 +1,5 @@
+-- test-bootstrap: schema
+-- Links sale lines to daily Malica availability without duplicating counters.
+ALTER TABLE postavke ADD COLUMN IF NOT EXISTS malica_daily_main_item_id integer;
+CREATE INDEX IF NOT EXISTS ix_postavke_malica_daily_main_item
+  ON postavke(malica_daily_main_item_id);

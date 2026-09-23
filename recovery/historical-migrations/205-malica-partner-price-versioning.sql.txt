@@ -1,0 +1,4 @@
+-- test-bootstrap: schema
+ALTER TABLE malica_partner_group_prices DROP CONSTRAINT IF EXISTS malica_partner_group_prices_uq;
+ALTER TABLE malica_partner_group_prices
+  ADD CONSTRAINT malica_partner_group_prices_uq UNIQUE (enota_id, kupec_id, group_id, valid_from);

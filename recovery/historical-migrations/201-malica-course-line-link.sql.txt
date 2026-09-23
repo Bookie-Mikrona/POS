@@ -1,0 +1,4 @@
+-- test-bootstrap: schema
+ALTER TABLE postavke ADD COLUMN IF NOT EXISTS malica_daily_course_id integer;
+CREATE INDEX IF NOT EXISTS ix_postavke_malica_daily_course
+  ON postavke(malica_daily_course_id);

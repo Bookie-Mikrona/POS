@@ -4,7 +4,7 @@
 
 - Recovery start (UTC): `2026-09-23T11:09:01Z`
 - Recovery start (Europe/Ljubljana): `2026-09-23T13:09:01+02:00`
-- Elapsed recovery time: `00:36:53`
+- Elapsed recovery time: `00:41:05`
 - Verified recovery cost: `$0.00`
 - Unverified accrued cost: `Pending Replit Account usage export`
 - Cost estimation policy: `No estimated or fabricated dollar values`
@@ -62,6 +62,9 @@ Agent. Consequently:
 | 017 | 2026-09-23T11:45:54Z | 00:36:53 | $0.00 | Restored paid-voucher delivery alerts, retry scheduling, Stripe raw-webhook verification, sync-failure monitoring, and connection alerts. | Existing commerce behavior was preserved; only safeguards and diagnostics were restored. |
 | 018 | 2026-09-23T11:45:54Z | 00:36:53 | $0.00 | Restored historical safeguard migrations 216–219 as inert source records. | Files were not executed and no database was accessed. |
 | 019 | 2026-09-23T11:45:54Z | 00:36:53 | $0.00 | Ran focused voucher/Stripe safeguard validation. | API/POS/library type checks, 8 focused tests, and patch-integrity check passed; no API generation drift occurred. |
+| 020 | 2026-09-23T11:50:06Z | 00:41:05 | $0.00 | Reconciled historical migration sources without executing them. | Archived 23 exact SQL snapshots as non-executable evidence; active lineage remains 198 returnable-packaging and 199 company plans. |
+| 021 | 2026-09-23T11:50:06Z | 00:41:05 | $0.00 | Restored POS release manifest validation and object-storage regression coverage. | Release manifest validates 4 groups and 17 suites; validator tests 4/4 passed. |
+| 022 | 2026-09-23T11:50:06Z | 00:41:05 | $0.00 | Added migration collision/archive integrity validation. | Verified 206 active SQL files, 23 inert snapshots, exact preserved hashes, and no restored executable SQL in the active 200–219 range. |
 
 ## Task register
 
@@ -73,6 +76,6 @@ Agent. Consequently:
 | R-03 | Restore Kosila end to end | Complete | UI, API, contracts, schema source, tests |
 | R-04 | Restore Public Restaurant Page | Complete | UI, images, public visits, tests |
 | R-05 | Restore voucher-delivery and Stripe safeguards | Complete | Retry, alerts, monitoring, tests |
-| R-06 | Reconcile OpenAPI and generated clients | Not started | Contract diff, codegen, type checks |
-| R-07 | Reconcile schema sources and historical migrations | Not started | Collision-safe migration record; no blind replay |
+| R-06 | Reconcile OpenAPI and generated clients | Complete | Contract diff, codegen, type checks |
+| R-07 | Reconcile schema sources and historical migrations | Complete | Collision-safe migration record; no blind replay |
 | R-08 | Run integrated validation and prepare final report | Not started | Checks, screenshots, final evidence report |

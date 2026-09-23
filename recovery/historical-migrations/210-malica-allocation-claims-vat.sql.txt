@@ -1,0 +1,15 @@
+-- test-bootstrap: schema
+ALTER TABLE malica_allocations ADD COLUMN IF NOT EXISTS business_date date;
+ALTER TABLE malica_allocations ADD COLUMN IF NOT EXISTS vat_rate_bps integer NOT NULL DEFAULT 0;
+ALTER TABLE malica_allocations ADD COLUMN IF NOT EXISTS vat_base_cents integer NOT NULL DEFAULT 0;
+ALTER TABLE malica_allocations ADD COLUMN IF NOT EXISTS vat_cents integer NOT NULL DEFAULT 0;
+UPDATE malica_allocations a SET business_date = o.business_date
+FROM malica_sale_snapshots s JOIN malica_daily_offers o ON o.id = s.offer_id
+WHERE a.sale_snapshot_id = s.id AND a.business_date IS NULL;
+ALTER TABLE malica_allocations ALTER COLUMN business_date SET NOT NULL;
+CREATE TABLE IF NOT EXISTS malica_allocation_claims (
+ id serial PRIMARY KEY,
+ allocation_id integer NOT NULL UNIQUE REFERENCES malica_allocations(id) ON DELETE RESTRICT,
+ invoice_id uuid NOT NULL REFERENCES invoices(id) ON DELETE RESTRICT,
+ created_at timestamptz NOT NULL DEFAULT now()
+);

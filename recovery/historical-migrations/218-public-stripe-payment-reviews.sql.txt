@@ -1,5 +1,4 @@
 -- test-bootstrap: audit
--- Historical source record only. Do not execute during selective restoration.
 CREATE TABLE IF NOT EXISTS public_stripe_payment_reviews (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id text NOT NULL UNIQUE,
@@ -24,6 +23,20 @@ CREATE TABLE IF NOT EXISTS public_stripe_payment_reviews (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS ix_public_stripe_payment_reviews_open_company
   ON public_stripe_payment_reviews (company_id, unit_id, created_at DESC)
   WHERE status = 'open';
+
+CREATE TABLE IF NOT EXISTS public_stripe_payment_review_audit (
+  id bigserial PRIMARY KEY,
+  review_id uuid NOT NULL REFERENCES public_stripe_payment_reviews(id) ON DELETE CASCADE,
+  action text NOT NULL CHECK (action IN ('created','resolved')),
+  actor_clerk_user_id text,
+  note text,
+  data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_public_stripe_payment_review_audit_review
+  ON public_stripe_payment_review_audit (review_id, created_at);

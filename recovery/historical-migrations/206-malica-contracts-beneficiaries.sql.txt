@@ -1,0 +1,33 @@
+-- test-bootstrap: schema
+CREATE TABLE IF NOT EXISTS malica_contracts (
+  id serial PRIMARY KEY, enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  partner_id uuid NOT NULL REFERENCES counterparties(id) ON DELETE RESTRICT,
+  version integer NOT NULL DEFAULT 1, mode text NOT NULL CHECK (mode IN ('partner_all','guest_reduced_price','partner_fixed_guest_remainder','split')),
+  split_kind text CHECK (split_kind IN ('fixed','percent')), split_value integer NOT NULL DEFAULT 0,
+  higher_group_surcharge_cents integer NOT NULL DEFAULT 0, monthly_coverage_limit_cents integer,
+  valid_from date NOT NULL, valid_to date, requires_beneficiary boolean NOT NULL DEFAULT false,
+  active boolean NOT NULL DEFAULT true, created_by text, created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT malica_contracts_version_uq UNIQUE (enota_id, partner_id, version),
+  CONSTRAINT malica_contracts_dates_ck CHECK (valid_to IS NULL OR valid_to >= valid_from)
+);
+CREATE TABLE IF NOT EXISTS malica_beneficiaries (
+  id serial PRIMARY KEY, enota_id integer NOT NULL REFERENCES enote(id) ON DELETE CASCADE,
+  partner_id uuid NOT NULL REFERENCES counterparties(id) ON DELETE RESTRICT,
+  identifier_type text NOT NULL CHECK (identifier_type IN ('pin','barcode','qr','nfc')),
+  identifier_hash text NOT NULL, masked_suffix text, daily_limit integer,
+  monthly_coverage_override_cents integer, active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT malica_beneficiaries_lookup_uq UNIQUE (enota_id, identifier_type, identifier_hash)
+);
+CREATE TABLE IF NOT EXISTS malica_contract_usage (
+  id serial PRIMARY KEY, contract_id integer NOT NULL REFERENCES malica_contracts(id) ON DELETE RESTRICT,
+  beneficiary_id integer REFERENCES malica_beneficiaries(id) ON DELETE RESTRICT,
+  sale_snapshot_id integer NOT NULL REFERENCES malica_sale_snapshots(id) ON DELETE RESTRICT,
+  business_date date NOT NULL, covered_cents integer NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS malica_allocations (
+  id serial PRIMARY KEY, sale_snapshot_id integer NOT NULL UNIQUE REFERENCES malica_sale_snapshots(id) ON DELETE RESTRICT,
+  narocilo_id integer NOT NULL REFERENCES narocila(id) ON DELETE RESTRICT,
+  partner_cents integer NOT NULL, guest_cents integer NOT NULL, surcharge_cents integer NOT NULL DEFAULT 0,
+  contract_id integer REFERENCES malica_contracts(id) ON DELETE RESTRICT, created_at timestamptz NOT NULL DEFAULT now()
+);

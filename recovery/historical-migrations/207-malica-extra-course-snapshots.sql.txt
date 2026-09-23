@@ -1,0 +1,3 @@
+-- test-bootstrap: schema
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS selected_course_ids jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE malica_sale_snapshots ADD COLUMN IF NOT EXISTS extra_course_ids jsonb NOT NULL DEFAULT '[]'::jsonb;

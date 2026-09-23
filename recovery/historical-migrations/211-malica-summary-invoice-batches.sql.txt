@@ -1,0 +1,4 @@
+-- test-bootstrap: integrity
+-- Contract summaries may be issued in multiple batches for one partner/month.
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_contract_summary_period_unique;
+DROP INDEX IF EXISTS invoices_contract_summary_period_unique;

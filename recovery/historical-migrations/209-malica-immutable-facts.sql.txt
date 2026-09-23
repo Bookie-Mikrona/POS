@@ -1,0 +1,11 @@
+-- test-bootstrap: schema
+CREATE OR REPLACE FUNCTION malica_immutable_fact_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'Malica accounting facts are immutable';
+END $$;
+DROP TRIGGER IF EXISTS malica_sale_snapshots_immutable ON malica_sale_snapshots;
+CREATE TRIGGER malica_sale_snapshots_immutable BEFORE UPDATE OR DELETE ON malica_sale_snapshots FOR EACH ROW EXECUTE FUNCTION malica_immutable_fact_guard();
+DROP TRIGGER IF EXISTS malica_allocations_immutable ON malica_allocations;
+CREATE TRIGGER malica_allocations_immutable BEFORE UPDATE OR DELETE ON malica_allocations FOR EACH ROW EXECUTE FUNCTION malica_immutable_fact_guard();
+DROP TRIGGER IF EXISTS malica_contract_usage_immutable ON malica_contract_usage;
+CREATE TRIGGER malica_contract_usage_immutable BEFORE UPDATE OR DELETE ON malica_contract_usage FOR EACH ROW EXECUTE FUNCTION malica_immutable_fact_guard();

@@ -1,0 +1,16 @@
+-- test-bootstrap: schema
+CREATE TABLE IF NOT EXISTS malica_sale_snapshots (
+  id serial PRIMARY KEY,
+  postavka_id integer NOT NULL UNIQUE REFERENCES postavke(id) ON DELETE CASCADE,
+  offer_id integer NOT NULL REFERENCES malica_daily_offers(id) ON DELETE RESTRICT,
+  offer_version integer NOT NULL,
+  group_id integer NOT NULL REFERENCES malica_groups(id) ON DELETE RESTRICT,
+  regular_price_cents integer NOT NULL CHECK (regular_price_cents >= 0),
+  actual_price_cents integer NOT NULL CHECK (actual_price_cents >= 0),
+  price_source text NOT NULL CHECK (price_source IN ('regular', 'partner')),
+  partner_id uuid REFERENCES counterparties(id) ON DELETE RESTRICT,
+  main_item_id integer NOT NULL REFERENCES malica_daily_main_items(id) ON DELETE RESTRICT,
+  soup_id integer REFERENCES malica_daily_included_courses(id) ON DELETE RESTRICT,
+  dessert_id integer REFERENCES malica_daily_included_courses(id) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL DEFAULT now()
+);

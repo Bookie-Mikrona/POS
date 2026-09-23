@@ -1,0 +1,12 @@
+-- test-bootstrap: schema
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'postavke_malica_daily_main_item_fk') THEN
+    ALTER TABLE postavke ADD CONSTRAINT postavke_malica_daily_main_item_fk
+      FOREIGN KEY (malica_daily_main_item_id) REFERENCES malica_daily_main_items(id) ON DELETE RESTRICT NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'postavke_malica_daily_course_fk') THEN
+    ALTER TABLE postavke ADD CONSTRAINT postavke_malica_daily_course_fk
+      FOREIGN KEY (malica_daily_course_id) REFERENCES malica_daily_included_courses(id) ON DELETE RESTRICT NOT VALID;
+  END IF;
+END $$;

@@ -1,0 +1,4 @@
+-- test-bootstrap: schema
+CREATE UNIQUE INDEX IF NOT EXISTS ux_malica_daily_offers_one_published
+  ON malica_daily_offers(enota_id, business_date)
+  WHERE status = 'published';
