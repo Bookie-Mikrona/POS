@@ -2199,6 +2199,260 @@ paths:
                     type: string
         "404":
           description: Narocilo ni najdeno
+  /narocila/{id}/malice:
+    post:
+      operationId: addMalicaToOrder
+      tags: [narocila]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddMalicaToOrderBody" }
+      responses:
+        "201":
+          description: Full order after adding Malica
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AddMalicaToOrderResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { description: Naročilo ni odprto ali izbrana ponudba ni na voljo }
+  /narocila/{id}/malice/quote:
+    post:
+      operationId: quoteMalicaOrder
+      tags: [narocila]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuoteMalicaOrderBody" }
+      responses:
+        "200":
+          description: Authoritative non-mutating Malica quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MalicaQuote" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /malice/bootstrap:
+    get:
+      operationId: getMalicaBootstrap
+      tags: [malice]
+      responses:
+        "200":
+          description: Malica groups and current assignments
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MalicaBootstrap" }
+  /malice/groups/{groupId}/prices:
+    post:
+      operationId: scheduleMalicaGroupPrice
+      tags: [malice]
+      parameters: [{ name: groupId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/MalicaGroupPriceInput" } }
+      responses:
+        "201":
+          description: Scheduled group price
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaGroupPrice" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /malice/articles/{articleId}/assignment:
+    put:
+      operationId: assignMalicaArticle
+      tags: [malice]
+      parameters: [{ name: articleId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/MalicaArticleAssignmentInput" } }
+      responses:
+        "200":
+          description: Article Malica assignment
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaArticleAssignment" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /malice/articles:
+    get:
+      operationId: listMalicaEligibleArticles
+      tags: [malice]
+      parameters:
+        - { name: role, in: query, required: false, schema: { type: string, enum: [none, main, soup, dessert] } }
+        - { name: groupId, in: query, required: false, schema: { type: integer } }
+      responses:
+        "200":
+          description: Eligible articles
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/MalicaArticleAssignment" } }
+  /malice/offers:
+    post:
+      operationId: createMalicaDailyOffer
+      tags: [malice]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/MalicaDailyOfferInput" } }
+      responses:
+        "201":
+          description: Draft daily offer
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaDailyOffer" } }
+    get:
+      operationId: listMalicaDailyOffers
+      tags: [malice]
+      parameters:
+        - { name: from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Daily offers
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/MalicaDailyOffer" } }
+  /malice/offers/{offerId}:
+    put:
+      operationId: updateMalicaDailyOffer
+      tags: [malice]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/MalicaDailyOfferUpdate" } }
+      responses:
+        "200":
+          description: Updated draft
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaDailyOffer" } }
+  /malice/offers/{offerId}/publish:
+    post:
+      operationId: publishMalicaDailyOffer
+      tags: [malice]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200":
+          description: Published daily offer
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaDailyOffer" } }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /malice/offers/{offerId}/close:
+    post:
+      operationId: closeMalicaDailyOffer
+      tags: [malice]
+      parameters: [{ name: offerId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200":
+          description: Closed daily offer
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaDailyOffer" } }
+  /malice/partners/{partnerId}/group-prices:
+    get:
+      operationId: listMalicaPartnerGroupPrices
+      tags: [malice]
+      parameters: [{ name: partnerId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Partner Malica prices
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/MalicaPartnerGroupPrice" } }
+    post:
+      operationId: setMalicaPartnerGroupPrice
+      tags: [malice]
+      parameters: [{ name: partnerId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/MalicaPartnerGroupPriceInput" } }
+      responses:
+        "200":
+          description: Partner group price
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/MalicaPartnerGroupPrice" } }
+  /malice/partners/{partnerId}/contracts:
+    get:
+      operationId: listMalicaContracts
+      tags: [malice]
+      parameters: [{ name: partnerId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Contracts, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MalicaContract" } } } } }
+    post:
+      operationId: createMalicaContract
+      tags: [malice]
+      parameters: [{ name: partnerId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MalicaContractInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaContract" } } } }
+  /malice/beneficiaries:
+    get:
+      operationId: listMalicaBeneficiaries
+      tags: [malice]
+      responses:
+        "200": { description: Beneficiaries without identifiers, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MalicaBeneficiary" } } } } }
+    post:
+      operationId: createMalicaBeneficiary
+      tags: [malice]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiaryInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiary" } } } }
+  /malice/beneficiaries/resolve:
+    post:
+      operationId: resolveMalicaBeneficiary
+      tags: [malice]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiaryResolveInput" } } }
+      responses:
+        "200": { description: Resolved masked beneficiary, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiaryResolveResponse" } } } }
+  /malice/beneficiaries/{beneficiaryId}:
+    patch:
+      operationId: updateMalicaBeneficiary
+      tags: [malice]
+      parameters: [{ name: beneficiaryId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { dailyLimit: { type: [integer, "null"] }, monthlyCoverageOverrideCents: { type: [integer, "null"] }, active: { type: boolean } } } } }
+      responses: { "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiary" } } } } }
+  /malice/beneficiaries/{beneficiaryId}/identifiers:
+    post:
+      operationId: replaceMalicaBeneficiaryIdentifier
+      tags: [malice]
+      parameters: [{ name: beneficiaryId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiaryResolveInput" } } }
+      responses: { "200": { description: Replaced identifier, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiary" } } } } }
+    delete:
+      operationId: removeMalicaBeneficiaryIdentifier
+      tags: [malice]
+      parameters: [{ name: beneficiaryId, in: path, required: true, schema: { type: integer } }]
+      responses: { "200": { description: Deactivated identifier, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaBeneficiary" } } } } }
+  /malice/partners/{partnerId}/contracts/{contractId}/close:
+    post:
+      operationId: closeMalicaContract
+      tags: [malice]
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: string } }
+        - { name: contractId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [validTo], properties: { validTo: { type: string, format: date } } } } }
+      responses: { "200": { description: Closed contract, content: { application/json: { schema: { $ref: "#/components/schemas/MalicaContract" } } } } }
+
   /narocila/{id}/postavke:
     post:
       operationId: addPostavka
@@ -12354,6 +12608,261 @@ components:
             - preklicano
         idempotent:
           type: boolean
+    MalicaGroup:
+      type: object
+      required: [id, enotaId, code, name, sortOrder, active]
+      properties:
+        id: { type: integer }
+        enotaId: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer, minimum: 1, maximum: 4 }
+        active: { type: boolean }
+    MalicaGroupPrice:
+      type: object
+      required: [id, groupId, enotaId, priceCents, validFrom, status]
+      properties:
+        id: { type: integer }
+        groupId: { type: integer }
+        enotaId: { type: integer }
+        priceCents: { type: integer, minimum: 0 }
+        validFrom: { type: string, format: date }
+        validTo: { type: [string, "null"], format: date }
+        status: { type: string, enum: [draft, scheduled, active, past] }
+    MalicaGroupPriceInput:
+      type: object
+      required: [priceCents, validFrom]
+      properties:
+        priceCents: { type: integer, minimum: 0 }
+        validFrom: { type: string, format: date }
+        reason: { type: [string, "null"] }
+    MalicaArticleAssignment:
+      type: object
+      required: [id, enotaId, artikelId, role, groupId, malicaPriceCents, autoSyncPrice, active]
+      properties:
+        id: { type: integer }
+        enotaId: { type: integer }
+        artikelId: { type: integer }
+        groupId: { type: [integer, "null"] }
+        role: { type: string, enum: [none, main, soup, dessert] }
+        malicaPriceCents: { type: [integer, "null"] }
+        autoSyncPrice: { type: boolean }
+        active: { type: boolean }
+    MalicaArticleAssignmentInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [none, main, soup, dessert] }
+        groupId: { type: [integer, "null"] }
+        autoSyncPrice: { type: boolean, default: true }
+        malicaPriceCents: { type: [integer, "null"], minimum: 0 }
+    MalicaDailyMainItemInput:
+      type: object
+      required: [groupId, artikelId]
+      properties:
+        groupId: { type: integer }
+        artikelId: { type: integer }
+        position: { type: integer, default: 0 }
+        enabled: { type: boolean, default: true }
+        availableQuantity: { type: [number, "null"], minimum: 0 }
+    MalicaDailyCourseInput:
+      type: object
+      required: [courseType, artikelId, quantity]
+      properties:
+        courseType: { type: string, enum: [soup, dessert] }
+        artikelId: { type: integer }
+        quantity: { type: number, minimum: 0 }
+        enabled: { type: boolean, default: true }
+    MalicaDailyOfferInput:
+      type: object
+      required: [businessDate, mainItems]
+      properties:
+        businessDate: { type: string, format: date }
+        mainItems: { type: array, items: { $ref: "#/components/schemas/MalicaDailyMainItemInput" } }
+        includedCourses: { type: array, items: { $ref: "#/components/schemas/MalicaDailyCourseInput" } }
+    MalicaDailyOfferUpdate:
+      type: object
+      properties:
+        mainItems: { type: array, items: { $ref: "#/components/schemas/MalicaDailyMainItemInput" } }
+        includedCourses: { type: array, items: { $ref: "#/components/schemas/MalicaDailyCourseInput" } }
+    MalicaDailyOffer:
+      type: object
+      required: [id, enotaId, businessDate, status, version]
+      properties:
+        id: { type: integer }
+        enotaId: { type: integer }
+        businessDate: { type: string, format: date }
+        status: { type: string, enum: [draft, published, closed] }
+        version: { type: integer }
+        mainItems: { type: array, items: { $ref: "#/components/schemas/MalicaDailyMainItem" } }
+        includedCourses: { type: array, items: { $ref: "#/components/schemas/MalicaDailyCourse" } }
+    MalicaDailyMainItem:
+      allOf:
+        - $ref: "#/components/schemas/MalicaDailyMainItemInput"
+        - type: object
+          required: [id, offerId, articleNameSnapshot, priceCentsSnapshot, remainingQuantity]
+          properties:
+            id: { type: integer }
+            offerId: { type: integer }
+            articleNameSnapshot: { type: string }
+            priceCentsSnapshot: { type: integer }
+            remainingQuantity: { type: [number, "null"] }
+    MalicaDailyCourse:
+      allOf:
+        - $ref: "#/components/schemas/MalicaDailyCourseInput"
+        - type: object
+          required: [id, offerId, articleNameSnapshot, reservedQuantity, consumedQuantity, remainingQuantity]
+          properties:
+            id: { type: integer }
+            offerId: { type: integer }
+            articleNameSnapshot: { type: string }
+            reservedQuantity: { type: number }
+            consumedQuantity: { type: number }
+            remainingQuantity: { type: [number, "null"] }
+    MalicaPartnerGroupPriceInput:
+      type: object
+      required: [groupId, priceCents, validFrom]
+      properties:
+        groupId: { type: integer }
+        priceCents: { type: integer, minimum: 0 }
+        validFrom: { type: string, format: date }
+        validTo: { type: [string, "null"], format: date }
+    MalicaPartnerGroupPrice:
+      allOf:
+        - $ref: "#/components/schemas/MalicaPartnerGroupPriceInput"
+        - type: object
+          required: [id, enotaId, kupecId, active, status]
+          properties:
+            id: { type: integer }
+            enotaId: { type: integer }
+            kupecId: { type: string }
+            active: { type: boolean }
+            status: { type: string, enum: [active, scheduled, past] }
+    MalicaContractInput:
+      type: object
+      required: [mode, validFrom]
+      properties:
+        mode: { type: string, enum: [partner_all, guest_reduced_price, partner_fixed_guest_remainder, split] }
+        splitKind: { type: [string, "null"], enum: [fixed, percent, null] }
+        splitValue: { type: integer, minimum: 0 }
+        higherGroupSurchargeCents: { type: integer, minimum: 0 }
+        monthlyCoverageLimitCents: { type: [integer, "null"], minimum: 0 }
+        validFrom: { type: string, format: date }
+        validTo: { type: [string, "null"], format: date }
+        requiresBeneficiary: { type: boolean }
+    MalicaContract:
+      allOf:
+        - $ref: "#/components/schemas/MalicaContractInput"
+        - type: object
+          required: [id, enotaId, partnerId, version, active]
+          properties:
+            id: { type: integer }
+            enotaId: { type: integer }
+            partnerId: { type: string }
+            version: { type: integer }
+            active: { type: boolean }
+    MalicaBeneficiaryInput:
+      type: object
+      required: [partnerId, identifierType, identifier]
+      properties:
+        partnerId: { type: string }
+        identifierType: { type: string, enum: [pin, barcode, qr, nfc] }
+        identifier: { type: string, minLength: 1 }
+        dailyLimit: { type: [integer, "null"], minimum: 0 }
+        monthlyCoverageOverrideCents: { type: [integer, "null"], minimum: 0 }
+    MalicaBeneficiaryResolveInput:
+      type: object
+      required: [partnerId, identifierType, identifier]
+      properties:
+        partnerId: { type: string }
+        identifierType: { type: string, enum: [pin, barcode, qr, nfc] }
+        identifier: { type: string, minLength: 1 }
+    MalicaBeneficiary:
+      type: object
+      required: [id, partnerId, identifierType]
+      properties:
+        id: { type: integer }
+        partnerId: { type: string }
+        identifierType: { type: string, enum: [pin, barcode, qr, nfc] }
+        maskedSuffix: { type: [string, "null"] }
+        dailyLimit: { type: [integer, "null"] }
+        monthlyCoverageOverrideCents: { type: [integer, "null"] }
+        active: { type: boolean }
+    MalicaBeneficiaryResolveResponse:
+      allOf:
+        - $ref: "#/components/schemas/MalicaBeneficiary"
+        - type: object
+          required: [beneficiaryToken]
+          properties:
+            beneficiaryToken: { type: string }
+    MalicaBootstrap:
+      type: object
+      required: [groups, assignments, prices]
+      properties:
+        groups: { type: array, items: { $ref: "#/components/schemas/MalicaGroup" } }
+        assignments: { type: array, items: { $ref: "#/components/schemas/MalicaArticleAssignment" } }
+        prices: { type: array, items: { $ref: "#/components/schemas/MalicaGroupPrice" } }
+    AddMalicaToOrderBody:
+      type: object
+      required: [offerId, mainItemId, idempotencyKey]
+      properties:
+        offerId: { type: integer }
+        mainItemId: { type: integer }
+        soupId: { type: [integer, "null"] }
+        dessertId: { type: [integer, "null"] }
+        soupIds: { type: array, items: { type: integer }, maxItems: 20 }
+        dessertIds: { type: array, items: { type: integer }, maxItems: 20 }
+        quantity: { type: integer, enum: [1], default: 1 }
+        gostStevilka: { type: [integer, "null"], minimum: 1 }
+        opomba: { type: [string, "null"] }
+        idempotencyKey: { type: string, minLength: 36, maxLength: 36, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" }
+        partnerId: { type: [string, "null"] }
+        beneficiaryToken: { type: [string, "null"] }
+    AddMalicaToOrderResponse:
+      allOf:
+        - $ref: "#/components/schemas/Narocilo"
+        - type: object
+          properties:
+            malicaWarnings:
+              type: [object, "null"]
+              properties:
+                omittedCourseIds: { type: array, items: { type: integer } }
+    QuoteMalicaOrderBody:
+      type: object
+      required: [offerId, mainItemId]
+      properties:
+        offerId: { type: integer }
+        mainItemId: { type: integer }
+        soupIds: { type: array, items: { type: integer } }
+        dessertIds: { type: array, items: { type: integer } }
+        partnerId: { type: [string, "null"] }
+        beneficiaryToken: { type: [string, "null"] }
+    MalicaQuote:
+      type: object
+      required: [regularTotalCents, extrasCents, partnerCoveredCents, guestPayableCents, surchargeCents, mode, contractVersion, courses]
+      properties:
+        regularTotalCents: { type: integer }
+        extrasCents: { type: integer }
+        partnerCoveredCents: { type: integer }
+        guestPayableCents: { type: integer }
+        surchargeCents: { type: integer }
+        mode: { type: string }
+        contractVersion: { type: [integer, "null"] }
+        remainingDaily: { type: [integer, "null"] }
+        remainingMonthlyCents: { type: [integer, "null"] }
+        remainingBeneficiaryMonthlyCents: { type: [integer, "null"] }
+        remainingContractMonthlyCents: { type: [integer, "null"] }
+        courses:
+          type: array
+          items:
+            type: object
+            required: [dailyCourseId, artikelId, classification, grossCents]
+            properties:
+              dailyCourseId: { type: integer }
+              artikelId: { type: integer }
+              classification: { type: string, enum: [included, extra] }
+              grossCents: { type: integer }
+
     Narocilo:
       type: object
       required:

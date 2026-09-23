@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, smallint, numeric, timestamp, boolean, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, smallint, numeric, timestamp, boolean, index, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { enoteTable } from "./enote";
 import { mizeTable } from "./mize";
@@ -104,6 +104,10 @@ export const postavkeTable = pgTable("postavke", {
   /** Immutable configured course name captured when the menu is ordered. */
   courseNameSnapshot: text("course_name_snapshot"),
   pairingGroupId: text("pairing_group_id"),
+  /** Client idempotency key for composite sales flows. */
+  idempotencyKey: text("idempotency_key"),
+  malicaDailyMainItemId: integer("malica_daily_main_item_id"),
+  malicaDailyCourseId: integer("malica_daily_course_id"),
   toGo: boolean("to_go").notNull().default(false),
   vrstaArtikla: text("vrsta_artikla"),
   /** Način priprave ob nastanku vrstice; ne spreminja se ob poznejši spremembi artikla. */
@@ -128,7 +132,11 @@ export const postavkeTable = pgTable("postavke", {
   napravaId: text("naprava_id"),
   /** Zgodovinski status potrditve; QR naročila ga ne uporabljajo za usmerjanje. */
   statusPotrditve: text("status_potrditve", { enum: ["ni_potrebno", "caka_potrditev", "potrjeno"] }).notNull().default("ni_potrebno"),
+  /** Live lifecycle of a composite package; facts remain stored after cancellation. */
+  packageStatus: text("package_status", { enum: ["active", "cancelled"] }).notNull().default("active"),
 }, (t) => [
+  index("ix_postavke_narocilo_idempotency").on(t.narociloId, t.idempotencyKey),
+  uniqueIndex("ux_postavke_narocilo_idempotency").on(t.narociloId, t.idempotencyKey),
   index("ix_postavke_narocilo_id").on(t.narociloId),
 ]);
 

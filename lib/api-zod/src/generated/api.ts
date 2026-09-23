@@ -4090,6 +4090,859 @@ export const SpojiNarociliResponse = zod.object({
 })
 
 
+
+
+
+export const AddMalicaToOrderParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const addMalicaToOrderBodySoupIdsMax = 20;
+
+export const addMalicaToOrderBodyDessertIdsMax = 20;
+
+export const addMalicaToOrderBodyQuantityDefault = 1;
+export const addMalicaToOrderBodyIdempotencyKeyMin = 36;
+export const addMalicaToOrderBodyIdempotencyKeyMax = 36;
+
+
+export const addMalicaToOrderBodyIdempotencyKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+
+
+export const AddMalicaToOrderBody = zod.object({
+  "offerId": zod.number(),
+  "mainItemId": zod.number(),
+  "soupId": zod.number().nullish(),
+  "dessertId": zod.number().nullish(),
+  "soupIds": zod.array(zod.number()).max(addMalicaToOrderBodySoupIdsMax).optional(),
+  "dessertIds": zod.array(zod.number()).max(addMalicaToOrderBodyDessertIdsMax).optional(),
+  "quantity": zod.literal(1).default(addMalicaToOrderBodyQuantityDefault),
+  "gostStevilka": zod.number().min(1).nullish(),
+  "opomba": zod.string().nullish(),
+  "idempotencyKey": zod.string().min(addMalicaToOrderBodyIdempotencyKeyMin).max(addMalicaToOrderBodyIdempotencyKeyMax).regex(addMalicaToOrderBodyIdempotencyKeyRegExp),
+  "partnerId": zod.string().nullish(),
+  "beneficiaryToken": zod.string().nullish()
+})
+
+export const addMalicaToOrderResponseOnePostavkeItemCasPripraveMinMin = 0;
+
+
+
+export const AddMalicaToOrderResponse = zod.object({
+  "id": zod.number(),
+  "mizaId": zod.number().nullish(),
+  "mizaStevilka": zod.number().nullish(),
+  "mizaIme": zod.string().nullish(),
+  "prostorId": zod.number().nullish().describe('ID prostora, v katerem stoji miza naročila (null če miza nima prostora ali naročilo nima mize)'),
+  "prostorIme": zod.string().nullish().describe('Ime prostora, v katerem stoji miza naročila (null če miza nima prostora ali naročilo nima mize)'),
+  "status": zod.enum(['odprto', 'zakljuceno', 'preklicano']),
+  "skupaj": zod.number(),
+  "znesekNapitnina": zod.number().optional().describe('Trenutna ločena napitnina odprtega QR naročila; ni del prodaje, postavk ali DDV.'),
+  "opomba": zod.string().nullish(),
+  "nacin": zod.enum(['miza', 'telefon']).optional().describe('Izvor naročila; telefonsko naročilo ni vezano na mizo.'),
+  "vir": zod.enum(['osebje', 'qr_gost']).optional().describe('QR gost pomeni, da je naročilo oddal gost prek javnega menija na mizi.'),
+  "strankaIme": zod.string().nullish(),
+  "strankaTelefon": zod.string().nullish(),
+  "shranjeniKupecId": zod.number().nullish(),
+  "predvidenPrevzem": zod.coerce.date().nullish(),
+  "predvidenPrevzemRocen": zod.boolean().optional().describe('Čas prevzema je ročno nastavljen in se ne izračuna samodejno.'),
+  "nacinIzpolnitve": zod.enum(['prevzem', 'dostava']).optional().describe('Prevzem ali dostava; dostava je dovoljena le pri telefonskem naročilu.'),
+  "dostavaStatus": zod.union([zod.literal('prejeto'),zod.literal('potrjeno'),zod.literal('v_pripravi'),zod.literal('pripravljeno'),zod.literal('prevzel_kurir'),zod.literal('dostavljeno'),zod.literal('preklicano'),zod.literal(null)]).nullish().describe('Trenutni operativni status dostave; izpolnjen je samo pri dostavnih naročilih.'),
+  "dostavaKurirId": zod.number().nullish().describe('Kurir, povezan z dostavnim naročilom; lahko ostane zapisan tudi po deaktivaciji zaradi zgodovine.'),
+  "narocnikId": zod.number().nullish().describe('Fizični naročnik iz šifranta naročnikov.'),
+  "dostavaUlica": zod.string().nullish(),
+  "dostavaHisnaStevilka": zod.string().nullish(),
+  "dostavaVhod": zod.string().nullish(),
+  "dostavaNadstropje": zod.string().nullish(),
+  "dostavaNaseljeNaziv": zod.string().nullish(),
+  "dostavaNaseljeId": zod.number().nullish(),
+  "dostavaNavodilo": zod.string().nullish(),
+  "dostavaCena": zod.number().nullish().describe('Revizijski snapshot cene; zaračunani znesek je vedno v dostavni postavki.'),
+  "dostavaCasMin": zod.number().nullish(),
+  "predvidenaDostava": zod.coerce.date().nullish(),
+  "ustvarjeno": zod.coerce.date(),
+  "posodobljeno": zod.coerce.date().nullish(),
+  "postavke": zod.array(zod.object({
+  "id": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "cenaKos": zod.number(),
+  "cenaKosOriginalna": zod.number().nullish().describe('Originalna cena brez popusta (null ce ni popusta)'),
+  "skupaj": zod.number(),
+  "alergeni": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])),
+  "alergeniSledi": zod.array(zod.enum(['GLUTEN', 'RAKI', 'JAJCA', 'RIBE', 'ARASIDI', 'SOJA', 'MLEKO', 'OREŠČKI', 'ZELENA', 'GORČICA', 'SEZAM', 'SULFITI', 'VOLČJI_BOB', 'MEHKUŽCI'])),
+  "alergeniStatus": zod.enum(['nepreverjeno', 'potrjeno_brez', 'potrjeno']),
+  "alergeniVir": zod.union([zod.literal('etiketa'),zod.literal('specifikacija'),zod.literal('izjava_dobavitelja'),zod.literal('normativ'),zod.literal('rocno'),zod.literal('drugo'),zod.literal(null)]).nullish(),
+  "alergeniOpombaVira": zod.string().nullish(),
+  "alergeniDocumentId": zod.string().nullish(),
+  "alergeniVerifiedBy": zod.string().nullish(),
+  "alergeniVerifiedAt": zod.coerce.date().nullish(),
+  "alergeniRevision": zod.number(),
+  "alergeniHash": zod.string().nullish(),
+  "davek": zod.number(),
+  "opomba": zod.string().nullish(),
+  "kategorijaId": zod.number().nullish(),
+  "kategorijaIme": zod.string().nullish(),
+  "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
+  "racunId": zod.number().nullish().describe('ID racuna, ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "racunStevilka": zod.string().nullish().describe('Stevilka racuna (npr. PP001-B001-000003), ki pokriva to postavko (null ce postavka se ni pokrita)'),
+  "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
+  "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
+  "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
+  "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
+  "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
+  "statusPotrditve": zod.enum(['ni_potrebno', 'caka_potrditev', 'potrjeno']).optional().describe('Zgodovinsko stanje potrditve; QR tok ga ne uporablja več.'),
+  "casPripraveMin": zod.number().min(addMalicaToOrderResponseOnePostavkeItemCasPripraveMinMin).optional().describe('Predviden čas priprave artikla v minutah (0 za postavke brez priprave).'),
+  "ustvarjeno": zod.coerce.date().describe('Cas vnosa postavke v narocilo'),
+  "pripravljeno": zod.coerce.date().nullish().describe('Cas, ko je bila postavka oznacena kot pripravljena za izdobavo (null ce se ni pripravljena)')
+})),
+  "prenosi": zod.array(zod.object({
+  "id": zod.number(),
+  "narociloId": zod.number(),
+  "staraMizaId": zod.number().nullish(),
+  "staraMizaStevilka": zod.number().nullish(),
+  "staraMizaIme": zod.string().nullish(),
+  "novaMizaId": zod.number().nullish(),
+  "novaMizaStevilka": zod.number().nullish(),
+  "novaMizaIme": zod.string().nullish(),
+  "ustvarjeno": zod.coerce.date()
+})).describe('Zgodovina prenosov naročila med mizami'),
+  "ddvNeskladje": zod.union([zod.object({
+  "imaNeskladje": zod.boolean().describe('Ali je DDV neskladje večje od 0.01 EUR'),
+  "razlika": zod.number().describe('Absolutna razlika v EUR med seštevkom DDV skupin in DDV na računu')
+}),zod.null()]).optional().describe('DDV neskladje — prisotno, kadar je neskladje med seštevkom DDV skupin in DDV na računu > 0.01 EUR'),
+  "stevilkaNarocila": zod.string().nullish().describe('Zaporedna številka naročila (čitljiva za natakarje)')
+}).and(zod.object({
+  "malicaWarnings": zod.object({
+  "omittedCourseIds": zod.array(zod.number()).optional()
+}).nullish()
+}))
+
+
+
+
+
+export const QuoteMalicaOrderParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const QuoteMalicaOrderBody = zod.object({
+  "offerId": zod.number(),
+  "mainItemId": zod.number(),
+  "soupIds": zod.array(zod.number()).optional(),
+  "dessertIds": zod.array(zod.number()).optional(),
+  "partnerId": zod.string().nullish(),
+  "beneficiaryToken": zod.string().nullish()
+})
+
+export const QuoteMalicaOrderResponse = zod.object({
+  "regularTotalCents": zod.number(),
+  "extrasCents": zod.number(),
+  "partnerCoveredCents": zod.number(),
+  "guestPayableCents": zod.number(),
+  "surchargeCents": zod.number(),
+  "mode": zod.string(),
+  "contractVersion": zod.number().nullable(),
+  "remainingDaily": zod.number().nullish(),
+  "remainingMonthlyCents": zod.number().nullish(),
+  "remainingBeneficiaryMonthlyCents": zod.number().nullish(),
+  "remainingContractMonthlyCents": zod.number().nullish(),
+  "courses": zod.array(zod.object({
+  "dailyCourseId": zod.number(),
+  "artikelId": zod.number(),
+  "classification": zod.enum(['included', 'extra']),
+  "grossCents": zod.number()
+}))
+})
+
+
+export const getMalicaBootstrapResponseGroupsItemSortOrderMax = 4;
+
+export const getMalicaBootstrapResponsePricesItemPriceCentsMin = 0;
+
+
+
+export const GetMalicaBootstrapResponse = zod.object({
+  "groups": zod.array(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "sortOrder": zod.number().min(1).max(getMalicaBootstrapResponseGroupsItemSortOrderMax),
+  "active": zod.boolean()
+})),
+  "assignments": zod.array(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "artikelId": zod.number(),
+  "groupId": zod.number().nullable(),
+  "role": zod.enum(['none', 'main', 'soup', 'dessert']),
+  "malicaPriceCents": zod.number().nullable(),
+  "autoSyncPrice": zod.boolean(),
+  "active": zod.boolean()
+})),
+  "prices": zod.array(zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "enotaId": zod.number(),
+  "priceCents": zod.number().min(getMalicaBootstrapResponsePricesItemPriceCentsMin),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'scheduled', 'active', 'past'])
+}))
+})
+
+
+export const ScheduleMalicaGroupPriceParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const scheduleMalicaGroupPriceBodyPriceCentsMin = 0;
+
+
+
+export const ScheduleMalicaGroupPriceBody = zod.object({
+  "priceCents": zod.number().min(scheduleMalicaGroupPriceBodyPriceCentsMin),
+  "validFrom": zod.coerce.date(),
+  "reason": zod.string().nullish()
+})
+
+export const scheduleMalicaGroupPriceResponsePriceCentsMin = 0;
+
+
+
+export const ScheduleMalicaGroupPriceResponse = zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "enotaId": zod.number(),
+  "priceCents": zod.number().min(scheduleMalicaGroupPriceResponsePriceCentsMin),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish(),
+  "status": zod.enum(['draft', 'scheduled', 'active', 'past'])
+})
+
+
+export const AssignMalicaArticleParams = zod.object({
+  "articleId": zod.coerce.number()
+})
+
+export const assignMalicaArticleBodyAutoSyncPriceDefault = true;
+export const assignMalicaArticleBodyMalicaPriceCentsMin = 0;
+
+
+
+export const AssignMalicaArticleBody = zod.object({
+  "role": zod.enum(['none', 'main', 'soup', 'dessert']),
+  "groupId": zod.number().nullish(),
+  "autoSyncPrice": zod.boolean().default(assignMalicaArticleBodyAutoSyncPriceDefault),
+  "malicaPriceCents": zod.number().min(assignMalicaArticleBodyMalicaPriceCentsMin).nullish()
+})
+
+export const AssignMalicaArticleResponse = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "artikelId": zod.number(),
+  "groupId": zod.number().nullable(),
+  "role": zod.enum(['none', 'main', 'soup', 'dessert']),
+  "malicaPriceCents": zod.number().nullable(),
+  "autoSyncPrice": zod.boolean(),
+  "active": zod.boolean()
+})
+
+
+export const ListMalicaEligibleArticlesQueryParams = zod.object({
+  "role": zod.enum(['none', 'main', 'soup', 'dessert']).optional(),
+  "groupId": zod.coerce.number().optional()
+})
+
+export const ListMalicaEligibleArticlesResponseItem = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "artikelId": zod.number(),
+  "groupId": zod.number().nullable(),
+  "role": zod.enum(['none', 'main', 'soup', 'dessert']),
+  "malicaPriceCents": zod.number().nullable(),
+  "autoSyncPrice": zod.boolean(),
+  "active": zod.boolean()
+})
+export const ListMalicaEligibleArticlesResponse = zod.array(ListMalicaEligibleArticlesResponseItem)
+
+
+export const createMalicaDailyOfferBodyMainItemsItemPositionDefault = 0;
+export const createMalicaDailyOfferBodyMainItemsItemEnabledDefault = true;
+export const createMalicaDailyOfferBodyMainItemsItemAvailableQuantityMin = 0;
+
+export const createMalicaDailyOfferBodyIncludedCoursesItemQuantityMin = 0;
+
+export const createMalicaDailyOfferBodyIncludedCoursesItemEnabledDefault = true;
+
+export const CreateMalicaDailyOfferBody = zod.object({
+  "businessDate": zod.coerce.date(),
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(createMalicaDailyOfferBodyMainItemsItemPositionDefault),
+  "enabled": zod.boolean().default(createMalicaDailyOfferBodyMainItemsItemEnabledDefault),
+  "availableQuantity": zod.number().min(createMalicaDailyOfferBodyMainItemsItemAvailableQuantityMin).nullish()
+})),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(createMalicaDailyOfferBodyIncludedCoursesItemQuantityMin),
+  "enabled": zod.boolean().default(createMalicaDailyOfferBodyIncludedCoursesItemEnabledDefault)
+})).optional()
+})
+
+export const createMalicaDailyOfferResponseMainItemsItemOnePositionDefault = 0;
+export const createMalicaDailyOfferResponseMainItemsItemOneEnabledDefault = true;
+export const createMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin = 0;
+
+export const createMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin = 0;
+
+export const createMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault = true;
+
+export const CreateMalicaDailyOfferResponse = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "version": zod.number(),
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(createMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
+  "enabled": zod.boolean().default(createMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
+  "availableQuantity": zod.number().min(createMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "priceCentsSnapshot": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional(),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(createMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin),
+  "enabled": zod.boolean().default(createMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault)
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "reservedQuantity": zod.number(),
+  "consumedQuantity": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional()
+})
+
+
+export const ListMalicaDailyOffersQueryParams = zod.object({
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const listMalicaDailyOffersResponseMainItemsItemOnePositionDefault = 0;
+export const listMalicaDailyOffersResponseMainItemsItemOneEnabledDefault = true;
+export const listMalicaDailyOffersResponseMainItemsItemOneAvailableQuantityMin = 0;
+
+export const listMalicaDailyOffersResponseIncludedCoursesItemOneQuantityMin = 0;
+
+export const listMalicaDailyOffersResponseIncludedCoursesItemOneEnabledDefault = true;
+
+export const ListMalicaDailyOffersResponseItem = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "version": zod.number(),
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(listMalicaDailyOffersResponseMainItemsItemOnePositionDefault),
+  "enabled": zod.boolean().default(listMalicaDailyOffersResponseMainItemsItemOneEnabledDefault),
+  "availableQuantity": zod.number().min(listMalicaDailyOffersResponseMainItemsItemOneAvailableQuantityMin).nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "priceCentsSnapshot": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional(),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(listMalicaDailyOffersResponseIncludedCoursesItemOneQuantityMin),
+  "enabled": zod.boolean().default(listMalicaDailyOffersResponseIncludedCoursesItemOneEnabledDefault)
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "reservedQuantity": zod.number(),
+  "consumedQuantity": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional()
+})
+export const ListMalicaDailyOffersResponse = zod.array(ListMalicaDailyOffersResponseItem)
+
+
+export const UpdateMalicaDailyOfferParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const updateMalicaDailyOfferBodyMainItemsItemPositionDefault = 0;
+export const updateMalicaDailyOfferBodyMainItemsItemEnabledDefault = true;
+export const updateMalicaDailyOfferBodyMainItemsItemAvailableQuantityMin = 0;
+
+export const updateMalicaDailyOfferBodyIncludedCoursesItemQuantityMin = 0;
+
+export const updateMalicaDailyOfferBodyIncludedCoursesItemEnabledDefault = true;
+
+export const UpdateMalicaDailyOfferBody = zod.object({
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(updateMalicaDailyOfferBodyMainItemsItemPositionDefault),
+  "enabled": zod.boolean().default(updateMalicaDailyOfferBodyMainItemsItemEnabledDefault),
+  "availableQuantity": zod.number().min(updateMalicaDailyOfferBodyMainItemsItemAvailableQuantityMin).nullish()
+})).optional(),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(updateMalicaDailyOfferBodyIncludedCoursesItemQuantityMin),
+  "enabled": zod.boolean().default(updateMalicaDailyOfferBodyIncludedCoursesItemEnabledDefault)
+})).optional()
+})
+
+export const updateMalicaDailyOfferResponseMainItemsItemOnePositionDefault = 0;
+export const updateMalicaDailyOfferResponseMainItemsItemOneEnabledDefault = true;
+export const updateMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin = 0;
+
+export const updateMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin = 0;
+
+export const updateMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault = true;
+
+export const UpdateMalicaDailyOfferResponse = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "version": zod.number(),
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(updateMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
+  "enabled": zod.boolean().default(updateMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
+  "availableQuantity": zod.number().min(updateMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "priceCentsSnapshot": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional(),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(updateMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin),
+  "enabled": zod.boolean().default(updateMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault)
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "reservedQuantity": zod.number(),
+  "consumedQuantity": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional()
+})
+
+
+export const PublishMalicaDailyOfferParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const publishMalicaDailyOfferResponseMainItemsItemOnePositionDefault = 0;
+export const publishMalicaDailyOfferResponseMainItemsItemOneEnabledDefault = true;
+export const publishMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin = 0;
+
+export const publishMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin = 0;
+
+export const publishMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault = true;
+
+export const PublishMalicaDailyOfferResponse = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "version": zod.number(),
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(publishMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
+  "enabled": zod.boolean().default(publishMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
+  "availableQuantity": zod.number().min(publishMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "priceCentsSnapshot": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional(),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(publishMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin),
+  "enabled": zod.boolean().default(publishMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault)
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "reservedQuantity": zod.number(),
+  "consumedQuantity": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional()
+})
+
+
+export const CloseMalicaDailyOfferParams = zod.object({
+  "offerId": zod.coerce.number()
+})
+
+export const closeMalicaDailyOfferResponseMainItemsItemOnePositionDefault = 0;
+export const closeMalicaDailyOfferResponseMainItemsItemOneEnabledDefault = true;
+export const closeMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin = 0;
+
+export const closeMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin = 0;
+
+export const closeMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault = true;
+
+export const CloseMalicaDailyOfferResponse = zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "businessDate": zod.coerce.date(),
+  "status": zod.enum(['draft', 'published', 'closed']),
+  "version": zod.number(),
+  "mainItems": zod.array(zod.object({
+  "groupId": zod.number(),
+  "artikelId": zod.number(),
+  "position": zod.number().default(closeMalicaDailyOfferResponseMainItemsItemOnePositionDefault),
+  "enabled": zod.boolean().default(closeMalicaDailyOfferResponseMainItemsItemOneEnabledDefault),
+  "availableQuantity": zod.number().min(closeMalicaDailyOfferResponseMainItemsItemOneAvailableQuantityMin).nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "priceCentsSnapshot": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional(),
+  "includedCourses": zod.array(zod.object({
+  "courseType": zod.enum(['soup', 'dessert']),
+  "artikelId": zod.number(),
+  "quantity": zod.number().min(closeMalicaDailyOfferResponseIncludedCoursesItemOneQuantityMin),
+  "enabled": zod.boolean().default(closeMalicaDailyOfferResponseIncludedCoursesItemOneEnabledDefault)
+}).and(zod.object({
+  "id": zod.number(),
+  "offerId": zod.number(),
+  "articleNameSnapshot": zod.string(),
+  "reservedQuantity": zod.number(),
+  "consumedQuantity": zod.number(),
+  "remainingQuantity": zod.number().nullable()
+}))).optional()
+})
+
+
+export const ListMalicaPartnerGroupPricesParams = zod.object({
+  "partnerId": zod.coerce.string()
+})
+
+export const listMalicaPartnerGroupPricesResponseOnePriceCentsMin = 0;
+
+
+
+export const ListMalicaPartnerGroupPricesResponseItem = zod.object({
+  "groupId": zod.number(),
+  "priceCents": zod.number().min(listMalicaPartnerGroupPricesResponseOnePriceCentsMin),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "kupecId": zod.string(),
+  "active": zod.boolean(),
+  "status": zod.enum(['active', 'scheduled', 'past'])
+}))
+export const ListMalicaPartnerGroupPricesResponse = zod.array(ListMalicaPartnerGroupPricesResponseItem)
+
+
+export const SetMalicaPartnerGroupPriceParams = zod.object({
+  "partnerId": zod.coerce.string()
+})
+
+export const setMalicaPartnerGroupPriceBodyPriceCentsMin = 0;
+
+
+
+export const SetMalicaPartnerGroupPriceBody = zod.object({
+  "groupId": zod.number(),
+  "priceCents": zod.number().min(setMalicaPartnerGroupPriceBodyPriceCentsMin),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish()
+})
+
+export const setMalicaPartnerGroupPriceResponseOnePriceCentsMin = 0;
+
+
+
+export const SetMalicaPartnerGroupPriceResponse = zod.object({
+  "groupId": zod.number(),
+  "priceCents": zod.number().min(setMalicaPartnerGroupPriceResponseOnePriceCentsMin),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "kupecId": zod.string(),
+  "active": zod.boolean(),
+  "status": zod.enum(['active', 'scheduled', 'past'])
+}))
+
+
+export const ListMalicaContractsParams = zod.object({
+  "partnerId": zod.coerce.string()
+})
+
+export const listMalicaContractsResponseOneSplitValueMin = 0;
+
+export const listMalicaContractsResponseOneHigherGroupSurchargeCentsMin = 0;
+
+export const listMalicaContractsResponseOneMonthlyCoverageLimitCentsMin = 0;
+
+
+
+export const ListMalicaContractsResponseItem = zod.object({
+  "mode": zod.enum(['partner_all', 'guest_reduced_price', 'partner_fixed_guest_remainder', 'split']),
+  "splitKind": zod.union([zod.literal('fixed'),zod.literal('percent'),zod.literal(null)]).nullish(),
+  "splitValue": zod.number().min(listMalicaContractsResponseOneSplitValueMin).optional(),
+  "higherGroupSurchargeCents": zod.number().min(listMalicaContractsResponseOneHigherGroupSurchargeCentsMin).optional(),
+  "monthlyCoverageLimitCents": zod.number().min(listMalicaContractsResponseOneMonthlyCoverageLimitCentsMin).nullish(),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish(),
+  "requiresBeneficiary": zod.boolean().optional()
+}).and(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "partnerId": zod.string(),
+  "version": zod.number(),
+  "active": zod.boolean()
+}))
+export const ListMalicaContractsResponse = zod.array(ListMalicaContractsResponseItem)
+
+
+export const CreateMalicaContractParams = zod.object({
+  "partnerId": zod.coerce.string()
+})
+
+export const createMalicaContractBodySplitValueMin = 0;
+
+export const createMalicaContractBodyHigherGroupSurchargeCentsMin = 0;
+
+export const createMalicaContractBodyMonthlyCoverageLimitCentsMin = 0;
+
+
+
+export const CreateMalicaContractBody = zod.object({
+  "mode": zod.enum(['partner_all', 'guest_reduced_price', 'partner_fixed_guest_remainder', 'split']),
+  "splitKind": zod.union([zod.literal('fixed'),zod.literal('percent'),zod.literal(null)]).nullish(),
+  "splitValue": zod.number().min(createMalicaContractBodySplitValueMin).optional(),
+  "higherGroupSurchargeCents": zod.number().min(createMalicaContractBodyHigherGroupSurchargeCentsMin).optional(),
+  "monthlyCoverageLimitCents": zod.number().min(createMalicaContractBodyMonthlyCoverageLimitCentsMin).nullish(),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish(),
+  "requiresBeneficiary": zod.boolean().optional()
+})
+
+export const createMalicaContractResponseOneSplitValueMin = 0;
+
+export const createMalicaContractResponseOneHigherGroupSurchargeCentsMin = 0;
+
+export const createMalicaContractResponseOneMonthlyCoverageLimitCentsMin = 0;
+
+
+
+export const CreateMalicaContractResponse = zod.object({
+  "mode": zod.enum(['partner_all', 'guest_reduced_price', 'partner_fixed_guest_remainder', 'split']),
+  "splitKind": zod.union([zod.literal('fixed'),zod.literal('percent'),zod.literal(null)]).nullish(),
+  "splitValue": zod.number().min(createMalicaContractResponseOneSplitValueMin).optional(),
+  "higherGroupSurchargeCents": zod.number().min(createMalicaContractResponseOneHigherGroupSurchargeCentsMin).optional(),
+  "monthlyCoverageLimitCents": zod.number().min(createMalicaContractResponseOneMonthlyCoverageLimitCentsMin).nullish(),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish(),
+  "requiresBeneficiary": zod.boolean().optional()
+}).and(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "partnerId": zod.string(),
+  "version": zod.number(),
+  "active": zod.boolean()
+}))
+
+
+export const ListMalicaBeneficiariesResponseItem = zod.object({
+  "id": zod.number(),
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "maskedSuffix": zod.string().nullish(),
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+})
+export const ListMalicaBeneficiariesResponse = zod.array(ListMalicaBeneficiariesResponseItem)
+
+
+
+export const createMalicaBeneficiaryBodyDailyLimitMin = 0;
+
+export const createMalicaBeneficiaryBodyMonthlyCoverageOverrideCentsMin = 0;
+
+
+
+export const CreateMalicaBeneficiaryBody = zod.object({
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "identifier": zod.string().min(1),
+  "dailyLimit": zod.number().min(createMalicaBeneficiaryBodyDailyLimitMin).nullish(),
+  "monthlyCoverageOverrideCents": zod.number().min(createMalicaBeneficiaryBodyMonthlyCoverageOverrideCentsMin).nullish()
+})
+
+export const CreateMalicaBeneficiaryResponse = zod.object({
+  "id": zod.number(),
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "maskedSuffix": zod.string().nullish(),
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+})
+
+
+
+
+
+export const ResolveMalicaBeneficiaryBody = zod.object({
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "identifier": zod.string().min(1)
+})
+
+export const ResolveMalicaBeneficiaryResponse = zod.object({
+  "id": zod.number(),
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "maskedSuffix": zod.string().nullish(),
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+}).and(zod.object({
+  "beneficiaryToken": zod.string()
+}))
+
+
+export const UpdateMalicaBeneficiaryParams = zod.object({
+  "beneficiaryId": zod.coerce.number()
+})
+
+export const UpdateMalicaBeneficiaryBody = zod.object({
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdateMalicaBeneficiaryResponse = zod.object({
+  "id": zod.number(),
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "maskedSuffix": zod.string().nullish(),
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+})
+
+
+export const ReplaceMalicaBeneficiaryIdentifierParams = zod.object({
+  "beneficiaryId": zod.coerce.number()
+})
+
+
+
+
+export const ReplaceMalicaBeneficiaryIdentifierBody = zod.object({
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "identifier": zod.string().min(1)
+})
+
+export const ReplaceMalicaBeneficiaryIdentifierResponse = zod.object({
+  "id": zod.number(),
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "maskedSuffix": zod.string().nullish(),
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+})
+
+
+export const RemoveMalicaBeneficiaryIdentifierParams = zod.object({
+  "beneficiaryId": zod.coerce.number()
+})
+
+export const RemoveMalicaBeneficiaryIdentifierResponse = zod.object({
+  "id": zod.number(),
+  "partnerId": zod.string(),
+  "identifierType": zod.enum(['pin', 'barcode', 'qr', 'nfc']),
+  "maskedSuffix": zod.string().nullish(),
+  "dailyLimit": zod.number().nullish(),
+  "monthlyCoverageOverrideCents": zod.number().nullish(),
+  "active": zod.boolean().optional()
+})
+
+
+export const CloseMalicaContractParams = zod.object({
+  "partnerId": zod.coerce.string(),
+  "contractId": zod.coerce.number()
+})
+
+export const CloseMalicaContractBody = zod.object({
+  "validTo": zod.coerce.date()
+})
+
+export const closeMalicaContractResponseOneSplitValueMin = 0;
+
+export const closeMalicaContractResponseOneHigherGroupSurchargeCentsMin = 0;
+
+export const closeMalicaContractResponseOneMonthlyCoverageLimitCentsMin = 0;
+
+
+
+export const CloseMalicaContractResponse = zod.object({
+  "mode": zod.enum(['partner_all', 'guest_reduced_price', 'partner_fixed_guest_remainder', 'split']),
+  "splitKind": zod.union([zod.literal('fixed'),zod.literal('percent'),zod.literal(null)]).nullish(),
+  "splitValue": zod.number().min(closeMalicaContractResponseOneSplitValueMin).optional(),
+  "higherGroupSurchargeCents": zod.number().min(closeMalicaContractResponseOneHigherGroupSurchargeCentsMin).optional(),
+  "monthlyCoverageLimitCents": zod.number().min(closeMalicaContractResponseOneMonthlyCoverageLimitCentsMin).nullish(),
+  "validFrom": zod.coerce.date(),
+  "validTo": zod.coerce.date().nullish(),
+  "requiresBeneficiary": zod.boolean().optional()
+}).and(zod.object({
+  "id": zod.number(),
+  "enotaId": zod.number(),
+  "partnerId": zod.string(),
+  "version": zod.number(),
+  "active": zod.boolean()
+}))
+
+
 /**
  * @summary Dodaj postavko narocilu
  */

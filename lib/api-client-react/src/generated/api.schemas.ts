@@ -3044,6 +3044,367 @@ export interface DostavaStatusUpdateResponse {
   idempotent: boolean;
 }
 
+export interface MalicaGroup {
+  id: number;
+  enotaId: number;
+  code: string;
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 4
+     */
+  sortOrder: number;
+  active: boolean;
+}
+
+export type MalicaGroupPriceStatus = typeof MalicaGroupPriceStatus[keyof typeof MalicaGroupPriceStatus];
+
+
+export const MalicaGroupPriceStatus = {
+  draft: 'draft',
+  scheduled: 'scheduled',
+  active: 'active',
+  past: 'past',
+} as const;
+
+export interface MalicaGroupPrice {
+  id: number;
+  groupId: number;
+  enotaId: number;
+  /** @minimum 0 */
+  priceCents: number;
+  validFrom: string;
+  /** @nullable */
+  validTo?: string | null;
+  status: MalicaGroupPriceStatus;
+}
+
+export interface MalicaGroupPriceInput {
+  /** @minimum 0 */
+  priceCents: number;
+  validFrom: string;
+  /** @nullable */
+  reason?: string | null;
+}
+
+export type MalicaArticleAssignmentRole = typeof MalicaArticleAssignmentRole[keyof typeof MalicaArticleAssignmentRole];
+
+
+export const MalicaArticleAssignmentRole = {
+  none: 'none',
+  main: 'main',
+  soup: 'soup',
+  dessert: 'dessert',
+} as const;
+
+export interface MalicaArticleAssignment {
+  id: number;
+  enotaId: number;
+  artikelId: number;
+  /** @nullable */
+  groupId: number | null;
+  role: MalicaArticleAssignmentRole;
+  /** @nullable */
+  malicaPriceCents: number | null;
+  autoSyncPrice: boolean;
+  active: boolean;
+}
+
+export type MalicaArticleAssignmentInputRole = typeof MalicaArticleAssignmentInputRole[keyof typeof MalicaArticleAssignmentInputRole];
+
+
+export const MalicaArticleAssignmentInputRole = {
+  none: 'none',
+  main: 'main',
+  soup: 'soup',
+  dessert: 'dessert',
+} as const;
+
+export interface MalicaArticleAssignmentInput {
+  role: MalicaArticleAssignmentInputRole;
+  /** @nullable */
+  groupId?: number | null;
+  autoSyncPrice?: boolean;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  malicaPriceCents?: number | null;
+}
+
+export interface MalicaDailyMainItemInput {
+  groupId: number;
+  artikelId: number;
+  position?: number;
+  enabled?: boolean;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  availableQuantity?: number | null;
+}
+
+export type MalicaDailyCourseInputCourseType = typeof MalicaDailyCourseInputCourseType[keyof typeof MalicaDailyCourseInputCourseType];
+
+
+export const MalicaDailyCourseInputCourseType = {
+  soup: 'soup',
+  dessert: 'dessert',
+} as const;
+
+export interface MalicaDailyCourseInput {
+  courseType: MalicaDailyCourseInputCourseType;
+  artikelId: number;
+  /** @minimum 0 */
+  quantity: number;
+  enabled?: boolean;
+}
+
+export interface MalicaDailyOfferInput {
+  businessDate: string;
+  mainItems: MalicaDailyMainItemInput[];
+  includedCourses?: MalicaDailyCourseInput[];
+}
+
+export interface MalicaDailyOfferUpdate {
+  mainItems?: MalicaDailyMainItemInput[];
+  includedCourses?: MalicaDailyCourseInput[];
+}
+
+export type MalicaDailyOfferStatus = typeof MalicaDailyOfferStatus[keyof typeof MalicaDailyOfferStatus];
+
+
+export const MalicaDailyOfferStatus = {
+  draft: 'draft',
+  published: 'published',
+  closed: 'closed',
+} as const;
+
+export type MalicaDailyMainItem = MalicaDailyMainItemInput & ({
+  id: number;
+  offerId: number;
+  articleNameSnapshot: string;
+  priceCentsSnapshot: number;
+  /** @nullable */
+  remainingQuantity: number | null;
+});
+
+export type MalicaDailyCourse = MalicaDailyCourseInput & ({
+  id: number;
+  offerId: number;
+  articleNameSnapshot: string;
+  reservedQuantity: number;
+  consumedQuantity: number;
+  /** @nullable */
+  remainingQuantity: number | null;
+});
+
+export interface MalicaDailyOffer {
+  id: number;
+  enotaId: number;
+  businessDate: string;
+  status: MalicaDailyOfferStatus;
+  version: number;
+  mainItems?: MalicaDailyMainItem[];
+  includedCourses?: MalicaDailyCourse[];
+}
+
+export interface MalicaPartnerGroupPriceInput {
+  groupId: number;
+  /** @minimum 0 */
+  priceCents: number;
+  validFrom: string;
+  /** @nullable */
+  validTo?: string | null;
+}
+
+export type MalicaPartnerGroupPriceStatus = typeof MalicaPartnerGroupPriceStatus[keyof typeof MalicaPartnerGroupPriceStatus];
+
+
+export const MalicaPartnerGroupPriceStatus = {
+  active: 'active',
+  scheduled: 'scheduled',
+  past: 'past',
+} as const;
+
+export type MalicaPartnerGroupPrice = MalicaPartnerGroupPriceInput & {
+  id: number;
+  enotaId: number;
+  kupecId: string;
+  active: boolean;
+  status: MalicaPartnerGroupPriceStatus;
+};
+
+export type MalicaContractInputMode = typeof MalicaContractInputMode[keyof typeof MalicaContractInputMode];
+
+
+export const MalicaContractInputMode = {
+  partner_all: 'partner_all',
+  guest_reduced_price: 'guest_reduced_price',
+  partner_fixed_guest_remainder: 'partner_fixed_guest_remainder',
+  split: 'split',
+} as const;
+
+/**
+ * @nullable
+ */
+export type MalicaContractInputSplitKind = typeof MalicaContractInputSplitKind[keyof typeof MalicaContractInputSplitKind] | null;
+
+
+export const MalicaContractInputSplitKind = {
+  fixed: 'fixed',
+  percent: 'percent',
+} as const;
+
+export interface MalicaContractInput {
+  mode: MalicaContractInputMode;
+  /** @nullable */
+  splitKind?: MalicaContractInputSplitKind;
+  /** @minimum 0 */
+  splitValue?: number;
+  /** @minimum 0 */
+  higherGroupSurchargeCents?: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  monthlyCoverageLimitCents?: number | null;
+  validFrom: string;
+  /** @nullable */
+  validTo?: string | null;
+  requiresBeneficiary?: boolean;
+}
+
+export type MalicaContract = MalicaContractInput & {
+  id: number;
+  enotaId: number;
+  partnerId: string;
+  version: number;
+  active: boolean;
+};
+
+export type MalicaBeneficiaryInputIdentifierType = typeof MalicaBeneficiaryInputIdentifierType[keyof typeof MalicaBeneficiaryInputIdentifierType];
+
+
+export const MalicaBeneficiaryInputIdentifierType = {
+  pin: 'pin',
+  barcode: 'barcode',
+  qr: 'qr',
+  nfc: 'nfc',
+} as const;
+
+export interface MalicaBeneficiaryInput {
+  partnerId: string;
+  identifierType: MalicaBeneficiaryInputIdentifierType;
+  /** @minLength 1 */
+  identifier: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dailyLimit?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  monthlyCoverageOverrideCents?: number | null;
+}
+
+export type MalicaBeneficiaryResolveInputIdentifierType = typeof MalicaBeneficiaryResolveInputIdentifierType[keyof typeof MalicaBeneficiaryResolveInputIdentifierType];
+
+
+export const MalicaBeneficiaryResolveInputIdentifierType = {
+  pin: 'pin',
+  barcode: 'barcode',
+  qr: 'qr',
+  nfc: 'nfc',
+} as const;
+
+export interface MalicaBeneficiaryResolveInput {
+  partnerId: string;
+  identifierType: MalicaBeneficiaryResolveInputIdentifierType;
+  /** @minLength 1 */
+  identifier: string;
+}
+
+export type MalicaBeneficiaryIdentifierType = typeof MalicaBeneficiaryIdentifierType[keyof typeof MalicaBeneficiaryIdentifierType];
+
+
+export const MalicaBeneficiaryIdentifierType = {
+  pin: 'pin',
+  barcode: 'barcode',
+  qr: 'qr',
+  nfc: 'nfc',
+} as const;
+
+export interface MalicaBeneficiary {
+  id: number;
+  partnerId: string;
+  identifierType: MalicaBeneficiaryIdentifierType;
+  /** @nullable */
+  maskedSuffix?: string | null;
+  /** @nullable */
+  dailyLimit?: number | null;
+  /** @nullable */
+  monthlyCoverageOverrideCents?: number | null;
+  active?: boolean;
+}
+
+export type MalicaBeneficiaryResolveResponse = MalicaBeneficiary & {
+  beneficiaryToken: string;
+};
+
+export interface MalicaBootstrap {
+  groups: MalicaGroup[];
+  assignments: MalicaArticleAssignment[];
+  prices: MalicaGroupPrice[];
+}
+
+export type AddMalicaToOrderBodyQuantity = typeof AddMalicaToOrderBodyQuantity[keyof typeof AddMalicaToOrderBodyQuantity];
+
+
+export const AddMalicaToOrderBodyQuantity = {
+  NUMBER_1: 1,
+} as const;
+
+export interface AddMalicaToOrderBody {
+  offerId: number;
+  mainItemId: number;
+  /** @nullable */
+  soupId?: number | null;
+  /** @nullable */
+  dessertId?: number | null;
+  /** @maxItems 20 */
+  soupIds?: number[];
+  /** @maxItems 20 */
+  dessertIds?: number[];
+  quantity?: AddMalicaToOrderBodyQuantity;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  gostStevilka?: number | null;
+  /** @nullable */
+  opomba?: string | null;
+  /**
+     * @minLength 36
+     * @maxLength 36
+     * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+     */
+  idempotencyKey: string;
+  /** @nullable */
+  partnerId?: string | null;
+  /** @nullable */
+  beneficiaryToken?: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type AddMalicaToOrderResponseMalicaWarnings = {
+  omittedCourseIds?: number[];
+} | null;
+
 export type NarociloStatus = typeof NarociloStatus[keyof typeof NarociloStatus];
 
 
@@ -3194,6 +3555,57 @@ export interface Narocilo {
      * @nullable
      */
   stevilkaNarocila?: string | null;
+}
+
+export type AddMalicaToOrderResponse = Narocilo & {
+  /** @nullable */
+  malicaWarnings?: AddMalicaToOrderResponseMalicaWarnings;
+};
+
+export interface QuoteMalicaOrderBody {
+  offerId: number;
+  mainItemId: number;
+  soupIds?: number[];
+  dessertIds?: number[];
+  /** @nullable */
+  partnerId?: string | null;
+  /** @nullable */
+  beneficiaryToken?: string | null;
+}
+
+export type MalicaQuoteCoursesItemClassification = typeof MalicaQuoteCoursesItemClassification[keyof typeof MalicaQuoteCoursesItemClassification];
+
+
+export const MalicaQuoteCoursesItemClassification = {
+  included: 'included',
+  extra: 'extra',
+} as const;
+
+export type MalicaQuoteCoursesItem = {
+  dailyCourseId: number;
+  artikelId: number;
+  classification: MalicaQuoteCoursesItemClassification;
+  grossCents: number;
+};
+
+export interface MalicaQuote {
+  regularTotalCents: number;
+  extrasCents: number;
+  partnerCoveredCents: number;
+  guestPayableCents: number;
+  surchargeCents: number;
+  mode: string;
+  /** @nullable */
+  contractVersion: number | null;
+  /** @nullable */
+  remainingDaily?: number | null;
+  /** @nullable */
+  remainingMonthlyCents?: number | null;
+  /** @nullable */
+  remainingBeneficiaryMonthlyCents?: number | null;
+  /** @nullable */
+  remainingContractMonthlyCents?: number | null;
+  courses: MalicaQuoteCoursesItem[];
 }
 
 export interface SpojiNarocilaInput {
@@ -10218,6 +10630,38 @@ naseljeId: number;
 
 export type SpojiNarocili400 = {
   error: string;
+};
+
+export type ListMalicaEligibleArticlesParams = {
+role?: ListMalicaEligibleArticlesRole;
+groupId?: number;
+};
+
+export type ListMalicaEligibleArticlesRole = typeof ListMalicaEligibleArticlesRole[keyof typeof ListMalicaEligibleArticlesRole];
+
+
+export const ListMalicaEligibleArticlesRole = {
+  none: 'none',
+  main: 'main',
+  soup: 'soup',
+  dessert: 'dessert',
+} as const;
+
+export type ListMalicaDailyOffersParams = {
+from?: string;
+to?: string;
+};
+
+export type UpdateMalicaBeneficiaryBody = {
+  /** @nullable */
+  dailyLimit?: number | null;
+  /** @nullable */
+  monthlyCoverageOverrideCents?: number | null;
+  active?: boolean;
+};
+
+export type CloseMalicaContractBody = {
+  validTo: string;
 };
 
 export type TogglePostavkaPripravljeno200 = {

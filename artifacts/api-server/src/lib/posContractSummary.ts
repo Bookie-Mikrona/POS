@@ -8,6 +8,48 @@ export type ContractSummaryPostingLine = {
   partnerId: string;
 };
 
+export type MalicaAllocationAccountingFacts = {
+  allocationId: number;
+  partnerCents: number;
+  guestCents: number;
+  vatBaseCents: number;
+  vatCents: number;
+};
+
+export function isMalicaAllocationEligibleForClaim(params: {
+  businessDate: string;
+  month: string;
+  orderStatus: string;
+  packageStatus: string;
+  alreadyClaimed: boolean;
+}): boolean {
+  return (
+    params.businessDate.startsWith(`${params.month}-`)
+    && params.orderStatus !== "preklicano"
+    && params.packageStatus !== "cancelled"
+    && !params.alreadyClaimed
+  );
+}
+
+export function stableMalicaAllocationLockOrder(ids: number[]): number[] {
+  return [...new Set(ids)].sort((left, right) => left - right);
+}
+
+/** Validates the immutable arithmetic used by the monthly Malica collector. */
+export function validateMalicaAllocationAccounting(
+  allocation: MalicaAllocationAccountingFacts,
+): void {
+  if (
+    allocation.partnerCents < 0
+    || allocation.guestCents < 0
+    || allocation.vatBaseCents < 0
+    || allocation.vatCents < 0
+    || allocation.vatBaseCents + allocation.vatCents !== allocation.partnerCents
+  ) {
+    throw new Error(`MALICA_ALLOCATION_RECONCILIATION:${allocation.allocationId}`);
+  }
+}
+
 export function resolveContractSummaryDueDate(
   invoiceDate: string,
   counterpartyPaymentTermsDays: number | null | undefined,

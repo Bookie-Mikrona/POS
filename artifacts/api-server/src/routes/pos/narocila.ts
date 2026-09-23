@@ -1,4 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+
+export function assertNoClaimedMalicaAllocations(claims: readonly unknown[]): void {
+  if (claims.length > 0) throw new Error("MALICA_ALLOCATION_CLAIMED");
+}
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
 import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";

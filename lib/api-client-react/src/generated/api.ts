@@ -21,6 +21,8 @@ import type {
 
 import type {
   AccountRecord,
+  AddMalicaToOrderBody,
+  AddMalicaToOrderResponse,
   AgedAnalysisResponse,
   AjpesLookupBody,
   AjpesLookupResponse,
@@ -46,6 +48,7 @@ import type {
   CardPaymentAttemptPage,
   CardPaymentAttemptRecovery,
   CheckZacetnaZalogaLeto200,
+  CloseMalicaContractBody,
   CompanyWithRole,
   ConfirmCreditNotePackagingBody,
   ConfirmDocumentBody,
@@ -199,6 +202,8 @@ import type {
   ListJournalEntriesParams,
   ListJournalEntriesResponse,
   ListKadrovskiPregledParams,
+  ListMalicaDailyOffersParams,
+  ListMalicaEligibleArticlesParams,
   ListNarocilaParams,
   ListOdsotnostiParams,
   ListOfflineFiscalReceiptsParams,
@@ -216,6 +221,23 @@ import type {
   ListVatCodesParams,
   ListVatCodesResponse,
   ListZalogaGibiParams,
+  MalicaArticleAssignment,
+  MalicaArticleAssignmentInput,
+  MalicaBeneficiary,
+  MalicaBeneficiaryInput,
+  MalicaBeneficiaryResolveInput,
+  MalicaBeneficiaryResolveResponse,
+  MalicaBootstrap,
+  MalicaContract,
+  MalicaContractInput,
+  MalicaDailyOffer,
+  MalicaDailyOfferInput,
+  MalicaDailyOfferUpdate,
+  MalicaGroupPrice,
+  MalicaGroupPriceInput,
+  MalicaPartnerGroupPrice,
+  MalicaPartnerGroupPriceInput,
+  MalicaQuote,
   MatchBankTransactionsBody,
   MatchBankTransactionsResponse,
   Miza,
@@ -341,6 +363,7 @@ import type {
   QrOrderCompletion,
   QrOrderFeedback,
   QrOrderFeedbackInput,
+  QuoteMalicaOrderBody,
   Racun,
   RacunInput,
   RacunPlacilnaNacinInput,
@@ -398,6 +421,7 @@ import type {
   UpdateCounterpartyBody,
   UpdateDimensionBody,
   UpdateInvoiceBody,
+  UpdateMalicaBeneficiaryBody,
   UpdateNormativRequest,
   UpdatePeriodBody,
   UpdatePublicOrderTipInput,
@@ -8184,6 +8208,1498 @@ export const useSpojiNarocili = <TError = ErrorType<SpojiNarocili400 | void>,
         TContext
       > => {
       return useMutation(getSpojiNarociliMutationOptions(options));
+    }
+
+export const getAddMalicaToOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila/${id}/malice`
+}
+
+export const addMalicaToOrder = async (id: number,
+    addMalicaToOrderBody: AddMalicaToOrderBody, options?: RequestInit): Promise<AddMalicaToOrderResponse> => {
+
+  return customFetch<AddMalicaToOrderResponse>(getAddMalicaToOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addMalicaToOrderBody)
+  }
+);}
+
+
+
+
+
+export const getAddMalicaToOrderMutationOptions = <TError = ErrorType<BadRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMalicaToOrder>>, TError,{id: number;data: BodyType<AddMalicaToOrderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMalicaToOrder>>, TError,{id: number;data: BodyType<AddMalicaToOrderBody>}, TContext> => {
+
+const mutationKey = ['addMalicaToOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMalicaToOrder>>, {id: number;data: BodyType<AddMalicaToOrderBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addMalicaToOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMalicaToOrderMutationResult = NonNullable<Awaited<ReturnType<typeof addMalicaToOrder>>>
+    export type AddMalicaToOrderMutationBody = BodyType<AddMalicaToOrderBody>
+    export type AddMalicaToOrderMutationError = ErrorType<BadRequestResponse | void>
+
+    export const useAddMalicaToOrder = <TError = ErrorType<BadRequestResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMalicaToOrder>>, TError,{id: number;data: BodyType<AddMalicaToOrderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addMalicaToOrder>>,
+        TError,
+        {id: number;data: BodyType<AddMalicaToOrderBody>},
+        TContext
+      > => {
+      return useMutation(getAddMalicaToOrderMutationOptions(options));
+    }
+
+export const getQuoteMalicaOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/narocila/${id}/malice/quote`
+}
+
+export const quoteMalicaOrder = async (id: number,
+    quoteMalicaOrderBody: QuoteMalicaOrderBody, options?: RequestInit): Promise<MalicaQuote> => {
+
+  return customFetch<MalicaQuote>(getQuoteMalicaOrderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(quoteMalicaOrderBody)
+  }
+);}
+
+
+
+
+
+export const getQuoteMalicaOrderMutationOptions = <TError = ErrorType<ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteMalicaOrder>>, TError,{id: number;data: BodyType<QuoteMalicaOrderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof quoteMalicaOrder>>, TError,{id: number;data: BodyType<QuoteMalicaOrderBody>}, TContext> => {
+
+const mutationKey = ['quoteMalicaOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof quoteMalicaOrder>>, {id: number;data: BodyType<QuoteMalicaOrderBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  quoteMalicaOrder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QuoteMalicaOrderMutationResult = NonNullable<Awaited<ReturnType<typeof quoteMalicaOrder>>>
+    export type QuoteMalicaOrderMutationBody = BodyType<QuoteMalicaOrderBody>
+    export type QuoteMalicaOrderMutationError = ErrorType<ConflictResponse>
+
+    export const useQuoteMalicaOrder = <TError = ErrorType<ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteMalicaOrder>>, TError,{id: number;data: BodyType<QuoteMalicaOrderBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof quoteMalicaOrder>>,
+        TError,
+        {id: number;data: BodyType<QuoteMalicaOrderBody>},
+        TContext
+      > => {
+      return useMutation(getQuoteMalicaOrderMutationOptions(options));
+    }
+
+export const getGetMalicaBootstrapUrl = () => {
+
+
+
+
+  return `/api/malice/bootstrap`
+}
+
+export const getMalicaBootstrap = async ( options?: RequestInit): Promise<MalicaBootstrap> => {
+
+  return customFetch<MalicaBootstrap>(getGetMalicaBootstrapUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMalicaBootstrapQueryKey = () => {
+    return [
+    `/api/malice/bootstrap`
+    ] as const;
+    }
+
+
+export const getGetMalicaBootstrapQueryOptions = <TData = Awaited<ReturnType<typeof getMalicaBootstrap>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMalicaBootstrap>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMalicaBootstrapQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMalicaBootstrap>>> = ({ signal }) => getMalicaBootstrap({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMalicaBootstrap>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMalicaBootstrapQueryResult = NonNullable<Awaited<ReturnType<typeof getMalicaBootstrap>>>
+export type GetMalicaBootstrapQueryError = ErrorType<unknown>
+
+
+
+export function useGetMalicaBootstrap<TData = Awaited<ReturnType<typeof getMalicaBootstrap>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMalicaBootstrap>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMalicaBootstrapQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getScheduleMalicaGroupPriceUrl = (groupId: number,) => {
+
+
+
+
+  return `/api/malice/groups/${groupId}/prices`
+}
+
+export const scheduleMalicaGroupPrice = async (groupId: number,
+    malicaGroupPriceInput: MalicaGroupPriceInput, options?: RequestInit): Promise<MalicaGroupPrice> => {
+
+  return customFetch<MalicaGroupPrice>(getScheduleMalicaGroupPriceUrl(groupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaGroupPriceInput)
+  }
+);}
+
+
+
+
+
+export const getScheduleMalicaGroupPriceMutationOptions = <TError = ErrorType<BadRequestResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scheduleMalicaGroupPrice>>, TError,{groupId: number;data: BodyType<MalicaGroupPriceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scheduleMalicaGroupPrice>>, TError,{groupId: number;data: BodyType<MalicaGroupPriceInput>}, TContext> => {
+
+const mutationKey = ['scheduleMalicaGroupPrice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scheduleMalicaGroupPrice>>, {groupId: number;data: BodyType<MalicaGroupPriceInput>}> = (props) => {
+          const {groupId,data} = props ?? {};
+
+          return  scheduleMalicaGroupPrice(groupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScheduleMalicaGroupPriceMutationResult = NonNullable<Awaited<ReturnType<typeof scheduleMalicaGroupPrice>>>
+    export type ScheduleMalicaGroupPriceMutationBody = BodyType<MalicaGroupPriceInput>
+    export type ScheduleMalicaGroupPriceMutationError = ErrorType<BadRequestResponse | ConflictResponse>
+
+    export const useScheduleMalicaGroupPrice = <TError = ErrorType<BadRequestResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scheduleMalicaGroupPrice>>, TError,{groupId: number;data: BodyType<MalicaGroupPriceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof scheduleMalicaGroupPrice>>,
+        TError,
+        {groupId: number;data: BodyType<MalicaGroupPriceInput>},
+        TContext
+      > => {
+      return useMutation(getScheduleMalicaGroupPriceMutationOptions(options));
+    }
+
+export const getAssignMalicaArticleUrl = (articleId: number,) => {
+
+
+
+
+  return `/api/malice/articles/${articleId}/assignment`
+}
+
+export const assignMalicaArticle = async (articleId: number,
+    malicaArticleAssignmentInput: MalicaArticleAssignmentInput, options?: RequestInit): Promise<MalicaArticleAssignment> => {
+
+  return customFetch<MalicaArticleAssignment>(getAssignMalicaArticleUrl(articleId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaArticleAssignmentInput)
+  }
+);}
+
+
+
+
+
+export const getAssignMalicaArticleMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignMalicaArticle>>, TError,{articleId: number;data: BodyType<MalicaArticleAssignmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignMalicaArticle>>, TError,{articleId: number;data: BodyType<MalicaArticleAssignmentInput>}, TContext> => {
+
+const mutationKey = ['assignMalicaArticle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignMalicaArticle>>, {articleId: number;data: BodyType<MalicaArticleAssignmentInput>}> = (props) => {
+          const {articleId,data} = props ?? {};
+
+          return  assignMalicaArticle(articleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignMalicaArticleMutationResult = NonNullable<Awaited<ReturnType<typeof assignMalicaArticle>>>
+    export type AssignMalicaArticleMutationBody = BodyType<MalicaArticleAssignmentInput>
+    export type AssignMalicaArticleMutationError = ErrorType<BadRequestResponse>
+
+    export const useAssignMalicaArticle = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignMalicaArticle>>, TError,{articleId: number;data: BodyType<MalicaArticleAssignmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assignMalicaArticle>>,
+        TError,
+        {articleId: number;data: BodyType<MalicaArticleAssignmentInput>},
+        TContext
+      > => {
+      return useMutation(getAssignMalicaArticleMutationOptions(options));
+    }
+
+export const getListMalicaEligibleArticlesUrl = (params?: ListMalicaEligibleArticlesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/malice/articles?${stringifiedParams}` : `/api/malice/articles`
+}
+
+export const listMalicaEligibleArticles = async (params?: ListMalicaEligibleArticlesParams, options?: RequestInit): Promise<MalicaArticleAssignment[]> => {
+
+  return customFetch<MalicaArticleAssignment[]>(getListMalicaEligibleArticlesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMalicaEligibleArticlesQueryKey = (params?: ListMalicaEligibleArticlesParams,) => {
+    return [
+    `/api/malice/articles`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMalicaEligibleArticlesQueryOptions = <TData = Awaited<ReturnType<typeof listMalicaEligibleArticles>>, TError = ErrorType<unknown>>(params?: ListMalicaEligibleArticlesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaEligibleArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMalicaEligibleArticlesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMalicaEligibleArticles>>> = ({ signal }) => listMalicaEligibleArticles(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMalicaEligibleArticles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMalicaEligibleArticlesQueryResult = NonNullable<Awaited<ReturnType<typeof listMalicaEligibleArticles>>>
+export type ListMalicaEligibleArticlesQueryError = ErrorType<unknown>
+
+
+
+export function useListMalicaEligibleArticles<TData = Awaited<ReturnType<typeof listMalicaEligibleArticles>>, TError = ErrorType<unknown>>(
+ params?: ListMalicaEligibleArticlesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaEligibleArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMalicaEligibleArticlesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMalicaDailyOfferUrl = () => {
+
+
+
+
+  return `/api/malice/offers`
+}
+
+export const createMalicaDailyOffer = async (malicaDailyOfferInput: MalicaDailyOfferInput, options?: RequestInit): Promise<MalicaDailyOffer> => {
+
+  return customFetch<MalicaDailyOffer>(getCreateMalicaDailyOfferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaDailyOfferInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMalicaDailyOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMalicaDailyOffer>>, TError,{data: BodyType<MalicaDailyOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMalicaDailyOffer>>, TError,{data: BodyType<MalicaDailyOfferInput>}, TContext> => {
+
+const mutationKey = ['createMalicaDailyOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMalicaDailyOffer>>, {data: BodyType<MalicaDailyOfferInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMalicaDailyOffer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMalicaDailyOfferMutationResult = NonNullable<Awaited<ReturnType<typeof createMalicaDailyOffer>>>
+    export type CreateMalicaDailyOfferMutationBody = BodyType<MalicaDailyOfferInput>
+    export type CreateMalicaDailyOfferMutationError = ErrorType<unknown>
+
+    export const useCreateMalicaDailyOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMalicaDailyOffer>>, TError,{data: BodyType<MalicaDailyOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMalicaDailyOffer>>,
+        TError,
+        {data: BodyType<MalicaDailyOfferInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMalicaDailyOfferMutationOptions(options));
+    }
+
+export const getListMalicaDailyOffersUrl = (params?: ListMalicaDailyOffersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/malice/offers?${stringifiedParams}` : `/api/malice/offers`
+}
+
+export const listMalicaDailyOffers = async (params?: ListMalicaDailyOffersParams, options?: RequestInit): Promise<MalicaDailyOffer[]> => {
+
+  return customFetch<MalicaDailyOffer[]>(getListMalicaDailyOffersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMalicaDailyOffersQueryKey = (params?: ListMalicaDailyOffersParams,) => {
+    return [
+    `/api/malice/offers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMalicaDailyOffersQueryOptions = <TData = Awaited<ReturnType<typeof listMalicaDailyOffers>>, TError = ErrorType<unknown>>(params?: ListMalicaDailyOffersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaDailyOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMalicaDailyOffersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMalicaDailyOffers>>> = ({ signal }) => listMalicaDailyOffers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMalicaDailyOffers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMalicaDailyOffersQueryResult = NonNullable<Awaited<ReturnType<typeof listMalicaDailyOffers>>>
+export type ListMalicaDailyOffersQueryError = ErrorType<unknown>
+
+
+
+export function useListMalicaDailyOffers<TData = Awaited<ReturnType<typeof listMalicaDailyOffers>>, TError = ErrorType<unknown>>(
+ params?: ListMalicaDailyOffersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaDailyOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMalicaDailyOffersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMalicaDailyOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/malice/offers/${offerId}`
+}
+
+export const updateMalicaDailyOffer = async (offerId: number,
+    malicaDailyOfferUpdate: MalicaDailyOfferUpdate, options?: RequestInit): Promise<MalicaDailyOffer> => {
+
+  return customFetch<MalicaDailyOffer>(getUpdateMalicaDailyOfferUrl(offerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaDailyOfferUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMalicaDailyOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMalicaDailyOffer>>, TError,{offerId: number;data: BodyType<MalicaDailyOfferUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMalicaDailyOffer>>, TError,{offerId: number;data: BodyType<MalicaDailyOfferUpdate>}, TContext> => {
+
+const mutationKey = ['updateMalicaDailyOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMalicaDailyOffer>>, {offerId: number;data: BodyType<MalicaDailyOfferUpdate>}> = (props) => {
+          const {offerId,data} = props ?? {};
+
+          return  updateMalicaDailyOffer(offerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMalicaDailyOfferMutationResult = NonNullable<Awaited<ReturnType<typeof updateMalicaDailyOffer>>>
+    export type UpdateMalicaDailyOfferMutationBody = BodyType<MalicaDailyOfferUpdate>
+    export type UpdateMalicaDailyOfferMutationError = ErrorType<unknown>
+
+    export const useUpdateMalicaDailyOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMalicaDailyOffer>>, TError,{offerId: number;data: BodyType<MalicaDailyOfferUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMalicaDailyOffer>>,
+        TError,
+        {offerId: number;data: BodyType<MalicaDailyOfferUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateMalicaDailyOfferMutationOptions(options));
+    }
+
+export const getPublishMalicaDailyOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/malice/offers/${offerId}/publish`
+}
+
+export const publishMalicaDailyOffer = async (offerId: number, options?: RequestInit): Promise<MalicaDailyOffer> => {
+
+  return customFetch<MalicaDailyOffer>(getPublishMalicaDailyOfferUrl(offerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishMalicaDailyOfferMutationOptions = <TError = ErrorType<ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishMalicaDailyOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishMalicaDailyOffer>>, TError,{offerId: number}, TContext> => {
+
+const mutationKey = ['publishMalicaDailyOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishMalicaDailyOffer>>, {offerId: number}> = (props) => {
+          const {offerId} = props ?? {};
+
+          return  publishMalicaDailyOffer(offerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishMalicaDailyOfferMutationResult = NonNullable<Awaited<ReturnType<typeof publishMalicaDailyOffer>>>
+
+    export type PublishMalicaDailyOfferMutationError = ErrorType<ConflictResponse>
+
+    export const usePublishMalicaDailyOffer = <TError = ErrorType<ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishMalicaDailyOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishMalicaDailyOffer>>,
+        TError,
+        {offerId: number},
+        TContext
+      > => {
+      return useMutation(getPublishMalicaDailyOfferMutationOptions(options));
+    }
+
+export const getCloseMalicaDailyOfferUrl = (offerId: number,) => {
+
+
+
+
+  return `/api/malice/offers/${offerId}/close`
+}
+
+export const closeMalicaDailyOffer = async (offerId: number, options?: RequestInit): Promise<MalicaDailyOffer> => {
+
+  return customFetch<MalicaDailyOffer>(getCloseMalicaDailyOfferUrl(offerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCloseMalicaDailyOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMalicaDailyOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeMalicaDailyOffer>>, TError,{offerId: number}, TContext> => {
+
+const mutationKey = ['closeMalicaDailyOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeMalicaDailyOffer>>, {offerId: number}> = (props) => {
+          const {offerId} = props ?? {};
+
+          return  closeMalicaDailyOffer(offerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseMalicaDailyOfferMutationResult = NonNullable<Awaited<ReturnType<typeof closeMalicaDailyOffer>>>
+
+    export type CloseMalicaDailyOfferMutationError = ErrorType<unknown>
+
+    export const useCloseMalicaDailyOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMalicaDailyOffer>>, TError,{offerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeMalicaDailyOffer>>,
+        TError,
+        {offerId: number},
+        TContext
+      > => {
+      return useMutation(getCloseMalicaDailyOfferMutationOptions(options));
+    }
+
+export const getListMalicaPartnerGroupPricesUrl = (partnerId: string,) => {
+
+
+
+
+  return `/api/malice/partners/${partnerId}/group-prices`
+}
+
+export const listMalicaPartnerGroupPrices = async (partnerId: string, options?: RequestInit): Promise<MalicaPartnerGroupPrice[]> => {
+
+  return customFetch<MalicaPartnerGroupPrice[]>(getListMalicaPartnerGroupPricesUrl(partnerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMalicaPartnerGroupPricesQueryKey = (partnerId: string,) => {
+    return [
+    `/api/malice/partners/${partnerId}/group-prices`
+    ] as const;
+    }
+
+
+export const getListMalicaPartnerGroupPricesQueryOptions = <TData = Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>, TError = ErrorType<unknown>>(partnerId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMalicaPartnerGroupPricesQueryKey(partnerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>> = ({ signal }) => listMalicaPartnerGroupPrices(partnerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnerId !== null && partnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMalicaPartnerGroupPricesQueryResult = NonNullable<Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>>
+export type ListMalicaPartnerGroupPricesQueryError = ErrorType<unknown>
+
+
+
+export function useListMalicaPartnerGroupPrices<TData = Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>, TError = ErrorType<unknown>>(
+ partnerId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaPartnerGroupPrices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMalicaPartnerGroupPricesQueryOptions(partnerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetMalicaPartnerGroupPriceUrl = (partnerId: string,) => {
+
+
+
+
+  return `/api/malice/partners/${partnerId}/group-prices`
+}
+
+export const setMalicaPartnerGroupPrice = async (partnerId: string,
+    malicaPartnerGroupPriceInput: MalicaPartnerGroupPriceInput, options?: RequestInit): Promise<MalicaPartnerGroupPrice> => {
+
+  return customFetch<MalicaPartnerGroupPrice>(getSetMalicaPartnerGroupPriceUrl(partnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaPartnerGroupPriceInput)
+  }
+);}
+
+
+
+
+
+export const getSetMalicaPartnerGroupPriceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMalicaPartnerGroupPrice>>, TError,{partnerId: string;data: BodyType<MalicaPartnerGroupPriceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMalicaPartnerGroupPrice>>, TError,{partnerId: string;data: BodyType<MalicaPartnerGroupPriceInput>}, TContext> => {
+
+const mutationKey = ['setMalicaPartnerGroupPrice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMalicaPartnerGroupPrice>>, {partnerId: string;data: BodyType<MalicaPartnerGroupPriceInput>}> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  setMalicaPartnerGroupPrice(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMalicaPartnerGroupPriceMutationResult = NonNullable<Awaited<ReturnType<typeof setMalicaPartnerGroupPrice>>>
+    export type SetMalicaPartnerGroupPriceMutationBody = BodyType<MalicaPartnerGroupPriceInput>
+    export type SetMalicaPartnerGroupPriceMutationError = ErrorType<unknown>
+
+    export const useSetMalicaPartnerGroupPrice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMalicaPartnerGroupPrice>>, TError,{partnerId: string;data: BodyType<MalicaPartnerGroupPriceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMalicaPartnerGroupPrice>>,
+        TError,
+        {partnerId: string;data: BodyType<MalicaPartnerGroupPriceInput>},
+        TContext
+      > => {
+      return useMutation(getSetMalicaPartnerGroupPriceMutationOptions(options));
+    }
+
+export const getListMalicaContractsUrl = (partnerId: string,) => {
+
+
+
+
+  return `/api/malice/partners/${partnerId}/contracts`
+}
+
+export const listMalicaContracts = async (partnerId: string, options?: RequestInit): Promise<MalicaContract[]> => {
+
+  return customFetch<MalicaContract[]>(getListMalicaContractsUrl(partnerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMalicaContractsQueryKey = (partnerId: string,) => {
+    return [
+    `/api/malice/partners/${partnerId}/contracts`
+    ] as const;
+    }
+
+
+export const getListMalicaContractsQueryOptions = <TData = Awaited<ReturnType<typeof listMalicaContracts>>, TError = ErrorType<unknown>>(partnerId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaContracts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMalicaContractsQueryKey(partnerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMalicaContracts>>> = ({ signal }) => listMalicaContracts(partnerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnerId !== null && partnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMalicaContracts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMalicaContractsQueryResult = NonNullable<Awaited<ReturnType<typeof listMalicaContracts>>>
+export type ListMalicaContractsQueryError = ErrorType<unknown>
+
+
+
+export function useListMalicaContracts<TData = Awaited<ReturnType<typeof listMalicaContracts>>, TError = ErrorType<unknown>>(
+ partnerId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaContracts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMalicaContractsQueryOptions(partnerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMalicaContractUrl = (partnerId: string,) => {
+
+
+
+
+  return `/api/malice/partners/${partnerId}/contracts`
+}
+
+export const createMalicaContract = async (partnerId: string,
+    malicaContractInput: MalicaContractInput, options?: RequestInit): Promise<MalicaContract> => {
+
+  return customFetch<MalicaContract>(getCreateMalicaContractUrl(partnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaContractInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMalicaContractMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMalicaContract>>, TError,{partnerId: string;data: BodyType<MalicaContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMalicaContract>>, TError,{partnerId: string;data: BodyType<MalicaContractInput>}, TContext> => {
+
+const mutationKey = ['createMalicaContract'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMalicaContract>>, {partnerId: string;data: BodyType<MalicaContractInput>}> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  createMalicaContract(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMalicaContractMutationResult = NonNullable<Awaited<ReturnType<typeof createMalicaContract>>>
+    export type CreateMalicaContractMutationBody = BodyType<MalicaContractInput>
+    export type CreateMalicaContractMutationError = ErrorType<unknown>
+
+    export const useCreateMalicaContract = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMalicaContract>>, TError,{partnerId: string;data: BodyType<MalicaContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMalicaContract>>,
+        TError,
+        {partnerId: string;data: BodyType<MalicaContractInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMalicaContractMutationOptions(options));
+    }
+
+export const getListMalicaBeneficiariesUrl = () => {
+
+
+
+
+  return `/api/malice/beneficiaries`
+}
+
+export const listMalicaBeneficiaries = async ( options?: RequestInit): Promise<MalicaBeneficiary[]> => {
+
+  return customFetch<MalicaBeneficiary[]>(getListMalicaBeneficiariesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMalicaBeneficiariesQueryKey = () => {
+    return [
+    `/api/malice/beneficiaries`
+    ] as const;
+    }
+
+
+export const getListMalicaBeneficiariesQueryOptions = <TData = Awaited<ReturnType<typeof listMalicaBeneficiaries>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaBeneficiaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMalicaBeneficiariesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMalicaBeneficiaries>>> = ({ signal }) => listMalicaBeneficiaries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMalicaBeneficiaries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMalicaBeneficiariesQueryResult = NonNullable<Awaited<ReturnType<typeof listMalicaBeneficiaries>>>
+export type ListMalicaBeneficiariesQueryError = ErrorType<unknown>
+
+
+
+export function useListMalicaBeneficiaries<TData = Awaited<ReturnType<typeof listMalicaBeneficiaries>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMalicaBeneficiaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMalicaBeneficiariesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMalicaBeneficiaryUrl = () => {
+
+
+
+
+  return `/api/malice/beneficiaries`
+}
+
+export const createMalicaBeneficiary = async (malicaBeneficiaryInput: MalicaBeneficiaryInput, options?: RequestInit): Promise<MalicaBeneficiary> => {
+
+  return customFetch<MalicaBeneficiary>(getCreateMalicaBeneficiaryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaBeneficiaryInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMalicaBeneficiaryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMalicaBeneficiary>>, TError,{data: BodyType<MalicaBeneficiaryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMalicaBeneficiary>>, TError,{data: BodyType<MalicaBeneficiaryInput>}, TContext> => {
+
+const mutationKey = ['createMalicaBeneficiary'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMalicaBeneficiary>>, {data: BodyType<MalicaBeneficiaryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMalicaBeneficiary(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMalicaBeneficiaryMutationResult = NonNullable<Awaited<ReturnType<typeof createMalicaBeneficiary>>>
+    export type CreateMalicaBeneficiaryMutationBody = BodyType<MalicaBeneficiaryInput>
+    export type CreateMalicaBeneficiaryMutationError = ErrorType<unknown>
+
+    export const useCreateMalicaBeneficiary = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMalicaBeneficiary>>, TError,{data: BodyType<MalicaBeneficiaryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMalicaBeneficiary>>,
+        TError,
+        {data: BodyType<MalicaBeneficiaryInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMalicaBeneficiaryMutationOptions(options));
+    }
+
+export const getResolveMalicaBeneficiaryUrl = () => {
+
+
+
+
+  return `/api/malice/beneficiaries/resolve`
+}
+
+export const resolveMalicaBeneficiary = async (malicaBeneficiaryResolveInput: MalicaBeneficiaryResolveInput, options?: RequestInit): Promise<MalicaBeneficiaryResolveResponse> => {
+
+  return customFetch<MalicaBeneficiaryResolveResponse>(getResolveMalicaBeneficiaryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaBeneficiaryResolveInput)
+  }
+);}
+
+
+
+
+
+export const getResolveMalicaBeneficiaryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveMalicaBeneficiary>>, TError,{data: BodyType<MalicaBeneficiaryResolveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveMalicaBeneficiary>>, TError,{data: BodyType<MalicaBeneficiaryResolveInput>}, TContext> => {
+
+const mutationKey = ['resolveMalicaBeneficiary'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveMalicaBeneficiary>>, {data: BodyType<MalicaBeneficiaryResolveInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  resolveMalicaBeneficiary(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveMalicaBeneficiaryMutationResult = NonNullable<Awaited<ReturnType<typeof resolveMalicaBeneficiary>>>
+    export type ResolveMalicaBeneficiaryMutationBody = BodyType<MalicaBeneficiaryResolveInput>
+    export type ResolveMalicaBeneficiaryMutationError = ErrorType<unknown>
+
+    export const useResolveMalicaBeneficiary = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveMalicaBeneficiary>>, TError,{data: BodyType<MalicaBeneficiaryResolveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveMalicaBeneficiary>>,
+        TError,
+        {data: BodyType<MalicaBeneficiaryResolveInput>},
+        TContext
+      > => {
+      return useMutation(getResolveMalicaBeneficiaryMutationOptions(options));
+    }
+
+export const getUpdateMalicaBeneficiaryUrl = (beneficiaryId: number,) => {
+
+
+
+
+  return `/api/malice/beneficiaries/${beneficiaryId}`
+}
+
+export const updateMalicaBeneficiary = async (beneficiaryId: number,
+    updateMalicaBeneficiaryBody?: UpdateMalicaBeneficiaryBody, options?: RequestInit): Promise<MalicaBeneficiary> => {
+
+  return customFetch<MalicaBeneficiary>(getUpdateMalicaBeneficiaryUrl(beneficiaryId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateMalicaBeneficiaryBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateMalicaBeneficiaryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMalicaBeneficiary>>, TError,{beneficiaryId: number;data?: BodyType<UpdateMalicaBeneficiaryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMalicaBeneficiary>>, TError,{beneficiaryId: number;data?: BodyType<UpdateMalicaBeneficiaryBody>}, TContext> => {
+
+const mutationKey = ['updateMalicaBeneficiary'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMalicaBeneficiary>>, {beneficiaryId: number;data?: BodyType<UpdateMalicaBeneficiaryBody>}> = (props) => {
+          const {beneficiaryId,data} = props ?? {};
+
+          return  updateMalicaBeneficiary(beneficiaryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMalicaBeneficiaryMutationResult = NonNullable<Awaited<ReturnType<typeof updateMalicaBeneficiary>>>
+    export type UpdateMalicaBeneficiaryMutationBody = BodyType<UpdateMalicaBeneficiaryBody> | undefined
+    export type UpdateMalicaBeneficiaryMutationError = ErrorType<unknown>
+
+    export const useUpdateMalicaBeneficiary = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMalicaBeneficiary>>, TError,{beneficiaryId: number;data?: BodyType<UpdateMalicaBeneficiaryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMalicaBeneficiary>>,
+        TError,
+        {beneficiaryId: number;data?: BodyType<UpdateMalicaBeneficiaryBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateMalicaBeneficiaryMutationOptions(options));
+    }
+
+export const getReplaceMalicaBeneficiaryIdentifierUrl = (beneficiaryId: number,) => {
+
+
+
+
+  return `/api/malice/beneficiaries/${beneficiaryId}/identifiers`
+}
+
+export const replaceMalicaBeneficiaryIdentifier = async (beneficiaryId: number,
+    malicaBeneficiaryResolveInput: MalicaBeneficiaryResolveInput, options?: RequestInit): Promise<MalicaBeneficiary> => {
+
+  return customFetch<MalicaBeneficiary>(getReplaceMalicaBeneficiaryIdentifierUrl(beneficiaryId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(malicaBeneficiaryResolveInput)
+  }
+);}
+
+
+
+
+
+export const getReplaceMalicaBeneficiaryIdentifierMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceMalicaBeneficiaryIdentifier>>, TError,{beneficiaryId: number;data: BodyType<MalicaBeneficiaryResolveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replaceMalicaBeneficiaryIdentifier>>, TError,{beneficiaryId: number;data: BodyType<MalicaBeneficiaryResolveInput>}, TContext> => {
+
+const mutationKey = ['replaceMalicaBeneficiaryIdentifier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replaceMalicaBeneficiaryIdentifier>>, {beneficiaryId: number;data: BodyType<MalicaBeneficiaryResolveInput>}> = (props) => {
+          const {beneficiaryId,data} = props ?? {};
+
+          return  replaceMalicaBeneficiaryIdentifier(beneficiaryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplaceMalicaBeneficiaryIdentifierMutationResult = NonNullable<Awaited<ReturnType<typeof replaceMalicaBeneficiaryIdentifier>>>
+    export type ReplaceMalicaBeneficiaryIdentifierMutationBody = BodyType<MalicaBeneficiaryResolveInput>
+    export type ReplaceMalicaBeneficiaryIdentifierMutationError = ErrorType<unknown>
+
+    export const useReplaceMalicaBeneficiaryIdentifier = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceMalicaBeneficiaryIdentifier>>, TError,{beneficiaryId: number;data: BodyType<MalicaBeneficiaryResolveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof replaceMalicaBeneficiaryIdentifier>>,
+        TError,
+        {beneficiaryId: number;data: BodyType<MalicaBeneficiaryResolveInput>},
+        TContext
+      > => {
+      return useMutation(getReplaceMalicaBeneficiaryIdentifierMutationOptions(options));
+    }
+
+export const getRemoveMalicaBeneficiaryIdentifierUrl = (beneficiaryId: number,) => {
+
+
+
+
+  return `/api/malice/beneficiaries/${beneficiaryId}/identifiers`
+}
+
+export const removeMalicaBeneficiaryIdentifier = async (beneficiaryId: number, options?: RequestInit): Promise<MalicaBeneficiary> => {
+
+  return customFetch<MalicaBeneficiary>(getRemoveMalicaBeneficiaryIdentifierUrl(beneficiaryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveMalicaBeneficiaryIdentifierMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMalicaBeneficiaryIdentifier>>, TError,{beneficiaryId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMalicaBeneficiaryIdentifier>>, TError,{beneficiaryId: number}, TContext> => {
+
+const mutationKey = ['removeMalicaBeneficiaryIdentifier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMalicaBeneficiaryIdentifier>>, {beneficiaryId: number}> = (props) => {
+          const {beneficiaryId} = props ?? {};
+
+          return  removeMalicaBeneficiaryIdentifier(beneficiaryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMalicaBeneficiaryIdentifierMutationResult = NonNullable<Awaited<ReturnType<typeof removeMalicaBeneficiaryIdentifier>>>
+
+    export type RemoveMalicaBeneficiaryIdentifierMutationError = ErrorType<unknown>
+
+    export const useRemoveMalicaBeneficiaryIdentifier = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMalicaBeneficiaryIdentifier>>, TError,{beneficiaryId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeMalicaBeneficiaryIdentifier>>,
+        TError,
+        {beneficiaryId: number},
+        TContext
+      > => {
+      return useMutation(getRemoveMalicaBeneficiaryIdentifierMutationOptions(options));
+    }
+
+export const getCloseMalicaContractUrl = (partnerId: string,
+    contractId: number,) => {
+
+
+
+
+  return `/api/malice/partners/${partnerId}/contracts/${contractId}/close`
+}
+
+export const closeMalicaContract = async (partnerId: string,
+    contractId: number,
+    closeMalicaContractBody: CloseMalicaContractBody, options?: RequestInit): Promise<MalicaContract> => {
+
+  return customFetch<MalicaContract>(getCloseMalicaContractUrl(partnerId,contractId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(closeMalicaContractBody)
+  }
+);}
+
+
+
+
+
+export const getCloseMalicaContractMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMalicaContract>>, TError,{partnerId: string;contractId: number;data: BodyType<CloseMalicaContractBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeMalicaContract>>, TError,{partnerId: string;contractId: number;data: BodyType<CloseMalicaContractBody>}, TContext> => {
+
+const mutationKey = ['closeMalicaContract'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeMalicaContract>>, {partnerId: string;contractId: number;data: BodyType<CloseMalicaContractBody>}> = (props) => {
+          const {partnerId,contractId,data} = props ?? {};
+
+          return  closeMalicaContract(partnerId,contractId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseMalicaContractMutationResult = NonNullable<Awaited<ReturnType<typeof closeMalicaContract>>>
+    export type CloseMalicaContractMutationBody = BodyType<CloseMalicaContractBody>
+    export type CloseMalicaContractMutationError = ErrorType<unknown>
+
+    export const useCloseMalicaContract = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeMalicaContract>>, TError,{partnerId: string;contractId: number;data: BodyType<CloseMalicaContractBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeMalicaContract>>,
+        TError,
+        {partnerId: string;contractId: number;data: BodyType<CloseMalicaContractBody>},
+        TContext
+      > => {
+      return useMutation(getCloseMalicaContractMutationOptions(options));
     }
 
 export const getAddPostavkaUrl = (id: number,) => {

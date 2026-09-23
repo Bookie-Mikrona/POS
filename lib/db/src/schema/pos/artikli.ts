@@ -91,6 +91,10 @@ export const artikliTable = pgTable("artikli", {
   mealType: text("meal_type", { enum: ["ala_carte", "prepared", "composite"] })
     .notNull()
     .default("ala_carte"),
+  /** Namenska vloga artikla v ponudbi Malic; privzeto nobena. */
+  malicaVloga: text("malica_vloga", { enum: ["none", "main", "soup", "dessert"] })
+    .notNull()
+    .default("none"),
   vrstaArtikla: text("vrsta_artikla").notNull().default("storitev"),
   /** Happy Hour cena normalne pice oziroma običajnega artikla. */
   happyHourCena: numeric("happy_hour_cena", { precision: 10, scale: 2 }),

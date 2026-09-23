@@ -23,3 +23,20 @@ export function getNextKdsCoursesToFire(nalogi: KdsNalog[]): KdsCourseToFire[] {
   }
   return candidates.sort((a, b) => a.pairingGroupId.localeCompare(b.pairingGroupId));
 }
+
+export type MalicaKdsInference = "samo_glavna_jed" | "brez_juhe" | "brez_sladice" | "celotna";
+
+/** Infers Malica composition from the immutable pairing-group encoding. */
+export function inferMalicaKdsComposition(pairingGroupId: string | null | undefined): MalicaKdsInference | null {
+  if (!pairingGroupId || !pairingGroupId.startsWith("malica:")) return null;
+  const match = pairingGroupId.match(/^malica:s([01])m([01])d([01]):/);
+  if (!match) return null;
+  const hasSoup = match[1] === "1";
+  const hasMain = match[2] === "1";
+  const hasDessert = match[3] === "1";
+  if (hasMain && !hasSoup && !hasDessert) return "samo_glavna_jed";
+  if (hasMain && !hasSoup && hasDessert) return "brez_juhe";
+  if (hasMain && hasSoup && !hasDessert) return "brez_sladice";
+  if (hasMain && hasSoup && hasDessert) return "celotna";
+  return null;
+}
