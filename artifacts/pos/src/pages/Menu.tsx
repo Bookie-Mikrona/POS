@@ -24,6 +24,7 @@ import {
   getGetArtikelNormativeChangeHistoryQueryKey,
   getGetArtikelModSkupineQueryKey,
   getGetArtikelAlergeniNormativQueryKey,
+  getGetPreparedFoodAvailabilityQueryKey,
   getArtikliCenikPdf,
   ApiError,
 } from "@workspace/api-client-react";
@@ -49,6 +50,7 @@ import ModifikatorjePanel from "@/components/ModifikatorjePanel";
 import { ArticleImageCropDialog } from "@/components/ArticleImageCropDialog";
 
 import { type NormativItem } from "@/lib/kopiraj-normativ";
+type PizzaDoughSelection = { normalna: number; mala: number };
 import { requiresClassicNormativ } from "@/lib/multicourse-menu-validation";
 import { useKopirajNormativ } from "@/hooks/useKopirajNormativ";
 import {
@@ -160,6 +162,9 @@ export default function Menu() {
   const [artJeSkupinskiNabavniArtikel, setArtJeSkupinskiNabavniArtikel] = useState(false);
   const lahkoJeSkupinskiNabavniArtikel = artNabavniArtikel && !artProdajniArtikel && isGroupablePurchaseUnit(artEnotaMere);
   const [normativItems, setNormativItems] = useState<NormativItem[]>([]);
+  const [pizzaDoughSelection, setPizzaDoughSelection] = useState<PizzaDoughSelection | null>(null);
+  const [pizzaDoughSaved, setPizzaDoughSaved] = useState<PizzaDoughSelection | null>(null);
+  const [pizzaDoughSaving, setPizzaDoughSaving] = useState(false);
   const [normativExpectedRevision, setNormativExpectedRevision] = useState<number | null>(null);
   const [normativStale, setNormativStale] = useState(false);
   const [proposalDraft, setProposalDraft] = useState<NormativeProposalDraft | null>(null);
@@ -503,7 +508,7 @@ export default function Menu() {
   const pizzaDoughNormsQuery = useQuery({
     queryKey: ["artikel-pizza-dough-norms", editingArt?.id],
     enabled: Boolean(artDialogOpen && artMode === "uredi" && editingArt && artJePica),
-    staleTime: 60_000,
+    staleTime: 0,
     queryFn: async () => {
       if (!editingArt) return [];
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -525,6 +530,59 @@ export default function Menu() {
       }>;
     },
   });
+  useEffect(() => {
+    if (!artDialogOpen || !artJePica || pizzaDoughNormsQuery.isFetching || !pizzaDoughNormsQuery.data) return;
+    const normal = pizzaDoughNormsQuery.data.find(row => row.size === "normalna");
+    const small = pizzaDoughNormsQuery.data.find(row => row.size === "mala");
+    if (!normal || !small) return;
+    const selection = { normalna: normal.ingredient.id, mala: small.ingredient.id };
+    setPizzaDoughSaved(current => current ?? selection);
+    setPizzaDoughSelection(current => current ?? selection);
+  }, [artDialogOpen, artJePica, editingArt?.id, pizzaDoughNormsQuery.data, pizzaDoughNormsQuery.isFetching]);
+
+  const pizzaDoughChanged = Boolean(pizzaDoughSaved && pizzaDoughSelection
+    && (pizzaDoughSelection.normalna !== pizzaDoughSaved.normalna
+      || pizzaDoughSelection.mala !== pizzaDoughSaved.mala));
+  const pizzaDoughChoices = (artikli ?? []).filter(article =>
+    article.mealType === "prepared" && !article.prodajniArtikel && article.aktiven
+    && ["kos", "kom"].includes(article.enotaMere?.trim().toLocaleLowerCase("sl") ?? ""));
+  const savePizzaDough = async () => {
+    if (!editingArt || !pizzaDoughSelection || !pizzaDoughSaved) return;
+    if (pizzaDoughSelection.normalna === pizzaDoughSelection.mala) {
+      setNormativNapaka("Za malo in normalno pico izberite različna hlebčka.");
+      return;
+    }
+    setPizzaDoughSaving(true);
+    setNormativNapaka(null);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/artikli/${editingArt.id}/pizza-dough-norms`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          normalDoughArticleId: pizzaDoughSelection.normalna,
+          smallDoughArticleId: pizzaDoughSelection.mala,
+          expectedNormalDoughArticleId: pizzaDoughSaved.normalna,
+          expectedSmallDoughArticleId: pizzaDoughSaved.mala,
+        }),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(body && typeof body === "object" && "error" in body && typeof body.error === "string"
+          ? body.error : "Hlebčkov ni bilo mogoče shraniti.");
+      }
+      setPizzaDoughSaved({ ...pizzaDoughSelection });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["artikel-pizza-dough-norms"] }),
+        queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() }),
+      ]);
+      toast({ title: "Hlebčka shranjena", description: "Izbira velja za vse pice v tej enoti." });
+    } catch (error) {
+      setNormativNapaka(error instanceof Error ? error.message : "Hlebčkov ni bilo mogoče shraniti.");
+    } finally {
+      setPizzaDoughSaving(false);
+    }
+  };
 
   const previewAlergeniMutation = usePreviewArtikelAlergeniNormativ();
   const [inheritedAlergeni, setInheritedAlergeni] = useState<AlergenPovzetek | null>(null);
@@ -605,6 +663,16 @@ export default function Menu() {
         ime: n.vhodniArtikelIme ?? undefined,
       })));
       setNormativExpectedRevision(result.data.normativRevision);
+      if (artJePica) {
+        const doughResult = await pizzaDoughNormsQuery.refetch();
+        const normal = doughResult.data?.find(row => row.size === "normalna");
+        const small = doughResult.data?.find(row => row.size === "mala");
+        if (normal && small) {
+          const selection = { normalna: normal.ingredient.id, mala: small.ingredient.id };
+          setPizzaDoughSelection(selection);
+          setPizzaDoughSaved(selection);
+        }
+      }
       setNormativStale(false);
       setNormativNapaka(null);
       toast({ title: "Normativ osvežen", description: "Prikazane so najnovejše shranjene vrstice." });
@@ -836,6 +904,8 @@ export default function Menu() {
     setCroppingArticleImage(null);
     setArtImeZaNabavo(""); setArtEnotaMere(null);
     setNormativItems([]);
+    setPizzaDoughSelection(null);
+    setPizzaDoughSaved(null);
     setNormativExpectedRevision(null);
     setNormativStale(false);
     setNormativNapaka(null);
@@ -896,6 +966,8 @@ export default function Menu() {
     setArtEnotaMere(a.enotaMere ?? null);
     setArtJeSkupinskiNabavniArtikel(Boolean((a as Artikel & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel));
     setNormativItems([]);
+    setPizzaDoughSelection(null);
+    setPizzaDoughSaved(null);
     setNormativExpectedRevision(null);
     setNormativStale(false);
     setNormativNapaka(null);
@@ -1219,6 +1291,11 @@ export default function Menu() {
   };
 
   const handleSaveArt = () => {
+    if (pizzaDoughChanged) {
+      setArtDialogTab("normativ");
+      setNormativNapaka("Izbira hlebčkov še ni shranjena. Najprej kliknite »Shrani hlebčka«, nato posodobite artikel.");
+      return;
+    }
     if (artMode === "uredi" && normativExpectedRevision === null) {
       setNormativNapaka("Počakajte, da se normativ naloži, nato poskusite znova.");
       return;
@@ -2554,36 +2631,7 @@ export default function Menu() {
                       </Button>
                     </div>
                   </div>
-                  {editingArt && artJePica && (
-                    <div className="space-y-1 rounded-md bg-muted/40 p-2" data-testid="pizza-dough-norms">
-                      <p className="text-xs font-semibold text-muted-foreground">Normativi testa po velikosti · samo za branje</p>
-                      {pizzaDoughNormsQuery.isLoading ? (
-                        <p className="text-sm text-muted-foreground">Nalaganje normativov testa …</p>
-                      ) : pizzaDoughNormsQuery.isError ? (
-                        <p className="text-sm text-destructive">
-                          {pizzaDoughNormsQuery.error instanceof Error
-                            ? pizzaDoughNormsQuery.error.message
-                            : "Normativov testa za pico ni bilo mogoče naložiti."}
-                        </p>
-                      ) : pizzaDoughNormsQuery.data?.length ? (
-                        pizzaDoughNormsQuery.data.map((row) => {
-                          const sizeLabel = row.size === "mala" ? "Mala" : row.size === "normalna" ? "Normalna" : "Družinska";
-                          return (
-                            <div
-                              key={`${row.size}-${row.ingredient.id}`}
-                              className="flex items-center justify-between gap-3 rounded border bg-background px-2 py-1.5 text-sm"
-                            >
-                              <span>{sizeLabel} — {row.ingredient.name}</span>
-                              <span className="shrink-0 tabular-nums">{row.quantity} kos</span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Za velikosti pice ni določenih dodatnih normativov testa.</p>
-                      )}
-                    </div>
-                  )}
-                  {normativItems.length === 0 ? (
+                  {normativItems.length === 0 && !(editingArt && artJePica) ? (
                     <p className="text-sm text-muted-foreground">Ni določenih vhodnih artiklov.</p>
                   ) : (
                     <div className="space-y-2">
@@ -2704,6 +2752,56 @@ export default function Menu() {
                           </div>
                         );
                       })}
+                      {editingArt && artJePica && pizzaDoughNormsQuery.isLoading && (
+                        <p className="text-sm text-muted-foreground">Nalaganje hlebčkov …</p>
+                      )}
+                      {editingArt && artJePica && pizzaDoughNormsQuery.isError && (
+                        <p className="text-sm text-destructive">
+                          {pizzaDoughNormsQuery.error instanceof Error
+                            ? pizzaDoughNormsQuery.error.message
+                            : "Hlebčkov ni bilo mogoče naložiti."}
+                        </p>
+                      )}
+                      {editingArt && artJePica && !pizzaDoughNormsQuery.isLoading && !pizzaDoughNormsQuery.isError && !pizzaDoughSaved && (
+                        <p className="text-sm text-muted-foreground">V tej enoti še ni nastavljenih hlebčkov za pico.</p>
+                      )}
+                      {editingArt && artJePica && pizzaDoughSaved && (
+                        <>
+                          {(["normalna", "mala"] as const).map(size => (
+                            <div key={size} className="grid grid-cols-[minmax(0,1fr)_5rem_2rem] gap-1.5 items-center sm:grid-cols-[minmax(0,1fr)_4rem_6rem_2rem]" data-testid={`pizza-dough-${size}`}>
+                              <div className="col-span-3 min-w-0 sm:col-span-1">
+                                <label htmlFor={`pizza-dough-${size}`} className="block text-xs font-medium text-muted-foreground">
+                                  Hlebček · {size === "normalna" ? "normalna" : "mala"}
+                                </label>
+                                <select
+                                  id={`pizza-dough-${size}`}
+                                  aria-label={`Vhodni artikel hlebčka za ${size === "normalna" ? "normalno" : "malo"} pico`}
+                                  className="h-8 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm"
+                                  value={pizzaDoughSelection?.[size] ?? ""}
+                                  disabled={pizzaDoughSaving}
+                                  onChange={event => setPizzaDoughSelection(current =>
+                                    current ? { ...current, [size]: Number(event.target.value) } : current)}
+                                >
+                                  <option value="" disabled>Izberi hlebček</option>
+                                  {pizzaDoughChoices.map(article => (
+                                    <option key={article.id} value={article.id}>{article.ime}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <span className="text-sm text-muted-foreground font-mono sm:text-center">kos</span>
+                              <span className="text-right text-sm tabular-nums">1</span>
+                              <span />
+                            </div>
+                          ))}
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <span>En hlebček na pico. Izbira velja za vse pice v tej enoti.</span>
+                            <Button type="button" size="sm" variant="outline" disabled={!pizzaDoughChanged || pizzaDoughSaving}
+                              onClick={() => void savePizzaDough()}>
+                              {pizzaDoughSaving ? "Shranjujem..." : "Shrani hlebčka"}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
