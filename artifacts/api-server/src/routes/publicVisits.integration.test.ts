@@ -159,6 +159,26 @@ afterAll(async () => {
 });
 
 describe("Stripe Connect voucher safeguards", () => {
+  it("validates one or several voucher UUIDs without failing the checkout query", async () => {
+    const client=(db as any).$client;
+    const previous=(await client.query("SELECT active FROM public_venue_profiles WHERE id=$1",[profileId])).rows[0].active;
+    await client.query("UPDATE public_venue_profiles SET active=true WHERE id=$1",[profileId]);
+    try {
+      for(const count of [1,2]){
+        const response=await supertest(publicApp()).post(`/javno/restavracije/venue-${run}/boni/checkout`).send({
+          idempotencyKey:randomUUID(),
+          items:Array.from({length:count},()=>({productId:randomUUID(),variantId:randomUUID(),quantity:1})),
+          buyerIme:"Kupec",buyerEmail:"kupec@example.test",
+          recipientIme:"Kupec",recipientEmail:"kupec@example.test",privacyAccepted:true,
+        });
+        expect(response.status,response.text).toBe(400);
+        expect(response.body.error).toBe("Izbrani bon ni več na voljo.");
+      }
+    } finally {
+      await client.query("UPDATE public_venue_profiles SET active=$1 WHERE id=$2",[previous,profileId]);
+    }
+  });
+
   it("requires a Standard account in the platform mode and all payment capabilities", () => {
     const ready={id:"acct_ready",type:"standard",details_submitted:true,charges_enabled:true,payouts_enabled:true};
     expect(stripeAccountIsReady(ready,"acct_ready",false,false)).toBe(true);

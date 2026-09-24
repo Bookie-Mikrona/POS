@@ -716,8 +716,9 @@ publicVisitsRouter.post("/javno/restavracije/:slug/boni/checkout", async (req, r
   const p = await profileBySlug(path.data.slug);
   if (!p) return res.status(404).json({ error: "Restavracija ni najdena." });
   const variantIds = body.data.items.map(x => x.variantId);
+  if (!variantIds.every(id => UUID_V4.test(id))) return res.status(400).json({ error: "Izbrani bon ni veljaven." });
   const variants = rows(await db.execute(sql`SELECT v.*,p.name product_name FROM public_voucher_variants v JOIN public_voucher_products p ON p.id=v.product_id
-    WHERE v.id=ANY(${variantIds}::uuid[]) AND p.profile_id=${p.id} AND v.active=true AND p.active=true`));
+    WHERE v.id IN (${sql.join(variantIds.map(id => sql`${id}::uuid`), sql`, `)}) AND p.profile_id=${p.id} AND v.active=true AND p.active=true`));
   if (variants.length !== new Set(variantIds).size) return res.status(400).json({ error: "Izbrani bon ni več na voljo." });
   if(!UUID_V4.test(body.data.idempotencyKey))return res.status(400).json({error:"Varnostni ključ zahteve ni veljaven."});
   const byId = new Map(variants.map(v => [v.id, v]));
