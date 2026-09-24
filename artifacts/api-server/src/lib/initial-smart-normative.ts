@@ -18,6 +18,20 @@ export type InitialNormativeItem = {
 };
 export type InitialNormativeSource = { url: string; title: string };
 
+/** A single named alcoholic drink with a serving size is not a web recipe. */
+export function singleIngredientDrinkFromName(
+  name: string,
+  taxCategory: string | null,
+): { name: string; quantity: string; unit: "LTR"; sourceUrls: [] } | null {
+  if (taxCategory !== "alcoholic") return null;
+  const match = /^([\p{L}\p{M}][\p{L}\p{M}'’-]*)\s+(\d+(?:[,.]\d+)?)\s*(ml|cl|l)$/iu.exec(name.trim());
+  if (!match) return null;
+  const factor = match[3]!.toLowerCase() === "ml" ? "0.001" : match[3]!.toLowerCase() === "cl" ? "0.01" : "1";
+  const quantity = new Decimal(match[2]!.replace(",", ".")).mul(factor);
+  if (quantity.lte(0) || quantity.gt(2) || quantity.decimalPlaces() > 4) return null;
+  return { name: match[1]!, quantity: quantity.toFixed(), unit: "LTR", sourceUrls: [] };
+}
+
 const RecipeResponseSchema = z.object({
   recipes: z.array(z.object({
     sourceUrl: z.string().url().max(2_000),
@@ -138,6 +152,7 @@ export function normalizeInitialRecipeResearch(
 
 const InitialProposalPayloadSchema = z.object({
   v: z.literal(1),
+  origin: z.enum(["catalog_volume"]).optional(),
   enotaId: z.number().int().positive(),
   articleId: z.number().int().positive(),
   revision: z.number().int().positive(),
@@ -149,10 +164,17 @@ const InitialProposalPayloadSchema = z.object({
     unit: z.enum(["KGM", "LTR", "KOM"]),
     existingArticleId: z.number().int().positive().nullable(),
     willCreate: z.boolean(),
-    sourceUrls: z.array(z.string().url().max(2_000)).min(1).max(4),
+    sourceUrls: z.array(z.string().url().max(2_000)).max(4),
   }).strict()).min(1).max(100),
-  sources: z.array(z.object({ url: z.string().url().max(2_000), title: z.string().min(1).max(500) }).strict()).min(2).max(4),
-}).strict();
+  sources: z.array(z.object({ url: z.string().url().max(2_000), title: z.string().min(1).max(500) }).strict()).max(4),
+}).strict().superRefine((value, ctx) => {
+  const catalog = value.origin === "catalog_volume";
+  if (catalog
+    ? value.sources.length !== 0 || value.items.length !== 1 || value.items.some(item => item.sourceUrls.length !== 0)
+    : value.sources.length < 2 || value.items.some(item => item.sourceUrls.length < 1)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Neveljaven dokaz izvora normativa." });
+  }
+});
 export type InitialProposalPayload = z.infer<typeof InitialProposalPayloadSchema>;
 
 function proposalSecret(): string | undefined {

@@ -37,6 +37,7 @@ import {
   isDetectablyPreparedIngredient,
   normalizeIngredientName,
   signInitialNormativeProposal,
+  singleIngredientDrinkFromName,
   verifyInitialNormativeProposal,
   type InitialNormativeUnit,
 } from "../../lib/initial-smart-normative";
@@ -2044,6 +2045,8 @@ const ApplyInitialNormativeBody = z.object({
 
 const INITIAL_NORMATIVE_WARNING =
   "Spletno iskanje potrjuje samo URL-je in naslove virov; recepti, sestavine, količine in porcije so ustvarjeni z umetno inteligenco in vsebinsko niso preverjeni v virih. Pred potrditvijo jih ročno preverite.";
+const CATALOG_VOLUME_WARNING =
+  "Količina je razbrana samo iz naziva prodajnega artikla, brez spletnega recepta. Preverite, da gre za eno samo navedeno pijačo, da je volumen pravilen in da je nabavni artikel ustrezen, preden potrdite normativ.";
 
 function initialIngredientVatRate(
   category: TaxCategory,
@@ -2161,20 +2164,19 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
   if (!EmptyInitialNormativeBody.safeParse(req.body).success) {
     res.status(400).json({ error: "Telo zahteve mora biti prazen objekt." }); return;
   }
-  if (!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || !process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
-    res.status(503).json({ error: "Raziskovanje receptov trenutno ni na voljo, ker konfiguracija LLM manjka." }); return;
-  }
   if (!process.env.POS_NORMATIVE_PROPOSAL_SECRET && !process.env.SESSION_SECRET) {
     res.status(503).json({ error: "Podpisni ključ za predloge normativa ni nastavljen." }); return;
   }
 
-  let owner: { revision: number; name: string } | undefined;
+  let owner: { revision: number; name: string; taxCategory: string | null; categoryId: number | null } | undefined;
   try {
     owner = await db.transaction(async tx => {
       await lockNormativeGraph(tx, enotaId);
       const [row] = await tx.select({
         id: artikliTable.id,
         name: artikliTable.ime,
+        taxCategory: artikliTable.taxCategory,
+        categoryId: artikliTable.kategorijaId,
         revision: artikliTable.normativRevision,
         sale: artikliTable.prodajniArtikel,
       }).from(artikliTable)
@@ -2185,7 +2187,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
       const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
         .where(eq(normativiTable.artikelId, artikelId)).limit(1);
       if (existingNorm) throw new NormativeRequestError(409, { error: "Artikel že ima normativ; pametni začetni predlog je dovoljen le za prazen normativ." });
-      return { revision: Number(row.revision), name: row.name };
+      return { revision: Number(row.revision), name: row.name, taxCategory: row.taxCategory, categoryId: row.categoryId };
     });
   } catch (error) {
     if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
@@ -2193,7 +2195,21 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
   }
 
   try {
-    const research = await getInitialRecipeResearch(enotaId, artikelId, owner.revision, owner.name, async () => {
+    const catalogItem = singleIngredientDrinkFromName(owner.name, owner.taxCategory);
+    if (!catalogItem) {
+      const [category] = owner.categoryId === null ? [] : await db.select({ tip: kategorijeTable.tip })
+        .from(kategorijeTable)
+        .where(and(eq(kategorijeTable.id, owner.categoryId), eq(kategorijeTable.enotaId, enotaId)));
+      if (owner.taxCategory !== "food" || (owner.categoryId !== null && category?.tip !== "hrana")) {
+        res.status(422).json({ error: "Spletni predlog recepta je na voljo samo za jedi; pijači z odmerkom v nazivu lahko predlagamo eno sestavino." }); return;
+      }
+    }
+    if (!catalogItem && (!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || !process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY)) {
+      res.status(503).json({ error: "Raziskovanje receptov trenutno ni na voljo, ker konfiguracija LLM manjka." }); return;
+    }
+    const research = catalogItem
+      ? { items: [catalogItem], sources: [] }
+      : await getInitialRecipeResearch(enotaId, artikelId, owner.revision, owner.name, async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 45_000);
       try {
@@ -2209,7 +2225,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
         }, { signal: controller.signal, timeout: 45_000 });
         return response.content as unknown[];
       } finally { clearTimeout(timeout); }
-    });
+      });
     const resolved = await resolveInitialNormativeItems(db, enotaId, research.items);
     const items = research.items.map((item, index) => {
       const existingArticleId = resolved[index]!.vhodniArtikelId;
@@ -2224,6 +2240,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
     });
     const token = signInitialNormativeProposal({
       v: 1,
+      ...(catalogItem ? { origin: "catalog_volume" as const } : {}),
       enotaId,
       articleId: artikelId,
       revision: owner.revision,
@@ -2243,7 +2260,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
       revision: owner.revision,
       items,
       sources: research.sources,
-      warnings: [INITIAL_NORMATIVE_WARNING],
+      warnings: [catalogItem ? CATALOG_VOLUME_WARNING : INITIAL_NORMATIVE_WARNING],
     });
   } catch (error) {
     if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
@@ -2302,6 +2319,7 @@ router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, asyn
       const [owner] = await tx.select({
         id: artikliTable.id,
         name: artikliTable.ime,
+        taxCategory: artikliTable.taxCategory,
         revision: artikliTable.normativRevision,
         sale: artikliTable.prodajniArtikel,
         mealType: artikliTable.mealType,
@@ -2312,6 +2330,13 @@ router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, asyn
       if (!owner) throw new NormativeRequestError(404, { error: "Artikel ni najden." });
       if (!owner.sale) throw new NormativeRequestError(422, { error: "Pametni predlog ni na voljo za artikle, ki so samo nabavni." });
       if (Number(owner.revision) !== proposal.revision || owner.name !== proposal.targetName) throw new NormativeStaleError();
+      if (proposal.origin === "catalog_volume") {
+        const expected = singleIngredientDrinkFromName(owner.name, owner.taxCategory);
+        const item = proposal.items[0];
+        if (!expected || !item || item.name !== expected.name || item.quantity !== expected.quantity || item.unit !== expected.unit) {
+          throw new NormativeStaleError();
+        }
+      }
       const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
         .where(eq(normativiTable.artikelId, artikelId)).limit(1);
       if (existingNorm) throw new NormativeStaleError();

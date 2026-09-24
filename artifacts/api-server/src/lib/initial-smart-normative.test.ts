@@ -3,6 +3,7 @@ import {
   clearInitialRecipeResearchCache,
   normalizeInitialRecipeResearch,
   signInitialNormativeProposal,
+  singleIngredientDrinkFromName,
   verifyInitialNormativeProposal,
 } from "./initial-smart-normative";
 
@@ -34,6 +35,36 @@ afterEach(() => {
 });
 
 describe("initial smart normative research validation", () => {
+  it("derives a single alcoholic drink serving from its name, never from a mixed-drink label", () => {
+    expect(singleIngredientDrinkFromName("Borovničevec 0,05 l", "alcoholic"))
+      .toEqual({ name: "Borovničevec", quantity: "0.05", unit: "LTR", sourceUrls: [] });
+    expect(singleIngredientDrinkFromName("Borovničevec 3 cl", "alcoholic")?.quantity).toBe("0.03");
+    expect(singleIngredientDrinkFromName("Borovničevec 50 ml", "alcoholic")?.quantity).toBe("0.05");
+    expect(singleIngredientDrinkFromName("Borovničevec 0,05 l", "food")).toBeNull();
+    expect(singleIngredientDrinkFromName("Koktajl Borovničevec 0,05 l", "alcoholic")).toBeNull();
+    expect(singleIngredientDrinkFromName("Borovničevec 0 l", "alcoholic")).toBeNull();
+    expect(singleIngredientDrinkFromName("Borovničevec 0,00001 l", "alcoholic")).toBeNull();
+  });
+
+  it("accepts a signed name-derived proposal without web sources, but not an unsourced web proposal", () => {
+    process.env.POS_NORMATIVE_PROPOSAL_SECRET = "test-only-secret";
+    const payload = {
+      v: 1 as const,
+      enotaId: 12,
+      articleId: 34,
+      revision: 1,
+      targetName: "Borovničevec 0,05 l",
+      issuedAt: 1_000_000,
+      items: [{ name: "Borovničevec", quantity: "0.05", unit: "LTR" as const, existingArticleId: null, willCreate: true, sourceUrls: [] }],
+      sources: [],
+    };
+    expect(signInitialNormativeProposal(payload)).toBeNull();
+    const token = signInitialNormativeProposal({ ...payload, origin: "catalog_volume" });
+    expect(token).toBeTruthy();
+    expect(verifyInitialNormativeProposal(token!, 1_001_000)?.origin).toBe("catalog_volume");
+    expect(signInitialNormativeProposal({ ...payload, origin: "catalog_volume", sources: [{ url: sourceA, title: "Fake" }] })).toBeNull();
+  });
+
   it("normalizes complete per-serving recipes to e-SLOG units and preserves typed sources", () => {
     const result = normalizeInitialRecipeResearch(recipeOutput());
     expect(result.items).toEqual(expect.arrayContaining([

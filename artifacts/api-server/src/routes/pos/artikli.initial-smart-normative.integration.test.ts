@@ -268,6 +268,47 @@ describe("initial smart normative proposal and apply", () => {
     expect(norms[0]!.kolicina).toBe("100.0000");
   });
 
+  it("proposes a name-derived alcoholic serving without web search and reuses its purchase article", async () => {
+    const [serving] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Borovničevec 0,05 l", cena: "3.20", davek: "22",
+      taxCategory: "alcoholic", prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const [smallServing] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Borovničevec 0,03 l", cena: "2.70", davek: "22",
+      taxCategory: "alcoholic", prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockClear();
+
+    const response = await preview(serving!.id);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.items).toEqual([expect.objectContaining({
+      name: "Borovničevec", quantity: 0.05, unit: "LTR", willCreate: true, sourceUrls: [],
+    })]);
+    expect(response.body.sources).toEqual([]);
+    expect(response.body.warnings[0]).toContain("razbrana samo iz naziva");
+    expect(mockCreate).not.toHaveBeenCalled();
+
+    const applied = await applyWithClassifications(serving!.id, response.body.token, [{
+      index: 0, taxCategory: "alcoholic", addedSugar: false, rawConfirmed: true,
+    }]);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    const [raw] = await db.select().from(artikliTable).where(eq(artikliTable.id, applied.body.createdArticleIds[0]));
+    expect(raw).toMatchObject({ ime: "Borovničevec", nabavniArtikel: true, prodajniArtikel: false, enotaMere: "LTR" });
+    const [norm] = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, serving!.id));
+    expect(norm!.kolicina).toBe("0.0500");
+
+    const small = await preview(smallServing!.id);
+    expect(small.status, JSON.stringify(small.body)).toBe(200);
+    expect(small.body.items).toEqual([expect.objectContaining({
+      name: "Borovničevec", quantity: 0.03, unit: "LTR", existingArticleId: raw!.id, willCreate: false,
+    })]);
+    const smallApplied = await applyWithClassifications(smallServing!.id, small.body.token, []);
+    expect(smallApplied.status, JSON.stringify(smallApplied.body)).toBe(200);
+    expect(smallApplied.body.createdArticleIds).toEqual([]);
+    expect((await db.select().from(normativiTable).where(eq(normativiTable.artikelId, smallServing!.id)))[0]!.kolicina).toBe("0.0300");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it("rejects missing/mismatched unit, non-admin, cross-unit articles, source spoofing, and stale apply", async () => {
     currentIngredient = `${run}-stale`;
     const noHeader = await supertest(app).post(`/artikli/${otherFoodParentId}/normativi/pametni-predlog`)

@@ -205,7 +205,9 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                   <div className="space-y-1">
                     <p className="font-medium text-blue-950 text-base">OPOZORILO: Potreben je strog ročni pregled</p>
                     <p>
-                      Samo naslovi in povezave virov so preverjeni. Količine, sestavine in pretvorbe receptov so nepotrjeni AI izračuni. 
+                      {proposal.sources.length > 0
+                        ? "Samo naslovi in povezave virov so preverjeni. Količine, sestavine in pretvorbe receptov so nepotrjeni AI izračuni."
+                        : "Predlog je razbran iz imena artikla. Spletnih virov ni; preverite, da naziv označuje eno samo pijačo in navedeni volumen."}
                       Ta predlog <b>ni preverjena računovodska ali davčna informacija</b>.
                     </p>
                     <p>Sestavine, količine in davčno klasifikacijo morate pred uporabo obvezno preveriti in potrditi.</p>
@@ -308,7 +310,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                                   }))}
                                 />
                                 <span className="leading-snug">
-                                  Potrjujem, da je "{item.name}" osnovna <b>SUROVINA / NABAVNI ARTIKEL</b> (npr. sol, moka, voda) in ne napol pripravljena jed ali drug prodajni artikel. Če predlog uporablja polizdelke, ki bi morali imeti svoj normativ, <b>prekličite postopek</b> in artikel sestavite ročno.
+                                  Potrjujem, da je "{item.name}" <b>SUROVINA / NABAVNI ARTIKEL</b> in ne polizdelek ali drug prodajni artikel. Če predlog uporablja polizdelke, ki bi morali imeti svoj normativ, <b>prekličite postopek</b> in artikel sestavite ročno.
                                 </span>
                               </label>
                             </div>
