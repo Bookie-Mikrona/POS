@@ -99,6 +99,7 @@
 - [POS prihodki po kategorijah](pos-prihodki-po-kategorijah.md) — prihodkovni konto sledi nespremenljivemu posnetku POS kategorije; DDV ostane agregiran po stopnji.
 - [Podjetniške in FURS DDV kode](company-furs-vat-links.md) — podjetniška koda kaže na točno verzijo FURS kode; temeljnična vrstica hrani oba ločena ID-ja.
 - [Podvojen API watcher](api-workflow-duplicate-watcher.md) — po restartu preveri EADDRINUSE in eno samo procesno drevo; star tsx child lahko še vedno drži port 8080.
+- [Ponovni zagon razvojnega okolja](compute-restart-ui.md) — ko Ctrl+K v Project Editorju ne deluje, dokumentirani `kill 1` znova zažene compute; nato obnovi potrebne workflowe.
 - [Razvojni 502 in glavni Run](dev-preview-main-run.md) — aktivni posamezni workflowi ne izključijo ustavljenega glavnega app stanja; pri 502 preveri in zaženi Run.
 - [Menijski DDV in snapshot postavke](menu-ddv-snapshot.md) — davčna klasifikacija in menijski kontekst sta ločena; zgodovine ne izpeljuj iz trenutnega artikla.
 - [DDV kategorija Pijača-jed](food-drink-ddv.md) — pripravljena pijača-jed ostane 9,5 %; dodan sladkor se pri shranjevanju vedno normalizira na false.
