@@ -102,6 +102,7 @@
 - [Podvojen API watcher](api-workflow-duplicate-watcher.md) — po restartu preveri EADDRINUSE in eno samo procesno drevo; star tsx child lahko še vedno drži port 8080.
 - [Ponovni zagon razvojnega okolja](compute-restart-ui.md) — ko Ctrl+K v Project Editorju ne deluje, dokumentirani `kill 1` znova zažene compute; nato obnovi potrebne workflowe.
 - [Testna podjetja in davčna sled](test-companies-fiscal-trace.md) — testne najemnike loči od dejanskih, vendar jih ne briši po imenu; nekateri hranijo POS račune.
+- [Odhod podjetja in mešane kopije](company-offboarding-policy.md) — stranka prejme svoj preverljiv izvoz; stare skupne kopije ostanejo le do posebej dogovorjenega roka.
 - [Razvojni 502 in glavni Run](dev-preview-main-run.md) — aktivni posamezni workflowi ne izključijo ustavljenega glavnega app stanja; pri 502 preveri in zaženi Run.
 - [Menijski DDV in snapshot postavke](menu-ddv-snapshot.md) — davčna klasifikacija in menijski kontekst sta ločena; zgodovine ne izpeljuj iz trenutnega artikla.
 - [DDV kategorija Pijača-jed](food-drink-ddv.md) — pripravljena pijača-jed ostane 9,5 %; dodan sladkor se pri shranjevanju vedno normalizira na false.
