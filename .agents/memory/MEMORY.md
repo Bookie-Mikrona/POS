@@ -75,6 +75,7 @@
 - [Clerk lokalizacija](clerk-lokalizacija.md) — pri tej različici globalni footer ključi niso tipovno podprti; besedilo noge nastavi v signIn/signUp.start.
 - [Clerk POS E2E](clerk-pos-e2e.md) — programska Clerk seja ni dovolj; testni userId potrebuje časovno omejen pos_uporabniki zapis in veljavno aktivno enoto.
 - [POS prehodni 401](pos-transient-401.md) — en sam 401 ne sme odmontirati aplikacije; odjavo potrdi s svežim Clerk žetonom in `/api/pos/auth/me`.
+- [POS prijavna pot in globalni middleware](pos-auth-router-scope.md) — varovala za enoto montiraj le na njihove URL predpone; sicer blokirajo prijavo pred izborom enote.
 - [OpenAPI format generator](openapi-uuid-generator.md) — `format: uuid` in `format: uri` generirata nezdružljive Zod 3 klice; taka polja opiši kot string.
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.

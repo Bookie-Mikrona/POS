@@ -84,7 +84,11 @@ router.use(osAmortizacijaRouter);
 router.use(osAmortizacijaKnjizenjRouter);
 router.use(externalExportsRouter);
 router.use(backupRouter);
-router.use(requireEnota, internalVoucherRouter);
+// Ne postavi requireEnota na koren routerja: POS /pos/auth/me mora razrešiti
+// uporabnika še pred izbiro enote. Zaščiti samo poti tega podrouterja.
+router.use("/javni-profil", requireEnota);
+router.use("/darilni-boni/individualni", requireEnota);
+router.use(internalVoucherRouter);
 // Obračun ur je edina POS-pot, ki jo lahko bere tudi ERP računovodja/lastnik.
 // Montaža pred splošnim POS middleware-om ohrani company-level ERP kontekst.
 router.get("/izmene/obracun-ur", requireObracunUrAccess, getObracunUrHandler);
