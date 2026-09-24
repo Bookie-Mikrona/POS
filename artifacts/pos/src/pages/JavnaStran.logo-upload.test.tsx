@@ -59,6 +59,10 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: apiMocks.toast }),
 }));
 
+vi.mock("@/components/StripeConnectOnboardingCard", () => ({
+  StripeConnectOnboardingCard: () => null,
+}));
+
 vi.mock("@workspace/api-client-react", () => ({
   getGetJavniProfilNastavitveQueryKey: () => ["/api/javni-profil"],
   getListStripePreglediBonovQueryKey: () => ["/api/stripe-pregledi"],
@@ -127,6 +131,27 @@ describe("prenos logotipa javnega profila", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("odpre delovni čas, spremeni dan in shrani brez napake konteksta obrazca", async () => {
+    renderPage();
+    fireEvent.mouseDown(screen.getByTestId("tab-urnik"), { button: 0, ctrlKey: false });
+
+    const monday = await screen.findByTestId("switch-urnik-dan-0");
+    expect(monday.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(monday);
+    expect(monday.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj interval" }));
+    expect(screen.getByTestId("input-urnik-dan-0-od-0")).toBeDefined();
+
+    fireEvent.click(screen.getByTestId("button-save"));
+    await waitFor(() => {
+      expect(apiMocks.update).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          openingHours: expect.arrayContaining([expect.objectContaining({ dan: 1, odprto: true })]),
+        }),
+      });
+    });
   });
 
   it("preveri datoteko, jo prenese, prikaže, shrani, zamenja in odstrani", async () => {

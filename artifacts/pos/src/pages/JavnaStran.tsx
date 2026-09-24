@@ -1187,12 +1187,12 @@ export default function JavnaStran() {
                           control={form.control}
                           name={`openingHours.${i}.odprto`}
                           render={({ field }) => (
-                            <div className="flex items-center gap-3">
+                            <FormItem className="flex items-center gap-3 space-y-0">
                               <FormControl>
                                 <Switch checked={field.value} onCheckedChange={field.onChange} data-testid={`switch-urnik-dan-${i}`} />
                               </FormControl>
                               <FormLabel className="font-semibold text-base leading-none cursor-pointer">{danIme}</FormLabel>
-                            </div>
+                            </FormItem>
                           )}
                         />
                         {form.watch(`openingHours.${i}.odprto`) && (
