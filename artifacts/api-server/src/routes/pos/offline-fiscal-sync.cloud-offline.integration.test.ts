@@ -8,7 +8,7 @@
 import { createHash, createPrivateKey, createPublicKey, createSign, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   artikliTable, companiesTable, db, enoteTable, izmeneTable, narocilaTable,
   nastavitveTable, natakariTable, offlineAuthorityBundlesTable, offlineFiscalDevicesTable, modSkupineTable,
@@ -24,6 +24,7 @@ import { claimAndSubmitOfflineReceipt, resetOfflineFiscalWorkerHooks, setOffline
 import { runOfflineFiscalOnce } from "../../services/pos/offline-fiscal-runner";
 import { OFFLINE_FISCAL_ENABLED_KEY } from "../../services/pos/offline-fiscal-policy";
 import { ingestOfflineReceipt } from "./offline-fiscal";
+import { assertOfflineFiscalIsolatedTestDatabase } from "./offlineFiscalIsolatedTestDb";
 import express from "express";
 import supertest from "supertest";
 
@@ -35,6 +36,10 @@ const publicKeyPem = createPublicKey(createPrivateKey(privateKeyPem)).export({ t
 const fingerprint = golden.testAuthority.certificateFingerprintSha256 as string;
 
 describe("cloud-origin offline fiscal PostgreSQL reconciliation", () => {
+  beforeAll(async () => {
+    await assertOfflineFiscalIsolatedTestDatabase();
+  });
+
   let scope: string;
   let companyId: string; let enotaId: number; let premiseId: number; let deviceId: string;
   let waiterId: number; let shiftId: number; let articleId: number; let modifierId: number; let alternateModifierId: number; let modifierArticleId: number; let operationId: string;
@@ -155,10 +160,6 @@ describe("cloud-origin offline fiscal PostgreSQL reconciliation", () => {
     if (response.status !== 201) throw new Error(JSON.stringify(response.body));
     expect(response.body.deliveryState).toBe("PENDING");
     receiptId = response.body.id;
-    await db.execute(sql`
-      UPDATE offline_fiscal_receipts r SET production_enabled = false
-      WHERE r.enota_id <> ${enotaId} AND r.furs_state IN ('pending','sending','confirmed')
-    `);
   });
 
   afterEach(async () => {

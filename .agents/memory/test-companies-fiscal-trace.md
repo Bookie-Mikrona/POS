@@ -14,3 +14,20 @@ Izjemno selektivno čiščenje razvojne baze lahko naleti na krožne FK, `NOT VA
 **Why:** Med potrjenim čiščenjem razvojnih testnih najemnikov sta strogi FK vrstni red in zgodovinska zaščita preprečevala običajno brisanje, čeprav je bilo treba odstraniti tudi testne fiskalne sledi.
 
 **How to apply:** Brez izrecne potrditve fiskalnega obsega in uspešnega poskusa z razveljavitvijo ne potrjuj transakcije. Nikoli ne prenašaj te izjeme na produkcijsko bazo.
+
+Offline-fiskalni integracijski testi uporabljajo globalnega delavca in ustvarjajo
+navidezno potrjene fiskalne zapise. V skupni razvojni bazi jih ni dovoljeno
+zaganjati; zahtevajo dejansko ločeno testno bazo, ne zgolj unikatna testna imena
+ali naknadno brisanje.
+
+**Why:** Testni fiskalni računi in njihove zaščitene sledi po koncu testa ostanejo;
+ponovitve lahko v kratkem času ponovno napolnijo razvojni seznam podjetij.
+Poskus »čiščenja« v testih je nevaren zaradi krožnih povezav, revizijskih
+omejitev in globalnega delavca, ki lahko vidi tudi tuje zapise.
+
+**How to apply:** Pred testnimi vpisi preveri identiteto namenske baze in ob
+neujemajočem cilju glasno odpovej. Šele v namenski testni bazi lahko globalni
+delavec in zaključevanje testnih računov tečeta brez vpliva na dejanske
+razvojne najemnike. Pri izjemnem čiščenju skupne baze najprej naredi polno
+kopijo, preveri popolno zaprtost vrstic po FK, ponovi poseg z ROLLBACK ter
+potrdi, da so vsi ohranjeni zapisi nespremenjeni.
