@@ -207,6 +207,7 @@ interface ArtikelItem {
   taxCategory?: string;
   mealType?: "ala_carte" | "prepared" | "composite";
   availableQuantity?: number | null;
+  availableBySize?: { mala: number | null; normalna: number | null; druzinska: number | null };
 }
 
 interface MulticourseMenuConfig {
@@ -471,7 +472,26 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           );
         })()}
 
-        {artikel.mealType !== "ala_carte" && artikel.availableQuantity != null && (
+        {artikel.jePica && artikel.availableBySize ? (
+          <span
+            className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+            style={{
+              backgroundColor: hasColor ? "rgba(255,255,255,0.2)" : "hsl(var(--secondary))",
+              color: hasColor ? "#fff" : "hsl(var(--secondary-foreground))",
+            }}
+            data-testid={`available-portions-${artikel.id}`}
+          >
+            {([
+              ["mala", "Mala"],
+              ["normalna", "Normalna"],
+              ["druzinska", "Družinska"],
+            ] as const).map(([size, label]) => (
+              <span key={size} className="mr-1.5 last:mr-0">
+                {label}: {artikel.availableBySize?.[size] == null ? "∞" : artikel.availableBySize?.[size]}
+              </span>
+            ))}
+          </span>
+        ) : artikel.mealType !== "ala_carte" && artikel.availableQuantity != null && (
           <span
             className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
             style={{
@@ -1526,12 +1546,20 @@ export default function Order() {
 
   const orderedArtikli = useMemo((): ArtikelItem[] => {
     if (!artikli) return [];
-    const availabilityByArticle = new Map(
-      (preparedFoodAvailability?.items ?? []).map((item) => [item.articleId, item.availableQuantity]),
-    );
+    const availabilityItems = (preparedFoodAvailability?.items ?? []) as Array<{
+      articleId: number;
+      availableQuantity: number | null;
+      availableBySize?: ArtikelItem["availableBySize"];
+    }>;
+    const availabilityByArticle = new Map(availabilityItems.map((item) => [item.articleId, item]));
     const mapped = onlyActiveArticles(artikli).map((article) => ({
       ...article,
-      availableQuantity: availabilityByArticle.get(article.id) ?? null,
+      availableQuantity: article.jePica && availabilityByArticle.get(article.id)?.availableBySize
+        ? (Object.values(availabilityByArticle.get(article.id)!.availableBySize!).some((quantity) => quantity == null || quantity > 0)
+          ? null
+          : 0)
+        : availabilityByArticle.get(article.id)?.availableQuantity ?? null,
+      availableBySize: availabilityByArticle.get(article.id)?.availableBySize,
     })) as ArtikelItem[];
     const map = new Map(mapped.map(a => [a.id, a]));
     const ordered = orderedIds.flatMap(id => (map.has(id) ? [map.get(id)!] : []));
@@ -3676,6 +3704,9 @@ export default function Order() {
       const artJePica = modDialogArtikelId !== null
         ? Boolean((artikliMapForOrder.get(modDialogArtikelId) as { jePica?: boolean } | undefined)?.jePica)
         : false;
+      const artRazpolozljivostVelikosti = modDialogArtikelId !== null
+        ? (artikliMapForOrder.get(modDialogArtikelId) as ArtikelItem | undefined)?.availableBySize
+        : undefined;
       const aktivneVelikostiPic = [
         { id: "mala" as const, naziv: "Mala", premer: Number((nastavitve as any)?.picaPremerMala ?? 0) },
         { id: "normalna" as const, naziv: "Normalna", premer: Number((nastavitve as any)?.picaPremerNormalna ?? 0) },
@@ -3700,8 +3731,11 @@ export default function Order() {
         return cenaVelikosti == null ? artCena : Number(cenaVelikosti);
       };
       const izbranaVelikostPice = modDialogVelikostPice
-        ?? aktivneVelikostiPic.find((velikost) => velikost.id === "normalna")?.id
+        ?? aktivneVelikostiPic.find((velikost) => velikost.id === "normalna" && artRazpolozljivostVelikosti?.normalna !== 0)?.id
+        ?? aktivneVelikostiPic.find((velikost) => artRazpolozljivostVelikosti?.[velikost.id] !== 0)?.id
         ?? aktivneVelikostiPic[0]?.id;
+      const jeIzbranaVelikostPiceRazprodana = izbranaVelikostPice != null
+        && artRazpolozljivostVelikosti?.[izbranaVelikostPice] === 0;
       const artCenaZaPrikaz = artJePica
         ? cenaZaVelikostPice(izbranaVelikostPice ?? "normalna")
         : artCena;
@@ -3727,7 +3761,7 @@ export default function Order() {
           ?.mods.map(mod => `${mod.skupinaId}:${mod.id}`) ?? [],
       );
 
-      const isPotrdiDisabled = artSkupine.filter(s => s.obvezna).some(s => {
+      const isPotrdiDisabled = jeIzbranaVelikostPiceRazprodana || artSkupine.filter(s => s.obvezna).some(s => {
         const selected = modDialogIzbrani.filter(m => m.skupinaId === s.id).length;
         return selected < Math.max(1, s.minIzbir);
       });
@@ -3835,10 +3869,16 @@ export default function Order() {
                         variant={izbranaVelikostPice === velikost.id ? "default" : "outline"}
                         className="h-auto min-h-[4.5rem] min-w-0 w-full flex-col gap-0.5 whitespace-normal px-2 py-2 text-center leading-tight"
                         aria-pressed={izbranaVelikostPice === velikost.id}
+                        disabled={artRazpolozljivostVelikosti?.[velikost.id] === 0}
                         onClick={() => setModDialogVelikostPice(velikost.id)}
                       >
                         <span className="font-semibold">{velikost.naziv}</span>
                         <span className="text-xs opacity-80">{velikost.premer} cm</span>
+                        {artRazpolozljivostVelikosti && (
+                          <span className="text-[10px] opacity-80">
+                            {artRazpolozljivostVelikosti[velikost.id] == null ? "Na voljo: ∞" : `Na voljo: ${artRazpolozljivostVelikosti[velikost.id]}`}
+                          </span>
+                        )}
                         <span className="font-bold">{cenaZaVelikostPice(velikost.id).toFixed(2)} €</span>
                       </Button>
                     ))}

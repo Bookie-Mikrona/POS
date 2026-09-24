@@ -51,7 +51,7 @@ import { round2 } from "../lib/pos-furs";
 import { splitMulticourseGross } from "../lib/multicourse-pricing";
 import { getSimDatumOrNow } from "../lib/sim-datum";
 import { broadcastToUnit } from "../lib/pos-sse";
-import { osveziPredvidenPrevzem } from "./pos/narocila";
+import { osveziPredvidenPrevzem, resolveConfiguredPizzaDoughArticleId } from "./pos/narocila";
 import { readAll } from "./pos/nastavitve";
 import { cenaPicePoVelikosti, izracunajVelikostiPic, privzetaVelikostPice, type PizzaVelikostId } from "../lib/pica-velikosti";
 import {
@@ -72,6 +72,50 @@ import { answerOperationalQuestion, loadOperationalSnapshot } from "../lib/opera
 import { qrGuestHistoryCutoff } from "../lib/qrHistoryRetention";
 
 const router: IRouter = Router();
+
+type QrDbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+class PizzaDoughConfigurationError extends Error {
+  readonly code = "PIZZA_DOUGH_CONFIGURATION_INVALID";
+}
+
+async function loadPizzaDoughArticleId(
+  tx: QrDbTransaction,
+  enotaId: number,
+  velikost: PizzaVelikostId,
+): Promise<number | null> {
+  const result = await tx.execute(sql`
+    SELECT normal_dough_article_id, small_dough_article_id
+    FROM pizza_dough_settings
+    WHERE enota_id = ${enotaId}
+    LIMIT 1
+  `);
+  const mapping = result.rows[0] as {
+    normal_dough_article_id: number | string | null;
+    small_dough_article_id: number | string | null;
+  } | undefined;
+  // No settings row means the dough family is not enabled for this unit.
+  let articleId: number | null;
+  try {
+    articleId = resolveConfiguredPizzaDoughArticleId(mapping ?? null, velikost);
+  } catch (error) {
+    throw new PizzaDoughConfigurationError(error instanceof Error ? error.message : "Nastavitve testa za pice niso veljavne.");
+  }
+  if (articleId == null) return null;
+  const articleResult = await tx.execute(sql`
+    SELECT id
+    FROM artikli
+    WHERE id = ${articleId}
+      AND enota_id = ${enotaId}
+      AND meal_type = 'prepared'
+      AND prodajni_artikel = false
+    LIMIT 1
+  `);
+  if (articleResult.rows.length === 0) {
+    throw new PizzaDoughConfigurationError("Nastavljeni artikel testa mora pripadati poslovni enoti, biti pripravljen artikel in ne sme biti prodajni artikel.");
+  }
+  return articleId;
+}
 
 const RATE_LIMIT = 60;
 const ORDER_RATE_LIMIT = 10;
@@ -338,6 +382,7 @@ function toMenuArticle(
     kategorijaNaziv: string | null;
     mealType: "ala_carte" | "prepared" | "composite";
     availableQuantity: number | null;
+    availableBySize?: Partial<Record<PizzaVelikostId, number | null>>;
     alergeni?: Array<{ koda: string; naziv: string }>;
     alergeniSledi?: Array<{ koda: string; naziv: string }>;
     alergeniPotrjeni?: boolean;
@@ -354,9 +399,12 @@ function toMenuArticle(
     cena: Number(row.cena),
     barva: row.barva,
     jeAlkohol: row.jeAlkohol,
-    naVoljo: row.qrNaVoljo && (row.availableQuantity == null || row.availableQuantity > 0),
+    naVoljo: row.qrNaVoljo && (row.availableBySize
+      ? Object.values(row.availableBySize).some(quantity => quantity == null || quantity > 0)
+      : row.availableQuantity == null || row.availableQuantity > 0),
     mealType: row.mealType,
     availableQuantity: row.availableQuantity,
+    availableBySize: row.availableBySize,
     jePica: row.jePica,
     toGo: row.toGo,
     toGoEmbalaza,
@@ -415,6 +463,7 @@ type MenuArticle = {
   modifikatorji: MenuModifierGroup[];
   mealType: "ala_carte" | "prepared" | "composite";
   availableQuantity: number | null;
+  availableBySize?: Partial<Record<PizzaVelikostId, number | null>>;
   alergeni: Array<{ koda: string; naziv: string }>;
   alergeniSledi: Array<{ koda: string; naziv: string }>;
   alergeniPotrjeni: boolean;
@@ -455,6 +504,18 @@ export type PublicAvailabilityProjection = {
   naVoljo: boolean;
   availableQuantity: number | null;
 };
+
+function publicAvailableQuantity(item: {
+  availableQuantity: number | null;
+  availableBySize?: Partial<Record<PizzaVelikostId, number | null>>;
+}): number | null {
+  if (!item.availableBySize) return item.availableQuantity;
+  const quantities = Object.values(item.availableBySize);
+  if (quantities.length === 0) return 0;
+  return quantities.some(quantity => quantity == null)
+    ? null
+    : Math.max(...quantities.filter((quantity): quantity is number => quantity != null));
+}
 
 export function projectPublicAvailability(
   candidates: PublicAvailabilityCandidate[],
@@ -536,10 +597,11 @@ async function loadPublicAvailabilityProjection(
       salesArticle: artikliTable.prodajniArtikel,
       qrVisible: artikliTable.qrNaVoljo,
       mealType: artikliTable.mealType,
+      jePica: artikliTable.jePica,
     }).from(artikliTable).where(eq(artikliTable.enotaId, context.enotaId)),
     loadPreparedFoodAvailability(db, context.enotaId, businessDate),
   ]);
-  const quantities = new Map(availability.items.map((item) => [item.articleId, item.availableQuantity]));
+  const quantities = new Map(availability.items.map((item) => [item.articleId, publicAvailableQuantity(item)]));
   return projectPublicAvailability(articles.map((article) => ({
     ...article,
     mealType: article.mealType ?? "ala_carte",
@@ -1358,7 +1420,7 @@ router.get(
       loadPreparedFoodAvailability(db, context.enotaId, businessDate),
     ]);
     const availabilityByArticle = new Map(
-      availabilityState.items.map((item) => [item.articleId, item.availableQuantity]),
+      availabilityState.items.map((item) => [item.articleId, item]),
     );
     // A configured multicourse menu is a commercial wrapper, not a prepared
     // portion. Its own availability must not hide it from the public menu.
@@ -1371,7 +1433,7 @@ router.get(
       salesArticle: article.salesArticle,
       qrVisible: article.qrNaVoljo,
       mealType: article.mealType ?? "ala_carte",
-      availableQuantity: availabilityByArticle.get(article.id) ?? null,
+      availableQuantity: publicAvailableQuantity(availabilityByArticle.get(article.id) ?? { availableQuantity: null }),
     }))).map((item) => [item.id, item]));
     const articleRows = rawArticleRows
       .map((article) => ({
@@ -1380,7 +1442,8 @@ router.get(
           ? article.qrNaVoljo
           : availabilityProjectionByArticle.get(article.id)?.naVoljo ?? false,
         mealType: article.mealType ?? "ala_carte" as const,
-        availableQuantity: availabilityByArticle.get(article.id) ?? null,
+        availableQuantity: publicAvailableQuantity(availabilityByArticle.get(article.id) ?? { availableQuantity: null }),
+        availableBySize: article.jePica ? availabilityByArticle.get(article.id)?.availableBySize : undefined,
       }))
       .filter((article) => (
         configuredCourseFoodArticleIds.has(article.id)
@@ -1776,6 +1839,7 @@ router.post(
       skupajCena: number;
       cenaKos: number;
       velikostPice: { id: PizzaVelikostId; naziv: string; premerCm: number; normativFaktor: number } | undefined;
+      pizzaDoughArticleId: number | null;
       samodejniToGoArtikli: Array<{ id: number; ime: string; cena: string }>;
     }> = [];
 
@@ -1883,6 +1947,7 @@ router.post(
         skupajCena: cena.skupajCena,
         cenaKos: cena.cenaKos,
         velikostPice,
+        pizzaDoughArticleId: null,
         samodejniToGoArtikli: line.toGo
           ? Array.from(new Set(
               (Array.isArray(artikel.toGoArtikli) ? artikel.toGoArtikli : [])
@@ -1943,7 +2008,21 @@ router.post(
       const allModifierIds = resolvedLines.flatMap((line) => line.modifikatorji.map((modifier) => modifier.id));
       const modifierSnapshots = await loadModifierAvailabilitySnapshots(tx, allModifierIds);
       const modifierRequests: Array<{ articleId: number; quantity: number }> = [];
+       const pizzaDoughRequests: Array<{ articleId: number; quantity: number }> = [];
       for (const line of resolvedLines) {
+         if (line.artikel.jePica && line.velikostPice) {
+           line.pizzaDoughArticleId = await loadPizzaDoughArticleId(
+             tx,
+             context.enotaId,
+             line.velikostPice.id,
+           );
+           if (line.pizzaDoughArticleId != null) {
+             pizzaDoughRequests.push({
+               articleId: line.pizzaDoughArticleId,
+               quantity: line.input.kolicina,
+             });
+           }
+         }
         modifierRequests.push(...buildModifierAvailabilityRequests(
           modifierSnapshots,
           line.modifikatorji.map((modifier) => modifier.id),
@@ -2027,6 +2106,7 @@ router.post(
             articleId: line.artikel.id,
             quantity: line.input.kolicina * (line.velikostPice?.normativFaktor ?? 1),
           })),
+           ...pizzaDoughRequests,
           ...modifierRequests,
         ],
       );
@@ -2077,6 +2157,15 @@ router.post(
           pairingGroupId: line.input.pairingGroupId,
           ustvarjeno: simDatum,
         }).returning({ id: postavkeTable.id });
+        if (line.pizzaDoughArticleId != null) {
+          await tx.execute(sql`
+            UPDATE postavke
+            SET pizza_dough_article_id = ${line.pizzaDoughArticleId}
+            WHERE id = ${postavka.id}
+              AND narocilo_id = ${narocilo.id}
+              AND parent_postavka_id IS NULL
+          `);
+        }
 
         if (menuSplit && menuSplit.wineGross > 0 && line.input.menuWineVatArticleId) {
           const wineArticle = articles.get(line.input.menuWineVatArticleId);
@@ -2235,6 +2324,10 @@ router.post(
       }
       if (error instanceof InsufficientPreparedFoodAvailabilityError) {
         res.status(409).json({ error: error.message, code: error.code, ...error.details });
+        return;
+      }
+      if (error instanceof PizzaDoughConfigurationError) {
+        res.status(400).json({ error: error.message, code: error.code });
         return;
       }
       throw error;

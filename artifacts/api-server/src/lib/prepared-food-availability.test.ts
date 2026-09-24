@@ -65,6 +65,47 @@ describe("resolvePreparedFoodAvailability", () => {
     expect(state.items.find((item) => item.articleId === 1)?.availableQuantity).toBe(1);
   });
 
+  it("za pice računa izbrani dough enkrat, area faktor pa uporabi samo za prelive", () => {
+    const pizzaArticles: AvailabilityArticle[] = [
+      { id: 20, name: "Preliv", mealType: "prepared" },
+      { id: 21, name: "Malo testo", mealType: "prepared" },
+      { id: 22, name: "Običajno testo", mealType: "prepared" },
+      { id: 23, name: "Pica", mealType: "composite", isPizza: true },
+    ];
+    const state = resolvePreparedFoodAvailability({
+      articles: pizzaArticles,
+      norms: [{ articleId: 23, ingredientId: 20, quantity: 2 }],
+      frozenByPreparedArticle: new Map([[20, 20], [21, 4], [22, 8]]),
+      preparedTodayByArticle: new Map(),
+      pizzaDoughSettings: { normalDoughArticleId: 22, smallDoughArticleId: 21 },
+      pizzaSizeFactors: { mala: 0.5, normalna: 1, druzinska: 1.5 },
+      sales: [
+        // Older sales debit toppings only; they have no dough snapshot.
+        { articleId: 23, quantity: 2, mealType: "composite" },
+        // The new snapshot debits dough by line count, never by normativ factor.
+        {
+          articleId: 23,
+          quantity: 1.5,
+          mealType: "composite",
+          pizzaDoughArticleId: 22,
+          pizzaDoughQuantity: 1,
+        },
+      ],
+    });
+
+    expect(state.preparedAvailableRaw.get(20)).toBe(13);
+    expect(state.preparedAvailableRaw.get(21)).toBe(4);
+    expect(state.preparedAvailableRaw.get(22)).toBe(7);
+    // Zahteva za skupne sestavine ne sme zahtevati še normalnega hlebčka:
+    // naročilna pot doda natanko en posnetek hlebčka izbrane velikosti.
+    expect([...state.requirementsByArticle.get(23)!.prepared]).toEqual([[20, 2]]);
+    expect(state.items.find((item) => item.articleId === 23)?.availableBySize).toEqual({
+      mala: 4,
+      normalna: 6,
+      druzinska: 0,
+    });
+  });
+
   it("vrne nič pri ničelni zalogi, ciklu ali neveljavnem normativu", () => {
     const zero = calculate([{ articleId: 4, ingredientId: 1, quantity: 1 }], new Map([[1, 0]]));
     expect(zero.items.find((item) => item.articleId === 4)?.availableQuantity).toBe(0);
@@ -98,6 +139,8 @@ describe("resolvePreparedFoodAvailability", () => {
         { id: 1, ime: "Krompir", meal_type: "prepared" },
         { id: 4, ime: "Kosilo", meal_type: "composite" },
       ] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [
         { artikel_id: 4, vhodni_artikel_id: 1, quantity: 1 },
       ] })
@@ -130,6 +173,8 @@ describe("resolvePreparedFoodAvailability", () => {
       .mockResolvedValueOnce({ rows: [{ zacetek_dneva_ura: "04:00" }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, ime: "Krompir", meal_type: "prepared" }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{
         artikel_id: 1,
         business_date: "2026-08-29",
@@ -153,6 +198,8 @@ describe("resolvePreparedFoodAvailability", () => {
     const execute = vi.fn()
       .mockResolvedValueOnce({ rows: [{ zacetek_dneva_ura: "04:00" }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, ime: "Golaž", meal_type: "prepared" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{
         artikel_id: 1,

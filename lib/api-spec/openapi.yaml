@@ -10837,6 +10837,14 @@ components:
             - integer
             - "null"
           minimum: 0
+        availableBySize:
+          $ref: "#/components/schemas/PizzaAvailabilityBySize"
+    PizzaAvailabilityBySize:
+      type: object
+      properties:
+        mala: { type: [integer, "null"], minimum: 0 }
+        normalna: { type: [integer, "null"], minimum: 0 }
+        druzinska: { type: [integer, "null"], minimum: 0 }
     PreparedFoodStockInput:
       type: object
       required: [openingQuantity, openingCostPerPortion]
@@ -11550,6 +11558,8 @@ components:
             - integer
             - "null"
           minimum: 0
+        availableBySize:
+          $ref: "#/components/schemas/PizzaAvailabilityBySize"
         jePica:
           type: boolean
         toGo:

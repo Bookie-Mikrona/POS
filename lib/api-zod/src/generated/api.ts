@@ -2867,9 +2867,21 @@ export const GetPublicMenuQueryParams = zod.object({
 
 export const getPublicMenuResponseKategorijeItemArtikliItemAvailableQuantityMin = 0;
 
+export const getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeMalaMin = 0;
+
+export const getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeNormalnaMin = 0;
+
+export const getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeDruzinskaMin = 0;
+
 export const getPublicMenuResponseKategorijeItemArtikliItemToGoEmbalazaItemCenaMin = 0;
 
 export const getPublicMenuResponseArtikliItemAvailableQuantityMin = 0;
+
+export const getPublicMenuResponseArtikliItemAvailableBySizeMalaMin = 0;
+
+export const getPublicMenuResponseArtikliItemAvailableBySizeNormalnaMin = 0;
+
+export const getPublicMenuResponseArtikliItemAvailableBySizeDruzinskaMin = 0;
 
 export const getPublicMenuResponseArtikliItemToGoEmbalazaItemCenaMin = 0;
 
@@ -2917,6 +2929,11 @@ export const GetPublicMenuResponse = zod.object({
   "alergeniOpozorila": zod.array(zod.string()),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']),
   "availableQuantity": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableQuantityMin).nullish(),
+  "availableBySize": zod.object({
+  "mala": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeMalaMin).nullish(),
+  "normalna": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeNormalnaMin).nullish(),
+  "druzinska": zod.number().min(getPublicMenuResponseKategorijeItemArtikliItemAvailableBySizeDruzinskaMin).nullish()
+}).optional(),
   "jePica": zod.boolean(),
   "toGo": zod.boolean().describe('Ali artikel podpira naročilo To Go'),
   "toGoEmbalaza": zod.array(zod.object({
@@ -2979,6 +2996,11 @@ export const GetPublicMenuResponse = zod.object({
   "alergeniOpozorila": zod.array(zod.string()),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']),
   "availableQuantity": zod.number().min(getPublicMenuResponseArtikliItemAvailableQuantityMin).nullish(),
+  "availableBySize": zod.object({
+  "mala": zod.number().min(getPublicMenuResponseArtikliItemAvailableBySizeMalaMin).nullish(),
+  "normalna": zod.number().min(getPublicMenuResponseArtikliItemAvailableBySizeNormalnaMin).nullish(),
+  "druzinska": zod.number().min(getPublicMenuResponseArtikliItemAvailableBySizeDruzinskaMin).nullish()
+}).optional(),
   "jePica": zod.boolean(),
   "toGo": zod.boolean().describe('Ali artikel podpira naročilo To Go'),
   "toGoEmbalaza": zod.array(zod.object({
@@ -14420,6 +14442,12 @@ export const ConfirmPreparedFoodWasteRecordResponse = zod.object({
  */
 export const getPreparedFoodAvailabilityResponseItemsItemAvailableQuantityMin = 0;
 
+export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeMalaMin = 0;
+
+export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeNormalnaMin = 0;
+
+export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeDruzinskaMin = 0;
+
 
 
 export const GetPreparedFoodAvailabilityResponse = zod.object({
@@ -14428,7 +14456,12 @@ export const GetPreparedFoodAvailabilityResponse = zod.object({
   "articleId": zod.number(),
   "articleName": zod.string(),
   "mealType": zod.enum(['prepared', 'composite']),
-  "availableQuantity": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableQuantityMin).nullable()
+  "availableQuantity": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableQuantityMin).nullable(),
+  "availableBySize": zod.object({
+  "mala": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeMalaMin).nullish(),
+  "normalna": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeNormalnaMin).nullish(),
+  "druzinska": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeDruzinskaMin).nullish()
+}).optional()
 }))
 })
 

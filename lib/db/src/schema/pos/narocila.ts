@@ -120,6 +120,8 @@ export const postavkeTable = pgTable("postavke", {
   jeDelMenija: boolean("je_del_menija").notNull().default(false),
   /** Izbrana velikost pice in njen nespremenljiv faktor za normative. */
   velikostPice: text("velikost_pice", { enum: ["mala", "normalna", "druzinska"] }),
+  /** Nespremenljiv posnetek artikla testa, uporabljenega za velikost pice. */
+  pizzaDoughArticleId: integer("pizza_dough_article_id"),
   normativFaktor: numeric("normativ_faktor", { precision: 12, scale: 6 }).notNull().default("1"),
   /** Nespremenljiv posnetek vhodnih artiklov normativa modifikatorja ob prodaji. */
   availabilityRequirements: jsonb("availability_requirements").$type<Array<{

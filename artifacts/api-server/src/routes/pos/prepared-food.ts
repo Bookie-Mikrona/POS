@@ -277,8 +277,9 @@ async function soldQuantity(
   const startTime = await getEnotaBusinessDayStart(enotaId, executor);
   const startInterval = `${startTime}:00`;
   const result = await executor.execute(sql`
-    WITH RECURSIVE sold_tree(article_id, quantity, meal_type, path) AS (
-      SELECT p.artikel_id, p.kolicina::numeric, p.meal_type, ARRAY[p.artikel_id]
+    WITH RECURSIVE sold_tree(article_id, quantity, meal_type, path, pizza_dough_article_id) AS (
+      SELECT p.artikel_id, p.kolicina::numeric, p.meal_type, ARRAY[p.artikel_id],
+             p.pizza_dough_article_id
       FROM postavke p JOIN narocila n ON n.id = p.narocilo_id
       WHERE n.enota_id = ${enotaId} AND p.artikel_id IS NOT NULL
         AND p.parent_postavka_id IS NULL AND n.status <> 'preklicano'
@@ -286,17 +287,30 @@ async function soldQuantity(
       UNION ALL
       SELECT norm.vhodni_artikel_id, tree.quantity * norm.kolicina,
              COALESCE(child_article.meal_type, 'ala_carte'),
-             tree.path || norm.vhodni_artikel_id
+             tree.path || norm.vhodni_artikel_id, tree.pizza_dough_article_id
       FROM sold_tree tree
       JOIN artikli parent_article ON parent_article.id = tree.article_id
       JOIN normativi norm ON norm.artikel_id = tree.article_id
       JOIN artikli child_article ON child_article.id = norm.vhodni_artikel_id
       WHERE parent_article.meal_type = 'composite'
+        AND norm.vhodni_artikel_id IS DISTINCT FROM tree.pizza_dough_article_id
         AND NOT norm.vhodni_artikel_id = ANY(tree.path)
+    ),
+    sold_usage(article_id, quantity, meal_type) AS (
+      SELECT article_id, quantity, meal_type FROM sold_tree
+      UNION ALL
+      SELECT p.pizza_dough_article_id, p.kolicina::numeric, 'prepared'
+      FROM postavke p
+      JOIN narocila n ON n.id = p.narocilo_id
+      WHERE n.enota_id = ${enotaId}
+        AND p.parent_postavka_id IS NULL
+        AND p.pizza_dough_article_id IS NOT NULL
+        AND n.status <> 'preklicano'
+        AND ((p.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
     )
-    SELECT COALESCE(SUM(tree.quantity), 0)::float8 AS sold
-    FROM sold_tree tree
-    WHERE tree.article_id = ${artikelId} AND tree.meal_type = 'prepared'`);
+    SELECT COALESCE(SUM(su.quantity), 0)::float8 AS sold
+    FROM sold_usage su
+    WHERE su.article_id = ${artikelId} AND su.meal_type = 'prepared'`);
   return Number((result.rows[0] as { sold?: number })?.sold ?? 0);
 }
 

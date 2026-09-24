@@ -75,6 +75,7 @@ export type PublicMenuArticle = {
   naVoljo: boolean;
   mealType: 'ala_carte' | 'prepared' | 'composite';
   availableQuantity: number | null;
+  availableBySize?: { mala: number | null; normalna: number | null; druzinska: number | null } | null;
   jePica: boolean;
   toGo: boolean;
   toGoEmbalaza: PublicMenuToGoEmbalaza[];

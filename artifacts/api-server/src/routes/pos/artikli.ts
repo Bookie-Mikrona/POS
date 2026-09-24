@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { and, asc, count, desc, eq, inArray, ne, sql, sum } from "drizzle-orm";
-import { artModSkupineTable, articleImageVersionsTable, artikliTable, companiesTable, db, enoteTable, kategorijeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenusTable, nastavitveTable, normativiTable, posNormativeChangeAuditTable, postavkeTable } from "@workspace/db";
+import { artModSkupineTable, articleImageVersionsTable, artikliTable, companiesTable, db, enoteTable, kategorijeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenusTable, nastavitveTable, normativiTable, pizzaDoughSettingsTable, posNormativeChangeAuditTable, postavkeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import ExcelJS from "exceljs";
 import multer from "multer";
@@ -366,6 +366,51 @@ router.get("/artikli", async (req, res): Promise<void> => {
   const modMap = await fetchModSkupineForArtikli(mapped.map((a) => a.id));
   const enriched = mapped.map((a) => ({ ...a, modSkupine: modMap.get(a.id) ?? [] }));
   res.json((enriched));
+});
+
+router.get("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Promise<void> => {
+  const tenotaId = (req as any).enotaId;
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(400).json({ error: "Neveljaven ID artikla." });
+    return;
+  }
+
+  const [pizza] = await db.select({ id: artikliTable.id, jePica: artikliTable.jePica })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.id, id), eq(artikliTable.enotaId, tenotaId)));
+  if (!pizza) {
+    res.status(404).json({ error: "Artikel ni najden." });
+    return;
+  }
+  if (!pizza.jePica) {
+    res.json([]);
+    return;
+  }
+
+  const [settings] = await db.select({
+    normalDoughArticleId: pizzaDoughSettingsTable.normalDoughArticleId,
+    smallDoughArticleId: pizzaDoughSettingsTable.smallDoughArticleId,
+  }).from(pizzaDoughSettingsTable)
+    .where(eq(pizzaDoughSettingsTable.enotaId, tenotaId));
+  if (!settings) {
+    res.json([]);
+    return;
+  }
+
+  const doughIds = [settings.normalDoughArticleId, settings.smallDoughArticleId];
+  const doughArticles = await db.select({ id: artikliTable.id, ime: artikliTable.ime })
+    .from(artikliTable)
+    .where(and(eq(artikliTable.enotaId, tenotaId), inArray(artikliTable.id, doughIds)));
+  if (doughArticles.length !== new Set(doughIds).size) {
+    res.status(500).json({ error: "Nastavitev testa za pico vsebuje artikel iz druge enote ali neobstoječ artikel." });
+    return;
+  }
+  const articlesById = new Map(doughArticles.map((article) => [article.id, article]));
+  res.json([
+    { size: "normalna", ingredient: { id: settings.normalDoughArticleId, name: articlesById.get(settings.normalDoughArticleId)!.ime }, quantity: 1 },
+    { size: "mala", ingredient: { id: settings.smallDoughArticleId, name: articlesById.get(settings.smallDoughArticleId)!.ime }, quantity: 1 },
+  ]);
 });
 
 router.post("/artikli", requireEnota, async (req, res): Promise<void> => {

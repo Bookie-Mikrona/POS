@@ -43,6 +43,68 @@ import { assertKdsOrderNotDispatched, KdsOrderAlreadyDispatchedError, lockKdsOrd
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+class PizzaDoughConfigurationError extends Error {
+  readonly code = "PIZZA_DOUGH_CONFIGURATION_INVALID";
+}
+
+export function resolveConfiguredPizzaDoughArticleId(
+  mapping: {
+    normal_dough_article_id: number | string | null;
+    small_dough_article_id: number | string | null;
+  } | null,
+  velikost: PizzaVelikostId,
+): number | null {
+  if (!mapping) return null;
+  if (velikost === "druzinska") {
+    throw new Error("Za družinsko pico ni nastavljen ustrezen artikel testa.");
+  }
+  const articleId = Number(velikost === "mala"
+    ? mapping.small_dough_article_id
+    : mapping.normal_dough_article_id);
+  if (!Number.isInteger(articleId) || articleId <= 0) {
+    throw new Error("Za izbrano velikost pice ni nastavljen ustrezen artikel testa.");
+  }
+  return articleId;
+}
+
+async function loadPizzaDoughArticleId(
+  tx: DbTransaction,
+  enotaId: number,
+  velikost: PizzaVelikostId,
+): Promise<number | null> {
+  const result = await tx.execute(sql`
+    SELECT normal_dough_article_id, small_dough_article_id
+    FROM pizza_dough_settings
+    WHERE enota_id = ${enotaId}
+    LIMIT 1
+  `);
+  const mapping = result.rows[0] as {
+    normal_dough_article_id: number | string | null;
+    small_dough_article_id: number | string | null;
+  } | undefined;
+  // No settings row means the dough family is not enabled for this unit.
+  let articleId: number | null;
+  try {
+    articleId = resolveConfiguredPizzaDoughArticleId(mapping ?? null, velikost);
+  } catch (error) {
+    throw new PizzaDoughConfigurationError(error instanceof Error ? error.message : "Nastavitve testa za pice niso veljavne.");
+  }
+  if (articleId == null) return null;
+  const articleResult = await tx.execute(sql`
+    SELECT id
+    FROM artikli
+    WHERE id = ${articleId}
+      AND enota_id = ${enotaId}
+      AND meal_type = 'prepared'
+      AND prodajni_artikel = false
+    LIMIT 1
+  `);
+  if (articleResult.rows.length === 0) {
+    throw new PizzaDoughConfigurationError("Nastavljeni artikel testa mora pripadati poslovni enoti, biti pripravljen artikel in ne sme biti prodajni artikel.");
+  }
+  return articleId;
+}
+
 function izracunajDDVNeskladje(postavke: { kolicina: number; cenaKos: number; skupaj: number; davek: number }[]): { imaNeskladje: boolean; razlika: number } {
   if (postavke.length === 0) return { imaNeskladje: false, razlika: 0 };
 
@@ -2093,6 +2155,9 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
   const wineVat = selectedWineId === null
     ? null
     : componentVatById.get(selectedWineId) ?? null;
+  const generatedPizzaSizes = izracunajVelikostiPic(await readAll("", tenotaId));
+  const selectedPizzaDefaultSize = privzetaVelikostPice(generatedPizzaSizes);
+  const pizzaDoughByArticleId = new Map<number, { articleId: number | null; size: PizzaVelikostId; factor: number }>();
 
   try {
     await db.transaction(async (tx) => {
@@ -2102,6 +2167,38 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
       const [locked] = await tx.select({ status: narocilaTable.status }).from(narocilaTable)
         .where(and(eq(narocilaTable.id, params.data.id), eq(narocilaTable.enotaId, tenotaId))).for("update");
       if (!locked || locked.status !== "odprto") throw new Error("Naročilo ni odprto.");
+
+      const generatedAvailabilityRequests: Array<{ articleId: number; quantity: number }> = [];
+      for (const selection of selections) {
+        for (const articleId of [selection.foodArtikelId, selection.wineArtikelId].filter((id): id is number => id !== null)) {
+          const component = articlesById.get(articleId)!;
+          let factor = 1;
+          if (component.jePica) {
+            const size = selectedPizzaDefaultSize;
+            if (!size) throw new PizzaDoughConfigurationError("Velikosti pic za to poslovno enoto niso nastavljene.");
+            factor = size.normativFaktor;
+            const doughArticleId = await loadPizzaDoughArticleId(tx, tenotaId, size.id);
+            pizzaDoughByArticleId.set(articleId, {
+              articleId: doughArticleId,
+              size: size.id,
+              factor,
+            });
+            if (doughArticleId != null) {
+              generatedAvailabilityRequests.push({
+                articleId: doughArticleId,
+                quantity: body.data.quantity,
+              });
+            }
+          }
+          if (component.mealType !== "ala_carte") {
+            generatedAvailabilityRequests.push({ articleId, quantity: body.data.quantity * factor });
+          }
+        }
+      }
+      if (generatedAvailabilityRequests.length > 0) {
+        const businessDate = await businessDateForTimestamp(order.ustvarjeno, tenotaId, tx);
+        await assertPreparedFoodAvailability(tx, tenotaId, businessDate, generatedAvailabilityRequests);
+      }
 
       await tx.insert(postavkeTable).values({
         narociloId: params.data.id, artikelId: wrapper.id,
@@ -2128,7 +2225,8 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
         for (const articleId of [selection.foodArtikelId, selection.wineArtikelId].filter((id): id is number => id !== null)) {
           const component = articlesById.get(articleId)!;
           const componentVat = componentVatById.get(component.id) ?? { rate: 0, ruleId: null };
-          await tx.insert(postavkeTable).values({
+          const pizzaSnapshot = component.jePica ? pizzaDoughByArticleId.get(component.id) : undefined;
+          const [componentLine] = await tx.insert(postavkeTable).values({
             narociloId: params.data.id, artikelId: component.id, ime: component.ime,
             kolicina: body.data.quantity, cenaKos: "0", cenaKosOriginalna: "0", skupaj: "0",
             davek: String(componentVat.rate), opomba: null, gostStevilka: body.data.gostStevilka ?? null,
@@ -2138,7 +2236,18 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
             courseSequence: selection.courseSequence,
             courseNameSnapshot: configuredCourses.find(course => course.courseNumber === selection.courseNumber)?.courseName ?? null,
             pairingGroupId,
-          });
+            velikostPice: pizzaSnapshot?.size,
+            normativFaktor: String(pizzaSnapshot?.factor ?? 1),
+          }).returning({ id: postavkeTable.id });
+          if (pizzaSnapshot?.articleId != null) {
+            await tx.execute(sql`
+              UPDATE postavke
+              SET pizza_dough_article_id = ${pizzaSnapshot.articleId}
+              WHERE id = ${componentLine.id}
+                AND narocilo_id = ${params.data.id}
+                AND parent_postavka_id IS NULL
+            `);
+          }
         }
       }
       await updateSkupaj(params.data.id, tenotaId, tx);
@@ -2149,6 +2258,12 @@ router.post("/narocila/:id/multicourse", async (req, res): Promise<void> => {
     }
     if (error instanceof Error && error.message === "REZERVACIJA_BLOKIRA_SPREMEMBE_NAROCILA") {
       res.status(409).json({ error: "Spremembe naročila so blokirane zaradi bližajoče se rezervacije.", code: error.message }); return;
+    }
+    if (error instanceof InsufficientPreparedFoodAvailabilityError) {
+      res.status(409).json({ error: error.message, code: error.code, ...error.details }); return;
+    }
+    if (error instanceof PizzaDoughConfigurationError) {
+      res.status(400).json({ error: error.message, code: error.code }); return;
     }
     throw error;
   }
@@ -2420,6 +2535,9 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       await assertKdsOrderNotDispatched(tx, params.data.id, tenotaId);
       await assertOpenOrderCanChange(tx, params.data.id, tenotaId);
       const businessDate = await businessDateForTimestamp(narociloCheck.ustvarjeno, tenotaId, tx);
+      const doughArticleId = artikel.jePica && parentPostavkaId == null && izbranaVelikostPice
+        ? await loadPizzaDoughArticleId(tx, tenotaId, izbranaVelikostPice.id)
+        : null;
       const modifierSnapshots = resolvedMods.length > 0
         ? await loadModifierAvailabilitySnapshots(tx, resolvedMods.map((modifier) => modifier.id))
         : new Map();
@@ -2435,7 +2553,12 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
         );
         await assertPreparedFoodAvailability(tx, tenotaId, businessDate, [
           { articleId: artikel.id, quantity: effectiveQuantity },
+          ...(doughArticleId == null ? [] : [{ articleId: doughArticleId, quantity: kolicina }]),
           ...modifierRequests,
+        ]);
+      } else if (doughArticleId != null) {
+        await assertPreparedFoodAvailability(tx, tenotaId, businessDate, [
+          { articleId: doughArticleId, quantity: kolicina },
         ]);
       }
       const [lockedOrder] = await tx.select({ status: narocilaTable.status })
@@ -2464,6 +2587,15 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
        normativFaktor: String(izbranaVelikostPice?.normativFaktor ?? 1),
        toGo: postavkaToGo,
       napravaId}).returning({ id: postavkeTable.id });
+    if (doughArticleId != null) {
+      await tx.execute(sql`
+        UPDATE postavke
+        SET pizza_dough_article_id = ${doughArticleId}
+        WHERE id = ${inserted.id}
+          AND narocilo_id = ${params.data.id}
+          AND parent_postavka_id IS NULL
+      `);
+    }
 
     // Insert modifier child rows using pre-validated authoritative DB values
     // Modifikatorji dedujejo DDV stopnjo starša (davekZaPostavko že vsebuje razrešeno stopnjo)
@@ -2525,6 +2657,10 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
     }
     if (error instanceof InsufficientPreparedFoodAvailabilityError) {
       res.status(409).json({ error: error.message, code: error.code, ...error.details });
+      return;
+    }
+    if (error instanceof PizzaDoughConfigurationError) {
+      res.status(400).json({ error: error.message, code: error.code });
       return;
     }
     throw error;
@@ -2690,6 +2826,23 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
             : []),
           ...modifierRequests,
         ];
+        if (lockedPostavka.parentPostavkaId == null) {
+          const doughSnapshot = await tx.execute(sql`
+            SELECT pizza_dough_article_id
+            FROM postavke
+            WHERE id = ${params.data.postavkaId}
+              AND narocilo_id = ${params.data.id}
+            FOR UPDATE
+          `);
+          const doughArticleId = Number(
+            (doughSnapshot.rows[0] as { pizza_dough_article_id: number | string | null } | undefined)
+              ?.pizza_dough_article_id,
+          );
+          // Legacy lines keep a null snapshot and must not start consuming dough retroactively.
+          if (Number.isInteger(doughArticleId) && doughArticleId > 0) {
+            availabilityRequests.push({ articleId: doughArticleId, quantity: increase });
+          }
+        }
         if (availabilityRequests.length > 0) {
           await assertPreparedFoodAvailability(tx, tenotaId, businessDate, availabilityRequests);
         }
@@ -2754,6 +2907,10 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
     }
     if (error instanceof InsufficientPreparedFoodAvailabilityError) {
       res.status(409).json({ error: error.message, code: error.code, ...error.details });
+      return;
+    }
+    if (error instanceof PizzaDoughConfigurationError) {
+      res.status(400).json({ error: error.message, code: error.code });
       return;
     }
     throw error;

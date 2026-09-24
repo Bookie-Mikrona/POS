@@ -1129,6 +1129,24 @@ export const PreparedFoodAvailabilityItemMealType = {
   composite: 'composite',
 } as const;
 
+export interface PizzaAvailabilityBySize {
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  mala?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  normalna?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  druzinska?: number | null;
+}
+
 export interface PreparedFoodAvailabilityItem {
   articleId: number;
   articleName: string;
@@ -1138,6 +1156,7 @@ export interface PreparedFoodAvailabilityItem {
      * @nullable
      */
   availableQuantity: number | null;
+  availableBySize?: PizzaAvailabilityBySize;
 }
 
 export interface PreparedFoodAvailability {
@@ -1869,6 +1888,7 @@ export interface PublicMenuArticle {
      * @nullable
      */
   availableQuantity?: number | null;
+  availableBySize?: PizzaAvailabilityBySize;
   jePica: boolean;
   /** Ali artikel podpira naročilo To Go */
   toGo: boolean;

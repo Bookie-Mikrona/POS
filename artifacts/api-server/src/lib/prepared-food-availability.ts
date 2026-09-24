@@ -5,6 +5,7 @@ import {
   getCurrentPosBusinessDate,
   getEnotaBusinessDayStart,
 } from "./pos-business-day";
+import { izracunajVelikostiPic } from "./pica-velikosti";
 
 export type MealType = "ala_carte" | "prepared" | "composite";
 
@@ -12,7 +13,10 @@ export type AvailabilityArticle = {
   id: number;
   name: string;
   mealType: MealType;
+  isPizza?: boolean;
 };
+
+export type PizzaSize = "mala" | "normalna" | "druzinska";
 
 export type AvailabilityNorm = {
   articleId: number;
@@ -24,6 +28,9 @@ export type AvailabilitySale = {
   articleId: number;
   quantity: number;
   mealType?: MealType;
+  /** Snapshot-only prepared dough consumption; absent on legacy pizza lines. */
+  pizzaDoughArticleId?: number | null;
+  pizzaDoughQuantity?: number;
 };
 
 export type PreparedFoodAvailabilityItem = {
@@ -31,6 +38,8 @@ export type PreparedFoodAvailabilityItem = {
   articleName: string;
   mealType: "prepared" | "composite";
   availableQuantity: number | null;
+  /** Per-size capacity for configured pizza articles. Inactive sizes are omitted. */
+  availableBySize?: Partial<Record<PizzaSize, number | null>>;
 };
 
 type RequirementResult = {
@@ -58,6 +67,11 @@ type AvailabilityInput = {
   preparedTodayByArticle: Map<number, number>;
   closedPreparedArticles?: Set<number>;
   sales: AvailabilitySale[];
+  pizzaDoughSettings?: {
+    normalDoughArticleId: number | null;
+    smallDoughArticleId: number | null;
+  };
+  pizzaSizeFactors?: Partial<Record<PizzaSize, number>>;
 };
 
 const EPSILON = 1e-9;
@@ -80,6 +94,16 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
     list.push(norm);
     normsByArticle.set(norm.articleId, list);
   }
+  const pizzaDoughForSize = (size: PizzaSize): number | null => {
+    if (size === "mala") return input.pizzaDoughSettings?.smallDoughArticleId ?? null;
+    if (size === "normalna") return input.pizzaDoughSettings?.normalDoughArticleId ?? null;
+    return null;
+  };
+  const addPizzaDough = (requirements: Map<number, number>, article: AvailabilityArticle, size: PizzaSize) => {
+    if (!article.isPizza) return;
+    const doughId = pizzaDoughForSize(size);
+    if (doughId !== null) requirements.set(doughId, (requirements.get(doughId) ?? 0) + 1);
+  };
 
   const memo = new Map<number, RequirementResult>();
   const resolveRequirements = (articleId: number, visiting: Set<number>): RequirementResult => {
@@ -100,7 +124,7 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
     if (visiting.has(articleId)) return { valid: false, hasNorms: true, prepared: new Map() };
 
     const norms = normsByArticle.get(articleId) ?? [];
-    if (norms.length === 0) {
+    if (norms.length === 0 && !(article.isPizza && pizzaDoughForSize("normalna") !== null)) {
       const result = { valid: false, hasNorms: false, prepared: new Map<number, number>() };
       memo.set(articleId, result);
       return result;
@@ -133,7 +157,9 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
       return { valid: true, hasNorms: true, prepared: new Map([[sale.articleId, 1]]) };
     }
     const norms = normsByArticle.get(sale.articleId) ?? [];
-    if (norms.length === 0) return { valid: false, hasNorms: false, prepared: new Map() };
+    if (norms.length === 0 && !articles.get(sale.articleId)?.isPizza) {
+      return { valid: false, hasNorms: false, prepared: new Map() };
+    }
     const prepared = new Map<number, number>();
     for (const norm of norms) {
       if (!Number.isFinite(norm.quantity) || norm.quantity <= 0) {
@@ -150,8 +176,13 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
   for (const sale of input.sales) {
     if (!Number.isFinite(sale.quantity) || sale.quantity <= 0) continue;
     const requirements = resolveSaleRequirements(sale);
-    if (!requirements.valid) continue;
-    mergeRequirement(soldByPreparedArticle, requirements.prepared, sale.quantity);
+    if (requirements.valid) mergeRequirement(soldByPreparedArticle, requirements.prepared, sale.quantity);
+    if (sale.pizzaDoughArticleId != null && Number.isFinite(sale.pizzaDoughQuantity)) {
+      soldByPreparedArticle.set(
+        sale.pizzaDoughArticleId,
+        (soldByPreparedArticle.get(sale.pizzaDoughArticleId) ?? 0) + sale.pizzaDoughQuantity!,
+      );
+    }
   }
 
   const preparedAvailableRaw = new Map<number, number>();
@@ -180,11 +211,49 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
         ? null
         : Math.max(0, Math.floor(Math.min(...limits) + EPSILON));
     }
+    let availableBySize: Partial<Record<PizzaSize, number | null>> | undefined;
+    if (article.isPizza) {
+      availableBySize = {};
+      for (const size of ["mala", "normalna", "druzinska"] as const) {
+        const factor = input.pizzaSizeFactors?.[size];
+        if (!Number.isFinite(factor) || (factor ?? 0) <= 0) continue;
+        // Ta enota nima družinskega hlebčka. Ne prikazuj družinske pice kot
+        // razpoložljive, če jo naročilni poti pravilno zavrneta.
+        if (size === "druzinska" && input.pizzaDoughSettings) {
+          availableBySize[size] = 0;
+          continue;
+        }
+        const sizeFactor = factor!;
+        const sizeRequirements = new Map<number, number>();
+        const norms = normsByArticle.get(article.id) ?? [];
+        let valid = true;
+        for (const norm of norms) {
+          if (!Number.isFinite(norm.quantity) || norm.quantity <= 0) {
+            valid = false;
+            break;
+          }
+          const child = resolveRequirements(norm.ingredientId, new Set([article.id]));
+          if (!child.valid) {
+            valid = false;
+            break;
+          }
+          mergeRequirement(sizeRequirements, child.prepared, norm.quantity * sizeFactor);
+        }
+        addPizzaDough(sizeRequirements, article, size);
+        const limits = [...sizeRequirements].map(
+          ([preparedId, quantity]) => (preparedAvailableRaw.get(preparedId) ?? 0) / quantity,
+        );
+        availableBySize[size] = valid
+          ? limits.length === 0 ? null : Math.max(0, Math.floor(Math.min(...limits) + EPSILON))
+          : 0;
+      }
+    }
     items.push({
       articleId: article.id,
       articleName: article.name,
       mealType: article.mealType,
       availableQuantity,
+      ...(availableBySize ? { availableBySize } : {}),
     });
   }
 
@@ -201,9 +270,21 @@ export async function loadPreparedFoodAvailability(
   const startTime = await getEnotaBusinessDayStart(enotaId, executor);
   const startInterval = `${startTime}:00`;
   const articleResult = await executor.execute(sql`
-    SELECT id, ime, COALESCE(meal_type, 'ala_carte') AS meal_type
+    SELECT id, ime, COALESCE(meal_type, 'ala_carte') AS meal_type, je_pica
     FROM artikli
     WHERE enota_id = ${enotaId}
+  `);
+  const doughSettingsResult = await executor.execute(sql`
+    SELECT normal_dough_article_id, small_dough_article_id
+    FROM pizza_dough_settings
+    WHERE enota_id = ${enotaId}
+    LIMIT 1
+  `);
+  const pizzaSizeSettingsResult = await executor.execute(sql`
+    SELECT kljuc, vrednost
+    FROM nastavitve
+    WHERE enota_id = ${enotaId}
+      AND kljuc IN ('picaPremerMala', 'picaPremerNormalna', 'picaPremerDruzinska')
   `);
   const normResult = await executor.execute(sql`
     SELECT n.artikel_id, n.vhodni_artikel_id, n.kolicina::float8 AS quantity
@@ -249,7 +330,9 @@ export async function loadPreparedFoodAvailability(
       SELECT
         p.artikel_id,
         p.meal_type,
-        p.kolicina::numeric * COALESCE(p.normativ_faktor, 1)::numeric AS quantity
+        p.kolicina::numeric * COALESCE(p.normativ_faktor, 1)::numeric AS quantity,
+        p.pizza_dough_article_id,
+        p.kolicina::numeric AS pizza_dough_quantity
       FROM postavke p
       JOIN narocila n ON n.id = p.narocilo_id
       WHERE n.enota_id = ${enotaId}
@@ -266,7 +349,9 @@ export async function loadPreparedFoodAvailability(
         COALESCE(snapshot.value->>'mealType', 'ala_carte') AS meal_type,
         child.kolicina::numeric
           * COALESCE(child.normativ_faktor, 1)::numeric
-          * (snapshot.value->>'quantity')::numeric AS quantity
+          * (snapshot.value->>'quantity')::numeric AS quantity,
+        NULL::integer AS pizza_dough_article_id,
+        NULL::numeric AS pizza_dough_quantity
       FROM postavke child
       JOIN narocila n ON n.id = child.narocilo_id
       CROSS JOIN LATERAL jsonb_array_elements(child.availability_requirements) snapshot(value)
@@ -285,7 +370,9 @@ export async function loadPreparedFoodAvailability(
         COALESCE(a.meal_type, 'ala_carte') AS meal_type,
         child.kolicina::numeric
           * COALESCE(child.normativ_faktor, 1)::numeric
-          * mn.kolicina::numeric AS quantity
+          * mn.kolicina::numeric AS quantity,
+        NULL::integer AS pizza_dough_article_id,
+        NULL::numeric AS pizza_dough_quantity
       FROM postavke child
       JOIN narocila n ON n.id = child.narocilo_id
       JOIN modifikator_normativi mn ON mn.modifikator_id = child.modifikator_id
@@ -297,15 +384,21 @@ export async function loadPreparedFoodAvailability(
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date
           BETWEEN (SELECT start_date FROM availability_window) AND ${businessDate}::date
     )
-    SELECT artikel_id, meal_type, SUM(quantity)::float8 AS quantity
+    SELECT
+      artikel_id,
+      meal_type,
+      SUM(quantity)::float8 AS quantity,
+      pizza_dough_article_id,
+      SUM(pizza_dough_quantity)::float8 AS pizza_dough_quantity
     FROM sold_components
-    GROUP BY artikel_id, meal_type
+    GROUP BY artikel_id, meal_type, pizza_dough_article_id
   `);
 
   const articles = articleResult.rows.map((row) => ({
     id: Number((row as Record<string, unknown>).id),
     name: String((row as Record<string, unknown>).ime),
     mealType: String((row as Record<string, unknown>).meal_type) as MealType,
+    isPizza: Boolean((row as Record<string, unknown>).je_pica),
   }));
   const norms = normResult.rows.map((row) => ({
     articleId: Number((row as Record<string, unknown>).artikel_id),
@@ -325,7 +418,32 @@ export async function loadPreparedFoodAvailability(
     articleId: Number((row as Record<string, unknown>).artikel_id),
     quantity: Number((row as Record<string, unknown>).quantity),
     mealType: String((row as Record<string, unknown>).meal_type) as MealType,
+    pizzaDoughArticleId: row.pizza_dough_article_id == null
+      ? null
+      : Number(row.pizza_dough_article_id),
+    pizzaDoughQuantity: row.pizza_dough_quantity == null
+      ? undefined
+      : Number(row.pizza_dough_quantity),
   }));
+  const doughSettingsRow = doughSettingsResult.rows[0] as Record<string, unknown> | undefined;
+  const doughSettings = doughSettingsRow
+    ? {
+      normalDoughArticleId: doughSettingsRow.normal_dough_article_id == null
+        ? null
+        : Number(doughSettingsRow.normal_dough_article_id),
+      smallDoughArticleId: doughSettingsRow.small_dough_article_id == null
+        ? null
+        : Number(doughSettingsRow.small_dough_article_id),
+    }
+    : undefined;
+  const rawSizeSettings: Record<string, string> = {};
+  for (const raw of pizzaSizeSettingsResult.rows) {
+    const row = raw as Record<string, unknown>;
+    rawSizeSettings[String(row.kljuc)] = String(row.vrednost);
+  }
+  const pizzaSizeFactors = Object.fromEntries(
+    izracunajVelikostiPic(rawSizeSettings).map((size) => [size.id, size.normativFaktor]),
+  ) as Partial<Record<PizzaSize, number>>;
 
   return resolvePreparedFoodAvailability({
     articles,
@@ -336,6 +454,8 @@ export async function loadPreparedFoodAvailability(
     preparedTodayByArticle: preparedToday,
     closedPreparedArticles: closed,
     sales,
+    pizzaDoughSettings: doughSettings,
+    pizzaSizeFactors,
   });
 }
 

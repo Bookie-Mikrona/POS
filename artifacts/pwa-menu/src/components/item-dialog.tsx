@@ -33,7 +33,11 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
       setValidationError(null);
       const defaultMods: Record<number, boolean> = {};
       setSelectedMods(defaultMods);
-      setVelikostPice(artikel.velikostiPic.find((velikost) => velikost.id === "normalna")?.id ?? artikel.velikostiPic[0]?.id);
+      setVelikostPice(
+        artikel.velikostiPic.find((velikost) => velikost.id === "normalna" && artikel.availableBySize?.normalna !== 0)?.id
+        ?? artikel.velikostiPic.find((velikost) => artikel.availableBySize?.[velikost.id] !== 0)?.id
+        ?? artikel.velikostiPic[0]?.id,
+      );
       setToGo(false);
     }
   }, [open, artikel]);
@@ -41,6 +45,10 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
   if (!artikel) return null;
 
   const handleAdd = () => {
+    if (artikel.jePica && velikostPice && artikel.availableBySize?.[velikostPice] === 0) {
+      setValidationError('Izbrana velikost pice trenutno ni na voljo.');
+      return;
+    }
     const modifikatorji: CartItemModifier[] = [];
     for (const skupina of artikel.modifikatorji) {
       const izbranih = skupina.opcije.filter((mod) => selectedMods[mod.id]);
@@ -198,9 +206,16 @@ export function ItemDialog({ artikel, open, onOpenChange }: ItemDialogProps) {
                 <div className="grid grid-cols-3 gap-2">
                   {artikel.velikostiPic.map((velikost) => (
                     <Button key={velikost.id} type="button" variant={velikostPice === velikost.id ? "default" : "outline"}
-                      className="h-auto min-h-[44px] flex-col gap-0.5 py-1.5 px-1" onClick={() => setVelikostPice(velikost.id)}>
+                      className="h-auto min-h-[44px] flex-col gap-0.5 py-1.5 px-1"
+                      disabled={artikel.availableBySize?.[velikost.id] === 0}
+                      onClick={() => setVelikostPice(velikost.id)}>
                       <span className="text-sm">{velikost.naziv}</span>
                       <span className="text-[10px] opacity-80 font-normal">{velikost.premerCm} cm · {velikost.cena.toFixed(2)} €</span>
+                      {artikel.availableBySize && (
+                        <span className="text-[10px] opacity-80 font-normal">
+                          Na voljo: {artikel.availableBySize[velikost.id] == null ? '∞' : artikel.availableBySize[velikost.id]}
+                        </span>
+                      )}
                     </Button>
                   ))}
                 </div>

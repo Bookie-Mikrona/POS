@@ -139,7 +139,10 @@ export default function MenuPage() {
   useEffect(() => {
     if (!selectedArtikel || !data) return;
     const current = data.artikli.find((artikel) => artikel.id === selectedArtikel.id);
-    if (!current || !current.naVoljo) {
+    const currentAvailable = current?.jePica && current.availableBySize
+      ? current.velikostiPic.some((size) => current.availableBySize?.[size.id] !== 0)
+      : current?.naVoljo;
+    if (!current || !currentAvailable) {
       setDialogOpen(false);
       setSelectedArtikel(null);
       return;
@@ -376,7 +379,10 @@ export default function MenuPage() {
                   <button
                     key={artikel.id}
                     onClick={() => {
-                      if (!artikel.naVoljo) return;
+                      const artikelNaVoljo = artikel.jePica && artikel.availableBySize
+                        ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                        : artikel.naVoljo;
+                      if (!artikelNaVoljo) return;
                       const multicourseMenu = multicourseByArticle.get(artikel.id);
                       if (multicourseMenu) {
                         setSelectedArtikel(artikel);
@@ -387,9 +393,13 @@ export default function MenuPage() {
                       setSelectedArtikel(artikel);
                       setDialogOpen(true);
                     }}
-                    disabled={!artikel.naVoljo}
+                    disabled={!(artikel.jePica && artikel.availableBySize
+                      ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                      : artikel.naVoljo)}
                     className={`flex min-w-0 flex-col text-left overflow-hidden rounded-xl sm:rounded-2xl border bg-card transition-all ${
-                      artikel.naVoljo
+                      (artikel.jePica && artikel.availableBySize
+                        ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                        : artikel.naVoljo)
                         ? "hover:border-primary/30 active:scale-[0.98] shadow-sm"
                         : "cursor-not-allowed opacity-55 grayscale"
                     }`}
@@ -422,7 +432,13 @@ export default function MenuPage() {
                               To Go
                             </span>
                           )}
-                          {artikel.mealType !== 'ala_carte' && artikel.availableQuantity != null && (
+                          {artikel.jePica && artikel.availableBySize ? (
+                            <div className="flex flex-wrap gap-x-2 text-[10px] sm:text-xs font-semibold text-emerald-700" data-testid={`available-portions-${artikel.id}`}>
+                              {artikel.velikostiPic.map((size) => (
+                                <span key={size.id}>{size.naziv}: {artikel.availableBySize?.[size.id] == null ? '∞' : artikel.availableBySize[size.id]}</span>
+                              ))}
+                            </div>
+                          ) : artikel.mealType !== 'ala_carte' && artikel.availableQuantity != null && (
                             <span
                               className="inline-flex rounded-full bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-emerald-700"
                               data-testid={`available-portions-${artikel.id}`}
@@ -435,7 +451,9 @@ export default function MenuPage() {
                           {artikel.cena.toFixed(2)} €
                         </div>
                       </div>
-                      {!artikel.naVoljo && (
+                      {!(artikel.jePica && artikel.availableBySize
+                        ? artikel.velikostiPic.some((size) => artikel.availableBySize?.[size.id] !== 0)
+                        : artikel.naVoljo) && (
                         <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-destructive" data-testid={`sold-out-${artikel.id}`}>
                           Trenutno ni na voljo
                         </div>

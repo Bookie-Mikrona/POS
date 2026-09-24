@@ -46,6 +46,7 @@ export * from "./malica-contracts";
 export * from "./partner-ceniki";
 export * from "./uporabniki";
 export * from "./pos-booking-settings";
+export * from "./pizza-dough-settings";
 export * from "./pos-category-revenue-accounts";
 export * from "./darilni-boni";
 export * from "./karticna-placila-attempts";

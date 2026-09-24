@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, Search, X, Copy, Upload, FileUp, FileDown, AlertCircle, CheckCircle2, SlidersHorizontal, ShoppingBag, ImageIcon, Sparkles, Menu as MenuIcon, PackageOpen, ChevronRight, ChevronDown, Check, History, RotateCcw } from "lucide-react";
 import type { Kategorija, Artikel, ModSkupinaFull } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -500,6 +500,31 @@ export default function Menu() {
   const { data: existingArtModSkupine } = useGetArtikelModSkupine(editingArt?.id ?? 0);
   const { data: skupineList } = useListModSkupine();
   const setArtikelModSkupineMutation = useSetArtikelModSkupine();
+  const pizzaDoughNormsQuery = useQuery({
+    queryKey: ["artikel-pizza-dough-norms", editingArt?.id],
+    enabled: Boolean(artDialogOpen && artMode === "uredi" && editingArt && artJePica),
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!editingArt) return [];
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/artikli/${editingArt.id}/pizza-dough-norms`);
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const errorMessage = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+          ? body.error
+          : "Normativov testa za pico ni bilo mogoče naložiti.";
+        throw new Error(errorMessage);
+      }
+      if (!Array.isArray(body)) {
+        throw new Error("Strežnik je vrnil neveljavne normative testa za pico.");
+      }
+      return body as Array<{
+        size: "mala" | "normalna" | "druzinska";
+        ingredient: { id: number; name: string };
+        quantity: number;
+      }>;
+    },
+  });
 
   const previewAlergeniMutation = usePreviewArtikelAlergeniNormativ();
   const [inheritedAlergeni, setInheritedAlergeni] = useState<AlergenPovzetek | null>(null);
@@ -2529,6 +2554,35 @@ export default function Menu() {
                       </Button>
                     </div>
                   </div>
+                  {editingArt && artJePica && (
+                    <div className="space-y-1 rounded-md bg-muted/40 p-2" data-testid="pizza-dough-norms">
+                      <p className="text-xs font-semibold text-muted-foreground">Normativi testa po velikosti · samo za branje</p>
+                      {pizzaDoughNormsQuery.isLoading ? (
+                        <p className="text-sm text-muted-foreground">Nalaganje normativov testa …</p>
+                      ) : pizzaDoughNormsQuery.isError ? (
+                        <p className="text-sm text-destructive">
+                          {pizzaDoughNormsQuery.error instanceof Error
+                            ? pizzaDoughNormsQuery.error.message
+                            : "Normativov testa za pico ni bilo mogoče naložiti."}
+                        </p>
+                      ) : pizzaDoughNormsQuery.data?.length ? (
+                        pizzaDoughNormsQuery.data.map((row) => {
+                          const sizeLabel = row.size === "mala" ? "Mala" : row.size === "normalna" ? "Normalna" : "Družinska";
+                          return (
+                            <div
+                              key={`${row.size}-${row.ingredient.id}`}
+                              className="flex items-center justify-between gap-3 rounded border bg-background px-2 py-1.5 text-sm"
+                            >
+                              <span>{sizeLabel} — {row.ingredient.name}</span>
+                              <span className="shrink-0 tabular-nums">{row.quantity} kos</span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Za velikosti pice ni določenih dodatnih normativov testa.</p>
+                      )}
+                    </div>
+                  )}
                   {normativItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Ni določenih vhodnih artiklov.</p>
                   ) : (
