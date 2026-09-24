@@ -46,10 +46,6 @@ export function ReservationFlow({ restaurant }: ReservationFlowProps) {
     }
   );
 
-  // Wait, I need to check how to pass query params to `useGetJavnaRazpolozljivost`.
-  // The API likely expects `datum` and `steviloOseb` as query parameters.
-  // I will check `getJavnaRazpolozljivostUrl` parameters.
-  
   const createReservation = useCreateJavnaRezervacija({
     mutation: {
       onSuccess: (data) => {
@@ -91,6 +87,8 @@ export function ReservationFlow({ restaurant }: ReservationFlowProps) {
   // Generate party size options
   const maxParty = restaurant.maxPartySize || 12;
   const partyOptions = Array.from({ length: maxParty }, (_, i) => i + 1);
+  const availableSlots = availability?.slots.filter(slot => slot.naVoljo) ?? [];
+  const selectedTimeAvailable = availableSlots.some(slot => slot.cas === time);
 
   return (
     <div className="w-full">
@@ -156,20 +154,20 @@ export function ReservationFlow({ restaurant }: ReservationFlowProps) {
         )}
 
         {step === 'datetime' && (
-          <div className="p-6 md:p-8 fade-in flex flex-col md:flex-row gap-8">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-4">
-                <Button variant="ghost" size="icon" onClick={() => handleNext('party')} className="-ml-2">
+          <div className="p-5 sm:p-8 fade-in max-w-2xl mx-auto">
+            <div className="flex items-center gap-3 mb-2">
+                <Button variant="ghost" size="icon" onClick={() => handleNext('party')} className="shrink-0" aria-label="Nazaj na izbiro števila oseb">
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
-                <h2 className="text-2xl font-serif">Izberite datum in uro</h2>
-              </div>
-              <p className="text-muted-foreground mb-6 flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Miza za {partySize} {partySize === 1 ? 'osebo' : partySize === 2 ? 'osebi' : partySize <= 4 ? 'osebe' : 'oseb'}
-              </p>
-              
-              <div className="bg-card border rounded-lg p-2 inline-block mb-6">
+                <h2 className="text-2xl font-serif">Izberite termin</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6 ml-12">
+              Miza za {partySize} {partySize === 1 ? 'osebo' : partySize === 2 ? 'osebi' : partySize <= 4 ? 'osebe' : 'oseb'}
+            </p>
+
+            <div className="mx-auto max-w-[380px]">
+              <h3 className="mb-3 text-sm font-semibold">1. Izberite datum</h3>
+              <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                 <Calendar
                   mode="single"
                   selected={date}
@@ -180,64 +178,55 @@ export function ReservationFlow({ restaurant }: ReservationFlowProps) {
                     }
                   }}
                   disabled={(d) => isBefore(d, startOfToday())}
-                  className="rounded-md"
                 />
               </div>
             </div>
 
-            <div className="flex-1 border-t md:border-t-0 md:border-l border-border pt-6 md:pt-0 md:pl-8">
-              <h3 className="font-serif text-lg mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
-                {date ? format(date, 'EEEE, d. MMMM', { locale: sl }) : 'Izberite datum'}
-              </h3>
+            <div className="mt-7 border-t border-border pt-6">
+              <h3 className="mb-1 text-sm font-semibold">2. Izberite uro</h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {date ? format(date, 'EEEE, d. MMMM', { locale: sl }) : 'Najprej izberite datum'}
+              </p>
               
               {isLoadingAvailability ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {[1,2,3,4].map(i => <div key={i} className="h-12 bg-muted animate-pulse rounded-md" />)}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="status" aria-label="Nalagam proste termine">
+                  {[1,2,3,4].map(i => <div key={i} className="h-11 bg-muted animate-pulse rounded-lg" />)}
                 </div>
-              ) : !availability || availability.slots.length === 0 ? (
-                <div className="text-center py-8 bg-muted/50 rounded-lg border border-dashed">
-                  <p className="text-muted-foreground">Na izbran datum ni prostih terminov.</p>
+              ) : availableSlots.length === 0 ? (
+                <div className="rounded-lg bg-muted/50 px-4 py-5 text-sm text-muted-foreground">
+                  Na ta dan ni prostih terminov. Izberite drug datum.
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {availability.slots.map((slot) => {
-                    const isAvailable = slot.naVoljo;
-                    const isSelected = time === slot.cas;
-                    
-                    return (
-                      <button
-                        key={slot.cas}
-                        disabled={!isAvailable}
-                        onClick={() => setTime(slot.cas)}
-                        className={cn(
-                          "h-12 rounded-md font-medium transition-all border flex items-center justify-center gap-2",
-                          !isAvailable && "opacity-50 cursor-not-allowed bg-muted text-muted-foreground",
-                          isAvailable && !isSelected && "bg-card hover:bg-accent border-border hover:text-accent-foreground",
-                          isSelected && "bg-primary text-primary-foreground border-primary shadow-md"
-                        )}
-                      >
-                        {formatTime(slot.cas)}
-                        {slot.preostalo !== undefined && slot.preostalo !== null && slot.preostalo <= 2 && isAvailable && (
-                          <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">
-                            Samo še {slot.preostalo}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-label="Prosti termini">
+                  {availableSlots.map((slot) => (
+                    <button
+                      key={slot.cas}
+                      type="button"
+                      aria-pressed={time === slot.cas}
+                      onClick={() => setTime(slot.cas)}
+                      className={cn(
+                        "min-h-11 rounded-lg border px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                        time === slot.cas
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card hover:border-primary hover:bg-accent"
+                      )}
+                    >
+                      {formatTime(slot.cas)}
+                      {slot.preostalo !== undefined && slot.preostalo !== null && slot.preostalo <= 2 && (
+                        <span className="ml-1 text-xs opacity-80">· še {slot.preostalo}</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               )}
               
-              <div className="mt-8">
-                <Button 
-                  className="w-full h-12 text-lg" 
-                  disabled={!time}
-                  onClick={() => handleNext('details')}
-                >
-                  Nadaljuj na vnos podatkov
-                </Button>
-              </div>
+              <Button
+                className="mt-6 w-full h-12"
+                disabled={!selectedTimeAvailable || isLoadingAvailability}
+                onClick={() => handleNext('details')}
+              >
+                Nadaljuj
+              </Button>
             </div>
           </div>
         )}
