@@ -23,11 +23,13 @@ import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
 import { loadEventTransferDiagnostics } from "../lib/loadEventTransferDiagnostics";
 import { loadEventTransferDetail, loadEventTransferMovementDetail } from "../lib/loadEventTransferDetail";
+import companyOffboardingRouter from "./adminCompanyOffboarding";
 
 const router: IRouter = Router();
 
 // Vse admin poti zahtevajo prijavo + super admin vlogo
 router.use(requireAuth, requireSuperAdmin);
+router.use("/companies/:id/offboarding", companyOffboardingRouter);
 
 // ── Podjetja ──────────────────────────────────────────────────────────────────
 
