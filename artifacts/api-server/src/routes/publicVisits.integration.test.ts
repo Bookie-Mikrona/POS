@@ -146,6 +146,10 @@ afterAll(async () => {
     await client.query("DELETE FROM public_stripe_payment_reviews WHERE company_id=$1",[companyId]);
     await client.query("DELETE FROM public_reservation_audit WHERE reservation_id IN (SELECT id FROM public_reservations WHERE company_id=$1)",[companyId]);
     await client.query("DELETE FROM public_reservations WHERE company_id=$1",[companyId]);
+    await client.query("DELETE FROM pos_individual_voucher_redemption_holds WHERE company_id=$1",[companyId]);
+    const holdOrders=(await client.query("SELECT narocilo_id FROM pos_racun_izdaja_zahteve WHERE company_id=$1 AND idempotency_key=$2",[companyId,`voucher-hold-${run}`])).rows.map((row:any)=>row.narocilo_id);
+    await client.query("DELETE FROM pos_racun_izdaja_zahteve WHERE company_id=$1 AND idempotency_key=$2",[companyId,`voucher-hold-${run}`]);
+    if(holdOrders.length)await client.query("DELETE FROM narocila WHERE id=ANY($1::int[])",[holdOrders]);
     await client.query("DELETE FROM individual_voucher_movements WHERE company_id=$1",[companyId]);
     await client.query("DELETE FROM individual_vouchers WHERE company_id=$1",[companyId]);
     await client.query("DELETE FROM public_voucher_checkouts WHERE company_id=$1",[companyId]);
@@ -1042,5 +1046,66 @@ describe("javni obiski", () => {
     expect(replay.status).toBe(200);
     expect(replay.body.idempotent).toBe(true);
     expect(replay.body.balanceCents).toBe(2000);
+  });
+
+  it("polna unovčitev ostane idempotentna, ko je bon že porabljen", async () => {
+    const code=`BON-${run}-FULL`;
+    const client=await (db as any).$client.connect();
+    try {
+      const checkout=(await client.query(`INSERT INTO public_voucher_checkouts(profile_id,company_id,unit_id,idempotency_key,expected_amount_cents,buyer_name,buyer_email,recipient_name,recipient_email,items,privacy_accepted_at,status,payment_status)
+        VALUES($1,$2,$3,$4,2500,'Kupec','k@example.test','Gost','g@example.test','[]',now(),'complete','paid') RETURNING id`,[profileId,companyId,unitId,`checkout-full-${run}`])).rows[0];
+      const voucher=(await client.query(`INSERT INTO individual_vouchers(checkout_id,company_id,unit_id,code_hash,code_suffix,initial_amount_cents,recipient_name,recipient_email)
+        VALUES($1,$2,$3,$4,$5,2500,'Gost','g@example.test') RETURNING id`,[checkout.id,companyId,unitId,createHash("sha256").update(code).digest("hex"),code.slice(-6)])).rows[0];
+      await client.query(`INSERT INTO individual_voucher_movements(voucher_id,company_id,operation_key,type,amount_cents)
+        VALUES($1,$2,'issue','issue',2500)`,[voucher.id,companyId]);
+    } finally { client.release(); }
+    const api=supertest(internalApp());
+    const payload={code,operationKey:`full-${run}`,amountCents:2500};
+    const first=await api.post("/darilni-boni/individualni/unovci").send(payload);
+    expect(first.status).toBe(200);
+    expect(first.body.balanceCents).toBe(0);
+    const replay=await api.post("/darilni-boni/individualni/unovci").send(payload);
+    expect(replay.status).toBe(200);
+    expect(replay.body.idempotent).toBe(true);
+    expect(replay.body.balanceCents).toBe(0);
+  });
+
+  it("POS hold je odštet pri predogledu in neposrednem unovčenju, tudi ob sočasnih delnih poskusih", async () => {
+    const code=`BON-${run}-HELD`;
+    const operationId=randomUUID();
+    const client=await (db as any).$client.connect();
+    try {
+      const checkout=(await client.query(`INSERT INTO public_voucher_checkouts(profile_id,company_id,unit_id,idempotency_key,expected_amount_cents,buyer_name,buyer_email,recipient_name,recipient_email,items,privacy_accepted_at,status,payment_status)
+        VALUES($1,$2,$3,$4,5000,'Kupec','k@example.test','Gost','g@example.test','[]',now(),'complete','paid') RETURNING id`,[profileId,companyId,unitId,`checkout-held-${run}`])).rows[0];
+      const voucher=(await client.query(`INSERT INTO individual_vouchers(checkout_id,company_id,unit_id,code_hash,code_suffix,initial_amount_cents,recipient_name,recipient_email)
+        VALUES($1,$2,$3,$4,$5,5000,'Gost','g@example.test') RETURNING id`,[checkout.id,companyId,unitId,createHash("sha256").update(code).digest("hex"),code.slice(-6)])).rows[0];
+      await client.query(`INSERT INTO individual_voucher_movements(voucher_id,company_id,operation_key,type,amount_cents) VALUES($1,$2,'issue','issue',5000)`,[voucher.id,companyId]);
+      const order=(await client.query(`INSERT INTO narocila(enota_id,status,skupaj) VALUES($1,'odprto','0.00') RETURNING id`,[unitId])).rows[0];
+      await client.query(`INSERT INTO pos_racun_izdaja_zahteve(id,company_id,enota_id,narocilo_id,blagajna_kljuc,idempotency_key,payload_hash,status)
+        VALUES($1,$2,$3,$4,'TEST:VOUCHER',$5,'test','processing')`,[operationId,companyId,unitId,order.id,`voucher-hold-${run}`]);
+      await client.query(`INSERT INTO pos_individual_voucher_redemption_holds(operation_id,voucher_id,company_id,amount_cents,status)
+        VALUES($1,$2,$3,3000,'held')`,[operationId,voucher.id,companyId]);
+    } finally { client.release(); }
+
+    const api=supertest(internalApp());
+    const preview=await api.post("/darilni-boni/individualni/preveri").send({code});
+    expect(preview.status).toBe(200);
+    expect(preview.body.balanceCents).toBe(2000);
+    const results=await Promise.all([
+      api.post("/darilni-boni/individualni/unovci").send({code,operationKey:`held-a-${run}`,amountCents:1500}),
+      api.post("/darilni-boni/individualni/unovci").send({code,operationKey:`held-b-${run}`,amountCents:1500}),
+    ]);
+    expect(results.map(result=>result.status).sort()).toEqual([200,409]);
+    const winner=results.find(result=>result.status===200)!;
+    const winnerKey=winner.body.idempotent ? `held-a-${run}` : (
+      results[0]===winner ? `held-a-${run}` : `held-b-${run}`
+    );
+    const replay=await api.post("/darilni-boni/individualni/unovci")
+      .send({code,operationKey:winnerKey,amountCents:1500});
+    expect(replay.status).toBe(200);
+    expect(replay.body.idempotent).toBe(true);
+    expect(replay.body.balanceCents).toBe(500);
+    const after=await api.post("/darilni-boni/individualni/preveri").send({code});
+    expect(after.body.balanceCents).toBe(500);
   });
 });

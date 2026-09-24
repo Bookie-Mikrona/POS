@@ -50,6 +50,7 @@ import {
 } from "./racuni";
 import racuniRouter from "./racuni";
 import terminalRouter from "./terminal";
+import * as posFursLib from "../../lib/pos-furs";
 
 afterAll(async () => {
   await pool.end();
@@ -300,6 +301,131 @@ describe("Viva refund audit access", () => {
 });
 
 describe("sočasna izdaja računa iz istega potrjenega plačila", () => {
+  it("izda individualni bon kot POS račun, vrača isti račun ob replay, blokira premalo stanja pred FURS in ob retry potrdi zadržani hold", async () => {
+    const runId = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const [company] = await db.insert(companiesTable).values({
+      podjetjeDavcna: `T509${runId}`,
+      naziv: `Individual voucher POS ${runId}`,
+    }).returning({ id: companiesTable.id });
+    const [enota] = await db.insert(enoteTable).values({
+      companyId: company!.id,
+      ime: `Individual voucher POS ${runId}`,
+      capabilities: ["checkout", "receipts", "simulation"],
+    }).returning({ id: enoteTable.id });
+    const client = await (db as any).$client.connect();
+    let profileId = "";
+    try {
+      profileId = (await client.query(`INSERT INTO public_venue_profiles(unit_id,company_id,slug)
+        VALUES($1,$2,$3) RETURNING id`,[enota!.id,company!.id,`pos-voucher-${runId.toLowerCase()}`])).rows[0].id;
+    } finally { client.release(); }
+
+    const createVoucherAndOrder = async (suffix: string, amountCents: number) => {
+      const code = `POS-${runId}-${suffix}`;
+      const connection = await (db as any).$client.connect();
+      let voucherId = "";
+      try {
+        const checkout = (await connection.query(`INSERT INTO public_voucher_checkouts
+          (profile_id,company_id,unit_id,idempotency_key,expected_amount_cents,buyer_name,buyer_email,recipient_name,recipient_email,items,privacy_accepted_at,status,payment_status)
+          VALUES($1,$2,$3,$4,$5,'Kupec','k@example.test','Gost','g@example.test','[]',now(),'complete','paid') RETURNING id`,
+        [profileId,company!.id,enota!.id,`checkout-${runId}-${suffix}`,amountCents])).rows[0];
+        voucherId = (await connection.query(`INSERT INTO individual_vouchers
+          (checkout_id,company_id,unit_id,code_hash,code_suffix,initial_amount_cents,recipient_name,recipient_email)
+          VALUES($1,$2,$3,$4,$5,$6,'Gost','g@example.test') RETURNING id`,
+        [checkout.id,company!.id,enota!.id,createHash("sha256").update(code).digest("hex"),code.slice(-6),amountCents])).rows[0].id;
+        await connection.query(`INSERT INTO individual_voucher_movements
+          (voucher_id,company_id,operation_key,type,amount_cents) VALUES($1,$2,'issue','issue',$3)`,
+        [voucherId,company!.id,amountCents]);
+      } finally { connection.release(); }
+      const [order] = await db.insert(narocilaTable).values({
+        enotaId:enota!.id,skupaj:(amountCents/100).toFixed(2),
+      }).returning({id:narocilaTable.id});
+      await db.insert(postavkeTable).values({
+        narociloId:order!.id,ime:`Voucher sale ${suffix}`,kolicina:1,
+        cenaKos:(amountCents/100).toFixed(2),skupaj:(amountCents/100).toFixed(2),davek:"22.00",
+      });
+      return {code,voucherId,orderId:order!.id};
+    };
+
+    const app = express();
+    app.use(express.json());
+    app.use((req,_res,next)=>{
+      Object.assign(req,{
+        companyId:company!.id,enotaId:enota!.id,clerkUserId:`voucher-pos-${runId}`,
+        log:{info:()=>undefined,warn:()=>undefined,error:()=>undefined},
+      });
+      next();
+    });
+    app.use(racuniRouter);
+    app.use((err:Error,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
+      res.status(500).json({error:err.message});
+    });
+
+    const full = await createVoucherAndOrder("full",1000);
+    const body = {
+      idempotencyKey:`voucher-receipt-${runId}-full`,narociloId:full.orderId,
+      placilnaNacin:"bon",znesekBon:10,individualVoucherCode:full.code,
+    };
+    const issued = await supertest(app).post("/racuni").send(body);
+    expect(issued.status,issued.body).toBe(201);
+    const replay = await supertest(app).post("/racuni").send(body);
+    expect(replay.status,replay.body).toBe(200);
+    expect(replay.body).toMatchObject({id:issued.body.id,idempotentReplay:true});
+    const committed = await (db as any).$client.query(`SELECT
+      (SELECT count(*)::int FROM individual_voucher_movements WHERE voucher_id=$1 AND type='redeem' AND amount_cents=1000) redemptions,
+      (SELECT count(*)::int FROM pos_individual_voucher_redemption_holds WHERE voucher_id=$1 AND receipt_id=$2 AND status='committed') holds,
+      (SELECT count(*)::int FROM darilni_bon_gibi WHERE racun_id=$2) legacy_movements`,
+    [full.voucherId,issued.body.id]);
+    expect(committed.rows[0]).toEqual({redemptions:1,holds:1,legacy_movements:0});
+
+    const attemptsBefore = await (db as any).$client.query(`SELECT count(*)::int count FROM furs_attempts fa
+      JOIN racuni r ON r.id=fa.racun_id WHERE r.enota_id=$1`,[enota!.id]);
+    const insufficientOrder = await db.insert(narocilaTable).values({enotaId:enota!.id,skupaj:"1.00"}).returning({id:narocilaTable.id});
+    await db.insert(postavkeTable).values({
+      narociloId:insufficientOrder[0]!.id,ime:"Premalo bona",kolicina:1,cenaKos:"1.00",skupaj:"1.00",davek:"22.00",
+    });
+    const insufficient = await supertest(app).post("/racuni").send({
+      idempotencyKey:`voucher-receipt-${runId}-insufficient`,narociloId:insufficientOrder[0]!.id,
+      placilnaNacin:"bon",znesekBon:1,individualVoucherCode:full.code,
+    });
+    expect(insufficient.status).toBe(409);
+    const attemptsAfter = await (db as any).$client.query(`SELECT count(*)::int count FROM furs_attempts fa
+      JOIN racuni r ON r.id=fa.racun_id WHERE r.enota_id=$1`,[enota!.id]);
+    expect(attemptsAfter.rows[0].count).toBe(attemptsBefore.rows[0].count);
+    const insufficientEffects = await (db as any).$client.query(`SELECT
+      (SELECT count(*)::int FROM racuni WHERE narocilo_id=$1) receipts,
+      (SELECT count(*)::int FROM pos_individual_voucher_redemption_holds WHERE voucher_id=$2) holds`,
+    [insufficientOrder[0]!.id,full.voucherId]);
+    expect(insufficientEffects.rows[0]).toEqual({receipts:0,holds:1});
+
+    const retry = await createVoucherAndOrder("retry",500);
+    const fursFailure = vi.spyOn(posFursLib,"posljiNaFURS").mockResolvedValue({
+      uspeh:false,zoi:"simulated-zoi",eor:"",napaka:"simulated terminal FURS rejection",surovOdgovor:"test",
+    } as Awaited<ReturnType<typeof posFursLib.posljiNaFURS>>);
+    const failed = await supertest(app).post("/racuni").send({
+      idempotencyKey:`voucher-receipt-${runId}-retry`,narociloId:retry.orderId,
+      placilnaNacin:"bon",znesekBon:5,individualVoucherCode:retry.code,
+    });
+    fursFailure.mockRestore();
+    expect(failed.status,JSON.stringify(failed.body)).toBe(422);
+    expect(failed.body.fursState).toBe("failed");
+    const holdBeforeRetry = await (db as any).$client.query(
+      "SELECT status FROM pos_individual_voucher_redemption_holds WHERE voucher_id=$1 AND receipt_id=$2",
+      [retry.voucherId,failed.body.id],
+    );
+    expect(holdBeforeRetry.rows[0]?.status).toBe("held");
+    const retried = await supertest(app).post(`/racuni/${failed.body.id}/ponovi-furs`).send({});
+    expect(retried.status,retried.body).toBe(200);
+    expect(retried.body).toMatchObject({id:failed.body.id,uspeh:true,outcome:"confirmed"});
+    const holdAfterRetry = await (db as any).$client.query(
+      "SELECT status FROM pos_individual_voucher_redemption_holds WHERE voucher_id=$1 AND receipt_id=$2",
+      [retry.voucherId,failed.body.id],
+    );
+    expect(holdAfterRetry.rows[0]?.status).toBe("committed");
+    const retryMovement = await (db as any).$client.query(`SELECT count(*)::int count FROM individual_voucher_movements
+      WHERE voucher_id=$1 AND type='redeem' AND amount_cents=500`,[retry.voucherId]);
+    expect(retryMovement.rows[0].count).toBe(1);
+  });
+
   it("ohrani Viva ECR referenco in znesek skozi start, PAID, izdajo z napitnino ter replay", async () => {
     const runId = Math.random().toString(36).slice(2, 10).toUpperCase();
     const paymentAttemptId = `viva-payment-${runId}-0001`;

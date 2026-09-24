@@ -4675,6 +4675,12 @@ export interface RacunInput {
      */
   znesekBon?: number | null;
   /**
+     * QR koda spletnega individualnega bona; nikoli se ne shranjuje na račun
+     * @minLength 8
+     * @maxLength 256
+     */
+  individualVoucherCode?: string;
+  /**
      * Število bonov za pico
      * @nullable
      */

@@ -1334,7 +1334,9 @@ internalVoucherRouter.post("/darilni-boni/individualni/preveri", async (req:any,
     FROM individual_vouchers v JOIN individual_voucher_movements m ON m.voucher_id=v.id WHERE v.company_id=${companyId} AND v.code_hash=${hashToken(code)}
     GROUP BY v.id`))[0];
   if(!row)return res.status(404).json({error:"Bon ni najden."});
-  res.json({id:row.id,codeSuffix:row.code_suffix,balanceCents:row.balance,currency:row.currency,status:row.status,expiresAt:row.expires_at});
+  const held=Number(rows(await db.execute(sql`SELECT COALESCE(sum(amount_cents),0)::int held
+    FROM pos_individual_voucher_redemption_holds WHERE voucher_id=${row.id} AND status='held'`))[0]?.held??0);
+  res.json({id:row.id,codeSuffix:row.code_suffix,balanceCents:Math.max(0,Number(row.balance)-held),currency:row.currency,status:row.status,expiresAt:row.expires_at});
 });
 
 internalVoucherRouter.post("/darilni-boni/individualni/unovci", async (req:any,res): Promise<any> => {
@@ -1347,14 +1349,23 @@ internalVoucherRouter.post("/darilni-boni/individualni/unovci", async (req:any,r
     await client.query("BEGIN");
     const voucher=(await client.query("SELECT * FROM individual_vouchers WHERE company_id=$1 AND code_hash=$2 FOR UPDATE",[companyId,hashToken(code)])).rows[0];
     if(!voucher) {await client.query("ROLLBACK");return res.status(404).json({error:"Bon ni najden."});}
-    if(voucher.status!=="active"||(voucher.expires_at&&new Date(voucher.expires_at)<=new Date())){await client.query("ROLLBACK");return res.status(409).json({error:"Bon ni aktiven."});}
     const existing=(await client.query("SELECT * FROM individual_voucher_movements WHERE voucher_id=$1 AND operation_key=$2",[voucher.id,operationKey])).rows[0];
     const balance=Number((await client.query("SELECT COALESCE(sum(CASE WHEN type='issue' OR type='reverse' THEN amount_cents ELSE -amount_cents END),0)::int balance FROM individual_voucher_movements WHERE voucher_id=$1",[voucher.id])).rows[0].balance);
-    if(existing){await client.query("COMMIT");return res.json({voucherId:voucher.id,redeemedCents:existing.amount_cents,balanceCents:balance,idempotent:true});}
-    if(amount>balance){await client.query("ROLLBACK");return res.status(409).json({error:"Znesek presega preostalo vrednost bona.",balanceCents:balance});}
+    const held=Number((await client.query("SELECT COALESCE(sum(amount_cents),0)::int held FROM pos_individual_voucher_redemption_holds WHERE voucher_id=$1 AND status='held'",[voucher.id])).rows[0].held);
+    const available=Math.max(0,balance-held);
+    if(existing){
+      if(existing.type!=="redeem"||Number(existing.amount_cents)!==amount){
+        await client.query("ROLLBACK");
+        return res.status(409).json({error:"Ključ unovčitve je že uporabljen za drugačen znesek."});
+      }
+      await client.query("COMMIT");
+      return res.json({voucherId:voucher.id,redeemedCents:existing.amount_cents,balanceCents:available,idempotent:true});
+    }
+    if(voucher.status!=="active"||(voucher.expires_at&&new Date(voucher.expires_at)<=new Date())){await client.query("ROLLBACK");return res.status(409).json({error:"Bon ni aktiven."});}
+    if(amount>available){await client.query("ROLLBACK");return res.status(409).json({error:"Znesek presega razpoložljivo vrednost bona (upoštevane so tudi čakajoče rezervacije).",balanceCents:available});}
     await client.query("INSERT INTO individual_voucher_movements(voucher_id,company_id,operation_key,type,amount_cents,receipt_id) VALUES($1,$2,$3,'redeem',$4,$5)",[voucher.id,companyId,operationKey,amount,req.body?.receiptId??null]);
-    if(amount===balance)await client.query("UPDATE individual_vouchers SET status='spent' WHERE id=$1",[voucher.id]);
-    await client.query("COMMIT");res.json({voucherId:voucher.id,redeemedCents:amount,balanceCents:balance-amount,idempotent:false});
+    if(balance-amount-held<=0)await client.query("UPDATE individual_vouchers SET status='spent' WHERE id=$1",[voucher.id]);
+    await client.query("COMMIT");res.json({voucherId:voucher.id,redeemedCents:amount,balanceCents:available-amount,idempotent:false});
   }catch(error){await client.query("ROLLBACK");req.log.error({err:error},"Voucher redemption failed");res.status(500).json({error:"Bona ni bilo mogoče unovčiti."});}
   finally{client.release();}
 });

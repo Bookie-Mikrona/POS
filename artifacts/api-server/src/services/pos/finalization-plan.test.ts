@@ -135,6 +135,30 @@ describe("FinalizationPlan", () => {
     expect(validateFinalizationPlan(invalid)).toContain("Offline finalization accepts cash only.");
   });
 
+  it("rejects individual-voucher redemption claims on offline and gateway plans", () => {
+    const offline = plan("offline");
+    (offline.payment as { individualVoucherRedemptionCents?: number }).individualVoucherRedemptionCents = 500;
+    expect(validateFinalizationPlan(offline)).toContain("Offline finalization does not accept online individual vouchers.");
+
+    const gatewayBase = plan("offline");
+    const gateway = {
+      ...gatewayBase,
+      sourceAuthority: "GATEWAY" as const,
+      receipt: { ...gatewayBase.receipt, cloudOrderId: 9, sourceOrderRef: "cloud-order" },
+      closure: { ...gatewayBase.closure, cloudOrderId: 9 },
+      payment: { ...gatewayBase.payment, individualVoucherRedemptionCents: 500 },
+    };
+    expect(validateFinalizationPlan(gateway)).toContain("Gateway finalization does not accept online individual vouchers.");
+
+    const gatewayCode = Object.assign({
+      ...gatewayBase,
+      sourceAuthority: "GATEWAY" as const,
+      receipt: { ...gatewayBase.receipt, cloudOrderId: 9, sourceOrderRef: "cloud-order" },
+      closure: { ...gatewayBase.closure, cloudOrderId: 9 },
+    }, { individualVoucherCode: "must-not-be-accepted" });
+    expect(validateFinalizationPlan(gatewayCode)).toContain("Gateway finalization does not accept online individual vouchers.");
+  });
+
   it("uses a typed mismatch conflict", () => {
     const error = new FinalizationPlanConflict("mismatch");
     expect(error.status).toBe(409);

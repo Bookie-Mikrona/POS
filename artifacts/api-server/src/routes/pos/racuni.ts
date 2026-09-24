@@ -451,6 +451,67 @@ async function getDarilniBonStanje(companyId: string): Promise<DarilniBonStanje>
   };
 }
 
+async function lockIndividualVoucherForReceipt(tx: any, input: {
+  companyId: string;
+  code: string;
+  amountCents: number;
+}): Promise<string> {
+  const found = await tx.execute(sql`
+    SELECT id, status, expires_at
+    FROM individual_vouchers
+    WHERE company_id = ${input.companyId}
+      AND code_hash = ${createHash("sha256").update(input.code).digest("hex")}
+    FOR UPDATE
+  `);
+  const voucher = found.rows[0] as { id: string; status: string; expires_at: Date | string | null } | undefined;
+  if (!voucher) {
+    throw Object.assign(new Error("Spletni bon ni najden."), { status: 404, code: "INDIVIDUAL_VOUCHER_UNAVAILABLE" });
+  }
+  if (voucher.status !== "active" || (voucher.expires_at && new Date(voucher.expires_at) <= new Date())) {
+    throw Object.assign(new Error("Spletni bon ni aktiven ali je potekel."), { status: 409, code: "INDIVIDUAL_VOUCHER_UNAVAILABLE" });
+  }
+  const balanceResult = await tx.execute(sql`
+    SELECT COALESCE(sum(CASE WHEN type IN ('issue','reverse') THEN amount_cents ELSE -amount_cents END),0)::int balance
+    FROM individual_voucher_movements WHERE voucher_id = ${voucher.id}
+  `);
+  const heldResult = await tx.execute(sql`
+    SELECT COALESCE(sum(amount_cents),0)::int held
+    FROM pos_individual_voucher_redemption_holds WHERE voucher_id = ${voucher.id} AND status = 'held'
+  `);
+  const available = Math.max(0, Number(balanceResult.rows[0]?.balance ?? 0) - Number(heldResult.rows[0]?.held ?? 0));
+  if (input.amountCents > available) {
+    throw Object.assign(
+      new Error("Znesek bona presega razpoložljivo stanje po upoštevanju čakajočih rezervacij."),
+      { status: 409, code: "INDIVIDUAL_VOUCHER_UNAVAILABLE", balanceCents: available },
+    );
+  }
+  return voucher.id;
+}
+
+export async function reserveIndividualVoucherForReceipt(tx: any, input: {
+  companyId: string;
+  code: string;
+  operationId: string;
+  amountCents: number;
+  receiptId: number;
+}): Promise<void> {
+  const voucherId = await lockIndividualVoucherForReceipt(tx, input);
+  const hold = await tx.execute(sql`
+    INSERT INTO pos_individual_voucher_redemption_holds
+      (operation_id, voucher_id, company_id, amount_cents, receipt_id, status)
+    VALUES (
+      ${input.operationId}, ${voucherId}, ${input.companyId},
+      ${input.amountCents}, ${input.receiptId}, 'held'
+    )
+    RETURNING id
+  `);
+  if (hold.rows.length !== 1) {
+    throw Object.assign(new Error("Rezervacije spletnega bona ni mogoče varno povezati z računom."), {
+      code: "INDIVIDUAL_VOUCHER_HOLD_CREATE_FAILED",
+    });
+  }
+}
+
 const baseSelect = {
   id: racuniTable.id,
   narociloId: racuniTable.narociloId,
@@ -1161,6 +1222,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const idempotencyKey = parsed.data.idempotencyKey;
   const payloadHash = createHash("sha256").update(JSON.stringify(parsed.data)).digest("hex");
+  const individualVoucherCode = parsed.data.individualVoucherCode?.trim() || null;
 
   const [existingRequest] = await db.select().from(racunIzdajaZahteveTable).where(and(
     eq(racunIzdajaZahteveTable.companyId, companyId),
@@ -1403,6 +1465,22 @@ router.post("/racuni", async (req, res): Promise<void> => {
   });
   if (!paymentValidation.ok) { res.status(400).json({ error: paymentValidation.error }); return; }
   const { napitnina, normalizedKartica, suppliedPaymentFields } = paymentValidation;
+  const individualVoucherAmountCents = Math.round(Number(parsed.data.znesekBon ?? 0) * 100);
+  if (individualVoucherCode && individualVoucherAmountCents <= 0) {
+    res.status(400).json({ error: "Za spletni individualni bon mora biti naveden pozitiven znesek v polju znesekBon." });
+    return;
+  }
+  if (individualVoucherCode && Math.abs(Number(parsed.data.znesekBon) * 100 - individualVoucherAmountCents) > 0.001) {
+    res.status(400).json({ error: "Znesek spletnega bona mora biti izražen v celih centih." });
+    return;
+  }
+  if (individualVoucherCode && normalizedKartica > 0.005) {
+    res.status(409).json({
+      code: "INDIVIDUAL_VOUCHER_CARD_ORDER_UNSAFE",
+      error: "Spletnega bona ni mogoče združiti s kartičnim plačilom: kartica se lahko bremeni pred rezervacijo bona. Kartičnega plačila ne ponavljajte; najprej uskladite terminalski poskus.",
+    });
+    return;
+  }
   const qrNapitnina = Number(narocilo.znesekNapitnina ?? 0);
   const tipOrigin = validateQrTipOrigin(napitnina, qrNapitnina);
   if (!tipOrigin.ok) {
@@ -1941,6 +2019,12 @@ router.post("/racuni", async (req, res): Promise<void> => {
       vivaTransactionId: vivaTransactionId || null, vivaOrderCode: vivaOrderCode || null,
       cardPaymentAttemptId: cardPaymentAttempt?.id ?? null,
     }).returning();
+    if (individualVoucherCode) {
+      await reserveIndividualVoucherForReceipt(tx, {
+        companyId, code: individualVoucherCode, operationId: issueReservation.id,
+        amountCents: individualVoucherAmountCents, receiptId: racun.id,
+      });
+    }
     const stockMovements = await captureStockMovementIntents(tx, zalogaMovements);
     const vatGroupMap = new Map<number, { gross: number; vat: number }>();
     for (const line of fursPostavke) {
@@ -2016,7 +2100,8 @@ router.post("/racuni", async (req, res): Promise<void> => {
         nonCash: Number((parsed.data as any).znesekNegotovinsko ?? 0),
         terminalReferenceReservationId: terminalReferenceReservation?.id ?? null,
         cardPaymentAttemptId: cardPaymentAttempt?.id ?? null,
-        giftVoucherRedemption: Number(parsed.data.znesekBon ?? 0),
+        giftVoucherRedemption: individualVoucherCode ? 0 : Number(parsed.data.znesekBon ?? 0),
+        individualVoucherRedemptionCents: individualVoucherCode ? individualVoucherAmountCents : null,
       },
       operator: {
         waiterId: attributedNatakarId ?? null, name: natakarIme, taxNumber: natakarDavcna,
@@ -2110,11 +2195,18 @@ router.post("/racuni", async (req, res): Promise<void> => {
         req.log.error({ err: result.reason }, "Čiščenje neuspele začetne izdaje računa ni uspelo");
       }
     }
-    if ((error as { code?: string }).code !== "COMMERCIAL_GROUP_ALREADY_RESERVED") throw error;
-    res.status(409).json({
-      code: "COMMERCIAL_GROUP_ALREADY_RESERVED",
-      error: "Celotno sestavljeno postavko je sočasno rezerviral drug račun.",
-    });
+    const errorCode = (error as { code?: string }).code;
+    if (errorCode === "INDIVIDUAL_VOUCHER_UNAVAILABLE") {
+      res.status(Number((error as { status?: number }).status) || 409).json({
+        code: errorCode, error: error instanceof Error ? error.message : "Spletnega bona ni mogoče rezervirati.",
+        ...((error as { balanceCents?: number }).balanceCents != null
+          ? { balanceCents: (error as { balanceCents: number }).balanceCents }
+          : {}),
+      });
+      return;
+    }
+    if (errorCode !== "COMMERCIAL_GROUP_ALREADY_RESERVED") throw error;
+    res.status(409).json({ code: errorCode, error: "Celotno sestavljeno postavko je sočasno rezerviral drug račun." });
     return;
   }
 
@@ -2281,7 +2373,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
 
   // znesekBon je izključno večnamenski darilni bon. Bon za pico ima ločen
   // znesekBonPica in ga ta evidenca nikoli ne upošteva.
-  const unovceniDarilniBon = Number(parsed.data.znesekBon ?? 0);
+  const unovceniDarilniBon = individualVoucherCode ? 0 : Number(parsed.data.znesekBon ?? 0);
   if (unovceniDarilniBon > 0.005) {
     await db.insert(darilniBonGibiTable).values({
       companyId,
@@ -2834,7 +2926,7 @@ router.post("/racuni/:id/ponovi-furs", async (req, res): Promise<void> => {
   res.json({ id, ...result });
 });
 
-async function finalizeConfirmedStorno(tx: any, stornoRacunId: number, actor: string): Promise<void> {
+export async function finalizeConfirmedStorno(tx: any, stornoRacunId: number, actor: string): Promise<void> {
   const locked = await tx.execute(sql`
     SELECT id, izvorni_racun_id, datum_cas, ustvarjeno, furs_state, storno_finalized_at
     FROM racuni WHERE id = ${stornoRacunId} AND je_storno = true FOR UPDATE
@@ -2851,6 +2943,55 @@ async function finalizeConfirmedStorno(tx: any, stornoRacunId: number, actor: st
 
   await tx.update(racuniTable).set({ status: "storniran" })
     .where(eq(racuniTable.id, izvorni.id));
+  const voucherRedemptions = await tx.execute(sql`
+    SELECT m.id, m.voucher_id, m.company_id, m.amount_cents
+    FROM individual_voucher_movements m
+    JOIN individual_vouchers v ON v.id = m.voucher_id
+    WHERE m.receipt_id = ${izvorni.id} AND m.type = 'redeem'
+    ORDER BY m.voucher_id
+    FOR UPDATE OF m, v
+  `);
+  for (const redemption of voucherRedemptions.rows as Array<{
+    id: string; voucher_id: string; company_id: string; amount_cents: number;
+  }>) {
+    const operationKey = `pos-storno:${storno.id}`;
+    const reversal = await tx.execute(sql`
+      INSERT INTO individual_voucher_movements
+        (voucher_id, company_id, operation_key, type, amount_cents, receipt_id)
+      VALUES (${redemption.voucher_id}, ${redemption.company_id}, ${operationKey},
+              'reverse', ${redemption.amount_cents}, ${storno.id})
+      ON CONFLICT (voucher_id, operation_key) DO NOTHING
+      RETURNING id
+    `);
+    if (!reversal.rows.length) {
+      const existingReversal = await tx.execute(sql`
+        SELECT id FROM individual_voucher_movements
+        WHERE voucher_id = ${redemption.voucher_id} AND operation_key = ${operationKey}
+          AND type = 'reverse' AND amount_cents = ${redemption.amount_cents} AND receipt_id = ${storno.id}
+      `);
+      if (!existingReversal.rows.length) {
+        throw new Error("Storno bona je v konfliktu z obstoječim gibanjem; potrebna je uskladitev.");
+      }
+    }
+    await tx.execute(sql`
+      UPDATE pos_individual_voucher_redemption_holds
+      SET status = 'reversed', reversed_at = COALESCE(reversed_at, now())
+      WHERE receipt_id = ${izvorni.id} AND voucher_id = ${redemption.voucher_id}
+        AND status = 'committed'
+    `);
+    await tx.execute(sql`
+      UPDATE individual_vouchers v
+      SET status = CASE
+        WHEN v.expires_at IS NOT NULL AND v.expires_at <= now() THEN 'spent'
+        WHEN (
+          SELECT COALESCE(sum(CASE WHEN m.type IN ('issue','reverse') THEN m.amount_cents ELSE -m.amount_cents END),0)
+          FROM individual_voucher_movements m WHERE m.voucher_id = v.id
+        ) > 0 THEN 'active'
+        ELSE 'spent'
+      END
+      WHERE v.id = ${redemption.voucher_id}
+    `);
+  }
   await compensateTipAllocationsForReceipt(tx, {
     racunId: izvorni.id,
     actor,

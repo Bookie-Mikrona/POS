@@ -14489,6 +14489,11 @@ components:
             - number
             - "null"
           description: Znesek plačan z darilnim bonom
+        individualVoucherCode:
+          type: string
+          minLength: 8
+          maxLength: 256
+          description: QR koda spletnega individualnega bona; nikoli se ne shranjuje na račun
         steviloBonov:
           type:
             - integer

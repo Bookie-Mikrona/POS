@@ -109,6 +109,7 @@ import { issueGatewayCashReceipt, gatewayPosService, localOrderRoute, parseLocal
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 import { useAiSvetovalec } from "@/hooks/use-ai-svetovalec";
 import { AiSvetovalecPanel } from "@/components/AiSvetovalecPanel";
+import { IndividualVoucherScanner, type IndividualVoucherPreview } from "@/components/IndividualVoucherScanner";
 
 interface IssuedRacun {
   id: number;
@@ -788,6 +789,14 @@ ${linije.map(vrHtml).join("\n")}
   const [znesekSubvencija, setZnesekSubvencija] = useState(0);
   const [sspReferenca, setSspReferenca] = useState("");
   const [sekundarniNacin, setSekundarniNacin] = useState<"gotovina" | "kartica">("gotovina");
+  const [individualVoucherMode, setIndividualVoucherMode] = useState(false);
+  const [individualVoucherCode, setIndividualVoucherCode] = useState("");
+  const [individualVoucherPreview, setIndividualVoucherPreview] = useState<IndividualVoucherPreview | null>(null);
+  useEffect(() => {
+    setIndividualVoucherMode(false);
+    setIndividualVoucherCode("");
+    setIndividualVoucherPreview(null);
+  }, [effectiveSelectedOrderKey]);
   const [darilniBonDialogOpen, setDarilniBonDialogOpen] = useState(false);
   const [darilniBonZnesekIzdaja, setDarilniBonZnesekIzdaja] = useState("");
   const [darilniBonPlaciloIzdaja, setDarilniBonPlaciloIzdaja] = useState<"gotovina" | "kartica">("gotovina");
@@ -1021,6 +1030,9 @@ ${linije.map(vrHtml).join("\n")}
     nacinZajemaNapitnineRef.current = nacin;
     setSteviloBonov(0);
     setZnesekDarilnegaBona(0);
+    setIndividualVoucherMode(false);
+    setIndividualVoucherCode("");
+    setIndividualVoucherPreview(null);
     setZnesekSubvencija(0);
     setSspReferenca("");
     setSplitMode(false);
@@ -1256,7 +1268,11 @@ ${linije.map(vrHtml).join("\n")}
 
   // Darilni bon
   const znesekDarilnegaBonaDejanski = placilniNacin === "bon"
-    ? Math.min(znesekDarilnegaBona, znesekPreostalega)
+    ? individualVoucherMode
+      ? (individualVoucherPreview
+        ? Math.min(individualVoucherPreview.balanceCents / 100, znesekPreostalega)
+        : 0)
+      : Math.min(znesekDarilnegaBona, znesekPreostalega)
     : 0;
   const znesekPoKritiZDarilnimBonom = Math.max(0, znesekPreostalega - znesekDarilnegaBonaDejanski);
   const vsePlacanoZDarilnimBonom = placilniNacin === "bon" && znesekDarilnegaBonaDejanski > 0 && znesekPoKritiZDarilnimBonom < 0.005;
@@ -2002,8 +2018,30 @@ ${linije.map(vrHtml).join("\n")}
     return zneski;
   };
 
+  const preveriIndividualniBonZaIzdajo = (): string | null => {
+    if (!individualVoucherMode) return null;
+    if (recoverableCardPayment || availableRecoveries.length > 0) {
+      return "Na naročilu je čakajoče potrjeno kartično plačilo. Najprej ga obnovite z izbranim običajnim plačilom; individualnega bona ne dodajajte k že opravljeni kartični transakciji.";
+    }
+    if (!individualVoucherCode.trim()) return "Vnesite ali skenirajte kodo individualnega bona.";
+    if (!individualVoucherPreview) return "Koda bona še ni preverjena. Preverite jo pred izdajo računa.";
+    if (!["active", "available", "aktiven", "veljaven"].includes(individualVoucherPreview.status.toLowerCase())) {
+      return "Individualni bon ni v veljavnem statusu za unovčitev.";
+    }
+    if (znesekDarilnegaBonaDejanski <= 0) return "Znesek unovčitve bona ne sme biti 0 €.";
+    if (sekundarniNacin === "kartica" && znesekPoKritiZDarilnimBonom > 0.005) {
+      return "Mešano plačilo s kartico in individualnim spletnim bonom ni omogočeno, ker strežnik ne zagotavlja trajne predavtorizacije bona pred kartičnim plačilom. Izberite gotovino ali bon, ki pokrije celoten preostanek.";
+    }
+    return null;
+  };
+
   const issueRacun = async (bypassOpts?: { preskociDDVPreverjanje: boolean; skrbnisPIN: string }) => {
     if (!selectedNarocilo) return;
+    const voucherIssueError = preveriIndividualniBonZaIzdajo();
+    if (voucherIssueError) {
+      toast({ title: "Individualni bon ni pripravljen", description: voucherIssueError, variant: "destructive" });
+      return;
+    }
     if (!requireCurrentActorSession()) {
       if (paymentGuardRef.current === "in-flight") releasePaymentGuard();
       return;
@@ -2067,7 +2105,7 @@ ${linije.map(vrHtml).join("\n")}
           recoverySelectionToken: recoverySelectionTokenRef.current,
         }
       : {};
-    const racunData = { narociloId: selectedNarocilo, placilnaNacin: dejanskiNacin, fursNacin, natakariId, blagajnaId: activeBlagajnaId ?? null, znesekNapitnina: lahkoNapitnina ? znesekNapitninaRef.current : 0, tipPaymentMethod: lahkoNapitnina && znesekNapitninaRef.current > 0 ? dejanskiNacinZajemaNapitnine : undefined, ...zneski, ...bypassOpts, ...(postavkeIds ? { postavkeIds } : {}), ...kupecPolja, ...sumupCheckoutPolje, ...vivaTerminalPolje, ...vivaTransactionPolje, ...vivaOrderCodePolje, ...paymentAttemptPolje, ...recoverySelectionPolje, ...dniOdlogaPolje };
+    const racunData = { narociloId: selectedNarocilo, placilnaNacin: dejanskiNacin, fursNacin, natakariId, blagajnaId: activeBlagajnaId ?? null, znesekNapitnina: lahkoNapitnina ? znesekNapitninaRef.current : 0, tipPaymentMethod: lahkoNapitnina && znesekNapitninaRef.current > 0 ? dejanskiNacinZajemaNapitnine : undefined, ...zneski, ...(individualVoucherMode ? { individualVoucherCode: individualVoucherCode.trim() } : {}), ...bypassOpts, ...(postavkeIds ? { postavkeIds } : {}), ...kupecPolja, ...sumupCheckoutPolje, ...vivaTerminalPolje, ...vivaTransactionPolje, ...vivaOrderCodePolje, ...paymentAttemptPolje, ...recoverySelectionPolje, ...dniOdlogaPolje };
     const fingerprint = JSON.stringify(racunData);
     const idempotencyKey = racunIdempotencyRef.current?.fingerprint === fingerprint
       ? racunIdempotencyRef.current.key
@@ -2084,6 +2122,9 @@ ${linije.map(vrHtml).join("\n")}
             fiscal_state: racun.fursNapaka ? "warning" : "ok",
           });
           racunIdempotencyRef.current = null;
+          setIndividualVoucherCode("");
+          setIndividualVoucherPreview(null);
+          setIndividualVoucherMode(false);
           clearCardPaymentAttempt();
           // Native Bridge recovery evidence survives navigation and is cleared
           // only after the fiscal receipt mutation itself succeeded.
@@ -2683,6 +2724,11 @@ ${linije.map(vrHtml).join("\n")}
   const handleIzdajRacun = async () => {
     const selectedOrderKey = gatewayCheckoutMode ? selectedGatewayOrderId : selectedNarocilo;
     if (!selectedOrderKey || !selectedOrder) return;
+    const voucherIssueError = preveriIndividualniBonZaIzdajo();
+    if (voucherIssueError) {
+      toast({ title: "Individualni bon ni pripravljen", description: voucherIssueError, variant: "destructive" });
+      return;
+    }
     if (!requireCurrentActorSession()) return;
     if (isOfflineOrderLocked(selectedOrderKey)) {
       setOfflineOrderLocked(true);
@@ -5191,7 +5237,12 @@ ${linije.map(vrHtml).join("\n")}
                             nacinZajemaNapitnineRef.current = nacin;
                           }
                           setTerminalStanje("idle");
-                          if (v !== "bon") setZnesekDarilnegaBona(0);
+                          if (v !== "bon") {
+                            setZnesekDarilnegaBona(0);
+                            setIndividualVoucherMode(false);
+                            setIndividualVoucherCode("");
+                            setIndividualVoucherPreview(null);
+                          }
                           if (v !== "gotovina" && v !== "kartica") {
                             setZnesekSubvencija(0);
                             setSspReferenca("");
@@ -5247,13 +5298,49 @@ ${linije.map(vrHtml).join("\n")}
                       {/* Darilni bon — znesek input (samo ko je bon izbran) */}
                       {placilniNacin === "bon" && (
                         <div className="mt-3 space-y-3">
-                          {darilniBonStanje && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={individualVoucherMode ? "outline" : "default"}
+                              onClick={() => {
+                                setIndividualVoucherMode(false);
+                                setIndividualVoucherCode("");
+                                setIndividualVoucherPreview(null);
+                              }}
+                              data-testid="button-legacy-voucher-mode"
+                            >
+                              Stari boni (skupna evidenca)
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={individualVoucherMode ? "default" : "outline"}
+                              onClick={() => {
+                                setIndividualVoucherMode(true);
+                                setZnesekDarilnegaBona(0);
+                                setSekundarniNacin("gotovina");
+                              }}
+                              data-testid="button-individual-voucher-mode"
+                            >
+                              Spletni bon s kodo
+                            </Button>
+                          </div>
+                          {!individualVoucherMode && darilniBonStanje && (
                             <p className={`rounded-md border px-3 py-2 text-xs ${darilniBonStanje.odprto < 0 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
-                              Skupna evidenca darilnih bonov: odprto <strong>{darilniBonStanje.odprto.toFixed(2)} €</strong>. Bon nima individualnega preostanka; ta znesek se ob unovčitvi porabi na računu.
+                              <strong>Stari boni — skupna evidenca (brez kode):</strong> odprto <strong>{darilniBonStanje.odprto.toFixed(2)} €</strong>. To ni stanje posameznega bona.
                             </p>
                           )}
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-muted-foreground flex-1">Znesek darilnega bona (brez preostanka)</span>
+                          {individualVoucherMode ? (
+                            <IndividualVoucherScanner
+                              key={`individual-voucher-${String(effectiveSelectedOrderKey ?? "none")}`}
+                              value={individualVoucherCode}
+                              onChange={setIndividualVoucherCode}
+                              onVerified={setIndividualVoucherPreview}
+                              payableCents={Math.round(znesekPreostalega * 100)}
+                            />
+                          ) : <div className="flex items-center gap-3">
+                            <span className="text-sm text-muted-foreground flex-1">Znesek starih bonov (brez kode)</span>
                             <button
                               type="button"
                               onClick={() => setZnesekDarilnegaBona(v => Math.max(0, v - DARILNI_BON_KORAK))}
@@ -5273,7 +5360,7 @@ ${linije.map(vrHtml).join("\n")}
                             >
                               <Plus className="h-4 w-4" />
                             </button>
-                          </div>
+                          </div>}
 
                           {znesekDarilnegaBonaDejanski > 0 && (
                             <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 space-y-2">
@@ -5290,7 +5377,7 @@ ${linije.map(vrHtml).join("\n")}
                                   <div className="flex gap-2 pt-1">
                                     {[
                                       { value: "gotovina" as const, label: "Gotovina", Icon: Banknote },
-                                      { value: "kartica" as const,  label: "Kartica",  Icon: CreditCard },
+                                      ...(!individualVoucherMode ? [{ value: "kartica" as const, label: "Kartica", Icon: CreditCard }] : []),
                                     ].map(({ value, label, Icon }) => (
                                       <button
                                         key={value}
@@ -5312,6 +5399,11 @@ ${linije.map(vrHtml).join("\n")}
                                       </button>
                                     ))}
                                   </div>
+                                  {individualVoucherMode && (
+                                    <p className="text-xs text-amber-800">
+                                      Doplačilo z individualnim bonom je dovoljeno samo z gotovino. Kartica je izključena, ker strežnik ne zagotavlja trajne predavtorizacije bona pred kartičnim plačilom.
+                                    </p>
+                                  )}
                                 </>
                               )}
                               {vsePlacanoZDarilnimBonom && (

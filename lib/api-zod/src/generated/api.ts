@@ -6361,6 +6361,9 @@ export const createRacunBodyZnesekNapitninaMin = 0;
 export const createRacunBodyZnesekNapitninaMax = 99999999.99;
 export const createRacunBodyZnesekNapitninaMultipleOf = 0.01;
 
+export const createRacunBodyIndividualVoucherCodeMin = 8;
+export const createRacunBodyIndividualVoucherCodeMax = 256;
+
 export const createRacunBodyZnesekSubvencijaMin = 0;
 
 export const createRacunBodySspReferencaMax = 128;
@@ -6387,6 +6390,7 @@ export const CreateRacunBody = zod.object({
   "znesekNapitnina": zod.number().min(createRacunBodyZnesekNapitninaMin).max(createRacunBodyZnesekNapitninaMax).multipleOf(createRacunBodyZnesekNapitninaMultipleOf).optional().describe('Prostovoljna napitnina, vodena ločeno od prodajnih postavk'),
   "tipPaymentMethod": zod.enum(['cash', 'card']).optional().describe('Nespremenljiv kanal, prek katerega je bila zajeta napitnina; ob napitnini pri mešanem plačilu je obvezen'),
   "znesekBon": zod.number().nullish().describe('Znesek plačan z darilnim bonom'),
+  "individualVoucherCode": zod.string().min(createRacunBodyIndividualVoucherCodeMin).max(createRacunBodyIndividualVoucherCodeMax).optional().describe('QR koda spletnega individualnega bona; nikoli se ne shranjuje na račun'),
   "steviloBonov": zod.number().nullish().describe('Število bonov za pico'),
   "znesekBonPica": zod.number().nullish().describe('Znesek pokrit z boni za pico'),
   "znesekSubvencija": zod.number().min(createRacunBodyZnesekSubvencijaMin).nullish().describe('Subvencionirani del SŠP študentskega bona; terjatev do države, ne popust'),

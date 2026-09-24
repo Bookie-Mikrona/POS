@@ -11,6 +11,7 @@ import {
   poslovniProstoriTable,
 } from "@workspace/db";
 import { requireDeviceSync, deviceSyncSignatureInput } from "./offline-fiscal-sync";
+import { ingestOfflineReceipt } from "./offline-fiscal";
 
 const PATH = "/offline-fiscal/sync/config";
 const EMPTY_BODY_HASH = createHash("sha256").update(Buffer.alloc(0)).digest("hex");
@@ -54,6 +55,9 @@ function signedHeaders(input: {
 }
 
 const app = express();
+const offlineReceiptIngestApp = express();
+offlineReceiptIngestApp.use(express.json());
+offlineReceiptIngestApp.post("/offline-fiscal/receipts/ingest", ingestOfflineReceipt);
 app.get(PATH, requireDeviceSync, (req, res) => {
   res.json({
     companyId: (req as any).companyId,
@@ -127,6 +131,29 @@ afterAll(async () => {
 });
 
 describe("offline fiskalni device-sync na HTTP meji", () => {
+  it("zavrne individualVoucherCode v offline POS ovoju, namesto da bi zaobšel receipt hold", async () => {
+    const response = await supertest(offlineReceiptIngestApp).post("/offline-fiscal/receipts/ingest").send({
+      operationId: randomUUID(),
+      deviceId: randomUUID(),
+      poslovniProstorId: 1,
+      poslovniProstorOznaka: "P1",
+      bIdentifier: "B1",
+      sequence: 1,
+      issuedAt: new Date().toISOString(),
+      interruptionStartedAt: new Date().toISOString(),
+      orderId: 1,
+      operatorReference: null,
+      paymentReference: null,
+      paymentMethod: "cash",
+      canonicalPayload: {},
+      payloadSha256: "0".repeat(64),
+      deviceSignature: "signature",
+      signingPublicKeyFingerprintSha256: "0".repeat(64),
+      individualVoucherCode: "MUST-NOT-BE-ACCEPTED",
+    });
+    expect(response.status).toBe(400);
+  });
+
   it("zavrne napačen hash telesa", async () => {
     const response = await supertest(app).get(PATH).set(signedHeaders({
       bodyHash: "0".repeat(64),

@@ -105,6 +105,8 @@ export interface FinalizationPlan {
     readonly terminalReferenceReservationId: string | null;
     readonly cardPaymentAttemptId: string | null;
     readonly giftVoucherRedemption: number;
+    /** Cents reserved by the individual online-voucher receipt flow, if any. */
+    readonly individualVoucherRedemptionCents?: number | null;
   };
   readonly operator: {
     readonly waiterId: number | null;
@@ -332,6 +334,12 @@ export function validateFinalizationPlan(plan: FinalizationPlan): readonly strin
     if (plan.payment.method !== "gotovina" || plan.payment.card !== 0 || plan.payment.terminalReferenceReservationId) {
       errors.push("Offline finalization accepts cash only.");
     }
+    if (plan.payment.voucher !== 0 || plan.payment.pizzaVoucher !== 0 ||
+        plan.payment.giftVoucherRedemption !== 0 || plan.payment.individualVoucherRedemptionCents != null ||
+        Object.prototype.hasOwnProperty.call(plan.payment, "individualVoucherCode") ||
+        Object.prototype.hasOwnProperty.call(plan, "individualVoucherCode")) {
+      errors.push("Offline finalization does not accept online individual vouchers.");
+    }
     if (!plan.receipt.legalNumber) errors.push("Offline finalization requires a preissued legal number.");
     try {
       if (plan.receipt.localReceiptId !== deterministicFinalizationUuid(plan.sourceOperationId, "receipt") ||
@@ -344,6 +352,16 @@ export function validateFinalizationPlan(plan: FinalizationPlan): readonly strin
       errors.push("Offline sourceOperationId must be a UUID.");
     }
     if (plan.receipt.serverRacunId !== undefined) errors.push("Offline producer must not provide serverRacunId.");
+  }
+  if (finalizationPlanAuthority(plan) === "GATEWAY" &&
+      (plan.payment.individualVoucherRedemptionCents != null ||
+       Object.prototype.hasOwnProperty.call(plan.payment, "individualVoucherCode") ||
+       Object.prototype.hasOwnProperty.call(plan, "individualVoucherCode"))) {
+    errors.push("Gateway finalization does not accept online individual vouchers.");
+  }
+  if (plan.payment.individualVoucherRedemptionCents != null &&
+      (!Number.isSafeInteger(plan.payment.individualVoucherRedemptionCents) || plan.payment.individualVoucherRedemptionCents <= 0)) {
+    errors.push("Individual voucher redemption must be a positive integer-cent amount.");
   }
   return errors;
 }
@@ -663,6 +681,68 @@ export async function executeFinalizationPlan(
       companyId: plan.receipt.companyId, racunId, tip: "unovcitev",
       znesek: plan.payment.giftVoucherRedemption.toFixed(2),
     }).onConflictDoNothing();
+  }
+  const voucherHoldResult = await tx.execute(sql`
+    SELECT h.id, h.operation_id, h.voucher_id, h.company_id, h.amount_cents
+    FROM pos_individual_voucher_redemption_holds h
+    JOIN individual_vouchers v ON v.id = h.voucher_id
+    WHERE h.receipt_id = ${racunId} AND h.status = 'held'
+    FOR UPDATE OF h, v
+  `);
+  const expectedIndividualVoucherCents = plan.payment.individualVoucherRedemptionCents ?? null;
+  if (expectedIndividualVoucherCents != null && voucherHoldResult.rows.length !== 1) {
+    throw new FinalizationPlanConflict("Individual voucher receipt is missing its durable pre-FURS hold.");
+  }
+  if (expectedIndividualVoucherCents == null && voucherHoldResult.rows.length !== 0) {
+    throw new FinalizationPlanConflict("Receipt has an unexpected individual voucher hold.");
+  }
+  for (const hold of voucherHoldResult.rows as Array<{
+    id: string; operation_id: string; voucher_id: string; company_id: string; amount_cents: number;
+  }>) {
+    if (hold.company_id !== plan.receipt.companyId || Number(hold.amount_cents) !== expectedIndividualVoucherCents) {
+      throw new FinalizationPlanConflict("Individual voucher hold does not match the receipt payment snapshot.");
+    }
+    const operationKey = `pos-receipt:${hold.operation_id}`;
+    const inserted = await tx.execute(sql`
+      INSERT INTO individual_voucher_movements
+        (voucher_id, company_id, operation_key, type, amount_cents, receipt_id)
+      VALUES (${hold.voucher_id}, ${hold.company_id}, ${operationKey}, 'redeem', ${hold.amount_cents}, ${racunId})
+      ON CONFLICT (voucher_id, operation_key) DO NOTHING
+      RETURNING id
+    `);
+    if (!inserted.rows.length) {
+      const existingMovement = await tx.execute(sql`
+        SELECT id FROM individual_voucher_movements
+        WHERE voucher_id = ${hold.voucher_id} AND operation_key = ${operationKey}
+          AND type = 'redeem' AND amount_cents = ${hold.amount_cents} AND receipt_id = ${racunId}
+      `);
+      if (!existingMovement.rows.length) {
+        throw new FinalizationPlanConflict("Individual voucher redemption replay conflicts with an existing movement.");
+      }
+    }
+    const committed = await tx.execute(sql`
+      UPDATE pos_individual_voucher_redemption_holds
+      SET status = 'committed', committed_at = COALESCE(committed_at, now())
+      WHERE id = ${hold.id} AND status = 'held'
+      RETURNING id
+    `);
+    if (!committed.rows.length) {
+      const alreadyCommitted = await tx.execute(sql`
+        SELECT id FROM pos_individual_voucher_redemption_holds
+        WHERE id = ${hold.id} AND status = 'committed'
+      `);
+      if (!alreadyCommitted.rows.length) {
+        throw new FinalizationPlanConflict("Individual voucher hold could not be committed.");
+      }
+    }
+    await tx.execute(sql`
+      UPDATE individual_vouchers v
+      SET status = CASE WHEN (
+        SELECT COALESCE(sum(CASE WHEN m.type IN ('issue','reverse') THEN m.amount_cents ELSE -m.amount_cents END),0)
+        FROM individual_voucher_movements m WHERE m.voucher_id = v.id
+      ) <= 0 THEN 'spent' ELSE v.status END
+      WHERE v.id = ${hold.voucher_id}
+    `);
   }
   if (plan.stockMovements.length) {
     await tx.insert(zalogaGibiTable).values(plan.stockMovements.map(movement => ({
