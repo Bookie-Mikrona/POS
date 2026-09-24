@@ -20,9 +20,9 @@ import {
   UpdateJavniProfilNastavitveBody,
 } from "@workspace/api-zod";
 import nodemailer from "nodemailer";
-import PDFDocument from "pdfkit";
 import type Stripe from "stripe";
 import { logger, logPublicStripeWebhookFailure } from "../lib/logger";
+import { voucherPdf } from "../lib/voucher-pdf";
 import { getStripePlatformContext } from "../lib/stripeClient";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import {
@@ -203,22 +203,6 @@ async function deletePublicProfileImageIfUnused(objectPath:string,companyId:stri
     throw error;
   }
   return true;
-}
-async function voucherPdf(venue: string, recipient: string, codes: Array<{ code: string; amount: number }>) {
-  const doc = new PDFDocument({ size: "A4", margin: 54 });
-  const chunks: Buffer[] = [];
-  doc.on("data", chunk => chunks.push(Buffer.from(chunk)));
-  const done = new Promise<Buffer>((resolve, reject) => { doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); });
-  doc.fontSize(14).fillColor("#1B3B36").text("BOOKIE DARILNI BON");
-  doc.moveDown(2).fontSize(30).text(venue);
-  doc.moveDown().fontSize(14).fillColor("#333333").text(`Za: ${recipient}`);
-  for (const item of codes) {
-    doc.moveDown(1.5).fontSize(12).text("Koda bona").fontSize(22).text(item.code, { characterSpacing: 1.5 });
-    doc.fontSize(14).text(`Vrednost: ${(item.amount / 100).toLocaleString("sl-SI", { style: "currency", currency: "EUR" })}`);
-  }
-  doc.moveDown(2).fontSize(10).fillColor("#666666").text("Bon lahko uporabite delno. Preostala vrednost ostane na isti kodi.");
-  doc.end();
-  return done;
 }
 const VOUCHER_DELIVERY_MAX_ATTEMPTS = 5;
 const VOUCHER_DELIVERY_RETRY_MINUTES = [1, 5, 30, 120, 720] as const;
