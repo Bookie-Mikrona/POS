@@ -168,19 +168,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
     setAuthStatus("loading");
-    getTokenRef.current()
-      .then(token => {
-        if (!token) {
-          if (active) setAuthStatus("unauthorized");
-          return null;
-        }
-        return fetch(`/api/pos/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-      })
+    // Spletna Clerk seja potuje s piškotkom. Ročno dodan Bearer žeton lahko
+    // produkcijski Clerk middleware zavrne še pred preverjanjem POS vloge.
+    fetch("/api/pos/auth/me", {
+      credentials: "include",
+      cache: "no-store",
+    })
       .then(r => {
-        if (!r) return null;
         if (r.status === 401) {
           if (active) setAuthStatus("unauthorized");
           return null;
@@ -312,10 +306,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refresh = (async () => {
       try {
-        const token = await getTokenRef.current({ skipCache: true });
-        if (!token) return;
         const response = await fetch("/api/pos/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
           cache: "no-store",
         });
         if (!response.ok) return;

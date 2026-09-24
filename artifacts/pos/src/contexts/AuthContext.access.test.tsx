@@ -77,6 +77,23 @@ describe("POS AuthContext access status", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("preveri POS vlogo s Clerk piškotkom tudi brez ročnega žetona", async () => {
+    clerkState.getToken.mockResolvedValue(null);
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      id: 1, vloga: "admin", ime: "Test", priimek: "Uporabnik",
+      companyId: "company-1", enotaId: null, enote: [],
+      enotaCapabilities: [], posPlanCapabilities: [], aktiven: true,
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+    renderProvider();
+    await waitFor(() => expect(screen.getByTestId("auth-state").textContent).toBe("ready:user"));
+    expect(fetch).toHaveBeenCalledWith("/api/pos/auth/me", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    expect(clerkState.getToken).not.toHaveBeenCalled();
+  });
+
   it("ob prehodnem 401 potrdi sejo in ohrani prijavljenega uporabnika", async () => {
     const authMe = {
       id: 1,
