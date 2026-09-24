@@ -25,6 +25,7 @@ import {
   podobnostNormaliziranihNazivov,
 } from './pametno-uparjanje';
 import { expectedPurchaseVatRateForArticle } from './vat-code-resolver';
+import { toUneceUnitCode } from '../received-invoice-eslog';
 
 // Poizvedbe gredo dosledno prek db.execute(sql`...`), ne prek gradnika
 // poizvedb. Razlog: stopnja 3 kaskade potrebuje similarity() in operator
@@ -68,10 +69,21 @@ export interface UparjanjeVhod {
   gtin?: string | null;
   sifra?: string | null;
   naziv: string;
+  /** Enota iz izvorne vrstice; generic articles require a known canonical match. */
+  izvEnota?: string | null;
   /** cena na eno enoto — razsodnik pri ujemanju po nazivu */
   cenaNaEnoto?: Decimal | null;
   /** true = kandidati so samo artikli povratne embalaže */
   povratnaEmbalaza?: boolean;
+}
+
+export function genericArticleUnitMatches(
+  sourceUnit: string | null | undefined,
+  targetUnit: string | null | undefined,
+): boolean {
+  const sourceCode = toUneceUnitCode(sourceUnit);
+  const targetCode = toUneceUnitCode(targetUnit);
+  return sourceCode !== null && targetCode !== null && sourceCode === targetCode;
 }
 
 export function opozorilaVsebujejoKodo(opozorila: unknown, koda: string): boolean {
@@ -135,8 +147,11 @@ export async function upariPostavko(
     const { rows: vrstice } = await db.execute<{
       artikel_id: number;
       enot_v_paketu: string | null;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
     }>(sql`
-      SELECT a.id AS artikel_id, ad.enot_v_paketu
+      SELECT a.id AS artikel_id, ad.enot_v_paketu,
+             a.je_skupinski_nabavni_artikel, a.enota_mere
         FROM artikli a
         LEFT JOIN artikel_dobavitelj ad
                ON ad.artikel_id = a.id
@@ -146,15 +161,25 @@ export async function upariPostavko(
          AND a.nabavni_artikel
          AND a.povratna_embalaza = ${!!vhod.povratnaEmbalaza}
          AND public.gtin_norm(a.gtin) = ${gtin}
-       LIMIT 1
+        ORDER BY a.je_skupinski_nabavni_artikel ASC, a.id
+        LIMIT 20
     `);
-    if (vrstice.length) {
+    const zadetek = vrstice.find((row: {
+      artikel_id: number;
+      enot_v_paketu: string | null;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
+    }) =>
+      !row.je_skupinski_nabavni_artikel
+      || genericArticleUnitMatches(vhod.izvEnota, row.enota_mere),
+    );
+    if (zadetek) {
       return {
-        artikelId: Number(vrstice[0].artikel_id),
+        artikelId: Number(zadetek.artikel_id),
         metoda: 'GTIN',
         zaupanje: 100,
-        enotVPaketu: vrstice[0].enot_v_paketu
-          ? new Decimal(vrstice[0].enot_v_paketu)
+        enotVPaketu: zadetek.enot_v_paketu
+          ? new Decimal(zadetek.enot_v_paketu)
           : null,
         kandidati: [],
         samodejno: true,
@@ -168,8 +193,11 @@ export async function upariPostavko(
     const { rows: zadetki } = await db.execute<{
       artikel_id: number;
       enot_v_paketu: string;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
     }>(sql`
-      SELECT ad.artikel_id, ad.enot_v_paketu
+       SELECT ad.artikel_id, ad.enot_v_paketu,
+              a.je_skupinski_nabavni_artikel, a.enota_mere
         FROM artikel_dobavitelj ad
         JOIN artikli a ON a.id = ad.artikel_id
        WHERE ad.enota_id = ${vhod.enotaId}
@@ -178,15 +206,25 @@ export async function upariPostavko(
          AND ad.aktivno
          AND a.nabavni_artikel
           AND a.povratna_embalaza = ${!!vhod.povratnaEmbalaza}
-       LIMIT 1
+        ORDER BY a.je_skupinski_nabavni_artikel ASC, ad.id DESC
+        LIMIT 20
     `);
 
-    if (zadetki.length) {
+    const zadetek = zadetki.find((row: {
+      artikel_id: number;
+      enot_v_paketu: string;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
+    }) =>
+      !row.je_skupinski_nabavni_artikel
+      || genericArticleUnitMatches(vhod.izvEnota, row.enota_mere),
+    );
+    if (zadetek) {
       return {
-        artikelId: Number(zadetki[0].artikel_id),
+        artikelId: Number(zadetek.artikel_id),
         metoda: 'SIFRA_DOBAVITELJA',
         zaupanje: 100,
-        enotVPaketu: new Decimal(zadetki[0].enot_v_paketu),
+        enotVPaketu: new Decimal(zadetek.enot_v_paketu),
         kandidati: [],
         samodejno: true,
       };
@@ -201,8 +239,11 @@ export async function upariPostavko(
     const { rows: zadetki } = await db.execute<{
       artikel_id: number;
       enot_v_paketu: string;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
     }>(sql`
-      SELECT ad.artikel_id, ad.enot_v_paketu
+      SELECT ad.artikel_id, ad.enot_v_paketu,
+             a.je_skupinski_nabavni_artikel, a.enota_mere
         FROM artikel_dobavitelj ad
         JOIN artikli a ON a.id = ad.artikel_id
        WHERE ad.enota_id       = ${vhod.enotaId}
@@ -213,15 +254,25 @@ export async function upariPostavko(
          AND ad.aktivno
          AND a.nabavni_artikel
           AND a.povratna_embalaza = ${!!vhod.povratnaEmbalaza}
-       LIMIT 1
+        ORDER BY a.je_skupinski_nabavni_artikel ASC, ad.id DESC
+        LIMIT 20
     `);
 
-    if (zadetki.length) {
+    const zadetek = zadetki.find((row: {
+      artikel_id: number;
+      enot_v_paketu: string;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
+    }) =>
+      !row.je_skupinski_nabavni_artikel
+      || genericArticleUnitMatches(vhod.izvEnota, row.enota_mere),
+    );
+    if (zadetek) {
       return {
-        artikelId: Number(zadetki[0].artikel_id),
+        artikelId: Number(zadetek.artikel_id),
         metoda: 'PODOBNOST_NAZIVA',
         zaupanje: 100,
-        enotVPaketu: new Decimal(zadetki[0].enot_v_paketu),
+        enotVPaketu: new Decimal(zadetek.enot_v_paketu),
         kandidati: [],
         samodejno: true,
       };
@@ -233,8 +284,12 @@ export async function upariPostavko(
   // nabavnega artikla v isti enoti pa je deterministično. Dvojnikov ne
   // uparjamo samodejno, saj uporabnik mora izbrati pravega.
   if (vhod.naziv?.trim()) {
-    const { rows: natancniZadetki } = await db.execute<{ artikel_id: number }>(sql`
-      SELECT a.id AS artikel_id
+    const { rows: natancniZadetki } = await db.execute<{
+      artikel_id: number;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
+    }>(sql`
+      SELECT a.id AS artikel_id, a.je_skupinski_nabavni_artikel, a.enota_mere
         FROM artikli a
        WHERE a.enota_id = ${vhod.enotaId}
          AND a.nabavni_artikel
@@ -244,11 +299,19 @@ export async function upariPostavko(
            OR public.naziv_norm(COALESCE(a.ime_za_nabavo, '')) = public.naziv_norm(${vhod.naziv})
          )
        ORDER BY a.id
-       LIMIT 2
+        LIMIT 20
     `);
-    if (natancniZadetki.length === 1) {
+    const veljavniZadetki = natancniZadetki.filter((row: {
+      artikel_id: number;
+      je_skupinski_nabavni_artikel: boolean;
+      enota_mere: string | null;
+    }) =>
+      !row.je_skupinski_nabavni_artikel
+      || genericArticleUnitMatches(vhod.izvEnota, row.enota_mere),
+    );
+    if (veljavniZadetki.length === 1) {
       return {
-        artikelId: Number(natancniZadetki[0].artikel_id),
+        artikelId: Number(veljavniZadetki[0].artikel_id),
         metoda: 'PODOBNOST_NAZIVA',
         zaupanje: 100,
         enotVPaketu: null,
@@ -376,6 +439,7 @@ async function poisciKandidate(
     ocena: string;
     znan_dobavitelj: boolean;
     aktiven: boolean;
+    je_skupinski_nabavni_artikel: boolean;
   };
 
   const { rows: vrstice } = await db.execute<KandidatVrstica>(sql`
@@ -388,6 +452,7 @@ async function poisciKandidate(
         NULL::text                 AS sifra,
         a.ime                      AS naziv,
         a.enota_mere               AS osnovna_enota,
+        a.je_skupinski_nabavni_artikel,
         ad.zadnja_cena_enota,
         ad.enot_v_paketu,
         (ad.znan_dobavitelj IS TRUE) AS znan_dobavitelj,
@@ -441,7 +506,7 @@ async function poisciKandidate(
         -- Neaktivni artikli se vključijo, a dobijo opozorilo v UI
         AND a.nabavni_artikel = TRUE
         AND a.povratna_embalaza = ${!!vhod.povratnaEmbalaza}
-      GROUP BY a.id, a.ime, a.enota_mere, a.aktiven,
+      GROUP BY a.id, a.ime, a.enota_mere, a.aktiven, a.je_skupinski_nabavni_artikel,
                ad.zadnja_cena_enota, ad.enot_v_paketu, ad.znan_dobavitelj, i.n
     ),
     ocenjeni AS (
@@ -473,7 +538,8 @@ async function poisciKandidate(
         ) AS ocena
       FROM kandidati k
     )
-    SELECT artikel_id, sifra, naziv, osnovna_enota AS osnovna_enota, zadnja_cena_enota,
+     SELECT artikel_id, sifra, naziv, osnovna_enota AS osnovna_enota,
+            je_skupinski_nabavni_artikel, zadnja_cena_enota,
            enot_v_paketu, znan_dobavitelj, aktiven, round(ocena::numeric, 4) AS ocena
       FROM ocenjeni
      ORDER BY ocena DESC, znan_dobavitelj DESC
@@ -481,6 +547,8 @@ async function poisciKandidate(
   `);
 
   return (vrstice as unknown as KandidatVrstica[])
+    .filter(v => !v.je_skupinski_nabavni_artikel
+      || genericArticleUnitMatches(vhod.izvEnota, v.osnovna_enota))
     .map((v) => ({
       artikelId: Number(v.artikel_id),
       sifra: v.sifra,
@@ -514,6 +582,7 @@ async function poisciRocneKandidate(db: Db, vhod: UparjanjeVhod): Promise<Kandid
     ocena: string;
     znan_dobavitelj: boolean;
     aktiven: boolean;
+    je_skupinski_nabavni_artikel: boolean;
   };
 
   const { rows: vrstice } = await db.execute<KandidatVrstica>(sql`
@@ -525,6 +594,7 @@ async function poisciRocneKandidate(db: Db, vhod: UparjanjeVhod): Promise<Kandid
       NULL::text AS sifra,
       a.ime AS naziv,
       a.enota_mere AS osnovna_enota,
+      a.je_skupinski_nabavni_artikel,
       NULL::numeric AS zadnja_cena_enota,
       NULL::numeric AS enot_v_paketu,
       GREATEST(
@@ -544,6 +614,8 @@ async function poisciRocneKandidate(db: Db, vhod: UparjanjeVhod): Promise<Kandid
   `);
 
   return (vrstice as unknown as KandidatVrstica[])
+    .filter(v => !v.je_skupinski_nabavni_artikel
+      || genericArticleUnitMatches(vhod.izvEnota, v.osnovna_enota))
     .map((v) => ({
       artikelId: Number(v.artikel_id),
       sifra: v.sifra,
@@ -579,6 +651,74 @@ export interface PotrditevVhod {
   izvEnota?: string | null;
   datumPrevzema: string;
   zapomni?: boolean;
+}
+
+export class GenericArticleUnitMismatch extends Error {
+  constructor() {
+    super('Izvorna enota postavke manjka, ni podprta ali se ne ujema z enoto generičnega nabavnega artikla.');
+    this.name = 'GenericArticleUnitMismatch';
+  }
+}
+
+export class PurchaseArticleTargetNotFound extends Error {
+  constructor() {
+    super('Izbrani artikel ne obstaja v tej enoti ali ni nabavni artikel.');
+    this.name = 'PurchaseArticleTargetNotFound';
+  }
+}
+
+export class ReceiptLineNotFound extends Error {
+  constructor() {
+    super('Postavka prejemnice ne obstaja.');
+    this.name = 'ReceiptLineNotFound';
+  }
+}
+
+export function preračunajRočnoUparjanje(
+  izvKolicina: string | null,
+  izvCena: string | null,
+  rabat1Odst: string | null,
+  rabat2Odst: string | null,
+  enotVPaketu: Decimal,
+): { kolicina: Decimal | null; cenaKos: Decimal | null; netoCena: Decimal | null } {
+  if (!enotVPaketu.isFinite() || !enotVPaketu.gt(0)) {
+    throw new Error('Število enot v paketu mora biti večje od nič.');
+  }
+  const kolicina = izvKolicina === null
+    ? null
+    : new Decimal(izvKolicina).mul(enotVPaketu);
+  const cenaKos = izvCena === null
+    ? null
+    : netoPoRabatih(izvCena, rabat1Odst ?? 0, rabat2Odst ?? 0).div(enotVPaketu);
+  return { kolicina, cenaKos, netoCena: cenaKos };
+}
+
+async function preveriGeneričniArtikel(
+  db: Db,
+  artikelId: number,
+  enotaId: number,
+  sourceUnit: string | null | undefined,
+): Promise<boolean> {
+  const [article] = (await db.execute<{
+    je_skupinski_nabavni_artikel: boolean;
+    nabavni_artikel: boolean;
+    prodajni_artikel: boolean;
+    enota_mere: string | null;
+  }>(sql`
+    SELECT je_skupinski_nabavni_artikel, nabavni_artikel, prodajni_artikel, enota_mere
+      FROM artikli
+     WHERE id = ${artikelId}
+       AND enota_id = ${enotaId}
+       AND nabavni_artikel = true
+     LIMIT 1
+     FOR UPDATE
+  `)).rows;
+  if (!article) throw new PurchaseArticleTargetNotFound();
+  if (article.je_skupinski_nabavni_artikel
+    && (article.prodajni_artikel || !genericArticleUnitMatches(sourceUnit, article.enota_mere))) {
+    throw new GenericArticleUnitMismatch();
+  }
+  return article.je_skupinski_nabavni_artikel;
 }
 
 async function uskladiDdvPostavkeZArtiklom(
@@ -640,15 +780,38 @@ async function uskladiDdvPostavkeZArtiklom(
 
 export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
   await db.transaction(async (tx) => {
+    const jeGeneric = await preveriGeneričniArtikel(tx, v.artikelId, v.enotaId, v.izvEnota);
+    const [izvornaPostavka] = (await tx.execute<{
+      izv_kolicina: string | null;
+      izv_cena: string | null;
+      rabat_1_odst: string | null;
+      rabat_2_odst: string | null;
+    }>(sql`
+      SELECT pp.izv_kolicina, pp.izv_cena, pp.rabat_1_odst, pp.rabat_2_odst
+        FROM prejemnice_postavke pp
+        JOIN prejemnice p ON p.id = pp.prejemnica_id
+       WHERE pp.id = ${v.postavkaId}
+         AND p.enota_id = ${v.enotaId}
+       FOR UPDATE OF pp
+    `)).rows;
+    if (!izvornaPostavka) throw new ReceiptLineNotFound();
+    const preračun = preračunajRočnoUparjanje(
+      izvornaPostavka.izv_kolicina,
+      izvornaPostavka.izv_cena,
+      izvornaPostavka.rabat_1_odst,
+      izvornaPostavka.rabat_2_odst,
+      v.enotVPaketu,
+    );
     await tx.execute(sql`
       UPDATE prejemnice_postavke
          SET artikel_id = ${v.artikelId},
              enot_v_paketu = ${v.enotVPaketu.toString()},
+             ${preračun.kolicina ? sql`kolicina = ${preračun.kolicina.toString()},` : sql``}
+             ${preračun.cenaKos ? sql`cena_kos = ${preračun.cenaKos.toString()}, neto_cena = ${preračun.netoCena!.toString()},` : sql``}
              uparjanje = 'ROCNO',
              uparjanje_zaupanje = 100
        WHERE id = ${v.postavkaId}
     `);
-    await uskladiDdvPostavkeZArtiklom(tx, v.postavkaId, v.artikelId);
 
     if (v.zapomni === false) return;
 
@@ -746,7 +909,9 @@ export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
     }
 
     // GTIN zapiši tudi na artikel, če ga še nima in če prestane kontrolo
-    if (gtin) {
+    // Generic articles are stock targets, not supplier identities. Keep each
+    // supplier GTIN only on artikel_dobavitelj; never stamp it onto the group.
+    if (gtin && !jeGeneric) {
       await tx.execute(sql`
         UPDATE artikli
            SET gtin = ${gtin}
@@ -758,7 +923,7 @@ export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
 
     // Enoto mere zapiši na artikel, če je manjka — ne prepisujemo obstoječe.
     const izvEnotaNorm = v.izvEnota ? v.izvEnota.trim().toLowerCase() : null;
-    if (izvEnotaNorm) {
+    if (izvEnotaNorm && !jeGeneric) {
       await tx.execute(sql`
         UPDATE artikli
            SET enota_mere = ${izvEnotaNorm}
@@ -847,6 +1012,7 @@ export async function upariPrejemnico(
         gtin: p.izv_gtin,
         sifra: p.izv_sifra,
         naziv: p.izv_naziv ?? '',
+        izvEnota: p.izv_enota,
         cenaNaEnoto,
         povratnaEmbalaza,
       },
@@ -854,6 +1020,7 @@ export async function upariPrejemnico(
     );
 
     if (izid.samodejno && izid.artikelId) {
+      const jeGeneric = await preveriGeneričniArtikel(db, izid.artikelId, enotaId, p.izv_enota);
       // Koeficient iz artikel_dobavitelj prepisemo na postavko in hkrati
       // preračunamo kolicina ter cena_kos, da ostaneta konsistentna.
       //
@@ -884,11 +1051,11 @@ export async function upariPrejemnico(
                uparjanje_kandidati = ${JSON.stringify(izid.kandidati)}::jsonb
          WHERE id = ${p.id}
       `);
-      await uskladiDdvPostavkeZArtiklom(db, p.id, izid.artikelId);
+      if (!jeGeneric) await uskladiDdvPostavkeZArtiklom(db, p.id, izid.artikelId);
 
       // Enoto mere zapiši na artikel, če je manjka — ne prepisujemo obstoječe.
       const enotaNorm = p.izv_enota ? p.izv_enota.trim().toLowerCase() : null;
-      if (enotaNorm) {
+      if (enotaNorm && !jeGeneric) {
         await db.execute(sql`
           UPDATE artikli SET enota_mere = ${enotaNorm}
            WHERE id = ${izid.artikelId} AND enota_mere IS NULL

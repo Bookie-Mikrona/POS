@@ -76,6 +76,11 @@ import { AlergenEditor, AlergeniBadge, type AlergenSnapshot } from "@/components
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ShieldAlert } from "lucide-react";
 import { BookingPreviewDialog } from "./uvoz/BookingPreviewDialog";
+import {
+  areEslogUnitsCompatible,
+  canonicalEslogUnit,
+  validateGroupSourceLine,
+} from "@/lib/skupinski-nabavni-artikel";
 
 function AlergeniRowPopover({
   row,
@@ -135,6 +140,8 @@ type PrejemnicaRow = {
   enotVPaketu: string;
   popust: string;
   ddvStopnja: string;
+  izvNaziv?: string | null;
+  izvEnota?: string | null;
 
   alergeni?: AlergenKoda[];
   alergeniSledi?: AlergenKoda[];
@@ -143,6 +150,102 @@ type PrejemnicaRow = {
   alergeniOpombaVira?: string | null;
   alergeniDocumentId?: string | null;
 };
+
+const ESLOG_ENOTE_SKUPINSKIH_ARTIKLOV = [
+  "H87", "KGM", "GRM", "LTR", "MLT", "MTR", "MTK", "MTQ", "CT", "BX",
+  "KOM", "KOS", "PCE", "EA", "KG", "G", "L", "ML", "M", "M2", "M3", "KAR", "SKA",
+];
+
+type PrejemnicaArtikel = {
+  ime: string;
+  imeZaNabavo?: string | null;
+  enotaMere?: string | null;
+  jeSkupinskiNabavniArtikel?: boolean;
+};
+
+function IzvornaPostavkaPolja({
+  row,
+  target,
+  error,
+  id,
+  onChange,
+}: {
+  row: PrejemnicaRow;
+  target: PrejemnicaArtikel | null | undefined;
+  error?: string;
+  id: string;
+  onChange: (field: "izvNaziv" | "izvEnota", value: string) => void;
+}) {
+  if (!target) return null;
+  const isGroupTarget = Boolean(target.jeSkupinskiNabavniArtikel);
+  const sourceUnitUnsupported = Boolean(row.izvEnota?.trim() && !canonicalEslogUnit(row.izvEnota));
+  const sourceMismatch = Boolean(
+    row.izvEnota?.trim()
+    && canonicalEslogUnit(row.izvEnota)
+    && !areEslogUnitsCompatible(row.izvEnota, target.enotaMere),
+  );
+  const inlineError = error ?? (
+    sourceUnitUnsupported
+      ? `Enota dobavitelja »${row.izvEnota}« ni podprta e-SLOG enota.`
+      : sourceMismatch
+        ? `Enota dobavitelja (${row.izvEnota}) ne ustreza enoti skupinskega artikla (${target.enotaMere ?? "ni navedena"}).`
+        : undefined
+  );
+  if (!isGroupTarget && !row.izvNaziv && !row.izvEnota) return null;
+  const targetName = target.imeZaNabavo || target.ime;
+
+  return (
+    <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/60 p-2">
+      {isGroupTarget && (
+        <>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor={`source-name-${id}`} className="text-xs">Dobaviteljev naziv postavke</Label>
+              <Input
+                id={`source-name-${id}`}
+                data-testid={`input-source-line-name-${id}`}
+                value={row.izvNaziv ?? ""}
+                onChange={e => onChange("izvNaziv", e.target.value)}
+                placeholder="Naziv na dobavnici"
+                aria-invalid={Boolean(error && !row.izvNaziv?.trim())}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`source-unit-${id}`} className="text-xs">Dobaviteljeva e-SLOG enota</Label>
+              <Input
+                id={`source-unit-${id}`}
+                data-testid={`input-source-line-unit-${id}`}
+                list={`source-unit-options-${id}`}
+                value={row.izvEnota ?? ""}
+                onChange={e => onChange("izvEnota", e.target.value)}
+                placeholder="npr. KGM"
+                aria-invalid={Boolean(inlineError)}
+              />
+              <datalist id={`source-unit-options-${id}`}>
+                {ESLOG_ENOTE_SKUPINSKIH_ARTIKLOV.map(unit => <option key={unit} value={unit} />)}
+              </datalist>
+            </div>
+          </div>
+          {inlineError && (
+            <p className="mt-1 text-xs text-destructive" role="alert" data-testid={`text-source-line-error-${id}`}>
+              {inlineError}
+            </p>
+          )}
+        </>
+      )}
+      {(row.izvNaziv || row.izvEnota || isGroupTarget) && (
+        <p className="mt-1 text-xs text-muted-foreground" data-testid={`text-receipt-line-mapping-${id}`}>
+          Dobavitelj: <span className="font-medium text-foreground">{row.izvNaziv || "naziv ni vnesen"}</span>
+          {row.izvEnota && <> ({row.izvEnota})</>}
+          {" → zaloga: "}
+          <span className="font-semibold text-foreground">{targetName}</span>
+          {target.enotaMere && <> ({target.enotaMere})</>}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export type OdvisniStrosekRow = {
   naziv: string;
   znesek: string;
@@ -1564,6 +1667,7 @@ function EditPrejemnicaDialog({
     ime: string;
     imeZaNabavo?: string | null;
     enotaMere?: string | null;
+    jeSkupinskiNabavniArtikel?: boolean;
     davek: number;
     alergeni?: AlergenKoda[];
     alergeniSledi?: AlergenKoda[];
@@ -1620,6 +1724,7 @@ function EditPrejemnicaDialog({
   const [odvisniStroski, setOdvisniStroski] = useState<OdvisniStrosekRow[]>([]);
   const [dobaviteljId, setDobaviteljId] = useState<string | null>(null);
   const [rows, setRows] = useState<PrejemnicaRow[]>([]);
+  const [sourceLineErrors, setSourceLineErrors] = useState<Record<number, string>>({});
   const [novDobaviteljOpen, setNovDobaviteljOpen] = useState(false);
   const [dobDropdownOpen, setDobDropdownOpen] = useState(false);
   const initializedId = useRef<number | null>(null);
@@ -1805,6 +1910,8 @@ function EditPrejemnicaDialog({
         alergeniVir: (p as any).alergeniVir ?? null,
         alergeniOpombaVira: (p as any).alergeniOpombaVira ?? null,
         alergeniDocumentId: (p as any).alergeniDocumentId ?? null,
+        izvNaziv: (p as any).izvNaziv ?? null,
+        izvEnota: (p as any).izvEnota ?? (p as any).enotaMereEslog ?? null,
       };
     }));
   }, [data, nabavniArtikli]);
@@ -1815,6 +1922,11 @@ function EditPrejemnicaDialog({
     setTimeout(() => editArtInputRefs.current.get(newIdx)?.focus(), 30);
   };
   const selectArtikelInEditRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
+    setSourceLineErrors(current => {
+      const next = { ...current };
+      delete next[rowIdx];
+      return next;
+    });
     const nabavnaEntry = zadnjeNabavneEditRef.current.get(artikelId);
     const artikel = nabavniArtikli.find(a => a.id === artikelId);
     const davek = artikel?.davek ?? 0;
@@ -1849,12 +1961,23 @@ function EditPrejemnicaDialog({
     }
     if (!skipFocus) setTimeout(() => editPakBtnRefs.current.get(rowIdx)?.focus(), 30);
   };
-  const removeRow = (i: number) => setRows(r => {
-    const next = r.filter((_, j) => j !== i);
-    return next.length > 0 ? next : [{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "", popust: "", ddvStopnja: "" }];
-  });
-  const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
+  const removeRow = (i: number) => {
+    setRows(r => {
+      const next = r.filter((_, j) => j !== i);
+      return next.length > 0 ? next : [{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "", popust: "", ddvStopnja: "" }];
+    });
+    setSourceLineErrors({});
+  };
+  const updateRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) => {
     setRows(r => r.map((row, j) => j === i ? { ...row, [key]: val } : row));
+    if (key === "izvNaziv" || key === "izvEnota" || key === "artikelId") {
+      setSourceLineErrors(current => {
+        const next = { ...current };
+        delete next[i];
+        return next;
+      });
+    }
+  };
 
   const skupajTotals = rows.reduce((acc, r) => {
     const enot = parseDecimal(r.enotVPaketu) || 1;
@@ -1875,6 +1998,27 @@ function EditPrejemnicaDialog({
   const handleSave = () => {
     const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
     if (!validRows.length) { toast({ title: "Vsaj ena postavka je obvezna", variant: "destructive" }); return; }
+    const sourceErrors = Object.fromEntries(validRows.flatMap(row => {
+      const rowIndex = rows.indexOf(row);
+      const article = nabavniArtikli.find(a => a.id === row.artikelId);
+      const error = validateGroupSourceLine(
+        Boolean(article?.jeSkupinskiNabavniArtikel),
+        article?.enotaMere,
+        row.izvNaziv,
+        row.izvEnota,
+      );
+      return error ? [[rowIndex, error]] : [];
+    }));
+    setSourceLineErrors(sourceErrors);
+    if (Object.keys(sourceErrors).length > 0) {
+      const [rowIndex, error] = Object.entries(sourceErrors)[0];
+      toast({
+        title: "Preverite izvorno postavko",
+        description: `Vrstica ${Number(rowIndex) + 1}: ${error}`,
+        variant: "destructive",
+      });
+      return;
+    }
     updatePrejemnica.mutate({
       id,
       data: {
@@ -1934,6 +2078,8 @@ function EditPrejemnicaDialog({
             alergeniVir: r.alergeniVir ?? null,
             alergeniOpombaVira: r.alergeniOpombaVira ?? null,
             alergeniDocumentId: r.alergeniDocumentId ?? null,
+            izvNaziv: r.izvNaziv ?? null,
+            izvEnota: r.izvEnota ?? null,
           };
         }),
       } as any,
@@ -2266,6 +2412,13 @@ function EditPrejemnicaDialog({
                     </div>
                     </div>
                     </div>
+                    <IzvornaPostavkaPolja
+                      row={row}
+                      target={selectedArtikel}
+                      error={sourceLineErrors[i]}
+                      id={`edit-${row.id ?? i}`}
+                      onChange={(field, value) => updateRow(i, field, value)}
+                    />
                     {editNovArtikelRowIdx === i && (
                       <NovArtikelKartica
                         imePredlog={ddFilter}
@@ -2865,6 +3018,7 @@ export default function Zaloge() {
   const [prejPlacanoZGotovino, setPrejPlacanoZGotovino] = useState(false);
   const [prejOdvisniStroski, setPrejOdvisniStroski] = useState<OdvisniStrosekRow[]>([]);
   const [prejRows, setPrejRows] = useState<PrejemnicaRow[]>([{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "", popust: "", ddvStopnja: "" }]);
+  const [prejSourceErrors, setPrejSourceErrors] = useState<Record<number, string>>({});
   // Dropdown state za artikel combobox
   const prejArtDialogRef = useRef<HTMLDivElement>(null);
   const [dropdownOpenIdx, setDropdownOpenIdx] = useState<number | null>(null);
@@ -2955,6 +3109,7 @@ export default function Zaloge() {
     setPrejPlacanoZGotovino(false);
     setPrejOdvisniStroski([]);
     setPrejRows([{ artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "", popust: "", ddvStopnja: "" }]);
+    setPrejSourceErrors({});
     setDropdownOpenIdx(null);
     setDropdownFilter("");
     setDropdownHighlight(0);
@@ -2963,6 +3118,27 @@ export default function Zaloge() {
   const handleSavePrejemnica = () => {
     const validRows = prejRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
+    const sourceErrors = Object.fromEntries(validRows.flatMap(row => {
+      const rowIndex = prejRows.indexOf(row);
+      const article = nabavniArtikli.find(a => a.id === row.artikelId);
+      const error = validateGroupSourceLine(
+        Boolean(article?.jeSkupinskiNabavniArtikel),
+        article?.enotaMere,
+        row.izvNaziv,
+        row.izvEnota,
+      );
+      return error ? [[rowIndex, error]] : [];
+    }));
+    setPrejSourceErrors(sourceErrors);
+    if (Object.keys(sourceErrors).length > 0) {
+      const [rowIndex, error] = Object.entries(sourceErrors)[0];
+      toast({
+        title: "Preverite izvorno postavko",
+        description: `Vrstica ${Number(rowIndex) + 1}: ${error}`,
+        variant: "destructive",
+      });
+      return;
+    }
     createPrejemnica.mutate({
       data: {
         datum: prejDatum || undefined,
@@ -3019,6 +3195,8 @@ export default function Zaloge() {
             alergeniVir: r.alergeniVir ?? null,
             alergeniOpombaVira: r.alergeniOpombaVira ?? null,
             alergeniDocumentId: r.alergeniDocumentId ?? null,
+            izvNaziv: r.izvNaziv?.trim() || null,
+            izvEnota: r.izvEnota?.trim() || null,
           };
         }),
       } as any,
@@ -3030,7 +3208,14 @@ export default function Zaloge() {
         setPrejDialogOpen(false);
         toast({ title: "Prejemnica je shranjena kot osnutek." });
       },
-      onError: () => toast({ title: "Napaka pri shranjevanju", variant: "destructive" }),
+      onError: error => {
+        const data = error instanceof ApiError ? error.data as { error?: string } | null : null;
+        toast({
+          title: "Napaka pri shranjevanju",
+          description: data?.error ?? (error instanceof Error ? error.message : undefined),
+          variant: "destructive",
+        });
+      },
     });
   };
   const addPrejRow = () => {
@@ -3038,8 +3223,11 @@ export default function Zaloge() {
     setPrejRows(r => [...r, { artikelId: 0, kolicina: "", cenaKos: "", enotVPaketu: "", popust: "", ddvStopnja: "" }]);
     setTimeout(() => artInputRefs.current.get(newIdx)?.focus(), 30);
   };
-  const removePrejRow = (i: number) => setPrejRows(r => r.filter((_, j) => j !== i));
-  const updatePrejRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) =>
+  const removePrejRow = (i: number) => {
+    setPrejRows(r => r.filter((_, j) => j !== i));
+    setPrejSourceErrors({});
+  };
+  const updatePrejRow = <K extends keyof PrejemnicaRow>(i: number, key: K, val: PrejemnicaRow[K]) => {
     setPrejRows(r => r.map((row, j) => {
       if (j !== i) return row;
       const posodobljena = { ...row, [key]: val };
@@ -3058,6 +3246,14 @@ export default function Zaloge() {
       }
       return posodobljena;
     }));
+    if (key === "izvNaziv" || key === "izvEnota" || key === "artikelId") {
+      setPrejSourceErrors(current => {
+        const next = { ...current };
+        delete next[i];
+        return next;
+      });
+    }
+  };
   const selectArtikelInRow = (rowIdx: number, artikelId: number, skipFocus = false) => {
     updatePrejRow(rowIdx, "artikelId", artikelId);
     const artikel = nabavniArtikli.find(a => a.id === artikelId);
@@ -4300,6 +4496,13 @@ export default function Zaloge() {
                       </Button>
                     </div>
                     </div>
+                    <IzvornaPostavkaPolja
+                      row={row}
+                      target={selectedArtikel}
+                      error={prejSourceErrors[i]}
+                      id={`new-${i}`}
+                      onChange={(field, value) => updatePrejRow(i, field, value)}
+                    />
                     {novArtikelRowIdx === i && (
                       <NovArtikelKartica
                         imePredlog={dropdownFilter}

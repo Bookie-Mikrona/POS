@@ -64,6 +64,7 @@ export interface NabavniArtikel {
   enotaMere?: string | null;
   davek: number;
   povratnaEmbalaza?: boolean;
+  jeSkupinskiNabavniArtikel?: boolean;
 }
 
 interface Props {
@@ -412,7 +413,19 @@ export function UvozPrejemniceDialog({
     }
     const nd = await nr.json();
 
-    const neuparjeneList: NeuparjenaPostavka[] = nd.vsebina ?? [];
+    const jeSkupinskiPoId = new Map(
+      nabavniArtikli.map(a => [
+        a.id,
+        Boolean((a as typeof a & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel),
+      ]),
+    );
+    const neuparjeneList: NeuparjenaPostavka[] = (nd.vsebina ?? []).map((p: NeuparjenaPostavka) => ({
+      ...p,
+      uparjanje_kandidati: (p.uparjanje_kandidati ?? []).map(k => ({
+        ...k,
+        jeSkupinskiNabavniArtikel: k.jeSkupinskiNabavniArtikel ?? jeSkupinskiPoId.get(k.artikelId) ?? false,
+      })),
+    }));
     const stUpar = (data.uparjenih as number) ?? 0;
 
     // Če so vse postavke samodejno uparjene, ni treba prikazati zaslona za uparjanje.
@@ -456,7 +469,7 @@ export function UvozPrejemniceDialog({
       title: 'Potrebna je potrditev povezav',
       description: `${stUpar} ${stUpar === 1 ? 'artikel je samodejno povezan' : 'artiklov je samodejno povezanih'}, ${neuparjeneList.length} ${neuparjeneList.length === 1 ? 'vrstica pa potrebuje' : 'vrstice pa potrebujejo'} ročno potrditev.`,
     });
-  }, [base, dobaviteljiMap, toast, onUvozDone, resetState, onClose]);
+  }, [base, dobaviteljiMap, toast, onUvozDone, resetState, onClose, nabavniArtikli]);
 
   // Uvozi sejo z ročno izbranim dobaviteljem (ko OCR ne prepozna dobavitelja)
   // Sprejme neobvezni dobaviteljIdOverride — za samodejni klic takoj po izbiri/ustvaritvi,
@@ -869,6 +882,7 @@ export function UvozPrejemniceDialog({
         sifra:           null,
         naziv:           a.imeZaNabavo ?? a.ime,
         osnovnaEnota:    a.enotaMere ?? null,
+        jeSkupinskiNabavniArtikel: Boolean((a as typeof a & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel),
         zadnjaCenaEnota: null,
         enotVPaketu:     null,
         ocena:           0.5,

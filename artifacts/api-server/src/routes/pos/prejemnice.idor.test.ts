@@ -105,3 +105,39 @@ describe("GET /prejemnice/:id authorization scope", () => {
     expect(state.rows).toHaveLength(0);
   });
 });
+
+describe("POST /prejemnice generic article unit validation", () => {
+  let app: express.Express;
+
+  beforeAll(async () => {
+    const router = (await import("./prejemnice")).default;
+    app = express();
+    app.use(express.json());
+    app.use(router);
+  });
+
+  beforeEach(() => {
+    state.rows = [];
+  });
+
+  it("zavrne generični artikel brez izrecne izvorne enote namesto uporabe ciljne enote", async () => {
+    state.rows = [[{
+      id: 10,
+      ime: "Generični artikel",
+      imeZaNabavo: null,
+      enotaMere: "kg",
+      jeSkupinskiNabavniArtikel: true,
+      povratnaEmbalaza: false,
+      depozitnaVrednost: null,
+    }]];
+
+    const response = await supertest(app)
+      .post("/prejemnice")
+      .set("x-test-company", "company-a")
+      .set("x-test-enota", "1")
+      .send({ postavke: [{ artikelId: 10, kolicina: 1, cenaKos: 2 }] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("izvorne enote");
+  });
+});

@@ -5,6 +5,7 @@ import { requireEnota } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
+import { genericArticleUnitMatches } from "../../lib/uvoz/uparjanje";
 import { claimPurchaseSourceDocument } from "../../lib/purchaseSourceDocuments";
 import {
   getPosReceiptBookingPreview,
@@ -195,8 +196,23 @@ router.post("/prejemnice/:id/confirm", requireEnota, async (req, res): Promise<v
       const lines = await tx.select({
         articleId: prejemnicePostavkeTable.artikelId,
         lineType: prejemnicePostavkeTable.vrsticaTip,
+        sourceUnit: prejemnicePostavkeTable.izvEnota,
+        exportUnit: prejemnicePostavkeTable.enotaMere,
+        genericArticle: artikliTable.jeSkupinskiNabavniArtikel,
+        targetUnit: artikliTable.enotaMere,
       }).from(prejemnicePostavkeTable)
+        .leftJoin(artikliTable, eq(artikliTable.id, prejemnicePostavkeTable.artikelId))
         .where(eq(prejemnicePostavkeTable.prejemnicaId, id));
+      if (lines.some(line =>
+        line.genericArticle && (
+          !genericArticleUnitMatches(line.sourceUnit, line.targetUnit)
+          || toUneceUnitCode(line.sourceUnit) !== line.exportUnit
+        ),
+      )) {
+        throw new PosReceiptNotReady(
+          "Generičnega nabavnega artikla ni mogoče potrditi: izvorna enota manjka, ni podprta, se razlikuje od enote artikla ali je bila spremenjena izvozna enota.",
+        );
+      }
       assertPosReceiptCanBeConfirmed(
         receipt.status,
         lines,
@@ -363,7 +379,15 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
   const skupajVrednost = postavke.reduce((acc: number, p: any) => acc + (p.kolicina ?? 0) * (p.cenaKos ?? 0), 0);
 
   const artikelIds = postavke.map((p: any) => p.artikelId);
-  const artikliRows = await db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere, povratnaEmbalaza: artikliTable.povratnaEmbalaza, depozitnaVrednost: artikliTable.depozitnaVrednost })
+  const artikliRows = await db.select({
+    id: artikliTable.id,
+    ime: artikliTable.ime,
+    imeZaNabavo: artikliTable.imeZaNabavo,
+    enotaMere: artikliTable.enotaMere,
+    jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
+    povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+    depozitnaVrednost: artikliTable.depozitnaVrednost,
+  })
     .from(artikliTable)
     .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
   const foundIds = new Set(artikliRows.map(a => a.id));
@@ -372,6 +396,24 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
   }
   const artikelMap = new Map(artikliRows.map(a => [a.id, a]));
+  for (const p of postavke as any[]) {
+    const art = artikelMap.get(p.artikelId);
+    if (!art?.jeSkupinskiNabavniArtikel) continue;
+    // Pri ročnem vnosu enote ciljnega artikla ni dokaz dobaviteljeve enote.
+    // Sprejmemo samo izrecno podano izvorno/enotno vrednost postavke.
+    const sourceUnit = typeof p.izvEnota === "string" ? p.izvEnota : null;
+    if (!genericArticleUnitMatches(sourceUnit, art.enotaMere)) {
+      res.status(400).json({
+        error: "Generičnega nabavnega artikla ni mogoče uporabiti brez podprte izvorne enote, ki se ujema z enoto artikla.",
+      });
+      return;
+    }
+    const exportUnit = toUneceUnitCode(sourceUnit);
+    if (p.enotaMereEslog != null && p.enotaMereEslog !== exportUnit) {
+      res.status(400).json({ error: "Izvozna enota se ne ujema z izvorno enoto postavke." });
+      return;
+    }
+  }
 
   const docDatum = datum ? new Date(datum) : new Date();
   const year = docDatum.getFullYear();
@@ -517,13 +559,18 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
         enotVPaketu: String(enotVPaketu),
         ...(izvCena != null ? { izvCena: String(izvCena) } : {}),
         izvNaziv: typeof p.izvNaziv === "string" ? p.izvNaziv : (art?.imeZaNabavo ?? art?.ime ?? null),
+        izvEnota: typeof p.izvEnota === "string"
+          ? p.izvEnota
+          : null,
         rabat1Odst: String(rabat1Odst),
         ddvStopnja: denarAliNull(p.ddvStopnja),
         ddvOsnova: denarAliNull(p.ddvOsnova),
         ddvZnesek: denarAliNull(p.ddvZnesek),
         vatCodeId: typeof p.vatCodeId === "string" ? p.vatCodeId : null,
         vrsticaTip: p.vrsticaTip === "strosek" ? "poraba_surovin" : (p.vrsticaTip ?? "zaloga"),
-        enotaMere: toUneceUnitCode(p.enotaMere ?? art?.enotaMere),
+        enotaMere: art?.jeSkupinskiNabavniArtikel
+          ? toUneceUnitCode(p.izvEnota)
+          : toUneceUnitCode(p.enotaMere ?? art?.enotaMere),
         netoCena: String(cenaKos),
         netoZnesek: String(skupaj.toFixed(2)),
         ddvKategorija: typeof p.ddvKategorija === "string" ? p.ddvKategorija : (p.ddvStopnja != null ? (Number(p.ddvStopnja) > 0 ? "S" : "Z") : null),
@@ -776,6 +823,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     ime: string;
     imeZaNabavo: string | null;
     enotaMere: string | null;
+    jeSkupinskiNabavniArtikel: boolean;
     povratnaEmbalaza: boolean;
     depozitnaVrednost: string | null;
     alergeni: unknown;
@@ -797,6 +845,7 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       ime: artikliTable.ime,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
+      jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
       povratnaEmbalaza: artikliTable.povratnaEmbalaza,
       depozitnaVrednost: artikliTable.depozitnaVrednost,
       alergeni: artikliTable.alergeni,
@@ -955,7 +1004,33 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       const newArtikleIds: number[] = [];
 
       const oldPostavke = await tx.select().from(prejemnicePostavkeTable).where(eq(prejemnicePostavkeTable.prejemnicaId, id));
-       const oldById = new Map(oldPostavke.map((row) => [row.id, row]));
+      const oldById = new Map(oldPostavke.map((row) => [row.id, row]));
+
+      for (const p of novaPostavke as any[]) {
+        const old = Number.isInteger(Number(p.id)) ? oldById.get(Number(p.id)) : undefined;
+        const art = artikelMap?.get(p.artikelId);
+        const suppliedUnit = typeof p.izvEnota === "string" ? p.izvEnota : null;
+        const sourceUnit = old?.izvEnota ?? suppliedUnit;
+
+        if (old?.izvEnota != null && p.izvEnota != null && p.izvEnota !== old.izvEnota) {
+          throw new Error("RECEIPT_GENERIC_UNIT_INVALID:Izvorne enote dobaviteljeve postavke pri urejanju ni dovoljeno spreminjati.");
+        }
+        if (old?.izvNaziv != null && p.izvNaziv != null && p.izvNaziv !== old.izvNaziv) {
+          throw new Error("RECEIPT_GENERIC_UNIT_INVALID:Izvornega naziva dobaviteljeve postavke pri urejanju ni dovoljeno spreminjati.");
+        }
+        if (p.enotaMereEslog != null && old?.enotaMere != null && p.enotaMereEslog !== old.enotaMere) {
+          throw new Error("RECEIPT_GENERIC_UNIT_INVALID:Izvozne enote postavke pri urejanju ni dovoljeno spreminjati.");
+        }
+        if (art?.jeSkupinskiNabavniArtikel) {
+          const sourceExportUnit = toUneceUnitCode(sourceUnit);
+          if (!genericArticleUnitMatches(sourceUnit, art.enotaMere)) {
+            throw new Error("RECEIPT_GENERIC_UNIT_INVALID:Generičnega nabavnega artikla ni mogoče uporabiti brez podprte izvorne enote, ki se ujema z enoto artikla.");
+          }
+          if (p.enotaMereEslog != null && p.enotaMereEslog !== sourceExportUnit) {
+            throw new Error("RECEIPT_GENERIC_UNIT_INVALID:Izvozna enota se ne ujema z nespremenljivo izvorno enoto postavke.");
+          }
+        }
+      }
 
       await tx.delete(prejemnicePostavkeTable).where(eq(prejemnicePostavkeTable.prejemnicaId, id));
 
@@ -995,16 +1070,22 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
           skupaj: String((kolicina * cenaKos).toFixed(2)),
           enotVPaketu: String(enotVPaketu),
           ...(izvCena != null ? { izvCena: String(izvCena) } : {}),
-          izvNaziv: typeof p.izvNaziv === "string" ? p.izvNaziv : (old?.izvNaziv ?? art?.imeZaNabavo ?? art?.ime ?? null),
+          izvNaziv: old?.izvNaziv
+            ?? (typeof p.izvNaziv === "string" ? p.izvNaziv : (art?.imeZaNabavo ?? art?.ime ?? null)),
+          izvEnota: old?.izvEnota
+            ?? (typeof p.izvEnota === "string" ? p.izvEnota : null),
           rabat1Odst: String(rabat1Odst),
            ddvStopnja: denarAliNull(p.ddvStopnja),
            ddvOsnova: denarAliNull(p.ddvOsnova),
            ddvZnesek: denarAliNull(p.ddvZnesek),
            vatCodeId: typeof p.vatCodeId === "string" ? p.vatCodeId : null,
            vrsticaTip: p.vrsticaTip === "strosek" ? "poraba_surovin" : (p.vrsticaTip ?? "zaloga"),
-            enotaMere: typeof p.enotaMereEslog === "string"
-              ? p.enotaMereEslog
-              : (old?.enotaMere ?? toUneceUnitCode(p.enotaMere ?? art?.enotaMere)),
+             enotaMere: old?.enotaMere
+               ?? (art?.jeSkupinskiNabavniArtikel
+                 ? toUneceUnitCode(old?.izvEnota ?? p.izvEnota)
+                 : typeof p.enotaMereEslog === "string"
+                   ? p.enotaMereEslog
+                   : toUneceUnitCode(p.enotaMere ?? art?.enotaMere)),
             netoCena: String(cenaKos),
             netoZnesek: String((kolicina * cenaKos).toFixed(2)),
             ddvKategorija: typeof p.ddvKategorija === "string"
@@ -1083,6 +1164,10 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       .returning();
     });
   } catch (error: any) {
+    if (error?.message?.startsWith("RECEIPT_GENERIC_UNIT_INVALID:")) {
+      res.status(400).json({ error: error.message.slice("RECEIPT_GENERIC_UNIT_INVALID:".length) });
+      return;
+    }
     if (error?.message?.startsWith("RECEIPT_VAT_INVALID:")) {
       req.log.warn({ receiptId: id, reason: error.message }, "Receipt update rejected by VAT validation");
       res.status(400).json({ error: error.message.slice("RECEIPT_VAT_INVALID:".length) });

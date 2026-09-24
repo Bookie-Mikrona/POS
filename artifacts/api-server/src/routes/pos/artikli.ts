@@ -30,6 +30,7 @@ import Decimal from "decimal.js";
 import { verifyNormativeProposal } from "../../lib/normative-comparison";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import {
   getInitialRecipeResearch,
   InitialNormativeError,
@@ -98,6 +99,7 @@ const SELECT_FIELDS = {
   vrstniRed: artikliTable.vrstniRed,
   nabavniArtikel: artikliTable.nabavniArtikel,
   prodajniArtikel: artikliTable.prodajniArtikel,
+  jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
   povratnaEmbalaza: artikliTable.povratnaEmbalaza,
   vrstaEmbalaze: artikliTable.vrstaEmbalaze,
   depozitnaVrednost: artikliTable.depozitnaVrednost,
@@ -159,6 +161,7 @@ function mapRow(r: Record<string, unknown>) {
     vrstniRed: r.vrstniRed as number,
     nabavniArtikel: r.nabavniArtikel as boolean,
     prodajniArtikel: r.prodajniArtikel as boolean,
+    jeSkupinskiNabavniArtikel: Boolean(r.jeSkupinskiNabavniArtikel),
     povratnaEmbalaza: Boolean(r.povratnaEmbalaza),
     vrstaEmbalaze: (r.vrstaEmbalaze as string | null) ?? null,
     depozitnaVrednost: r.depozitnaVrednost == null ? null : Number(r.depozitnaVrednost),
@@ -381,6 +384,15 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
 
   const nabavniArtikel = parsed.data.nabavniArtikel ?? false;
   const prodajniArtikel = parsed.data.prodajniArtikel ?? true;
+  const jeSkupinskiNabavniArtikel = parsed.data.jeSkupinskiNabavniArtikel ?? false;
+  if (jeSkupinskiNabavniArtikel && (
+    !nabavniArtikel || prodajniArtikel || !toUneceUnitCode(parsed.data.enotaMere)
+  )) {
+    res.status(400).json({
+      error: "Generični nabavni artikel mora biti samo nabavni in imeti podprto UN/ECE enoto mere.",
+    });
+    return;
+  }
   const vrstaArtikla = resolveArticleType(
     (parsed.data as { vrstaArtikla?: string }).vrstaArtikla,
     { nabavniArtikel, prodajniArtikel },
@@ -435,6 +447,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         vrstniRed: parsed.data.vrstniRed ?? 0,
         nabavniArtikel,
         prodajniArtikel,
+        jeSkupinskiNabavniArtikel,
         povratnaEmbalaza: (parsed.data as any).povratnaEmbalaza ?? false,
         vrstaEmbalaze: (parsed.data as any).vrstaEmbalaze ?? null,
         depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
@@ -1296,17 +1309,32 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     happyHourCenaDruzinska: artikliTable.happyHourCenaDruzinska,
     taxCategory: artikliTable.taxCategory,
     jeDelMenija: artikliTable.jeDelMenija,
-    prodajniArtikel: artikliTable.prodajniArtikel,
     addedSugar: artikliTable.addedSugar,
     alergeniRevision: artikliTable.alergeniRevision,
     mealType: artikliTable.mealType,
     nabavniArtikel: artikliTable.nabavniArtikel,
+    prodajniArtikel: artikliTable.prodajniArtikel,
+    jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
+    enotaMere: artikliTable.enotaMere,
     normativRevision: artikliTable.normativRevision,
   }).from(artikliTable).where(and(
     eq(artikliTable.id, params.data.id),
     eq(artikliTable.enotaId, tenotaId),
   ));
   if (!obstojeci) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  const naslednjiGeneric = parsed.data.jeSkupinskiNabavniArtikel
+    ?? obstojeci.jeSkupinskiNabavniArtikel;
+  const naslednjiNabavni = parsed.data.nabavniArtikel ?? obstojeci.nabavniArtikel;
+  const naslednjiProdajni = parsed.data.prodajniArtikel ?? obstojeci.prodajniArtikel;
+  const naslednjaEnota = "enotaMere" in parsed.data ? parsed.data.enotaMere : obstojeci.enotaMere;
+  if (naslednjiGeneric && (
+    !naslednjiNabavni || naslednjiProdajni || !toUneceUnitCode(naslednjaEnota)
+  )) {
+    res.status(400).json({
+      error: "Generični nabavni artikel mora biti samo nabavni in imeti podprto UN/ECE enoto mere.",
+    });
+    return;
+  }
   const naslednjaTaxCategory =
     (parsed.data as { taxCategory?: string }).taxCategory ?? obstojeci.taxCategory ?? "food";
   const naslednjiJeDelMenija =
@@ -1353,6 +1381,9 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (parsed.data.vrstniRed !== undefined) updateData.vrstniRed = parsed.data.vrstniRed;
   if (parsed.data.nabavniArtikel !== undefined) updateData.nabavniArtikel = parsed.data.nabavniArtikel;
   if (parsed.data.prodajniArtikel !== undefined) updateData.prodajniArtikel = parsed.data.prodajniArtikel;
+  if (parsed.data.jeSkupinskiNabavniArtikel !== undefined) {
+    updateData.jeSkupinskiNabavniArtikel = parsed.data.jeSkupinskiNabavniArtikel;
+  }
   if ("imeZaNabavo" in parsed.data) updateData.imeZaNabavo = parsed.data.imeZaNabavo ?? null;
   if ("enotaMere" in parsed.data) updateData.enotaMere = parsed.data.enotaMere ?? null;
   if (parsed.data.jePica !== undefined) updateData.jePica = parsed.data.jePica;
@@ -1429,6 +1460,8 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
           alergeniRevision: artikliTable.alergeniRevision,
           mealType: artikliTable.mealType,
           nabavniArtikel: artikliTable.nabavniArtikel,
+          jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
+          enotaMere: artikliTable.enotaMere,
           normativRevision: artikliTable.normativRevision,
         }).from(artikliTable)
           .where(and(

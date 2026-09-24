@@ -76,17 +76,24 @@ import {
   usePreviewArtikelAlergeniNormativ,
 } from "@workspace/api-client-react";
 import { SmartNormativeProposalDialog } from "@/components/SmartNormativeProposalDialog";
+import { isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
 
 type KategorijaDialogMode = "nova" | "uredi";
 type ArtDialogMode = "nov" | "uredi";
 
 const ESLOG_ENOTE = [
-  { koda: "KOM", ime: "kos (KOM)" },
+  { koda: "H87", ime: "kos (H87)" },
+  { koda: "KOM", ime: "kos (KOM, starejši zapis)" },
   { koda: "KGM", ime: "kilogram (KGM)" },
   { koda: "GRM", ime: "gram (GRM)" },
   { koda: "LTR", ime: "liter (LTR)" },
   { koda: "DLT", ime: "deciliter (DLT)" },
   { koda: "MLT", ime: "mililiter (MLT)" },
+  { koda: "MTR", ime: "meter (MTR)" },
+  { koda: "MTK", ime: "kvadratni meter (MTK)" },
+  { koda: "MTQ", ime: "kubični meter (MTQ)" },
+  { koda: "CT", ime: "karton (CT)" },
+  { koda: "BX", ime: "škatla (BX)" },
 ];
 
 const PRIVZETI_CAS_PRIPRAVE_PICE_MIN = 5;
@@ -150,6 +157,8 @@ export default function Menu() {
   const [artJePica, setArtJePica] = useState(false);
   const [artImeZaNabavo, setArtImeZaNabavo] = useState("");
   const [artEnotaMere, setArtEnotaMere] = useState<string | null>(null);
+  const [artJeSkupinskiNabavniArtikel, setArtJeSkupinskiNabavniArtikel] = useState(false);
+  const lahkoJeSkupinskiNabavniArtikel = artNabavniArtikel && !artProdajniArtikel && isGroupablePurchaseUnit(artEnotaMere);
   const [normativItems, setNormativItems] = useState<NormativItem[]>([]);
   const [normativExpectedRevision, setNormativExpectedRevision] = useState<number | null>(null);
   const [normativStale, setNormativStale] = useState(false);
@@ -758,6 +767,7 @@ export default function Menu() {
       kategorijaId: a.kategorijaId ?? null, aktiven: a.aktiven, barva: a.barva ?? null,
       nabavniArtikel: a.nabavniArtikel ?? false, prodajniArtikel: a.prodajniArtikel ?? true,
       imeZaNabavo: a.imeZaNabavo ?? null, enotaMere: a.enotaMere ?? null,
+      jeSkupinskiNabavniArtikel: Boolean((a as Artikel & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel),
     }}, {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() }),
       onError: () => toast({ title: "Napaka pri shranjevanju cene", variant: "destructive" }),
@@ -777,6 +787,7 @@ export default function Menu() {
     setMulticourseEditorEnabled(false);
     setArtName(""); setArtPrice(""); setArtCenaMala(""); setArtCenaDruzinska(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
     setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtJePica(false);
+    setArtJeSkupinskiNabavniArtikel(false);
     setArtPovratnaEmbalaza(false);
     setArtVrstaEmbalaze("steklenica");
     setArtDepozitnaVrednost("0");
@@ -858,6 +869,7 @@ export default function Menu() {
     setCroppingArticleImage(null);
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
+    setArtJeSkupinskiNabavniArtikel(Boolean((a as Artikel & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel));
     setNormativItems([]);
     setNormativExpectedRevision(null);
     setNormativStale(false);
@@ -1345,6 +1357,7 @@ export default function Menu() {
       toGo: isProdajni ? artToGo : false,
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
+      jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla,
       mealType: (
         (!artProdajniArtikel && !artNabavniArtikel)
@@ -2110,6 +2123,23 @@ export default function Menu() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {lahkoJeSkupinskiNabavniArtikel && (
+                    <label className="flex items-start gap-2 rounded-md border border-blue-200 bg-white/70 p-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={artJeSkupinskiNabavniArtikel}
+                        onChange={e => setArtJeSkupinskiNabavniArtikel(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 accent-primary"
+                        data-testid="checkbox-group-purchase-article"
+                      />
+                      <span>
+                        <span className="font-medium">Skupinski nabavni artikel</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Uporabite za združevanje dobaviteljevih nazivov z isto e-SLOG enoto ({artEnotaMere}).
+                        </span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               )}
 

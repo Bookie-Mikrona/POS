@@ -1543,6 +1543,8 @@ export interface Artikel {
   nabavniArtikel?: boolean;
   /** Ali je artikel prodajni artikel */
   prodajniArtikel?: boolean;
+  /** Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti */
+  jeSkupinskiNabavniArtikel: boolean;
   /** Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru */
   povratnaEmbalaza: boolean;
   /** @nullable */
@@ -1722,6 +1724,8 @@ export interface ArtikelInput {
   vrstniRed?: number;
   nabavniArtikel?: boolean;
   prodajniArtikel?: boolean;
+  /** Generični artikel je lahko samo nabavni in mora imeti podprto enoto UN/ECE */
+  jeSkupinskiNabavniArtikel?: boolean;
   /** Računovodska vrsta artikla; pri samo nabavnem novem artiklu je privzeto material */
   vrstaArtikla?: ArtikelInputVrstaArtikla;
   /** @nullable */

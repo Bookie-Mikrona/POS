@@ -27,7 +27,13 @@ import {
   zaznajFormat,
 } from '../../lib/uvoz/uvoz-service';
 import { prazenDto, dodajNapako, prejemDtoSchema, type PrejemDTO } from '../../lib/uvoz/dto';
-import { potrdiUparjanje, upariPrejemnico } from '../../lib/uvoz/uparjanje';
+import {
+  GenericArticleUnitMismatch,
+  PurchaseArticleTargetNotFound,
+  ReceiptLineNotFound,
+  potrdiUparjanje,
+  upariPrejemnico,
+} from '../../lib/uvoz/uparjanje';
 import { razcleniUparjanjeKandidate } from '../../lib/uvoz/kandidati-json';
 import { razsiriOcrPrometeEmbalaze } from '../../lib/uvoz/ocr-embalaza';
 import { lockPosReceiptForEdit, ReceiptEditConflict } from '../../lib/posReceiptBooking';
@@ -988,6 +994,12 @@ router.post(
     }
 
     const enotVPaketu = new Decimal(String(vhod.data.enotVPaketu).replace(',', '.'));
+    if (!enotVPaketu.isFinite() || !enotVPaketu.gt(0)) {
+      return posljiJson(res, 400, {
+        koda: 'ZAJ014',
+        sporocilo: 'Število enot v paketu mora biti večje od nič.',
+      });
+    }
 
     try {
       const found = await db.transaction(async (tx) => {
@@ -1045,6 +1057,15 @@ router.post(
           koda: err.code,
           sporocilo: err.message,
         });
+      }
+      if (err instanceof GenericArticleUnitMismatch) {
+        return posljiJson(res, 400, { koda: 'ZAJ014', sporocilo: err.message });
+      }
+      if (err instanceof PurchaseArticleTargetNotFound) {
+        return posljiJson(res, 404, { koda: 'ZAJ020', sporocilo: err.message });
+      }
+      if (err instanceof ReceiptLineNotFound) {
+        return posljiJson(res, 404, { koda: 'ZAJ020', sporocilo: err.message });
       }
       const msg = err instanceof Error ? err.message : '';
       return posljiJson(res, 500, {

@@ -11068,6 +11068,7 @@ components:
         - aktiven
         - vrstniRed
         - povratnaEmbalaza
+        - jeSkupinskiNabavniArtikel
       properties:
         id:
           type: integer
@@ -11179,6 +11180,9 @@ components:
         prodajniArtikel:
           type: boolean
           description: Ali je artikel prodajni artikel
+        jeSkupinskiNabavniArtikel:
+          type: boolean
+          description: Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti
         povratnaEmbalaza:
           type: boolean
           description: Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru
@@ -11346,6 +11350,9 @@ components:
           type: boolean
         prodajniArtikel:
           type: boolean
+        jeSkupinskiNabavniArtikel:
+          type: boolean
+          description: Generični artikel je lahko samo nabavni in mora imeti podprto enoto UN/ECE
         vrstaArtikla:
           type: string
           enum: [blago, material, storitev]

@@ -1,5 +1,5 @@
-import { pgTable, text, serial, integer, numeric, boolean, json, jsonb, index, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { pgTable, text, serial, integer, numeric, boolean, json, jsonb, index, timestamp, unique, uuid, check } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 import { enoteTable } from "./enote";
 import { kategorijeTable } from "./kategorije";
 import { documentsTable } from "../documents";
@@ -64,6 +64,7 @@ export const artikliTable = pgTable("artikli", {
   vrstniRed: integer("vrstni_red").notNull().default(0),
   nabavniArtikel: boolean("nabavni_artikel").notNull().default(false),
   prodajniArtikel: boolean("prodajni_artikel").notNull().default(true),
+  jeSkupinskiNabavniArtikel: boolean("je_skupinski_nabavni_artikel").notNull().default(false),
   povratnaEmbalaza: boolean("povratna_embalaza").notNull().default(false),
   vrstaEmbalaze: text("vrsta_embalaze", { enum: ["steklenica", "zaboj", "keg", "balon", "drugo"] }),
   depozitnaVrednost: numeric("depozitna_vrednost", { precision: 12, scale: 2 }),
@@ -135,6 +136,21 @@ export const artikliTable = pgTable("artikli", {
   // 032-performance-indexes.sql: ix_artikli_enota_aktiven
   index("ix_artikli_enota_aktiven").on(t.enotaId, t.aktiven),
   unique("artikli_id_enota_unique").on(t.id, t.enotaId),
+  check(
+    "artikli_skupinski_nabavni_artikel_check",
+    sql`NOT ${t.jeSkupinskiNabavniArtikel} OR (
+      ${t.nabavniArtikel} = true
+      AND ${t.prodajniArtikel} = false
+      AND ${t.enotaMere} IS NOT NULL
+      AND upper(btrim(${t.enotaMere})) IN (
+        'KOS', 'KOM', 'PCE', 'EA', 'H87',
+        'KG', 'KGM', 'G', 'GRM',
+        'L', 'LTR', 'ML', 'MLT',
+        'M', 'MTR', 'M2', 'MTK', 'M3', 'MTQ',
+        'KAR', 'CT', 'SKA', 'BX'
+      )
+    )`,
+  ),
 ]);
 
 export const artikliRelations = relations(artikliTable, ({ one }) => ({

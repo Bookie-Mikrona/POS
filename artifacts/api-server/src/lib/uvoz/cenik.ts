@@ -228,6 +228,7 @@ export async function predogledCenika(
         gtin: v.gtin,
         sifra: v.sifra,
         naziv: v.naziv,
+        izvEnota: v.enota,
         cenaNaEnoto: v.cenaEnota,
       },
       nastavitve,
