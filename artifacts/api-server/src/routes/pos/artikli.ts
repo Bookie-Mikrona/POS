@@ -21,7 +21,7 @@ import {
 } from "../../lib/article-image-normalization";
 import { isAllowedOneToOneSelfNorm, requiresClassicNormativ } from "../../lib/normativ-validation";
 import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
-import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory } from "../../lib/ddv-resolver";
+import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory, type TaxCategory } from "../../lib/ddv-resolver";
 import PDFDocument from "pdfkit";
 import { normalizirajAlergenProfil } from "../../lib/alergeni";
 import { razresiAlergeneArtikla, razresiAlergeneVhodnihArtiklov, razveljaviAlergeneNadrejenih } from "../../lib/alergeni-resolver";
@@ -29,6 +29,16 @@ import { generateMenuPriceListPdf } from "../../lib/menu-price-list-pdf";
 import Decimal from "decimal.js";
 import { verifyNormativeProposal } from "../../lib/normative-comparison";
 import { z } from "zod";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
+import {
+  getInitialRecipeResearch,
+  InitialNormativeError,
+  isDetectablyPreparedIngredient,
+  normalizeIngredientName,
+  signInitialNormativeProposal,
+  verifyInitialNormativeProposal,
+  type InitialNormativeUnit,
+} from "../../lib/initial-smart-normative";
 
 const router: IRouter = Router();
 class NormativeStaleError extends Error {}
@@ -1937,6 +1947,366 @@ router.put("/artikli/:id/normativi", requireEnota, async (req, res): Promise<voi
   if (saved === false) { res.status(409).json({ code: "NORMATIVE_STALE", error: "Normativ se je medtem spremenil. Osvežite podatke in spremembe vnesite ponovno." }); return; }
 
   res.sendStatus(204);
+});
+
+const EmptyInitialNormativeBody = z.preprocess(
+  value => value === undefined ? {} : value,
+  z.object({}).strict(),
+);
+const ApplyInitialNormativeBody = z.object({
+  token: z.string().min(1).max(40_000),
+  confirmed: z.literal(true),
+  classifications: z.array(z.object({
+    index: z.number().int().min(0),
+    taxCategory: z.enum(["food", "hot_beverage", "cold_beverage", "alcoholic", "other", "vat_super_reduced_5"]),
+    addedSugar: z.boolean(),
+    rawConfirmed: z.literal(true),
+  }).strict()).max(100),
+}).strict();
+
+const INITIAL_NORMATIVE_WARNING =
+  "Spletno iskanje potrjuje samo URL-je in naslove virov; recepti, sestavine, količine in porcije so ustvarjeni z umetno inteligenco in vsebinsko niso preverjeni v virih. Pred potrditvijo jih ročno preverite.";
+
+function initialIngredientVatRate(
+  category: TaxCategory,
+  addedSugar: boolean,
+  ddvMap: Record<string, string>,
+): string {
+  const general = Number(ddvMap.ddvSplosnaSt ?? "22");
+  const lower = Number(ddvMap.ddvNizjaSt ?? "9.5");
+  const reduced = Number(ddvMap.ddvZnizanaSt ?? "5");
+  const rate = category === "food" ? lower
+    : category === "hot_beverage" || category === "cold_beverage" ? (addedSugar ? general : lower)
+      : category === "vat_super_reduced_5" ? reduced
+        : general;
+  if (!Number.isFinite(rate) || rate < 0 || rate > 999.99) {
+    throw new NormativeRequestError(422, { error: "Nastavitve DDV ne vsebujejo veljavnih stopenj za novi artikel." });
+  }
+  return rate.toFixed(2);
+}
+
+function requireCanonicalNormativeUnit(req: Request, res: Response): number | null {
+  const enotaId = (req as any).enotaId;
+  const header = req.headers["x-enota-id"];
+  if (typeof header !== "string" || !/^[1-9]\d*$/u.test(header)) {
+    res.status(400).json({ error: "Za pametni predlog normativa izrecno izberite poslovno enoto." });
+    return null;
+  }
+  const requested = Number(header);
+  if (!Number.isSafeInteger(requested) || requested !== enotaId) {
+    res.status(403).json({ error: "Izbrana poslovna enota se ne ujema z dovoljenim dostopom." });
+    return null;
+  }
+  if (!["admin", "admin_enote", "superadmin"].includes((req as any).vloga)) {
+    res.status(403).json({ error: "Za pametni predlog normativa je potrebna vloga upravitelja." });
+    return null;
+  }
+  return requested;
+}
+
+function initialUnitMeasure(unit: string | null): { dimension: "mass" | "volume" | "count"; factor: Decimal } | null {
+  const normalized = unit?.trim().toLocaleUpperCase("sl").replace(/\.$/u, "");
+  if (normalized === "KGM" || normalized === "KG" || normalized === "KG.") return { dimension: "mass", factor: new Decimal(1) };
+  if (normalized === "GRM" || normalized === "G" || normalized === "GR") return { dimension: "mass", factor: new Decimal("0.001") };
+  if (normalized === "LTR" || normalized === "L" || normalized === "LT") return { dimension: "volume", factor: new Decimal(1) };
+  if (normalized === "MLT" || normalized === "ML") return { dimension: "volume", factor: new Decimal("0.001") };
+  if (normalized === "KOM" || normalized === "KOS" || normalized === "KOSA" || normalized === "KOSI" || normalized === "PC" || normalized === "PCS") {
+    return { dimension: "count", factor: new Decimal(1) };
+  }
+  return null;
+}
+
+function baseForInitialUnit(unit: InitialNormativeUnit): "mass" | "volume" | "count" {
+  return unit === "KGM" ? "mass" : unit === "LTR" ? "volume" : "count";
+}
+
+function toNormativNumericQuantity(value: Decimal): number {
+  if (!value.isFinite() || !value.isPositive() || value.gt("999999.9999") || value.decimalPlaces()! > 4) {
+    throw new NormativeRequestError(422, {
+      error: "Količine ni mogoče natančno zapisati v normativ (največ štiri decimalna mesta).",
+    });
+  }
+  return value.toNumber();
+}
+
+async function resolveInitialNormativeItems(
+  queryDb: any,
+  enotaId: number,
+  items: Array<{ name: string; quantity: string; unit: InitialNormativeUnit; existingArticleId?: number | null }>,
+): Promise<Array<{ vhodniArtikelId: number | null; kolicina: number }>> {
+  const articles: Array<{
+    id: number;
+    ime: string;
+    imeZaNabavo: string | null;
+    enotaMere: string | null;
+    nabavniArtikel: boolean;
+    prodajniArtikel: boolean;
+  }> = await queryDb.select({
+    id: artikliTable.id,
+    ime: artikliTable.ime,
+    imeZaNabavo: artikliTable.imeZaNabavo,
+    enotaMere: artikliTable.enotaMere,
+    nabavniArtikel: artikliTable.nabavniArtikel,
+    prodajniArtikel: artikliTable.prodajniArtikel,
+  }).from(artikliTable).where(eq(artikliTable.enotaId, enotaId));
+  return items.map(item => {
+    const key = normalizeIngredientName(item.name);
+    const matches = articles.filter(article =>
+      normalizeIngredientName(article.ime) === key
+      || (article.imeZaNabavo != null && normalizeIngredientName(article.imeZaNabavo) === key));
+    if (matches.length > 1) {
+      throw new NormativeRequestError(422, { error: "Ime sestavine se ujema z več artikli; razrešite podvojena imena pred uporabo predloga." });
+    }
+    const match = matches[0];
+    if (!match) {
+      if (item.existingArticleId !== undefined && item.existingArticleId !== null) throw new NormativeStaleError();
+      return { vhodniArtikelId: null, kolicina: toNormativNumericQuantity(new Decimal(item.quantity)) };
+    }
+    if (item.existingArticleId !== undefined && item.existingArticleId !== match.id) throw new NormativeStaleError();
+    if (!match.nabavniArtikel || match.prodajniArtikel) {
+      throw new NormativeRequestError(422, { error: "Ujemajoči se artikel ni izključno nabavni artikel; najprej preverite njegove zastavice." });
+    }
+    const target = initialUnitMeasure(match.enotaMere);
+    if (!target || target.dimension !== baseForInitialUnit(item.unit)) {
+      throw new NormativeRequestError(422, { error: "Merska enota obstoječega nabavnega artikla ni združljiva s predlagano sestavino." });
+    }
+    const quantity = new Decimal(item.quantity).div(target.factor);
+    return { vhodniArtikelId: match.id, kolicina: toNormativNumericQuantity(quantity) };
+  });
+}
+
+router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = requireCanonicalNormativeUnit(req, res);
+  if (enotaId === null) return;
+  const artikelId = Number(req.params.id);
+  if (!Number.isInteger(artikelId) || artikelId <= 0) { res.status(400).json({ error: "Neveljaven artikel." }); return; }
+  if (!EmptyInitialNormativeBody.safeParse(req.body).success) {
+    res.status(400).json({ error: "Telo zahteve mora biti prazen objekt." }); return;
+  }
+  if (!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || !process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
+    res.status(503).json({ error: "Raziskovanje receptov trenutno ni na voljo, ker konfiguracija LLM manjka." }); return;
+  }
+  if (!process.env.POS_NORMATIVE_PROPOSAL_SECRET && !process.env.SESSION_SECRET) {
+    res.status(503).json({ error: "Podpisni ključ za predloge normativa ni nastavljen." }); return;
+  }
+
+  let owner: { revision: number; name: string } | undefined;
+  try {
+    owner = await db.transaction(async tx => {
+      await lockNormativeGraph(tx, enotaId);
+      const [row] = await tx.select({
+        id: artikliTable.id,
+        name: artikliTable.ime,
+        revision: artikliTable.normativRevision,
+        sale: artikliTable.prodajniArtikel,
+        mealType: artikliTable.mealType,
+        categoryTip: kategorijeTable.tip,
+      }).from(artikliTable)
+        .innerJoin(kategorijeTable, and(
+          eq(kategorijeTable.id, artikliTable.kategorijaId),
+          eq(kategorijeTable.enotaId, enotaId),
+        ))
+        .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)))
+        .for("update");
+      if (!row) throw new NormativeRequestError(404, { error: "Prodajni artikel s kategorijo hrane ni najden." });
+      if (!row.sale || row.categoryTip !== "hrana" || (row.mealType !== "ala_carte" && row.mealType !== "prepared")) {
+        throw new NormativeRequestError(422, { error: "Pametni normativ je na voljo samo za prodajne jedi iz kategorije hrana (à la carte ali pripravljene)." });
+      }
+      const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
+        .where(eq(normativiTable.artikelId, artikelId)).limit(1);
+      if (existingNorm) throw new NormativeRequestError(409, { error: "Artikel že ima normativ; pametni začetni predlog je dovoljen le za prazen normativ." });
+      return { revision: Number(row.revision), name: row.name };
+    });
+  } catch (error) {
+    if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
+    throw error;
+  }
+
+  try {
+    const research = await getInitialRecipeResearch(enotaId, artikelId, owner.revision, owner.name, async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45_000);
+      try {
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-5",
+          max_tokens: 8_192,
+          system: "Research complete public recipes. Return JSON only. Never invent URLs, quantities, units, servings, recipe results, or yield. Use only two to four recipes actually returned by web search, each from a different approved domain. Every selected recipe must have a complete ingredient list. Include raw ingredients only; do not include prepared or semi-finished components. Quantities must be positive and use only g, kg, ml, l, or kos. Reject ambiguous measures, including cups and spoons.",
+          messages: [{
+            role: "user",
+            content: `Poišči 2–4 popolne javne recepte za jed "${owner.name}" z vsaj dveh različnih domen: bbcgoodfood.com, theguardian.com, seriouseats.com, epicurious.com, allrecipes.com, tasteofhome.com, delish.com, foodnetwork.com, kingarthurbaking.com, jamieoliver.com. Vrni celoten seznam sestavin za vsak recept, število porcij, natančen sourceUrl, količine in enote. Brez ugibanja in brez izpuščanja sestavin; neuporabne recepte izpusti. Odgovori izključno kot {"recipes":[{"sourceUrl":"...","servings":4,"ingredients":[{"name":"...","quantity":100,"unit":"g"}]}]}.`,
+          }],
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
+        }, { signal: controller.signal, timeout: 45_000 });
+        return response.content as unknown[];
+      } finally { clearTimeout(timeout); }
+    });
+    const resolved = await resolveInitialNormativeItems(db, enotaId, research.items);
+    const items = research.items.map((item, index) => {
+      const existingArticleId = resolved[index]!.vhodniArtikelId;
+      return {
+        name: item.name,
+        quantity: Number(item.quantity),
+        unit: item.unit,
+        existingArticleId,
+        willCreate: existingArticleId === null,
+        sourceUrls: item.sourceUrls,
+      };
+    });
+    const token = signInitialNormativeProposal({
+      v: 1,
+      enotaId,
+      articleId: artikelId,
+      revision: owner.revision,
+      targetName: owner.name,
+      issuedAt: Date.now(),
+      items: research.items.map((item, index) => ({
+        ...item,
+        existingArticleId: resolved[index]!.vhodniArtikelId,
+        willCreate: resolved[index]!.vhodniArtikelId === null,
+      })),
+      sources: research.sources,
+    });
+    if (!token) { res.status(503).json({ error: "Predloga trenutno ni mogoče varno podpisati." }); return; }
+    res.json({
+      token,
+      articleId: artikelId,
+      revision: owner.revision,
+      items,
+      sources: research.sources,
+      warnings: [INITIAL_NORMATIVE_WARNING],
+    });
+  } catch (error) {
+    if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
+    if (error instanceof NormativeStaleError) {
+      res.status(409).json({ code: "NORMATIVE_STALE", error: "Ujemanje sestavine se je spremenilo; ustvarite nov predlog." }); return;
+    }
+    if (error instanceof InitialNormativeError) {
+      const status = error.code === "RESEARCH_BUSY" || error.code === "RESEARCH_RATE_LIMITED" ? 503 : 422;
+      const messages: Record<string, string> = {
+        RESEARCH_INVALID: "Raziskava ni vrnila pričakovanih strukturiranih podatkov.",
+        RESEARCH_INSUFFICIENT_SOURCES: "Najdena nista bila vsaj dva preverljiva recepta iz različnih odobrenih domen.",
+        RECIPE_AMBIGUOUS_INGREDIENT: "Recept vsebuje sestavino z nejasno enoto ali pripravljeno/polpripravljeno sestavino.",
+        RECIPE_DUPLICATE_INGREDIENT: "Recept vsebuje podvojeno normalizirano sestavino.",
+        RECIPE_INVALID_QUANTITY: "Recept vsebuje neveljavno količino.",
+        RECIPE_CONFLICTING_UNITS: "Recepti vsebujejo nezdružljive enote za isto sestavino.",
+        RECIPE_INCOMPLETE: "AI-predlogi vsebujejo neskladne sezname sestavin; predlog ni bil ustvarjen.",
+        RESEARCH_RATE_LIMITED: "Za to poslovno enoto je preveč zahtev za raziskavo. Poskusite pozneje.",
+        RESEARCH_BUSY: "Raziskava je trenutno preobremenjena. Poskusite pozneje.",
+      };
+      res.status(status).json({ error: messages[error.code] ?? "Predloga normativa ni mogoče ustvariti." }); return;
+    }
+    throw error;
+  }
+});
+
+router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, async (req, res): Promise<void> => {
+  const enotaId = requireCanonicalNormativeUnit(req, res);
+  if (enotaId === null) return;
+  const artikelId = Number(req.params.id);
+  if (!Number.isInteger(artikelId) || artikelId <= 0) { res.status(400).json({ error: "Neveljaven artikel." }); return; }
+  const parsed = ApplyInitialNormativeBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Za uporabo predloga sta potrebna veljaven token in confirmed: true." }); return; }
+  const proposal = verifyInitialNormativeProposal(parsed.data.token);
+  if (!proposal || proposal.articleId !== artikelId || proposal.enotaId !== enotaId) {
+    res.status(400).json({ error: "Predlog normativa ni veljaven ali je potekel." }); return;
+  }
+  const newItemIndexes = proposal.items.flatMap((item, index) => item.willCreate ? [index] : []);
+  const classifications = parsed.data.classifications;
+  const classificationIndexes = classifications.map(classification => classification.index);
+  if (new Set(classificationIndexes).size !== classificationIndexes.length
+    || classificationIndexes.length !== newItemIndexes.length
+    || newItemIndexes.some(index => !classificationIndexes.includes(index))
+    || classifications.some(classification => !proposal.items[classification.index]?.willCreate)) {
+    res.status(400).json({ error: "Za vsak novi artikel je potrebna natanko ena klasifikacija, za obstoječe artikle pa nobena." }); return;
+  }
+  if (proposal.items.some(item => item.willCreate && isDetectablyPreparedIngredient(item.name))) {
+    res.status(422).json({ error: "Pripravljenega ali polpripravljenega artikla ni dovoljeno ustvariti kot surovo sestavino." }); return;
+  }
+  if (!process.env.POS_NORMATIVE_PROPOSAL_SECRET && !process.env.SESSION_SECRET) {
+    res.status(503).json({ error: "Podpisni ključ za predloge normativa ni nastavljen." }); return;
+  }
+  try {
+    const createdArticleIds = await db.transaction(async tx => {
+      await lockNormativeGraph(tx, enotaId);
+      await normativRevisionLockTestHook?.({ artikelId, operation: "normativ-update" });
+      const [owner] = await tx.select({
+        id: artikliTable.id,
+        name: artikliTable.ime,
+        revision: artikliTable.normativRevision,
+        sale: artikliTable.prodajniArtikel,
+        mealType: artikliTable.mealType,
+        categoryTip: kategorijeTable.tip,
+      }).from(artikliTable)
+        .innerJoin(kategorijeTable, and(
+          eq(kategorijeTable.id, artikliTable.kategorijaId),
+          eq(kategorijeTable.enotaId, enotaId),
+        ))
+        .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)))
+        .for("update");
+      if (!owner) throw new NormativeRequestError(404, { error: "Prodajni artikel s kategorijo hrane ni najden." });
+      if (!owner.sale || owner.categoryTip !== "hrana" || (owner.mealType !== "ala_carte" && owner.mealType !== "prepared")) {
+        throw new NormativeRequestError(422, { error: "Pametni normativ je na voljo samo za prodajne jedi iz kategorije hrana (à la carte ali pripravljene)." });
+      }
+      if (Number(owner.revision) !== proposal.revision || owner.name !== proposal.targetName) throw new NormativeStaleError();
+      const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
+        .where(eq(normativiTable.artikelId, artikelId)).limit(1);
+      if (existingNorm) throw new NormativeStaleError();
+
+      const resolved = await resolveInitialNormativeItems(tx, enotaId, proposal.items);
+      const createdIds: number[] = [];
+      const normativItems: NormativInput[] = [];
+      const ddvMap: Record<string, string> = {};
+      if (newItemIndexes.length > 0) {
+        const globalRows = await tx.select({
+          kljuc: nastavitveTable.kljuc,
+          vrednost: nastavitveTable.vrednost,
+        }).from(nastavitveTable).where(eq(nastavitveTable.enotaId, 0));
+        for (const row of globalRows) ddvMap[row.kljuc] = row.vrednost;
+      }
+      for (let index = 0; index < proposal.items.length; index++) {
+        const item = proposal.items[index]!;
+        const matchedId = resolved[index]!.vhodniArtikelId;
+        if (matchedId !== item.existingArticleId || item.willCreate !== (matchedId === null)) throw new NormativeStaleError();
+        let ingredientId = matchedId;
+        if (ingredientId === null) {
+          const classification = classifications.find(value => value.index === index)!;
+          const [created] = await tx.insert(artikliTable).values({
+            enotaId,
+            ime: item.name,
+            imeZaNabavo: item.name,
+            cena: "0",
+            davek: initialIngredientVatRate(classification.taxCategory, classification.addedSugar, ddvMap),
+            nabavniArtikel: true,
+            prodajniArtikel: false,
+            vrstaArtikla: "material",
+            mealType: "ala_carte",
+            enotaMere: item.unit,
+            taxCategory: classification.taxCategory,
+            addedSugar: classification.addedSugar,
+          }).returning({ id: artikliTable.id });
+          ingredientId = created!.id;
+          createdIds.push(ingredientId);
+        }
+        normativItems.push({ vhodniArtikelId: ingredientId, kolicina: resolved[index]!.kolicina });
+      }
+      const prepared = await prepareNormativUpdate(
+        artikelId,
+        enotaId,
+        { expectedRevision: proposal.revision, items: normativItems },
+        { mealType: owner.mealType, nabavniArtikel: false, prodajniArtikel: true },
+        tx,
+      );
+      await applyPreparedNormativUpdate(tx, artikelId, enotaId, prepared);
+      return createdIds;
+    });
+    res.json({ createdArticleIds, normativRevision: proposal.revision + 1 });
+  } catch (error) {
+    if (error instanceof NormativeStaleError) {
+      res.status(409).json({ code: "NORMATIVE_STALE", error: "Artikel ali normativ se je medtem spremenil. Osvežite podatke in ustvarite nov predlog." }); return;
+    }
+    if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
+    throw error;
+  }
 });
 
 router.get("/artikli/:id/normativi/spletne-spremembe", requireEnota, async (req, res): Promise<void> => {

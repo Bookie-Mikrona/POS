@@ -135,6 +135,7 @@
 - [CodeExecution shell poti](codeexecution-shell-paths.md) — vrstice iz callback shellExec lahko vsebujejo skriti CR; pred uporabo kot readFile/writeFile pot jih vedno trimaj.
 - [POS AI svetovalec](pos-ai-svetovalec.md) — LLM samo svetuje; kritične blokade so deterministične, nad svežim tenant-scoped naročilom in ločene od modela.
 - [Spletna primerjava normativov](normative-web-comparison.md) — citati veljajo le iz tipiziranih iskalnih rezultatov; več virov, deterministične enote, brez samodejnih zapisov.
+- [Začetni spletni normativ](initial-smart-normative.md) — manjkajoče nabavne surovine nastanejo šele ob potrditvi z izbrano DDV kategorijo; spletni URL ne dokazuje vsebine recepta.
 - [QR gostujoči AI](qr-gost-ai.md) — javni nasveti uporabljajo tipizirana živa dejstva; zgodovina je opt-in po napravi, ocena pa šele po zaključenem QR naročilu.
 - [Zasebnost QR ocen](qr-feedback-privacy.md) — vodstveni trendi in izvozi so agregirani; komentarji so ločen zaščiten tok brez povezovalnih ID-jev.
 - [KDS preklic nepredanega paketa](kds-preklic-paketa.md) — preklic ohrani append-only audit; brisanje, materializacija in prehodi uporabljajo isti zaklep naročila.

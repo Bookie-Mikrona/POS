@@ -75,6 +75,7 @@ import {
   type AlergenPovzetek,
   usePreviewArtikelAlergeniNormativ,
 } from "@workspace/api-client-react";
+import { SmartNormativeProposalDialog } from "@/components/SmartNormativeProposalDialog";
 
 type KategorijaDialogMode = "nova" | "uredi";
 type ArtDialogMode = "nov" | "uredi";
@@ -161,6 +162,7 @@ export default function Menu() {
   const [normativDropdownFilter, setNormativDropdownFilter] = useState("");
   const [normativDropdownHighlight, setNormativDropdownHighlight] = useState(0);
   const [normativDropdownPos, setNormativDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [smartProposalDialogOpen, setSmartProposalDialogOpen] = useState(false);
   const artDialogRef = useRef<HTMLDivElement>(null);
   const artDialogBodyRef = useRef<HTMLDivElement>(null);
   const normativArtInputRefs = useRef(new Map<number, HTMLInputElement>());
@@ -2455,6 +2457,31 @@ export default function Menu() {
                       {normativSectionTitle(artMealType)}
                     </Label>
                     <div className="flex gap-2">
+                      {editingArt &&
+                       lahkoVidiZgodovinoNormativa &&
+                       !normativStale &&
+                       !editingArt.hasNormativ &&
+                       normativItems.length === 0 &&
+                       artProdajniArtikel &&
+                       editingArt.prodajniArtikel &&
+                       artName === editingArt.ime &&
+                       !multicourseEditorEnabled &&
+                       (artMealType === "ala_carte" || artMealType === "prepared") &&
+                       kategorije?.find(k => k.id.toString() === artCat)?.tip === "hrana" &&
+                       editingArt.kategorijaId?.toString() === artCat &&
+                       (editingArt.mealType ?? "ala_carte") === artMealType && (
+                         <Button
+                           type="button"
+                           size="sm"
+                           variant="outline"
+                           className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                           onClick={() => setSmartProposalDialogOpen(true)}
+                         >
+                           <Sparkles className="w-3 h-3 mr-1" />
+                           <span className="hidden sm:inline">Pametni predlog</span>
+                           <span className="sm:hidden">Predlog</span>
+                         </Button>
+                       )}
                       <Button type="button" size="sm" variant="outline" onClick={() => { setCopyPickerOpen(true); setCopyPickerSearch(""); }}>
                         <Copy className="w-3 h-3 mr-1" />
                         <span className="hidden sm:inline">Kopiraj iz drugega artikla</span>
@@ -3149,6 +3176,31 @@ export default function Menu() {
           </div>
         </DialogContent>
       </Dialog>
+      <SmartNormativeProposalDialog
+        open={smartProposalDialogOpen}
+        onOpenChange={setSmartProposalDialogOpen}
+        articleId={editingArt?.id ?? 0}
+        articleName={editingArt?.ime ?? ""}
+        onApplySuccess={() => {
+          void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+          void (async () => {
+            const result = await refetchNormativi();
+            if (!result.data) {
+              setNormativStale(true);
+              setNormativNapaka("Normativ je shranjen, vendar ga ni bilo mogoče osvežiti. Osvežite podatke.");
+              return;
+            }
+            setNormativItems(result.data.normativi.map(n => ({
+              vhodniArtikelId: n.vhodniArtikelId,
+              kolicina: String(n.kolicina),
+              ime: n.vhodniArtikelIme ?? undefined,
+            })));
+            setNormativExpectedRevision(result.data.normativRevision);
+            setNormativStale(false);
+            setNormativNapaka(null);
+          })();
+        }}
+      />
       <ArticleImageCropDialog
         file={croppingArticleImage}
         open={croppingArticleImage != null}
