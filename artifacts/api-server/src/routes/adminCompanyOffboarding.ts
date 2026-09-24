@@ -1,24 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db, pool, companiesTable, systemSettingsTable } from "@workspace/db";
+import { pool, type PoolClient } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
+import { inspectCompanyOffboardingGraph } from "../lib/companyOffboardingGraph";
 
 const router: IRouter = Router({ mergeParams: true });
 const CompanyIdParams = z.object({ id: z.string().uuid() });
-
-type TableColumnRow = { table_name: string; column_name: string };
-type ForeignKeyRow = {
-  table_name: string;
-  column_name: string;
-  referenced_table: string;
-  referenced_column: string;
-};
-
-function quoteIdentifier(identifier: string): string {
-  return `"${identifier.replaceAll('"', '""')}"`;
-}
 
 router.use(requireAuth, requireSuperAdmin);
 
@@ -30,113 +18,63 @@ router.get("/preflight", async (req, res): Promise<void> => {
   }
   const companyId = params.data.id;
 
-  const [ownerSetting] = await db
-    .select({ value: systemSettingsTable.value })
-    .from(systemSettingsTable)
-    .where(eq(systemSettingsTable.key, "erp_owner_company_id"))
-    .limit(1);
-  if (ownerSetting?.value === companyId) {
-    res.status(409).json({
-      error: "The ERP owner company is protected from offboarding.",
-      code: "PROTECTED_ERP_OWNER",
-    });
-    return;
-  }
-
-  const [company] = await db
-    .select({ id: companiesTable.id })
-    .from(companiesTable)
-    .where(eq(companiesTable.id, companyId))
-    .limit(1);
-  if (!company) {
-    res.status(404).json({ error: "Company not found.", code: "COMPANY_NOT_FOUND" });
-    return;
-  }
-
+  let client: PoolClient | undefined;
+  let transactionOpen = false;
   try {
-    const { rows: columnRows } = await pool.query<TableColumnRow>(
-      `SELECT c.table_name, c.column_name
-       FROM information_schema.tables t
-       JOIN information_schema.columns c
-         ON c.table_schema = t.table_schema AND c.table_name = t.table_name
-       WHERE t.table_schema = 'public'
-         AND t.table_type = 'BASE TABLE'
-       ORDER BY c.table_name, c.ordinal_position`,
-    );
-    const { rows: foreignKeyRows } = await pool.query<ForeignKeyRow>(
-      `SELECT child.relname AS table_name,
-              child_column.attname AS column_name,
-              parent.relname AS referenced_table,
-              parent_column.attname AS referenced_column
-       FROM pg_constraint constraint_row
-       JOIN pg_class child ON child.oid = constraint_row.conrelid
-       JOIN pg_namespace child_schema ON child_schema.oid = child.relnamespace
-       JOIN pg_class parent ON parent.oid = constraint_row.confrelid
-       JOIN LATERAL unnest(constraint_row.conkey) WITH ORDINALITY
-         AS child_key(attnum, ordinal) ON TRUE
-       JOIN LATERAL unnest(constraint_row.confkey) WITH ORDINALITY
-         AS parent_key(attnum, ordinal) ON parent_key.ordinal = child_key.ordinal
-       JOIN pg_attribute child_column
-         ON child_column.attrelid = child.oid AND child_column.attnum = child_key.attnum
-       JOIN pg_attribute parent_column
-         ON parent_column.attrelid = parent.oid AND parent_column.attnum = parent_key.attnum
-       WHERE constraint_row.contype = 'f'
-         AND child_schema.nspname = 'public'
-       ORDER BY child.relname, child_column.attname`,
-    );
+    client = await pool.connect();
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    transactionOpen = true;
+    await client.query("SET LOCAL statement_timeout = '5000ms'");
+    await client.query("SET LOCAL lock_timeout = '1000ms'");
 
-    const tableColumns = new Map<string, Set<string>>();
-    for (const row of columnRows) {
-      const columns = tableColumns.get(row.table_name) ?? new Set<string>();
-      columns.add(row.column_name);
-      tableColumns.set(row.table_name, columns);
+    const { rows: ownerSettings } = await client.query<{ value: string }>(
+      `SELECT value FROM "public"."system_settings" WHERE key = $1 LIMIT 1`,
+      ["erp_owner_company_id"],
+    );
+    if (ownerSettings[0]?.value === companyId) {
+      res.status(409).json({
+        error: "The ERP owner company is protected from offboarding.",
+        code: "PROTECTED_ERP_OWNER",
+      });
+      return;
     }
 
-    const directCompanyTables = [...tableColumns.entries()]
-      .filter(([, columns]) => columns.has("company_id") || columns.has("companyId"))
-      .map(([table]) => table)
-      .sort();
-
-    const tableInventory = await Promise.all(
-      directCompanyTables.map(async (table) => {
-        const companyColumn = tableColumns.get(table)!.has("company_id") ? "company_id" : "companyId";
-        const countQuery = await pool.query<{ count: string }>(
-          `SELECT count(*)::text AS count FROM "public".${quoteIdentifier(table)} WHERE ${quoteIdentifier(companyColumn)} = $1`,
-          [companyId],
-        );
-        return { table, rowCount: Number(countQuery.rows[0]?.count ?? 0) };
-      }),
+    const { rows: companies } = await client.query<{ id: string }>(
+      `SELECT id FROM "public"."companies" WHERE id = $1 LIMIT 1`,
+      [companyId],
     );
+    if (!companies.length) {
+      res.status(404).json({ error: "Company not found.", code: "COMPANY_NOT_FOUND" });
+      return;
+    }
 
-    const blockers = [...tableColumns.keys()]
-      .filter((table) => !directCompanyTables.includes(table))
-      .sort()
-      .map((table) => ({
-        code: "TENANT_SCOPE_UNPROVEN",
-        table,
-        reason: "No direct companyId column identifies this table's tenant ownership.",
-      }));
-
+    const graph = await inspectCompanyOffboardingGraph(client, companyId, {
+      maxSelectedRows: 10_000,
+      maxDurationMs: 25_000,
+      snapshotConsistent: true,
+    });
+    await client.query("ROLLBACK");
+    transactionOpen = false;
     res.json({
-      companyId,
+      ...graph,
       eligible: false,
-      readyForDeletion: false,
       schemaOnly: true,
-      blockers,
-      inventory: { directlyCompanyScopedTables: tableInventory },
-      foreignKeys: foreignKeyRows.map((foreignKey) => ({
-        table: foreignKey.table_name,
-        column: foreignKey.column_name,
-        referencesTable: foreignKey.referenced_table,
-        referencesColumn: foreignKey.referenced_column,
-      })),
       limitations: [
-        "Read-only schema and row-count inspection only; this endpoint does not export, archive, or delete data.",
-        "Tables without a direct companyId column remain blockers even when foreign-key relationships exist.",
-        "This schema-only preflight never marks a company eligible or ready for deletion; export, archive, and storage completeness are not proven.",
+        "Read-only repeatable-read graph inventory only; this endpoint does not export, archive, or delete data.",
+        "The inspection is capped at 10,000 selected rows and 25 seconds total, with each SQL statement timing out after five seconds; reaching a limit produces blockers and never indicates deletion readiness.",
+        "Unscoped tables and candidate rows without a supported tenant column remain blockers rather than being treated as tenant-owned or global.",
+        "Export, archive, storage completeness, and a complete offboarding process are not proven.",
       ],
     });
   } catch {
+    if (transactionOpen && client) {
+      try {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+      } catch {
+        // Release still occurs below; the original inspection error is reported.
+      }
+    }
     res.status(503).json({
       companyId,
       eligible: false,
@@ -144,13 +82,24 @@ router.get("/preflight", async (req, res): Promise<void> => {
       schemaOnly: true,
       blockers: [{
         code: "PREFLIGHT_INSPECTION_FAILED",
-        reason: "Database schema or tenant row inventory could not be inspected.",
+        reason: "The read-only company graph inspection could not safely complete.",
       }],
       limitations: [
-        "This schema-only preflight never marks a company eligible or ready for deletion; export, archive, and storage completeness are not proven.",
+        "No export, archive, or deletion was performed.",
       ],
       error: "Offboarding preflight could not safely complete.",
     });
+  } finally {
+    if (client) {
+      if (transactionOpen) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // Preserve the route response while ensuring the client is released.
+        }
+      }
+      client.release();
+    }
   }
 });
 

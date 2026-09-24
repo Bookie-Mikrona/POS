@@ -35,6 +35,7 @@ import {
   type EventTransferDiagnosticMovement,
   type EventTransferDiagnosticViolation,
 } from "@workspace/api-client-react";
+import { CompanyOffboarding } from "@/components/admin/CompanyOffboarding";
 import {
   buildEventTransferDiagnosticsCsv,
   eventTransferDiagnosticsCsvFilename,
@@ -1216,8 +1217,11 @@ function PodjetjaTab() {
                     </div>
                   </div>
 
+                  {/* Offboarding / Priprava na zaprtje */}
+                  <CompanyOffboarding companyId={c.id} />
+
                   {/* Nevarno območje */}
-                  <div className="pt-2 border-t border-destructive/20">
+                  <div className="pt-2 border-t border-destructive/20 mt-6">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Nevarno območje</p>
                      {accountsDeleteConfirm === c.id ? (
                        <div className="flex items-center gap-3 bg-destructive/5 border border-destructive/30 rounded-md px-3 py-2 mb-2">

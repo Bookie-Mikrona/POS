@@ -370,6 +370,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["221-public-voucher-stripe-connect.sql"],
   },
+  {
+    file: "223-company-offboarding-cases.sql",
+    classification: "schema",
+    dependsOn: ["222-pos-individual-voucher-redemption-holds.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;
