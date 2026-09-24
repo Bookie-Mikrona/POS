@@ -2132,19 +2132,11 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
         name: artikliTable.ime,
         revision: artikliTable.normativRevision,
         sale: artikliTable.prodajniArtikel,
-        mealType: artikliTable.mealType,
-        categoryTip: kategorijeTable.tip,
       }).from(artikliTable)
-        .innerJoin(kategorijeTable, and(
-          eq(kategorijeTable.id, artikliTable.kategorijaId),
-          eq(kategorijeTable.enotaId, enotaId),
-        ))
         .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)))
         .for("update");
-      if (!row) throw new NormativeRequestError(404, { error: "Prodajni artikel s kategorijo hrane ni najden." });
-      if (!row.sale || row.categoryTip !== "hrana" || (row.mealType !== "ala_carte" && row.mealType !== "prepared")) {
-        throw new NormativeRequestError(422, { error: "Pametni normativ je na voljo samo za prodajne jedi iz kategorije hrana (à la carte ali pripravljene)." });
-      }
+      if (!row) throw new NormativeRequestError(404, { error: "Artikel ni najden." });
+      if (!row.sale) throw new NormativeRequestError(422, { error: "Pametni predlog ni na voljo za artikle, ki so samo nabavni." });
       const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
         .where(eq(normativiTable.artikelId, artikelId)).limit(1);
       if (existingNorm) throw new NormativeRequestError(409, { error: "Artikel že ima normativ; pametni začetni predlog je dovoljen le za prazen normativ." });
@@ -2268,18 +2260,12 @@ router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, asyn
         revision: artikliTable.normativRevision,
         sale: artikliTable.prodajniArtikel,
         mealType: artikliTable.mealType,
-        categoryTip: kategorijeTable.tip,
+        nabavniArtikel: artikliTable.nabavniArtikel,
       }).from(artikliTable)
-        .innerJoin(kategorijeTable, and(
-          eq(kategorijeTable.id, artikliTable.kategorijaId),
-          eq(kategorijeTable.enotaId, enotaId),
-        ))
         .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)))
         .for("update");
-      if (!owner) throw new NormativeRequestError(404, { error: "Prodajni artikel s kategorijo hrane ni najden." });
-      if (!owner.sale || owner.categoryTip !== "hrana" || (owner.mealType !== "ala_carte" && owner.mealType !== "prepared")) {
-        throw new NormativeRequestError(422, { error: "Pametni normativ je na voljo samo za prodajne jedi iz kategorije hrana (à la carte ali pripravljene)." });
-      }
+      if (!owner) throw new NormativeRequestError(404, { error: "Artikel ni najden." });
+      if (!owner.sale) throw new NormativeRequestError(422, { error: "Pametni predlog ni na voljo za artikle, ki so samo nabavni." });
       if (Number(owner.revision) !== proposal.revision || owner.name !== proposal.targetName) throw new NormativeStaleError();
       const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
         .where(eq(normativiTable.artikelId, artikelId)).limit(1);
@@ -2326,7 +2312,7 @@ router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, asyn
         artikelId,
         enotaId,
         { expectedRevision: proposal.revision, items: normativItems },
-        { mealType: owner.mealType, nabavniArtikel: false, prodajniArtikel: true },
+        { mealType: owner.mealType, nabavniArtikel: owner.nabavniArtikel, prodajniArtikel: owner.sale },
         tx,
       );
       await applyPreparedNormativUpdate(tx, artikelId, enotaId, prepared);

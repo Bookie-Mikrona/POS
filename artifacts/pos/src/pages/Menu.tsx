@@ -2489,27 +2489,34 @@ export default function Menu() {
                     <div className="flex gap-2">
                       {editingArt &&
                        lahkoVidiZgodovinoNormativa &&
-                       !normativStale &&
-                       !editingArt.hasNormativ &&
-                       normativItems.length === 0 &&
                        artProdajniArtikel &&
-                       editingArt.prodajniArtikel &&
-                       artName === editingArt.ime &&
-                       !multicourseEditorEnabled &&
-                       (artMealType === "ala_carte" || artMealType === "prepared") &&
-                       kategorije?.find(k => k.id.toString() === artCat)?.tip === "hrana" &&
-                       editingArt.kategorijaId?.toString() === artCat &&
-                       (editingArt.mealType ?? "ala_carte") === artMealType && (
+                       editingArt.prodajniArtikel && (
                          <Button
                            type="button"
                            size="sm"
                            variant="outline"
                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                           disabled={
+                             normativStale ||
+                             editingArt.hasNormativ ||
+                             normativItems.length > 0 ||
+                             artName !== editingArt.ime ||
+                             (editingArt.kategorijaId?.toString() ?? "") !== artCat ||
+                             (editingArt.mealType ?? "ala_carte") !== artMealType
+                           }
+                           title={editingArt.hasNormativ || normativItems.length > 0
+                             ? "Artikel že ima normativ. Pametni začetni predlog je na voljo le za prazen normativ."
+                             : normativStale
+                               ? "Najprej osvežite podatke normativa."
+                               : artName !== editingArt.ime ||
+                                 (editingArt.kategorijaId?.toString() ?? "") !== artCat ||
+                                 (editingArt.mealType ?? "ala_carte") !== artMealType
+                                 ? "Neshranjene spremembe najprej shranite."
+                                 : undefined}
                            onClick={() => setSmartProposalDialogOpen(true)}
                          >
                            <Sparkles className="w-3 h-3 mr-1" />
-                           <span className="hidden sm:inline">Pametni predlog</span>
-                           <span className="sm:hidden">Predlog</span>
+                           <span>Pametni predlog</span>
                          </Button>
                        )}
                       <Button type="button" size="sm" variant="outline" onClick={() => { setCopyPickerOpen(true); setCopyPickerSearch(""); }}>
