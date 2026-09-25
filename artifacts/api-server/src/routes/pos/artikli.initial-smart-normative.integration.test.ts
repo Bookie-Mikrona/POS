@@ -207,7 +207,56 @@ describe("initial smart normative proposal and apply", () => {
     }).returning({ id: artikliTable.id });
     const unavailable = await preview(another!.id);
     expect(unavailable.status).toBe(422);
-    expect(unavailable.body.error).toContain("vsaj dva preverljiva recepta");
+    expect(unavailable.body.error).toContain("preverljiv spletni zadetek");
+  });
+
+  it("recovers an unstructured search answer through a forced structured estimate", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({ stop_reason: "end_turn", content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: "Found a bean salad but could not return JSON." },
+    ] }));
+    mockCreate.mockImplementationOnce(async () => ({ content: [{
+      type: "tool_use", name: "submit_recipe_estimate",
+      input: { sourceUrl: urlA, items: [{ name: "Fižol", quantity: 0.19, unit: "kg" }] },
+    }] }));
+    const result = await preview(salad!.id);
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    expect(result.body.origin).toBe("web_estimate");
+    expect(result.body.items[0]).toMatchObject({ name: "Fižol", quantity: 0.19, unit: "KGM" });
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const recoveryRequest = mockCreate.mock.calls[1]![0];
+    expect(recoveryRequest.tool_choice).toEqual({ type: "tool", name: "submit_recipe_estimate" });
+    expect(recoveryRequest.tools[0].input_schema.properties.sourceUrl.enum).toEqual([urlA]);
+  });
+
+  it("does not recover without a typed search result or accept a forged recovery URL", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({ content: [{ type: "text", text: "No recipes found." }] }));
+    const missing = await preview(salad!.id);
+    expect(missing.status).toBe(422);
+    expect(missing.body.error).toContain("preverljiv spletni zadetek");
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: "No JSON" },
+    ] }));
+    mockCreate.mockImplementationOnce(async () => ({ content: [{
+      type: "tool_use", name: "submit_recipe_estimate",
+      input: { sourceUrl: urlB, items: [{ name: "Fižol", quantity: 0.19, unit: "kg" }] },
+    }] }));
+    const forged = await preview(salad!.id);
+    expect(forged.status).toBe(422);
+    expect(forged.body.error).toContain("preverljiv spletni zadetek");
   });
 
   it("offers a web-backed approximate bean salad norm and writes it only after confirmation", async () => {

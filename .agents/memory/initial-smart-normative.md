@@ -20,3 +20,9 @@ Za prodajne jedi dovoli poleg primerjave popolnih receptov tudi ločeno označen
 **Why:** Gostinski naziv in velikost porcije pogosto nimata dveh popolnih, med seboj identičnih spletnih receptov. Uporabnik želi uporaben približek, kakršnega AI poda za veliko fižolovo solato, vendar ne lažnih citatov ali avtomatsko knjiženih količin.
 
 **How to apply:** Približek naj ima ločeno poreklo in jasno opozorilo, eno pozitivno številčno količino ter nedvoumno enoto za vsako surovino; razpone in alternative je treba razrešiti pred predlogom. Obstoječa ročna potrditev surovine, davčne kategorije in celotnega normativa ostane obvezna.
+
+Spletni model lahko za isto jed enkrat vrne uporaben JSON, drugič prosti tekst. Enkraten popravljalni poziv za strukturiran približek je sprejemljiv samo z URL-ji, ki so dejansko prišli iz tipiziranih iskalnih rezultatov prvega klica; brez njih vrni jasno napako.
+
+**Why:** V praksi je isti začetni predlog enkrat uspel in drugič padel kot »raziskava ni vrnila strukturiranih podatkov«. Samo sprostitev razčlenjevalnika ne zagotavlja uporabnega izida.
+
+**How to apply:** Popravljalni korak naj uporablja ločen prisilno strukturiran odgovor in ponovno pošlje rezultat skozi ista pravila izvora, surovin in količin. Ne obravnavaj modelovega prostega besedila ali samodejno navedenih URL-jev kot dokaz spletnega zadetka.

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   clearInitialRecipeResearchCache,
   normalizeInitialRecipeResearch,
+  initialRecipeSearchSources,
   recipeSearchName,
   signInitialNormativeProposal,
   singleIngredientDrinkFromName,
@@ -121,6 +122,16 @@ describe("initial smart normative research validation", () => {
       .toThrowError("RESEARCH_INSUFFICIENT_SOURCES");
     expect(() => normalizeInitialRecipeResearch([{ type: "text", text: "No recipes found." }]))
       .toThrowError("RESEARCH_INVALID");
+  });
+
+  it("only exposes approved typed search results for structured recovery", () => {
+    expect(initialRecipeSearchSources([
+      { type: "text", text: JSON.stringify({ sourceUrl: sourceA }) },
+      { type: "web_search_tool_result", content: [
+        { type: "web_search_result", url: sourceA, title: "Bean salad" },
+        { type: "web_search_result", url: "https://example.com/recipe", title: "Unapproved" },
+      ] },
+    ])).toEqual([{ url: sourceA, title: "Bean salad" }]);
   });
 
   it("builds an explicitly approximate norm only with a typed web result and single quantities", () => {

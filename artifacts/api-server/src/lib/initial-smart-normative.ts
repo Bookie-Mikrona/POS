@@ -109,6 +109,23 @@ export function recipeSearchName(articleName: string): string {
   return articleName.trim().replace(/\s+[-–—]\s*(?:velika|velik|veliko|mala|majhna|majhen|majhno)\s*$/iu, "").trim();
 }
 
+/** Only typed web-search results may provide source URLs for a second structured response. */
+export function initialRecipeSearchSources(content: unknown[]): InitialNormativeSource[] {
+  const requestedUrls: string[] = [];
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const result = block as { type?: unknown; content?: unknown };
+    if (result.type !== "web_search_tool_result" || !Array.isArray(result.content)) continue;
+    for (const child of result.content) {
+      if (!child || typeof child !== "object") continue;
+      const source = child as { type?: unknown; url?: unknown };
+      if (source.type === "web_search_result" && typeof source.url === "string") requestedUrls.push(source.url);
+    }
+  }
+  return filterResearchSources(content, requestedUrls)
+    .slice(0, 4).map(({ url, title }) => ({ url, title }));
+}
+
 type Measure = { code: InitialNormativeUnit; base: "kg" | "l" | "piece"; factor: Decimal };
 const MEASURES: Record<string, Measure> = {
   g: { code: "KGM", base: "kg", factor: new Decimal("0.001") },
