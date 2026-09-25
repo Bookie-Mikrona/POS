@@ -3,7 +3,7 @@ import { posFetch } from "@/lib/pos-auth-headers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, Loader2, Info, ExternalLink, ShieldAlert, Check } from "lucide-react";
+import { AlertCircle, Loader2, Info, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,6 @@ type TaxCategory = "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "ot
 type ItemClassification = {
   taxCategory: TaxCategory | "";
   addedSugar: boolean;
-  rawConfirmed: boolean;
 };
 
 type Props = {
@@ -56,6 +55,14 @@ const TAX_CATEGORY_LABELS: Record<TaxCategory, string> = {
   other: "Drugo",
   vat_super_reduced_5: "Posebna znižana stopnja (5%)",
 };
+
+function displayQuantity(item: ProposalItem): string {
+  const unit = { KGM: "kg", LTR: "l", KOM: "kos" }[item.unit];
+  return `${item.quantity.toLocaleString("sl-SI", {
+    minimumFractionDigits: item.unit === "KOM" ? 0 : 3,
+    maximumFractionDigits: 4,
+  })} ${unit}`;
+}
 
 export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, articleName, onApplySuccess }: Props) {
   const [loading, setLoading] = useState(false);
@@ -103,8 +110,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
         if (item.willCreate) {
           initialClassifications[index] = {
             taxCategory: "", // No hidden default
-            addedSugar: false,
-            rawConfirmed: false
+            addedSugar: false
           };
         }
       });
@@ -118,22 +124,22 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
   };
 
   const handleApply = async () => {
-    if (!proposal) return;
+    if (!proposal || !confirmed) return;
     
     // Validate that all willCreate items have valid classification
     const classificationsArray = [];
     for (let i = 0; i < proposal.items.length; i++) {
       if (proposal.items[i].willCreate) {
         const cls = classifications[i];
-        if (!cls || cls.taxCategory === "" || !cls.rawConfirmed) {
-          setError("Prosimo, izpolnite klasifikacijo in potrdite, da je sestavina osnovna surovina za vse nove artikle.");
+        if (!cls || cls.taxCategory === "") {
+          setError("Izberite davčno klasifikacijo za vse nove nabavne artikle.");
           return;
         }
         classificationsArray.push({
           index: i,
           taxCategory: cls.taxCategory as TaxCategory,
           addedSugar: cls.addedSugar,
-          rawConfirmed: cls.rawConfirmed
+          rawConfirmed: confirmed
         });
       }
     }
@@ -169,10 +175,14 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
   const allClassificationsValid = proposal?.items.every((item, i) => {
     if (!item.willCreate) return true;
     const cls = classifications[i];
-    return cls && cls.taxCategory !== "" && cls.rawConfirmed;
+    return cls && cls.taxCategory !== "";
   }) ?? false;
 
   const canApply = proposal && confirmed && allClassificationsValid && !applying && !loading;
+  const newItems = proposal?.items.map((item, index) => ({ item, index })).filter(({ item }) => item.willCreate) ?? [];
+  const firstCategory = newItems.length ? classifications[newItems[0]!.index]?.taxCategory : "";
+  const commonCategory = firstCategory && newItems.every(({ index }) => classifications[index]?.taxCategory === firstCategory)
+    ? firstCategory : "";
 
   return (
     <Dialog open={open} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
@@ -200,25 +210,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
             </div>
           ) : proposal ? (
             <ScrollArea className="h-full pr-4 pb-4">
-              <div className="space-y-6">
-                <div className="p-4 rounded-md bg-blue-50/50 border border-blue-100 flex gap-3 text-sm text-blue-900">
-                  <ShieldAlert className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-medium text-blue-950 text-base">OPOZORILO: Potreben je strog ročni pregled</p>
-                    <p>
-                      {proposal.sources.length > 0
-                        ? proposal.origin === "catalog_volume"
-                          ? "Spletni rezultat potrjuje le naslov in povezavo do izdelka. Odmerek in enota sta razbrana iz naziva artikla, ne iz spletnega recepta."
-                          : proposal.origin === "web_estimate"
-                            ? "To je približen AI-normativ, ne prepis recepta. Spletni vir potrjuje le naslov in povezavo; predlaganih sestavin in količin ne dokazuje. Količino za veliko ali malo porcijo preverite sami."
-                          : "Samo naslovi in povezave virov so preverjeni. Količine, sestavine in pretvorbe receptov so nepotrjeni AI izračuni."
-                        : "Predlog nima preverljivega spletnega vira."}
-                      Ta predlog <b>ni preverjena računovodska ali davčna informacija</b>.
-                    </p>
-                    <p>Sestavine, količine in davčno klasifikacijo morate pred uporabo obvezno preveriti in potrditi.</p>
-                  </div>
-                </div>
-
+              <div className="space-y-5">
                 {error && (
                   <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -226,142 +218,120 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                   </div>
                 )}
 
-                {proposal.warnings.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm text-amber-800 flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4" /> Sistemska opozorila
-                    </h4>
-                    <ul className="text-sm text-amber-700 bg-amber-50 rounded-md border border-amber-200 p-3 space-y-1 list-disc pl-5">
-                      {proposal.warnings.map((w, i) => <li key={i}>{w}</li>)}
-                    </ul>
+                <section aria-label="Predlagani normativ" className="space-y-2">
+                  <div>
+                    <h3 className="text-lg font-semibold">Normativ za 1 porcijo</h3>
+                    <p className="text-xs text-muted-foreground">Predlog še ni shranjen. Količine preverite pred uporabo.</p>
                   </div>
-                )}
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Predlagane sestavine na porcijo</h4>
                   {proposal.items.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic">Ni bilo najdenih sestavin.</p>
                   ) : (
-                    <div className="rounded-md border divide-y bg-card">
-                      {proposal.items.map((item, i) => {
-                        const cls = classifications[i];
+                    <div className="overflow-hidden rounded-md border bg-card">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr><th scope="col" className="px-3 py-2 text-left font-medium">Sestavina</th><th scope="col" className="px-3 py-2 text-right font-medium">Količina na porcijo</th></tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {proposal.items.map((item, i) => (
+                            <tr key={i}>
+                              <td className="px-3 py-2 font-medium">{item.name}</td>
+                              <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{displayQuantity(item)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+
+                {newItems.length > 0 && (
+                  <section className="space-y-3 rounded-md border p-3">
+                    <div>
+                      <h4 className="font-semibold text-sm">Novi nabavni artikli ({newItems.length})</h4>
+                      <p className="text-xs text-muted-foreground">Pred shranjevanjem določite davčno klasifikacijo. Ni nastavljena samodejno.</p>
+                    </div>
+                    {newItems.length > 1 && (
+                      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3 border-b pb-3">
+                        <Label htmlFor="smart-normative-bulk-tax" className="text-sm shrink-0">Enaka klasifikacija za vse</Label>
+                        <Select value={commonCategory} onValueChange={value => setClassifications(previous => {
+                          const next = { ...previous };
+                          for (const { index } of newItems) next[index] = { taxCategory: value as TaxCategory, addedSugar: false };
+                          return next;
+                        })}>
+                          <SelectTrigger id="smart-normative-bulk-tax" className="w-full sm:w-[300px] h-9">
+                            <SelectValue placeholder="Izberite, če velja za vse" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.entries(TAX_CATEGORY_LABELS) as [TaxCategory, string][]).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {newItems.map(({ item, index }) => {
+                        const cls = classifications[index];
                         const isBeverage = cls?.taxCategory === "hot_beverage" || cls?.taxCategory === "cold_beverage" || cls?.taxCategory === "alcoholic";
-                        
                         return (
-                        <div key={i} className={`p-4 flex flex-col gap-4 ${item.willCreate ? 'bg-emerald-50/10' : ''}`}>
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                            <div>
-                              <p className="font-medium">{item.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Količina: <span className="font-semibold text-foreground">{item.quantity} {item.unit}</span>
-                              </p>
-                            </div>
-                            <div className="text-xs">
-                              {item.willCreate ? (
-                                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full font-medium border border-emerald-200">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                                  Ustvarja se kot nov nabavni artikel
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-slate-700 bg-slate-100 px-2 py-1 rounded-full font-medium border border-slate-200">
-                                  Povezano z obstoječim artiklom
-                                </span>
+                          <div key={index} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                            <Label htmlFor={`smart-normative-tax-${index}`} className="text-sm sm:flex-1">{item.name}</Label>
+                            <div className="space-y-1.5 sm:w-[300px]">
+                              <Select value={cls?.taxCategory ?? ""} onValueChange={value => setClassifications(previous => ({
+                                ...previous, [index]: { taxCategory: value as TaxCategory, addedSugar: false },
+                              }))}>
+                                <SelectTrigger id={`smart-normative-tax-${index}`} className="w-full h-9">
+                                  <SelectValue placeholder="Izberite klasifikacijo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(Object.entries(TAX_CATEGORY_LABELS) as [TaxCategory, string][]).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {isBeverage && (
+                                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                  <Checkbox checked={cls.addedSugar} onCheckedChange={checked => setClassifications(previous => ({
+                                    ...previous, [index]: { ...previous[index]!, addedSugar: !!checked },
+                                  }))} />
+                                  Vsebuje dodan sladkor
+                                </label>
                               )}
                             </div>
                           </div>
-                          
-                          {item.willCreate && cls && (
-                            <div className="pl-0 sm:pl-4 border-l-2 border-emerald-200 space-y-3 pt-2">
-                              <div className="space-y-2">
-                                <Label className="text-xs font-semibold text-emerald-900">Klasifikacija nabavnega artikla (Obvezno)</Label>
-                                <Select 
-                                  value={cls.taxCategory} 
-                                  onValueChange={(val) => setClassifications(prev => ({ 
-                                    ...prev, 
-                                    [i]: { ...prev[i], taxCategory: val as TaxCategory, addedSugar: false }
-                                  }))}
-                                >
-                                  <SelectTrigger className="w-full sm:w-[300px] h-8 text-sm">
-                                    <SelectValue placeholder="Izberi davčno klasifikacijo..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(Object.entries(TAX_CATEGORY_LABELS) as [TaxCategory, string][]).map(([val, label]) => (
-                                      <SelectItem key={val} value={val}>{label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              {isBeverage && (
-                                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                  <Checkbox 
-                                    checked={cls.addedSugar}
-                                    onCheckedChange={(c) => setClassifications(prev => ({ 
-                                      ...prev, 
-                                      [i]: { ...prev[i], addedSugar: !!c } 
-                                    }))}
-                                  />
-                                  <span>Vsebuje dodan sladkor (O-Sladkor)</span>
-                                </label>
-                              )}
-
-                              <label className="flex items-start gap-2 cursor-pointer text-sm p-2 rounded bg-emerald-50/50 border border-emerald-100 hover:bg-emerald-100/50 transition-colors">
-                                <Checkbox 
-                                  className="mt-0.5"
-                                  checked={cls.rawConfirmed}
-                                  onCheckedChange={(c) => setClassifications(prev => ({ 
-                                    ...prev, 
-                                    [i]: { ...prev[i], rawConfirmed: !!c } 
-                                  }))}
-                                />
-                                <span className="leading-snug">
-                                  Potrjujem, da je "{item.name}" <b>SUROVINA / NABAVNI ARTIKEL</b> in ne polizdelek ali drug prodajni artikel. Če predlog uporablja polizdelke, ki bi morali imeti svoj normativ, <b>prekličite postopek</b> in artikel sestavite ročno.
-                                </span>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                      )})}
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
+                  </section>
+                )}
 
-                {proposal.sources.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">Najdeni spletni viri (vsebina ni preverjena)</h4>
-                    <div className="flex flex-col gap-1.5">
-                      {proposal.sources.map((src, i) => (
-                        <a 
-                          key={i} 
-                          href={src.url} 
-                          target="_blank" 
-                          rel="noreferrer noopener"
-                          className="text-sm text-primary hover:underline inline-flex items-center gap-1.5 w-fit"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          {src.title}
-                        </a>
-                      ))}
-                    </div>
+                {proposal.warnings.length > 0 && (
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Info className="h-4 w-4 shrink-0" />
+                    <p>{proposal.warnings.join(" ")}</p>
                   </div>
                 )}
 
-                <div className="pt-4 border-t space-y-4">
-                  <label className="flex items-start gap-3 cursor-pointer p-4 rounded-lg bg-muted/30 border-2 border-transparent hover:border-primary/20 transition-colors">
-                    <Checkbox 
-                      checked={confirmed} 
-                      onCheckedChange={(c) => setConfirmed(!!c)} 
-                      className="mt-1"
-                    />
-                    <div className="space-y-1.5">
-                      <p className="text-sm font-medium leading-none">Potrjujem ustvarjanje in dodajanje normativa</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Preveril sem vse predlagane sestavine, njihove količine, davčne stopnje in klasifikacijo. 
-                        Prevzemam polno odgovornost za točnost normativa in pravilnost knjigovodskih in davčnih vplivov (vključno z zalogo, davki in DDV izračuni), ki bodo nastali ob prodaji.
-                      </p>
-                    </div>
-                  </label>
-                </div>
+                {proposal.sources.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">Spletni vir (vsebina ni preverjena):</span>
+                    {proposal.sources.map((source, index) => (
+                      <a key={index} href={source.url} target="_blank" rel="noreferrer noopener"
+                        className="text-primary hover:underline inline-flex items-center gap-1">
+                        <ExternalLink className="h-3 w-3" />{source.title}
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                <label className="flex items-start gap-2 cursor-pointer border-t pt-4 text-sm">
+                  <Checkbox checked={confirmed} onCheckedChange={checked => setConfirmed(!!checked)} className="mt-0.5" />
+                  <span>
+                    Pregledal sem sestavine in količine.
+                    {newItems.length > 0 && " Potrjujem, da so vsi novi artikli nabavne surovine, ne polizdelki."}
+                    {" "}Želim shraniti normativ.
+                  </span>
+                </label>
               </div>
             </ScrollArea>
           ) : null}
@@ -371,7 +341,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
           {!allClassificationsValid && proposal && (
             <div className="flex-1 text-xs text-amber-600 flex items-center gap-1">
               <Info className="h-4 w-4" />
-              Izpolnite klasifikacijo in potrdite surovine za vse nove artikle.
+              Izberite davčno klasifikacijo za nove artikle.
             </div>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={applying || (loading && !proposal)}>
