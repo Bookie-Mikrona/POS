@@ -2252,10 +2252,18 @@ async function resolveInitialNormativeItems(
     const matches = articles.filter(article =>
       normalizeIngredientName(article.ime) === key
       || (article.imeZaNabavo != null && normalizeIngredientName(article.imeZaNabavo) === key));
-    if (!selected && matches.length > 1) {
+    // Identical words in another order are an exact name match, but only when
+    // unambiguous. Broader/shorter names remain manual suggestions in the UI.
+    const sortedKey = key.split(" ").sort().join(" ");
+    const reorderedMatches = matches.length ? [] : articles.filter(article =>
+      normalizeIngredientName(article.ime).split(" ").sort().join(" ") === sortedKey
+      || (article.imeZaNabavo != null
+        && normalizeIngredientName(article.imeZaNabavo).split(" ").sort().join(" ") === sortedKey));
+    const nameMatches = matches.length ? matches : reorderedMatches;
+    if (!selected && nameMatches.length > 1) {
       throw new NormativeRequestError(422, { error: "Ime sestavine se ujema z več artikli; razrešite podvojena imena pred uporabo predloga." });
     }
-    const match = selected ?? matches[0];
+    const match = selected ?? nameMatches[0];
     if (!match) {
       if (item.existingArticleId !== undefined && item.existingArticleId !== null) throw new NormativeStaleError();
       return { vhodniArtikelId: null, kolicina: toNormativNumericQuantity(new Decimal(item.quantity)) };

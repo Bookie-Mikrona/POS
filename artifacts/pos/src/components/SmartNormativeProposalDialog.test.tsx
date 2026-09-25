@@ -42,6 +42,32 @@ beforeEach(() => {
 });
 
 describe("SmartNormativeProposalDialog", () => {
+  it("offers reordered and broader catalog names without automatically linking a partial match", async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({
+      ...proposal,
+      items: [
+        { ...proposal.items[0], name: "Rastlinsko olje", unit: "LTR" },
+        { ...proposal.items[0], name: "Jabolčni kis", unit: "LTR" },
+        { ...proposal.items[0], name: "Kristalni sladkor", unit: "KGM" },
+      ],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<SmartNormativeProposalDialog open articleId={51} articleName="Solata"
+      availableIngredients={[
+        { id: 1, ime: "Olje rastlinsko", enotaMere: "LTR" },
+        { id: 2, ime: "Kis jabolčni", enotaMere: "LTR" },
+        { id: 3, ime: "Sladkor", enotaMere: "KGM" },
+      ]} onOpenChange={vi.fn()} onApplySuccess={vi.fn()} />);
+    await screen.findByLabelText("Ime sestavine 3");
+    expect(within(screen.getByLabelText("Nabavni artikel za sestavino 1")).getByRole("option", { name: /Olje rastlinsko/ })).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Nabavni artikel za sestavino 2")).getByRole("option", { name: /Kis jabolčni/ })).toBeInTheDocument();
+    const sugar = screen.getByLabelText("Nabavni artikel za sestavino 3");
+    expect(within(sugar).getByRole("option", { name: /Sladkor/ })).toBeInTheDocument();
+    expect(sugar).toHaveValue("");
+    fireEvent.change(sugar, { target: { value: "3" } });
+    expect(sugar).toHaveValue("3");
+    expect(screen.getByLabelText("Ime sestavine 3")).toHaveValue("Sladkor");
+  });
+
   it("makes a one-ingredient result explicit and keeps adding ingredients visible", async () => {
     fetchMock.mockImplementation(async () => new Response(JSON.stringify({
       ...proposal, items: proposal.items.slice(0, 1),

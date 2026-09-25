@@ -630,6 +630,25 @@ describe("initial smart normative proposal and apply", () => {
     expect(norms[0]!.kolicina).toBe("100.0000");
   });
 
+  it("matches a uniquely reordered ingredient name before proposing a new purchase article", async () => {
+    currentIngredient = "Rastlinsko olje";
+    const [parent] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Jed z rastlinskim oljem", cena: "6", davek: "9.5",
+      kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const [existing] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Olje rastlinsko", cena: "2", davek: "9.5",
+      enotaMere: "GRM", nabavniArtikel: true, prodajniArtikel: false,
+      vrstaArtikla: "material",
+    }).returning({ id: artikliTable.id });
+    const response = await preview(parent!.id);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.items[0]).toMatchObject({ existingArticleId: existing!.id, willCreate: false });
+    const applied = await applyWithClassifications(parent!.id, response.body.token, []);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    expect(applied.body.createdArticleIds).toEqual([]);
+  });
+
   it("researches a named alcoholic serving online, converts its unit, and writes its norm on confirmation", async () => {
     const [serving] = await db.insert(artikliTable).values({
       enotaId: enotaA, ime: "Borovničevec 0,05 l", cena: "3.20", davek: "22",

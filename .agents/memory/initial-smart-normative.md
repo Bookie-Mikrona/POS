@@ -9,6 +9,12 @@ Začetni predlog ne sme sam ustvarjati artiklov. Nove nabavne surovine in normat
 
 **How to apply:** Spletni predlog omeji na prodajne prehrambne artikle brez normativa, brez sestave iz drugih artiklov ali polizdelkov. Ob potrditvi znova preveri enoto, stanje artikla, ime jedi, revizijo in ujemanje sestavin; ob dvomu zavrni celoten zapis. Preverjen URL spletnega iskalnika potrjuje obstoj vira, ne pa resničnosti modelovega prepisa sestavin, količin ali porcij; to mora ostati jasno označeno kot nepreverjen predlog.
 
+Ujemanje nazivov z enakimi besedami v drugačnem vrstnem redu lahko samodejno poveže enolično surovino; širši ali ožji naziv naj bo le ročni predlog, nikoli samodejna povezava.
+
+**Why:** »Rastlinsko olje« in »olje rastlinsko« sta istovetna po besedah, »kristalni sladkor« in »sladkor« pa lahko označujeta različno blago. Iskanje mora pomagati brez tihega ustvarjanja dvojnikov ali napačnih normativov.
+
+**How to apply:** Pri spremembah predloga in iskalnika ohrani razliko med nedvoumnim preurejenim nazivom in delnim ujemanjem; izbiro slednjega vedno prepusti uporabniku ter upoštevaj skladnost merskih enot.
+
 Enosestavinska alkoholna pijača z eksplicitnim volumnom porcije v imenu potrebuje tudi dejanski spletni rezultat za identiteto izdelka. Odmerek še vedno izračunaj iz naziva, ne iz izdelčne strani; brez preverljivega spletnega rezultata predloga ne ustvarjaj. Večsestavinskih pijač iz naziva ne razčlenjuj.
 
 **Why:** Uporabnik želi, da AI res poišče podlago na spletu, ne da predlog napiše samo iz imena. Spletni recepti za en odmerek kupljene pijače niso pravi dokaz; spletni rezultat lahko potrdi identiteto izdelka, ne pa količine odmerka.

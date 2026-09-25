@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { ingredientCandidates } from "@/lib/ingredient-candidates";
 
 type ProposalItem = {
   name: string;
@@ -278,10 +279,8 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                   )}
                   <div className="rounded-md border bg-card divide-y">
                     {draftRows.map((row, index) => {
-                      const candidates = availableIngredients.filter(article =>
-                        compatibleUnit(article.enotaMere, row.unit)
-                        && (article.id === row.existingArticleId || `${article.ime} ${article.imeZaNabavo ?? ""}`.toLocaleLowerCase("sl").includes(row.search.trim().toLocaleLowerCase("sl")))
-                      ).slice(0, 40);
+                       const candidates = ingredientCandidates(availableIngredients, row.search,
+                         article => compatibleUnit(article.enotaMere, row.unit), row.existingArticleId);
                       return (
                         <div key={row.key} className="p-3 space-y-2">
                           <div className="flex items-center justify-between">
@@ -321,6 +320,11 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                               {candidates.map(article => <option key={article.id} value={article.id}>{article.ime} ({article.enotaMere})</option>)}
                             </select>
                           </div>
+                           {row.existingArticleId === null && candidates.length > 0 && row.search.trim() && (
+                             <p className="text-xs text-muted-foreground">
+                               Možen obstoječi artikel: {candidates[0]!.ime}. Izberite ga v seznamu, če ustreza sestavini.
+                             </p>
+                           )}
                           {row.existingArticleId === null && <p className="text-xs text-muted-foreground">Če artikel že obstaja, ga najprej izberite iz šifranta. Nove surovine nastanejo šele ob potrditvi.</p>}
                         </div>
                       );
