@@ -3,10 +3,12 @@ import supertest from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
 import {
+  articleImageVersionsTable,
   artikliTable,
   companiesTable,
   db,
   enoteTable,
+  kategorijeTable,
   normativiTable,
   pool,
 } from "@workspace/db";
@@ -458,6 +460,91 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
       kolicina: normativiTable.kolicina,
     }).from(normativiTable).where(eq(normativiTable.artikelId, response.body.id));
     expect(storedNormativ).toEqual([{ vhodniArtikelId: firstIngredientId, kolicina: "2.0000" }]);
+  });
+
+  it("polizdelku ohrani normativ, vendar odstrani prodajna polja in trenutno sliko", async () => {
+    const [category] = await db.insert(kategorijeTable).values({
+      enotaId,
+      ime: `${run}-category`,
+    }).returning({ id: kategorijeTable.id });
+    const created = await createArticleAndNormativ({
+      ime: `${run}-polizdelek`,
+      prodajniArtikel: false,
+      nabavniArtikel: false,
+      povratnaEmbalaza: false,
+      mealType: "ala_carte",
+      taxCategory: "food",
+      cena: 14,
+      kategorijaId: category.id,
+      skupina: "stara skupina",
+      brutoTezaG: 500,
+      netoTezaG: 300,
+      normativItems: [{ vhodniArtikelId: firstIngredientId, kolicina: 2 }],
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    expect(created.body).toMatchObject({
+      cena: 0,
+      kategorijaId: null,
+      skupina: null,
+      brutoTezaG: null,
+      netoTezaG: null,
+      mealType: "ala_carte",
+      normativRevision: 2,
+    });
+    const ownerId = created.body.id as number;
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, ownerId)))
+      .toEqual([expect.objectContaining({ vhodniArtikelId: firstIngredientId })]);
+
+    const imageUrl = "/api/storage/public-objects/article-images/example.webp";
+    await db.update(artikliTable).set({
+      prodajniArtikel: true,
+      cena: "14",
+      kategorijaId: category.id,
+      skupina: "stara skupina",
+      brutoTezaG: "500",
+      netoTezaG: "300",
+      netoDelezOdst: "60",
+      slikaUrl: imageUrl,
+      opisSlike: "Stara slika",
+    }).where(eq(artikliTable.id, ownerId));
+    const [version] = await db.insert(articleImageVersionsTable).values({
+      artikelId: ownerId,
+      storageKey: "article-images/example.webp",
+      slikaUrl: imageUrl,
+      source: "upload",
+      isCurrent: true,
+    }).returning({ id: articleImageVersionsTable.id });
+
+    const updated = await saveArticleFor(ownerId, {
+      ime: `${run}-polizdelek`,
+      prodajniArtikel: false,
+      nabavniArtikel: false,
+      povratnaEmbalaza: false,
+      cena: 30,
+      kategorijaId: category.id,
+      skupina: "spet skupina",
+      brutoTezaG: 600,
+      netoTezaG: 360,
+      normativUpdate: {
+        expectedRevision: 2,
+        items: [{ vhodniArtikelId: firstIngredientId, kolicina: 2 }],
+      },
+    });
+    expect(updated.status, JSON.stringify(updated.body)).toBe(200);
+    expect(updated.body).toMatchObject({
+      cena: 0,
+      kategorijaId: null,
+      skupina: null,
+      brutoTezaG: null,
+      netoTezaG: null,
+      netoDelezOdst: null,
+      slikaUrl: null,
+      opisSlike: null,
+      hasNormativ: true,
+    });
+    const [current] = await db.select({ isCurrent: articleImageVersionsTable.isCurrent })
+      .from(articleImageVersionsTable).where(eq(articleImageVersionsTable.id, version.id));
+    expect(current?.isCurrent).toBe(false);
   });
 
   it("pri ustvarjanju razreši dovoljeno lastno 1 : 1 sestavino na novi ID", async () => {

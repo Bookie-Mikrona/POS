@@ -2,6 +2,7 @@ export type ArticleListFilter =
   | "vsi"
   | "prodajni"
   | "nabavni"
+  | "polizdelek"
   | "embalaza"
   | "zNormativom"
   | "brezNormativa"
@@ -13,6 +14,10 @@ export interface FilterableArticle {
   povratnaEmbalaza: boolean;
   hasNormativ?: boolean;
   slikaUrl?: string | null;
+}
+
+export function isPolizdelek(article: Pick<FilterableArticle, "prodajniArtikel" | "nabavniArtikel" | "povratnaEmbalaza">): boolean {
+  return !article.prodajniArtikel && !article.nabavniArtikel && !article.povratnaEmbalaza;
 }
 
 export function articleMatchesListFilter(
@@ -30,6 +35,8 @@ export function articleMatchesListFilter(
       return Boolean(article.prodajniArtikel);
     case "nabavni":
       return Boolean(article.nabavniArtikel);
+    case "polizdelek":
+      return isPolizdelek(article);
     case "embalaza":
       return false;
     case "zNormativom":

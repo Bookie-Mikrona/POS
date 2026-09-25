@@ -72,6 +72,7 @@ import {
 } from "@/lib/normativ-eligibility";
 import {
   articleMatchesListFilter,
+  isPolizdelek,
   type ArticleListFilter,
 } from "@/lib/article-list-filter";
 import {
@@ -288,6 +289,11 @@ export default function Menu() {
   };
 
   const [artFilter, setArtFilter] = useState<ArticleListFilter>("vsi");
+  const artPolizdelek = isPolizdelek({
+    prodajniArtikel: artProdajniArtikel,
+    nabavniArtikel: artNabavniArtikel,
+    povratnaEmbalaza: artPovratnaEmbalaza,
+  });
   const [artSearch, setArtSearch] = useState("");
   const artSearchRef = useRef<HTMLInputElement>(null);
   const selectedArtRowRef = useRef<HTMLTableRowElement>(null);
@@ -774,13 +780,15 @@ export default function Menu() {
   useEffect(() => {
     if (
       artDialogOpen
-      && artNabavniArtikel
-      && !artProdajniArtikel
-      && (artDialogTab === "normativ" || artDialogTab === "slika")
+      && (
+        (artNabavniArtikel && !artProdajniArtikel && artDialogTab === "normativ")
+        || (!artProdajniArtikel && artDialogTab === "slika")
+        || (artPolizdelek && artDialogTab === "cena_ddv")
+      )
     ) {
       setArtDialogTab("osnovno");
     }
-  }, [artDialogOpen, artNabavniArtikel, artProdajniArtikel, artDialogTab]);
+  }, [artDialogOpen, artNabavniArtikel, artProdajniArtikel, artPolizdelek, artDialogTab]);
 
   // ── Kategorija handlers ──────────────────────────────────────
   const openNewCat = () => {
@@ -1455,7 +1463,7 @@ export default function Menu() {
       cenaDruzinska: isProdajni && artJePica && artCenaDruzinska.trim() !== "" ? parseDecimal(artCenaDruzinska) : null,
       // Prodajni artikli → prodajna stopnja (eat_in privzeto, POS jo bere pri prodaji)
       // Čisto nabavni artikli → pričakovana nabavna stopnja (za validacijo na prejemu)
-      davek: artPovratnaEmbalaza
+      davek: artPovratnaEmbalaza || artPolizdelek
         ? 0
         : artProdajniArtikel
         ? (artTaxCategory === "alcoholic"
@@ -1464,7 +1472,7 @@ export default function Menu() {
             ? ddvStopnje.nizjaSt
             : prodajnaDefaultDdv(artTaxCategory))
         : pricakovanaNabavnaDdv(artTaxCategory, artAddedSugar),
-      kategorijaId: artPovratnaEmbalaza ? null : (artCat ? parseInt(artCat) : null),
+      kategorijaId: artPovratnaEmbalaza || artPolizdelek ? null : (artCat ? parseInt(artCat) : null),
       aktiven: artAktiven,
       barva: isProdajni ? (artColor ?? null) : null,
       nabavniArtikel: artNabavniArtikel,
@@ -1481,16 +1489,16 @@ export default function Menu() {
       toGo: isProdajni ? artToGo : false,
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
-      ...normalizeMassYield(artMassYield),
+      ...normalizeMassYield(artPolizdelek ? EMPTY_MASS_YIELD : artMassYield),
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla,
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
-      mealType: artPripravaVrsta === "hrana" ? artMealType : "ala_carte",
+      mealType: artPolizdelek || artPripravaVrsta === "hrana" ? artMealType : "ala_carte",
       casPripraveMin,
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,
       happyHourCenaDruzinska: isProdajni && artJePica && artHappyHourCenaDruzinska !== "" ? parseDecimal(artHappyHourCenaDruzinska) : null,
-      skupina: artSkupina.trim() || null,
+      skupina: artPolizdelek ? null : artSkupina.trim() || null,
       taxCategory: artTaxCategory,
       jeDelMenija: artProdajniArtikel && artLahkoJeDelMenija && artJeDelMenija,
       addedSugar: artTaxCategory === "food_drink" ? false : artAddedSugar,
@@ -1769,9 +1777,11 @@ export default function Menu() {
               </div>
               <div className="flex flex-col sm:flex-row gap-1.5">
                 <div className="grid grid-cols-3 sm:flex gap-1 rounded-lg border-2 border-primary/30 bg-background p-1 shadow-sm shrink-0">
-                  {(["vsi", "prodajni", "nabavni", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (
+                  {(["vsi", "prodajni", "nabavni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (
                     <button
                       key={f}
+                      type="button"
+                      data-testid={`filter-article-${f}`}
                       onClick={() => setArtFilter(f)}
                        className={`min-w-0 min-h-9 rounded-md px-1.5 sm:px-3 py-1.5 text-[11px] sm:text-xs whitespace-nowrap font-semibold transition-all ${
                          artFilter === f
@@ -1779,7 +1789,7 @@ export default function Menu() {
                            : "bg-muted/60 text-foreground hover:bg-muted"
                        }`}
                     >
-                      {f === "vsi" ? "Vsi" : f === "prodajni" ? "Prodajni" : f === "nabavni" ? "Nabavni" : f === "embalaza" ? "Embalaža" : f === "zNormativom" ? "Z normativom" : f === "brezNormativa" ? "Brez normativa" : "Brez slike"}
+                      {f === "vsi" ? "Vsi" : f === "prodajni" ? "Prodajni" : f === "nabavni" ? "Nabavni" : f === "polizdelek" ? "Polizdelek" : f === "embalaza" ? "Embalaža" : f === "zNormativom" ? "Z normativom" : f === "brezNormativa" ? "Brez normativa" : "Brez slike"}
                     </button>
                   ))}
                 </div>
@@ -1884,7 +1894,7 @@ export default function Menu() {
                               style={{ backgroundColor: kategorije.find(k => k.id === a.kategorijaId)!.barva }}
                             />
                           )}
-                          <span className="truncate text-xs text-muted-foreground">{a.kategorijaIme || "Ni kategorije"}</span>
+                          <span className="truncate text-xs text-muted-foreground">{isPolizdelek(a) ? "—" : a.kategorijaIme || "Ni kategorije"}</span>
                         </div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell w-[18%] py-1 px-2">
@@ -1907,7 +1917,7 @@ export default function Menu() {
                         </div>
                       </TableCell>
                       <TableCell className="w-[26%] text-right font-medium whitespace-nowrap py-1 px-2 sm:px-4">
-                        {(() => {
+                        {isPolizdelek(a) ? <span className="text-muted-foreground">—</span> : (() => {
                           const prices: { field: InlinePriceField; label: string; value: number }[] = [
                             ...(a.jePica ? [{ field: "osnovna" as const, label: "Norm.", value: a.cena }] : [{ field: "osnovna" as const, label: "", value: a.cena }]),
                             ...(a.jePica && a.cenaMala != null ? [{ field: "mala" as const, label: "Mala", value: a.cenaMala }] : []),
@@ -1967,7 +1977,12 @@ export default function Menu() {
                         })()}
                       </TableCell>
                       <TableCell className="w-[20%] text-center py-1 px-1">
-                        {!(a.nabavniArtikel && !a.prodajniArtikel) && (
+                        {isPolizdelek(a) ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <Badge variant="outline" data-testid={`status-polizdelek-${a.id}`} className="text-[9px] px-1 py-0 h-4 uppercase tracking-wider border-violet-200 text-violet-700 bg-violet-50/50">Polizdelek</Badge>
+                            {!a.aktiven && <span className="text-[9px] text-muted-foreground">Neaktiven</span>}
+                          </div>
+                        ) : !(a.nabavniArtikel && !a.prodajniArtikel) && (
                           a.aktiven
                             ? <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 uppercase tracking-wider border-green-200 text-green-700 bg-green-50/50">Aktiven</Badge>
                             : <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 uppercase tracking-wider border-muted-foreground/30 text-muted-foreground bg-muted/30">Neaktiven</Badge>
@@ -2102,7 +2117,7 @@ export default function Menu() {
                 <div className="pb-2">
                   <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-5">
                     <TabsTrigger value="osnovno" className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Osnovno</TabsTrigger>
-                    <TabsTrigger value="cena_ddv" className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Cena in DDV</TabsTrigger>
+                    <TabsTrigger value="cena_ddv" disabled={artPolizdelek} title={artPolizdelek ? "Polizdelek nima prodajnih ali nabavnih nastavitev." : undefined} className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Cena in DDV</TabsTrigger>
                     <TabsTrigger
                       value="normativ"
                       disabled={artNabavniArtikel && !artProdajniArtikel}
@@ -2114,8 +2129,8 @@ export default function Menu() {
                     <TabsTrigger value="alergeni" className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Alergeni</TabsTrigger>
                     <TabsTrigger
                       value="slika"
-                      disabled={artNabavniArtikel && !artProdajniArtikel}
-                      title={artNabavniArtikel && !artProdajniArtikel ? "Slika ni pomembna za samo nabavni artikel." : undefined}
+                      disabled={!artProdajniArtikel}
+                      title={!artProdajniArtikel ? "Slika je na voljo samo za prodajne artikle." : undefined}
                       className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground disabled:cursor-not-allowed disabled:border-muted disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50 sm:text-xs"
                     >
                       Slika
@@ -2126,7 +2141,7 @@ export default function Menu() {
                 <TabsContent value="osnovno" className="mt-4 space-y-4 focus-visible:outline-none">
               {/* Ime za prodajo */}
               <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
-                <Label>{artPovratnaEmbalaza ? "Naziv embalaže" : "Ime za prodajo"}</Label>
+                <Label>{artPovratnaEmbalaza ? "Naziv embalaže" : artPolizdelek ? "Ime polizdelka" : "Ime za prodajo"}</Label>
                 <KlavijaturaInput value={artName} onChange={handleArtNameChange} placeholder="Npr. Espresso" naslov="Ime artikla" />
               </div>
 
@@ -2213,19 +2228,24 @@ export default function Menu() {
                     </div>
                   </div>
                 )}
+                {artPolizdelek && (
+                  <p data-testid="status-article-polizdelek" className="text-sm text-violet-700">
+                    Polizdelek — sestavina drugih jedi, ni namenjen prodaji ali nabavi.
+                  </p>
+                )}
               </div>
 
-              <div className="rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+              {!artPolizdelek && <div className="rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <MassYieldFields
                   key={`article-mass-${artMode}-${editingArt?.id ?? "new"}`}
                   value={artMassYield}
                   onChange={setArtMassYield}
                   baseUnit={artEnotaMere}
                 />
-              </div>
+              </div>}
 
               {/* Skupina (opcijsko) */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
+              {artProdajniArtikel && (
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                   <Label>Skupina <span className="text-muted-foreground font-normal text-xs">(opcijsko — za združitev v naročilu)</span></Label>
                   <KlavijaturaInput value={artSkupina} onChange={setArtSkupina} placeholder="Npr. Čaj" naslov="Skupina" />
@@ -2276,7 +2296,7 @@ export default function Menu() {
               )}
 
               {/* Kategorija — samo za prodajne artikle */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
+              {artProdajniArtikel && (
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                   <Label>Kategorija</Label>
                   <Select value={artCat} onValueChange={value => {
@@ -2307,7 +2327,7 @@ export default function Menu() {
 
                 <TabsContent value="cena_ddv" className="mt-4 space-y-4 focus-visible:outline-none">
               {/* Cena */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
+              {artProdajniArtikel && (
                 <div className="flex flex-row items-end gap-4">
                   <div className="min-w-0 flex-1 space-y-2">
                     <Label>{artJePica ? "Cena normalne / osnovne pice (€)" : "Cena (€)"}</Label>
@@ -2502,7 +2522,7 @@ export default function Menu() {
               )}
 
               {/* Barva kartice — samo za prodajne artikle */}
-              {!(artNabavniArtikel && !artProdajniArtikel) && (
+              {artProdajniArtikel && (
                 <div className="space-y-2">
                   <Label>Barva kartice</Label>
                   <div className="flex flex-wrap gap-2">

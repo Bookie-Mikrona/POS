@@ -511,6 +511,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
 
   const nabavniArtikel = parsed.data.nabavniArtikel ?? false;
   const prodajniArtikel = parsed.data.prodajniArtikel ?? true;
+  const polizdelek = !nabavniArtikel && !prodajniArtikel && !parsed.data.povratnaEmbalaza;
   if (parsed.data.pripravaVrsta && (!prodajniArtikel ||
     (parsed.data.jePica !== undefined && (parsed.data.pripravaVrsta === "pica") !== parsed.data.jePica))) {
     res.status(400).json({ error: "Vrsta priprave mora biti usklajena z oznako pice in prodajno vlogo artikla." });
@@ -565,17 +566,17 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         enotaId: tenotaId,
         ime: parsed.data.ime,
         opis: parsed.data.opis ?? null,
-        cena: String(parsed.data.cena ?? 0),
-        cenaMala: parsed.data.cenaMala == null ? null : String(parsed.data.cenaMala),
-        cenaDruzinska: parsed.data.cenaDruzinska == null ? null : String(parsed.data.cenaDruzinska),
-        happyHourCena: parsed.data.happyHourCena == null ? null : String(parsed.data.happyHourCena),
-        happyHourCenaMala: parsed.data.happyHourCenaMala == null ? null : String(parsed.data.happyHourCenaMala),
-        happyHourCenaDruzinska: parsed.data.happyHourCenaDruzinska == null ? null : String(parsed.data.happyHourCenaDruzinska),
-        davek: String(parsed.data.davek ?? 0),
+        cena: String(polizdelek ? 0 : parsed.data.cena ?? 0),
+        cenaMala: polizdelek || parsed.data.cenaMala == null ? null : String(parsed.data.cenaMala),
+        cenaDruzinska: polizdelek || parsed.data.cenaDruzinska == null ? null : String(parsed.data.cenaDruzinska),
+        happyHourCena: polizdelek || parsed.data.happyHourCena == null ? null : String(parsed.data.happyHourCena),
+        happyHourCenaMala: polizdelek || parsed.data.happyHourCenaMala == null ? null : String(parsed.data.happyHourCenaMala),
+        happyHourCenaDruzinska: polizdelek || parsed.data.happyHourCenaDruzinska == null ? null : String(parsed.data.happyHourCenaDruzinska),
+        davek: String(polizdelek ? 0 : parsed.data.davek ?? 0),
         aktiven: parsed.data.aktiven ?? true,
-        kategorijaId: parsed.data.kategorijaId ?? null,
-        barva: parsed.data.barva ?? null,
-        opisSlike: parsed.data.opisSlike?.trim() || null,
+        kategorijaId: polizdelek ? null : parsed.data.kategorijaId ?? null,
+        barva: polizdelek ? null : parsed.data.barva ?? null,
+        opisSlike: polizdelek ? null : parsed.data.opisSlike?.trim() || null,
         vrstniRed: parsed.data.vrstniRed ?? 0,
         nabavniArtikel,
         prodajniArtikel,
@@ -585,9 +586,9 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
         imeZaNabavo: parsed.data.imeZaNabavo ?? null,
         enotaMere: parsed.data.enotaMere ?? null,
-        brutoTezaG: drainedYield.brutoTezaG,
-        netoTezaG: drainedYield.netoTezaG,
-        netoDelezOdst: drainedYield.netoDelezOdst,
+        brutoTezaG: polizdelek ? null : drainedYield.brutoTezaG,
+        netoTezaG: polizdelek ? null : drainedYield.netoTezaG,
+        netoDelezOdst: polizdelek ? null : drainedYield.netoDelezOdst,
         jePica: parsed.data.jePica ?? (parsed.data.pripravaVrsta === "pica"),
         pripravaVrsta: prodajniArtikel ? (parsed.data.pripravaVrsta ?? (parsed.data.jePica ? "pica" : null)) : null,
         jeDodatekZaPico: parsed.data.jeDodatekZaPico ?? false,
@@ -599,7 +600,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         casPripraveMin: Math.max(0, Number((parsed.data as { casPripraveMin?: number }).casPripraveMin ?? 0)),
         mealType,
         vrstaArtikla,
-        skupina: (parsed.data as { skupina?: string | null }).skupina ?? null,
+        skupina: polizdelek ? null : (parsed.data as { skupina?: string | null }).skupina ?? null,
         taxCategory,
         jeDelMenija,
         addedSugar,
@@ -1450,6 +1451,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     mealType: artikliTable.mealType,
     nabavniArtikel: artikliTable.nabavniArtikel,
     prodajniArtikel: artikliTable.prodajniArtikel,
+    povratnaEmbalaza: artikliTable.povratnaEmbalaza,
     jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
     enotaMere: artikliTable.enotaMere,
     brutoTezaG: artikliTable.brutoTezaG,
@@ -1476,6 +1478,8 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     ?? obstojeci.jeSkupinskiNabavniArtikel;
   const naslednjiNabavni = parsed.data.nabavniArtikel ?? obstojeci.nabavniArtikel;
   const naslednjiProdajni = parsed.data.prodajniArtikel ?? obstojeci.prodajniArtikel;
+  const polizdelek = !naslednjiNabavni && !naslednjiProdajni
+    && !(parsed.data.povratnaEmbalaza ?? obstojeci.povratnaEmbalaza);
   const naslednjiJePica = parsed.data.jePica ?? obstojeci.jePica;
   if (parsed.data.pripravaVrsta && (!naslednjiProdajni ||
     (parsed.data.pripravaVrsta === "pica") !== naslednjiJePica)) {
@@ -1591,6 +1595,26 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     }
   }
 
+  if (polizdelek) {
+    Object.assign(updateData, {
+      cena: "0",
+      davek: "0",
+      cenaMala: null,
+      cenaDruzinska: null,
+      happyHourCena: null,
+      happyHourCenaMala: null,
+      happyHourCenaDruzinska: null,
+      kategorijaId: null,
+      barva: null,
+      opisSlike: null,
+      slikaUrl: null,
+      skupina: null,
+      brutoTezaG: null,
+      netoTezaG: null,
+      netoDelezOdst: null,
+    });
+  }
+
   if ("kategorijaId" in parsed.data && parsed.data.kategorijaId != null) {
     const [kat] = await db.select({ id: kategorijeTable.id })
       .from(kategorijeTable)
@@ -1626,6 +1650,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
           alergeniRevision: artikliTable.alergeniRevision,
           mealType: artikliTable.mealType,
           nabavniArtikel: artikliTable.nabavniArtikel,
+          povratnaEmbalaza: artikliTable.povratnaEmbalaza,
           jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
           enotaMere: artikliTable.enotaMere,
           brutoTezaG: artikliTable.brutoTezaG,
@@ -1662,6 +1687,10 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
       }
       await tx.update(artikliTable).set(updateData)
         .where(and(eq(artikliTable.id, params.data.id), sql`true`, eq(artikliTable.enotaId, tenotaId)));
+      if (polizdelek) {
+        await tx.update(articleImageVersionsTable).set({ isCurrent: false })
+          .where(and(eq(articleImageVersionsTable.artikelId, params.data.id), eq(articleImageVersionsTable.isCurrent, true)));
+      }
       if (hasAlergenProfil) await razveljaviAlergeneNadrejenih(params.data.id, tx as any, false);
     }).then(() => true);
   } catch (error) {
