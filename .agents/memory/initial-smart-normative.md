@@ -32,3 +32,9 @@ Podpisani AI-predlog je izhodišče za pregled, ne nespremenljiv seznam. Gostine
 **Why:** »3-Bean Salad« se je napačno prenesla v generično fižolovo solato, medtem ko je obstoječe sončnično olje ostalo nepovezano in sol manjkala. Samo boljši modelov poziv te napake ne more zanesljivo preprečiti.
 
 **How to apply:** Urejene vrstice preveri ob transakcijskem shranjevanju znotraj iste enote, ob zaklepu in reviziji ciljne jedi; obstoječi artikel se izbere izrecno po ID-ju, nove surovine pa potrebujejo ročno davčno klasifikacijo in potrditev. Ne spreminjaj zgodovine spletnega vira v trditev, da ta dokazuje ročne popravke.
+
+Za »Fižolova solata – velika« je uporabnik potrdil konzerviran fižol, ne suhega.
+
+**Why:** Priloženi alternativni normativ računa 4,20 kg suhega fižola s kuhanjem; ta količina ni neposredno uporabna za dejansko nabavo konzerviranega fižola in se celo ne sklada z navedeno maso serije.
+
+**How to apply:** Odcejeno količino v jedi loči od nabavne neto količine konzerve. Pretvorbo v porabo nabavnega artikla naredi šele iz podatka o neto in odcejeni masi konkretnega pakiranja; ne predpostavi izkoristka in ne prepiši suhega fižola.
