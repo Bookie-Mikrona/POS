@@ -50,3 +50,9 @@ Velika porcija fižolove solate je po uporabnikovi potrditvi 250 g.
 **Why:** Priloženi generirani normativ je navajal 250 g, vendar se njegova serija ni izšla na 10 kg; zdaj je uporabnik težo porcije potrdil sam. Ostale količine in dodatne začimbe še niso potrjene.
 
 **How to apply:** Predlog izračunaj na 250 g dejanske porcije in preveri vsoto mas z upoštevanjem prostornine olja in kisa; ne prenesi nekonsistentne serije ali cen iz priloženega besedila v šifrant.
+
+Uporabnik je za to jed potrdil vseh devet sestavin predloga: konzerviran fižol, rdečo čebulo, sončnično olje, vinski kis, sladkor, sol, poper, peteršilj in česen. Količin iz predloga ni posebej potrdil.
+
+**Why:** Začetni AI-odgovor je pokazal le eno sestavino, alternativa pa je imela napačno skupno maso; potrjena sestava še ne pomeni potrjenega tehtanega normativa.
+
+**How to apply:** Vse sestavine lahko nastopijo v preglednem osnutku za 250 g porcijo, a preračunane količine ostanejo jasno označene kot ocenjene. Brez izrecne potrditve ne zapisuj normativa ali novih nabavnih artiklov.
