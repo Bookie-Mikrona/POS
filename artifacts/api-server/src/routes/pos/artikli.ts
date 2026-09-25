@@ -2261,7 +2261,10 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
       const [category] = owner.categoryId === null ? [] : await db.select({ tip: kategorijeTable.tip })
         .from(kategorijeTable)
         .where(and(eq(kategorijeTable.id, owner.categoryId), eq(kategorijeTable.enotaId, enotaId)));
-      if (owner.taxCategory !== "food" || (owner.categoryId !== null && category?.tip !== "hrana")) {
+      // Older categories may have no tip. The article's food classification is
+      // sufficient in that case; only an explicitly non-food category blocks it.
+      if (owner.taxCategory !== "food"
+        || (owner.categoryId !== null && (!category || (category.tip?.trim() && category.tip !== "hrana")))) {
         res.status(422).json({ error: "Spletni predlog recepta je na voljo samo za jedi; pijači z odmerkom v nazivu lahko predlagamo eno sestavino." }); return;
       }
     }

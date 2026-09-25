@@ -190,6 +190,36 @@ describe("initial smart normative proposal and apply", () => {
     mockCreate.mockImplementation(async () => makeSearchResponse());
   });
 
+  it("allows a food article in a legacy category without a tip, but still rejects an explicitly drink category", async () => {
+    currentIngredient = "Puranji file";
+    const [legacyCategory, drinkCategory] = await db.insert(kategorijeTable).values([
+      { enotaId: enotaA, ime: `${run}-legacy-salad`, tip: null },
+      { enotaId: enotaA, ime: `${run}-drinks`, tip: "pijaca" },
+    ]).returning({ id: kategorijeTable.id });
+    const [salad, drink] = await db.insert(artikliTable).values([
+      {
+        enotaId: enotaA, ime: "Solatni krožnik s puranjimi trakci", cena: "10",
+        davek: "9.5", taxCategory: "food", kategorijaId: legacyCategory!.id, prodajniArtikel: true,
+      },
+      {
+        enotaId: enotaA, ime: "Hladna pijača", cena: "3",
+        davek: "9.5", taxCategory: "food", kategorijaId: drinkCategory!.id, prodajniArtikel: true,
+      },
+    ]).returning({ id: artikliTable.id });
+    mockCreate.mockClear();
+    const response = await preview(salad!.id);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.items).toEqual([expect.objectContaining({ name: "Puranji file", quantity: 0.1, unit: "KGM" })]);
+    const applied = await applyWithClassifications(salad!.id, response.body.token, [
+      { index: 0, taxCategory: "food", addedSugar: false, rawConfirmed: true },
+    ]);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id))).toHaveLength(1);
+    const blocked = await preview(drink!.id);
+    expect(blocked.status).toBe(422);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("previews without DB writes and atomically creates raw purchase ingredients and norms on confirmation", async () => {
     currentIngredient = "Water";
     const before = await db.select({ id: artikliTable.id }).from(artikliTable).where(eq(artikliTable.enotaId, enotaA));

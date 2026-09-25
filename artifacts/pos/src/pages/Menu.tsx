@@ -78,25 +78,11 @@ import {
   usePreviewArtikelAlergeniNormativ,
 } from "@workspace/api-client-react";
 import { SmartNormativeProposalDialog } from "@/components/SmartNormativeProposalDialog";
+import { EslogUnitPicker } from "@/components/EslogUnitPicker";
 import { isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
 
 type KategorijaDialogMode = "nova" | "uredi";
 type ArtDialogMode = "nov" | "uredi";
-
-const ESLOG_ENOTE = [
-  { koda: "H87", ime: "kos (H87)" },
-  { koda: "KOM", ime: "kos (KOM, starejši zapis)" },
-  { koda: "KGM", ime: "kilogram (KGM)" },
-  { koda: "GRM", ime: "gram (GRM)" },
-  { koda: "LTR", ime: "liter (LTR)" },
-  { koda: "DLT", ime: "deciliter (DLT)" },
-  { koda: "MLT", ime: "mililiter (MLT)" },
-  { koda: "MTR", ime: "meter (MTR)" },
-  { koda: "MTK", ime: "kvadratni meter (MTK)" },
-  { koda: "MTQ", ime: "kubični meter (MTQ)" },
-  { koda: "CT", ime: "karton (CT)" },
-  { koda: "BX", ime: "škatla (BX)" },
-];
 
 const PRIVZETI_CAS_PRIPRAVE_PICE_MIN = 5;
 
@@ -159,6 +145,7 @@ export default function Menu() {
   const [artJePica, setArtJePica] = useState(false);
   const [artImeZaNabavo, setArtImeZaNabavo] = useState("");
   const [artEnotaMere, setArtEnotaMere] = useState<string | null>(null);
+  const [eslogUnitPickerOpen, setEslogUnitPickerOpen] = useState(false);
   const [artJeSkupinskiNabavniArtikel, setArtJeSkupinskiNabavniArtikel] = useState(false);
   const lahkoJeSkupinskiNabavniArtikel = artNabavniArtikel && !artProdajniArtikel && isGroupablePurchaseUnit(artEnotaMere);
   const [normativItems, setNormativItems] = useState<NormativItem[]>([]);
@@ -1282,6 +1269,7 @@ export default function Menu() {
       setArtDialogTab("osnovno");
     }
     if (!open) {
+      setEslogUnitPickerOpen(false);
       setNormativDropdownIdx(null);
       setNormativDropdownFilter("");
       setNormativDropdownHighlight(0);
@@ -2035,7 +2023,10 @@ export default function Menu() {
           ref={artDialogRef}
           className="w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
           onEscapeKeyDown={(event) => {
-            if (normativDropdownIdx !== null) {
+            if (eslogUnitPickerOpen) {
+              event.preventDefault();
+              setEslogUnitPickerOpen(false);
+            } else if (normativDropdownIdx !== null) {
               event.preventDefault();
               setNormativDropdownIdx(null);
               setNormativDropdownFilter("");
@@ -2213,17 +2204,14 @@ export default function Menu() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Enota mere (Eslog)</Label>
-                    <Select value={artEnotaMere ?? ""} onValueChange={v => setArtEnotaMere(v || null)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Izberi enoto mere..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ESLOG_ENOTE.map(e => (
-                          <SelectItem key={e.koda} value={e.koda}>{e.ime}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="artikel-enota-mere">Enota mere (e-SLOG)</Label>
+                    <EslogUnitPicker
+                      id="artikel-enota-mere"
+                      value={artEnotaMere}
+                      onChange={setArtEnotaMere}
+                      open={eslogUnitPickerOpen}
+                      onOpenChange={setEslogUnitPickerOpen}
+                    />
                   </div>
                   {lahkoJeSkupinskiNabavniArtikel && (
                     <label className="flex items-start gap-2 rounded-md border border-blue-200 bg-white/70 p-2 text-sm">
