@@ -4,7 +4,6 @@ import { isIP } from "node:net";
 import { z } from "zod";
 import {
   APPROVED_RECIPE_DOMAINS,
-  filterResearchSources,
   isSafeResearchUrl,
 } from "./normative-comparison";
 
@@ -42,6 +41,34 @@ function isSafeCatalogSourceUrl(value: string): boolean {
       && !isIP(host) && host.includes(".") && !host.endsWith(".local")
       && !host.endsWith(".internal") && !host.endsWith(".test") && !host.endsWith(".example");
   } catch { return false; }
+}
+
+/** Initial suggestions may cite Slovenian supplier/search results; the URL alone proves no SKU or recipe quantity. */
+function isSafeInitialSourceUrl(value: string): boolean {
+  if (isSafeResearchUrl(value)) return true;
+  if (!isSafeCatalogSourceUrl(value)) return false;
+  return new URL(value).hostname.toLowerCase().endsWith(".si");
+}
+
+function filterInitialSources(content: unknown[], requestedUrls: string[]): InitialNormativeSource[] {
+  const found = new Map<string, string>();
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const result = block as { type?: unknown; content?: unknown };
+    if (result.type !== "web_search_tool_result" || !Array.isArray(result.content)) continue;
+    for (const child of result.content) {
+      if (!child || typeof child !== "object") continue;
+      const source = child as { type?: unknown; url?: unknown; title?: unknown };
+      if (source.type === "web_search_result" && typeof source.url === "string"
+        && typeof source.title === "string" && isSafeInitialSourceUrl(source.url)) {
+        found.set(source.url, source.title.slice(0, 500));
+      }
+    }
+  }
+  return [...new Set(requestedUrls)].flatMap(url => {
+    const title = found.get(url);
+    return title ? [{ url, title }] : [];
+  });
 }
 
 const CatalogDrinkResponseSchema = z.object({
@@ -122,8 +149,10 @@ export function initialRecipeSearchSources(content: unknown[]): InitialNormative
       if (source.type === "web_search_result" && typeof source.url === "string") requestedUrls.push(source.url);
     }
   }
-  return filterResearchSources(content, requestedUrls)
-    .slice(0, 4).map(({ url, title }) => ({ url, title }));
+  return filterInitialSources(content, requestedUrls)
+    .sort((a, b) => Number(new URL(b.url).hostname.endsWith(".si"))
+      - Number(new URL(a.url).hostname.endsWith(".si")))
+    .slice(0, 4);
 }
 
 type Measure = { code: InitialNormativeUnit; base: "kg" | "l" | "piece"; factor: Decimal };
@@ -182,7 +211,7 @@ export function normalizeInitialRecipeResearch(
       .find(candidate => candidate.success);
     if (estimate?.success) {
       const { sourceUrl } = estimate.data.estimate;
-      const [source] = filterResearchSources(content, [sourceUrl]);
+      const [source] = filterInitialSources(content, [sourceUrl]);
       if (!source) throw new InitialNormativeError("RESEARCH_INSUFFICIENT_SOURCES");
       const keys = new Set<string>();
       const items = estimate.data.estimate.items.map(item => {
@@ -204,7 +233,7 @@ export function normalizeInitialRecipeResearch(
     throw new InitialNormativeError("RESEARCH_INVALID");
   }
   const requestedUrls = parsed.data.recipes.map(recipe => recipe.sourceUrl);
-  const verifiedSources = filterResearchSources(content, requestedUrls);
+  const verifiedSources = filterInitialSources(content, requestedUrls);
   const sourceByUrl = new Map(verifiedSources.map(source => [source.url, source]));
   const recipes = parsed.data.recipes.filter(recipe => sourceByUrl.has(recipe.sourceUrl));
   if (recipes.length !== parsed.data.recipes.length) throw new InitialNormativeError("RESEARCH_INSUFFICIENT_SOURCES");
@@ -300,9 +329,9 @@ export function signInitialNormativeProposal(payload: InitialProposalPayload): s
   const secret = proposalSecret();
   const parsed = InitialProposalPayloadSchema.safeParse(payload);
   if (!secret || !parsed.success || parsed.data.sources.some(source =>
-    !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(source.url) : isSafeResearchUrl(source.url)))
+    !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(source.url) : isSafeInitialSourceUrl(source.url)))
     || parsed.data.items.some(item => item.sourceUrls.some(url =>
-      !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(url) : isSafeResearchUrl(url))))) return null;
+      !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(url) : isSafeInitialSourceUrl(url))))) return null;
   const encoded = Buffer.from(JSON.stringify(parsed.data)).toString("base64url");
   return `${encoded}.${createHmac("sha256", secret).update(encoded).digest("base64url")}`;
 }
@@ -319,9 +348,9 @@ export function verifyInitialNormativeProposal(token: string, now = Date.now()):
     const parsed = InitialProposalPayloadSchema.safeParse(JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")));
     if (!parsed.success || now - parsed.data.issuedAt > 5 * 60_000 || parsed.data.issuedAt > now + 30_000
       || parsed.data.sources.some(source =>
-        !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(source.url) : isSafeResearchUrl(source.url)))
+        !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(source.url) : isSafeInitialSourceUrl(source.url)))
       || parsed.data.items.some(item => item.sourceUrls.some(url =>
-        !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(url) : isSafeResearchUrl(url))))) return null;
+        !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(url) : isSafeInitialSourceUrl(url))))) return null;
     return parsed.data;
   } catch { return null; }
 }

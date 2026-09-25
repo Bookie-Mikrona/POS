@@ -267,7 +267,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                       <p className="text-xs text-muted-foreground">
                         AI je predlagal {proposal.items.length} {proposal.items.length === 1 ? "sestavino" : "sestavin"}.
                         {proposal.items.length > 1 && " Za ostale se pomaknite po vsebini dialoga navzdol."}
-                        {" "}Predlog še ni shranjen; preverite in popravite ga.
+                        {" "}Količine so okvirne za zalogo, ne navodilo za tehtanje vsake porcije. Predlog še ni shranjen.
                       </p>
                     </div>
                     {proposal.origin !== "catalog_volume" && <Button variant="outline" size="sm" onClick={addIngredient}>+ Dodaj sestavino</Button>}
@@ -400,7 +400,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
 
                 {proposal.sources.length > 0 && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                    <span className="text-muted-foreground">Spletni vir (vsebina ni preverjena):</span>
+                    <span className="text-muted-foreground">Spletni zadetek (ne potrjuje vseh sestavin ali dobavitelja):</span>
                     {proposal.sources.map((source, index) => (
                       <a key={index} href={source.url} target="_blank" rel="noreferrer noopener"
                         className="text-primary hover:underline inline-flex items-center gap-1">

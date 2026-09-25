@@ -214,7 +214,8 @@ describe("initial smart normative proposal and apply", () => {
     expect(response.status, JSON.stringify(response.body)).toBe(200);
     const request = mockCreate.mock.lastCall?.[0] as { messages: Array<{ content: string }> };
     expect(request.messages[0]?.content).toContain('jed "Fižolova solata"');
-    expect(request.messages[0]?.content).toContain('prodajni naziv je "Fižolova solata – velika"');
+    expect(request.messages[0]?.content).toContain('Polni prodajni naziv: "Fižolova solata – velika"');
+    expect(request.messages[0]?.content).toContain("slovenskih veleprodajah");
     mockCreate.mockImplementationOnce(async () => ({ content: [{ type: "text", text: '{"recipes":[]}' }] }));
     const [another] = await db.insert(artikliTable).values({
       enotaId: enotaA, ime: "Fižolova solata – mala", cena: "4",
@@ -281,6 +282,39 @@ describe("initial smart normative proposal and apply", () => {
     expect(mockCreate).toHaveBeenCalledTimes(2);
   });
 
+  it("offers a Slovenian-source restaurant draft with ordinary ingredients and no automatic save", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const url = "https://www.mercator.si/ponudba/konzerviran-fizol";
+    const names = ["Fižol konzerviran, odcejen", "Čebula rdeča", "Olje sončnično",
+      "Kis vinski", "Sladkor", "Sol", "Poper", "Peteršilj", "Česen"];
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [
+        { type: "web_search_result", url, title: "Konzerviran fižol" },
+      ] },
+      { type: "text", text: JSON.stringify({ estimate: {
+        sourceUrl: url, items: names.map((name, index) => ({
+          name, quantity: index === 0 ? 0.18 : 0.01,
+          unit: index === 2 || index === 3 ? "l" : "kg",
+        })),
+      } }) },
+    ] }));
+    const result = await preview(salad!.id);
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    expect(result.body.origin).toBe("web_estimate");
+    expect(result.body.items.map((item: { name: string }) => item.name)).toEqual(names);
+    expect(result.body.sources).toEqual([{ url, title: "Konzerviran fižol" }]);
+    expect(result.body.warnings[0]).toContain("okviren gostinski predlog");
+    const request = mockCreate.mock.calls[0]![0];
+    expect(request.messages[0].content).toContain("slovenskih veleprodajah");
+    expect(request.system).toContain("canned cooked/drained beans");
+    const saved = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id));
+    expect(saved).toEqual([]);
+  });
+
   it("does not recover without a typed search result or accept a forged recovery URL", async () => {
     mockCreate.mockClear();
     const [salad] = await db.insert(artikliTable).values({
@@ -323,7 +357,7 @@ describe("initial smart normative proposal and apply", () => {
     const response = await preview(salad!.id);
     expect(response.status, JSON.stringify(response.body)).toBe(200);
     expect(response.body.origin).toBe("web_estimate");
-    expect(response.body.warnings[0]).toContain("približen AI-predlog");
+    expect(response.body.warnings[0]).toContain("okviren gostinski predlog");
     expect(response.body.items).toEqual([
       expect.objectContaining({ name: "Fižol", quantity: 0.2, unit: "KGM" }),
       expect.objectContaining({ name: "Čebula", quantity: 0.035, unit: "KGM" }),

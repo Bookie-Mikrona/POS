@@ -37,6 +37,46 @@ afterEach(() => {
 });
 
 describe("initial smart normative research validation", () => {
+  it("accepts an actual typed Slovenian search result as context, never an invented supplier link", () => {
+    const url = "https://www.mercator.si/ponudba/konzerviran-fizol";
+    const items = [
+      { name: "Fižol konzerviran, odcejen", quantity: 0.18, unit: "kg" },
+      { name: "Čebula rdeča", quantity: 0.02, unit: "kg" },
+      { name: "Olje sončnično", quantity: 0.015, unit: "l" },
+      { name: "Sol", quantity: 0.002, unit: "kg" },
+    ];
+    const typed = [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url, title: "Fižol – Mercator" }] },
+      { type: "text", text: JSON.stringify({ estimate: { sourceUrl: url, items } }) },
+    ];
+    expect(initialRecipeSearchSources(typed)).toEqual([{ url, title: "Fižol – Mercator" }]);
+    const normalized = normalizeInitialRecipeResearch(typed);
+    expect(normalized.origin).toBe("web_estimate");
+    expect(normalized.items.map(item => item.name)).toEqual(items.map(item => item.name));
+    process.env.POS_NORMATIVE_PROPOSAL_SECRET = "test-only-secret";
+    const payload = {
+      v: 1 as const, origin: "web_estimate" as const,
+      enotaId: 12, articleId: 34, revision: 1, targetName: "Fižolova solata – velika", issuedAt: 1_000_000,
+      items: normalized.items.map(item => ({
+        ...item, existingArticleId: null, willCreate: true,
+      })),
+      sources: normalized.sources,
+    };
+    const token = signInitialNormativeProposal(payload);
+    expect(token).toBeTruthy();
+    expect(verifyInitialNormativeProposal(token!, 1_001_000)?.items).toHaveLength(4);
+    expect(() => normalizeInitialRecipeResearch([
+      typed[0], { type: "text", text: JSON.stringify({ estimate: {
+        sourceUrl: "https://fake-supplier.si/izdelek", items,
+      } }) },
+    ])).toThrowError("RESEARCH_INSUFFICIENT_SOURCES");
+    expect(initialRecipeSearchSources([
+      { type: "web_search_tool_result", content: [
+        { type: "web_search_result", url: "http://www.mercator.si/item", title: "Unsafe" },
+        { type: "web_search_result", url: "https://localhost.si.test/item", title: "Local" },
+      ] },
+    ])).toEqual([]);
+  });
   it("derives a single alcoholic drink serving from its name, never from a mixed-drink label", () => {
     expect(singleIngredientDrinkFromName("Borovničevec 0,05 l", "alcoholic"))
       .toEqual({ name: "Borovničevec", quantity: "0.05", unit: "LTR", sourceUrls: [] });
