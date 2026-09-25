@@ -3,13 +3,18 @@ export type NormativArticleCandidate = {
   nabavniArtikel?: boolean | null;
   prodajniArtikel?: boolean | null;
   mealType?: string | null;
+  taxCategory?: string | null;
   hasNormativ?: boolean | null;
 };
 
 export function canEditNormativ(article: NormativArticleCandidate): boolean {
   return article.prodajniArtikel === true
     || article.mealType === "prepared"
-    || article.mealType === "composite";
+    || article.mealType === "composite"
+    || (article.mealType === "ala_carte"
+      && article.taxCategory === "food"
+      && article.prodajniArtikel === false
+      && article.nabavniArtikel === false);
 }
 
 export function canUseAsNormativInput(
@@ -27,8 +32,8 @@ export function canUseAsNormativInput(
   return candidate.nabavniArtikel === true;
 }
 
-export function normativSectionTitle(mealType: string): string {
+export function normativSectionTitle(mealType: string, prodajniArtikel = true): string {
   if (mealType === "composite") return "Sestavljeni normativ";
   if (mealType === "prepared") return "Normativ priprave";
-  return "Normativ za prodajo";
+  return prodajniArtikel ? "Normativ za prodajo" : "Normativ polizdelka";
 }

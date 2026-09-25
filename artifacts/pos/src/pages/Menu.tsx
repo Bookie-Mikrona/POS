@@ -2634,11 +2634,16 @@ export default function Menu() {
               )}
 
               {/* Normativ je operativna sestava in ni omejen na prodajne artikle. */}
-              {canEditNormativ({ prodajniArtikel: artProdajniArtikel, mealType: artMealType }) && (
+              {canEditNormativ({
+                nabavniArtikel: artNabavniArtikel,
+                prodajniArtikel: artProdajniArtikel,
+                mealType: artMealType,
+                taxCategory: artTaxCategory,
+              }) && (
                 <div className="space-y-3 rounded-lg border p-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <Label className="font-semibold">
-                      {normativSectionTitle(artMealType)}
+                      {normativSectionTitle(artMealType, artProdajniArtikel)}
                     </Label>
                     <div className="flex gap-2">
                       {editingArt &&

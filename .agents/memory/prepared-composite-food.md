@@ -27,6 +27,12 @@ Razpoložljivost je v POS/QR prikazana na prodajni kartici artikla kot število 
 
 **How to apply:** Kjer je treba ločiti končne jedi od polizdelkov, kombiniraj `mealType` z zastavico prodajnega artikla. Prodajni `prepared` je končna jed; neprodajni `prepared` je polizdelek.
 
+Neprodajni in nenabavni živilski artikel tipa à la carte je lahko polizdelek z lastnim normativom surovin. Ne potrebuje prodajne cene ali pripravljene zamrznjene zaloge.
+
+**Why:** Polizdelek, kot je paniran zrezek, nastaja sproti iz nabavnih surovin in je lahko sestavina sestavljene jedi, čeprav sam ni naprodaj. Brez njegovega normativa sestavljena jed ne more pravilno razširiti porabe do surovin.
+
+**How to apply:** Urejevalnik recepta ne sme sklepati, da imajo normativ samo prodajni artikli; zgolj nabavnih artiklov pa zaradi tega ne obravnavaj kot polizdelkov z lastnim receptom.
+
 Dnevna evidenca postane samo za vpogled takoj, ko obstaja evidenca novejšega datuma; ni je dovoljeno naknadno odpirati ali brisati. Potrjen zapisnik kala nespremenljivo zajame ves še neoddani kalo iz izbranega obdobja.
 
 **Why:** Poznejše popravljanje starega dne bi porušilo sled med dnevnim obračunom, zamrznjeno zalogo in podpisanim zapisnikom. Delna ali dvojna oddaja bi pustila nejasen fizični saldo kala.

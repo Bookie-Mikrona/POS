@@ -12,6 +12,14 @@ describe("upravičenost za urejanje normativa", () => {
     expect(canEditNormativ({ id: 3, prodajniArtikel: false, mealType: "ala_carte" })).toBe(false);
   });
 
+  it("omogoči normativ živilskemu à la carte polizdelku, ne pa samo nabavnemu artiklu", () => {
+    const polizdelek = { id: 4, mealType: "ala_carte", taxCategory: "food", prodajniArtikel: false, nabavniArtikel: false };
+    expect(canEditNormativ(polizdelek)).toBe(true);
+    expect(canEditNormativ({ ...polizdelek, nabavniArtikel: true })).toBe(false);
+    expect(canEditNormativ({ ...polizdelek, taxCategory: "other" })).toBe(false);
+    expect(canUseAsNormativInput(10, "composite", polizdelek)).toBe(true);
+  });
+
   it("pripravljeni artikel sprejme nabavne in druge pripravljene vhode, ne pa samega sebe", () => {
     expect(canUseAsNormativInput(10, "prepared", { id: 1, nabavniArtikel: true, mealType: "ala_carte" })).toBe(true);
     expect(canUseAsNormativInput(10, "prepared", { id: 2, nabavniArtikel: false, mealType: "prepared" })).toBe(true);
@@ -28,5 +36,6 @@ describe("upravičenost za urejanje normativa", () => {
     expect(normativSectionTitle("prepared")).toBe("Normativ priprave");
     expect(normativSectionTitle("composite")).toBe("Sestavljeni normativ");
     expect(normativSectionTitle("ala_carte")).toBe("Normativ za prodajo");
+    expect(normativSectionTitle("ala_carte", false)).toBe("Normativ polizdelka");
   });
 });
