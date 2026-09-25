@@ -249,6 +249,38 @@ describe("initial smart normative proposal and apply", () => {
     expect(recoveryRequest.tools[0].input_schema.properties.sourceUrl.enum).toEqual([urlA]);
   });
 
+  it("asks for a complete estimate when a salad search returns only one ingredient", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: JSON.stringify({ estimate: {
+        sourceUrl: urlA, items: [{ name: "Fižol", quantity: 0.18, unit: "kg" }],
+      } }) },
+    ] }));
+    mockCreate.mockImplementationOnce(async () => ({ content: [{
+      type: "tool_use", name: "submit_recipe_estimate", input: {
+        sourceUrl: urlA, items: [
+          { name: "Fižol", quantity: 0.18, unit: "kg" },
+          { name: "Čebula", quantity: 0.025, unit: "kg" },
+          { name: "Olje sončnično", quantity: 0.01, unit: "l" },
+          { name: "Sol", quantity: 0.002, unit: "kg" },
+        ],
+      },
+    }] }));
+
+    const result = await preview(salad!.id);
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    expect(result.body.origin).toBe("web_estimate");
+    expect(result.body.items.map((item: { name: string }) => item.name)).toEqual([
+      "Fižol", "Čebula", "Olje sončnično", "Sol",
+    ]);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
   it("does not recover without a typed search result or accept a forged recovery URL", async () => {
     mockCreate.mockClear();
     const [salad] = await db.insert(artikliTable).values({

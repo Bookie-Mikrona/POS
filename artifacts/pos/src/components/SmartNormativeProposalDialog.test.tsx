@@ -42,6 +42,21 @@ beforeEach(() => {
 });
 
 describe("SmartNormativeProposalDialog", () => {
+  it("makes a one-ingredient result explicit and keeps adding ingredients visible", async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({
+      ...proposal, items: proposal.items.slice(0, 1),
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<SmartNormativeProposalDialog open articleId={51} articleName="Fižolova solata – velika" availableIngredients={[]}
+      onOpenChange={vi.fn()} onApplySuccess={vi.fn()} />);
+
+    expect(await screen.findByText(/AI je predlagal 1 sestavino/)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Predlog vsebuje samo eno sestavino");
+    fireEvent.click(screen.getByRole("button", { name: "+ Dodaj sestavino" }));
+    expect(screen.getByLabelText("Ime sestavine 2")).toHaveValue("");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ustvari in uporabi normativ" })).toBeDisabled();
+  });
+
   it("shows the server's research timeout and can retry without saving", async () => {
     fetchMock.mockImplementationOnce(async () => new Response(
       JSON.stringify({ error: "Spletno raziskovanje je trajalo predolgo. Poskusite znova." }),

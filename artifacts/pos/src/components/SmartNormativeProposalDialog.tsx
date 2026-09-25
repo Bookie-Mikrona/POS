@@ -141,6 +141,14 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
     }
   };
 
+  const addIngredient = () => {
+    setDraftRows(previous => [...previous, {
+      key: nextRowKeyRef.current++, name: "", quantity: "", unit: "KGM",
+      existingArticleId: null, search: "",
+    }]);
+    setConfirmed(false);
+  };
+
   const handleApply = async () => {
     if (!proposal || !confirmed || !rowsValid) return;
     
@@ -253,10 +261,22 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                 )}
 
                 <section aria-label="Predlagani normativ" className="space-y-2">
-                  <div>
-                    <h3 className="text-lg font-semibold">Normativ za 1 porcijo</h3>
-                    <p className="text-xs text-muted-foreground">Predlog še ni shranjen. Popravite količine, odstranite odvečne sestavine in povežite že obstoječe nabavne artikle.</p>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold">Normativ za 1 porcijo</h3>
+                      <p className="text-xs text-muted-foreground">
+                        AI je predlagal {proposal.items.length} {proposal.items.length === 1 ? "sestavino" : "sestavin"}.
+                        {proposal.items.length > 1 && " Za ostale se pomaknite po vsebini dialoga navzdol."}
+                        {" "}Predlog še ni shranjen; preverite in popravite ga.
+                      </p>
+                    </div>
+                    {proposal.origin !== "catalog_volume" && <Button variant="outline" size="sm" onClick={addIngredient}>+ Dodaj sestavino</Button>}
                   </div>
+                  {proposal.origin !== "catalog_volume" && draftRows.length === 1 && (
+                    <p role="status" className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-sm">
+                      Predlog vsebuje samo eno sestavino. Če jed vsebuje še druge, jih dodajte in določite količine pred potrditvijo.
+                    </p>
+                  )}
                   <div className="rounded-md border bg-card divide-y">
                     {draftRows.map((row, index) => {
                       const candidates = availableIngredients.filter(article =>
@@ -307,10 +327,6 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                       );
                     })}
                   </div>
-                  {proposal.origin !== "catalog_volume" && <Button variant="outline" size="sm" onClick={() => {
-                    setDraftRows(previous => [...previous, { key: nextRowKeyRef.current++, name: "", quantity: "", unit: "KGM", existingArticleId: null, search: "" }]);
-                    setConfirmed(false);
-                  }}>+ Dodaj sestavino (npr. sol)</Button>}
                   {!rowsValid && <p className="text-xs text-destructive">Vsaka sestavina potrebuje ime in pozitivno količino (največ 4 decimalke); iste sestavine ne uporabite dvakrat.</p>}
                 </section>
 
