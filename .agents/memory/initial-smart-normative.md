@@ -38,3 +38,9 @@ Za »Fižolova solata – velika« je uporabnik potrdil konzerviran fižol, ne s
 **Why:** Priloženi alternativni normativ računa 4,20 kg suhega fižola s kuhanjem; ta količina ni neposredno uporabna za dejansko nabavo konzerviranega fižola in se celo ne sklada z navedeno maso serije.
 
 **How to apply:** Odcejeno količino v jedi loči od nabavne neto količine konzerve. Pretvorbo v porabo nabavnega artikla naredi šele iz podatka o neto in odcejeni masi konkretnega pakiranja; ne predpostavi izkoristka in ne prepiši suhega fižola.
+
+Uporabnik želi konzerviran fižol za gostinsko zalogo voditi v odcejeni masi. Če dobavitelj proda eno konzervo, naj poslovna sled ohrani to pakiranje in polno nabavno ceno, zaloga pa prejme deklarirano odcejeno količino; normativ porablja isto zalogovno enoto.
+
+**Why:** Slanica se zavrže. Če bi zalogo vodili kot skupno maso vsebine, bi normativ, cena na kilogram in inventura šteli tudi neuporabljeno tekočino.
+
+**How to apply:** Uporabnikovi 800 g neto, 480 g odcejeno in 1,20 € so zgolj primer, ne stalne vrednosti artikla. Pri dejanski prejemnici uporabi podatke konkretnega pakiranja (1 kos → 0,480 kg odcejenega v primeru); nabavno ceno preračunaj na odcejeni kilogram (1,20 € / 0,480 kg = 2,50 €/kg), ne izgubi pa izvorne količine in dokumenta dobavitelja.
