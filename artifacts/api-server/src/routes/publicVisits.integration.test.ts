@@ -162,6 +162,51 @@ afterAll(async () => {
   await db.delete(companiesTable).where(eq(companiesTable.id,companyId));
 });
 
+describe("javno preverjanje darilnega bona", () => {
+  it("vrne preostanek po delni porabi brez osebnih podatkov in ne razkrije bona druge enote", async () => {
+    const code = `PUBLIC-${randomUUID()}`.toUpperCase();
+    const checkoutSession = `cs_balance_${run}`;
+    const client = await (db as any).$client.connect();
+    let voucherId: string;
+    try {
+      const checkoutId = (await client.query(`INSERT INTO public_voucher_checkouts(
+        profile_id,company_id,unit_id,idempotency_key,stripe_session_id,expected_amount_cents,
+        buyer_name,buyer_email,recipient_name,recipient_email,items,privacy_accepted_at,status,payment_status)
+        VALUES($1,$2,$3,$4,$5,5000,'Kupec','private@example.test','Gost','secret@example.test',
+          '[]'::jsonb,now(),'complete','paid') RETURNING id`,
+        [profileId,companyId,unitId,`balance-${run}`,checkoutSession])).rows[0].id;
+      voucherId = (await client.query(`INSERT INTO individual_vouchers(
+        checkout_id,company_id,unit_id,code_hash,code_suffix,initial_amount_cents,recipient_name,recipient_email)
+        VALUES($1,$2,$3,$4,$5,5000,'Gost','secret@example.test') RETURNING id`,
+        [checkoutId,companyId,unitId,createHash("sha256").update(code).digest("hex"),code.slice(-4)])).rows[0].id;
+      await client.query(`INSERT INTO individual_voucher_movements(voucher_id,company_id,operation_key,type,amount_cents)
+        VALUES($1,$2,$3,'issue',5000),($1,$2,$4,'redeem',1200)`,
+        [voucherId,companyId,`issue-balance-${run}`,`redeem-balance-${run}`]);
+    } finally { client.release(); }
+
+    const api = supertest(publicApp());
+    const url = `/javno/restavracije/venue-${run}/boni/preveri`;
+    const checked = await api.post(url).send({code:code.toLowerCase()});
+    expect(checked.status,checked.text).toBe(200);
+    expect(checked.headers["cache-control"]).toBe("no-store");
+    expect(checked.body).toEqual({balanceCents:3800,currency:"EUR",status:"active",expiresAt:null});
+    expect(JSON.stringify(checked.body)).not.toContain("secret@example.test");
+    expect((await api.post(url).send({code:"UNKNOWN-CODE-12345"})).status).toBe(404);
+    expect((await api.post(url).send({code:"abc"})).status).toBe(400);
+
+    const [otherUnit] = await db.insert(enoteTable).values({companyId,ime:`Druga enota ${run}`}).returning({id:enoteTable.id});
+    const connection = await (db as any).$client.connect();
+    try {
+      await connection.query("UPDATE individual_vouchers SET unit_id=$1 WHERE id=$2",[otherUnit!.id,voucherId]);
+      expect((await api.post(url).send({code})).status).toBe(404);
+    } finally {
+      await connection.query("UPDATE individual_vouchers SET unit_id=$1 WHERE id=$2",[unitId,voucherId]);
+      connection.release();
+      await db.delete(enoteTable).where(eq(enoteTable.id,otherUnit!.id));
+    }
+  });
+});
+
 describe("Stripe Connect voucher safeguards", () => {
   it("validates one or several voucher UUIDs without failing the checkout query", async () => {
     const client=(db as any).$client;

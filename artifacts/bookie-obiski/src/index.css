@@ -141,3 +141,36 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Public voucher lookup: a quiet, self-contained counter below the shop. */
+.voucher-balance-section {
+  background: hsl(40 25% 92%);
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.voucher-balance-panel {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  box-shadow: 0 14px 36px -28px hsl(160 38% 17% / .35);
+}
+
+.voucher-scan-frame::before,
+.voucher-scan-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid hsl(40 33% 96% / .75);
+  border-radius: 1rem;
+  pointer-events: none;
+}
+
+.voucher-scan-frame::after {
+  inset: 1.25rem;
+  border: 0;
+  border-top: 3px solid hsl(40 33% 96%);
+  border-bottom: 3px solid hsl(40 33% 96%);
+  border-radius: .25rem;
+  opacity: .85;
+}

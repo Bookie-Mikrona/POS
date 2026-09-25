@@ -11020,6 +11020,33 @@ export interface JavniBoni {
   products: JavniBonProduct[];
 }
 
+export interface JavniBonPreverjanjeInput {
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  code: string;
+}
+
+export type JavniBonStanjeStatus = typeof JavniBonStanjeStatus[keyof typeof JavniBonStanjeStatus];
+
+
+export const JavniBonStanjeStatus = {
+  active: 'active',
+  spent: 'spent',
+  expired: 'expired',
+  inactive: 'inactive',
+} as const;
+
+export interface JavniBonStanje {
+  /** @minimum 0 */
+  balanceCents: number;
+  currency: string;
+  status: JavniBonStanjeStatus;
+  /** @nullable */
+  expiresAt: string | null;
+}
+
 export interface JavniBonCheckoutItem {
   productId: string;
   variantId: string;

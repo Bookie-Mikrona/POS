@@ -16,6 +16,8 @@ import {
   GetJavniBonCheckoutParams,
   HandleJavniStripeWebhookBody,
   ListJavniBoniParams,
+  PreveriJavniBonBody,
+  PreveriJavniBonParams,
   RequestJavniProfilImageUploadBody,
   UpdateJavniProfilNastavitveBody,
 } from "@workspace/api-zod";
@@ -604,6 +606,44 @@ publicVisitsRouter.get("/javno/restavracije/:slug/boni", async (req, res): Promi
   for (const product of products) product.variants = rows(await db.execute(sql`SELECT id,name,amount_cents,currency,active FROM public_voucher_variants WHERE product_id=${product.id} AND active=true ORDER BY amount_cents`));
   const checkoutEnabled=await publicCheckoutEnabled(p.company_id);
   res.json({ checkoutEnabled, products: products.map(x => ({ id:x.id,naziv:x.name,opis:x.description,imageUrl:publicProfileImageUrl(x.image_url),active:x.active,variants:x.variants.map((v:any)=>({id:v.id,naziv:v.name,amountCents:v.amount_cents,currency:v.currency,active:v.active})) })) });
+});
+
+// A bearer voucher code grants balance lookup only; never return purchaser, recipient or payment details.
+publicVisitsRouter.post("/javno/restavracije/:slug/boni/preveri", async (req, res): Promise<any> => {
+  res.setHeader("Cache-Control", "no-store");
+  const path = PreveriJavniBonParams.safeParse(req.params);
+  const body = PreveriJavniBonBody.safeParse(req.body);
+  const code = body.success ? body.data.code.trim().toUpperCase() : "";
+  if (!path.success || !body.success || code.length < 8 || code.length > 128) {
+    return res.status(400).json({ error: "Vnesite veljavno šifro bona." });
+  }
+  const profile = await profileBySlug(path.data.slug);
+  if (!profile) return res.status(404).json({ error: "Bon ni najden." });
+
+  const row = rows(await db.execute(sql`
+    SELECT v.currency, v.status, v.expires_at,
+      COALESCE((SELECT SUM(CASE WHEN m.type IN ('issue','reverse') THEN m.amount_cents
+                                 ELSE -m.amount_cents END)
+                FROM individual_voucher_movements m WHERE m.voucher_id = v.id), 0)::int AS balance,
+      COALESCE((SELECT SUM(h.amount_cents) FROM pos_individual_voucher_redemption_holds h
+                WHERE h.voucher_id = v.id AND h.status = 'held'), 0)::int AS held
+    FROM individual_vouchers v
+    WHERE v.company_id = ${profile.company_id}
+      AND v.unit_id = ${profile.unit_id}
+      AND v.code_hash = ${hashToken(code)}
+    LIMIT 1
+  `))[0];
+  if (!row) return res.status(404).json({ error: "Bon ni najden." });
+
+  const status = row.expires_at && new Date(row.expires_at).getTime() <= Date.now()
+    ? "expired"
+    : row.status === "active" || row.status === "spent" ? row.status : "inactive";
+  return res.json({
+    balanceCents: Math.max(0, Number(row.balance) - Number(row.held)),
+    currency: row.currency,
+    status,
+    expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at ?? null,
+  });
 });
 
 publicVisitsRouter.get("/javno-profil/stripe-connect/callback",async(req:any,res):Promise<any>=>{

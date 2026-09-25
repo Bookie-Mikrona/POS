@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Gift, Plus, Minus, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
+import { VoucherBalance } from '@/components/restaurant/voucher-balance';
 
 interface VoucherFlowProps {
   restaurant: JavnaRestavracija;
@@ -23,6 +24,15 @@ type CartItem = {
 };
 
 export function VoucherFlow({ restaurant }: VoucherFlowProps) {
+  return (
+    <div>
+      <VoucherShop restaurant={restaurant} />
+      <VoucherBalance slug={restaurant.slug} />
+    </div>
+  );
+}
+
+function VoucherShop({ restaurant }: VoucherFlowProps) {
   const { data: boni, isLoading } = useListJavniBoni(restaurant.slug);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCheckingOut, setIsCheckingOut] = useState(false);

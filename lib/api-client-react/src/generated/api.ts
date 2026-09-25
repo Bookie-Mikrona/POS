@@ -171,6 +171,8 @@ import type {
   JavniBonCheckout,
   JavniBonCheckoutInput,
   JavniBonCheckoutStatus,
+  JavniBonPreverjanjeInput,
+  JavniBonStanje,
   JavniBoni,
   JavniProfilImageUploadRequest,
   JavniProfilImageUploadResponse,
@@ -30965,6 +30967,72 @@ export function useListJavniBoni<TData = Awaited<ReturnType<typeof listJavniBoni
 
 
 
+
+export const getPreveriJavniBonUrl = (slug: string,) => {
+
+
+
+
+  return `/api/javno/restavracije/${slug}/boni/preveri`
+}
+
+export const preveriJavniBon = async (slug: string,
+    javniBonPreverjanjeInput: JavniBonPreverjanjeInput, options?: RequestInit): Promise<JavniBonStanje> => {
+
+  return customFetch<JavniBonStanje>(getPreveriJavniBonUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(javniBonPreverjanjeInput)
+  }
+);}
+
+
+
+
+
+export const getPreveriJavniBonMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof preveriJavniBon>>, TError,{slug: string;data: BodyType<JavniBonPreverjanjeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof preveriJavniBon>>, TError,{slug: string;data: BodyType<JavniBonPreverjanjeInput>}, TContext> => {
+
+const mutationKey = ['preveriJavniBon'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof preveriJavniBon>>, {slug: string;data: BodyType<JavniBonPreverjanjeInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  preveriJavniBon(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreveriJavniBonMutationResult = NonNullable<Awaited<ReturnType<typeof preveriJavniBon>>>
+    export type PreveriJavniBonMutationBody = BodyType<JavniBonPreverjanjeInput>
+    export type PreveriJavniBonMutationError = ErrorType<BadRequestResponse | NotFoundResponse | void>
+
+    export const usePreveriJavniBon = <TError = ErrorType<BadRequestResponse | NotFoundResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof preveriJavniBon>>, TError,{slug: string;data: BodyType<JavniBonPreverjanjeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof preveriJavniBon>>,
+        TError,
+        {slug: string;data: BodyType<JavniBonPreverjanjeInput>},
+        TContext
+      > => {
+      return useMutation(getPreveriJavniBonMutationOptions(options));
+    }
 
 export const getCreateJavniBonCheckoutUrl = (slug: string,) => {
 

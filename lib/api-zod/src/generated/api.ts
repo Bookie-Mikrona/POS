@@ -16016,6 +16016,31 @@ export const ListJavniBoniResponse = zod.object({
 })
 
 
+export const PreveriJavniBonParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const preveriJavniBonBodyCodeMin = 8;
+export const preveriJavniBonBodyCodeMax = 128;
+
+
+
+export const PreveriJavniBonBody = zod.object({
+  "code": zod.string().min(preveriJavniBonBodyCodeMin).max(preveriJavniBonBodyCodeMax)
+})
+
+export const preveriJavniBonResponseBalanceCentsMin = 0;
+
+
+
+export const PreveriJavniBonResponse = zod.object({
+  "balanceCents": zod.number().min(preveriJavniBonResponseBalanceCentsMin),
+  "currency": zod.string(),
+  "status": zod.enum(['active', 'spent', 'expired', 'inactive']),
+  "expiresAt": zod.string().nullable()
+})
+
+
 export const CreateJavniBonCheckoutParams = zod.object({
   "slug": zod.coerce.string()
 })

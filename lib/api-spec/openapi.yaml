@@ -9930,6 +9930,22 @@ paths:
       responses:
         "200": { description: Ponudba darilnih bonov, content: { application/json: { schema: { $ref: "#/components/schemas/JavniBoni" } } } }
         "404": { $ref: "#/components/responses/NotFound" }
+  /javno/restavracije/{slug}/boni/preveri:
+    post:
+      operationId: preveriJavniBon
+      tags: [javniObiski]
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JavniBonPreverjanjeInput" }
+      responses:
+        "200": { description: Trenutno razpoložljivo stanje bona brez osebnih podatkov, content: { application/json: { schema: { $ref: "#/components/schemas/JavniBonStanje" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { description: Preveč zahtev }
   /javno/restavracije/{slug}/boni/checkout:
     post:
       operationId: createJavniBonCheckout
@@ -22530,6 +22546,19 @@ components:
         products:
           type: array
           items: { $ref: "#/components/schemas/JavniBonProduct" }
+    JavniBonPreverjanjeInput:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, minLength: 8, maxLength: 128 }
+    JavniBonStanje:
+      type: object
+      required: [balanceCents, currency, status, expiresAt]
+      properties:
+        balanceCents: { type: integer, minimum: 0 }
+        currency: { type: string }
+        status: { type: string, enum: [active, spent, expired, inactive] }
+        expiresAt: { type: [string, "null"] }
     JavniBonProduct:
       type: object
       required: [id, naziv, opis, variants, active]
