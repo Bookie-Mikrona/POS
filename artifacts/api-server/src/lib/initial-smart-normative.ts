@@ -292,6 +292,28 @@ export function normalizeInitialRecipeResearch(
   };
 }
 
+/** Catch clear package-vs-serving mistakes in model output, not normal variation in kitchen portions. */
+export function assertPlausibleInitialServing(
+  targetName: string,
+  result: ReturnType<typeof normalizeInitialRecipeResearch>,
+): void {
+  const beanSalad = recipeSearchName(targetName).toLocaleLowerCase("sl") === "fižolova solata";
+  const maxSingle = new Decimal(beanSalad ? "0.5" : "2");
+  let mass = new Decimal(0);
+  let volume = new Decimal(0);
+  for (const item of result.items) {
+    if (item.unit === "KOM") continue;
+    const amount = new Decimal(item.quantity);
+    if (amount.gt(maxSingle)) throw new InitialNormativeError("RECIPE_IMPLAUSIBLE_PORTION");
+    if (item.unit === "KGM") mass = mass.plus(amount);
+    if (item.unit === "LTR") volume = volume.plus(amount);
+  }
+  // These are deliberately broad outlier limits, not a 250 g recipe or a saving constraint.
+  if (mass.gt(beanSalad ? "0.8" : "4") || volume.gt(beanSalad ? "0.5" : "4")) {
+    throw new InitialNormativeError("RECIPE_IMPLAUSIBLE_PORTION");
+  }
+}
+
 const InitialProposalPayloadSchema = z.object({
   v: z.literal(1),
   origin: z.enum(["catalog_volume", "web_estimate"]).optional(),

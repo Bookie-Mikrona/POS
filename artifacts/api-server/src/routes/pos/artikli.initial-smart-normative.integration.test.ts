@@ -319,6 +319,57 @@ describe("initial smart normative proposal and apply", () => {
     expect(mockCreate).toHaveBeenCalledTimes(3);
   });
 
+  it("repairs a bulk-package bean quantity before showing a one-serving draft", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: JSON.stringify({ estimate: {
+        sourceUrl: urlA, items: [{ ...beanSaladItems[0]!, quantity: 5 }, ...beanSaladItems.slice(1)],
+      } }) },
+    ] }));
+    mockCreate.mockImplementationOnce(async () => ({ content: [{
+      type: "tool_use", name: "submit_recipe_estimate",
+      input: { sourceUrl: urlA, items: beanSaladItems },
+    }] }));
+    const result = await preview(salad!.id);
+    expect(result.status, JSON.stringify(result.body)).toBe(200);
+    expect(result.body.items[0]).toMatchObject({ quantity: 0.18, unit: "KGM" });
+    expect(mockCreate.mock.calls[1]![0].messages[0].content).toContain("RECIPE_IMPLAUSIBLE_PORTION");
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("never presents or caches a repeated bulk-package quantity", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const oversized = [{ ...beanSaladItems[0]!, quantity: 5 }, ...beanSaladItems.slice(1)];
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: JSON.stringify({ estimate: { sourceUrl: urlA, items: oversized } }) },
+    ] }));
+    mockCreate.mockImplementationOnce(async () => ({ content: [{
+      type: "tool_use", name: "submit_recipe_estimate", input: { sourceUrl: urlA, items: oversized },
+    }] }));
+    const failed = await preview(salad!.id);
+    expect(failed.status).toBe(422);
+    expect(failed.body.error).toContain("pretirane količine");
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id))).toEqual([]);
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: JSON.stringify({ estimate: { sourceUrl: urlA, items: beanSaladItems } }) },
+    ] }));
+    const retried = await preview(salad!.id);
+    expect(retried.status, JSON.stringify(retried.body)).toBe(200);
+    expect(retried.body.items[0].quantity).toBe(0.18);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+  });
+
   it("offers a Slovenian-source restaurant draft with ordinary ingredients and no automatic save", async () => {
     mockCreate.mockClear();
     const [salad] = await db.insert(artikliTable).values({
