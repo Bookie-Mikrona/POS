@@ -1,0 +1,104 @@
+normativ za fižolovo solato - veliko v gostinskem obratu samo iz sestavin dostopnih v slovenskih veleprodajah
+
+Sourcing realistic ingredients from Slovenian wholesale suppliers.
+Normativ: Fižolova solata (veliko – gostinski obrat, sestavine iz veleprodaje)
+
+Prilagojeno na izdelke, ki so dejansko dobavljivi pri slovenskih veleprodajnih dobaviteljih gostinstva (Metro, Mercator HoReCa, TUŠ veleprodaja, Big Bang gostinstvo, lokalni veledistributerji sadja/zelenjave) – uporabljen konzervirani kuhani fižol namesto suhega (standard v gostinstvu za velike serije zaradi hitrosti priprave in konstantne kakovosti).
+
+Šifra: SOL-001V | Osnovna serija: 10 kg gotovega izdelka (≈ 40 porcij × 250 g)
+
+Sestavine (veleprodajna pakiranja)
+#	Sestavina	Tipičen veleprodajni artikel/pakiranje	Količina za 10 kg	Delež (%)
+1	Beli fižol, kuhan, konzerviran	Pločevinka 5/1 (≈ 2,65 kg neto odcejene mase/kos)	3,5 kos (≈ 9,30 kg odcejenega)	93,0 %
+2	Čebula, rdeča	Mrežasta vreča 10/25 kg (sveža, razsuta)	0,90 kg	9,0 %
+3	Olje, sončnično, rafinirano	Kanister 10 L	0,60 L	6,0 %
+4	Kis, vinski 7% (ali jedilni kis 9%)	Kanister/steklenica 1 L ali 5 L	0,50 L	5,0 %
+5	Sladkor, kristalni	Vreča 1 kg / 25 kg	0,12 kg	1,2 %
+6	Sol, jedilna	Vreča 1 kg / 25 kg	0,10 kg	1,0 %
+7	Poper, črni mleti	Embalaža za gostinstvo 0,5–1 kg	0,02 kg	0,2 %
+8	Peteršilj, sušen (ali svež šopek)	Sušen: embalaža 0,5 kg / Svež: šopek iz veletržnice	0,05 kg (sušen)	0,5 %
+9	Česen, granulat ali pasta iz tube	Embalaža za gostinstvo 1 kg	0,03 kg	0,3 %
+
+Opomba glede fižola: konzervirani fižol ima izkoristek 100 % (brez namakanja/kuhanja/krčenja), zato odpade korak namakanja in kuhanja – kar skrajša pripravo iz ~10 ur na ~30 min. Odcejeno tekočino (aquafaba) je treba dobro odliti, sicer solata "pušča vodo".
+
+Postopek priprave
+Fižol iz pločevink dobro odcediti na cedilu (min. 15 min), po potrebi na hitro sprati s hladno vodo, da odstranimo presežek soli/škroba iz konzervirne tekočine.
+Rdečo čebulo olupiti in narezati na tanke polkroge ali kocke.
+Pripraviti marinado: olje, kis, sladkor, sol, poper, česen dobro zmešati/emulgirati.
+Odcejen fižol in čebulo preliti z marinado, nežno premešati (fižol se ne sme razmečkati).
+Pustiti mariniranje min. 30–60 min v hladilnici (+2 do +4 °C).
+Tik pred serviranjem/pakiranjem posuti s peteršiljem.
+Skladiščiti pri +2 do +4 °C.
+Alergeni
+
+Brez deklariranih 14 alergenov iz Priloge II (preveriti deklaracijo konkretnega dobavitelja konzerviranega fižola – nekateri artikli lahko vsebujejo sledi žvepla/sulfitov kot konzervans).
+
+Hranilna vrednost (na 100 g, okvirno)
+Parameter	Vrednost
+Energijska vrednost	≈ 430 kJ / 103 kcal
+Maščobe	6,5 g
+Ogljikovi hidrati	8,0 g (sladkorji 1,5 g)
+Beljakovine	4,3 g
+Sol	1,1 g (konzervirani fižol vsebuje že nekaj soli – prilagoditi dodano sol po testni degustaciji)
+Rok uporabe
+
+48 ur pri +2 do +4 °C od priprave.
+
+Naj pripravim tudi kalkulacijo nabavne cene (cena/kos pločevinke, cena/kg čebule ipd. → strošek na porcijo in prodajna cena z DDV), ali izvoz normativa v BOOKIE ERP format?
+
+da
+
+Ugotavljanje, katero od dveh ponujenih možnosti je uporabnik potrdil.
+Kalkulacija cene + izvoz za BOOKIE ERP
+
+Ker nimam tvojih dejanskih nabavnih cen, spodaj pripravljam kalkulacijski predlog s placeholder cenami (tipične tržne cene za SLO veleprodajo, september 2026) – zamenjaj s svojimi dejanskimi iz dobaviteljskih cenikov, formula ostane.
+
+Kalkulacija nabavne cene (za 10 kg gotove solate)
+#	Sestavina	Količina	Cena/enoto (EUR)	Strošek (EUR)
+1	Fižol, konzerviran (3,5 kos 5/1)	3,5 kos	4,20 €/kos	14,70 €
+2	Čebula, rdeča	0,90 kg	0,90 €/kg	0,81 €
+3	Olje, sončnično	0,60 L	1,60 €/L	0,96 €
+4	Kis, vinski 7%	0,50 L	1,10 €/L	0,55 €
+5	Sladkor	0,12 kg	1,00 €/kg	0,12 €
+6	Sol	0,10 kg	0,50 €/kg	0,05 €
+7	Poper, mleti	0,02 kg	12,00 €/kg	0,24 €
+8	Peteršilj, sušen	0,05 kg	8,00 €/kg	0,40 €
+9	Česen, granulat	0,03 kg	6,00 €/kg	0,18 €
+	Skupaj material (10 kg)			18,01 €
+Izračun cene na enoto
+Postavka	Vrednost
+Nabavna cena materiala / 10 kg	18,01 €
+Nabavna cena / kg gotovega izdelka	1,801 €/kg
+Nabavna cena / porcija (250 g)	0,45 €
+Dodatek za režijo/delo (npr. 100 %)	0,45 €
+Lastna cena / porcija	0,90 €
+Marža (npr. 150 %)	+1,35 €
+Prodajna cena / porcija (brez DDV)	2,25 €
+DDV 9,5 % (pripravljena hrana v gostinstvu)	0,21 €
+Prodajna cena / porcija (z DDV)	2,46 €
+
+Opomba: DDV stopnja 9,5 % velja za pripravljeno hrano/gostinske storitve po ZDDV-1 (postrežena hrana); če gre za "za s sabo"/pakirano prodajo brez postrežbe, preveri, ali se uvršča pod 9,5 % ali 22 % glede na konkretno klasifikacijo storitve.
+
+Izvoz za BOOKIE ERP
+
+Struktura za uvoz normativa – povej mi v katerem formatu BOOKIE trenutno pričakuje uvoz (CSV, XML, ali direkten SQL insert v obstoječo shemo), pa pripravim točno tako datoteko. Predlog polj glede na tipično shemo normativov:
+
+sifra_normativa: SOL-001V
+naziv: Fižolova solata (gostinska, veleprodajna verzija)
+enota_izdelka: kg
+kolicina_izdelka: 10.00
+kategorija: Hladne solate
+
+postavke:
+  - sifra_artikla: [poveži z obstoječo šifro artikla v BOOKIE]
+    naziv: Fižol, kuhan, konzerviran 5/1
+    kolicina: 3.5
+    enota: kos
+    cena_na_enoto: 4.20
+  - naziv: Čebula, rdeča
+    kolicina: 0.90
+    enota: kg
+    cena_na_enoto: 0.90
+  ... (ostale postavke iz tabele zgoraj)
+
+Če mi poveš, ali imaš že tabelo šifer artiklov v BOOKIE (ali strukturo baze/tabele normativi in normativ_postavke), pripravim direktno SQL insert ali CSV z natančnimi stolpci, ki ga lahko uvoziš brez ročnega vnosa.
