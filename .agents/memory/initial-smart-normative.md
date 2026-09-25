@@ -14,3 +14,9 @@ Enosestavinska alkoholna pijača z eksplicitnim volumnom porcije v imenu potrebu
 **Why:** Uporabnik želi, da AI res poišče podlago na spletu, ne da predlog napiše samo iz imena. Spletni recepti za en odmerek kupljene pijače niso pravi dokaz; spletni rezultat lahko potrdi identiteto izdelka, ne pa količine odmerka.
 
 **How to apply:** Vir mora biti tipiziran rezultat spletnega iskalnika, ne izmišljen modelov URL. Poreklo predloga podpiši ločeno od spletnega recepta in jasno povej, kaj vir dejansko potrjuje. Pred potrditvijo znova preveri ime, alkoholno klasifikacijo in razbrano količino; kupljeni artikel in normativ nastaneta šele po ročni klasifikaciji in potrditvi.
+
+Za prodajne jedi dovoli poleg primerjave popolnih receptov tudi ločeno označen približen AI-normativ, če obstaja vsaj en tipiziran zadetek na odobreni receptni domeni. Zadetek potrjuje le obstoj povezave, ne ocene sestavin ali količin; brez zadetka predloga ne podpisuj.
+
+**Why:** Gostinski naziv in velikost porcije pogosto nimata dveh popolnih, med seboj identičnih spletnih receptov. Uporabnik želi uporaben približek, kakršnega AI poda za veliko fižolovo solato, vendar ne lažnih citatov ali avtomatsko knjiženih količin.
+
+**How to apply:** Približek naj ima ločeno poreklo in jasno opozorilo, eno pozitivno številčno količino ter nedvoumno enoto za vsako surovino; razpone in alternative je treba razrešiti pred predlogom. Obstoječa ročna potrditev surovine, davčne kategorije in celotnega normativa ostane obvezna.

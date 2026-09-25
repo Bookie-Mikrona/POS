@@ -190,6 +190,58 @@ describe("initial smart normative proposal and apply", () => {
     mockCreate.mockImplementation(async () => makeSearchResponse());
   });
 
+  it("searches bean salad without the menu's large-portion suffix", async () => {
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const response = await preview(salad!.id);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    const request = mockCreate.mock.lastCall?.[0] as { messages: Array<{ content: string }> };
+    expect(request.messages[0]?.content).toContain('jed "Fižolova solata"');
+    expect(request.messages[0]?.content).toContain('prodajni naziv je "Fižolova solata – velika"');
+    mockCreate.mockImplementationOnce(async () => ({ content: [{ type: "text", text: '{"recipes":[]}' }] }));
+    const [another] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – mala", cena: "4",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const unavailable = await preview(another!.id);
+    expect(unavailable.status).toBe(422);
+    expect(unavailable.body.error).toContain("vsaj dva preverljiva recepta");
+  });
+
+  it("offers a web-backed approximate bean salad norm and writes it only after confirmation", async () => {
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({
+      content: [
+        { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+        { type: "text", text: JSON.stringify({ estimate: { sourceUrl: urlA, items: [
+          { name: "Fižol", quantity: 0.2, unit: "kg" },
+          { name: "Čebula", quantity: 0.035, unit: "kg" },
+        ] } }) },
+      ],
+    }));
+    const response = await preview(salad!.id);
+    expect(response.status, JSON.stringify(response.body)).toBe(200);
+    expect(response.body.origin).toBe("web_estimate");
+    expect(response.body.warnings[0]).toContain("približen AI-predlog");
+    expect(response.body.items).toEqual([
+      expect.objectContaining({ name: "Fižol", quantity: 0.2, unit: "KGM" }),
+      expect.objectContaining({ name: "Čebula", quantity: 0.035, unit: "KGM" }),
+    ]);
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id))).toEqual([]);
+    const applied = await applyWithClassifications(salad!.id, response.body.token, [
+      { index: 0, taxCategory: "food", addedSugar: false, rawConfirmed: true },
+      { index: 1, taxCategory: "food", addedSugar: false, rawConfirmed: true },
+    ]);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    const norm = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id));
+    expect(norm.map(row => row.kolicina)).toEqual(["0.2000", "0.0350"]);
+  });
+
   it("allows a food article in a legacy category without a tip, but still rejects an explicitly drink category", async () => {
     currentIngredient = "Puranji file";
     const [legacyCategory, drinkCategory] = await db.insert(kategorijeTable).values([

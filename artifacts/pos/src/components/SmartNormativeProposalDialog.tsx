@@ -24,7 +24,7 @@ type ProposalSource = {
 
 type ProposalResponse = {
   token: string;
-  origin: "catalog_volume" | "web_recipe";
+  origin: "catalog_volume" | "web_recipe" | "web_estimate";
   articleId: number;
   revision: number;
   items: ProposalItem[];
@@ -209,6 +209,8 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                       {proposal.sources.length > 0
                         ? proposal.origin === "catalog_volume"
                           ? "Spletni rezultat potrjuje le naslov in povezavo do izdelka. Odmerek in enota sta razbrana iz naziva artikla, ne iz spletnega recepta."
+                          : proposal.origin === "web_estimate"
+                            ? "To je približen AI-normativ, ne prepis recepta. Spletni vir potrjuje le naslov in povezavo; predlaganih sestavin in količin ne dokazuje. Količino za veliko ali malo porcijo preverite sami."
                           : "Samo naslovi in povezave virov so preverjeni. Količine, sestavine in pretvorbe receptov so nepotrjeni AI izračuni."
                         : "Predlog nima preverljivega spletnega vira."}
                       Ta predlog <b>ni preverjena računovodska ali davčna informacija</b>.

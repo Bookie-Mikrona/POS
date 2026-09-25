@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   clearInitialRecipeResearchCache,
   normalizeInitialRecipeResearch,
+  recipeSearchName,
   signInitialNormativeProposal,
   singleIngredientDrinkFromName,
   verifyInitialNormativeProposal,
@@ -89,6 +90,78 @@ describe("initial smart normative research validation", () => {
       { url: sourceA, title: "Recipe A" },
       { url: sourceB, title: "Recipe B" },
     ]);
+  });
+
+  it("searches for the dish without a portion-size suffix", () => {
+    expect(recipeSearchName("Fižolova solata – velika")).toBe("Fižolova solata");
+    expect(recipeSearchName("Solatni krožnik s puranjimi trakci")).toBe("Solatni krožnik s puranjimi trakci");
+  });
+
+  it("accepts numeric strings and harmless extra metadata, without accepting invented sources", () => {
+    const response = recipeOutput();
+    const text = response.at(-1) as { type: string; text: string };
+    const data = JSON.parse(text.text);
+    data.comment = "Search notes";
+    data.recipes[0].servings = "2";
+    data.recipes[0].ingredients[0].quantity = "200,0";
+    data.recipes[0].ingredients[0].originalUnit = "g";
+    const normalized = normalizeInitialRecipeResearch([
+      ...response.slice(0, -1),
+      { type: "text", text: "I am searching." },
+      { type: "text", text: `\`\`\`json\n${JSON.stringify(data)}\n\`\`\`` },
+    ]);
+    expect(normalized.items.find(item => item.name === "Moka")?.quantity).toBe("0.1");
+    expect(() => normalizeInitialRecipeResearch([
+      { type: "text", text: JSON.stringify(data) },
+    ])).toThrowError("RESEARCH_INSUFFICIENT_SOURCES");
+  });
+
+  it("reports a missing recipe separately from malformed model output", () => {
+    expect(() => normalizeInitialRecipeResearch([{ type: "text", text: '{"recipes":[]}' }]))
+      .toThrowError("RESEARCH_INSUFFICIENT_SOURCES");
+    expect(() => normalizeInitialRecipeResearch([{ type: "text", text: "No recipes found." }]))
+      .toThrowError("RESEARCH_INVALID");
+  });
+
+  it("builds an explicitly approximate norm only with a typed web result and single quantities", () => {
+    const estimate = { estimate: { sourceUrl: sourceA, items: [
+      { name: "Fižol", quantity: "0,2", unit: "kg" },
+      { name: "Čebula", quantity: 35, unit: "g" },
+      { name: "Olje", quantity: 20, unit: "ml" },
+    ] } };
+    const content = [recipeOutput()[0]!, { type: "text", text: JSON.stringify(estimate) }];
+    expect(normalizeInitialRecipeResearch(content)).toMatchObject({
+      origin: "web_estimate",
+      sources: [{ url: sourceA }],
+      items: [
+        { name: "Fižol", quantity: "0.2", unit: "KGM", sourceUrls: [sourceA] },
+        { name: "Čebula", quantity: "0.035", unit: "KGM" },
+        { name: "Olje", quantity: "0.02", unit: "LTR" },
+      ],
+    });
+    expect(() => normalizeInitialRecipeResearch([{ type: "text", text: JSON.stringify(estimate) }]))
+      .toThrowError("RESEARCH_INSUFFICIENT_SOURCES");
+    expect(() => normalizeInitialRecipeResearch([
+      recipeOutput()[0]!,
+      { type: "text", text: JSON.stringify({ estimate: { ...estimate.estimate, items: [{ name: "Fižol", quantity: "0.18-0.2", unit: "kg" }] } }) },
+    ])).toThrowError("RESEARCH_INVALID");
+  });
+
+  it("signs an estimate only when every ingredient is linked to its approved source", () => {
+    process.env.POS_NORMATIVE_PROPOSAL_SECRET = "test-only-secret";
+    const payload = {
+      v: 1 as const, origin: "web_estimate" as const,
+      enotaId: 12, articleId: 34, revision: 1,
+      targetName: "Fižolova solata – velika", issuedAt: 1_000_000,
+      sources: [{ url: sourceA, title: "Bean salad" }],
+      items: [{ name: "Fižol", quantity: "0.2", unit: "KGM" as const,
+        existingArticleId: null, willCreate: true, sourceUrls: [sourceA] }],
+    };
+    const token = signInitialNormativeProposal(payload);
+    expect(token).toBeTruthy();
+    expect(verifyInitialNormativeProposal(token!, 1_001_000)?.origin).toBe("web_estimate");
+    expect(signInitialNormativeProposal({ ...payload, items: [{ ...payload.items[0]!, sourceUrls: [] }] })).toBeNull();
+    expect(signInitialNormativeProposal({ ...payload, sources: [] })).toBeNull();
   });
 
   it("rejects model-invented source URLs without matching typed web-search results", () => {
