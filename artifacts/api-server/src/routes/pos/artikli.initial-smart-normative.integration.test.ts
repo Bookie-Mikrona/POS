@@ -190,6 +190,21 @@ describe("initial smart normative proposal and apply", () => {
     mockCreate.mockImplementation(async () => makeSearchResponse());
   });
 
+  it("reports an aborted web search clearly and allows a fresh retry", async () => {
+    mockCreate.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("Request was aborted."), { name: "APIUserAbortError" });
+    });
+    const failed = await preview();
+    expect(failed.status).toBe(503);
+    expect(failed.body.error).toContain("trajalo predolgo");
+    expect(mockCreate.mock.calls.at(-1)?.[1]).toMatchObject({ timeout: 90_000 });
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, parentId))).toEqual([]);
+
+    const retried = await preview();
+    expect(retried.status, JSON.stringify(retried.body)).toBe(200);
+    expect(retried.body.token).toEqual(expect.any(String));
+  });
+
   it("searches bean salad without the menu's large-portion suffix", async () => {
     const [salad] = await db.insert(artikliTable).values({
       enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",

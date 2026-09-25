@@ -42,6 +42,21 @@ beforeEach(() => {
 });
 
 describe("SmartNormativeProposalDialog", () => {
+  it("shows the server's research timeout and can retry without saving", async () => {
+    fetchMock.mockImplementationOnce(async () => new Response(
+      JSON.stringify({ error: "Spletno raziskovanje je trajalo predolgo. Poskusite znova." }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    ));
+    render(<SmartNormativeProposalDialog open articleId={51} articleName="Fižolova solata – velika" availableIngredients={[]}
+      onOpenChange={vi.fn()} onApplySuccess={vi.fn()} />);
+
+    expect(await screen.findByText("Spletno raziskovanje je trajalo predolgo. Poskusite znova.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ustvari in uporabi normativ" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Poskusi znova" }));
+    expect(await screen.findByLabelText("Ime sestavine 1")).toHaveValue("Fižol");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("shows the actual per-serving norm first and applies explicitly classified new ingredients", async () => {
     const onApplySuccess = vi.fn();
     render(<SmartNormativeProposalDialog open articleId={51} articleName="Fižolova solata – velika" availableIngredients={[]}

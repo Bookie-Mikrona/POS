@@ -2117,6 +2117,7 @@ const INITIAL_NORMATIVE_WARNING =
   "Spletno iskanje potrjuje samo URL-je in naslove virov; recepti, sestavine, količine in porcije so ustvarjeni z umetno inteligenco in vsebinsko niso preverjeni v virih. Pred potrditvijo jih ročno preverite.";
 const ESTIMATE_NORMATIVE_WARNING =
   "To je približen AI-predlog za eno porcijo, ne preverjen recept. Spletno iskanje potrjuje le naslov in povezavo do vira, ne predlaganih sestavin ali količin. Pri veliki/mali porciji, odcejanju in kalu količine posebej preverite pred potrditvijo.";
+const INITIAL_RESEARCH_TIMEOUT_MS = 90_000;
 const CATALOG_VOLUME_WARNING =
   "Spletni vir potrjuje le naslov in povezavo do izdelka, ne pa normativa. Količina in merska enota sta razbrani iz naziva prodajnega artikla. Preverite, da gre za navedeno pijačo, da je odmerek pravilen in da je nabavni artikel ustrezen.";
 
@@ -2290,7 +2291,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
     const research = catalogItem
       ? await (async () => {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 45_000);
+        const timeout = setTimeout(() => controller.abort(), INITIAL_RESEARCH_TIMEOUT_MS);
         try {
           const response = await anthropic.messages.create({
             model: "claude-sonnet-5",
@@ -2301,14 +2302,14 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
               content: `Preveri na spletu, ali je "${catalogItem.name}" samostojna alkoholna pijača. Uporabi spletno iskanje, ne svojega spomina. Vrni izključno JSON {"sourceUrl":"https://...","productName":"...","isSingleIngredientDrink":true} z dejansko najdenim URL-jem; sicer {}.`,
             }],
             tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
-          }, { signal: controller.signal, timeout: 45_000 });
+          }, { signal: controller.signal, timeout: INITIAL_RESEARCH_TIMEOUT_MS });
           const sources = normalizeCatalogDrinkResearch(response.content as unknown[], catalogItem.name);
         return { origin: "catalog_volume" as const, items: [{ ...catalogItem, sourceUrls: [sources[0]!.url] }], sources };
         } finally { clearTimeout(timeout); }
       })()
       : await getInitialRecipeResearch(enotaId, artikelId, owner.revision, owner.name, async () => {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45_000);
+      const timeout = setTimeout(() => controller.abort(), INITIAL_RESEARCH_TIMEOUT_MS);
       try {
         const response = await anthropic.messages.create({
           model: "claude-sonnet-5",
@@ -2319,7 +2320,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
             content: `Poišči jed "${recipeSearchName(owner.name)}" (po potrebi uporabi angleški prevod); prodajni naziv je "${owner.name}". Išči na: bbcgoodfood.com, theguardian.com, seriouseats.com, epicurious.com, allrecipes.com, tasteofhome.com, delish.com, foodnetwork.com, kingarthurbaking.com, jamieoliver.com. Če ni dveh popolnih primerljivih receptov, vrni raje uporaben približek za prodajno porcijo kot JSON objekt estimate s poljema sourceUrl in items; vsak item naj vsebuje name, številčni quantity in unit. Sestavine naj bodo surovine; nobenih izmišljenih virov, razponov, alternativ ali neobveznih dodatkov. Oceno količin jasno loči od dokazanega spletnega vira. Če ni ustreznega spletnega zadetka, vrni {"recipes":[]}.`,
           }],
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
-        }, { signal: controller.signal, timeout: 45_000 });
+        }, { signal: controller.signal, timeout: INITIAL_RESEARCH_TIMEOUT_MS });
         clearTimeout(timeout);
         const content = response.content as unknown[];
         try {
@@ -2337,7 +2338,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
           if (sources.length === 0) return [{ type: "text", text: '{"recipes":[]}' }];
 
           const repairController = new AbortController();
-          const repairTimeout = setTimeout(() => repairController.abort(), 45_000);
+          const repairTimeout = setTimeout(() => repairController.abort(), INITIAL_RESEARCH_TIMEOUT_MS);
           try {
             const repaired = await anthropic.messages.create({
               model: "claude-sonnet-5",
@@ -2372,7 +2373,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
                 },
               }],
               tool_choice: { type: "tool", name: "submit_recipe_estimate" },
-            }, { signal: repairController.signal, timeout: 45_000 });
+            }, { signal: repairController.signal, timeout: INITIAL_RESEARCH_TIMEOUT_MS });
             const tool = repaired.content.find(block => block.type === "tool_use" && block.name === "submit_recipe_estimate");
             if (!tool || tool.type !== "tool_use") throw new InitialNormativeError("RESEARCH_INVALID");
             return [...content, { type: "text", text: JSON.stringify({ estimate: tool.input }) }];
@@ -2422,6 +2423,13 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
     if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
     if (error instanceof NormativeStaleError) {
       res.status(409).json({ code: "NORMATIVE_STALE", error: "Ujemanje sestavine se je spremenilo; ustvarite nov predlog." }); return;
+    }
+    if (error instanceof Error && (
+      ["APIUserAbortError", "APIConnectionTimeoutError", "AbortError"].includes(error.name)
+      || error.message === "Request was aborted."
+    )) {
+      req.log?.warn({ reason: "research_timeout" }, "Spletni predlog: raziskava je trajala predolgo");
+      res.status(503).json({ error: "Spletno raziskovanje je trajalo predolgo. Poskusite znova." }); return;
     }
     if (error instanceof InitialNormativeError) {
       const status = error.code === "RESEARCH_BUSY" || error.code === "RESEARCH_RATE_LIMITED" ? 503 : 422;
