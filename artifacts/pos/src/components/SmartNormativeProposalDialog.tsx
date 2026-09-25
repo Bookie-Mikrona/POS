@@ -24,6 +24,7 @@ type ProposalSource = {
 
 type ProposalResponse = {
   token: string;
+  origin: "catalog_volume" | "web_recipe";
   articleId: number;
   revision: number;
   items: ProposalItem[];
@@ -206,8 +207,10 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                     <p className="font-medium text-blue-950 text-base">OPOZORILO: Potreben je strog ročni pregled</p>
                     <p>
                       {proposal.sources.length > 0
-                        ? "Samo naslovi in povezave virov so preverjeni. Količine, sestavine in pretvorbe receptov so nepotrjeni AI izračuni."
-                        : "Predlog je razbran iz imena artikla. Spletnih virov ni; preverite, da naziv označuje eno samo pijačo in navedeni volumen."}
+                        ? proposal.origin === "catalog_volume"
+                          ? "Spletni rezultat potrjuje le naslov in povezavo do izdelka. Odmerek in enota sta razbrana iz naziva artikla, ne iz spletnega recepta."
+                          : "Samo naslovi in povezave virov so preverjeni. Količine, sestavine in pretvorbe receptov so nepotrjeni AI izračuni."
+                        : "Predlog nima preverljivega spletnega vira."}
                       Ta predlog <b>ni preverjena računovodska ali davčna informacija</b>.
                     </p>
                     <p>Sestavine, količine in davčno klasifikacijo morate pred uporabo obvezno preveriti in potrditi.</p>

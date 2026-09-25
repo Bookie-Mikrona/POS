@@ -46,7 +46,7 @@ describe("initial smart normative research validation", () => {
     expect(singleIngredientDrinkFromName("Borovničevec 0,00001 l", "alcoholic")).toBeNull();
   });
 
-  it("accepts a signed name-derived proposal without web sources, but not an unsourced web proposal", () => {
+  it("signs catalog-derived volume only with a linked HTTPS product source", () => {
     process.env.POS_NORMATIVE_PROPOSAL_SECRET = "test-only-secret";
     const payload = {
       v: 1 as const,
@@ -59,10 +59,23 @@ describe("initial smart normative research validation", () => {
       sources: [],
     };
     expect(signInitialNormativeProposal(payload)).toBeNull();
-    const token = signInitialNormativeProposal({ ...payload, origin: "catalog_volume" });
+    expect(signInitialNormativeProposal({ ...payload, origin: "catalog_volume" })).toBeNull();
+    const url = "https://example-shop.com/drinks/borovnicevec";
+    const sourced = {
+      ...payload,
+      origin: "catalog_volume" as const,
+      sources: [{ url, title: "Borovničevec – liqueur" }],
+      items: [{ ...payload.items[0]!, sourceUrls: [url] }],
+    };
+    const token = signInitialNormativeProposal(sourced);
     expect(token).toBeTruthy();
     expect(verifyInitialNormativeProposal(token!, 1_001_000)?.origin).toBe("catalog_volume");
-    expect(signInitialNormativeProposal({ ...payload, origin: "catalog_volume", sources: [{ url: sourceA, title: "Fake" }] })).toBeNull();
+    expect(signInitialNormativeProposal({ ...sourced, items: payload.items })).toBeNull();
+    expect(signInitialNormativeProposal({
+      ...sourced,
+      sources: [{ url: "https://localhost.internal/drink", title: "Fake" }],
+      items: [{ ...payload.items[0]!, sourceUrls: ["https://localhost.internal/drink"] }],
+    })).toBeNull();
   });
 
   it("normalizes complete per-serving recipes to e-SLOG units and preserves typed sources", () => {

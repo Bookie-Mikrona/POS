@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { z } from "zod";
 import {
   APPROVED_RECIPE_DOMAINS,
@@ -30,6 +31,49 @@ export function singleIngredientDrinkFromName(
   const quantity = new Decimal(match[2]!.replace(",", ".")).mul(factor);
   if (quantity.lte(0) || quantity.gt(2) || quantity.decimalPlaces() > 4) return null;
   return { name: match[1]!, quantity: quantity.toFixed(), unit: "LTR", sourceUrls: [] };
+}
+
+/** Product evidence for a single-ingredient serving; never treat the menu volume as a web-sourced recipe. */
+function isSafeCatalogSourceUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    return url.protocol === "https:" && !url.username && !url.password
+      && !isIP(host) && host.includes(".") && !host.endsWith(".local")
+      && !host.endsWith(".internal") && !host.endsWith(".test") && !host.endsWith(".example");
+  } catch { return false; }
+}
+
+const CatalogDrinkResponseSchema = z.object({
+  sourceUrl: z.string().url().max(2_000),
+  productName: z.string().trim().min(1).max(200),
+  isSingleIngredientDrink: z.literal(true),
+}).strict();
+
+export function normalizeCatalogDrinkResearch(
+  content: unknown[],
+  expectedName: string,
+): InitialNormativeSource[] {
+  const parsed = CatalogDrinkResponseSchema.safeParse(extractInitialRecipeJson(content));
+  if (!parsed.success || !isSafeCatalogSourceUrl(parsed.data.sourceUrl)) {
+    throw new InitialNormativeError("CATALOG_PRODUCT_NOT_VERIFIED");
+  }
+  const expected = normalizeIngredientName(expectedName);
+  const productName = normalizeIngredientName(parsed.data.productName);
+  if (!expected || !productName.includes(expected)) throw new InitialNormativeError("CATALOG_PRODUCT_NOT_VERIFIED");
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const result = block as { type?: unknown; content?: unknown };
+    if (result.type !== "web_search_tool_result" || !Array.isArray(result.content)) continue;
+    for (const child of result.content) {
+      if (!child || typeof child !== "object") continue;
+      const source = child as { type?: unknown; url?: unknown; title?: unknown };
+      if (source.type !== "web_search_result" || source.url !== parsed.data.sourceUrl
+        || typeof source.title !== "string" || !normalizeIngredientName(source.title).includes(expected)) continue;
+      return [{ url: parsed.data.sourceUrl, title: source.title.slice(0, 500) }];
+    }
+  }
+  throw new InitialNormativeError("CATALOG_PRODUCT_NOT_VERIFIED");
 }
 
 const RecipeResponseSchema = z.object({
@@ -170,7 +214,8 @@ const InitialProposalPayloadSchema = z.object({
 }).strict().superRefine((value, ctx) => {
   const catalog = value.origin === "catalog_volume";
   if (catalog
-    ? value.sources.length !== 0 || value.items.length !== 1 || value.items.some(item => item.sourceUrls.length !== 0)
+    ? value.sources.length !== 1 || value.items.length !== 1
+      || value.items.some(item => item.sourceUrls.length !== 1 || item.sourceUrls[0] !== value.sources[0]?.url)
     : value.sources.length < 2 || value.items.some(item => item.sourceUrls.length < 1)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Neveljaven dokaz izvora normativa." });
   }
@@ -184,8 +229,10 @@ function proposalSecret(): string | undefined {
 export function signInitialNormativeProposal(payload: InitialProposalPayload): string | null {
   const secret = proposalSecret();
   const parsed = InitialProposalPayloadSchema.safeParse(payload);
-  if (!secret || !parsed.success || parsed.data.sources.some(source => !isSafeResearchUrl(source.url))
-    || parsed.data.items.some(item => item.sourceUrls.some(url => !isSafeResearchUrl(url)))) return null;
+  if (!secret || !parsed.success || parsed.data.sources.some(source =>
+    !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(source.url) : isSafeResearchUrl(source.url)))
+    || parsed.data.items.some(item => item.sourceUrls.some(url =>
+      !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(url) : isSafeResearchUrl(url))))) return null;
   const encoded = Buffer.from(JSON.stringify(parsed.data)).toString("base64url");
   return `${encoded}.${createHmac("sha256", secret).update(encoded).digest("base64url")}`;
 }
@@ -201,8 +248,10 @@ export function verifyInitialNormativeProposal(token: string, now = Date.now()):
   try {
     const parsed = InitialProposalPayloadSchema.safeParse(JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")));
     if (!parsed.success || now - parsed.data.issuedAt > 5 * 60_000 || parsed.data.issuedAt > now + 30_000
-      || parsed.data.sources.some(source => !isSafeResearchUrl(source.url))
-      || parsed.data.items.some(item => item.sourceUrls.some(url => !isSafeResearchUrl(url)))) return null;
+      || parsed.data.sources.some(source =>
+        !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(source.url) : isSafeResearchUrl(source.url)))
+      || parsed.data.items.some(item => item.sourceUrls.some(url =>
+        !(parsed.data.origin === "catalog_volume" ? isSafeCatalogSourceUrl(url) : isSafeResearchUrl(url))))) return null;
     return parsed.data;
   } catch { return null; }
 }

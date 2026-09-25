@@ -93,6 +93,17 @@ function makeSearchResponse(withTypedSources = true) {
   };
 }
 
+function makeCatalogResponse(name: string, withTypedSource = true) {
+  const url = "https://example-shop.com/drinks/product";
+  return { content: [
+    ...(withTypedSource ? [{
+      type: "web_search_tool_result",
+      content: [{ type: "web_search_result", url, title: `${name} – alcoholic drink` }],
+    }] : []),
+    { type: "text", text: JSON.stringify({ sourceUrl: url, productName: name, isSingleIngredientDrink: true }) },
+  ] };
+}
+
 async function configuredGeneralVatRate(): Promise<string> {
   const rows = await db.select({
     kljuc: nastavitveTable.kljuc,
@@ -176,6 +187,7 @@ describe("initial smart normative proposal and apply", () => {
   beforeEach(() => {
     clearInitialRecipeResearchCache();
     currentQuantity = 200;
+    mockCreate.mockImplementation(async () => makeSearchResponse());
   });
 
   it("previews without DB writes and atomically creates raw purchase ingredients and norms on confirmation", async () => {
@@ -268,7 +280,7 @@ describe("initial smart normative proposal and apply", () => {
     expect(norms[0]!.kolicina).toBe("100.0000");
   });
 
-  it("proposes a name-derived alcoholic serving without web search and reuses its purchase article", async () => {
+  it("researches a named alcoholic serving online, converts its unit, and writes its norm on confirmation", async () => {
     const [serving] = await db.insert(artikliTable).values({
       enotaId: enotaA, ime: "Borovničevec 0,05 l", cena: "3.20", davek: "22",
       taxCategory: "alcoholic", prodajniArtikel: true,
@@ -278,15 +290,17 @@ describe("initial smart normative proposal and apply", () => {
       taxCategory: "alcoholic", prodajniArtikel: true,
     }).returning({ id: artikliTable.id });
     mockCreate.mockClear();
+    mockCreate.mockImplementation(async () => makeCatalogResponse("Borovničevec"));
 
     const response = await preview(serving!.id);
     expect(response.status, JSON.stringify(response.body)).toBe(200);
     expect(response.body.items).toEqual([expect.objectContaining({
-      name: "Borovničevec", quantity: 0.05, unit: "LTR", willCreate: true, sourceUrls: [],
+      name: "Borovničevec", quantity: 0.05, unit: "LTR", willCreate: true,
+      sourceUrls: ["https://example-shop.com/drinks/product"],
     })]);
-    expect(response.body.sources).toEqual([]);
-    expect(response.body.warnings[0]).toContain("razbrana samo iz naziva");
-    expect(mockCreate).not.toHaveBeenCalled();
+    expect(response.body.sources).toEqual([{ url: "https://example-shop.com/drinks/product", title: "Borovničevec – alcoholic drink" }]);
+    expect(response.body.warnings[0]).toContain("Količina in merska enota sta razbrani iz naziva");
+    expect(mockCreate).toHaveBeenCalledTimes(1);
 
     const applied = await applyWithClassifications(serving!.id, response.body.token, [{
       index: 0, taxCategory: "alcoholic", addedSugar: false, rawConfirmed: true,
@@ -306,7 +320,30 @@ describe("initial smart normative proposal and apply", () => {
     expect(smallApplied.status, JSON.stringify(smallApplied.body)).toBe(200);
     expect(smallApplied.body.createdArticleIds).toEqual([]);
     expect((await db.select().from(normativiTable).where(eq(normativiTable.artikelId, smallServing!.id)))[0]!.kolicina).toBe("0.0300");
-    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not create a Ballantine's norm without a typed web source, then writes the confirmed 30 ml norm", async () => {
+    const [serving] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Ballantine's 0,03 l", cena: "3", davek: "22",
+      taxCategory: "alcoholic", prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => makeCatalogResponse("Ballantine's", false));
+    const unverified = await preview(serving!.id);
+    expect(unverified.status).toBe(422);
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, serving!.id))).toEqual([]);
+    mockCreate.mockImplementationOnce(async () => makeCatalogResponse("Ballantine's"));
+    const verified = await preview(serving!.id);
+    expect(verified.status, JSON.stringify(verified.body)).toBe(200);
+    expect(verified.body.items).toEqual([expect.objectContaining({
+      name: "Ballantine's", quantity: 0.03, unit: "LTR", willCreate: true,
+    })]);
+    const applied = await applyWithClassifications(serving!.id, verified.body.token, [{
+      index: 0, taxCategory: "alcoholic", addedSugar: false, rawConfirmed: true,
+    }]);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    const [norm] = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, serving!.id));
+    expect(norm?.kolicina).toBe("0.0300");
   });
 
   it("rejects missing/mismatched unit, non-admin, cross-unit articles, source spoofing, and stale apply", async () => {
