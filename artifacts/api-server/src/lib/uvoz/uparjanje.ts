@@ -26,6 +26,13 @@ import {
 } from './pametno-uparjanje';
 import { expectedPurchaseVatRateForArticle } from './vat-code-resolver';
 import { toUneceUnitCode } from '../received-invoice-eslog';
+import {
+  convertPurchasedQuantity,
+  DrainedYieldError,
+  normalizeDrainedYield,
+  resolveDrainedYield,
+  type DrainedYieldAction,
+} from '../drained-yield';
 
 // Poizvedbe gredo dosledno prek db.execute(sql`...`), ne prek gradnika
 // poizvedb. Razlog: stopnja 3 kaskade potrebuje similarity() in operator
@@ -651,6 +658,10 @@ export interface PotrditevVhod {
   izvEnota?: string | null;
   datumPrevzema: string;
   zapomni?: boolean;
+  brutoTezaG?: unknown;
+  netoTezaG?: unknown;
+  netoDelezOdst?: unknown;
+  drainedYieldAction?: DrainedYieldAction;
 }
 
 export class GenericArticleUnitMismatch extends Error {
@@ -786,8 +797,19 @@ export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
       izv_cena: string | null;
       rabat_1_odst: string | null;
       rabat_2_odst: string | null;
+      skupaj: string;
+      neto_znesek: string | null;
+      ddv_osnova: string | null;
+      bruto_teza_g: string | null;
+      neto_teza_g: string | null;
+      neto_delez_odst: string | null;
+      enot_v_paketu: string | null;
+      izv_enota: string | null;
     }>(sql`
-      SELECT pp.izv_kolicina, pp.izv_cena, pp.rabat_1_odst, pp.rabat_2_odst
+      SELECT pp.izv_kolicina, pp.izv_cena, pp.rabat_1_odst, pp.rabat_2_odst,
+             pp.skupaj, pp.neto_znesek, pp.ddv_osnova,
+             pp.bruto_teza_g, pp.neto_teza_g, pp.neto_delez_odst,
+             pp.enot_v_paketu, pp.izv_enota
         FROM prejemnice_postavke pp
         JOIN prejemnice p ON p.id = pp.prejemnica_id
        WHERE pp.id = ${v.postavkaId}
@@ -795,6 +817,33 @@ export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
        FOR UPDATE OF pp
     `)).rows;
     if (!izvornaPostavka) throw new ReceiptLineNotFound();
+    const [article] = (await tx.execute<{
+      enota_mere: string | null;
+      bruto_teza_g: string | null;
+      neto_teza_g: string | null;
+      neto_delez_odst: string | null;
+    }>(sql`
+      SELECT enota_mere, bruto_teza_g, neto_teza_g, neto_delez_odst
+        FROM artikli
+       WHERE id = ${v.artikelId} AND enota_id = ${v.enotaId}
+    `)).rows;
+    const yieldData = resolveDrainedYield({
+      brutoTezaG: v.brutoTezaG,
+      netoTezaG: v.netoTezaG,
+      netoDelezOdst: v.netoDelezOdst,
+    }, normalizeDrainedYield(article ?? {}), {
+      brutoTezaG: izvornaPostavka.bruto_teza_g,
+      netoTezaG: izvornaPostavka.neto_teza_g,
+      netoDelezOdst: izvornaPostavka.neto_delez_odst,
+    }, v.drainedYieldAction);
+    const hasDrainedYield = Boolean(yieldData.brutoTezaG || yieldData.netoTezaG || yieldData.netoDelezOdst);
+    if (hasDrainedYield && (izvornaPostavka.izv_kolicina == null || izvornaPostavka.izv_enota == null)) {
+      throw new DrainedYieldError("Pri odcejeni zalogi navedite izvorno nabavno količino in enoto.");
+    }
+    if ((v.drainedYieldAction === "clear" || (v.drainedYieldAction === "set" && !hasDrainedYield))
+        && !genericArticleUnitMatches(izvornaPostavka.izv_enota, article?.enota_mere)) {
+      throw new DrainedYieldError("Odcejene pretvorbe ni mogoče odstraniti, kadar se nabavna enota razlikuje od zalogovne enote.");
+    }
     const preračun = preračunajRočnoUparjanje(
       izvornaPostavka.izv_kolicina,
       izvornaPostavka.izv_cena,
@@ -802,12 +851,35 @@ export async function potrdiUparjanje(db: Db, v: PotrditevVhod): Promise<void> {
       izvornaPostavka.rabat_2_odst,
       v.enotVPaketu,
     );
+    const drainedConversion = hasDrainedYield
+      ? convertPurchasedQuantity(
+        new Decimal(izvornaPostavka.izv_kolicina ?? 1).mul(v.enotVPaketu),
+        new Decimal(izvornaPostavka.skupaj),
+        izvornaPostavka.izv_enota ?? v.izvEnota,
+        article?.enota_mere,
+        yieldData,
+      )
+      : null;
+    const invoiceNetValue = new Decimal(
+      izvornaPostavka.neto_znesek ?? izvornaPostavka.ddv_osnova ?? izvornaPostavka.skupaj,
+    );
+    const invoiceNetUnitPrice = drainedConversion?.quantity.isZero()
+      ? new Decimal(0)
+      : invoiceNetValue.div(drainedConversion?.quantity ?? 1);
     await tx.execute(sql`
       UPDATE prejemnice_postavke
          SET artikel_id = ${v.artikelId},
              enot_v_paketu = ${v.enotVPaketu.toString()},
-             ${preračun.kolicina ? sql`kolicina = ${preračun.kolicina.toString()},` : sql``}
-             ${preračun.cenaKos ? sql`cena_kos = ${preračun.cenaKos.toString()}, neto_cena = ${preračun.netoCena!.toString()},` : sql``}
+             ${drainedConversion
+               ? sql`kolicina = ${drainedConversion.quantity.toString()},
+                     cena_kos = ${drainedConversion.unitCost.toString()},
+                      neto_cena = ${invoiceNetUnitPrice.toString()},
+                      neto_znesek = ${invoiceNetValue.toString()},`
+               : sql`${preračun.kolicina ? sql`kolicina = ${preračun.kolicina.toString()},` : sql``}
+                     ${preračun.cenaKos ? sql`cena_kos = ${preračun.cenaKos.toString()}, neto_cena = ${preračun.netoCena!.toString()},` : sql``}`}
+             bruto_teza_g = ${yieldData.brutoTezaG},
+             neto_teza_g = ${yieldData.netoTezaG},
+             neto_delez_odst = ${yieldData.netoDelezOdst},
              uparjanje = 'ROCNO',
              uparjanje_zaupanje = 100
        WHERE id = ${v.postavkaId}
@@ -982,11 +1054,18 @@ export async function upariPrejemnico(
     rabat_1_odst: string | null;
     rabat_2_odst: string | null;
     enot_v_paketu: string | null;
+    skupaj: string;
+    neto_znesek: string | null;
+    ddv_osnova: string | null;
+    bruto_teza_g: string | null;
+    neto_teza_g: string | null;
+    neto_delez_odst: string | null;
     opozorila: unknown;
   }>(sql`
     SELECT id, izv_gtin, izv_sifra, izv_naziv, izv_cena,
            izv_kolicina, izv_enota, rabat_1_odst, rabat_2_odst, enot_v_paketu,
-           opozorila
+           skupaj, neto_znesek, ddv_osnova,
+           bruto_teza_g, neto_teza_g, neto_delez_odst, opozorila
       FROM prejemnice_postavke
      WHERE prejemnica_id = ${prejemnicaId} AND artikel_id IS NULL
      ORDER BY id
@@ -1021,6 +1100,15 @@ export async function upariPrejemnico(
 
     if (izid.samodejno && izid.artikelId) {
       const jeGeneric = await preveriGeneričniArtikel(db, izid.artikelId, enotaId, p.izv_enota);
+      const [articleYield] = (await db.execute<{
+        enota_mere: string | null;
+        bruto_teza_g: string | null;
+        neto_teza_g: string | null;
+        neto_delez_odst: string | null;
+      }>(sql`
+        SELECT enota_mere, bruto_teza_g, neto_teza_g, neto_delez_odst
+          FROM artikli WHERE id = ${izid.artikelId} AND enota_id = ${enotaId}
+      `)).rows;
       // Koeficient iz artikel_dobavitelj prepisemo na postavko in hkrati
       // preračunamo kolicina ter cena_kos, da ostaneta konsistentna.
       //
@@ -1032,6 +1120,25 @@ export async function upariPrejemnico(
       const enotVPaketuZapis = izid.enotVPaketu ?? new Decimal(p.enot_v_paketu ?? 1);
       const izvKolicina = new Decimal(p.izv_kolicina ?? 1);
       const novaKolicina = izvKolicina.mul(enotVPaketuZapis);
+      const yieldData = normalizeDrainedYield({
+        brutoTezaG: p.bruto_teza_g ?? articleYield?.bruto_teza_g,
+        netoTezaG: p.neto_teza_g ?? articleYield?.neto_teza_g,
+        netoDelezOdst: p.neto_delez_odst ?? articleYield?.neto_delez_odst,
+      });
+      const hasDrainedYield = Boolean(yieldData.brutoTezaG || yieldData.netoTezaG || yieldData.netoDelezOdst);
+      const drainedConversion = hasDrainedYield
+        ? convertPurchasedQuantity(
+          izvKolicina.mul(enotVPaketuZapis),
+          new Decimal(p.skupaj),
+          p.izv_enota,
+          articleYield?.enota_mere,
+          yieldData,
+        )
+        : null;
+      const invoiceNetValue = new Decimal(p.neto_znesek ?? p.ddv_osnova ?? p.skupaj);
+      const invoiceNetUnitPrice = drainedConversion?.quantity.isZero()
+        ? new Decimal(0)
+        : invoiceNetValue.div(drainedConversion?.quantity ?? novaKolicina);
 
       // cena_kos = (izv_cena po rabatih) / enot_v_paketu
       // Če izv_cena ni znana, pustimo cena_kos kakršna je (ne posodabljamo).
@@ -1044,8 +1151,15 @@ export async function upariPrejemnico(
         UPDATE prejemnice_postavke
            SET artikel_id = ${izid.artikelId},
                enot_v_paketu = ${enotVPaketuZapis.toString()},
-               kolicina      = ${novaKolicina.toString()},
-               ${cenaKosUpdate ? sql`cena_kos = ${cenaKosUpdate.toString()},` : sql``}
+               kolicina      = ${(drainedConversion?.quantity ?? novaKolicina).toString()},
+               ${drainedConversion
+                 ? sql`cena_kos = ${drainedConversion.unitCost.toString()},
+                       neto_cena = ${invoiceNetUnitPrice.toString()},
+                       neto_znesek = ${invoiceNetValue.toString()},`
+                 : cenaKosUpdate ? sql`cena_kos = ${cenaKosUpdate.toString()},` : sql``}
+               bruto_teza_g = ${yieldData.brutoTezaG},
+               neto_teza_g = ${yieldData.netoTezaG},
+               neto_delez_odst = ${yieldData.netoDelezOdst},
                uparjanje = ${izid.metoda},
                uparjanje_zaupanje = ${izid.zaupanje},
                uparjanje_kandidati = ${JSON.stringify(izid.kandidati)}::jsonb

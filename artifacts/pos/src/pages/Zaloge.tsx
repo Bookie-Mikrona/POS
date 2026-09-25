@@ -75,6 +75,20 @@ import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 import { AlergenEditor, AlergeniBadge, type AlergenSnapshot } from "@/components/AlergenEditor";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ShieldAlert } from "lucide-react";
+import {
+  MassYieldFields,
+  isPieceUnit,
+  netMassPerUnitG,
+  normalizeMassYield,
+} from "@/components/MassYieldFields";
+import {
+  buildReceiptPricePayload,
+  originalPriceIsUnchanged,
+  restoreImportedPrice,
+  sourceDiscountFactor,
+  type OriginalReceiptPriceSnapshot,
+  type PriceBasis,
+} from "@/lib/prejemnica-pricing";
 import { BookingPreviewDialog } from "./uvoz/BookingPreviewDialog";
 import {
   areEslogUnitsCompatible,
@@ -132,6 +146,64 @@ const DDV_OPCIJE = [
 ];
 const ENOTE_MERE = ["kom", "kg", "g", "l", "dl", "ml", "m", "m²", "m³", "par", "pak", "šk", "pal", "set"];
 
+function massYieldZaPrejemnico(
+  row: PrejemnicaRow,
+  article?: { brutoTezaG?: number | null; netoTezaG?: number | null; netoDelezOdst?: number | null } | null,
+) {
+  return {
+    brutoTezaG: row.brutoTezaGTouched ? row.brutoTezaG ?? "" : row.brutoTezaG || (article?.brutoTezaG == null ? "" : String(article.brutoTezaG)),
+    netoTezaG: row.netoTezaGTouched ? row.netoTezaG ?? "" : row.netoTezaG || (article?.netoTezaG == null ? "" : String(article.netoTezaG)),
+    netoDelezOdst: row.netoDelezOdstTouched ? row.netoDelezOdst ?? "" : row.netoDelezOdst || (article?.netoDelezOdst == null ? "" : String(article.netoDelezOdst)),
+  };
+}
+
+function payloadIzplenPrejemnice(row: PrejemnicaRow) {
+  const values = normalizeMassYield({
+    brutoTezaG: row.brutoTezaG ?? "",
+    netoTezaG: row.netoTezaG ?? "",
+    netoDelezOdst: row.netoDelezOdst ?? "",
+  });
+  const result: Partial<ReturnType<typeof normalizeMassYield>> = {};
+  if (row.brutoTezaG?.trim() || row.brutoTezaGTouched) result.brutoTezaG = values.brutoTezaG;
+  if (row.netoTezaG?.trim() || row.netoTezaGTouched) result.netoTezaG = values.netoTezaG;
+  if (row.netoDelezOdst?.trim() || row.netoDelezOdstTouched) result.netoDelezOdst = values.netoDelezOdst;
+  if (row.brutoTezaG?.trim() && row.netoTezaG?.trim()) result.netoDelezOdst = values.netoDelezOdst;
+  return result;
+}
+
+function izracunajIzvornoKolicinoZaloge(
+  row: PrejemnicaRow,
+  enotaMere?: string | null,
+  article?: { brutoTezaG?: number | null; netoTezaG?: number | null; netoDelezOdst?: number | null } | null,
+): number | null {
+  const izvornaKolicina = parseDecimal(row.izvKolicina);
+  const netoGrami = netMassPerUnitG(massYieldZaPrejemnico(row, article));
+  const enota = enotaMere?.trim().toLowerCase();
+  if (!Number.isFinite(izvornaKolicina) || izvornaKolicina <= 0
+    || !isPieceUnit(row.izvEnota) || netoGrami == null || !Number.isFinite(netoGrami)) return null;
+  if (enota === "kg" || enota === "kgm") return izvornaKolicina * netoGrami / 1000;
+  if (enota === "g" || enota === "grm") return izvornaKolicina * netoGrami;
+  return null;
+}
+
+function izracunajVrednostPostavke(row: PrejemnicaRow): number {
+  const izvornaKolicina = row.izvKolicina?.trim() ? parseDecimal(row.izvKolicina) : null;
+  const kolicina = izvornaKolicina != null && Number.isFinite(izvornaKolicina)
+    ? izvornaKolicina
+    : parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1);
+  return kolicina * parseDecimal(row.cenaKos) * faktorPopusta(row.popust, row.rabatVkljucenVCeni === true);
+}
+
+function razcleniPopust(value: string): [number, number] {
+  const parts = value.split("+").map(part => parseDecimal(part.trim())).filter(Number.isFinite);
+  return [parts[0] ?? 0, parts[1] ?? 0];
+}
+
+function faktorPopusta(value: string, popustJeVkljucenVCeni = false): number {
+  const [rabat1, rabat2] = razcleniPopust(value);
+  return sourceDiscountFactor(rabat1, rabat2, popustJeVkljucenVCeni);
+}
+
 type PrejemnicaRow = {
   id?: number;
   artikelId: number;
@@ -142,6 +214,18 @@ type PrejemnicaRow = {
   ddvStopnja: string;
   izvNaziv?: string | null;
   izvEnota?: string | null;
+  izvKolicina?: string;
+  izvCena?: number | string | null;
+  izvCenaVrsta?: PriceBasis | null;
+  rabatVkljucenVCeni?: boolean | null;
+  sourcePriceEditable?: boolean;
+  originalPriceSnapshot?: OriginalReceiptPriceSnapshot;
+  brutoTezaG?: string;
+  netoTezaG?: string;
+  netoDelezOdst?: string;
+  brutoTezaGTouched?: boolean;
+  netoTezaGTouched?: boolean;
+  netoDelezOdstTouched?: boolean;
 
   alergeni?: AlergenKoda[];
   alergeniSledi?: AlergenKoda[];
@@ -161,6 +245,9 @@ type PrejemnicaArtikel = {
   imeZaNabavo?: string | null;
   enotaMere?: string | null;
   jeSkupinskiNabavniArtikel?: boolean;
+  brutoTezaG?: number | null;
+  netoTezaG?: number | null;
+  netoDelezOdst?: number | null;
 };
 
 function IzvornaPostavkaPolja({
@@ -1023,6 +1110,52 @@ export function efektivnaDdvStopnja(vnos: string, privzetaStopnja: number): numb
   return vnos === "" ? privzetaStopnja : parseDecimal(vnos);
 }
 
+function preračunajPrejemnico(
+  row: PrejemnicaRow,
+  artikel: {
+    enotaMere?: string | null;
+    davek?: number;
+    brutoTezaG?: number | null;
+    netoTezaG?: number | null;
+    netoDelezOdst?: number | null;
+  } | undefined,
+  vrstaCen: "neto" | "bruto",
+  jeDdvZavezanec: boolean,
+) {
+  const enot = parseDecimal(row.enotVPaketu) || 1;
+  const izvornaKolicina = row.izvKolicina?.trim() ? parseDecimal(row.izvKolicina) : null;
+  const imaIzvornoEnoto = Boolean(row.izvEnota?.trim());
+  const imaIzvorniNakup = izvornaKolicina != null && Number.isFinite(izvornaKolicina)
+    && izvornaKolicina > 0 && imaIzvornoEnoto;
+  const izracunanaKolicina = izracunajIzvornoKolicinoZaloge(row, artikel?.enotaMere, artikel);
+  const vnesenaKolicina = parseDecimal(row.kolicina);
+  const kolicina = izracunanaKolicina ?? (Number.isFinite(vnesenaKolicina) ? vnesenaKolicina : 0) * enot;
+  const popustF = faktorPopusta(row.popust, row.rabatVkljucenVCeni === true);
+  const vnos = parseDecimal(row.cenaKos) || 0;
+  const cenaNaNakupnoEnoto = imaIzvorniNakup ? vnos : (enot > 1 ? vnos / enot : vnos);
+  const ddvStopnja = efektivnaDdvStopnja(row.ddvStopnja, artikel?.davek ?? 0);
+  const shranjenaCenaNakupneEnote = konvertirajCeno(
+    cenaNaNakupnoEnoto * popustF,
+    ddvStopnja,
+    vrstaCen,
+    jeDdvZavezanec,
+  );
+  const shranjenaCena = imaIzvorniNakup && kolicina > 0
+    ? shranjenaCenaNakupneEnote * izvornaKolicina! / kolicina
+    : shranjenaCenaNakupneEnote;
+  const netoCena = jeDdvZavezanec
+    ? shranjenaCena
+    : (ddvStopnja ? shranjenaCena / (1 + ddvStopnja / 100) : shranjenaCena);
+  return {
+    enot,
+    kolicina,
+    ddvStopnja,
+    shranjenaCena,
+    ddvOsnova: netoCena * kolicina,
+    izvornaKolicina: imaIzvorniNakup ? izvornaKolicina : null,
+  };
+}
+
 // ── Nov artikel kartica (inline v postavkah) ───────────────────────────────
 function EnotaMereDropdown({
   value, onChange, onConfirm, triggerRef: externalTriggerRef,
@@ -1668,6 +1801,9 @@ function EditPrejemnicaDialog({
     imeZaNabavo?: string | null;
     enotaMere?: string | null;
     jeSkupinskiNabavniArtikel?: boolean;
+    brutoTezaG?: number | null;
+    netoTezaG?: number | null;
+    netoDelezOdst?: number | null;
     davek: number;
     alergeni?: AlergenKoda[];
     alergeniSledi?: AlergenKoda[];
@@ -1861,13 +1997,36 @@ function EditPrejemnicaDialog({
       //   izv_cena = neto cena (že vgrajen rabat) → enaka cena_kos; popust je shranjen v
       //   rabat_1_odst. Bruto rekonstruiramo: bruto = neto / ((1−r1/100)×(1−r2/100)).
       const izvCena: number | null = (p as any).izvCena ?? null;
+      const izvKolicina: number | null = (p as any).izvKolicina ?? null;
+      const izvCenaVrsta: PriceBasis | null = (p as any).izvCenaVrsta ?? null;
+      const rabatVkljucenVCeni: boolean | null = (p as any).rabatVkljucenVCeni ?? null;
       const rabat1Odst: number = Number((p as any).rabat1Odst ?? 0);
       const rabat2Odst: number = Number((p as any).rabat2Odst ?? 0);
       const cenaNetoNaPaket = cenaNetoEnoto * enot; // neto cena na paket
       let prikazCena: number;
       let prikazPopust: string;
+      let sourcePriceEditable = true;
 
-      if (izvCena != null && izvCena > 0 && Math.abs(izvCena - cenaNetoNaPaket) > 0.0001) {
+      if (izvCena != null && izvCenaVrsta != null) {
+        const restored = restoreImportedPrice({
+          sourcePrice: izvCena,
+          sourcePriceBasis: izvCenaVrsta,
+          receiptPriceBasis: vrstaCenLoaded,
+          discountIncluded: rabatVkljucenVCeni,
+          discount1: rabat1Odst,
+          discount2: rabat2Odst,
+          taxRate: (p as any).ddvStopnja ?? davek,
+        });
+        prikazCena = Number(restored.price);
+        prikazPopust = restored.discount;
+        sourcePriceEditable = restored.editable;
+      } else if (izvKolicina != null && izvCena != null) {
+        // Legacy source semantics are unknown: retain a readable snapshot but
+        // don't let a user resave it as though its VAT/discount basis were known.
+        prikazCena = izvCena;
+        prikazPopust = rabat2Odst > 0 ? `${rabat1Odst}+${rabat2Odst}` : rabat1Odst > 0 ? String(rabat1Odst) : "";
+        sourcePriceEditable = false;
+      } else if (izvCena != null && izvCena > 0 && Math.abs(izvCena - cenaNetoNaPaket) > 0.0001) {
         // BT-136: izv_cena je bruto — prikaži izvirno ceno, popust iz razlike cen
         const izvCenaPrikaz = vrstaCenLoaded === "bruto" && davek
           ? Math.round(izvCena * (1 + davek / 100) * 10000) / 10000
@@ -1896,13 +2055,40 @@ function EditPrejemnicaDialog({
         prikazPopust = "";
       }
 
+      const displayPrice = String(prikazCena);
+      const displayDiscount = prikazPopust;
+      const originalPriceSnapshot: OriginalReceiptPriceSnapshot = {
+        artikelId: p.artikelId,
+        price: displayPrice,
+        discount: displayDiscount,
+        quantity: String(prikazKolicina),
+        packageCount: jeVPaketih ? String(enot) : "",
+        sourceQuantity: izvKolicina == null ? "" : String(izvKolicina),
+        taxRate: (p as any).ddvStopnja == null ? String(davek) : String((p as any).ddvStopnja),
+        receiptPriceBasis: vrstaCenLoaded,
+        sourcePrice: izvCena,
+        sourcePriceBasis: izvCenaVrsta,
+        discountIncluded: rabatVkljucenVCeni,
+        discount1: rabat1Odst,
+        discount2: rabat2Odst,
+        netAmount: (p as any).ddvOsnova ?? (p as any).netoZnesek ?? null,
+        vatAmount: (p as any).ddvZnesek ?? null,
+        stockAmount: (p as any).skupaj ?? null,
+        stockQuantity: p.kolicina,
+        stockUnitPrice: p.cenaKos,
+        sourceUnit: (p as any).izvEnota ?? (p as any).enotaMereEslog ?? null,
+        brutoTezaG: (p as any).brutoTezaG == null ? "" : String((p as any).brutoTezaG),
+        netoTezaG: (p as any).netoTezaG == null ? "" : String((p as any).netoTezaG),
+        netoDelezOdst: (p as any).netoDelezOdst == null ? "" : String((p as any).netoDelezOdst),
+      };
+
       return {
         id: p.id,
         artikelId: p.artikelId,
         kolicina: String(prikazKolicina),
-        cenaKos: String(prikazCena),
+        cenaKos: displayPrice,
         enotVPaketu: jeVPaketih ? String(enot) : "",
-        popust: prikazPopust,
+        popust: displayDiscount,
         ddvStopnja: (p as any).ddvStopnja != null ? String((p as any).ddvStopnja) : String(davek),
         alergeni: (p as any).alergeni ?? [],
         alergeniSledi: (p as any).alergeniSledi ?? [],
@@ -1912,6 +2098,15 @@ function EditPrejemnicaDialog({
         alergeniDocumentId: (p as any).alergeniDocumentId ?? null,
         izvNaziv: (p as any).izvNaziv ?? null,
         izvEnota: (p as any).izvEnota ?? (p as any).enotaMereEslog ?? null,
+        izvKolicina: (p as any).izvKolicina == null ? "" : String((p as any).izvKolicina),
+        izvCena,
+        izvCenaVrsta,
+        rabatVkljucenVCeni,
+        sourcePriceEditable,
+        originalPriceSnapshot,
+        brutoTezaG: (p as any).brutoTezaG == null ? "" : String((p as any).brutoTezaG),
+        netoTezaG: (p as any).netoTezaG == null ? "" : String((p as any).netoTezaG),
+        netoDelezOdst: (p as any).netoDelezOdst == null ? "" : String((p as any).netoDelezOdst),
       };
     }));
   }, [data, nabavniArtikli]);
@@ -1979,25 +2174,57 @@ function EditPrejemnicaDialog({
     }
   };
 
+  const changeEditPriceBasis = (next: "neto" | "bruto") => {
+    if (next === editVrstaCen) return;
+    if (rows.some(row => row.sourcePriceEditable === false)) {
+      toast({
+        title: "Ni mogoče spremeniti vrste cen",
+        description: "Vsaj ena uvožena postavka nima znane osnove izvorne cene/popusta.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const direction = next === "bruto" ? 1 : -1;
+    setRows(current => current.map(row => {
+      const entered = parseDecimal(row.cenaKos);
+      if (!Number.isFinite(entered)) return row;
+      const article = nabavniArtikli.find(item => item.id === row.artikelId);
+      const rate = efektivnaDdvStopnja(row.ddvStopnja, article?.davek ?? 0);
+      const multiplier = 1 + rate / 100;
+      if (multiplier === 0) return row;
+      const converted = direction > 0 ? entered * multiplier : entered / multiplier;
+      return { ...row, cenaKos: String(Math.round((converted + Number.EPSILON) * 10000) / 10000) };
+    }));
+    setEditVrstaCen(next);
+  };
+
   const skupajTotals = rows.reduce((acc, r) => {
-    const enot = parseDecimal(r.enotVPaketu) || 1;
-    const kol = (parseDecimal(r.kolicina) || 0) * enot;
-    const vnos = parseDecimal(r.cenaKos) || 0;
-    const popustF = 1 - (parseDecimal(r.popust) || 0) / 100;
-    const cenaNaEnoto = (enot > 1 ? vnos / enot : vnos) * popustF;
-    const davek = efektivnaDdvStopnja(
-      r.ddvStopnja,
-      nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
-    );
-    const shranjeno = konvertirajCeno(cenaNaEnoto, davek, editVrstaCen, jeDdvZavezanec);
-    const neto = jeDdvZavezanec ? shranjeno : (davek ? shranjeno / (1 + davek / 100) : shranjeno);
-    const bruto = jeDdvZavezanec ? (davek ? shranjeno * (1 + davek / 100) : shranjeno) : shranjeno;
-    return { neto: acc.neto + kol * neto, bruto: acc.bruto + kol * bruto };
+    const article = nabavniArtikli.find(a => a.id === r.artikelId);
+    const receipt = preračunajPrejemnico(r, article, editVrstaCen, jeDdvZavezanec);
+    const neto = jeDdvZavezanec
+      ? receipt.shranjenaCena
+      : (receipt.ddvStopnja ? receipt.shranjenaCena / (1 + receipt.ddvStopnja / 100) : receipt.shranjenaCena);
+    const bruto = jeDdvZavezanec
+      ? (receipt.ddvStopnja ? receipt.shranjenaCena * (1 + receipt.ddvStopnja / 100) : receipt.shranjenaCena)
+      : receipt.shranjenaCena;
+    return { neto: acc.neto + receipt.kolicina * neto, bruto: acc.bruto + receipt.kolicina * bruto };
   }, { neto: 0, bruto: 0 });
 
   const handleSave = () => {
-    const validRows = rows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    const validRows = rows.filter(r => {
+      if (r.artikelId <= 0) return false;
+      const article = nabavniArtikli.find(a => a.id === r.artikelId);
+      return r.kolicina !== "" || izracunajIzvornoKolicinoZaloge(r, article?.enotaMere, article) != null;
+    });
     if (!validRows.length) { toast({ title: "Vsaj ena postavka je obvezna", variant: "destructive" }); return; }
+    if (validRows.some(row => row.sourcePriceEditable === false && !originalPriceIsUnchanged(row, editVrstaCen))) {
+      toast({
+        title: "Vir cene ni dovolj opredeljen",
+        description: "Nespremenjene uvožene vrednosti lahko ohranite, za spremembo cene pa sta potrebna znana osnova cene in obravnava popusta.",
+        variant: "destructive",
+      });
+      return;
+    }
     const sourceErrors = Object.fromEntries(validRows.flatMap(row => {
       const rowIndex = rows.indexOf(row);
       const article = nabavniArtikli.find(a => a.id === row.artikelId);
@@ -2040,38 +2267,36 @@ function EditPrejemnicaDialog({
           })),
         vrstaCen: editVrstaCen,
         postavke: validRows.map(r => {
-          const enot = parseDecimal(r.enotVPaketu) || 1;
-          const popustOdst = parseDecimal(r.popust) || 0;
-          const popustF = 1 - popustOdst / 100;
+          const article = nabavniArtikli.find(a => a.id === r.artikelId);
           const katalogCena = parseDecimal(r.cenaKos) || 0; // cena v formi = katalog (pred popustom)
-          const cenaNaEnoto = (enot > 1 ? katalogCena / enot : katalogCena) * popustF;
-          const ddvStopnja = efektivnaDdvStopnja(
-            r.ddvStopnja,
-            nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
-          );
-          const kolicina = parseDecimal(r.kolicina) * enot;
-          const shranjenaCena = konvertirajCeno(
-            cenaNaEnoto,
-            ddvStopnja,
-            editVrstaCen,
-            jeDdvZavezanec,
-          );
-          const netoCena = jeDdvZavezanec
-            ? shranjenaCena
-            : (ddvStopnja ? shranjenaCena / (1 + ddvStopnja / 100) : shranjenaCena);
-          const ddvOsnova = netoCena * kolicina;
+          const receipt = preračunajPrejemnico(r, article, editVrstaCen, jeDdvZavezanec);
+          const { enot, kolicina, shranjenaCena, ddvStopnja, ddvOsnova } = receipt;
+          const [popustOdst, popust2Odst] = razcleniPopust(r.popust);
+          const pricePayload = buildReceiptPricePayload(r, editVrstaCen, {
+            netAmount: ddvOsnova,
+            vatAmount: ddvOsnova * ddvStopnja / 100,
+            stockQuantity: kolicina,
+            stockUnitPrice: shranjenaCena,
+            sourcePrice: katalogCena,
+            discount1: popustOdst,
+            discount2: popust2Odst,
+          });
           return {
             id: r.id,
             artikelId: r.artikelId,
-            kolicina,
-            cenaKos: shranjenaCena,
+            kolicina: pricePayload.kolicina,
+            cenaKos: pricePayload.cenaKos,
             ddvStopnja,
-            ddvOsnova,
-            ddvZnesek: ddvOsnova * ddvStopnja / 100,
+            ddvOsnova: pricePayload.ddvOsnova,
+            ddvZnesek: pricePayload.ddvZnesek,
+            skupaj: pricePayload.skupaj,
             vrsticaTip: "zaloga" as const,
             enotVPaketu: enot,
-            izvCena: katalogCena,   // katalog cena (pred popustom) — za prikaz na prejemnici
-            rabat1Odst: popustOdst, // shrani popust za rekonstrukcijo prikaza
+            izvCena: pricePayload.izvCena,
+            izvCenaVrsta: pricePayload.izvCenaVrsta,
+            rabatVkljucenVCeni: pricePayload.rabatVkljucenVCeni,
+            rabat1Odst: pricePayload.rabat1Odst,
+            rabat2Odst: pricePayload.rabat2Odst,
             alergeni: r.alergeni ?? [],
             alergeniSledi: r.alergeniSledi ?? [],
             alergeniStatus: r.alergeniStatus ?? "nepreverjeno",
@@ -2080,6 +2305,8 @@ function EditPrejemnicaDialog({
             alergeniDocumentId: r.alergeniDocumentId ?? null,
             izvNaziv: r.izvNaziv ?? null,
             izvEnota: r.izvEnota ?? null,
+            izvKolicina: receipt.izvornaKolicina,
+            ...payloadIzplenPrejemnice(r),
           };
         }),
       } as any,
@@ -2206,10 +2433,10 @@ function EditPrejemnicaDialog({
               <div className="flex rounded-md border overflow-hidden text-xs">
                 <button type="button"
                   className={`px-3 py-1.5 transition-colors ${editVrstaCen === "neto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                  onClick={() => setEditVrstaCen("neto")}>Neto (brez DDV)</button>
+                  onClick={() => changeEditPriceBasis("neto")}>Neto (brez DDV)</button>
                 <button type="button"
                   className={`px-3 py-1.5 border-l transition-colors ${editVrstaCen === "bruto" ? "bg-primary text-primary-foreground font-medium" : "bg-background hover:bg-muted"}`}
-                  onClick={() => setEditVrstaCen("bruto")}>Bruto (maloprodajne)</button>
+                  onClick={() => changeEditPriceBasis("bruto")}>Bruto (maloprodajne)</button>
               </div>
             </div>
             <div className="space-y-2">
@@ -2328,6 +2555,7 @@ function EditPrejemnicaDialog({
                         <DecimalInput value={row.cenaKos}
                           placeholder={row.enotVPaketu ? "Cena/paket" : (editVrstaCen === "neto" ? "Cena brez DDV" : "Maloprodajna cena")}
                           onChange={e => updateRow(i, "cenaKos", e.target.value)}
+                          disabled={row.sourcePriceEditable === false}
                           ref={el => { if (el) editCenaInputRefs.current.set(i, el as any); else editCenaInputRefs.current.delete(i); }}
                           onKeyDown={e => {
                             if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "cena", "right"); }
@@ -2336,6 +2564,11 @@ function EditPrejemnicaDialog({
                             else if (e.key === "ArrowDown") { e.preventDefault(); navEdit(i, "cena", "down"); }
                           }}
                           className="w-28" />
+                        {row.sourcePriceEditable === false && (
+                          <span className="max-w-28 text-[10px] leading-tight text-destructive">
+                            Uvožena osnova cene/popusta ni dovolj znana za varno spremembo.
+                          </span>
+                        )}
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.cenaKos) > 0 && (
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             = {fmt(parseDecimal(row.cenaKos) / (parseDecimal(row.enotVPaketu) || 1))} €/enoto
@@ -2349,6 +2582,7 @@ function EditPrejemnicaDialog({
                           value={row.popust}
                           placeholder="Popust %"
                           onChange={e => updateRow(i, "popust", e.target.value)}
+                          disabled={row.sourcePriceEditable === false || row.rabatVkljucenVCeni === true}
                           onKeyDown={e => {
                             if (e.key === "Enter") { e.preventDefault(); editDodajRef.current?.focus(); return; }
                             if (e.key === "ArrowRight") { e.preventDefault(); navEdit(i, "popust", "right"); }
@@ -2360,6 +2594,13 @@ function EditPrejemnicaDialog({
                         {parseDecimal(row.popust) > 0 && (
                           <span className="text-xs text-muted-foreground">%</span>
                         )}
+                        {row.rabatVkljucenVCeni === true
+                          && ((row.originalPriceSnapshot?.discount1 ?? 0) > 0
+                            || (row.originalPriceSnapshot?.discount2 ?? 0) > 0) && (
+                            <span className="max-w-20 text-[10px] leading-tight text-muted-foreground">
+                              Popust je že vključen v ceno
+                            </span>
+                          )}
                       </div>
                       <DecimalInput
                         value={row.ddvStopnja}
@@ -2418,6 +2659,37 @@ function EditPrejemnicaDialog({
                       error={sourceLineErrors[i]}
                       id={`edit-${row.id ?? i}`}
                       onChange={(field, value) => updateRow(i, field, value)}
+                    />
+                    <MassYieldFields
+                      key={`edit-mass-${row.id ?? i}`}
+                      value={massYieldZaPrejemnico(row, selectedArtikel)}
+                      onChange={next => {
+                        const current = massYieldZaPrejemnico(row, selectedArtikel);
+                        if (next.brutoTezaG !== current.brutoTezaG) {
+                          updateRow(i, "brutoTezaG", next.brutoTezaG);
+                          updateRow(i, "brutoTezaGTouched", true);
+                        }
+                        if (next.netoTezaG !== current.netoTezaG) {
+                          updateRow(i, "netoTezaG", next.netoTezaG);
+                          updateRow(i, "netoTezaGTouched", true);
+                        }
+                        if (next.netoDelezOdst !== current.netoDelezOdst) {
+                          updateRow(i, "netoDelezOdst", next.netoDelezOdst);
+                          updateRow(i, "netoDelezOdstTouched", true);
+                        }
+                      }}
+                      sourceUnit={row.izvEnota ?? ""}
+                      baseUnit={selectedArtikel?.enotaMere}
+                      quantity={izracunajIzvornoKolicinoZaloge(row, selectedArtikel?.enotaMere, selectedArtikel)
+                        ?? parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1)}
+                      lineValue={izracunajVrednostPostavke(row)}
+                      priceMode={editVrstaCen}
+                      taxRate={efektivnaDdvStopnja(row.ddvStopnja, selectedArtikel?.davek ?? 0)}
+                      buyerVatRegistered={jeDdvZavezanec}
+                      autoOpen={["kg", "kgm"].includes(selectedArtikel?.enotaMere?.trim().toLowerCase() ?? "")}
+                      purchaseQuantity={row.izvKolicina ?? ""}
+                      onPurchaseQuantityChange={value => updateRow(i, "izvKolicina", value)}
+                      onPurchaseUnitChange={value => updateRow(i, "izvEnota", value)}
                     />
                     {editNovArtikelRowIdx === i && (
                       <NovArtikelKartica
@@ -3116,7 +3388,11 @@ export default function Zaloge() {
     setPrejDialogOpen(true);
   };
   const handleSavePrejemnica = () => {
-    const validRows = prejRows.filter(r => r.artikelId > 0 && r.kolicina !== "");
+    const validRows = prejRows.filter(r => {
+      if (r.artikelId <= 0) return false;
+      const article = nabavniArtikli.find(a => a.id === r.artikelId);
+      return r.kolicina !== "" || izracunajIzvornoKolicinoZaloge(r, article?.enotaMere, article) != null;
+    });
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
     const sourceErrors = Object.fromEntries(validRows.flatMap(row => {
       const rowIndex = prejRows.indexOf(row);
@@ -3159,28 +3435,14 @@ export default function Zaloge() {
           })),
         vrstaCen,
         postavke: validRows.map(r => {
-          const enot = parseDecimal(r.enotVPaketu) || 1;
-          const popustOdst = parseDecimal(r.popust) || 0;
-          const popustF = 1 - popustOdst / 100;
-          const kolicinaPaketov = parseDecimal(r.kolicina);
+          const article = nabavniArtikli.find(a => a.id === r.artikelId);
           const katalogCena = parseDecimal(r.cenaKos) || 0; // cena v formi = katalog (pred popustom)
-          const ddvStopnja = efektivnaDdvStopnja(
-            r.ddvStopnja,
-            nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
-          );
-          const shranjenaCena = konvertirajCeno(
-            (enot > 1 ? katalogCena / enot : katalogCena) * popustF,
-            ddvStopnja,
-            vrstaCen,
-            jeDdvZavezanec,
-          );
-          const netoCena = jeDdvZavezanec
-            ? shranjenaCena
-            : (ddvStopnja ? shranjenaCena / (1 + ddvStopnja / 100) : shranjenaCena);
-          const ddvOsnova = kolicinaPaketov * enot * netoCena;
+          const receipt = preračunajPrejemnico(r, article, vrstaCen, jeDdvZavezanec);
+          const { enot, kolicina, shranjenaCena, ddvStopnja, ddvOsnova } = receipt;
+          const [popustOdst, popust2Odst] = razcleniPopust(r.popust);
           return {
             artikelId: r.artikelId,
-            kolicina: kolicinaPaketov * enot,
+            kolicina,
             cenaKos: shranjenaCena,
             ddvStopnja,
             ddvOsnova,
@@ -3188,7 +3450,10 @@ export default function Zaloge() {
             vrsticaTip: "zaloga" as const,
             enotVPaketu: enot,
             izvCena: katalogCena,
+            izvCenaVrsta: vrstaCen,
+            rabatVkljucenVCeni: false,
             rabat1Odst: popustOdst,
+            rabat2Odst: popust2Odst,
             alergeni: r.alergeni ?? [],
             alergeniSledi: r.alergeniSledi ?? [],
             alergeniStatus: r.alergeniStatus ?? "nepreverjeno",
@@ -3197,6 +3462,8 @@ export default function Zaloge() {
             alergeniDocumentId: r.alergeniDocumentId ?? null,
             izvNaziv: r.izvNaziv?.trim() || null,
             izvEnota: r.izvEnota?.trim() || null,
+            izvKolicina: receipt.izvornaKolicina,
+            ...payloadIzplenPrejemnice(r),
           };
         }),
       } as any,
@@ -4503,6 +4770,37 @@ export default function Zaloge() {
                       id={`new-${i}`}
                       onChange={(field, value) => updatePrejRow(i, field, value)}
                     />
+                    <MassYieldFields
+                      key={`new-mass-${i}`}
+                      value={massYieldZaPrejemnico(row, selectedArtikel)}
+                      onChange={next => {
+                        const current = massYieldZaPrejemnico(row, selectedArtikel);
+                        if (next.brutoTezaG !== current.brutoTezaG) {
+                          updatePrejRow(i, "brutoTezaG", next.brutoTezaG);
+                          updatePrejRow(i, "brutoTezaGTouched", true);
+                        }
+                        if (next.netoTezaG !== current.netoTezaG) {
+                          updatePrejRow(i, "netoTezaG", next.netoTezaG);
+                          updatePrejRow(i, "netoTezaGTouched", true);
+                        }
+                        if (next.netoDelezOdst !== current.netoDelezOdst) {
+                          updatePrejRow(i, "netoDelezOdst", next.netoDelezOdst);
+                          updatePrejRow(i, "netoDelezOdstTouched", true);
+                        }
+                      }}
+                      sourceUnit={row.izvEnota ?? ""}
+                      baseUnit={selectedArtikel?.enotaMere}
+                      quantity={izracunajIzvornoKolicinoZaloge(row, selectedArtikel?.enotaMere, selectedArtikel)
+                        ?? parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1)}
+                      lineValue={izracunajVrednostPostavke(row)}
+                      priceMode={vrstaCen}
+                      taxRate={efektivnaDdvStopnja(row.ddvStopnja, selectedArtikel?.davek ?? 0)}
+                      buyerVatRegistered={jeDdvZavezanec}
+                      autoOpen={["kg", "kgm"].includes(selectedArtikel?.enotaMere?.trim().toLowerCase() ?? "")}
+                      purchaseQuantity={row.izvKolicina ?? ""}
+                      onPurchaseQuantityChange={value => updatePrejRow(i, "izvKolicina", value)}
+                      onPurchaseUnitChange={value => updatePrejRow(i, "izvEnota", value)}
+                    />
                     {novArtikelRowIdx === i && (
                       <NovArtikelKartica
                         imePredlog={dropdownFilter}
@@ -4528,20 +4826,20 @@ export default function Zaloge() {
                 <Plus className="w-4 h-4 mr-1" />Dodaj postavko
               </Button>
               <OdvisniStroskiEditor value={prejOdvisniStroski} onChange={setPrejOdvisniStroski} />
-              {prejRows.some(r => r.kolicina && r.cenaKos) && (() => {
+              {prejRows.some(r => (r.kolicina || r.izvKolicina) && r.cenaKos) && (() => {
                 const totals = prejRows.reduce((acc, r) => {
-                  const enot = parseDecimal(r.enotVPaketu) || 1;
-                  const kol = (parseDecimal(r.kolicina) || 0) * enot;
-                  const vnos = parseDecimal(r.cenaKos) || 0;
-                  const cenaNaEnoto = enot > 1 ? vnos / enot : vnos;
-                  const davek = efektivnaDdvStopnja(
-                    r.ddvStopnja,
-                    nabavniArtikli.find(a => a.id === r.artikelId)?.davek ?? 0,
-                  );
-                  const shranjeno = konvertirajCeno(cenaNaEnoto, davek, vrstaCen, jeDdvZavezanec);
-                  const neto = jeDdvZavezanec ? shranjeno : (davek ? shranjeno / (1 + davek / 100) : shranjeno);
-                  const bruto = jeDdvZavezanec ? (davek ? shranjeno * (1 + davek / 100) : shranjeno) : shranjeno;
-                  return { neto: acc.neto + kol * neto, bruto: acc.bruto + kol * bruto };
+                  const article = nabavniArtikli.find(a => a.id === r.artikelId);
+                  const receipt = preračunajPrejemnico(r, article, vrstaCen, jeDdvZavezanec);
+                  const neto = jeDdvZavezanec
+                    ? receipt.shranjenaCena
+                    : (receipt.ddvStopnja ? receipt.shranjenaCena / (1 + receipt.ddvStopnja / 100) : receipt.shranjenaCena);
+                  const bruto = jeDdvZavezanec
+                    ? (receipt.ddvStopnja ? receipt.shranjenaCena * (1 + receipt.ddvStopnja / 100) : receipt.shranjenaCena)
+                    : receipt.shranjenaCena;
+                  return {
+                    neto: acc.neto + receipt.kolicina * neto,
+                    bruto: acc.bruto + receipt.kolicina * bruto,
+                  };
                 }, { neto: 0, bruto: 0 });
                 return (
                   <div className="text-sm text-muted-foreground text-right space-y-0.5">
@@ -4643,6 +4941,7 @@ export default function Zaloge() {
         }}
         nabavniArtikli={nabavniArtikli}
         dobaviteljiMap={dobaviteljiMap}
+        jeDdvZavezanec={jeDdvZavezanec}
       />
 
       {/* ── Prejemnica edit dialog ────────────────────────────────────── */}

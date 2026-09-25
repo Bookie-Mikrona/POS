@@ -380,6 +380,21 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["223-company-offboarding-cases.sql"],
   },
+  {
+    file: "225-pizza-dough-settings.sql",
+    classification: "schema",
+    dependsOn: ["224-generic-purchase-articles.sql"],
+  },
+  {
+    file: "226-pos-drained-yield.sql",
+    classification: "schema",
+    dependsOn: ["225-pizza-dough-settings.sql"],
+  },
+  {
+    file: "227-pos-source-price-semantics.sql",
+    classification: "schema",
+    dependsOn: ["226-pos-drained-yield.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

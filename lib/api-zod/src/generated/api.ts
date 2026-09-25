@@ -863,6 +863,9 @@ export const ListArtikliResponseItem = zod.object({
   "depozitnaVrednost": zod.number().min(listArtikliResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
   "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "brutoTezaG": zod.number().nullish().describe('Declared contents mass excluding packaging, in grams'),
+  "netoTezaG": zod.number().nullish().describe('Usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.number().nullish().describe('Drained mass percentage, derived as 100 × netoTezaG \/ brutoTezaG'),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -919,6 +922,13 @@ export const createArtikelBodyOneHappyHourCenaMalaMin = 0;
 
 export const createArtikelBodyOneHappyHourCenaDruzinskaMin = 0;
 
+export const createArtikelBodyOneBrutoTezaGMin = 0;
+
+export const createArtikelBodyOneNetoTezaGMin = 0;
+
+export const createArtikelBodyOneNetoDelezOdstMin = 0;
+export const createArtikelBodyOneNetoDelezOdstMax = 100;
+
 
 
 export const CreateArtikelBody = zod.object({
@@ -954,6 +964,9 @@ export const CreateArtikelBody = zod.object({
   "vrstaArtikla": zod.enum(['blago', 'material', 'storitev']).optional().describe('Računovodska vrsta artikla; pri samo nabavnem novem artiklu je privzeto material'),
   "imeZaNabavo": zod.string().nullish(),
   "enotaMere": zod.string().nullish(),
+  "brutoTezaG": zod.number().min(createArtikelBodyOneBrutoTezaGMin).nullish(),
+  "netoTezaG": zod.number().min(createArtikelBodyOneNetoTezaGMin).nullish(),
+  "netoDelezOdst": zod.number().min(createArtikelBodyOneNetoDelezOdstMin).max(createArtikelBodyOneNetoDelezOdstMax).nullish(),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -1026,6 +1039,9 @@ export const CreateArtikelResponse = zod.object({
   "depozitnaVrednost": zod.number().min(createArtikelResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
   "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "brutoTezaG": zod.number().nullish().describe('Declared contents mass excluding packaging, in grams'),
+  "netoTezaG": zod.number().nullish().describe('Usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.number().nullish().describe('Drained mass percentage, derived as 100 × netoTezaG \/ brutoTezaG'),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -1174,6 +1190,9 @@ export const GenerateArtikelImageResponse = zod.object({
   "depozitnaVrednost": zod.number().min(generateArtikelImageResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
   "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "brutoTezaG": zod.number().nullish().describe('Declared contents mass excluding packaging, in grams'),
+  "netoTezaG": zod.number().nullish().describe('Usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.number().nullish().describe('Drained mass percentage, derived as 100 × netoTezaG \/ brutoTezaG'),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -1271,6 +1290,9 @@ export const UploadArtikelImageResponse = zod.object({
   "depozitnaVrednost": zod.number().min(uploadArtikelImageResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
   "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "brutoTezaG": zod.number().nullish().describe('Declared contents mass excluding packaging, in grams'),
+  "netoTezaG": zod.number().nullish().describe('Usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.number().nullish().describe('Drained mass percentage, derived as 100 × netoTezaG \/ brutoTezaG'),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -1361,6 +1383,9 @@ export const GetArtikelResponse = zod.object({
   "depozitnaVrednost": zod.number().min(getArtikelResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
   "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "brutoTezaG": zod.number().nullish().describe('Declared contents mass excluding packaging, in grams'),
+  "netoTezaG": zod.number().nullish().describe('Usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.number().nullish().describe('Drained mass percentage, derived as 100 × netoTezaG \/ brutoTezaG'),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -1417,6 +1442,13 @@ export const updateArtikelBodyOneHappyHourCenaMalaMin = 0;
 
 export const updateArtikelBodyOneHappyHourCenaDruzinskaMin = 0;
 
+export const updateArtikelBodyOneBrutoTezaGMin = 0;
+
+export const updateArtikelBodyOneNetoTezaGMin = 0;
+
+export const updateArtikelBodyOneNetoDelezOdstMin = 0;
+export const updateArtikelBodyOneNetoDelezOdstMax = 100;
+
 
 
 
@@ -1453,6 +1485,9 @@ export const UpdateArtikelBody = zod.object({
   "vrstaArtikla": zod.enum(['blago', 'material', 'storitev']).optional().describe('Računovodska vrsta artikla; pri samo nabavnem novem artiklu je privzeto material'),
   "imeZaNabavo": zod.string().nullish(),
   "enotaMere": zod.string().nullish(),
+  "brutoTezaG": zod.number().min(updateArtikelBodyOneBrutoTezaGMin).nullish(),
+  "netoTezaG": zod.number().min(updateArtikelBodyOneNetoTezaGMin).nullish(),
+  "netoDelezOdst": zod.number().min(updateArtikelBodyOneNetoDelezOdstMin).max(updateArtikelBodyOneNetoDelezOdstMax).nullish(),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -1528,6 +1563,9 @@ export const UpdateArtikelResponse = zod.object({
   "depozitnaVrednost": zod.number().min(updateArtikelResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
   "enotaMere": zod.string().nullish().describe('Enota mere po Eslog\/UNECE (npr. LTR, KOM, KGM)'),
+  "brutoTezaG": zod.number().nullish().describe('Declared contents mass excluding packaging, in grams'),
+  "netoTezaG": zod.number().nullish().describe('Usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.number().nullish().describe('Drained mass percentage, derived as 100 × netoTezaG \/ brutoTezaG'),
   "jePica": zod.boolean().optional().describe('Ali artikel spada med pice (za bon za pico)'),
   "jeDodatekZaPico": zod.boolean().optional().describe('Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator'),
   "privzetiDodatki": zod.array(zod.number()).optional().describe('Seznam ID-jev privzetih modifikatorjev — nazajskladnost; rajši uporabi privzetiModifikatorji'),
@@ -9522,7 +9560,7 @@ export const ListPrejemniceResponseItem = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
-  "skupajVrednost": zod.number(),
+  "skupajVrednost": zod.number().describe('Sum of receipt-line inventory costs; nonrecoverable VAT is capitalized.'),
   "valuta": zod.string().optional(),
   "datumZapadlosti": zod.coerce.date().nullish(),
   "ddvOsnova": zod.number().nullish(),
@@ -9539,6 +9577,13 @@ export const ListPrejemniceResponse = zod.array(ListPrejemniceResponseItem)
 export const createPrejemnicaBodyValutaMin = 3;
 export const createPrejemnicaBodyValutaMax = 3;
 
+
+export const createPrejemnicaBodyPostavkeItemBrutoTezaGMin = 0;
+
+export const createPrejemnicaBodyPostavkeItemNetoTezaGMin = 0;
+
+export const createPrejemnicaBodyPostavkeItemNetoDelezOdstMin = 0;
+export const createPrejemnicaBodyPostavkeItemNetoDelezOdstMax = 100;
 
 
 
@@ -9568,6 +9613,18 @@ export const CreatePrejemnicaBody = zod.object({
   "alergeniVerifiedAt": zod.coerce.date().nullish(),
   "kolicina": zod.number(),
   "cenaKos": zod.number().optional(),
+  "izvKolicina": zod.number().nullish().describe('Original purchased quantity before drained-yield conversion'),
+  "izvCena": zod.number().nullish().describe('Original purchase unit price before drained-yield conversion'),
+  "izvCenaVrsta": zod.union([zod.literal('neto'),zod.literal('bruto'),zod.literal(null)]).nullish().describe('Original source price basis; null on legacy lines with unknown semantics'),
+  "rabatVkljucenVCeni": zod.boolean().nullish().describe('Whether the original source unit price already includes its recorded discounts'),
+  "rabat1Odst": zod.number().optional().describe('First source line discount percentage'),
+  "rabat2Odst": zod.number().optional().describe('Second source line discount percentage'),
+  "izvEnota": zod.string().nullish().describe('Original purchase unit, used to validate drained-yield conversion'),
+  "skupaj": zod.number().nullish().describe('Full source invoice line amount before drained conversion (gross when\nvrstaCen is bruto, net when vrstaCen is neto). The stored `skupaj` stock\ncost includes nonrecoverable VAT and excludes recoverable VAT.\n'),
+  "drainedYieldAction": zod.enum(['inherit', 'set', 'clear']).optional().describe('Omitted\/null mass fields preserve the prior snapshot or inherit article defaults.\n`inherit` explicitly resets to article defaults, `set` uses the supplied snapshot,\nand `clear` disables yield only when purchase and stock units match.\n'),
+  "brutoTezaG": zod.number().min(createPrejemnicaBodyPostavkeItemBrutoTezaGMin).nullish(),
+  "netoTezaG": zod.number().min(createPrejemnicaBodyPostavkeItemNetoTezaGMin).nullish(),
+  "netoDelezOdst": zod.number().min(createPrejemnicaBodyPostavkeItemNetoDelezOdstMin).max(createPrejemnicaBodyPostavkeItemNetoDelezOdstMax).nullish(),
   "ddvStopnja": zod.number().nullish(),
   "ddvOsnova": zod.number().nullish(),
   "ddvZnesek": zod.number().nullish(),
@@ -9596,7 +9653,17 @@ export const CreatePrejemnicaResponse = zod.object({
   "enotaMere": zod.string().nullish(),
   "kolicina": zod.number(),
   "cenaKos": zod.number(),
-  "skupaj": zod.number(),
+  "skupaj": zod.number().describe('Inventory cost for the line; nonrecoverable VAT is included.'),
+  "izvKolicina": zod.number().nullish().describe('Original purchased quantity before drained-yield conversion'),
+  "izvCena": zod.number().nullish().describe('Original purchase unit price before drained-yield conversion'),
+  "izvCenaVrsta": zod.union([zod.literal('neto'),zod.literal('bruto'),zod.literal(null)]).nullish().describe('Original source price basis; null on legacy lines with unknown semantics'),
+  "rabatVkljucenVCeni": zod.boolean().nullish().describe('Whether the original source unit price already includes its recorded discounts'),
+  "rabat1Odst": zod.number().optional().describe('First source line discount percentage'),
+  "rabat2Odst": zod.number().optional().describe('Second source line discount percentage'),
+  "izvEnota": zod.string().nullish().describe('Original purchase unit'),
+  "brutoTezaG": zod.number().nullish().describe('Per-receipt-line snapshot of declared contents mass excluding packaging'),
+  "netoTezaG": zod.number().nullish().describe('Per-receipt-line snapshot of usable drained mass per package'),
+  "netoDelezOdst": zod.number().nullish().describe('Per-receipt-line snapshot of drained mass percentage'),
   "ddvStopnja": zod.number().nullish(),
   "ddvOsnova": zod.number().nullish(),
   "ddvZnesek": zod.number().nullish(),
@@ -9620,6 +9687,48 @@ export const CreatePrejemnicaResponse = zod.object({
   "ddvStopnja": zod.number().nullish(),
   "obravnava": zod.enum(['zaloga', 'strosek'])
 })).optional()
+})
+
+
+/**
+ * @summary Ročno uparjanje uvožene prejemnice
+ */
+export const MatchImportedReceiptLineParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const matchImportedReceiptLineBodyEnotVPaketuDefault = `1`;
+export const matchImportedReceiptLineBodyZapomniDefault = true;
+export const matchImportedReceiptLineBodyVrsticaTipDefault = `zaloga`;
+export const matchImportedReceiptLineBodyBrutoTezaGMinOne = 0;
+
+export const matchImportedReceiptLineBodyBrutoTezaGMinTwo = 0;
+
+export const matchImportedReceiptLineBodyNetoTezaGMinOne = 0;
+
+export const matchImportedReceiptLineBodyNetoTezaGMinTwo = 0;
+
+export const matchImportedReceiptLineBodyNetoDelezOdstMinOne = 0;
+export const matchImportedReceiptLineBodyNetoDelezOdstMaxOne = 100;
+
+export const matchImportedReceiptLineBodyNetoDelezOdstMinTwo = 0;
+export const matchImportedReceiptLineBodyNetoDelezOdstMaxTwo = 100;
+
+
+
+export const MatchImportedReceiptLineBody = zod.object({
+  "artikelId": zod.number().nullish(),
+  "enotVPaketu": zod.union([zod.string(),zod.number()]).default(matchImportedReceiptLineBodyEnotVPaketuDefault),
+  "zapomni": zod.boolean().default(matchImportedReceiptLineBodyZapomniDefault),
+  "vrsticaTip": zod.enum(['zaloga', 'poraba_surovin', 'prevoz']).default(matchImportedReceiptLineBodyVrsticaTipDefault),
+  "brutoTezaG": zod.union([zod.number().min(matchImportedReceiptLineBodyBrutoTezaGMinOne).describe('Manual override of article default declared contents mass, in grams'),zod.string().min(matchImportedReceiptLineBodyBrutoTezaGMinTwo).describe('Manual override of article default declared contents mass, in grams')]).nullish().describe('Manual override of article default declared contents mass, in grams'),
+  "netoTezaG": zod.union([zod.number().min(matchImportedReceiptLineBodyNetoTezaGMinOne).describe('Manual override of article default usable drained mass per package, in grams'),zod.string().min(matchImportedReceiptLineBodyNetoTezaGMinTwo).describe('Manual override of article default usable drained mass per package, in grams')]).nullish().describe('Manual override of article default usable drained mass per package, in grams'),
+  "netoDelezOdst": zod.union([zod.number().min(matchImportedReceiptLineBodyNetoDelezOdstMinOne).max(matchImportedReceiptLineBodyNetoDelezOdstMaxOne).describe('Manual override of article default drained yield percentage'),zod.string().min(matchImportedReceiptLineBodyNetoDelezOdstMinTwo).max(matchImportedReceiptLineBodyNetoDelezOdstMaxTwo).describe('Manual override of article default drained yield percentage')]).nullish().describe('Manual override of article default drained yield percentage'),
+  "drainedYieldAction": zod.enum(['inherit', 'set', 'clear']).optional().describe('Omitted\/null mass fields inherit the existing snapshot or article defaults.\n`inherit` explicitly resets to article defaults, `set` snapshots supplied\nfields, and `clear` disables yield only when purchase and stock units match.\n')
+})
+
+export const MatchImportedReceiptLineResponse = zod.object({
+  "status": zod.literal("UPARJENO").optional()
 })
 
 
@@ -9650,7 +9759,17 @@ export const GetPrejemnicaResponse = zod.object({
   "enotaMere": zod.string().nullish(),
   "kolicina": zod.number(),
   "cenaKos": zod.number(),
-  "skupaj": zod.number(),
+  "skupaj": zod.number().describe('Inventory cost for the line; nonrecoverable VAT is included.'),
+  "izvKolicina": zod.number().nullish().describe('Original purchased quantity before drained-yield conversion'),
+  "izvCena": zod.number().nullish().describe('Original purchase unit price before drained-yield conversion'),
+  "izvCenaVrsta": zod.union([zod.literal('neto'),zod.literal('bruto'),zod.literal(null)]).nullish().describe('Original source price basis; null on legacy lines with unknown semantics'),
+  "rabatVkljucenVCeni": zod.boolean().nullish().describe('Whether the original source unit price already includes its recorded discounts'),
+  "rabat1Odst": zod.number().optional().describe('First source line discount percentage'),
+  "rabat2Odst": zod.number().optional().describe('Second source line discount percentage'),
+  "izvEnota": zod.string().nullish().describe('Original purchase unit'),
+  "brutoTezaG": zod.number().nullish().describe('Per-receipt-line snapshot of declared contents mass excluding packaging'),
+  "netoTezaG": zod.number().nullish().describe('Per-receipt-line snapshot of usable drained mass per package'),
+  "netoDelezOdst": zod.number().nullish().describe('Per-receipt-line snapshot of drained mass percentage'),
   "ddvStopnja": zod.number().nullish(),
   "ddvOsnova": zod.number().nullish(),
   "ddvZnesek": zod.number().nullish(),
@@ -9688,6 +9807,13 @@ export const updatePrejemnicaBodyValutaMin = 3;
 export const updatePrejemnicaBodyValutaMax = 3;
 
 
+export const updatePrejemnicaBodyPostavkeItemBrutoTezaGMin = 0;
+
+export const updatePrejemnicaBodyPostavkeItemNetoTezaGMin = 0;
+
+export const updatePrejemnicaBodyPostavkeItemNetoDelezOdstMin = 0;
+export const updatePrejemnicaBodyPostavkeItemNetoDelezOdstMax = 100;
+
 
 
 export const UpdatePrejemnicaBody = zod.object({
@@ -9716,6 +9842,18 @@ export const UpdatePrejemnicaBody = zod.object({
   "alergeniVerifiedAt": zod.coerce.date().nullish(),
   "kolicina": zod.number(),
   "cenaKos": zod.number().optional(),
+  "izvKolicina": zod.number().nullish().describe('Original purchased quantity before drained-yield conversion'),
+  "izvCena": zod.number().nullish().describe('Original purchase unit price before drained-yield conversion'),
+  "izvCenaVrsta": zod.union([zod.literal('neto'),zod.literal('bruto'),zod.literal(null)]).nullish().describe('Original source price basis; null on legacy lines with unknown semantics'),
+  "rabatVkljucenVCeni": zod.boolean().nullish().describe('Whether the original source unit price already includes its recorded discounts'),
+  "rabat1Odst": zod.number().optional().describe('First source line discount percentage'),
+  "rabat2Odst": zod.number().optional().describe('Second source line discount percentage'),
+  "izvEnota": zod.string().nullish().describe('Original purchase unit, used to validate drained-yield conversion'),
+  "skupaj": zod.number().nullish().describe('Full source invoice line amount before drained conversion (gross when\nvrstaCen is bruto, net when vrstaCen is neto). The stored `skupaj` stock\ncost includes nonrecoverable VAT and excludes recoverable VAT.\n'),
+  "drainedYieldAction": zod.enum(['inherit', 'set', 'clear']).optional().describe('Omitted\/null mass fields preserve the prior snapshot or inherit article defaults.\n`inherit` explicitly resets to article defaults, `set` uses the supplied snapshot,\nand `clear` disables yield only when purchase and stock units match.\n'),
+  "brutoTezaG": zod.number().min(updatePrejemnicaBodyPostavkeItemBrutoTezaGMin).nullish(),
+  "netoTezaG": zod.number().min(updatePrejemnicaBodyPostavkeItemNetoTezaGMin).nullish(),
+  "netoDelezOdst": zod.number().min(updatePrejemnicaBodyPostavkeItemNetoDelezOdstMin).max(updatePrejemnicaBodyPostavkeItemNetoDelezOdstMax).nullish(),
   "ddvStopnja": zod.number().nullish(),
   "ddvOsnova": zod.number().nullish(),
   "ddvZnesek": zod.number().nullish(),
@@ -9744,7 +9882,17 @@ export const UpdatePrejemnicaResponse = zod.object({
   "enotaMere": zod.string().nullish(),
   "kolicina": zod.number(),
   "cenaKos": zod.number(),
-  "skupaj": zod.number(),
+  "skupaj": zod.number().describe('Inventory cost for the line; nonrecoverable VAT is included.'),
+  "izvKolicina": zod.number().nullish().describe('Original purchased quantity before drained-yield conversion'),
+  "izvCena": zod.number().nullish().describe('Original purchase unit price before drained-yield conversion'),
+  "izvCenaVrsta": zod.union([zod.literal('neto'),zod.literal('bruto'),zod.literal(null)]).nullish().describe('Original source price basis; null on legacy lines with unknown semantics'),
+  "rabatVkljucenVCeni": zod.boolean().nullish().describe('Whether the original source unit price already includes its recorded discounts'),
+  "rabat1Odst": zod.number().optional().describe('First source line discount percentage'),
+  "rabat2Odst": zod.number().optional().describe('Second source line discount percentage'),
+  "izvEnota": zod.string().nullish().describe('Original purchase unit'),
+  "brutoTezaG": zod.number().nullish().describe('Per-receipt-line snapshot of declared contents mass excluding packaging'),
+  "netoTezaG": zod.number().nullish().describe('Per-receipt-line snapshot of usable drained mass per package'),
+  "netoDelezOdst": zod.number().nullish().describe('Per-receipt-line snapshot of drained mass percentage'),
   "ddvStopnja": zod.number().nullish(),
   "ddvOsnova": zod.number().nullish(),
   "ddvZnesek": zod.number().nullish(),

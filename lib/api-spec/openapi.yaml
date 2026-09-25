@@ -5040,6 +5040,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PrejemnicaFull"
+  /pos/uvoz/postavke/{id}/upari:
+    post:
+      operationId: matchImportedReceiptLine
+      tags:
+        - prejemnice
+      summary: Ročno uparjanje uvožene prejemnice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UparjanjeUvoznePostavkeInput"
+      responses:
+        "200":
+          description: Postavka je uspešno uparjena
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    const: UPARJENO
+        "400":
+          description: Neveljaven podatek ali nepodprta enota
+        "404":
+          description: Postavka ali ciljni artikel ne obstaja
   /prejemnice/{id}:
     get:
       operationId: getPrejemnica
@@ -11066,6 +11099,43 @@ components:
       properties:
         koda: { $ref: "#/components/schemas/AlergenKoda" }
         naziv: { type: string }
+    UparjanjeUvoznePostavkeInput:
+      type: object
+      properties:
+        artikelId:
+          type: [integer, "null"]
+        enotVPaketu:
+          oneOf:
+            - type: string
+            - type: number
+          default: "1"
+        zapomni:
+          type: boolean
+          default: true
+        vrsticaTip:
+          type: string
+          enum: [zaloga, poraba_surovin, prevoz]
+          default: zaloga
+        brutoTezaG:
+          type: [number, string, "null"]
+          minimum: 0
+          description: Manual override of article default declared contents mass, in grams
+        netoTezaG:
+          type: [number, string, "null"]
+          minimum: 0
+          description: Manual override of article default usable drained mass per package, in grams
+        netoDelezOdst:
+          type: [number, string, "null"]
+          minimum: 0
+          maximum: 100
+          description: Manual override of article default drained yield percentage
+        drainedYieldAction:
+          type: string
+          enum: [inherit, set, clear]
+          description: |
+            Omitted/null mass fields inherit the existing snapshot or article defaults.
+            `inherit` explicitly resets to article defaults, `set` snapshots supplied
+            fields, and `clear` disables yield only when purchase and stock units match.
     Artikel:
       type: object
       required:
@@ -11210,6 +11280,15 @@ components:
             - string
             - "null"
           description: Enota mere po Eslog/UNECE (npr. LTR, KOM, KGM)
+        brutoTezaG:
+          type: [number, "null"]
+          description: Declared contents mass excluding packaging, in grams
+        netoTezaG:
+          type: [number, "null"]
+          description: Usable drained mass per package, in grams
+        netoDelezOdst:
+          type: [number, "null"]
+          description: Drained mass percentage, derived as 100 × netoTezaG / brutoTezaG
         jePica:
           type: boolean
           description: Ali artikel spada med pice (za bon za pico)
@@ -11373,6 +11452,16 @@ components:
           type:
             - string
             - "null"
+        brutoTezaG:
+          type: [number, "null"]
+          minimum: 0
+        netoTezaG:
+          type: [number, "null"]
+          minimum: 0
+        netoDelezOdst:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 100
         jePica:
           type: boolean
           description: Ali artikel spada med pice (za bon za pico)
@@ -16800,6 +16889,7 @@ components:
             - "null"
         skupajVrednost:
           type: number
+          description: Sum of receipt-line inventory costs; nonrecoverable VAT is capitalized.
         valuta:
           type: string
         datumZapadlosti:
@@ -16852,6 +16942,38 @@ components:
           type: number
         skupaj:
           type: number
+          description: Inventory cost for the line; nonrecoverable VAT is included.
+        izvKolicina:
+          type: [number, "null"]
+          description: Original purchased quantity before drained-yield conversion
+        izvCena:
+          type: [number, "null"]
+          description: Original purchase unit price before drained-yield conversion
+        izvCenaVrsta:
+          type: [string, "null"]
+          enum: [neto, bruto, null]
+          description: Original source price basis; null on legacy lines with unknown semantics
+        rabatVkljucenVCeni:
+          type: [boolean, "null"]
+          description: Whether the original source unit price already includes its recorded discounts
+        rabat1Odst:
+          type: number
+          description: First source line discount percentage
+        rabat2Odst:
+          type: number
+          description: Second source line discount percentage
+        izvEnota:
+          type: [string, "null"]
+          description: Original purchase unit
+        brutoTezaG:
+          type: [number, "null"]
+          description: Per-receipt-line snapshot of declared contents mass excluding packaging
+        netoTezaG:
+          type: [number, "null"]
+          description: Per-receipt-line snapshot of usable drained mass per package
+        netoDelezOdst:
+          type: [number, "null"]
+          description: Per-receipt-line snapshot of drained mass percentage
         ddvStopnja:
           type:
             - number
@@ -17024,6 +17146,51 @@ components:
           type: number
         cenaKos:
           type: number
+        izvKolicina:
+          type: [number, "null"]
+          description: Original purchased quantity before drained-yield conversion
+        izvCena:
+          type: [number, "null"]
+          description: Original purchase unit price before drained-yield conversion
+        izvCenaVrsta:
+          type: [string, "null"]
+          enum: [neto, bruto, null]
+          description: Original source price basis; null on legacy lines with unknown semantics
+        rabatVkljucenVCeni:
+          type: [boolean, "null"]
+          description: Whether the original source unit price already includes its recorded discounts
+        rabat1Odst:
+          type: number
+          description: First source line discount percentage
+        rabat2Odst:
+          type: number
+          description: Second source line discount percentage
+        izvEnota:
+          type: [string, "null"]
+          description: Original purchase unit, used to validate drained-yield conversion
+        skupaj:
+          type: [number, "null"]
+          description: |
+            Full source invoice line amount before drained conversion (gross when
+            vrstaCen is bruto, net when vrstaCen is neto). The stored `skupaj` stock
+            cost includes nonrecoverable VAT and excludes recoverable VAT.
+        drainedYieldAction:
+          type: string
+          enum: [inherit, set, clear]
+          description: |
+            Omitted/null mass fields preserve the prior snapshot or inherit article defaults.
+            `inherit` explicitly resets to article defaults, `set` uses the supplied snapshot,
+            and `clear` disables yield only when purchase and stock units match.
+        brutoTezaG:
+          type: [number, "null"]
+          minimum: 0
+        netoTezaG:
+          type: [number, "null"]
+          minimum: 0
+        netoDelezOdst:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 100
         ddvStopnja:
           type:
             - number

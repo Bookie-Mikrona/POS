@@ -1,0 +1,52 @@
+kolikšno je povprečno razmerje v % med bruto in neto težo pri vložninah (vložene kumarice v kozarcih, kuhan fižol v konzervi, itd), ki jih gostinec kupi v veleprodaji? razmerje potrebujem za vnos v normative, osnova je tudi za preračun cene na zalogi. kupim 10 kozarcev vloženih kislih kumaric (bruto teža npr. 680g) po 5€/kozarec. v zalogo gre 10 x 480g (neto) po preračunani ceni 480/680 * 5.
+
+Pri izračunu nabavne cene in vnosa v normative morate biti izjemno previdni, saj primer v vašem vprašanju vsebuje pogosto računovodsko napako, ki lahko popači materialno knjigovodstvo.
+
+1. Popravek vaše formule za preračun cene
+Če kupite kozarec za 5,00 €, v katerem je 480 g uporabne vsebine (neto odcejene mase), ste celotnih 5,00 € plačali za tistih 480 g plodov (saj tekočino zavržete). Nabavna vrednost celotnega kozarca (5,00 €) se mora v celoti prenesti na neto odcejeno maso.
+
+Napačno:  
+680
+480
+​
+ ×5,00 €=3,53 € na kozarec (s tem bi »izgubili« 1,47 € stroška na kozarec!)
+
+Pravilno:
+
+Celotna vrednost kozarca = 5,00 €
+
+Vnesena količina na zalogo = 0,480 kg
+
+Preračunana cena na kg:  
+0,480 kg
+5,00 €
+​
+ =10,42 € / kg
+
+V zalogo torej vnesete: 10×0,480 kg=4,80 kg po ceni 10,42 €/kg (Skupna nabavna vrednost = 50,00 €).
+
+2. Povprečna razmerja med neto odcejeno maso in skupno neto težo (v %)
+V gostinski veleprodaji (večja pakiranja / HORECA) je delež odcejene mase predpisan s standardi in se giblje med 50% in 60% skupne neto teže polnitve.
+
+Vrsta vložnine / konzerve	Tipična embalaža (HORECA / Retail)	Skupna neto teža	Neto odcejena masa (plod)	Povprečni delež plodu (%)
+Kisle kumarice	Kozarec 720 ml/2500 ml	670 g/2300 g	350 g/1300 g	52%–56%
+Fižol v konzervi	Pločevinka 800 g/2500 g/4000 g	800 g/2500 g/4000 g	480 g/1500 g/2400 g	60%
+Pasterizirana koruza	Pločevinka / Kozarec	340 g/2125 g	285 g/1775 g	80%–83% (izjema – manj tekočine)
+Vložene gobe / šampinjoni	Pločevinka 850 ml/2650 ml	800 g/2500 g	460 g/1380 g	55%–58%
+Vloženi feferoni / paprika	Kozarec 720 ml/2500 ml	650 g/2300 g	300 g/1100 g	46%–48%
+Oliven (brez koščic)	Pločevinka 900 g/4000 g	900 g/4000 g	450 g/2000 g	50%
+Pelati (celotni paradižniki)	Pločevinka 800 g/2500 g	800 g/2500 g	480 g/1500 g	60% (če se sok zavrže)
+3. Praktična pravila za vnos v gostinski POS/ERP program
+Osnova za normativ je vedno odcejeni plod: V normativ za sendvič, solato ali picerijo vedno vnašajte čisto maso plodu (npr. 0,030 kg kumaric ali 0,180 kg fižola).
+
+Enota mere naj bo vedno kg: Izogibajte se vnosu v enoti kos (kozarec/pločevinka), saj imajo različni dobavitelji različna pakiranja. Vse preračunajte na kg neto odcejene mase.
+
+Pravilna formula za vnos na prejemnici:
+
+Nabavna cena na kg= 
+Neto odcejena masa v kg
+Cena enega kosa (plo 
+c
+ˇ
+ evinke/kozarca)
+​

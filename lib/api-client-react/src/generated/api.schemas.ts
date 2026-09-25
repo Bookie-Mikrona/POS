@@ -1414,6 +1414,62 @@ export interface AlergenPovzetek {
   izvori: AlergenPovzetekIzvoriItem[];
 }
 
+export type UparjanjeUvoznePostavkeInputVrsticaTip = typeof UparjanjeUvoznePostavkeInputVrsticaTip[keyof typeof UparjanjeUvoznePostavkeInputVrsticaTip];
+
+
+export const UparjanjeUvoznePostavkeInputVrsticaTip = {
+  zaloga: 'zaloga',
+  poraba_surovin: 'poraba_surovin',
+  prevoz: 'prevoz',
+} as const;
+
+/**
+ * Omitted/null mass fields inherit the existing snapshot or article defaults.
+ * `inherit` explicitly resets to article defaults, `set` snapshots supplied
+ * fields, and `clear` disables yield only when purchase and stock units match.
+ */
+export type UparjanjeUvoznePostavkeInputDrainedYieldAction = typeof UparjanjeUvoznePostavkeInputDrainedYieldAction[keyof typeof UparjanjeUvoznePostavkeInputDrainedYieldAction];
+
+
+export const UparjanjeUvoznePostavkeInputDrainedYieldAction = {
+  inherit: 'inherit',
+  set: 'set',
+  clear: 'clear',
+} as const;
+
+export interface UparjanjeUvoznePostavkeInput {
+  /** @nullable */
+  artikelId?: number | null;
+  enotVPaketu?: string | number;
+  zapomni?: boolean;
+  vrsticaTip?: UparjanjeUvoznePostavkeInputVrsticaTip;
+  /**
+     * Manual override of article default declared contents mass, in grams
+     * @minimum 0
+     * @nullable
+     */
+  brutoTezaG?: number | string | null;
+  /**
+     * Manual override of article default usable drained mass per package, in grams
+     * @minimum 0
+     * @nullable
+     */
+  netoTezaG?: number | string | null;
+  /**
+     * Manual override of article default drained yield percentage
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  netoDelezOdst?: number | string | null;
+  /**
+     * Omitted/null mass fields inherit the existing snapshot or article defaults.
+     * `inherit` explicitly resets to article defaults, `set` snapshots supplied
+     * fields, and `clear` disables yield only when purchase and stock units match.
+     */
+  drainedYieldAction?: UparjanjeUvoznePostavkeInputDrainedYieldAction;
+}
+
 /**
  * Operativni način priprave hrane; ločeno od računovodske vrste artikla
  */
@@ -1583,6 +1639,21 @@ export interface Artikel {
      * @nullable
      */
   enotaMere?: string | null;
+  /**
+     * Declared contents mass excluding packaging, in grams
+     * @nullable
+     */
+  brutoTezaG?: number | null;
+  /**
+     * Usable drained mass per package, in grams
+     * @nullable
+     */
+  netoTezaG?: number | null;
+  /**
+     * Drained mass percentage, derived as 100 × netoTezaG / brutoTezaG
+     * @nullable
+     */
+  netoDelezOdst?: number | null;
   /** Ali artikel spada med pice (za bon za pico) */
   jePica?: boolean;
   /** Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator */
@@ -1751,6 +1822,22 @@ export interface ArtikelInput {
   imeZaNabavo?: string | null;
   /** @nullable */
   enotaMere?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  brutoTezaG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  netoTezaG?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  netoDelezOdst?: number | null;
   /** Ali artikel spada med pice (za bon za pico) */
   jePica?: boolean;
   /** Ali je artikel dodatek za pico — nazajskladnost; rajši uporabi jeModifikator */
@@ -6667,6 +6754,32 @@ export interface PrejemnicaOdvisniStrosekInput {
   obravnava?: PrejemnicaOdvisniStrosekInputObravnava;
 }
 
+/**
+ * Original source price basis; null on legacy lines with unknown semantics
+ * @nullable
+ */
+export type PrejemnicaPostavkaInputIzvCenaVrsta = typeof PrejemnicaPostavkaInputIzvCenaVrsta[keyof typeof PrejemnicaPostavkaInputIzvCenaVrsta] | null;
+
+
+export const PrejemnicaPostavkaInputIzvCenaVrsta = {
+  neto: 'neto',
+  bruto: 'bruto',
+} as const;
+
+/**
+ * Omitted/null mass fields preserve the prior snapshot or inherit article defaults.
+ * `inherit` explicitly resets to article defaults, `set` uses the supplied snapshot,
+ * and `clear` disables yield only when purchase and stock units match.
+ */
+export type PrejemnicaPostavkaInputDrainedYieldAction = typeof PrejemnicaPostavkaInputDrainedYieldAction[keyof typeof PrejemnicaPostavkaInputDrainedYieldAction];
+
+
+export const PrejemnicaPostavkaInputDrainedYieldAction = {
+  inherit: 'inherit',
+  set: 'set',
+  clear: 'clear',
+} as const;
+
 export type PrejemnicaPostavkaInputVrsticaTip = typeof PrejemnicaPostavkaInputVrsticaTip[keyof typeof PrejemnicaPostavkaInputVrsticaTip];
 
 
@@ -6691,6 +6804,64 @@ export interface PrejemnicaPostavkaInput {
   alergeniVerifiedAt?: string | null;
   kolicina: number;
   cenaKos?: number;
+  /**
+     * Original purchased quantity before drained-yield conversion
+     * @nullable
+     */
+  izvKolicina?: number | null;
+  /**
+     * Original purchase unit price before drained-yield conversion
+     * @nullable
+     */
+  izvCena?: number | null;
+  /**
+     * Original source price basis; null on legacy lines with unknown semantics
+     * @nullable
+     */
+  izvCenaVrsta?: PrejemnicaPostavkaInputIzvCenaVrsta;
+  /**
+     * Whether the original source unit price already includes its recorded discounts
+     * @nullable
+     */
+  rabatVkljucenVCeni?: boolean | null;
+  /** First source line discount percentage */
+  rabat1Odst?: number;
+  /** Second source line discount percentage */
+  rabat2Odst?: number;
+  /**
+     * Original purchase unit, used to validate drained-yield conversion
+     * @nullable
+     */
+  izvEnota?: string | null;
+  /**
+     * Full source invoice line amount before drained conversion (gross when
+     * vrstaCen is bruto, net when vrstaCen is neto). The stored `skupaj` stock
+     * cost includes nonrecoverable VAT and excludes recoverable VAT.
+     * @nullable
+     */
+  skupaj?: number | null;
+  /**
+     * Omitted/null mass fields preserve the prior snapshot or inherit article defaults.
+     * `inherit` explicitly resets to article defaults, `set` uses the supplied snapshot,
+     * and `clear` disables yield only when purchase and stock units match.
+     */
+  drainedYieldAction?: PrejemnicaPostavkaInputDrainedYieldAction;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  brutoTezaG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  netoTezaG?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  netoDelezOdst?: number | null;
   /** @nullable */
   ddvStopnja?: number | null;
   /** @nullable */
@@ -6741,6 +6912,7 @@ export interface PrejemnicaGlava {
   datum: string;
   /** @nullable */
   opomba?: string | null;
+  /** Sum of receipt-line inventory costs; nonrecoverable VAT is capitalized. */
   skupajVrednost: number;
   valuta?: string;
   /** @nullable */
@@ -6752,6 +6924,18 @@ export interface PrejemnicaGlava {
   ustvarjeno: string;
   steviloPostavk?: number;
 }
+
+/**
+ * Original source price basis; null on legacy lines with unknown semantics
+ * @nullable
+ */
+export type PrejemnicaPostavkaPogledIzvCenaVrsta = typeof PrejemnicaPostavkaPogledIzvCenaVrsta[keyof typeof PrejemnicaPostavkaPogledIzvCenaVrsta] | null;
+
+
+export const PrejemnicaPostavkaPogledIzvCenaVrsta = {
+  neto: 'neto',
+  bruto: 'bruto',
+} as const;
 
 export type PrejemnicaPostavkaPogledVrsticaTip = typeof PrejemnicaPostavkaPogledVrsticaTip[keyof typeof PrejemnicaPostavkaPogledVrsticaTip];
 
@@ -6771,7 +6955,52 @@ export interface PrejemnicaPostavkaPogled {
   enotaMere?: string | null;
   kolicina: number;
   cenaKos: number;
+  /** Inventory cost for the line; nonrecoverable VAT is included. */
   skupaj: number;
+  /**
+     * Original purchased quantity before drained-yield conversion
+     * @nullable
+     */
+  izvKolicina?: number | null;
+  /**
+     * Original purchase unit price before drained-yield conversion
+     * @nullable
+     */
+  izvCena?: number | null;
+  /**
+     * Original source price basis; null on legacy lines with unknown semantics
+     * @nullable
+     */
+  izvCenaVrsta?: PrejemnicaPostavkaPogledIzvCenaVrsta;
+  /**
+     * Whether the original source unit price already includes its recorded discounts
+     * @nullable
+     */
+  rabatVkljucenVCeni?: boolean | null;
+  /** First source line discount percentage */
+  rabat1Odst?: number;
+  /** Second source line discount percentage */
+  rabat2Odst?: number;
+  /**
+     * Original purchase unit
+     * @nullable
+     */
+  izvEnota?: string | null;
+  /**
+     * Per-receipt-line snapshot of declared contents mass excluding packaging
+     * @nullable
+     */
+  brutoTezaG?: number | null;
+  /**
+     * Per-receipt-line snapshot of usable drained mass per package
+     * @nullable
+     */
+  netoTezaG?: number | null;
+  /**
+     * Per-receipt-line snapshot of drained mass percentage
+     * @nullable
+     */
+  netoDelezOdst?: number | null;
   /** @nullable */
   ddvStopnja?: number | null;
   /** @nullable */
@@ -11694,6 +11923,10 @@ datumDo?: string;
 
 export type ListZalogaGibiParams = {
 artikelId?: number;
+};
+
+export type MatchImportedReceiptLine200 = {
+  status?: 'UPARJENO';
 };
 
 export type CheckZacetnaZalogaLeto200 = {

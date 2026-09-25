@@ -74,6 +74,12 @@ export const artikliTable = pgTable("artikli", {
   qrNaVoljo: boolean("qr_na_voljo").notNull().default(true),
   imeZaNabavo: text("ime_za_nabavo"),
   enotaMere: text("enota_mere"),
+  /** Declared drained-product container contents mass, excluding packaging. */
+  brutoTezaG: numeric("bruto_teza_g", { precision: 12, scale: 3 }),
+  /** Usable drained mass per package. */
+  netoTezaG: numeric("neto_teza_g", { precision: 12, scale: 3 }),
+  /** Usable drained mass as a percentage of declared contents mass. */
+  netoDelezOdst: numeric("neto_delez_odst", { precision: 7, scale: 4 }),
   /** Monotonic optimistic-concurrency revision for the complete normative. */
   normativRevision: integer("normativ_revision").notNull().default(1),
   jePica: boolean("je_pica").notNull().default(false),

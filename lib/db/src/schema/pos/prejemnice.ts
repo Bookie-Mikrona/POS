@@ -90,6 +90,10 @@ export const prejemnicePostavkeTable = pgTable("prejemnice_postavke", {
   izvEnota:           text("izv_enota"),
   izvKolicina:        numeric("izv_kolicina", { precision: 18, scale: 6 }),
   izvCena:            numeric("izv_cena", { precision: 15, scale: 6 }),
+  /** Source unit price basis; null only on legacy rows with unknown semantics. */
+  izvCenaVrsta:       text("izv_cena_vrsta", { enum: ["neto", "bruto"] }),
+  /** Whether source price already includes the recorded discounts; null on legacy rows. */
+  rabatVkljucenVCeni: boolean("rabat_vkljucen_v_ceni"),
   uparjanje:          text("uparjanje"),
   uparjanjeZaupanje:  numeric("uparjanje_zaupanje", { precision: 5, scale: 2 }),
   uparjanjeKandidati: text("uparjanje_kandidati"), // JSONB, preberemo kot text
@@ -106,6 +110,10 @@ export const prejemnicePostavkeTable = pgTable("prejemnice_postavke", {
   netoCena:            numeric("neto_cena", { precision: 15, scale: 6 }),
   netoZnesek:          numeric("neto_znesek", { precision: 14, scale: 2 }),
   ddvKategorija:       text("ddv_kategorija"),
+  /** Immutable drained-yield snapshot used for this receipt line. */
+  brutoTezaG:          numeric("bruto_teza_g", { precision: 12, scale: 3 }),
+  netoTezaG:           numeric("neto_teza_g", { precision: 12, scale: 3 }),
+  netoDelezOdst:       numeric("neto_delez_odst", { precision: 7, scale: 4 }),
   /** Stabilna računovodska obravnava vrstice; ne ugiba se iz naziva. */
   vrsticaTip:          text("vrstica_tip").notNull().default("zaloga"),
   /**

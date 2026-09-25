@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { predlagajArtikel } from './naziv';
 import { DEFAULT_NEW_PURCHASE_ARTICLE_TYPE } from '@/lib/article-type-defaults';
 import { KlavijaturaInput } from '@/components/KlavijaturaInput';
+import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldValues } from '@/components/MassYieldFields';
 
 // =====================================================================
 // Konstante
@@ -115,6 +116,9 @@ export interface NovArtikelVhod {
   povratnaEmbalaza: boolean;
   vrstaEmbalaze: VrstaEmbalaze | null;
   depozitnaVrednost: string | null;
+  brutoTezaG: number | null;
+  netoTezaG: number | null;
+  netoDelezOdst: number | null;
 }
 
 interface Postavka {
@@ -207,6 +211,7 @@ export function NovArtikelDialog(l: Lastnosti) {
     predlagajVrstoEmbalaze(p.izv_naziv),
   );
   const [depozitnaVrednost, setDepozitnaVrednost] = useState('0');
+  const [massYield, setMassYield] = useState<MassYieldValues>({ ...EMPTY_MASS_YIELD });
 
   // ── Prodajni vnosi (NABAVNO_PRODAJNI) ──────────────────────────
   const [cena,         setCena]         = useState('');
@@ -375,6 +380,7 @@ export function NovArtikelDialog(l: Lastnosti) {
         povratnaEmbalaza,
         vrstaEmbalaze: povratnaEmbalaza ? vrstaEmbalaze : null,
         depozitnaVrednost: povratnaEmbalaza ? depozitnaVrednost : null,
+        ...normalizeMassYield(massYield),
       });
     } catch (e) {
       setNapaka((e as Error).message);
@@ -527,6 +533,15 @@ export function NovArtikelDialog(l: Lastnosti) {
                      placeholder="npr. Pijača"
                      className="w-full rounded border px-2 py-1.5 text-sm" />
             </div>
+          </div>
+
+          <div className="rounded-md border p-3">
+            <MassYieldFields
+              value={massYield}
+              onChange={setMassYield}
+              sourceUnit={p.izv_enota}
+              baseUnit={enota}
+            />
           </div>
 
           {/* ── DDV kategorija ── */}

@@ -48,6 +48,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNastavitve } from "@/contexts/NastavitveContext";
 import ModifikatorjePanel from "@/components/ModifikatorjePanel";
 import { ArticleImageCropDialog } from "@/components/ArticleImageCropDialog";
+import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldValues } from "@/components/MassYieldFields";
 
 import { type NormativItem } from "@/lib/kopiraj-normativ";
 type PizzaDoughSelection = { normalna: number; mala: number };
@@ -145,6 +146,7 @@ export default function Menu() {
   const [artJePica, setArtJePica] = useState(false);
   const [artImeZaNabavo, setArtImeZaNabavo] = useState("");
   const [artEnotaMere, setArtEnotaMere] = useState<string | null>(null);
+  const [artMassYield, setArtMassYield] = useState<MassYieldValues>({ ...EMPTY_MASS_YIELD });
   const [eslogUnitPickerOpen, setEslogUnitPickerOpen] = useState(false);
   const [artJeSkupinskiNabavniArtikel, setArtJeSkupinskiNabavniArtikel] = useState(false);
   const lahkoJeSkupinskiNabavniArtikel = artNabavniArtikel && !artProdajniArtikel && isGroupablePurchaseUnit(artEnotaMere);
@@ -890,6 +892,7 @@ export default function Menu() {
     setArtImageError(null);
     setCroppingArticleImage(null);
     setArtImeZaNabavo(""); setArtEnotaMere(null);
+    setArtMassYield({ ...EMPTY_MASS_YIELD });
     setNormativItems([]);
     setPizzaDoughSelection(null);
     setPizzaDoughSaved(null);
@@ -951,6 +954,12 @@ export default function Menu() {
     setCroppingArticleImage(null);
     setArtImeZaNabavo(a.imeZaNabavo ?? "");
     setArtEnotaMere(a.enotaMere ?? null);
+    const existingMass = a as Artikel & { brutoTezaG?: number | null; netoTezaG?: number | null; netoDelezOdst?: number | null };
+    setArtMassYield({
+      brutoTezaG: existingMass.brutoTezaG == null ? "" : String(existingMass.brutoTezaG),
+      netoTezaG: existingMass.netoTezaG == null ? "" : String(existingMass.netoTezaG),
+      netoDelezOdst: existingMass.netoDelezOdst == null ? "" : String(existingMass.netoDelezOdst),
+    });
     setArtJeSkupinskiNabavniArtikel(Boolean((a as Artikel & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel));
     setNormativItems([]);
     setPizzaDoughSelection(null);
@@ -1447,6 +1456,7 @@ export default function Menu() {
       toGo: isProdajni ? artToGo : false,
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
+      ...normalizeMassYield(artMassYield),
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla,
       mealType: (
@@ -2180,6 +2190,15 @@ export default function Menu() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+                <MassYieldFields
+                  key={`article-mass-${artMode}-${editingArt?.id ?? "new"}`}
+                  value={artMassYield}
+                  onChange={setArtMassYield}
+                  baseUnit={artEnotaMere}
+                />
               </div>
 
               {/* Skupina (opcijsko) */}

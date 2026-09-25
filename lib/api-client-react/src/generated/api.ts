@@ -267,6 +267,7 @@ import type {
   MalicaQuote,
   MatchBankTransactionsBody,
   MatchBankTransactionsResponse,
+  MatchImportedReceiptLine200,
   Miza,
   MizaInput,
   MizaRazpolozljivost,
@@ -451,6 +452,7 @@ import type {
   TrialBalanceResponse,
   UnauthorizedResponse,
   UnknownVivaRefundList,
+  UparjanjeUvoznePostavkeInput,
   UpdateAccountBody,
   UpdateCounterpartyBody,
   UpdateDimensionBody,
@@ -18620,6 +18622,78 @@ export const useCreatePrejemnica = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreatePrejemnicaMutationOptions(options));
+    }
+
+export const getMatchImportedReceiptLineUrl = (id: number,) => {
+
+
+
+
+  return `/api/pos/uvoz/postavke/${id}/upari`
+}
+
+/**
+ * @summary Ročno uparjanje uvožene prejemnice
+ */
+export const matchImportedReceiptLine = async (id: number,
+    uparjanjeUvoznePostavkeInput: UparjanjeUvoznePostavkeInput, options?: RequestInit): Promise<MatchImportedReceiptLine200> => {
+
+  return customFetch<MatchImportedReceiptLine200>(getMatchImportedReceiptLineUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(uparjanjeUvoznePostavkeInput)
+  }
+);}
+
+
+
+
+
+export const getMatchImportedReceiptLineMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchImportedReceiptLine>>, TError,{id: number;data: BodyType<UparjanjeUvoznePostavkeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof matchImportedReceiptLine>>, TError,{id: number;data: BodyType<UparjanjeUvoznePostavkeInput>}, TContext> => {
+
+const mutationKey = ['matchImportedReceiptLine'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchImportedReceiptLine>>, {id: number;data: BodyType<UparjanjeUvoznePostavkeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  matchImportedReceiptLine(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MatchImportedReceiptLineMutationResult = NonNullable<Awaited<ReturnType<typeof matchImportedReceiptLine>>>
+    export type MatchImportedReceiptLineMutationBody = BodyType<UparjanjeUvoznePostavkeInput>
+    export type MatchImportedReceiptLineMutationError = ErrorType<void>
+
+    /**
+ * @summary Ročno uparjanje uvožene prejemnice
+ */
+export const useMatchImportedReceiptLine = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchImportedReceiptLine>>, TError,{id: number;data: BodyType<UparjanjeUvoznePostavkeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof matchImportedReceiptLine>>,
+        TError,
+        {id: number;data: BodyType<UparjanjeUvoznePostavkeInput>},
+        TContext
+      > => {
+      return useMutation(getMatchImportedReceiptLineMutationOptions(options));
     }
 
 export const getGetPrejemnicaUrl = (id: number,) => {

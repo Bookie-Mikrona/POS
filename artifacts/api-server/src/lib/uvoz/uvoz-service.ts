@@ -36,6 +36,7 @@ import { claimPurchaseSourceDocument } from '../purchaseSourceDocuments';
 import { appendStockMovementReversals } from '../stockMovementHistory';
 import { packagingMovementKindForQuantity } from '../packagingMovementKind';
 import { normalizeIncomingPaymentMethod } from '../posReceiptBooking';
+import { normalizeDrainedYield } from '../drained-yield';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
@@ -696,7 +697,8 @@ export async function ustvariOsnutek(
        WHERE e.id = ${enotaId}
        LIMIT 1
     `)).rows;
-    if (!snapshotSource) throw new Error(`Enota ${enotaId} nima podjetja za dokumentni snapshot.`);
+     if (!snapshotSource) throw new Error(`Enota ${enotaId} nima podjetja za dokumentni snapshot.`);
+     const capitalizesVat = !snapshotSource.company_vat_id?.trim();
     const [sessionSource] = (await tx.execute<{ sha256: string }>(sql`
       SELECT sha256 FROM uvoz_seja WHERE id = ${sejaId} FOR UPDATE
     `)).rows;
@@ -781,6 +783,7 @@ export async function ustvariOsnutek(
     `)).rows;
 
     for (const p of dto.postavke) {
+       const drainedYield = normalizeDrainedYield(p);
        const preslikavaDdv = resolveInputVatCode(
          vatCodes,
          p.ddvKoda ?? p.ddvKategorija,
@@ -803,34 +806,49 @@ export async function ustvariOsnutek(
       const cenaPaket = p.rabatVkljucenVCeni
         ? p.izvCena
         : netoPoRabatih(p.izvCena, p.rabat1Odst, p.rabat2Odst);
-      const cenaEnota = cenaPaket.div(enotVPaketu);
       const kolicinaEnot = p.izvKolicina.mul(enotVPaketu);
 
       // BOOKIE stolpci: kolicina (enote), cena_kos, skupaj
       // artikel_id NULL je dovoljen po migraciji 0009 (DROP NOT NULL)
-      const skupaj = cenaPaket.mul(p.izvKolicina);
+       const sourceLineValue = cenaPaket.mul(p.izvKolicina);
+       const invoiceBase = p.ddvOsnova
+         ?? p.izvVrednost
+         ?? (dto.ceneBruto && p.ddvStopnja?.gt(0)
+           ? sourceLineValue.mul(100).div(p.ddvStopnja.plus(100))
+           : sourceLineValue);
+       const ddvZnesek = p.ddvZnesek
+         ?? (p.ddvStopnja ? invoiceBase.mul(p.ddvStopnja).div(100) : null);
+       const skupaj = capitalizesVat && ddvZnesek
+         ? invoiceBase.plus(ddvZnesek)
+         : invoiceBase;
+       const cenaKosZaloge = kolicinaEnot.isZero() ? new Decimal(0) : skupaj.div(kolicinaEnot);
+       const netoCena = kolicinaEnot.isZero() ? new Decimal(0) : invoiceBase.div(kolicinaEnot);
       await tx.execute(sql`
         INSERT INTO prejemnice_postavke (
           prejemnica_id,
           kolicina, cena_kos, skupaj, enot_v_paketu,
           izv_gtin, izv_sifra, izv_naziv, izv_enota, izv_kolicina, izv_cena,
-           rabat_1_odst, rabat_2_odst, opozorila,
+          izv_cena_vrsta, rabat_vkljucen_v_ceni, rabat_1_odst, rabat_2_odst, opozorila,
              ddv_stopnja, ddv_osnova, ddv_znesek, vat_code_id, vrstica_tip,
-             enota_mere, neto_cena, neto_znesek, ddv_kategorija)
+              enota_mere, neto_cena, neto_znesek, ddv_kategorija,
+              bruto_teza_g, neto_teza_g, neto_delez_odst)
         VALUES (
           ${glava.id},
-          ${kolicinaEnot.toString()}, ${cenaEnota.toString()},
+           ${kolicinaEnot.toString()}, ${cenaKosZaloge.toString()},
           ${skupaj.toString()}, ${enotVPaketu.toString()},
           ${p.izvGtin ?? null}, ${p.izvSifra ?? null}, ${p.izvNaziv ?? null},
           ${p.izvEnota ?? null}, ${p.izvKolicina.toString()}, ${p.izvCena.toString()},
+           ${p.izvCenaVrsta ?? (dto.ceneBruto ? "bruto" : "neto")},
+           ${p.rabatVkljucenVCeni},
           ${p.rabat1Odst.toString()}, ${p.rabat2Odst.toString()},
            ${JSON.stringify(p.opozorila)}::jsonb,
            ${p.ddvStopnja?.toString() ?? null},
-           ${(p.ddvOsnova ?? p.izvVrednost ?? skupaj).toString()},
-           ${(p.ddvZnesek ?? (p.ddvStopnja ? (p.ddvOsnova ?? p.izvVrednost ?? skupaj).mul(p.ddvStopnja).div(100) : null))?.toString() ?? null},
+            ${invoiceBase.toString()},
+            ${ddvZnesek?.toString() ?? null},
             ${vatCodeId},
             ${p.vrsticaTip},
-            ${toUneceUnitCode(p.izvEnota)}, ${cenaEnota.toString()}, ${skupaj.toString()}, ${p.ddvKategorija ?? null})
+              ${toUneceUnitCode(p.izvEnota)}, ${netoCena.toString()}, ${invoiceBase.toString()}, ${p.ddvKategorija ?? null},
+             ${drainedYield.brutoTezaG}, ${drainedYield.netoTezaG}, ${drainedYield.netoDelezOdst})
       `);
     }
 

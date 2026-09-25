@@ -54,6 +54,7 @@
 - [Telefonski naročniki](telefonski-narocniki.md) — vsak telefonski prevzem ali dostava trajno razreši naročnika po normaliziranem telefonu znotraj enote
 - [SŠP študentski boni](ssp-studentski-boni.md) — subvencija je terjatev, ne popust; zbirni dokument se odpre šele s potrditvijo dnevne temeljnice.
 - [Prejemnica in e-SLOG izvoz](prejemnica-eslog-izvoz.md) — prejemnice brez popolnih računskih podatkov ne pretvarjaj v e-SLOG Invoice.
+- [Odcejena masa na prejemnicah](prejemnica-odcejena-masa.md) — ohrani kose in neto ceno na kos ločeno od odcejene zaloge v kg; OCR osnova cene ni nujno osnova dokumenta.
 - [Z-poročilo implementacija](z-porocilo-implementacija.md) — GT per blagajna; zaključek dneva in vsi tokovi, ki ustvarijo blokado, delijo enotni zaklep enote.
 - [drizzle-kit push --force nevarnost](drizzle-push-force-danger.md) — PREPOVEDANO: truncira tabele in droopa constrainte; za drift samo ročne RENAME CONSTRAINT migracije
 - [Publish in ročne DB funkcije](publish-rocne-db-funkcije.md) — Publish validira Drizzle shemo pred ročnimi SQL migracijami; generirani stolpci ne smejo klicati teh funkcij

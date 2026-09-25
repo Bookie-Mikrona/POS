@@ -13,6 +13,13 @@ import { jeMismatchVelikosti } from './uparjanjeNaziv';
 import { isEditableKeyboardTarget } from '@/lib/keyboard-events';
 import { KlavijaturaInput } from '@/components/KlavijaturaInput';
 import { areEslogUnitsCompatible } from '@/lib/skupinski-nabavni-artikel';
+import {
+  MassYieldFields,
+  EMPTY_MASS_YIELD,
+  normalizeMassYield,
+  normalizeMassYieldOverrides,
+  type MassYieldValues,
+} from '@/components/MassYieldFields';
 
 // =====================================================================
 // Tipi (ustrezajo odgovoru /api/pos/uvoz/prejemnice/:id/neuparjeno)
@@ -32,6 +39,9 @@ export interface Kandidat {
   aiPredlog?: boolean;
   aiRazlog?: string;
   jeSkupinskiNabavniArtikel?: boolean;
+  brutoTezaG?: number | string | null;
+  netoTezaG?: number | string | null;
+  netoDelezOdst?: number | string | null;
 }
 
 export interface Opozorilo {
@@ -57,6 +67,11 @@ export interface NeuparjenaPostavka {
   uparjanje_zaupanje: number | null;
   uparjanje_kandidati: Kandidat[] | null;
   opozorila: Opozorilo[] | string | null;
+  brutoTezaG?: number | string | null;
+  netoTezaG?: number | string | null;
+  netoDelezOdst?: number | string | null;
+  izvKolicina?: number | string | null;
+  ddvStopnja?: number | string | null;
 }
 
 export function pripraviPostavkoZaNovArtikel(
@@ -86,11 +101,12 @@ interface Lastnosti {
   stDokumenta: string | null;
   datum: string | null;
   ceneBruto: boolean;
+  jeDdvZavezanec: boolean;
   steviloUparjenih: number;
   postavke: NeuparjenaPostavka[];
   /** Vrne število preostalih (neuparjenih) postavk po uspešnem upari. */
   onUpari: (postavkaId: number, artikelId: number | null, enotVPaketu: string,
-             zapomni: boolean, vrsticaTip: string) => Promise<number>;
+             zapomni: boolean, vrsticaTip: string, massYield: Partial<ReturnType<typeof normalizeMassYield>>) => Promise<number>;
   onNovArtikel: (postavka: NeuparjenaPostavka) => void;
   onIsci: (niz: string, postavka: NeuparjenaPostavka) => Promise<Kandidat[]>;
   onZakljuci: () => void;
@@ -149,6 +165,8 @@ export function UparjanjeDialog(l: Lastnosti) {
   const [napaka, setNapaka] = useState<string | null>(null);
   const [pakiranje, setPakiranje] = useState<string>('1');
   const [vrsticaTip, setVrsticaTip] = useState<'zaloga' | 'poraba_surovin' | 'prevoz'>('zaloga');
+  const [massYield, setMassYield] = useState<MassYieldValues>({ ...EMPTY_MASS_YIELD });
+  const [massYieldTouched, setMassYieldTouched] = useState<Partial<Record<keyof MassYieldValues, boolean>>>({});
   const iskalnoPolje = useRef<HTMLInputElement>(null);
   const pakiranjePolje = useRef<HTMLInputElement>(null);
   const potrdiGumb = useRef<HTMLButtonElement>(null);
@@ -181,6 +199,18 @@ export function UparjanjeDialog(l: Lastnosti) {
     () => kandidati.filter(k => jeEnotaSkupinskegaKandidataSkladna(postavka, k)),
     [kandidati, postavka],
   );
+  const izbraniKandidat = kandidati.find(kandidat => kandidat.artikelId === izbran);
+  const massYieldValue: MassYieldValues = {
+    brutoTezaG: !massYieldTouched.brutoTezaG && !massYield.brutoTezaG
+      ? izbraniKandidat?.brutoTezaG == null ? "" : String(izbraniKandidat.brutoTezaG)
+      : massYield.brutoTezaG,
+    netoTezaG: !massYieldTouched.netoTezaG && !massYield.netoTezaG
+      ? izbraniKandidat?.netoTezaG == null ? "" : String(izbraniKandidat.netoTezaG)
+      : massYield.netoTezaG,
+    netoDelezOdst: !massYieldTouched.netoDelezOdst && !massYield.netoDelezOdst
+      ? izbraniKandidat?.netoDelezOdst == null ? "" : String(izbraniKandidat.netoDelezOdst)
+      : massYield.netoDelezOdst,
+  };
 
   // Ob prehodu na novo postavko počisti stanje in predizberi najboljšega.
   useEffect(() => {
@@ -190,6 +220,12 @@ export function UparjanjeDialog(l: Lastnosti) {
     setIzbran(kandidat && !jeEnotaSkupinskegaKandidataSkladna(postavka, kandidat) ? null : trenutnoIzbrani);
     setPakiranje(prviKandidat?.enotVPaketu ?? postavka?.enot_v_paketu ?? '1');
     setVrsticaTip(postavka?.vrstica_tip ?? 'zaloga');
+    setMassYield({
+      brutoTezaG: postavka?.brutoTezaG == null ? '' : String(postavka.brutoTezaG),
+      netoTezaG: postavka?.netoTezaG == null ? '' : String(postavka.netoTezaG),
+      netoDelezOdst: postavka?.netoDelezOdst == null ? '' : String(postavka.netoDelezOdst),
+    });
+    setMassYieldTouched({});
     setIskanje('');
     setNajdeni([]);
     setNapaka(null);
@@ -231,6 +267,7 @@ export function UparjanjeDialog(l: Lastnosti) {
       // brez stale-closure problema (izračunano iz prev v setState updaterju).
       const ostalo = await l.onUpari(
         postavka.id, vrsticaTip === 'zaloga' ? izbran : null, pakiranje || postavka.enot_v_paketu, zapomni, vrsticaTip,
+        normalizeMassYieldOverrides(massYieldValue, massYieldTouched),
       );
       if (ostalo === 0) {
         l.onZakljuci();
@@ -241,7 +278,7 @@ export function UparjanjeDialog(l: Lastnosti) {
     } finally {
       setDela(false);
     }
-  }, [postavka, izbran, dela, pakiranje, zapomni, vrsticaTip, l, kandidatiZaIzbiro]);
+  }, [postavka, izbran, dela, pakiranje, zapomni, vrsticaTip, l, kandidatiZaIzbiro, massYieldValue, massYieldTouched]);
 
   const odpriNovArtikel = useCallback(() => {
     if (!postavka) return;
@@ -307,6 +344,7 @@ export function UparjanjeDialog(l: Lastnosti) {
   const cenaEnota = cenaNaEnoto(postavka.izv_cena, postavka.enot_v_paketu);
   const skupnaVrednost =
     Number(postavka.izv_kolicina) * Number(postavka.izv_cena);
+  const predogledKolicina = Number(postavka.izv_kolicina) * (Number(pakiranje.replace(',', '.')) || 1);
   const jePrivzetoPakiranje = Number(pakiranje.replace(',', '.')) === 1;
 
   const pripraviVnosPakiranja = () => {
@@ -391,6 +429,35 @@ export function UparjanjeDialog(l: Lastnosti) {
                 </span>
               )}
             </div>
+            <MassYieldFields
+              key={`receipt-mass-${postavka.id}`}
+              value={massYieldValue}
+              onChange={next => {
+                const keys = ["brutoTezaG", "netoTezaG", "netoDelezOdst"] as const;
+                const changed = keys.filter(key => next[key] !== massYieldValue[key]);
+                if (changed.length === 0) return;
+                setMassYield(previous => ({
+                  ...previous,
+                  ...Object.fromEntries(changed.map(key => [key, next[key]])),
+                }));
+                setMassYieldTouched(previous => ({
+                  ...previous,
+                  ...Object.fromEntries(changed.map(key => [key, true])),
+                }));
+              }}
+              sourceUnit={postavka.izv_enota}
+              baseUnit={kandidati.find(candidate => candidate.artikelId === izbran)?.osnovnaEnota}
+              autoOpen={["kg", "kgm"].includes(
+                kandidati.find(candidate => candidate.artikelId === izbran)?.osnovnaEnota?.trim().toLowerCase() ?? "",
+              )}
+              quantityUnit={postavka.izv_enota}
+              purchaseQuantity={String(predogledKolicina)}
+              quantity={predogledKolicina}
+              lineValue={skupnaVrednost}
+              priceMode={l.ceneBruto ? "bruto" : "neto"}
+              taxRate={postavka.ddvStopnja == null ? null : Number(postavka.ddvStopnja)}
+              buyerVatRegistered={l.jeDdvZavezanec}
+            />
           </div>
           <div className="mt-3 rounded-md border border-orange-200 bg-orange-50 p-3">
             <label className="text-sm font-medium">Obravnava vrstice</label>

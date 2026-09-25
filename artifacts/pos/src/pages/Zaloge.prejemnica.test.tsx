@@ -79,6 +79,7 @@ vi.mock("@workspace/api-client-react", () => ({
   getListPartnerjiQueryKey: () => ["/api/partnerji"],
   getListArtikliQueryKey: () => ["/api/artikli"],
   getEnotaId: () => 1,
+  getAuthToken: async () => null,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({

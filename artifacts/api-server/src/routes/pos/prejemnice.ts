@@ -1,11 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import Decimal from "decimal.js";
 import { artikliTable, companiesTable, counterpartiesTable, db, embalazniPrometiTable, enoteTable, goodsReceiptsTable, invoicesTable, nastavitveTable, prejemniceOdvisniStroskiTable, prejemnicePostavkeTable, prejemniceTable, purchaseSourceDocumentsTable, uvozSejaTable, vatCodeTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import { genericArticleUnitMatches } from "../../lib/uvoz/uparjanje";
+import { netoPoRabatih } from "../../lib/uvoz/dto";
+import {
+  convertPurchasedQuantity,
+  DrainedYieldError,
+  normalizeDrainedYield,
+  resolveDrainedYield,
+  samePurchaseAndStockUnit,
+} from "../../lib/drained-yield";
 import { claimPurchaseSourceDocument } from "../../lib/purchaseSourceDocuments";
 import {
   getPosReceiptBookingPreview,
@@ -241,6 +250,239 @@ function denarAliNull(value: unknown): string | null {
   return Number.isFinite(number) ? String(number) : null;
 }
 
+function sameDecimalValue(a: unknown, b: unknown): boolean {
+  if (a == null || b == null || a === "" || b === "") return a == null && b == null;
+  const left = decimalAliNull(a);
+  const right = decimalAliNull(b);
+  return left !== null && right !== null && left.eq(right);
+}
+
+function preparedDrainedLine(
+  line: Record<string, any>,
+  article: { enotaMere: string | null; davek?: string | null; brutoTezaG?: string | null; netoTezaG?: string | null; netoDelezOdst?: string | null } | undefined,
+  old?: typeof prejemnicePostavkeTable.$inferSelect,
+  vrstaCen: string = "neto",
+  capitalizesVat = false,
+  oldVrstaCen?: string,
+) {
+  const hasSourceQuantity = line.izvKolicina != null;
+  const hasSourceUnit = typeof line.izvEnota === "string" && line.izvEnota.trim() !== "";
+  const sourceQuantity = new Decimal(String(
+    hasSourceQuantity ? line.izvKolicina : old?.izvKolicina ?? line.kolicina ?? 0,
+  ));
+  const hasSourcePrice = line.izvCena != null;
+  const sourcePrice = new Decimal(String(
+    hasSourcePrice ? line.izvCena : old?.izvCena ?? line.cenaKos ?? old?.cenaKos ?? 0,
+  ));
+  const linePriceKind = line.izvCenaVrsta === "neto" || line.izvCenaVrsta === "bruto"
+    ? line.izvCenaVrsta
+    : undefined;
+  const oldPriceKind = old?.izvCenaVrsta
+    ?? (old ? (oldVrstaCen === "bruto" ? "bruto" : "neto") : undefined);
+  const priceKind = linePriceKind ?? oldPriceKind ?? (vrstaCen === "bruto" ? "bruto" : "neto");
+  const rabat1 = decimalAliNull(line.rabat1Odst ?? line.popust) ?? old?.rabat1Odst ?? new Decimal(0);
+  const rabat2 = decimalAliNull(line.rabat2Odst) ?? old?.rabat2Odst ?? new Decimal(0);
+  const rabatVkljucenVCeni = typeof line.rabatVkljucenVCeni === "boolean"
+    ? line.rabatVkljucenVCeni
+    : old ? old.rabatVkljucenVCeni ?? true : false;
+  const sourceUnit = hasSourceUnit
+    ? line.izvEnota
+    : old?.izvEnota ?? (typeof line.enotaMere === "string" ? line.enotaMere : article?.enotaMere);
+  const articleYield = normalizeDrainedYield(article ?? {});
+  const previousYield = old ? {
+    brutoTezaG: old.brutoTezaG,
+    netoTezaG: old.netoTezaG,
+    netoDelezOdst: old.netoDelezOdst,
+  } : null;
+  const action = ["inherit", "set", "clear"].includes(line.drainedYieldAction)
+    ? line.drainedYieldAction
+    : undefined;
+  const yieldData = resolveDrainedYield(line, articleYield, previousYield, action);
+  const hasYield = Boolean(yieldData.brutoTezaG || yieldData.netoTezaG || yieldData.netoDelezOdst);
+  const oldYieldSnapshot = old && Boolean(old.brutoTezaG || old.netoTezaG || old.netoDelezOdst);
+  const oldSourceAvailable = old?.izvKolicina != null && old.izvEnota != null;
+  const explicitSourceAvailable = hasSourceQuantity && hasSourceUnit;
+  const inputSourceSemanticsChanged = Boolean(old && (
+    (line.izvKolicina != null && !sameDecimalValue(line.izvKolicina, old.izvKolicina))
+    || (line.izvEnota != null && String(line.izvEnota).trim().toLowerCase() !== String(old.izvEnota ?? "").trim().toLowerCase())
+    || (line.izvCena != null && !sameDecimalValue(line.izvCena, old.izvCena))
+    || (line.izvCenaVrsta != null && line.izvCenaVrsta !== oldPriceKind)
+    || ((line.rabat1Odst != null || line.popust != null)
+      && !sameDecimalValue(line.rabat1Odst ?? line.popust, old.rabat1Odst))
+    || (line.rabat2Odst != null && !sameDecimalValue(line.rabat2Odst, old.rabat2Odst))
+    || (line.ddvStopnja != null && !sameDecimalValue(line.ddvStopnja, old.ddvStopnja))
+    || (typeof line.rabatVkljucenVCeni === "boolean"
+      && line.rabatVkljucenVCeni !== (old.rabatVkljucenVCeni ?? true))
+  ));
+  const explicitNetValue = line.netoZnesek ?? line.ddvOsnova;
+  // Compare the supplied snapshot with its matching stored field. A stale
+  // netoZnesek must not appear "changed" merely because ddvOsnova is the
+  // canonical fallback (or vice versa); when source semantics change, only a
+  // genuinely edited monetary override may take precedence over recalculation.
+  const explicitBaseChanged = Boolean(old && (
+    line.netoZnesek != null
+      ? !sameDecimalValue(line.netoZnesek, old.netoZnesek)
+      : line.ddvOsnova != null && !sameDecimalValue(line.ddvOsnova, old.ddvOsnova)
+  ));
+  const useExplicitNetValue = explicitNetValue != null
+    && (!old || !inputSourceSemanticsChanged || explicitBaseChanged);
+  const inputVatValue = line.ddvZnesek;
+  const useExplicitVatValue = inputVatValue != null
+    && (!old || !inputSourceSemanticsChanged || !sameDecimalValue(inputVatValue, old.ddvZnesek));
+  const sourceSemanticsUnchanged = Boolean(old && !inputSourceSemanticsChanged && !explicitBaseChanged);
+  if ((action === "clear" || (action === "set" && !hasYield))
+      && !samePurchaseAndStockUnit(sourceUnit, article?.enotaMere)) {
+    throw new DrainedYieldError("Odcejene pretvorbe ni mogoče odstraniti, kadar se nabavna enota razlikuje od zalogovne enote.");
+  }
+  if (hasYield && !explicitSourceAvailable && !(oldYieldSnapshot && oldSourceAvailable)) {
+    if (oldYieldSnapshot && !oldSourceAvailable && !explicitSourceAvailable) {
+      if (action || line.brutoTezaG != null || line.netoTezaG != null || line.netoDelezOdst != null) {
+        throw new DrainedYieldError("Za spremembo odcejene količine v starejši postavki ponovno vnesite izvorno nabavno količino in enoto.");
+      }
+      // Legacy already-converted line without source data: preserve its known
+      // stock snapshot rather than applying yield to the stock quantity again.
+      return {
+        brutoTezaG: old.brutoTezaG,
+        netoTezaG: old.netoTezaG,
+        netoDelezOdst: old.netoDelezOdst,
+        kolicina: old.kolicina,
+        cenaKos: old.cenaKos,
+        skupaj: old.skupaj,
+        netoCena: old.netoCena ?? old.cenaKos,
+        netoZnesek: old.netoZnesek,
+        ddvOsnova: old.ddvOsnova,
+        ddvZnesek: old.ddvZnesek,
+        izvKolicina: old.izvKolicina,
+        izvCena: old.izvCena,
+        izvEnota: old.izvEnota,
+        izvCenaVrsta: old.izvCenaVrsta,
+        rabatVkljucenVCeni: old.rabatVkljucenVCeni,
+        rabat1Odst: old.rabat1Odst ?? "0",
+        rabat2Odst: old.rabat2Odst ?? "0",
+      };
+    }
+    throw new DrainedYieldError("Pri odcejeni zalogi navedite izvorno nabavno količino (izvKolicina) in enoto (izvEnota).");
+  }
+
+  if (old && oldSourceAvailable && sourceSemanticsUnchanged) {
+    const sameYield = sameDecimalValue(yieldData.brutoTezaG, old.brutoTezaG)
+      && sameDecimalValue(yieldData.netoTezaG, old.netoTezaG)
+      && sameDecimalValue(yieldData.netoDelezOdst, old.netoDelezOdst);
+    if (sameYield) {
+      return {
+        brutoTezaG: old.brutoTezaG,
+        netoTezaG: old.netoTezaG,
+        netoDelezOdst: old.netoDelezOdst,
+        kolicina: old.kolicina,
+        cenaKos: old.cenaKos,
+        skupaj: old.skupaj,
+        netoCena: old.netoCena ?? old.cenaKos,
+        netoZnesek: old.netoZnesek,
+        ddvOsnova: old.ddvOsnova,
+        ddvZnesek: old.ddvZnesek,
+        izvKolicina: old.izvKolicina,
+        izvCena: old.izvCena,
+        izvEnota: old.izvEnota,
+        izvCenaVrsta: old.izvCenaVrsta,
+        rabatVkljucenVCeni: old.rabatVkljucenVCeni,
+        rabat1Odst: old.rabat1Odst ?? "0",
+        rabat2Odst: old.rabat2Odst ?? "0",
+      };
+    }
+    const preservedCost = new Decimal(old.skupaj);
+    const converted = convertPurchasedQuantity(
+      sourceQuantity,
+      preservedCost,
+      sourceUnit,
+      article?.enotaMere,
+      yieldData,
+    );
+    return {
+      ...yieldData,
+      kolicina: converted.quantity.toString(),
+      cenaKos: converted.unitCost.toString(),
+      skupaj: old.skupaj,
+      netoCena: old.netoCena ?? old.cenaKos,
+      netoZnesek: old.netoZnesek,
+      ddvOsnova: old.ddvOsnova,
+      ddvZnesek: old.ddvZnesek,
+      izvKolicina: old.izvKolicina,
+      izvCena: old.izvCena,
+      izvEnota: old.izvEnota,
+      izvCenaVrsta: old.izvCenaVrsta,
+      rabatVkljucenVCeni: old.rabatVkljucenVCeni,
+      rabat1Odst: old.rabat1Odst ?? "0",
+      rabat2Odst: old.rabat2Odst ?? "0",
+    };
+  }
+
+  const taxRate = decimalAliNull(line.ddvStopnja ?? article?.davek);
+  let invoiceNetValue: Decimal;
+  let vatAmount: Decimal;
+  let lineValue: Decimal;
+  if (oldYieldSnapshot && !explicitSourceAvailable && explicitNetValue == null) {
+    invoiceNetValue = new Decimal(old.ddvOsnova ?? old.netoZnesek ?? old.skupaj);
+    vatAmount = new Decimal(old.ddvZnesek ?? 0);
+    lineValue = new Decimal(old.skupaj);
+  } else {
+    const effectiveSourcePrice = rabatVkljucenVCeni
+      ? sourcePrice
+      : netoPoRabatih(sourcePrice, rabat1, rabat2);
+    const enteredValue = !hasSourcePrice && !old?.izvCena && line.skupaj != null
+      ? new Decimal(String(line.skupaj))
+      : sourceQuantity.mul(effectiveSourcePrice);
+    if (useExplicitNetValue) {
+      invoiceNetValue = new Decimal(String(explicitNetValue));
+    } else if (priceKind === "bruto" && taxRate?.gt(0)) {
+      invoiceNetValue = enteredValue.mul(100).div(taxRate.plus(100));
+    } else {
+      if (hasYield && priceKind === "bruto" && taxRate === null) {
+        throw new DrainedYieldError(
+          "Za odcejeno zalogo z bruto ceno je potrebna neto vrednost postavke ali znana stopnja DDV.",
+        );
+      }
+      invoiceNetValue = enteredValue;
+    }
+    vatAmount = (useExplicitVatValue ? decimalAliNull(inputVatValue) : null)
+      ?? (taxRate ? invoiceNetValue.mul(taxRate).div(100) : new Decimal(0));
+    lineValue = capitalizesVat ? invoiceNetValue.plus(vatAmount) : invoiceNetValue;
+  }
+  const converted = convertPurchasedQuantity(
+    sourceQuantity,
+    lineValue,
+    sourceUnit,
+    article?.enotaMere,
+    yieldData,
+  );
+  return {
+    ...yieldData,
+    kolicina: converted.quantity.toString(),
+    cenaKos: converted.unitCost.toString(),
+    skupaj: lineValue.toDecimalPlaces(2).toFixed(2),
+    netoCena: converted.quantity.isZero()
+      ? "0"
+      : invoiceNetValue.div(converted.quantity).toString(),
+    netoZnesek: invoiceNetValue.toDecimalPlaces(2).toFixed(2),
+    ddvOsnova: invoiceNetValue.toDecimalPlaces(2).toFixed(2),
+    ddvZnesek: vatAmount.toDecimalPlaces(2).toFixed(2),
+    izvKolicina: hasYield || hasSourceQuantity || old?.izvKolicina != null ? sourceQuantity.toString() : null,
+    izvCena: hasYield || hasSourcePrice || old?.izvCena != null ? sourcePrice.toString() : null,
+    izvEnota: hasYield || typeof line.izvEnota === "string" || old?.izvEnota != null ? sourceUnit : null,
+    izvCenaVrsta: hasYield || hasSourcePrice || old?.izvCena != null ? priceKind : null,
+    rabatVkljucenVCeni: hasYield || hasSourcePrice || old?.izvCena != null
+      ? rabatVkljucenVCeni
+      : null,
+    rabat1Odst: rabat1.toString(),
+    rabat2Odst: rabat2.toString(),
+  };
+}
+
+function decimalAliNull(value: unknown): Decimal | null {
+  if (value == null || value === "") return null;
+  const result = new Decimal(String(value).replace(",", "."));
+  return result.isFinite() ? result : null;
+}
+
 function datumAliNull(value: unknown): string | null {
   if (typeof value !== "string" || value === "") return null;
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
@@ -376,14 +618,16 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Prejemnica mora imeti vsaj eno postavko" }); return;
   }
 
-  const skupajVrednost = postavke.reduce((acc: number, p: any) => acc + (p.kolicina ?? 0) * (p.cenaKos ?? 0), 0);
-
   const artikelIds = postavke.map((p: any) => p.artikelId);
   const artikliRows = await db.select({
     id: artikliTable.id,
     ime: artikliTable.ime,
     imeZaNabavo: artikliTable.imeZaNabavo,
     enotaMere: artikliTable.enotaMere,
+    davek: artikliTable.davek,
+    brutoTezaG: artikliTable.brutoTezaG,
+    netoTezaG: artikliTable.netoTezaG,
+    netoDelezOdst: artikliTable.netoDelezOdst,
     jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
     povratnaEmbalaza: artikliTable.povratnaEmbalaza,
     depozitnaVrednost: artikliTable.depozitnaVrednost,
@@ -428,6 +672,24 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     naslov: companiesTable.naslov, ulica: companiesTable.ulica, drzava: companiesTable.kodaDrzave,
   }).from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
   if (!company) { res.status(404).json({ error: "Podjetje prejemnice ni najdeno" }); return; }
+  const capitalizesVat = !company.idZaDdv?.trim();
+  let preparedLines: ReturnType<typeof preparedDrainedLine>[];
+  try {
+    preparedLines = (postavke as any[]).map((line) => preparedDrainedLine(
+      line,
+      artikelMap.get(line.artikelId),
+      undefined,
+      vrstaCen,
+      capitalizesVat,
+    ));
+  } catch (error) {
+    if (error instanceof DrainedYieldError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
+  const skupajVrednost = preparedLines.reduce((sum, line) => sum + Number(line.skupaj), 0);
   const [supplier] = dobaviteljId
     ? await db.select({
       naziv: counterpartiesTable.name, davcna: counterpartiesTable.taxId, idZaDdv: counterpartiesTable.idZaDdv,
@@ -437,8 +699,10 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     }).from(counterpartiesTable).where(and(eq(counterpartiesTable.id, dobaviteljId), eq(counterpartiesTable.companyId, companyId))).limit(1)
     : [];
   const trr = Array.isArray(supplier?.trr) ? supplier.trr[0] : null;
-  const inputDdvOsnova = denarAliNull(ddvOsnova);
-  const inputDdvZnesek = denarAliNull(ddvZnesek);
+  const inputDdvOsnova = denarAliNull(ddvOsnova)
+    ?? String(preparedLines.reduce((sum, line) => sum + Number(line.ddvOsnova ?? 0), 0).toFixed(2));
+  const inputDdvZnesek = denarAliNull(ddvZnesek)
+    ?? String(preparedLines.reduce((sum, line) => sum + Number(line.ddvZnesek ?? 0), 0).toFixed(2));
   const manualCosts = odvisniStroskiVnos(odvisniStroski).reduce((sum, item) => sum + Number(item.znesek), 0);
   const calculatedGross = inputDdvOsnova !== null && inputDdvZnesek !== null
     ? String((Number(inputDdvOsnova) + Number(inputDdvZnesek) + manualCosts).toFixed(2)) : null;
@@ -528,17 +792,14 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     }).returning();
 
     const postavkeResult = [];
-    for (const p of postavke) {
-      const kolicina = p.kolicina ?? 0;
-      const cenaKos = p.cenaKos ?? 0;
-      const skupaj = kolicina * cenaKos;
-
+    for (const [lineIndex, p] of postavke.entries()) {
       const enotVPaketu = p.enotVPaketu && Number(p.enotVPaketu) > 1 ? Number(p.enotVPaketu) : 1;
-      // izvCena = katalog cena pred popustom; rabat1Odst = popust v %
-      // Frontend pošlje izvCena = cena iz forme, popust = popust %; cenaKos je že neto.
-      const izvCena = p.izvCena != null ? Number(p.izvCena) : null;
-      const rabat1Odst = p.popust != null ? Number(p.popust) : 0;
       const art = artikelMap.get(p.artikelId);
+      const preparedLine = preparedLines[lineIndex]!;
+      const rabat1Odst = preparedLine.rabat1Odst ?? "0";
+      const stockQuantity = preparedLine.kolicina;
+      const stockUnitCost = preparedLine.cenaKos;
+      const lineValue = preparedLine.skupaj;
       let alergeniProfil;
       try {
         alergeniProfil = TESTNI_ALERGENSKI_NACIN
@@ -553,26 +814,31 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
       const [pp] = await tx.insert(prejemnicePostavkeTable).values({
         prejemnicaId: prejemnica.id,
         artikelId: p.artikelId,
-        kolicina: String(kolicina),
-        cenaKos: String(cenaKos),
-        skupaj: String(skupaj.toFixed(2)),
+        kolicina: stockQuantity,
+        cenaKos: stockUnitCost,
+        skupaj: lineValue,
         enotVPaketu: String(enotVPaketu),
-        ...(izvCena != null ? { izvCena: String(izvCena) } : {}),
+        izvKolicina: preparedLine.izvKolicina,
+        izvCena: preparedLine.izvCena,
+        izvEnota: preparedLine.izvEnota,
+        izvCenaVrsta: preparedLine.izvCenaVrsta,
+        rabatVkljucenVCeni: preparedLine.rabatVkljucenVCeni,
+        brutoTezaG: preparedLine.brutoTezaG,
+        netoTezaG: preparedLine.netoTezaG,
+        netoDelezOdst: preparedLine.netoDelezOdst,
         izvNaziv: typeof p.izvNaziv === "string" ? p.izvNaziv : (art?.imeZaNabavo ?? art?.ime ?? null),
-        izvEnota: typeof p.izvEnota === "string"
-          ? p.izvEnota
-          : null,
         rabat1Odst: String(rabat1Odst),
+        rabat2Odst: preparedLine.rabat2Odst,
         ddvStopnja: denarAliNull(p.ddvStopnja),
-        ddvOsnova: denarAliNull(p.ddvOsnova),
-        ddvZnesek: denarAliNull(p.ddvZnesek),
+        ddvOsnova: preparedLine.ddvOsnova,
+        ddvZnesek: preparedLine.ddvZnesek,
         vatCodeId: typeof p.vatCodeId === "string" ? p.vatCodeId : null,
         vrsticaTip: p.vrsticaTip === "strosek" ? "poraba_surovin" : (p.vrsticaTip ?? "zaloga"),
         enotaMere: art?.jeSkupinskiNabavniArtikel
           ? toUneceUnitCode(p.izvEnota)
           : toUneceUnitCode(p.enotaMere ?? art?.enotaMere),
-        netoCena: String(cenaKos),
-        netoZnesek: String(skupaj.toFixed(2)),
+        netoCena: preparedLine.netoCena,
+        netoZnesek: preparedLine.netoZnesek,
         ddvKategorija: typeof p.ddvKategorija === "string" ? p.ddvKategorija : (p.ddvStopnja != null ? (Number(p.ddvStopnja) > 0 ? "S" : "Z") : null),
         ...(alergeniProfil ?? {}),
       }).returning();
@@ -597,10 +863,18 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
         artikelIme: art?.ime ?? "–",
         imeZaNabavo: art?.imeZaNabavo ?? null,
         enotaMere: art?.enotaMere ?? null,
-        kolicina,
-        cenaKos,
-        skupaj,
-        enotVPaketu});
+        kolicina: Number(stockQuantity),
+        cenaKos: Number(stockUnitCost),
+        skupaj: Number(lineValue),
+        enotVPaketu,
+        izvKolicina: preparedLine.izvKolicina == null ? null : Number(preparedLine.izvKolicina),
+        izvCena: preparedLine.izvCena == null ? null : Number(preparedLine.izvCena),
+        izvEnota: preparedLine.izvEnota,
+        izvCenaVrsta: preparedLine.izvCenaVrsta,
+        rabatVkljucenVCeni: preparedLine.rabatVkljucenVCeni,
+        brutoTezaG: preparedLine.brutoTezaG == null ? null : Number(preparedLine.brutoTezaG),
+        netoTezaG: preparedLine.netoTezaG == null ? null : Number(preparedLine.netoTezaG),
+        netoDelezOdst: preparedLine.netoDelezOdst == null ? null : Number(preparedLine.netoDelezOdst)});
     }
 
     for (const strosek of odvisniStroskiVnos(odvisniStroski)) {
@@ -616,6 +890,10 @@ router.post("/prejemnice", requireEnota, async (req, res): Promise<void> => {
     return { prejemnica, postavkeResult };
     });
   } catch (error: any) {
+    if (error instanceof DrainedYieldError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     if (error?.message?.startsWith("RECEIPT_ALLERGEN_INVALID:")) {
       req.log.warn({ err: error }, "Invalid receipt allergen snapshot");
       res.status(400).json({ error: error.message.slice("RECEIPT_ALLERGEN_INVALID:".length) });
@@ -702,6 +980,9 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       artikelIme: artikliTable.ime,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
+      brutoTezaG: prejemnicePostavkeTable.brutoTezaG,
+      netoTezaG: prejemnicePostavkeTable.netoTezaG,
+      netoDelezOdst: prejemnicePostavkeTable.netoDelezOdst,
       kolicina: prejemnicePostavkeTable.kolicina,
       cenaKos: prejemnicePostavkeTable.cenaKos,
       skupaj: prejemnicePostavkeTable.skupaj,
@@ -709,8 +990,11 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       rabat1Odst: prejemnicePostavkeTable.rabat1Odst,
       rabat2Odst: prejemnicePostavkeTable.rabat2Odst,
        izvCena: prejemnicePostavkeTable.izvCena,
+       izvCenaVrsta: prejemnicePostavkeTable.izvCenaVrsta,
+       rabatVkljucenVCeni: prejemnicePostavkeTable.rabatVkljucenVCeni,
        izvNaziv: prejemnicePostavkeTable.izvNaziv,
        izvEnota: prejemnicePostavkeTable.izvEnota,
+       izvKolicina: prejemnicePostavkeTable.izvKolicina,
        enotaMereEslog: prejemnicePostavkeTable.enotaMere,
        netoCena: prejemnicePostavkeTable.netoCena,
        netoZnesek: prejemnicePostavkeTable.netoZnesek,
@@ -775,8 +1059,12 @@ router.get("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       rabat1Odst: Number(p.rabat1Odst ?? 0),
       rabat2Odst: Number(p.rabat2Odst ?? 0),
        izvCena: p.izvCena != null ? Number(p.izvCena) : null,
+       izvKolicina: p.izvKolicina != null ? Number(p.izvKolicina) : null,
         izvNaziv: p.izvNaziv ?? null,
         izvEnota: p.izvEnota ?? null,
+        brutoTezaG: p.brutoTezaG != null ? Number(p.brutoTezaG) : null,
+        netoTezaG: p.netoTezaG != null ? Number(p.netoTezaG) : null,
+        netoDelezOdst: p.netoDelezOdst != null ? Number(p.netoDelezOdst) : null,
         enotaMereEslog: p.enotaMereEslog ?? null,
         netoCena: p.netoCena != null ? Number(p.netoCena) : null,
         netoZnesek: p.netoZnesek != null ? Number(p.netoZnesek) : null,
@@ -823,6 +1111,10 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
     ime: string;
     imeZaNabavo: string | null;
     enotaMere: string | null;
+    davek: string | null;
+    brutoTezaG: string | null;
+    netoTezaG: string | null;
+    netoDelezOdst: string | null;
     jeSkupinskiNabavniArtikel: boolean;
     povratnaEmbalaza: boolean;
     depozitnaVrednost: string | null;
@@ -845,6 +1137,10 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       ime: artikliTable.ime,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
+      davek: artikliTable.davek,
+      brutoTezaG: artikliTable.brutoTezaG,
+      netoTezaG: artikliTable.netoTezaG,
+      netoDelezOdst: artikliTable.netoDelezOdst,
       jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
       povratnaEmbalaza: artikliTable.povratnaEmbalaza,
       depozitnaVrednost: artikliTable.depozitnaVrednost,
@@ -1036,15 +1332,21 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
 
       let skupajVrednost = 0;
       for (const p of novaPostavke) {
-        const kolicina = p.kolicina ?? 0;
-        const cenaKos = p.cenaKos ?? 0;
-        skupajVrednost += kolicina * cenaKos;
-
         const enotVPaketu = p.enotVPaketu && Number(p.enotVPaketu) > 1 ? Number(p.enotVPaketu) : 1;
-        const izvCena = p.izvCena != null ? Number(p.izvCena) : null;
-        const rabat1Odst = p.popust != null ? Number(p.popust) : 0;
         const art = artikelMap?.get(p.artikelId);
         const old = Number.isInteger(Number(p.id)) ? oldById.get(Number(p.id)) : undefined;
+        const preparedLine = preparedDrainedLine(
+          p,
+          art,
+          old,
+          parsed.data.vrstaCen ?? existing.vrstaCen,
+          !existing.prejemnikIdDdv?.trim(),
+          existing.vrstaCen,
+        );
+        const rabat1Odst = preparedLine.rabat1Odst ?? "0";
+        const kolicina = Number(preparedLine.kolicina);
+        const cenaKos = Number(preparedLine.cenaKos);
+        skupajVrednost += Number(preparedLine.skupaj);
         let alergeniProfil;
         try {
           alergeniProfil = TESTNI_ALERGENSKI_NACIN
@@ -1065,20 +1367,26 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
         const [novaPostavka] = await tx.insert(prejemnicePostavkeTable).values({
           prejemnicaId: id,
           artikelId: p.artikelId,
-          kolicina: String(kolicina),
-          cenaKos: String(cenaKos),
-          skupaj: String((kolicina * cenaKos).toFixed(2)),
+          kolicina: preparedLine.kolicina,
+          cenaKos: preparedLine.cenaKos,
+          skupaj: preparedLine.skupaj,
           enotVPaketu: String(enotVPaketu),
-          ...(izvCena != null ? { izvCena: String(izvCena) } : {}),
+          izvKolicina: preparedLine.izvKolicina,
+          izvCena: preparedLine.izvCena,
+          izvEnota: preparedLine.izvEnota,
+          izvCenaVrsta: preparedLine.izvCenaVrsta,
+          rabatVkljucenVCeni: preparedLine.rabatVkljucenVCeni,
+          brutoTezaG: preparedLine.brutoTezaG,
+          netoTezaG: preparedLine.netoTezaG,
+          netoDelezOdst: preparedLine.netoDelezOdst,
           izvNaziv: old?.izvNaziv
             ?? (typeof p.izvNaziv === "string" ? p.izvNaziv : (art?.imeZaNabavo ?? art?.ime ?? null)),
-          izvEnota: old?.izvEnota
-            ?? (typeof p.izvEnota === "string" ? p.izvEnota : null),
           rabat1Odst: String(rabat1Odst),
-           ddvStopnja: denarAliNull(p.ddvStopnja),
-           ddvOsnova: denarAliNull(p.ddvOsnova),
-           ddvZnesek: denarAliNull(p.ddvZnesek),
-           vatCodeId: typeof p.vatCodeId === "string" ? p.vatCodeId : null,
+          rabat2Odst: preparedLine.rabat2Odst,
+            ddvStopnja: denarAliNull(p.ddvStopnja) ?? old?.ddvStopnja ?? art?.davek ?? null,
+            ddvOsnova: preparedLine.ddvOsnova,
+            ddvZnesek: preparedLine.ddvZnesek,
+            vatCodeId: typeof p.vatCodeId === "string" ? p.vatCodeId : old?.vatCodeId ?? null,
            vrsticaTip: p.vrsticaTip === "strosek" ? "poraba_surovin" : (p.vrsticaTip ?? "zaloga"),
              enotaMere: old?.enotaMere
                ?? (art?.jeSkupinskiNabavniArtikel
@@ -1086,8 +1394,8 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
                  : typeof p.enotaMereEslog === "string"
                    ? p.enotaMereEslog
                    : toUneceUnitCode(p.enotaMere ?? art?.enotaMere)),
-            netoCena: String(cenaKos),
-            netoZnesek: String((kolicina * cenaKos).toFixed(2)),
+              netoCena: preparedLine.netoCena,
+              netoZnesek: preparedLine.netoZnesek,
             ddvKategorija: typeof p.ddvKategorija === "string"
               ? p.ddvKategorija
                : (p.ddvStopnja != null
@@ -1164,6 +1472,10 @@ router.put("/prejemnice/:id", requireEnota, async (req, res): Promise<void> => {
       .returning();
     });
   } catch (error: any) {
+    if (error instanceof DrainedYieldError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     if (error?.message?.startsWith("RECEIPT_GENERIC_UNIT_INVALID:")) {
       res.status(400).json({ error: error.message.slice("RECEIPT_GENERIC_UNIT_INVALID:".length) });
       return;

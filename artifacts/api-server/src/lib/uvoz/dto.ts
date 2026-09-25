@@ -150,7 +150,13 @@ export const postavkaSchema = z.object({
   izvKolicina: decimalSchema,
   /** VEDNO na eno enoto. Pri XML formatih že deljeno z BaseQuantity. */
   izvCena: decimalSchema,
+  /** Price basis of the source unit price; null when only document-level semantics are known. */
+  izvCenaVrsta: z.enum(["neto", "bruto"]).nullable().default(null),
   izvVrednost: decimalSchema.nullable().default(null),
+  /** Per-line declared contents mass and drained usable mass, in grams. */
+  brutoTezaG: decimalSchema.nullable().default(null),
+  netoTezaG: decimalSchema.nullable().default(null),
+  netoDelezOdst: decimalSchema.nullable().default(null),
 
   // pakiranje
   enotVPaketu: decimalSchema.default(() => new Decimal(1)),

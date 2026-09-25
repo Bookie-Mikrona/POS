@@ -39,6 +39,7 @@ import {
 } from './NovArtikelDialog';
 import { BookingPreviewDialog } from './BookingPreviewDialog';
 import { saveCreatedArticleNormativ } from './save-created-article-normativ';
+import type { MassYieldPayload } from '@/components/MassYieldFields';
 
 // ─── Statični podatki ──────────────────────────────────────────────────────
 
@@ -65,6 +66,9 @@ export interface NabavniArtikel {
   davek: number;
   povratnaEmbalaza?: boolean;
   jeSkupinskiNabavniArtikel?: boolean;
+  brutoTezaG?: number | null;
+  netoTezaG?: number | null;
+  netoDelezOdst?: number | null;
 }
 
 interface Props {
@@ -74,6 +78,7 @@ interface Props {
   onOdpriPrejemnico?: (id: number) => void;
   nabavniArtikli: NabavniArtikel[];
   dobaviteljiMap: Map<string, string>;
+  jeDdvZavezanec?: boolean;
 }
 
 type Korak = 'upload' | 'uparjanje' | 'nov_artikel';
@@ -247,6 +252,7 @@ export function UvozPrejemniceDialog({
   onOdpriPrejemnico,
   nabavniArtikli,
   dobaviteljiMap,
+  jeDdvZavezanec = false,
 }: Props) {
   const { toast } = useToast();
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -419,11 +425,15 @@ export function UvozPrejemniceDialog({
         Boolean((a as typeof a & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel),
       ]),
     );
+    const artikelPoId = new Map(nabavniArtikli.map(a => [a.id, a]));
     const neuparjeneList: NeuparjenaPostavka[] = (nd.vsebina ?? []).map((p: NeuparjenaPostavka) => ({
       ...p,
       uparjanje_kandidati: (p.uparjanje_kandidati ?? []).map(k => ({
         ...k,
         jeSkupinskiNabavniArtikel: k.jeSkupinskiNabavniArtikel ?? jeSkupinskiPoId.get(k.artikelId) ?? false,
+        brutoTezaG: k.brutoTezaG ?? artikelPoId.get(k.artikelId)?.brutoTezaG ?? null,
+        netoTezaG: k.netoTezaG ?? artikelPoId.get(k.artikelId)?.netoTezaG ?? null,
+        netoDelezOdst: k.netoDelezOdst ?? artikelPoId.get(k.artikelId)?.netoDelezOdst ?? null,
       })),
     }));
     const stUpar = (data.uparjenih as number) ?? 0;
@@ -840,11 +850,12 @@ export function UvozPrejemniceDialog({
 
   const onUpari = useCallback(async (
     postavkaId: number, artikelId: number | null, enotVPaketu: string, zapomni: boolean, vrsticaTip: string = 'zaloga',
+    massYield: Partial<MassYieldPayload>,
   ): Promise<number> => {
     const r = await posFetch(`${base}/api/uvoz/postavke/${postavkaId}/upari`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ artikelId, enotVPaketu, zapomni, vrsticaTip }),
+      body: JSON.stringify({ artikelId, enotVPaketu, zapomni, vrsticaTip, ...massYield }),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
@@ -885,6 +896,9 @@ export function UvozPrejemniceDialog({
         jeSkupinskiNabavniArtikel: Boolean((a as typeof a & { jeSkupinskiNabavniArtikel?: boolean }).jeSkupinskiNabavniArtikel),
         zadnjaCenaEnota: null,
         enotVPaketu:     null,
+        brutoTezaG:      a.brutoTezaG ?? null,
+        netoTezaG:       a.netoTezaG ?? null,
+        netoDelezOdst:   a.netoDelezOdst ?? null,
         ocena:           0.5,
         znanDobavitelj:  false,
       }));
@@ -935,6 +949,9 @@ export function UvozPrejemniceDialog({
         depozitnaVrednost: jeEmbalaza
           ? Number((v.depozitnaVrednost ?? '0').replace(',', '.'))
           : undefined,
+        brutoTezaG: v.brutoTezaG,
+        netoTezaG: v.netoTezaG,
+        netoDelezOdst: v.netoDelezOdst,
         ...(import.meta.env.DEV ? {
           alergeni: [],
           alergeniSledi: [],
@@ -957,6 +974,9 @@ export function UvozPrejemniceDialog({
         enotaMere: v.osnovnaEnota || null,
         davek: jeEmbalaza ? 0 : (isProdajni ? v.prodajnaDdvStopnja : v.nabavnaDdvStopnja),
         povratnaEmbalaza: jeEmbalaza,
+        brutoTezaG: v.brutoTezaG,
+        netoTezaG: v.netoTezaG,
+        netoDelezOdst: v.netoDelezOdst,
       },
     ]);
     void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
@@ -987,7 +1007,14 @@ export function UvozPrejemniceDialog({
     const pr = await posFetch(`${base}/api/uvoz/postavke/${novArtikelPostavka.id}/upari`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ artikelId: novId, enotVPaketu: pakiranje, zapomni: false }),
+      body: JSON.stringify({
+        artikelId: novId,
+        enotVPaketu: pakiranje,
+        zapomni: false,
+        brutoTezaG: v.brutoTezaG,
+        netoTezaG: v.netoTezaG,
+        netoDelezOdst: v.netoDelezOdst,
+      }),
     });
     if (!pr.ok) {
       const err = await pr.json().catch(() => ({}));
@@ -1138,6 +1165,7 @@ export function UvozPrejemniceDialog({
         stDokumenta={izid.stDokumenta}
         datum={izid.datumDokumenta}
         ceneBruto={izid.ceneBruto}
+        jeDdvZavezanec={jeDdvZavezanec}
         steviloUparjenih={stUparjenih}
         postavke={neuparjene}
         onUpari={onUpari}

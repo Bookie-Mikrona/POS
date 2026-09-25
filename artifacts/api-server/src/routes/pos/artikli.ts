@@ -31,6 +31,7 @@ import { verifyNormativeProposal } from "../../lib/normative-comparison";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { broadcastToUnit } from "../../lib/pos-sse";
+import { normalizeDrainedYield } from "../../lib/drained-yield";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import {
   assertPlausibleInitialServing,
@@ -112,6 +113,9 @@ const SELECT_FIELDS = {
   depozitnaVrednost: artikliTable.depozitnaVrednost,
   imeZaNabavo: artikliTable.imeZaNabavo,
   enotaMere: artikliTable.enotaMere,
+  brutoTezaG: artikliTable.brutoTezaG,
+  netoTezaG: artikliTable.netoTezaG,
+  netoDelezOdst: artikliTable.netoDelezOdst,
   normativRevision: artikliTable.normativRevision,
   jePica: artikliTable.jePica,
   jeDodatekZaPico: artikliTable.jeDodatekZaPico,
@@ -174,6 +178,9 @@ function mapRow(r: Record<string, unknown>) {
     depozitnaVrednost: r.depozitnaVrednost == null ? null : Number(r.depozitnaVrednost),
     imeZaNabavo: (r.imeZaNabavo as string | null) ?? null,
     enotaMere: (r.enotaMere as string | null) ?? null,
+    brutoTezaG: r.brutoTezaG == null ? null : Number(r.brutoTezaG),
+    netoTezaG: r.netoTezaG == null ? null : Number(r.netoTezaG),
+    netoDelezOdst: r.netoDelezOdst == null ? null : Number(r.netoDelezOdst),
     normativRevision: Number(r.normativRevision ?? 1),
     jePica: r.jePica as boolean,
     jeDodatekZaPico: r.jeDodatekZaPico as boolean,
@@ -483,6 +490,13 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const parsed = CreateArtikelBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  let drainedYield;
+  try {
+    drainedYield = normalizeDrainedYield(parsed.data);
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+    return;
+  }
   const napakaCenePic = await preveriCenePic(parsed.data as PizzaCenaInput, tenotaId);
   if (napakaCenePic) { res.status(400).json({ error: napakaCenePic }); return; }
 
@@ -564,6 +578,9 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
         imeZaNabavo: parsed.data.imeZaNabavo ?? null,
         enotaMere: parsed.data.enotaMere ?? null,
+        brutoTezaG: drainedYield.brutoTezaG,
+        netoTezaG: drainedYield.netoTezaG,
+        netoDelezOdst: drainedYield.netoDelezOdst,
         jePica: parsed.data.jePica ?? false,
         jeDodatekZaPico: parsed.data.jeDodatekZaPico ?? false,
         privzetiDodatki: parsed.data.privzetiDodatki ?? [],
@@ -1409,7 +1426,6 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const parsed = UpdateArtikelBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-
   const [obstojeci] = await db.select({
     jePica: artikliTable.jePica,
     cena: artikliTable.cena,
@@ -1427,12 +1443,26 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     prodajniArtikel: artikliTable.prodajniArtikel,
     jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
     enotaMere: artikliTable.enotaMere,
+    brutoTezaG: artikliTable.brutoTezaG,
+    netoTezaG: artikliTable.netoTezaG,
+    netoDelezOdst: artikliTable.netoDelezOdst,
     normativRevision: artikliTable.normativRevision,
   }).from(artikliTable).where(and(
     eq(artikliTable.id, params.data.id),
     eq(artikliTable.enotaId, tenotaId),
   ));
   if (!obstojeci) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  let drainedYield;
+  try {
+    drainedYield = normalizeDrainedYield({
+      brutoTezaG: "brutoTezaG" in parsed.data ? parsed.data.brutoTezaG : obstojeci.brutoTezaG,
+      netoTezaG: "netoTezaG" in parsed.data ? parsed.data.netoTezaG : obstojeci.netoTezaG,
+      netoDelezOdst: "netoDelezOdst" in parsed.data ? parsed.data.netoDelezOdst : obstojeci.netoDelezOdst,
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+    return;
+  }
   const naslednjiGeneric = parsed.data.jeSkupinskiNabavniArtikel
     ?? obstojeci.jeSkupinskiNabavniArtikel;
   const naslednjiNabavni = parsed.data.nabavniArtikel ?? obstojeci.nabavniArtikel;
@@ -1497,6 +1527,11 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   }
   if ("imeZaNabavo" in parsed.data) updateData.imeZaNabavo = parsed.data.imeZaNabavo ?? null;
   if ("enotaMere" in parsed.data) updateData.enotaMere = parsed.data.enotaMere ?? null;
+  if (["brutoTezaG", "netoTezaG", "netoDelezOdst"].some((key) => key in parsed.data)) {
+    updateData.brutoTezaG = drainedYield.brutoTezaG;
+    updateData.netoTezaG = drainedYield.netoTezaG;
+    updateData.netoDelezOdst = drainedYield.netoDelezOdst;
+  }
   if (parsed.data.jePica !== undefined) updateData.jePica = parsed.data.jePica;
   if ((parsed.data as { jeDodatekZaPico?: boolean }).jeDodatekZaPico !== undefined) updateData.jeDodatekZaPico = (parsed.data as { jeDodatekZaPico?: boolean }).jeDodatekZaPico;
   if ((parsed.data as { privzetiDodatki?: number[] }).privzetiDodatki !== undefined) updateData.privzetiDodatki = (parsed.data as { privzetiDodatki?: number[] }).privzetiDodatki ?? [];
@@ -1573,6 +1608,9 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
           nabavniArtikel: artikliTable.nabavniArtikel,
           jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
           enotaMere: artikliTable.enotaMere,
+          brutoTezaG: artikliTable.brutoTezaG,
+          netoTezaG: artikliTable.netoTezaG,
+          netoDelezOdst: artikliTable.netoDelezOdst,
           normativRevision: artikliTable.normativRevision,
         }).from(artikliTable)
           .where(and(

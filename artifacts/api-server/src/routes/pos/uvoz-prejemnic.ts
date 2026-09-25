@@ -39,6 +39,7 @@ import { razsiriOcrPrometeEmbalaze } from '../../lib/uvoz/ocr-embalaza';
 import { lockPosReceiptForEdit, ReceiptEditConflict } from '../../lib/posReceiptBooking';
 import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
 import { poisciDobaviteljaAI } from '../../lib/uvoz/poisci-dobavitelja';
+import { DrainedYieldError } from '../../lib/drained-yield';
 
 // =====================================================================
 // OCR helper — Claude Vision → PrejemDTO
@@ -116,12 +117,16 @@ async function ocrSlikaVDto(base64: string, mimeTip: string) {
       "prejetaKolicina": "samo pri povratni embalaži: prejeta/dobavljena količina iz stolpca Do., Dob., Prejeto ipd. ali null",
       "vrnjenaKolicina": "samo pri povratni embalaži: vrnjena količina iz stolpca Vr., Vračilo, Vrnjeno ipd. ali null",
       "cena": "kataložna/cenikovna cena na enoto brez DDV (PRED popusti) ali null",
+      "izvCenaVrsta": "neto (polje cena in vrednost sta vedno brez DDV, ne glede na ceneBruto dokumenta)",
       "popust": "popust v % kot decimalni niz ali null (npr. '5' za 5%)",
       "vrednost": "NETO vrednost vrstice po vseh popustih brez DDV kot decimalni niz — ta stolpec ima prednost pred ceno",
       "davek": stopnja DDV kot število (22, 9.5, 5 ali 0) ali null,
       "enota": "enota mere: kom, kg, l, m, pak itd. ali null",
       "gtin": "EAN/črtna koda če vidna ali null",
       "sifra": "šifra artikla dobavitelja če vidna ali null",
+      "brutoTezaG": "masa vsebine brez embalaže v gramih; preberi jo tudi iz jasnega naziva/opisa pakiranja (npr. '500 g'), sicer null",
+      "netoTezaG": "označena uporabna/odcejena masa v gramih (npr. 'odcejena masa 350 g'), sicer null",
+      "netoDelezOdst": "delež uporabne odcejene mase v %, samo če je neposredno naveden; ne ugibaj odstotka brez vira, sicer null",
       "vrsticaTip": "artikel ali embalaza"
     }
   ]
@@ -136,6 +141,7 @@ PRAVILA:
 - Za slovensko podjetje: dobaviteljDavcna = 8 cifer brez SI, dobaviteljIdDdv = "SI" + 8 cifer. Za tuje (AT, DE, HR ...): dobaviteljDavcna = null, dobaviteljIdDdv = "AT/DE/..."+številka.
 - dobaviteljDavcna sme vsebovati SAMO številko, ki stoji neposredno ob oznaki "Davčna:", "Davčna št.", "ID za DDV:", "DIŠ:", "Davčna številka" ipd. NIKOLI ne beri davčne iz TRR/IBAN, številke dobavnice, šifre artikla ali bančnih podatkov.
 - Datum: YYYY-MM-DD. Decimalno ločilo v vseh številih: pika.
+- Bruto/neto odcejeno maso vrni samo, če je izrecno razvidna na tej postavki. Bruto pomeni deklarirano maso vsebine brez embalaže, ne mase kozarca/pločevinke; ne sklepaj vrednosti in ne izračunavaj nevidnih količin.
 - CENA PO POPUSTU (najpomembnejše): ko ima vrstica stolpec za popust ALI stolpec neto vrednosti, VEDNO vrni "vrednost" (neto vrednost vrstice po popustu). Cena/enoto se bo izračunala kot vrednost/kolicina na strežniku. Primer: kolicina=3.6 kg, katalog cena=3.68 €/kg, popust=10%, vrednost=11.92 € → vrni vrednost="11.92", cena="3.68" ali null.
 - Če ni stolpca za popust in ni neto vrednosti: vrni cena = cena/enoto, vrednost = null.
 - Vrstice povratne embalaže (zaboji, steklenice, gajbe, palete) ohrani tudi brez cene oziroma z vrednostjo 0, če imajo količino. So pomemben fizični promet, čeprav nimajo denarne vrednosti.
@@ -280,7 +286,13 @@ PRAVILA:
           izvEnota:          (p.enota  as string) ?? null,
           izvKolicina:       kolicina,
           izvCena:           izvCena,
+          // OCR prompt asks for catalogue price and line value excluding VAT.
+          // Do not infer a source unit-price basis from the document-wide mode.
+          izvCenaVrsta:      'neto',
           izvVrednost:       vrednost,
+          brutoTezaG:        p.brutoTezaG != null ? new Decimal(String(p.brutoTezaG)) : null,
+          netoTezaG:         p.netoTezaG != null ? new Decimal(String(p.netoTezaG)) : null,
+          netoDelezOdst:     p.netoDelezOdst != null ? new Decimal(String(p.netoDelezOdst)) : null,
           enotVPaketu:       new Decimal(1),
           rabat1Odst,
           rabat2Odst:        new Decimal(0),
@@ -877,6 +889,9 @@ router.get(
     const { rows: vrstice } = await db.execute(sql`
       SELECT pp.id, pp.izv_gtin, pp.izv_sifra, pp.izv_naziv,
              pp.izv_enota, pp.izv_kolicina, pp.izv_cena,
+              pp.izv_cena_vrsta, pp.rabat_vkljucen_v_ceni,
+              pp.rabat_1_odst, pp.rabat_2_odst,
+             pp.bruto_teza_g, pp.neto_teza_g, pp.neto_delez_odst,
              pp.enot_v_paketu, pp.artikel_id, pp.vrstica_tip,
              pp.uparjanje_zaupanje, pp.uparjanje_kandidati,
              pp.opozorila
@@ -937,7 +952,20 @@ router.get(
       return { ...v, opozorila, uparjanje_kandidati: [...po.values()] };
     });
 
-    return posljiJson(res, 200, { vsebina: vrsticeDedup, skupaj: vrsticeDedup.length });
+    const responseRows = vrsticeDedup.map((line) => {
+      const raw = line as Record<string, unknown>;
+      return {
+        ...line,
+        brutoTezaG: raw.bruto_teza_g == null ? null : Number(raw.bruto_teza_g),
+        netoTezaG: raw.neto_teza_g == null ? null : Number(raw.neto_teza_g),
+        netoDelezOdst: raw.neto_delez_odst == null ? null : Number(raw.neto_delez_odst),
+        izvCenaVrsta: raw.izv_cena_vrsta ?? null,
+        rabatVkljucenVCeni: raw.rabat_vkljucen_v_ceni ?? null,
+        rabat1Odst: raw.rabat_1_odst == null ? 0 : Number(raw.rabat_1_odst),
+        rabat2Odst: raw.rabat_2_odst == null ? 0 : Number(raw.rabat_2_odst),
+      };
+    });
+    return posljiJson(res, 200, { vsebina: responseRows, skupaj: responseRows.length });
   },
 );
 
@@ -982,6 +1010,10 @@ const upariTelo = z.object({
   enotVPaketu: z.union([z.string(), z.number()]).default('1'),
   zapomni: z.boolean().default(true),
   vrsticaTip: z.enum(['zaloga', 'poraba_surovin', 'prevoz']).default('zaloga'),
+  brutoTezaG: z.union([z.string(), z.number()]).nullable().optional(),
+  netoTezaG: z.union([z.string(), z.number()]).nullable().optional(),
+  netoDelezOdst: z.union([z.string(), z.number()]).nullable().optional(),
+  drainedYieldAction: z.enum(['inherit', 'set', 'clear']).optional(),
 });
 
 router.post(
@@ -1038,6 +1070,10 @@ router.post(
           izvCena: cenaPaket && enotVPaketu.gt(0) ? cenaPaket.div(enotVPaketu) : null,
           datumPrevzema: candidate.datum,
           zapomni: vhod.data.zapomni,
+          ...(Object.prototype.hasOwnProperty.call(vhod.data, 'brutoTezaG') ? { brutoTezaG: vhod.data.brutoTezaG } : {}),
+          ...(Object.prototype.hasOwnProperty.call(vhod.data, 'netoTezaG') ? { netoTezaG: vhod.data.netoTezaG } : {}),
+          ...(Object.prototype.hasOwnProperty.call(vhod.data, 'netoDelezOdst') ? { netoDelezOdst: vhod.data.netoDelezOdst } : {}),
+          ...(vhod.data.drainedYieldAction ? { drainedYieldAction: vhod.data.drainedYieldAction } : {}),
         });
         await tx.execute(sql`
           UPDATE prejemnice_postavke
@@ -1066,6 +1102,9 @@ router.post(
       }
       if (err instanceof ReceiptLineNotFound) {
         return posljiJson(res, 404, { koda: 'ZAJ020', sporocilo: err.message });
+      }
+      if (err instanceof DrainedYieldError) {
+        return posljiJson(res, 400, { koda: 'ZAJ014', sporocilo: err.message });
       }
       const msg = err instanceof Error ? err.message : '';
       return posljiJson(res, 500, {
