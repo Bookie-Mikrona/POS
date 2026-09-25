@@ -7,7 +7,7 @@ const fetchMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/pos-auth-headers", () => ({ posFetch: fetchMock }));
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ open, children }: { open: boolean; children: React.ReactNode }) => open ? <div>{children}</div> : null,
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children, style, className }: React.HTMLAttributes<HTMLDivElement>) => <div style={style} className={className}>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -55,6 +55,22 @@ describe("SmartNormativeProposalDialog", () => {
     expect(screen.getByLabelText("Ime sestavine 2")).toHaveValue("");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ustvari in uporabi normativ" })).toBeDisabled();
+  });
+
+  it("keeps a long list in a bounded, native scroll region", async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({
+      ...proposal,
+      items: Array.from({ length: 9 }, (_, index) => ({
+        ...proposal.items[0], name: `Sestavina ${index + 1}`,
+      })),
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<SmartNormativeProposalDialog open articleId={51} articleName="Fižolova solata – velika" availableIngredients={[]}
+      onOpenChange={vi.fn()} onApplySuccess={vi.fn()} />);
+    expect(await screen.findByLabelText("Ime sestavine 9")).toHaveValue("Sestavina 9");
+    expect(screen.getByText(/AI je predlagal 9 sestavin/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Sestavine in pregled" })).toHaveClass("overflow-y-auto", "touch-pan-y");
+    expect(screen.getByRole("region", { name: "Sestavine in pregled" }).parentElement?.parentElement)
+      .toHaveStyle({ height: "min(90dvh, calc(var(--pos-visual-viewport-height) - 1rem))" });
   });
 
   it("shows the server's research timeout and can retry without saving", async () => {

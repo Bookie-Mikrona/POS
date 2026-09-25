@@ -46,6 +46,17 @@ let currentIngredient = "Rdeca paprika";
 let currentQuantity = 200;
 const urlA = "https://allrecipes.com/initial-recipe-a";
 const urlB = "https://bbcgoodfood.com/initial-recipe-b";
+const beanSaladItems = [
+  { name: "Fižol konzerviran, odcejen", quantity: 0.18, unit: "kg" },
+  { name: "Čebula rdeča", quantity: 0.02, unit: "kg" },
+  { name: "Olje sončnično", quantity: 0.01, unit: "l" },
+  { name: "Kis vinski", quantity: 0.01, unit: "l" },
+  { name: "Sladkor", quantity: 0.002, unit: "kg" },
+  { name: "Sol", quantity: 0.002, unit: "kg" },
+  { name: "Poper", quantity: 0.001, unit: "kg" },
+  { name: "Peteršilj", quantity: 0.003, unit: "kg" },
+  { name: "Česen", quantity: 0.003, unit: "kg" },
+];
 const app = express();
 app.use(express.json());
 app.use(router);
@@ -210,6 +221,10 @@ describe("initial smart normative proposal and apply", () => {
       enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
       davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
     }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: JSON.stringify({ estimate: { sourceUrl: urlA, items: beanSaladItems } }) },
+    ] }));
     const response = await preview(salad!.id);
     expect(response.status, JSON.stringify(response.body)).toBe(200);
     const request = mockCreate.mock.lastCall?.[0] as { messages: Array<{ content: string }> };
@@ -238,12 +253,13 @@ describe("initial smart normative proposal and apply", () => {
     ] }));
     mockCreate.mockImplementationOnce(async () => ({ content: [{
       type: "tool_use", name: "submit_recipe_estimate",
-      input: { sourceUrl: urlA, items: [{ name: "Fižol", quantity: 0.19, unit: "kg" }] },
+      input: { sourceUrl: urlA, items: beanSaladItems },
     }] }));
     const result = await preview(salad!.id);
     expect(result.status, JSON.stringify(result.body)).toBe(200);
     expect(result.body.origin).toBe("web_estimate");
-    expect(result.body.items[0]).toMatchObject({ name: "Fižol", quantity: 0.19, unit: "KGM" });
+    expect(result.body.items[0]).toMatchObject({ name: "Fižol konzerviran, odcejen", quantity: 0.18, unit: "KGM" });
+    expect(result.body.items).toHaveLength(9);
     expect(mockCreate).toHaveBeenCalledTimes(2);
     const recoveryRequest = mockCreate.mock.calls[1]![0];
     expect(recoveryRequest.tool_choice).toEqual({ type: "tool", name: "submit_recipe_estimate" });
@@ -264,22 +280,43 @@ describe("initial smart normative proposal and apply", () => {
     ] }));
     mockCreate.mockImplementationOnce(async () => ({ content: [{
       type: "tool_use", name: "submit_recipe_estimate", input: {
-        sourceUrl: urlA, items: [
-          { name: "Fižol", quantity: 0.18, unit: "kg" },
-          { name: "Čebula", quantity: 0.025, unit: "kg" },
-          { name: "Olje sončnično", quantity: 0.01, unit: "l" },
-          { name: "Sol", quantity: 0.002, unit: "kg" },
-        ],
+        sourceUrl: urlA, items: beanSaladItems,
       },
     }] }));
 
     const result = await preview(salad!.id);
     expect(result.status, JSON.stringify(result.body)).toBe(200);
     expect(result.body.origin).toBe("web_estimate");
-    expect(result.body.items.map((item: { name: string }) => item.name)).toEqual([
-      "Fižol", "Čebula", "Olje sončnično", "Sol",
-    ]);
+    expect(result.body.items.map((item: { name: string }) => item.name)).toEqual(beanSaladItems.map(item => item.name));
+    expect(mockCreate.mock.calls[1]![0].tools[0].input_schema.properties.items.minItems).toBe(9);
     expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("never presents or caches a one-ingredient salad after the structured retry", async () => {
+    mockCreate.mockClear();
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => makeSearchResponse());
+    mockCreate.mockImplementationOnce(async () => ({ content: [{
+      type: "tool_use", name: "submit_recipe_estimate",
+      input: { sourceUrl: urlA, items: [{ name: "Fižol", quantity: 0.18, unit: "kg" }] },
+    }] }));
+    const failed = await preview(salad!.id);
+    expect(failed.status).toBe(422);
+    expect(failed.body.error).toContain("vseh potrebnih sestavin");
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id))).toEqual([]);
+
+    mockCreate.mockImplementationOnce(async () => ({ content: [
+      { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+      { type: "text", text: JSON.stringify({ estimate: { sourceUrl: urlA, items: beanSaladItems } }) },
+    ] }));
+    const retried = await preview(salad!.id);
+    expect(retried.status, JSON.stringify(retried.body)).toBe(200);
+    expect(retried.body.items).toHaveLength(9);
+    expect(mockCreate).toHaveBeenCalledTimes(3);
   });
 
   it("offers a Slovenian-source restaurant draft with ordinary ingredients and no automatic save", async () => {
@@ -342,7 +379,7 @@ describe("initial smart normative proposal and apply", () => {
 
   it("offers a web-backed approximate bean salad norm and writes it only after confirmation", async () => {
     const [salad] = await db.insert(artikliTable).values({
-      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      enotaId: enotaA, ime: "Solata s fižolom", cena: "6",
       davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
     }).returning({ id: artikliTable.id });
     mockCreate.mockImplementationOnce(async () => ({
@@ -374,7 +411,7 @@ describe("initial smart normative proposal and apply", () => {
 
   it("applies only reviewed ingredients, reuses existing oil and creates the added salt atomically", async () => {
     const [salad] = await db.insert(artikliTable).values({
-      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      enotaId: enotaA, ime: "Solata s fižolom", cena: "6",
       davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
     }).returning({ id: artikliTable.id });
     const [oil] = await db.insert(artikliTable).values({
@@ -430,7 +467,7 @@ describe("initial smart normative proposal and apply", () => {
     ]).returning({ id: kategorijeTable.id });
     const [salad, drink] = await db.insert(artikliTable).values([
       {
-        enotaId: enotaA, ime: "Solatni krožnik s puranjimi trakci", cena: "10",
+        enotaId: enotaA, ime: "Krožnik s puranjimi trakci", cena: "10",
         davek: "9.5", taxCategory: "food", kategorijaId: legacyCategory!.id, prodajniArtikel: true,
       },
       {

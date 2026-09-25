@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { posFetch } from "@/lib/pos-auth-headers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Info, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -228,7 +227,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
 
   return (
     <Dialog open={open} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col" style={{ height: "min(90dvh, calc(var(--pos-visual-viewport-height) - 1rem))" }}>
         <DialogHeader>
           <DialogTitle>Pametni predlog normativa: {articleName}</DialogTitle>
         </DialogHeader>
@@ -251,7 +250,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
               </div>
             </div>
           ) : proposal ? (
-            <ScrollArea className="h-full pr-4 pb-4">
+            <div aria-label="Sestavine in pregled" role="region" className="h-full min-h-0 overflow-y-auto overscroll-contain touch-pan-y pr-4 pb-4">
               <div className="space-y-5">
                 {error && (
                   <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-start gap-2">
@@ -411,7 +410,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                 )}
 
               </div>
-            </ScrollArea>
+            </div>
           ) : null}
         </div>
 
