@@ -1,0 +1,61 @@
+# Normativ: Fižolova solata (veleprodajna/gostinska serija)
+
+**Šifra:** SOL-001 | **Kategorija:** Hladne solate/prikuhe | **Osnovna serija:** 10 kg gotovega izdelka (≈ 40 porcij × 250 g)
+
+## Sestavine
+
+| # | Sestavina | Količina (10 kg) | Delež (%) | Enota nabave |
+|---|---|---|---|---|
+| 1 | Beli fižol, suh (pred kuhanjem) | 4,20 kg | — | kg |
+| 2 | Rdeča čebula | 1,10 kg | 11,0 % | kg |
+| 3 | Sončnično olje | 0,80 L | 8,0 % | L |
+| 4 | Vinski kis (7 %) | 0,60 L | 6,0 % | L |
+| 5 | Sladkor | 0,15 kg | 1,5 % | kg |
+| 6 | Sol | 0,12 kg | 1,2 % | kg |
+| 7 | Poper, mleti črni | 0,02 kg | 0,2 % | kg |
+| 8 | Peteršilj, svež, sesekljan | 0,08 kg | 0,8 % | kg |
+| 9 | Česen (opcijsko) | 0,03 kg | 0,3 % | kg |
+| 10 | Voda za kuhanje fižola | po potrebi | — | L |
+
+**Izkoristek pri kuhanju:** suh fižol 4,20 kg → kuhan fižol cca. 9,20 kg (faktor nabreka ≈ 2,19).
+Skupna neto masa gotovega izdelka: **10,00 kg**
+
+## Postopek priprave
+
+1. Fižol namočiti v hladni vodi min. 8 ur (ali čez noč), voda naj presega nivo fižola za 5 cm.
+2. Fižol odcediti, sprati in kuhati v sveži, nesoljeni vodi 45–60 min do mehkobe (brez razkuhanja).
+3. Odcediti, ohladiti na temperaturo pod +18 °C (šok hlajenje po HACCP – padec pod +10 °C znotraj 90 min, pod +4 °C znotraj naslednjih 2 ur).
+4. Rdečo čebulo olupiti in narezati na tanke polkroge/kocke.
+5. Pripraviti marinado: olje, kis, sladkor, sol, poper, (česen) dobro zmešati.
+6. Ohlajen fižol, čebulo in marinado skrbno premešati, da se ne razmeči.
+7. Posuti s sesekljanim peteršiljem tik pred serviranjem/pakiranjem.
+8. Skladiščiti pri +2 do +4 °C.
+
+## Alergeni (po Prilogi II Uredbe 1169/2011)
+
+Izdelek **ne vsebuje** deklariranih 14 alergenov, razen ob morebitni navzkrižni kontaminaciji (gluten, gorčica pri uporabi gotovih začimbnih mešanic – preveriti deklaracijo dobavitelja).
+
+## Hranilna vrednost (na 100 g)
+
+| Parameter | Vrednost |
+|---|---|
+| Energijska vrednost | ≈ 460 kJ / 110 kcal |
+| Maščobe | 7,0 g (od tega nasičene 0,9 g) |
+| Ogljikovi hidrati | 9,0 g (od tega sladkorji 1,8 g) |
+| Beljakovine | 4,5 g |
+| Sol | 0,9 g |
+
+*(Okvirne vrednosti, izračunane iz sestave – priporočam potrditev z laboratorijsko analizo ali certificirano bazo (npr. OPKP), če gre za uradno deklaracijo.)*
+
+## Rok uporabe
+
+Ohlajen izdelek: **48 ur** pri +2 do +4 °C od priprave (brez konzervansov, hladna veriga obvezna).
+
+---
+
+Če želiš, lahko normativ pripravim tudi:
+- v formatu za **HACCP dokumentacijo** (kritične kontrolne točke),
+- kot **kalkulacijo cene** (nabavne cene × količine → prodajna cena, DDV 9,5 %/22 %),
+- ali izvoz v **Excel/XML** za uvoz v BOOKIE ERP.
+
+Katero od tega potrebuješ najprej?

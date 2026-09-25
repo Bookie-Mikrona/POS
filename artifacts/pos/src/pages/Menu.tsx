@@ -3358,6 +3358,9 @@ export default function Menu() {
         onOpenChange={setSmartProposalDialogOpen}
         articleId={editingArt?.id ?? 0}
         articleName={editingArt?.ime ?? ""}
+        availableIngredients={(artikli ?? []).filter(a => a.nabavniArtikel && !a.prodajniArtikel).map(a => ({
+          id: a.id, ime: a.ime, imeZaNabavo: a.imeZaNabavo, enotaMere: a.enotaMere,
+        }))}
         onApplySuccess={() => {
           void queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
           void (async () => {

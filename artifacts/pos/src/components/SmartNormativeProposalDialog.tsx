@@ -7,6 +7,7 @@ import { AlertCircle, Loader2, Info, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 type ProposalItem = {
   name: string;
@@ -45,6 +46,16 @@ type Props = {
   articleId: number;
   articleName: string;
   onApplySuccess: () => void;
+  availableIngredients: Array<{ id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }>;
+};
+
+type DraftRow = {
+  key: number;
+  name: string;
+  quantity: string;
+  unit: ProposalItem["unit"];
+  existingArticleId: number | null;
+  search: string;
 };
 
 const TAX_CATEGORY_LABELS: Record<TaxCategory, string> = {
@@ -56,22 +67,23 @@ const TAX_CATEGORY_LABELS: Record<TaxCategory, string> = {
   vat_super_reduced_5: "Posebna znižana stopnja (5%)",
 };
 
-function displayQuantity(item: ProposalItem): string {
-  const unit = { KGM: "kg", LTR: "l", KOM: "kos" }[item.unit];
-  return `${item.quantity.toLocaleString("sl-SI", {
-    minimumFractionDigits: item.unit === "KOM" ? 0 : 3,
-    maximumFractionDigits: 4,
-  })} ${unit}`;
+function compatibleUnit(articleUnit: string | null | undefined, unit: DraftRow["unit"]): boolean {
+  const value = articleUnit?.trim().toLocaleUpperCase("sl").replace(/\.$/u, "");
+  return unit === "KGM" ? ["KGM", "KG", "G", "GRM", "GR"].includes(value ?? "")
+    : unit === "LTR" ? ["LTR", "L", "LT", "ML", "MLT"].includes(value ?? "")
+      : ["KOM", "KOS", "KOSA", "KOSI", "PC", "PCS"].includes(value ?? "");
 }
 
-export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, articleName, onApplySuccess }: Props) {
+export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, articleName, onApplySuccess, availableIngredients }: Props) {
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<ProposalResponse | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [classifications, setClassifications] = useState<Record<number, ItemClassification>>({});
+  const [draftRows, setDraftRows] = useState<DraftRow[]>([]);
   const requestIdRef = useRef(0);
+  const nextRowKeyRef = useRef(0);
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
@@ -79,6 +91,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
     setError(null);
     setConfirmed(false);
     setClassifications({});
+    setDraftRows([]);
     setLoading(false);
     if (open && articleId > 0) void loadProposal(requestId);
     return () => { requestIdRef.current += 1; };
@@ -103,6 +116,11 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
       const data: ProposalResponse = await res.json();
       if (requestId !== requestIdRef.current) return;
       setProposal(data);
+      nextRowKeyRef.current = data.items.length;
+      setDraftRows(data.items.map((item, key) => ({
+        key, name: item.name, quantity: String(item.quantity), unit: item.unit,
+        existingArticleId: item.existingArticleId, search: item.name,
+      })));
       
       // Initialize classifications for willCreate items
       const initialClassifications: Record<number, ItemClassification> = {};
@@ -124,13 +142,14 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
   };
 
   const handleApply = async () => {
-    if (!proposal || !confirmed) return;
+    if (!proposal || !confirmed || !rowsValid) return;
     
     // Validate that all willCreate items have valid classification
     const classificationsArray = [];
-    for (let i = 0; i < proposal.items.length; i++) {
-      if (proposal.items[i].willCreate) {
-        const cls = classifications[i];
+    for (let i = 0; i < draftRows.length; i++) {
+      const row = draftRows[i]!;
+      if (row.existingArticleId === null) {
+        const cls = classifications[row.key];
         if (!cls || cls.taxCategory === "") {
           setError("Izberite davčno klasifikacijo za vse nove nabavne artikle.");
           return;
@@ -139,7 +158,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
           index: i,
           taxCategory: cls.taxCategory as TaxCategory,
           addedSugar: cls.addedSugar,
-          rawConfirmed: confirmed
+          rawConfirmed: true
         });
       }
     }
@@ -153,7 +172,15 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
         body: JSON.stringify({ 
           token: proposal.token, 
           confirmed: true,
-          classifications: classificationsArray
+           classifications: classificationsArray,
+           ...(proposal.origin === "catalog_volume" ? {} : {
+             editedItems: draftRows.map(row => ({
+               name: row.name.trim(),
+               quantity: row.quantity.trim().replace(",", "."),
+               unit: row.unit,
+               existingArticleId: row.existingArticleId,
+             })),
+           }),
         }),
       });
       if (!res.ok) {
@@ -172,16 +199,23 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
     }
   };
 
-  const allClassificationsValid = proposal?.items.every((item, i) => {
-    if (!item.willCreate) return true;
-    const cls = classifications[i];
+  const allClassificationsValid = draftRows.every(row => {
+    if (row.existingArticleId !== null) return true;
+    const cls = classifications[row.key];
     return cls && cls.taxCategory !== "";
-  }) ?? false;
-
-  const canApply = proposal && confirmed && allClassificationsValid && !applying && !loading;
-  const newItems = proposal?.items.map((item, index) => ({ item, index })).filter(({ item }) => item.willCreate) ?? [];
-  const firstCategory = newItems.length ? classifications[newItems[0]!.index]?.taxCategory : "";
-  const commonCategory = firstCategory && newItems.every(({ index }) => classifications[index]?.taxCategory === firstCategory)
+  });
+  const rowsValid = draftRows.length > 0 && draftRows.every(row => {
+    const quantity = row.quantity.trim().replace(",", ".");
+    return row.name.trim().length > 0 && row.name.trim().length <= 200
+      && /^(?:0|[1-9]\d*)(?:\.\d{1,4})?$/u.test(quantity)
+      && Number(quantity) > 0 && Number(quantity) <= 999999.9999
+      && (row.existingArticleId === null || availableIngredients.some(article => article.id === row.existingArticleId && compatibleUnit(article.enotaMere, row.unit)));
+  }) && new Set(draftRows.map(row => row.name.trim().toLocaleLowerCase("sl"))).size === draftRows.length
+    && new Set(draftRows.map(row => row.existingArticleId).filter(id => id !== null)).size === draftRows.filter(row => row.existingArticleId !== null).length;
+  const canApply = proposal && confirmed && rowsValid && allClassificationsValid && !applying && !loading;
+  const newItems = draftRows.filter(row => row.existingArticleId === null);
+  const firstCategory = newItems.length ? classifications[newItems[0]!.key]?.taxCategory : "";
+  const commonCategory = firstCategory && newItems.every(row => classifications[row.key]?.taxCategory === firstCategory)
     ? firstCategory : "";
 
   return (
@@ -221,27 +255,63 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                 <section aria-label="Predlagani normativ" className="space-y-2">
                   <div>
                     <h3 className="text-lg font-semibold">Normativ za 1 porcijo</h3>
-                    <p className="text-xs text-muted-foreground">Predlog še ni shranjen. Količine preverite pred uporabo.</p>
+                    <p className="text-xs text-muted-foreground">Predlog še ni shranjen. Popravite količine, odstranite odvečne sestavine in povežite že obstoječe nabavne artikle.</p>
                   </div>
-                  {proposal.items.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">Ni bilo najdenih sestavin.</p>
-                  ) : (
-                    <div className="overflow-hidden rounded-md border bg-card">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-muted-foreground">
-                          <tr><th scope="col" className="px-3 py-2 text-left font-medium">Sestavina</th><th scope="col" className="px-3 py-2 text-right font-medium">Količina na porcijo</th></tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {proposal.items.map((item, i) => (
-                            <tr key={i}>
-                              <td className="px-3 py-2 font-medium">{item.name}</td>
-                              <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{displayQuantity(item)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  <div className="rounded-md border bg-card divide-y">
+                    {draftRows.map((row, index) => {
+                      const candidates = availableIngredients.filter(article =>
+                        compatibleUnit(article.enotaMere, row.unit)
+                        && (article.id === row.existingArticleId || `${article.ime} ${article.imeZaNabavo ?? ""}`.toLocaleLowerCase("sl").includes(row.search.trim().toLocaleLowerCase("sl")))
+                      ).slice(0, 40);
+                      return (
+                        <div key={row.key} className="p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Sestavina {index + 1}</span>
+                            {proposal.origin !== "catalog_volume" && <Button variant="ghost" size="sm" className="h-7 text-destructive" onClick={() => {
+                              setDraftRows(previous => previous.filter(item => item.key !== row.key)); setConfirmed(false);
+                            }}>Odstrani</Button>}
+                          </div>
+                          <div className="grid grid-cols-[minmax(0,1fr)_95px_80px] gap-2">
+                            <Input aria-label={`Ime sestavine ${index + 1}`} value={row.name} disabled={proposal.origin === "catalog_volume"}
+                              onChange={event => { const value = event.target.value; setDraftRows(previous => previous.map(item => item.key === row.key
+                                ? { ...item, name: value, search: value, existingArticleId: null } : item)); setConfirmed(false); }} />
+                            <Input aria-label={`Količina sestavine ${index + 1}`} inputMode="decimal" value={row.quantity} disabled={proposal.origin === "catalog_volume"}
+                              onChange={event => { setDraftRows(previous => previous.map(item => item.key === row.key ? { ...item, quantity: event.target.value } : item)); setConfirmed(false); }} />
+                            <select aria-label={`Enota sestavine ${index + 1}`} value={row.unit} disabled={proposal.origin === "catalog_volume"}
+                              className="h-9 rounded-md border bg-background px-2 text-sm" onChange={event => {
+                                setDraftRows(previous => previous.map(item => item.key === row.key
+                                  ? { ...item, unit: event.target.value as DraftRow["unit"], existingArticleId: null } : item)); setConfirmed(false);
+                              }}>
+                              <option value="KGM">kg</option><option value="LTR">l</option><option value="KOM">kos</option>
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                            <Input aria-label={`Poišči nabavni artikel za sestavino ${index + 1}`} placeholder="Išči v šifrantu (npr. Olje sončnično)"
+                              disabled={proposal.origin === "catalog_volume"}
+                              value={row.search} onChange={event => setDraftRows(previous => previous.map(item => item.key === row.key ? { ...item, search: event.target.value } : item))} />
+                            <select aria-label={`Nabavni artikel za sestavino ${index + 1}`} className="h-9 w-full min-w-0 rounded-md border bg-background px-2 text-sm"
+                              disabled={proposal.origin === "catalog_volume"}
+                              value={row.existingArticleId ?? ""} onChange={event => {
+                                const id = Number(event.target.value);
+                                const article = availableIngredients.find(item => item.id === id);
+                                setDraftRows(previous => previous.map(item => item.key === row.key ? {
+                                  ...item, existingArticleId: article?.id ?? null, name: article?.ime ?? item.name,
+                                } : item)); setConfirmed(false);
+                              }}>
+                              <option value="">Ustvari nov nabavni artikel</option>
+                              {candidates.map(article => <option key={article.id} value={article.id}>{article.ime} ({article.enotaMere})</option>)}
+                            </select>
+                          </div>
+                          {row.existingArticleId === null && <p className="text-xs text-muted-foreground">Če artikel že obstaja, ga najprej izberite iz šifranta. Nove surovine nastanejo šele ob potrditvi.</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {proposal.origin !== "catalog_volume" && <Button variant="outline" size="sm" onClick={() => {
+                    setDraftRows(previous => [...previous, { key: nextRowKeyRef.current++, name: "", quantity: "", unit: "KGM", existingArticleId: null, search: "" }]);
+                    setConfirmed(false);
+                  }}>+ Dodaj sestavino (npr. sol)</Button>}
+                  {!rowsValid && <p className="text-xs text-destructive">Vsaka sestavina potrebuje ime in pozitivno količino (največ 4 decimalke); iste sestavine ne uporabite dvakrat.</p>}
                 </section>
 
                 {newItems.length > 0 && (
@@ -255,7 +325,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                         <Label htmlFor="smart-normative-bulk-tax" className="text-sm shrink-0">Enaka klasifikacija za vse</Label>
                         <Select value={commonCategory} onValueChange={value => setClassifications(previous => {
                           const next = { ...previous };
-                          for (const { index } of newItems) next[index] = { taxCategory: value as TaxCategory, addedSugar: false };
+                          for (const row of newItems) next[row.key] = { taxCategory: value as TaxCategory, addedSugar: false };
                           return next;
                         })}>
                           <SelectTrigger id="smart-normative-bulk-tax" className="w-full sm:w-[300px] h-9">
@@ -270,17 +340,17 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                       </div>
                     )}
                     <div className="space-y-2">
-                      {newItems.map(({ item, index }) => {
-                        const cls = classifications[index];
+                      {newItems.map(row => {
+                        const cls = classifications[row.key];
                         const isBeverage = cls?.taxCategory === "hot_beverage" || cls?.taxCategory === "cold_beverage" || cls?.taxCategory === "alcoholic";
                         return (
-                          <div key={index} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                            <Label htmlFor={`smart-normative-tax-${index}`} className="text-sm sm:flex-1">{item.name}</Label>
+                          <div key={row.key} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                            <Label htmlFor={`smart-normative-tax-${row.key}`} className="text-sm sm:flex-1">{row.name || "Nova sestavina"}</Label>
                             <div className="space-y-1.5 sm:w-[300px]">
                               <Select value={cls?.taxCategory ?? ""} onValueChange={value => setClassifications(previous => ({
-                                ...previous, [index]: { taxCategory: value as TaxCategory, addedSugar: false },
+                                ...previous, [row.key]: { taxCategory: value as TaxCategory, addedSugar: false },
                               }))}>
-                                <SelectTrigger id={`smart-normative-tax-${index}`} className="w-full h-9">
+                                <SelectTrigger id={`smart-normative-tax-${row.key}`} className="w-full h-9">
                                   <SelectValue placeholder="Izberite klasifikacijo" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -292,7 +362,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                               {isBeverage && (
                                 <label className="flex items-center gap-2 text-xs cursor-pointer">
                                   <Checkbox checked={cls.addedSugar} onCheckedChange={checked => setClassifications(previous => ({
-                                    ...previous, [index]: { ...previous[index]!, addedSugar: !!checked },
+                                    ...previous, [row.key]: { ...previous[row.key]!, addedSugar: !!checked },
                                   }))} />
                                   Vsebuje dodan sladkor
                                 </label>
@@ -324,22 +394,21 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
                   </div>
                 )}
 
-                <label className="flex items-start gap-2 cursor-pointer border-t pt-4 text-sm">
-                  <Checkbox checked={confirmed} onCheckedChange={checked => setConfirmed(!!checked)} className="mt-0.5" />
-                  <span>
-                    Pregledal sem sestavine in količine.
-                    {newItems.length > 0 && " Potrjujem, da so vsi novi artikli nabavne surovine, ne polizdelki."}
-                    {" "}Želim shraniti normativ.
-                  </span>
-                </label>
               </div>
             </ScrollArea>
           ) : null}
         </div>
 
-        <DialogFooter className="mt-4 flex-col sm:flex-row gap-2">
+        <DialogFooter className="mt-4 flex-col gap-2 border-t pt-3 sm:flex-col">
+          {proposal && <label className="flex items-start gap-2 cursor-pointer text-sm">
+            <Checkbox checked={confirmed} onCheckedChange={checked => setConfirmed(!!checked)} className="mt-0.5" />
+            <span>Pregledal sem popravljene sestavine in količine.
+              {newItems.length > 0 && " Potrjujem, da so vsi novi artikli nabavne surovine, ne polizdelki."}
+              {" "}Želim shraniti normativ.</span>
+          </label>}
+          <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {!allClassificationsValid && proposal && (
-            <div className="flex-1 text-xs text-amber-600 flex items-center gap-1">
+            <div className="mr-auto text-xs text-amber-600 flex items-center gap-1">
               <Info className="h-4 w-4" />
               Izberite davčno klasifikacijo za nove artikle.
             </div>
@@ -357,6 +426,7 @@ export function SmartNormativeProposalDialog({ open, onOpenChange, articleId, ar
               "Ustvari in uporabi normativ"
             )}
           </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

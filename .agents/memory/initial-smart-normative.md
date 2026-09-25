@@ -26,3 +26,9 @@ Spletni model lahko za isto jed enkrat vrne uporaben JSON, drugič prosti tekst.
 **Why:** V praksi je isti začetni predlog enkrat uspel in drugič padel kot »raziskava ni vrnila strukturiranih podatkov«. Samo sprostitev razčlenjevalnika ne zagotavlja uporabnega izida.
 
 **How to apply:** Popravljalni korak naj uporablja ločen prisilno strukturiran odgovor in ponovno pošlje rezultat skozi ista pravila izvora, surovin in količin. Ne obravnavaj modelovega prostega besedila ali samodejno navedenih URL-jev kot dokaz spletnega zadetka.
+
+Podpisani AI-predlog je izhodišče za pregled, ne nespremenljiv seznam. Gostinec lahko odstrani odvečne sestavine, spremeni količino, poveže že obstoječo surovino ali doda manjkajočo; pri samostojni pijači z volumnom odmerka ta izjema ne velja.
+
+**Why:** »3-Bean Salad« se je napačno prenesla v generično fižolovo solato, medtem ko je obstoječe sončnično olje ostalo nepovezano in sol manjkala. Samo boljši modelov poziv te napake ne more zanesljivo preprečiti.
+
+**How to apply:** Urejene vrstice preveri ob transakcijskem shranjevanju znotraj iste enote, ob zaklepu in reviziji ciljne jedi; obstoječi artikel se izbere izrecno po ID-ju, nove surovine pa potrebujejo ročno davčno klasifikacijo in potrditev. Ne spreminjaj zgodovine spletnega vira v trditev, da ta dokazuje ročne popravke.

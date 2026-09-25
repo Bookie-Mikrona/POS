@@ -291,6 +291,56 @@ describe("initial smart normative proposal and apply", () => {
     expect(norm.map(row => row.kolicina)).toEqual(["0.2000", "0.0350"]);
   });
 
+  it("applies only reviewed ingredients, reuses existing oil and creates the added salt atomically", async () => {
+    const [salad] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Fižolova solata – velika", cena: "6",
+      davek: "9.5", kategorijaId: categoryId, prodajniArtikel: true,
+    }).returning({ id: artikliTable.id });
+    const [oil] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: "Olje sončnično", cena: "0", davek: "9.5",
+      nabavniArtikel: true, prodajniArtikel: false, enotaMere: "LTR",
+    }).returning({ id: artikliTable.id });
+    mockCreate.mockImplementationOnce(async () => ({
+      content: [
+        { type: "web_search_tool_result", content: [{ type: "web_search_result", url: urlA, title: "Bean salad" }] },
+        { type: "text", text: JSON.stringify({ estimate: { sourceUrl: urlA, items: [
+          { name: "Fižol", quantity: 0.15, unit: "kg" },
+          { name: "Črni fižol", quantity: 0.15, unit: "kg" },
+          { name: "Rdeči fižol", quantity: 0.15, unit: "kg" },
+          { name: "Olje", quantity: 0.01, unit: "l" },
+        ] } }) },
+      ],
+    }));
+    const suggested = await preview(salad!.id);
+    expect(suggested.status, JSON.stringify(suggested.body)).toBe(200);
+    const editedItems = [
+      { name: "Fižol za veliko solato", quantity: "0.15", unit: "KGM", existingArticleId: null },
+      { name: "Olje sončnično", quantity: "0.01", unit: "LTR", existingArticleId: oil!.id },
+      { name: "Sol", quantity: "0.003", unit: "KGM", existingArticleId: null },
+    ];
+    const classifications = [
+      { index: 0, taxCategory: "food", addedSugar: false, rawConfirmed: true },
+      { index: 2, taxCategory: "food", addedSugar: false, rawConfirmed: true },
+    ];
+    const url = `/artikli/${salad!.id}/normativi/pametni-predlog/uporabi`;
+    const invalid = await supertest(app).post(url).set(headers()).send({
+      token: suggested.body.token, confirmed: true, editedItems,
+      classifications: [{ ...classifications[0], index: 1 }, classifications[1]],
+    });
+    expect(invalid.status).toBe(400);
+    expect(await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id))).toEqual([]);
+    const applied = await supertest(app).post(url).set(headers()).send({
+      token: suggested.body.token, confirmed: true, editedItems, classifications,
+    });
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    expect(applied.body.createdArticleIds).toHaveLength(2);
+    expect(applied.body.createdArticleIds).not.toContain(oil!.id);
+    const norm = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, salad!.id));
+    expect(norm).toHaveLength(3);
+    expect(norm.find(row => row.vhodniArtikelId === oil!.id)?.kolicina).toBe("0.0100");
+    expect(norm.some(row => row.vhodniArtikelId === oil!.id)).toBe(true);
+  });
+
   it("allows a food article in a legacy category without a tip, but still rejects an explicitly drink category", async () => {
     currentIngredient = "Puranji file";
     const [legacyCategory, drinkCategory] = await db.insert(kategorijeTable).values([
