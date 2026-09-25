@@ -45,11 +45,11 @@ Uporabnik želi konzerviran fižol za gostinsko zalogo voditi v odcejeni masi. �
 
 **How to apply:** Uporabnikovi 800 g neto, 480 g odcejeno in 1,20 € so zgolj primer, ne stalne vrednosti artikla. Pri dejanski prejemnici uporabi podatke konkretnega pakiranja (1 kos → 0,480 kg odcejenega v primeru); nabavno ceno preračunaj na odcejeni kilogram (1,20 € / 0,480 kg = 2,50 €/kg), ne izgubi pa izvorne količine in dokumenta dobavitelja.
 
-Velika porcija fižolove solate je po uporabnikovi potrditvi 250 g.
+Velika porcija fižolove solate je okvirno 250 g; v gostinskem obratu se porcije in priprava ne izvajajo s tehtanjem vsake sestavine na gram.
 
-**Why:** Priloženi generirani normativ je navajal 250 g, vendar se njegova serija ni izšla na 10 kg; zdaj je uporabnik težo porcije potrdil sam. Ostale količine in dodatne začimbe še niso potrjene.
+**Why:** Uporabnik je potrdil 250 g kot velikost porcije, nato izrecno opozoril, da strogo gramiranje in zapletene blokade ne ustrezajo dejanskemu gostinskemu delu. Ne želi biti posrednik med agentom in Claudeom.
 
-**How to apply:** Predlog izračunaj na 250 g dejanske porcije in preveri vsoto mas z upoštevanjem prostornine olja in kisa; ne prenesi nekonsistentne serije ali cen iz priloženega besedila v šifrant.
+**How to apply:** Normativ obravnavaj kot praktičen, okviren recept, ne kot zahtevo po tehtanju vsake porcije. Ne dodajaj stroge blokade shranjevanja zaradi odstopanja od 250 g; očitno protislovje v AI-predlogu razreši sam, po potrebi z neposredno konzultacijo modela, in uporabnika ne uporabljaj kot posrednika. Ne prenesi izmišljenih cen ali nepotrjenih pakiranj v šifrant.
 
 Uporabnik je za to jed potrdil vseh devet sestavin predloga: konzerviran fižol, rdečo čebulo, sončnično olje, vinski kis, sladkor, sol, poper, peteršilj in česen. Količin iz predloga ni posebej potrdil.
 
