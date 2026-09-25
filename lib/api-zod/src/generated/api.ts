@@ -855,6 +855,7 @@ export const ListArtikliResponseItem = zod.object({
   "slikaUrl": zod.string().nullish().describe('Javni URL ustvarjene slike artikla'),
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
@@ -932,6 +933,7 @@ export const createArtikelBodyOneNetoDelezOdstMax = 100;
 
 
 export const CreateArtikelBody = zod.object({
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
   "povratnaEmbalaza": zod.boolean().default(createArtikelBodyOnePovratnaEmbalazaDefault),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(createArtikelBodyOneDepozitnaVrednostMin).nullish(),
@@ -1031,6 +1033,7 @@ export const CreateArtikelResponse = zod.object({
   "slikaUrl": zod.string().nullish().describe('Javni URL ustvarjene slike artikla'),
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
@@ -1182,6 +1185,7 @@ export const GenerateArtikelImageResponse = zod.object({
   "slikaUrl": zod.string().nullish().describe('Javni URL ustvarjene slike artikla'),
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
@@ -1282,6 +1286,7 @@ export const UploadArtikelImageResponse = zod.object({
   "slikaUrl": zod.string().nullish().describe('Javni URL ustvarjene slike artikla'),
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
@@ -1375,6 +1380,7 @@ export const GetArtikelResponse = zod.object({
   "slikaUrl": zod.string().nullish().describe('Javni URL ustvarjene slike artikla'),
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
@@ -1453,6 +1459,7 @@ export const updateArtikelBodyOneNetoDelezOdstMax = 100;
 
 
 export const UpdateArtikelBody = zod.object({
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
   "povratnaEmbalaza": zod.boolean().default(updateArtikelBodyOnePovratnaEmbalazaDefault),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(updateArtikelBodyOneDepozitnaVrednostMin).nullish(),
@@ -1555,6 +1562,7 @@ export const UpdateArtikelResponse = zod.object({
   "slikaUrl": zod.string().nullish().describe('Javni URL ustvarjene slike artikla'),
   "vrstniRed": zod.number().describe('Vrstni red prikaza v meniju'),
   "mealType": zod.enum(['ala_carte', 'prepared', 'composite']).optional().describe('Operativni način priprave hrane; ločeno od računovodske vrste artikla'),
+  "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),

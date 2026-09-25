@@ -83,6 +83,8 @@ export const artikliTable = pgTable("artikli", {
   /** Monotonic optimistic-concurrency revision for the complete normative. */
   normativRevision: integer("normativ_revision").notNull().default(1),
   jePica: boolean("je_pica").notNull().default(false),
+  /** Postaja priprave prodajnega artikla; null pomeni starejši/neopredeljen zapis. */
+  pripravaVrsta: text("priprava_vrsta", { enum: ["pica", "hrana", "pijaca"] }),
   jeDodatekZaPico: boolean("je_dodatek_za_pico").notNull().default(false),
   privzetiDodatki: json("privzeti_dodatki").$type<number[]>().notNull().default([]),
   jeModifikator: boolean("je_modifikator").notNull().default(false),

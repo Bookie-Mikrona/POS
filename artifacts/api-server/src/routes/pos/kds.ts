@@ -9,7 +9,7 @@ import {
 } from "@workspace/db";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { canApplyKdsCommand } from "../../lib/kds-state";
-import { planStandardKdsDisplays, resolveKdsRoutingTargets, type KdsProfile } from "../../lib/kds-routing";
+import { choosePreparationStations, planStandardKdsDisplays, preparationStationType, resolvePreparationKind, type KdsProfile } from "../../lib/kds-routing";
 import { ensureKdsUnitConfiguration } from "../../lib/kds-unit-configuration";
 import { isDispatchEligible, lockKdsOrder } from "../../lib/kds-dispatch";
 import {
@@ -208,6 +208,10 @@ export async function materializirajKdsNaloge(narociloId: number, enotaId: numbe
   const lines = await client.select({
     postavkaId: postavkeTable.id, artikelId: postavkeTable.artikelId,
     kategorijaId: artikliTable.kategorijaId,
+    pripravaVrsta: artikliTable.pripravaVrsta,
+    jePica: artikliTable.jePica,
+    kategorijaIme: kategorijeTable.ime,
+    kategorijaTip: kategorijeTable.tip,
     courseNumber: postavkeTable.courseNumber,
     courseSequence: postavkeTable.courseSequence,
     courseNameSnapshot: postavkeTable.courseNameSnapshot,
@@ -215,6 +219,7 @@ export async function materializirajKdsNaloge(narociloId: number, enotaId: numbe
   }).from(postavkeTable)
     .innerJoin(narocilaTable, eq(postavkeTable.narociloId, narocilaTable.id))
     .leftJoin(artikliTable, eq(postavkeTable.artikelId, artikliTable.id))
+    .leftJoin(kategorijeTable, and(eq(kategorijeTable.id, artikliTable.kategorijaId), eq(kategorijeTable.enotaId, enotaId)))
     .where(and(
       eq(postavkeTable.narociloId, narociloId),
       eq(narocilaTable.enotaId, enotaId),
@@ -246,8 +251,17 @@ export async function materializirajKdsNaloge(narociloId: number, enotaId: numbe
     const fallback = configuration?.fallbackPostajaId
       ? (await client.select().from(kdsPostajeTable).where(and(eq(kdsPostajeTable.id, configuration.fallbackPostajaId), eq(kdsPostajeTable.enotaId, enotaId))))[0] : null;
     if (!fallback?.aktivna) throw new Error(`KDS enota ${enotaId} nima veljavne aktivne fallback postaje.`);
-    const { stationIds: targetStationIds, usedFallback } = resolveKdsRoutingTargets(
-      mappings.map((mapping: { postajaId: number }) => mapping.postajaId), fallback.id,
+    const kind = resolvePreparationKind(line);
+    const stationType = kind ? preparationStationType(kind) : null;
+    const typedStation = stationType
+      ? (await client.select({ id: kdsPostajeTable.id }).from(kdsPostajeTable).where(and(
+        eq(kdsPostajeTable.enotaId, enotaId), eq(kdsPostajeTable.aktivna, true),
+        eq(kdsPostajeTable.tip, stationType),
+      )).orderBy(kdsPostajeTable.vrstniRed, kdsPostajeTable.id).limit(1))[0]
+      : null;
+    const { stationIds: targetStationIds, usedFallback } = choosePreparationStations(
+      mappings.map((mapping: { postajaId: number }) => mapping.postajaId),
+      typedStation?.id ?? null, fallback.id,
     );
     for (const postajaId of targetStationIds) {
       const [ticket] = await client.insert(kdsNalogiTable).values({
@@ -485,13 +499,26 @@ router.put("/kds/prikazovalniki/:id/narocnine", async (req, res) => {
 router.get("/kds/nerazporejene-postavke", async (req, res) => {
   const enotaId = enota(req);
   const [settings] = await db.select().from(kdsNastavitveTable).where(eq(kdsNastavitveTable.enotaId, enotaId));
-  const articles = await db.select({ artikelId: artikliTable.id, ime: artikliTable.ime, kategorijaId: artikliTable.kategorijaId })
-    .from(artikliTable).where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.aktiven, true)));
+  const articles = await db.select({
+    artikelId: artikliTable.id, ime: artikliTable.ime, kategorijaId: artikliTable.kategorijaId,
+    pripravaVrsta: artikliTable.pripravaVrsta, jePica: artikliTable.jePica,
+    kategorijaIme: kategorijeTable.ime, kategorijaTip: kategorijeTable.tip,
+  }).from(artikliTable)
+    .leftJoin(kategorijeTable, and(eq(kategorijeTable.id, artikliTable.kategorijaId), eq(kategorijeTable.enotaId, enotaId)))
+    .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.aktiven, true), eq(artikliTable.prodajniArtikel, true)));
   const mappings = await db.select({ artikelId: kdsPostajaMapiranjaTable.artikelId, kategorijaId: kdsPostajaMapiranjaTable.kategorijaId })
     .from(kdsPostajaMapiranjaTable).innerJoin(kdsPostajeTable, eq(kdsPostajaMapiranjaTable.postajaId, kdsPostajeTable.id))
     .where(and(eq(kdsPostajeTable.enotaId, enotaId), eq(kdsPostajeTable.aktivna, true)));
-  res.json(articles.filter((article) => !mappings.some((mapping) => mapping.artikelId === article.artikelId || mapping.kategorijaId === article.kategorijaId))
-    .map((article) => ({ ...article, boUporabljenFallback: Boolean(settings?.fallbackPostajaId) })));
+  const stations = await db.select({ tip: kdsPostajeTable.tip }).from(kdsPostajeTable)
+    .where(and(eq(kdsPostajeTable.enotaId, enotaId), eq(kdsPostajeTable.aktivna, true)));
+  res.json(articles.filter((article) => {
+    if (mappings.some((mapping) => mapping.artikelId === article.artikelId || mapping.kategorijaId === article.kategorijaId)) return false;
+    const kind = resolvePreparationKind(article);
+    return !kind || !stations.some((station) => station.tip === preparationStationType(kind));
+  }).map((article) => ({
+    artikelId: article.artikelId, ime: article.ime, kategorijaId: article.kategorijaId,
+    boUporabljenFallback: Boolean(settings?.fallbackPostajaId),
+  })));
 });
 
 router.get("/kds/postaje/:id/nalogi", async (req, res) => {

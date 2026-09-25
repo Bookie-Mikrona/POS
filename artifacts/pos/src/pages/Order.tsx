@@ -193,6 +193,7 @@ interface ArtikelItem {
   prodajniArtikel?: boolean;
   nabavniArtikel?: boolean;
   jePica?: boolean;
+  pripravaVrsta?: "pica" | "hrana" | "pijaca" | null;
   cenaMala?: number | null;
   cenaDruzinska?: number | null;
   happyHourCena?: number | null;
@@ -1267,19 +1268,26 @@ export default function Order() {
       throw new Error("Gateway postavka nima popolne cene ali količine.");
     }
     const quantity = Number(data.kolicina ?? 1);
+    const activeStations = kdsPostaje.filter(postaja => postaja.aktivna !== false);
     const mappedStations = kdsRouting.filter(mapping =>
       mapping.artikelId === article.id || mapping.kategorijaId === article.kategorijaId,
-    ).map(mapping => mapping.postajaId);
-    const activeStations = kdsPostaje.filter(postaja => postaja.aktivna !== false);
+    ).map(mapping => mapping.postajaId).filter(postajaId =>
+      activeStations.some(postaja => postaja.id === postajaId),
+    );
     const kind = `${article.kategorijaIme ?? ""} ${(article as any).skupina ?? ""}`.toLocaleLowerCase("sl");
-    const fallbackType = kind.includes("pija") || kind.includes("bar") ? "bar"
-      : kind.includes("pica") || kind.includes("pizza") ? "pizza" : "kitchen";
+    const legacyType = article.jePica || /\bpica\b|\bpice\b|pizza/.test(kind) ? "pica"
+      : /pija|napit|pivo|vino|bar|drink/.test(kind) ? "pijaca" : "hrana";
+    const preparationType = (article as typeof article & {
+      pripravaVrsta?: "pica" | "hrana" | "pijaca" | null;
+    }).pripravaVrsta ?? legacyType;
+    const targetStationType = preparationType === "pica" ? "pizza"
+      : preparationType === "pijaca" ? "bar" : "kitchen";
+    const inferredStationId = activeStations.find(postaja => postaja.tip === targetStationType)?.id;
     const fallbackStation = kdsNastavitve?.fallbackPostajaId
       ? activeStations.find(postaja => postaja.id === kdsNastavitve.fallbackPostajaId)?.id
       : undefined;
     const routedStations = [...new Set(mappedStations.length ? mappedStations :
-      activeStations.filter(postaja => postaja.tip === fallbackType).map(postaja => postaja.id)
-        .concat(fallbackStation ? [fallbackStation] : []))];
+      inferredStationId ? [inferredStationId] : fallbackStation ? [fallbackStation] : [])];
     if (!routedStations.length) throw new Error(`Artikel ${article.ime} nima veljavne KDS postaje.`);
     const lineId = crypto.randomUUID();
     return [{

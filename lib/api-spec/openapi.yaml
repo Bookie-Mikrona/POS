@@ -11252,6 +11252,10 @@ components:
           type: string
           enum: [ala_carte, prepared, composite]
           description: Operativni način priprave hrane; ločeno od računovodske vrste artikla
+        pripravaVrsta:
+          type: [string, "null"]
+          enum: [pica, hrana, pijaca, null]
+          description: Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice
         nabavniArtikel:
           type: boolean
           description: Ali je artikel nabavni artikel
@@ -11344,6 +11348,10 @@ components:
       required:
         - ime
       properties:
+        pripravaVrsta:
+          type: [string, "null"]
+          enum: [pica, hrana, pijaca, null]
+          description: Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
         povratnaEmbalaza: { type: boolean, default: false }
         vrstaEmbalaze: { type: [string, "null"], enum: [steklenica, zaboj, keg, balon, drugo, null] }
         depozitnaVrednost: { type: [number, "null"], minimum: 0 }

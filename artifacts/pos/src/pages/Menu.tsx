@@ -144,6 +144,8 @@ export default function Menu() {
   const [artVrstaEmbalaze, setArtVrstaEmbalaze] = useState<"steklenica" | "zaboj" | "keg" | "balon" | "drugo">("steklenica");
   const [artDepozitnaVrednost, setArtDepozitnaVrednost] = useState("0");
   const [artJePica, setArtJePica] = useState(false);
+  const [artPripravaVrsta, setArtPripravaVrsta] = useState<"pica" | "hrana" | "pijaca" | null>("hrana");
+  const [artPripravaVrstaIzbrana, setArtPripravaVrstaIzbrana] = useState(false);
   const [artImeZaNabavo, setArtImeZaNabavo] = useState("");
   const [artEnotaMere, setArtEnotaMere] = useState<string | null>(null);
   const [artMassYield, setArtMassYield] = useState<MassYieldValues>({ ...EMPTY_MASS_YIELD });
@@ -869,6 +871,7 @@ export default function Menu() {
     setMulticourseEditorEnabled(false);
     setArtName(""); setArtPrice(""); setArtCenaMala(""); setArtCenaDruzinska(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
     setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtJePica(false);
+    setArtPripravaVrsta("hrana"); setArtPripravaVrstaIzbrana(false);
     setArtJeSkupinskiNabavniArtikel(false);
     setArtPovratnaEmbalaza(false);
     setArtVrstaEmbalaze("steklenica");
@@ -925,7 +928,13 @@ export default function Menu() {
     setArtPovratnaEmbalaza(a.povratnaEmbalaza);
     setArtVrstaEmbalaze((a.vrstaEmbalaze ?? "steklenica") as "steklenica" | "zaboj" | "keg" | "balon" | "drugo");
     setArtDepozitnaVrednost(a.depozitnaVrednost == null ? "0" : String(a.depozitnaVrednost));
-    setArtJePica(a.jePica ?? false);
+    const kategorijaArtikla = kategorije?.find(k => k.id === a.kategorijaId);
+    const pripravaVrsta = a.jePica
+      ? "pica"
+      : a.pripravaVrsta ?? vrstaPripraveKategorije(kategorijaArtikla ?? { ime: a.kategorijaIme, tip: null });
+    setArtPripravaVrsta(pripravaVrsta);
+    setArtPripravaVrstaIzbrana(false);
+    setArtJePica(pripravaVrsta === "pica");
     setArtPrivzetiModGrpIds([]);
     setArtToGoArtikli((a as typeof a & { toGoArtikli?: number[] }).toGoArtikli ?? []);
     setArtToGo((a as typeof a & { toGo?: boolean }).toGo ?? false);
@@ -1115,6 +1124,22 @@ export default function Menu() {
     ) {
       setArtCasPripraveMin(String(PRIVZETI_CAS_PRIPRAVE_PICE_MIN));
     }
+  };
+
+  const vrstaPripraveKategorije = (category?: { ime?: string | null; tip?: string | null } | null): "pica" | "hrana" | "pijaca" | null => {
+    const tip = category?.tip?.toLocaleLowerCase("sl");
+    if (tip === "hrana" || tip === "pijaca") return tip;
+    const name = category?.ime?.toLocaleLowerCase("sl") ?? "";
+    if (/\bpica\b|\bpice\b|pizza/.test(name)) return "pica";
+    if (/pija|napit|pivo|vino|bar|drink/.test(name)) return "pijaca";
+    if (/embalaž|embalaz|bon|daril/.test(name)) return null;
+    return "hrana";
+  };
+
+  const handleArtPripravaVrstaChange = (value: "pica" | "hrana" | "pijaca") => {
+    setArtPripravaVrsta(value);
+    setArtPripravaVrstaIzbrana(true);
+    handleArtJePicaChange(value === "pica");
   };
 
   const handleGenerateArtikelImage = () => {
@@ -1459,10 +1484,8 @@ export default function Menu() {
       ...normalizeMassYield(artMassYield),
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla,
-      mealType: (
-        (!artProdajniArtikel && !artNabavniArtikel)
-        || (artCat && kategorije?.find(k => k.id === parseInt(artCat))?.tip === "hrana")
-      ) ? artMealType : "ala_carte",
+      pripravaVrsta: isProdajni ? artPripravaVrsta : null,
+      mealType: artPripravaVrsta === "hrana" ? artMealType : "ala_carte",
       casPripraveMin,
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,
@@ -2256,7 +2279,15 @@ export default function Menu() {
               {!(artNabavniArtikel && !artProdajniArtikel) && (
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                   <Label>Kategorija</Label>
-                  <Select value={artCat} onValueChange={setArtCat}>
+                  <Select value={artCat} onValueChange={value => {
+                    setArtCat(value);
+                    if (artMode === "nov" && !artPripravaVrstaIzbrana) {
+                      const category = kategorije?.find(k => k.id === Number(value));
+                      const inferred = vrstaPripraveKategorije(category);
+                      setArtPripravaVrsta(inferred);
+                      handleArtJePicaChange(inferred === "pica");
+                    }
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Izberi kategorijo..." /></SelectTrigger>
                     <SelectContent>
                       {kategorije?.map(k => (
@@ -2436,21 +2467,38 @@ export default function Menu() {
                 )}
               </div>
 
-              {/* Je pica — bon za pico */}
-              {piceOmogocene && !(artNabavniArtikel && !artProdajniArtikel) && (
-                <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
-                  <input
-                    type="checkbox"
-                    id="artJePica"
-                    checked={artJePica}
-                    onChange={e => handleArtJePicaChange(e.target.checked)}
-                    className="w-4 h-4 accent-orange-500"
-                  />
-                  <Label htmlFor="artJePica" className="cursor-pointer flex items-center gap-2">
-                    <span>Je pica</span>
-                    <span className="text-xs font-normal text-muted-foreground">(omogoča plačilo z bonom za pico)</span>
-                  </Label>
-                </div>
+              {/* Vrsta priprave usmerja artikel na zaslon pice, kuhinje ali točilnice. */}
+              {!(artNabavniArtikel && !artProdajniArtikel) && (
+                <fieldset className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+                  <legend className="px-1 text-sm font-semibold">Vrsta artikla za pripravo</legend>
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Vrsta artikla za pripravo">
+                    {([
+                      ["pica", "Pica"],
+                      ["hrana", "Hrana"],
+                      ["pijaca", "Pijača"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={artPripravaVrsta === value}
+                        onClick={() => handleArtPripravaVrstaChange(value)}
+                        className={`rounded-md border px-3 py-2 text-sm font-semibold transition-colors ${
+                          artPripravaVrsta === value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-input bg-background text-muted-foreground hover:bg-muted/70"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {artPripravaVrsta === null
+                      ? "Embalaža nima postaje priprave. Po potrebi izberite eno od vrst."
+                      : "Izbira določa zaslon priprave; pri pici je hkrati omogočeno plačilo z bonom za pico."}
+                  </p>
+                </fieldset>
               )}
 
               {/* Barva kartice — samo za prodajne artikle */}
@@ -2498,10 +2546,7 @@ export default function Menu() {
                 </TabsContent>
 
                 <TabsContent value="normativ" className="mt-4 space-y-4 focus-visible:outline-none">
-              {(
-                (!artProdajniArtikel && !artNabavniArtikel)
-                || (artCat && kategorije?.find(k => k.id === parseInt(artCat))?.tip === "hrana")
-              ) && (
+              {artPripravaVrsta === "hrana" && !(artNabavniArtikel && !artProdajniArtikel) && (
                 <div className="space-y-2 rounded-lg border p-3">
                   <Label className="font-semibold">Način priprave (operativno)</Label>
                   <p className="text-xs text-muted-foreground mb-2">

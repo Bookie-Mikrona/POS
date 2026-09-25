@@ -1483,6 +1483,19 @@ export const ArtikelMealType = {
 } as const;
 
 /**
+ * Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice
+ * @nullable
+ */
+export type ArtikelPripravaVrsta = typeof ArtikelPripravaVrsta[keyof typeof ArtikelPripravaVrsta] | null;
+
+
+export const ArtikelPripravaVrsta = {
+  pica: 'pica',
+  hrana: 'hrana',
+  pijaca: 'pijaca',
+} as const;
+
+/**
  * @nullable
  */
 export type ArtikelVrstaEmbalaze = typeof ArtikelVrstaEmbalaze[keyof typeof ArtikelVrstaEmbalaze] | null;
@@ -1614,6 +1627,11 @@ export interface Artikel {
   vrstniRed: number;
   /** Operativni način priprave hrane; ločeno od računovodske vrste artikla */
   mealType?: ArtikelMealType;
+  /**
+     * Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice
+     * @nullable
+     */
+  pripravaVrsta?: ArtikelPripravaVrsta;
   /** Ali je artikel nabavni artikel */
   nabavniArtikel?: boolean;
   /** Ali je artikel prodajni artikel */
@@ -1684,6 +1702,19 @@ export interface Artikel {
 }
 
 /**
+ * Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
+ * @nullable
+ */
+export type ArtikelInputPripravaVrsta = typeof ArtikelInputPripravaVrsta[keyof typeof ArtikelInputPripravaVrsta] | null;
+
+
+export const ArtikelInputPripravaVrsta = {
+  pica: 'pica',
+  hrana: 'hrana',
+  pijaca: 'pijaca',
+} as const;
+
+/**
  * @nullable
  */
 export type ArtikelInputVrstaEmbalaze = typeof ArtikelInputVrstaEmbalaze[keyof typeof ArtikelInputVrstaEmbalaze] | null;
@@ -1732,6 +1763,11 @@ export const ArtikelInputMealType = {
 } as const;
 
 export interface ArtikelInput {
+  /**
+     * Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
+     * @nullable
+     */
+  pripravaVrsta?: ArtikelInputPripravaVrsta;
   povratnaEmbalaza?: boolean;
   /** @nullable */
   vrstaEmbalaze?: ArtikelInputVrstaEmbalaze;

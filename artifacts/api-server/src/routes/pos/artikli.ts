@@ -118,6 +118,7 @@ const SELECT_FIELDS = {
   netoDelezOdst: artikliTable.netoDelezOdst,
   normativRevision: artikliTable.normativRevision,
   jePica: artikliTable.jePica,
+  pripravaVrsta: artikliTable.pripravaVrsta,
   jeDodatekZaPico: artikliTable.jeDodatekZaPico,
   privzetiDodatki: artikliTable.privzetiDodatki,
   jeModifikator: artikliTable.jeModifikator,
@@ -183,6 +184,7 @@ function mapRow(r: Record<string, unknown>) {
     netoDelezOdst: r.netoDelezOdst == null ? null : Number(r.netoDelezOdst),
     normativRevision: Number(r.normativRevision ?? 1),
     jePica: r.jePica as boolean,
+    pripravaVrsta: (r.pripravaVrsta as "pica" | "hrana" | "pijaca" | null) ?? null,
     jeDodatekZaPico: r.jeDodatekZaPico as boolean,
     privzetiDodatki: (r.privzetiDodatki as number[] | null) ?? [],
     jeModifikator: r.jeModifikator as boolean,
@@ -509,6 +511,11 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
 
   const nabavniArtikel = parsed.data.nabavniArtikel ?? false;
   const prodajniArtikel = parsed.data.prodajniArtikel ?? true;
+  if (parsed.data.pripravaVrsta && (!prodajniArtikel ||
+    (parsed.data.jePica !== undefined && (parsed.data.pripravaVrsta === "pica") !== parsed.data.jePica))) {
+    res.status(400).json({ error: "Vrsta priprave mora biti usklajena z oznako pice in prodajno vlogo artikla." });
+    return;
+  }
   const jeSkupinskiNabavniArtikel = parsed.data.jeSkupinskiNabavniArtikel ?? false;
   if (jeSkupinskiNabavniArtikel && (
     !nabavniArtikel || prodajniArtikel || !toUneceUnitCode(parsed.data.enotaMere)
@@ -581,7 +588,8 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         brutoTezaG: drainedYield.brutoTezaG,
         netoTezaG: drainedYield.netoTezaG,
         netoDelezOdst: drainedYield.netoDelezOdst,
-        jePica: parsed.data.jePica ?? false,
+        jePica: parsed.data.jePica ?? (parsed.data.pripravaVrsta === "pica"),
+        pripravaVrsta: prodajniArtikel ? (parsed.data.pripravaVrsta ?? (parsed.data.jePica ? "pica" : null)) : null,
         jeDodatekZaPico: parsed.data.jeDodatekZaPico ?? false,
         privzetiDodatki: parsed.data.privzetiDodatki ?? [],
         jeModifikator: parsed.data.jeModifikator ?? false,
@@ -1428,6 +1436,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [obstojeci] = await db.select({
     jePica: artikliTable.jePica,
+    pripravaVrsta: artikliTable.pripravaVrsta,
     cena: artikliTable.cena,
     cenaMala: artikliTable.cenaMala,
     cenaDruzinska: artikliTable.cenaDruzinska,
@@ -1467,6 +1476,12 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     ?? obstojeci.jeSkupinskiNabavniArtikel;
   const naslednjiNabavni = parsed.data.nabavniArtikel ?? obstojeci.nabavniArtikel;
   const naslednjiProdajni = parsed.data.prodajniArtikel ?? obstojeci.prodajniArtikel;
+  const naslednjiJePica = parsed.data.jePica ?? obstojeci.jePica;
+  if (parsed.data.pripravaVrsta && (!naslednjiProdajni ||
+    (parsed.data.pripravaVrsta === "pica") !== naslednjiJePica)) {
+    res.status(400).json({ error: "Vrsta priprave mora biti usklajena z oznako pice in prodajno vlogo artikla." });
+    return;
+  }
   const naslednjaEnota = "enotaMere" in parsed.data ? parsed.data.enotaMere : obstojeci.enotaMere;
   if (naslednjiGeneric && (
     !naslednjiNabavni || naslednjiProdajni || !toUneceUnitCode(naslednjaEnota)
@@ -1533,6 +1548,10 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     updateData.netoDelezOdst = drainedYield.netoDelezOdst;
   }
   if (parsed.data.jePica !== undefined) updateData.jePica = parsed.data.jePica;
+  if (!naslednjiProdajni) updateData.pripravaVrsta = null;
+  else if (parsed.data.pripravaVrsta !== undefined) updateData.pripravaVrsta = parsed.data.pripravaVrsta ?? (naslednjiJePica ? "pica" : null);
+  else if (parsed.data.jePica === true) updateData.pripravaVrsta = "pica";
+  else if (parsed.data.jePica === false && obstojeci.pripravaVrsta === "pica") updateData.pripravaVrsta = null;
   if ((parsed.data as { jeDodatekZaPico?: boolean }).jeDodatekZaPico !== undefined) updateData.jeDodatekZaPico = (parsed.data as { jeDodatekZaPico?: boolean }).jeDodatekZaPico;
   if ((parsed.data as { privzetiDodatki?: number[] }).privzetiDodatki !== undefined) updateData.privzetiDodatki = (parsed.data as { privzetiDodatki?: number[] }).privzetiDodatki ?? [];
   if ((parsed.data as { jeModifikator?: boolean }).jeModifikator !== undefined) updateData.jeModifikator = (parsed.data as { jeModifikator?: boolean }).jeModifikator;
@@ -1593,6 +1612,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
         await lockNormativeGraph(tx, tenotaId);
         const [lockedOwner] = await tx.select({
           jePica: artikliTable.jePica,
+          pripravaVrsta: artikliTable.pripravaVrsta,
           cena: artikliTable.cena,
           cenaMala: artikliTable.cenaMala,
           cenaDruzinska: artikliTable.cenaDruzinska,

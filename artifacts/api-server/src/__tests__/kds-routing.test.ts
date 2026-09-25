@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOutstandingKdsState, planStandardKdsDisplays, resolveKdsRoutingTargets } from "../lib/kds-routing";
+import { choosePreparationStations, isOutstandingKdsState, planStandardKdsDisplays, preparationStationType, resolveKdsRoutingTargets, resolvePreparationKind } from "../lib/kds-routing";
 
 describe("KDS routing target resolution", () => {
   it("deduplicates overlap without removing intentional different stations", () => {
@@ -8,6 +8,27 @@ describe("KDS routing target resolution", () => {
 
   it("uses exactly the fallback for an unmatched eligible item", () => {
     expect(resolveKdsRoutingTargets([], 3)).toEqual({ stationIds: [3], usedFallback: true });
+  });
+});
+
+describe("article preparation station", () => {
+  it("uses explicit mappings before classification and fallback, without duplicate tickets", () => {
+    expect(choosePreparationStations([8, 8, 9], 3, 4)).toEqual({ stationIds: [8, 9], usedFallback: false });
+    expect(choosePreparationStations([], 3, 4)).toEqual({ stationIds: [3], usedFallback: false });
+    expect(choosePreparationStations([], null, 4)).toEqual({ stationIds: [4], usedFallback: true });
+  });
+  it("routes explicitly classified pizza, food and drinks to their stations", () => {
+    expect(preparationStationType(resolvePreparationKind({ pripravaVrsta: "pica" })!)).toBe("pizza");
+    expect(preparationStationType(resolvePreparationKind({ pripravaVrsta: "hrana" })!)).toBe("kitchen");
+    expect(preparationStationType(resolvePreparationKind({ pripravaVrsta: "pijaca" })!)).toBe("bar");
+  });
+
+  it("preserves old pizza flags and infers legacy beverage categories without using VAT", () => {
+    expect(resolvePreparationKind({ jePica: true, kategorijaIme: "Glavne jedi" })).toBe("pica");
+    expect(resolvePreparationKind({ kategorijaIme: "Žgane pijače" })).toBe("pijaca");
+    expect(resolvePreparationKind({ kategorijaIme: "Topli napitki" })).toBe("pijaca");
+    expect(resolvePreparationKind({ kategorijaIme: "Glavne jedi" })).toBe("hrana");
+    expect(resolvePreparationKind({ kategorijaIme: "Embalaža" })).toBeNull();
   });
 });
 
