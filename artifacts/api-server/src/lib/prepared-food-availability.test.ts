@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   loadPreparedFoodAvailability,
   resolvePreparedFoodAvailability,
+  resolveModifierPortions,
   type AvailabilityArticle,
   type AvailabilityNorm,
 } from "./prepared-food-availability";
@@ -24,6 +25,31 @@ function calculate(norms: AvailabilityNorm[], frozen = new Map([[1, 40], [2, 20]
 }
 
 describe("resolvePreparedFoodAvailability", () => {
+  it("prikaže porcije za modifikator s pripravljeno jedjo tudi ob à la carte osnovnem artiklu", () => {
+    const state = resolvePreparedFoodAvailability({
+      articles,
+      norms: [{ articleId: 4, ingredientId: 1, quantity: 2 }],
+      frozenByPreparedArticle: new Map(),
+      preparedTodayByArticle: new Map([[1, 5], [2, 3]]),
+      sales: [{ articleId: 1, quantity: 1, mealType: "prepared" }],
+    });
+    const modifiers = new Map([
+      [101, [{ articleId: 1, quantity: 0.5, mealType: "prepared" as const }]],
+      [102, [
+        { articleId: 4, quantity: 1, mealType: "composite" as const },
+        { articleId: 2, quantity: 1, mealType: "prepared" as const },
+      ]],
+      [103, [{ articleId: 3, quantity: 1, mealType: "ala_carte" as const }]],
+    ]);
+    expect(resolveModifierPortions(state, modifiers)).toEqual([
+      { modifierId: 101, availableQuantity: 8 },
+      { modifierId: 102, availableQuantity: 2 },
+    ]);
+    expect(resolveModifierPortions(state, new Map([
+      [104, [{ articleId: 2, quantity: 1, mealType: "prepared" as const }]],
+    ]))).toEqual([{ modifierId: 104, availableQuantity: 3 }]);
+  });
+
   it("uporabi minimum pripravljenih sestavin, à la carte pa ne omejuje", () => {
     const state = calculate([
       { articleId: 4, ingredientId: 1, quantity: 1 },

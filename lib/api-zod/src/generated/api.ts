@@ -14614,6 +14614,8 @@ export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeNormalna
 
 export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeDruzinskaMin = 0;
 
+export const getPreparedFoodAvailabilityResponseModifierItemsItemAvailableQuantityMin = 0;
+
 
 
 export const GetPreparedFoodAvailabilityResponse = zod.object({
@@ -14630,7 +14632,11 @@ export const GetPreparedFoodAvailabilityResponse = zod.object({
   "normalna": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeNormalnaMin).nullish(),
   "druzinska": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeDruzinskaMin).nullish()
 }).optional()
-}))
+})),
+  "modifierItems": zod.array(zod.object({
+  "modifierId": zod.number(),
+  "availableQuantity": zod.number().min(getPreparedFoodAvailabilityResponseModifierItemsItemAvailableQuantityMin)
+})).describe('Število možnih izbir modifikatorja glede na njegove pripravljene sestavine; modifikatorji brez pripravljene sestavine so izpuščeni.')
 })
 
 

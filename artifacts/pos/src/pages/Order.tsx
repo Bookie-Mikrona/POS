@@ -210,6 +210,7 @@ interface ArtikelItem {
   mealType?: "ala_carte" | "prepared" | "composite";
   availableQuantity?: number | null;
   availableBySize?: { mala: number | null; normalna: number | null; druzinska: number | null };
+  modifierAvailability?: Map<number, number>;
 }
 
 interface MulticourseMenuConfig {
@@ -419,6 +420,10 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
   );
   const privzetiImena = privzetiNovImena.length > 0 ? privzetiNovImena.slice(0, 3) : null;
   const privzetiOstanek = privzetiNovImena.length > 3 ? privzetiNovImena.length - 3 : 0;
+  const modifierPortions = artModSkupineArr.flatMap(sk =>
+    sk.modifikatorji.filter(m => m.aktiven && artikel.modifierAvailability?.has(m.id))
+      .map(m => `${m.ime}: ${artikel.modifierAvailability!.get(m.id)} porcij`),
+  );
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -503,6 +508,17 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
             data-testid={`available-portions-${artikel.id}`}
           >
             {artikel.availableQuantity} porcij
+          </span>
+        )}
+        {modifierPortions.length > 0 && (
+          <span
+            className="w-full text-[10px] leading-tight"
+            style={{ color: hasColor ? "rgba(255,255,255,0.85)" : "hsl(var(--muted-foreground))" }}
+            title={modifierPortions.join(" · ")}
+            data-testid={`modifier-portions-${artikel.id}`}
+          >
+            Dodatki: {modifierPortions.slice(0, 2).join(" · ")}
+            {modifierPortions.length > 2 ? ` · +${modifierPortions.length - 2}` : ""}
           </span>
         )}
 
@@ -1114,6 +1130,11 @@ export default function Order() {
       staleTime: 2_000,
     },
   });
+  const modifierAvailabilityById = useMemo(
+    () => new Map((preparedFoodAvailability?.modifierItems ?? [])
+      .map(item => [item.modifierId, item.availableQuantity] as const)),
+    [preparedFoodAvailability],
+  );
   const { data: kategorije, isLoading: loadingKategorije } = useListKategorije({
     query: {
       queryKey: getListKategorijeQueryKey(),
@@ -1563,6 +1584,7 @@ export default function Order() {
     const availabilityByArticle = new Map(availabilityItems.map((item) => [item.articleId, item]));
     const mapped = onlyActiveArticles(artikli).map((article) => ({
       ...article,
+      modifierAvailability: modifierAvailabilityById,
       availableQuantity: article.jePica && availabilityByArticle.get(article.id)?.availableBySize
         ? (Object.values(availabilityByArticle.get(article.id)!.availableBySize!).some((quantity) => quantity == null || quantity > 0)
           ? null
@@ -1574,7 +1596,7 @@ export default function Order() {
     const ordered = orderedIds.flatMap(id => (map.has(id) ? [map.get(id)!] : []));
     const extra = mapped.filter(a => !orderedIds.includes(a.id));
     return [...ordered, ...extra];
-  }, [artikli, orderedIds, preparedFoodAvailability]);
+  }, [artikli, orderedIds, preparedFoodAvailability, modifierAvailabilityById]);
 
   // ── Search & filter ──────────────────────────────────────────
   const [activeKategorija, setActiveKategorija] = useState<string>("all");
@@ -3909,6 +3931,7 @@ export default function Order() {
                   <div className="grid grid-cols-2 gap-2">
                       {grupa.mods.map(mod => {
                         const isSelected = modDialogIzbrani.some(m => m.skupinaId === mod.skupinaId && m.modifikatorId === mod.id);
+                        const availablePortions = modifierAvailabilityById.get(mod.id);
                         return (
                           <button
                             key={mod.id}
@@ -3928,6 +3951,9 @@ export default function Order() {
                           >
                             {isSelected && <Check className="h-3 w-3 shrink-0" />}
                             <span className="min-w-0 break-words">{mod.ime}</span>
+                            {availablePortions !== undefined && (
+                              <span className="shrink-0 text-[10px] opacity-80">{availablePortions} porcij</span>
+                            )}
                             {Number(mod.cenaDodatek) > 0 && (
                               <span className={`shrink-0 tabular-nums text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                                 +{Number(mod.cenaDodatek).toFixed(2)} €
@@ -3953,6 +3979,7 @@ export default function Order() {
                     <div className="space-y-1">
                       {skupina.modifikatorji.filter(m => m.aktiven).map(mod => {
                         const isSelected = modDialogIzbrani.some(m => m.skupinaId === skupina.id && m.modifikatorId === mod.id);
+                        const availablePortions = modifierAvailabilityById.get(mod.id);
                         return (
                           <button
                             key={mod.id}
@@ -3964,6 +3991,9 @@ export default function Order() {
                               {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
                             </div>
                             <span className="flex-1 text-sm">{mod.ime}</span>
+                            {availablePortions !== undefined && (
+                              <span className="text-xs text-muted-foreground tabular-nums">{availablePortions} porcij</span>
+                            )}
                             {Number(mod.cenaDodatek) > 0 && (
                               <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
                             )}

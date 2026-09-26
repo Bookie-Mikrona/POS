@@ -1121,6 +1121,12 @@ export interface PreparedFoodDailyInput {
   frozenAtEndQuantity: number;
 }
 
+export type PreparedFoodAvailabilityModifierItemsItem = {
+  modifierId: number;
+  /** @minimum 0 */
+  availableQuantity: number;
+};
+
 export type PreparedFoodAvailabilityItemMealType = typeof PreparedFoodAvailabilityItemMealType[keyof typeof PreparedFoodAvailabilityItemMealType];
 
 
@@ -1174,6 +1180,8 @@ export interface PreparedFoodAvailabilityItem {
 export interface PreparedFoodAvailability {
   businessDate: string;
   items: PreparedFoodAvailabilityItem[];
+  /** Število možnih izbir modifikatorja glede na njegove pripravljene sestavine; modifikatorji brez pripravljene sestavine so izpuščeni. */
+  modifierItems: PreparedFoodAvailabilityModifierItemsItem[];
 }
 
 export interface PreparedFoodStockInput {

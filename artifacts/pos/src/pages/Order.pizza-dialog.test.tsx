@@ -285,7 +285,10 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetNarocilo: () => ({ data: mockNarocilo, isLoading: false }),
   useListArtikli: () => ({ data: mockListArtikliData(), isLoading: false }),
   getListArtikliQueryKey: () => ["/api/artikli"],
-  useGetPreparedFoodAvailability: () => ({ data: { businessDate: "2026-08-28", items: [] }, isLoading: false }),
+  useGetPreparedFoodAvailability: () => ({ data: {
+    businessDate: "2026-08-28", items: [],
+    modifierItems: [{ modifierId: 100, availableQuantity: 3 }],
+  }, isLoading: false }),
   getGetPreparedFoodAvailabilityQueryKey: () => ["/prepared-food/availability"],
   useGetKdsNastavitve: () => ({ data: undefined, isLoading: false }),
   getGetKdsNastavitveQueryKey: () => ["/api/kds/nastavitve"],
@@ -584,6 +587,18 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     });
 
     expect(mockAddPostavkaMutate).not.toHaveBeenCalled();
+  });
+
+  it("v meniju in pri izbiri modifikatorja pokaže porcije pripravljene sestavine", async () => {
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    const badge = await screen.findByTestId("modifier-portions-10");
+    expect(badge).toHaveTextContent("Sir: 3 porcij");
+    await act(async () => {
+      fireEvent.click(badge.closest("button")!);
+    });
+    expect(screen.getByRole("button", { name: /Sir.*3 porcij/ })).toBeInTheDocument();
   });
 
   it("prikaže naziv, premer in ceno vsake aktivne velikosti znotraj gumba", async () => {

@@ -25,6 +25,8 @@ import { allocatePreparedFood, preparedMaterialUnitCost } from "../../lib/prepar
 import {
   currentBusinessDate,
   loadPreparedFoodAvailability,
+  loadModifierAvailabilitySnapshots,
+  resolveModifierPortions,
 } from "../../lib/prepared-food-availability";
 import { getEnotaBusinessDayStart } from "../../lib/pos-business-day";
 import { buildPreparedFoodWasteRecordPdf } from "../../lib/prepared-food-waste-pdf";
@@ -241,9 +243,19 @@ router.get("/prepared-food/availability", async (req: Request, res: Response): P
   const enotaId = (req as any).enotaId as number;
   const businessDate = await currentBusinessDate(enotaId);
   const state = await loadPreparedFoodAvailability(db, enotaId, businessDate);
+  const modifierResult = await db.execute(sql`
+    SELECT m.id
+    FROM modifikatorji m
+    JOIN modifikatorske_skupine s ON s.id = m.skupina_id
+    WHERE s.enota_id = ${enotaId} AND m.aktiven = true
+      AND EXISTS (SELECT 1 FROM modifikator_normativi mn WHERE mn.modifikator_id = m.id)
+  `);
+  const modifierIds = modifierResult.rows.map(row => Number(row.id));
+  const snapshots = await loadModifierAvailabilitySnapshots(db, modifierIds);
   res.json({
     businessDate,
     items: state.items,
+    modifierItems: resolveModifierPortions(state, snapshots),
   });
 });
 

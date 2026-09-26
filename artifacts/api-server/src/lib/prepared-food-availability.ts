@@ -553,6 +553,41 @@ export function buildModifierAvailabilityRequests(
   return [...aggregated].map(([articleId, quantity]) => ({ articleId, quantity }));
 }
 
+export function resolveModifierPortions(
+  state: PreparedFoodAvailabilityState,
+  snapshots: Map<number, ModifierAvailabilityRequirement[]>,
+): Array<{ modifierId: number; availableQuantity: number }> {
+  const items: Array<{ modifierId: number; availableQuantity: number }> = [];
+  for (const [modifierId, ingredients] of snapshots) {
+    const needed = new Map<number, number>();
+    let invalid = false;
+    let hasPreparedIngredient = false;
+    for (const ingredient of ingredients) {
+      if (!Number.isFinite(ingredient.quantity) || ingredient.quantity <= 0) {
+        invalid = true;
+        continue;
+      }
+      const requirement = state.requirementsByArticle.get(ingredient.articleId);
+      if (!requirement?.valid) {
+        if (ingredient.mealType !== "ala_carte") hasPreparedIngredient = true;
+        invalid = true;
+        continue;
+      }
+      if (requirement.prepared.size > 0) hasPreparedIngredient = true;
+      mergeRequirement(needed, requirement.prepared, ingredient.quantity);
+    }
+    if (!hasPreparedIngredient) continue;
+    const limits = [...needed].map(([id, quantity]) => (state.preparedAvailableRaw.get(id) ?? 0) / quantity);
+    items.push({
+      modifierId,
+      availableQuantity: invalid || limits.length === 0
+        ? 0
+        : Math.max(0, Math.floor(Math.min(...limits) + EPSILON)),
+    });
+  }
+  return items;
+}
+
 export async function loadModifierAvailabilityRequests(
   executor: Executor,
   modifierIds: number[],

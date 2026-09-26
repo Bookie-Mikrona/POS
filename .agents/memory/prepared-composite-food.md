@@ -27,6 +27,12 @@ Razpoložljivost je v POS/QR prikazana na prodajni kartici artikla kot število 
 
 **How to apply:** Vsaka pot, ki poveča porabo, mora pred zapisom atomsko preveriti pozitivni prirast. Poznejša sprememba vrste artikla ne sme spreminjati porabe že prodanih vrstic. Razprodane artikle skrij, vendar nikoli ne zaupaj samo odjemalcu.
 
+Če pripravljeno jed porablja izbirni modifikator, na prodajni kartici pokaži porcije po posamezni možnosti in jih ponovi v izbirniku; ne prikaži ene same »razpoložljivosti artikla« iz stanja neobveznih dodatkov.
+
+**Why:** Gost lahko izbere različne dodatke ali nobenega. Minimum njihovih zalog ne pove, koliko osnovnih jedi je mogoče prodati, in bi lahko napačno označil artikel za razprodan.
+
+**How to apply:** Število porcij modifikatorja računaj iz njegovih normativnih pripravljenih sestavin na istem stanju kot strežniško preverjanje. Pri kombinacijah in sočasnih naročilih ostane končna odločitev atomsko preverjanje ob shranitvi.
+
 `prepared` opisuje način količinske evidence, ne poslovne vloge artikla. Pripravljena jed je lahko končna prodajna jed ali neprodajni polizdelek.
 
 **Why:** Sam tip `prepared` ne loči ciganskega golaža, ki se lahko neposredno prodaja, od esence ali štruklja, ki sta le komponenti druge jedi.

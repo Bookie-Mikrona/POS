@@ -10865,13 +10865,22 @@ components:
         frozenAtEndQuantity: { type: number, minimum: 0 }
     PreparedFoodAvailability:
       type: object
-      required: [businessDate, items]
+      required: [businessDate, items, modifierItems]
       properties:
         businessDate: { type: string, format: date }
         items:
           type: array
           items:
             $ref: "#/components/schemas/PreparedFoodAvailabilityItem"
+        modifierItems:
+          type: array
+          description: Število možnih izbir modifikatorja glede na njegove pripravljene sestavine; modifikatorji brez pripravljene sestavine so izpuščeni.
+          items:
+            type: object
+            required: [modifierId, availableQuantity]
+            properties:
+              modifierId: { type: integer }
+              availableQuantity: { type: integer, minimum: 0 }
     PreparedFoodAvailabilityItem:
       type: object
       required: [articleId, articleName, mealType, availableQuantity, freshQuantity, thawedOpenQuantity]
