@@ -358,19 +358,21 @@ function ArtikliTab({ bootstrap }: { bootstrap: any }) {
           <DialogHeader>
             <DialogTitle>{editId ? "Uredi povezavo" : "Dodaj artikel k malicam"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
             <div className="grid gap-2">
-              <Label>Artikel</Label>
-              <Select value={artikelId} onValueChange={setArtikelId} disabled={!!editId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Izberite artikel..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {(artikli || []).map(a => (
-                    <SelectItem key={a.id} value={String(a.id)}>{a.ime}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="malica-artikel">Artikel</Label>
+              <select
+                id="malica-artikel"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={artikelId}
+                onChange={(event) => setArtikelId(event.target.value)}
+                disabled={editId !== null}
+              >
+                <option value="">Izberite artikel...</option>
+                {(artikli || []).map(a => (
+                  <option key={a.id} value={a.id}>{a.ime}</option>
+                ))}
+              </select>
             </div>
             <div className="grid gap-2">
               <Label>Vloga</Label>
