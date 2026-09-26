@@ -2299,28 +2299,28 @@ export default function Menu() {
               {/* Kategorija — samo za prodajne artikle */}
               {artProdajniArtikel && (
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
-                  <Label>Kategorija</Label>
-                  <Select value={artCat} onValueChange={value => {
-                    setArtCat(value);
-                    if (artMode === "nov" && !artPripravaVrstaIzbrana) {
-                      const category = kategorije?.find(k => k.id === Number(value));
-                      const inferred = vrstaPripraveKategorije(category);
-                      setArtPripravaVrsta(inferred);
-                      handleArtJePicaChange(inferred === "pica");
-                    }
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="Izberi kategorijo..." /></SelectTrigger>
-                    <SelectContent>
-                      {kategorije?.map(k => (
-                        <SelectItem key={k.id} value={k.id.toString()}>
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: k.barva }} />
-                            {k.ime}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="artikel-kategorija">Kategorija</Label>
+                  <select
+                    id="artikel-kategorija"
+                    aria-label="Kategorija"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={artCat}
+                    onChange={event => {
+                      const value = event.target.value;
+                      setArtCat(value);
+                      if (artMode === "nov" && !artPripravaVrstaIzbrana) {
+                        const category = kategorije?.find(k => k.id === Number(value));
+                        const inferred = vrstaPripraveKategorije(category);
+                        setArtPripravaVrsta(inferred);
+                        handleArtJePicaChange(inferred === "pica");
+                      }
+                    }}
+                  >
+                    <option value="">Izberi kategorijo...</option>
+                    {kategorije?.map(k => (
+                      <option key={k.id} value={k.id}>{k.ime}</option>
+                    ))}
+                  </select>
                 </div>
               )}
 

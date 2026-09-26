@@ -5,12 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NastavitveProvider } from "@/contexts/NastavitveContext";
 
+const categories = vi.hoisted(() => ({ current: [{ id: 1, ime: "Hrana", tip: "hrana" }] as Array<{ id: number; ime: string; tip: string }> }));
+
 // Mocks
 vi.mock("@workspace/api-client-react", async () => {
   const actual = await vi.importActual("@workspace/api-client-react");
   return {
     ...actual as any,
-    useListKategorije: () => ({ data: [{ id: 1, ime: "Hrana", tip: "hrana" }], isLoading: false }),
+    useListKategorije: () => ({ data: categories.current, isLoading: false }),
     useListArtikli: () => ({ 
       data: [
         { id: 10, ime: "Raw potato", cena: 0, nabavniArtikel: true, prodajniArtikel: false },
@@ -74,9 +76,26 @@ describe("Menu - mealType conditions", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
+    categories.current = [{ id: 1, ime: "Hrana", tip: "hrana" }];
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+  });
+
+  it("omogoči izbiro zadnje kategorije v dolgem seznamu za nov prodajni artikel", async () => {
+    categories.current = Array.from({ length: 35 }, (_, index) => ({
+      id: index + 1, ime: `Kategorija ${index + 1}`, tip: "hrana",
+    }));
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider><NastavitveProvider><Menu /></NastavitveProvider></AuthProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByText("Nov artikel"));
+    const select = screen.getByRole("combobox", { name: "Kategorija" }) as HTMLSelectElement;
+    expect(select.querySelectorAll("option")).toHaveLength(36);
+    fireEvent.change(select, { target: { value: "35" } });
+    expect(select.value).toBe("35");
   });
 
   it("shows mealType choice for hrana category sales article and defaults to ala_carte", async () => {
@@ -99,11 +118,7 @@ describe("Menu - mealType conditions", () => {
     expect((prodajniCheckbox as HTMLInputElement).checked).toBe(true);
 
     // Select category "Hrana"
-    const selects = screen.getAllByTestId("select");
-    console.log("Found selects:", selects.length);
-    fireEvent.click(selects[0]);
-    if (selects[1]) fireEvent.click(selects[1]);
-    if (selects[2]) fireEvent.click(selects[2]);
+    fireEvent.change(screen.getByLabelText("Kategorija"), { target: { value: "1" } });
 
     // Način priprave je po reorganizaciji obrazca v zavihku Normativ.
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Normativ" }), {
