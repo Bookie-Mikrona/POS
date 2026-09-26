@@ -75,6 +75,7 @@
 - [Zunanje slike – SSRF](article-image-reference-ssrf.md) — reference slike morajo povezavo pripeti na preverjen javni IP, omejiti tok in preveriti podpis slike.
 - [Pripravljena in sestavljena hrana](prepared-composite-food.md) — zamrznjena zaloga je operativna; priprava porabi surovine, kalo pa prerazporedi strošek.
 - [Prodajna priloga in skupna zaloga](prepared-side-dish-shared-stock.md) — samostojna prodaja priloge in modifikator morata porabljati isto pripravljeno jed.
+- [Izbira sestavin sestavljene jedi](composite-ingredient-discovery.md) — dovoljene polizdelke in prodajne à la carte artikle jasno razloči v izbirniku; dovoljenje brez vidnosti ni dovolj.
 - [Ostanki s krožnikov](plate-waste-separation.md) — ločena okoljska evidenca; brez povezave z zalogo, prodajo, normativi, kalom ali računovodstvom.
 - [Gostinski poslovni dan](gostinski-poslovni-dan.md) — POS promet pred začetno uro sodi v prejšnji dan; meje vedno računaj v Europe/Ljubljana kot interval [od, do).
 - [Mikrona blagovna znamka](mikrona-blagovna-znamka.md) — Mikrona znak je skupna oznaka Bookie aplikacij, ne zamenjava za podatke aktivnega podjetja.

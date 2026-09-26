@@ -48,6 +48,15 @@ export function canUseAsNormativInput(
   return candidate.nabavniArtikel === true;
 }
 
+export type CompositeInputGroup = "intermediate" | "sale_ala_carte" | "other";
+
+export function compositeInputGroup(candidate: NormativArticleCandidate): CompositeInputGroup {
+  if (candidate.prodajniArtikel === false && candidate.nabavniArtikel === false
+    && (candidate.mealType === "ala_carte" || candidate.mealType === "prepared")) return "intermediate";
+  if (candidate.prodajniArtikel === true && candidate.mealType === "ala_carte") return "sale_ala_carte";
+  return "other";
+}
+
 export function normativSectionTitle(mealType: string, prodajniArtikel = true): string {
   if (mealType === "composite") return "Sestavljeni normativ";
   if (mealType === "prepared") return "Normativ priprave";

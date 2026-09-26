@@ -6,6 +6,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NastavitveProvider } from "@/contexts/NastavitveContext";
 
 const categories = vi.hoisted(() => ({ current: [{ id: 1, ime: "Hrana", tip: "hrana" }] as Array<{ id: number; ime: string; tip: string }> }));
+const mockArticles = vi.hoisted(() => [
+  { id: 10, ime: "Raw potato", cena: 0, nabavniArtikel: true, prodajniArtikel: false },
+  { id: 11, ime: "Fries", cena: 5, nabavniArtikel: false, prodajniArtikel: true, mealType: "prepared" },
+  { id: 12, ime: "Osnova omake", cena: 0, nabavniArtikel: false, prodajniArtikel: false, mealType: "ala_carte", taxCategory: "food" },
+  { id: 13, ime: "Dunajski zrezek", cena: 15, nabavniArtikel: false, prodajniArtikel: true, mealType: "ala_carte" },
+  { id: 14, ime: "Kombinirana jed", cena: 20, nabavniArtikel: false, prodajniArtikel: true, mealType: "composite", kategorijaId: 1, aktiven: true },
+]);
+const emptyNormativ = vi.hoisted(() => ({ normativRevision: 1, normativi: [] }));
 
 // Mocks
 vi.mock("@workspace/api-client-react", async () => {
@@ -13,16 +21,11 @@ vi.mock("@workspace/api-client-react", async () => {
   return {
     ...actual as any,
     useListKategorije: () => ({ data: categories.current, isLoading: false }),
-    useListArtikli: () => ({ 
-      data: [
-        { id: 10, ime: "Raw potato", cena: 0, nabavniArtikel: true, prodajniArtikel: false },
-        { id: 11, ime: "Fries", cena: 5, nabavniArtikel: false, prodajniArtikel: true, mealType: "prepared" }
-      ], isLoading: false 
-    }),
+    useListArtikli: () => ({ data: mockArticles, isLoading: false }),
     useCreateArtikel: () => ({ mutate: vi.fn(), isPending: false }),
     useUpdateArtikel: () => ({ mutate: vi.fn(), isPending: false }),
     useGetArtikelNormativi: () => ({
-      data: { normativRevision: 1, normativi: [] },
+      data: emptyNormativ,
       refetch: vi.fn(),
       isFetching: false,
       isLoading: false,
@@ -138,6 +141,32 @@ describe("Menu - mealType conditions", () => {
     // Default is ala_carte
     const alaCarteBtn = screen.getByText("A la carte (sproti)").closest("button");
     expect(alaCarteBtn?.className).toContain("bg-primary/10");
+  });
+
+  it("pri sestavljeni jedi ponudi polizdelke in prodajne à la carte artikle", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider><NastavitveProvider><Menu /></NastavitveProvider></AuthProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByText("Nov artikel"));
+    fireEvent.change(screen.getByLabelText("Kategorija"), { target: { value: "1" } });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Normativ" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByText("Sestavljeno (kombinirano)").closest("button")!);
+    expect(screen.getByText("Sestavljeni normativ")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj artikel" }));
+    const input = screen.getByPlaceholderText("Izberi artikel");
+    fireEvent.focus(input);
+
+    expect(await screen.findByRole("button", { name: "Polizdelki" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Polizdelki" }));
+    expect(screen.getByRole("button", { name: /Osnova omake.*Polizdelek/ })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Dunajski zrezek.*Prodajni à la carte/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Prodajni à la carte" }));
+    expect(screen.getByRole("button", { name: /Dunajski zrezek.*Prodajni à la carte/ })).not.toBeNull();
+    fireEvent.mouseDown(screen.getByRole("button", { name: /Dunajski zrezek.*Prodajni à la carte/ }));
+    expect((input as HTMLInputElement).value).toContain("Dunajski zrezek");
   });
 
 });

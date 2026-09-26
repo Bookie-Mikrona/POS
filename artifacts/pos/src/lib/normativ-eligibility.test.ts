@@ -4,6 +4,7 @@ import {
   canOfferSmartNormativ,
   canUseAsModifierNormativInput,
   canUseAsNormativInput,
+  compositeInputGroup,
   normativSectionTitle,
 } from "./normativ-eligibility";
 
@@ -51,7 +52,11 @@ describe("upravičenost za urejanje normativa", () => {
   it("sestavljeni artikel sprejme a la carte in pripravljene vhode tudi, če niso prodajni", () => {
     expect(canUseAsNormativInput(20, "composite", { id: 1, prodajniArtikel: false, mealType: "ala_carte" })).toBe(true);
     expect(canUseAsNormativInput(20, "composite", { id: 2, prodajniArtikel: false, mealType: "prepared" })).toBe(true);
+    expect(canUseAsNormativInput(20, "composite", { id: 4, prodajniArtikel: true, mealType: "ala_carte" })).toBe(true);
     expect(canUseAsNormativInput(20, "composite", { id: 3, prodajniArtikel: true, mealType: "composite" })).toBe(false);
+    expect(compositeInputGroup({ prodajniArtikel: false, nabavniArtikel: false, mealType: "prepared" })).toBe("intermediate");
+    expect(compositeInputGroup({ prodajniArtikel: false, nabavniArtikel: false, mealType: "ala_carte" })).toBe("intermediate");
+    expect(compositeInputGroup({ prodajniArtikel: true, mealType: "ala_carte" })).toBe("sale_ala_carte");
   });
 
   it("uporabi jasen naslov glede na operativni tip", () => {

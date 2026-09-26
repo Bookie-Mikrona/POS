@@ -70,6 +70,8 @@ import {
   canOfferSmartNormativ,
   canUseAsNormativInput,
   normativSectionTitle,
+  compositeInputGroup,
+  type CompositeInputGroup,
 } from "@/lib/normativ-eligibility";
 import {
   articleMatchesListFilter,
@@ -167,6 +169,7 @@ export default function Menu() {
   const [normativNapaka, setNormativNapaka] = useState<string | null>(null);
   const [normativDropdownIdx, setNormativDropdownIdx] = useState<number | null>(null);
   const [normativDropdownFilter, setNormativDropdownFilter] = useState("");
+  const [normativDropdownGroup, setNormativDropdownGroup] = useState<CompositeInputGroup | "all">("all");
   const [normativDropdownHighlight, setNormativDropdownHighlight] = useState(0);
   const [normativDropdownPos, setNormativDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [smartProposalDialogOpen, setSmartProposalDialogOpen] = useState(false);
@@ -1076,17 +1079,20 @@ export default function Menu() {
   const normativNabavniArtikli = (artikli ?? []).filter(a =>
     canUseAsNormativInput(editingArt?.id ?? null, artMealType, a),
   );
-  const filteredNormativArtikli = normativDropdownFilter
-    ? normativNabavniArtikli.filter(a =>
+  const filteredNormativArtikli = (artMealType === "composite" && normativDropdownGroup !== "all"
+    ? normativNabavniArtikli.filter(a => compositeInputGroup(a) === normativDropdownGroup)
+    : normativNabavniArtikli
+  ).filter(a =>
+      !normativDropdownFilter ||
         [a.imeZaNabavo, a.ime].some(naziv =>
           naziv?.toLowerCase().includes(normativDropdownFilter.toLowerCase())
         )
-      )
-    : normativNabavniArtikli;
+      );
 
   const openNormativDropdown = (idx: number) => {
     setNormativDropdownIdx(idx);
     setNormativDropdownFilter("");
+    setNormativDropdownGroup("all");
     setNormativDropdownHighlight(0);
   };
 
@@ -3399,9 +3405,32 @@ export default function Menu() {
               }}
               className="max-h-52 overflow-y-auto rounded-md border bg-background py-1 shadow-lg"
             >
+              {artMealType === "composite" && (
+                <div className="sticky top-0 z-10 flex flex-wrap gap-1 border-b bg-background px-2 py-1.5">
+                  {([
+                    ["all", "Vse"],
+                    ["intermediate", "Polizdelki"],
+                    ["sale_ala_carte", "Prodajni à la carte"],
+                  ] as const).map(([group, label]) => (
+                    <button
+                      key={group}
+                      type="button"
+                      aria-pressed={normativDropdownGroup === group}
+                      className={`rounded px-2 py-1 text-xs ${normativDropdownGroup === group ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/70"}`}
+                      onMouseDown={event => event.preventDefault()}
+                      onClick={() => {
+                        setNormativDropdownGroup(group);
+                        setNormativDropdownHighlight(0);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {filteredNormativArtikli.length === 0 ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">
-                  {normativDropdownFilter ? `Ni zadetkov za „${normativDropdownFilter}"` : "Ni nabavnih artiklov v šifrantu"}
+                  {normativDropdownFilter ? `Ni zadetkov za „${normativDropdownFilter}"` : "V tej skupini ni ustreznih artiklov"}
                 </p>
               ) : (
                 filteredNormativArtikli.map((artikel, artikelIdx) => (
@@ -3422,6 +3451,15 @@ export default function Menu() {
                       {artikel.imeZaNabavo || artikel.ime}
                       {artikel.enotaMere && ` (${artikel.enotaMere})`}
                     </span>
+                    {artMealType === "composite" && (
+                      <span className="ml-auto shrink-0 px-2 text-xs text-muted-foreground">
+                        {compositeInputGroup(artikel) === "intermediate"
+                          ? "Polizdelek"
+                          : compositeInputGroup(artikel) === "sale_ala_carte"
+                            ? "Prodajni à la carte"
+                            : artikel.mealType === "prepared" ? "Pripravljena jed" : "Drugo"}
+                      </span>
+                    )}
                     <AlergeniBadge snapshot={{
                       alergeni: artikel.alergeni ?? [],
                       alergeniSledi: artikel.alergeniSledi ?? [],
