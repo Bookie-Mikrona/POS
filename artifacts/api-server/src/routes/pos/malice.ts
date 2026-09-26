@@ -20,7 +20,7 @@ import {
 } from "@workspace/db";
 import { currentBusinessDate } from "../../lib/prepared-food-availability";
 import { beneficiaryHash, beneficiaryToken } from "../../lib/malica-beneficiary-token";
-import { isFutureBusinessDate, remainingQuantity, requiresHigherGroupConfirmation } from "../../lib/malice-rules";
+import { isAllowedGroupPriceDate, isFutureBusinessDate, remainingQuantity, requiresHigherGroupConfirmation } from "../../lib/malice-rules";
 import type { PosRequest } from "../../middlewares/pos";
 
 const router: IRouter = Router();
@@ -154,12 +154,17 @@ router.post("/malice/groups/:groupId/prices", async (req, res): Promise<void> =>
     res.status(400).json({ error: "Cena in datum veljavnosti nista veljavna." }); return;
   }
   const currentDate = await currentBusinessDate(enotaId);
-  if (!isFutureBusinessDate(validFrom, currentDate)) {
-    res.status(400).json({ error: "Cena lahko začne veljati šele z naslednjim poslovnim dnem." }); return;
-  }
   const result = await db.transaction(async (tx) => {
-    const [group] = await tx.select().from(malicaGroupsTable).where(and(eq(malicaGroupsTable.id, groupId), eq(malicaGroupsTable.enotaId, enotaId)));
+    // Serialise the first-price check for this group so concurrent requests cannot both backdate.
+    const [group] = await tx.select().from(malicaGroupsTable)
+      .where(and(eq(malicaGroupsTable.id, groupId), eq(malicaGroupsTable.enotaId, enotaId)))
+      .for("update");
     if (!group) return { error: "Skupina ne obstaja.", status: 404 as const };
+    const [existing] = await tx.select({ id: malicaGroupPricesTable.id }).from(malicaGroupPricesTable)
+      .where(and(eq(malicaGroupPricesTable.groupId, groupId), eq(malicaGroupPricesTable.enotaId, enotaId))).limit(1);
+    if (!isAllowedGroupPriceDate(validFrom, currentDate, Boolean(existing))) {
+      return { error: "Sprememba obstoječe cene lahko začne veljati šele z naslednjim poslovnim dnem.", status: 400 as const };
+    }
     const [previous] = await tx.select().from(malicaGroupPricesTable)
       .where(and(eq(malicaGroupPricesTable.groupId, groupId), eq(malicaGroupPricesTable.enotaId, enotaId), lte(malicaGroupPricesTable.validFrom, validFrom)))
       .orderBy(sql`${malicaGroupPricesTable.validFrom} DESC`).limit(1);
@@ -172,7 +177,7 @@ router.post("/malice/groups/:groupId/prices", async (req, res): Promise<void> =>
       if (!higherPrice || requiresHigherGroupConfirmation(group.sortOrder, previous?.priceCents ?? null, priceCents, higherPrice.priceCents)) return { error: "Pri zvišanju je treba najprej potrditi dražjo skupino Malice.", status: 409 as const };
     }
     const [saved] = await tx.insert(malicaGroupPricesTable).values({
-      groupId, enotaId, priceCents, validFrom, status: "scheduled", reason: req.body?.reason ?? null,
+      groupId, enotaId, priceCents, validFrom, status: validFrom > currentDate ? "scheduled" : "active", reason: req.body?.reason ?? null,
       createdBy: (req as unknown as PosRequest).clerkUserId ?? null,
       confirmedBy: (req as unknown as PosRequest).clerkUserId ?? null,
       confirmedAt: new Date(),

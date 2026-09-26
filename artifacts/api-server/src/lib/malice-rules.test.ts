@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consumesMalicaQuantity, encodeMalicaPairingGroup, isFutureBusinessDate, parseMalicaPairingGroup, remainingQuantity, requiresHigherGroupConfirmation } from "./malice-rules";
+import { consumesMalicaQuantity, encodeMalicaPairingGroup, isAllowedGroupPriceDate, isFutureBusinessDate, parseMalicaPairingGroup, remainingQuantity, requiresHigherGroupConfirmation } from "./malice-rules";
 
 describe("Malice price rules", () => {
   it("requires the higher group before increasing a lower group", () => {
@@ -18,6 +18,13 @@ describe("Malice price rules", () => {
     expect(isFutureBusinessDate("2026-04-02", "2026-04-01")).toBe(true);
     expect(isFutureBusinessDate("2026-04-01", "2026-04-01")).toBe(false);
     expect(isFutureBusinessDate("2026-03-31", "2026-04-01")).toBe(false);
+  });
+  it("allows a historical first price but not a retroactive change", () => {
+    expect(isAllowedGroupPriceDate("2026-01-01", "2026-09-26", false)).toBe(true);
+    expect(isAllowedGroupPriceDate("2026-09-26", "2026-09-26", false)).toBe(true);
+    expect(isAllowedGroupPriceDate("2026-01-01", "2026-09-26", true)).toBe(false);
+    expect(isAllowedGroupPriceDate("2026-09-26", "2026-09-26", true)).toBe(false);
+    expect(isAllowedGroupPriceDate("2026-09-27", "2026-09-26", true)).toBe(true);
   });
 
   it("calculates live remaining portions without changing unlimited configuration", () => {

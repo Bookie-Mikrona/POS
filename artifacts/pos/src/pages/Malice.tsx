@@ -94,11 +94,12 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
   const [priceStr, setPriceStr] = useState("");
   const [validFrom, setValidFrom] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   const [reason, setReason] = useState("");
+  const hasPriceForOpenGroup = prices.some(p => p.groupId === openId);
 
   const handleOpen = (group: MalicaGroup) => {
     setOpenId(group.id);
     setPriceStr("");
-    setValidFrom(format(addDays(new Date(), 1), "yyyy-MM-dd"));
+    setValidFrom(format(addDays(new Date(), prices.some(p => p.groupId === group.id) ? 1 : 0), "yyyy-MM-dd"));
     setReason("");
   };
 
@@ -174,7 +175,7 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button variant="outline" size="sm" onClick={() => handleOpen(g)}>
-                        <Tags className="w-4 h-4 mr-2" /> Spremeni ceno
+                        <Tags className="w-4 h-4 mr-2" /> {prices.some(p => p.groupId === g.id) ? "Spremeni ceno" : "Vnesi začetno ceno"}
                       </Button>
                     </td>
                   </tr>
@@ -191,9 +192,11 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
       <Dialog open={openId !== null} onOpenChange={(o) => !o && setOpenId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova cena za skupino</DialogTitle>
+            <DialogTitle>{hasPriceForOpenGroup ? "Nova cena za skupino" : "Začetna cena za skupino"}</DialogTitle>
             <DialogDescription>
-              Nastavite novo ceno, ki bo veljala od izbranega datuma naprej. Sprememba bo vplivala na vse artikle v tej skupini, ki imajo vklopljeno samodejno usklajevanje cene.
+              {hasPriceForOpenGroup
+                ? "Nastavite novo ceno, ki bo veljala od izbranega datuma naprej. Sprememba bo vplivala na vse artikle v tej skupini, ki imajo vklopljeno samodejno usklajevanje cene."
+                : "Vnesite prvo ceno skupine. Začetni datum je lahko tudi v preteklosti; že izdani računi in shranjeni zneski se ne spremenijo. Cene vnesite od najdražje skupine navzdol, za isti začetni datum."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -204,7 +207,11 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
             <div className="grid gap-2">
               <Label htmlFor="malica-cena-velja-od">Velja od</Label>
               <Input id="malica-cena-velja-od" type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Cena lahko začne veljati šele z naslednjim poslovnim dnem.</p>
+              <p className="text-xs text-muted-foreground">
+                {hasPriceForOpenGroup
+                  ? "Sprememba obstoječe cene lahko začne veljati šele z naslednjim poslovnim dnem."
+                  : "Prvo ceno lahko določite tudi za pretekli datum."}
+              </p>
             </div>
             <div className="grid gap-2">
               <Label>Razlog (opcijsko)</Label>

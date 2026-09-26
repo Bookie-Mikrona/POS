@@ -135,6 +135,7 @@
 - [POS audit identitete](pos-audit-identitete.md) — Clerk izvajalec in natakar actor sta ločena; legacy integer stolpca ne pretipkaj.
 - [Android zaslonska tipkovnica](android-visual-viewport.md) — POS uporablja VisualViewport za višino dialogov in samodejni prikaz aktivnega polja nad tipkovnico.
 - [Dolgi izbirniki v POS dialogih](article-category-native-select.md) — pri kategorijah in artiklih malic uporabi izvorni mobilni izbirnik, da drsenje ne obtiči.
+- [Začetne cene malic](malice-initial-prices.md) — prvo ceno skupine je dovoljeno določiti za nazaj; poznejše spremembe veljajo šele od naslednjega poslovnega dne.
 - [Drsenje zgornjega Vaul predala](vaul-top-drawer-scroll.md) — seznam v zgornjem predalu mora prevzeti potege; predal se ne sme zapirati ob drsenju vsebine.
 - [Priprava plačil dobaviteljem](supplier-payment-preparation.md) — računi po zapadlosti z delnimi zneski; vsota ne sme preseči stanja izbranega konta 110x.
 - [Evidenca bančnih izpiskov](bank-statement-evidence.md) — vsak uvoz ima glavo, vrstice in odtis datoteke; plačilo je vezano na eno bančno vrstico.

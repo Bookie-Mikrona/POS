@@ -17,6 +17,11 @@ export function isFutureBusinessDate(candidate: string, currentBusinessDate: str
   return /^\d{4}-\d{2}-\d{2}$/.test(candidate) && candidate > currentBusinessDate;
 }
 
+/** An initial group price may establish a historical starting point; later changes must be future-dated. */
+export function isAllowedGroupPriceDate(candidate: string, currentBusinessDate: string, hasExistingPrice: boolean): boolean {
+  return !hasExistingPrice || isFutureBusinessDate(candidate, currentBusinessDate);
+}
+
 /** Remaining configured portions; null configuration means unlimited. */
 export function remainingQuantity(configured: number | null, sold: number): number | null {
   if (configured === null) return null;

@@ -8,6 +8,7 @@ import MalicePage from "./Malice";
 const assignArticle = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 const schedulePrice = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 const toast = vi.hoisted(() => vi.fn());
+const priceRows = vi.hoisted(() => ({ current: [] as Array<{ groupId: number; priceCents: number; validFrom: string; status: string }> }));
 const articles = vi.hoisted(() => Array.from({ length: 35 }, (_, index) => ({
   id: index + 1,
   ime: `Artikel ${index + 1}`,
@@ -16,7 +17,7 @@ const articles = vi.hoisted(() => Array.from({ length: 35 }, (_, index) => ({
 vi.mock("@workspace/api-client-react", async (importOriginal) => ({
   ...await importOriginal<typeof import("@workspace/api-client-react")>(),
   useGetMalicaBootstrap: () => ({
-    data: { groups: [{ id: 1, name: "Malica 1", code: "M1", sortOrder: 1, active: true }], assignments: [], prices: [] },
+    data: { groups: [{ id: 1, name: "Malica 1", code: "M1", sortOrder: 1, active: true }], assignments: [], prices: priceRows.current },
     isLoading: false,
   }),
   useListArtikli: () => ({ data: articles }),
@@ -29,6 +30,7 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 describe("Malice — povezava artiklov", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    priceRows.current = [];
   });
 
   it("omogoči izbiro in shranjevanje artikla na koncu dolgega seznama", async () => {
@@ -50,7 +52,8 @@ describe("Malice — povezava artiklov", () => {
     }));
   });
 
-  it("za 7,5 € privzeto ponudi jutrišnji datum in pošlje 750 centov", async () => {
+  it("za obstoječo ceno privzeto ponudi jutrišnji datum in pošlje 750 centov", async () => {
+    priceRows.current = [{ groupId: 1, priceCents: 650, validFrom: "2026-01-01", status: "active" }];
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={queryClient}><MalicePage /></QueryClientProvider>);
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Skupine" }), { button: 0, ctrlKey: false });
@@ -67,7 +70,26 @@ describe("Malice — povezava artiklov", () => {
     }));
   });
 
+  it("dovoli vnos prve cene 7,5 € z zgodovinskim datumom", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={queryClient}><MalicePage /></QueryClientProvider>);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Skupine" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("button", { name: "Vnesi začetno ceno" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Začetna cena za skupino")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Velja od")).toHaveValue(format(new Date(), "yyyy-MM-dd"));
+    fireEvent.change(within(dialog).getByLabelText("Nova cena (€)"), { target: { value: "7,5" } });
+    fireEvent.change(within(dialog).getByLabelText("Velja od"), { target: { value: "2026-01-01" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Shrani" }));
+
+    await waitFor(() => expect(schedulePrice).toHaveBeenCalledWith({
+      groupId: 1,
+      data: { priceCents: 750, validFrom: "2026-01-01", reason: null },
+    }));
+  });
+
   it("ob zavrnitvi cene prikaže razlog, ki ga vrne strežnik", async () => {
+    priceRows.current = [{ groupId: 1, priceCents: 650, validFrom: "2026-01-01", status: "active" }];
     schedulePrice.mockRejectedValueOnce({ data: { error: "Cena lahko začne veljati šele z naslednjim poslovnim dnem." } });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={queryClient}><MalicePage /></QueryClientProvider>);
