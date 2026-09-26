@@ -80,6 +80,7 @@ import SystemInputDialog from "@/components/SystemInputDialog";
 import { KlavijaturaInput } from "@/components/KlavijaturaInput";
 import { casZaPosDatetimeLocal, formatPosCas, poslovniDatumZaCas, posDatetimeLocalToIso } from "@/lib/posCas";
 import { isOrderArticleVisible } from "@/lib/order-article-visibility";
+import { orderAddErrorMessage } from "@/lib/order-add-error";
 import { DostavaStatusPanel } from "@/components/DostavaStatusPanel";
 import { KdsCountdown } from "@/lib/kdsNarocilo";
 import { getNextKdsCoursesToFire } from "@/lib/kdsCourses";
@@ -2197,15 +2198,14 @@ export default function Order() {
         if (isClosedOrderConflict(err)) {
           leaveClosedOrder();
         } else if (err instanceof ApiError && err.status === 409) {
-          const serverError = (err.data as { error?: string } | null)?.error;
           toast({
             title: "Ni mogoče spremeniti naročila",
-            description: serverError ?? "Spremembe naročila trenutno niso dovoljene.",
+            description: orderAddErrorMessage(err, "Spremembe naročila trenutno niso dovoljene."),
             variant: "destructive",
           });
           void queryClient.invalidateQueries({ queryKey: getGetPreparedFoodAvailabilityQueryKey() });
         } else {
-          toast({ title: "Artikla ni bilo mogoče dodati", description: "Artikel je bil odstranjen iz naročila.", variant: "destructive" });
+          toast({ title: "Artikla ni bilo mogoče dodati", description: orderAddErrorMessage(err, "Artikel je bil odstranjen iz naročila."), variant: "destructive" });
         }
       },
     });
@@ -2255,7 +2255,7 @@ export default function Order() {
         { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload } as any },
         {
           onSuccess: (updatedNarocilo) => { clearSkipAutoStart(); queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo); queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() }); setSearch(""); settle(); },
-          onError: () => { toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" }); settle(); },
+           onError: (err) => { toast({ title: "Napaka", description: orderAddErrorMessage(err), variant: "destructive" }); settle(); },
         }
       );
     }
@@ -3806,6 +3806,7 @@ export default function Order() {
 
       function handlePotrdiModifikatorje() {
         if (modDialogArtikelId === null) return;
+        if (pendingArtikli.has(modDialogArtikelId)) return;
         const artikelId = modDialogArtikelId;
         const izbrani = [...modDialogIzbrani];
         const kolicina = modDialogKolicina;
@@ -3813,12 +3814,6 @@ export default function Order() {
         const velikostPice = artJePica
           ? (modDialogVelikostPice ?? aktivneVelikostiPic.find((velikost) => velikost.id === "normalna")?.id ?? aktivneVelikostiPic[0]?.id)
           : undefined;
-        setModDialogArtikelId(null);
-        setModDialogIzbrani([]);
-        setModDialogKolicina(1);
-        setModDialogOpomba(null);
-        setModDialogVelikostPice(undefined);
-        if (pendingArtikli.has(artikelId)) return;
         setPendingArtikli(prev => new Set(prev).add(artikelId));
         const settle = () => setPendingArtikli(prev => { const s = new Set(prev); s.delete(artikelId); return s; });
         const modPayload: { modifikatorId: number; ime: string; cenaDodatek: number }[] = [];
@@ -3833,6 +3828,11 @@ export default function Order() {
           { id, data: { artikelId, kolicina, gostStevilka: aktivniGostStevilka, opomba: opomba ?? null, izbranModifikatorji: modPayload, velikostPice } as any },
           {
             onSuccess: (updatedNarocilo) => {
+              setModDialogArtikelId(null);
+              setModDialogIzbrani([]);
+              setModDialogKolicina(1);
+              setModDialogOpomba(null);
+              setModDialogVelikostPice(undefined);
               clearSkipAutoStart();
               queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
               queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
@@ -3843,7 +3843,7 @@ export default function Order() {
               if (isClosedOrderConflict(err)) {
                 leaveClosedOrder();
               } else {
-                toast({ title: "Napaka", description: "Ni bilo mogoče dodati artikla", variant: "destructive" });
+                toast({ title: "Napaka", description: orderAddErrorMessage(err), variant: "destructive" });
               }
               settle();
             },

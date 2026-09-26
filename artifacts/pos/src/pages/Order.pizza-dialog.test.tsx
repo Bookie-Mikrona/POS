@@ -309,7 +309,11 @@ vi.mock("@workspace/api-client-react", () => ({
   useListRacuni: () => ({ data: [] }),
   useGetRacunPostavke: () => ({ data: undefined, isLoading: false }),
   useAddPostavka: () => ({ mutate: mockAddPostavkaMutate, isPending: false }),
+  ApiError: class ApiError extends Error {},
   useAddMulticourseMenu: () => ({ mutate: vi.fn(), isPending: false }),
+  useListDailyLunchOffers: () => ({ data: [], isLoading: false }),
+  useQuoteDailyLunch: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAddDailyLunchToOrder: () => ({ mutateAsync: vi.fn(), isPending: false }),
   customFetch: vi.fn(() => Promise.resolve([])),
   useAddPostavkaModifikatorji: () => ({ mutate: vi.fn(), isPending: false }),
   useRemovePostavka: () => ({ mutate: vi.fn() }),
@@ -778,6 +782,34 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
       { modifikatorId: 100, ime: "Sir", cenaDodatek: 0.5 },
       { modifikatorId: 105, ime: "Brez razreza", cenaDodatek: 0 },
     ]);
+  });
+
+  it("ob zavrnitvi pokaže razlog strežnika in ohrani izbor za ponovni poskus", async () => {
+    mockAddPostavkaMutate.mockImplementation(
+      (_args: unknown, options?: { onError?: (error: unknown) => void }) => {
+        options?.onError?.({
+          status: 409,
+          data: { error: "Artikel »Pražen krompir« nima dovolj razpoložljivih porcij." },
+        });
+      },
+    );
+
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /Margherita/i }));
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /Potrdi/i }));
+    });
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      description: "Artikel »Pražen krompir« nima dovolj razpoložljivih porcij.",
+    }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Družinska.*40 cm.*12\.00 €/i })).toHaveAttribute("aria-pressed", "true");
   });
 
   // ── 7. Glasovni vnos z več zadetki → razjasnitveni toast, brez addPostavka ──

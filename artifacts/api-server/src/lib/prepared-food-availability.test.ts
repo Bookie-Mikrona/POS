@@ -42,6 +42,26 @@ describe("resolvePreparedFoodAvailability", () => {
     expect(state.items.find((item) => item.articleId === 4)?.availableQuantity).toBe(3);
   });
 
+  it("prodajna priloga in modifikator delita zalogo iste pripravljene jedi", () => {
+    const state = resolvePreparedFoodAvailability({
+      articles: [
+        { id: 1, name: "Dušeni riž (priprava)", mealType: "prepared" },
+        { id: 2, name: "Dušeni riž (prodaja)", mealType: "composite" },
+      ],
+      norms: [{ articleId: 2, ingredientId: 1, quantity: 1 }],
+      frozenByPreparedArticle: new Map(),
+      preparedTodayByArticle: new Map([[1, 5]]),
+      // Prodaja kot priloga in samostojen artikel odštevata isti vir.
+      sales: [
+        { articleId: 1, quantity: 1, mealType: "prepared" },
+        { articleId: 2, quantity: 2, mealType: "composite" },
+      ],
+    });
+    expect(state.items.filter((item) => item.mealType === "prepared")).toHaveLength(1);
+    expect(state.items.find((item) => item.articleId === 1)?.availableQuantity).toBe(2);
+    expect(state.items.find((item) => item.articleId === 2)?.availableQuantity).toBe(2);
+  });
+
   it("upošteva decimalni normativ ter današnjo pripravo in prodajo", () => {
     const state = resolvePreparedFoodAvailability({
       articles,
