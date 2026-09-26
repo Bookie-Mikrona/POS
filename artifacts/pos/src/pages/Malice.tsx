@@ -534,26 +534,28 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
     }
   };
 
-  const updateMainItem = (groupId: number, artikelId: number | null) => {
+  const toggleMainItem = (groupId: number, artikelId: number) => {
     setFormData(prev => {
       if (!prev) return prev;
-      const filtered = prev.mainItems.filter(m => m.groupId !== groupId);
-      if (artikelId) {
-        filtered.push({ groupId, artikelId, enabled: true });
-      }
-      return { ...prev, mainItems: filtered };
+      const exists = prev.mainItems.some(m => m.groupId === groupId && m.artikelId === artikelId);
+      return {
+        ...prev,
+        mainItems: exists
+          ? prev.mainItems.filter(m => !(m.groupId === groupId && m.artikelId === artikelId))
+          : [...prev.mainItems, { groupId, artikelId, position: prev.mainItems.length, enabled: true }]
+      };
     });
   };
 
-  const toggleCourse = (artikelId: number, role: MalicaArticleAssignmentRole) => {
+  const toggleCourse = (artikelId: number, role: MalicaDailyCourseInput["courseType"]) => {
     setFormData(prev => {
       if (!prev) return prev;
-      const exists = prev.includedCourses.some(c => c.artikelId === artikelId);
+      const exists = prev.includedCourses.some(c => c.artikelId === artikelId && c.courseType === role);
       let updated;
       if (exists) {
-        updated = prev.includedCourses.filter(c => c.artikelId !== artikelId);
+        updated = prev.includedCourses.filter(c => !(c.artikelId === artikelId && c.courseType === role));
       } else {
-        updated = [...prev.includedCourses, { courseType: role as any, artikelId, quantity: 1, enabled: true }];
+        updated = [...prev.includedCourses, { courseType: role, artikelId, quantity: 1, enabled: true }];
       }
       return { ...prev, includedCourses: updated };
     });
@@ -624,29 +626,31 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
           <CardContent className="space-y-8">
             <div className="space-y-4">
               <h3 className="font-semibold text-lg border-b pb-2">Glavne jedi</h3>
+              <p className="text-sm text-muted-foreground">Za vsako skupino lahko izberete več glavnih jedi.</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 {groups.map(g => {
-                  const currentItem = formData.mainItems.find(m => m.groupId === g.id);
-                  const allowedArticles = mainDishes.filter(a => a.groupId === g.id || !a.groupId);
+                  const allowedArticles = mainDishes.filter(a => a.groupId === g.id);
                   return (
-                    <div key={g.id} className="space-y-1.5 p-3 border rounded-lg bg-muted/20">
-                      <Label className="font-medium text-primary">{g.name} ({g.code})</Label>
-                      <Select 
-                        value={currentItem ? String(currentItem.artikelId) : "none"} 
-                        onValueChange={(val) => updateMainItem(g.id, val === "none" ? null : parseInt(val))}
-                        disabled={offer?.status === "closed"}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Izberite glavno jed..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Brez ponudbe</SelectItem>
-                          {allowedArticles.map(a => {
-                            const art = artikli?.find(x => x.id === a.artikelId);
-                            return <SelectItem key={a.artikelId} value={String(a.artikelId)}>{art?.ime || `Art #${a.artikelId}`}</SelectItem>;
-                          })}
-                        </SelectContent>
-                      </Select>
+                    <div key={g.id} className="space-y-3 p-3 border rounded-lg bg-muted/20">
+                      <h4 className="font-medium text-primary">{g.name} ({g.code})</h4>
+                      {allowedArticles.map(a => {
+                        const art = artikli?.find(x => x.id === a.artikelId);
+                        const checkboxId = `main-${g.id}-${a.artikelId}`;
+                        return (
+                          <div key={a.artikelId} className="flex items-center gap-2">
+                            <Checkbox
+                              id={checkboxId}
+                              checked={formData.mainItems.some(m => m.groupId === g.id && m.artikelId === a.artikelId)}
+                              onCheckedChange={() => toggleMainItem(g.id, a.artikelId)}
+                              disabled={!!offer && offer.status !== "draft"}
+                            />
+                            <Label htmlFor={checkboxId} className="font-normal cursor-pointer leading-tight">
+                              {art?.ime || `Art #${a.artikelId}`}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                      {allowedArticles.length === 0 && <p className="text-sm text-muted-foreground">Ni povezanih glavnih jedi. Dodajte jih na zavihku Artikli.</p>}
                     </div>
                   );
                 })}
@@ -656,17 +660,18 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
             <div className="grid sm:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">Juhe</h3>
+                <p className="text-sm text-muted-foreground">Izberete lahko več juh.</p>
                 <div className="space-y-2">
                   {soups.map(s => {
                     const art = artikli?.find(x => x.id === s.artikelId);
-                    const isChecked = formData.includedCourses.some(c => c.artikelId === s.artikelId);
+                    const isChecked = formData.includedCourses.some(c => c.courseType === "soup" && c.artikelId === s.artikelId);
                     return (
                       <div key={s.id} className="flex items-center space-x-2">
                         <Checkbox 
                           id={`soup-${s.id}`} 
                           checked={isChecked}
                           onCheckedChange={() => toggleCourse(s.artikelId, "soup")}
-                          disabled={offer?.status === "closed"}
+                          disabled={!!offer && offer.status !== "draft"}
                         />
                         <Label htmlFor={`soup-${s.id}`} className="font-normal cursor-pointer leading-tight">
                           {art?.ime || `Art #${s.artikelId}`}
@@ -680,17 +685,18 @@ function DnevnePonudbeTab({ bootstrap }: { bootstrap: any }) {
 
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">Sladice</h3>
+                <p className="text-sm text-muted-foreground">Izberete lahko več sladic.</p>
                 <div className="space-y-2">
                   {desserts.map(s => {
                     const art = artikli?.find(x => x.id === s.artikelId);
-                    const isChecked = formData.includedCourses.some(c => c.artikelId === s.artikelId);
+                    const isChecked = formData.includedCourses.some(c => c.courseType === "dessert" && c.artikelId === s.artikelId);
                     return (
                       <div key={s.id} className="flex items-center space-x-2">
                         <Checkbox 
                           id={`dessert-${s.id}`} 
                           checked={isChecked}
                           onCheckedChange={() => toggleCourse(s.artikelId, "dessert")}
-                          disabled={offer?.status === "closed"}
+                          disabled={!!offer && offer.status !== "draft"}
                         />
                         <Label htmlFor={`dessert-${s.id}`} className="font-normal cursor-pointer leading-tight">
                           {art?.ime || `Art #${s.artikelId}`}
