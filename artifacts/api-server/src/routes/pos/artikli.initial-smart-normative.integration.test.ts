@@ -201,6 +201,58 @@ describe("initial smart normative proposal and apply", () => {
     mockCreate.mockImplementation(async () => makeSearchResponse());
   });
 
+  it("predlaga in po potrditvi shrani normativ živilskega polizdelka obeh vrst, brez spremembe v prodajni artikel", async () => {
+    const intermediates = await db.insert(artikliTable).values([
+      {
+        enotaId: enotaA, ime: `${run}-paniran-zrezek`, cena: "0", davek: "0",
+        nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food", mealType: "ala_carte",
+      },
+      {
+        enotaId: enotaA, ime: `${run}-pripravljena-osnova`, cena: "0", davek: "0",
+        nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food", mealType: "prepared",
+      },
+    ]).returning({ id: artikliTable.id });
+    for (const intermediate of intermediates) {
+      currentIngredient = `${run}-surovina-${intermediate.id}`;
+      const suggestion = await preview(intermediate.id);
+      expect(suggestion.status, JSON.stringify(suggestion.body)).toBe(200);
+      expect(suggestion.body.items).toEqual([expect.objectContaining({
+        name: currentIngredient, quantity: 0.1, unit: "KGM",
+      })]);
+      expect((await db.select().from(normativiTable).where(eq(normativiTable.artikelId, intermediate.id)))).toEqual([]);
+      const accepted = await applyWithClassifications(intermediate.id, suggestion.body.token, [
+        { index: 0, taxCategory: "food", addedSugar: false, rawConfirmed: true },
+      ]);
+      expect(accepted.status, JSON.stringify(accepted.body)).toBe(200);
+      expect((await db.select().from(normativiTable).where(eq(normativiTable.artikelId, intermediate.id)))).toHaveLength(1);
+      const [saved] = await db.select({
+        sale: artikliTable.prodajniArtikel,
+        purchase: artikliTable.nabavniArtikel,
+      }).from(artikliTable).where(eq(artikliTable.id, intermediate.id));
+      expect(saved).toEqual({ sale: false, purchase: false });
+    }
+    expect(mockCreate.mock.calls[0]?.[0]?.messages[0]?.content).toContain("Naziv živilskega polizdelka");
+  });
+
+  it("ne dovoli predloga za nabavni ali sestavljeni artikel in zavrne zastarelo vlogo polizdelka", async () => {
+    const [intermediate, purchase, composite] = await db.insert(artikliTable).values([
+      { enotaId: enotaA, ime: `${run}-vmesni`, cena: "0", davek: "0", nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food", mealType: "ala_carte" },
+      { enotaId: enotaA, ime: `${run}-nabavni`, cena: "0", davek: "0", nabavniArtikel: true, prodajniArtikel: false, taxCategory: "food", mealType: "ala_carte" },
+      { enotaId: enotaA, ime: `${run}-sestavljeni`, cena: "0", davek: "0", nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food", mealType: "composite" },
+    ]).returning({ id: artikliTable.id });
+    expect((await preview(purchase!.id)).status).toBe(422);
+    expect((await preview(composite!.id)).status).toBe(422);
+    const suggestion = await preview(intermediate!.id);
+    expect(suggestion.status, JSON.stringify(suggestion.body)).toBe(200);
+    await db.update(artikliTable).set({ nabavniArtikel: true }).where(eq(artikliTable.id, intermediate!.id));
+    const stale = await applyWithClassifications(intermediate!.id, suggestion.body.token,
+      suggestion.body.items[0]?.willCreate
+        ? [{ index: 0, taxCategory: "food", addedSugar: false, rawConfirmed: true }]
+        : []);
+    expect(stale.status, JSON.stringify(stale.body)).toBe(409);
+    expect((await db.select().from(normativiTable).where(eq(normativiTable.artikelId, intermediate!.id)))).toEqual([]);
+  });
+
   it("reports an aborted web search clearly and allows a fresh retry", async () => {
     mockCreate.mockImplementationOnce(async () => {
       throw Object.assign(new Error("Request was aborted."), { name: "APIUserAbortError" });

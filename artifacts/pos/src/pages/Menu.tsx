@@ -67,6 +67,7 @@ import { clearProposalDraft, readProposalDraft, type NormativeProposalDraft } fr
 import { posFetch } from "@/lib/pos-auth-headers";
 import {
   canEditNormativ,
+  canOfferSmartNormativ,
   canUseAsNormativInput,
   normativSectionTitle,
 } from "@/lib/normativ-eligibility";
@@ -2668,8 +2669,16 @@ export default function Menu() {
                     <div className="flex gap-2">
                       {editingArt &&
                        lahkoVidiZgodovinoNormativa &&
-                       artProdajniArtikel &&
-                       editingArt.prodajniArtikel && (
+                       canOfferSmartNormativ({
+                         prodajniArtikel: artProdajniArtikel,
+                         nabavniArtikel: artNabavniArtikel,
+                         taxCategory: artTaxCategory,
+                         mealType: artMealType,
+                       }) &&
+                       canOfferSmartNormativ(editingArt) &&
+                       artProdajniArtikel === editingArt.prodajniArtikel &&
+                       artNabavniArtikel === editingArt.nabavniArtikel &&
+                       artTaxCategory === editingArt.taxCategory && (
                          <Button
                            type="button"
                            size="sm"

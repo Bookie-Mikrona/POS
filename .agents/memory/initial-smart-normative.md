@@ -7,7 +7,7 @@ Začetni predlog ne sme sam ustvarjati artiklov. Nove nabavne surovine in normat
 
 **Why:** Iz imena v spletnem receptu ni mogoče zanesljivo ugotoviti, ali gre za surovino, pripravljeno sestavino, pijačo ali blago z drugo nabavno stopnjo DDV. Napačna privzeta kategorija bi samodejno ustvarila napačen šifrant.
 
-**How to apply:** Spletni predlog omeji na prodajne prehrambne artikle brez normativa, brez sestave iz drugih artiklov ali polizdelkov. Ob potrditvi znova preveri enoto, stanje artikla, ime jedi, revizijo in ujemanje sestavin; ob dvomu zavrni celoten zapis. Preverjen URL spletnega iskalnika potrjuje obstoj vira, ne pa resničnosti modelovega prepisa sestavin, količin ali porcij; to mora ostati jasno označeno kot nepreverjen predlog.
+**How to apply:** Spletni predlog je namenjen prodajnim prehrambnim artiklom in neprodajnim, nenabavnim živilskim polizdelkom tipa à la carte ali pripravljena hrana, vedno samo brez obstoječega normativa. Ne uporabi ga za sestavljeni artikel, katerega normativ povezuje druge kulinarične artikle, ali za zgolj nabavni artikel. Ob potrditvi znova preveri enoto, vlogo in klasifikacijo artikla, ime, revizijo in ujemanje sestavin; ob dvomu zavrni celoten zapis. Preverjen URL spletnega iskalnika potrjuje obstoj vira, ne pa resničnosti modelovega prepisa sestavin, količin ali porcij; to mora ostati jasno označeno kot nepreverjen predlog.
 
 Ujemanje nazivov z enakimi besedami v drugačnem vrstnem redu lahko samodejno poveže enolično surovino; širši ali ožji naziv naj bo le ročni predlog, nikoli samodejna povezava.
 

@@ -321,6 +321,11 @@ const InitialProposalPayloadSchema = z.object({
   articleId: z.number().int().positive(),
   revision: z.number().int().positive(),
   targetName: z.string().trim().min(1).max(200),
+  targetSale: z.boolean().optional(),
+  targetPurchase: z.boolean().optional(),
+  targetMealType: z.enum(["ala_carte", "prepared", "composite"]).optional(),
+  targetTaxCategory: z.string().nullable().optional(),
+  targetCategoryId: z.number().int().positive().nullable().optional(),
   issuedAt: z.number().int().positive(),
   items: z.array(z.object({
     name: z.string().trim().min(1).max(200),

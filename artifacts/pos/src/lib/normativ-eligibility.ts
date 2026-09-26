@@ -17,6 +17,14 @@ export function canEditNormativ(article: NormativArticleCandidate): boolean {
       && article.nabavniArtikel === false);
 }
 
+export function canOfferSmartNormativ(article: NormativArticleCandidate): boolean {
+  return article.prodajniArtikel === true
+    || (article.prodajniArtikel === false
+      && article.nabavniArtikel === false
+      && article.taxCategory === "food"
+      && (article.mealType === "ala_carte" || article.mealType === "prepared"));
+}
+
 export function canUseAsNormativInput(
   ownerId: number | null,
   ownerMealType: string,
