@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canEditNormativ,
   canOfferSmartNormativ,
+  canUseAsModifierNormativInput,
   canUseAsNormativInput,
   normativSectionTitle,
 } from "./normativ-eligibility";
@@ -29,6 +30,16 @@ describe("upravičenost za urejanje normativa", () => {
     expect(canOfferSmartNormativ({ ...intermediate, taxCategory: "other" })).toBe(false);
     expect(canOfferSmartNormativ({ ...intermediate, mealType: "composite" })).toBe(false);
     expect(canOfferSmartNormativ({ ...intermediate, prodajniArtikel: true })).toBe(true);
+  });
+
+  it("modifikatorju dovoli nabavne artikle in oba tipa živilskih polizdelkov", () => {
+    const intermediate = { mealType: "ala_carte", taxCategory: "food", prodajniArtikel: false, nabavniArtikel: false };
+    expect(canUseAsModifierNormativInput({ nabavniArtikel: true })).toBe(true);
+    expect(canUseAsModifierNormativInput(intermediate)).toBe(true);
+    expect(canUseAsModifierNormativInput({ ...intermediate, mealType: "prepared" })).toBe(true);
+    expect(canUseAsModifierNormativInput({ ...intermediate, prodajniArtikel: true })).toBe(false);
+    expect(canUseAsModifierNormativInput({ ...intermediate, taxCategory: "other" })).toBe(false);
+    expect(canUseAsModifierNormativInput({ ...intermediate, mealType: "composite" })).toBe(false);
   });
 
   it("pripravljeni artikel sprejme nabavne in druge pripravljene vhode, ne pa samega sebe", () => {

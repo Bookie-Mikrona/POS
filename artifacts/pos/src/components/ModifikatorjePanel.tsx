@@ -26,6 +26,7 @@ import {
   getGetModifikatorNormativiQueryKey,
 } from "@workspace/api-client-react";
 import type { ModSkupina, Modifikator } from "@workspace/api-client-react";
+import { canUseAsModifierNormativInput } from "@/lib/normativ-eligibility";
 
 interface Props {
   jeUporabnik: boolean;
@@ -46,6 +47,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   const { data: skupineList, isLoading } = useListModSkupine();
   const { data: vsiArtikli } = useListArtikli();
   const nabavniArtikli = (vsiArtikli ?? []).filter(a => a.nabavniArtikel);
+  const polizdelki = (vsiArtikli ?? []).filter(a => !a.nabavniArtikel && canUseAsModifierNormativInput(a));
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const { data: expandedSkupina, isLoading: loadingExpanded } = useGetModSkupina(expandedId ?? 0);
@@ -450,7 +452,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
             </div>
 
             {/* ── Normativ ── */}
-            {nabavniArtikli.length > 0 && (
+            {(nabavniArtikli.length > 0 || polizdelki.length > 0) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Normativ (sestavnice)</Label>
@@ -470,9 +472,20 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                           onChange={e => updateNormativVrstica(idx, "vhodniArtikelId", parseInt(e.target.value) || 0)}
                         >
                           <option value="">— izberite artikel —</option>
-                          {nabavniArtikli.map(a => (
-                            <option key={a.id} value={a.id}>{a.ime}</option>
-                          ))}
+                          {nabavniArtikli.length > 0 && (
+                            <optgroup label="Nabavni artikli">
+                              {nabavniArtikli.map(a => (
+                                <option key={a.id} value={a.id}>{a.ime}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {polizdelki.length > 0 && (
+                            <optgroup label="Polizdelki">
+                              {polizdelki.map(a => (
+                                <option key={a.id} value={a.id}>{a.ime}</option>
+                              ))}
+                            </optgroup>
+                          )}
                         </select>
                         <DecimalInput
                           allowNegative
