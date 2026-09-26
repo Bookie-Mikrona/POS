@@ -196,6 +196,7 @@ function mapRow(r: Record<string, unknown>) {
     vrstaArtikla: resolveArticleType(r.vrstaArtikla as string | null, {
       nabavniArtikel: r.nabavniArtikel as boolean,
       prodajniArtikel: r.prodajniArtikel as boolean,
+      povratnaEmbalaza: r.povratnaEmbalaza as boolean,
     }),
     happyHourCena: r.happyHourCena != null ? Number(r.happyHourCena) : null,
     happyHourCenaMala: r.happyHourCenaMala != null ? Number(r.happyHourCenaMala) : null,
@@ -528,7 +529,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
   }
   const vrstaArtikla = resolveArticleType(
     (parsed.data as { vrstaArtikla?: string }).vrstaArtikla,
-    { nabavniArtikel, prodajniArtikel },
+    { nabavniArtikel, prodajniArtikel, povratnaEmbalaza: parsed.data.povratnaEmbalaza },
   );
   const taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
   const jeDelMenija = (parsed.data as { jeDelMenija?: boolean }).jeDelMenija ?? false;
@@ -1127,6 +1128,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       cena: artikliTable.cena,
       davek: artikliTable.davek,
       vrstaArtikla: artikliTable.vrstaArtikla,
+      povratnaEmbalaza: artikliTable.povratnaEmbalaza,
       kategorijaIme: kategorijeTable.ime,
       barva: artikliTable.barva,
       aktiven: artikliTable.aktiven,
@@ -1205,6 +1207,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       vrstaArtikla:    resolveArticleType(a.vrstaArtikla, {
         nabavniArtikel: a.nabavniArtikel,
         prodajniArtikel: a.prodajniArtikel,
+        povratnaEmbalaza: a.povratnaEmbalaza,
       }),
       kategorija:      a.kategorijaIme ?? "",
       opis:            a.opis ?? "",
@@ -1449,6 +1452,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     addedSugar: artikliTable.addedSugar,
     alergeniRevision: artikliTable.alergeniRevision,
     mealType: artikliTable.mealType,
+    vrstaArtikla: artikliTable.vrstaArtikla,
     nabavniArtikel: artikliTable.nabavniArtikel,
     prodajniArtikel: artikliTable.prodajniArtikel,
     povratnaEmbalaza: artikliTable.povratnaEmbalaza,
@@ -1568,7 +1572,17 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   }
   const mealType = (parsed.data as { mealType?: "ala_carte" | "prepared" | "composite" }).mealType;
   if (mealType !== undefined) updateData.mealType = mealType;
-  if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) updateData.vrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla;
+  if (polizdelek) {
+    updateData.vrstaArtikla = null;
+  } else if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) {
+    updateData.vrstaArtikla = (parsed.data as { vrstaArtikla: string }).vrstaArtikla;
+  } else if (obstojeci.vrstaArtikla == null) {
+    updateData.vrstaArtikla = resolveArticleType(null, {
+      nabavniArtikel: naslednjiNabavni,
+      prodajniArtikel: naslednjiProdajni,
+      povratnaEmbalaza: parsed.data.povratnaEmbalaza ?? obstojeci.povratnaEmbalaza,
+    });
+  }
   if ("povratnaEmbalaza" in parsed.data) updateData.povratnaEmbalaza = Boolean((parsed.data as any).povratnaEmbalaza);
   if ("vrstaEmbalaze" in parsed.data) updateData.vrstaEmbalaze = (parsed.data as any).vrstaEmbalaze ?? null;
   if ("depozitnaVrednost" in parsed.data) updateData.depozitnaVrednost = (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost);
@@ -1649,6 +1663,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
           addedSugar: artikliTable.addedSugar,
           alergeniRevision: artikliTable.alergeniRevision,
           mealType: artikliTable.mealType,
+          vrstaArtikla: artikliTable.vrstaArtikla,
           nabavniArtikel: artikliTable.nabavniArtikel,
           povratnaEmbalaza: artikliTable.povratnaEmbalaza,
           jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,

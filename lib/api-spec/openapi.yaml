@@ -10874,7 +10874,7 @@ components:
             $ref: "#/components/schemas/PreparedFoodAvailabilityItem"
     PreparedFoodAvailabilityItem:
       type: object
-      required: [articleId, articleName, mealType, availableQuantity]
+      required: [articleId, articleName, mealType, availableQuantity, freshQuantity, thawedOpenQuantity]
       properties:
         articleId: { type: integer }
         articleName: { type: string }
@@ -10886,6 +10886,14 @@ components:
             - integer
             - "null"
           minimum: 0
+        freshQuantity:
+          type: [number, "null"]
+          minimum: 0
+          description: Preostale nezamrznjene porcije pripravljene jedi; pri sestavljeni jedi ni uporabno
+        thawedOpenQuantity:
+          type: [number, "null"]
+          minimum: 0
+          description: Porcije, odtajane v še odprti dnevni evidenci in zato še vedno vključene v shranjeni zamrznjeni saldo
         availableBySize:
           $ref: "#/components/schemas/PizzaAvailabilityBySize"
     PizzaAvailabilityBySize:
@@ -11163,6 +11171,7 @@ components:
         - vrstniRed
         - povratnaEmbalaza
         - jeSkupinskiNabavniArtikel
+        - vrstaArtikla
       properties:
         id:
           type: integer
@@ -11278,6 +11287,10 @@ components:
         prodajniArtikel:
           type: boolean
           description: Ali je artikel prodajni artikel
+        vrstaArtikla:
+          type: [string, "null"]
+          enum: [blago, material, storitev, null]
+          description: Računovodska vrsta; polizdelek je nima
         jeSkupinskiNabavniArtikel:
           type: boolean
           description: Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti

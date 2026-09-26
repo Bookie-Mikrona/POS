@@ -104,7 +104,7 @@ export const artikliTable = pgTable("artikli", {
   malicaVloga: text("malica_vloga", { enum: ["none", "main", "soup", "dessert"] })
     .notNull()
     .default("none"),
-  vrstaArtikla: text("vrsta_artikla").notNull().default("storitev"),
+  vrstaArtikla: text("vrsta_artikla").default("storitev"),
   /** Happy Hour cena normalne pice oziroma običajnega artikla. */
   happyHourCena: numeric("happy_hour_cena", { precision: 10, scale: 2 }),
   /** Happy Hour cena male pice. */

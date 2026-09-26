@@ -484,6 +484,7 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     expect(created.body).toMatchObject({
       cena: 0,
+      vrstaArtikla: null,
       kategorijaId: null,
       skupina: null,
       brutoTezaG: null,
@@ -498,6 +499,7 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
     const imageUrl = "/api/storage/public-objects/article-images/example.webp";
     await db.update(artikliTable).set({
       prodajniArtikel: true,
+      vrstaArtikla: "blago",
       cena: "14",
       kategorijaId: category.id,
       skupina: "stara skupina",
@@ -520,6 +522,7 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
       prodajniArtikel: false,
       nabavniArtikel: false,
       povratnaEmbalaza: false,
+      vrstaArtikla: "material",
       cena: 30,
       kategorijaId: category.id,
       skupina: "spet skupina",
@@ -533,6 +536,7 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
     expect(updated.status, JSON.stringify(updated.body)).toBe(200);
     expect(updated.body).toMatchObject({
       cena: 0,
+      vrstaArtikla: null,
       kategorijaId: null,
       skupina: null,
       brutoTezaG: null,
@@ -545,6 +549,17 @@ describe("optimistični zaklep običajnega normativa (HTTP + PostgreSQL)", () =>
     const [current] = await db.select({ isCurrent: articleImageVersionsTable.isCurrent })
       .from(articleImageVersionsTable).where(eq(articleImageVersionsTable.id, version.id));
     expect(current?.isCurrent).toBe(false);
+    const [stored] = await db.select({ vrstaArtikla: artikliTable.vrstaArtikla })
+      .from(artikliTable).where(eq(artikliTable.id, ownerId));
+    expect(stored?.vrstaArtikla).toBeNull();
+
+    const asPurchase = await saveArticleFor(ownerId, {
+      ime: `${run}-polizdelek`,
+      nabavniArtikel: true,
+      prodajniArtikel: false,
+    });
+    expect(asPurchase.status, JSON.stringify(asPurchase.body)).toBe(200);
+    expect(asPurchase.body.vrstaArtikla).toBe("material");
   });
 
   it("pri ustvarjanju razreši dovoljeno lastno 1 : 1 sestavino na novi ID", async () => {

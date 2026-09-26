@@ -38,6 +38,10 @@ export type PreparedFoodAvailabilityItem = {
   articleName: string;
   mealType: "prepared" | "composite";
   availableQuantity: number | null;
+  /** Preostala nezamrznjena količina (tudi delne porcije); pri sestavljeni jedi ni uporabno. */
+  freshQuantity: number | null;
+  /** Samo za prikaz zalog: odtajana količina odprte evidence, še vključena v shranjen zamrznjeni saldo. */
+  thawedOpenQuantity?: number | null;
   /** Per-size capacity for configured pizza articles. Inactive sizes are omitted. */
   availableBySize?: Partial<Record<PizzaSize, number | null>>;
 };
@@ -253,6 +257,9 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
       articleName: article.name,
       mealType: article.mealType,
       availableQuantity,
+      freshQuantity: article.mealType === "prepared"
+        ? (preparedAvailableRaw.get(article.id) ?? 0)
+        : null,
       ...(availableBySize ? { availableBySize } : {}),
     });
   }
@@ -445,7 +452,7 @@ export async function loadPreparedFoodAvailability(
     izracunajVelikostiPic(rawSizeSettings).map((size) => [size.id, size.normativFaktor]),
   ) as Partial<Record<PizzaSize, number>>;
 
-  return resolvePreparedFoodAvailability({
+  const state = resolvePreparedFoodAvailability({
     articles,
     norms,
     // Zamrznjena zaloga ni razpoložljiva za prodajo, dokler ni v dnevni
@@ -457,6 +464,19 @@ export async function loadPreparedFoodAvailability(
     pizzaDoughSettings: doughSettings,
     pizzaSizeFactors,
   });
+  const openThawed = new Map(ledgerResult.rows
+    .filter(row => (row as Record<string, unknown>).closed_at == null)
+    .map(row => [
+      Number((row as Record<string, unknown>).artikel_id),
+      Number((row as Record<string, unknown>).thawed_quantity),
+    ]));
+  return {
+    ...state,
+    items: state.items.map(item => ({
+      ...item,
+      thawedOpenQuantity: item.mealType === "prepared" ? (openThawed.get(item.articleId) ?? 0) : null,
+    })),
+  };
 }
 
 export async function currentBusinessDate(enotaId: number): Promise<string> {

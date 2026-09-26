@@ -23,4 +23,21 @@ describe("resolveArticleType", () => {
       prodajniArtikel: true,
     })).toBe("blago");
   });
+
+  it("polizdelku ne pripiše računovodske vrste niti ob stari shranjeni vrednosti", () => {
+    expect(resolveArticleType("storitev", {
+      nabavniArtikel: false,
+      prodajniArtikel: false,
+      povratnaEmbalaza: false,
+    })).toBeNull();
+    expect(resolveArticleType(undefined, {
+      nabavniArtikel: false,
+      prodajniArtikel: false,
+    })).toBeNull();
+    expect(resolveArticleType("material", {
+      nabavniArtikel: false,
+      prodajniArtikel: false,
+      povratnaEmbalaza: true,
+    })).toBe("material");
+  });
 });

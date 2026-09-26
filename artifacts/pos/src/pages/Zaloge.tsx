@@ -70,6 +70,7 @@ import {
 } from "lucide-react";
 import { UvozPrejemniceDialog } from "./uvoz/UvozPrejemniceDialog";
 import { EmbalazaTab } from "./zaloge/EmbalazaTab";
+import { PreparedStockTab } from "./zaloge/PreparedStockTab";
 import { DEFAULT_NEW_PURCHASE_ARTICLE_TYPE } from "@/lib/article-type-defaults";
 import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 import { AlergenEditor, AlergeniBadge, type AlergenSnapshot } from "@/components/AlergenEditor";
@@ -3882,6 +3883,7 @@ export default function Zaloge() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0">
         <TabsList className="flex h-auto w-full max-w-full justify-start gap-1 overflow-x-auto p-1 [&_[role=tab]]:shrink-0">
           <TabsTrigger value="zaloge">Trenutne zaloge</TabsTrigger>
+          <TabsTrigger value="pripravljene-jedi">Pripravljene jedi</TabsTrigger>
           <TabsTrigger value="prejemnice">Prejemnice</TabsTrigger>
           <TabsTrigger value="izdajnice">Izdajnice</TabsTrigger>
           <TabsTrigger value="inventure">Inventure</TabsTrigger>
@@ -4004,6 +4006,10 @@ export default function Zaloge() {
               </div>
             )}
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pripravljene-jedi" className="mt-4">
+          <PreparedStockTab />
         </TabsContent>
 
         {/* ── Prejemnice ────────────────────────────────────────────── */}

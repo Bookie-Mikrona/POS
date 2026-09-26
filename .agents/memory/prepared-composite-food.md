@@ -9,6 +9,12 @@ Pripravljena hrana ima operativno zamrznjeno zalogo brez lastnega konta glavne k
 
 **How to apply:** Kalo vrednoti po sledljivi ponderirani alokaciji in ga v POS→ERP temeljnici prenese s stroška materiala na ločen konto kala. Sestavljena hrana nima lastnega surovinskega normativa: à la carte komponente razširi do njihovih surovin, pripravljene komponente pa povečajo le dnevno prodajo pripravljene hrane.
 
+Skupna fizična količina za prikaz zalog je nezamrznjena razpoložljiva količina + zamrznjeni saldo − odtajano v izbrani še odprti dnevni evidenci. Če je evidenca zaključena, je odtajano za ta prikaz 0.
+
+**Why:** Odtajanje se od zamrznjenega salda odšteje šele ob zaključku evidence. Med odprto evidenco so iste porcije že vključene v nezamrznjeno razpoložljivost in še vedno v shranjenem zamrznjenem saldu; neposredno seštevanje bi jih štelo dvakrat.
+
+**How to apply:** Fizični prikaz in prodajno razpoložljivost obravnavaj ločeno. Pri skupni zalogi od zamrznjenega salda odštej le odtajano iz evidence, ki je izbrana kot aktualna (tudi če je iz prejšnjega poslovnega dne); pravil prodaje s tem ne spreminjaj.
+
 Letna začetna zaloga pripravljene hrane je samo operativni prenos zamrznjenih porcij iz prejšnjega leta in ne ustvarja začetne knjižbe ali temeljnice. Vneseni strošek na porcijo je nadomestna vrednost samo za kalo odtajanih starih porcij; nova priprava dobi strošek iz dejanske porabe surovin na dan priprave.
 
 **Why:** Stare zamrznjene porcije so bile stroškovno obračunane že ob pripravi v prejšnjem letu, vendar brez njihovega prenesenega stroška kasneje ni mogoče ovrednotiti odtajanih porcij, ki se zavržejo brez nove priprave.

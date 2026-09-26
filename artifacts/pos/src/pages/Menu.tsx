@@ -1491,7 +1491,7 @@ export default function Menu() {
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
       ...normalizeMassYield(artPolizdelek ? EMPTY_MASS_YIELD : artMassYield),
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
-      vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla,
+      ...(artPolizdelek ? {} : { vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla }),
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
       mealType: artPolizdelek || artPripravaVrsta === "hrana" ? artMealType : "ala_carte",
       casPripraveMin,
@@ -1864,7 +1864,7 @@ export default function Menu() {
                                 </>
                               )}
                               {a.hasNormativ && <Badge variant="outline" className="text-[9px] font-medium px-1 py-0 h-4 uppercase tracking-wider border-amber-200 text-amber-700 bg-amber-50/50">normativ</Badge>}
-                              {!a.povratnaEmbalaza && (() => {
+                              {!a.povratnaEmbalaza && !isPolizdelek(a) && (() => {
                                 const vrsta = (a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? DEFAULT_NEW_SALES_ARTICLE_TYPE;
                                 const cfg = vrsta === "blago"
                                   ? "border-green-200 text-green-700 bg-green-50/50"
@@ -3179,7 +3179,7 @@ export default function Menu() {
                   className={artDialogTab === "osnovno" ? "mt-4 space-y-4 border-t-2 border-border/70 pt-4" : "hidden"}
                 >
               {/* Vrsta artikla */}
-              <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+              {!artPolizdelek && <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <Label className="font-semibold">Vrsta artikla (računovodsko)</Label>
                 <div className="flex gap-2">
                   {(["blago", "material", "storitev"] as const).map(vrsta => (
@@ -3197,7 +3197,7 @@ export default function Menu() {
                     </button>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <Label htmlFor="artikel-cas-priprave" className="font-semibold">Čas priprave (min)</Label>

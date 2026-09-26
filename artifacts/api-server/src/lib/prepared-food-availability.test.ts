@@ -52,6 +52,19 @@ describe("resolvePreparedFoodAvailability", () => {
     });
     expect(state.items.find((item) => item.articleId === 1)?.availableQuantity).toBe(6);
     expect(state.items.find((item) => item.articleId === 4)?.availableQuantity).toBe(12);
+    expect(state.items.find((item) => item.articleId === 1)?.freshQuantity).toBe(6);
+    expect(state.items.find((item) => item.articleId === 4)?.freshQuantity).toBeNull();
+  });
+
+  it("pri fizični zalogi ohrani delne nezamrznjene porcije, čeprav je za prodajo na voljo le celo število", () => {
+    const state = resolvePreparedFoodAvailability({
+      articles: [{ id: 1, name: "Juha", mealType: "prepared" }],
+      norms: [],
+      frozenByPreparedArticle: new Map(),
+      preparedTodayByArticle: new Map([[1, 3.5]]),
+      sales: [{ articleId: 1, quantity: 1 }],
+    });
+    expect(state.items[0]).toMatchObject({ availableQuantity: 2, freshQuantity: 2.5 });
   });
 
   it("za že prodano vrstico uporabi posnetek vrste hrane, ne trenutnega šifranta", () => {
@@ -166,6 +179,7 @@ describe("resolvePreparedFoodAvailability", () => {
 
     expect(state.items.find((item) => item.articleId === 1)?.availableQuantity).toBe(8);
     expect(state.items.find((item) => item.articleId === 4)?.availableQuantity).toBe(8);
+    expect(state.items.find((item) => item.articleId === 1)?.thawedOpenQuantity).toBe(0);
   });
 
   it("negativni popravek zmanjša samo operativno razpoložljivost", async () => {
@@ -192,6 +206,7 @@ describe("resolvePreparedFoodAvailability", () => {
     );
 
     expect(state.items.find((item) => item.articleId === 1)?.availableQuantity).toBe(7);
+    expect(state.items.find((item) => item.articleId === 1)?.thawedOpenQuantity).toBe(4);
   });
 
   it("pozitivni popravek omogoči prodajo dodatnih fizično razpoložljivih porcij", async () => {

@@ -1156,6 +1156,18 @@ export interface PreparedFoodAvailabilityItem {
      * @nullable
      */
   availableQuantity: number | null;
+  /**
+     * Preostale nezamrznjene porcije pripravljene jedi; pri sestavljeni jedi ni uporabno
+     * @minimum 0
+     * @nullable
+     */
+  freshQuantity: number | null;
+  /**
+     * Porcije, odtajane v še odprti dnevni evidenci in zato še vedno vključene v shranjeni zamrznjeni saldo
+     * @minimum 0
+     * @nullable
+     */
+  thawedOpenQuantity: number | null;
   availableBySize?: PizzaAvailabilityBySize;
 }
 
@@ -1496,6 +1508,19 @@ export const ArtikelPripravaVrsta = {
 } as const;
 
 /**
+ * Računovodska vrsta; polizdelek je nima
+ * @nullable
+ */
+export type ArtikelVrstaArtikla = typeof ArtikelVrstaArtikla[keyof typeof ArtikelVrstaArtikla] | null;
+
+
+export const ArtikelVrstaArtikla = {
+  blago: 'blago',
+  material: 'material',
+  storitev: 'storitev',
+} as const;
+
+/**
  * @nullable
  */
 export type ArtikelVrstaEmbalaze = typeof ArtikelVrstaEmbalaze[keyof typeof ArtikelVrstaEmbalaze] | null;
@@ -1636,6 +1661,11 @@ export interface Artikel {
   nabavniArtikel?: boolean;
   /** Ali je artikel prodajni artikel */
   prodajniArtikel?: boolean;
+  /**
+     * Računovodska vrsta; polizdelek je nima
+     * @nullable
+     */
+  vrstaArtikla: ArtikelVrstaArtikla;
   /** Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti */
   jeSkupinskiNabavniArtikel: boolean;
   /** Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru */

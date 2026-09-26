@@ -858,6 +858,7 @@ export const ListArtikliResponseItem = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -1036,6 +1037,7 @@ export const CreateArtikelResponse = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -1188,6 +1190,7 @@ export const GenerateArtikelImageResponse = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -1289,6 +1292,7 @@ export const UploadArtikelImageResponse = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -1383,6 +1387,7 @@ export const GetArtikelResponse = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -1565,6 +1570,7 @@ export const UpdateArtikelResponse = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Usmerjanje prodajnega artikla na zaslon pic, kuhinje ali točilnice'),
   "nabavniArtikel": zod.boolean().optional().describe('Ali je artikel nabavni artikel'),
   "prodajniArtikel": zod.boolean().optional().describe('Ali je artikel prodajni artikel'),
+  "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
@@ -14598,6 +14604,10 @@ export const ConfirmPreparedFoodWasteRecordResponse = zod.object({
  */
 export const getPreparedFoodAvailabilityResponseItemsItemAvailableQuantityMin = 0;
 
+export const getPreparedFoodAvailabilityResponseItemsItemFreshQuantityMin = 0;
+
+export const getPreparedFoodAvailabilityResponseItemsItemThawedOpenQuantityMin = 0;
+
 export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeMalaMin = 0;
 
 export const getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeNormalnaMin = 0;
@@ -14613,6 +14623,8 @@ export const GetPreparedFoodAvailabilityResponse = zod.object({
   "articleName": zod.string(),
   "mealType": zod.enum(['prepared', 'composite']),
   "availableQuantity": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableQuantityMin).nullable(),
+  "freshQuantity": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemFreshQuantityMin).nullable().describe('Preostale nezamrznjene porcije pripravljene jedi; pri sestavljeni jedi ni uporabno'),
+  "thawedOpenQuantity": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemThawedOpenQuantityMin).nullable().describe('Porcije, odtajane v še odprti dnevni evidenci in zato še vedno vključene v shranjeni zamrznjeni saldo'),
   "availableBySize": zod.object({
   "mala": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeMalaMin).nullish(),
   "normalna": zod.number().min(getPreparedFoodAvailabilityResponseItemsItemAvailableBySizeNormalnaMin).nullish(),
