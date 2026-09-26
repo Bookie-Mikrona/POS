@@ -92,13 +92,13 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
   
   const [openId, setOpenId] = useState<number | null>(null);
   const [priceStr, setPriceStr] = useState("");
-  const [validFrom, setValidFrom] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [validFrom, setValidFrom] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   const [reason, setReason] = useState("");
 
   const handleOpen = (group: MalicaGroup) => {
     setOpenId(group.id);
     setPriceStr("");
-    setValidFrom(format(new Date(), "yyyy-MM-dd"));
+    setValidFrom(format(addDays(new Date(), 1), "yyyy-MM-dd"));
     setReason("");
   };
 
@@ -122,7 +122,9 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
       queryClient.invalidateQueries({ queryKey: getGetMalicaBootstrapQueryKey() });
       setOpenId(null);
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.response?.data?.napaka || "Napaka pri nastavljanju cene";
+      const details = err?.data ?? err?.response?.data;
+      const msg = details?.error || details?.message || details?.napaka
+        || (err instanceof Error ? err.message : "Napaka pri nastavljanju cene.");
       toast({ title: "Napaka", description: msg, variant: "destructive" });
     }
   };
@@ -196,12 +198,13 @@ function SkupineTab({ bootstrap }: { bootstrap: any }) {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-2">
-              <Label>Nova cena (€)</Label>
-              <DecimalInput value={priceStr} onChange={(e) => setPriceStr(e.target.value)} />
+              <Label htmlFor="malica-nova-cena">Nova cena (€)</Label>
+              <DecimalInput id="malica-nova-cena" value={priceStr} onChange={(e) => setPriceStr(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Velja od</Label>
-              <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+              <Label htmlFor="malica-cena-velja-od">Velja od</Label>
+              <Input id="malica-cena-velja-od" type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Cena lahko začne veljati šele z naslednjim poslovnim dnem.</p>
             </div>
             <div className="grid gap-2">
               <Label>Razlog (opcijsko)</Label>
