@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { posFetch } from "@/lib/pos-auth-headers";
 
 const TYPE_COLORS: Record<string, string> = {
   asset: "bg-blue-500/10 text-blue-600",
@@ -61,6 +62,7 @@ export default function KontniPlanPage() {
   const [showNeaktivna, setShowNeaktivna] = useState(false);
   const [editAcc, setEditAcc] = useState<AccountRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const { data, isLoading, error } = useListAccounts(
     companyId ?? "",
@@ -208,6 +210,35 @@ export default function KontniPlanPage() {
     });
   };
 
+  const handlePdfExport = async () => {
+    if (!companyId || pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/companies/${encodeURIComponent(companyId)}/accounts/export/pdf`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? `HTTP ${response.status}`);
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `kontni-plan-${companyId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      toast({
+        title: "PDF-ja kontnega plana ni bilo mogoče prenesti",
+        description: error instanceof Error ? error.message : "Poskusite znova.",
+        variant: "destructive",
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   if (!isAdminPodjetja) {
     return (
       <div className="p-8 flex-1 min-h-0 flex flex-col items-center justify-center">
@@ -245,6 +276,10 @@ export default function KontniPlanPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => void handlePdfExport()} disabled={pdfLoading || !!error} className="gap-2" data-testid="btn-export-accounts-pdf">
+            {pdfLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {pdfLoading ? "Pripravljam PDF …" : "Prenesi PDF"}
+          </Button>
           {!isLoading && !error && accounts.length === 0 && (
             <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending} className="gap-2" data-testid="btn-seed-accounts">
               {seedMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}

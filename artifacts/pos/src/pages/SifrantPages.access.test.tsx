@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const mocks = vi.hoisted(() => {
@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
     createAccount: vi.fn(mutation),
     updateAccount: vi.fn(mutation),
     seedAccounts: vi.fn(mutation),
+    posFetch: vi.fn(),
   };
 });
 
@@ -31,6 +32,10 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@/lib/pos-auth-headers", () => ({
+  posFetch: mocks.posFetch,
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
@@ -113,6 +118,7 @@ describe("zaščita notranjih POS strani šifrantov", () => {
     cleanup();
     renderPage(<KontniPlanPage />);
     expect(screen.getByRole("heading", { name: "Kontni plan" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Prenesi PDF" })).toBeDefined();
     expect(mocks.listAccounts).toHaveBeenLastCalledWith(
       "company-1",
       { includeInactive: true },
@@ -120,6 +126,26 @@ describe("zaščita notranjih POS strani šifrantov", () => {
         query: expect.objectContaining({ enabled: true }),
       }),
     );
+  });
+
+  it("POS kontni plan prenese PDF izbranega podjetja", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const createObjectURL = vi.fn(() => "blob:kontni-plan");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
+    mocks.posFetch.mockResolvedValueOnce(new Response(new Blob(["%PDF-1.7"], { type: "application/pdf" }), { status: 200 }));
+    try {
+      renderPage(<KontniPlanPage />);
+      fireEvent.click(screen.getByRole("button", { name: "Prenesi PDF" }));
+      await waitFor(() => expect(mocks.posFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/companies/company-1/accounts/export/pdf"),
+      ));
+      await waitFor(() => expect(click).toHaveBeenCalled());
+      expect(createObjectURL).toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("seznama imata flex višino in notranji navpični/horizontalni scroll", () => {
