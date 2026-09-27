@@ -110,6 +110,7 @@
 - [Več Happy Hour pravil](happy-hour-rules.md) — urniki izbirajo dneve, čas in artikle; cena ostane na artiklu, ročni preklop pa velja globalno.
 - [PNPM varnostni overrides](pnpm-security-overrides.md) — globalne varnostne pripone dodajaj v korenski package.json; vzporedni workspace overrides se ne združijo.
 - [Python PDF generator](python-pdf-generator.md) — priročnik generiraj z `uv run python`; neposredni `python3` lahko naloži nezdružljiv Pillow iz `.pythonlibs`.
+- [Delovni imenik pnpm filtra](pnpm-filter-cwd.md) — `pnpm --filter ... exec` požene skript iz mape paketa, ne iz korena repozitorija.
 - [Kadrovske POS ure](kadrovske-pos-ure.md) — efektivne ure odštejejo neplačane odmore; nadure so po lokalnem dnevu; poprave, potrditve in napitnine ostanejo sledljive.
 - [Natakar na odmoru](natakar-na-odmoru.md) — odprt odmor začasno odstrani natakarja iz izdaje računa; račun se izda brez natakarja.
 - [Operativna poročila – obseg](operativna-porocila-scope.md) — admin vidi vse enote podjetja, admin_enote svojo; poslovni interval se izračuna za vsako enoto posebej.
@@ -139,6 +140,7 @@
 - [Alergenski posnetek prejemnice](prejemnica-alergeni.md) — običajno urejanje ohrani zgodovinski posnetek; nova potrditev velja za novo vrstico ali zamenjan artikel.
 - [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
+- [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.
 - [KIR/KPR izvoz](kirkpr-export-safety.md) — predogled in XML morata uporabljati isti eksplicitni mesečni/trimesečni obseg; nepopolna davčna sled blokira izvoz.
 - [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.
 - [Skupinski nabavni artikli](generic-purchase-articles.md) — dobaviteljeva postavka ohrani identiteto; skupna zaloga združuje le postavke z isto kanonično e-SLOG enoto.

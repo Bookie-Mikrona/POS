@@ -1124,9 +1124,17 @@ Excel izvoz pripravi datoteko artiklov za pregled oziroma kontroliran popravek.
 
 Pred ponovnim uvozom izvoz pregledajte v urejevalniku preglednic.
 
-PDF cenik vključuje cenik z alergeni, kadar je izvoz na voljo.
+V **Upravljanje menija** izberite **Cenik PDF** za prenos datoteke
+**cenik-z-alergeni.pdf**. Izvoz vsebuje aktivne prodajne artikle trenutne
+enote, razvrščene po kategoriji, z opisi, cenami in alergenskimi podatki ter
+sledi, kadar so evidentirani. Pri picah prikaže normalno ceno, malo in
+družinsko različico pa le, če imata nastavljeno ceno.
 
-PDF cenik preverite pred predajo gostom ali objavo.
+Pred predajo gostom ali objavo preverite PDF proti potrjeni ponudbi in cenam.
+Oznaka **ALERGENI NEPREVERJENI** pomeni, da alergenski profil artikla ni
+potrjen; tak PDF ni dokaz varnosti ali odsotnosti alergenov. Tudi pri
+potrjenem profilu navodilo v PDF-ju naročniku svetuje, naj alergene pred
+naročilom preveri pri osebju.
 
 Izvoz ni dovoljenje za nenadzorovano masovno urejanje.
 

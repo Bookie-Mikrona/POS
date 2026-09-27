@@ -74,6 +74,19 @@ export interface MenuPriceListPdfData {
   generatedAt?: Date;
 }
 
+const priceFormatter = new Intl.NumberFormat("sl-SI", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  useGrouping: "always",
+});
+
+export function formatMenuPrice(value: string | number | null): string | null {
+  if (value === null) return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) throw new Error("Neveljavna cena artikla v ceniku.");
+  return `${priceFormatter.format(amount)} €`;
+}
+
 function collectPdf(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -165,17 +178,25 @@ export async function generateMenuPriceListPdf(data: MenuPriceListPdfData): Prom
     doc.rect(0, 8, pageWidth, 3).fill(COLORS.gold);
 
     if (!firstPage) {
-      doc.font("DejaVuSans-Bold").fontSize(13).fillColor(COLORS.navy)
-        .text(data.company.naziv, contentX, 27, { width: contentWidth - 150 });
+      const titleWidth = contentWidth - 150;
+      doc.font("DejaVuSans-Bold").fontSize(13);
+      const titleHeight = doc.heightOfString(data.company.naziv, { width: titleWidth });
+      doc.fillColor(COLORS.navy)
+        .text(data.company.naziv, contentX, 27, { width: titleWidth });
       doc.font("DejaVuSans-Bold").fontSize(13).fillColor(COLORS.teal)
         .text("CENIK", contentX + contentWidth - 130, 27, { width: 130, align: "right" });
+      const subtitle = `Poslovna enota: ${data.unit.ime} · ${generatedDate}`;
+      const subtitleY = Math.max(49, 27 + titleHeight + 7);
+      doc.font("DejaVuSans").fontSize(8);
+      const subtitleHeight = doc.heightOfString(subtitle, { width: contentWidth });
       doc.font("DejaVuSans").fontSize(8).fillColor(COLORS.muted)
-        .text(`Poslovna enota: ${data.unit.ime} · ${generatedDate}`, contentX, 49, {
+        .text(subtitle, contentX, subtitleY, {
           width: contentWidth,
         });
-      doc.moveTo(contentX, 67).lineTo(contentX + contentWidth, 67)
+      const dividerY = subtitleY + subtitleHeight + 8;
+      doc.moveTo(contentX, dividerY).lineTo(contentX + contentWidth, dividerY)
         .lineWidth(0.7).strokeColor(COLORS.line).stroke();
-      cursorY = 82;
+      cursorY = dividerY + 15;
       return;
     }
 
@@ -227,16 +248,20 @@ export async function generateMenuPriceListPdf(data: MenuPriceListPdfData): Prom
 
     infoY += 5;
     const unitText = `POSLOVNA ENOTA  ${data.unit.ime}${data.unit.opis?.trim() ? `  ·  ${data.unit.opis.trim()}` : ""}`;
-    doc.roundedRect(contentX, infoY, contentWidth, 28, 7).fill(COLORS.tealLight);
-    doc.font("DejaVuSans-Bold").fontSize(8.4).fillColor(COLORS.teal)
-      .text(unitText, contentX + 12, infoY + 9, { width: contentWidth - 125, lineBreak: false });
+    const unitWidth = contentWidth - 132;
+    doc.font("DejaVuSans-Bold").fontSize(8.4);
+    const unitTextHeight = doc.heightOfString(unitText, { width: unitWidth });
+    const unitHeight = Math.max(30, unitTextHeight + 14);
+    doc.roundedRect(contentX, infoY, contentWidth, unitHeight, 7).fill(COLORS.tealLight);
+    doc.fillColor(COLORS.teal)
+      .text(unitText, contentX + 12, infoY + 7, { width: unitWidth });
     doc.font("DejaVuSans").fontSize(7.8).fillColor(COLORS.muted)
-      .text(`Izvoz: ${generatedDate}`, contentX + contentWidth - 108, infoY + 9, {
+      .text(`Izvoz: ${generatedDate}`, contentX + contentWidth - 108, infoY + 10, {
         width: 96,
         align: "right",
         lineBreak: false,
       });
-    cursorY = infoY + 45;
+    cursorY = infoY + unitHeight + 17;
   };
 
   const addContentPage = () => {
@@ -248,44 +273,74 @@ export async function generateMenuPriceListPdf(data: MenuPriceListPdfData): Prom
     if (cursorY + height > contentBottom) addContentPage();
   };
 
-  const drawCategory = (category: string) => {
-    // Poleg glave rezerviramo prostor še za prvo kartico, da kategorija ne
-    // ostane sama na dnu strani.
-    ensureSpace(145);
+  const drawCategory = (category: string, firstCardHeight: number) => {
+    doc.font("DejaVuSans-Bold").fontSize(11.2);
+    const categoryText = category.toUpperCase();
+    const categoryHeight = Math.max(30, doc.heightOfString(categoryText, { width: contentWidth - 34 }) + 16);
+    // Naslov kategorije ne sme ostati sam na dnu strani.
+    ensureSpace(categoryHeight + 9 + firstCardHeight + 7 + (cursorY > 200 ? 7 : 0));
     if (cursorY > 200) cursorY += 7;
-    doc.roundedRect(contentX, cursorY, contentWidth, 30, 7).fill(COLORS.navy);
-    doc.rect(contentX, cursorY, 6, 30).fill(COLORS.gold);
+    doc.roundedRect(contentX, cursorY, contentWidth, categoryHeight, 7).fill(COLORS.navy);
+    doc.rect(contentX, cursorY, 6, categoryHeight).fill(COLORS.gold);
     doc.font("DejaVuSans-Bold").fontSize(11.2).fillColor(COLORS.white)
-      .text(category.toUpperCase(), contentX + 17, cursorY + 8, {
+      .text(categoryText, contentX + 17, cursorY + 8, {
         width: contentWidth - 34,
-        lineBreak: false,
       });
-    cursorY += 39;
+    cursorY += categoryHeight + 9;
   };
 
-  const drawItem = (item: MenuPriceListItem) => {
-    const leftWidth = contentWidth - 148;
-    const priceWidth = 126;
+  const leftWidth = contentWidth - 148;
+  const priceWidth = 126;
+  const getItemLayout = (item: MenuPriceListItem, description: string, showAllergens: boolean, continued = false) => {
+    const displayName = `${item.name}${continued ? " (nadaljevanje)" : ""}`;
     doc.font("DejaVuSans-Bold").fontSize(10.4);
-    const nameHeight = doc.heightOfString(item.name, { width: leftWidth });
+    const nameHeight = doc.heightOfString(displayName, { width: leftWidth });
     doc.font("DejaVuSans-Bold").fontSize(9);
     const priceText = item.prices.join("\n");
     const priceHeight = doc.heightOfString(priceText, { width: priceWidth });
     doc.font("DejaVuSans").fontSize(8.2);
-    const descriptionHeight = item.description?.trim()
-      ? doc.heightOfString(item.description.trim(), { width: leftWidth })
+    const descriptionHeight = description
+      ? doc.heightOfString(description, { width: leftWidth })
       : 0;
-    const allergenParts = [
-      item.allergens.length ? `Vsebuje: ${item.allergens.join(", ")}` : "Brez navedenih alergenov",
+    const allergenParts = showAllergens ? [
+      item.allergens.length ? `Vsebuje: ${item.allergens.join(", ")}` : item.verified
+        ? "Brez navedenih alergenov" : "Podatki o alergenih niso potrjeni",
       item.traces.length ? `Sledi: ${item.traces.join(", ")}` : null,
-    ].filter((part): part is string => Boolean(part));
+    ].filter((part): part is string => Boolean(part)) : [];
     const allergenText = allergenParts.join("  ·  ");
     doc.font("DejaVuSans").fontSize(7.7);
-    const allergenHeight = doc.heightOfString(allergenText, { width: contentWidth - 32 });
-    const warningHeight = item.verified ? 0 : 22;
+    const allergenHeight = showAllergens ? doc.heightOfString(allergenText, { width: contentWidth - 40 }) : 0;
+    const warningHeight = showAllergens && !item.verified ? 22 : 0;
     const bodyHeight = Math.max(nameHeight + (descriptionHeight ? descriptionHeight + 5 : 0), priceHeight);
-    const cardHeight = 16 + bodyHeight + 9 + allergenHeight + warningHeight + 12;
+    const cardHeight = 16 + bodyHeight + (showAllergens ? 9 + allergenHeight + warningHeight : 0) + 12;
+    return { displayName, priceText, nameHeight, descriptionHeight, allergenText, allergenHeight, bodyHeight, cardHeight };
+  };
 
+  const splitDescription = (description: string): string[] => {
+    const words = description.trim().split(/\s+/u).filter(Boolean);
+    if (!words.length) return [""];
+    const chunks: string[] = [];
+    doc.font("DejaVuSans").fontSize(8.2);
+    for (let start = 0; start < words.length;) {
+      let low = start + 1;
+      let high = words.length;
+      while (low < high) {
+        const middle = Math.ceil((low + high) / 2);
+        if (doc.heightOfString(words.slice(start, middle).join(" "), { width: leftWidth }) <= 240) {
+          low = middle;
+        } else {
+          high = middle - 1;
+        }
+      }
+      chunks.push(words.slice(start, low).join(" "));
+      start = low;
+    }
+    return chunks;
+  };
+
+  const drawItem = (item: MenuPriceListItem, description: string, showAllergens: boolean, continued: boolean) => {
+    const { displayName, priceText, nameHeight, descriptionHeight, allergenText, allergenHeight, bodyHeight, cardHeight } =
+      getItemLayout(item, description, showAllergens, continued);
     ensureSpace(cardHeight + 7);
     doc.roundedRect(contentX, cursorY, contentWidth, cardHeight, 7)
       .fillAndStroke(COLORS.white, COLORS.line);
@@ -293,10 +348,10 @@ export async function generateMenuPriceListPdf(data: MenuPriceListPdfData): Prom
 
     const top = cursorY + 12;
     doc.font("DejaVuSans-Bold").fontSize(10.4).fillColor(COLORS.ink)
-      .text(item.name, contentX + 15, top, { width: leftWidth });
+      .text(displayName, contentX + 15, top, { width: leftWidth });
     if (descriptionHeight) {
       doc.font("DejaVuSans").fontSize(8.2).fillColor(COLORS.muted)
-        .text(item.description!.trim(), contentX + 15, top + nameHeight + 5, {
+        .text(description, contentX + 15, top + nameHeight + 5, {
           width: leftWidth,
         });
     }
@@ -306,18 +361,20 @@ export async function generateMenuPriceListPdf(data: MenuPriceListPdfData): Prom
         align: "right",
       });
 
-    const allergenY = top + bodyHeight + 9;
-    doc.roundedRect(contentX + 12, allergenY, contentWidth - 24, allergenHeight + 12, 5)
-      .fill(item.allergens.length || item.traces.length ? COLORS.allergenBg : COLORS.paper);
-    doc.font("DejaVuSans").fontSize(7.7)
-      .fillColor(item.allergens.length || item.traces.length ? COLORS.allergen : COLORS.muted)
-      .text(allergenText, contentX + 20, allergenY + 6, { width: contentWidth - 40 });
+    if (showAllergens) {
+      const allergenY = top + bodyHeight + 9;
+      doc.roundedRect(contentX + 12, allergenY, contentWidth - 24, allergenHeight + 12, 5)
+        .fill(item.allergens.length || item.traces.length ? COLORS.allergenBg : COLORS.paper);
+      doc.font("DejaVuSans").fontSize(7.7)
+        .fillColor(item.allergens.length || item.traces.length ? COLORS.allergen : COLORS.muted)
+        .text(allergenText, contentX + 20, allergenY + 6, { width: contentWidth - 40 });
 
-    if (!item.verified) {
-      drawPill(doc, "ALERGENI NISO PREVERJENI", contentX + 12, allergenY + allergenHeight + 15, {
-        fill: COLORS.warningBg,
-        color: COLORS.warning,
-      });
+      if (!item.verified) {
+        drawPill(doc, "ALERGENI NEPREVERJENI", contentX + 12, allergenY + allergenHeight + 15, {
+          fill: COLORS.warningBg,
+          color: COLORS.warning,
+        });
+      }
     }
     cursorY += cardHeight + 7;
   };
@@ -333,11 +390,14 @@ export async function generateMenuPriceListPdf(data: MenuPriceListPdfData): Prom
   } else {
     let currentCategory = "";
     for (const item of data.items) {
+      const chunks = splitDescription(item.description ?? "");
       if (item.category !== currentCategory) {
-        drawCategory(item.category);
+        drawCategory(item.category, getItemLayout(item, chunks[0], chunks.length === 1).cardHeight);
         currentCategory = item.category;
       }
-      drawItem(item);
+      chunks.forEach((chunk, index) => {
+        drawItem(item, chunk, index === chunks.length - 1, index > 0);
+      });
     }
   }
 

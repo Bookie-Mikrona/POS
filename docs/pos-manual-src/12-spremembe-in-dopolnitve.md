@@ -176,9 +176,9 @@ vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 ## 8. Povzetek trenutne dokumentacije
 
 Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
-ter sklice na podrobne postopke. Poglavja priročnika so vsebinsko označena
-01–12; v tem povzetku ne navajamo številke izdaje ali datuma objave, ker ju
-izvorna dokumentacija ne potrjuje kot različico trenutne aplikacije.
+ter sklice na podrobne postopke. Priročnik je izdaja **v8.7**, datirana
+**27.09.2026**. To je različica dokumentacije, ne številka različice POS
+aplikacije.
 
 Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
 izbrano enoto, njene zmožnosti in paket POS. Ta povzetek ni revizijska sled
@@ -1782,14 +1782,12 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
 ## 39. Kratka zgodovina dokumentacije
 
-V tem izvoru ni potrjene številke izdajne različice ali datuma, ki bi ga bilo
-varno navesti kot trenutno izdajo POS-a. Zato je ta rubrika povzetek, ne
-časovno razporejena zgodovina izdaj.
-
-Ta priročnik vsebuje operativne postopke, kontrole, sklice in opise
-uporabniškega vmesnika. Spremembe vsebine poglavij ne pomenijo samodejno, da
-se je hkrati spremenila aplikacija. Za dejansko uvedbo funkcije uporabite
-potrjen zapis spremembe aplikacije oziroma preverite njen trenutni zaslon.
+**27.09.2026 — priročnik v8.7.** Posodobljeni so postopki in kontrole v
+obravnavanih poglavjih. Oznaka v8.7 velja za priročnik; iz nje ne izhaja
+različica aplikacije. Različico POS-a ta zgodovina ne navaja. Sprememba
+dokumentacije sama po sebi ne potrjuje uvedbe spremembe v aplikaciji; za to
+uporabite odobren zapis spremembe aplikacije oziroma preverite njen trenutni
+zaslon.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-79149e618378 package=lite -->
 ## 40. Kontrolne kartice po organizacijskem modelu

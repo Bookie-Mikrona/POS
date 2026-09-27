@@ -25,7 +25,7 @@ import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory, type TaxC
 import PDFDocument from "pdfkit";
 import { normalizirajAlergenProfil } from "../../lib/alergeni";
 import { razresiAlergeneArtikla, razresiAlergeneVhodnihArtiklov, razveljaviAlergeneNadrejenih } from "../../lib/alergeni-resolver";
-import { generateMenuPriceListPdf } from "../../lib/menu-price-list-pdf";
+import { formatMenuPrice, generateMenuPriceListPdf } from "../../lib/menu-price-list-pdf";
 import Decimal from "decimal.js";
 import { verifyNormativeProposal } from "../../lib/normative-comparison";
 import { z } from "zod";
@@ -1399,7 +1399,7 @@ router.get("/artikli/izvozi-cenik.pdf", async (req: Request, res: Response): Pro
   const allergenSummaries = await Promise.all(
     rows.map((row) => razresiAlergeneArtikla(row.id, tenotaId)),
   );
-  const cena = (value: string | number | null) => value == null ? null : `${Number(value).toFixed(2)} €`;
+  const cena = formatMenuPrice;
   const pdf = await generateMenuPriceListPdf({
     company: {
       naziv: company.naziv,

@@ -345,7 +345,8 @@ Nato določite, ali bo en sam ali več plačilnih načinov.
 Pri kartici najprej nastavite točen kartični del zneska.
 Pri gotovini najprej preštejte prejeti denar.
 Pri darilnem bonu preverite, ali je za enoto omogočena skupna evidenca bonov
-in kolikšen znesek računa se sme pokriti z bonom.
+ali pa gre za individualni spletni bon s kodo; pred potrditvijo preverite
+ustrezno stanje in omejitve iz razdelka **Darilni bon oziroma darilna kartica**.
 Pri TRR najprej preverite, ali je način za to enoto omogočen.
 Šele po potrditvi posamezne vrstice dodajte naslednjo vrstico.
 Računa ne izdate za znesek, ki je zgolj obljubljen.
@@ -390,19 +391,34 @@ Kartice ne uporabljajte za izdajo gotovinskega vračila brez dovoljenega postopk
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-74cc71e3646b package=extended -->
 ### 13.3 Darilni bon oziroma darilna kartica
 
-Darilni bon je podprt samo, kadar je omogočen v konfiguraciji enote.
-Checkout prikazuje skupno evidenco: izdano, unovčeno in odprto vrednost.
-Sistem ne vodi identifikatorja, serijske številke ali individualnega preostanka
-posameznega bona; osebje teh podatkov ne vnaša in jih ne preverja.
-Pri plačilu se izbere znesek računa, ki ga pokrije darilni bon v okviru
-prikazane skupne odprte vrednosti.
-Del računa lahko pokrije bon, preostanek pa drug omogočen način plačila.
-Primer: račun 35,00 EUR; skupno odprto 15,00 EUR; bon pokrije 15,00 EUR,
-kartica pa 20,00 EUR.
-Izdaja novega darilnega bona uporablja ločen dialog z zneskom in plačilom
-gotovina ali kartica; ni povezano z individualno kartico ali kuponsko številko.
-Če skupne evidence ni mogoče pridobiti ali je stanje neustrezno, plačila z
-darilnim bonom ne potrdite brez uspešnega sistemskega prikaza.
+POS razlikuje dva toka darilnega bona; pred plačilom izberite pravega:
+
+* **Stari boni (skupna evidenca)** nimajo individualne kode ali stanja po
+  posameznem bonu. Na plačilnem zaslonu preverite prikazano skupno odprto
+  vrednost in znesek, ki ga želite pokriti. Preostanek računa lahko pokrijete
+  z drugim dovoljenim načinom, tudi s kartico.
+* **Spletni bon s kodo** je individualni bon z lastno kodo, stanjem in
+  morebitnim datumom veljavnosti. V načinu plačila **Bon** izberite
+  **Spletni bon s kodo**, nato kodo skenirajte s kamero/2D-čitalnikom ali jo
+  vnesite in pritisnite **Preveri**. Nadaljujte samo, ko POS prikaže veljaven
+  status in dobroimetje; znesek bona ne sme preseči neporabljenega dobroimetja
+  niti preostanka računa. Individualni spletni bon lahko pokrije cel račun ali
+  njegov del, vendar je morebitno doplačilo v tem toku dovoljeno samo z
+  gotovino, ne s kartico. Če koda ali stanje ni potrjeno, bona ne evidentirajte
+  kot plačila.
+
+Javna stran lahko omogoča preverjanje stanja individualnega bona; to je samo
+informativni pregled, ne unovčitev. Unovčitev posameznega bona se opravi v POS-u
+po zgornjem postopku.
+
+Izdaja na plačilnem zaslonu POS-a ostaja ločen postopek za splošni bon iz
+skupne evidence: v dialogu **Izdaja darilnega bona** se določi znesek in
+gotovina ali kartica. To ni izdaja individualnega bona s kodo. Spletni
+individualni boni se prodajajo po postopku **Spletna prodaja individualnega
+bona in Stripe**. Bon za pico in
+subvencionirana prehrana ostajata ločena toka. Če sistem bon zavrne ali je izid
+plačila oziroma računa neznan, ne ustvarjajte nadomestnega plačila; najprej
+preverite isto evidenco, račun in plačilni poskus.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-adb8d5d01893 package=extended -->
 ### 13.4 Bon za pico in drugi namenski boni
@@ -506,7 +522,8 @@ Z gostom se dogovorite za drug dovoljeni način samo za preostanek.
 - [ ] Popusti niso podvojeni.
 - [ ] Kartični znesek ustreza samo kartičnemu delu.
 - [ ] Gotovina pokriva samo preostanek.
-- [ ] Znesek plačila z bonom ne presega prikazane skupne odprte evidence bonov.
+- [ ] Za stari bon znesek ne presega skupne odprte evidence; za spletni bon s
+      kodo ne presega preverjenega individualnega dobroimetja.
 - [ ] Končni preostanek je 0,00 EUR.
 - [ ] Na računu so vsi dejanski načini.
 
@@ -885,14 +902,15 @@ Ne vnesite 12,40 EUR na terminal.
 Račun mora prikazati oba načina.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-066835da618a package=extended -->
-### 24.2 Kartica in darilni bon
+### 24.2 Kartica in stari bon iz skupne evidence
 
 Račun 50,00 EUR.
-Veljavni bon pokriva 18,00 EUR.
+Prikazana skupna evidenca starih bonov omogoča kritje 18,00 EUR.
 Kartica pokriva 32,00 EUR.
-Najprej preverite bon.
-Nato zaženite kartico za preostanek.
-Če bon ni potrjen, kartica ne sme sklepati napačnega preostanka.
+Na plačilnem zaslonu izberite **Stari boni (skupna evidenca)** in preverite
+odprto vrednost; po potrditvi te vrstice zaženite kartico za preostanek.
+Tega primera ne uporabite za **Spletni bon s kodo**: individualni spletni bon
+se ne sme združiti s kartičnim doplačilom. Zanj glejte razdelek 46.2.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-d4d245a47797 package=lite -->
 ### 24.3 Subvencija in gotovina
@@ -1716,7 +1734,8 @@ Utemeljitev: jasna zavrnitev sprosti neplačani preostanek.
 
 Primer: skupna odprta evidenca bonov je manjša od računa.
 Dejanje: bon pokrije prikazani dovoljeni del, plača pa se samo preostanek.
-Utemeljitev: POS uporablja skupno evidenco, ne individualne vrednosti bona.
+Utemeljitev: pri starem bonu uporabite skupno evidenco; spletni bon s kodo ima
+ločeno individualno preverjanje stanja.
 
 Primer: subvencija ni potrjena.
 Dejanje: ne zaključite računa kot subvencioniranega.
@@ -1813,10 +1832,12 @@ počasen.
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-25bf1b0d0857 package=extended -->
 ## 46. Darilni bon: izdaja, unovčitev in neuspešno plačilo
 
-Darilni bon ima dva ločena postopka:
+POS ima ločeno izdajo in unovčitev splošnega bona iz skupne evidence, javna
+stran pa lahko prodaja individualne spletne bone. Ne mešajte teh evidenc:
 
-* **izdaja** ustvari plačan predplačniški bon;
-* **unovčitev** porabi razpoložljivo skupno evidenco bonov pri plačilu računa.
+* izdaja na POS-u ustvari plačan splošni bon iz skupne evidence;
+* spletni nakup ustvari individualni bon s kodo, stanjem in lastno sledjo gibanj;
+* unovčitev posamezne vrste mora biti evidentirana v ustreznem toku.
 
 Bon za pico oziroma subvencionirana prehrana sta ločena toka in se ne smeta
 evidentirati kot splošni darilni bon.
@@ -1827,7 +1848,9 @@ evidentirati kot splošni darilni bon.
 1. Na plačilnem zaslonu odprite dialog **Izdaja darilnega bona**.
 2. Vnesite znesek med 0,01 EUR in 10.000,00 EUR z največ dvema decimalnima
    mestoma.
-3. Izberite samo gotovino ali kartico; izdaja bona z drugim načinom ni dovoljena.
+3. Izberite samo gotovino ali kartico; kartična izdaja je podprta samo, kadar
+   POS za ta namen zažene preverljiv SumUp tok. Če ta tok ni na voljo, kartice
+   ne nadomestite z drugim terminalom ali načinom plačila.
 4. Pri gotovini preštejte prejeti znesek in preverite vračilo.
 5. Pri kartici POS najprej rezervira izdajo in zažene preverljiv SumUp tok,
    kadar je kartica vezana na SumUp napravo.
@@ -1844,18 +1867,80 @@ ustvari novo izdajo in je zato prepovedan.
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-dfafef0492fe package=extended -->
 ### 46.2 Unovčitev bona
 
-1. Na plačilnem zaslonu izberite **Darilni bon**.
-2. Preverite trenutno skupno razpoložljivo evidenco.
-3. Vnesite samo znesek, ki ga bon dejansko pokriva.
-4. Pri delnem plačilu preverite preostanek in ga pokrijte z dovoljenim drugim
-   načinom.
-5. Pred izdajo preverite, da je preostanek 0,00 EUR in da sta na računu
-   prikazani obe plačilni vrstici.
+Za stari bon iz skupne evidence:
 
-Evidenca je skupna in ne predstavlja nujno individualnega stanja posamezne
-kartice. Pri celotnem kritju bona se kartični tok ne zažene. Darilni bon ne
-omogoča samodejnega gotovinskega vračila; vračilo vedno vežite na izvirni
-račun in odobren postopek.
+1. Na plačilnem zaslonu izberite **Bon**, nato **Stari boni (skupna evidenca)**.
+2. Preverite trenutno skupno odprto vrednost in vnesite samo znesek, ki ga
+   želite pokriti.
+3. Pri delnem plačilu preverite preostanek in ga pokrijte z drugim dovoljenim
+   načinom; pri tem toku je lahko tudi kartica.
+4. Pred izdajo preverite, da je preostanek 0,00 EUR in da so na računu
+   prikazane vse plačilne vrstice.
+
+Za bon, kupljen po spletni poti, izberite **Bon → Spletni bon s kodo**.
+Skenirajte ali vnesite kodo in nadaljujte šele po uspešnem preverjanju statusa
+in dobroimetja. Uporabite individualni znesek do višine računa. Če bon ne
+pokrije celotnega računa, POS v tem toku dovoljuje samo gotovinsko doplačilo.
+Kartično doplačilo je blokirano, ker sistem ne zagotavlja trajne rezervacije
+bona pred morebitno kartično bremenitvijo. Če bon pokrije cel račun, kartični
+tok ni potreben. Po izdaji računa preverite končni status in stanje bona; pri
+neznanem izidu ne ponovite plačila ali ne ustvarite drugega računa, dokler vodja
+ne uskladi istega poskusa.
+
+Skupna evidenca starih bonov ne predstavlja individualnega stanja posameznega
+bona. Pri celotnem kritju stare evidence se kartični tok ne zažene. Nobena od
+teh evidenc ne omogoča samodejnega gotovinskega vračila; vračilo vežite na
+izvirni račun in odobren postopek.
+
+<!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-46-3-stripe-voucher package=extended -->
+### 46.3 Spletna prodaja individualnega bona in Stripe
+
+Spletni nakup je ločen od izdaje bona na plačilnem zaslonu POS-a in od QR
+naročila. Skrbnik javne ponudbe naj preveri:
+
+1. v POS-u odprite **Javna stran** (`/javna-stran`) za pravo poslovno enoto;
+2. v zavihku **Splošno in kontakt** vključite **Javno prikazan profil**;
+3. v zavihku **Darilni boni** uredite aktivne bone in njihove aktivne vrednosti
+   ter shranite nastavitve;
+4. administrator podjetja oziroma superadministrator v kartici
+   **Stripe Connect** preveri povezavo in, če je treba, izbere
+   **Poveži Stripe račun**
+   oziroma **Nadaljuj nastavitev** ter dokonča podatke v Stripe;
+5. spletna prodaja je na voljo šele, ko POS prikaže, da je račun povezan in
+   pripravljen za plačila, kar vključuje oddane podatke, omogočeno sprejemanje
+   plačil in izplačila. Sama povezava ali začeto preverjanje Stripe še ne
+   pomenita, da je plačilo omogočeno.
+
+Urejanje javnega profila je na voljo vlogam **admin**, **admin_enote** in
+**superadmin**. Povezava Stripe je na ravni podjetja; kartico Connect lahko
+upravlja **admin** ali **superadmin**, ne administrator posamezne enote.
+Gost na javni strani Bookie Obiski izbere objavljen bon in vrednost, vnese
+podatke kupca ter nadaljuje na Stripe Checkout. Če profil ni aktiven, ni
+aktivnih ponudb ali račun Stripe ni pripravljen, spletni nakup ni na voljo;
+gosta usmerite na enoto in ne obljubite spletnega plačila.
+
+Po Stripe potrditvi strežniški webhook ustvari individualni bon za vsako
+kupljeno enoto in ga pošlje na e-poštni naslov kupca, ki ga je vnesel gost.
+Stran po plačilu ločeno prikazuje status nakupa in dostave: `open` pomeni, da
+plačilo še ni potrjeno; `expired` pomeni, da je Checkout seja potekla; samo
+`complete` pomeni, da je sistem plačilo potrdil. Pred novim poskusom po
+potekli seji preverite, da za isto naročilo ni že potrjenega plačila.
+Dostava je lahko še `pending` ali `sending`, lahko je `failed` in predvidena
+za ponovni poskus, ali `sent`. `Sent` pomeni, da je SMTP sprejel sporočilo za
+odpošiljanje; ni dokaz, da je prispelo v prejemnikov nabiralnik. Zato gostu ne
+obljubite prejema samo na podlagi tega statusa. Ob težavi naj kupec preveri
+vneseni e-poštni naslov in mapo z neželeno pošto ter ohrani povezavo s
+plačilno sejo. Ne začnite novega plačila, dokler statusa obstoječe seje ne
+preverite.
+
+Uporabnik z vlogo **admin**, **admin_enote** ali **superadmin** lahko v **Javna
+stran → Darilni boni** pregleda opozorila o dostavi in Stripe plačila za ročno
+uskladitev. Če je dostava neuspešna, uporabite prikazano ponovno pošiljanje šele
+po pregledu istega nakupa. Ročna rešitev Stripe pregleda zgolj zabeleži
+obravnavo in sama ne ustvari bona ali spremeni dobroimetja; neskladnega plačila
+zato ne označite kot urejenega, dokler ni dejansko usklajeno. Ob neznanem
+statusu plačila, manjkajočem bonu ali nejasnem izidu kontaktirajte odgovorno
+osebo; ne izdajajte bona ročno in ne ponavljajte bremenitve.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-4bf68e5c2525 package=lite -->
 ## 47. Politika napitnin in računovodska sled
@@ -1984,17 +2069,38 @@ pričakovani znesek, dejanski znesek, razliko, razlog in odgovorno osebo.
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-f4775e72353d package=extended -->
 ## 52. Meje spletnih plačil in rezervacij
 
-Trenutna izvedba POS Gostinstvo nima:
+Javna stran Bookie Obiski je ločen kanal od QR menija. Če je profil enote
+aktiven, omogoča javno rezervacijo miz; oddaja rezervacije preveri urnik,
+kapaciteto in prosto mizo ter ustvari povezano rezervacijo v evidenci POS miz.
+Gostu se po uspešni oddaji prikaže potrditev in povezava za upravljanje
+rezervacije. Osebje preveri zapis v POS-u pod **Rezervacije miz**. Rezervacija
+ni naročilo ali plačilo in je ne obravnavajte kot oddan QR račun.
 
-* javnega spletnega obrazca za internetne rezervacije,
-* spletne trgovine oziroma javnega nakupa darilnega bona,
-* Stripe Checkout, PaymentIntent ali Stripe webhooka.
+Javna stran lahko ponuja tudi spletni nakup individualnih darilnih bonov prek
+Stripe Checkout. Prodaja je pogojena z aktivnim javnim profilom, objavljenimi
+aktivnimi vrednostmi bonov ter povezanim in za plačila pripravljenim Stripe
+računom podjetja. Stripe Connect na **Javna stran** lahko poveže administrator
+podjetja ali superadministrator; administrator enote lahko ureja profil in
+ponudbo, ne pa povezave podjetja. Če povezava ni pripravljena, kupec ne more
+zaključiti spletnega nakupa. To je ločeno od izdaje splošnega bona na POS-u in
+od POS fiskalnega toka.
 
-QR meni je javni kanal za ogled menija, naročilo, klic natakarja, napitnino in
-morebitno povratno informacijo; QR oddaja naročila sama po sebi ni dokaz
-plačila. Notranje POS-rezervacije miz niso internetne rezervacije. Ne obljubljajte
-gostu potrditve spletne rezervacije ali spletnega bona, če tak kanal ni
-izrecno uveden in dokumentiran v novi izdaji programa.
+Stripe plačilo in dostava bona sta različna statusa: `open` ni potrjeno plačilo;
+`complete` potrjuje, da je sistem obdelal plačano sejo. `pending`, `sending` ali
+`failed` pomeni, da e-poštno odpošiljanje še ni potrjeno oziroma potrebuje
+ponovni poskus; `sent` pomeni samo, da je SMTP sprejel sporočilo za
+odpošiljanje, ne pa dokaz prejema v nabiralniku. Pri neznanem rezultatu
+preverite obstoječo sejo in administrativna opozorila za Stripe/dostavo. Ne
+ponavljajte bremenitve, ne izdajajte bona ročno in ne obljubljajte prejema,
+dokler stanje ni razjasnjeno. Ročno označenje Stripe pregleda kot rešenega samo
+zabeleži obravnavo; ne izda bona in ne spremeni njegovega stanja.
+
+QR meni ostaja javni kanal za ogled menija, naročilo, klic natakarja, napitnino
+in morebitno povratno informacijo. QR oddaja naročila sama po sebi ni dokaz
+plačila. Gostujoči QR pomočnik ne sprejema rezervacij, spletnih nakupov ali
+plačil; gost za to uporabi objavljeno stran enote. Za postopek spletnega bona
+glejte razdelek **Spletna prodaja individualnega bona in Stripe**, za POS
+unovčitev pa razdelek **Darilni bon: izdaja, unovčitev in neuspešno plačilo**.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-224d27a50bfd package=lite -->
 ## 53. Računovodski pregled sprememb plačil in storna računa

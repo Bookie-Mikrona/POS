@@ -1,6 +1,6 @@
 # POS Gostinstvo — sledljiv inventar priročnika
 
-**Datum pregleda:** 21.09.2026  
+**Datum pregleda:** 27.09.2026
 **Število preverjenih uporabniških postopkov:** 72
 
 Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, strežniški izvedbi in priročniku. Status ne ocenjuje kakovosti kode, ampak pokritost uporabniškega postopka v priročniku.
@@ -18,9 +18,9 @@ Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, stre
 
 | Stanje | Število |
 |---|---:|
-| IMPLEMENTIRANO | 63 |
-| NI IMPLEMENTIRANO | 5 |
-| NEPOTRJENO | 4 |
+| IMPLEMENTIRANO | 70 |
+| NI IMPLEMENTIRANO | 1 |
+| NEPOTRJENO | 1 |
 
 ## Pomembnost
 
@@ -58,7 +58,7 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | QR-004 | Naročanje | Oddaja naročila iz javnega menija in spremljanje rezultata | PRAVILNO | KRITIČNO |
 | ERP-004 | Nastavitve POS knjiženja | Konfiguracija pravil in urnika knjiženja iz POS v ERP | PRAVILNO | VISOKO |
 | PLA-001 | Plačila | Knjiženje, stornacija in revizija sprememb plačil | PRAVILNO | KRITIČNO |
-| PLA-002 | Plačila | Stranka plača na spletu preko Stripe | PRAVILNO | KRITIČNO |
+| PLA-002 | Plačila | Stranka plača javni nakup darilnega bona preko Stripe | PRAVILNO | KRITIČNO |
 | POR-001 | Poročanje | Izvajanje dnevnih, časovnih in mesečnih operativnih poročil | PRAVILNO | VISOKO |
 | POR-002 | Poročanje | Pregled realizacije in razčlenitev plačil | PRAVILNO | SREDNJE |
 | QR-005 | Povratne informacije | Gost pošlje povratne informacije po naročilu | PRAVILNO | SREDNJE |
@@ -113,4 +113,4 @@ Celotna dokazila, predpogoji, postopki in reference so v preglednici `POS-Gostin
 | TAX-GEN-KPR-001 | davčne evidence | KPR prejetih računov | PRAVILNO | KRITIČNO |
 | TAX-GEN-GL-001 | davčne evidence | Uskladitev KIR/KPR z GL | PRAVILNO | VISOKO |
 | TAX-GEN-XML-001 | davčne evidence | KIRKPR XML izvoz | PRAVILNO | VISOKO |
-| TAX-GEN-EDAVKI-001 | davčne evidence | Neposredna oddaja KIRKPR v eDavke | PRAVILNO | KRITIČNO |
+| TAX-GEN-EDAVKI-001 | davčne evidence | Neposredna oddaja KIR/KPR v eDavke | PRAVILNO | KRITIČNO |

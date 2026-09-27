@@ -1336,17 +1336,16 @@ poglavju 08.
 <!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-7a3fa2446144 package=lite -->
 ### 24.2 Odmori osebja
 
-V pregledani POS izvedbi ni dokazanega samostojnega uporabniškega postopka
-**Začni odmor** oziroma **Končaj odmor**. Prikaz aktivnih izmen ali predaja
-blagajne nista evidenca odmora.
+Na strani **Izmene** pri svoji aktivni izmeni uporabite **Plačan odmor**
+oziroma **Neplačan odmor**. POS zabeleži začetek izbranega odmora in pokaže
+oznako **Na odmoru**. Ob dejanski vrnitvi izberite **Zaključi odmor** in
+preverite, da odprtega odmora ni več. Ne odpirajte drugega odmora, dokler prvi
+ni zaključen; izmene z odprtim odmorom ni mogoče zapreti.
 
-Zato:
-
-- odmora ne vpisujte kot lažno zapiranje ali odpiranje izmene;
-- ne spreminjajte začetka ali konca izmene, da bi popravili evidenco odmora;
-- uporabite odobren interni kadrovski oziroma evidenčni postopek;
-- če podjetje potrebuje obračun odmora v POS-u, mora biti ta funkcija najprej
-  uvedena in potrjena, nato pa ločeno dokumentirana.
+Neplačani odmor se odšteje pri obračunu efektivnih ur, plačani pa ostane
+ločen zapis odmora. Vodja podatke preveri v **Obračunu ur**. Odmora ne
+nadomeščajte z lažnim zapiranjem izmene ali predajo blagajne; napačen zapis
+uredite po odobrenem kadrovskem postopku, ne s spreminjanjem časa izmene.
 
 <!-- pos-heading: id=pos-02-placila-racuni-furs-tisk-a1e95db8efc5 package=standard -->
 ## 25. Telefonska identiteta pri predaji

@@ -2027,11 +2027,19 @@ Uspešen demo rezultat ni dokaz produkcijskega plačila. Produkcijski prevzem
 mora imeti ločen dokaz ponudnika, identifikator terminala, register, čas in
 jasen rezultat v POS-u.
 
-V trenutni izvedbi ni javnega postopka za internetne rezervacije, spletni nakup
-darilnega bona ali Stripe Checkout/PaymentIntent/webhook. Teh funkcij ne
-vključujte v konfiguracijski načrt kot razpoložljive. Za rezervacije uporabljajte
-notranji POS-postopek, darilni bon pa je mogoče izdati oziroma unovčiti samo po
-opisanem POS-toku.
+Urejevalnik javnega profila je na poti **Javna stran** (`/javna-stran`).
+Vloge `admin`, `admin_enote` in `superadmin` lahko urejajo profil enote,
+odpiralni čas in izjeme, omejitve spletnih rezervacij ter katalog bonov.
+Spletna rezervacija je odvisna od aktivnega profila, odpiralnega časa, omejitev
+rezervacij in razpoložljive mize. Pred objavo preverite dejanski javni prikaz.
+
+Stripe Connect je vezan na podjetje, zato njegovo stanje in povezavo upravljata
+le `admin` in `superadmin`; `admin_enote` lahko uredi profil enote, ne more pa
+samostojno povezati računa podjetja. Spletni nakup bona je na voljo le ob
+aktivnem profilu, aktivni ponudbi in pripravljenem Stripe računu (vključno z
+omogočenimi plačili in izplačili). Pred produkcijsko objavo dokumentirajte
+preskus; demo ali konfiguracijski prikaz ne dokazuje uspešnega plačila.
+Notranja POS-izdaja in unovčenje bona sta ločena postopka.
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-fd99bbf396dd package=lite -->
 ## 43. Skrbniški kontrolni seznam pred objavo spremembe

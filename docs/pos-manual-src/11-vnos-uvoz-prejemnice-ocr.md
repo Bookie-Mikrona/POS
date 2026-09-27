@@ -2004,11 +2004,18 @@ vezan na napravo. Viva demo ni dokaz produkcijskega plačila.
 <!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-7b82e895ab87 package=lite -->
 ## 48. Vidnost omejitev spletnih funkcij
 
-Javni QR meni omogoča naročanje, klic natakarja in druge opisane QR funkcije,
-vendar ni spletna rezervacijska platforma. V trenutni izvedbi ni javne internetne
-rezervacije, spletnega nakupa darilnega bona ali Stripe plačila. Če se v podpori
-pojavi zahteva za te funkcije, jo zabeležite kot zahtevo za razvoj oziroma
-integracijo, ne kot incident obstoječega POS-postopka.
+Javni QR meni in javni profil sta ločeni funkciji. Javni profil na poti
+`/javna-stran` omogoča nastavitev spletnih rezervacij in kataloga bonov; spletna
+rezervacija oziroma nakup bona sta dejansko na voljo samo, kadar je profil
+aktiven in so izpolnjeni pogoji ustreznega toka. Nakup bona dodatno zahteva
+aktiven artikel ter pripravljen Stripe Connect za podjetje.
+
+Pri prijavi težave najprej zabeležite javni naslov, enoto, čas, uporabniški
+račun, stanje profila in točno fazo, v kateri je postopek odpovedal. Preverite
+odpiralni čas/izjeme in prosto mizo za rezervacijo oziroma ponudbo in stanje
+Stripe za nakup. Ne obljubite dokončane rezervacije ali plačila brez potrditve
+javnega postopka in rezultata v POS-u. QR naročanje, notranja POS-rezervacija
+ter izdaja ali unovčenje bona na POS-u ostajajo ločeni tokovi.
 
 <!-- pos-heading: id=pos-11-vnos-uvoz-prejemnice-ocr-ef8d1b709949 package=lite -->
 ## 49. Vir za KPR pri prejetem računu

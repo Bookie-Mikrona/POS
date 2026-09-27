@@ -33,7 +33,8 @@ from reportlab.platypus.tableofcontents import TableOfContents
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "docs" / "pos-manual-src"
 POS_PLAN_SCHEMA = ROOT / "lib" / "db" / "src" / "schema" / "company-pos-plans.ts"
-MANUAL_VERSION = "8.6"
+MANUAL_VERSION = "8.7"
+MANUAL_RELEASE_DATE = date(2026, 9, 27)
 OUTPUT = ROOT / "docs" / f"POS-Gostinstvo-prirocnik-v{MANUAL_VERSION}.pdf"
 PUBLIC_OUTPUT = ROOT / "artifacts" / "pos" / "public" / "POS-Gostinstvo-prirocnik.pdf"
 LOGO = ROOT / "docs" / "mikrona-logo.png"
@@ -45,12 +46,12 @@ SOURCE_FILES = [
     ("IV", "Meni, artikli, normativi in alergeni", "04-zaloge-dokumenti.md"),
     ("V", "Priprava, KDS, QR meni in telefonska naročila", "05-pripravljena-hrana-qr-telefon.md"),
     ("VI", "Plačilo, račun, FURS in tisk", "06-izmene-porocila-nastavitve.md"),
-    ("VII", "Zaloge, dokumenti, pripravljena hrana in dogodki", "07-zacetek-dela-dostop.md"),
-    ("VIII", "Konec izmene, poročila in POS→ERP", "08-nastavitve-po-sklopih.md"),
+    ("VII", "Zaloge, prejemnice, OCR, pripravljena hrana, odpad in dogodki", "07-zacetek-dela-dostop.md"),
+    ("VIII", "Konec izmene, blagajniški premiki, poročila in POS→ERP", "08-nastavitve-po-sklopih.md"),
     ("IX", "Nastavitve, naprave, uporabniki in varnost", "09-postopki-po-vlogah.md"),
     ("X", "Hitri postopki po vlogah", "10-odlocitvena-drevesa-kontrolni-seznami.md"),
     ("XI", "Odpravljanje težav in izredni primeri", "11-vnos-uvoz-prejemnice-ocr.md"),
-    ("XII", "Slovar in kontrolni seznami", "12-spremembe-in-dopolnitve.md"),
+    ("XII", "Slovar, kontrolni seznami in kratka zgodovina različice", "12-spremembe-in-dopolnitve.md"),
 ]
 NON_SLOVENIAN_DATE = re.compile(
     r"\b(?:19|20)\d{2}[-/]\d{1,2}[-/]\d{1,3}\b"
@@ -737,7 +738,7 @@ def build_story(styles, doc):
                     MANUAL_VERSION,
                 ], [
                     "Datum izdaje",
-                    date.today().strftime("%d.%m.%Y"),
+                    MANUAL_RELEASE_DATE.strftime("%d.%m.%Y"),
                 ]],
                 colWidths=[40 * mm, 110 * mm],
                 style=TableStyle(

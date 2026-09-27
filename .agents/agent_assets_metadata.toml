@@ -1033,3 +1033,17 @@ mtime_ms = 1790530025652
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/d8cc7f45-4738-4e4c-a298-2a984b5ce562/a680e9cb-6281-4c25-a590-06e84a6dfbd4"
 storage_version_token = "1790530158113960"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "kXfPQOLh48nSCmS9T3UI6"
+uri = "file://docs/POS-Gostinstvo-prirocnik-v8.7.pdf"
+type = "pdf"
+title = "POS Gostinstvo — priročnik v8.7"
+description = "Posodobljen uporabniški priročnik, izdaja 27. 9. 2026."
+logical_id = "d8b5e576-e7a0-4163-934e-ee203354a59c"
+content_hash = "sha256:7d95d04be0cec06f89d959b6f18fc841780156a39aff63f0b847bc43dfc2ef58"
+size = 2594263
+mtime_ms = 1790535141692
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/d8b5e576-e7a0-4163-934e-ee203354a59c/a66f7d8b-3ceb-46ea-bfac-f714777a0502"
+storage_version_token = "1790535413002425"
+content_type = "application/pdf"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import hashlib
+import re
 from pathlib import Path
 
 import pytest
@@ -193,4 +194,19 @@ def test_manual_heading_package_assignments_match_migration_snapshot() -> None:
         )
 
     digest = hashlib.sha256("\n".join(assignments).encode()).hexdigest()
-    assert digest == "8b9d2fba84f68c59d563d2a455c2890767f180ff10b65a1d1374a2cdd2c06e0d"
+    assert digest == "c49c12f3253e18bd22d6ee75076311d9e1bb75ef2104a35392d4e8c24fb36a89"
+
+
+def test_pdf_chapter_titles_match_pos_manual_navigation() -> None:
+    catalog = (ROOT / "artifacts/pos/src/manual/data/chapters.ts").read_text(
+        encoding="utf-8"
+    )
+    titles = re.findall(r'title: "([^"]+)"', catalog)
+    assert len(titles) == len(generator.SOURCE_FILES)
+    assert titles == [title for _, title, _ in generator.SOURCE_FILES]
+
+
+def test_published_manual_matches_versioned_pdf() -> None:
+    assert generator.MANUAL_RELEASE_DATE.strftime("%d.%m.%Y") == "27.09.2026"
+    assert generator.OUTPUT.exists()
+    assert generator.PUBLIC_OUTPUT.read_bytes() == generator.OUTPUT.read_bytes()

@@ -1808,16 +1808,29 @@ drugim QR identifikatorjem.
 
 Javni QR meni podpira pregled ponudbe, QR naročilo, To Go, klic natakarja,
 ločeno QR napitnino, povratno informacijo in – če je vklopljen – omejenega
-gostujočega AI pomočnika. Ne podpira pa:
+gostujočega AI pomočnika. To niso funkcije QR menija. Ločena javna stran enote
+v Bookie Obiski pa lahko omogoča internetne rezervacije in nakup darilnih bonov
+prek Stripe, če je javni profil aktiven in so izpolnjeni pogoji za posamezno
+funkcijo. Gostu zato ne recite, da teh funkcij ni: usmerite ga na javno
+povezavo enote, če je objavljena. Nakup bona in rezervacija se ne opravita
+znotraj QR menija ali QR pomočnika.
 
-- javne internetne rezervacije miz,
-- spletnega nakupa darilnega bona,
-- Stripe Checkout oziroma Stripe spletnega plačila.
+Javna rezervacija se odda na strani Bookie Obiski z izbiro števila oseb,
+razpoložljivega datuma in ure ter vnosom imena, e-pošte in telefona. Gost po
+uspešni oddaji vidi potrditev in povezavo za upravljanje oziroma preklic
+rezervacije; povezavo naj shrani. Osebju se rezervacija zapiše tudi v notranjo
+evidenco miz. V POS jo preverite v **Rezervacije miz** (`/rezervacije`), kjer
+so na voljo pregled, iskanje, urejanje, preklic in zgodovina. Rezervacija še ni
+naročilo, plačilo ali KDS nalog. Če javni termin ni prikazan oziroma oddaja
+vrne napako, gostu ne zagotavljajte, da je rezervacija shranjena; naj preveri
+status prek prikazane povezave ali izbere drug termin oziroma pokliče enoto.
 
-Če gost zahteva eno od teh funkcij, mu ne obljubljajte izvedbe prek QR menija.
-Uporabite potrjen notranji POS postopek ali povejte, da funkcija trenutno ni
-na voljo. Plačilo in fiskalizacija QR naročila se še vedno obravnavata po
-sklopu 06; oddaja QR naročila sama po sebi ni dokaz plačila.
+Urejanje javnega profila in ponudbe opravi uporabnik z administrativno vlogo v
+POS-u na **Javna stran** (`/javna-stran`). Spletne rezervacije so ločene od
+QR naročil: osebje jih ne sme podvajati kot naročilo na mizi. Plačilo oziroma
+izdaja bona prek javnega Stripe nakupa prav tako ni plačilo QR naročila.
+Plačilo in fiskalizacija QR naročila se še vedno obravnavata po sklopu 06;
+oddaja QR naročila sama po sebi ni dokaz plačila.
 
 <!-- pos-heading: id=pos-05-pripravljena-hrana-qr-telefon-337eca592841 package=extended -->
 ### 37.6 Kontrola pred objavo QR menija
@@ -1830,4 +1843,6 @@ sklopu 06; oddaja QR naročila sama po sebi ni dokaz plačila.
 - [ ] Zgodovina je privzeto izklopljena in zahteva izrecno soglasje.
 - [ ] Gostujoči AI je objavljen samo, če je nastavitev za enoto vključena.
 - [ ] Povratna informacija je vidna šele po zaključenem naročilu.
-- [ ] Gostu niso obljubljene internetne rezervacije, spletni boni ali Stripe.
+- [ ] Gost ve, da sta javna rezervacija in spletni nakup bona ločena od QR menija.
+- [ ] Javno povezavo enote in razpoložljivost posamezne spletne funkcije preveri
+      osebje; spletnega bona ne obljubi brez aktivne Stripe povezave.

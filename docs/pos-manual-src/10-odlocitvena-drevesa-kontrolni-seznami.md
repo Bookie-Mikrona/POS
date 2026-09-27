@@ -1812,18 +1812,24 @@ Primer neustrezne vrstice: »Dogodek je bil uspešen.«
 - [ ] Sprememba ima lastnika, preskus in načrt vrnitve.
 
 <!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-d997151bf80f package=lite -->
-## 36. Funkcije, ki jih ne smemo obljubiti
+## 36. Funkcije, katerih razpoložljivost je odvisna od nastavitev
 
-V trenutni izvedbi niso na voljo:
+Javna stran podpira spletne rezervacije in ponudbo oziroma nakup darilnih bonov,
+vendar sama prisotnost nastavitev ne pomeni, da je storitev za enoto aktivna.
+Preden jo predstavite kot razpoložljivo, preverite:
 
-- javna internetna rezervacija mize;
-- spletni nakup ali dostava darilnega bona;
-- Stripe spletno plačilo, Stripe Checkout, PaymentIntent ali webhook.
+- aktivni javni profil na `/javna-stran` in delujoč javni naslov;
+- odpiralne ure, izjeme, omejitve rezervacije ter dejansko razpoložljivost miz;
+- aktivne izdelke in vrednosti bona;
+- pripravljenost Stripe Connect za podjetje, če gre za spletno plačilo, ter
+  odobren dokazni preskus;
+- dejanski javni prikaz in rezultat v POS-u.
 
-Če gost ali naročnik zahteva eno od teh funkcij, zapišite zahtevo in jo predajte
-odgovorni osebi. Ne ustvarjajte ročnega postopka, ki bi se navzven predstavljal
-kot dokončana rezervacija ali spletno plačilo. Notranja POS-rezervacija,
-izdaja/unovčenje bona na POS-u in QR naročanje so ločeni postopki.
+Če pogoj ni izpolnjen ali preskus ne uspe, obljube ne podajte; zabeležite
+konkretno oviro in jo predajte odgovorni osebi. Ne ustvarjajte ročnega postopka,
+ki bi se navzven predstavljal kot potrjena rezervacija ali plačilo. Notranji
+POS-postopek za rezervacije oziroma izdajo in unovčenje bona ostaja ločen od
+javnega postopka; enako velja za QR naročanje.
 
 <!-- pos-heading: id=pos-10-odlocitvena-drevesa-kontrolni-seznami-4240d18255f2 package=lite -->
 ## 35. Obnovitev usposobljenosti in končna odločitev

@@ -310,10 +310,15 @@ Ne združujte naročil zgolj zato, ker sta mizi blizu.
 Premik uporabite, ko se celotna družba fizično presede.
 
 1. Odprite naročilo.
-2. Izberite premik mize.
+2. Izberite **Prestavi na mizo**.
 3. Izberite ciljno mizo.
-4. Preverite, ali ciljna miza vsebuje druga naročila.
+4. Preverite, da je ciljna miza prosta in ni blokirana zaradi rezervacije.
 5. Potrdite premik.
+
+Dialog **Prestavi na mizo** ponudi samo proste ciljne mize; zasedene ali
+rezervacijsko blokirane mize v njem niso na voljo. Če je ciljna miza zasedena,
+ne poskušajte obiti omejitve z novim naročilom. Ločeno presodite, ali gre za
+isti obisk, ki ga je dovoljeno združiti po postopku za združitev naročil.
 
 Če se presede le del družbe, najprej razdelite naročilo.
 
@@ -809,9 +814,10 @@ Celotni premik sledi fizični preselitvi celotne družbe.
 
 Če se preseli le del, najprej razdelite.
 
-Ciljna miza lahko že vsebuje drugo odprto naročilo.
-
-To samo po sebi ne pomeni, da smete naročili združiti.
+Dialog za premik prikaže samo proste ciljne mize; miza z odprtim naročilom ni
+izbirna kot cilj premika. Če se družba presede na zasedeno mizo, uporabite samo
+ločeno dovoljeno združitev, kadar gre za isti logični obisk; sicer naročili
+ostaneta ločeni in vodja določi nadaljnji postopek.
 
 Preverite rezervacijo na ciljni mizi pred potrditvijo.
 
@@ -2766,11 +2772,12 @@ Pravilni odgovor: ko se presede le del družbe.
 <!-- pos-heading: id=pos-03-meni-artikli-normativi-ae63e0cebd7f package=extended -->
 ## 34. Upravljanje rezervacij v POS-u
 
-Rezervacije miz so notranji POS-postopek. Program v pregledani izvedbi nima
-javnega spletnega obrazca, javnega API-ja za rezervacije ali samopostrežnega
-potrjevanja za gosta. Gostu zato ne obljubljajte internetne rezervacije kot
-funkcije tega POS-a; uporabite odobren notranji kanal in rezervacijo vnesite v
-POS.
+Rezervacijo lahko osebje vnese v POS-u ali jo gost odda prek ločene javne
+strani enote v Bookie Obiski, če sta javni profil in sprejemanje rezervacij
+vključena. Uspešno oddana spletna rezervacija se prikaže v isti evidenci
+**Rezervacije miz**; ne vnašajte je še enkrat ročno. Rezervacija sama ni
+naročilo, plačilo ali dokaz prihoda gosta. Če javni obrazec ni objavljen
+oziroma ni prostega termina, uporabite odobren notranji postopek.
 
 <!-- pos-heading: id=pos-03-meni-artikli-normativi-3ee144dd0529 package=extended -->
 ### 34.1 Iskanje in pregled

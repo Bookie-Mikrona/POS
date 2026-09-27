@@ -73,25 +73,30 @@
       "manager"
     ],
     "prerequisites": [
-      "javna blagajna",
-      "integracija izdaje/plačila bona"
+      "aktiven javni profil in aktivna ponudba bona",
+      "pripravljen Stripe Connect račun podjetja"
     ],
-    "normal_flow": "Ni dokazano.",
-    "exceptions_recovery": "Ni dokazano.",
-    "business_effect": "Izdalo bi plačan darilni bon; trenutni dokazi se nanašajo le na unovčenje/konfiguracijo v POS.",
-    "ui_evidence": [],
+    "normal_flow": "Administrator nastavi javno prikazan bon in vrednosti v POS-u; stranka izbere bon na javni strani Bookie Obiski, vnese podatke kupca/prejemnika, sprejme zasebnost in nadaljuje na Stripe Checkout. Po potrjenem plačilu sistem izda bon in ga pošlje prejemniku.",
+    "exceptions_recovery": "Nakup se zavrne, če bon ni več aktiven, Stripe povezava ni pripravljena, znesek/račun ne ustreza ali je plačilni izid nejasen. Idempotentna seja preprečuje podvojeno plačilo; stanje nakupa in dostave se preveri na strani uspeha, neuspešna dostava pa zahteva ločeno obravnavo.",
+    "business_effect": "Ustvari plačan spletni bon, zabeleži predplačilo in sproži dostavo bona; ta ločen javni tok ni QR naročilo ali unovčitev bona.",
+    "ui_evidence": [
+      "artifacts/pos/src/pages/JavnaStran.tsx:420-",
+      "artifacts/bookie-obiski/src/components/restaurant/voucher-flow.tsx:1-220",
+      "artifacts/bookie-obiski/src/pages/voucher-success.tsx:1-145"
+    ],
     "api_evidence": [
-      "artifacts/api-server/src/services/pos/finalization-plan.ts:102-107",
-      "artifacts/api-server/src/routes/posBookingSettings.ts:180-184"
+      "artifacts/api-server/src/routes/publicVisits.ts:600-635",
+      "artifacts/api-server/src/routes/publicVisits.ts:736-858",
+      "artifacts/api-server/src/routes/publicVisits.ts:861-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3236-3238"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1815-1835",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3463-3485"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik izrecno navaja, da javni QR meni ne podpira spletnega nakupa darilnega bona, ter usmerja uporabnika na potrjen notranji POS postopek oziroma na obvestilo, da funkcija ni na voljo.",
-    "implementation_status": "NI IMPLEMENTIRANO"
+    "gap_or_correction": "Priročnik loči QR meni od javne strani Bookie Obiski, kjer je ob aktivnem profilu, objavljenih bonih in pripravljeni povezavi Stripe omogočen spletni nakup individualnega bona; opisana sta ločen POS postopek unovčitve in varno ravnanje pri nejasnem izidu.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-002",
@@ -267,23 +272,28 @@
       "CTI/telefonski kanal",
       "zapis stranke ali normaliziran telefon"
     ],
-    "normal_flow": "Operater sprejme telefonsko naročilo, identificira/ustvari stranko, izbere prevzem ali dostavo ter zabeleži čas/naslov.",
-    "exceptions_recovery": "Testi zajemajo dostavo/prevzem, spremenjen čas priprave, označevanje 'za s seboj' in primere, povezane z naslovom.",
+    "normal_flow": "Operater odpre telefonski klic ali namenski dialog za telefonsko naročilo, poišče oziroma ustvari naročnika po normalizirani telefonski številki, potrdi naslov, nato vnese naročilo za prevzem ali dostavo in dogovorjeni čas.",
+    "exceptions_recovery": "CTI/telefonski identifikatorji in iskanje stranke so ločeni od ročnega dialoga. Dostava validira naslov, storitev in podatke naročnika; pred uporabo se potrdita aktualni naslov in čas, ob napaki se preveri naročilo/stranka namesto ustvarjanja dvojnika.",
     "business_effect": "Poveže identiteto ponovne stranke z operativno izpolnitvijo in dostavo.",
-    "ui_evidence": [],
+    "ui_evidence": [
+      "artifacts/pos/src/components/TelefonNarociloDialog.tsx:1-",
+      "artifacts/pos/src/components/CtiDohodniKlicPopup.tsx:1-",
+      "artifacts/pos/src/pages/Order.tsx:1-"
+    ],
     "api_evidence": [
       "artifacts/api-server/src/routes/pos/cti.ts",
       "artifacts/api-server/src/routes/pos/kupec.ts",
+      "artifacts/api-server/src/routes/pos/narocila.ts:1370-1664",
       "artifacts/api-server/src/__tests__/narocilaTelefon.test.ts:552-843"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:273-320",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1249-1259"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:306-357",
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1354-1362"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik opisuje varen telefonski postopek in jasno omejuje korake, kadar namenski operaterski obrazec ni potrjen.",
-    "implementation_status": "NEPOTRJENO"
+    "gap_or_correction": "Namenski POS dialog, telefonsko prepoznavanje in strežniško ustvarjanje telefonskega naročila so potrjeni. Priročnik pokriva izbiro stranke po normalizirani številki, potrditev naslova ter prevzem/dostavo; ročni vnos ostaja mogoč, CTI pa je ločen predpogoj.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-003",
@@ -547,29 +557,35 @@
   {
     "id": "PLA-002",
     "domain": "Plačila",
-    "feature": "Stranka plača na spletu preko Stripe",
+    "feature": "Stranka plača javni nakup darilnega bona preko Stripe",
     "user_roles": [
       "stranka",
       "blagajnik",
       "manager"
     ],
     "prerequisites": [
-      "račun/konfiguracija Stripe",
-      "javna plačilna seja/spletni kavelj (webhook)"
+      "aktiven javni profil in aktivna ponudba bona",
+      "pripravljen Stripe Connect račun podjetja"
     ],
-    "normal_flow": "Ni dokazano.",
-    "exceptions_recovery": "Ni dokazano.",
-    "business_effect": "Omogočilo bi spletno plačilo s kartico; pregledani plačilni dokazi uporabljajo druge terminale/ponudnike plačil.",
-    "ui_evidence": [],
-    "api_evidence": [],
+    "normal_flow": "Stranka odda javni nakup bona, POS/strežnik preveri ponudbo in znesek, ustvari Stripe Checkout sejo, nato potrdi plačilo s podpisanim dogodkom Stripe.",
+    "exceptions_recovery": "Nedosegljiva ali nepripravljena Stripe povezava ustavi začetek plačila. Neznan ali neusklajen znesek, valuta, podjetje ali Connect račun se ne potrdi kot plačilo; stranka preveri prikazani status in ne odda nove zahteve na slepo.",
+    "business_effect": "Sprejema spletno kartično plačilo za darilni bon prek Stripe Connect; to ni plačilo QR naročila ali splošno spletno plačilo računa.",
+    "ui_evidence": [
+      "artifacts/bookie-obiski/src/components/restaurant/voucher-flow.tsx:1-220",
+      "artifacts/bookie-obiski/src/pages/voucher-success.tsx:1-145"
+    ],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/publicVisits.ts:736-858",
+      "artifacts/api-server/src/routes/publicVisits.ts:861-"
+    ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3236-3238"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1815-1835",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3463-3485"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
-    "gap_or_correction": "Priročnik izrecno navaja odsotnost Stripe Checkout/spletnega plačila, prepoved obljube funkcije in varen nadomestni odziv; QR naročilo ni dokaz plačila.",
-    "implementation_status": "NI IMPLEMENTIRANO"
+    "gap_or_correction": "Priročnik loči Stripe Checkout za javni nakup bona od QR naročila in pojasni predpogoje za javno ponudbo ter Stripe Connect. Spletno plačilo splošnega QR naročila/računa ni potrjeno in iz tega toka ne sme biti sklepano.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POR-001",
@@ -648,21 +664,22 @@
     "prerequisites": [
       "QR/javno naročilo"
     ],
-    "normal_flow": "Ni prikazano v pregledanem UI za stranke; obstaja strežniška infrastruktura za QR povratne informacije/poročanje.",
-    "exceptions_recovery": "Ni dokazano za oddajo s strani gosta.",
-    "business_effect": "Zagotovilo bi signale o kakovosti storitev; trenutni dokazi podpirajo le infrastrukturo poročanja.",
-    "ui_evidence": [],
+    "normal_flow": "Po zaključku QR naročila gost na strani uspeha oceni hrano/pijačo, ambient, postrežbo in po želji postavke, doda neobvezen komentar ter poda soglasje za obdelavo povratne informacije.",
+    "exceptions_recovery": "Oddaja je dovoljena samo za zaključeno naročilo in napravo, ki ga je ustvarila, največ enkrat. Neveljavna seja, drugo naročilo ali dvojna oddaja so zavrnjeni; napaka je prikazana gostu.",
+    "business_effect": "Shrani prostovoljno povratno informacijo za izboljšanje storitev, ne da bi spremenila naročilo, račun, plačilo ali fiskalizacijo.",
+    "ui_evidence": [
+      "artifacts/pwa-menu/src/components/success-view.tsx:60-190"
+    ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/pos/qr-feedback-report.ts",
-      "artifacts/api-server/src/routes/pos/qr-feedback-report.integration.test.ts"
+      "artifacts/api-server/src/routes/javnoMeni.ts:1080-1144",
+      "artifacts/api-server/src/routes/javnoMeni.test.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1611-1632",
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1649-1658"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1782-1805"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Dokumentacija zdaj dovolj določa zaključeno QR naročilo in isto napravo kot predpogoja, enkratno oddajo, polja ocene/komentarja/soglasje, poslovni učinek ter varno zavrnitev pri neveljavni seji, napačnem naročilu ali duplikatu.",
+    "gap_or_correction": "Gostujoči UI in strežnik potrjujeta ocenjevanje samo po zaključenem naročilu, zahtevano soglasje, enkratno oddajo in varno zavrnitev neveljavne seje/naročila ali duplikata; priročnik te omejitve in učinek izrecno opisuje.",
     "implementation_status": "IMPLEMENTIRANO"
   },
   {
@@ -816,21 +833,25 @@
       "javni rezervacijski kanal",
       "postopek razpoložljivosti in potrditve"
     ],
-    "normal_flow": "Ni dokazano.",
-    "exceptions_recovery": "Ni dokazano.",
-    "business_effect": "Ustvarilo/zadržalo bi rezervacijo mize; ni prikazan noben javni spletni tok.",
-    "ui_evidence": [],
+    "normal_flow": "Gost na javni strani Bookie Obiski izbere število oseb in prosti termin, vnese ime, e-pošto in telefon ter potrdi rezervacijo; sistem shrani rezervacijo in prikaže povezavo za upravljanje.",
+    "exceptions_recovery": "Razpoložljivost upošteva kapaciteto miz in obstoječe aktivne rezervacije; neveljavni ali zasedeni termini se zavrnejo. Gost preveri status prek prikazane povezave oziroma izbere drug termin ali pokliče enoto, ne da bi domneval, da je rezervacija shranjena.",
+    "business_effect": "Ustvari notranjo rezervacijo mize s podatki gosta in časom; rezervacija ni naročilo, plačilo ali KDS nalog.",
+    "ui_evidence": [
+      "artifacts/bookie-obiski/src/components/restaurant/reservation-flow.tsx:1-310",
+      "artifacts/bookie-obiski/src/pages/public-restaurant.tsx:1-"
+    ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/pos/mize.rezervacije.test.ts"
+      "artifacts/api-server/src/routes/publicVisits.ts:482-599",
+      "artifacts/api-server/src/routes/publicVisits.integration.test.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1634-1647",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3236-3238"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1815-1835",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:3463-3476"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Priročnik izrecno določa, da javni QR meni ne podpira javnih internetnih rezervacij, in predpisuje, da se izvedbe ne obljublja ter uporabi potrjen notranji POS postopek oziroma pove, da funkcija ni na voljo.",
-    "implementation_status": "NI IMPLEMENTIRANO"
+    "gap_or_correction": "Priročnik opisuje javno rezervacijo na ločeni strani Bookie Obiski, predpogoje/kapaciteto, preverjanje potrditve in povezavo z notranjo evidenco miz ter jasno loči rezervacijo od QR naročila, plačila in KDS.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "UPR-001",
@@ -910,17 +931,19 @@
     "prerequisites": [
       "javna seja/soglasje za zgodovino, če je podprto"
     ],
-    "normal_flow": "Ni prikazano v pregledanem UI za stranke.",
-    "exceptions_recovery": "Ni dokazano.",
-    "business_effect": "Podpiralo bi ponovne obiske in samopostrežbo strank, vendar ni potrjenega učinka.",
+    "normal_flow": "Gost na istem javnem QR brskalniku izrecno vklopi zgodovino; pomočnik prikaže povzetke prejšnjih naročil, ki pripadajo tej QR napravi.",
+    "exceptions_recovery": "Zgodovina je privzeto izklopljena in brez izrecnega soglasja API vrne prazen seznam. Ob napaki ali potekli seji gost ponovno odpre QR, zgodovina pa ni dokaz identitete, plačila ali fizičnega prevzema.",
+    "business_effect": "Omogoča gostu omejen pregled preteklih naročil na isti napravi, ne da bi ustvaril gostujoči račun ali razkril naročila po imenu.",
     "ui_evidence": [
-      "artifacts/pwa-menu/src/hooks/use-history-opt-in.ts"
+      "artifacts/pwa-menu/src/hooks/use-history-opt-in.ts",
+      "artifacts/pwa-menu/src/components/guest-assistant-drawer.tsx:35-205"
     ],
-    "api_evidence": [],
+    "api_evidence": [
+      "artifacts/api-server/src/routes/javnoMeni.ts:1015-1068",
+      "artifacts/api-server/src/routes/javnoMeni.test.ts"
+    ],
     "manual_evidence": [
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1553-1569",
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1571-1587",
-      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1649-1658"
+      "docs/pos-manual-src/05-pripravljena-hrana-qr-telefon.md:1721-1738"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
@@ -1691,20 +1714,23 @@
     "exceptions_recovery": "Razlika zahteva razlog oziroma vodjevo obravnavo; X ne zaključuje poslovnega dne.",
     "business_effect": "Omogoča sprotno kontrolo gotovine brez ničeljenja prometa.",
     "ui_evidence": [
-      "artifacts/pos/src/pages/Checkout.tsx:340-377"
+      "artifacts/pos/src/pages/Checkout.tsx:347-429",
+      "artifacts/pos/src/pages/Checkout.tsx:558-618",
+      "artifacts/pos/src/pages/Checkout.tsx:4253-4305"
     ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/pos/blagajniski-premiki.ts:1-575"
+      "artifacts/api-server/src/routes/pos/z-porocila.ts:1-180",
+      "artifacts/api-server/src/routes/pos/z-porocila.test.ts:1-"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:120-145",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:567-578",
-      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:476-545"
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:130-162",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1358-1423",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2150-2190"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "SREDNJE",
-    "gap_or_correction": "Manual celovito opiše X kot vmesni pregled, primerjavo pričakovane/preštete gotovine, izjeme in poslovni učinek; implementacija celotnega UI/pravic ni potrjena.",
-    "implementation_status": "NEPOTRJENO"
+    "gap_or_correction": "X pregled, vnos preštete gotovine, izračun/razlog razlike, idempotentno shranjevanje in omejitev, da X ne zaključi dneva, so potrjeni v UI in strežniku ter opisani v priročniku.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "GOT-002",
@@ -1829,24 +1855,29 @@
       "avtenticirana identiteta osebja",
       "aktivni kontekst izmene/računovodstva časa"
     ],
-    "normal_flow": "Osebje začne/konča odmor in vodja pregleda zapise o delovnem času za operativno računovodstvo.",
-    "exceptions_recovery": "Neveljavni ali nepopolni časovni zapisi zahtevajo pregled/popravek vodje, namesto tihega dodeljevanja odgovornosti za blagajno.",
+    "normal_flow": "Pooblaščeni uporabnik začne plačan ali neplačan odmor na aktivni izmeni, konča ga z ustreznim gumbom; vodja pregleda odmore, efektivne ure in izračun ur v Obracunu ur.",
+    "exceptions_recovery": "API zavrne drugi odprti odmor, neveljaven čas in zaključek že zaprtega odmora; izmena se ne more zapreti, dokler je odmor odprt. Nepravilnost se pregleda oziroma popravi po kadrovskem postopku.",
     "business_effect": "Ločuje plačani/opravljeni čas od odmorov in podpira poročanje o stroških dela in prisotnosti.",
     "ui_evidence": [
-      "artifacts/pos/src/pages/ObracunUr.tsx:1-220"
+      "artifacts/pos/src/pages/Izmene.tsx:244-390",
+      "artifacts/pos/src/pages/ObracunUr.tsx:414-445",
+      "artifacts/pos/src/pages/ObracunUr.tsx:550-605"
     ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/pos:1-1"
+      "artifacts/api-server/src/routes/pos/izmene.ts:659-760",
+      "artifacts/api-server/src/routes/pos/izmene.ts:774-844",
+      "artifacts/api-server/src/routes/pos/izmene.ts:900-920"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1213-1248",
-      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:753-822",
-      "docs/pos-manual-src/09-postopki-po-vlogah.md:14-34"
+      "docs/pos-manual-src/02-placila-racuni-furs-tisk.md:1337-1349",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:49-58",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:1184-1188",
+      "docs/pos-manual-src/08-nastavitve-po-sklopih.md:2926-2938"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Manual explicitly distinguishes breaks and working-time accounting from shift handover and quick identity switching, and gives the safe limitation: do not treat those mechanisms as break tracking. No dedicated break capability is implemented.",
-    "implementation_status": "NI IMPLEMENTIRANO"
+    "gap_or_correction": "Priročnik zdaj določa začetek plačanega oziroma neplačanega odmora na aktivni izmeni, zaključek ob vrnitvi, prepoved drugega odprtega odmora in blokado zapiranja izmene, dokler odmor ni končan. Pojasnjena sta pregled v Obračunu ur ter obračunski učinek: neplačani odmor se odšteje od efektivnih ur. Predaja blagajne ni nadomestilo za evidenco odmora.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "EMB-001",
@@ -1966,23 +1997,26 @@
     "exceptions_recovery": "Ne uporablja se brisanje računa ali ponovna izdaja kot nadomestilo; original in popravek ostaneta vidna v arhivu.",
     "business_effect": "Zmanjša/obrne promet in davčno/plačilno knjiženje z revizijsko sledjo.",
     "ui_evidence": [
-      "artifacts/pos/src/pages/Receipts.tsx:1-220"
+      "artifacts/pos/src/pages/Receipts.tsx:180-251",
+      "artifacts/pos/src/pages/Receipts.tsx:1022-1320",
+      "artifacts/pos/src/pages/Receipts.tsx:1880-1920"
     ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/pos/racuni.ts:3100-3457",
-      "artifacts/api-server/src/routes/pos/racuni.ts:4239-4317"
+      "artifacts/api-server/src/routes/pos/racuni.ts:3315-3586",
+      "artifacts/api-server/src/routes/pos/racuni.ts:4239-4317",
+      "artifacts/api-server/src/routes/pos/terminal.ts"
     ],
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:645-676",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1022-1039",
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1081-1089",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:265-300",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:753-778",
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:2177-2195",
       "docs/pos-accounting-manual-src/02-prodaja-placila-temeljnice.md:403-424",
       "docs/pos-accounting-manual-src/00-uvod-in-delo-s-temeljnicami.md:176-190"
     ],
     "coverage_status": "PRAVILNO",
     "severity": "VISOKO",
-    "gap_or_correction": "Ni dokumentacijske vrzeli: priročnik zdaj poda eksplicitno pot Računi → izberi račun → Storniraj, predpogoje, celotni-storno omejitev, popravek posamezne postavke prek novega računa, odobritev in razlog vračila, kartično povračilo, neznani FURS/plačilni izid, varno obnovitev ter povezavo z izvirnikom in računovodskim učinkom; koda še ne potrjuje celotnega ločenega uporabniškega toka.",
-    "implementation_status": "NEPOTRJENO"
+    "gap_or_correction": "UI omogoča sledljiv storno računa in Viva terminalsko vračilo z ločenim potrjevanjem; API izdeluje negativen storno račun, obravnava rezultat FURS in zapisuje/refundira kartično transakcijo. Delno vračilo posamezne postavke ni ločen tok: popravek se izvede z novim računom po opisanem postopku.",
+    "implementation_status": "IMPLEMENTIRANO"
   },
   {
     "id": "POS-006",
@@ -2271,8 +2305,8 @@
       "zaključen ali potrjen davčni vir",
       "izbrano podjetje in obdobje"
     ],
-    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
-    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
+    "normal_flow": "Računovodja pregleda KIR/KPR vrstice in DDV-O preslikavo, nato za uskladitev z GL uporabi računovodsko evidenco ter pripravi XML za zunanji postopek eDavki. Avtomatska primerjava z GL ni potrjena.",
+    "exceptions_recovery": "Manjkajoč davčni vir ali DDV-preslikavo je treba zadržati in raziskati. Pregledana UI/API dokaza prikazujeta KIR/KPR ter DDV-O povzetek, ne pa ujemanja s saldi glavne knjige; XML ni dokaz oddaje.",
     "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
@@ -2300,9 +2334,9 @@
       "zaključen ali potrjen davčni vir",
       "izbrano podjetje in obdobje"
     ],
-    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
-    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
-    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "normal_flow": "Neposredna oddaja iz aplikacije ni potrjena. Trenutni uporabniški tok pripravi in prenese KIR/KPR XML, ki ga računovodja odda po ločenem zunanjem postopku eDavki.",
+    "exceptions_recovery": "Manjkajoč vir ali preslikavo je treba odpraviti pred izdelavo XML. Prenesena datoteka, uspešno ustvarjanje XML ali stanje aplikacije niso dokaz prejema eDavkov; preverite zunanjo povratnico.",
+    "business_effect": "Ustvari prenosno davčno datoteko, vendar ne potrjuje njene oddaje ali prejema eDavki.",
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
     "id": "TAX-GEN-KPR-001",
@@ -2337,7 +2371,8 @@
     "id": "TAX-GEN-GL-001",
     "implementation_status": "NEPOTRJENO",
     "manual_evidence": [
-      "docs/pos-manual-src/10-odlocitvena-drevesa-kontrolni-seznami.md:1680-1705"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:2230-2269",
+      "docs/pos-manual-src/10-odlocitvena-drevesa-kontrolni-seznami.md:1858-1868"
     ],
     "ui_evidence": [
       "artifacts/erp-web/src/pages/ddv-evidence.tsx:310-350"
@@ -2345,7 +2380,7 @@
     "api_evidence": [
       "artifacts/api-server/src/routes/vatLedgerReport.ts:206-291"
     ],
-    "gap_or_correction": "Popolna avtomatska uskladitev vira, registra in GL ni potrjena; postopek je ročen."
+    "gap_or_correction": "Potrjen je prikaz KIR/KPR in njihova rekonciliacija z DDV-O polji; ni najden konkreten POS/ERP zaslon ali strežniški postopek, ki primerja KIR/KPR z GL saldi. Uskladitev z GL mora ostati ročna in dokumentirana; status izvedbe je zato NEPOTRJENO, ne IMPLEMENTIRANO."
   },
   {
     "domain": "davčne evidence",
@@ -2378,7 +2413,7 @@
   },
   {
     "domain": "davčne evidence",
-    "feature": "Neposredna oddaja KIRKPR v eDavke",
+    "feature": "Neposredna oddaja KIR/KPR v eDavke",
     "user_roles": [
       "računovodja",
       "administrator"
@@ -2387,22 +2422,23 @@
       "zaključen ali potrjen davčni vir",
       "izbrano podjetje in obdobje"
     ],
-    "normal_flow": "Računovodja preveri KIR in KPR, primerja register z GL ter pripravi XML za zunanji postopek eDavki.",
-    "exceptions_recovery": "Manjkajoč vir, preslikava ali povezava se zadrži in razišče; XML ni dokaz oddaje.",
-    "business_effect": "Davčni viri ostanejo ločeni od operativnih poročil in sledljivi do računovodstva.",
+    "normal_flow": "Neposredna oddaja iz aplikacije ni potrjena. Trenutni uporabniški tok pripravi in prenese KIR/KPR XML, ki ga računovodja odda po ločenem zunanjem postopku eDavki.",
+    "exceptions_recovery": "Manjkajoč vir ali preslikavo je treba odpraviti pred izdelavo XML. Prenesena datoteka, uspešno ustvarjanje XML ali stanje aplikacije niso dokaz prejema eDavkov; preverite zunanjo povratnico.",
+    "business_effect": "Ustvari prenosno davčno datoteko, vendar ne potrjuje njene oddaje ali prejema eDavki.",
     "coverage_status": "PRAVILNO",
     "severity": "KRITIČNO",
     "id": "TAX-GEN-EDAVKI-001",
     "implementation_status": "NI IMPLEMENTIRANO",
     "manual_evidence": [
-      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:1939-1950"
+      "docs/pos-manual-src/06-izmene-porocila-nastavitve.md:2230-2269",
+      "docs/pos-manual-src/10-odlocitvena-drevesa-kontrolni-seznami.md:1858-1868"
     ],
     "ui_evidence": [
       "artifacts/erp-web/src/pages/ddv-evidence.tsx:713-745"
     ],
     "api_evidence": [
-      "artifacts/api-server/src/routes/vatSubmissions.ts:150-180"
+      "artifacts/api-server/src/routes/vatSubmissions.ts:140-220"
     ],
-    "gap_or_correction": "Aplikacija pripravi XML za zunanji postopek, neposredne oddaje ne izvaja."
+    "gap_or_correction": "Aplikacija preveri vire, pripravi in omogoči prenos XML; ni dokazov za API/UI, ki bi datoteko neposredno oddal eDavkom ali potrdil njen prejem. Funkcija ostaja NI IMPLEMENTIRANO, priročnik pa pravilno zahteva ločeno zunanjo oddajo in dokazilo."
   }
 ]

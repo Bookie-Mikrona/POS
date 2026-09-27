@@ -26,7 +26,7 @@ XLSX_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.xlsx"
 MD_OUTPUT = DOCS / "POS-Gostinstvo-sledljiv-inventar.md"
 
 AUDIT_FILES = [Path(f"/tmp/inventory-sl2-{index}.json") for index in range(1, 6)]
-REVIEW_DATE = date(2026, 9, 21)
+REVIEW_DATE = date(2026, 9, 27)
 INVENTORY_TITLE = "POS Gostinstvo — sledljiv inventar priročnika"
 
 STATUS_MAP = {
@@ -280,7 +280,7 @@ def write_markdown(rows: list[dict[str, Any]]) -> None:
     lines = [
         f"# {INVENTORY_TITLE}",
         "",
-        f"**Datum pregleda:** {REVIEW_DATE.strftime('%d.%m.%Y')}  ",
+        f"**Datum pregleda:** {REVIEW_DATE.strftime('%d.%m.%Y')}",
         f"**Število preverjenih uporabniških postopkov:** {len(rows)}",
         "",
         "Inventar povezuje uporabniško funkcijo z dokazom v uporabniškem vmesniku, "

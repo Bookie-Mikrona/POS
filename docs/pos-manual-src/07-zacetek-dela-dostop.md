@@ -674,16 +674,34 @@ Receptura mora odražati dejanski postopek, ne idealnega recepta iz kuharice.
 Spremembo recepture datirajte in odobrite pred uporabo.
 
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-8e587249d6b9 package=lite -->
-### 5F.2 Proizvodni nalog
+### 5F.2 Dnevna evidenca pripravljene hrane
 
-1. Izberite skladišče surovin in skladišče izdelka.
-2. Izberite odobreno recepturo oziroma sestavo.
-3. Vnesite dejansko količino pripravljenega izdelka.
-4. Preverite predlagano porabo sestavin.
-5. Zabeležite odstopanje od normativa, če ga sistem podpira.
-6. Preverite serijo, rok uporabe ali temperaturni zapis, če ga zahteva postopek.
-7. Potrdite šele, ko je izdelek dejansko pripravljen.
-8. Preglejte izhod na kartici izdelka in porabo na karticah sestavin.
+Namenska stran **Pripravljena hrana** uporablja **Dnevno evidenco** po
+poslovnem datumu, ne splošnega proizvodnega naloga z izbiro skladišča
+surovin in izdelka.
+
+1. Pred prvim dnevnim zaključkom leta v zavihku **Začetna zaloga (Letna)**
+   preverite leto, začetno število porcij in strošek na porcijo ter izberite
+   **Shrani vse**. To je operativna osnova za vrednotenje kala, ne začetna
+   računovodska knjižba; po prvem zaključenem dnevu leta začetne zaloge za to
+   leto ni več mogoče spreminjati.
+2. V zavihku **Dnevna evidenca** izberite datum. Za vsak artikel vnesite
+   odtajano in dejansko novo pripravljeno količino, po potrebi korekcijo ter
+   dejansko količino, ki je ob koncu ostala zamrznjena.
+3. Preverite prodano količino, ki jo sistem prikaže, ter izračun kala. Negativni
+   kalo je treba razjasniti; dnevne evidence ne zaključujte z nepojasnjenim
+   izračunom.
+4. Izberite **Shrani vse**, dokler so podatki še odprti. Nato uporabite
+   **Zaključi vse** in pred potrditvijo preglejte prikazani kalo. Zaključene
+   vrstice so samo za ogled.
+5. Ob zaključku sistem porabi sestavine po normativu za novo pripravljeno
+   količino ter uskladi odtajano in ob koncu zamrznjeno količino. Po zaključku
+   preverite kartice zaloge sestavin in zapisnik kala v zavihku **Zapisniki
+   kala**.
+
+Shranjevanje dnevnih vnosov samo po sebi še ni potrditev porabe. Ne ustvarjajte
+vzporednega ročnega proizvodnega naloga za isto pripravo, saj bi lahko podvojili
+porabo sestavin.
 
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-2c5d25cf6cbc package=standard -->
 ### 5F.3 Primer juhe
@@ -720,8 +738,10 @@ po odobritvi in s konkretnim razlogom.
 Če prodaja jed porablja sestavine neposredno, mora normativ povezati prodajno
 jed z zalogovnimi artikli.
 
-Če prodaja porablja pripravljen polizdelek, mora proizvodni nalog prej ustvariti
-ta polizdelek v zalogi.
+Če prodaja porablja pripravljen polizdelek, pred prodajo preverite, da je
+pripravljena količina zabeležena v dnevni evidenci in da prodajni normativ
+porablja pravi polizdelek. Poraba surovin za novo pripravo nastane ob zaključku
+dnevne evidence; za isto količino ne ustvarjajte še ročnega naloga.
 
 Ne uporabljajte obeh poti hkrati, razen če je receptura namenoma tako sestavljena.
 
@@ -853,7 +873,7 @@ Preostalih 40 mora imeti razlago v prodaji oziroma pogodbeno evidentirani porabi
 | Vloga | Običajna opravila | Česa ne potrjuje brez pooblastila |
 |---|---|---|
 | Skladiščnik | Prevzem, popis, priprava osnutka | Sprememb cen, končnih odpisov in izrednih razlik. |
-| Kuhinja | Proizvodni nalog, prijava odpada | Inventurnih prilagoditev izven svoje odgovornosti. |
+| Kuhinja | Sporočanje dejanske priprave in odpada vodji | Potrditve dnevne evidence ali inventurne prilagoditve brez ustreznih POS pravic. |
 | Vodja izmene | Pregled, potrjevanje v okviru pravic | Nastavitev enot, WAC pravil in davčnih podatkov. |
 | Nabava | Dobavitelji, cenovne kontrole, uvoz | Fizičnega prevzema, ki ga ni opravila. |
 | Računovodstvo | Vrednostne kontrole in uskladitve | Izmišljene fizične količine. |

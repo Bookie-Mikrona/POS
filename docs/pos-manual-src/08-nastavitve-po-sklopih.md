@@ -48,14 +48,13 @@ izjemni postopek; skrbnik naj nato uredi povezavo profila.
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-587031f5361b package=lite -->
 ### 3.2 Odmori
 
-V pregledani POS izvedbi ni potrjenega samostojnega uporabniškega postopka
-**Začni odmor** oziroma **Končaj odmor**. Aktivna izmena, predaja blagajne in
-obračun ur ne dokazujejo, da je odmor mogoče začeti ali končati neposredno v
-POS-u.
-
-Odmor evidentirajte po odobrenem internem kadrovskem postopku. Ne ustvarjajte
-lažnega zapiranja oziroma ponovnega odpiranja izmene in ne spreminjajte časa
-izmene, da bi nadomestili manjkajočo evidenco odmora.
+Pri svoji aktivni izmeni na strani **Izmene** izberite **Plačan odmor** ali
+**Neplačan odmor**. POS zabeleži začetek in označi uporabnika **Na odmoru**.
+Po vrnitvi uporabite **Zaključi odmor**. Med odprtim odmorom ni mogoče začeti
+drugega odmora ali zapreti izmene. Vodja lahko trajanje in vrsto odmora
+preveri v **Obračunu ur**; neplačani odmor se odšteje od efektivnih ur.
+Predaja blagajne ni nadomestilo za evidenco odmora. Napačen zapis rešujte po
+odobrenem kadrovskem postopku, ne z lažnim ponovnim odpiranjem izmene.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-43b1a420fffa package=lite -->
 ### 3.3 Zaključek izmene
@@ -336,7 +335,7 @@ celoten poslovni dan.
 | Register | Blagajna oziroma POS naprava | Ločite register od osebne izmene. |
 | Začetek | Čas odprtja izmene | Preverite nenavadno zgodnje odprtje. |
 | Konec | Čas zaključka | Odprta izmena nima končnega časa. |
-| Odmor | V pregledani izvedbi ni potrjen samostojen POS zapis odmora | Uporabite odobreno kadrovsko evidenco; predaje blagajne ne štejte kot evidenco odmora. |
+| Odmor | Plačan ali neplačan odmor z začetkom in koncem | Preverite vrsto in odprtost odmora na osebni izmeni; predaje blagajne ne štejte kot odmor. |
 | Računi | Število pripisanih računov | Primerjajte z dejavnostjo izmene. |
 | Gotovina | Gotovinska plačila in premiki | Ne enačite je s kartičnim prometom. |
 | Razlika | Pričakovano proti preštetemu | Zahteva ponovni pregled in razlog. |
@@ -1182,10 +1181,9 @@ Znesek prometa izmene ni fizično stanje predala.
 
 Znesek prometa izmene ni nadomestilo za Z poročilo.
 
-V pregledani izvedbi niso potrjeni gumbi za začetek ali konec plačanega oziroma
-neplačanega odmora. Oznaka aktivne izmene ni evidenca odmora in iz tega
-priročnika ni dovoljeno sklepati, da je zaključek izmene zaradi odmora
-onemogočen.
+Plačani in neplačani odmor sta ločena zapisa pri aktivni izmeni. Pred
+zapiranjem preverite, da je vsak začeti odmor zaključen: odprt odmor blokira
+zaključek izmene. Aktivna izmena sama po sebi ni dokaz, da odmora ni bilo.
 
 Po zaprtju se prikaže povzetek z začetkom in koncem.
 
@@ -1490,14 +1488,14 @@ Blokada vsebuje tip, število in seznam konkretnih postavk.
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-6129e3b285d9 package=lite -->
 ### 24.2 Plačan in neplačan odmor
 
-V pregledani POS izvedbi ni dokazanega ločenega postopka za plačan ali
-neplačan odmor. Zato ta poglavja ne predstavljajo gumbov ali statusov, ki bi
-jih uporabnik lahko pričakoval v POS-u.
+Pri aktivni izmeni na strani **Izmene** izberite **Plačan odmor** ali
+**Neplačan odmor**. Ob vrnitvi izberite **Zaključi odmor** in preverite,
+da oznaka **Na odmoru** ni več prikazana. Odprtega odmora ni dovoljeno
+pustiti ob zaključevanju izmene; zapiranje je v tem primeru blokirano.
 
 Pred začasno odsotnostjo zaklenite prijavo, predajte odprta naročila in
-nejasne transakcije dogovorjenemu sodelavcu ter uredite čas po odobrenem
-kadrovsko-evidenčnem postopku. Ne odpirajte druge izmene, da bi nadomestili
-manjkajočo evidenco odmora.
+nejasne transakcije dogovorjenemu sodelavcu. Ne odpirajte druge izmene
+namesto evidentiranja odmora. Nepravilnosti predajte vodji za sledljiv popravek.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-db51068129b0 package=lite -->
 ### 24.3 Predaja odprtih naročil
@@ -2927,16 +2925,17 @@ Z poročilo se izvede za blagajno in poslovni datum po vseh zapiralnih pogojih.
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-93a2dec5a10e package=lite -->
 ### 30.2 Vaja: odprt odmor
 
-Uporabnik se je začasno umaknil z delovnega mesta, vendar pregledana POS
-izvedba nima potrjenega ločenega zapisa začetka odmora.
+Uporabnik je pri aktivni izmeni izbral **Neplačan odmor** in ga ob vrnitvi
+pozabil zaključiti.
 
 Ob koncu dela želi klikniti **Zaključi izmeno**.
 
 Vprašanje: kaj se zgodi?
 
-Modelni odgovor: ne sklepajte, da je zaključek izmene zaradi odmora blokiran.
-Uporabnik uredi predajo odprtih nalog in čas odsotnosti po odobrenem kadrovskem
-postopku, nato preveri pogoje za zaprtje izmene.
+Modelni odgovor: POS prepreči zapiranje izmene, dokler je odmor odprt.
+Uporabnik preveri dejanski čas vrnitve, zaključi odmor z gumbom
+**Zaključi odmor** in šele nato ponovno preveri pogoje za zaprtje izmene.
+Če čas odmora ni pravilen, zadevo predajte vodji za sledljiv popravek.
 
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-8e7443bf1ed3 package=lite -->
 ### 30.3 Vaja: pričakovana gotovina
@@ -3140,7 +3139,8 @@ Odgovor: napačno.
 
 Trditev: Pregledana POS izvedba ima potrjen gumb za začetek in konec odmora.
 
-Odgovor: napačno; v POS-u tak samostojen postopek ni dokazan.
+Odgovor: pravilno; na aktivni izmeni sta na voljo začetek plačanega ali
+neplačanega odmora in gumb **Zaključi odmor**.
 
 Trditev: FURS `failed` je lahko prezrt, če je gotovina usklajena.
 
@@ -3463,8 +3463,23 @@ z navedbo vira, datuma, zneska in odgovorne osebe.
 <!-- pos-heading: id=pos-08-nastavitve-po-sklopih-45bdc1b8062c package=lite -->
 ## 34. Omejitve trenutno razpoložljivih funkcij
 
-V pregledani izvedbi niso potrjeni javna internetna rezervacija, spletni nakup
-darilnega bona ali Stripe Checkout. Notranja rezervacija mize, izdaja oziroma
-unovčenje bona na POS-u in plačila prek konfiguriranih fizičnih ponudnikov so
-ločene funkcije. Uporabniku ne obljubljajte spletnega nakupa ali Stripe
-plačila; zahtevo zabeležite kot razvojno oziroma integracijsko potrebo.
+Javni profil, spletne rezervacije in prodaja darilnih bonov so na voljo prek
+urejevalnika **Javna stran** (`/javna-stran`), če so profil in pripadajoče
+storitve pravilno nastavljeni. Urejanje profila je dovoljeno vlogam
+`admin`, `admin_enote` in `superadmin`; povezavo Stripe Connect za celotno
+podjetje lahko upravlja samo `admin` ali `superadmin`.
+
+Pred objavo preverite javni naslov profila, stikalo **Javno prikazan profil**,
+odpiralni čas in datumske izjeme. Zavihek **Rezervacije** določa največje
+število oseb na rezervacijo, dolžino termina ter kapaciteto termina. Razpoložljivost
+je odvisna tudi od prostih miz ustrezne kapacitete in obstoječih rezervacij;
+sprememba nastavitev ni nadomestilo za preverjanje v javnem prikazu.
+
+V zavihku **Boni** določite aktivne izdelke, njihove vrednosti in prikazane
+podatke. Spletni nakup je mogoč le, ko je javni profil aktiven, ponudba bona
+aktivna in je Stripe Connect za podjetje pravilno povezan ter pripravljen za
+plačila. Sama shranjena ponudba ali povezan račun še ne potrjujeta, da je
+plačilo pripravljeno; pred objavo izvedite odobren preskus in preverite rezultat
+v POS-u. Izklop javnega profila onemogoči javni dostop, rezervacije in nakupe
+bonov. Notranji POS-postopek izdaje oziroma unovčenja bona in fizična plačila
+ostajajo ločeni tokovi.
