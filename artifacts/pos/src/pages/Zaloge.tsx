@@ -343,6 +343,24 @@ export type OdvisniStrosekRow = {
   obravnava: "zaloga" | "strosek";
 };
 type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string };
+type InventuraOcrResult = {
+  rows: { artikelId: number; steviloNajdeno: number | null; cenaKos: number | null }[];
+  unmatched: string[];
+  datum: string | null;
+  documentPath: string;
+};
+
+function primerjajInventurneArtikle(
+  a: { davek?: number | string | null; ime: string; imeZaNabavo?: string | null },
+  b: { davek?: number | string | null; ime: string; imeZaNabavo?: string | null },
+): number {
+  const rank = (value: number) => value === 5 ? 0 : value === 9.5 ? 1 : value === 22 ? 2 : value === 0 ? 3 : 4;
+  const aRate = Number(a.davek);
+  const bRate = Number(b.davek);
+  return rank(aRate) - rank(bRate)
+    || (rank(aRate) === 4 ? aRate - bRate : 0)
+    || primerjajSlovensko(a.imeZaNabavo || a.ime, b.imeZaNabavo || b.ime);
+}
 type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
 type IzdajnicaRow = { artikelId: number; kolicina: string };
 type IzdDiffRow = { artikelId: number; knjizno: number; dejansko: string };
@@ -2827,6 +2845,7 @@ function EditInventuraDialog({
   const [opomba, setOpomba] = useState("");
   type EditRow = InventuraRow & { steviloPrejsnje: string };
   const [rows, setRows] = useState<EditRow[]>([]);
+  const [editedPrices, setEditedPrices] = useState<Set<number>>(new Set());
   const initializedId = useRef<number | null>(null);
   const invEditNajdenoRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   type ZadnjaNabavnaInv = { zadnjaNabavnaCena: number; zadnjaVrstaCen: string };
@@ -2849,6 +2868,7 @@ function EditInventuraDialog({
   useEffect(() => {
     if (data && initializedId.current !== data.id) {
       initializedId.current = data.id;
+      setEditedPrices(new Set());
       setDatum(new Date(data.datum).toISOString().slice(0, 10));
       setOpomba(data.opomba ?? "");
       setRows(data.postavke.map(p => ({
@@ -2886,6 +2906,8 @@ function EditInventuraDialog({
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
           steviloNajdeno: parseDecimal(r.steviloNajdeno) || 0,
+          ...(editedPrices.has(r.artikelId) && !jeDrobniInventar(nabavniArtikli.find(a => a.id === r.artikelId)) && parseDecimal(r.cenaKos) > 0
+            ? { cenaKos: parseDecimal(r.cenaKos) } : {}),
         })),
       },
     }, {
@@ -2921,7 +2943,7 @@ function EditInventuraDialog({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Artikel</TableHead>
-                      <TableHead className="text-right">Cena</TableHead>
+                      <TableHead className="text-right">Nabavna cena</TableHead>
                       <TableHead className="text-right">Knjižno</TableHead>
                       <TableHead className="text-right w-28">Dejansko</TableHead>
                       <TableHead className="text-right text-red-700">Razl. kol. (−)</TableHead>
@@ -2959,8 +2981,14 @@ function EditInventuraDialog({
                             </select>
                             {jeKolicinski && <Badge className="mt-1 border-amber-300 bg-amber-100 text-amber-900">Drobni inventar · količina</Badge>}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {cena != null ? `${fmt(cena)} €` : <span className="text-muted-foreground">–</span>}
+                          <TableCell className="text-right">
+                            {jeKolicinski ? <span className="text-muted-foreground">–</span> : <DecimalInput value={row.cenaKos}
+                              aria-label={`Nabavna cena ${art?.imeZaNabavo || art?.ime || row.artikelId}`}
+                              onChange={e => {
+                                setEditedPrices(previous => new Set(previous).add(row.artikelId));
+                                setRows(previous => previous.map((item, index) => index === i ? { ...item, cenaKos: e.target.value } : item));
+                              }}
+                              className="w-24 text-right ml-auto h-8" />}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell>
@@ -3766,6 +3794,9 @@ export default function Zaloge() {
   const [invScope, setInvScope] = useState<"material" | "drobni">("material");
   const [invFilter, setInvFilter] = useState<"normativi" | "vsi">("normativi");
   const [invSearch, setInvSearch] = useState("");
+  const [invOcrLoading, setInvOcrLoading] = useState(false);
+  const [invOcrResult, setInvOcrResult] = useState<InventuraOcrResult | null>(null);
+  const [invEditedPrices, setInvEditedPrices] = useState<Set<number>>(new Set());
   const createInventura = useCreateInventura();
 
   const openInvDialog = () => {
@@ -3776,6 +3807,8 @@ export default function Zaloge() {
     setInvScope(stockScope);
     setInvFilter("normativi");
     setInvSearch("");
+    setInvOcrResult(null);
+    setInvEditedPrices(new Set());
     setInvRows(nabavniArtikli.map(a => {
       const z = zaloge?.find(z => z.artikelId === a.id);
       return { artikelId: a.id, steviloNajdeno: String(z?.kolicina ?? 0), cenaKos: String(z?.zadnjaCena ?? 0) };
@@ -3791,9 +3824,81 @@ export default function Zaloge() {
     const article = nabavniArtikli.find(a => a.id === row.artikelId);
     const query = invSearch.trim().toLocaleLowerCase();
     return !query || `${article?.imeZaNabavo ?? ""} ${article?.ime ?? ""}`.toLocaleLowerCase().includes(query);
+  }).sort((left, right) => {
+    const a = nabavniArtikli.find(art => art.id === left.artikelId);
+    const b = nabavniArtikli.find(art => art.id === right.artikelId);
+    return a && b ? primerjajInventurneArtikle(a, b) : 0;
   });
 
+  const importInventorySheet = async (file: File) => {
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type) || file.size === 0 || file.size > 20 * 1024 * 1024) {
+      toast({ title: "Izberite PDF, JPG ali PNG do 20 MB", variant: "destructive" });
+      return;
+    }
+    setInvOcrLoading(true);
+    setInvOcrResult(null);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const upload = await posFetch(`${base}/api/inventure/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!upload.ok) throw new Error((await upload.json().catch(() => ({})) as { error?: string }).error || `Nalaganje: ${upload.status}`);
+      const { uploadURL, objectPath } = await upload.json() as { uploadURL: string; objectPath: string };
+      const put = await fetch(uploadURL, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!put.ok) throw new Error(`Prenos datoteke ni uspel (${put.status})`);
+      const recognized = await posFetch(`${base}/api/inventure/ocr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objectPath, scope: invScope }),
+      });
+      if (!recognized.ok) throw new Error((await recognized.json().catch(() => ({})) as { error?: string }).error || `OCR: ${recognized.status}`);
+      const result = await recognized.json() as InventuraOcrResult;
+      const byId = new Map(result.rows.map(row => [row.artikelId, row]));
+      setInvEditedPrices(new Set(result.rows.filter(row => row.cenaKos != null).map(row => row.artikelId)));
+      setInvFilter("vsi");
+      setInvSearch("");
+      setInvRows(previous => previous.map(row => {
+        const article = nabavniArtikli.find(a => a.id === row.artikelId);
+        if (jeDrobniInventar(article) !== (invScope === "drobni")) return row;
+        const ocr = byId.get(row.artikelId);
+        return {
+          ...row,
+          steviloNajdeno: ocr?.steviloNajdeno != null ? String(ocr.steviloNajdeno) : "",
+          cenaKos: ocr?.cenaKos != null ? String(ocr.cenaKos) : row.cenaKos,
+        };
+      }));
+      if (result.datum) setInvDatum(result.datum);
+      setInvOcrResult(result);
+      toast({ title: `Prebranih ${result.rows.length} postavk`, description: "Pred potrditvijo preverite prepoznane vrednosti." });
+    } catch (error) {
+      toast({ title: "Popisnega lista ni bilo mogoče prebrati", description: error instanceof Error ? error.message : "Poskusite znova.", variant: "destructive" });
+    } finally {
+      setInvOcrLoading(false);
+    }
+  };
+
+  const downloadInventorySheet = async (id: number) => {
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/inventure/${id}/document`);
+      if (!response.ok) throw new Error(`Strežnik je vrnil napako ${response.status}`);
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `inventura-${id}.${response.headers.get("Content-Type")?.includes("pdf") ? "pdf" : response.headers.get("Content-Type")?.includes("png") ? "png" : "jpg"}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      toast({ title: "Priloge ni bilo mogoče prenesti", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
   const handleSaveInventura = () => {
+    if (invOcrLoading) return;
     // Search only changes what is shown. Save every entered row for this category/filter.
     const validRows = invRowsInScope.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
@@ -3801,7 +3906,13 @@ export default function Zaloge() {
       data: {
         datum: invDatum || undefined,
         opomba: invOpomba || undefined,
-        postavke: validRows.map(r => ({ artikelId: r.artikelId, steviloNajdeno: parseDecimal(r.steviloNajdeno) || 0 })),
+        documentPath: invOcrResult?.documentPath,
+        postavke: validRows.map(r => ({
+          artikelId: r.artikelId,
+          steviloNajdeno: parseDecimal(r.steviloNajdeno) || 0,
+          ...(invScope === "material" && invEditedPrices.has(r.artikelId) && parseDecimal(r.cenaKos) > 0
+            ? { cenaKos: parseDecimal(r.cenaKos) } : {}),
+        })),
       },
     }, {
       onSuccess: () => {
@@ -4246,6 +4357,10 @@ export default function Zaloge() {
                     <TableCell className="text-center"><Badge variant="outline">{inv.steviloPostavk ?? 0}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-end">
+                        {inv.documentPath && <Button variant="ghost" size="icon" className="h-7 w-7" title="Prenesi izpolnjen popisni list" aria-label="Prenesi izpolnjen popisni list"
+                          onClick={() => void downloadInventorySheet(inv.id)}>
+                          <Download className="w-3.5 h-3.5" />
+                        </Button>}
                         <Button variant="ghost" size="icon" className="h-7 w-7"
                           onClick={() => setEditInvId(inv.id)}>
                           <Pencil className="w-3.5 h-3.5" />
@@ -5114,6 +5229,26 @@ export default function Zaloge() {
                   <Download className="mr-2 h-4 w-4" /> PDF popisnega lista
                 </Button>
               </div>
+              <div className="rounded-md border p-3 space-y-2 text-sm">
+                <Label htmlFor="inventura-ocr-file" className="cursor-pointer inline-flex items-center gap-2">
+                  {invOcrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+                  {invOcrLoading ? "Berem popisni list …" : "Naloži izpolnjen popisni list (PDF, JPG, PNG)"}
+                </Label>
+                <Input id="inventura-ocr-file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  disabled={invOcrLoading || createInventura.isPending}
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    if (file) void importInventorySheet(file);
+                    event.target.value = "";
+                  }} />
+                <p className="text-muted-foreground">OCR predlaga količine in ročno vpisane nabavne cene. Pred potrditvijo preglejte vse vrednosti; neprepoznane postavke ostanejo prazne.</p>
+                {invOcrResult && (
+                  <div role="status" className="space-y-1">
+                    <p>Prepoznane postavke: {invOcrResult.rows.length}. Nejasne vrstice: {invOcrResult.unmatched.length}.</p>
+                    {invOcrResult.unmatched.length > 0 && <p className="text-amber-700">Ročno preverite: {invOcrResult.unmatched.join(", ")}</p>}
+                  </div>
+                )}
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium">
                   <button type="button" onClick={() => setInvScope("material")} className={`px-3 py-1.5 transition-colors ${invScope === "material" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
@@ -5140,7 +5275,7 @@ export default function Zaloge() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Artikel</TableHead>
-                      <TableHead className="text-right">Cena</TableHead>
+                      <TableHead className="text-right">Nabavna cena</TableHead>
                       <TableHead className="text-right">Knjižno</TableHead>
                       <TableHead className="text-right">Dejansko</TableHead>
                       <TableHead className="text-right text-red-700">Razl. kol. (−)</TableHead>
@@ -5174,8 +5309,14 @@ export default function Zaloge() {
                              {art?.imeZaNabavo || art?.ime} <span className="text-muted-foreground">({art?.enotaMere ?? "–"})</span>
                              {jeKolicinski && <Badge className="ml-2 border-amber-300 bg-amber-100 text-amber-900">Drobni inventar · količina</Badge>}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {cena != null ? `${fmt(cena)} €` : <span className="text-muted-foreground">–</span>}
+                          <TableCell className="text-right">
+                            {jeKolicinski ? <span className="text-muted-foreground">–</span> : <DecimalInput value={row.cenaKos}
+                              aria-label={`Nabavna cena ${art?.imeZaNabavo || art?.ime || row.artikelId}`}
+                              onChange={e => {
+                                setInvEditedPrices(previous => new Set(previous).add(row.artikelId));
+                                setInvRows(previous => previous.map((item, index) => index === rowIndex ? { ...item, cenaKos: e.target.value } : item));
+                              }}
+                              className="w-24 text-right ml-auto h-8" />}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell className="text-right">
@@ -5224,7 +5365,7 @@ export default function Zaloge() {
                 </strong></span>
               </div>
             </div>
-            <Button className="w-full" onClick={handleSaveInventura} disabled={createInventura.isPending}>
+            <Button className="w-full" onClick={handleSaveInventura} disabled={createInventura.isPending || invOcrLoading}>
               {createInventura.isPending ? "Shranjujem..." : <>Potrdi inventuro <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>

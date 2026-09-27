@@ -32,8 +32,11 @@ router.get("/zaloge/export/pdf", requireEnota, async (req, res): Promise<void> =
     : and(eq(artikliTable.nabavniArtikel, true), eq(artikliTable.drobniInventar, false));
   const rows = await db
     .select({
+      id: artikliTable.id,
       ime: artikliTable.ime,
+      imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
+      davek: artikliTable.davek,
       kolicina: sql<string>`COALESCE(${zalogeTable.kolicina}, '0')`,
       povprecnaCena: zalogeTable.povprecnaCena,
       skupnaVrednost: zalogeTable.skupnaVrednost,
@@ -41,22 +44,39 @@ router.get("/zaloge/export/pdf", requireEnota, async (req, res): Promise<void> =
     .from(artikliTable)
     .leftJoin(zalogeTable, eq(zalogeTable.artikelId, artikliTable.id))
     .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.povratnaEmbalaza, false), itemScope))
-    .orderBy(slovenianCollated(artikliTable.ime));
+    .orderBy(slovenianCollated(sql`COALESCE(NULLIF(${artikliTable.imeZaNabavo}, ''), ${artikliTable.ime})`));
 
   const includeBookQuantity = req.query.includeBookQuantity === "true";
+  const collator = new Intl.Collator("sl-SI");
+  const vatRank = (rate: number): number => {
+    if (rate === 5) return 0;
+    if (rate === 9.5) return 1;
+    if (rate === 22) return 2;
+    if (rate === 0) return 3;
+    return 4;
+  };
+  const pdfRows = rows.map(row => ({
+    id: row.id,
+    name: row.imeZaNabavo || row.ime,
+    unit: row.enotaMere ?? "—",
+    quantity: Number(row.kolicina),
+    averageCost: row.povprecnaCena == null ? null : Number(row.povprecnaCena),
+    totalValue: row.skupnaVrednost == null ? null : Number(row.skupnaVrednost),
+    vatRate: Number(row.davek),
+  })).sort((a, b) => {
+    const aRank = vatRank(a.vatRate);
+    const bRank = vatRank(b.vatRate);
+    if (aRank !== bRank) return aRank - bRank;
+    if (aRank === 4 && a.vatRate !== b.vatRate) return a.vatRate - b.vatRate;
+    return collator.compare(a.name, b.name);
+  });
   const pdf = await buildStockExportPdf({
     kind,
     scope,
     unitName: unit.ime,
     generatedAt: new Date(),
     includeBookQuantity,
-    rows: rows.map(row => ({
-      name: row.ime,
-      unit: row.enotaMere ?? "—",
-      quantity: Number(row.kolicina),
-      averageCost: row.povprecnaCena == null ? null : Number(row.povprecnaCena),
-      totalValue: row.skupnaVrednost == null ? null : Number(row.skupnaVrednost),
-    })),
+    rows: pdfRows,
   });
   const filename = `${kind === "stock" ? "zaloga" : "popis"}-${scope}.pdf`;
   res.setHeader("Cache-Control", "no-store");

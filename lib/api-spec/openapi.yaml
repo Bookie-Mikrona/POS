@@ -5216,6 +5216,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InventuraFull"
+  /inventure/upload-url:
+    post:
+      operationId: requestInventoryUploadUrl
+      tags:
+        - inventure
+      summary: Zasebna povezava za nalaganje popisnega lista
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, size, contentType]
+              properties:
+                name:
+                  type: string
+                size:
+                  type: integer
+                contentType:
+                  type: string
+                  enum: [application/pdf, image/jpeg, image/png]
+      responses:
+        "200":
+          description: Povezava za nalaganje
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [uploadURL, objectPath]
+                properties:
+                  uploadURL:
+                    type: string
+                  objectPath:
+                    type: string
+  /inventure/ocr:
+    post:
+      operationId: recognizeInventorySheet
+      tags:
+        - inventure
+      summary: Preberi ročno izpolnjen popisni list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [objectPath, scope]
+              properties:
+                objectPath:
+                  type: string
+                scope:
+                  type: string
+                  enum: [material, drobni]
+      responses:
+        "200":
+          description: Predlogi za pregled pred potrditvijo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, unmatched, documentPath]
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      required: [artikelId, steviloNajdeno, cenaKos]
+                      properties:
+                        artikelId:
+                          type: integer
+                        steviloNajdeno:
+                          type: [number, "null"]
+                        cenaKos:
+                          type: [number, "null"]
+                  unmatched:
+                    type: array
+                    items:
+                      type: string
+                  datum:
+                    type: [string, "null"]
+                  documentPath:
+                    type: string
   /zacetne-zaloge:
     get:
       operationId: listZacetneZaloge
@@ -17498,6 +17580,10 @@ components:
           type:
             - string
             - "null"
+        documentPath:
+          type:
+            - string
+            - "null"
         ustvarjeno:
           type: string
         steviloPostavk:
@@ -17555,6 +17641,10 @@ components:
           type:
             - string
             - "null"
+        documentPath:
+          type:
+            - string
+            - "null"
         ustvarjeno:
           type: string
         postavke:
@@ -17570,6 +17660,8 @@ components:
         artikelId:
           type: integer
         steviloNajdeno:
+          type: number
+        cenaKos:
           type: number
     ZacetnaZalogaGlava:
       type: object
@@ -17711,6 +17803,8 @@ components:
         datum:
           type: string
         opomba:
+          type: string
+        documentPath:
           type: string
         postavke:
           type: array

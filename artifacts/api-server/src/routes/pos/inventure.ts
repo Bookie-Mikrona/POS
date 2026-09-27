@@ -1,13 +1,291 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import { and, count, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
-import { artikliTable, db, inventurePostavkeTable, inventureTable, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable } from "@workspace/db";
+import { Router, type IRouter, type Response } from "express";
+import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
+import { artikliTable, db, documentsTable, inventurePostavkeTable, inventureTable, prejemnicePostavkeTable, prejemniceTable, zalogaGibiTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import type { PosRequest } from "../../middlewares/pos";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { recomputeZaloge, getZalogeObDatumu } from "../../lib/pos-zaloge-utils";
 import { appendStockMovementReversals } from "../../lib/stockMovementHistory";
+import { z } from "zod";
+import type { Readable } from "stream";
+import PDFDocument from "pdfkit";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { ObjectStorageService } from "../../lib/objectStorage";
+import {
+  INVENTORY_OCR_MAX_UPLOAD_BYTES,
+  inventoryEditLineSchema,
+  inventoryPriceSchema,
+  inventoryOcrSchema,
+  inventoryUploadRequestSchema,
+  matchInventoryOcr,
+  resolveInventoryUnitPrice,
+} from "../../lib/inventure-ocr";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
+const MAX_OCR_BYTES = INVENTORY_OCR_MAX_UPLOAD_BYTES;
+const safeInventoryDecimal = (value: number): boolean =>
+  Number.isFinite(value) && value >= 0 && value <= 999999.9999
+    && Math.round(value * 10000) / 10000 === value;
+
+const inventoryCreateSchema = z.object({
+  datum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value =>
+    !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+      && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value,
+  ).optional(),
+  opomba: z.string().nullable().optional(),
+  documentPath: z.string().optional(),
+  postavke: z.array(z.object({
+    artikelId: z.number().int().positive(),
+    steviloNajdeno: z.number().refine(safeInventoryDecimal),
+    cenaKos: inventoryPriceSchema.optional(),
+  }).strict()).min(1),
+}).strict();
+
+const inventoryUpdateSchema = z.object({
+  datum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value =>
+    !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+      && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value,
+  ).optional(),
+  opomba: z.string().nullable().optional(),
+  postavke: z.array(inventoryEditLineSchema).optional(),
+}).strict();
+
+function imageToPdf(image: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const doc = new PDFDocument({ autoFirstPage: false, compress: true });
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    try {
+      const dimensions = (doc as any).openImage(image);
+      doc.addPage({ size: [dimensions.width, dimensions.height], margin: 0 });
+      doc.image(image, 0, 0, { width: dimensions.width, height: dimensions.height });
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function validInventoryObjectPath(path: string): boolean {
+  return /^\/objects\/uploads\/[0-9a-f-]{36}$/i.test(path);
+}
+
+router.post("/inventure/upload-url", requireEnota, async (req: PosRequest, res: Response): Promise<void> => {
+  const parsed = inventoryUploadRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Neveljavni metapodatki datoteke; dovoljen je PDF/JPEG/PNG do 20 MB" });
+    return;
+  }
+
+  try {
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    if (!validInventoryObjectPath(objectPath)) {
+      req.log?.error({ objectPath }, "App Storage returned an invalid inventory upload path");
+      res.status(500).json({ error: "Ni bilo mogoče pripraviti varne poti za nalaganje" });
+      return;
+    }
+    await db.insert(documentsTable).values({
+      companyId: req.companyId,
+      fileName: parsed.data.name,
+      mimeType: parsed.data.contentType,
+      fileSizeBytes: parsed.data.size,
+      objectPath,
+      uploadedByClerkId: req.clerkUserId,
+    });
+    res.json({ uploadURL, objectPath });
+  } catch (error) {
+    req.log?.error({ err: error }, "Could not create inventory upload URL");
+    res.status(500).json({ error: "Ni bilo mogoče ustvariti varne povezave za nalaganje" });
+  }
+});
+
+function contentMatchesMime(buffer: Buffer, mimeType: string): boolean {
+  if (mimeType === "application/pdf") return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  if (mimeType === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  if (mimeType === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  return false;
+}
+
+class InventoryUploadSizeError extends Error {}
+
+function readObjectBounded(file: { createReadStream: () => Readable }, limit: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let length = 0;
+    const stream = file.createReadStream();
+    stream.on("data", (chunk: Buffer) => {
+      length += chunk.length;
+      if (length > limit) {
+        stream.destroy(new InventoryUploadSizeError("Uploaded document exceeds size limit"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on("error", reject);
+    stream.on("end", () => resolve(Buffer.concat(chunks, length)));
+  });
+}
+
+async function getInventoryOcr(buffer: Buffer, mimeType: string) {
+  const pdf = mimeType === "application/pdf" ? buffer : await imageToPdf(buffer);
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") },
+        },
+        {
+          type: "text",
+          text: `Preberi ročno izpolnjen popis zalog. Vrni samo JSON brez markdowna s strukturo:
+{"datum":"YYYY-MM-DD ali null","rows":[{"naziv":"dobesedno prepisano ime artikla","idNatisnjen":11,"enota":"kg ali null","steviloNajdeno":2.5,"cenaKos":3.25}]}
+idNatisnjen je samo številka artikla, če je dejansko natisnjena/prepisana na listu, sicer null. Ne sklepaj ID-jev, količin, cen ali enot; nečitljive/negotove številčne vrednosti vrni null. Cena je cena na enoto, ne vsota. Če datuma ni ali ni zanesljiv, vrni null.`,
+        },
+      ],
+    }],
+  });
+  const text = message.content.find(block => block.type === "text");
+  if (!text || text.type !== "text") throw new Error("OCR ni vrnil besedila");
+  return inventoryOcrSchema.parse(JSON.parse(text.text));
+}
+
+router.post("/inventure/ocr", requireEnota, async (req: PosRequest, res: Response): Promise<void> => {
+  const input = z.object({
+    objectPath: z.string().min(1),
+    scope: z.enum(["material", "drobni"]),
+  }).strict().safeParse(req.body);
+  if (!input.success || !validInventoryObjectPath(input.data.objectPath)) {
+    res.status(400).json({ error: "Neveljavna pot datoteke ali obseg OCR" });
+    return;
+  }
+
+  try {
+    // An already-claimed object may only be reused within its owning company.
+    const priorDocs = await db.select({
+      companyId: documentsTable.companyId,
+      uploadedByClerkId: documentsTable.uploadedByClerkId,
+      mimeType: documentsTable.mimeType,
+      fileSizeBytes: documentsTable.fileSizeBytes,
+    })
+      .from(documentsTable)
+      .where(eq(documentsTable.objectPath, input.data.objectPath));
+    if (!priorDocs.length
+      || priorDocs.some(doc => doc.companyId !== req.companyId || doc.uploadedByClerkId !== req.clerkUserId)) {
+      res.status(403).json({ error: "Datoteka ni bila naložena v tej enoti s tem uporabniškim računom" });
+      return;
+    }
+
+    const file = await objectStorageService.getObjectEntityFile(input.data.objectPath);
+    const [metadata] = await file.getMetadata();
+    const storedMimeType = String(metadata.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+    const mimeType = storedMimeType === "image/jpg" ? "image/jpeg" : storedMimeType;
+    const size = Number(metadata.size);
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(mimeType)
+      || !Number.isSafeInteger(size) || size < 1 || size > MAX_OCR_BYTES) {
+      res.status(400).json({ error: "Datoteka mora biti PDF/JPEG/PNG in manjša od 20 MB" });
+      return;
+    }
+    if (priorDocs.some(doc => doc.mimeType !== mimeType || doc.fileSizeBytes !== size)) {
+      res.status(400).json({ error: "Naložena datoteka se ne ujema s prijavljenimi metapodatki" });
+      return;
+    }
+    const buffer = await readObjectBounded(file, MAX_OCR_BYTES);
+    if (buffer.length !== size || !contentMatchesMime(buffer, mimeType)) {
+      res.status(400).json({ error: "Vsebina datoteke se ne ujema z dovoljenim tipom" });
+      return;
+    }
+
+    const articles = await db.select({
+      id: artikliTable.id,
+      ime: artikliTable.ime,
+      imeZaNabavo: artikliTable.imeZaNabavo,
+      enotaMere: artikliTable.enotaMere,
+      drobniInventar: artikliTable.drobniInventar,
+    }).from(artikliTable).where(eq(artikliTable.enotaId, req.enotaId));
+    // requireEnota establishes company/unit membership; articles are explicitly unit-scoped.
+    const extracted = await getInventoryOcr(buffer, mimeType);
+    const result = matchInventoryOcr(extracted, articles, input.data.scope);
+
+    res.json({ ...result, documentPath: input.data.objectPath });
+  } catch (error) {
+    if (error instanceof InventoryUploadSizeError) {
+      res.status(400).json({ error: "Datoteka je večja od dovoljene omejitve 20 MB" });
+      return;
+    }
+    req.log?.error({ err: error }, "Inventory OCR failed");
+    res.status(502).json({ error: "OCR dokumenta ni uspel; preverite datoteko in poskusite znova" });
+  }
+});
+
+router.get("/inventure/:id/document", requireEnota, async (req: PosRequest, res: Response): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const inventuraId = Number.parseInt(rawId, 10);
+  if (!Number.isInteger(inventuraId) || inventuraId <= 0) {
+    res.status(404).json({ error: "Dokument inventure ni najden" });
+    return;
+  }
+
+  try {
+    const [inventura] = await db.select({
+      id: inventureTable.id,
+      documentPath: inventureTable.documentPath,
+    }).from(inventureTable)
+      .where(and(eq(inventureTable.id, inventuraId), eq(inventureTable.enotaId, req.enotaId)))
+      .limit(1);
+    if (!inventura?.documentPath || !validInventoryObjectPath(inventura.documentPath)) {
+      res.status(404).json({ error: "Dokument inventure ni najden" });
+      return;
+    }
+
+    const docs = await db.select({
+      companyId: documentsTable.companyId,
+      fileName: documentsTable.fileName,
+      mimeType: documentsTable.mimeType,
+      fileSizeBytes: documentsTable.fileSizeBytes,
+    }).from(documentsTable).where(eq(documentsTable.objectPath, inventura.documentPath));
+    if (!docs.length || docs.some(doc => doc.companyId !== req.companyId)) {
+      res.status(404).json({ error: "Dokument inventure ni najden" });
+      return;
+    }
+    const [document] = docs;
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(document!.mimeType)) {
+      res.status(404).json({ error: "Dokument inventure ni najden" });
+      return;
+    }
+
+    const file = await objectStorageService.getObjectEntityFile(inventura.documentPath);
+    const filename = document!.fileName.replace(/[\r\n]/g, " ").trim() || "inventory-document";
+    const safeAsciiFilename = filename.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "inventory-document";
+    const encodedFilename = encodeURIComponent(filename).replace(/[!'()*]/g, char =>
+      `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+    );
+    res.setHeader("Content-Type", document!.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (document!.fileSizeBytes !== null && document!.fileSizeBytes >= 0) {
+      res.setHeader("Content-Length", String(document!.fileSizeBytes));
+    }
+    const stream = file.createReadStream();
+    stream.on("error", (error: Error) => {
+      req.log?.error({ err: error, inventuraId }, "Could not stream inventory document");
+      if (!res.headersSent) res.status(404).end();
+      else res.destroy(error);
+    });
+    stream.pipe(res);
+  } catch (error) {
+    req.log?.error({ err: error, inventuraId }, "Could not retrieve inventory document");
+    res.status(404).json({ error: "Dokument inventure ni najden" });
+  }
+});
 
 /**
  * Vrne Date z uro 23:59:59 UTC za dani datum "YYYY-MM-DD".
@@ -55,6 +333,7 @@ router.get("/inventure", async (req, res): Promise<void> => {
       stevilka: inventureTable.stevilka,
       datum: inventureTable.datum,
       opomba: inventureTable.opomba,
+      documentPath: inventureTable.documentPath,
       ustvarjeno: inventureTable.ustvarjeno,
       steviloPostavk: count(inventurePostavkeTable.id)})
     .from(inventureTable)
@@ -69,15 +348,32 @@ router.get("/inventure", async (req, res): Promise<void> => {
 router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId;
   const actorSnapshot = (req as PosRequest).clerkUserId;
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  const parsed = inventoryCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Neveljavni podatki inventure" });
+    return;
+  }
 
   const { datum, opomba, postavke } = parsed.data;
-  if (!postavke || postavke.length === 0) {
-    res.status(400).json({ error: "Inventura mora imeti vsaj eno postavko" }); return;
+  const distinctArticleIds = new Set(postavke.map(p => p.artikelId));
+  if (distinctArticleIds.size !== postavke.length) {
+    res.status(400).json({ error: "Artikel je lahko na inventuri naveden samo enkrat" });
+    return;
   }
 
   const artikelIds = postavke.map((p: any) => p.artikelId);
+  if (parsed.data.documentPath !== undefined) {
+    if (!validInventoryObjectPath(parsed.data.documentPath)) {
+      res.status(400).json({ error: "Neveljavna pot priponke inventure" });
+      return;
+    }
+    const ownedDocuments = await db.select({ companyId: documentsTable.companyId })
+      .from(documentsTable).where(eq(documentsTable.objectPath, parsed.data.documentPath));
+    if (!ownedDocuments.length || ownedDocuments.some(doc => doc.companyId !== (req as PosRequest).companyId)) {
+      res.status(403).json({ error: "Priponka ni povezana s tem podjetjem" });
+      return;
+    }
+  }
 
   // Inventura se vedno beleži ob 23:59:59 po Ljubljana času
   const docDatum = datum ? endOfDayUTC(datum) : (() => { const n = new Date(); n.setSeconds(59, 0); return n; })();
@@ -105,16 +401,20 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
       enotaId: tenotaId,
       stevilka,
       datum: docDatum,
-      opomba: opomba ?? null}).returning();
+      opomba: opomba ?? null,
+      documentPath: parsed.data.documentPath ?? null}).returning();
 
     const postavkeResult = [];
     for (const p of postavke) {
       const steviloNajdeno = p.steviloNajdeno ?? 0;
       const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
       const razlika = steviloNajdeno - steviloPrejsnje;
-      const cenaKos = artikelMap.get(p.artikelId)?.drobniInventar
-        ? 0
-        : zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCene.get(p.artikelId) ?? 0);
+      const cenaKos = resolveInventoryUnitPrice({
+        drobniInventar: artikelMap.get(p.artikelId)?.drobniInventar ?? false,
+        explicitPrice: p.cenaKos,
+        inventoryPrice: zalogaObDatumu.get(p.artikelId)?.cenaKos,
+        lastPurchasePrice: zadnjeCene.get(p.artikelId),
+      });
 
       await tx.insert(inventurePostavkeTable).values({
         inventuraId: inventura.id,
@@ -160,6 +460,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
     stevilka: inventura.stevilka,
     datum: inventura.datum,
     opomba: inventura.opomba,
+    documentPath: inventura.documentPath,
     ustvarjeno: inventura.ustvarjeno,
     postavke: postavkeResult});
 });
@@ -193,6 +494,7 @@ router.get("/inventure/:id", async (req, res): Promise<void> => {
     stevilka: inventura.stevilka,
     datum: inventura.datum,
     opomba: inventura.opomba,
+    documentPath: inventura.documentPath,
     ustvarjeno: inventura.ustvarjeno,
     postavke: postavke.map((p: any) => ({
       ...p,
@@ -209,8 +511,11 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "Neveljaven ID" }); return; }
 
-  const parsed = { success: true, data: req.body };
-  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  const parsed = inventoryUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Neveljavni podatki inventure" });
+    return;
+  }
 
   const [existing] = await db.select().from(inventureTable)
     .where(and(eq(inventureTable.id, id), sql`true`, eq(inventureTable.enotaId, tenotaId)));
@@ -223,6 +528,10 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
     if (!novaPostavke.length) { res.status(400).json({ error: "Inventura mora imeti vsaj eno postavko" }); return; }
 
     const artikelIds = novaPostavke.map((p: any) => p.artikelId);
+    if (new Set(artikelIds).size !== artikelIds.length) {
+      res.status(400).json({ error: "Artikel je lahko na inventuri naveden samo enkrat" });
+      return;
+    }
     const putArtikliRows = await db.select({ id: artikliTable.id, drobniInventar: artikliTable.drobniInventar })
       .from(artikliTable)
       .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
@@ -254,6 +563,11 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
 
       const oldPostavke = await tx.select().from(inventurePostavkeTable).where(eq(inventurePostavkeTable.inventuraId, id));
       const oldArtikleIds = oldPostavke.map((p: any) => p.artikelId);
+      const oldPricesByArticle = new Map<number, number>(
+        oldPostavke.flatMap((p: any) =>
+          p.artikelId == null ? [] : [[p.artikelId, Number(p.cenaKos)] as [number, number]],
+        ),
+      );
 
       const reversedArtikelIds = await appendStockMovementReversals(tx, {
         referenceId: id,
@@ -277,9 +591,13 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
         const steviloNajdeno = p.steviloNajdeno ?? 0;
         const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
         const razlika = steviloNajdeno - steviloPrejsnje;
-        const cenaKos = drobniInventarIds.has(p.artikelId)
-          ? 0
-          : zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCeneMap!.get(p.artikelId) ?? 0);
+        const cenaKos = resolveInventoryUnitPrice({
+          drobniInventar: drobniInventarIds.has(p.artikelId),
+          explicitPrice: p.cenaKos,
+          previousPrice: oldPricesByArticle.get(p.artikelId),
+          inventoryPrice: zalogaObDatumu.get(p.artikelId)?.cenaKos,
+          lastPurchasePrice: zadnjeCeneMap!.get(p.artikelId),
+        });
 
         await tx.insert(inventurePostavkeTable).values({
           inventuraId: id,
@@ -333,9 +651,11 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
         const steviloNajdeno = Number(p.steviloNajdeno);
         const steviloPrejsnje = zalogaObDatumu.get(p.artikelId)?.kolicina ?? 0;
         const razlika = steviloNajdeno - steviloPrejsnje;
-        const cenaKos = drobniIds.has(p.artikelId)
-          ? 0
-          : zalogaObDatumu.get(p.artikelId)?.cenaKos || Number(p.cenaKos);
+        const cenaKos = resolveInventoryUnitPrice({
+          drobniInventar: drobniIds.has(p.artikelId),
+          previousPrice: Number(p.cenaKos),
+          inventoryPrice: zalogaObDatumu.get(p.artikelId)?.cenaKos,
+        });
         await tx.update(inventurePostavkeTable).set({
           steviloPrejsnje: String(steviloPrejsnje),
           razlika: String(razlika),
@@ -385,6 +705,7 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
     stevilka: updated.stevilka,
     datum: updated.datum,
     opomba: updated.opomba,
+    documentPath: updated.documentPath,
     ustvarjeno: updated.ustvarjeno,
     postavke: postavke.map((p: any) => ({
       ...p,

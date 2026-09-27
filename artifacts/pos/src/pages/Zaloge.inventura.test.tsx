@@ -14,7 +14,7 @@
  */
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, screen, within } from "@testing-library/react";
+import { render, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import Zaloge from "./Zaloge";
@@ -28,9 +28,9 @@ const mockInventura = {
   steviloPostavk: 4,
 };
 const mockArtikli = [
-  { id: 101, ime: "Moka", imeZaNabavo: "Moka", enotaMere: "kg", nabavniArtikel: true, vNormativih: true, drobniInventar: false },
-  { id: 102, ime: "Kava", imeZaNabavo: "Kava", enotaMere: "kg", nabavniArtikel: true, vNormativih: false, drobniInventar: false },
-  { id: 103, ime: "Krožnik", imeZaNabavo: "Krožnik", enotaMere: "kos", nabavniArtikel: true, vNormativih: false, drobniInventar: true },
+  { id: 101, ime: "Moka", imeZaNabavo: "Moka", enotaMere: "kg", davek: 22, nabavniArtikel: true, vNormativih: true, drobniInventar: false },
+  { id: 102, ime: "Kava", imeZaNabavo: "Kava", enotaMere: "kg", davek: 5, nabavniArtikel: true, vNormativih: false, drobniInventar: false },
+  { id: 103, ime: "Krožnik", imeZaNabavo: "Krožnik", enotaMere: "kos", davek: 22, nabavniArtikel: true, vNormativih: false, drobniInventar: true },
 ];
 const mockZaloge = [
   { artikelId: 101, artikelIme: "Moka", imeZaNabavo: "Moka", kolicina: -2, zadnjaCena: 2, povprecnaCena: 2, skupnaVrednost: -4 },
@@ -42,6 +42,9 @@ const mockZaloge = [
 const mockDeleteMutate = vi.hoisted(() => vi.fn());
 const mockCreateInvMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
+const mockPosFetch = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/pos-auth-headers", () => ({ posFetch: mockPosFetch }));
 
 // ── Moki za @workspace/api-client-react ─────────────────────────────────────
 vi.mock("@workspace/api-client-react", () => ({
@@ -272,6 +275,15 @@ describe("Zaloge — brisanje inventure: potrditveni dialog", () => {
     expect(savedLines.map((line: { artikelId: number }) => line.artikelId)).not.toContain(103);
   });
 
+  it("vrstice vnosa uredi po stopnji DDV pred abecednim vrstnim redom", () => {
+    renderZaloge();
+    switchToInventure();
+    fireEvent.click(screen.getByRole("button", { name: "Nova inventura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vsi materiali" }));
+    const rows = within(screen.getByRole("dialog")).getAllByRole("row").map(row => row.textContent ?? "");
+    expect(rows.findIndex(row => row.includes("Kava"))).toBeLessThan(rows.findIndex(row => row.includes("Moka")));
+  });
+
   it("preklop kategorije inventure shrani samo izbrano kategorijo", () => {
     renderZaloge();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Inventure" }), { button: 0, ctrlKey: false });
@@ -283,5 +295,41 @@ describe("Zaloge — brisanje inventure: potrditveni dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /Potrdi inventuro/ }));
     const savedLines = mockCreateInvMutate.mock.calls[0][0].data.postavke;
     expect(savedLines).toEqual([expect.objectContaining({ artikelId: 103 })]);
+  });
+
+  it("OCR izpolni pregledno količino in ceno ter pripne dokument šele ob potrditvi", async () => {
+    mockPosFetch.mockReset()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        uploadURL: "https://storage.googleapis.com/upload-test",
+        objectPath: "/objects/uploads/12345678-1234-1234-1234-123456789abc",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        rows: [{ artikelId: 101, steviloNajdeno: 7, cenaKos: 9.5 }],
+        unmatched: ["nejasna vrstica"],
+        datum: "2025-06-17",
+        documentPath: "/objects/uploads/12345678-1234-1234-1234-123456789abc",
+      }), { status: 200 }));
+    const put = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", put);
+    try {
+      renderZaloge();
+      switchToInventure();
+      fireEvent.click(screen.getByRole("button", { name: "Nova inventura" }));
+      const file = new File(["%PDF-1.7"], "popis.pdf", { type: "application/pdf" });
+      fireEvent.change(screen.getByLabelText(/Naloži izpolnjen popisni list/), { target: { files: [file] } });
+      await waitFor(() => expect(screen.getByText(/Prepoznane postavke: 1/)).toBeInTheDocument());
+      expect(mockCreateInvMutate).not.toHaveBeenCalled();
+      expect(screen.getByText(/Ročno preverite: nejasna vrstica/)).toBeInTheDocument();
+      expect(put).toHaveBeenCalledWith("https://storage.googleapis.com/upload-test", expect.objectContaining({ method: "PUT", body: file }));
+      fireEvent.click(screen.getByRole("button", { name: /Potrdi inventuro/ }));
+      expect(mockCreateInvMutate).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          documentPath: "/objects/uploads/12345678-1234-1234-1234-123456789abc",
+          postavke: [{ artikelId: 101, steviloNajdeno: 7, cenaKos: 9.5 }],
+        }),
+      }), expect.any(Object));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

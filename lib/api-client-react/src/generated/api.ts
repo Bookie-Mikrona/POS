@@ -404,11 +404,15 @@ import type {
   RacunInput,
   RacunPlacilnaNacinInput,
   RacunUvozItem,
+  RecognizeInventorySheet200,
+  RecognizeInventorySheetBody,
   ReconcileOfflineFiscalReceiptBody,
   ReconcileZalogeResult,
   RegisterDocumentBody,
   RegistracijaProstoraOdgovor,
   RegistracijaProstoraTelo,
+  RequestInventoryUploadUrl200,
+  RequestInventoryUploadUrlBody,
   ResenStripePregledBona,
   ResiStripePregledBonaInput,
   ResolveUnknownVivaRefundBody,
@@ -19301,6 +19305,148 @@ export const useCreateInventura = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateInventuraMutationOptions(options));
+    }
+
+export const getRequestInventoryUploadUrlUrl = () => {
+
+
+
+
+  return `/api/inventure/upload-url`
+}
+
+/**
+ * @summary Zasebna povezava za nalaganje popisnega lista
+ */
+export const requestInventoryUploadUrl = async (requestInventoryUploadUrlBody: RequestInventoryUploadUrlBody, options?: RequestInit): Promise<RequestInventoryUploadUrl200> => {
+
+  return customFetch<RequestInventoryUploadUrl200>(getRequestInventoryUploadUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(requestInventoryUploadUrlBody)
+  }
+);}
+
+
+
+
+
+export const getRequestInventoryUploadUrlMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestInventoryUploadUrl>>, TError,{data: BodyType<RequestInventoryUploadUrlBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestInventoryUploadUrl>>, TError,{data: BodyType<RequestInventoryUploadUrlBody>}, TContext> => {
+
+const mutationKey = ['requestInventoryUploadUrl'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestInventoryUploadUrl>>, {data: BodyType<RequestInventoryUploadUrlBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestInventoryUploadUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestInventoryUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestInventoryUploadUrl>>>
+    export type RequestInventoryUploadUrlMutationBody = BodyType<RequestInventoryUploadUrlBody>
+    export type RequestInventoryUploadUrlMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Zasebna povezava za nalaganje popisnega lista
+ */
+export const useRequestInventoryUploadUrl = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestInventoryUploadUrl>>, TError,{data: BodyType<RequestInventoryUploadUrlBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestInventoryUploadUrl>>,
+        TError,
+        {data: BodyType<RequestInventoryUploadUrlBody>},
+        TContext
+      > => {
+      return useMutation(getRequestInventoryUploadUrlMutationOptions(options));
+    }
+
+export const getRecognizeInventorySheetUrl = () => {
+
+
+
+
+  return `/api/inventure/ocr`
+}
+
+/**
+ * @summary Preberi ročno izpolnjen popisni list
+ */
+export const recognizeInventorySheet = async (recognizeInventorySheetBody: RecognizeInventorySheetBody, options?: RequestInit): Promise<RecognizeInventorySheet200> => {
+
+  return customFetch<RecognizeInventorySheet200>(getRecognizeInventorySheetUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recognizeInventorySheetBody)
+  }
+);}
+
+
+
+
+
+export const getRecognizeInventorySheetMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recognizeInventorySheet>>, TError,{data: BodyType<RecognizeInventorySheetBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recognizeInventorySheet>>, TError,{data: BodyType<RecognizeInventorySheetBody>}, TContext> => {
+
+const mutationKey = ['recognizeInventorySheet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recognizeInventorySheet>>, {data: BodyType<RecognizeInventorySheetBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recognizeInventorySheet(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecognizeInventorySheetMutationResult = NonNullable<Awaited<ReturnType<typeof recognizeInventorySheet>>>
+    export type RecognizeInventorySheetMutationBody = BodyType<RecognizeInventorySheetBody>
+    export type RecognizeInventorySheetMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Preberi ročno izpolnjen popisni list
+ */
+export const useRecognizeInventorySheet = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recognizeInventorySheet>>, TError,{data: BodyType<RecognizeInventorySheetBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recognizeInventorySheet>>,
+        TError,
+        {data: BodyType<RecognizeInventorySheetBody>},
+        TContext
+      > => {
+      return useMutation(getRecognizeInventorySheetMutationOptions(options));
     }
 
 export const getListZacetneZalogeUrl = () => {

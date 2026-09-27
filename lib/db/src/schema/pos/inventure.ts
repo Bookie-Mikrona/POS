@@ -9,6 +9,7 @@ export const inventureTable = pgTable("inventure", {
   stevilka: text("stevilka"),
   datum: timestamp("datum").notNull().defaultNow(),
   opomba: text("opomba"),
+  documentPath: text("document_path"),
   ustvarjeno: timestamp("ustvarjeno").notNull().defaultNow(),
 });
 

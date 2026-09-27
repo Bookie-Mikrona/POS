@@ -415,6 +415,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["230-pos-small-equipment-no-valuation.sql"],
   },
+  {
+    file: "232-inventura-document-path.sql",
+    classification: "schema",
+    dependsOn: ["231-pos-drobni-inventar-predloge.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

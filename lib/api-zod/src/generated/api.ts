@@ -10038,6 +10038,7 @@ export const ListInventureResponseItem = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "documentPath": zod.string().nullish(),
   "ustvarjeno": zod.string(),
   "steviloPostavk": zod.number()
 })
@@ -10050,9 +10051,11 @@ export const ListInventureResponse = zod.array(ListInventureResponseItem)
 export const CreateInventuraBody = zod.object({
   "datum": zod.string().optional(),
   "opomba": zod.string().optional(),
+  "documentPath": zod.string().optional(),
   "postavke": zod.array(zod.object({
   "artikelId": zod.number(),
-  "steviloNajdeno": zod.number()
+  "steviloNajdeno": zod.number(),
+  "cenaKos": zod.number().optional()
 }))
 })
 
@@ -10061,6 +10064,7 @@ export const CreateInventuraResponse = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "documentPath": zod.string().nullish(),
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
   "id": zod.number(),
@@ -10073,6 +10077,41 @@ export const CreateInventuraResponse = zod.object({
   "razlika": zod.number(),
   "cenaKos": zod.number()
 }))
+})
+
+
+/**
+ * @summary Zasebna povezava za nalaganje popisnega lista
+ */
+export const RequestInventoryUploadUrlBody = zod.object({
+  "name": zod.string(),
+  "size": zod.number(),
+  "contentType": zod.enum(['application/pdf', 'image/jpeg', 'image/png'])
+})
+
+export const RequestInventoryUploadUrlResponse = zod.object({
+  "uploadURL": zod.string(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Preberi ročno izpolnjen popisni list
+ */
+export const RecognizeInventorySheetBody = zod.object({
+  "objectPath": zod.string(),
+  "scope": zod.enum(['material', 'drobni'])
+})
+
+export const RecognizeInventorySheetResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "artikelId": zod.number(),
+  "steviloNajdeno": zod.number().nullable(),
+  "cenaKos": zod.number().nullable()
+})),
+  "unmatched": zod.array(zod.string()),
+  "datum": zod.string().nullish(),
+  "documentPath": zod.string()
 })
 
 
@@ -10224,6 +10263,7 @@ export const GetInventuraResponse = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "documentPath": zod.string().nullish(),
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
   "id": zod.number(),
@@ -10251,7 +10291,8 @@ export const UpdateInventuraBody = zod.object({
   "opomba": zod.string().nullish(),
   "postavke": zod.array(zod.object({
   "artikelId": zod.number(),
-  "steviloNajdeno": zod.number()
+  "steviloNajdeno": zod.number(),
+  "cenaKos": zod.number().optional()
 })).optional()
 })
 
@@ -10260,6 +10301,7 @@ export const UpdateInventuraResponse = zod.object({
   "stevilka": zod.string().nullish(),
   "datum": zod.string(),
   "opomba": zod.string().nullish(),
+  "documentPath": zod.string().nullish(),
   "ustvarjeno": zod.string(),
   "postavke": zod.array(zod.object({
   "id": zod.number(),

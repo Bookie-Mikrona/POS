@@ -156,3 +156,4 @@
 - [Podizbire modifikatorjev](podizbire-modifikatorjev.md) — vsak prodajni artikel v normativu modifikatorja ima svoje enonivojske izbire; ni dodatna prodajna vrstica.
 - [Slovenska abeceda v seznamih](slovenska-abeceda.md) — abecedna imena uporabljajo slovensko primerjavo; ročni vrstni red kategorij ima prednost.
 - [Drobni inventar gostinstva](drobni-inventar-gostinstva.md) — kozarci in krožniki so ob nabavi strošek; inventure usklajujejo samo količine, brez novih temeljnic.
+- [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.

@@ -7084,6 +7084,7 @@ export interface PrejemnicaUrediVnos {
 export interface InventuraPostavkaInput {
   artikelId: number;
   steviloNajdeno: number;
+  cenaKos?: number;
 }
 
 export interface InventuraUrediVnos {
@@ -7295,6 +7296,8 @@ export interface InventuraGlava {
   datum: string;
   /** @nullable */
   opomba?: string | null;
+  /** @nullable */
+  documentPath?: string | null;
   ustvarjeno: string;
   steviloPostavk: number;
 }
@@ -7320,6 +7323,8 @@ export interface InventuraFull {
   datum: string;
   /** @nullable */
   opomba?: string | null;
+  /** @nullable */
+  documentPath?: string | null;
   ustvarjeno: string;
   postavke: InventuraPostavkaPogled[];
 }
@@ -7385,6 +7390,7 @@ export interface ZacetnaZalogaUrediVnos {
 export interface InventuraInput {
   datum?: string;
   opomba?: string;
+  documentPath?: string;
   postavke: InventuraPostavkaInput[];
 }
 
@@ -12164,6 +12170,55 @@ artikelId?: number;
 
 export type MatchImportedReceiptLine200 = {
   status?: 'UPARJENO';
+};
+
+export type RequestInventoryUploadUrlBodyContentType = typeof RequestInventoryUploadUrlBodyContentType[keyof typeof RequestInventoryUploadUrlBodyContentType];
+
+
+export const RequestInventoryUploadUrlBodyContentType = {
+  'application/pdf': 'application/pdf',
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+} as const;
+
+export type RequestInventoryUploadUrlBody = {
+  name: string;
+  size: number;
+  contentType: RequestInventoryUploadUrlBodyContentType;
+};
+
+export type RequestInventoryUploadUrl200 = {
+  uploadURL: string;
+  objectPath: string;
+};
+
+export type RecognizeInventorySheetBodyScope = typeof RecognizeInventorySheetBodyScope[keyof typeof RecognizeInventorySheetBodyScope];
+
+
+export const RecognizeInventorySheetBodyScope = {
+  material: 'material',
+  drobni: 'drobni',
+} as const;
+
+export type RecognizeInventorySheetBody = {
+  objectPath: string;
+  scope: RecognizeInventorySheetBodyScope;
+};
+
+export type RecognizeInventorySheet200RowsItem = {
+  artikelId: number;
+  /** @nullable */
+  steviloNajdeno: number | null;
+  /** @nullable */
+  cenaKos: number | null;
+};
+
+export type RecognizeInventorySheet200 = {
+  rows: RecognizeInventorySheet200RowsItem[];
+  unmatched: string[];
+  /** @nullable */
+  datum?: string | null;
+  documentPath: string;
 };
 
 export type CheckZacetnaZalogaLeto200 = {

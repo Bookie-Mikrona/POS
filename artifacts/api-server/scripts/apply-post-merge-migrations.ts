@@ -71,6 +71,7 @@ const migrations = [
   "221-public-voucher-stripe-connect.sql",
   "222-pos-individual-voucher-redemption-holds.sql",
   "223-company-offboarding-cases.sql",
+  "232-inventura-document-path.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");
