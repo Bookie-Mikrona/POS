@@ -98,6 +98,7 @@ import {
   validateGroupSourceLine,
 } from "@/lib/skupinski-nabavni-artikel";
 import { posFetch } from "@/lib/pos-auth-headers";
+import { downloadArtikelKatalogPdf, type ArtikelKatalogScope } from "@/lib/artikel-katalog-pdf";
 
 function AlergeniRowPopover({
   row,
@@ -3322,6 +3323,22 @@ export default function Zaloge() {
   );
 
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [katalogPdfLoading, setKatalogPdfLoading] = useState(false);
+  const downloadKatalogPdf = async (scope: Extract<ArtikelKatalogScope, "nabavni" | "drobni">) => {
+    setKatalogPdfLoading(true);
+    try {
+      await downloadArtikelKatalogPdf(scope);
+    } catch (error) {
+      toast({
+        title: "Napaka pri izvozu kataloga",
+        description: error instanceof Error ? error.message : "Kataloga PDF ni bilo mogoče ustvariti.",
+        variant: "destructive",
+      });
+    } finally {
+      setKatalogPdfLoading(false);
+    }
+  };
+
   const downloadPdf = async (kind: "stock" | "popis", scope: "material" | "drobni") => {
     setExportingPdf(true);
     try {
@@ -4077,7 +4094,7 @@ export default function Zaloge() {
           </Tabs>
           <div className="space-y-1.5">
             {/* Iskanje + admin gumb v eni vrstici */}
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <div className="relative min-w-0 flex-1 sm:max-w-sm">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Iskanje artiklov..." className="pl-8 pr-8" />
@@ -4112,6 +4129,18 @@ export default function Zaloge() {
               >
                 <Download className="w-4 h-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">PDF zalog</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void downloadKatalogPdf(stockScope === "material" ? "nabavni" : "drobni")}
+                disabled={katalogPdfLoading}
+                className="shrink-0"
+                title={stockScope === "material" ? "Prenesi nabavni katalog PDF" : "Prenesi katalog PDF drobnega inventarja"}
+                data-testid={stockScope === "material" ? "button-export-katalog-nabavni" : "button-export-katalog-drobni"}
+              >
+                <Download className="w-4 h-4 sm:mr-1.5" />
+                <span>{katalogPdfLoading ? "Izvažam..." : stockScope === "material" ? "Nabavni katalog PDF" : "Drobni katalog PDF"}</span>
               </Button>
             </div>
             {/* Namig — skrit na mobilnem kjer ni prostora */}

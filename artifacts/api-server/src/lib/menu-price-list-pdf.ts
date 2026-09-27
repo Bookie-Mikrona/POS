@@ -77,7 +77,7 @@ export interface MenuPriceListPdfData {
 const priceFormatter = new Intl.NumberFormat("sl-SI", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
-  useGrouping: "always",
+  useGrouping: true,
 });
 
 export function formatMenuPrice(value: string | number | null): string | null {

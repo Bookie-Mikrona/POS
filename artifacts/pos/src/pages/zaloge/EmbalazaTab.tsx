@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, ArrowRightLeft, Package, Search } from "lucide-react";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
+import { downloadArtikelKatalogPdf } from "@/lib/artikel-katalog-pdf";
 
 function getVrstaLabel(vrsta: string | null) {
   if (!vrsta) return "Neznano";
@@ -38,6 +39,23 @@ export function EmbalazaTab() {
   const [search, setSearch] = useState("");
   const [returnDialogState, setReturnDialogState] = useState<{ open: boolean; bilanca: EmbalazaBilanca | null }>({ open: false, bilanca: null });
   const [newDialogState, setNewDialogState] = useState(false);
+  const [katalogPdfLoading, setKatalogPdfLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleKatalogPdf = async () => {
+    setKatalogPdfLoading(true);
+    try {
+      await downloadArtikelKatalogPdf("embalaza");
+    } catch (error) {
+      toast({
+        title: "Napaka pri izvozu kataloga",
+        description: error instanceof Error ? error.message : "Kataloga PDF ni bilo mogoče ustvariti.",
+        variant: "destructive",
+      });
+    } finally {
+      setKatalogPdfLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!bilance) return [];
@@ -73,10 +91,16 @@ export function EmbalazaTab() {
             className="pl-8" 
           />
         </div>
-        <Button onClick={() => setNewDialogState(true)} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" />
-          Nova embalaža
-        </Button>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          <Button variant="outline" onClick={() => void handleKatalogPdf()} className="shrink-0" disabled={katalogPdfLoading} data-testid="button-export-katalog-embalaza">
+            {katalogPdfLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+            {katalogPdfLoading ? "Izvažam..." : "PDF katalog embalaže"}
+          </Button>
+          <Button onClick={() => setNewDialogState(true)} className="shrink-0">
+            <Plus className="mr-2 h-4 w-4" />
+            Nova embalaža
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

@@ -617,6 +617,50 @@ paths:
               schema:
                 type: string
                 format: binary
+  /artikli/izvozi-katalog.pdf:
+    get:
+      operationId: getArtikliKatalogPdf
+      tags:
+        - artikli
+      summary: Izvozi katalog artiklov izbrane poslovne enote v PDF
+      parameters:
+        - name: scope
+          in: query
+          required: true
+          description: Vrsta kataloga; izbira je določena s poslovnimi oznakami artikla.
+          schema:
+            type: string
+            enum: [nabavni, prodajni, polizdelki, drobni, embalaza]
+      responses:
+        "200":
+          description: PDF katalog artiklov poslovne enote
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "400":
+          description: Neveljaven ali manjkajoč obseg kataloga
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Izvoz kataloga ni uspel
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
   /artikli/reorder:
     patch:
       operationId: reorderArtikli

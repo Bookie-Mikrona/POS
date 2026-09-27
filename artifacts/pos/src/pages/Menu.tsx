@@ -54,6 +54,7 @@ import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldVa
 import { ToGoArticlePicker } from "@/components/ToGoArticlePicker";
 import { sortMenuArticles } from "@/lib/article-menu-sort";
 import { DROBNI_INVENTAR_SKUPINE, drobniInventarSkupina, sortDrobniInventar } from "@/lib/drobni-inventar-groups";
+import { downloadArtikelKatalogPdf, type ArtikelKatalogScope } from "@/lib/artikel-katalog-pdf";
 
 import { type NormativItem } from "@/lib/kopiraj-normativ";
 type PizzaDoughSelection = { normalna: number; mala: number };
@@ -442,6 +443,7 @@ export default function Menu() {
   // ── Excel izvoz ────────────────────────────────────────────────
   const [izvozLoading, setIzvozLoading] = useState(false);
   const [cenikPdfLoading, setCenikPdfLoading] = useState(false);
+  const [katalogPdfLoading, setKatalogPdfLoading] = useState(false);
 
   const handleIzvozi = async () => {
     setIzvozLoading(true);
@@ -494,6 +496,21 @@ export default function Menu() {
       toast({ title: "Napaka pri izvozu cenika", description, variant: "destructive" });
     } finally {
       setCenikPdfLoading(false);
+    }
+  };
+
+  const handleKatalogPdf = async (scope: Extract<ArtikelKatalogScope, "prodajni" | "polizdelki">) => {
+    setKatalogPdfLoading(true);
+    try {
+      await downloadArtikelKatalogPdf(scope);
+    } catch (error) {
+      toast({
+        title: "Napaka pri izvozu kataloga",
+        description: error instanceof Error ? error.message : "Kataloga PDF ni bilo mogoče ustvariti.",
+        variant: "destructive",
+      });
+    } finally {
+      setKatalogPdfLoading(false);
     }
   };
 
@@ -1872,6 +1889,32 @@ export default function Menu() {
                   </div>
                 )}
               </div>
+               <div className="flex flex-wrap items-center justify-end gap-1.5">
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   className="h-7 px-2 text-[10px] sm:text-xs"
+                   aria-label="Izvozi PDF prodajni katalog"
+                   data-testid="button-export-katalog-prodajni"
+                   onClick={() => void handleKatalogPdf("prodajni")}
+                   disabled={katalogPdfLoading}
+                 >
+                   <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                   {katalogPdfLoading ? "Izvažam..." : "PDF prodajni katalog"}
+                 </Button>
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   className="h-7 px-2 text-[10px] sm:text-xs"
+                   aria-label="Izvozi PDF katalog polizdelkov"
+                   data-testid="button-export-katalog-polizdelki"
+                   onClick={() => void handleKatalogPdf("polizdelki")}
+                   disabled={katalogPdfLoading}
+                 >
+                   <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                   {katalogPdfLoading ? "Izvažam..." : "PDF katalog polizdelkov"}
+                 </Button>
+               </div>
               <div className="flex flex-col sm:flex-row gap-1.5">
                  <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 rounded-lg border-2 border-primary/30 bg-background p-1 shadow-sm shrink-0">
                   {(["vsi", "prodajni", "nabavni", "drobni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (

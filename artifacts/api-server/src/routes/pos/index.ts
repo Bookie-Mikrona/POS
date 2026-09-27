@@ -80,6 +80,7 @@ import multicourseMenuRouter from "./multicourse-menu";
 import embalazaRouter from "./embalaza";
 import maliceRouter from "./malice";
 import dailyLunchRouter from "./daily-lunch";
+import articleCatalogExportRouter from "./article-catalog-export";
 
 const router: IRouter = Router();
 
@@ -370,6 +371,7 @@ for (const [method, path] of actorRequiredPosRoutes) {
  * obiti preverjanja preslikave v zmožnost.
  */
 export const protectedPosRouterMounts: ProtectedPosRouterMount[] = [
+  { prefix: "", childRouter: articleCatalogExportRouter },
   { prefix: "", childRouter: kategorijeRouter },
   { prefix: "", childRouter: artikliRouter },
   { prefix: "", childRouter: mizeRouter },

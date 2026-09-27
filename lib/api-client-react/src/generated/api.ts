@@ -124,6 +124,9 @@ import type {
   GetAdminEventTransferDiagnosticsParams,
   GetAgedAnalysisParams,
   GetArtikelVNormativi200Item,
+  GetArtikliKatalogPdf400,
+  GetArtikliKatalogPdf500,
+  GetArtikliKatalogPdfParams,
   GetBalanceSheetParams,
   GetDnevnaKosilaObdobjeParams,
   GetDostavaPredogledParams,
@@ -3257,6 +3260,90 @@ export function useGetArtikliCenikPdf<TData = Awaited<ReturnType<typeof getArtik
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetArtikliCenikPdfQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetArtikliKatalogPdfUrl = (params: GetArtikliKatalogPdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/artikli/izvozi-katalog.pdf?${stringifiedParams}` : `/api/artikli/izvozi-katalog.pdf`
+}
+
+/**
+ * @summary Izvozi katalog artiklov izbrane poslovne enote v PDF
+ */
+export const getArtikliKatalogPdf = async (params: GetArtikliKatalogPdfParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetArtikliKatalogPdfUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetArtikliKatalogPdfQueryKey = (params?: GetArtikliKatalogPdfParams,) => {
+    return [
+    `/api/artikli/izvozi-katalog.pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetArtikliKatalogPdfQueryOptions = <TData = Awaited<ReturnType<typeof getArtikliKatalogPdf>>, TError = ErrorType<GetArtikliKatalogPdf400 | UnauthorizedResponse | ForbiddenResponse | GetArtikliKatalogPdf500>>(params: GetArtikliKatalogPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArtikliKatalogPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetArtikliKatalogPdfQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getArtikliKatalogPdf>>> = ({ signal }) => getArtikliKatalogPdf(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getArtikliKatalogPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetArtikliKatalogPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getArtikliKatalogPdf>>>
+export type GetArtikliKatalogPdfQueryError = ErrorType<GetArtikliKatalogPdf400 | UnauthorizedResponse | ForbiddenResponse | GetArtikliKatalogPdf500>
+
+
+/**
+ * @summary Izvozi katalog artiklov izbrane poslovne enote v PDF
+ */
+
+export function useGetArtikliKatalogPdf<TData = Awaited<ReturnType<typeof getArtikliKatalogPdf>>, TError = ErrorType<GetArtikliKatalogPdf400 | UnauthorizedResponse | ForbiddenResponse | GetArtikliKatalogPdf500>>(
+ params: GetArtikliKatalogPdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArtikliKatalogPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetArtikliKatalogPdfQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

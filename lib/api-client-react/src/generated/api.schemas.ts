@@ -11678,6 +11678,32 @@ export type UvozArtiklovCsv400 = {
   napaka: string;
 };
 
+export type GetArtikliKatalogPdfParams = {
+/**
+ * Vrsta kataloga; izbira je določena s poslovnimi oznakami artikla.
+ */
+scope: GetArtikliKatalogPdfScope;
+};
+
+export type GetArtikliKatalogPdfScope = typeof GetArtikliKatalogPdfScope[keyof typeof GetArtikliKatalogPdfScope];
+
+
+export const GetArtikliKatalogPdfScope = {
+  nabavni: 'nabavni',
+  prodajni: 'prodajni',
+  polizdelki: 'polizdelki',
+  drobni: 'drobni',
+  embalaza: 'embalaza',
+} as const;
+
+export type GetArtikliKatalogPdf400 = {
+  error: string;
+};
+
+export type GetArtikliKatalogPdf500 = {
+  error: string;
+};
+
 export type UploadArtikelImageBody = {
   /** Slika JPEG, PNG ali WebP, največ 8 MB */
   file: Blob;

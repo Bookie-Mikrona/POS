@@ -1155,6 +1155,16 @@ export const GetArtikliCenikPdfResponse = zod.unknown()
 
 
 /**
+ * @summary Izvozi katalog artiklov izbrane poslovne enote v PDF
+ */
+export const GetArtikliKatalogPdfQueryParams = zod.object({
+  "scope": zod.enum(['nabavni', 'prodajni', 'polizdelki', 'drobni', 'embalaza']).describe('Vrsta kataloga; izbira je določena s poslovnimi oznakami artikla.')
+})
+
+export const GetArtikliKatalogPdfResponse = zod.unknown()
+
+
+/**
  * @summary Posodobi vrstni red artiklov
  */
 export const ReorderArtikliBodyItem = zod.object({
