@@ -47,7 +47,8 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   const { data: skupineList, isLoading } = useListModSkupine();
   const { data: vsiArtikli } = useListArtikli();
   const nabavniArtikli = (vsiArtikli ?? []).filter(a => a.nabavniArtikel);
-  const polizdelki = (vsiArtikli ?? []).filter(a => !a.nabavniArtikel && canUseAsModifierNormativInput(a));
+  const polizdelki = (vsiArtikli ?? []).filter(a => !a.nabavniArtikel && !a.prodajniArtikel && canUseAsModifierNormativInput(a));
+  const prodajniArtikli = (vsiArtikli ?? []).filter(a => !a.nabavniArtikel && a.prodajniArtikel && canUseAsModifierNormativInput(a));
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const { data: expandedSkupina, isLoading: loadingExpanded } = useGetModSkupina(expandedId ?? 0);
@@ -452,7 +453,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
             </div>
 
             {/* ── Normativ ── */}
-            {(nabavniArtikli.length > 0 || polizdelki.length > 0) && (
+            {(nabavniArtikli.length > 0 || polizdelki.length > 0 || prodajniArtikli.length > 0) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Normativ (sestavnice)</Label>
@@ -482,6 +483,13 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                           {polizdelki.length > 0 && (
                             <optgroup label="Polizdelki">
                               {polizdelki.map(a => (
+                                <option key={a.id} value={a.id}>{a.ime}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {prodajniArtikli.length > 0 && (
+                            <optgroup label="Prodajni artikli">
+                              {prodajniArtikli.map(a => (
                                 <option key={a.id} value={a.id}>{a.ime}</option>
                               ))}
                             </optgroup>

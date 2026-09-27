@@ -33,6 +33,12 @@ Razpoložljivost je v POS/QR prikazana na prodajni kartici artikla kot število 
 
 **How to apply:** Število porcij modifikatorja računaj iz njegovih normativnih pripravljenih sestavin na istem stanju kot strežniško preverjanje. Pri kombinacijah in sočasnih naročilih ostane končna odločitev atomsko preverjanje ob shranitvi.
 
+V normativu modifikatorja so kot vhodni artikli primerni tudi prodajni à la carte in pripravljeni artikli, ne pa sestavljeni prodajni artikli brez dodatne podpore za razčlenitev porabe.
+
+**Why:** Modifikatorjev tok zaloge neposredno razknjiži izbrani vhodni artikel. Pri sestavljenem artiklu bi to lahko odštelo njegov ID namesto dejanskih sestavin, prikaz razpoložljivosti pa bi gledal njegove pripravljene komponente.
+
+**How to apply:** Prodajne artikle v izbirniku prikaži ločeno od nabavnih in polizdelkov; pred vključitvijo sestavljenih artiklov uskladi razknjiženje, razpoložljivost in ovrednotenje na strežniku.
+
 `prepared` opisuje način količinske evidence, ne poslovne vloge artikla. Pripravljena jed je lahko končna prodajna jed ali neprodajni polizdelek.
 
 **Why:** Sam tip `prepared` ne loči ciganskega golaža, ki se lahko neposredno prodaja, od esence ali štruklja, ki sta le komponenti druge jedi.

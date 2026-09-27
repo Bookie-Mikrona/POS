@@ -27,10 +27,11 @@ export function canOfferSmartNormativ(article: NormativArticleCandidate): boolea
 
 export function canUseAsModifierNormativInput(article: NormativArticleCandidate): boolean {
   return article.nabavniArtikel === true
-    || (article.nabavniArtikel === false
-      && article.prodajniArtikel === false
-      && article.taxCategory === "food"
-      && (article.mealType === "ala_carte" || article.mealType === "prepared"));
+    || ((article.mealType === "ala_carte" || article.mealType === "prepared")
+      && (article.prodajniArtikel === true
+        || (article.nabavniArtikel === false
+          && article.prodajniArtikel === false
+          && article.taxCategory === "food")));
 }
 
 export function canUseAsNormativInput(

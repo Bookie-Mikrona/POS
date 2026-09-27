@@ -33,14 +33,17 @@ describe("upravičenost za urejanje normativa", () => {
     expect(canOfferSmartNormativ({ ...intermediate, prodajniArtikel: true })).toBe(true);
   });
 
-  it("modifikatorju dovoli nabavne artikle in oba tipa živilskih polizdelkov", () => {
+  it("modifikatorju dovoli nabavne, živilske polizdelke in prodajne à la carte/pripravljene artikle", () => {
     const intermediate = { mealType: "ala_carte", taxCategory: "food", prodajniArtikel: false, nabavniArtikel: false };
     expect(canUseAsModifierNormativInput({ nabavniArtikel: true })).toBe(true);
     expect(canUseAsModifierNormativInput(intermediate)).toBe(true);
     expect(canUseAsModifierNormativInput({ ...intermediate, mealType: "prepared" })).toBe(true);
-    expect(canUseAsModifierNormativInput({ ...intermediate, prodajniArtikel: true })).toBe(false);
+    expect(canUseAsModifierNormativInput({ ...intermediate, prodajniArtikel: true })).toBe(true);
+    expect(canUseAsModifierNormativInput({ ...intermediate, mealType: "prepared", prodajniArtikel: true })).toBe(true);
+    expect(canUseAsModifierNormativInput({ ...intermediate, taxCategory: "other", prodajniArtikel: true })).toBe(true);
     expect(canUseAsModifierNormativInput({ ...intermediate, taxCategory: "other" })).toBe(false);
     expect(canUseAsModifierNormativInput({ ...intermediate, mealType: "composite" })).toBe(false);
+    expect(canUseAsModifierNormativInput({ ...intermediate, mealType: "composite", prodajniArtikel: true })).toBe(false);
   });
 
   it("pripravljeni artikel sprejme nabavne in druge pripravljene vhode, ne pa samega sebe", () => {
