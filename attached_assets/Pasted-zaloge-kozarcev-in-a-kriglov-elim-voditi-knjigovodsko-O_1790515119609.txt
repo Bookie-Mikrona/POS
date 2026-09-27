@@ -1,0 +1,63 @@
+zaloge kozarcev in čaš, kriglov želim voditi knjigovodsko Odpis 100% ob predaji v uporabo oziroma ob nabavi (torej direktno na konto 4). Količinske zaloge pa želim voditi na način inventura 1.1,, nato vse nabave med letom in inventura kadarkoli med letom, kjer se ažurirajo količinske zaloge kozarcev. Torej je knjigovodski zapis samo ob nabavah, ko gredo vsi kozarci dejansko takoj na štirico drobnega inventarja, količinsko pa na zalogo?
+
+To je najbolj razširjen, praktičen in povsem zakonit model vodenja drobnega inventarja (kozarcev, čaš, kriglov, krožnikov in pribora) v gostinstvu.
+
+S tem modelom se izognete nepotrebnemu pisanju posamičnih zapisnikov o lomu za vsak razbit kozarec med letom, hkrati pa ohranite popoln nadzor nad količinskim stanjem in davčno neoporečnost.
+
+Tukaj je natančen prikaz, kako ta model deluje v finančnem in materialnem knjigovodstvu:
+
+1. Finančno knjigovodstvo (Konto 4)
+Ob vsakem prejetem računu dobavitelja za kozarce se celotna nabavna vrednost računovodsko takoj prenese v stroške obdobja:
+
+Prejeti račun (Ob nabavi):
+
+Konto 404 (Stroški drobnega inventarja) | DEBET (Neto nabavna vrednost)
+
+Konto 160 (Vstopni DDV) | DEBET (22% DDV)
+
+Konto 220 (Obveznosti do dobaviteljev) | KREDIT (Skupni znesek z DDV)
+
+Rezultat: V bilanci nimate zalog drobnega inventarja na skupini 3, saj je bil strošek v celoti pripoznan ob nabavi. Finančnih temeljnic med letom za lom ali odpis ni treba delati.
+
+2. Materialno / Količinsko vodenje (V vašem POS/ERP programu)
+Količinsko vodenje v programu poteka ločeno od finančnih kontov:
+
+Začetno stanje (1. 1.):
+V sistem vnesete dejansko prešteto količino kozarcev po vrstah (npr. Čaša za pivo 0,5L: 120 kos, Kozarec za vino 0,2L: 80 kos).
+
+Nabave med letom:
+Vsako novo nabavo vnesete v materialno skladišče drobnega inventarja. Količinska zaloga v programu se poveča.
+
+Popis / Inventura med letom (ali ob koncu leta):
+
+V programu odprete Inventurni list drobnega inventarja.
+
+Preštejete dejansko stanje v lokalu in skladišču ter ga vnesete v program.
+
+Razlika med knjižnim stanjem (Začetno stanje + Nabave) in dejanskim stanjem je vaš dejanski lom / odpis.
+
+Ob potrditvi inventure program avtomatsko posodobi (ažurira) količinsko zalogo na dejansko prešteto stanje.
+
+3. Davčni in inšpekcijski vidik (Kako pokriti lom ob inventuri?)
+Ker ste vse kozarce ob nabavi že dali v strošek (100-% odpis), ugotovljeni primanjkljaj ob inventuri (lom) ne zahteva dodatnega finančnega knjiženja na kontu 404, morate pa imeti ustrezno kritje za FURS:
+
+Zapisnik o popisu drobnega inventarja: Ob vsaki inventuri natisnete popisni list in sestavite kratek zapisnik komisije.
+
+Preveritev stopnje loma: Ugotovljeni lom primerjate s prometa/obsehom poslovanja. Če je lom v okviru običajnih stopenj v gostinstvu (običajno do 3–5% letnega obrata drobnega inventarja ali glede na promet pijač), je strošek na kontu 404 v celoti davčno priznan in od loma ni treba obračunati ali popravljati DDV.
+
+Presežni lom: Samo v primeru, da bi bil lom neobičajno visok (npr. kraja ali uničenje celotne zaloge brez dokazil), bi računovodstvo moralo od presežnega dela obračunati DDV.
+
+Povzetek nastavitev v šifrantu artiklov
+Za ta model v vašem gostinskem/ERP programu nastavite:
+
+Artikel (npr. Kozarec pivo 0,5L):
+
+Vrsta artikla: Drobni inventar / Material (ne-prodajni)
+
+Količinsko vođenje zaloge: DA
+
+Samodejni razknjižek ob nabavi na konto: Konto 404 (100-% odpis)
+
+S tem imate v vsakem trenutku točen podatek o tem, koliko kozarcev bi moralo biti v lokalu, ob popisih pa brez administrativnega zapletanja posodobite stanje na realno sliko.
+
+
