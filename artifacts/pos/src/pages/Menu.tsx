@@ -1523,20 +1523,34 @@ export default function Menu() {
         operation,
         has_recipe: normativItems.some(item => item.vhodniArtikelId > 0),
       });
+      const refreshAndClose = async (modifierLinkSaved: boolean) => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() }),
+          queryClient.invalidateQueries({ queryKey: getGetArtikelNormativiQueryKey(artikelId) }),
+          queryClient.invalidateQueries({ queryKey: getGetArtikelAlergeniNormativQueryKey(artikelId) }),
+          ...(artProdajniArtikel
+            ? [queryClient.invalidateQueries({ queryKey: getGetArtikelModSkupineQueryKey(artikelId) })]
+            : []),
+        ]);
+        setNormativNapaka(null);
+        setNormativStale(false);
+        setArtDialogOpen(false);
+        toast({
+          title: modifierLinkSaved ? label : "Artikel shranjen, modifikatorji pa ne",
+          ...(modifierLinkSaved ? {} : { variant: "destructive" as const }),
+        });
+      };
       if (artProdajniArtikel) {
         setArtikelModSkupineMutation.mutate(
           { id: artikelId, data: { skupineIds: artModSkupineIds } },
-          { onError: () => toast({ title: "Napaka pri shranjevanju modifikatorjev", variant: "destructive" }) }
+          {
+            onSuccess: () => { void refreshAndClose(true); },
+            onError: () => { void refreshAndClose(false); },
+          },
         );
-        queryClient.invalidateQueries({ queryKey: getGetArtikelModSkupineQueryKey(artikelId) });
+      } else {
+        void refreshAndClose(true);
       }
-      queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetArtikelNormativiQueryKey(artikelId) });
-      queryClient.invalidateQueries({ queryKey: getGetArtikelAlergeniNormativQueryKey(artikelId) });
-      setNormativNapaka(null);
-      setNormativStale(false);
-      setArtDialogOpen(false);
-      toast({ title: label });
     };
 
     const showNormativSaveError = (err: unknown, articleAlreadySaved: boolean) => {

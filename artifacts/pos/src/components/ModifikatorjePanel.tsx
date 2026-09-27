@@ -21,6 +21,7 @@ import {
   useGetModifikatorNormativi,
   useSetModifikatorNormativi,
   useListArtikli,
+  getListArtikliQueryKey,
   getListModSkupineQueryKey,
   getGetModSkupinaQueryKey,
   getGetModifikatorNormativiQueryKey,
@@ -90,6 +91,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   const setNormativi = useSetModifikatorNormativi();
 
   const invalidateSkupine = (skupinaId?: number) => {
+    qc.invalidateQueries({ queryKey: getListArtikliQueryKey() });
     qc.invalidateQueries({ queryKey: getListModSkupineQueryKey() });
     qc.refetchQueries({ queryKey: getListModSkupineQueryKey() });
     if (skupinaId != null) {
@@ -189,6 +191,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
     if (modMode === "uredi" && editingMod) {
       updateMod.mutate({ id: editingMod.id, data }, {
         onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListArtikliQueryKey() });
           if (modSkupinaId) qc.invalidateQueries({ queryKey: getGetModSkupinaQueryKey(modSkupinaId) });
           saveNormativiForMod(editingMod.id, () => {
             setModDialogOpen(false);
@@ -200,6 +203,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
     } else if (modSkupinaId) {
       addMod.mutate({ id: modSkupinaId, data }, {
         onSuccess: (newMod) => {
+          qc.invalidateQueries({ queryKey: getListArtikliQueryKey() });
           qc.invalidateQueries({ queryKey: getGetModSkupinaQueryKey(modSkupinaId) });
           saveNormativiForMod(newMod.id, () => {
             setModDialogOpen(false);
@@ -214,6 +218,7 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   const handleDeleteMod = (m: Modifikator) => {
     deleteMod.mutate({ id: m.id }, {
       onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListArtikliQueryKey() });
         qc.invalidateQueries({ queryKey: getGetModSkupinaQueryKey(m.skupinaId) });
         toast({ title: "Modifikator izbrisan" });
       },

@@ -32,6 +32,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useDeleteModifikator: () => ({ mutate: vi.fn() }),
   useSetModifikatorNormativi: () => ({ mutate: saveNormativi, isPending: false }),
   getListModSkupineQueryKey: () => ["mod-skupine"],
+  getListArtikliQueryKey: () => ["/api/artikli"],
   getGetModSkupinaQueryKey: (id: number) => ["mod-skupina", id],
   getGetModifikatorNormativiQueryKey: (id: number) => ["mod-normativi", id],
 }));
@@ -39,8 +40,10 @@ vi.mock("@workspace/api-client-react", () => ({
 describe("normativ modifikatorja", () => {
   it("ponudi prodajne artikle ločeno in shrani izbrano pripravljeno jed", () => {
     saveNormativi.mockClear();
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={client}>
         <ModifikatorjePanel jeUporabnik={false} />
       </QueryClientProvider>,
     );
@@ -64,6 +67,7 @@ describe("normativ modifikatorja", () => {
     fireEvent.change(quantity, { target: { value: "1" } });
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Dodaj modifikator" }));
 
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["/api/artikli"] });
     expect(saveNormativi).toHaveBeenCalledWith(
       { id: 22, data: { normativi: [{ vhodniArtikelId: 13, kolicina: 1 }] } },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
