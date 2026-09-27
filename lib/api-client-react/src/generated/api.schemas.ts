@@ -1558,6 +1558,33 @@ export const ArtikelTaxCategory = {
   other: 'other',
 } as const;
 
+export interface ModifikatorNested {
+  id: number;
+  skupinaId: number;
+  ime: string;
+  cenaDodatek: number;
+  aktiven: boolean;
+  vrstniRed: number;
+}
+
+export interface ModSkupinaNestedFull {
+  id: number;
+  ime: string;
+  obvezna: boolean;
+  minIzbir: number;
+  maxIzbir: number;
+  vrstniRed: number;
+  modifikatorji: ModifikatorNested[];
+}
+
+export interface ModifikatorVhodniArtikel {
+  normativId: number;
+  artikelId: number;
+  ime: string;
+  kolicina: number;
+  modSkupine: ModSkupinaNestedFull[];
+}
+
 export interface Modifikator {
   id: number;
   skupinaId: number;
@@ -1565,6 +1592,8 @@ export interface Modifikator {
   cenaDodatek: number;
   aktiven: boolean;
   vrstniRed: number;
+  /** Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami. */
+  vhodniArtikli?: ModifikatorVhodniArtikel[];
 }
 
 export interface ModSkupinaFull {
@@ -1735,7 +1764,7 @@ export interface Artikel {
   isMulticourseMenu?: boolean;
   /** Ali je artikel sestavina vsaj enega normativa */
   vNormativih?: boolean;
-  /** Modifikatorske skupine prirejene artiklu */
+  /** Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa. */
   modSkupine?: ModSkupinaFull[];
 }
 
@@ -2781,6 +2810,11 @@ export const PostavkaStatusPotrditve = {
   potrjeno: 'potrjeno',
 } as const;
 
+export interface ModifikatorPodIzbira {
+  normativId: number;
+  modifikatorji: number[];
+}
+
 export interface Postavka {
   id: number;
   artikelId: number;
@@ -2843,6 +2877,18 @@ export interface Postavka {
      */
   modifikatorId?: number | null;
   /**
+     * Modifikator, kateremu pripada enonivojska podizbira.
+     * @nullable
+     */
+  izvorniModifikatorId?: number | null;
+  /**
+     * Vrstica normativa, iz katere izvira podizbira.
+     * @nullable
+     */
+  izvorniNormativId?: number | null;
+  /** Shranjene enonivojske podizbire na neposredni vrstici modifikatorja. */
+  podIzbire?: ModifikatorPodIzbira[];
+  /**
      * Izbrana velikost pice, zamrznjena ob dodajanju postavke.
      * @nullable
      */
@@ -2883,6 +2929,8 @@ export interface IzbraniModifikator {
   modifikatorId: number;
   ime: string;
   cenaDodatek: number;
+  /** Enonivojske izbire po vhodnem artiklu normativa tega modifikatorja. */
+  podIzbire?: ModifikatorPodIzbira[];
 }
 
 export interface PostavkaInput {
@@ -7950,6 +7998,7 @@ export interface ModNormativiPayload {
 
 export type DodajModifikatorjeInputModifikatorjiItem = {
   modifikatorId: number;
+  podIzbire?: ModifikatorPodIzbira[];
 };
 
 export interface DodajModifikatorjeInput {

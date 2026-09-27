@@ -894,9 +894,31 @@ export const ListArtikliResponseItem = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
 }))
-})).optional().describe('Modifikatorske skupine prirejene artiklu')
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
+}))
+})).optional().describe('Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.')
 })
 export const ListArtikliResponse = zod.array(ListArtikliResponseItem)
 
@@ -1073,9 +1095,31 @@ export const CreateArtikelResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
 }))
-})).optional().describe('Modifikatorske skupine prirejene artiklu')
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
+}))
+})).optional().describe('Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.')
 })
 
 
@@ -1226,9 +1270,31 @@ export const GenerateArtikelImageResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
 }))
-})).optional().describe('Modifikatorske skupine prirejene artiklu')
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
+}))
+})).optional().describe('Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.')
 })
 
 
@@ -1328,9 +1394,31 @@ export const UploadArtikelImageResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
 }))
-})).optional().describe('Modifikatorske skupine prirejene artiklu')
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
+}))
+})).optional().describe('Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.')
 })
 
 
@@ -1423,9 +1511,31 @@ export const GetArtikelResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
 }))
-})).optional().describe('Modifikatorske skupine prirejene artiklu')
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
+}))
+})).optional().describe('Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.')
 })
 
 
@@ -1606,9 +1716,31 @@ export const UpdateArtikelResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
 }))
-})).optional().describe('Modifikatorske skupine prirejene artiklu')
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
+}))
+})).optional().describe('Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.')
 })
 
 
@@ -1842,7 +1974,29 @@ export const GetModSkupinaResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
+}))
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
 }))
 })
 
@@ -1908,7 +2062,29 @@ export const AddModifikatorResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
+}))
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
 })
 
 
@@ -1935,7 +2111,29 @@ export const UpdateModifikatorResponse = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
+}))
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
 })
 
 
@@ -2002,7 +2200,29 @@ export const GetArtikelModSkupineResponseItem = zod.object({
   "ime": zod.string(),
   "cenaDodatek": zod.number(),
   "aktiven": zod.boolean(),
+  "vrstniRed": zod.number(),
+  "vhodniArtikli": zod.array(zod.object({
+  "normativId": zod.number(),
+  "artikelId": zod.number(),
+  "ime": zod.string(),
+  "kolicina": zod.number(),
+  "modSkupine": zod.array(zod.object({
+  "id": zod.number(),
+  "ime": zod.string(),
+  "obvezna": zod.boolean(),
+  "minIzbir": zod.number(),
+  "maxIzbir": zod.number(),
+  "vrstniRed": zod.number(),
+  "modifikatorji": zod.array(zod.object({
+  "id": zod.number(),
+  "skupinaId": zod.number(),
+  "ime": zod.string(),
+  "cenaDodatek": zod.number(),
+  "aktiven": zod.boolean(),
   "vrstniRed": zod.number()
+}))
+}))
+})).optional().describe('Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.')
 }))
 })
 export const GetArtikelModSkupineResponse = zod.array(GetArtikelModSkupineResponseItem)
@@ -3482,6 +3702,12 @@ export const ListNarocilaResponseItem = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -3603,6 +3829,12 @@ export const CreateNarociloResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -3699,6 +3931,12 @@ export const ListAktivnaNarocilaResponseItem = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -3913,6 +4151,12 @@ export const GetNarociloResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -4034,6 +4278,12 @@ export const UpdateNarociloResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -4145,6 +4395,12 @@ export const SpojiNarociliResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -4272,6 +4528,12 @@ export const AddMalicaToOrderResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5211,7 +5473,11 @@ export const AddPostavkaBody = zod.object({
   "izbranModifikatorji": zod.array(zod.object({
   "modifikatorId": zod.number(),
   "ime": zod.string(),
-  "cenaDodatek": zod.number()
+  "cenaDodatek": zod.number(),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Enonivojske izbire po vhodnem artiklu normativa tega modifikatorja.')
 })).optional().describe('Izbrani modifikatorji za to postavko (vstavljeni kot otroške postavke)'),
   "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional().describe('Izbrana velikost pice; strežnik iz nje izpelje faktor normativa.'),
   "toGo": zod.boolean().optional().describe('Ali naj bo ta postavka pripravljena za s seboj')
@@ -5283,6 +5549,12 @@ export const AddPostavkaResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5412,6 +5684,12 @@ export const AddMulticourseMenuResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5521,6 +5799,12 @@ export const UpdatePostavkaKolicinaResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5622,6 +5906,12 @@ export const RemovePostavkaResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5677,7 +5967,11 @@ export const AddPostavkaModifikatorjiParams = zod.object({
 
 export const AddPostavkaModifikatorjiBody = zod.object({
   "modifikatorji": zod.array(zod.object({
-  "modifikatorId": zod.number()
+  "modifikatorId": zod.number(),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional()
 })),
   "skupineIds": zod.array(zod.number()).optional().describe('Eksplicitni seznam skupin, za katere se izvede replace (tudi brisanje). Ce ni podan, se skupinaIds izpeljejo iz modifikatorji.')
 })
@@ -5748,6 +6042,12 @@ export const AddPostavkaModifikatorjiResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "izvorniModifikatorId": zod.number().nullish().describe('Modifikator, kateremu pripada enonivojska podizbira.'),
+  "izvorniNormativId": zod.number().nullish().describe('Vrstica normativa, iz katere izvira podizbira.'),
+  "podIzbire": zod.array(zod.object({
+  "normativId": zod.number(),
+  "modifikatorji": zod.array(zod.number())
+})).optional().describe('Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),

@@ -283,7 +283,7 @@ async function preveriCenePic(
   return null;
 }
 
-async function fetchModSkupineForArtikli(artikelIds: number[]) {
+async function fetchModSkupineForArtikli(artikelIds: number[], enotaId: number) {
   if (artikelIds.length === 0) return new Map<number, ReturnType<typeof mapRow>["modSkupine"]>();
 
   const rows = await db
@@ -304,7 +304,10 @@ async function fetchModSkupineForArtikli(artikelIds: number[]) {
     .from(artModSkupineTable)
     .innerJoin(modSkupineTable, eq(artModSkupineTable.skupinaId, modSkupineTable.id))
     .leftJoin(modifikatorjiTable, eq(modifikatorjiTable.skupinaId, modSkupineTable.id))
-    .where(inArray(artModSkupineTable.artikelId, artikelIds))
+    .where(and(
+      inArray(artModSkupineTable.artikelId, artikelIds),
+      eq(modSkupineTable.enotaId, enotaId),
+    ))
     .orderBy(asc(artModSkupineTable.vrstniRed), asc(modSkupineTable.id), asc(modifikatorjiTable.vrstniRed), asc(modifikatorjiTable.id));
 
   const map = new Map<number, Map<number, ReturnType<typeof mapRow>["modSkupine"][number]>>();
@@ -338,6 +341,45 @@ async function fetchModSkupineForArtikli(artikelIds: number[]) {
     result.set(aId, Array.from(skupineMap.values()));
   }
   return result;
+}
+
+async function attachVhodniArtikliForModifiers<T extends { modSkupine: Array<{ modifikatorji: Array<Record<string, unknown>> }> }>(
+  items: T[],
+  enotaId: number,
+): Promise<T[]> {
+  const modifiers = items.flatMap((item) => item.modSkupine.flatMap((group) => group.modifikatorji));
+  const modifierIds = modifiers.map((modifier) => Number(modifier.id)).filter(Number.isInteger);
+  if (modifierIds.length === 0) return items;
+  const norms = await db.select({
+    id: modNormativiTable.id,
+    modifikatorId: modNormativiTable.modifikatorId,
+    artikelId: artikliTable.id,
+    ime: artikliTable.ime,
+    kolicina: modNormativiTable.kolicina,
+  }).from(modNormativiTable)
+    .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
+    .where(and(inArray(modNormativiTable.modifikatorId, modifierIds), eq(artikliTable.enotaId, enotaId)))
+    .orderBy(asc(modNormativiTable.vrstniRed), asc(modNormativiTable.id));
+  if (norms.length === 0) return items;
+  const groupsByArticle = await fetchModSkupineForArtikli([...new Set(norms.map((norm) => norm.artikelId))], enotaId);
+  const normsByModifier = new Map<number, Array<Record<string, unknown>>>();
+  for (const norm of norms) {
+    const groups = (groupsByArticle.get(norm.artikelId) ?? [])
+      .map((group) => ({ ...group, modifikatorji: group.modifikatorji.filter((option) => option.aktiven) }))
+    const entries = normsByModifier.get(norm.modifikatorId) ?? [];
+    entries.push({ normativId: norm.id, artikelId: norm.artikelId, ime: norm.ime, kolicina: Number(norm.kolicina), modSkupine: groups });
+    normsByModifier.set(norm.modifikatorId, entries);
+  }
+  return items.map((item) => ({
+    ...item,
+    modSkupine: item.modSkupine.map((group) => ({
+      ...group,
+      modifikatorji: group.modifikatorji.map((modifier) => {
+        const vhodniArtikli = normsByModifier.get(Number(modifier.id));
+        return vhodniArtikli ? { ...modifier, vhodniArtikli } : modifier;
+      }),
+    })),
+  }));
 }
 
 router.get("/artikli/priljubljeni", async (req, res): Promise<void> => {
@@ -380,8 +422,11 @@ router.get("/artikli", async (req, res): Promise<void> => {
     .orderBy(asc(artikliTable.vrstniRed), asc(artikliTable.ime));
 
   const mapped = rows.map(mapRow);
-  const modMap = await fetchModSkupineForArtikli(mapped.map((a) => a.id));
-  const enriched = mapped.map((a) => ({ ...a, modSkupine: modMap.get(a.id) ?? [] }));
+  const modMap = await fetchModSkupineForArtikli(mapped.map((a) => a.id), tenotaId);
+  const enriched = await attachVhodniArtikliForModifiers(
+    mapped.map((a) => ({ ...a, modSkupine: modMap.get(a.id) ?? [] })),
+    tenotaId,
+  );
   res.json((enriched));
 });
 
@@ -1427,9 +1472,10 @@ router.get("/artikli/:id", async (req, res): Promise<void> => {
   if (!row) { res.status(404).json({ error: "Artikel ni najden" }); return; }
 
   const mapped = mapRow(row);
-  const modMap = await fetchModSkupineForArtikli([mapped.id]);
+  const modMap = await fetchModSkupineForArtikli([mapped.id], tenotaId);
   mapped.modSkupine = modMap.get(mapped.id) ?? [];
-  res.json((mapped));
+  const [enriched] = await attachVhodniArtikliForModifiers([mapped], tenotaId);
+  res.json((enriched));
 });
 
 router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {

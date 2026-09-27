@@ -11380,7 +11380,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ModSkupinaFull"
-          description: Modifikatorske skupine prirejene artiklu
+          description: Modifikatorske skupine artikla; na opcijah so lahko enonivojske skupine za vhodne artikle normativa.
     ArtikelInput:
       type: object
       required:
@@ -12647,6 +12647,17 @@ components:
             - integer
             - "null"
           description: ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)
+        izvorniModifikatorId:
+          type: [integer, "null"]
+          description: Modifikator, kateremu pripada enonivojska podizbira.
+        izvorniNormativId:
+          type: [integer, "null"]
+          description: Vrstica normativa, iz katere izvira podizbira.
+        podIzbire:
+          type: array
+          description: Shranjene enonivojske podizbire na neposredni vrstici modifikatorja.
+          items:
+            $ref: "#/components/schemas/ModifikatorPodIzbira"
         velikostPice:
           type:
             - string
@@ -18449,6 +18460,40 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Modifikator"
+    ModifikatorVhodniArtikel:
+      type: object
+      required: [normativId, artikelId, ime, kolicina, modSkupine]
+      properties:
+        normativId: { type: integer }
+        artikelId: { type: integer }
+        ime: { type: string }
+        kolicina: { type: number }
+        modSkupine:
+          type: array
+          items: { $ref: "#/components/schemas/ModSkupinaNestedFull" }
+    ModSkupinaNestedFull:
+      type: object
+      required: [id, ime, obvezna, minIzbir, maxIzbir, vrstniRed, modifikatorji]
+      properties:
+        id: { type: integer }
+        ime: { type: string }
+        obvezna: { type: boolean }
+        minIzbir: { type: integer }
+        maxIzbir: { type: integer }
+        vrstniRed: { type: integer }
+        modifikatorji:
+          type: array
+          items: { $ref: "#/components/schemas/ModifikatorNested" }
+    ModifikatorNested:
+      type: object
+      required: [id, skupinaId, ime, cenaDodatek, aktiven, vrstniRed]
+      properties:
+        id: { type: integer }
+        skupinaId: { type: integer }
+        ime: { type: string }
+        cenaDodatek: { type: number }
+        aktiven: { type: boolean }
+        vrstniRed: { type: integer }
     Modifikator:
       type: object
       required:
@@ -18471,6 +18516,11 @@ components:
           type: boolean
         vrstniRed:
           type: integer
+        vhodniArtikli:
+          type: array
+          description: Vhodni artikli normativa z njihovimi enonivojskimi modifikatorskimi skupinami.
+          items:
+            $ref: "#/components/schemas/ModifikatorVhodniArtikel"
     ModSkupinaInput:
       type: object
       required:
@@ -18549,6 +18599,21 @@ components:
           type: string
         cenaDodatek:
           type: number
+        podIzbire:
+          type: array
+          description: Enonivojske izbire po vhodnem artiklu normativa tega modifikatorja.
+          items:
+            $ref: "#/components/schemas/ModifikatorPodIzbira"
+    ModifikatorPodIzbira:
+      type: object
+      required: [normativId, modifikatorji]
+      properties:
+        normativId:
+          type: integer
+        modifikatorji:
+          type: array
+          items:
+            type: integer
     DodajModifikatorjeInput:
       type: object
       required:
@@ -18563,6 +18628,10 @@ components:
             properties:
               modifikatorId:
                 type: integer
+              podIzbire:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModifikatorPodIzbira"
         skupineIds:
           type: array
           description: Eksplicitni seznam skupin, za katere se izvede replace (tudi brisanje). Ce ni podan, se skupinaIds izpeljejo iz modifikatorji.
