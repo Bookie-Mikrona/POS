@@ -1,0 +1,79 @@
+prikaži komplet inventar, ki se uporablja v povprečnem slovenskem gostinskem obratu
+
+V povprečnem slovenskem gostinskem obratu (klasična gostilna ali restavracija z barom in kuhinjo) se inventar deli na štiri glavne kategorije: drobi inventar (strežba), kuhinjski inventar, šank inventar/oprema ter pohištvo in tekstil.
+
+Vsi ti artikli se v materialnem knjigovodstvu vodijo kot drobni inventar ali osnovna sredstva, pri čemer se posoda, kozarci in pribor praviloma odpisujejo 100-% ob predaji v uporabo (na konto 404), količinsko pa spremljajo preko popisa.
+
+1. Drobni inventar – Strežba (Strežni inventar)
+To je inventar, s katerim prihaja v stik gost in pri katerem nastaja največ rednega loma ali obrabe.
+
+A. Steklovina (Kozarci, čaše in krigli)
+Za pivo: Vrčki/krigli (0,5 L in 0,3 L), kozarci na peclju za specialna piva, stekleni vrčki za točeno pivo.
+
+Za vino: Vino belo (0,1 L/0,2 L ali pecljati 2,5–3,5 dl), vino rdeče (večji pecljati kozarci), kozarci za penino (flavta), vinogradniški vrčki/karate (0,25 L, 0,5 L, 1 L).
+
+Za žgane pijače: Kozarci za kratke pijače / šilca (0,03 L/0,05 L), kozarci za viski (rock/tumbler), pecljati kozarci za žganje/gt.
+
+Za brezalkoholne pijače: Visoki kozarci za sok/vodo (0,2 L/0,3 L), kozarci za vodo, vrči za vodo/retek (1 L).
+
+Za tople napitke: Skodelice za espresso z podstavkom, skodelice za podaljšano kavo/kapučino, skodelice za čaj/kakav, stekleni kozarci za kuhano vino/čaj.
+
+B. Porcelan in posoda za strežbo
+Krožniki: Plitvi krožniki (veliki za glavne jedi), globoki krožniki (za juhe/testenine), desertni krožniki, krožnički za kruh.
+
+Jušniki in sklede: Skledice za solato (manjše in večje), jušne skodelice, posodice za omake ( omačnice).
+
+Servirni pladnji in plošče: Lesene ali kamnite deske (za nareske/žar), ovalni strežni pladnji, kovinski pladnji za natakarje.
+
+C. Pribor (Jedilni pribor)
+Osnovni pribor: Velike vilice, veliki noži, velike žlice, desertne vilice, male žličke za kavo/čaj, dolge žličke za sladoled/ledeno kavo.
+
+Specialni pribor: Noži za odrezanje zrezkov/mesa (steak noži), pribor za ribe.
+
+D. Namizni dodatki (Stojala in posodice)
+Stojala za sol in poper (solnice/poprnice), dozatorji za olje in kis, stojala za serviete, številke za mize, pepelniki (za zunanje terase), menažke.
+
+2. Kuhinjski inventar in posoda
+Inventar v kuhinji mora ustrezati profesionalnim HACCP standardom (nerjavčevec – inoks, odporna plastika ali odobreni materiali).
+
+A. Profesionalna kuhinjska posoda
+Lonce in kozice: Inoks lonci velikih kapacitet (10 L−50 L za juhe in obare), nizke kozice za omake, ponve za pečenje (inoks ali litoželezne), ponve za palačinke.
+
+Gastronorm (GN) posode: Inoks in polikarbonatne GN posode različnih globin in velikosti (GN 1/1, GN 1/2, GN 1/3, GN 1/6) s pokrovi – za pripravo, shranjevanje v hladilnikih in tople kopeli.
+
+B. Kuhinjski pripomočki in orodje
+Noži in rezila: Kuharski noži (šefovski noži), noži za izkoščanje, noži za kruh, noži za zelenjavo, masivni noži za sekanje meso, nabruševalci za nože (jekla/brusni kamni).
+
+Deske za rezanje: Barvno kodirane plastične deske po HACCP (rdeča za surovo meso, modra za ribe, zelena za zelenjavo, bela za mlečne izdelke/kruh).
+
+Orodje za pripravo: Zajemalke različnih velikosti (0,1 L−0,5 L), penovke, kuhinjske klešče, metlice za stepanje, strgalniki, tlačilci za krompir, kuhalnice, zajemalke za sladoled.
+
+Pekači in mrežice: Pekači za konvektomat (GN velikosti, perforirani in polni), rešetke za hlajenje.
+
+3. Šank inventar in baristična oprema
+Inventar za pripravo pijač in vodenje točilnega pulta.
+
+Baristični inventar: Ročke za kavni aparat, tamper (tlačilnik za kavo), podloga za tamper, posode za penjenje mleka (latte art vrčki 0,35 L, 0,6 L, 1.0 L), posoda za iztepanje kavne usedline (knock-box), ščetke za čiščenje glave kavnega aparata.
+
+Oprema za strežbo pijač: Dozirniki za žgane pijače (0,03 L/0,05 L), merice za koktajle (jigger), šejkeri, cedila za koktajle (strainer), odpirači za steklenice in kronske zamaške, profesionalni natakarski odpirači za vino (krivček), odpirači za konzervne/sode.
+
+Pranje in higiena šanka: Gumijaste ali plastične odcejalne podloge za kozarce, krtače za pomivanje kozarcev v pomivalnem koritu, košare za pomivalni stroj (za kozarce in skodelice).
+
+4. Pohištvo, tekstil in ostali inventar
+Gostinsko pohištvo: Gostinske mize (notranje in zunanje terasne), gostinski stoli, visoke barske mize in stoli, otroški stolčki za hranjenje.
+
+Tekstil: Namizni prti, nadprti (tekači), audjuto (servirni servieti za natakarje), kuhinjske krpe, mikrovlakenske krpe za poliranje kozarcev in pribora.
+
+Pomožni inventar: Natakarske denarnice (Takse) z usnjenimi torbicami, prenosni POS terminali ali mobilne blagajne (orderman), vozički za serviranju/pospravljanje posode, stojala za jedilne liste.
+
+Zbirni pregled za vnos v šifrant drobnega inventarja
+Za pregledno vodenje v POS/ERP sistemu je priporočljivo inventar razdeliti na naslednje podskupine:
+
+Skupina drobnega inventarja	Glavni artikli v šifrantu	Pogostost popisa / obnove
+01 - Steklovina	Kozarci za pivo, vino, sok, žganje	Mesečno / Trimesečno (visok lom)
+02 - Porcelan	Krožniki, sklede, skodelice za kavo	Trimesečno / Polletno
+03 - Jedilni pribor	Vilice, noži, žlice, žličke	Polletno / Letno
+04 - Kuhinjska posoda & GN	GN posode, lonci, ponve, pekači	Letno
+05 - Kuhinjska orodja	Noži, deske, zajemalke, orodje	Polletno / Letno
+06 - Šank pripomočki	Vrčki za mleko, odpirači, šejkeri	Letno
+07 - Tekstil & Ostalo	Prti, krpe, natakarske torbe	Letno
