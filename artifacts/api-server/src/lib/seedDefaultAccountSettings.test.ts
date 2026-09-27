@@ -93,6 +93,7 @@ describe("seedDefaultAccountSettings", () => {
     expect(codeOf(fixture.codeById, posSettings.otherCostsAccountId)).toBe("4809000");
     expect(codeOf(fixture.codeById, posSettings.cogsGoodsAccountId)).toBe("7000000");
     expect(codeOf(fixture.codeById, posSettings.wasteAccountId)).toBe("4050000");
+    expect(codeOf(fixture.codeById, posSettings.drobniInventarExpenseAccountId)).toBe("4040000");
     expect(codeOf(fixture.codeById, posSettings.reprezentancaAccountId)).toBe("4141000");
     expect(codeOf(fixture.codeById, posSettings.lastnaPorabaAccountId)).toBe("4809000");
     expect(codeOf(fixture.codeById, posSettings.openingBalanceAccountId)).toBe("9000000");

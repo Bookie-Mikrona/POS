@@ -305,6 +305,8 @@ export const COMPANY_CHART_SOURCE: readonly CompanyChartSourceAccount[] = [
   { code: "4021000", name: "Ogrevanje (plin, kurilno olje)" },
   { code: "4022000", name: "Voda in komunalne storitve" },
   { code: "4023000", name: "Gorivo za vozila" },
+  { code: "404", name: "Odpis drobnega inventarja in embalaže" },
+  { code: "4040000", name: "Odpis drobnega inventarja in embalaže" },
   { code: "405", name: "Uskladitev zalog in kalo" },
   { code: "4050000", name: "Kalo, primanjkljaji in razsipi" },
   { code: "410", name: "Stroški transportnih storitev" },

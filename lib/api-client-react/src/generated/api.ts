@@ -422,6 +422,7 @@ import type {
   RezervacijaMizeZgodovina,
   RoleAssignment,
   SeedAccountsResponse,
+  SeedSmallEquipmentExpenseAccountResult,
   SeedVatCodesResponse,
   SetArtikelModSkupineBody,
   SetDnevniMeniBody,
@@ -28458,6 +28459,77 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdatePosBookingSettingsMutationOptions(options));
+    }
+
+export const getSeedSmallEquipmentExpenseAccountUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/pos-booking-settings/seed-small-equipment`
+}
+
+/**
+ * @summary Izrecno ustvari manjkajoči konto stroška drobnega inventarja in ga nastavi
+ */
+export const seedSmallEquipmentExpenseAccount = async (companyId: string, options?: RequestInit): Promise<SeedSmallEquipmentExpenseAccountResult> => {
+
+  return customFetch<SeedSmallEquipmentExpenseAccountResult>(getSeedSmallEquipmentExpenseAccountUrl(companyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSeedSmallEquipmentExpenseAccountMutationOptions = <TError = ErrorType<ForbiddenResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedSmallEquipmentExpenseAccount>>, TError,{companyId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof seedSmallEquipmentExpenseAccount>>, TError,{companyId: string}, TContext> => {
+
+const mutationKey = ['seedSmallEquipmentExpenseAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof seedSmallEquipmentExpenseAccount>>, {companyId: string}> = (props) => {
+          const {companyId} = props ?? {};
+
+          return  seedSmallEquipmentExpenseAccount(companyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SeedSmallEquipmentExpenseAccountMutationResult = NonNullable<Awaited<ReturnType<typeof seedSmallEquipmentExpenseAccount>>>
+
+    export type SeedSmallEquipmentExpenseAccountMutationError = ErrorType<ForbiddenResponse | void>
+
+    /**
+ * @summary Izrecno ustvari manjkajoči konto stroška drobnega inventarja in ga nastavi
+ */
+export const useSeedSmallEquipmentExpenseAccount = <TError = ErrorType<ForbiddenResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedSmallEquipmentExpenseAccount>>, TError,{companyId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof seedSmallEquipmentExpenseAccount>>,
+        TError,
+        {companyId: string},
+        TContext
+      > => {
+      return useMutation(getSeedSmallEquipmentExpenseAccountMutationOptions(options));
     }
 
 export const getListTipPoliciesUrl = (companyId: string,) => {

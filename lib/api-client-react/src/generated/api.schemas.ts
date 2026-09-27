@@ -755,6 +755,14 @@ export interface PosBookingSettingsInput {
   drobniInventarExpenseAccountId?: string | null;
 }
 
+export interface SeedSmallEquipmentExpenseAccountResult {
+  accountId: string;
+  /** Ali je bil ustvarjen konto 4040000 */
+  created: boolean;
+  /** Ali je bila prazna POS nastavitev dopolnjena */
+  filled: boolean;
+}
+
 export type TipPolicyMode = typeof TipPolicyMode[keyof typeof TipPolicyMode];
 
 

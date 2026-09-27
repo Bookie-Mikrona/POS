@@ -39,6 +39,7 @@ export const POS_DEFAULT_ACCOUNT_CODES = {
   cogsMaterialAccountId: "4000000",
   cogsGoodsAccountId: "7000000",
   wasteAccountId: "4050000",
+  drobniInventarExpenseAccountId: "4040000",
   kirArAccountId: "1200000",
   reprezentancaAccountId: "4141000",
   lastnaPorabaAccountId: "4809000",

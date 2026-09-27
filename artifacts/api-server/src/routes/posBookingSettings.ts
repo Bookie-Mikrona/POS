@@ -26,6 +26,10 @@ import {
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { syncPosBookingForDay, syncPosBookingForMonth } from "../lib/posSyncBooking";
+import {
+  seedSmallEquipmentExpenseAccount,
+  SmallEquipmentExpenseAccountUnavailableError,
+} from "../lib/seedSmallEquipmentExpenseAccount";
 import { UpdatePosBookingSettingsBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -388,6 +392,26 @@ router.get(
 );
 
 // ── PUT ───────────────────────────────────────────────────────────────────────
+
+router.post(
+  "/companies/:companyId/pos-booking-settings/seed-small-equipment",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    if (!await resolvePosBookingAccess(authReq.clerkUserId, companyId, res, "write")) return;
+
+    try {
+      res.json(await seedSmallEquipmentExpenseAccount(companyId));
+    } catch (error) {
+      if (error instanceof SmallEquipmentExpenseAccountUnavailableError) {
+        res.status(409).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  },
+);
 
 router.put(
   "/companies/:companyId/pos-booking-settings",

@@ -9448,6 +9448,25 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PosBookingSettings" }
+  /companies/{companyId}/pos-booking-settings/seed-small-equipment:
+    post:
+      operationId: seedSmallEquipmentExpenseAccount
+      tags: [pos-booking]
+      summary: Izrecno ustvari manjkajoči konto stroška drobnega inventarja in ga nastavi
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ID uporabljenega konta in stanje ustvarjanja/nastavitve
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SeedSmallEquipmentExpenseAccountResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "Konto 4040000 obstaja, vendar ni aktiven ali proknjižljiv"
   /companies/{companyId}/tip-policies:
     get:
       operationId: listTipPolicies
@@ -10689,6 +10708,13 @@ components:
         id: { type: string }
         code: { type: string, pattern: "^404[0-9]{4}$" }
         name: { type: string }
+    SeedSmallEquipmentExpenseAccountResult:
+      type: object
+      required: [accountId, created, filled]
+      properties:
+        accountId: { type: string }
+        created: { type: boolean, description: Ali je bil ustvarjen konto 4040000 }
+        filled: { type: boolean, description: Ali je bila prazna POS nastavitev dopolnjena }
     PosCategoryRevenueAccount:
       type: object
       required: [categoryId, categoryName, unitId, unitName, accountId]

@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 
-const { state } = vi.hoisted(() => ({
+const { state, seedSmallEquipmentMock } = vi.hoisted(() => ({
   state: {
     queues: [] as unknown[][],
     index: 0,
     inserted: null as Record<string, unknown> | null,
   },
+  seedSmallEquipmentMock: vi.fn(),
 }));
 
 vi.mock("@workspace/db", () => {
@@ -98,6 +99,10 @@ vi.mock("@clerk/express", () => ({
 
 const syncMock = vi.hoisted(() => vi.fn().mockResolvedValue({ created: 0, updated: 0 }));
 vi.mock("../../lib/posSyncBooking", () => ({ syncPosBookingForDay: syncMock }));
+vi.mock("../../lib/seedSmallEquipmentExpenseAccount", () => ({
+  seedSmallEquipmentExpenseAccount: seedSmallEquipmentMock,
+  SmallEquipmentExpenseAccountUnavailableError: class extends Error {},
+}));
 
 async function buildApp() {
   const { default: router } = await import("../posBookingSettings");
@@ -112,6 +117,11 @@ function reset(...queues: unknown[][]) {
   state.index = 0;
   state.inserted = null;
   syncMock.mockClear();
+  seedSmallEquipmentMock.mockReset().mockResolvedValue({
+    accountId: "small-equipment-account",
+    created: true,
+    filled: true,
+  });
 }
 
 describe("POS dostop do nastavitev knjiženja", () => {
@@ -154,6 +164,29 @@ describe("POS dostop do nastavitev knjiženja", () => {
 
     expect(response.status).toBe(200);
     expect(syncMock).toHaveBeenCalledWith("cmp-1", "2026-08-19");
+  });
+
+  it("izrecno pripravi konto drobnega inventarja z enakimi pravicami kot shranjevanje", async () => {
+    reset([], [{ vloga: "admin" }]);
+
+    const response = await request(app)
+      .post("/companies/cmp-1/pos-booking-settings/seed-small-equipment")
+      .set("Authorization", "Bearer pos-admin");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      accountId: "small-equipment-account",
+      created: true,
+      filled: true,
+    });
+    expect(seedSmallEquipmentMock).toHaveBeenCalledWith("cmp-1");
+
+    reset([{ role: "viewer" }], []);
+    const denied = await request(app)
+      .post("/companies/cmp-1/pos-booking-settings/seed-small-equipment")
+      .set("Authorization", "Bearer viewer");
+    expect(denied.status).toBe(403);
+    expect(seedSmallEquipmentMock).not.toHaveBeenCalled();
   });
 
   it("ročno sinhronizira veljaven razpon po dnevih in vrne sprotni napredek", async () => {

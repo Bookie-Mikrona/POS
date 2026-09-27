@@ -15,3 +15,15 @@ sočasni retry ne smeta povzročiti tihe spremembe knjiženja ali podvojenih DDV
 obstoječe konte podjetja, nastavi le prazna polja z atomskim `COALESCE` pristopom
 in obdrži transakcijsko serializacijo na ravni podjetja. Ne uvajaj množičnih
 samodejnih sprememb za obstoječa podjetja.
+
+Izjema za manjkajoči konto 404 pri strošku drobnega inventarja: obstoječe
+podjetje ga sme ustvariti samo z izrecnim dejanjem v nastavitvah, ki obenem
+izpolni prazno konto nastavitev. Običajni seed še vedno uporablja le
+obstoječe konte in nikoli ne spreminja ročne izbire.
+
+**Why:** stari kontni plan ni vseboval analitike 404, zato samo dopolnitev
+praznih nastavitev uporabniku ni omogočila knjiženja nabave drobnega inventarja.
+
+**How to apply:** podobno izjemo uporabi le za izrecno zahtevani namenski
+konto, transakcijsko in omejeno na izbrano podjetje; brez množičnega
+ustvarjanja kontov za stare družbe.

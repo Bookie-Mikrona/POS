@@ -30,6 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn, formatDatum } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -1808,7 +1809,15 @@ function TipManagementCard({ companyId }: { companyId: string }) {
 
 function PosKnjizenjeTab({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [form, setForm] = useState<PosBookingSettingsData>(EMPTY_PBS);
+  const currentCompanyIdRef = React.useRef(companyId);
+  currentCompanyIdRef.current = companyId;
+  const seededSmallEquipmentSettingsRef = React.useRef<{
+    companyId: string;
+    baseline: PosBookingSettingsData | null | undefined;
+    accountId: string;
+  } | null>(null);
   const [saved, setSaved] = useState(false);
   const [syncDatum, setSyncDatum] = useState(() => new Date().toISOString().slice(0, 10));
   const [syncResult, setSyncResult] = useState<{ created: string[]; skipped: Array<{ ref: string; reason: string }> } | null>(null);
@@ -1867,8 +1876,55 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
   );
 
   useEffect(() => {
-    if (settings) setForm({ ...EMPTY_PBS, ...settings });
-  }, [settings]);
+    if (settings) {
+      const seededSettings = seededSmallEquipmentSettingsRef.current;
+      if (seededSettings?.companyId === companyId && settings !== seededSettings.baseline) {
+        seededSmallEquipmentSettingsRef.current = null;
+        // The seed action only owns this field. Keep any other in-progress form edits.
+        setForm(prev => ({ ...prev, drobniInventarExpenseAccountId: seededSettings.accountId }));
+        return;
+      }
+      setForm({ ...EMPTY_PBS, ...settings });
+    }
+  }, [settings, companyId]);
+
+  const seedSmallEquipmentMutation = useMutation({
+    mutationFn: (requestedCompanyId: string) =>
+      apiFetch<{ accountId: string; created: boolean; filled: boolean }>(
+        `/api/companies/${requestedCompanyId}/pos-booking-settings/seed-small-equipment`,
+        { method: "POST" },
+      ),
+    onSuccess: async ({ accountId, created, filled }, requestedCompanyId) => {
+      if (requestedCompanyId !== currentCompanyIdRef.current) {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: ["accounts-list", requestedCompanyId] }),
+          qc.invalidateQueries({ queryKey: ["pos-booking-settings", requestedCompanyId] }),
+        ]);
+        return;
+      }
+      seededSmallEquipmentSettingsRef.current = { companyId: requestedCompanyId, baseline: settings, accountId };
+      setForm(prev => ({ ...prev, drobniInventarExpenseAccountId: accountId }));
+      toast({
+        title: "Konto drobnega inventarja pripravljeno",
+        description: created
+          ? "Konto 4040000 je bil ustvarjen in nastavljen."
+          : filled
+            ? "Konto 4040000 je bil nastavljen."
+            : "Obstoječa nastavitev konta je ohranjena.",
+      });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["accounts-list", companyId] }),
+        qc.invalidateQueries({ queryKey: ["pos-booking-settings", companyId] }),
+      ]);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Konta ni bilo mogoče pripraviti",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -2583,6 +2639,8 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
           <CardTitle className="text-base">Drobni inventar</CardTitle>
           <CardDescription>
             Nabava kozarcev/krožnikov gre neposredno na konto porabe, inventure samo količine.
+            Običajni konto porabe je <span className="font-mono">4040000</span>; če ga v kontnem načrtu še ni,
+            ga lahko tukaj pripraviš in nastaviš.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -2592,6 +2650,34 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
             prefixes={["404"]}
             description="Konto porabe (analitika 404*); ob nabavi se knjiži neposredno na strošek."
           />
+          {!form.drobniInventarExpenseAccountId && !settingsLoading && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Konto 4040000 ni nastavljen. To dejanje ga bo pripravilo v kontnem načrtu in izbralo za strošek drobnega inventarja.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                data-testid="button-seed-small-equipment-account"
+                disabled={seedSmallEquipmentMutation.isPending}
+                onClick={() => seedSmallEquipmentMutation.mutate(companyId)}
+              >
+                {seedSmallEquipmentMutation.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Plus className="h-4 w-4" />}
+                {seedSmallEquipmentMutation.isPending ? "Pripravljam konto…" : "Pripravi in nastavi konto 4040000"}
+              </Button>
+              {seedSmallEquipmentMutation.isError && (
+                <Alert variant="destructive" data-testid="status-seed-small-equipment-error">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {seedSmallEquipmentMutation.error.message || "Konta ni bilo mogoče pripraviti."}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

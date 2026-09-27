@@ -16,7 +16,7 @@ describe("Kontni načrt CELOTNI za gospodarske družbe", () => {
     const plan = COMPANY_CHART_OF_ACCOUNTS;
     const byCode = new Map(plan.map((account) => [account.code, account]));
 
-    expect(plan).toHaveLength(398);
+    expect(plan).toHaveLength(400);
     expect(new Set(plan.map((account) => account.code)).size).toBe(plan.length);
     expect(plan.every((account) => account.code.length === 3 || account.code.length === 7)).toBe(true);
     expect(byCode.get("160")?.name).toContain("Terjatve za vstopni DDV");
@@ -27,6 +27,8 @@ describe("Kontni načrt CELOTNI za gospodarske družbe", () => {
     expect(byCode.get("3000000")?.name).toBe("Vrednost materiala po obračunih dobaviteljev");
     expect(byCode.get("3107000")?.name).toBe("Povratna embalaža");
     expect(byCode.get("4000000")?.name).toBe("Poraba materiala (splošno)");
+    expect(byCode.get("404")?.name).toBe("Odpis drobnega inventarja in embalaže");
+    expect(byCode.get("4040000")?.name).toBe("Odpis drobnega inventarja in embalaže");
     expect(byCode.get("5000000")?.name).toBe("Razporejeni stroški po stroškovnih mestih");
     expect(byCode.get("6000000")?.name).toBe("Nedokončana proizvodnja");
     expect(byCode.get("7000000")?.name).toContain("prodanega blaga");
@@ -62,6 +64,12 @@ describe("Kontni načrt CELOTNI za gospodarske družbe", () => {
       parentCode: undefined,
       allowsPosting: false,
     });
+    expect(byCode.get("404")).toMatchObject({ allowsPosting: false, type: "expense" });
+    expect(byCode.get("4040000")).toMatchObject({
+      parentCode: "404",
+      allowsPosting: true,
+      type: "expense",
+    });
 
     for (const account of COMPANY_CHART_OF_ACCOUNTS.filter((account) => account.code.length === 7)) {
       expect(account.parentCode).toBe(account.code.slice(0, 3));
@@ -91,7 +99,7 @@ describe("Kontni načrt CELOTNI za gospodarske družbe", () => {
     }>;
     const byCode = new Map(rows.map((account) => [account.code, account]));
 
-    expect(rows).toHaveLength(398);
+    expect(rows).toHaveLength(400);
     expect(byCode.get("1200000")).toMatchObject({ requiresPartner: true });
     expect(byCode.get("2200000")).toMatchObject({ requiresPartner: true });
     expect(byCode.get("1000000")).toMatchObject({ isCash: true });

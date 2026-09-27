@@ -14892,6 +14892,20 @@ export const UpdatePosBookingSettingsResponse = zod.object({
 })
 
 
+/**
+ * @summary Izrecno ustvari manjkajoči konto stroška drobnega inventarja in ga nastavi
+ */
+export const SeedSmallEquipmentExpenseAccountParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const SeedSmallEquipmentExpenseAccountResponse = zod.object({
+  "accountId": zod.string(),
+  "created": zod.boolean().describe('Ali je bil ustvarjen konto 4040000'),
+  "filled": zod.boolean().describe('Ali je bila prazna POS nastavitev dopolnjena')
+})
+
+
 export const ListTipPoliciesParams = zod.object({
   "companyId": zod.coerce.string()
 })
