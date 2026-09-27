@@ -49,6 +49,7 @@ import { useNastavitve } from "@/contexts/NastavitveContext";
 import ModifikatorjePanel from "@/components/ModifikatorjePanel";
 import { ArticleImageCropDialog } from "@/components/ArticleImageCropDialog";
 import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldValues } from "@/components/MassYieldFields";
+import { ToGoArticlePicker } from "@/components/ToGoArticlePicker";
 
 import { type NormativItem } from "@/lib/kopiraj-normativ";
 type PizzaDoughSelection = { normalna: number; mala: number };
@@ -3380,24 +3381,12 @@ export default function Menu() {
                       })}
                     </div>
                   )}
-                  <Select
-                    value=""
-                    onValueChange={(val) => {
-                      const id = parseInt(val);
-                      if (!artToGoArtikli.includes(id)) setArtToGoArtikli(prev => [...prev, id]);
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Dodaj artikel za To Go..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(artikli ?? [])
-                        .filter(a => a.aktiven && a.prodajniArtikel && !artToGoArtikli.includes(a.id))
-                        .map(a => (
-                          <SelectItem key={a.id} value={String(a.id)}>{a.ime}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                   <ToGoArticlePicker
+                     articles={artikli ?? []}
+                     selectedIds={artToGoArtikli}
+                     onSelect={articleId => setArtToGoArtikli(previous =>
+                       previous.includes(articleId) ? previous : [...previous, articleId])}
+                   />
                     </>
                   )}
                 </div>
