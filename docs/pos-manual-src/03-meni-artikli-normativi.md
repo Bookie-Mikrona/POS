@@ -1685,13 +1685,13 @@ QR naročilo ima sled izvora **QR gost**.
 
 QR oznaka ostane vidna v pregledu in v kontekstu naročila.
 
-Osebje mora pred posegom preveriti številko mize in številko QR naročila.
+Na pregledu aktivnih naročil preverite oznako **QR gost**, mizo in številko naročila. Če je na isti mizi več naročil, izberite tisto, ki jo gost potrdi; ne sklepajte, da je vsako naročilo na mizi isti obisk.
 
-QR zahteva natakarja ni nova postavka in ni samodejni dodatek k naročilu.
+QR-klic natakarja je ločena zahteva in ne postavka naročila. Na domačem pregledu je prikazana čakalna vrsta **Klic natakarja**: **Potrdi** potrdi prejem klica, **Zaključi** pa uporabite, ko ste klic dejansko obravnavali.
 
-Najprej zahtevo potrdite, nato pri gostu ugotovite, ali želi spremembo, račun ali pomoč.
+Klic sam po sebi ne doda artikla in ne spremeni naročila. Pri gostu najprej preverite, kaj želi.
 
-Če osebje doda artikel, ga doda v pravilno odprto naročilo po potrditvi z gostom.
+Če osebje doda artikel, odprite pravo QR-naročilo po številki in ga dodajte šele po potrditvi z gostom. Ne ustvarite vzporednega naročila za isti zahtevek.
 
 Ne prenašajte QR izvora v opombo ali v ime artikla.
 

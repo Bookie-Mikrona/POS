@@ -14,25 +14,30 @@ Pred shranitvijo preberite obseg spremembe in po shranitvi preverite rezultat.
 Ne uporabljajte skupnih uporabniških računov.
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-ddfd67304389 package=lite -->
-## 2. Profili in zmožnosti
+## 2. Uporabniške vloge, delo in zmožnosti
 
-Profil določa, kaj uporabnik sme videti in narediti.
-Zmožnost je konkretno dovoljenje znotraj profila.
-Uporabnik dobi najmanjši nabor zmožnosti, ki ga potrebuje za delo.
+V POS-u je `vloga` polje uporabniškega računa, ne seznam nazivov delovnih mest.
+Skrbniški vmesnik in API za uporabnike razlikujeta vloge `admin`,
+`admin_enote` in `uporabnik`; `superadmin` je posebna skrbniška vloga.
+Uporabniški račun `uporabnik` se veže na enoto. `admin_enote` je omejen na
+dodeljeno enoto, `admin` upravlja uporabnike v okviru podjetja, `superadmin`
+pa ima sistemski skrbniški dostop.
 
-| Profil | Namen | Običajni dostop |
-|---|---|---|
-| Natakar | strežba gostov | mize, naročila, računi v okviru pravil |
-| Kuhinja/bar | priprava | KDS oziroma točilnica, brez plačil |
-| Blagajnik | zaključevanje prodaje | blagajna, plačila, ponatis v okviru pravic |
-| Skladiščnik | materialni tok | artikli, prejemnice, inventura |
-| Vodja enote | operativni nadzor | poročila, izmene, lokalne nastavitve |
-| Administrator podjetja | skupna ureditev | enote, uporabniki, integracije, nastavitve |
+Natakar, kuhar, natakarica pri šanku, blagajnik, skladiščnik in vodja izmene
+so opisi dela oziroma operativne odgovornosti v tem priročniku, ne ločene
+vrednosti uporabniške vloge v POS-u. Zlasti zapis natakarja v zavihku
+»Natakarji« je operativni zapis osebe za izmene in hitro menjavo identitete;
+ni sam po sebi uporabniški račun ali dokaz, da ima oseba pravico do vseh
+funkcij natakarja. POS PIN za hitro menjavo nastavi administrator, hitra
+menjava pa zahteva veljavno izmeno natakarja v aktivni enoti.
 
-Vloge niso naziv delovnega mesta.
-Ista oseba ima lahko več profilov, če je to odobreno.
-Administrator ne sme samovoljno dodeliti višjih pravic sebi ali drugi osebi.
-Za občutljive pravice velja interni postopek odobritve.
+Dejanski dostop do funkcije je odvisen od vloge računa, dodeljene enote ter
+zmožnosti te enote in paketa POS. Seznam zmožnosti enote (na primer zaloge,
+meni, KDS, računi ali nastavitve) ne predstavlja profilov delovnih mest.
+Vloga sama po sebi tudi ne pomeni, da je določena blagajna, terminal ali
+fizična naprava dodeljena uporabniku. Dodeljujte samo tiste pravice in
+poslovne kontekste, ki so potrebni za delo; ne ustvarjajte fiktivnih profilov
+»kuhinja«, »blagajnik« ali »skladiščnik«, če jih uporabniški vmesnik ne ponuja.
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-4817760c8418 package=lite -->
 ## 3. Uporabniki in dostop
@@ -41,8 +46,10 @@ Za občutljive pravice velja interni postopek odobritve.
 ### 3.1 Ustvarjanje uporabnika
 
 1. Preverite identiteto osebe in potrebo po dostopu.
-2. Izberite podjetje, dovoljene enote in ustrezen profil.
-3. Dodelite samo potrebne blagajne, terminale ali delovne poglede.
+2. Izberite dejansko uporabniško vlogo in zahtevano enoto. Vloge ne izbirajte
+   po nazivu delovnega mesta.
+3. Preverite zmožnosti izbrane enote in paketa; ne obljubite dostopa do
+   posamezne naprave ali blagajne, če nastavitev tega ne prikazuje.
 4. Uporabnika povabite oziroma nastavite začetni dostop po varnem internem postopku.
 5. Oseba se prijavi sama in preveri prikaz svoje enote.
 6. Zabeležite odobritev, datum in skrbnika spremembe.
@@ -214,7 +221,7 @@ Zapišite način varne vrnitve.
 3. Določite poslovni prostor.
 4. Določite register oziroma blagajno.
 5. Določite naprave in njihove lastnike.
-6. Določite uporabnike, profile in omejitve.
+6. Določite uporabniške vloge, dodeljene enote in omejitve zmožnosti.
 7. Povežite tiskalne poti.
 8. Povežite terminal in ponudnika.
 9. Nastavite FURS ter QR javni prikaz.
@@ -342,6 +349,10 @@ Za pripravljalne oznake glejte 05.
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-d2c21f7b01bb package=lite -->
 ### 14.1 Najmanjše pravice
 
+Nosilci v tabeli so delovne odgovornosti, ne uporabniške vloge, ki bi jih
+skrbnik izbral pri ustvarjanju računa. Dejanski dostop preverite glede na
+uporabniško vlogo in zmožnosti enote.
+
 | Zmožnost | Običajni nosilec | Preverjanje |
 |---|---|---|
 | Mize in naročila | natakar | test naročila |
@@ -365,8 +376,10 @@ Pravica za zalogo ni pravica za fiskalne nastavitve.
 1. Prejmite zahtevo z razlogom in odobritvijo.
 2. Preverite identiteto osebe.
 3. Preverite delovno mesto in enoto.
-4. Izberite najmanjši obstoječi profil.
-5. Dodajte le dokumentirane izjeme.
+4. Izberite dejansko uporabniško vlogo in dodeljeno enoto, ki ustrezata
+   potrebnemu dostopu.
+5. Ne ustvarjajte nadomestne vloge za naziv delovnega mesta; dokumentirajte
+   morebitno izjemo po internem postopku.
 6. Nastavite datum začetka in poteka, kjer je mogoče.
 7. Povežite samo dovoljene enote.
 8. Odstranite stare nepotrebne vloge.
@@ -658,15 +671,18 @@ Stanje napačnega prostora zahteva varen prenos po 03.
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-2d47a8738d58 package=lite -->
 ### 20.2 Zavihek Natakarji
 
-Zavihek služi operativni dodelitvi natakarjev.
-Natakar ni isto kot uporabniški račun administratorja.
-Pred dodelitvijo preverite osebo in njeno enoto.
-Preverite, ali je oseba dejansko razporejena v izmeno.
-Ne ustvarjajte podvojene osebe ob zaklenjenem računu.
-Ne dodeljujte blagajniške pravice zaradi prikaza natakarjev.
-Po spremembi se uporabnik prijavi sam.
-Preverite vidnost dovoljenega območja.
-Preverite, da ni vidna nedovoljena enota.
+Zavihek »Natakarji« upravlja operativne zapise natakarjev, ne pa uporabniških
+vlog `admin`, `admin_enote` ali `uporabnik`. Zapis natakarja se uporablja v
+operativnem delu in pri izmeni; ni enakovreden Clerk/POS uporabniškemu računu.
+Administrator lahko natakarju nastavi POS PIN za hitro menjavo. PIN naj ne
+nadomesti individualnega računa za skrbniške ali druge funkcije.
+
+Pred uporabo hitre menjave preverite osebo in aktivno enoto ter zagotovite, da
+ima natakar odprto izmeno. Če izmena ni odprta, POS hitre menjave ne sprejme.
+Zaklenjenega uporabniškega računa ne obidite z novim natakarjevim zapisom ali
+PIN-om. Prisotnost natakarja v tem zavihku ne podeli pravic za blagajno,
+nastavitve ali drugo uporabniško funkcijo; te so odvisne od računa, enote in
+zmožnosti.
 Za življenjski cikel dostopa glejte 01 in 14.
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-59f52bf03f27 package=extended -->
@@ -2068,36 +2084,39 @@ ugotoviti vzroka napake. Preskus ne sme spreminjati prodajnega, fiskalnega ali
 zalogovnega stanja.
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-4d82dab3736d package=lite -->
-## 45. Uporabnik, profil, enota in pravice
+## 45. Uporabnik, vloga, enota in pravice
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-6e9d8f36e1d6 package=lite -->
 ### 45.1 Ustvarjanje in sprememba
 
-Pred ustvarjanjem preverite identiteto osebe, podjetje, dovoljene enote,
-potrebni profil in naprave, na katerih bo oseba delala. Ustvarite uporabnika
-oziroma profil samo v skrbniškem zaslonu, ki ga vaša vloga dejansko vidi.
-Če konkretnega obrazca ali pravice ni, postopek ustavite in zahtevo predajte
-administratorju; ne uporabljajte neposrednega vpisa v bazo.
+Pred ustvarjanjem preverite identiteto osebe, podjetje, enoto in potrebno
+uporabniško vlogo. Ustvarite uporabnika samo v skrbniškem zaslonu, ki ga vaša
+vloga dejansko vidi. Naprave preverite kot konfiguracijo enote oziroma
+registra, ne kot osebno dovoljenje uporabniškega računa, razen če določen
+zaslon izrecno navaja drugače. Če konkretnega obrazca ali pravice ni, postopek
+ustavite in zahtevo predajte administratorju; ne uporabljajte neposrednega
+vpisa v bazo.
 
 Po shranitvi:
 
 1. preverite, da je uporabnik vezan na pravo podjetje in enoto;
-2. preverite vlogo, dovoljene blagajne, terminale in delovne poglede;
+2. preverite shranjeno vlogo in dodeljeno enoto ter ustrezno zmožnost funkcij;
 3. preverite, da uporabnik vidi samo potrebne funkcije;
 4. izvedite omejen preizkus brez produkcijskega plačila;
 5. zapišite odobritelja, datum v obliki **dd.mm.yyyy** in izvajalca.
 
-Spremembo profila izvedite najmanjšemu potrebnemu obsegu. Vloga ni naziv
-delovnega mesta; pravica do terminala tudi ni pravica do ponovnega
-bremenitvenega poskusa ali administratorskih nastavitev.
+Spremembo izvedite v najmanjšem potrebnem obsegu. Vloga ni naziv delovnega
+mesta. Konfiguracija terminala na blagajni ne daje uporabniku pravice do
+ponovnega bremenitvenega poskusa ali administratorskih nastavitev.
 
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-066a8c3b8443 package=lite -->
 ### 45.2 Ukinitev oziroma varen odvzem dostopa
 
 Ob odhodu ali spremembi dela:
 
-1. preverite vse aktivne vloge, enote, blagajne, naprave in terminale;
-2. odstranite nepotrebne vezave in deaktivirajte dostop po odobritvi;
+1. preverite aktivno uporabniško vlogo, dodeljeno enoto in uporabo hitre
+   menjave natakarja;
+2. odvzemite nepotreben dostop oziroma deaktivirajte račun po odobritvi;
 3. prekličite POS PIN oziroma hitro menjavo, če je bila dodeljena;
 4. preverite, da uporabnik ne more več začeti nove seje;
 5. ohranite zgodovinske račune, naročila in revizijske zapise;
@@ -2142,11 +2161,51 @@ zaradi popravka napačnega podatka; popravek mora ustvariti novo sled.
 <!-- pos-heading: id=pos-09-postopki-po-vlogah-c4973d825f23 package=lite -->
 ## 47. Končna kontrola skrbniške spremembe
 
-- [ ] Sprememba je izvedena v pravem podjetju, enoti in napravi.
-- [ ] Uporabnik ima samo potrebne vloge, pravice in vezave.
-- [ ] Pri odvzemu so preklicani tudi POS PIN, naprave in terminali.
+- [ ] Sprememba je izvedena v pravem podjetju in enoti; preverjena je tudi
+      naprava, če jo sprememba zadeva.
+- [ ] Uporabniška vloga in dodeljena enota ustrezata potrebnemu delu.
+- [ ] Ob odvzemu dostopa so odstranjene nepotrebne vezave; POS PIN za hitro
+      menjavo je preklican, kadar je bil dodeljen.
 - [ ] Izveden je omejen preskus brez ponavljanja plačila.
 - [ ] Tiskalnik, most, terminal in kodna stran so preverjeni ločeno.
-- [ ] Revizijski zapis vsebuje akterja, čas **dd.mm.yyyy**, dejanje in rezultat.
-- [ ] Za manjkajoči skupni audit UI je odprt pooblaščen zahtevek, ne neposreden
-      popravek baze.
+- [ ] Zabeleženi so akter, čas, dejanje in rezultat.
+- [ ] Če potreben revizijski prikaz ni na voljo, je odprt pooblaščen zahtevek,
+      ne neposreden popravek baze.
+
+<!-- pos-heading: id=pos-09-postopki-po-vlogah-verified-routes-7f0c6a21d9b4 package=lite -->
+## 48. Trenutni vstopni zasloni in meje dostopa
+
+V POS-u so trenutno vidne poti `/nastavitve`, `/meni` in `/zaloge`; podstrani
+KDS so `/kuhinja`, `/pice` in `/tocilnica`. Zavihek Nastavitve uporablja
+`/nastavitve?tab=...`; nepodprta ali nedovoljena izbira se vrne na varen
+privzeti zavihek. Vidnost zavihka ni dokaz pravice za vsak posamezen API
+postopek.
+
+Na strežniški strani se dostop do mnogih funkcij dodatno preveri glede na
+uporabniško vlogo, podjetje in aktivno enoto. Funkcija je lahko nedostopna,
+če je zmožnost izklopljena za enoto ali je paket POS ne vključuje. Če
+uporabnik zavihka ali podatkov ne vidi, najprej preverite račun, aktivno
+enoto, zmožnosti enote in sporočilo o napaki. Ne preizkušajte dostopa z
+računom sodelavca.
+
+Naprava v POS-u ima identiteto oziroma zapis konfiguracije (na primer
+terminal ali tiskalnik); to ni isto kot uporabniška vloga in pregledani tokovi
+ne kažejo splošnega pravila, po katerem bi se vsaki osebi dodeljevala
+posamezna fizična naprava. Uporabnikovo delo omejujejo račun, enota in
+zmožnosti funkcij. Ne sklepajte, da je naprava dovoljena ali povezana samo
+zato, ker je konfigurirana v Nastavitvah.
+
+Preverjene poti API za povezane postopke:
+
+| Namen | Pot API | Opomba |
+|---|---|---|
+| uporabniki POS na ravni podjetja | `/api/pos/admin/podjetja/:companyId/uporabniki` | `GET`, `POST`, `PUT`, `DELETE`; administrativni dostop |
+| predloge drobnega inventarja | `/api/artikli/drobni-inventar-predloge` | `GET` vrne predloge; `POST` jih uvozi v trenutno enoto |
+| nalaganje datoteke za inventurni OCR | `/api/inventure/upload-url` | dovoljen PDF/JPEG/PNG do 20 MB |
+| branje popisnega lista OCR | `/api/inventure/ocr` | obseg `material` ali `drobni`; rezultat je predlog, ne potrjena inventura |
+| priložen dokument inventure | `/api/inventure/:id/document` | dokument obstoječe inventure |
+| hitra menjava natakarja | `/api/quick-switch/switch` | zahteva veljaven PIN in odprto izmeno v aktivni enoti |
+
+Pot API ne obide uporabniške avtorizacije, izbire enote ali validacije podatkov.
+Pri napaki shranite vidno sporočilo, pot zaslona, enoto, čas in identifikator
+dokumenta, če obstaja; ne poskušajte ponavljati poslovnega dejanja na slepo.

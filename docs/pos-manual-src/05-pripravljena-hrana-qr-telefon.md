@@ -82,8 +82,11 @@ Klik aktivne postavke na KDS jo označi kot pripravljeno (**Bumped**).
 8. Počakajte na potrditev, da je naročilo shranjeno.
 9. Na KDS preverite, da je postavka prišla na pravilno postajo.
 
-Če se nalog ne pojavi takoj, zaslon KDS podatke osvežuje približno vsakih
-15 sekund. Ne oddajajte iste postavke drugič samo zaradi čakanja.
+KDS se v običajnem POS-povezanem načinu osveži ob dogodku v živo; pri načinu
+prek lokalnega prehoda se nalogi dodatno osvežujejo na tri sekunde. Načina
+osveževanja ne predpostavljajte, če ga zaslon ali stanje naprave ne potrjuje.
+Če se nalog ne pojavi, najprej preverite shranjeno naročilo, izbrano postajo in
+stanje povezave. Ne oddajajte iste postavke drugič samo zaradi čakanja.
 
 <!-- pos-heading: id=pos-05-pripravljena-hrana-qr-telefon-e5a78a8806b6 package=lite -->
 ### 4.1 Če je bila izbrana napačna postavka

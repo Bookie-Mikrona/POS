@@ -21,7 +21,7 @@ Pripravite potrjeno ime, ceno, DDV, kategorijo in podatke o sestavi.
 
 Za normativ pripravite vhodne artikle in njihove količine.
 
-Za alergene pripravite zanesljiv vir podatkov proizvajalca ali recepture.
+Za alergene pripravite zanesljiv vir podatkov proizvajalca ali recepture za prodajne živilske artikle, pri katerih je treba preveriti sestavo za gosta.
 
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-ab52f7df855c package=lite -->
 ### 1.2 Osnovni pojmi
@@ -142,24 +142,41 @@ Neaktivnega artikla ne izberite kot sestavino brez preverjanja njegove vloge.
 6. Nastavite ceno in davčne podatke.
 7. Izberite vrsto artikla, kadar jo obrazec zahteva.
 8. Dodajte modifikatorje, velikosti ali normativ po potrebi.
-9. Določite alergenski profil.
+9. Za živilski artikel, ki se prodaja gostu, preverite alergenski profil in vir.
 10. Preglejte in shranite.
 
 Naziv naj loči artikel od podobnih artiklov na prodajnem zaslonu.
 
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-c5326f937e04 package=lite -->
-### 4.2 Nov nabavni artikel
+### 4.2 Nov nabavni artikel in drobni inventar
 
-1. Izberite dodajanje artikla.
-2. Vnesite ime za nabavo.
-3. Označite nabavno rabo.
-4. Izberite enoto mere.
-5. Vnesite podatke, potrebne za zalogovni postopek.
-6. Ne določajte prodajne kategorije, če artikel ni za prodajo.
-7. Določite alergene iz zanesljivega vira.
-8. Shranite.
+Za ročni vnos drobnega inventarja v **Upravljanje menija** odprite seznam artiklov v pravilni aktivni enoti in izberite **Nov drobni inventar**. Bližnjica je na voljo skrbniškim vlogam **admin**, **admin_enote** in **superadmin**.
 
-Količine v normativu morajo uporabljati smiselno enoto mere sestavine.
+1. Vnesite naziv predmeta.
+2. Izberite podskupino ali **Nerazvrščeno**.
+3. Preverite samodejne nastavitve: artikel je samo nabavni, tip je **material**, enota mere je **kos** in davčna kategorija je **drugo**; ta pomeni pričakovano splošno nabavno stopnjo, trenutno privzeto **22 %**.
+4. Po potrebi dopolnite ime za nabavo in druge podatke, ki jih obrazec prikaže.
+5. Shranite artikel.
+
+Ta bližnjica ne ustvari prodajnega artikla, začetne količine, zalogovne knjižbe ali vrednotenja. Pri tej vrsti drobnega inventarja ni zavihka **Alergeni**, preverjanja alergenov ali obveznega alergenskega profila. To ne velja za živilske artikle, ki se prodajajo gostu: pri njih je treba alergene še vedno preveriti in ustrezno evidentirati.
+
+Če želite naložiti katalog predlog, uporabite **Naloži drobni inventar** in potrdite **Naloži v šifrant**. Uvoz velja samo za trenutno aktivno enoto. Doda manjkajoče predloge, obstoječe artikle pa preskoči; rezultat pokaže število dodanih in že prisotnih. Uvoz je varen za ponovitev: uporablja stabilne ključe predlog in primerja tudi normalizirana imena, zato ne ustvarja kopij zaradi velikih/malih črk ali diakritike.
+
+Katalog je razdeljen v sedem podskupin; prikazana pogostost popisa oziroma obnove je priporočilo, ne samodejni urnik:
+
+| Skupina | Priporočilo za popis/obnovo |
+|---|---|
+| 01 - Steklovina | mesečno / trimesečno |
+| 02 - Porcelan | trimesečno / polletno |
+| 03 - Jedilni pribor | polletno / letno |
+| 04 - Kuhinjska posoda & GN | letno |
+| 05 - Kuhinjska orodja | polletno / letno |
+| 06 - Šank pripomočki | letno |
+| 07 - Tekstil & Ostalo | letno |
+
+Predloge vsebujejo šifrantske podatke, ne fizičnih količin ali vrednosti zaloge. Uvoz ne ustvari začetnih količin ali knjižb in ne opravi vrednotenja. Večja oprema (npr. mize, stoli, profesionalni aparati in naprave POS) ni del uvoza drobnega inventarja; katalog jo navaja ločeno za presojo osnovnih sredstev.
+
+Pri drugih nabavnih artiklih izberite enoto, ki se ujema z dejanskim prejemom in porabo. Količine v normativu morajo uporabljati smiselno enoto mere sestavine.
 
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-50c07123b742 package=lite -->
 ### 4.3 Urejanje obstoječega artikla
@@ -326,11 +343,9 @@ Ne mešajte večhodnih pravil s splošnimi kategorijami brez preverjanja.
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-24a42c4d5269 package=lite -->
 ### 8.1 Obveznost preverjanja
 
-Za nov artikel določite alergenski profil pred shranjevanjem.
+Pri prodajnih živilskih artiklih preverite alergenski profil pred prodajo. Če prodajni artikel nima normativa, obrazec pri shranjevanju zahteva izrecno potrjen profil; potrjen profil potrebuje naveden vir. Pri artiklu z normativom je na voljo predogled alergenov iz sestavin, vendar predogled sam po sebi ni ročna potrditev.
 
-Profil ne sme ostati v stanju nepreverjeno.
-
-Potrjen profil mora imeti naveden vir podatkov.
+Čisti nabavni drobni inventar, ustvarjen z bližnjico ali uvožen iz kataloga, nima zavihka **Alergeni** in ne zahteva alergenskega profila. Ne iščite preverjanja, ki ga obrazec za ta artikel ne ponuja.
 
 Vir je lahko potrjena receptura, specifikacija dobavitelja ali drug zanesljiv dokumentiran podatek.
 
@@ -425,7 +440,7 @@ Preverite, da se velikost pice pravilno razlikuje.
 
 Preverite, da je večhodni izbor smiseln.
 
-Preverite, da je alergenski profil ročno potrjen in ima vir.
+Pri živilskem prodajnem artiklu preverite, da je alergenski profil ročno potrjen in ima vir. Ta kontrola ne velja za čisti nabavni drobni inventar.
 
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-516f15bf0f55 package=lite -->
 ## 10. Okrevanje po napaki
@@ -439,7 +454,7 @@ Preverite obvezna polja, kategorijo in vrsto artikla.
 
 Preverite neveljavne vrstice normativa.
 
-Preverite stanje in vir alergenskega profila.
+Pri živilskem prodajnem artiklu preverite stanje in vir alergenskega profila.
 
 Ne ustvarjajte novega dvojnika, dokler ne preverite obstoječega artikla.
 
@@ -476,8 +491,8 @@ Pred zaključkom urejanja potrdite:
 - [ ] Normativ vsebuje veljavne sestavine in količine.
 - [ ] Modifikatorji in velikosti so smiselni.
 - [ ] Večhodne izbire so pravilno razporejene.
-- [ ] Neposredni in dedovani alergeni so pregledani.
-- [ ] Alergenski profil je ročno potrjen z navedenim virom.
+- [ ] Pri živilskem prodajnem artiklu so neposredni in dedovani alergeni pregledani.
+- [ ] Kjer je potreben, je alergenski profil ročno potrjen z navedenim virom.
 
 Po tej kontroli je meni pripravljen za varno operativno uporabo.
 
@@ -508,7 +523,7 @@ Vodja ponudbe potrdi ime, ceno, kategorijo in razpoložljivost.
 
 Kuhinja potrdi recepturo, modifikatorje, velikosti in čas priprave.
 
-Oseba za zaloge potrdi nabavno ime, enoto mere in vhodne sestavine.
+Oseba za zaloge potrdi nabavno ime, enoto mere in vhodne sestavine; za drobni inventar preveri tudi podskupino.
 
 Odgovorna oseba potrdi alergenski profil ter njegov vir.
 
@@ -746,6 +761,8 @@ Pri kategoriji food_drink se oznaka dodanega sladkorja normalizira in ni nadomes
 
 Davčnega polja ne spreminjajte brez potrjenega razloga in odgovorne osebe.
 
+Pri drobnem inventarju je davčna kategorija **drugo**. Običajni prikaz pričakovane nabavne stopnje je splošna stopnja, trenutno privzeto **22 %** (stopnje se nalagajo iz nastavitev). To je pričakovanje za nabavno stran artikla, ne stopnja, ki bi jo POS smel prepisati na dobaviteljev dokument. Pri vnosu oziroma obravnavi dobaviteljevega dokumenta preverite dejansko navedeni DDV in uporabite dokument ter veljavna računovodska pravila; če se razlikuje od pričakovanja, razjasnite odstopanje z odgovorno osebo, ne spreminjajte dokumenta na pamet.
+
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-20347cb6358d package=lite -->
 ### 16.5 Del menija
 
@@ -962,6 +979,8 @@ Po shranjevanju dokumentirajte različico recepture po internem postopku.
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-ca307b3f46bb package=lite -->
 ### 21.1 Statusi
 
+Statusi, ročni profili in predogledi v tem razdelku se nanašajo na artikle, pri katerih je alergenski podatek relevanten, zlasti na živilske artikle, ki se prodajajo gostu. Čisti nabavni drobni inventar nima alergenskega zavihka ali zahteve po profilu.
+
 Status nepreverjeno pomeni, da profila ni dovoljeno predstavljati kot potrjenega.
 
 Status potrjeno pomeni potrjen profil z navedenimi alergeni ali sledmi.
@@ -1138,7 +1157,7 @@ Preverite celoštevilski nenegativni čas priprave.
 
 Preverite cene aktivnih velikosti pice.
 
-Preverite status in vir alergenov.
+Pri živilskem prodajnem artiklu preverite status in vir alergenov; čisti nabavni drobni inventar teh polj nima.
 
 Preverite vse vrstice normativa.
 
@@ -1185,7 +1204,7 @@ Navedite vir šele, ko ga lahko odgovorno potrdite.
 - [ ] Enota mere je uporabna za porabo.
 - [ ] Cena in davčni kontekst sta potrjena.
 - [ ] Artikel je aktiviran samo, ko je pripravljen za prodajo.
-- [ ] Alergenski profil ima status in vir.
+- [ ] Če gre za živilski prodajni artikel, je alergenski profil preverjen in ima vir.
 
 <!-- pos-heading: id=pos-04-zaloge-dokumenti-b2242698c505 package=lite -->
 ### 25.3 Kontrola recepture

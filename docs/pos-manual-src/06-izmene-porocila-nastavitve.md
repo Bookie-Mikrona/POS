@@ -744,11 +744,22 @@ Vračilo plačila izvedite samo z dovoljenim plačilnim postopkom.
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-db8431ff9692 package=lite -->
 ### 20.3 Kartično vračilo
 
-Kartična bremenitev se ne vrača z gotovino, če politika ali ponudnik zahteva kartično povračilo.
-Najprej preverite izvirno kartično plačilo in referenco.
-Uporabite odobren tok povračila pri ponudniku.
-Ne sprožite nove prodaje z negativnim zneskom kot neuradno rešitev.
-Če je kartični rezultat vračila neznan, uporabite enaka pravila obnovitve kot pri prodaji.
+Za kartični račun, pri katerem POS prikaže voden tok za vračilo Viva, sta
+terminalsko vračilo in fiskalni storno ločena koraka:
+
+1. Odprite izvirni račun v **Računih** in preverite znesek, plačilo ter
+   referenco izvirne transakcije.
+2. Zaženite vračilo v prikazanem toku in počakajte na končni status terminala.
+3. Fiskalni storno izvedite šele, ko je terminalsko vračilo potrjeno kot
+   **plačano**; nato preverite povezavo storna z izvirnim računom.
+4. Če vračilo ostane **v čakanju**, počakajte na status. Če je izid
+   **neznan**, postopek ustavite in naj odgovorna oseba ročno preveri terminal
+   oziroma ponudnika. Vračila ne ponavljajte in fiskalnega storna še ne izvedite.
+5. Preverite zgodovino vračil. Če kartični račun ni v tem toku Viva, uporabite
+   samo postopek, ki ga POS dejansko ponudi za ta način plačila.
+
+Ne sprožite nove prodaje z negativnim zneskom kot neuradno rešitev; fiskalni
+storno ne nadomesti povračila pri ponudniku.
 
 <!-- pos-heading: id=pos-06-izmene-porocila-nastavitve-63410587c4ff package=lite -->
 ## 21. Povezava s poročili brez zaključevanja izmene

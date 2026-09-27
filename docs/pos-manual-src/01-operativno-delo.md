@@ -29,7 +29,7 @@ Sistem ne sme nadomestiti presoje, ali oznake na zaslonu ustrezajo prostoru, v k
 
 **Poslovni prostor** je oznaka, vezana na blagajno in fiskalni kontekst.
 
-**Naprava** je brskalnik oziroma delovna naprava, ki se ob uporabi prijavi s svojim ključem.
+**Naprava** je brskalnik oziroma delovna naprava z lokalno shranjenim ključem, s katerim se POS poskusi registrirati pri strežniku.
 
 **Miza** je del tlorisa aktivne enote.
 
@@ -421,9 +421,9 @@ Ključ ni ime uporabnika.
 
 Ključ ni nadomestilo za prijavo.
 
-Naprava se ob prijavi in znani enoti prijavi pri strežniku.
+POS se ob prijavi in znani enoti poskusi registrirati pri strežniku.
 
-Ob prijavi pošlje svoj ključ in prepoznano ime naprave.
+Ob uspešni registraciji pošlje svoj ključ in prepoznano ime naprave.
 
 Ime je lahko na primer iPad, Android naprava, Windows naprava ali Mac naprava.
 
@@ -467,11 +467,12 @@ Preverite, ali je miza v drugem prostoru ali enoti.
 1. Uporabite odobren brskalnik in službeni uporabniški profil.
 2. Prijavite se s svojim računom.
 3. Počakajte na nalaganje uporabnika in enote.
-4. Počakajte na prijavo naprave.
-5. Vodji sporočite prepoznano ime naprave, če jo mora poiskati v nastavitvah.
-6. Ne predvidevajte, da ima nova naprava nastavljene mize, tiskalnik ali terminal.
-7. Preverite prikaz tlorisa brez poslovnega vnosa.
-8. Za funkcionalni preizkus uporabite odobren interni postopek, ne dejanske prodaje.
+4. Počakajte, da POS poskusi registrirati napravo.
+5. Če naprava ali povezava ni dosegljiva, obvestite vodjo oziroma administratorja; POS lahko nadaljuje brez podatkov naprave, zato ne predpostavljajte, da veljajo njene omejitve miz ali nastavitve periferije.
+6. Vodji sporočite prepoznano ime naprave, če jo mora poiskati v nastavitvah.
+7. Ne predvidevajte, da ima nova naprava nastavljene mize, tiskalnik ali terminal.
+8. Preverite prikaz tlorisa brez poslovnega vnosa.
+9. Za funkcionalni preizkus uporabite odobren interni postopek, ne dejanske prodaje.
 
 <!-- pos-heading: id=pos-01-operativno-delo-349b3a7f0022 package=standard -->
 ### 5.5 Predpomnjeni podatki naprave
@@ -480,7 +481,7 @@ POS lahko zadnje znane podatke naprave lokalno predpomni.
 
 Predpomnjeni podatek pomaga pri prikazu, ne zagotavlja pa trenutne veljavnosti.
 
-Po spremembi enote POS napravo ponovno prijavi.
+Po spremembi enote POS napravo ponovno poskusi registrirati.
 
 Če se podatki naprave ne osvežijo, uporabnik ne sme sklepati, da stare omejitve veljajo v novi enoti.
 

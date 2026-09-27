@@ -7,6 +7,9 @@
 Ta dodatek je skupni sklic izrazov in rednih kontrol.
 Ne ponavlja postopkov za prodajo, plačila, zaloge ali konfiguracijo.
 Za podrobnost uporabite navedeno glavno poglavje.
+Nazivi, kot so natakar, blagajnik, skladiščnik in vodja, v kontrolnih
+seznamih označujejo odgovornost pri delu, ne ločene uporabniške vloge POS-a;
+vloge, enote in dejanski dostop so pojasnjeni v poglavju 09.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-370b4f5727ca package=lite -->
 ## 2. Slovar
@@ -170,21 +173,18 @@ Za podrobnost uporabite navedeno glavno poglavje.
 9. Potrdite, da so postopki za incidente znani vodjem izmen.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-c7e34dbcdf97 package=lite -->
-## 8. Kratka zgodovina trenutne različice
+## 8. Povzetek trenutne dokumentacije
 
-Različica 8.3 dopolnjuje postopke za povratno embalažo, povezovanje dobropisov,
-ponovni FURS prenos, čas hrambe QR zgodovine, skrbniške naprave, POS PIN,
-offline fiskalizacijo in kartične izterjave. Vsi prikazani koledarski datumi so
-zapisani v obliki dd.mm.yyyy.
+Ta dodatek združuje slovar, kontrolne sezname, učne in predajne pripomočke
+ter sklice na podrobne postopke. Poglavja priročnika so vsebinsko označena
+01–12; v tem povzetku ne navajamo številke izdaje ali datuma objave, ker ju
+izvorna dokumentacija ne potrjuje kot različico trenutne aplikacije.
 
-Trenutna dokumentacija združuje operativne postopke v poglavjih 01–08.
-Poglavje 09 je namenjeno skrbniški konfiguraciji, napravam, vlogam, FURS potrdilu in integracijam.
-Poglavje 10 vsebuje hitre zaporedne postopke po vlogah.
-Poglavje 11 vsebuje odziv po vzorcu simptom, pomen in varen ukrep.
-To poglavje je omejeno na slovar, redne kontrole in povzetek trenutne strukture.
-
-Zgodovina ne nadomešča revizijske sledi sistema.
-Za dejanski datum, izvajalca in vsebino spremembe uporabite odobren zapis spremembe oziroma revizijsko sled.
+Seznam funkcij in zaslonov se lahko razlikuje glede na vlogo uporabnika,
+izbrano enoto, njene zmožnosti in paket POS. Ta povzetek ni revizijska sled
+programske opreme in ne dokazuje datuma uvedbe posamezne funkcije.
+Za datum, izvajalca in vsebino dejanske spremembe uporabite odobren zapis
+spremembe oziroma ustrezno zgodovino v sistemu.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-a51126dafa25 package=lite -->
 ## 9. Kam po podrobnost
@@ -774,25 +774,17 @@ Nikoli:
 - ne spreminjajte dokazov incidenta, da bi bil prikaz »čistejši«.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-667fe49872d6 package=lite -->
-## 20. Kratek povzetek različice v8.3
+## 20. Povzetek obsega priročnika
 
-Različica v8.3 je izdelana na podlagi sledljive matrike 67 uporabniških
-postopkov. Dopolnjeni so skrbniški postopki za POS PIN in hitro menjavo
-identitete, obseg naprav, revizijsko sled, tiskalne in terminalske integracije,
-offline fiskalno čakalno vrsto, kartične izterjave, redni ročni vnos prejemnic,
-administrativne predaje in omejitve javnih funkcij.
+Poglavja 01–08 so operativni del priročnika; 09 opisuje skrbniško
+konfiguracijo, uporabnike, naprave in integracije; 10–11 sta namenjena
+postopkom, kontrolam in odzivu na težave; 12 združuje slovar, redne kontrole
+in predajne pripomočke.
 
-V priročniku je izrecno navedeno, da trenutna izvedba nima javnih internetnih
-rezervacij, spletnega nakupa darilnega bona ali Stripe spletnega plačila.
-Viva demo način ni produkcijski dokaz. Vsi datumi, prikazani uporabniku, so v
-obliki **dd.mm.yyyy**.
-
-Poglavja 01–08 opisujejo operativne delovne tokove, 09 skrbniško konfiguracijo,
-10 hitre postopke po vlogah, 11 izredne primere in 12 slovar, kontrole ter
-sledljivost. Ta zgodovina ne nadomešča revizijske sledi sistema.
-
-Za dejanski datum, izvajalca in vsebino spremembe uporabite odobren zapis
-spremembe oziroma revizijsko sled.
+To je povzetek vsebine dokumentacije, ne trditev o različici ali popolnem
+seznamu trenutno omogočenih funkcij. Razpoložljivost zaslonov in postopkov
+preverite v aplikaciji za dejansko vlogo, enoto in paket. Ne sklepajte o
+storitvah, ki v uporabniškem vmesniku in API niso potrjene.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-67901b0e554a package=lite -->
 ## 21. Referenčne kontrolne kartice
@@ -1788,15 +1780,16 @@ Modelni odgovor opisuje načelo, ne točnega zaporedja zaslonskih dejanj.
 - [ ] Posodobitev se uskladi z internimi pravili podjetja.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-47cfbfb45934 package=lite -->
-## 39. Kratka zgodovina različic
+## 39. Kratka zgodovina dokumentacije
 
-- **v8.2:** obnovljen celoten referenčni dodatek, dopolnjeni aktualni postopki
-  povratne embalaže, FURS in QR zgodovine ter poenotena oblika datumov
-  dd.mm.yyyy.
-- **v8.3:** dodana sledljivost uporabniških postopkov, POS PIN in hitra menjava
-  identitete, obseg naprav, varnejše skrbniške predaje, offline fiskalna
-  uskladitev, kartične izterjave in jasne meje glede internetnih rezervacij,
-  spletnih bonov ter Stripe plačil.
+V tem izvoru ni potrjene številke izdajne različice ali datuma, ki bi ga bilo
+varno navesti kot trenutno izdajo POS-a. Zato je ta rubrika povzetek, ne
+časovno razporejena zgodovina izdaj.
+
+Ta priročnik vsebuje operativne postopke, kontrole, sklice in opise
+uporabniškega vmesnika. Spremembe vsebine poglavij ne pomenijo samodejno, da
+se je hkrati spremenila aplikacija. Za dejansko uvedbo funkcije uporabite
+potrjen zapis spremembe aplikacije oziroma preverite njen trenutni zaslon.
 
 <!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-79149e618378 package=lite -->
 ## 40. Kontrolne kartice po organizacijskem modelu
@@ -1925,3 +1918,95 @@ Kadar se postopek spremeni, se spremeni tudi usposabljanje, kontrola in lastniš
 - [ ] Ali imam pristojnost za naslednjo odločitev?
 - [ ] Ali obstaja poslovno potreben in varen dokaz?
 - [ ] Ali je naslednji lastnik in rok znan, če zadeve ne zaključim?
+
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-current-ui-troubleshooting-72e8cc14b4a1 package=lite -->
+## 44. Preverjeni postopki: drobni inventar, alergeni in inventurni OCR
+
+V nadaljevanju so opisana opravila, ki so vidna v trenutnem POS-u. Delovni
+nazivi (npr. skladiščnik ali natakar) pomenijo odgovornost v izmeni, ne
+uporabniško vlogo, ki bi jo bilo mogoče izbrati v POS-u. Pred posegom preverite
+dejanski račun, enoto in dostop do zaslona; funkcije lahko omejujeta zmožnost
+enote in paket POS.
+
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-44-1-manual-small-inventory-1b2f6d8a0c41 package=lite -->
+### 44.1 Ročno dodajanje novega artikla drobnega inventarja
+
+V `/meni` → »Artikli« uporabite bližnjico **Nov drobni inventar**. Ta je
+na voljo skrbniškim vlogam `admin`, `admin_enote` in `superadmin`; če je ne
+vidite, preverite vlogo in aktivno enoto oziroma predajte zahtevo
+administratorju.
+
+1. Pred dodajanjem preverite, da artikel v seznamu še ne obstaja.
+2. Kliknite **Nov drobni inventar**, vnesite naziv in izberite podskupino ali
+   »Nerazvrščeno«.
+3. Preverite samodejne nastavitve: samo nabavni artikel, vrsta **material**,
+   merska enota **kos** in davčna kategorija **drugo**.
+4. Po potrebi dopolnite nabavno ime ali druga polja, ki jih obrazec prikaže,
+   nato shranite.
+
+Bližnjica ne ustvari prodajnega artikla, začetne količine, zalogovne knjižbe
+ali vrednotenja. To je količinska evidenca; nakup se obravnava kot strošek.
+Večja oprema ni drobni inventar in s to bližnjico ni razvrščena kot osnovno
+sredstvo.
+
+Če bližnjice ni na voljo in pooblaščeni skrbnik uporablja splošno dodajanje
+artikla kot alternativo, najprej izbere samo nabavni, neprodajni material in
+ne povratno embalažo, nato vključi »Drobni inventar (količinsko spremljanje)«.
+Shranitev zavrne neustrezno kombinacijo vrste artikla, prodaje ali embalaže.
+Ne spreminjajte vrste prek API ali drugega uporabniškega računa.
+
+V meniju je tudi možnost »Naloži drobni inventar v aktivno enoto?« oziroma
+»Naloži v šifrant«. Ta uvozi manjkajoče predloge kozarcev, posode, pribora,
+kuhinjskih pripomočkov in tekstila; obstoječe predloge preskoči ter ne ustvari
+začetnih količin ali knjižb. Večja oprema je ločena od te evidence, zato je ne
+označujte kot drobni inventar zaradi priročnosti.
+
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-44-2-allergen-exception-4c7e1d9b2a63 package=lite -->
+### 44.2 Izjema pri alergenu: prodajni artikel brez normativa
+
+Pri prodajnem artiklu brez normativa POS zahteva izrecno potrjen alergenski
+profil. V urejanju artikla odprite zavihek »Alergeni«, preverite uradni vir
+recepture oziroma dokumentacijo in izberite dejanske alergene ter sledi.
+Potrjen profil mora imeti naveden vir; dokazilo je mogoče priložiti, kadar je
+na voljo ustrezen dokument.
+
+Če je vir zanesljivo preverjen in prodajni artikel nima alergenov ali sledi,
+izberite status **Potrjeno BREZ alergenov**. Prazen seznam z običajnim statusom
+**Potrjeno** ni enakovreden tej izrecni potrditvi. **Nepreverjeno** ni
+potrditev odsotnosti alergenov; ne izbirajte »Potrjeno BREZ alergenov« samo
+zato, ker podatka ni. Če vira ni ali je stanje nejasno, artikla ne
+razglašajte za varnega; preverjanje predajte odgovorni osebi.
+
+Ta alergenska zahteva velja za ustrezne prodajne živilske artikle brez
+normativa, ne za čisti nabavni drobni inventar iz 44.1. Zanj obrazec nima
+zavihka »Alergeni« in ne zahteva alergenskega profila. Izjeme zato ne
+uporabljajte za prodajni živilski artikel.
+
+<!-- pos-heading: id=pos-12-spremembe-in-dopolnitve-44-3-inventory-ocr-8a5d3c1f6e92 package=lite -->
+### 44.3 OCR popisnega lista za inventuro
+
+1. Odprite `/zaloge` → **Inventure** in začnite novo inventuro v pravi enoti.
+2. Pred nalaganjem izberite obseg **Material** ali **Drobni inventar**.
+   Pri materialu preverite tudi filter **Samo normativni** oziroma **Vsi
+   materiali**, če popis vključuje materiale zunaj normativov.
+3. Naložite čitljiv, izpolnjen popisni list v obliki PDF, JPG ali PNG do 20 MB.
+   OCR lahko predlaga datum, ID ali naziv, enoto, količino in pri materialu
+   ročno vpisano nabavno ceno.
+4. Primerjajte predlog z izvirnikom in fizičnim štetjem; preverite artikel ter
+   mersko enoto. Neujemajoče in dvoumne vrstice preverite ročno, neprepoznane
+   vrednosti pa ostanejo prazne. Pri drobnem inventarju preverjajte količine;
+   cenovni in vrednostni stolpci za ta obseg niso uporabljeni.
+5. Pred potrditvijo preverite datum, opombo, obseg in vrstice z vneseno
+   količino. OCR-datum je le predlog; iskalnik skrije vrstice v prikazu,
+   filter in obseg pa določata vključene vrstice.
+6. Kliknite **Potrdi inventuro**. To takoj shrani potrjeno inventuro in
+   inventurne premike za razlike; ločen osnutek ali stanje »v pregledu« ni na
+   voljo. Pred potrditvijo zaprta vsebina ni shranjena kot inventura.
+
+OCR popisni list se naloži in prebere prek `/api/inventure/upload-url` ter
+`/api/inventure/ocr`; rezultat je predlog in se pripne inventuri ob potrditvi.
+Če prepoznava spodleti, preberite sporočilo napake ter preverite datoteko,
+velikost, enoto in povezavo. Ne začnite druge inventure zgolj zato, ker
+nalaganje še poteka. Po potrditvi inventuro preverite na seznamu inventur in
+stanje artiklov; popravljanje potrjene inventure spreminja zalogovna gibanja,
+zato uporabite sledljiv korekcijski postopek.

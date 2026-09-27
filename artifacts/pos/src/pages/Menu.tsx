@@ -1417,7 +1417,7 @@ export default function Menu() {
       return;
     }
     const casPripraveMin = Number(artCasPripraveMin);
-    if (!Number.isInteger(casPripraveMin) || casPripraveMin < 0) {
+    if (!artDrobniInventar && (!Number.isInteger(casPripraveMin) || casPripraveMin < 0)) {
       setArtDialogTab("osnovno");
       toast({ title: "Čas priprave mora biti celo število 0 ali več", variant: "destructive" });
       return;
@@ -1550,12 +1550,12 @@ export default function Menu() {
       toGo: isProdajni ? artToGo : false,
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
       enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
-      ...normalizeMassYield(artPolizdelek ? EMPTY_MASS_YIELD : artMassYield),
+      ...(artDrobniInventar ? {} : normalizeMassYield(artPolizdelek ? EMPTY_MASS_YIELD : artMassYield)),
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       ...(artPolizdelek ? {} : { vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla }),
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
       mealType: artPolizdelek || artPripravaVrsta === "hrana" ? artMealType : "ala_carte",
-      casPripraveMin,
+      ...(!artDrobniInventar ? { casPripraveMin } : {}),
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,
       happyHourCenaDruzinska: isProdajni && artJePica && artHappyHourCenaDruzinska !== "" ? parseDecimal(artHappyHourCenaDruzinska) : null,
@@ -2409,7 +2409,7 @@ export default function Menu() {
                 </div>
               )}
 
-              {!artPolizdelek && <div className="rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+              {!artPolizdelek && !artDrobniInventar && <div className="rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <MassYieldFields
                   key={`article-mass-${artMode}-${editingArt?.id ?? "new"}`}
                   value={artMassYield}
@@ -3400,7 +3400,7 @@ export default function Menu() {
                 </div>
               </div>}
 
-              <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+              {!artDrobniInventar && <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <Label htmlFor="artikel-cas-priprave" className="font-semibold">Čas priprave (min)</Label>
                 <p className="text-xs text-muted-foreground">
                   Uporabi se pri samodejni oceni prevzema telefonskega naročila.
@@ -3417,7 +3417,7 @@ export default function Menu() {
                   onChange={event => setArtCasPripraveMin(event.target.value)}
                   className="max-w-40"
                 />
-              </div>
+              </div>}
 
               {/* Modifikatorske skupine — samo za prodajne artikle */}
               {artProdajniArtikel && (

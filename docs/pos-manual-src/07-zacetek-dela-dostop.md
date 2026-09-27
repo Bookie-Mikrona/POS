@@ -20,7 +20,8 @@ Plačilo ter račun sta v sklopu 06. Zaključek izmene je v sklopu 08.
 4. Pred začetnim stanjem so preverjene dejanske količine.
 5. Dobavitelj in prejemnica so pripravljeni pred uvozom dokumenta.
 6. Za pripravljeno hrano obstaja receptura oziroma normativ.
-7. Za inventuro je določen datum, skladišče in odgovorna oseba.
+7. Za inventuro sta določen datum popisa in odgovorna oseba; v POS preverite
+   pravo poslovno enoto.
 
 > **Opozorilo:** Zaloga ni preglednica za približne popravke. Vsako
 > spremembo evidentirajte z dokumentom, ki pojasni izvor, količino in datum.
@@ -570,9 +571,11 @@ Prilagoditev je sledljiv dokument, ki uredi ugotovljeno razliko po odobritvi.
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-a742320d8547 package=lite -->
 ### 5E.1 Priprava inventure
 
-1. Določite rez: datum, uro, skladišče in odgovorno osebo.
+1. Določite poslovno enoto, datum popisa in odgovorno osebo. V POS-u je
+   inventura vezana na izbrano enoto; obrazec inventure nima izbire skladišča.
 2. Ustavite ali jasno časovno ločite prejeme, prenose in proizvodnjo.
-3. Pripravite popisne liste po lokacijah, ne samo po abecedi artiklov.
+3. Za fizično štetje pripravite popisne liste po lokacijah, ne samo po
+   abecedi artiklov. Lokacije zabeležite v svojem popisnem postopku.
 4. Označite že preštete police, hladilnike in zamrzovalnike.
 5. Ločite prodajno blago, vračila, poškodovano blago in tuje blago.
 6. Določite način štetja odprte embalaže.
@@ -596,14 +599,17 @@ Neznan artikel fotografirajte ali zapišite tako, da ga je mogoče pozneje dolo�
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-ecbb019dded9 package=lite -->
 ### 5E.3 Vnos in odobritev
 
-1. Odprite inventurni dokument za pravilen rez.
-2. Vnesite preštete količine ali uvozite preverjen popis.
+1. Odprite **Zaloge → Inventure** v pravi poslovni enoti in preverite datum.
+2. Vnesite fizično preštete količine ali uporabite OCR za izpolnjen popisni
+   list; OCR-predloge pred potrditvijo ročno preverite.
 3. Preglejte velike razlike po količini in vrednosti.
 4. Primerjajte z nedavnimi prejemi, prenosi in proizvodnjo.
 5. Dodajte razlog, kadar politika zahteva obrazložitev.
-6. Pošljite v pregled osebi z ustrezno pravico.
-7. Potrdite prilagoditev šele po zaključku pregleda.
-8. Preverite kartico po potrditvi.
+6. Pred shranjevanjem opravi pregled odgovorna oseba.
+7. Izberite **Potrdi inventuro** šele po zaključenem pregledu: s potrditvijo
+   se inventura shrani in takoj ustvari inventurni popravek zaloge. To ni
+   pošiljanje v ločen status »v pregledu«.
+8. Preverite kartico in seznam inventur po potrditvi.
 
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-108978817813 package=lite -->
 ### 5E.4 Razlogi za razliko
@@ -1171,7 +1177,8 @@ Inventura primerja knjižno in dejansko stanje.
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-12c1e53cb09a package=lite -->
 ### 8.1 Priprava
 
-1. Določite datum in skladišče.
+1. Določite poslovno enoto in datum popisa. Obrazec POS inventure nima izbire
+   skladišča; ločite fizične lokacije na popisnem listu.
 2. Določite ekipo popisa in območja.
 3. Zabeležite, ali so prodaja in prejmi med štetjem omejeni.
 4. Uredite artikle po lokacijah.
@@ -1180,21 +1187,77 @@ Inventura primerja knjižno in dejansko stanje.
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-a748dd64c90a package=lite -->
 ### 8.2 Štetje in potrditev
 
-1. Odprite inventuro za pravilno skladišče.
+1. Odprite novo inventuro v pravi poslovni enoti in preverite datum.
 2. Vnesite dejansko preštete količine.
-3. Ne vnašajte knjižnega stanja, če fizično štetje ni bilo opravljeno.
+3. Obrazec ob odprtju predizpolni količine s knjižnim stanjem. Vsako vrednost
+   zato primerjajte s fizičnim štetjem in jo po potrebi prepišite; predizpolnjena
+   številka ni opravljeno štetje.
 4. Preglejte odstopanja po količini in vrednosti.
 5. Ponovno preštejte pomembna ali nenavadna odstopanja.
 6. Dodajte obrazložitev, kadar je zahtevana.
-7. Potrdite inventuro z odgovorno osebo.
-8. Preverite nastale uskladitvene premike.
+7. Odgovorna oseba naj še enkrat pregleda vse vrstice, nato pritisnite
+   **Potrdi inventuro**.
+8. Potrditev takoj shrani inventuro in uskladitvene premike; vmesni shranjeni
+   osnutek oziroma ločeno stanje »v pregledu« ni na voljo. Preverite stanje na
+   karticah artiklov.
 
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-a93be55043db package=lite -->
 ### 8.3 Obnova po napaki
 
-Če opazite napačno mersko enoto ali skladišče pred potrditvijo, inventuro
+Če opazite napačno mersko enoto ali poslovno enoto pred potrditvijo, inventuro
 popravite. Po potrditvi ne začnite nove inventure samo zato, da bi skrili
 napako; uporabite sledljiv korekcijski postopek.
+
+<!-- pos-heading: id=pos-07-zacetek-dela-dostop-inventura-ocr-review-4fc23ad71b80 package=lite -->
+### 8.4 Popisni list in OCR inventure
+
+Na zavihku **Zaloge → Inventure** lahko prenesete ločena PDF-popisna lista za
+material in drobni inventar. V obrazcu **Nova inventura** lahko naložite
+izpolnjen popisni list v obliki PDF, JPG ali PNG (do 20 MB). Datoteka se
+uporabi za OCR-predlog; ni samostojna inventura in se inventuri pripne šele ob
+potrditvi.
+
+1. Pred nalaganjem izberite pravi obseg: **Material** ali **Drobni inventar**.
+   Pri materialu je začetni prikaz **Samo normativni**; izberite **Vsi
+   materiali**, če popis vključuje tudi materiale zunaj normativov.
+2. Naložite čitljiv, izpolnjen popisni list. OCR lahko prebere datum, natisnjeni
+   ID oziroma naziv, enoto, dejansko količino ter pri materialu tudi ročno
+   vpisano nabavno ceno.
+3. Predlog se vpiše v obrazec, ne potrdi samodejno. Primerjajte vse postavke z
+   izvirnikom in dejanskim štetjem. Neujemajoče se ali dvoumne vrstice so
+   navedene za ročno preverjanje; neprepoznane številčne vrednosti ostanejo
+   prazne.
+4. Pri ujemanju preverite tudi mersko enoto. Sistem uparja natisnjeni ID ali
+   natančen naziv skupaj z enoto; ne sprejemajte podobnega naziva kot dokaz
+   pravilnega artikla.
+5. Pri drobnem inventarju preverite količine; cenovni in vrednostni stolpci se
+   za ta obseg ne uporabljajo.
+6. Pred potrditvijo preverite izbrani datum in opombo. Datum iz OCR je samo
+   predlog. Pregledana vsebina ostane v odprtem obrazcu; če obrazec zaprete
+   pred potrditvijo, inventura ni shranjena.
+
+Iskanje samo skrije vrstice v prikazu; ne zoži seznama, ki ga obrazec shrani.
+Obseg in filter pa določata, katera skupina vrstic je vključena. Shranijo se
+izbrane vrstice z vneseno količino, ne pa sam filter ali oznaka obsega. Pri ročnem
+vnosu ne pustite predizpolnjene knjižne količine, če je niste dejansko prešteli.
+
+Ko kliknete **Potrdi inventuro**, POS ustvari potrjeno inventuro z inventurnimi
+gibi za razlike. Inventura je časovno zabeležena ob koncu izbranega
+koledarskega dne po UTC (23.59.59 UTC), ne ob koncu dneva po ljubljanskem
+času. V Sloveniji to pomeni 00.59.59 oziroma 01.59.59 naslednjega dne;
+pred potrditvijo preverite premike okoli meje dneva in morebitna odstopanja
+predajte vodji v uskladitev. To ni osnutek za poznejšo
+odobritev: večji popravek pred potrditvijo preverite in odobrite interno.
+Po shranitvi se dokument prikaže na seznamu inventur; če je bila priponka
+shranjena, jo lahko s seznama prenesete. Sprememba datuma ali postavk oziroma
+brisanje potrjene inventure spremeni gibanja zalog, zato tak poseg izvedite
+samo po odobritvi in po njem preverite kartico artikla.
+
+**Drobni inventar se vodi samo količinsko:** v inventuri nima nabavne cene in
+vrednostnega odstopanja; inventurni premik ne ustvari dodatne GL knjižbe. To ne
+nadomesti obravnave dejanskega nakupa: nakup se na prejemnici vnese po
+dobaviteljevi ceni in se obravnava kot strošek. Inventura ne sme še enkrat
+knjižiti nabavne vrednosti ali ustvariti dodatnega računovodskega stroška.
 
 <!-- pos-heading: id=pos-07-zacetek-dela-dostop-fba2cf2aedad package=standard -->
 ## 9. Pripravljena in sestavljena hrana

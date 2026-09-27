@@ -5,8 +5,6 @@
 - [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
 - [Brisanje razvojnih prijav](dev-clerk-user-cleanup.md) — e-pošto razreši v razvojnem Clerku; DB vloge veži na Clerk ID, poslovno/revizijsko zgodovino ohrani.
 - [ERP company header](erp-company-header.md) — ERP poročila morajo aktivno podjetje vedno poslati eksplicitno, ne zanašati se na legacy localStorage fallback.
-- [WAC inventory valuation](wac-implementation.md) — drseča tehtana povprečna cena: schema, recompute algo, edge cases
-- [POS plačilni zneski](pos-placilni-zneski.md) — mešana plačila: vedno beri znesek_* stolpce; repr/lastna face value iz postavk; db.execute vrne .rows[0]
 - [QR meni slike in ETA pijač](qr-meni-slike-eta-pijac.md) — široke slike so 3 : 1; čista naročila pijač uporabljajo ločeno barsko vrsto.
 - [QR meni uporabniški izrazi](qr-meni-uporabniski-izrazi.md) — glava kaže mizo in prostor; kategorije so vse vidne; artikel se doda v košarico, naročilo se odda pozneje.
 - [Cene in poraba pic](pizza-cene-po-velikostih.md) — cena sledi velikosti; plačljiv dodatek pri porabi vedno uporablja cel normativ s faktorjem 1.
@@ -16,7 +14,6 @@
 - [QR To Go artikli](qr-to-go-artikli.md) — javni QR meni možnost To Go pokaže le pri artiklu, ki jo ima omogočeno; strežnik izbiro vedno preveri.
 - [Več QR naročil na mizi](qr-vec-narocil-na-mizi.md) — različne naprave ostanejo ločene, POS pa mora na isti mizi prikazati in odpreti vsako naročilo.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
-- [FURS POS Web GitHub](furs-pos-web-github.md) — izvorni POS projekt na GitHubu; referenca za logiko
 - [Komunikacija](komunikacija.md) — izključno slovenščina
 - [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
@@ -39,10 +36,7 @@
 - [lib/db rebuild in migracija](libdb-rebuild-migracija.md) — stale .d.ts po spremembi sheme: rebuild z `cd lib/db && npx tsc -p tsconfig.json`; drizzle date() = ISO string; psql za migracije; tsx za teste
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
-- [ERP poročila unclassified](erp-reports-unclassified.md) — resolveEffectiveType: SRS override za cifro 0–9, sentinel "unclassified" za ostalo; nikoli tiha izguba; buildBalanceSheet/buildIncomeStatement exportani za teste
-- [DDV zaključek temeljnica](ddv-zakljucek-closing.md) — 012 migracija; 160%/260% filter; dryRun predogled; auto-create 2699/1699; duplicate check prek reference polja
 - [Neodbitni vstopni DDV](neodbitni-ddv.md) — 013 migracija (PN5/PN95/UVP5/UVP95); fursVatCodes ruta+hook; vatDeductionPercent UI v temeljnicah; isNonDeductible → privzeto 0%
-- [Register OS Faza 3ab](register-os-3ab.md) — 015 migracija; GLAVA (osnovna_sredstva) + PODZAPISI (os_doknjizbe); skupinaId samo na glavi; vrednosti+datumi na doknjižbah; seq=0 = osnova, seq≥1 = dograditve
 - [OS amortizacija pravilo](os-amortizacija-pravilo.md) — 022 migracija; naslednji_dan|naslednji_mesec; usklajenost izpis/pregled (023 vhodni_podpis); 3b stornacija POST /storno
 - [OS datum odtujitve](os-datum-odtujitve.md) — SRS/ZDDPO-2 pravilo: mesec odtujitve se NE šteje; glava.datumOdtujitve override > per-doknjizba datumIzpisa; register filtrira dispYear < leto
 - [OS negativna NV korekcija](os-negativna-nv.md) — uvožene korekcijske doknjižbe imajo negativno NV; engine mora vrniti 0 (ne negativno AM); opomba "negativna_osnova"
@@ -123,7 +117,6 @@
 - [Profili gostinskih enot](unit-hospitality-profiles.md) — profil je predloga; dejanski meni in dostop določajo ločene zmožnosti aktivne enote.
 - [POS paketi podjetja](pos-company-plans.md) — paket je zgornja meja zmožnosti enot; obstoječi POS tenant dobi Extended, manjkajoč zapis pomeni Lite.
 - [Dogodkovni prenosi zaloge](event-stock-transfers.md) — zgodovina mora uskladiti poslano = porabljeno + preostalo + vrnjeno in omejiti preostalo na dogodkovno količino.
-- [Izbira elementov tlorisa](floor-plan-pointer-events.md) — loči pointerdown od click; ozadje sme počistiti izbor le pri target === currentTarget.
 - [Večhodni POS in QR meni](multicourse-qr-menu.md) — menijska cena, vina in KDS hodi imajo ločene vloge; napredovanje sledi pairingGroupId + courseSequence.
 - [Izbor blagajne pri izdaji računa](receipt-register-selection.md) — aktivna blagajna zahteva ekspliciten ID trenutne enote; legacy fallback velja le brez aktivnih blagajn.
 - [OpenAPI codegen drift](openapi-codegen-drift.md) — po codegenu preveri generated diff; nepovezane stare pogodbene spremembe ne sodijo v trenutno nalogo.
@@ -136,7 +129,6 @@
 - [KDS preklic nepredanega paketa](kds-preklic-paketa.md) — preklic ohrani append-only audit; brisanje, materializacija in prehodi uporabljajo isti zaklep naročila.
 - [POS actor PIN brez ERP računa](pos-actor-pin.md) — natakar uporablja ID+PIN na skupni prijavi; manjkajoča actor seja ne sme blokirati vodje pri nastavitvi PIN-a.
 - [POS audit identitete](pos-audit-identitete.md) — Clerk izvajalec in natakar actor sta ločena; legacy integer stolpca ne pretipkaj.
-- [Android zaslonska tipkovnica](android-visual-viewport.md) — POS uporablja VisualViewport za višino dialogov in samodejni prikaz aktivnega polja nad tipkovnico.
 - [Dolgi izbirniki v POS dialogih](article-category-native-select.md) — pri kategorijah in artiklih malic uporabi izvorni mobilni izbirnik, da drsenje ne obtiči.
 - [Začetne cene malic](malice-initial-prices.md) — prvo ceno skupine je dovoljeno določiti za nazaj; poznejše spremembe veljajo šele od naslednjega poslovnega dne.
 - [Drsenje zgornjega Vaul predala](vaul-top-drawer-scroll.md) — seznam v zgornjem predalu mora prevzeti potege; predal se ne sme zapirati ob drsenju vsebine.
@@ -156,4 +148,5 @@
 - [Podizbire modifikatorjev](podizbire-modifikatorjev.md) — vsak prodajni artikel v normativu modifikatorja ima svoje enonivojske izbire; ni dodatna prodajna vrstica.
 - [Slovenska abeceda v seznamih](slovenska-abeceda.md) — abecedna imena uporabljajo slovensko primerjavo; ročni vrstni red kategorij ima prednost.
 - [Drobni inventar gostinstva](drobni-inventar-gostinstva.md) — kozarci in krožniki so ob nabavi strošek; inventure usklajujejo samo količine, brez novih temeljnic.
+- [POS test obrazca artiklov](pos-menu-test-mocks.md) — ob razširitvi API odvisnosti popraviti namenske testne mocke; uvoz celotnega odjemalca lahko obvisi.
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.

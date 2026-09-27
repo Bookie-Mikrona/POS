@@ -193,4 +193,4 @@ def test_manual_heading_package_assignments_match_migration_snapshot() -> None:
         )
 
     digest = hashlib.sha256("\n".join(assignments).encode()).hexdigest()
-    assert digest == "6fccd2cdb0d206dcaa4dac6a8c5cf9307f9148e7fd8cb4cc3cd5f091ee949d57"
+    assert digest == "8b9d2fba84f68c59d563d2a455c2890767f180ff10b65a1d1374a2cdd2c06e0d"
