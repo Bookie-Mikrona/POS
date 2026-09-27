@@ -41,10 +41,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Search, X, Copy, Upload, FileUp, FileDown, AlertCircle, CheckCircle2, SlidersHorizontal, ShoppingBag, ImageIcon, Sparkles, Menu as MenuIcon, PackageOpen, ChevronRight, ChevronDown, Check, History, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Pencil, Search, X, Copy, Upload, FileUp, FileDown, AlertCircle, CheckCircle2, SlidersHorizontal, ShoppingBag, ImageIcon, Sparkles, Menu as MenuIcon, PackageOpen, ChevronRight, ChevronDown, Check, History, RotateCcw, MoreHorizontal } from "lucide-react";
 import type { Kategorija, Artikel, ModSkupinaFull } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNastavitve } from "@/contexts/NastavitveContext";
@@ -1764,9 +1765,7 @@ export default function Menu() {
 
   return (
     <div className="p-1.5 sm:p-4 lg:p-5 gap-0.5 sm:gap-2 flex-1 h-full min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col bg-muted/10">
-      <div className="hidden sm:flex justify-between items-center shrink-0">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Upravljanje menija</h1>
-      </div>
+      <h1 className="sr-only">Upravljanje menija</h1>
 
       <Dialog open={importDrobniInventarOpen} onOpenChange={setImportDrobniInventarOpen}>
         <DialogContent>
@@ -1863,67 +1862,16 @@ export default function Menu() {
           {/* Artikli Tab */}
           <TabsContent value="artikli" className="absolute inset-0 m-0 h-full flex flex-col data-[state=active]:flex outline-none">
             <Card className="flex flex-col flex-1 border-border/50 shadow-sm overflow-hidden bg-card h-full">
-              <div className="px-1.5 sm:px-3 py-1.5 sm:py-2 border-b border-border/50 bg-muted/30 flex flex-col gap-1 sm:gap-2">
-              <div className="flex justify-between items-center gap-2">
-                <h2 className="hidden sm:flex font-medium text-sm tracking-tight text-foreground items-center gap-1.5">
-                  <PackageOpen className="w-4 h-4 text-muted-foreground" />
-                  Artikli
-                </h2>
-                {!jeUporabnik && (
-                   <div className="grid grid-cols-5 sm:flex items-center gap-0.5 w-full sm:w-auto sm:ml-auto">
-                     <Button size="sm" variant="ghost" className="h-7 sm:h-8 w-full sm:w-auto px-0.5 sm:px-2 text-[9px] sm:text-xs text-muted-foreground hover:text-foreground" aria-label="Uskladi DDV" onClick={() => setUskladiOpen(true)}>
-                       <SlidersHorizontal className="hidden sm:block w-3.5 h-3.5 sm:mr-1.5" /><span>Uskladi DDV</span>
-                    </Button>
-                     <Button size="sm" variant="ghost" className="h-7 sm:h-8 w-full sm:w-auto px-0.5 sm:px-2 text-[9px] sm:text-xs text-muted-foreground hover:text-foreground" aria-label="Izvozi Excel" onClick={handleIzvozi} disabled={izvozLoading}>
-                       <FileDown className="hidden sm:block w-3.5 h-3.5 sm:mr-1.5" /><span>{izvozLoading ? "Izvažam..." : "Excel"}</span>
-                    </Button>
-                     <Button size="sm" variant="ghost" className="h-7 sm:h-8 w-full sm:w-auto px-0.5 sm:px-2 text-[9px] sm:text-xs text-muted-foreground hover:text-foreground" aria-label="Izvozi cenik PDF" onClick={handleCenikPdf} disabled={cenikPdfLoading}>
-                       <FileDown className="hidden sm:block w-3.5 h-3.5 sm:mr-1.5" /><span>{cenikPdfLoading ? "Izvažam..." : "Cenik PDF"}</span>
-                    </Button>
-                     <Button size="sm" variant="ghost" className="h-7 sm:h-8 w-full sm:w-auto px-0.5 sm:px-2 text-[9px] sm:text-xs text-muted-foreground hover:text-foreground" aria-label="Uvozi artikle" onClick={() => { resetUvoz(); setUvozOpen(true); }}>
-                       <Upload className="hidden sm:block w-3.5 h-3.5 sm:mr-1.5" /><span>Uvozi</span>
-                    </Button>
-                     <Button size="sm" className="h-7 sm:h-8 w-full sm:w-auto px-0.5 sm:px-3 text-[9px] sm:text-xs sm:ml-1" aria-label="Nov artikel" onClick={openNewArt}>
-                       <Plus className="hidden sm:block w-3.5 h-3.5 sm:mr-1.5" /><span>Nov artikel</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
-               <div className="flex flex-wrap items-center justify-end gap-1.5">
-                 <Button
-                   size="sm"
-                   variant="outline"
-                   className="h-7 px-2 text-[10px] sm:text-xs"
-                   aria-label="Izvozi PDF prodajni katalog"
-                   data-testid="button-export-katalog-prodajni"
-                   onClick={() => void handleKatalogPdf("prodajni")}
-                   disabled={katalogPdfLoading}
-                 >
-                   <FileDown className="mr-1.5 h-3.5 w-3.5" />
-                   {katalogPdfLoading ? "Izvažam..." : "PDF prodajni katalog"}
-                 </Button>
-                 <Button
-                   size="sm"
-                   variant="outline"
-                   className="h-7 px-2 text-[10px] sm:text-xs"
-                   aria-label="Izvozi PDF katalog polizdelkov"
-                   data-testid="button-export-katalog-polizdelki"
-                   onClick={() => void handleKatalogPdf("polizdelki")}
-                   disabled={katalogPdfLoading}
-                 >
-                   <FileDown className="mr-1.5 h-3.5 w-3.5" />
-                   {katalogPdfLoading ? "Izvažam..." : "PDF katalog polizdelkov"}
-                 </Button>
-               </div>
-              <div className="flex flex-col sm:flex-row gap-1.5">
-                 <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 rounded-lg border-2 border-primary/30 bg-background p-1 shadow-sm shrink-0">
+              <div className="px-1.5 sm:px-2 py-1 border-b border-border/50 bg-muted/30 flex flex-col sm:flex-row sm:items-center gap-1">
+                <div className="flex items-center gap-1 w-full min-w-0 sm:flex-1">
+                 <div role="group" aria-label="Filtri artiklov" className="flex flex-1 min-w-0 overflow-x-auto gap-0.5 rounded-md border border-primary/30 bg-background p-0.5 scrollbar-hidden">
                   {(["vsi", "prodajni", "nabavni", "drobni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (
                     <button
                       key={f}
                       type="button"
                       data-testid={`filter-article-${f}`}
                       onClick={() => setArtFilter(f)}
-                       className={`min-w-0 min-h-9 rounded-md px-1.5 sm:px-3 py-1.5 text-[11px] sm:text-xs whitespace-nowrap font-semibold transition-all ${
+                       className={`shrink-0 h-7 rounded px-2 py-1 text-[11px] whitespace-nowrap font-semibold transition-all ${
                          artFilter === f
                            ? "bg-primary text-primary-foreground shadow-sm"
                            : "bg-muted/60 text-foreground hover:bg-muted"
@@ -1933,8 +1881,8 @@ export default function Menu() {
                     </button>
                   ))}
                 </div>
-                <div className="relative flex-1">
-                  <div className="relative min-w-0 flex-1">
+                 <div className="relative w-28 sm:w-36 lg:w-40 shrink-0">
+                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                     <KlavijaturaInput
                       ref={artSearchRef}
@@ -1942,7 +1890,7 @@ export default function Menu() {
                       onChange={setArtSearch}
                       placeholder="Iskanje artiklov..."
                       naslov="Iskanje"
-                       className="pl-8 pr-8 h-7 sm:h-8 text-xs bg-background border-border/50"
+                       className="pl-8 pr-8 h-8 text-xs bg-background border-border/50"
                     />
                     {artSearch && (
                       <button
@@ -1956,20 +1904,39 @@ export default function Menu() {
                     )}
                   </div>
                 </div>
-              </div>
-              {lahkoVidiZgodovinoNormativa && (
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>Predloge drobnega inventarja se dodajo samo trenutno aktivni enoti, brez začetnih količin in knjižb.</span>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={openNewDrobniInventar} disabled={!getEnotaId()}>
-                      <Plus className="mr-1 h-3.5 w-3.5" /> Nov drobni inventar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setImportDrobniInventarOpen(true)} disabled={!getEnotaId() || importDrobniInventar.isPending}>
-                      <Plus className="mr-1 h-3.5 w-3.5" /> Naloži drobni inventar
-                    </Button>
-                  </div>
                 </div>
-              )}
+                <div className="flex items-center gap-1 shrink-0 justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 px-2 text-xs" aria-label="Dejanja z artikli">
+                        <MoreHorizontal className="w-4 h-4 mr-1" /> Dejanja
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 max-h-[80vh] overflow-y-auto">
+                      <DropdownMenuLabel>Izvoz PDF</DropdownMenuLabel>
+                      <DropdownMenuItem data-testid="button-export-katalog-prodajni" disabled={katalogPdfLoading} onSelect={() => void handleKatalogPdf("prodajni")}>Prodajni katalog</DropdownMenuItem>
+                      <DropdownMenuItem data-testid="button-export-katalog-polizdelki" disabled={katalogPdfLoading} onSelect={() => void handleKatalogPdf("polizdelki")}>Katalog polizdelkov</DropdownMenuItem>
+                      {!jeUporabnik && (
+                        <>
+                          <DropdownMenuItem disabled={cenikPdfLoading} onSelect={() => void handleCenikPdf()}>Cenik PDF</DropdownMenuItem>
+                          <DropdownMenuItem disabled={izvozLoading} onSelect={() => void handleIzvozi()}>Izvozi Excel</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => setUskladiOpen(true)}>Uskladi DDV</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => { resetUvoz(); setUvozOpen(true); }}>Uvozi artikle</DropdownMenuItem>
+                        </>
+                      )}
+                      {lahkoVidiZgodovinoNormativa && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel>Drobni inventar</DropdownMenuLabel>
+                          <DropdownMenuItem disabled={!getEnotaId()} onSelect={openNewDrobniInventar}>Nov drobni inventar</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!getEnotaId() || importDrobniInventar.isPending} onSelect={() => setImportDrobniInventarOpen(true)}>Naloži predloge v aktivno enoto</DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {!jeUporabnik && <Button size="sm" className="h-8 px-2 text-xs" onClick={openNewArt}><Plus className="w-3.5 h-3.5 mr-1" />Nov artikel</Button>}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-0 scrollbar-hidden">
