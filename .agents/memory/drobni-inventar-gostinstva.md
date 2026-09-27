@@ -20,3 +20,15 @@ Uporabnik želi drobni inventar najti neposredno v šifrantu artiklov trenutne e
 **Why:** Ločen katalog predlog je bil tehnično pripravljen, a uporabnik artiklov v šifrantu ni videl; predloge same še niso vneseni artikli.
 
 **How to apply:** Pri podobnih zahtevah razlikuj med ogledom predlog in dejanskim vnosom v izbrano enoto. Omogoči vnos na mestu, kjer uporabnik artikle išče, in po vnosu pokaži ustrezno filtriran seznam.
+
+Za predloge gostinskega drobnega inventarja (kozarci, pribor, posoda ipd.) je pričakovana vhodna stopnja DDV 22 %, ne 9,5 %; kategorija blaga je »ostalo«, ne »živila«. Na dejanski nabavni listini pa ostane odločilna stopnja z dobaviteljeve listine.
+
+**Why:** Uporabnik je izrecno opozoril na napačno pričakovano 9,5-odstotno stopnjo. Privzeta kategorija »živila« je v šifrantu izpeljala napačno stopnjo za opremo, ki ni živilo.
+
+**How to apply:** Ob novih predlogah in ročnem označevanju drobnega inventarja uporabi splošno stopnjo; popravljaj le nedotaknjene samodejne predloge, ne zgodovinskih listin ali ročno določenih davčnih stopenj.
+
+Ko se predloga drobnega inventarja premakne v drugo podskupino, njenega stabilnega ključa ne preimenuj. Podskupina je spremenljiva klasifikacija, ključ pa identiteta za idempotenten uvoz.
+
+**Why:** Kozarci, skodelice in servirne deske so bili sprva uvrščeni v drugačne skupine. Preimenovanje ključev ob popravku skupin bi pri naslednjem uvozu lahko ustvarilo dvojnike.
+
+**How to apply:** Popravi oznake podskupin in prikaz, pri obstoječih samodejnih predlogah pa ohrani prvotne identifikatorje. Ročno določene skupine ne prepisuj s širokimi migracijami.

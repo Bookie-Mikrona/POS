@@ -561,7 +561,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Drobni inventar mora biti samo nabavni material, brez prodajne ali povratne embalaže." });
     return;
   }
-  const taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
+  const taxCategory = drobniInventar ? "other" : (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
   const jeDelMenija = (parsed.data as { jeDelMenija?: boolean }).jeDelMenija ?? false;
   const requestedAddedSugar = (parsed.data as { addedSugar?: boolean }).addedSugar ?? false;
   const addedSugar = normalizeAddedSugarForTaxCategory(taxCategory, requestedAddedSugar);
@@ -603,7 +603,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         happyHourCena: polizdelek || parsed.data.happyHourCena == null ? null : String(parsed.data.happyHourCena),
         happyHourCenaMala: polizdelek || parsed.data.happyHourCenaMala == null ? null : String(parsed.data.happyHourCenaMala),
         happyHourCenaDruzinska: polizdelek || parsed.data.happyHourCenaDruzinska == null ? null : String(parsed.data.happyHourCenaDruzinska),
-        davek: String(polizdelek ? 0 : parsed.data.davek ?? 0),
+        davek: String(polizdelek ? 0 : drobniInventar ? 22 : parsed.data.davek ?? 0),
         aktiven: parsed.data.aktiven ?? true,
         kategorijaId: polizdelek ? null : parsed.data.kategorijaId ?? null,
         barva: polizdelek ? null : parsed.data.barva ?? null,
@@ -1523,7 +1523,11 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     return;
   }
   const naslednjaEnota = "enotaMere" in parsed.data ? parsed.data.enotaMere : obstojeci.enotaMere;
-  const naslednjiDrobniInventar = parsed.data.drobniInventar ?? obstojeci.drobniInventar;
+  // Generirana shema za PUT vstavi default false tudi, če klicatelj polja ne pošlje.
+  const drobniInventarPoslan = Object.prototype.hasOwnProperty.call(req.body, "drobniInventar");
+  const naslednjiDrobniInventar = drobniInventarPoslan
+    ? Boolean(parsed.data.drobniInventar)
+    : obstojeci.drobniInventar;
   const naslednjaVrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla
     ?? resolveArticleType(obstojeci.vrstaArtikla, {
       nabavniArtikel: naslednjiNabavni,
@@ -1557,8 +1561,9 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     });
     return;
   }
-  const naslednjaTaxCategory =
-    (parsed.data as { taxCategory?: string }).taxCategory ?? obstojeci.taxCategory ?? "food";
+  const naslednjaTaxCategory = naslednjiDrobniInventar
+    ? "other"
+    : (parsed.data as { taxCategory?: string }).taxCategory ?? obstojeci.taxCategory ?? "food";
   const naslednjiJeDelMenija =
     (parsed.data as { jeDelMenija?: boolean }).jeDelMenija ?? obstojeci.jeDelMenija;
   const naslednjiProdajniArtikel = parsed.data.prodajniArtikel ?? obstojeci.prodajniArtikel;
@@ -1642,7 +1647,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     });
   }
   if ("povratnaEmbalaza" in parsed.data) updateData.povratnaEmbalaza = Boolean((parsed.data as any).povratnaEmbalaza);
-  if ("drobniInventar" in parsed.data) updateData.drobniInventar = Boolean(parsed.data.drobniInventar);
+  if (drobniInventarPoslan) updateData.drobniInventar = naslednjiDrobniInventar;
   if ("vrstaEmbalaze" in parsed.data) updateData.vrstaEmbalaze = (parsed.data as any).vrstaEmbalaze ?? null;
   if ("depozitnaVrednost" in parsed.data) updateData.depozitnaVrednost = (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost);
   if ("happyHourCena" in parsed.data) updateData.happyHourCena = (parsed.data as { happyHourCena?: number | null }).happyHourCena != null ? String((parsed.data as { happyHourCena: number }).happyHourCena) : null;
@@ -1650,6 +1655,10 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if ("happyHourCenaDruzinska" in parsed.data) updateData.happyHourCenaDruzinska = (parsed.data as { happyHourCenaDruzinska?: number | null }).happyHourCenaDruzinska != null ? String((parsed.data as { happyHourCenaDruzinska: number }).happyHourCenaDruzinska) : null;
   if ("skupina" in parsed.data) updateData.skupina = (parsed.data as { skupina?: string | null }).skupina ?? null;
   if ("taxCategory" in parsed.data) updateData.taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
+  if (naslednjiDrobniInventar) {
+    updateData.taxCategory = "other";
+    updateData.davek = "22";
+  }
   if ("jeDelMenija" in parsed.data) updateData.jeDelMenija = Boolean((parsed.data as { jeDelMenija?: boolean }).jeDelMenija);
   if (naslednjaTaxCategory === "food_drink" || "addedSugar" in parsed.data) {
     updateData.addedSugar = naslednjiAddedSugar;

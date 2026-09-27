@@ -11,7 +11,7 @@ export type DrobniInventarSkupina = {
 export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
   {
     id: "01",
-    naziv: "01 Steklovina",
+    naziv: "01 - Steklovina",
     artikli: [
       { kljuc: "01-pivski-vrcek-050", ime: "Pivski vrček/krigel 0,5 L" },
       { kljuc: "01-pivski-vrcek-030", ime: "Pivski vrček/krigel 0,3 L" },
@@ -33,15 +33,12 @@ export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
       { kljuc: "01-visok-sok-voda-030", ime: "Visok kozarec za sok/vodo 0,3 L" },
       { kljuc: "01-kozarec-voda", ime: "Kozarec za vodo" },
       { kljuc: "01-vrc-voda-100", ime: "Vrč za vodo/retek 1 L" },
-      { kljuc: "01-espresso-skodelica-podstavek", ime: "Skodelica za espresso s podstavkom" },
-      { kljuc: "01-skodelica-podaljsana-kava-kapucino", ime: "Skodelica za podaljšano kavo/kapučino" },
-      { kljuc: "01-skodelica-caj-kakav", ime: "Skodelica za čaj/kakav" },
       { kljuc: "01-stekleni-topli-napitki", ime: "Stekleni kozarec za kuhano vino/čaj" },
     ],
   },
   {
     id: "02",
-    naziv: "02 Porcelan/strežna posoda",
+    naziv: "02 - Porcelan",
     artikli: [
       { kljuc: "02-kroznik-plitvi-glavni", ime: "Plitvi krožnik – velik za glavne jedi" },
       { kljuc: "02-kroznik-globoki", ime: "Globoki krožnik za juhe/testenine" },
@@ -51,15 +48,16 @@ export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
       { kljuc: "02-skledica-solata-velika", ime: "Skleda za solato – večja" },
       { kljuc: "02-jusna-skodelica", ime: "Jušna skodelica" },
       { kljuc: "02-posodica-omaka", ime: "Posodica za omako/omačnica" },
-      { kljuc: "02-deska-lesena-narezek-zar", ime: "Lesena servirna deska za narezek/žar" },
-      { kljuc: "02-deska-kamnita-narezek-zar", ime: "Kamnita servirna deska za narezek/žar" },
+      { kljuc: "01-espresso-skodelica-podstavek", ime: "Skodelica za espresso s podstavkom" },
+      { kljuc: "01-skodelica-podaljsana-kava-kapucino", ime: "Skodelica za podaljšano kavo/kapučino" },
+      { kljuc: "01-skodelica-caj-kakav", ime: "Skodelica za čaj/kakav" },
       { kljuc: "02-pladenj-ovalni-strezni", ime: "Ovalni strežni pladenj" },
       { kljuc: "02-pladenj-kovinski-natakar", ime: "Kovinski pladenj za natakarje" },
     ],
   },
   {
     id: "03",
-    naziv: "03 Jedilni pribor/namizni dodatki",
+    naziv: "03 - Jedilni pribor",
     artikli: [
       { kljuc: "03-vilice-velike", ime: "Velike jedilne vilice" },
       { kljuc: "03-noz-veliki", ime: "Veliki jedilni nož" },
@@ -82,7 +80,7 @@ export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
   },
   {
     id: "04",
-    naziv: "04 Kuhinjska posoda & GN",
+    naziv: "04 - Kuhinjska posoda & GN",
     artikli: [
       { kljuc: "04-inoks-lonec-10l", ime: "Inoks lonec velike kapacitete 10 L" },
       { kljuc: "04-inoks-lonec-20l", ime: "Inoks lonec velike kapacitete 20 L" },
@@ -109,8 +107,10 @@ export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
   },
   {
     id: "05",
-    naziv: "05 Kuhinjska orodja",
+    naziv: "05 - Kuhinjska orodja",
     artikli: [
+      { kljuc: "02-deska-lesena-narezek-zar", ime: "Lesena servirna deska za narezek/žar" },
+      { kljuc: "02-deska-kamnita-narezek-zar", ime: "Kamnita servirna deska za narezek/žar" },
       { kljuc: "05-noz-kuharski-sefovski", ime: "Kuharski/šefovski nož" },
       { kljuc: "05-noz-izkoscenje", ime: "Nož za izkoščanje" },
       { kljuc: "05-noz-kruh", ime: "Nož za kruh" },
@@ -137,7 +137,7 @@ export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
   },
   {
     id: "06",
-    naziv: "06 Šank",
+    naziv: "06 - Šank pripomočki",
     artikli: [
       { kljuc: "06-rocka-kavni-aparat", ime: "Ročka za kavni aparat" },
       { kljuc: "06-tamper", ime: "Tamper/tlačilnik za kavo" },
@@ -163,7 +163,7 @@ export const DROBNI_INVENTAR_KATALOG: DrobniInventarSkupina[] = [
   },
   {
     id: "07",
-    naziv: "07 Tekstil & Ostalo",
+    naziv: "07 - Tekstil & Ostalo",
     artikli: [
       { kljuc: "07-namizni-prt", ime: "Namizni prt" },
       { kljuc: "07-nadprt-tekac", ime: "Nadprt/namizni tekač" },
@@ -232,7 +232,8 @@ export async function uvoziDrobniInventar(tx: any, enotaId: number): Promise<{ i
       ime: article.ime,
       opis: article.opis ?? null,
       cena: "0",
-      davek: "0",
+      davek: "22",
+      taxCategory: "other",
       aktiven: true,
       nabavniArtikel: true,
       prodajniArtikel: false,

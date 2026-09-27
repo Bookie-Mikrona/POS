@@ -53,6 +53,7 @@ import { ArticleImageCropDialog } from "@/components/ArticleImageCropDialog";
 import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldValues } from "@/components/MassYieldFields";
 import { ToGoArticlePicker } from "@/components/ToGoArticlePicker";
 import { sortMenuArticles } from "@/lib/article-menu-sort";
+import { DROBNI_INVENTAR_SKUPINE, drobniInventarSkupina, sortDrobniInventar } from "@/lib/drobni-inventar-groups";
 
 import { type NormativItem } from "@/lib/kopiraj-normativ";
 type PizzaDoughSelection = { normalna: number; mala: number };
@@ -987,8 +988,13 @@ export default function Menu() {
     setArtVrstaArtikla(drobniInventar ? "material" : (((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev"));
     setArtMealType((a.mealType as "ala_carte" | "prepared" | "composite") ?? "ala_carte");
     setArtCasPripraveMin(String((a as typeof a & { casPripraveMin?: number }).casPripraveMin ?? 0));
-    setArtSkupina((a as typeof a & { skupina?: string | null }).skupina ?? "");
-    const existingTaxCategory = (a as typeof a & { taxCategory?: string }).taxCategory ?? "food";
+    const shranjenaSkupina = (a as typeof a & { skupina?: string | null }).skupina ?? "";
+    setArtSkupina(drobniInventar
+      ? drobniInventarSkupina({ ime: a.ime, skupina: shranjenaSkupina })?.naziv ?? shranjenaSkupina
+      : shranjenaSkupina);
+    const existingTaxCategory = drobniInventar
+      ? "other"
+      : (a as typeof a & { taxCategory?: string }).taxCategory ?? "food";
     setArtTaxCategory(existingTaxCategory as "food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "vat_super_reduced_5" | "other");
     setArtJeDelMenija(
       Boolean((a as typeof a & { jeDelMenija?: boolean }).jeDelMenija)
@@ -1905,7 +1911,7 @@ export default function Menu() {
               <Table className="table-fixed w-full min-w-0">
                 <TableHeader className="bg-muted/10 sticky top-0 z-10 shadow-sm">
                   <TableRow className="border-b border-border/50">
-                    <TableHead className="w-[30%] text-xs font-medium h-8 py-0 px-2">Kategorija</TableHead>
+                    <TableHead className="w-[30%] text-xs font-medium h-8 py-0 px-2">{artFilter === "drobni" ? "Podskupina" : "Kategorija"}</TableHead>
                     <TableHead className="hidden lg:table-cell w-[18%] text-xs font-medium h-9 py-0">DDV</TableHead>
                     <TableHead className="w-[26%] text-right text-xs font-medium h-8 py-0 pr-2">Cena</TableHead>
                     <TableHead className="w-[20%] text-center text-xs font-medium h-8 py-0 px-1">Status</TableHead>
@@ -1917,15 +1923,28 @@ export default function Menu() {
                     <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4 border-b-0">Nalaganje...</TableCell></TableRow>
                   ) : (() => {
                       const q = artSearch.toLowerCase();
-                       const filtered = sortMenuArticles((artikli ?? [])
+                       const matching = (artikli ?? [])
                         .filter(a => articleMatchesListFilter(a, artFilter))
-                         .filter(a => !q || a.ime.toLowerCase().includes(q) || (a.imeZaNabavo ?? "").toLowerCase().includes(q)),
-                         kategorije ?? [],
-                         artFilter === "prodajni");
+                         .filter(a => !q || a.ime.toLowerCase().includes(q) || (a.imeZaNabavo ?? "").toLowerCase().includes(q));
+                       const filtered = artFilter === "drobni"
+                         ? sortDrobniInventar(matching)
+                         : sortMenuArticles(matching, kategorije ?? [], artFilter === "prodajni");
                       if (!filtered.length) return (
                         <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4 border-b-0">Ni zadetkov</TableCell></TableRow>
                       );
-                      return filtered.flatMap(a => [
+                      return filtered.flatMap((a, index) => [
+                    ...(artFilter === "drobni" && (
+                      index === 0 || drobniInventarSkupina(a)?.id !== drobniInventarSkupina(filtered[index - 1]!)?.id
+                    ) ? [(
+                      <TableRow key={`drobni-skupina-${drobniInventarSkupina(a)?.id ?? "brez"}`} className="bg-sky-50/70 border-y border-sky-200">
+                        <TableCell colSpan={5} className="px-3 py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-sky-950">{drobniInventarSkupina(a)?.naziv ?? "Nerazvrščeno"}</span>
+                            {drobniInventarSkupina(a) && <span className="text-[11px] text-sky-800">Priporočen popis / obnova: {drobniInventarSkupina(a)!.popis}</span>}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )] : []),
                     <TableRow
                       key={`${a.id}-naziv`}
                       ref={a.id === editingArt?.id ? selectedArtRowRef : undefined}
@@ -1978,7 +1997,7 @@ export default function Menu() {
                               style={{ backgroundColor: kategorije.find(k => k.id === a.kategorijaId)!.barva }}
                             />
                           )}
-                          <span className="truncate text-xs text-muted-foreground">{isPolizdelek(a) ? "—" : a.kategorijaIme || "Ni kategorije"}</span>
+                          <span className="truncate text-xs text-muted-foreground">{artFilter === "drobni" ? (drobniInventarSkupina(a)?.naziv ?? "Nerazvrščeno") : isPolizdelek(a) ? "—" : a.kategorijaIme || "Ni kategorije"}</span>
                         </div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell w-[18%] py-1 px-2">
@@ -2300,6 +2319,8 @@ export default function Menu() {
                             setArtProdajniArtikel(false);
                             setArtPovratnaEmbalaza(false);
                             setArtVrstaArtikla("material");
+                            setArtTaxCategory("other");
+                            setArtSkupina("");
                           }
                         }}
                         className="mt-0.5 h-4 w-4 accent-amber-600"
@@ -2380,6 +2401,24 @@ export default function Menu() {
                 <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                   <Label>Skupina <span className="text-muted-foreground font-normal text-xs">(opcijsko — za združitev v naročilu)</span></Label>
                   <KlavijaturaInput value={artSkupina} onChange={setArtSkupina} placeholder="Npr. Čaj" naslov="Skupina" />
+                </div>
+              )}
+              {artDrobniInventar && (
+                <div className="space-y-2 rounded-lg border border-sky-200 bg-sky-50/50 p-3">
+                  <Label>Podskupina drobnega inventarja</Label>
+                  <Select
+                    value={drobniInventarSkupina({ ime: artName, skupina: artSkupina })?.naziv ?? "brez"}
+                    onValueChange={value => setArtSkupina(value === "brez" ? "" : value)}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DROBNI_INVENTAR_SKUPINE.map(group => (
+                        <SelectItem key={group.id} value={group.naziv}>{group.naziv} · popis {group.popis}</SelectItem>
+                      ))}
+                      <SelectItem value="brez">Nerazvrščeno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-sky-900">Pogostost popisa je priporočilo, ne samodejni urnik.</p>
                 </div>
               )}
 
@@ -2522,6 +2561,7 @@ export default function Menu() {
                     <Label>DDV kategorija</Label>
                     <Select
                       value={artTaxCategory}
+                      disabled={artDrobniInventar}
                       onValueChange={v => {
                         setArtTaxCategory(v as typeof artTaxCategory);
                         if (v !== "hot_beverage" && v !== "cold_beverage") setArtJeDelMenija(false);

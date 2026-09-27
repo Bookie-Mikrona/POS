@@ -420,6 +420,16 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["231-pos-drobni-inventar-predloge.sql"],
   },
+  {
+    file: "233-drobni-inventar-vhodni-ddv.sql",
+    classification: "schema",
+    dependsOn: ["232-inventura-document-path.sql"],
+  },
+  {
+    file: "234-drobni-inventar-skupine.sql",
+    classification: "schema",
+    dependsOn: ["233-drobni-inventar-vhodni-ddv.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

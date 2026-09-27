@@ -81,7 +81,15 @@ describe("POST/GET /artikli/drobni-inventar-predloge", () => {
     const articleRows = await db.select().from(artikliTable).where(eq(artikliTable.enotaId, enotaId));
     expect(articleRows).toHaveLength(vsiDrobniInventarPredlogi().length);
     expect(articleRows.every((article) => article.drobniInventar && article.nabavniArtikel
-      && !article.prodajniArtikel && article.vrstaArtikla === "material")).toBe(true);
+      && !article.prodajniArtikel && article.vrstaArtikla === "material"
+      && Number(article.davek) === 22 && article.taxCategory === "other")).toBe(true);
+    expect(articleRows.find(a => a.drobniInventarPredlogaKljuc === "01-espresso-skodelica-podstavek")?.skupina).toBe("02 - Porcelan");
+    expect(articleRows.find(a => a.drobniInventarPredlogaKljuc === "02-deska-lesena-narezek-zar")?.skupina).toBe("05 - Kuhinjska orodja");
+    expect(new Set(articleRows.map(a => a.skupina))).toEqual(new Set([
+      "01 - Steklovina", "02 - Porcelan", "03 - Jedilni pribor",
+      "04 - Kuhinjska posoda & GN", "05 - Kuhinjska orodja",
+      "06 - Šank pripomočki", "07 - Tekstil & Ostalo",
+    ]));
 
     requestContext.enotaId = otherEnotaId;
     const other = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({});
@@ -109,5 +117,27 @@ describe("POST/GET /artikli/drobni-inventar-predloge", () => {
     requestContext.vloga = "natakar";
     const response = await supertest(app()).post("/artikli/drobni-inventar-predloge").send({});
     expect(response.status).toBe(403);
+  });
+
+  it("tudi ročno dodan drobni inventar ob napačno poslani kategoriji uporablja 22 %", async () => {
+    requestContext.enotaId = enotaId;
+    requestContext.vloga = "admin";
+    const created = await supertest(app()).post("/artikli").send({
+      ime: `Ročni kozarec ${RUN_ID}`, cena: 0, davek: 9.5,
+      enotaMere: "kos", nabavniArtikel: true, prodajniArtikel: false,
+      vrstaArtikla: "material", drobniInventar: true, taxCategory: "food",
+    });
+    expect(created.status).toBe(201);
+    const [article] = await db.select().from(artikliTable).where(eq(artikliTable.id, created.body.id));
+    expect(Number(article?.davek)).toBe(22);
+    expect(article?.taxCategory).toBe("other");
+
+    const updated = await supertest(app()).put(`/artikli/${created.body.id}`).send({
+      ime: `Ročni kozarec ${RUN_ID}`, davek: 9.5, taxCategory: "food",
+    });
+    expect(updated.status, JSON.stringify(updated.body)).toBe(200);
+    const [afterEdit] = await db.select().from(artikliTable).where(eq(artikliTable.id, created.body.id));
+    expect(Number(afterEdit?.davek)).toBe(22);
+    expect(afterEdit?.taxCategory).toBe("other");
   });
 });
