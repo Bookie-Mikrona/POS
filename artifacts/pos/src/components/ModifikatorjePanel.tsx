@@ -466,9 +466,9 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                 ) : (
                   <div className="space-y-1.5">
                     {modNormativi.map((vrstica, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
+                      <div key={idx} className="grid grid-cols-[minmax(0,1fr)_6rem_2.25rem] items-center gap-2">
                         <select
-                          className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                          className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                           value={vrstica.vhodniArtikelId || ""}
                           onChange={e => updateNormativVrstica(idx, "vhodniArtikelId", parseInt(e.target.value) || 0)}
                         >
@@ -497,7 +497,8 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                         </select>
                         <DecimalInput
                           allowNegative
-                          className="w-24"
+                          className="w-full min-w-0"
+                          aria-label={`Količina sestavnice ${idx + 1}`}
                           placeholder="Kol."
                           value={vrstica.kolicina}
                           onChange={e => updateNormativVrstica(idx, "kolicina", e.target.value)}
