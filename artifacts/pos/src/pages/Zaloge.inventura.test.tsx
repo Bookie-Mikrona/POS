@@ -27,14 +27,25 @@ const mockInventura = {
   opomba: null,
   steviloPostavk: 4,
 };
+const mockArtikli = [
+  { id: 101, ime: "Moka", imeZaNabavo: "Moka", enotaMere: "kg", nabavniArtikel: true, vNormativih: true, drobniInventar: false },
+  { id: 102, ime: "Kava", imeZaNabavo: "Kava", enotaMere: "kg", nabavniArtikel: true, vNormativih: false, drobniInventar: false },
+  { id: 103, ime: "Krožnik", imeZaNabavo: "Krožnik", enotaMere: "kos", nabavniArtikel: true, vNormativih: false, drobniInventar: true },
+];
+const mockZaloge = [
+  { artikelId: 101, artikelIme: "Moka", imeZaNabavo: "Moka", kolicina: -2, zadnjaCena: 2, povprecnaCena: 2, skupnaVrednost: -4 },
+  { artikelId: 102, artikelIme: "Kava", imeZaNabavo: "Kava", kolicina: 5, zadnjaCena: 8, povprecnaCena: 8, skupnaVrednost: 40 },
+  { artikelId: 103, artikelIme: "Krožnik", imeZaNabavo: "Krožnik", kolicina: 4, zadnjaCena: 0, povprecnaCena: 0, skupnaVrednost: 0 },
+];
 
 // ── Hoisted mock funkcije ───────────────────────────────────────────────────
 const mockDeleteMutate = vi.hoisted(() => vi.fn());
+const mockCreateInvMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 
 // ── Moki za @workspace/api-client-react ─────────────────────────────────────
 vi.mock("@workspace/api-client-react", () => ({
-  useListZaloge: () => ({ data: [], isLoading: false }),
+  useListZaloge: () => ({ data: mockZaloge, isLoading: false }),
   useListPrejemnice: () => ({ data: [], isLoading: false }),
   useListIzdajnice: () => ({ data: [], isLoading: false }),
   useListPartnerji: () => ({ data: [], isLoading: false }),
@@ -47,10 +58,10 @@ vi.mock("@workspace/api-client-react", () => ({
   useDeleteIzdajnica: () => ({ mutate: vi.fn(), isPending: false }),
   useGetIzdajnica: () => ({ data: undefined, isLoading: false }),
   useListInventure: () => ({ data: [mockInventura], isLoading: false }),
-  useListArtikli: () => ({ data: [] }),
+  useListArtikli: () => ({ data: mockArtikli }),
   useListZacetneZaloge: () => ({ data: [], isLoading: false }),
   useCreatePrejemnica: () => ({ mutate: vi.fn(), isPending: false }),
-  useCreateInventura: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateInventura: () => ({ mutate: mockCreateInvMutate, isPending: false }),
   useUpdatePrejemnica: () => ({ mutate: vi.fn(), isPending: false }),
   useDeletePrejemnica: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateInventura: () => ({ mutate: vi.fn(), isPending: false }),
@@ -77,6 +88,7 @@ vi.mock("@workspace/api-client-react", () => ({
   getGetZacetnaZalogaQueryKey: () => ["/api/zacetne-zaloge/detail"],
   getListPartnerjiQueryKey: () => ["/api/partnerji"],
   getListArtikliQueryKey: () => ["/api/artikli"],
+  getAuthToken: () => "test-token",
   getEnotaId: () => 1,
 }));
 
@@ -156,6 +168,7 @@ function findInvDeleteButton(container: HTMLElement): HTMLElement {
 describe("Zaloge — brisanje inventure: potrditveni dialog", () => {
   beforeEach(() => {
     mockDeleteMutate.mockReset();
+    mockCreateInvMutate.mockReset();
     mockToast.mockReset();
   });
 
@@ -220,5 +233,55 @@ describe("Zaloge — brisanje inventure: potrditveni dialog", () => {
 
     expect(mockDeleteMutate).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("zaloge loči na material in drobni inventar, brez skrivanja materiala izven normativov", () => {
+    renderZaloge();
+    expect(screen.getAllByText("Moka").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Kava").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Krožnik")).not.toBeInTheDocument();
+    expect(screen.getByText(/1 artikel ima negativno zalogo/)).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Drobni inventar" }), { button: 0, ctrlKey: false });
+    expect(screen.getAllByText("Krožnik").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Moka")).not.toBeInTheDocument();
+    expect(screen.queryByText(/ima negativno zalogo/)).not.toBeInTheDocument();
+  });
+
+  it("inventura prikaže samo izbrano kategorijo in iskanje ne odstrani drugih vnosov iz shranjevanja", () => {
+    renderZaloge();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Inventure" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("button", { name: "Nova inventura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vsi materiali" }));
+
+    expect(screen.getByText(/Moka/)).toBeInTheDocument();
+    expect(screen.getByText(/Kava/)).toBeInTheDocument();
+    expect(screen.queryByText(/Krožnik/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Iskanje artiklov..."), { target: { value: "Moka" } });
+    fireEvent.click(screen.getByRole("button", { name: /Potrdi inventuro/ }));
+
+    expect(mockCreateInvMutate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        postavke: expect.arrayContaining([
+          expect.objectContaining({ artikelId: 101 }),
+          expect.objectContaining({ artikelId: 102 }),
+        ]),
+      }),
+    }), expect.any(Object));
+    const savedLines = mockCreateInvMutate.mock.calls[0][0].data.postavke;
+    expect(savedLines.map((line: { artikelId: number }) => line.artikelId)).not.toContain(103);
+  });
+
+  it("preklop kategorije inventure shrani samo izbrano kategorijo", () => {
+    renderZaloge();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Inventure" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("button", { name: "Nova inventura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Drobni inventar" }));
+    expect(screen.getByText(/Krožnik/)).toBeInTheDocument();
+    expect(screen.queryByText(/Moka/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Potrdi inventuro/ }));
+    const savedLines = mockCreateInvMutate.mock.calls[0][0].data.postavke;
+    expect(savedLines).toEqual([expect.objectContaining({ artikelId: 103 })]);
   });
 });

@@ -118,6 +118,7 @@ import type {
   EventTransferMovementDetail,
   ExportOperativnaPorocilaQrFeedbackParams,
   ExportTipsPayrollCsvParams,
+  ExportZalogePdfParams,
   ForbiddenResponse,
   FursAttemptPage,
   GetAdminEventTransferDiagnosticsParams,
@@ -18167,6 +18168,90 @@ export function useListZaloge<TData = Awaited<ReturnType<typeof listZaloge>>, TE
 
 
 
+export const getExportZalogePdfUrl = (params: ExportZalogePdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/zaloge/export/pdf?${stringifiedParams}` : `/api/zaloge/export/pdf`
+}
+
+/**
+ * @summary Prenos stanja zalog ali praznega popisnega lista za izbrano skupino artiklov aktivne enote
+ */
+export const exportZalogePdf = async (params: ExportZalogePdfParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportZalogePdfUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportZalogePdfQueryKey = (params?: ExportZalogePdfParams,) => {
+    return [
+    `/api/zaloge/export/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportZalogePdfQueryOptions = <TData = Awaited<ReturnType<typeof exportZalogePdf>>, TError = ErrorType<void>>(params: ExportZalogePdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportZalogePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportZalogePdfQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportZalogePdf>>> = ({ signal }) => exportZalogePdf(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportZalogePdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportZalogePdfQueryResult = NonNullable<Awaited<ReturnType<typeof exportZalogePdf>>>
+export type ExportZalogePdfQueryError = ErrorType<void>
+
+
+/**
+ * @summary Prenos stanja zalog ali praznega popisnega lista za izbrano skupino artiklov aktivne enote
+ */
+
+export function useExportZalogePdf<TData = Awaited<ReturnType<typeof exportZalogePdf>>, TError = ErrorType<void>>(
+ params: ExportZalogePdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportZalogePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportZalogePdfQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListEmbalazaBilanceUrl = () => {
 
 
@@ -21300,6 +21385,83 @@ export const useCreateAccount = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getCreateAccountMutationOptions(options));
     }
+
+export const getExportChartOfAccountsPdfUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/accounts/export/pdf`
+}
+
+/**
+ * @summary Prenesi kontni plan izbranega podjetja v PDF obliki
+ */
+export const exportChartOfAccountsPdf = async (companyId: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportChartOfAccountsPdfUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportChartOfAccountsPdfQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/accounts/export/pdf`
+    ] as const;
+    }
+
+
+export const getExportChartOfAccountsPdfQueryOptions = <TData = Awaited<ReturnType<typeof exportChartOfAccountsPdf>>, TError = ErrorType<void>>(companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportChartOfAccountsPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportChartOfAccountsPdfQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportChartOfAccountsPdf>>> = ({ signal }) => exportChartOfAccountsPdf(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportChartOfAccountsPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportChartOfAccountsPdfQueryResult = NonNullable<Awaited<ReturnType<typeof exportChartOfAccountsPdf>>>
+export type ExportChartOfAccountsPdfQueryError = ErrorType<void>
+
+
+/**
+ * @summary Prenesi kontni plan izbranega podjetja v PDF obliki
+ */
+
+export function useExportChartOfAccountsPdf<TData = Awaited<ReturnType<typeof exportChartOfAccountsPdf>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportChartOfAccountsPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportChartOfAccountsPdfQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getSeedAccountsUrl = (companyId: string,) => {
 

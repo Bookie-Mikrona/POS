@@ -67,6 +67,7 @@ import {
   Search, X, Pencil, AlertTriangle, Package, Archive, Wrench,
   Building2, UserPlus, Loader2, CheckCircle2, Search as SearchIcon, ChevronDown, ChevronRight,
   FileUp,
+  Download,
 } from "lucide-react";
 import { UvozPrejemniceDialog } from "./uvoz/UvozPrejemniceDialog";
 import { EmbalazaTab } from "./zaloge/EmbalazaTab";
@@ -96,6 +97,7 @@ import {
   canonicalEslogUnit,
   validateGroupSourceLine,
 } from "@/lib/skupinski-nabavni-artikel";
+import { posFetch } from "@/lib/pos-auth-headers";
 
 function AlergeniRowPopover({
   row,
@@ -3279,13 +3281,44 @@ export default function Zaloge() {
   // ── Search ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const q = search.toLowerCase();
-  const filteredZaloge = (zaloge ?? [])
-    .filter(z =>
-      !z.povratnaEmbalaza
-      && (!q || z.artikelIme.toLowerCase().includes(q) || (z.imeZaNabavo ?? "").toLowerCase().includes(q))
-    )
+  const [stockScope, setStockScope] = useState<"material" | "drobni">("material");
+  const stockScopedRows = (zaloge ?? []).filter(z =>
+    !z.povratnaEmbalaza
+    && jeDrobniInventar(artikli?.find(a => a.id === z.artikelId)) === (stockScope === "drobni")
+  );
+  const filteredZaloge = stockScopedRows
+    .filter(z => !q || z.artikelIme.toLowerCase().includes(q) || (z.imeZaNabavo ?? "").toLowerCase().includes(q))
     .sort((a, b) => primerjajSlovensko(a.artikelIme, b.artikelIme));
-  const negativneZaloge = (zaloge ?? []).filter(z => !z.povratnaEmbalaza && z.kolicina < 0);
+  const negativneZaloge = stockScopedRows.filter(z =>
+    z.kolicina < 0 && (!q || z.artikelIme.toLowerCase().includes(q) || (z.imeZaNabavo ?? "").toLowerCase().includes(q))
+  );
+
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const downloadPdf = async (kind: "stock" | "popis", scope: "material" | "drobni") => {
+    setExportingPdf(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await posFetch(`${base}/api/zaloge/export/pdf?kind=${kind}&scope=${scope}`);
+      if (!response.ok) throw new Error(`Strežnik je vrnil napako ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `${kind === "stock" ? "zaloge" : "popis"}-${scope}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+      toast({
+        title: "PDF-ja ni bilo mogoče prenesti",
+        description: error instanceof Error ? error.message : "Preverite povezavo in poskusite znova.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   // ── Prejemnica create ──────────────────────────────────────────────
   const { data: kupci } = useListPartnerji();
@@ -3730,7 +3763,9 @@ export default function Zaloge() {
   const [invDatum, setInvDatum] = useState("");
   const [invOpomba, setInvOpomba] = useState("");
   const [invRows, setInvRows] = useState<InventuraRow[]>([]);
-  const [invFilter, setInvFilter] = useState<"normativi" | "vsi" | "drobni">("normativi");
+  const [invScope, setInvScope] = useState<"material" | "drobni">("material");
+  const [invFilter, setInvFilter] = useState<"normativi" | "vsi">("normativi");
+  const [invSearch, setInvSearch] = useState("");
   const createInventura = useCreateInventura();
 
   const openInvDialog = () => {
@@ -3738,20 +3773,29 @@ export default function Zaloge() {
     queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
     setInvDatum(new Date().toISOString().slice(0, 10));
     setInvOpomba("");
+    setInvScope(stockScope);
+    setInvFilter("normativi");
+    setInvSearch("");
     setInvRows(nabavniArtikli.map(a => {
       const z = zaloge?.find(z => z.artikelId === a.id);
       return { artikelId: a.id, steviloNajdeno: String(z?.kolicina ?? 0), cenaKos: String(z?.zadnjaCena ?? 0) };
     }));
     setInvDialogOpen(true);
   };
-  const invRowsVisible = invFilter === "normativi"
-    ? invRows.filter(r => (artikli ?? []).find(a => a.id === r.artikelId)?.vNormativih)
-    : invFilter === "drobni"
-      ? invRows.filter(r => jeDrobniInventar(artikli?.find(a => a.id === r.artikelId)))
-      : invRows;
+  const invRowsInScope = invRows.filter(row => {
+    const article = artikli?.find(a => a.id === row.artikelId);
+    if (jeDrobniInventar(article) !== (invScope === "drobni")) return false;
+    return invScope === "drobni" || invFilter === "vsi" || article?.vNormativih;
+  });
+  const invRowsVisible = invRowsInScope.filter(row => {
+    const article = nabavniArtikli.find(a => a.id === row.artikelId);
+    const query = invSearch.trim().toLocaleLowerCase();
+    return !query || `${article?.imeZaNabavo ?? ""} ${article?.ime ?? ""}`.toLocaleLowerCase().includes(query);
+  });
 
   const handleSaveInventura = () => {
-    const validRows = invRowsVisible.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
+    // Search only changes what is shown. Save every entered row for this category/filter.
+    const validRows = invRowsInScope.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
     if (!validRows.length) { toast({ title: "Dodajte vsaj eno postavko", variant: "destructive" }); return; }
     createInventura.mutate({
       data: {
@@ -3914,6 +3958,12 @@ export default function Zaloge() {
 
         {/* ── Trenutne zaloge ──────────────────────────────────────── */}
         <TabsContent value="zaloge" className="space-y-4 mt-4">
+          <Tabs value={stockScope} onValueChange={value => setStockScope(value as "material" | "drobni")}>
+            <TabsList>
+              <TabsTrigger value="material">Material</TabsTrigger>
+              <TabsTrigger value="drobni">Drobni inventar</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <div className="space-y-1.5">
             {/* Iskanje + admin gumb v eni vrstici */}
             <div className="flex min-w-0 items-center gap-2">
@@ -3941,6 +3991,17 @@ export default function Zaloge() {
                   </span>
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void downloadPdf("stock", stockScope)}
+                disabled={exportingPdf}
+                className="shrink-0"
+                title={`Prenesi PDF zalog — ${stockScope === "material" ? "material" : "drobni inventar"}`}
+              >
+                <Download className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">PDF zalog</span>
+              </Button>
             </div>
             {/* Namig — skrit na mobilnem kjer ni prostora */}
             <p className="hidden sm:block text-sm text-muted-foreground">Kliknite vrstico za kartico artikla</p>
@@ -4022,7 +4083,7 @@ export default function Zaloge() {
                 })}
               </TableBody>
             </Table>
-            {!loadingZ && filteredZaloge.length > 0 && (
+            {!loadingZ && filteredZaloge.length > 0 && stockScope === "material" && (
               <div className="border-t px-4 py-2 flex justify-end text-sm text-muted-foreground">
                 Skupaj vrednost zalog:&nbsp;
                 <strong className="text-foreground">
@@ -4150,7 +4211,13 @@ export default function Zaloge() {
 
         {/* ── Inventure ─────────────────────────────────────────────── */}
         <TabsContent value="inventure" className="space-y-4 mt-4">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={() => void downloadPdf("popis", "material")} disabled={exportingPdf}>
+              <Download className="mr-2 h-4 w-4" />Popisni list – material
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void downloadPdf("popis", "drobni")} disabled={exportingPdf}>
+              <Download className="mr-2 h-4 w-4" />Popisni list – drobni inventar
+            </Button>
             <Button size="sm" onClick={openInvDialog} className="w-full sm:w-auto">
               <ClipboardList className="w-4 h-4 mr-2" />Nova inventura
             </Button>
@@ -5037,29 +5104,36 @@ export default function Zaloge() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Dejanske zaloge</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void downloadPdf("popis", invScope)}
+                  disabled={exportingPdf}
+                >
+                  <Download className="mr-2 h-4 w-4" /> PDF popisnega lista
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setInvFilter("normativi")}
-                    className={`px-3 py-1.5 transition-colors ${invFilter === "normativi" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  >
-                    Samo normativni
+                  <button type="button" onClick={() => setInvScope("material")} className={`px-3 py-1.5 transition-colors ${invScope === "material" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                    Material
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setInvFilter("vsi")}
-                    className={`px-3 py-1.5 transition-colors ${invFilter === "vsi" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  >
-                    Vsi artikli
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInvFilter("drobni")}
-                    className={`px-3 py-1.5 transition-colors ${invFilter === "drobni" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  >
+                  <button type="button" onClick={() => setInvScope("drobni")} className={`px-3 py-1.5 transition-colors ${invScope === "drobni" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
                     Drobni inventar
                   </button>
                 </div>
+                {invScope === "material" && (
+                  <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium">
+                    <button type="button" onClick={() => setInvFilter("normativi")} className={`px-3 py-1.5 transition-colors ${invFilter === "normativi" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                      Samo normativni
+                    </button>
+                    <button type="button" onClick={() => setInvFilter("vsi")} className={`px-3 py-1.5 transition-colors ${invFilter === "vsi" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                      Vsi materiali
+                    </button>
+                  </div>
+                )}
+                <Input value={invSearch} onChange={event => setInvSearch(event.target.value)} placeholder="Iskanje artiklov..." className="max-w-xs" />
               </div>
               <div className="rounded-md border overflow-auto">
                 <Table>
@@ -5078,7 +5152,12 @@ export default function Zaloge() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invRowsVisible.map((row, i) => {
+                    {invRowsVisible.length === 0 ? (
+                      <TableRow><TableCell colSpan={10} className="py-8 text-center text-muted-foreground">Ni artiklov za prikaz</TableCell></TableRow>
+                    ) : null}
+                    {invRowsVisible.map(row => {
+                      const rowIndex = invRows.findIndex(candidate => candidate.artikelId === row.artikelId);
+                      const visibleIndex = invRowsVisible.findIndex(candidate => candidate.artikelId === row.artikelId);
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
                       const jeKolicinski = jeDrobniInventar(art);
@@ -5101,11 +5180,17 @@ export default function Zaloge() {
                           <TableCell className="text-right tabular-nums text-sm">{fmt(knjizno, 3)}</TableCell>
                           <TableCell className="text-right">
                             <DecimalInput value={row.steviloNajdeno}
-                              ref={el => { if (el) invNajdenoRefs.current.set(i, el as any); else invNajdenoRefs.current.delete(i); }}
-                              onChange={e => updateInvRow(i, e.target.value)}
+                              ref={el => { if (el) invNajdenoRefs.current.set(rowIndex, el as any); else invNajdenoRefs.current.delete(rowIndex); }}
+                              onChange={e => updateInvRow(rowIndex, e.target.value)}
                               onKeyDown={e => {
-                                if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); const el = invNajdenoRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
-                                else if (e.key === "ArrowUp") { e.preventDefault(); const el = invNajdenoRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
+                                const moveBy = e.key === "Enter" || e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+                                if (moveBy) {
+                                  e.preventDefault();
+                                  const next = invRowsVisible[visibleIndex + moveBy];
+                                  const nextIndex = next ? invRows.findIndex(candidate => candidate.artikelId === next.artikelId) : -1;
+                                  const el = invNajdenoRefs.current.get(nextIndex);
+                                  if (el) { el.focus(); el.select(); }
+                                }
                               }}
                               className="w-24 text-right ml-auto h-8" />
                           </TableCell>

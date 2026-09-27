@@ -12132,6 +12132,27 @@ od: string;
 do: string;
 };
 
+export type ExportZalogePdfParams = {
+kind: ExportZalogePdfKind;
+scope: ExportZalogePdfScope;
+};
+
+export type ExportZalogePdfKind = typeof ExportZalogePdfKind[keyof typeof ExportZalogePdfKind];
+
+
+export const ExportZalogePdfKind = {
+  stock: 'stock',
+  popis: 'popis',
+} as const;
+
+export type ExportZalogePdfScope = typeof ExportZalogePdfScope[keyof typeof ExportZalogePdfScope];
+
+
+export const ExportZalogePdfScope = {
+  material: 'material',
+  drobni: 'drobni',
+} as const;
+
 export type GetKarticaArtiklaParams = {
 datumOd?: string;
 datumDo?: string;

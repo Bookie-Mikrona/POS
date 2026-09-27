@@ -1,11 +1,68 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql } from "drizzle-orm";
-import { artikliTable, db, zalogaGibiTable, zalogeTable } from "@workspace/db";
-import { requireEnota } from "../../middlewares/pos";
+import { artikliTable, db, enoteTable, zalogaGibiTable, zalogeTable } from "@workspace/db";
+import { requireEnota, type PosRequest } from "../../middlewares/pos";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { slovenianCollated } from "../../lib/slovenian-collation";
+import { buildStockExportPdf } from "../../lib/pos-stock-export-pdf";
 
 const router: IRouter = Router();
+
+// ── GET /zaloge/export/pdf ────────────────────────────────────────────────────
+router.get("/zaloge/export/pdf", requireEnota, async (req, res): Promise<void> => {
+  const { enotaId } = req as PosRequest;
+  const kind = req.query.kind;
+  const scope = req.query.scope;
+  if ((kind !== "stock" && kind !== "popis") || (scope !== "material" && scope !== "drobni")) {
+    res.status(400).json({ error: "kind mora biti stock ali popis, scope pa material ali drobni." });
+    return;
+  }
+
+  const [unit] = await db
+    .select({ ime: enoteTable.ime })
+    .from(enoteTable)
+    .where(eq(enoteTable.id, enotaId));
+  if (!unit) {
+    res.status(404).json({ error: "Poslovna enota ni najdena." });
+    return;
+  }
+
+  const itemScope = scope === "drobni"
+    ? eq(artikliTable.drobniInventar, true)
+    : and(eq(artikliTable.nabavniArtikel, true), eq(artikliTable.drobniInventar, false));
+  const rows = await db
+    .select({
+      ime: artikliTable.ime,
+      enotaMere: artikliTable.enotaMere,
+      kolicina: sql<string>`COALESCE(${zalogeTable.kolicina}, '0')`,
+      povprecnaCena: zalogeTable.povprecnaCena,
+      skupnaVrednost: zalogeTable.skupnaVrednost,
+    })
+    .from(artikliTable)
+    .leftJoin(zalogeTable, eq(zalogeTable.artikelId, artikliTable.id))
+    .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.povratnaEmbalaza, false), itemScope))
+    .orderBy(slovenianCollated(artikliTable.ime));
+
+  const includeBookQuantity = req.query.includeBookQuantity === "true";
+  const pdf = await buildStockExportPdf({
+    kind,
+    scope,
+    unitName: unit.ime,
+    generatedAt: new Date(),
+    includeBookQuantity,
+    rows: rows.map(row => ({
+      name: row.ime,
+      unit: row.enotaMere ?? "—",
+      quantity: Number(row.kolicina),
+      averageCost: row.povprecnaCena == null ? null : Number(row.povprecnaCena),
+      totalValue: row.skupnaVrednost == null ? null : Number(row.skupnaVrednost),
+    })),
+  });
+  const filename = `${kind === "stock" ? "zaloga" : "popis"}-${scope}.pdf`;
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  res.type("application/pdf").attachment(filename).send(pdf);
+});
 
 // ── GET /zaloge ─────────────────────────────────────────────────────────────
 router.get("/zaloge", async (req, res): Promise<void> => {

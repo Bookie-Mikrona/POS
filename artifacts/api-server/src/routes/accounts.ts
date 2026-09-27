@@ -8,6 +8,7 @@ import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { resolveSifrantAccess } from "../lib/resolveSifrantAccess";
+import { generateAccountsPdf } from "../lib/accounts-pdf";
 import {
   defaultCostCenterPolicy,
   requiresCostCenterForPolicy,
@@ -79,6 +80,33 @@ router.get(
       .orderBy(asc(accountsTable.code));
 
     res.json({ accounts });
+  },
+);
+
+// GET /companies/:companyId/accounts/export/pdf
+router.get(
+  "/companies/:companyId/accounts/export/pdf",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthenticatedRequest;
+    const companyId = extractParam(req.params.companyId);
+    const access = await resolveSifrantAccess(authReq.clerkUserId, companyId, "stm_or_kontni", res);
+    if (!access) return;
+
+    const accounts = await db
+      .select({
+        code: accountsTable.code,
+        name: accountsTable.name,
+        type: accountsTable.type,
+        isActive: accountsTable.isActive,
+      })
+      .from(accountsTable)
+      .where(eq(accountsTable.companyId, companyId))
+      .orderBy(asc(accountsTable.code));
+    const pdf = await generateAccountsPdf(accounts);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="kontni-plan-${companyId}.pdf"`);
+    res.send(pdf);
   },
 );
 

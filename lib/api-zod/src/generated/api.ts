@@ -9487,6 +9487,17 @@ export const ListZalogeResponse = zod.array(ListZalogeResponseItem)
 
 
 /**
+ * @summary Prenos stanja zalog ali praznega popisnega lista za izbrano skupino artiklov aktivne enote
+ */
+export const ExportZalogePdfQueryParams = zod.object({
+  "kind": zod.enum(['stock', 'popis']),
+  "scope": zod.enum(['material', 'drobni'])
+})
+
+export const ExportZalogePdfResponse = zod.unknown()
+
+
+/**
  * @summary Bilance povratne embalaže
  */
 export const listEmbalazaBilanceResponseDepozitnaVrednostMin = 0;
@@ -10743,6 +10754,16 @@ export const CreateAccountResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Prenesi kontni plan izbranega podjetja v PDF obliki
+ */
+export const ExportChartOfAccountsPdfParams = zod.object({
+  "companyId": zod.coerce.string()
+})
+
+export const ExportChartOfAccountsPdfResponse = zod.unknown()
 
 
 /**

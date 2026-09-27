@@ -4930,6 +4930,31 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ZalogaPogled"
+  /zaloge/export/pdf:
+    get:
+      operationId: exportZalogePdf
+      tags: [zaloge]
+      summary: Prenos stanja zalog ali praznega popisnega lista za izbrano skupino artiklov aktivne enote
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema: { type: string, enum: [stock, popis] }
+        - name: scope
+          in: query
+          required: true
+          schema: { type: string, enum: [material, drobni] }
+      responses:
+        "200":
+          description: PDF stanje zalog ali popisni list
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "400": { description: Neveljavna vrsta ali skupina }
+        "401": { description: Prijava je obvezna }
+        "403": { description: Dostop do enote ni dovoljen }
   /embalaza/bilance:
     get:
       operationId: listEmbalazaBilance
@@ -5886,6 +5911,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/accounts/export/pdf:
+    get:
+      operationId: exportChartOfAccountsPdf
+      tags: [accounts]
+      summary: Prenesi kontni plan izbranega podjetja v PDF obliki
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Kontni plan v PDF obliki
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { description: Prijava je obvezna }
+        "403": { description: Dostop do kontnega plana ni dovoljen }
   /companies/{companyId}/accounts/seed:
     post:
       operationId: seedAccounts

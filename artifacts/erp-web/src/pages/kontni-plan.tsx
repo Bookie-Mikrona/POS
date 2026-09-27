@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useAuth } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, Plus, Download, AlertCircle, Edit2, Play, Square, Loader2 } from "lucide-react";
 
@@ -57,6 +58,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function KontniPlan() {
   const { activeCompany } = useCompany();
+  const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
   // Pravice urejanja kontnega plana (spec: ERP in OS vloge urejajo; POS-only samo bere)
@@ -69,6 +71,8 @@ export default function KontniPlan() {
 
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountRecord | null>(null);
@@ -121,6 +125,37 @@ export default function KontniPlan() {
         queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey(activeCompany.id) });
       }
     });
+  };
+
+  const handlePdfExport = async () => {
+    if (!activeCompany) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const token = await getToken();
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(
+        `${base}/api/companies/${activeCompany.id}/accounts/export/pdf`,
+        { headers: { Authorization: `Bearer ${token ?? ""}` } },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? `HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "kontni-plan.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const handleOpenDialog = (acc?: AccountRecord) => {
@@ -261,21 +296,37 @@ export default function KontniPlan() {
           <h1 className="text-3xl font-bold tracking-tight">Kontni plan</h1>
           <p className="text-muted-foreground mt-1">Upravljanje s sintetičnimi in analitičnimi konti</p>
         </div>
-        {canEdit && (
+        {(canEdit || !!activeCompany) && (
           <div className="flex items-center gap-2">
-            {isEmpty && (
-              <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending}>
-                {seedMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                Uvozi standardni plan
-              </Button>
-            )}
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Dodaj konto
+            <Button variant="outline" onClick={handlePdfExport} disabled={pdfLoading}>
+              {pdfLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              {pdfLoading ? "Pripravljam PDF …" : "Prenesi PDF"}
             </Button>
+            {canEdit && (
+              <>
+                {isEmpty && (
+                  <Button variant="outline" onClick={handleSeed} disabled={seedMut.isPending}>
+                    {seedMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    Uvozi standardni plan
+                  </Button>
+                )}
+                <Button onClick={() => handleOpenDialog()}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Dodaj konto
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
+
+      {pdfError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Napaka pri prenosu PDF</AlertTitle>
+          <AlertDescription>{pdfError}</AlertDescription>
+        </Alert>
+      )}
 
       {isEmpty ? (
         <div className="border border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center bg-card">
