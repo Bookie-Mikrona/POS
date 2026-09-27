@@ -14,3 +14,9 @@ Večjo opremo, kot so gostinske mize, stoli in POS terminali, obravnavaj kot lo�
 **Why:** Uporabnik je izbral ločitev teh postavk ob razširitvi gostinskega kataloga; strošek 404 zanje brez presoje ni primeren.
 
 **How to apply:** Katalog sme opremo prikazati za orientacijo, a je ne sme samodejno dodajati med količinske artikle ali knjižiti brez dejanske vrednosti in računovodske odločitve.
+
+Uporabnik želi drobni inventar najti neposredno v šifrantu artiklov trenutne enote, ne zgolj na ločeni strani s predlogami.
+
+**Why:** Ločen katalog predlog je bil tehnično pripravljen, a uporabnik artiklov v šifrantu ni videl; predloge same še niso vneseni artikli.
+
+**How to apply:** Pri podobnih zahtevah razlikuj med ogledom predlog in dejanskim vnosom v izbrano enoto. Omogoči vnos na mestu, kjer uporabnik artikle išče, in po vnosu pokaži ustrezno filtriran seznam.

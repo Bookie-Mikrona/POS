@@ -20,6 +20,8 @@ import {
   useUploadArtikelImage,
   getListKategorijeQueryKey,
   getListArtikliQueryKey,
+  getEnotaId,
+  useImportDrobniInventarPredloge,
   getGetArtikelNormativiQueryKey,
   getGetArtikelNormativeChangeHistoryQueryKey,
   getGetArtikelModSkupineQueryKey,
@@ -102,6 +104,27 @@ export default function Menu() {
   const { data: artikli, isLoading: loadingA } = useListArtikli();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const importDrobniInventar = useImportDrobniInventarPredloge();
+  const [importDrobniInventarOpen, setImportDrobniInventarOpen] = useState(false);
+  const handleImportDrobniInventar = async () => {
+    try {
+      const result = await importDrobniInventar.mutateAsync();
+      await queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+      setArtFilter("drobni");
+      setArtSearch("");
+      setImportDrobniInventarOpen(false);
+      toast({
+        title: "Drobni inventar je v šifrantu",
+        description: `Dodano: ${result.insertedCount}; že prisotno: ${result.skippedCount}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Uvoz drobnega inventarja ni uspel",
+        description: error instanceof Error ? error.message : "Poskusite znova.",
+        variant: "destructive",
+      });
+    }
+  };
   const { nastavitve } = useNastavitve();
   const picaMalaAktivna = Number((nastavitve as { picaPremerMala?: number } | undefined)?.picaPremerMala ?? 0) > 0;
   const picaDruzinskaAktivna = Number((nastavitve as { picaPremerDruzinska?: number } | undefined)?.picaPremerDruzinska ?? 0) > 0;
@@ -1705,6 +1728,26 @@ export default function Menu() {
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Upravljanje menija</h1>
       </div>
 
+      <Dialog open={importDrobniInventarOpen} onOpenChange={setImportDrobniInventarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Naloži drobni inventar v aktivno enoto?</DialogTitle>
+            <DialogDescription>
+              V šifrant trenutne enote bomo dodali manjkajoče predloge kozarcev, posode,
+              pribora, kuhinjskih pripomočkov in tekstila. Obstoječe artikle bomo preskočili.
+              Začetnih količin ali knjižb ne bomo ustvarili. Večja oprema je ločen predlog
+              za osnovna sredstva in se tukaj ne uvaža.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDrobniInventarOpen(false)} disabled={importDrobniInventar.isPending}>Prekliči</Button>
+            <Button onClick={() => void handleImportDrobniInventar()} disabled={!getEnotaId() || importDrobniInventar.isPending}>
+              {importDrobniInventar.isPending ? "Nalaganje…" : "Naloži v šifrant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="artikli" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start overflow-x-auto h-8 sm:h-9 p-0.5 bg-muted/20 border border-border/50 rounded-md shrink-0">
           <TabsTrigger value="artikli" className="flex-1 sm:flex-none h-7 sm:h-8 py-0.5 px-2 sm:px-3 text-[11px] sm:text-sm gap-1"><PackageOpen className="w-3.5 h-3.5" /> Artikli</TabsTrigger>
@@ -1807,8 +1850,8 @@ export default function Menu() {
                 )}
               </div>
               <div className="flex flex-col sm:flex-row gap-1.5">
-                <div className="grid grid-cols-3 sm:flex gap-1 rounded-lg border-2 border-primary/30 bg-background p-1 shadow-sm shrink-0">
-                  {(["vsi", "prodajni", "nabavni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (
+                 <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 rounded-lg border-2 border-primary/30 bg-background p-1 shadow-sm shrink-0">
+                  {(["vsi", "prodajni", "nabavni", "drobni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (
                     <button
                       key={f}
                       type="button"
@@ -1820,7 +1863,7 @@ export default function Menu() {
                            : "bg-muted/60 text-foreground hover:bg-muted"
                        }`}
                     >
-                      {f === "vsi" ? "Vsi" : f === "prodajni" ? "Prodajni" : f === "nabavni" ? "Nabavni" : f === "polizdelek" ? "Polizdelek" : f === "embalaza" ? "Embalaža" : f === "zNormativom" ? "Z normativom" : f === "brezNormativa" ? "Brez normativa" : "Brez slike"}
+                      {f === "vsi" ? "Vsi" : f === "prodajni" ? "Prodajni" : f === "nabavni" ? "Nabavni" : f === "drobni" ? "Drobni inventar" : f === "polizdelek" ? "Polizdelek" : f === "embalaza" ? "Embalaža" : f === "zNormativom" ? "Z normativom" : f === "brezNormativa" ? "Brez normativa" : "Brez slike"}
                     </button>
                   ))}
                 </div>
@@ -1848,6 +1891,14 @@ export default function Menu() {
                   </div>
                 </div>
               </div>
+              {lahkoVidiZgodovinoNormativa && (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>Predloge drobnega inventarja se dodajo samo trenutno aktivni enoti, brez začetnih količin in knjižb.</span>
+                  <Button size="sm" variant="outline" onClick={() => setImportDrobniInventarOpen(true)} disabled={!getEnotaId() || importDrobniInventar.isPending}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Naloži drobni inventar
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-0 scrollbar-hidden">
@@ -1895,6 +1946,7 @@ export default function Menu() {
                                   {a.nabavniArtikel && <Badge variant="outline" className="text-[9px] font-medium px-1 py-0 h-4 uppercase tracking-wider border-blue-200 text-blue-700 bg-blue-50/50">nabavni</Badge>}
                                 </>
                               )}
+                              {a.drobniInventar && <Badge variant="outline" className="text-[9px] font-medium px-1 py-0 h-4 uppercase tracking-wider border-sky-200 text-sky-700 bg-sky-50/50">drobni inventar</Badge>}
                               {a.hasNormativ && <Badge variant="outline" className="text-[9px] font-medium px-1 py-0 h-4 uppercase tracking-wider border-amber-200 text-amber-700 bg-amber-50/50">normativ</Badge>}
                               {!a.povratnaEmbalaza && !isPolizdelek(a) && (() => {
                                 const vrsta = (a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? DEFAULT_NEW_SALES_ARTICLE_TYPE;

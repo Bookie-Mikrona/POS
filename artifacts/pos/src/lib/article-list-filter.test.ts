@@ -16,6 +16,12 @@ const packaging: FilterableArticle = {
   hasNormativ: false,
   slikaUrl: null,
 };
+const smallEquipment: FilterableArticle = {
+  prodajniArtikel: false,
+  nabavniArtikel: true,
+  drobniInventar: true,
+  povratnaEmbalaza: false,
+};
 const polizdelek: FilterableArticle = {
   prodajniArtikel: false,
   nabavniArtikel: false,
@@ -25,6 +31,12 @@ const polizdelek: FilterableArticle = {
 };
 
 describe("filtri seznama artiklov", () => {
+  it("drobni inventar ima ločen filter in ostane v nabavnem seznamu", () => {
+    expect(articleMatchesListFilter(smallEquipment, "drobni")).toBe(true);
+    expect(articleMatchesListFilter(smallEquipment, "nabavni")).toBe(true);
+    expect(articleMatchesListFilter(ordinary, "drobni")).toBe(false);
+    expect(articleMatchesListFilter(packaging, "drobni")).toBe(false);
+  });
   it("polizdelek določi iz treh vlog in ga pokaže v lastnem filtru", () => {
     expect(isPolizdelek(polizdelek)).toBe(true);
     expect(isPolizdelek(ordinary)).toBe(false);
