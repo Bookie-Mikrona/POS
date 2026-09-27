@@ -177,12 +177,58 @@ describe("assignKdsCourse PostgreSQL integration", () => {
   it("rejects conflicting duplicate references to one resolved group", async () => {
     const narociloId = await order(), parent = await line(narociloId);
     const modifier = await line(narociloId, { parentPostavkaId: parent.id, cenaKos: "0", skupaj: "0" });
+    const nestedModifier = await line(narociloId, { parentPostavkaId: modifier.id, cenaKos: "0", skupaj: "0" });
     await expect(assignKdsCourses({
       narociloId, enotaId,
-      assignments: [{ postavkaId: parent.id, courseNumber: 1 }, { postavkaId: modifier.id, courseNumber: 2 }],
+      assignments: [{ postavkaId: parent.id, courseNumber: 1 }, { postavkaId: nestedModifier.id, courseNumber: 2 }],
     })).rejects.toThrow("Ista skupina postavk");
-    expect((await db.select().from(postavkeTable).where(inArray(postavkeTable.id, [parent.id, modifier.id])))
-      .map(row => [row.courseNumber, row.courseSequence, row.pairingGroupId])).toEqual([[null, null, null], [null, null, null]]);
+    expect((await db.select().from(postavkeTable).where(inArray(postavkeTable.id, [parent.id, modifier.id, nestedModifier.id])))
+      .map(row => [row.courseNumber, row.courseSequence, row.pairingGroupId])).toEqual([
+        [null, null, null], [null, null, null], [null, null, null],
+      ]);
+  });
+
+  it("assigns a nested modifier through its root sale line and returns the same group", async () => {
+    const narociloId = await order();
+    const saleLine = await line(narociloId);
+    const parentModifier = await line(narociloId, {
+      artikelId: null,
+      modifikatorId: 101,
+      parentPostavkaId: saleLine.id,
+      cenaKos: "0",
+      skupaj: "0",
+    });
+    const nestedModifier = await line(narociloId, {
+      artikelId: null,
+      modifikatorId: 202,
+      parentPostavkaId: parentModifier.id,
+      cenaKos: "0",
+      skupaj: "0",
+    });
+
+    const result = await assignKdsCourses({
+      narociloId,
+      enotaId,
+      assignments: [{ postavkaId: nestedModifier.id, courseNumber: 4 }],
+    });
+    expect(result.changed).toBe(true);
+    expect(result.assignments).toEqual([
+      expect.objectContaining({
+        postavkaId: nestedModifier.id,
+        courseNumber: 4,
+        pairingGroupId: expect.any(String),
+        changed: true,
+      }),
+    ]);
+
+    const rows = await db.select().from(postavkeTable)
+      .where(inArray(postavkeTable.id, [saleLine.id, parentModifier.id, nestedModifier.id]));
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) =>
+      row.courseNumber === 4
+      && row.courseSequence === 4
+      && row.pairingGroupId === result.assignments[0]!.pairingGroupId,
+    )).toBe(true);
   });
 
   it("rolls back the complete batch when a later ticket was released", async () => {

@@ -2843,6 +2843,11 @@ export interface Postavka {
      */
   modifikatorId?: number | null;
   /**
+     * Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.
+     * @nullable
+     */
+  modifierSourceArticleId?: number | null;
+  /**
      * Izbrana velikost pice, zamrznjena ob dodajanju postavke.
      * @nullable
      */
@@ -2879,10 +2884,19 @@ export const PostavkaInputVelikostPice = {
   druzinska: 'druzinska',
 } as const;
 
+export interface ModifikatorPodIzbira {
+  /** @minimum 1 */
+  artikelId: number;
+  /** @items.minimum 1 */
+  modifikatorIds: number[];
+}
+
 export interface IzbraniModifikator {
   modifikatorId: number;
   ime: string;
   cenaDodatek: number;
+  /** Izbire modifikatorjev na pozitivnem vhodnem prodajnem artiklu normativa tega modifikatorja. */
+  podIzbire?: ModifikatorPodIzbira[];
 }
 
 export interface PostavkaInput {
@@ -7950,6 +7964,7 @@ export interface ModNormativiPayload {
 
 export type DodajModifikatorjeInputModifikatorjiItem = {
   modifikatorId: number;
+  podIzbire?: ModifikatorPodIzbira[];
 };
 
 export interface DodajModifikatorjeInput {

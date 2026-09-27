@@ -12647,6 +12647,11 @@ components:
             - integer
             - "null"
           description: ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)
+        modifierSourceArticleId:
+          type:
+            - integer
+            - "null"
+          description: Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.
         velikostPice:
           type:
             - string
@@ -18549,6 +18554,24 @@ components:
           type: string
         cenaDodatek:
           type: number
+        podIzbire:
+          type: array
+          description: Izbire modifikatorjev na pozitivnem vhodnem prodajnem artiklu normativa tega modifikatorja.
+          items:
+            $ref: "#/components/schemas/ModifikatorPodIzbira"
+    ModifikatorPodIzbira:
+      type: object
+      required: [artikelId, modifikatorIds]
+      properties:
+        artikelId:
+          type: integer
+          minimum: 1
+        modifikatorIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
     DodajModifikatorjeInput:
       type: object
       required:
@@ -18563,6 +18586,10 @@ components:
             properties:
               modifikatorId:
                 type: integer
+              podIzbire:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModifikatorPodIzbira"
         skupineIds:
           type: array
           description: Eksplicitni seznam skupin, za katere se izvede replace (tudi brisanje). Ce ni podan, se skupinaIds izpeljejo iz modifikatorji.

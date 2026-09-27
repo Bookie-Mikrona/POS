@@ -114,12 +114,22 @@ export async function assignKdsCourses(input: {
   const byId = new Map<number, typeof postavkeTable.$inferSelect>(
     lines.map(line => [line.id, line]),
   );
+  const rootForAssignment = (postavkaId: number) => {
+    let parent = byId.get(postavkaId);
+    if (!parent) throw new KdsCourseAssignmentConflict("Postavka ni v odprtem naročilu.");
+    const visited = new Set<number>();
+    while (parent.parentPostavkaId != null) {
+      if (visited.has(parent.id)) throw new KdsCourseAssignmentConflict("Hierarhija postavk vsebuje zanko.");
+      visited.add(parent.id);
+      const ancestor = byId.get(parent.parentPostavkaId);
+      if (!ancestor) throw new KdsCourseAssignmentConflict("Nadrejena postavka ni v naročilu.");
+      parent = ancestor;
+    }
+    return parent;
+  };
   const plans = new Map<string, any>();
   for (const assignment of input.assignments) {
-    const selected = byId.get(assignment.postavkaId);
-    if (!selected) throw new KdsCourseAssignmentConflict("Postavka ni v odprtem naročilu.");
-    const parent = byId.get(selected.parentPostavkaId ?? selected.id);
-    if (!parent) throw new KdsCourseAssignmentConflict("Nadrejena postavka ni v naročilu.");
+    const parent = rootForAssignment(assignment.postavkaId);
     const key = parent.pairingGroupId ? `pair:${parent.pairingGroupId}` : `parent:${parent.id}`;
     const prior = plans.get(key);
     if (prior) {
@@ -128,7 +138,19 @@ export async function assignKdsCourses(input: {
     }
     const grouped = parent.pairingGroupId
       ? lines.filter((line: any) => line.pairingGroupId === parent.pairingGroupId)
-      : lines.filter((line: any) => line.id === parent.id || line.parentPostavkaId === parent.id);
+      : lines.filter((line: any) => {
+        let cursor = line;
+        const visited = new Set<number>();
+        while (cursor.parentPostavkaId != null) {
+          if (cursor.parentPostavkaId === parent.id) return true;
+          if (visited.has(cursor.id)) break;
+          visited.add(cursor.id);
+          const ancestor = byId.get(cursor.parentPostavkaId);
+          if (!ancestor) break;
+          cursor = ancestor;
+        }
+        return line.id === parent.id;
+      });
     plans.set(key, { parent, grouped, courseNumber: assignment.courseNumber,
       pairingGroupId: parent.pairingGroupId ?? `course:${input.narociloId}:${parent.id}:${randomUUID()}` });
   }
@@ -174,8 +196,7 @@ export async function assignKdsCourses(input: {
     }
   }
   const results = input.assignments.map(assignment => {
-    const selected = byId.get(assignment.postavkaId)!;
-    const parent = byId.get(selected.parentPostavkaId ?? selected.id)!;
+    const parent = rootForAssignment(assignment.postavkaId);
     const plan = plans.get(parent.pairingGroupId ? `pair:${parent.pairingGroupId}` : `parent:${parent.id}`)!;
     return { ...assignment, pairingGroupId: plan.pairingGroupId, changed: plan.changed };
   });

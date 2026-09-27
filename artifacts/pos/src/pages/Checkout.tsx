@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { availableShiftOperators } from "@/lib/available-shift-operators";
+import {
+  expandCheckoutSplitPostavkaIds,
+  toggleCheckoutSplitPostavka,
+} from "@/lib/checkout-split-selection";
 import { useSearch, useLocation, Link } from "wouter";
 import {
   useListAktivnaNarocila,
@@ -1191,9 +1195,16 @@ ${linije.map(vrHtml).join("\n")}
   const uncoveredPostavke = selectedOrder?.postavke?.filter(p => p.racunId === null) ?? [];
   const billedPostavke = selectedOrder?.postavke?.filter(p => p.racunId != null) ?? [];
 
+  // A modifier tree is billed as one commercial component. Keep the split
+  // selection in sync with the server by including every available ancestor
+  // and descendant, not just the immediate children of a selected item.
+  const effectiveSplitPostavkeIds = splitMode
+    ? expandCheckoutSplitPostavkaIds(splitPostavkeIds, uncoveredPostavke)
+    : new Set<number>();
+
   // In split mode, only the user-selected subset; otherwise all uncovered
   const effectivePostavke = splitMode
-    ? uncoveredPostavke.filter(p => splitPostavkeIds.has(p.id))
+    ? uncoveredPostavke.filter(p => effectiveSplitPostavkeIds.has(p.id))
     : uncoveredPostavke;
 
   const effectiveSkupaj = round2(effectivePostavke.reduce((acc, p) => acc + Number(p.skupaj), 0));
@@ -1499,15 +1510,15 @@ ${linije.map(vrHtml).join("\n")}
   const prikaziGostSestevek = gostjeZZneskom.length >= 2;
 
   const aktivniGost = (() => {
-    if (!splitMode || splitPostavkeIds.size === 0) return null;
+    if (!splitMode || effectiveSplitPostavkeIds.size === 0) return null;
     for (const { g } of gostjeZZneskom) {
       const gostIds = uncoveredPostavke
         .filter(p => (p as typeof p & { gostStevilka?: number | null }).gostStevilka === g)
         .map(p => p.id);
       if (
         gostIds.length > 0 &&
-        gostIds.every(id => splitPostavkeIds.has(id)) &&
-        gostIds.length === splitPostavkeIds.size
+        gostIds.every(id => effectiveSplitPostavkeIds.has(id)) &&
+        gostIds.length === effectiveSplitPostavkeIds.size
       ) return g;
     }
     return null;
@@ -2076,7 +2087,7 @@ ${linije.map(vrHtml).join("\n")}
     const natakariId = selectedNatakarId !== "none" ? parseInt(selectedNatakarId) : null;
     const dejanskiNacin: RacunInputPlacilnaNacin = vsePlacanoZBoni ? "bon_pica" : placilniNacin;
     const zneski = izracunajZneske();
-    const postavkeIds = splitMode ? [...splitPostavkeIds] : undefined;
+    const postavkeIds = splitMode ? [...effectiveSplitPostavkeIds] : undefined;
     const kupecPolja = (kupecDavcna || kupecNaziv) ? {
       kupecDavcnaStevilka: /^\d{8}$/.test(kupecDavcna.trim()) ? kupecDavcna.trim() : undefined,
       kupecNaziv: kupecNaziv ?? undefined,
@@ -2135,8 +2146,8 @@ ${linije.map(vrHtml).join("\n")}
           setPinNapaka(null);
           setFursNapaka(racun.fursNapaka ?? null);
           const jeDelni = racun.jeDelni ?? false;
-          if (jeDelni && selectedNarocilo && splitMode && splitPostavkeIds.size > 0) {
-            billedInfoRef.current = { narociloId: selectedNarocilo, postavkeIds: [...splitPostavkeIds] };
+          if (jeDelni && selectedNarocilo && splitMode && effectiveSplitPostavkeIds.size > 0) {
+            billedInfoRef.current = { narociloId: selectedNarocilo, postavkeIds: [...effectiveSplitPostavkeIds] };
           } else {
             billedInfoRef.current = null;
           }
@@ -2807,6 +2818,9 @@ ${linije.map(vrHtml).join("\n")}
          const soldLines = orderedItems.map(postavka => {
           const articleId = (postavka as typeof postavka & { artikelId?: number | null }).artikelId ?? null;
           const modifierId = (postavka as typeof postavka & { modifikatorId?: number | null }).modifikatorId ?? null;
+            if ((postavka as any).modifierSourceArticleId != null) {
+              throw new Error("Računa ni mogoče zaključiti brez povezave: authority bundle za gnezdene izbire modifikatorjev še ni podprt.");
+            }
             const parentSourceLineRef = gatewayOfflineAuthority
               ? ((postavka as any).parentSourceLineRef
                 ?? ((postavka as any).parentPostavkaId != null
@@ -2819,6 +2833,9 @@ ${linije.map(vrHtml).join("\n")}
            if (parentSourceLineRef && (!parent || !sourceRefs.has(parentSourceLineRef))) {
              throw new Error(`Modifikator ${postavka.id} nima veljavne nadrejene postavke.`);
            }
+            if (modifierId != null && Number((parent as any)?.modifikatorId ?? (parent as any)?.modifierId) > 0) {
+              throw new Error("Računa ni mogoče zaključiti brez povezave: authority bundle za gnezdene izbire modifikatorjev še ni podprt.");
+            }
            const modifierFact = modifierId == null ? undefined
              : authorityBundle.modifiers.find(entry => entry.modifierId === modifierId);
            if (modifierId != null && !modifierFact) {
@@ -4725,7 +4742,7 @@ ${linije.map(vrHtml).join("\n")}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {splitMode
-                        ? `${splitPostavkeIds.size} / ${uncoveredPostavke.filter(p => p.parentPostavkaId == null).length} izbranih`
+                        ? `${uncoveredPostavke.filter(p => p.parentPostavkaId == null && effectiveSplitPostavkeIds.has(p.id)).length} / ${uncoveredPostavke.filter(p => p.parentPostavkaId == null).length} izbranih`
                         : `${uncoveredPostavke.filter(p => p.parentPostavkaId == null).length} artiklov`}
                     </p>
                   </div>
@@ -4852,19 +4869,20 @@ ${linije.map(vrHtml).join("\n")}
                             );
                           })()}
                           {uncoveredPostavke.filter(p => p.parentPostavkaId == null).map(p => {
-                            const otroci = uncoveredPostavke.filter(c => c.parentPostavkaId === p.id);
+                            const postavkeSkupine = uncoveredPostavke.filter(c =>
+                              expandCheckoutSplitPostavkaIds([p.id], uncoveredPostavke).has(c.id));
                             return (
                             <label key={p.id} className="flex items-center gap-3 cursor-pointer rounded-md p-1.5 hover:bg-muted/50">
                               <Checkbox
                                 id={`split-p-${p.id}`}
-                                checked={splitPostavkeIds.has(p.id)}
+                                checked={effectiveSplitPostavkeIds.has(p.id)}
                                 onCheckedChange={(checked) => {
-                                  setSplitPostavkeIds(prev => {
-                                    const next = new Set(prev);
-                                    if (checked) { next.add(p.id); otroci.forEach(c => next.add(c.id)); }
-                                    else { next.delete(p.id); otroci.forEach(c => next.delete(c.id)); }
-                                    return next;
-                                  });
+                                  setSplitPostavkeIds(prev => toggleCheckoutSplitPostavka(
+                                    prev,
+                                    p.id,
+                                    checked === true,
+                                    uncoveredPostavke,
+                                  ));
                                 }}
                               />
                               <span className="flex-1 text-sm flex items-center gap-1.5">
@@ -4877,19 +4895,23 @@ ${linije.map(vrHtml).join("\n")}
                                 {p.kolicina}× {p.ime}
                               </span>
                               {(() => {
-                                const customCena = (cenikMap && (p as typeof p & { artikelId?: number | null }).artikelId != null)
-                                  ? cenikMap.get((p as typeof p & { artikelId?: number | null }).artikelId!)
-                                  : undefined;
-                                const displayCena = jeBrezplacno ? 0 : (customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj));
-                                const originalCena = customCena !== undefined ? round2(customCena * Number(p.kolicina)) : Number(p.skupaj);
+                                const originalCena = round2(postavkeSkupine.reduce((acc, postavka) => acc + Number(postavka.skupaj), 0));
+                                const cenaSkupine = round2(postavkeSkupine.reduce((acc, postavka) => {
+                                  const artikelId = (postavka as typeof postavka & { artikelId?: number | null }).artikelId;
+                                  const customCena = cenikMap && artikelId != null ? cenikMap.get(artikelId) : undefined;
+                                  return acc + (customCena !== undefined
+                                    ? round2(customCena * Number(postavka.kolicina))
+                                    : Number(postavka.skupaj));
+                                }, 0));
+                                const displayCena = jeBrezplacno ? 0 : cenaSkupine;
                                 return (
                                   <span className="text-sm font-mono text-muted-foreground shrink-0">
                                     {displayCena.toFixed(2)} €
                                     {jeBrezplacno && (
                                       <span className="ml-1 line-through text-xs opacity-50">{originalCena.toFixed(2)}</span>
                                     )}
-                                    {!jeBrezplacno && customCena !== undefined && Number(p.skupaj) !== displayCena && (
-                                      <span className="ml-1 line-through text-xs opacity-50">{Number(p.skupaj).toFixed(2)}</span>
+                                    {!jeBrezplacno && cenaSkupine !== originalCena && (
+                                      <span className="ml-1 line-through text-xs opacity-50">{originalCena.toFixed(2)}</span>
                                     )}
                                   </span>
                                 );
@@ -5538,7 +5560,7 @@ ${linije.map(vrHtml).join("\n")}
               <Button
                 className="w-full min-h-7 h-auto py-0.5 text-[11px] leading-tight"
                 size="sm"
-                disabled={!effectiveSelectedOrderKey || activeBlagajnaId == null || offlineOrderLocked || createRacun.isPending || cardRecoveryChecking || paymentOrFinalizationInProgress || aktivniOperaterji.length === 0 || selectedNatakarId === "none" || imaNeskladjePostavk || (splitMode && splitPostavkeIds.size === 0)}
+                disabled={!effectiveSelectedOrderKey || activeBlagajnaId == null || offlineOrderLocked || createRacun.isPending || cardRecoveryChecking || paymentOrFinalizationInProgress || aktivniOperaterji.length === 0 || selectedNatakarId === "none" || imaNeskladjePostavk || (splitMode && effectiveSplitPostavkeIds.size === 0)}
                 onClick={handleIzdajRacun}
                 data-testid="button-izdaj-racun"
               >

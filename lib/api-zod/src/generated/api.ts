@@ -3482,6 +3482,7 @@ export const ListNarocilaResponseItem = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -3603,6 +3604,7 @@ export const CreateNarociloResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -3699,6 +3701,7 @@ export const ListAktivnaNarocilaResponseItem = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -3913,6 +3916,7 @@ export const GetNarociloResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -4034,6 +4038,7 @@ export const UpdateNarociloResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -4145,6 +4150,7 @@ export const SpojiNarociliResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -4272,6 +4278,7 @@ export const AddMalicaToOrderResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5201,6 +5208,10 @@ export const AddPostavkaParams = zod.object({
   "id": zod.coerce.number()
 })
 
+
+
+
+
 export const AddPostavkaBody = zod.object({
   "artikelId": zod.number(),
   "kolicina": zod.number(),
@@ -5211,7 +5222,11 @@ export const AddPostavkaBody = zod.object({
   "izbranModifikatorji": zod.array(zod.object({
   "modifikatorId": zod.number(),
   "ime": zod.string(),
-  "cenaDodatek": zod.number()
+  "cenaDodatek": zod.number(),
+  "podIzbire": zod.array(zod.object({
+  "artikelId": zod.number().min(1),
+  "modifikatorIds": zod.array(zod.number().min(1))
+})).optional().describe('Izbire modifikatorjev na pozitivnem vhodnem prodajnem artiklu normativa tega modifikatorja.')
 })).optional().describe('Izbrani modifikatorji za to postavko (vstavljeni kot otroške postavke)'),
   "velikostPice": zod.enum(['mala', 'normalna', 'druzinska']).optional().describe('Izbrana velikost pice; strežnik iz nje izpelje faktor normativa.'),
   "toGo": zod.boolean().optional().describe('Ali naj bo ta postavka pripravljena za s seboj')
@@ -5283,6 +5298,7 @@ export const AddPostavkaResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5412,6 +5428,7 @@ export const AddMulticourseMenuResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5521,6 +5538,7 @@ export const UpdatePostavkaKolicinaResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5622,6 +5640,7 @@ export const RemovePostavkaResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),
@@ -5675,9 +5694,17 @@ export const AddPostavkaModifikatorjiParams = zod.object({
   "postavkaId": zod.coerce.number()
 })
 
+
+
+
+
 export const AddPostavkaModifikatorjiBody = zod.object({
   "modifikatorji": zod.array(zod.object({
-  "modifikatorId": zod.number()
+  "modifikatorId": zod.number(),
+  "podIzbire": zod.array(zod.object({
+  "artikelId": zod.number().min(1),
+  "modifikatorIds": zod.array(zod.number().min(1))
+})).optional()
 })),
   "skupineIds": zod.array(zod.number()).optional().describe('Eksplicitni seznam skupin, za katere se izvede replace (tudi brisanje). Ce ni podan, se skupinaIds izpeljejo iz modifikatorji.')
 })
@@ -5748,6 +5775,7 @@ export const AddPostavkaModifikatorjiResponse = zod.object({
   "gostStevilka": zod.number().nullish().describe('Stevilka gosta, ki je narocil to postavko (null ce ni dodeljen)'),
   "parentPostavkaId": zod.number().nullish().describe('ID nadrejene postavke (pice), kateri ta dodatek pripada'),
   "modifikatorId": zod.number().nullish().describe('ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)'),
+  "modifierSourceArticleId": zod.number().nullish().describe('Izvorni prodajni artikel normativa za enonivojsko izbiro pod modifikatorjem; artikel ni prodajna vrstica.'),
   "velikostPice": zod.union([zod.literal('mala'),zod.literal('normalna'),zod.literal('druzinska'),zod.literal(null)]).nullish().describe('Izbrana velikost pice, zamrznjena ob dodajanju postavke.'),
   "toGo": zod.boolean().optional().describe('Ali je ta postavka oznacena kot To Go (stranka jo odnese s seboj)'),
   "jeDelMenija": zod.boolean().optional().describe('Nespremenljiv posnetek, da je bila postavka ob prodaji del menija.'),

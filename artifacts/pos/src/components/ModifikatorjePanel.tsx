@@ -466,6 +466,9 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                     <Plus className="w-3 h-3 mr-1" />Dodaj vrstico
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Če izberete prodajni artikel z lastnimi modifikatorji, se ob izbiri tega modifikatorja v naročilu odprejo tudi možnosti izbranega artikla.
+                </p>
                 {modNormativi.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-1">Ni sestavin — ob izbiri tega modifikatorja se zaloga ne razknjižuje.</p>
                 ) : (

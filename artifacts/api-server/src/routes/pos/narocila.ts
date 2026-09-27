@@ -4,7 +4,7 @@ export function assertNoClaimedMalicaAllocations(claims: readonly unknown[]): vo
   if (claims.length > 0) throw new Error("MALICA_ALLOCATION_CLAIMED");
 }
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
+import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
 import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";
 import { broadcastToDevice, broadcastToUnit } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
@@ -42,6 +42,152 @@ import { materializirajKdsNaloge } from "./kds";
 import { assertKdsOrderNotDispatched, KdsOrderAlreadyDispatchedError, lockKdsOrder } from "../../lib/kds-dispatch";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type PodIzbiraInput = { artikelId: number; modifikatorIds: number[] };
+type ResolvedPodMod = {
+  id: number;
+  ime: string;
+  cenaDodatek: number;
+  sourceArtikelId: number;
+  sourceNormQuantity: number;
+  availabilityRequirements: Array<{ articleId: number; quantity: number; mealType: "ala_carte" | "prepared" | "composite" }>;
+};
+
+async function resolveNestedModifierChoices(
+  executor: typeof db | DbTransaction,
+  enotaId: number,
+  parentModifierId: number,
+  podIzbire: PodIzbiraInput[] | undefined,
+): Promise<ResolvedPodMod[]> {
+  const normRows = await executor.select({
+    articleId: modNormativiTable.vhodniArtikelId,
+    quantity: modNormativiTable.kolicina,
+  }).from(modNormativiTable)
+    .innerJoin(artikliTable, eq(modNormativiTable.vhodniArtikelId, artikliTable.id))
+    .where(and(
+      eq(modNormativiTable.modifikatorId, parentModifierId),
+      eq(artikliTable.enotaId, enotaId),
+      eq(artikliTable.prodajniArtikel, true),
+      eq(artikliTable.aktiven, true),
+      sql`${modNormativiTable.kolicina} > 0`,
+    ));
+  const sourceQuantityByArticle = new Map<number, number>();
+  for (const row of normRows) {
+    const quantity = Number(row.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error(`Normativ modifikatorja ${parentModifierId} vsebuje neveljavno količino.`);
+    }
+    sourceQuantityByArticle.set(row.articleId, (sourceQuantityByArticle.get(row.articleId) ?? 0) + quantity);
+  }
+
+  const requestedByArticle = new Map<number, number[]>();
+  for (const source of podIzbire ?? []) {
+    if (!Number.isInteger(source.artikelId) || source.artikelId < 1
+      || !Array.isArray(source.modifikatorIds)
+      || source.modifikatorIds.some((id) => !Number.isInteger(id) || id < 1)) {
+      throw new Error("Neveljavna podizbira modifikatorja.");
+    }
+    if (requestedByArticle.has(source.artikelId)) {
+      throw new Error(`Podvojena podizbira za artikel ${source.artikelId}.`);
+    }
+    requestedByArticle.set(source.artikelId, source.modifikatorIds);
+  }
+  for (const articleId of requestedByArticle.keys()) {
+    if (!sourceQuantityByArticle.has(articleId)) {
+      throw new Error(`Artikel ${articleId} ni pozitiven vhodni artikel normativa modifikatorja ${parentModifierId}.`);
+    }
+  }
+
+  const resolved: ResolvedPodMod[] = [];
+  for (const [sourceArticleId, sourceNormQuantity] of sourceQuantityByArticle) {
+    const groups = await executor.select({
+      skupinaId: artModSkupineTable.skupinaId,
+      obvezna: modSkupineTable.obvezna,
+      minIzbir: modSkupineTable.minIzbir,
+      maxIzbir: modSkupineTable.maxIzbir,
+    }).from(artModSkupineTable)
+      .innerJoin(modSkupineTable, eq(artModSkupineTable.skupinaId, modSkupineTable.id))
+      .where(and(
+        eq(artModSkupineTable.artikelId, sourceArticleId),
+        eq(modSkupineTable.enotaId, enotaId),
+      ));
+    const selection = requestedByArticle.get(sourceArticleId);
+    if (groups.length === 0) {
+      if (selection?.length) throw new Error(`Artikel ${sourceArticleId} nima modifikatorskih skupin.`);
+      continue;
+    }
+    if (!selection) {
+      const required = groups.find((group) => group.obvezna || group.minIzbir > 0);
+      if (required) {
+        throw new Error(`Za vhodni artikel ${sourceArticleId} so obvezne podizbire modifikatorja.`);
+      }
+      continue;
+    }
+    if (new Set(selection).size !== selection.length) {
+      throw new Error(`Podvojeni modifikatorji v podizbiri artikla ${sourceArticleId}.`);
+    }
+    const groupIds = groups.map((group) => group.skupinaId);
+    const selectedMods = selection.length > 0
+      ? await executor.select({
+        id: modifikatorjiTable.id,
+        skupinaId: modifikatorjiTable.skupinaId,
+        ime: modifikatorjiTable.ime,
+        cenaDodatek: modifikatorjiTable.cenaDodatek,
+      }).from(modifikatorjiTable).where(and(
+        inArray(modifikatorjiTable.skupinaId, groupIds),
+        inArray(modifikatorjiTable.id, selection),
+        eq(modifikatorjiTable.aktiven, true),
+      ))
+      : [];
+    const modMap = new Map(selectedMods.map((mod) => [mod.id, mod]));
+    if (selection.some((id) => !modMap.has(id))) {
+      throw new Error(`Podizbira vsebuje neveljaven, neaktiven ali tuj modifikator za artikel ${sourceArticleId}.`);
+    }
+    const deeperGroups = selectedMods.length > 0
+      ? await executor.select({ modifierId: modNormativiTable.modifikatorId })
+        .from(modNormativiTable)
+        .innerJoin(artikliTable, eq(modNormativiTable.vhodniArtikelId, artikliTable.id))
+        .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, artikliTable.id))
+        .innerJoin(modSkupineTable, eq(artModSkupineTable.skupinaId, modSkupineTable.id))
+        .where(and(
+          inArray(modNormativiTable.modifikatorId, selectedMods.map((mod) => mod.id)),
+          eq(artikliTable.enotaId, enotaId),
+          eq(modSkupineTable.enotaId, enotaId),
+          sql`${modNormativiTable.kolicina} > 0`,
+        ))
+      : [];
+    if (deeperGroups.length > 0) {
+      throw new Error("Podizbire modifikatorjev so podprte samo do ene ravni.");
+    }
+    const counts = new Map<number, number>();
+    for (const mod of selectedMods) counts.set(mod.skupinaId, (counts.get(mod.skupinaId) ?? 0) + 1);
+    for (const group of groups) {
+      const count = counts.get(group.skupinaId) ?? 0;
+      const minRequired = group.obvezna ? Math.max(1, group.minIzbir) : group.minIzbir;
+      if (count < minRequired) {
+        throw new Error(`Skupina ${group.skupinaId} za artikel ${sourceArticleId}: obvezno je izbrati vsaj ${minRequired} modifikator(jev), izbrano: ${count}.`);
+      }
+      if (group.maxIzbir > 0 && count > group.maxIzbir) {
+        throw new Error(`Skupina ${group.skupinaId} za artikel ${sourceArticleId}: izbrali ste preveč modifikatorjev (maks ${group.maxIzbir}).`);
+      }
+    }
+    const snapshots = await loadModifierAvailabilitySnapshots(executor, selectedMods.map((mod) => mod.id));
+    for (const mod of selectedMods) {
+      resolved.push({
+        id: mod.id,
+        ime: mod.ime,
+        cenaDodatek: Number(mod.cenaDodatek),
+        sourceArtikelId: sourceArticleId,
+        sourceNormQuantity,
+        availabilityRequirements: (snapshots.get(mod.id) ?? []).map((requirement) => ({
+          ...requirement,
+          quantity: requirement.quantity * sourceNormQuantity,
+        })),
+      });
+    }
+  }
+  return resolved;
+}
 
 class PizzaDoughConfigurationError extends Error {
   readonly code = "PIZZA_DOUGH_CONFIGURATION_INVALID";
@@ -236,6 +382,7 @@ async function fetchPostavke(narociloId: number) {
       gostStevilka: postavkeTable.gostStevilka,
       parentPostavkaId: postavkeTable.parentPostavkaId,
       modifikatorId: postavkeTable.modifikatorId,
+      modifierSourceArticleId: postavkeTable.modifierSourceArticleId,
       velikostPice: postavkeTable.velikostPice,
       toGo: postavkeTable.toGo,
       jeDelMenija: postavkeTable.jeDelMenija,
@@ -282,6 +429,7 @@ async function fetchPostavke(narociloId: number) {
     gostStevilka: p.gostStevilka ?? null,
     parentPostavkaId: p.parentPostavkaId ?? null,
     modifikatorId: p.modifikatorId ?? null,
+    modifierSourceArticleId: p.modifierSourceArticleId ?? null,
     velikostPice: p.velikostPice ?? null,
     toGo: p.toGo ?? false,
     jeDelMenija: p.jeDelMenija ?? false,
@@ -2454,10 +2602,29 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   }
 
   // Pre-transaction: validate modifier selections and resolve authoritative DB values
-  const izbranModifikatorjiRaw = (parsed.data as { izbranModifikatorji?: Array<{ modifikatorId: number }> }).izbranModifikatorji ?? [];
-  type ResolvedMod = { skupinaId: number; id: number; ime: string; cenaDodatek: number };
+  const izbranModifikatorjiRaw = (parsed.data as {
+    izbranModifikatorji?: Array<{ modifikatorId: number; podIzbire?: PodIzbiraInput[] }>;
+  }).izbranModifikatorji ?? [];
+  if (!Array.isArray(izbranModifikatorjiRaw) || izbranModifikatorjiRaw.some((modifier) =>
+    modifier == null
+    || !Number.isInteger(modifier.modifikatorId)
+    || (modifier.podIzbire !== undefined && !Array.isArray(modifier.podIzbire)))) {
+    res.status(400).json({ error: "Neveljaven seznam izbranih modifikatorjev." });
+    return;
+  }
+  type ResolvedMod = {
+    skupinaId: number;
+    id: number;
+    ime: string;
+    cenaDodatek: number;
+    podIzbire: ResolvedPodMod[];
+  };
   let resolvedMods: ResolvedMod[] = [];
 
+  if (parentPostavkaId != null && izbranModifikatorjiRaw.some((modifier) => modifier.podIzbire?.length)) {
+    res.status(400).json({ error: "Podizbire modifikatorjev so dovoljene samo na prodajnih postavkah, ne na pomožnih artiklih." });
+    return;
+  }
   if (!parentPostavkaId) {
     // Load article's assigned modifier groups (tenant-scoped)
     const vezave = await db
@@ -2498,7 +2665,20 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           res.status(400).json({ napaka: `Modifikator ${req.modifikatorId} ni veljaven, ni aktiven ali ne pripada temu artiklu` });
           return;
         }
-        resolvedMods.push({ skupinaId: mod.skupinaId, id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek) });
+        let podIzbire: ResolvedPodMod[];
+        try {
+          podIzbire = await resolveNestedModifierChoices(db, tenotaId, mod.id, req.podIzbire);
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : "Neveljavna podizbira modifikatorja." });
+          return;
+        }
+        resolvedMods.push({
+          skupinaId: mod.skupinaId,
+          id: mod.id,
+          ime: mod.ime,
+          cenaDodatek: Number(mod.cenaDodatek),
+          podIzbire,
+        });
       }
 
       // Validate group constraints — runs even when izbranModifikatorjiRaw is empty (required groups)
@@ -2551,6 +2731,16 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           resolvedMods.map((modifier) => modifier.id),
           effectiveQuantity,
         );
+        for (const modifier of resolvedMods) {
+          for (const nested of modifier.podIzbire) {
+            for (const requirement of nested.availabilityRequirements) {
+              modifierRequests.push({
+                articleId: requirement.articleId,
+                quantity: requirement.quantity * effectiveQuantity,
+              });
+            }
+          }
+        }
         await assertPreparedFoodAvailability(tx, tenotaId, businessDate, [
           { articleId: artikel.id, quantity: effectiveQuantity },
           ...(doughArticleId == null ? [] : [{ articleId: doughArticleId, quantity: kolicina }]),
@@ -2601,7 +2791,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
     // Modifikatorji dedujejo DDV stopnjo starša (davekZaPostavko že vsebuje razrešeno stopnjo)
     for (const mod of resolvedMods) {
       const cenaMod = round2(mod.cenaDodatek);
-      await tx.insert(postavkeTable).values({
+      const [insertedModifier] = await tx.insert(postavkeTable).values({
         narociloId: params.data.id,
         artikelId: null,
         modifikatorId: mod.id,
@@ -2619,7 +2809,31 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           normativFaktor: String(izbranaVelikostPice?.normativFaktor ?? 1),
           availabilityRequirements: modifierSnapshots.get(mod.id) ?? [],
           toGo: postavkaToGo,
-        parentPostavkaId: inserted.id});
+        parentPostavkaId: inserted.id}).returning({ id: postavkeTable.id });
+      for (const nested of mod.podIzbire) {
+        const nestedPrice = round2(nested.cenaDodatek);
+        await tx.insert(postavkeTable).values({
+          narociloId: params.data.id,
+          artikelId: null,
+          modifikatorId: nested.id,
+          modifierSourceArticleId: nested.sourceArtikelId,
+          ime: nested.ime,
+          kolicina,
+          cenaKos: String(nestedPrice.toFixed(2)),
+          cenaKosOriginalna: String(nestedPrice.toFixed(2)),
+          skupaj: String(round2(nestedPrice * kolicina).toFixed(2)),
+          davek: davekZaPostavko,
+          jeDelMenija: jeDelMenijaZaPostavko,
+          opomba: null,
+          gostStevilka,
+          vrstaArtikla: vrstaArtiklaZaPostavko,
+          velikostPice: izbranaVelikostPice?.id,
+          normativFaktor: String(nested.sourceNormQuantity),
+          availabilityRequirements: nested.availabilityRequirements,
+          toGo: postavkaToGo,
+          parentPostavkaId: insertedModifier!.id,
+        });
+      }
     }
 
     // Telefonski prevzem in dostava sta vedno To Go. Dodaj pripadajoče
@@ -2791,6 +3005,7 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
       if (lockedPostavka.parentPostavkaId == null && lockedPostavka.artikelId != null && increase > 0) {
         const effectiveIncrease = increase * Number(lockedPostavka.normativFaktor ?? 1);
         const modifierRows = await tx.select({
+          id: postavkeTable.id,
           modifierId: postavkeTable.modifikatorId,
           availabilityRequirements: postavkeTable.availabilityRequirements,
         })
@@ -2820,6 +3035,23 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
           modifierIds,
           effectiveIncrease,
         );
+        const nestedRows = modifierRows.length > 0
+          ? await tx.select({
+            availabilityRequirements: postavkeTable.availabilityRequirements,
+          }).from(postavkeTable).where(and(
+            inArray(postavkeTable.parentPostavkaId, modifierRows.map((row) => row.id)),
+            eq(postavkeTable.narociloId, params.data.id),
+            isNull(postavkeTable.artikelId),
+          )).for("update")
+          : [];
+        for (const nested of nestedRows) {
+          for (const requirement of nested.availabilityRequirements ?? []) {
+            modifierRequests.push({
+              articleId: requirement.articleId,
+              quantity: requirement.quantity * effectiveIncrease,
+            });
+          }
+        }
         const availabilityRequests = [
           ...((lockedPostavka.mealType ?? "ala_carte") !== "ala_carte"
             ? [{ articleId: lockedPostavka.artikelId, quantity: effectiveIncrease }]
@@ -2862,24 +3094,48 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
 
       // Otroci (modifikatorji) dedujejo novo DDV stopnjo starša.
       if (updateSet.davek !== undefined) {
+        const directChildren = await tx.select({ id: postavkeTable.id })
+          .from(postavkeTable)
+          .where(and(
+            eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+            eq(postavkeTable.narociloId, params.data.id),
+          ));
         await tx.update(postavkeTable)
           .set({ davek: updateSet.davek })
           .where(and(
-            eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+            or(
+              eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+              directChildren.length > 0
+                ? inArray(postavkeTable.parentPostavkaId, directChildren.map((row) => row.id))
+                : sql`false`,
+            ),
             eq(postavkeTable.narociloId, params.data.id),
           ));
       }
 
       if (lockedOldQuantity !== novaKolicina) {
-        const otroci = await tx.select({
+        const neposredniOtroci = await tx.select({
           id: postavkeTable.id,
           kolicina: postavkeTable.kolicina,
-          cenaKos: postavkeTable.cenaKos,
         }).from(postavkeTable).where(and(
           eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
           eq(postavkeTable.narociloId, params.data.id),
         ));
-        for (const otrok of otroci) {
+        const vsiOtroci = await tx.select({
+          id: postavkeTable.id,
+          kolicina: postavkeTable.kolicina,
+          cenaKos: postavkeTable.cenaKos,
+        }).from(postavkeTable).where(and(
+          or(
+            eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+            neposredniOtroci.length > 0
+              ? inArray(postavkeTable.parentPostavkaId, neposredniOtroci.map((row) => row.id))
+              : sql`false`,
+          ),
+          eq(postavkeTable.narociloId, params.data.id),
+        ));
+        const parentIds = [params.data.postavkaId, ...neposredniOtroci.map((row) => row.id)];
+        for (const otrok of vsiOtroci) {
           const otrokStaraKol = Number(otrok.kolicina);
           const novaKolOtrok = lockedOldQuantity > 0
             ? Math.max(1, Math.round(otrokStaraKol / lockedOldQuantity * novaKolicina))
@@ -2891,7 +3147,7 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
             .where(and(
               eq(postavkeTable.id, otrok.id),
               eq(postavkeTable.narociloId, params.data.id),
-              eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+              inArray(postavkeTable.parentPostavkaId, parentIds),
             ));
         }
       }
@@ -3004,7 +3260,17 @@ router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<vo
           eq(postavkeTable.pairingGroupId, postavkaCheck.pairingGroupId),
         ));
       } else {
-        // Izbriši modifier otroke pred staršem (kaskada)
+        // Odstrani tudi vnuke (enonivojske podizbire) pred njihovim modifikatorjem.
+        const directChildren = await tx.select({ id: postavkeTable.id }).from(postavkeTable).where(and(
+          eq(postavkeTable.parentPostavkaId, params.data.postavkaId),
+          eq(postavkeTable.narociloId, params.data.id),
+        ));
+        if (directChildren.length > 0) {
+          await tx.delete(postavkeTable).where(and(
+            inArray(postavkeTable.parentPostavkaId, directChildren.map((child) => child.id)),
+            eq(postavkeTable.narociloId, params.data.id),
+          ));
+        }
         await tx.delete(postavkeTable).where(and(eq(postavkeTable.parentPostavkaId, params.data.postavkaId), eq(postavkeTable.narociloId, params.data.id)));
         await tx.delete(postavkeTable).where(and(eq(postavkeTable.id, params.data.postavkaId), eq(postavkeTable.narociloId, params.data.id)));
       }
@@ -3129,8 +3395,18 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   const rawPostavkaId = Array.isArray(req.params.postavkaId) ? req.params.postavkaId[0] : req.params.postavkaId;
   const params = { success: true as const, data: { id: Number(rawId), postavkaId: Number(rawPostavkaId) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
-  const parsed = { success: true, data: req.body };
+  const parsed = { success: true, data: req.body as {
+    modifikatorji: Array<{ modifikatorId: number; podIzbire?: PodIzbiraInput[] }>;
+    skupineIds?: number[];
+  } };
   if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
+  if (!Array.isArray(parsed.data.modifikatorji) || parsed.data.modifikatorji.some((modifier) =>
+    modifier == null
+    || !Number.isInteger(modifier.modifikatorId)
+    || (modifier.podIzbire !== undefined && !Array.isArray(modifier.podIzbire)))) {
+    res.status(400).json({ error: "Neveljaven seznam modifikatorjev." });
+    return;
+  }
 
   const narociloCheck = await getNarociloById(params.data.id, "", tenotaId);
   if (!narociloCheck) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
@@ -3177,7 +3453,13 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   }
 
   // Resolve modifiers and group by skupinaId for min/maxIzbir checks
-  type ResolvedMod = { id: number; ime: string; cenaDodatek: number; davek: string };
+  type ResolvedMod = {
+    id: number;
+    ime: string;
+    cenaDodatek: number;
+    davek: string;
+    podIzbire: ResolvedPodMod[];
+  };
   const resolvedMods: ResolvedMod[] = [];
   const bySkupina = new Map<number, number>();
   for (const req2 of parsed.data.modifikatorji) {
@@ -3187,7 +3469,20 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
       return;
     }
     bySkupina.set(mod.skupinaId, (bySkupina.get(mod.skupinaId) ?? 0) + 1);
-    resolvedMods.push({ id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek), davek: parentPostavka.davek });
+    let podIzbire: ResolvedPodMod[];
+    try {
+      podIzbire = await resolveNestedModifierChoices(db, tenotaId, mod.id, req2.podIzbire);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Neveljavna podizbira modifikatorja." });
+      return;
+    }
+    resolvedMods.push({
+      id: mod.id,
+      ime: mod.ime,
+      cenaDodatek: Number(mod.cenaDodatek),
+      davek: parentPostavka.davek,
+      podIzbire,
+    });
   }
 
   // Validate maxIzbir per skupin (within the request payload itself)
@@ -3256,6 +3551,16 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
       const legacyOldIds = existingScopedMods
         .filter((child) => child.modifikatorId != null && child.availabilityRequirements == null)
         .map((child) => child.modifikatorId!);
+      const existingNestedRows = existingScopedMods.length > 0
+        ? await tx.select({
+          id: postavkeTable.id,
+          availabilityRequirements: postavkeTable.availabilityRequirements,
+        }).from(postavkeTable).where(and(
+          inArray(postavkeTable.parentPostavkaId, existingScopedMods.map((row) => row.id)),
+          eq(postavkeTable.narociloId, params.data.id),
+          isNull(postavkeTable.artikelId),
+        )).for("update")
+        : [];
       const oldSnapshots = await loadModifierAvailabilitySnapshots(tx, legacyOldIds);
       for (const child of existingScopedMods) {
         if (child.modifikatorId != null && child.availabilityRequirements != null) {
@@ -3274,17 +3579,43 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
         newModifierIds,
         parentQuantity,
       );
-      const oldByArticle = new Map(oldRequirements.map((requirement) => [requirement.articleId, requirement.quantity]));
-      const positiveDelta = newRequirements
-        .map((requirement) => ({
-          articleId: requirement.articleId,
-          quantity: requirement.quantity - (oldByArticle.get(requirement.articleId) ?? 0),
+      for (const child of existingNestedRows) {
+        for (const requirement of child.availabilityRequirements ?? []) {
+          oldRequirements.push({ articleId: requirement.articleId, quantity: requirement.quantity * parentQuantity });
+        }
+      }
+      for (const modifier of resolvedMods) {
+        for (const nested of modifier.podIzbire) {
+          for (const requirement of nested.availabilityRequirements) {
+            newRequirements.push({ articleId: requirement.articleId, quantity: requirement.quantity * parentQuantity });
+          }
+        }
+      }
+      const totalsByArticle = (requirements: Array<{ articleId: number; quantity: number }>) => {
+        const totals = new Map<number, number>();
+        for (const requirement of requirements) {
+          totals.set(requirement.articleId, (totals.get(requirement.articleId) ?? 0) + requirement.quantity);
+        }
+        return totals;
+      };
+      const oldByArticle = totalsByArticle(oldRequirements);
+      const positiveDelta = [...totalsByArticle(newRequirements)]
+        .map(([articleId, quantity]) => ({
+          articleId,
+          quantity: quantity - (oldByArticle.get(articleId) ?? 0),
         }))
         .filter((requirement) => requirement.quantity > 0);
       if (positiveDelta.length > 0) {
         await assertPreparedFoodAvailability(tx, tenotaId, businessDate, positiveDelta);
       }
       if (existingToDelete.length > 0) {
+        const descendantIds = existingNestedRows.map((row) => row.id);
+        if (descendantIds.length > 0) {
+          await tx.delete(postavkeTable).where(and(
+            inArray(postavkeTable.id, descendantIds),
+            eq(postavkeTable.narociloId, params.data.id),
+          ));
+        }
         await tx.delete(postavkeTable).where(and(
           inArray(postavkeTable.id, existingToDelete),
           eq(postavkeTable.narociloId, params.data.id),
@@ -3293,7 +3624,7 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
       }
       for (const mod of resolvedMods) {
         const cenaMod = round2(mod.cenaDodatek);
-        await tx.insert(postavkeTable).values({
+        const [insertedModifier] = await tx.insert(postavkeTable).values({
           narociloId: params.data.id,
           artikelId: null,
           modifikatorId: mod.id,
@@ -3310,7 +3641,29 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
           normativFaktor: lockedParent.normativFaktor,
           availabilityRequirements: newSnapshots.get(mod.id) ?? [],
           parentPostavkaId: params.data.postavkaId,
-        });
+        }).returning({ id: postavkeTable.id });
+        for (const nested of mod.podIzbire) {
+          const nestedPrice = round2(nested.cenaDodatek);
+          await tx.insert(postavkeTable).values({
+            narociloId: params.data.id,
+            artikelId: null,
+            modifikatorId: nested.id,
+            modifierSourceArticleId: nested.sourceArtikelId,
+            ime: nested.ime,
+            kolicina: lockedParent.kolicina,
+            cenaKos: String(nestedPrice.toFixed(2)),
+            cenaKosOriginalna: String(nestedPrice.toFixed(2)),
+            skupaj: String(round2(nestedPrice * Number(lockedParent.kolicina)).toFixed(2)),
+            davek: mod.davek,
+            jeDelMenija: lockedParent.jeDelMenija,
+            opomba: null,
+            gostStevilka,
+            velikostPice: parentPostavka.velikostPice,
+            normativFaktor: String(nested.sourceNormQuantity),
+            availabilityRequirements: nested.availabilityRequirements,
+            parentPostavkaId: insertedModifier!.id,
+          });
+        }
       }
     });
   } catch (error) {

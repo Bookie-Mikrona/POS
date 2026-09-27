@@ -3,7 +3,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, sum } from "drizzle-orm";
 import { artikliTable, blagajneTable, darilniBonGibiTable, darilniBonIzdajeTable, db, enoteTable, fursAttemptsTable, fursPayloadSnapshotsTable, izmeneTable, mizeTable, modifikatorjiTable, modNormativiTable, napraveTable, narocilaTable, natakariTable, normativiTable, odmoriTable, partnerCenikiTable, posKarticnaPlacilaAttemptTable, posKarticnaPlacilaReferenceTable, postavkeTable, posBookingSettingsTable, racunFinalizationPlansTable, racunIzdajaZahteveTable, racuniTable, tiskalneNalogeTable, tipDistributionProfileEntriesTable, tipDistributionProfilesTable, vivaVracilaTable, vivaVraciloStatusPrehodiTable, zalogaGibiTable } from "@workspace/db";
 import { broadcastToUnit } from "../../lib/pos-sse";
-import { faktorNormativaModifikatorja } from "../../lib/pica-poraba";
+import { faktorNormativaModifikatorja, faktorNormativaPodModifikatorja } from "../../lib/pica-poraba";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { syncPosBookingForDay } from "../../lib/posSyncBooking";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
@@ -133,55 +133,64 @@ export function receiptProviderReferenceFields(
         : {};
 }
 
-function porabaZaVelikostPice(kolicina: number, faktor: number, enotaMere: string | null): number {
+function porabaZaVelikostPice(
+  kolicina: number,
+  faktor: number,
+  enotaMere: string | null,
+  preserveFractional = false,
+): number {
   const poraba = kolicina * faktor;
-  // Tehtne/volumske sestavine so lahko decimalne; kosovni normativi morajo ostati celi.
-  return /^(kg|kgm|g|grm|l|ltr|dl|dlt|ml|mlt|kilogram|gram|liter|deciliter|mililiter)$/i.test(enotaMere?.trim() ?? "")
+  // Tehtne/volumske sestavine so lahko decimalne; gnezdeni normativi ohranijo
+  // ulomljeno normativno sled tudi pri kosovnem ciljnem artiklu.
+  return preserveFractional
+    || /^(kg|kgm|g|grm|l|ltr|dl|dlt|ml|mlt|kilogram|gram|liter|deciliter|mililiter)$/i.test(enotaMere?.trim() ?? "")
     ? poraba
     : Math.round(poraba);
 }
 
 type ZalogaMovementPlan = { artikelId: number; kolicina: number; opomba: string; ustvarjeno: string };
 
-async function buildZalogaMovementPlan(
+export async function buildZalogaMovementPlan(
   postavke: any[],
   stevilkaRacuna: string,
   datumCas: Date,
 ): Promise<ZalogaMovementPlan[]> {
   const aggregated = new Map<number, number>();
+  const postavkaById = new Map(postavke.map((postavka) => [postavka.id, postavka]));
   const add = (artikelId: number, porabljeno: number) =>
     aggregated.set(artikelId, (aggregated.get(artikelId) ?? 0) - porabljeno);
   for (const postavka of postavke) {
-    if (postavka.artikelId == null) continue;
-    const [saleArticle] = await db.select({ mealType: artikliTable.mealType })
-      .from(artikliTable).where(eq(artikliTable.id, postavka.artikelId));
-    if (saleArticle?.mealType === "composite") {
-      const components = await db.select().from(normativiTable)
-        .where(eq(normativiTable.artikelId, postavka.artikelId));
-      for (const component of components) {
-        const [componentArticle] = await db.select({ mealType: artikliTable.mealType })
-          .from(artikliTable).where(eq(artikliTable.id, component.vhodniArtikelId));
-        if (componentArticle?.mealType !== "ala_carte") continue;
-        const componentNorms = await db.select().from(normativiTable)
-          .where(eq(normativiTable.artikelId, component.vhodniArtikelId));
-        for (const normativ of componentNorms) {
+    if (postavka.artikelId != null) {
+      const [saleArticle] = await db.select({ mealType: artikliTable.mealType })
+        .from(artikliTable).where(eq(artikliTable.id, postavka.artikelId));
+      if (saleArticle?.mealType === "composite") {
+        const components = await db.select().from(normativiTable)
+          .where(eq(normativiTable.artikelId, postavka.artikelId));
+        for (const component of components) {
+          const [componentArticle] = await db.select({ mealType: artikliTable.mealType })
+            .from(artikliTable).where(eq(artikliTable.id, component.vhodniArtikelId));
+          if (componentArticle?.mealType !== "ala_carte") continue;
+          const componentNorms = await db.select().from(normativiTable)
+            .where(eq(normativiTable.artikelId, component.vhodniArtikelId));
+          for (const normativ of componentNorms) {
+            const [input] = await db.select({ enotaMere: artikliTable.enotaMere })
+              .from(artikliTable).where(eq(artikliTable.id, normativ.vhodniArtikelId));
+            add(normativ.vhodniArtikelId, porabaZaVelikostPice(
+              Number(normativ.kolicina) * Number(component.kolicina) * Number(postavka.kolicina),
+              Number(postavka.normativFaktor ?? 1), input?.enotaMere ?? null,
+            ));
+          }
+        }
+      } else if (saleArticle?.mealType !== "prepared") {
+        const norms = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, postavka.artikelId));
+        for (const normativ of norms) {
           const [input] = await db.select({ enotaMere: artikliTable.enotaMere })
             .from(artikliTable).where(eq(artikliTable.id, normativ.vhodniArtikelId));
           add(normativ.vhodniArtikelId, porabaZaVelikostPice(
-            Number(normativ.kolicina) * Number(component.kolicina) * Number(postavka.kolicina),
+            Number(normativ.kolicina) * Number(postavka.kolicina),
             Number(postavka.normativFaktor ?? 1), input?.enotaMere ?? null,
           ));
         }
-      }
-    } else if (saleArticle?.mealType !== "prepared") {
-      const norms = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, postavka.artikelId));
-      for (const normativ of norms) {
-        const [input] = await db.select({ enotaMere: artikliTable.enotaMere })
-          .from(artikliTable).where(eq(artikliTable.id, normativ.vhodniArtikelId));
-        add(normativ.vhodniArtikelId, porabaZaVelikostPice(
-          Number(normativ.kolicina) * Number(postavka.kolicina),
-          Number(postavka.normativFaktor ?? 1), input?.enotaMere ?? null,
-        ));
       }
     }
     if (postavka.modifikatorId != null) {
@@ -193,17 +202,62 @@ async function buildZalogaMovementPlan(
         .innerJoin(modifikatorjiTable, eq(modifikatorjiTable.id, modNormativiTable.modifikatorId))
         .where(eq(modNormativiTable.modifikatorId, postavka.modifikatorId));
       for (const normativ of modifierNorms) {
-        const [input] = await db.select({ enotaMere: artikliTable.enotaMere })
+        const [input] = await db.select({
+          enotaMere: artikliTable.enotaMere,
+          mealType: artikliTable.mealType,
+          prodajniArtikel: artikliTable.prodajniArtikel,
+        })
           .from(artikliTable).where(eq(artikliTable.id, normativ.vhodniArtikelId));
-        add(normativ.vhodniArtikelId, porabaZaVelikostPice(
-          Number(normativ.kolicina) * Number(postavka.kolicina),
-          faktorNormativaModifikatorja(postavka.normativFaktor, normativ.cenaDodatek),
-          input?.enotaMere ?? null,
-        ));
+        const isNestedModifier = postavka.modifierSourceArticleId != null;
+        const nestedParent = isNestedModifier && postavka.parentPostavkaId != null
+          ? postavkaById.get(postavka.parentPostavkaId)
+          : undefined;
+        if (isNestedModifier && !nestedParent) {
+          throw new Error(`Podizbira ${postavka.id} nima nadrejenega modifikatorja na računu.`);
+        }
+        const normativFactor = isNestedModifier
+          ? faktorNormativaPodModifikatorja(
+            Number(postavka.normativFaktor ?? 1),
+            faktorNormativaModifikatorja(nestedParent.normativFaktor, nestedParent.cenaKos),
+          )
+          : Number(postavka.normativFaktor ?? 1);
+        const modifierFactor = faktorNormativaModifikatorja(
+          normativFactor,
+          normativ.cenaDodatek,
+          isNestedModifier,
+        );
+        const modifierQuantity = Number(normativ.kolicina) * Number(postavka.kolicina);
+        const sourceRecipe = Number(normativ.kolicina) > 0
+          && input?.mealType === "ala_carte"
+          && input.prodajniArtikel
+          ? await db.select().from(normativiTable).where(eq(normativiTable.artikelId, normativ.vhodniArtikelId))
+          : [];
+        if (sourceRecipe.length > 0) {
+          for (const ingredientNorm of sourceRecipe) {
+            const [ingredient] = await db.select({ enotaMere: artikliTable.enotaMere })
+              .from(artikliTable).where(eq(artikliTable.id, ingredientNorm.vhodniArtikelId));
+            add(ingredientNorm.vhodniArtikelId, porabaZaVelikostPice(
+              Number(ingredientNorm.kolicina) * modifierQuantity,
+              modifierFactor,
+              ingredient?.enotaMere ?? null,
+              isNestedModifier,
+            ));
+          }
+        } else {
+          // Prepared sale articles remain stock-counted as prepared portions;
+          // non-sale inputs and sale articles without a recipe are stockable
+          // directly rather than being charged as sold lines.
+          add(normativ.vhodniArtikelId, porabaZaVelikostPice(
+            modifierQuantity,
+            modifierFactor,
+            input?.enotaMere ?? null,
+            isNestedModifier,
+          ));
+        }
       }
     }
   }
-  return [...aggregated.entries()].map(([artikelId, kolicina]) => ({
+  return [...aggregated.entries()].filter(([, kolicina]) => kolicina !== 0).map(([artikelId, kolicina]) => ({
     artikelId, kolicina, opomba: `Račun ${stevilkaRacuna}`, ustvarjeno: datumCas.toISOString(),
   }));
 }
@@ -2474,6 +2528,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
       }
     }
     // Razknjiženje sestavin modifikatorjev
+    const postavkaById = new Map(selectedPostavke.map((postavka: any) => [postavka.id, postavka]));
     for (const postavka of selectedPostavke) {
       if (postavka.modifikatorId == null) continue;
       const modNormativi = await tx.select({
@@ -2489,8 +2544,27 @@ router.post("/racuni", async (req, res): Promise<void> => {
       for (const mn of modNormativi) {
         const [vhodniArtikel] = await tx.select({ enotaMere: artikliTable.enotaMere })
           .from(artikliTable).where(eq(artikliTable.id, mn.vhodniArtikelId));
-        const faktor = faktorNormativaModifikatorja(postavka.normativFaktor, mn.cenaDodatek);
-        const porabljeno = porabaZaVelikostPice(Number(mn.kolicina) * postavka.kolicina, faktor, vhodniArtikel?.enotaMere ?? null);
+        const isNestedModifier = postavka.modifierSourceArticleId != null;
+        const nestedParent = isNestedModifier && postavka.parentPostavkaId != null
+          ? postavkaById.get(postavka.parentPostavkaId)
+          : undefined;
+        const normativFactor = isNestedModifier
+          ? faktorNormativaPodModifikatorja(
+            Number(postavka.normativFaktor ?? 1),
+            nestedParent?.normativFaktor ?? 1,
+          )
+          : Number(postavka.normativFaktor ?? 1);
+        const faktor = faktorNormativaModifikatorja(
+          normativFactor,
+          mn.cenaDodatek,
+          isNestedModifier,
+        );
+        const porabljeno = porabaZaVelikostPice(
+          Number(mn.kolicina) * postavka.kolicina,
+          faktor,
+          vhodniArtikel?.enotaMere ?? null,
+          isNestedModifier,
+        );
         await tx.insert(zalogaGibiTable).values({
           artikelId: mn.vhodniArtikelId,
           tip: "poraba",

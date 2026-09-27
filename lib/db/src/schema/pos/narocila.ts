@@ -94,6 +94,8 @@ export const postavkeTable = pgTable("postavke", {
   racunId: integer("racun_id"),
   gostStevilka: smallint("gost_stevilka"),
   parentPostavkaId: integer("parent_postavka_id"),
+  /** Source sale article for a one-level nested modifier choice; this article is normative input, not a sold line. */
+  modifierSourceArticleId: integer("modifier_source_article_id"),
   /**
    * QR multicourse menu metadata.  Both the food and its paired wine are
    * independent, routable order lines, linked only by this immutable group.

@@ -192,10 +192,13 @@ const mockPicaCapricciosa = {
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
 const mockAddPostavkaMutate = vi.hoisted(() => vi.fn());
+const mockAddPostavkaModifikatorjiMutate = vi.hoisted(() => vi.fn());
 const mockToast = vi.hoisted(() => vi.fn());
 const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockListArtikliData = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
+const mockModifierNormatives = vi.hoisted(() => ({ current: {} as Record<number, unknown[]> }));
+const mockOrderForOptions = vi.hoisted(() => ({ current: null as unknown }));
 
 vi.stubGlobal("fetch", vi.fn((url: string, options?: RequestInit) => Promise.resolve({
   ok: true,
@@ -282,9 +285,15 @@ vi.mock("@dnd-kit/utilities", () => ({
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
-  useGetNarocilo: () => ({ data: mockNarocilo, isLoading: false }),
+  useGetNarocilo: () => ({ data: mockOrderForOptions.current ?? mockNarocilo, isLoading: false }),
   useListArtikli: () => ({ data: mockListArtikliData(), isLoading: false }),
   getListArtikliQueryKey: () => ["/api/artikli"],
+  getGetModifikatorNormativiQueryKey: (id: number) => [`/api/modifikatorji/${id}/normativi`],
+  getGetModifikatorNormativiQueryOptions: (id: number, options?: { query?: Record<string, unknown> }) => ({
+    queryKey: options?.query?.queryKey ?? [`/api/modifikatorji/${id}/normativi`],
+    queryFn: () => Promise.resolve(mockModifierNormatives.current[id] ?? []),
+    ...options?.query,
+  }),
   useGetPreparedFoodAvailability: () => ({ data: {
     businessDate: "2026-08-28", items: [],
     modifierItems: [{ modifierId: 100, availableQuantity: 3 }],
@@ -318,7 +327,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useQuoteDailyLunch: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAddDailyLunchToOrder: () => ({ mutateAsync: vi.fn(), isPending: false }),
   customFetch: vi.fn(() => Promise.resolve([])),
-  useAddPostavkaModifikatorji: () => ({ mutate: vi.fn(), isPending: false }),
+  useAddPostavkaModifikatorji: () => ({ mutate: mockAddPostavkaModifikatorjiMutate, isPending: false }),
   useRemovePostavka: () => ({ mutate: vi.fn() }),
   useUpdatePostavkaKolicina: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
   useSpojiNarocili: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
@@ -425,6 +434,46 @@ async function klikniMikInPridobionResult(): Promise<(tekst: string) => void> {
   };
 }
 
+function prepareExistingNestedModifierEdit() {
+  const garlicOption = { id: 201, skupinaId: 20, ime: "Brez česna", cenaDodatek: 0, aktiven: true, vrstniRed: 0 };
+  const lessGarlicOption = { id: 202, skupinaId: 20, ime: "Manj česna", cenaDodatek: 0, aktiven: true, vrstniRed: 1 };
+  const saltOption = { id: 203, skupinaId: 21, ime: "Brez soli", cenaDodatek: 0, aktiven: true, vrstniRed: 0 };
+  const makeSource = (id: number, ime: string, groupId: number, groupName: string, options: Array<typeof garlicOption>) => ({
+    ...mockPicaMargherita,
+    id,
+    ime,
+    jePica: false,
+    modSkupine: [{
+      id: groupId,
+      ime: groupName,
+      obvezna: true,
+      minIzbir: 1,
+      maxIzbir: 1,
+      vrstniRed: 0,
+      modifikatorji: options,
+    }],
+  });
+  const sourceA = makeSource(200, "Zelena solata – mala", 20, "Dodatki solate", [garlicOption, lessGarlicOption]);
+  const sourceB = makeSource(202, "Juha – mala", 21, "Dodatki juhe", [saltOption]);
+  mockListArtikliData.mockReturnValue([mockPica, sourceA, sourceB]);
+  mockModifierNormatives.current = {
+    100: [
+      { id: 1, vhodniArtikelId: sourceA.id, artikelIme: sourceA.ime, kolicina: 1 },
+      { id: 2, vhodniArtikelId: sourceB.id, artikelIme: sourceB.ime, kolicina: 1 },
+    ],
+  };
+  mockOrderForOptions.current = {
+    ...mockNarocilo,
+    postavke: [
+      { id: 501, artikelId: mockPica.id, ime: mockPica.ime, kolicina: 1, cenaKos: 8.5, skupaj: 8.5, racunId: null, parentPostavkaId: null },
+      { id: 502, artikelId: null, modifikatorId: 100, ime: "Sir", kolicina: 1, cenaKos: 0.5, skupaj: 0.5, racunId: null, parentPostavkaId: 501 },
+      { id: 503, artikelId: null, modifikatorId: garlicOption.id, modifierSourceArticleId: sourceA.id, ime: garlicOption.ime, kolicina: 1, cenaKos: 0, skupaj: 0, racunId: null, parentPostavkaId: 502 },
+      { id: 504, artikelId: null, modifikatorId: saltOption.id, modifierSourceArticleId: sourceB.id, ime: saltOption.ime, kolicina: 1, cenaKos: 0, skupaj: 0, racunId: null, parentPostavkaId: 502 },
+    ],
+  };
+  return { sourceA, sourceB, garlicOption, lessGarlicOption, saltOption };
+}
+
 // ── Testi ─────────────────────────────────────────────────────────────────────
 
 describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
@@ -434,10 +483,13 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     qc = makeQueryClient();
     mockToast.mockClear();
     mockAddPostavkaMutate.mockClear();
+    mockAddPostavkaModifikatorjiMutate.mockClear();
     mockSetLocation.mockClear();
     mockZacniGlasovni.mockClear();
     mockZacniGlasovni.mockReturnValue(true);
     mockListArtikliData.mockReturnValue([mockPica]);
+    mockModifierNormatives.current = {};
+    mockOrderForOptions.current = null;
   });
 
   it("mobilna glava prikaže čas priprave samo enkrat in ga ne ponavlja v preklopniku ali QR opozorilu", async () => {
@@ -797,6 +849,168 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
       { modifikatorId: 100, ime: "Sir", cenaDodatek: 0.5 },
       { modifikatorId: 105, ime: "Brez razreza", cenaDodatek: 0 },
     ]);
+  });
+
+  it("izbire nested skupin veže na izvorni prodajni artikel, jih počisti ob odznačitvi in ne doda drugega artikla", async () => {
+    const nestedOption = {
+      id: 201,
+      skupinaId: 20,
+      ime: "Brez česna",
+      cenaDodatek: 0,
+      aktiven: true,
+      vrstniRed: 0,
+    };
+    const secondNestedOption = {
+      id: 203,
+      skupinaId: 21,
+      ime: "Brez soli",
+      cenaDodatek: 0,
+      aktiven: true,
+      vrstniRed: 0,
+    };
+    const sourceArticle = {
+      ...mockPicaMargherita,
+      id: 200,
+      ime: "Zelena solata – mala",
+      jePica: false,
+      modSkupine: [{
+        id: 20,
+        ime: "Dodatki solate",
+        obvezna: true,
+        minIzbir: 1,
+        maxIzbir: 1,
+        vrstniRed: 0,
+        modifikatorji: [nestedOption],
+      }],
+    };
+    const secondSourceArticle = {
+      ...sourceArticle,
+      id: 202,
+      ime: "Juha – mala",
+      modSkupine: [{
+        id: 21,
+        ime: "Dodatki juhe",
+        obvezna: true,
+        minIzbir: 1,
+        maxIzbir: 1,
+        vrstniRed: 0,
+        modifikatorji: [secondNestedOption],
+      }],
+    };
+    mockListArtikliData.mockReturnValue([mockPica, sourceArticle, secondSourceArticle]);
+    mockModifierNormatives.current = {
+      100: [
+        { id: 1, vhodniArtikelId: sourceArticle.id, artikelIme: sourceArticle.ime, kolicina: 1 },
+        { id: 2, vhodniArtikelId: secondSourceArticle.id, artikelIme: secondSourceArticle.ime, kolicina: 1 },
+      ],
+    };
+    mockAddPostavkaMutate.mockImplementation(
+      (_args: unknown, options?: { onSuccess?: (data: unknown) => void }) => options?.onSuccess?.(mockNarocilo),
+    );
+
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /Margherita/i }));
+    });
+
+    await screen.findByTestId("button-nested-modifier-100-200-201");
+    await screen.findByTestId("button-nested-modifier-100-202-203");
+    const confirm = screen.getByRole("button", { name: /Potrdi/i });
+    expect(confirm).toBeDisabled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("button-modifier-100"));
+    });
+    expect(screen.queryByTestId("nested-modifier-source-100-200")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("button-modifier-100"));
+    });
+    expect(screen.getByTestId("button-nested-modifier-100-200-201")).toHaveAttribute("aria-pressed", "false");
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("button-nested-modifier-100-200-201"));
+      fireEvent.click(screen.getByTestId("button-nested-modifier-100-202-203"));
+    });
+    expect(confirm).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+    await waitFor(() => expect(mockAddPostavkaMutate).toHaveBeenCalledTimes(1));
+    const [[call]] = mockAddPostavkaMutate.mock.calls as [{ data: Record<string, unknown> }][];
+    expect(call.data.artikelId).toBe(mockPica.id);
+    expect(call.data.izbranModifikatorji).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        modifikatorId: 100,
+        podIzbire: [
+          { artikelId: sourceArticle.id, modifikatorIds: [nestedOption.id] },
+          { artikelId: secondSourceArticle.id, modifikatorIds: [secondNestedOption.id] },
+        ],
+      }),
+    ]));
+  });
+
+  it("urejanje opcij predizbere več shranjenih virov, ohrani nespremenjeno izbiro in pošlje poln scoped payload", async () => {
+    const { lessGarlicOption, sourceA, sourceB, saltOption } = prepareExistingNestedModifierEdit();
+    mockAddPostavkaModifikatorjiMutate.mockImplementation(
+      (_args: unknown, options?: { onSuccess?: (data: unknown) => void }) => options?.onSuccess?.(mockNarocilo),
+    );
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Opcije/i }));
+    });
+
+    const changedChoice = await screen.findByTestId("button-edit-nested-100-200-202");
+    expect(screen.getByTestId("button-edit-nested-100-200-201")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("button-edit-nested-100-202-203")).toHaveAttribute("aria-pressed", "true");
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("button-edit-nested-100-200-201"));
+      fireEvent.click(changedChoice);
+    });
+    expect(screen.getByTestId("button-edit-nested-100-202-203")).toHaveAttribute("aria-pressed", "true");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Potrdi/i }));
+    });
+    await waitFor(() => expect(mockAddPostavkaModifikatorjiMutate).toHaveBeenCalledTimes(1));
+    const [[args]] = mockAddPostavkaModifikatorjiMutate.mock.calls as [{ postavkaId: number; data: Record<string, unknown> }][];
+    expect(args.postavkaId).toBe(501);
+    expect(args.data).toEqual({
+      modifikatorji: [{
+        modifikatorId: 100,
+        podIzbire: [
+          { artikelId: sourceA.id, modifikatorIds: [lessGarlicOption.id] },
+          { artikelId: sourceB.id, modifikatorIds: [saltOption.id] },
+        ],
+      }],
+      skupineIds: [1],
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("ob napaki pri urejanju ohrani dialog in nested izbor za ponovni poskus", async () => {
+    prepareExistingNestedModifierEdit();
+    mockAddPostavkaModifikatorjiMutate.mockImplementation(
+      (_args: unknown, options?: { onError?: (error: unknown) => void }) => options?.onError?.(new Error("failed")),
+    );
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Opcije/i }));
+    });
+    await screen.findByTestId("button-edit-nested-100-202-203");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Potrdi/i }));
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("button-edit-nested-100-200-201")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("button-edit-nested-100-202-203")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("ob zavrnitvi pokaže razlog strežnika in ohrani izbor za ponovni poskus", async () => {

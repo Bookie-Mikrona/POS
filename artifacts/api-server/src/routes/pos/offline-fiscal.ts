@@ -45,6 +45,9 @@ function verifyCanonicalVat(plan: FinalizationPlan, authorityPayload: any, compa
       if (!modifier || !line.parentSourceLineRef) throw new Error("Neveljaven ali osirotel podpisan modifikator.");
       const parent = bySource.get(line.parentSourceLineRef);
       if (!parent) throw new Error("Nadrejena postavka modifikatorja manjka.");
+      if (parent.modifierId != null || parent.articleId == null) {
+        throw new Error("Gnezdeni modifikatorji niso podprti v podpisanem offline authority bundlu.");
+      }
       const article = catalog.get(Number(parent.articleId));
       if (!article) throw new Error("Nadrejeni artikel modifikatorja ni veljaven.");
       if (modifier.vatRule !== "inherit_parent" && modifier.vatRule !== "own") {
