@@ -52,7 +52,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
   const [currentZaloge, artikliRows] = await Promise.all([
     db.select({ artikelId: zalogeTable.artikelId, kolicina: zalogeTable.kolicina })
       .from(zalogeTable).where(inArray(zalogeTable.artikelId, artikelIds)),
-    db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere, vrstaArtikla: artikliTable.vrstaArtikla })
+    db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere, vrstaArtikla: artikliTable.vrstaArtikla, drobniInventar: artikliTable.drobniInventar })
       .from(artikliTable).where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId))),
   ]);
   const foundZzIds = new Set(artikliRows.map(a => a.id));
@@ -75,7 +75,8 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
     const postavkeResult = [];
     for (const p of postavke) {
       const kolicina = p.kolicina;
-      const cenaKos = p.cenaKos;
+      const art = artikelMap.get(p.artikelId);
+      const cenaKos = art?.drobniInventar ? 0 : p.cenaKos;
       const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
 
       await tx.insert(zacetneZalogePostavkeTable).values({
@@ -97,7 +98,6 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
         effectiveAtSnapshot: docDatum,
         sourceSnapshot: "zacetne-zaloge"});
 
-      const art = artikelMap.get(p.artikelId);
       postavkeResult.push({
         id: zacetnaZaloga.id,
         artikelId: p.artikelId,
@@ -127,6 +127,7 @@ router.post("/zacetne-zaloge", requireEnota, async (req, res): Promise<void> => 
     zzDatum,
     postavke.map((p: any) => ({
       vrstaArtikla: artikelMap.get(p.artikelId)?.vrstaArtikla ?? null,
+      drobniInventar: artikelMap.get(p.artikelId)?.drobniInventar ?? false,
       kolicina: p.kolicina,
       cenaKos: p.cenaKos,
     })),
@@ -216,10 +217,11 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
     if (!novaPostavke.length) { res.status(400).json({ error: "Začetne zaloge morajo imeti vsaj eno postavko" }); return; }
 
     const artikelIds = novaPostavke.map((p: any) => p.artikelId);
-    const putArtikliRows = await db.select({ id: artikliTable.id })
+    const putArtikliRows = await db.select({ id: artikliTable.id, drobniInventar: artikliTable.drobniInventar })
       .from(artikliTable)
       .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
     const putFoundIds = new Set(putArtikliRows.map(a => a.id));
+    const putArticleMap = new Map(putArtikliRows.map(a => [a.id, a]));
     const putMissingIds = artikelIds.filter((id: any) => !putFoundIds.has(id));
     if (putMissingIds.length > 0) {
       res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
@@ -243,7 +245,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       // Vstavi nove postavke in gibi
       for (const p of novaPostavke) {
         const kolicina = p.kolicina;
-        const cenaKos = p.cenaKos;
+        const cenaKos = putArticleMap.get(p.artikelId)?.drobniInventar ? 0 : p.cenaKos;
 
         await tx.insert(zacetneZalogePostavkeTable).values({
           zacetnaZalogaId: id,
@@ -285,7 +287,7 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       ? existing.datum.toISOString().slice(0, 10)
       : String(existing.datum).slice(0, 10);
     const novePutPostavke = await db
-      .select({ vrstaArtikla: artikliTable.vrstaArtikla, kolicina: zacetneZalogePostavkeTable.kolicina, cenaKos: zacetneZalogePostavkeTable.cenaKos })
+      .select({ vrstaArtikla: artikliTable.vrstaArtikla, drobniInventar: artikliTable.drobniInventar, kolicina: zacetneZalogePostavkeTable.kolicina, cenaKos: zacetneZalogePostavkeTable.cenaKos })
       .from(zacetneZalogePostavkeTable)
       .leftJoin(artikliTable, eq(artikliTable.id, zacetneZalogePostavkeTable.artikelId))
       .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
@@ -294,11 +296,18 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
       tenotaId,
       existing.leto,
       putDatum,
-      novePutPostavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
+      novePutPostavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, drobniInventar: p.drobniInventar === true, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
     ).catch(err => { console.warn("[ZZ booking PUT]", err); return null; });
   } else if (parsed.data.datum !== undefined && updates.datum!.getTime() !== existing.datum.getTime()) {
     await db.transaction(async (tx) => {
-      const existingPostavke = await tx.select().from(zacetneZalogePostavkeTable)
+      const existingPostavke = await tx.select({
+        id: zacetneZalogePostavkeTable.id,
+        artikelId: zacetneZalogePostavkeTable.artikelId,
+        kolicina: zacetneZalogePostavkeTable.kolicina,
+        cenaKos: zacetneZalogePostavkeTable.cenaKos,
+        drobniInventar: artikliTable.drobniInventar,
+      }).from(zacetneZalogePostavkeTable)
+        .leftJoin(artikliTable, eq(artikliTable.id, zacetneZalogePostavkeTable.artikelId))
         .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, id));
       const artikelIds = existingPostavke.flatMap((p) => p.artikelId == null ? [] : [p.artikelId]);
       const reversedArtikelIds = await appendStockMovementReversals(tx, {
@@ -315,8 +324,8 @@ router.put("/zacetne-zaloge/:id", requireEnota, async (req, res): Promise<void> 
           artikelId: p.artikelId,
           tip: "inventura",
           kolicina: p.kolicina,
-          cenaKos: p.cenaKos,
-          vrednost: String(Number(p.kolicina) * Number(p.cenaKos)),
+          cenaKos: p.drobniInventar ? "0" : p.cenaKos,
+          vrednost: p.drobniInventar ? "0" : String(Number(p.kolicina) * Number(p.cenaKos)),
           opomba: `Začetne zaloge ${existing.leto}`,
           referencaId: id,
           actorSnapshot,
@@ -385,6 +394,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
   const postavke = await db
     .select({
       vrstaArtikla: artikliTable.vrstaArtikla,
+      drobniInventar: artikliTable.drobniInventar,
       kolicina: zacetneZalogePostavkeTable.kolicina,
       cenaKos: zacetneZalogePostavkeTable.cenaKos,
     })
@@ -401,7 +411,7 @@ router.post("/zacetne-zaloge/:id/poknjizi", requireEnota, async (req, res): Prom
     (req as any).enotaId,
     zz.leto,
     datum,
-    postavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
+    postavke.map(p => ({ vrstaArtikla: p.vrstaArtikla ?? null, drobniInventar: p.drobniInventar === true, kolicina: Number(p.kolicina), cenaKos: Number(p.cenaKos) })),
   );
 
   if (result.skipped) {

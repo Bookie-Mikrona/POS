@@ -165,6 +165,9 @@ export const posBookingSettingsTable = pgTable("pos_booking_settings", {
   /** Neposredne prevozne storitve pri nabavi. */
   inboundFreightExpenseAccountId: uuid("inbound_freight_expense_account_id")
     .references(() => accountsTable.id, { onDelete: "set null" }),
+  /** Expense account for quantity-only small hospitality inventory (404* analytic). */
+  drobniInventarExpenseAccountId: uuid("drobni_inventar_expense_account_id")
+    .references(() => accountsTable.id, { onDelete: "set null" }),
 
   // ── Temeljnica 3: Poraba (COGS) — DEBET ────────────────────────────────────
   /** Stroški materiala po normativih/izdajnicah — debet (npr. 4000110) */

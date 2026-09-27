@@ -10633,6 +10633,11 @@ components:
         contractReceivableTransitAccountId: { type: [string, "null"], description: Prehodna terjatev pogodbenih malic do mesečnega A-računa }
         returnablePackagingAccountId: { type: [string, "null"], description: Konto zaloge povratne embalaže (3107000) }
         returnablePackagingWriteoffAccountId: { type: [string, "null"], description: Konto stroška odpisa povratne embalaže (razred 4) }
+        drobniInventarExpenseAccountId: { type: [string, "null"], description: Konto stroška drobnega inventarja (aktivna analitika 404*) }
+        drobniInventarExpenseAccountOptions:
+          type: array
+          description: Izbirni konti drobnega inventarja; samo aktivne, proknjižljive sedemmestne analitike 404*
+          items: { $ref: "#/components/schemas/PosBookingExpenseAccountOption" }
     PosBookingSettingsInput:
       type: object
       properties:
@@ -10648,6 +10653,14 @@ components:
         contractReceivableTransitAccountId: { type: [string, "null"], description: Prehodna terjatev pogodbenih malic do mesečnega A-računa }
         returnablePackagingAccountId: { type: [string, "null"], description: Konto zaloge povratne embalaže (3107000) }
         returnablePackagingWriteoffAccountId: { type: [string, "null"], description: Konto stroška odpisa povratne embalaže (razred 4) }
+        drobniInventarExpenseAccountId: { type: [string, "null"], description: Konto stroška drobnega inventarja (aktivna analitika 404*) }
+    PosBookingExpenseAccountOption:
+      type: object
+      required: [id, code, name]
+      properties:
+        id: { type: string }
+        code: { type: string, pattern: "^404[0-9]{4}$" }
+        name: { type: string }
     PosCategoryRevenueAccount:
       type: object
       required: [categoryId, categoryName, unitId, unitName, accountId]
@@ -11179,6 +11192,7 @@ components:
         - aktiven
         - vrstniRed
         - povratnaEmbalaza
+        - drobniInventar
         - jeSkupinskiNabavniArtikel
         - vrstaArtikla
       properties:
@@ -11306,6 +11320,9 @@ components:
         povratnaEmbalaza:
           type: boolean
           description: Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru
+        drobniInventar:
+          type: boolean
+          description: Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge
         vrstaEmbalaze:
           type: [string, "null"]
           enum: [steklenica, zaboj, keg, balon, drugo, null]
@@ -11391,6 +11408,10 @@ components:
           enum: [pica, hrana, pijaca, null]
           description: Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)
         povratnaEmbalaza: { type: boolean, default: false }
+        drobniInventar:
+          type: boolean
+          default: false
+          description: Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja
         vrstaEmbalaze: { type: [string, "null"], enum: [steklenica, zaboj, keg, balon, drugo, null] }
         depozitnaVrednost: { type: [number, "null"], minimum: 0 }
         ime:

@@ -870,8 +870,19 @@ describe("POS temeljnice po enoti", () => {
     expect(
       await bookZacetnaZaloga(companyId, cleanupEnota.id, 2026, DATE, [
         { vrstaArtikla: "material", kolicina: 4, cenaKos: 5 },
+        { vrstaArtikla: "material", kolicina: 3, cenaKos: 900, drobniInventar: true },
       ]),
     ).toMatchObject({ created: ref, skipped: null });
+    const openingLines = await db
+      .select({ side: journalEntryLinesTable.side, amount: journalEntryLinesTable.amount })
+      .from(journalEntryLinesTable)
+      .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+      .where(eq(journalEntriesTable.reference, ref));
+    expect(openingLines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ side: "debit", amount: "20.00" }),
+      expect.objectContaining({ side: "credit", amount: "20.00" }),
+    ]));
+    expect(openingLines).toHaveLength(2);
 
     await db.delete(zacetneZalogePostavkeTable)
       .where(eq(zacetneZalogePostavkeTable.zacetnaZalogaId, cleanupZaloga.id));

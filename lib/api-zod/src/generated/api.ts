@@ -861,6 +861,7 @@ export const ListArtikliResponseItem = zod.object({
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
+  "drobniInventar": zod.boolean().describe('Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(listArtikliResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
@@ -905,6 +906,7 @@ export const ListArtikliResponse = zod.array(ListArtikliResponseItem)
  * @summary Ustvari artikel
  */
 export const createArtikelBodyOnePovratnaEmbalazaDefault = false;
+export const createArtikelBodyOneDrobniInventarDefault = false;
 export const createArtikelBodyOneDepozitnaVrednostMin = 0;
 
 
@@ -936,6 +938,7 @@ export const createArtikelBodyOneNetoDelezOdstMax = 100;
 export const CreateArtikelBody = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
   "povratnaEmbalaza": zod.boolean().default(createArtikelBodyOnePovratnaEmbalazaDefault),
+  "drobniInventar": zod.boolean().default(createArtikelBodyOneDrobniInventarDefault).describe('Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(createArtikelBodyOneDepozitnaVrednostMin).nullish(),
   "ime": zod.string().min(1),
@@ -1040,6 +1043,7 @@ export const CreateArtikelResponse = zod.object({
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
+  "drobniInventar": zod.boolean().describe('Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(createArtikelResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
@@ -1193,6 +1197,7 @@ export const GenerateArtikelImageResponse = zod.object({
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
+  "drobniInventar": zod.boolean().describe('Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(generateArtikelImageResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
@@ -1295,6 +1300,7 @@ export const UploadArtikelImageResponse = zod.object({
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
+  "drobniInventar": zod.boolean().describe('Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(uploadArtikelImageResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
@@ -1390,6 +1396,7 @@ export const GetArtikelResponse = zod.object({
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
+  "drobniInventar": zod.boolean().describe('Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(getArtikelResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
@@ -1434,6 +1441,7 @@ export const UpdateArtikelParams = zod.object({
 })
 
 export const updateArtikelBodyOnePovratnaEmbalazaDefault = false;
+export const updateArtikelBodyOneDrobniInventarDefault = false;
 export const updateArtikelBodyOneDepozitnaVrednostMin = 0;
 
 
@@ -1466,6 +1474,7 @@ export const updateArtikelBodyOneNetoDelezOdstMax = 100;
 export const UpdateArtikelBody = zod.object({
   "pripravaVrsta": zod.union([zod.literal('pica'),zod.literal('hrana'),zod.literal('pijaca'),zod.literal(null)]).nullish().describe('Vrsta priprave prodajnega artikla (Pica, Hrana, Pijača)'),
   "povratnaEmbalaza": zod.boolean().default(updateArtikelBodyOnePovratnaEmbalazaDefault),
+  "drobniInventar": zod.boolean().default(updateArtikelBodyOneDrobniInventarDefault).describe('Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(updateArtikelBodyOneDepozitnaVrednostMin).nullish(),
   "ime": zod.string().min(1),
@@ -1573,6 +1582,7 @@ export const UpdateArtikelResponse = zod.object({
   "vrstaArtikla": zod.union([zod.literal('blago'),zod.literal('material'),zod.literal('storitev'),zod.literal(null)]).nullable().describe('Računovodska vrsta; polizdelek je nima'),
   "jeSkupinskiNabavniArtikel": zod.boolean().describe('Ali je to generični nabavni artikel, ki lahko združuje dobaviteljeve nazive ob ujemajoči se kanonični enoti'),
   "povratnaEmbalaza": zod.boolean().describe('Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru'),
+  "drobniInventar": zod.boolean().describe('Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge'),
   "vrstaEmbalaze": zod.union([zod.literal('steklenica'),zod.literal('zaboj'),zod.literal('keg'),zod.literal('balon'),zod.literal('drugo'),zod.literal(null)]).nullish(),
   "depozitnaVrednost": zod.number().min(updateArtikelResponseDepozitnaVrednostMin).nullish(),
   "imeZaNabavo": zod.string().nullish().describe('Ime artikla za nabavo (Eslog)'),
@@ -14766,6 +14776,9 @@ export const GetPosBookingSettingsParams = zod.object({
   "companyId": zod.coerce.string()
 })
 
+export const getPosBookingSettingsResponseDrobniInventarExpenseAccountOptionsItemCodeRegExp = new RegExp('^404[0-9]{4}$');
+
+
 export const GetPosBookingSettingsResponse = zod.object({
   "companyId": zod.string(),
   "categoryRevenueAccounts": zod.array(zod.object({
@@ -14782,7 +14795,13 @@ export const GetPosBookingSettingsResponse = zod.object({
   "tipsCardFeeExpenseAccountId": zod.string().nullish().describe('Strošek odstotne kartične provizije napitnine'),
   "contractReceivableTransitAccountId": zod.string().nullish().describe('Prehodna terjatev pogodbenih malic do mesečnega A-računa'),
   "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)'),
-  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)')
+  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)'),
+  "drobniInventarExpenseAccountId": zod.string().nullish().describe('Konto stroška drobnega inventarja (aktivna analitika 404\*)'),
+  "drobniInventarExpenseAccountOptions": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().regex(getPosBookingSettingsResponseDrobniInventarExpenseAccountOptionsItemCodeRegExp),
+  "name": zod.string()
+})).optional().describe('Izbirni konti drobnega inventarja; samo aktivne, proknjižljive sedemmestne analitike 404\*')
 })
 
 
@@ -14802,8 +14821,12 @@ export const UpdatePosBookingSettingsBody = zod.object({
   "tipsCardFeeExpenseAccountId": zod.string().nullish().describe('Strošek odstotne kartične provizije napitnine'),
   "contractReceivableTransitAccountId": zod.string().nullish().describe('Prehodna terjatev pogodbenih malic do mesečnega A-računa'),
   "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)'),
-  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)')
+  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)'),
+  "drobniInventarExpenseAccountId": zod.string().nullish().describe('Konto stroška drobnega inventarja (aktivna analitika 404\*)')
 })
+
+export const updatePosBookingSettingsResponseDrobniInventarExpenseAccountOptionsItemCodeRegExp = new RegExp('^404[0-9]{4}$');
+
 
 export const UpdatePosBookingSettingsResponse = zod.object({
   "companyId": zod.string(),
@@ -14821,7 +14844,13 @@ export const UpdatePosBookingSettingsResponse = zod.object({
   "tipsCardFeeExpenseAccountId": zod.string().nullish().describe('Strošek odstotne kartične provizije napitnine'),
   "contractReceivableTransitAccountId": zod.string().nullish().describe('Prehodna terjatev pogodbenih malic do mesečnega A-računa'),
   "returnablePackagingAccountId": zod.string().nullish().describe('Konto zaloge povratne embalaže (3107000)'),
-  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)')
+  "returnablePackagingWriteoffAccountId": zod.string().nullish().describe('Konto stroška odpisa povratne embalaže (razred 4)'),
+  "drobniInventarExpenseAccountId": zod.string().nullish().describe('Konto stroška drobnega inventarja (aktivna analitika 404\*)'),
+  "drobniInventarExpenseAccountOptions": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().regex(updatePosBookingSettingsResponseDrobniInventarExpenseAccountOptionsItemCodeRegExp),
+  "name": zod.string()
+})).optional().describe('Izbirni konti drobnega inventarja; samo aktivne, proknjižljive sedemmestne analitike 404\*')
 })
 
 

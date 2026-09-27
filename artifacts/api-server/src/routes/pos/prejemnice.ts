@@ -125,6 +125,7 @@ async function transitionPackagingMovements(
     unitPrice: prejemnicePostavkeTable.cenaKos,
     value: prejemnicePostavkeTable.skupaj,
     returnable: artikliTable.povratnaEmbalaza,
+    drobniInventar: artikliTable.drobniInventar,
     deposit: artikliTable.depozitnaVrednost,
   }).from(prejemnicePostavkeTable)
     .leftJoin(artikliTable, eq(artikliTable.id, prejemnicePostavkeTable.artikelId))
@@ -168,8 +169,9 @@ async function transitionPackagingMovements(
       }
     } else {
       await tx.insert(zalogaGibiTable).values({
-        artikelId: line.articleId, tip: "prejemnica", kolicina: line.quantity, cenaKos: line.unitPrice,
-        vrednost: line.value, referencaId: receiptId, actorSnapshot, sourceSnapshot: "prejemnica",
+        artikelId: line.articleId, tip: "prejemnica", kolicina: line.quantity,
+        cenaKos: line.drobniInventar ? "0" : line.unitPrice,
+        vrednost: line.drobniInventar ? "0" : line.value, referencaId: receiptId, actorSnapshot, sourceSnapshot: "prejemnica",
         effectiveAtSnapshot: effectiveDate,
       });
       const activePackaging = await tx.select().from(embalazniPrometiTable).where(and(

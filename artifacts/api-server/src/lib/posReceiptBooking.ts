@@ -58,6 +58,7 @@ export type ReceiptBookingInput = {
     articleId: number | null;
     articleType: string | null;
     returnablePackaging?: boolean;
+    drobniInventar?: boolean;
     lineType: string;
     netAmount: unknown;
     vatRate: unknown;
@@ -82,6 +83,7 @@ export type ReceiptBookingInput = {
     otherCostsAccountId: string | null;
     rawMaterialExpenseAccountId: string | null;
     inboundFreightExpenseAccountId: string | null;
+    drobniInventarExpenseAccountId?: string | null;
     nabavaObracunAccountId: string | null;
     inputVatAccountId: string | null;
     inputVat22AccountId: string | null;
@@ -362,6 +364,23 @@ export function buildPosReceiptBooking(input: ReceiptBookingInput): ReceiptBooki
   validatePrefix(input.settings?.returnablePackagingAccountId, "3107", "INVALID_RETURNABLE_PACKAGING_ACCOUNT_CLASS", "Konto zaloge povratne embalaže mora biti 3107000.");
   validatePrefix(input.settings?.rawMaterialExpenseAccountId, "4", "INVALID_RAW_MATERIAL_EXPENSE_ACCOUNT_CLASS", "Konto neposrednega stroška surovin mora biti v razredu 4.");
   validatePrefix(input.settings?.inboundFreightExpenseAccountId, "4", "INVALID_INBOUND_FREIGHT_EXPENSE_ACCOUNT_CLASS", "Konto prevoznih storitev mora biti v razredu 4.");
+  validatePrefix(
+    input.settings?.drobniInventarExpenseAccountId,
+    "404",
+    "INVALID_SMALL_EQUIPMENT_EXPENSE_ACCOUNT_CLASS",
+    "Konto stroška drobnega inventarja mora biti aktivna analitika 404*.",
+  );
+  const smallEquipmentAccountId = input.settings?.drobniInventarExpenseAccountId;
+  const smallEquipmentAccount = smallEquipmentAccountId
+    ? accountById.get(smallEquipmentAccountId)
+    : undefined;
+  if (smallEquipmentAccount && !/^404\d{4}$/.test(smallEquipmentAccount.code)) {
+    addError(
+      "INVALID_SMALL_EQUIPMENT_EXPENSE_ACCOUNT_CLASS",
+      "Konto stroška drobnega inventarja mora biti aktivna sedemmestna analitika 404*.",
+      { accountId: smallEquipmentAccount.id, accountCode: smallEquipmentAccount.code },
+    );
+  }
   validatePrefix(input.settings?.payablesAccountId, "220", "INVALID_PAYABLES_ACCOUNT_CLASS", "Konto obveznosti do dobaviteljev mora biti iz razreda 220.");
   validatePrefix(input.settings?.cashAccountId, "100", "INVALID_CASH_ACCOUNT_CLASS", "Konto gotovine mora biti analitika skupine 100.");
   const isInvoice = input.receipt.documentType === "RACUN";
@@ -477,15 +496,25 @@ export function buildPosReceiptBooking(input: ReceiptBookingInput): ReceiptBooki
     }
     netCents += netAmount;
     vatCents += vatAmount;
-    const accountId = line.lineType === "poraba_surovin"
+    const accountId = line.drobniInventar
+      ? input.settings?.drobniInventarExpenseAccountId ?? null
+      : line.lineType === "poraba_surovin"
       ? input.settings?.rawMaterialExpenseAccountId ?? null
       : line.lineType === "prevoz"
         ? input.settings?.inboundFreightExpenseAccountId ?? null
       : chooseInventory(line.articleType, { lineId: line.id, articleType: line.articleType });
-    addDebit(
+    if (line.drobniInventar && !accountId) {
+      addError(
+        "MISSING_SMALL_EQUIPMENT_EXPENSE_ACCOUNT",
+        "Konto stroška drobnega inventarja (aktivna analitika 404*) ni nastavljen; knjiženje prejemnice je blokirano.",
+        { lineId: line.id },
+      );
+    } else addDebit(
       accountId,
       netAmount,
-      line.lineType === "poraba_surovin"
+      line.drobniInventar
+        ? "Drobni inventar"
+        : line.lineType === "poraba_surovin"
         ? "Strošek surovin"
         : line.lineType === "prevoz"
           ? "Prevozne storitve pri nabavi"
@@ -733,6 +762,7 @@ async function loadInput(executor: any, companyId: string, enotaId: number, rece
       articleId: prejemnicePostavkeTable.artikelId,
       articleType: artikliTable.vrstaArtikla,
       returnablePackaging: artikliTable.povratnaEmbalaza,
+      drobniInventar: artikliTable.drobniInventar,
       lineType: prejemnicePostavkeTable.vrsticaTip,
       preferredNetAmount: prejemnicePostavkeTable.ddvOsnova,
       netAmount: prejemnicePostavkeTable.netoZnesek,
@@ -837,6 +867,7 @@ async function loadInput(executor: any, companyId: string, enotaId: number, rece
     settings.nabavaObracunAccountId, settings.cashAccountId, settings.inputVatAccountId,
     settings.inputVat22AccountId, settings.inputVat95AccountId, settings.inputVat5AccountId,
     settings.payablesAccountId, settings.returnablePackagingAccountId,
+    settings.drobniInventarExpenseAccountId,
   ].filter((id): id is string => Boolean(id)))] : [];
   const accountRows = accountIds.length
     ? await executor.select({

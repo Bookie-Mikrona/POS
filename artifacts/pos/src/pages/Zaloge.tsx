@@ -344,6 +344,8 @@ type InventuraRow = { artikelId: number; steviloNajdeno: string; cenaKos: string
 type ZacetnaZalogaRow = { artikelId: number; kolicina: string; cenaKos: string };
 type IzdajnicaRow = { artikelId: number; kolicina: string };
 type IzdDiffRow = { artikelId: number; knjizno: number; dejansko: string };
+type QuantityOnlyArticle = { id: number; drobniInventar?: boolean };
+const jeDrobniInventar = (artikel: QuantityOnlyArticle | null | undefined) => artikel?.drobniInventar === true;
 
 export function OdvisniStroskiEditor({
   value,
@@ -1750,7 +1752,7 @@ function EditIzdajnicaDialog({
                                 <div key={a.id}
                                   className={`px-3 py-1.5 text-sm cursor-pointer ${j === izdEditDdHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
                                   onMouseDown={e => { e.preventDefault(); updateArtikel(i, a.id); }}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </div>
                               ))
                             }
@@ -2810,7 +2812,7 @@ function EditInventuraDialog({
   id, nabavniArtikli, zaloge, onClose, onSaved,
 }: {
   id: number;
-  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null; drobniInventar?: boolean }[];
   zaloge: { artikelId: number; kolicina: number; zadnjaCena?: number | null }[] | undefined;
   onClose: () => void;
   onSaved: () => void;
@@ -2931,7 +2933,8 @@ function EditInventuraDialog({
                     {rows.map((row, i) => {
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
-                      const cena = parseDecimal(row.cenaKos) || null;
+                       const jeKolicinski = jeDrobniInventar(art);
+                       const cena = jeKolicinski ? null : parseDecimal(row.cenaKos) || null;
                       // Knjižno = shranjeno steviloPrejsnje iz inventure (ne tekoča zaloga!)
                       const knjizno = parseDecimal(row.steviloPrejsnje) || 0;
                       const dejansko = parseDecimal(row.steviloNajdeno) || 0;
@@ -2952,6 +2955,7 @@ function EditInventuraDialog({
                                 </option>
                               ))}
                             </select>
+                            {jeKolicinski && <Badge className="mt-1 border-amber-300 bg-amber-100 text-amber-900">Drobni inventar · količina</Badge>}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm">
                             {cena != null ? `${fmt(cena)} €` : <span className="text-muted-foreground">–</span>}
@@ -3013,7 +3017,7 @@ function EditZacetnaZalogaDialog({
   id, nabavniArtikli, onClose, onSaved,
 }: {
   id: number;
-  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null }[];
+  nabavniArtikli: { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null; drobniInventar?: boolean }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -3024,6 +3028,7 @@ function EditZacetnaZalogaDialog({
   const [datum, setDatum] = useState("");
   const [opomba, setOpomba] = useState("");
   const [rows, setRows] = useState<ZacetnaZalogaRow[]>([]);
+  const artikelJeKolicinski = (artikelId: number) => jeDrobniInventar(nabavniArtikli.find(a => a.id === artikelId));
   const initializedId = useRef<number | null>(null);
   const zzEditKoliRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const zzEditCenaRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -3047,7 +3052,7 @@ function EditZacetnaZalogaDialog({
       setRows(data.postavke.map(p => ({
         artikelId: p.artikelId,
         kolicina: String(p.kolicina),
-        cenaKos: String(p.cenaKos),
+        cenaKos: jeDrobniInventar(nabavniArtikli.find(a => a.id === p.artikelId)) ? "0" : String(p.cenaKos),
       })));
     }
   }, [data]);
@@ -3074,7 +3079,7 @@ function EditZacetnaZalogaDialog({
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
           kolicina: parseDecimal(r.kolicina) || 0,
-          cenaKos: parseDecimal(r.cenaKos) || 0,
+          cenaKos: artikelJeKolicinski(r.artikelId) ? 0 : parseDecimal(r.cenaKos) || 0,
         })),
       },
     }, {
@@ -3101,6 +3106,10 @@ function EditZacetnaZalogaDialog({
           <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              Drobni inventar se vodi samo količinsko: cena je 0 € in sprememba začetne zaloge ne ustvari GL knjižbe.
+              Prejemnica dejanskega nakupa ohrani dobaviteljevo ceno in stroškovno knjiženje.
+            </div>
             <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <div className="space-y-1 sm:space-y-2">
                 <Label>Datum</Label>
@@ -3123,7 +3132,8 @@ function EditZacetnaZalogaDialog({
                 </div>
                 <div className="space-y-2 sm:space-y-0">
                   {rows.map((row, i) => {
-                    const vrednost = (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
+                    const artikelKolicinski = artikelJeKolicinski(row.artikelId);
+                    const vrednost = artikelKolicinski ? 0 : (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                     return (
                       <div key={i} className="flex flex-col sm:grid sm:grid-cols-[1fr_7rem_7rem_6rem_2.5rem] gap-2 sm:gap-2 items-start sm:items-center bg-card border sm:border-transparent sm:border-b sm:last:border-b-transparent rounded-md sm:rounded-none p-2 sm:p-2 sm:px-3 shadow-sm sm:shadow-none">
 
@@ -3133,11 +3143,16 @@ function EditZacetnaZalogaDialog({
                             <select
                               className="w-full border rounded-md px-2 text-base sm:text-sm bg-background h-9 sm:h-8 focus:ring-2 focus:ring-primary focus:outline-none"
                               value={row.artikelId}
-                              onChange={e => updateRow(i, "artikelId", parseInt(e.target.value))}
+                              onChange={e => {
+                                const artikelId = parseInt(e.target.value);
+                                setRows(current => current.map((item, index) => index === i
+                                  ? { ...item, artikelId, ...(jeDrobniInventar(nabavniArtikli.find(a => a.id === artikelId)) ? { cenaKos: "0" } : {}) }
+                                  : item));
+                              }}
                             >
                               {nabavniArtikli.map(a => (
-                                <option key={a.id} value={a.id}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                            <option key={a.id} value={a.id}>
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </option>
                               ))}
                             </select>
@@ -3165,7 +3180,11 @@ function EditZacetnaZalogaDialog({
 
                           <div className="w-full">
                             <div className="text-[10px] font-medium text-muted-foreground sm:hidden mb-0.5">Cena/enoto</div>
-                            <DecimalInput value={row.cenaKos}
+                            {artikelJeKolicinski(row.artikelId) ? (
+                              <div className="flex h-9 items-center justify-end text-right text-xs font-medium text-amber-800 sm:h-8">
+                                Samo količina · 0 €
+                              </div>
+                            ) : <DecimalInput value={row.cenaKos}
                               ref={el => { if (el) zzEditCenaRefs.current.set(i, el as any); else zzEditCenaRefs.current.delete(i); }}
                               onChange={e => updateRow(i, "cenaKos", e.target.value)}
                               onKeyDown={e => {
@@ -3174,7 +3193,7 @@ function EditZacetnaZalogaDialog({
                                 else if (e.key === "ArrowUp") { e.preventDefault(); const el = zzEditCenaRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
                                 else if (e.key === "ArrowDown") { e.preventDefault(); const el = zzEditCenaRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
                               }}
-                              className="w-full text-right h-9 sm:h-8 text-base sm:text-sm" />
+                              className="w-full text-right h-9 sm:h-8 text-base sm:text-sm" />}
                           </div>
 
                           <div className="sm:contents">
@@ -3711,7 +3730,7 @@ export default function Zaloge() {
   const [invDatum, setInvDatum] = useState("");
   const [invOpomba, setInvOpomba] = useState("");
   const [invRows, setInvRows] = useState<InventuraRow[]>([]);
-  const [invFilterNormativi, setInvFilterNormativi] = useState(true);
+  const [invFilter, setInvFilter] = useState<"normativi" | "vsi" | "drobni">("normativi");
   const createInventura = useCreateInventura();
 
   const openInvDialog = () => {
@@ -3725,9 +3744,11 @@ export default function Zaloge() {
     }));
     setInvDialogOpen(true);
   };
-  const invRowsVisible = invFilterNormativi
+  const invRowsVisible = invFilter === "normativi"
     ? invRows.filter(r => (artikli ?? []).find(a => a.id === r.artikelId)?.vNormativih)
-    : invRows;
+    : invFilter === "drobni"
+      ? invRows.filter(r => jeDrobniInventar(artikli?.find(a => a.id === r.artikelId)))
+      : invRows;
 
   const handleSaveInventura = () => {
     const validRows = invRowsVisible.filter(r => r.artikelId > 0 && r.steviloNajdeno !== "");
@@ -3754,7 +3775,7 @@ export default function Zaloge() {
   const invTotals = invRowsVisible.reduce((acc, row) => {
     const art = nabavniArtikli.find(a => a.id === row.artikelId);
     const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
-    const cena = parseDecimal(row.cenaKos) || (zalogaInfo?.zadnjaCena ?? null);
+    const cena = jeDrobniInventar(art) ? null : parseDecimal(row.cenaKos) || (zalogaInfo?.zadnjaCena ?? null);
     const knjizno = Number(zalogaInfo?.kolicina ?? 0);
     const dejansko = parseDecimal(row.steviloNajdeno) || 0;
     if (!art) return acc;
@@ -3783,12 +3804,12 @@ export default function Zaloge() {
   const createZacetnaZaloga = useCreateZacetnaZaloga();
 
   const openZzDialog = () => {
-    setZzDatum(new Date().toISOString().slice(0, 10));
+    setZzDatum(`${currentYear}-01-01`);
     setZzOpomba("");
     setZzLeto(currentYear);
     setZzRows(nabavniArtikli.map(a => {
       const z = zaloge?.find(z => z.artikelId === a.id);
-      return { artikelId: a.id, kolicina: String(z?.kolicina ?? 0), cenaKos: String(z?.zadnjaCena ?? 0) };
+      return { artikelId: a.id, kolicina: String(z?.kolicina ?? 0), cenaKos: jeDrobniInventar(a) ? "0" : String(z?.zadnjaCena ?? 0) };
     }));
     setZzDialogOpen(true);
   };
@@ -3803,7 +3824,7 @@ export default function Zaloge() {
         postavke: validRows.map(r => ({
           artikelId: r.artikelId,
           kolicina: parseDecimal(r.kolicina) || 0,
-          cenaKos: parseDecimal(r.cenaKos) || 0,
+          cenaKos: jeDrobniInventar(nabavniArtikli.find(a => a.id === r.artikelId)) ? 0 : parseDecimal(r.cenaKos) || 0,
         })),
       },
     }, {
@@ -3971,13 +3992,17 @@ export default function Zaloge() {
                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nalaganje...</TableCell></TableRow>
                 ) : filteredZaloge.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Ni zadetkov</TableCell></TableRow>
-                ) : filteredZaloge.map(z => (
-                  <TableRow
+                ) : filteredZaloge.map(z => {
+                  const jeKolicinski = jeDrobniInventar(artikli?.find(a => a.id === z.artikelId));
+                  return <TableRow
                     key={z.artikelId}
                     className={`cursor-pointer hover:bg-muted/50 ${z.kolicina < 0 ? "bg-red-50 hover:bg-red-100" : ""}`}
                     onClick={() => setKarticeArtikelId(z.artikelId)}
                   >
-                    <TableCell className="font-medium">{z.artikelIme}</TableCell>
+                    <TableCell className="font-medium">
+                      {z.artikelIme}
+                      {jeKolicinski && <Badge className="ml-2 border-amber-300 bg-amber-100 text-amber-900">Drobni inventar · količina</Badge>}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{z.imeZaNabavo ?? "–"}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">
                       <span className={`inline-flex items-center justify-end gap-1 ${z.kolicina < 0 ? "text-red-600" : z.kolicina === 0 ? "text-red-500" : z.kolicina < 5 ? "text-amber-600" : "text-green-700"}`}>
@@ -3987,21 +4012,21 @@ export default function Zaloge() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{z.enotaMere ?? "–"}</TableCell>
                     <TableCell className="text-right text-sm tabular-nums">
-                      {(z.povprecnaCena ?? z.zadnjaCena) != null ? `${fmt((z.povprecnaCena ?? z.zadnjaCena)!, 4)} €` : <span className="text-muted-foreground">–</span>}
+                      {jeKolicinski ? <span className="text-amber-800">Količinsko</span> : (z.povprecnaCena ?? z.zadnjaCena) != null ? `${fmt((z.povprecnaCena ?? z.zadnjaCena)!, 4)} €` : <span className="text-muted-foreground">–</span>}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-sm tabular-nums">
-                      {z.skupnaVrednost != null ? `${fmt(z.skupnaVrednost)} €` : z.zadnjaCena != null ? `${fmt(z.kolicina * z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
+                      {jeKolicinski ? <span className="text-amber-800">Brez vrednotenja</span> : z.skupnaVrednost != null ? `${fmt(z.skupnaVrednost)} €` : z.zadnjaCena != null ? `${fmt(z.kolicina * z.zadnjaCena)} €` : <span className="text-muted-foreground">–</span>}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-right text-muted-foreground text-xs">{fmtDatum(z.zadnjaPosodobitev)}</TableCell>
-                  </TableRow>
-                ))}
+                  </TableRow>;
+                })}
               </TableBody>
             </Table>
             {!loadingZ && filteredZaloge.length > 0 && (
               <div className="border-t px-4 py-2 flex justify-end text-sm text-muted-foreground">
                 Skupaj vrednost zalog:&nbsp;
                 <strong className="text-foreground">
-                  {fmt(filteredZaloge.reduce((s, z) => s + (z.skupnaVrednost != null ? z.skupnaVrednost : z.zadnjaCena != null ? z.kolicina * z.zadnjaCena : 0), 0))} €
+                  {fmt(filteredZaloge.reduce((s, z) => s + (jeDrobniInventar(artikli?.find(a => a.id === z.artikelId)) ? 0 : z.skupnaVrednost != null ? z.skupnaVrednost : z.zadnjaCena != null ? z.kolicina * z.zadnjaCena : 0), 0))} €
                 </strong>
               </div>
             )}
@@ -4566,9 +4591,12 @@ export default function Zaloge() {
               </div>
             </div>
             {/* Postavke */}
+          <div className="space-y-2">
+            <Label>Postavke</Label>
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950">
+              Pri drobnem inventarju tukaj vnesite dejansko ceno z računa: prejemnica nakup knjiži med stroške, ne kot vrednost zaloge.
+            </p>
             <div className="space-y-2">
-              <Label>Postavke</Label>
-              <div className="space-y-2">
                 {prejRows.map((row, i) => {
                   const isOpen = dropdownOpenIdx === i;
                   const selectedArtikel = row.artikelId > 0 ? nabavniArtikli.find(a => a.id === row.artikelId) : null;
@@ -4585,7 +4613,7 @@ export default function Zaloge() {
                           ref={el => { if (el) artInputRefs.current.set(i, el); else artInputRefs.current.delete(i); }}
                           className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                           placeholder="Izberi artikel"
-                          value={isOpen ? dropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
+                          value={isOpen ? dropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}${jeDrobniInventar(selectedArtikel) ? " · Drobni inventar — nabavni strošek" : ""}` : "")}
                           onChange={e => {
                             if (selectedArtikel) return;
                             setDropdownFilter(e.target.value);
@@ -4883,7 +4911,7 @@ export default function Zaloge() {
                   <div key={a.id}
                     className={`px-3 py-1.5 text-sm cursor-pointer ${j === dropdownHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
                     onMouseDown={e => { e.preventDefault(); selectArtikelInRow(dropdownOpenIdx, a.id); }}>
-                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar (nakup = strošek)" : ""}
                   </div>
                 ))}
               </div>
@@ -5012,17 +5040,24 @@ export default function Zaloge() {
                 <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium">
                   <button
                     type="button"
-                    onClick={() => setInvFilterNormativi(true)}
-                    className={`px-3 py-1.5 transition-colors ${invFilterNormativi ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    onClick={() => setInvFilter("normativi")}
+                    className={`px-3 py-1.5 transition-colors ${invFilter === "normativi" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
                   >
                     Samo normativni
                   </button>
                   <button
                     type="button"
-                    onClick={() => setInvFilterNormativi(false)}
-                    className={`px-3 py-1.5 transition-colors ${!invFilterNormativi ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    onClick={() => setInvFilter("vsi")}
+                    className={`px-3 py-1.5 transition-colors ${invFilter === "vsi" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
                   >
                     Vsi artikli
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInvFilter("drobni")}
+                    className={`px-3 py-1.5 transition-colors ${invFilter === "drobni" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  >
+                    Drobni inventar
                   </button>
                 </div>
               </div>
@@ -5046,7 +5081,8 @@ export default function Zaloge() {
                     {invRowsVisible.map((row, i) => {
                       const art = nabavniArtikli.find(a => a.id === row.artikelId);
                       const zalogaInfo = zaloge?.find(z => z.artikelId === row.artikelId);
-                      const cena = zalogaInfo?.zadnjaCena ?? null;
+                      const jeKolicinski = jeDrobniInventar(art);
+                      const cena = jeKolicinski ? null : zalogaInfo?.zadnjaCena ?? null;
                       const knjizno = Number(zalogaInfo?.kolicina ?? 0);
                       const dejansko = parseDecimal(row.steviloNajdeno) || 0;
                       const razlikaKol = dejansko - knjizno;
@@ -5056,7 +5092,8 @@ export default function Zaloge() {
                       return (
                         <TableRow key={row.artikelId}>
                           <TableCell className="font-medium text-sm whitespace-nowrap">
-                            {art?.imeZaNabavo || art?.ime} <span className="text-muted-foreground">({art?.enotaMere ?? "–"})</span>
+                             {art?.imeZaNabavo || art?.ime} <span className="text-muted-foreground">({art?.enotaMere ?? "–"})</span>
+                             {jeKolicinski && <Badge className="ml-2 border-amber-300 bg-amber-100 text-amber-900">Drobni inventar · količina</Badge>}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-sm">
                             {cena != null ? `${fmt(cena)} €` : <span className="text-muted-foreground">–</span>}
@@ -5152,10 +5189,18 @@ export default function Zaloge() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 sm:space-y-4">
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              <strong>Drobni inventar se vodi samo količinsko.</strong> Začetna zaloga ima ceno 0 € in ne ustvari GL knjižbe.
+              Dejanski nakup se na prejemnici še vedno vnese po dobaviteljevi ceni in knjiži med stroške.
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
               <div className="space-y-1 sm:space-y-2">
                 <Label>Leto</Label>
-                <Input type="number" value={zzLeto} onChange={e => setZzLeto(parseInt(e.target.value) || currentYear)}
+                <Input type="number" value={zzLeto} onChange={e => {
+                  const leto = parseInt(e.target.value) || currentYear;
+                  setZzLeto(leto);
+                  setZzDatum(`${leto}-01-01`);
+                }}
                   min={2000} max={2100} onKeyDown={handleEnterAsTab} className="h-10 sm:h-9" />
               </div>
               <div className="space-y-1 sm:space-y-2">
@@ -5179,7 +5224,8 @@ export default function Zaloge() {
                 </div>
                 <div className="space-y-2 sm:space-y-0">
                   {zzRows.map((row, i) => {
-                    const vrednost = (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
+                    const artikelKolicinski = jeDrobniInventar(nabavniArtikli.find(a => a.id === row.artikelId));
+                    const vrednost = artikelKolicinski ? 0 : (parseDecimal(row.kolicina) || 0) * (parseDecimal(row.cenaKos) || 0);
                     return (
                       <div key={i} className="flex flex-col sm:grid sm:grid-cols-[1fr_7rem_7rem_6rem_2.5rem] gap-2 sm:gap-2 items-start sm:items-center bg-card border sm:border-transparent sm:border-b sm:last:border-b-transparent rounded-md sm:rounded-none p-2 sm:p-2 sm:px-3 shadow-sm sm:shadow-none">
 
@@ -5188,10 +5234,15 @@ export default function Zaloge() {
                             <div className="text-[10px] font-medium text-muted-foreground sm:hidden mb-0.5">Artikel</div>
                             <select className="w-full border rounded-md px-2 text-base sm:text-sm bg-background h-9 sm:h-8 focus:ring-2 focus:ring-primary focus:outline-none"
                               value={row.artikelId}
-                              onChange={e => updateZzRow(i, "artikelId", parseInt(e.target.value))}>
+                               onChange={e => {
+                                 const artikelId = parseInt(e.target.value);
+                                 setZzRows(current => current.map((item, index) => index === i
+                                   ? { ...item, artikelId, ...(jeDrobniInventar(nabavniArtikli.find(a => a.id === artikelId)) ? { cenaKos: "0" } : {}) }
+                                   : item));
+                               }}>
                               {nabavniArtikli.map(a => (
                                 <option key={a.id} value={a.id}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </option>
                               ))}
                             </select>
@@ -5219,7 +5270,11 @@ export default function Zaloge() {
 
                           <div className="w-full">
                             <div className="text-[10px] font-medium text-muted-foreground sm:hidden mb-0.5">Cena/enoto</div>
-                            <DecimalInput value={row.cenaKos}
+                            {artikelKolicinski ? (
+                              <div className="flex h-9 items-center justify-end text-right text-xs font-medium text-amber-800 sm:h-8">
+                                Samo količina · 0 €
+                              </div>
+                            ) : <DecimalInput value={row.cenaKos}
                               ref={el => { if (el) zzCenaRefs.current.set(i, el as any); else zzCenaRefs.current.delete(i); }}
                               onChange={e => updateZzRow(i, "cenaKos", e.target.value)}
                               onKeyDown={e => {
@@ -5228,7 +5283,7 @@ export default function Zaloge() {
                                 else if (e.key === "ArrowUp") { e.preventDefault(); const el = zzCenaRefs.current.get(i - 1); if (el) { el.focus(); el.select(); } }
                                 else if (e.key === "ArrowDown") { e.preventDefault(); const el = zzCenaRefs.current.get(i + 1); if (el) { el.focus(); el.select(); } }
                               }}
-                              className="w-full text-right h-9 sm:h-8 text-base sm:text-sm" />
+                              className="w-full text-right h-9 sm:h-8 text-base sm:text-sm" />}
                           </div>
 
                           <div className="sm:contents">

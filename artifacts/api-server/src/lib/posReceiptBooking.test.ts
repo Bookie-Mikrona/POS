@@ -85,6 +85,60 @@ function input(overrides: Partial<ReceiptBookingInput> = {}): ReceiptBookingInpu
 }
 
 describe("buildPosReceiptBooking", () => {
+  it("knjiži drobni inventar na namenski 404 strošek, vendar ohrani DDV in dobavitelja", () => {
+    const base = input();
+    const preview = buildPosReceiptBooking(input({
+      lines: [{ ...base.lines[0]!, drobniInventar: true }],
+      settings: { ...base.settings!, drobniInventarExpenseAccountId: "small-equipment" },
+      accounts: [...base.accounts, account("small-equipment", "4040110")],
+      receipt: { ...base.receipt, documentType: "RACUN" },
+    }));
+
+    expect(preview.blockingErrors).toEqual([]);
+    expect(preview.lines).toContainEqual(expect.objectContaining({
+      accountCode: "4040110",
+      side: "debit",
+      amount: "100.00",
+    }));
+    expect(preview.lines).not.toContainEqual(expect.objectContaining({ accountCode: "310" }));
+    expect(preview.lines).toContainEqual(expect.objectContaining({
+      accountCode: "2200000",
+      side: "credit",
+      partnerId: "supplier",
+    }));
+    expect(preview.lines).toContainEqual(expect.objectContaining({
+      accountCode: "16022",
+      side: "debit",
+      amount: "22.00",
+    }));
+  });
+
+  it("blokira knjiženje drobnega inventarja, ko namenski stroškovni konto manjka", () => {
+    const base = input();
+    const preview = buildPosReceiptBooking(input({
+      lines: [{ ...base.lines[0]!, drobniInventar: true }],
+      settings: { ...base.settings!, drobniInventarExpenseAccountId: null },
+    }));
+
+    expect(preview.blockingErrors).toContainEqual(expect.objectContaining({
+      code: "MISSING_SMALL_EQUIPMENT_EXPENSE_ACCOUNT",
+    }));
+    expect(preview.lines).not.toContainEqual(expect.objectContaining({ accountCode: "310" }));
+  });
+
+  it("zahteva aktivno sedemmestno analitiko 404 za drobni inventar", () => {
+    const base = input();
+    const preview = buildPosReceiptBooking(input({
+      lines: [{ ...base.lines[0]!, drobniInventar: true }],
+      settings: { ...base.settings!, drobniInventarExpenseAccountId: "small-equipment" },
+      accounts: [...base.accounts, account("small-equipment", "404")],
+    }));
+
+    expect(preview.blockingErrors).toContainEqual(expect.objectContaining({
+      code: "INVALID_SMALL_EQUIPMENT_EXPENSE_ACCOUNT_CLASS",
+    }));
+  });
+
   it("samodejno prepozna samo nedvoumno gotovinsko plačilo", () => {
     expect(normalizeIncomingPaymentMethod("Plačano z gotovino")).toBe("cash");
     expect(normalizeIncomingPaymentMethod("CASH")).toBe("cash");

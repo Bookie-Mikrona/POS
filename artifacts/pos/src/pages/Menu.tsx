@@ -147,6 +147,7 @@ export default function Menu() {
   const [artColor, setArtColor] = useState<string | null>(null);
   const [artNabavniArtikel, setArtNabavniArtikel] = useState(false);
   const [artProdajniArtikel, setArtProdajniArtikel] = useState(true);
+  const [artDrobniInventar, setArtDrobniInventar] = useState(false);
   const [artPovratnaEmbalaza, setArtPovratnaEmbalaza] = useState(false);
   const [artVrstaEmbalaze, setArtVrstaEmbalaze] = useState<"steklenica" | "zaboj" | "keg" | "balon" | "drugo">("steklenica");
   const [artDepozitnaVrednost, setArtDepozitnaVrednost] = useState("0");
@@ -886,7 +887,7 @@ export default function Menu() {
     setMulticourseEditorEnabled(false);
     setArtOpis("");
     setArtName(""); setArtPrice(""); setArtCenaMala(""); setArtCenaDruzinska(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
-    setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtJePica(false);
+    setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtDrobniInventar(false); setArtJePica(false);
     setArtPripravaVrsta("hrana"); setArtPripravaVrstaIzbrana(false);
     setArtJeSkupinskiNabavniArtikel(false);
     setArtPovratnaEmbalaza(false);
@@ -940,9 +941,11 @@ export default function Menu() {
     setArtCenaDruzinska((a as typeof a & { cenaDruzinska?: number | null }).cenaDruzinska != null ? String((a as typeof a & { cenaDruzinska: number }).cenaDruzinska) : "");
     setArtCat(a.kategorijaId != null ? String(a.kategorijaId) : ""); setArtAktiven(a.aktiven);
     setArtColor(a.barva ?? null);
-    setArtNabavniArtikel(a.nabavniArtikel ?? false);
-    setArtProdajniArtikel(a.prodajniArtikel ?? true);
-    setArtPovratnaEmbalaza(a.povratnaEmbalaza);
+    const drobniInventar = Boolean((a as typeof a & { drobniInventar?: boolean }).drobniInventar);
+    setArtNabavniArtikel(drobniInventar || (a.nabavniArtikel ?? false));
+    setArtProdajniArtikel(drobniInventar ? false : (a.prodajniArtikel ?? true));
+    setArtDrobniInventar(drobniInventar);
+    setArtPovratnaEmbalaza(drobniInventar ? false : a.povratnaEmbalaza);
     setArtVrstaEmbalaze((a.vrstaEmbalaze ?? "steklenica") as "steklenica" | "zaboj" | "keg" | "balon" | "drugo");
     setArtDepozitnaVrednost(a.depozitnaVrednost == null ? "0" : String(a.depozitnaVrednost));
     const kategorijaArtikla = kategorije?.find(k => k.id === a.kategorijaId);
@@ -958,7 +961,7 @@ export default function Menu() {
     setArtHappyHourCena((a as typeof a & { happyHourCena?: number | null }).happyHourCena != null ? String((a as typeof a & { happyHourCena: number }).happyHourCena) : "");
     setArtHappyHourCenaMala(a.happyHourCenaMala != null ? String(a.happyHourCenaMala) : "");
     setArtHappyHourCenaDruzinska(a.happyHourCenaDruzinska != null ? String(a.happyHourCenaDruzinska) : "");
-    setArtVrstaArtikla(((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev");
+    setArtVrstaArtikla(drobniInventar ? "material" : (((a as typeof a & { vrstaArtikla?: string }).vrstaArtikla ?? "storitev") as "blago" | "material" | "storitev"));
     setArtMealType((a.mealType as "ala_carte" | "prepared" | "composite") ?? "ala_carte");
     setArtCasPripraveMin(String((a as typeof a & { casPripraveMin?: number }).casPripraveMin ?? 0));
     setArtSkupina((a as typeof a & { skupina?: string | null }).skupina ?? "");
@@ -1490,6 +1493,7 @@ export default function Menu() {
       barva: isProdajni ? (artColor ?? null) : null,
       nabavniArtikel: artNabavniArtikel,
       prodajniArtikel: artProdajniArtikel,
+      drobniInventar: artDrobniInventar && artNabavniArtikel && !artProdajniArtikel && !artPovratnaEmbalaza,
       povratnaEmbalaza: artPovratnaEmbalaza,
       vrstaEmbalaze: artPovratnaEmbalaza ? artVrstaEmbalaze : null,
       depozitnaVrednost: artPovratnaEmbalaza ? depozitnaVrednost : null,
@@ -2182,7 +2186,10 @@ export default function Menu() {
                       type="checkbox"
                       checked={artProdajniArtikel}
                       disabled={artPovratnaEmbalaza}
-                      onChange={e => setArtProdajniArtikel(e.target.checked)}
+                      onChange={e => {
+                        setArtProdajniArtikel(e.target.checked);
+                        if (e.target.checked) setArtDrobniInventar(false);
+                      }}
                       className="w-4 h-4 accent-primary disabled:opacity-50"
                     />
                     <span className="text-sm font-medium">Prodajni artikel</span>
@@ -2194,6 +2201,7 @@ export default function Menu() {
                       disabled={artPovratnaEmbalaza}
                       onChange={e => {
                         setArtNabavniArtikel(e.target.checked);
+                        if (!e.target.checked) setArtDrobniInventar(false);
                         if (e.target.checked && !artImeZaNabavo) {
                           setArtImeZaNabavo(artName);
                         }
@@ -2209,6 +2217,7 @@ export default function Menu() {
                       onChange={e => {
                         const checked = e.target.checked;
                         setArtPovratnaEmbalaza(checked);
+                        if (checked) setArtDrobniInventar(false);
                         if (checked) {
                           setArtNabavniArtikel(true);
                           setArtProdajniArtikel(false);
@@ -2225,6 +2234,32 @@ export default function Menu() {
                     <span className="text-sm font-medium">Povratna embalaža</span>
                   </label>
                 </div>
+                {artNabavniArtikel && !artProdajniArtikel && !artPovratnaEmbalaza && (
+                  <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={artDrobniInventar}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setArtDrobniInventar(checked);
+                          if (checked) {
+                            setArtNabavniArtikel(true);
+                            setArtProdajniArtikel(false);
+                            setArtPovratnaEmbalaza(false);
+                            setArtVrstaArtikla("material");
+                          }
+                        }}
+                        className="mt-0.5 h-4 w-4 accent-amber-600"
+                      />
+                      <span className="text-sm font-semibold">Drobni inventar (količinsko spremljanje)</span>
+                    </label>
+                    <p className="pl-6 text-xs text-amber-950">
+                      Samo nabavni material: nima prodaje ali povratne embalaže. Začetno stanje se vodi samo v kosih/količini,
+                      brez vrednotenja in začetne GL knjižbe; nakup se knjiži neposredno med stroške.
+                    </p>
+                  </div>
+                )}
                 {artPovratnaEmbalaza && (
                   <div className="grid gap-3 rounded-lg border-2 border-amber-200 bg-amber-50 p-3 sm:grid-cols-2">
                     <div className="space-y-2">

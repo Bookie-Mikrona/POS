@@ -1943,6 +1943,7 @@ async function syncPosBookingForDayUnlocked(
       const zzPostavke = await db
         .select({
           vrstaArtikla: artikliTable.vrstaArtikla,
+          drobniInventar: artikliTable.drobniInventar,
           kolicina: zacetneZalogePostavkeTable.kolicina,
           cenaKos: zacetneZalogePostavkeTable.cenaKos,
         })
@@ -1961,6 +1962,7 @@ async function syncPosBookingForDayUnlocked(
         zzDatum,
         zzPostavke.map(p => ({
           vrstaArtikla: p.vrstaArtikla ?? null,
+          drobniInventar: p.drobniInventar === true,
           kolicina: Number(p.kolicina),
           cenaKos: Number(p.cenaKos),
         })),
@@ -2578,6 +2580,7 @@ export interface ZZPostavka {
   vrstaArtikla: string | null;
   kolicina: number;
   cenaKos: number;
+  drobniInventar?: boolean;
 }
 
 /**
@@ -2595,6 +2598,11 @@ export async function bookZacetnaZaloga(
   datum: string, // YYYY-MM-DD
   postavke: ZZPostavka[],
 ): Promise<{ created: string | null; skipped: { reason: string } | null }> {
+  const vrednotljivePostavke = postavke.filter((postavka) => !postavka.drobniInventar);
+  if (vrednotljivePostavke.length === 0) {
+    await deleteExistingOpeningStockDrafts(companyId, leto, enotaId);
+    return { created: null, skipped: null };
+  }
   // SM je opcijska analitika otvoritvene temeljnice. Če je povezava neveljavna
   // ali manjka, knjižimo z NULL; enota ostane stabilno identificirana z ID-jem.
   const [enota] = await db
@@ -2670,7 +2678,7 @@ export async function bookZacetnaZaloga(
 
   // Seštej vrednost po vrsti artikla
   const byVrsta = new Map<string, Decimal>();
-  for (const p of postavke) {
+  for (const p of vrednotljivePostavke) {
     const vrsta = p.vrstaArtikla ?? "material";
     const val = new Decimal(p.kolicina).times(new Decimal(p.cenaKos)).toDecimalPlaces(2);
     byVrsta.set(vrsta, (byVrsta.get(vrsta) ?? new Decimal(0)).plus(val));

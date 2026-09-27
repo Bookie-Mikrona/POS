@@ -86,7 +86,7 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
   const [zalogaObDatumu, zadnjeCene, artikliRows] = await Promise.all([
     getZalogeObDatumu(artikelIds, cutoff),
     fetchZadnjeCene(artikelIds, cutoff),
-    db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere })
+    db.select({ id: artikliTable.id, ime: artikliTable.ime, imeZaNabavo: artikliTable.imeZaNabavo, enotaMere: artikliTable.enotaMere, drobniInventar: artikliTable.drobniInventar })
       .from(artikliTable)
       .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId))),
   ]);
@@ -112,7 +112,9 @@ router.post("/inventure", requireEnota, async (req, res): Promise<void> => {
       const steviloNajdeno = p.steviloNajdeno ?? 0;
       const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
       const razlika = steviloNajdeno - steviloPrejsnje;
-      const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCene.get(p.artikelId) ?? 0);
+      const cenaKos = artikelMap.get(p.artikelId)?.drobniInventar
+        ? 0
+        : zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCene.get(p.artikelId) ?? 0);
 
       await tx.insert(inventurePostavkeTable).values({
         inventuraId: inventura.id,
@@ -215,15 +217,17 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
   if (!existing) { res.status(404).json({ error: "Inventura ni najdena" }); return; }
 
   let zadnjeCeneMap: Map<number, number> | undefined;
+  let drobniInventarIds = new Set<number>();
   if (parsed.data.postavke !== undefined) {
     const novaPostavke = parsed.data.postavke;
     if (!novaPostavke.length) { res.status(400).json({ error: "Inventura mora imeti vsaj eno postavko" }); return; }
 
     const artikelIds = novaPostavke.map((p: any) => p.artikelId);
-    const putArtikliRows = await db.select({ id: artikliTable.id })
+    const putArtikliRows = await db.select({ id: artikliTable.id, drobniInventar: artikliTable.drobniInventar })
       .from(artikliTable)
       .where(and(inArray(artikliTable.id, artikelIds), sql`true`, eq(artikliTable.enotaId, tenotaId)));
     const putFoundIds = new Set(putArtikliRows.map(a => a.id));
+    drobniInventarIds = new Set(putArtikliRows.filter(a => a.drobniInventar).map(a => a.id));
     const putMissingIds = artikelIds.filter((id: any) => !putFoundIds.has(id));
     if (putMissingIds.length > 0) {
       res.status(403).json({ error: "Nekateri artikli ne pripadajo temu podjetju" }); return;
@@ -273,7 +277,9 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
         const steviloNajdeno = p.steviloNajdeno ?? 0;
         const steviloPrejsnje = zalogeMap.get(p.artikelId) ?? 0;
         const razlika = steviloNajdeno - steviloPrejsnje;
-        const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCeneMap!.get(p.artikelId) ?? 0);
+        const cenaKos = drobniInventarIds.has(p.artikelId)
+          ? 0
+          : zalogaObDatumu.get(p.artikelId)?.cenaKos || (zadnjeCeneMap!.get(p.artikelId) ?? 0);
 
         await tx.insert(inventurePostavkeTable).values({
           inventuraId: id,
@@ -305,6 +311,10 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
       const existingPostavke = await tx.select().from(inventurePostavkeTable)
         .where(eq(inventurePostavkeTable.inventuraId, id));
       const artikelIds = existingPostavke.flatMap((p) => p.artikelId == null ? [] : [p.artikelId]);
+      const drobniIds = artikelIds.length
+        ? new Set((await tx.select({ id: artikliTable.id }).from(artikliTable)
+          .where(and(inArray(artikliTable.id, artikelIds), eq(artikliTable.drobniInventar, true)))).map(a => a.id))
+        : new Set<number>();
       const reversedArtikelIds = await appendStockMovementReversals(tx, {
         referenceId: id,
         sourceSnapshots: ["inventura"],
@@ -323,7 +333,9 @@ router.put("/inventure/:id", requireEnota, async (req, res): Promise<void> => {
         const steviloNajdeno = Number(p.steviloNajdeno);
         const steviloPrejsnje = zalogaObDatumu.get(p.artikelId)?.kolicina ?? 0;
         const razlika = steviloNajdeno - steviloPrejsnje;
-        const cenaKos = zalogaObDatumu.get(p.artikelId)?.cenaKos || Number(p.cenaKos);
+        const cenaKos = drobniIds.has(p.artikelId)
+          ? 0
+          : zalogaObDatumu.get(p.artikelId)?.cenaKos || Number(p.cenaKos);
         await tx.update(inventurePostavkeTable).set({
           steviloPrejsnje: String(steviloPrejsnje),
           razlika: String(razlika),

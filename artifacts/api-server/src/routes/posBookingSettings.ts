@@ -215,6 +215,7 @@ const ACCOUNT_FIELDS = [
   "otherCostsAccountId",
   "rawMaterialExpenseAccountId",
   "inboundFreightExpenseAccountId",
+  "drobniInventarExpenseAccountId",
   // T3 — COGS
   "cogsMaterialAccountId",
   "cogsGoodsAccountId",
@@ -335,10 +336,22 @@ router.get(
       .from(posBookingSettingsTable)
       .where(eq(posBookingSettingsTable.companyId, companyId))
       .limit(1);
+    const drobniInventarExpenseAccountOptions = await db
+      .select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name })
+      .from(accountsTable)
+      .where(and(
+        eq(accountsTable.companyId, companyId),
+        eq(accountsTable.isActive, true),
+        eq(accountsTable.allowsPosting, true),
+        sql`char_length(${accountsTable.code}) = 7`,
+        sql`${accountsTable.code} LIKE '404%'`,
+      ))
+      .orderBy(asc(accountsTable.code));
 
     res.json({
       ...(settings ?? { companyId }),
       categoryRevenueAccounts: await getCategoryRevenueAccounts(companyId),
+      drobniInventarExpenseAccountOptions,
     });
   },
 );
@@ -577,6 +590,14 @@ router.put(
           res.status(400).json({ error: `Konto ${label} mora biti v razredu 4` });
           return;
         }
+      }
+      const smallEquipmentAccountId = patch.drobniInventarExpenseAccountId ?? null;
+      const smallEquipmentCode = typeof smallEquipmentAccountId === "string"
+        ? codeById.get(smallEquipmentAccountId)
+        : null;
+      if (smallEquipmentAccountId && !/^404\d{4}$/.test(smallEquipmentCode ?? "")) {
+        res.status(400).json({ error: "Konto stroška drobnega inventarja mora biti aktivna, proknjižljiva sedemmestna analitika 404*." });
+        return;
       }
       const [current] = await db.select({
         bankAccountId: posBookingSettingsTable.bankAccountId,

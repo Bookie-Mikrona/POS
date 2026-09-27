@@ -980,12 +980,13 @@ export async function knjizalogaGibiZaUvozPrejemnico(
     enota_id: number;
     dobavitelj_id: string | null;
     povratna_embalaza: boolean;
+    drobni_inventar: boolean;
     depozitna_vrednost: string | null;
   }>(sql`
     SELECT
       pp.id, pp.artikel_id, pp.kolicina, pp.cena_kos,
       p.opomba, p.datum, p.enota_id, p.dobavitelj_id,
-      a.povratna_embalaza, a.depozitna_vrednost, pp.vrstica_tip
+      a.povratna_embalaza, a.drobni_inventar, a.depozitna_vrednost, pp.vrstica_tip
       FROM prejemnice_postavke pp
       JOIN prejemnice p ON p.id = pp.prejemnica_id
       JOIN artikli a ON a.id = pp.artikel_id
@@ -1005,12 +1006,13 @@ export async function knjizalogaGibiZaUvozPrejemnico(
   });
 
   for (const p of postavke) {
-    const vrednost = new Decimal(p.kolicina).mul(p.cena_kos);
+    const cenaKos = p.drobni_inventar ? "0" : p.cena_kos;
+    const vrednost = p.drobni_inventar ? new Decimal(0) : new Decimal(p.kolicina).mul(cenaKos);
     await db.insert(zalogaGibiTable).values({
       artikelId:  p.artikel_id,
       tip:        'prejemnica',
       kolicina:   p.kolicina,
-      cenaKos:    p.cena_kos,
+      cenaKos,
       vrednost:   vrednost.toString(),
       opomba:     p.opomba ?? null,
       referencaId: prejemnicaId,

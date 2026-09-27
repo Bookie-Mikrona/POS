@@ -1264,6 +1264,7 @@ interface PosBookingSettingsData {
   otherCostsAccountId: string | null;
   rawMaterialExpenseAccountId: string | null;
   inboundFreightExpenseAccountId: string | null;
+  drobniInventarExpenseAccountId: string | null;
   // T3 — COGS
   cogsMaterialAccountId: string | null;
   cogsGoodsAccountId: string | null;
@@ -1344,6 +1345,7 @@ const EMPTY_PBS: PosBookingSettingsData = {
   otherCostsAccountId: null,
   rawMaterialExpenseAccountId: null,
   inboundFreightExpenseAccountId: null,
+  drobniInventarExpenseAccountId: null,
   cogsMaterialAccountId: null,
   cogsGoodsAccountId: null,
   wasteAccountId: null,
@@ -2059,6 +2061,7 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
             <Button
               variant="outline"
               role="combobox"
+              data-testid={`button-account-select-${field}`}
               aria-expanded={open}
               className="w-full min-w-0 justify-between gap-2 font-normal text-sm h-9"
             >
@@ -2075,6 +2078,7 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
           >
             <Command shouldFilter={false}>
               <CommandInput
+                data-testid={`input-account-search-${field}`}
                 placeholder="Išči po kodi ali imenu…"
                 value={query}
                 onValueChange={setQuery}
@@ -2571,6 +2575,23 @@ function PosKnjizenjeTab({ companyId }: { companyId: string }) {
           <AccountSelect label="Obveznosti do dobaviteljev" field="payablesAccountId" description="Kredit — npr. 2200000" />
           <AccountSelect label="Zaloga povratne embalaže" field="returnablePackagingAccountId" description="Debet — konto 3107000" />
           <AccountSelect label="Strošek odpisa povratne embalaže" field="returnablePackagingWriteoffAccountId" prefixes={["4"]} description="Debet pri razbitju/uničenju — konto razreda 4" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Drobni inventar</CardTitle>
+          <CardDescription>
+            Nabava kozarcev/krožnikov gre neposredno na konto porabe, inventure samo količine.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <AccountSelect
+            label="Strošek drobnega inventarja"
+            field="drobniInventarExpenseAccountId"
+            prefixes={["404"]}
+            description="Konto porabe (analitika 404*); ob nabavi se knjiži neposredno na strošek."
+          />
         </CardContent>
       </Card>
 

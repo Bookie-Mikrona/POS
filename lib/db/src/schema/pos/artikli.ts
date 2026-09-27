@@ -66,6 +66,8 @@ export const artikliTable = pgTable("artikli", {
   prodajniArtikel: boolean("prodajni_artikel").notNull().default(true),
   jeSkupinskiNabavniArtikel: boolean("je_skupinski_nabavni_artikel").notNull().default(false),
   povratnaEmbalaza: boolean("povratna_embalaza").notNull().default(false),
+  /** Purchase-only quantity-tracked small hospitality equipment with no stock valuation. */
+  drobniInventar: boolean("drobni_inventar").notNull().default(false),
   vrstaEmbalaze: text("vrsta_embalaze", { enum: ["steklenica", "zaboj", "keg", "balon", "drugo"] }),
   depozitnaVrednost: numeric("depozitna_vrednost", { precision: 12, scale: 2 }),
   /** Ali je artikel označen kot alkohol za kasnejšo natakarjevo potrditev. */
@@ -157,6 +159,15 @@ export const artikliTable = pgTable("artikli", {
         'M', 'MTR', 'M2', 'MTK', 'M3', 'MTQ',
         'KAR', 'CT', 'SKA', 'BX'
       )
+    )`,
+  ),
+  check(
+    "artikli_drobni_inventar_check",
+    sql`NOT ${t.drobniInventar} OR (
+      ${t.nabavniArtikel} = true
+      AND ${t.prodajniArtikel} = false
+      AND ${t.povratnaEmbalaza} = false
+      AND ${t.vrstaArtikla} = 'material'
     )`,
   ),
 ]);

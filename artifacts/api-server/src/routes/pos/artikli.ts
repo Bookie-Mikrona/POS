@@ -110,6 +110,7 @@ const SELECT_FIELDS = {
   prodajniArtikel: artikliTable.prodajniArtikel,
   jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
   povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+  drobniInventar: artikliTable.drobniInventar,
   vrstaEmbalaze: artikliTable.vrstaEmbalaze,
   depozitnaVrednost: artikliTable.depozitnaVrednost,
   imeZaNabavo: artikliTable.imeZaNabavo,
@@ -176,6 +177,7 @@ function mapRow(r: Record<string, unknown>) {
     prodajniArtikel: r.prodajniArtikel as boolean,
     jeSkupinskiNabavniArtikel: Boolean(r.jeSkupinskiNabavniArtikel),
     povratnaEmbalaza: Boolean(r.povratnaEmbalaza),
+    drobniInventar: Boolean(r.drobniInventar),
     vrstaEmbalaze: (r.vrstaEmbalaze as string | null) ?? null,
     depozitnaVrednost: r.depozitnaVrednost == null ? null : Number(r.depozitnaVrednost),
     imeZaNabavo: (r.imeZaNabavo as string | null) ?? null,
@@ -520,6 +522,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     return;
   }
   const jeSkupinskiNabavniArtikel = parsed.data.jeSkupinskiNabavniArtikel ?? false;
+  const drobniInventar = parsed.data.drobniInventar ?? false;
   if (jeSkupinskiNabavniArtikel && (
     !nabavniArtikel || prodajniArtikel || !toUneceUnitCode(parsed.data.enotaMere)
   )) {
@@ -532,6 +535,10 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
     (parsed.data as { vrstaArtikla?: string }).vrstaArtikla,
     { nabavniArtikel, prodajniArtikel, povratnaEmbalaza: parsed.data.povratnaEmbalaza },
   );
+  if (drobniInventar && (!nabavniArtikel || prodajniArtikel || parsed.data.povratnaEmbalaza || vrstaArtikla !== "material")) {
+    res.status(400).json({ error: "Drobni inventar mora biti samo nabavni material, brez prodajne ali povratne embalaže." });
+    return;
+  }
   const taxCategory = (parsed.data as { taxCategory?: string }).taxCategory ?? "food";
   const jeDelMenija = (parsed.data as { jeDelMenija?: boolean }).jeDelMenija ?? false;
   const requestedAddedSugar = (parsed.data as { addedSugar?: boolean }).addedSugar ?? false;
@@ -584,6 +591,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         prodajniArtikel,
         jeSkupinskiNabavniArtikel,
         povratnaEmbalaza: (parsed.data as any).povratnaEmbalaza ?? false,
+        drobniInventar,
         vrstaEmbalaze: (parsed.data as any).vrstaEmbalaze ?? null,
         depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
         imeZaNabavo: parsed.data.imeZaNabavo ?? null,
@@ -1457,6 +1465,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     nabavniArtikel: artikliTable.nabavniArtikel,
     prodajniArtikel: artikliTable.prodajniArtikel,
     povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+    drobniInventar: artikliTable.drobniInventar,
     jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
     enotaMere: artikliTable.enotaMere,
     brutoTezaG: artikliTable.brutoTezaG,
@@ -1492,6 +1501,32 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     return;
   }
   const naslednjaEnota = "enotaMere" in parsed.data ? parsed.data.enotaMere : obstojeci.enotaMere;
+  const naslednjiDrobniInventar = parsed.data.drobniInventar ?? obstojeci.drobniInventar;
+  const naslednjaVrstaArtikla = (parsed.data as { vrstaArtikla?: string }).vrstaArtikla
+    ?? resolveArticleType(obstojeci.vrstaArtikla, {
+      nabavniArtikel: naslednjiNabavni,
+      prodajniArtikel: naslednjiProdajni,
+      povratnaEmbalaza: parsed.data.povratnaEmbalaza ?? obstojeci.povratnaEmbalaza,
+    });
+  if (naslednjiDrobniInventar && (!naslednjiNabavni || naslednjiProdajni
+    || (parsed.data.povratnaEmbalaza ?? obstojeci.povratnaEmbalaza)
+    || naslednjaVrstaArtikla !== "material")) {
+    res.status(400).json({ error: "Drobni inventar mora biti samo nabavni material, brez prodajne ali povratne embalaže." });
+    return;
+  }
+  if (naslednjiDrobniInventar !== obstojeci.drobniInventar) {
+    const history = await db.execute<{ has_history: boolean }>(sql`
+      SELECT (
+        EXISTS (SELECT 1 FROM zaloge WHERE artikel_id = ${params.data.id} AND CAST(kolicina AS numeric) <> 0)
+        OR EXISTS (SELECT 1 FROM zaloga_gibi WHERE artikel_id = ${params.data.id})
+        OR EXISTS (SELECT 1 FROM prejemnice_postavke WHERE artikel_id = ${params.data.id})
+      ) AS has_history
+    `);
+    if (history.rows[0]?.has_history) {
+      res.status(409).json({ error: "Razvrstitve drobnega inventarja ni mogoče spremeniti, ker artikel že ima zalogo ali zgodovino prejemnic." });
+      return;
+    }
+  }
   if (naslednjiGeneric && (
     !naslednjiNabavni || naslednjiProdajni || !toUneceUnitCode(naslednjaEnota)
   )) {
@@ -1585,6 +1620,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     });
   }
   if ("povratnaEmbalaza" in parsed.data) updateData.povratnaEmbalaza = Boolean((parsed.data as any).povratnaEmbalaza);
+  if ("drobniInventar" in parsed.data) updateData.drobniInventar = Boolean(parsed.data.drobniInventar);
   if ("vrstaEmbalaze" in parsed.data) updateData.vrstaEmbalaze = (parsed.data as any).vrstaEmbalaze ?? null;
   if ("depozitnaVrednost" in parsed.data) updateData.depozitnaVrednost = (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost);
   if ("happyHourCena" in parsed.data) updateData.happyHourCena = (parsed.data as { happyHourCena?: number | null }).happyHourCena != null ? String((parsed.data as { happyHourCena: number }).happyHourCena) : null;
@@ -1667,6 +1703,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
           vrstaArtikla: artikliTable.vrstaArtikla,
           nabavniArtikel: artikliTable.nabavniArtikel,
           povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+          drobniInventar: artikliTable.drobniInventar,
           jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
           enotaMere: artikliTable.enotaMere,
           brutoTezaG: artikliTable.brutoTezaG,

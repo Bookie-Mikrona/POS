@@ -639,6 +639,13 @@ export interface PosCategoryRevenueAccount {
   accountId: string | null;
 }
 
+export interface PosBookingExpenseAccountOption {
+  id: string;
+  /** @pattern ^404[0-9]{4}$ */
+  code: string;
+  name: string;
+}
+
 export interface PosBookingSettings {
   companyId: string;
   /** Prihodkovni konti vseh aktivnih POS kategorij podjetja */
@@ -683,6 +690,13 @@ export interface PosBookingSettings {
      * @nullable
      */
   returnablePackagingWriteoffAccountId?: string | null;
+  /**
+     * Konto stroška drobnega inventarja (aktivna analitika 404*)
+     * @nullable
+     */
+  drobniInventarExpenseAccountId?: string | null;
+  /** Izbirni konti drobnega inventarja; samo aktivne, proknjižljive sedemmestne analitike 404* */
+  drobniInventarExpenseAccountOptions?: PosBookingExpenseAccountOption[];
 }
 
 export interface PosCategoryRevenueAccountInput {
@@ -734,6 +748,11 @@ export interface PosBookingSettingsInput {
      * @nullable
      */
   returnablePackagingWriteoffAccountId?: string | null;
+  /**
+     * Konto stroška drobnega inventarja (aktivna analitika 404*)
+     * @nullable
+     */
+  drobniInventarExpenseAccountId?: string | null;
 }
 
 export type TipPolicyMode = typeof TipPolicyMode[keyof typeof TipPolicyMode];
@@ -1678,6 +1697,8 @@ export interface Artikel {
   jeSkupinskiNabavniArtikel: boolean;
   /** Artikel je povratna embalaža in se v šifrantu prikazuje v ločenem filtru */
   povratnaEmbalaza: boolean;
+  /** Nabavni material, ki sledi količini, ne pa denarni vrednosti zaloge */
+  drobniInventar: boolean;
   /** @nullable */
   vrstaEmbalaze?: ArtikelVrstaEmbalaze;
   /**
@@ -1807,6 +1828,8 @@ export interface ArtikelInput {
      */
   pripravaVrsta?: ArtikelInputPripravaVrsta;
   povratnaEmbalaza?: boolean;
+  /** Samo nabavni material, brez prodaje ali povratne embalaže; zaloga je količinska brez vrednotenja */
+  drobniInventar?: boolean;
   /** @nullable */
   vrstaEmbalaze?: ArtikelInputVrstaEmbalaze;
   /**
