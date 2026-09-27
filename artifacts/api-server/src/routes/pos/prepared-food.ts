@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 import {
   artikliTable, companiesTable, db, enoteTable, normativiTable, postavkeTable,
   preparedFoodDailyLedgersTable, preparedFoodStocksTable, preparedFoodWasteRecordLinesTable,
@@ -144,7 +145,7 @@ async function buildWastePreview(
       isNotNull(preparedFoodDailyLedgersTable.closedAt),
       sql`${preparedFoodDailyLedgersTable.wasteQuantity} > ${preparedFoodDailyLedgersTable.wasteDeliveredQuantity}`,
     ))
-    .orderBy(preparedFoodDailyLedgersTable.businessDate, artikliTable.ime);
+    .orderBy(preparedFoodDailyLedgersTable.businessDate, slovenianCollated(artikliTable.ime));
   const dailyLines = rows.map((row) => ({
     businessDate: row.businessDate,
     articleId: row.articleId,
@@ -172,7 +173,7 @@ async function loadWasteRecord(executor: typeof db, enotaId: number, id: number)
   if (!record) return null;
   const lines = await executor.select().from(preparedFoodWasteRecordLinesTable)
     .where(eq(preparedFoodWasteRecordLinesTable.recordId, id))
-    .orderBy(preparedFoodWasteRecordLinesTable.businessDate, preparedFoodWasteRecordLinesTable.articleName);
+    .orderBy(preparedFoodWasteRecordLinesTable.businessDate, slovenianCollated(preparedFoodWasteRecordLinesTable.articleName));
   const dailyLines = lines.map((line) => ({
     businessDate: line.businessDate,
     articleId: line.artikelId,
@@ -444,7 +445,7 @@ router.get("/prepared-food/daily/history/:year", async (req: Request, res: Respo
         gte(preparedFoodDailyLedgersTable.businessDate, start),
         lt(preparedFoodDailyLedgersTable.businessDate, end),
       ))
-      .orderBy(desc(preparedFoodDailyLedgersTable.businessDate), artikliTable.ime),
+      .orderBy(desc(preparedFoodDailyLedgersTable.businessDate), slovenianCollated(artikliTable.ime)),
     latestLedgerDate(db, enotaId),
   ]);
   res.json(ListPreparedFoodDailyHistoryResponse.parse(rows.map((row) => mapLedger(row.ledger, {

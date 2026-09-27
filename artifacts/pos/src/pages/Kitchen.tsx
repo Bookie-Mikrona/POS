@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatPosCas } from "@/lib/posCas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
+import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 
 // Helper functions (same as legacy)
 function minutesSince(iso: string): number {
@@ -100,7 +101,7 @@ export function getKdsHeaderWarnings(postavke: readonly KdsHeaderPostavka[]): {
     .map((postavka) => postavka.gostStevilka)
     .filter((guest): guest is number => typeof guest === "number" && Number.isFinite(guest) && guest > 0);
   const unique = (values: readonly (readonly string[] | null | undefined)[]) =>
-    [...new Set(values.flatMap((value) => value ?? []))].sort((a, b) => a.localeCompare(b, "sl"));
+    [...new Set(values.flatMap((value) => value ?? []))].sort(primerjajSlovensko);
 
   return {
     guestCount: guests.length > 0 ? Math.max(...guests) : null,

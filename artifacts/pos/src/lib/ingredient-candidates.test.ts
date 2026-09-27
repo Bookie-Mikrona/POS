@@ -25,4 +25,11 @@ describe("ingredientCandidates", () => {
   it("does not match substrings inside unrelated words", () => {
     expect(ingredientCandidates(articles, "sol", all, null)).toEqual([]);
   });
+  it("sorts equally ranked ingredient names by the Slovenian alphabet", () => {
+    const names = ["Žito", "Sok", "Šunka", "Zelje", "Zebra"].map((ime, id) => ({ id, ime }));
+
+    expect(ingredientCandidates(names, "", all, null).map(article => article.ime)).toEqual([
+      "Sok", "Šunka", "Zebra", "Zelje", "Žito",
+    ]);
+  });
 });

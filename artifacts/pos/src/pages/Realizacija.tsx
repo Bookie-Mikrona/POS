@@ -8,6 +8,7 @@ import { Printer, Search, FileText, List, AlignJustify } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getEnotaId } from "@workspace/api-client-react";
 import { poslovniDatumZaCas } from "@/lib/posCas";
+import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 
 interface DdvStopnja {
   stopnja: number;
@@ -783,7 +784,7 @@ export default function Realizacija() {
                     ds.osnova += a.osnova; ds.ddv += a.ddv;
                     g.ddvPoStopnjah.set(a.ddvStopnja, ds);
                   }
-                  const artGrupe = [...artMap.values()].sort((a, b) => a.ime.localeCompare(b.ime, "sl"));
+                  const artGrupe = [...artMap.values()].sort((a, b) => primerjajSlovensko(a.ime, b.ime));
                   const artStopnje = [...new Set(artGrupe.flatMap(a => [...a.ddvPoStopnjah.keys()]))].sort((a, b) => a - b);
                   const artSkupaj = artGrupe.reduce((acc, a) => ({ skupaj: acc.skupaj + a.skupaj, material: acc.material + a.materialSkupaj, blago: acc.blago + a.blagoSkupaj, storitev: acc.storitev + a.storitevSkupaj }), { skupaj: 0, material: 0, blago: 0, storitev: 0 });
                   const artDdvSkupaj = new Map<number, { osnova: number; ddv: number }>();

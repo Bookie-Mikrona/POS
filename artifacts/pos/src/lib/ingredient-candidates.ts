@@ -1,3 +1,5 @@
+import { primerjajSlovensko } from "./slovensko-razvrscanje";
+
 type Ingredient = { id: number; ime: string; imeZaNabavo?: string | null; enotaMere?: string | null };
 
 function words(value: string): string[] {
@@ -32,7 +34,7 @@ export function ingredientCandidates<T extends Ingredient>(
     rank: Math.max(score(queryWords, article.ime), score(queryWords, article.imeZaNabavo ?? "")),
   }))
     .filter(({ article, rank }) => compatible(article) && (rank > 0 || article.id === selectedId || !queryWords.length))
-    .sort((a, b) => b.rank - a.rank || a.article.ime.localeCompare(b.article.ime, "sl"))
+    .sort((a, b) => b.rank - a.rank || primerjajSlovensko(a.article.ime, b.article.ime))
     .slice(0, 40)
     .map(({ article }) => article);
 }

@@ -13,6 +13,12 @@ Paradižnikovo omako iz pelatov, sončničnega olja, soli in suhega origana sest
 
 Pice imajo sestavine iz opisne vrstice kot nabavne artikle in normative; vsaka pica ima svojo skupino možnosti »Brez …«, vse pice pa si delijo enoten seznam sestavin in plačljivih dodatkov brez podvajanja.
 
+Opis pic iz izvornega cenika naj ostane tudi kot opis prodajnega artikla, ne samo kot osnova za normativ. Uporabnik je izrecno potrdil, da je bil vnos opisov za pice pravilen; enaka možnost urejanja opisa velja za vse prodajne artikle, gost pa opis vidi v QR meniju.
+
+**Why:** Normativ in kupcu viden opis imata različna namena. Če opis ostane le v uvozni datoteki ali pri sestavinah, ga osebje ne more popravljati in gost ga ne vidi.
+
+**How to apply:** Ob prihodnjem ponovnem uvozu ali urejanju pic ne briši obstoječih opisov; shranjevanje normativov in opisov obravnavaj ločeno.
+
 Ustekleničene oziroma drugače pakirane pijače so nabavno-prodajno blago z normativom 1 : 1. Davčna stopnja se določa prek davčne kategorije in pravil DDV, ne neposredno iz napisane stopnje v ceniku.
 
 **Why:** Uporabnik je ta pravila izrecno potrdil pri vnosu razvojnega cenika, da se prodaja, zaloga in prilagoditve pic obnašajo enotno.

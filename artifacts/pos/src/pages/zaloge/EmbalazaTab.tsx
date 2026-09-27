@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, ArrowRightLeft, Package, Search } from "lucide-react";
 import { DecimalInput } from "@/components/ui/decimal-input";
+import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 
 function getVrstaLabel(vrsta: string | null) {
   if (!vrsta) return "Neznano";
@@ -57,7 +58,7 @@ export function EmbalazaTab() {
       }
       groups[key].items.push(b);
     }
-    return Object.values(groups).sort((a, b) => a.dobaviteljIme.localeCompare(b.dobaviteljIme));
+    return Object.values(groups).sort((a, b) => primerjajSlovensko(a.dobaviteljIme, b.dobaviteljIme));
   }, [filtered]);
 
   return (

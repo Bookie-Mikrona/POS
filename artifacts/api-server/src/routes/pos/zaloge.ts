@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { artikliTable, db, zalogaGibiTable, zalogeTable } from "@workspace/db";
 import { requireEnota } from "../../middlewares/pos";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ router.get("/zaloge", async (req, res): Promise<void> => {
     .from(artikliTable)
     .leftJoin(zalogeTable, eq(zalogeTable.artikelId, artikliTable.id))
     .where(and(eq(artikliTable.nabavniArtikel, true), eq(artikliTable.enotaId, tenotaId)))
-    .orderBy(artikliTable.ime);
+    .orderBy(slovenianCollated(artikliTable.ime));
 
   // Ločena poizvedba: zadnja nabavna cena — prejemnice + začetne zaloge, novejša zmaga
   const zadnjeNabavneRes = await db.execute(sql`

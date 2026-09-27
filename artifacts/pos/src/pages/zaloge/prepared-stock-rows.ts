@@ -1,4 +1,5 @@
 import type { PreparedFoodAvailabilityItem, PreparedFoodStock } from "@workspace/api-client-react";
+import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 
 type PreparedItem = Pick<PreparedFoodAvailabilityItem, "articleId" | "articleName" | "mealType" | "freshQuantity" | "thawedOpenQuantity">;
 type FrozenStock = Pick<PreparedFoodStock, "artikelId" | "frozenQuantity">;
@@ -23,5 +24,5 @@ export function buildPreparedStockRows(items: PreparedItem[], stocks: FrozenStoc
       frozenQuantity,
       totalQuantity: item.freshQuantity + frozenQuantity,
     };
-  }).sort((a, b) => a.articleName.localeCompare(b.articleName, "sl-SI"));
+  }).sort((a, b) => primerjajSlovensko(a.articleName, b.articleName));
 }

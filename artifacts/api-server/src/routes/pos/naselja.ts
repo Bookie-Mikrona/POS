@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, asc, eq } from "drizzle-orm";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 import { db, naseljaTable } from "@workspace/db";
 import { z } from "zod";
 
@@ -38,7 +39,7 @@ router.get("/naselja", async (req, res): Promise<void> => {
       eq(naseljaTable.enotaId, enotaId),
       ...(vse ? [] : [eq(naseljaTable.aktivno, true)]),
     ))
-    .orderBy(asc(naseljaTable.naziv), asc(naseljaTable.id));
+    .orderBy(asc(slovenianCollated(naseljaTable.naziv)), asc(naseljaTable.id));
   res.json(rows.map(mapNaselje));
 });
 

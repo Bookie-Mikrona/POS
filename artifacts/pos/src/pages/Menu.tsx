@@ -50,6 +50,7 @@ import ModifikatorjePanel from "@/components/ModifikatorjePanel";
 import { ArticleImageCropDialog } from "@/components/ArticleImageCropDialog";
 import { MassYieldFields, EMPTY_MASS_YIELD, normalizeMassYield, type MassYieldValues } from "@/components/MassYieldFields";
 import { ToGoArticlePicker } from "@/components/ToGoArticlePicker";
+import { sortMenuArticles } from "@/lib/article-menu-sort";
 
 import { type NormativItem } from "@/lib/kopiraj-normativ";
 type PizzaDoughSelection = { normalna: number; mala: number };
@@ -137,6 +138,7 @@ export default function Menu() {
   const [editingArt, setEditingArt] = useState<Artikel | null>(null);
   const [multicourseEditorEnabled, setMulticourseEditorEnabled] = useState(false);
   const [artName, setArtName] = useState("");
+  const [artOpis, setArtOpis] = useState("");
   const [artPrice, setArtPrice] = useState("");
   const [artCenaMala, setArtCenaMala] = useState("");
   const [artCenaDruzinska, setArtCenaDruzinska] = useState("");
@@ -882,6 +884,7 @@ export default function Menu() {
     setArtMode("nov"); setEditingArt(null);
     setArtDialogTab("osnovno");
     setMulticourseEditorEnabled(false);
+    setArtOpis("");
     setArtName(""); setArtPrice(""); setArtCenaMala(""); setArtCenaDruzinska(""); setArtCat(""); setArtAktiven(true); setArtColor(null);
     setArtNabavniArtikel(false); setArtProdajniArtikel(true); setArtJePica(false);
     setArtPripravaVrsta("hrana"); setArtPripravaVrstaIzbrana(false);
@@ -931,6 +934,7 @@ export default function Menu() {
     setArtMode("uredi"); setEditingArt(a);
     setArtDialogTab("osnovno");
     setMulticourseEditorEnabled(Boolean(a.isMulticourseMenu));
+    setArtOpis(a.opis ?? "");
     setArtName(a.ime); setArtPrice(String(a.cena));
     setArtCenaMala((a as typeof a & { cenaMala?: number | null }).cenaMala != null ? String((a as typeof a & { cenaMala: number }).cenaMala) : "");
     setArtCenaDruzinska((a as typeof a & { cenaDruzinska?: number | null }).cenaDruzinska != null ? String((a as typeof a & { cenaDruzinska: number }).cenaDruzinska) : "");
@@ -1466,6 +1470,7 @@ export default function Menu() {
 
     const data = {
       ime: artName,
+      opis: isProdajni ? (artOpis.trim() || null) : (editingArt?.opis ?? null),
       cena: isProdajni ? parseDecimal(artPrice) : 0,
       cenaMala: isProdajni && artJePica && artCenaMala.trim() !== "" ? parseDecimal(artCenaMala) : null,
       cenaDruzinska: isProdajni && artJePica && artCenaDruzinska.trim() !== "" ? parseDecimal(artCenaDruzinska) : null,
@@ -1857,10 +1862,11 @@ export default function Menu() {
                     <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4 border-b-0">Nalaganje...</TableCell></TableRow>
                   ) : (() => {
                       const q = artSearch.toLowerCase();
-                      const filtered = (artikli ?? [])
+                       const filtered = sortMenuArticles((artikli ?? [])
                         .filter(a => articleMatchesListFilter(a, artFilter))
-                        .filter(a => !q || a.ime.toLowerCase().includes(q) || (a.imeZaNabavo ?? "").toLowerCase().includes(q))
-                        .sort((a, b) => a.ime.localeCompare(b.ime, "sl"));
+                         .filter(a => !q || a.ime.toLowerCase().includes(q) || (a.imeZaNabavo ?? "").toLowerCase().includes(q)),
+                         kategorije ?? [],
+                         artFilter === "prodajni");
                       if (!filtered.length) return (
                         <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4 border-b-0">Ni zadetkov</TableCell></TableRow>
                       );
@@ -2256,6 +2262,22 @@ export default function Menu() {
                   </p>
                 )}
               </div>
+
+              {artProdajniArtikel && !artPovratnaEmbalaza && (
+                <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+                  <Label htmlFor="artikel-opis">Opis artikla</Label>
+                  <textarea
+                    id="artikel-opis"
+                    data-testid="artikel-opis"
+                    value={artOpis}
+                    onChange={event => setArtOpis(event.target.value)}
+                    rows={3}
+                    placeholder="Npr. sestavine ali kratek opis jedi"
+                    className="flex min-h-[80px] w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">Ta opis bo prikazan gostom v QR meniju. Ni enak opisu za pripravo slike.</p>
+                </div>
+              )}
 
               {!artPolizdelek && <div className="rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <MassYieldFields

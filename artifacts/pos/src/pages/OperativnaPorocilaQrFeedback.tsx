@@ -22,6 +22,7 @@ import {
   Legend,
   ResponsiveContainer
 } from "recharts";
+import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
 
 interface Props {
   queryParams: {
@@ -809,7 +810,7 @@ function compareArticles(
       order,
     );
   }
-  return difference || a.articleName.localeCompare(b.articleName, "sl");
+  return difference || primerjajSlovensko(a.articleName, b.articleName);
 }
 
 function nullableNumberComparison(a: number | null, b: number | null, order: ArticleSortOrder): number {

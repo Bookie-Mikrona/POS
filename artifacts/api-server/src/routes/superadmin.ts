@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
+import { slovenianCollated } from "../lib/slovenian-collation";
 import { seedDefaultChartOfAccounts } from "../lib/seedDefaultChartOfAccounts";
 import { seedDefaultAccountSettings } from "../lib/seedDefaultAccountSettings";
 import { broadcastToCompany } from "../lib/pos-sse";
@@ -130,7 +131,7 @@ router.get("/superadmin/podjetja", ...superAdminStack, async (_req: Request, res
       trr: companiesTable.trr,
     })
     .from(companiesTable)
-    .orderBy(companiesTable.naziv);
+    .orderBy(slovenianCollated(companiesTable.naziv));
 
   if (companies.length === 0) { res.json([]); return; }
 

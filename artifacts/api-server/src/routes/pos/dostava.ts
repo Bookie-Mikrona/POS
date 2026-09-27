@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq } from "drizzle-orm";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 import { z } from "zod";
 import { db, dostavaStatusZgodovinaTable, dostavniKurirjiTable, narocilaTable } from "@workspace/db";
 import { broadcastToUnit } from "../../lib/pos-sse";
@@ -29,7 +30,7 @@ const StatusBody = z.object({
 router.get("/dostava/kurirji", async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId as number;
   res.json(await db.select().from(dostavniKurirjiTable)
-    .where(eq(dostavniKurirjiTable.enotaId, enotaId)).orderBy(dostavniKurirjiTable.ime));
+    .where(eq(dostavniKurirjiTable.enotaId, enotaId)).orderBy(slovenianCollated(dostavniKurirjiTable.ime)));
 });
 
 router.post("/dostava/kurirji", async (req, res): Promise<void> => {

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { db, narocilaTable, narocnikNasloviTable, narocnikiTable, naseljaTable } from "@workspace/db";
 import { z } from "zod";
 import { normalizirajTelefon } from "../../lib/narocniki-telefon";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 
 const router: IRouter = Router();
 
@@ -151,7 +152,7 @@ router.get("/narocniki", async (req, res): Promise<void> => {
   const enotaId = (req as any).enotaId as number;
   const rows = await db.select().from(narocnikiTable)
     .where(eq(narocnikiTable.enotaId, enotaId))
-    .orderBy(asc(narocnikiTable.ime), asc(narocnikiTable.id));
+    .orderBy(asc(slovenianCollated(narocnikiTable.ime)), asc(narocnikiTable.id));
   res.json(rows.map((row) => mapNarocnik(row)));
 });
 

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
+import { slovenianCollated } from "../lib/slovenian-collation";
 import { db, companiesTable, accountingRolesTable, companyModulesTable, posUporabnikiTable, osRolesTable } from "@workspace/db";
 import { resolvePodjetjeSkrbnik } from "./companies-bizbox";
 import {
@@ -105,7 +106,7 @@ router.get(
       .from(accountingRolesTable)
       .innerJoin(companiesTable, eq(companiesTable.id, accountingRolesTable.companyId))
       .where(eq(accountingRolesTable.clerkUserId, authReq.clerkUserId))
-      .orderBy(companiesTable.naziv);
+      .orderBy(slovenianCollated(companiesTable.naziv));
 
     // POS podjetja (posUporabniki)
     const erpIds = new Set(erpRows.map((r) => r.id));
@@ -129,7 +130,7 @@ router.get(
           eq(posUporabnikiTable.clerkUserId, authReq.clerkUserId),
           eq(posUporabnikiTable.aktiven, true),
         ))
-        .orderBy(companiesTable.naziv),
+        .orderBy(slovenianCollated(companiesTable.naziv)),
       // OS podjetja — neodvisno od ERP/POS
       db
         .select({
@@ -147,7 +148,7 @@ router.get(
         .from(osRolesTable)
         .innerJoin(companiesTable, eq(companiesTable.id, osRolesTable.companyId))
         .where(eq(osRolesTable.clerkUserId, authReq.clerkUserId))
-        .orderBy(companiesTable.naziv),
+        .orderBy(slovenianCollated(companiesTable.naziv)),
     ]);
 
     const posIds = new Set(posRows.map((r) => r.id));

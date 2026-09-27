@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from "express";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
+import { slovenianCollated } from "../lib/slovenian-collation";
 import {
   db,
   counterpartiesTable,
@@ -92,7 +93,7 @@ router.get(
       .select()
       .from(counterpartiesTable)
       .where(and(...conditions))
-      .orderBy(asc(counterpartiesTable.name));
+      .orderBy(asc(slovenianCollated(counterpartiesTable.name)));
 
     // Tekstovno iskanje po imenu ali davčni številki
     if (search) {

@@ -32,6 +32,7 @@ import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { normalizeDrainedYield } from "../../lib/drained-yield";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import {
   assertPlausibleInitialServing,
@@ -377,7 +378,7 @@ router.get("/artikli", async (req, res): Promise<void> => {
     .from(artikliTable)
     .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), sql`true`, eq(kategorijeTable.enotaId, tenotaId)))
     .where(and(...conditions))
-    .orderBy(asc(artikliTable.vrstniRed), asc(artikliTable.ime));
+    .orderBy(asc(artikliTable.vrstniRed), asc(slovenianCollated(artikliTable.ime)));
 
   const mapped = rows.map(mapRow);
   const modMap = await fetchModSkupineForArtikli(mapped.map((a) => a.id));
@@ -1141,7 +1142,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       .from(artikliTable)
       .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, tenotaId)))
       .where(eq(artikliTable.enotaId, tenotaId))
-      .orderBy(asc(kategorijeTable.ime), asc(artikliTable.vrstniRed), asc(artikliTable.ime)),
+      .orderBy(asc(slovenianCollated(kategorijeTable.ime)), asc(artikliTable.vrstniRed), asc(slovenianCollated(artikliTable.ime))),
     db.execute(sql`
       SELECT
         a.ime        AS "artikelIme",
@@ -1156,7 +1157,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     db.select({ ime: kategorijeTable.ime })
       .from(kategorijeTable)
       .where(eq(kategorijeTable.enotaId, tenotaId))
-      .orderBy(asc(kategorijeTable.ime)),
+      .orderBy(asc(slovenianCollated(kategorijeTable.ime))),
   ]);
 
   const wb = new ExcelJS.Workbook();
@@ -1356,7 +1357,7 @@ router.get("/artikli/izvozi-cenik.pdf", async (req: Request, res: Response): Pro
       .orderBy(
         asc(kategorijeTable.vrstniRed),
         asc(artikliTable.vrstniRed),
-        asc(artikliTable.ime),
+        asc(slovenianCollated(artikliTable.ime)),
       ),
   ]);
   const company = companyRows[0];

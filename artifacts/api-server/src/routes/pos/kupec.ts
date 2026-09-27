@@ -10,6 +10,7 @@ import {
 } from "../../lib/inetis.js";
 import type { PosRequest } from "../../middlewares/pos.js";
 import { resolveSifrantAccess } from "../../lib/resolveSifrantAccess.js";
+import { slovenianCollated } from "../../lib/slovenian-collation";
 
 /**
  * Pretvori 15-mestno slovensko TRR številko (UJP format) v IBAN.
@@ -134,7 +135,7 @@ router.get("/kupec/shranjeni", async (req, res): Promise<void> => {
     .select()
     .from(counterpartiesTable)
     .where(and(eq(counterpartiesTable.companyId, ctx.companyId), eq(counterpartiesTable.isActive, true)))
-    .orderBy(counterpartiesTable.name);
+    .orderBy(slovenianCollated(counterpartiesTable.name));
   res.json(kupci.map(mapKupec));
 });
 
@@ -545,7 +546,7 @@ router.get("/kupec/shranjeni/:id/cenik", async (req, res): Promise<void> => {
       eq(partnerCenikiTable.kupecId, id),
       eq(enoteTable.companyId, ctx.companyId),
     ))
-    .orderBy(artikliTable.ime);
+    .orderBy(slovenianCollated(artikliTable.ime));
 
   res.json(vrstice.map(v => ({
     artikelId: v.artikelId,
@@ -673,7 +674,7 @@ router.get("/partnerji", async (req, res): Promise<void> => {
     .select()
     .from(counterpartiesTable)
     .where(and(eq(counterpartiesTable.companyId, ctx.companyId), eq(counterpartiesTable.isActive, true)))
-    .orderBy(counterpartiesTable.name);
+    .orderBy(slovenianCollated(counterpartiesTable.name));
   res.json(kupci.map(mapKupec));
 });
 
@@ -828,7 +829,7 @@ router.get("/partnerji/:id/cenik", async (req, res): Promise<void> => {
       eq(partnerCenikiTable.kupecId, id),
       eq(enoteTable.companyId, ctx.companyId),
     ))
-    .orderBy(artikliTable.ime);
+    .orderBy(slovenianCollated(artikliTable.ime));
 
   res.json(vrstice.map(v => ({
     artikelId: v.artikelId,

@@ -22,4 +22,18 @@ describe("prikaz zaloge pripravljenih jedi", () => {
       { articleId: 1, articleName: "Juha", mealType: "prepared", freshQuantity: 0, thawedOpenQuantity: 0 },
     ], [{ artikelId: 1, frozenQuantity: 5 }])[0]?.totalQuantity).toBe(5);
   });
+
+  it("razvrsti nazive jedi po slovenski abecedi", () => {
+    const rows = buildPreparedStockRows([
+      { articleId: 1, articleName: "Žito", mealType: "prepared", freshQuantity: 1, thawedOpenQuantity: 0 },
+      { articleId: 2, articleName: "Čaj", mealType: "prepared", freshQuantity: 1, thawedOpenQuantity: 0 },
+      { articleId: 3, articleName: "Cedevita", mealType: "prepared", freshQuantity: 1, thawedOpenQuantity: 0 },
+    ], [
+      { artikelId: 1, frozenQuantity: 0 },
+      { artikelId: 2, frozenQuantity: 0 },
+      { artikelId: 3, frozenQuantity: 0 },
+    ]);
+
+    expect(rows.map(row => row.articleName)).toEqual(["Cedevita", "Čaj", "Žito"]);
+  });
 });
