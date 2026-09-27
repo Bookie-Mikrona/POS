@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, boolean, json, jsonb, index, timestamp, unique, uuid, check } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, boolean, json, jsonb, index, timestamp, unique, uniqueIndex, uuid, check } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { enoteTable } from "./enote";
 import { kategorijeTable } from "./kategorije";
@@ -68,6 +68,8 @@ export const artikliTable = pgTable("artikli", {
   povratnaEmbalaza: boolean("povratna_embalaza").notNull().default(false),
   /** Purchase-only quantity-tracked small hospitality equipment with no stock valuation. */
   drobniInventar: boolean("drobni_inventar").notNull().default(false),
+  /** Stable template identity for optional small-inventory catalog imports. */
+  drobniInventarPredlogaKljuc: text("drobni_inventar_predloga_kljuc"),
   vrstaEmbalaze: text("vrsta_embalaze", { enum: ["steklenica", "zaboj", "keg", "balon", "drugo"] }),
   depozitnaVrednost: numeric("depozitna_vrednost", { precision: 12, scale: 2 }),
   /** Ali je artikel označen kot alkohol za kasnejšo natakarjevo potrditev. */
@@ -145,6 +147,9 @@ export const artikliTable = pgTable("artikli", {
 }, (t) => [
   // 032-performance-indexes.sql: ix_artikli_enota_aktiven
   index("ix_artikli_enota_aktiven").on(t.enotaId, t.aktiven),
+  uniqueIndex("artikli_enota_drobni_inventar_predloga_unique")
+    .on(t.enotaId, t.drobniInventarPredlogaKljuc)
+    .where(sql`${t.drobniInventarPredlogaKljuc} IS NOT NULL`),
   unique("artikli_id_enota_unique").on(t.id, t.enotaId),
   check(
     "artikli_skupinski_nabavni_artikel_check",

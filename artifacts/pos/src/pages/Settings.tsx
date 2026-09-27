@@ -48,6 +48,7 @@ import {
   getListEnoteQueryKey,
   getListBlagajneQueryKey,
   getListNapraveQueryKey,
+  getListArtikliQueryKey,
   customFetch,
   getAuthToken,
   getEnotaId,
@@ -59,6 +60,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SecretInput } from "@/components/SecretInput";
@@ -104,6 +106,190 @@ import {
 } from "@/lib/unitProfiles";
 import { parseSettingsNavigation, type SettingsTab } from "@/lib/settings-navigation";
 import { resolveVisibleSettingsTab } from "@/lib/settings-tab-visibility";
+
+type DrobniInventarPredloga = {
+  kljuc: string;
+  ime: string;
+  opis?: string;
+  razlog?: string;
+};
+
+type DrobniInventarSkupina = {
+  naziv: string;
+  artikli: DrobniInventarPredloga[];
+};
+
+function razcleniDrobniInventarKatalog(vrednost: unknown): {
+  skupine: DrobniInventarSkupina[];
+  osPredlogi: DrobniInventarPredloga[];
+} {
+  if (!vrednost || typeof vrednost !== "object") {
+    throw new Error("Strežnik je vrnil neveljaven katalog drobnega inventarja.");
+  }
+  const telo = vrednost as Record<string, unknown>;
+  if (!Array.isArray(telo.skupine) || !Array.isArray(telo.osPredlogi)) {
+    throw new Error("Strežnik je vrnil nepopoln katalog drobnega inventarja.");
+  }
+  const validItem = (item: unknown): item is DrobniInventarPredloga =>
+    !!item && typeof item === "object"
+    && typeof (item as DrobniInventarPredloga).kljuc === "string"
+    && typeof (item as DrobniInventarPredloga).ime === "string";
+  if (!telo.skupine.every(group =>
+    !!group && typeof group === "object" && typeof group.naziv === "string"
+    && Array.isArray(group.artikli) && group.artikli.every(validItem),
+  ) || !telo.osPredlogi.every(validItem)) {
+    throw new Error("Strežnik je vrnil neveljavne predloge drobnega inventarja.");
+  }
+  return {
+    skupine: telo.skupine as DrobniInventarSkupina[],
+    osPredlogi: telo.osPredlogi as DrobniInventarPredloga[],
+  };
+}
+
+function DrobniInventarPredloge() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [potrdiUvoz, setPotrdiUvoz] = useState(false);
+  const [uvozam, setUvozam] = useState(false);
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const katalog = useQuery({
+    queryKey: ["drobni-inventar-predloge"],
+    queryFn: async () => {
+      const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`);
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+          ? body.error
+          : `Kataloga ni bilo mogoče naložiti (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+      return razcleniDrobniInventarKatalog(body);
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const aktivnaEnotaId = getEnotaId();
+
+  const uvoziPredloge = async () => {
+    setUvozam(true);
+    try {
+      const response = await posFetch(`${base}/api/artikli/drobni-inventar-predloge`, { method: "POST" });
+      const body = await response.json().catch(() => null) as { insertedCount?: number; skippedCount?: number; error?: string } | null;
+      if (!response.ok) throw new Error(body?.error || `Uvoz predlog ni uspel (HTTP ${response.status}).`);
+      if (typeof body?.insertedCount !== "number" || typeof body.skippedCount !== "number") {
+        throw new Error("Strežnik je vrnil neveljaven rezultat uvoza predlog.");
+      }
+      setPotrdiUvoz(false);
+      queryClient.invalidateQueries({ queryKey: getListArtikliQueryKey() });
+      toast({
+        title: "Predloge drobnega inventarja so uvožene",
+        description: `Dodano: ${body.insertedCount}; že prisotno/preskočeno: ${body.skippedCount}.`,
+      });
+    } catch (napaka) {
+      toast({
+        title: "Uvoz predlog ni uspel",
+        description: napaka instanceof Error ? napaka.message : "Poskusite znova.",
+        variant: "destructive",
+      });
+    } finally {
+      setUvozam(false);
+    }
+  };
+
+  return (
+    <Card data-testid="card-drobni-inventar-predloge">
+      <CardHeader>
+        <CardTitle>Drobni inventar – privzete predloge</CardTitle>
+        <CardDescription>
+          Katalog je razdeljen po skupinah. Uvoz se izvede samo v trenutno aktivno enoto
+          {aktivnaEnotaId ? ` (ID ${aktivnaEnotaId})` : ""}; za druge enote ga izvedite posebej.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Uvoz ustvari artikle drobnega inventarja, ne ustvari začetne zaloge in ne knjiži v glavno knjigo.
+          </p>
+          <Button
+            type="button"
+            data-testid="button-import-drobni-inventar"
+            onClick={() => setPotrdiUvoz(true)}
+            disabled={!aktivnaEnotaId || uvozam}
+            className="w-full sm:w-auto"
+          >
+            {uvozam ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uvažam…</> : "Uvozi v aktivno enoto"}
+          </Button>
+        </div>
+
+        {katalog.isLoading && <p role="status" className="text-sm text-muted-foreground">Nalagam katalog predlog…</p>}
+        {katalog.isError && (
+          <Alert variant="destructive" data-testid="status-drobni-inventar-katalog-error">
+            <AlertDescription>{katalog.error instanceof Error ? katalog.error.message : "Kataloga ni bilo mogoče naložiti."}</AlertDescription>
+          </Alert>
+        )}
+        {katalog.data && (
+          <div className="space-y-5">
+            {katalog.data.skupine.map((skupina, index) => (
+              <section key={`${skupina.naziv}-${index}`} aria-labelledby={`drobni-skupina-${index}`}>
+                <h3 id={`drobni-skupina-${index}`} className="mb-2 text-sm font-semibold">{skupina.naziv}</h3>
+                {skupina.artikli.length ? (
+                  <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {skupina.artikli.map((artikel, artikelIndex) => (
+                      <li
+                         key={artikel.kljuc ?? `${artikel.ime}-${artikelIndex}`}
+                        data-testid={`text-template-item-${index}-${artikelIndex}`}
+                        className="rounded-md border p-3 text-sm"
+                      >
+                         <span className="font-medium">{artikel.ime}</span>
+                        {artikel.opis && <p className="mt-1 text-xs text-muted-foreground">{artikel.opis}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-sm text-muted-foreground">V tej skupini ni predlog.</p>}
+              </section>
+            ))}
+            <section className="border-t pt-4" aria-labelledby="drobni-os-predloge">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h3 id="drobni-os-predloge" className="text-sm font-semibold">Predlogi za osnovna sredstva (OS)</h3>
+                <Badge variant="outline">Samo za branje – se ne uvažajo</Badge>
+              </div>
+               {katalog.data.osPredlogi.length ? (
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                   {katalog.data.osPredlogi.map((predloga, index) => (
+                     <li key={predloga.kljuc ?? `${predloga.ime}-${index}`} className="rounded-md border border-dashed p-3 text-sm">
+                       <span className="font-medium">{predloga.ime}</span>
+                       {predloga.razlog && <p className="mt-1 text-xs text-muted-foreground">{predloga.razlog}</p>}
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="text-sm text-muted-foreground">Ni predlogov za osnovna sredstva.</p>}
+            </section>
+          </div>
+        )}
+      </CardContent>
+      <AlertDialog open={potrdiUvoz} onOpenChange={setPotrdiUvoz}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Uvoz predlog v trenutno aktivno enoto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Predloge bomo dodali samo v aktivno enoto {aktivnaEnotaId ? `(ID ${aktivnaEnotaId})` : ""}.
+              Uvoz je idempotenten; obstoječi artikli bodo preskočeni. Začetna zaloga in knjižbe v glavno knjigo se ne ustvarijo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={uvozam}>Prekliči</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-confirm-import-drobni-inventar"
+              onClick={event => { event.preventDefault(); void uvoziPredloge(); }}
+              disabled={uvozam || !aktivnaEnotaId}
+            >
+              {uvozam ? "Uvažam…" : "Potrdi uvoz"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}
 
 interface UporabnikAdmin {
   id: number; username: string; ime: string | null; email: string | null; vloga: string; aktiven: boolean;
@@ -471,6 +657,7 @@ export default function Settings() {
   const [eIme, setEIme] = useState("");
   const [eOpis, setEOpis] = useState("");
   const [eAktiven, setEAktiven] = useState(true);
+  const [eVnesiPrivzetiDrobniInventar, setEVnesiPrivzetiDrobniInventar] = useState(false);
   const [eCostCenterId, setECostCenterId] = useState("");
   const [eProfile, setEProfile] = useState<HospitalityProfile>("restaurant");
   const [editEnotaOpen, setEditEnotaOpen] = useState(false);
@@ -518,8 +705,9 @@ export default function Settings() {
         serviceMode: defaults.serviceMode,
         capabilities: defaults.capabilities,
         isTemporary: defaults.temporary ?? false,
-      } });
-      setEIme(""); setEOpis(""); setEAktiven(true); setECostCenterId(""); setEProfile("restaurant");
+        vnesiPrivzetiDrobniInventar: eVnesiPrivzetiDrobniInventar,
+      } as any });
+      setEIme(""); setEOpis(""); setEAktiven(true); setECostCenterId(""); setEProfile("restaurant"); setEVnesiPrivzetiDrobniInventar(false);
       queryClient.invalidateQueries({ queryKey: getListEnoteQueryKey() });
       toast({ title: "Enota dodana" });
     } catch { toast({ title: "Napaka pri dodajanju enote", variant: "destructive" }); }
@@ -2693,6 +2881,22 @@ export default function Settings() {
                   </Select>
                   <p className="text-xs text-muted-foreground">Neobvezno. Če ga nastavite, se uporabi pri POS→ERP knjiženju.</p>
                 </div>
+                <div className="md:col-span-4 flex items-start gap-3 rounded-md border bg-background p-3">
+                  <Checkbox
+                    id="create-enota-default-drobni-inventar"
+                    data-testid="checkbox-create-enota-drobni-inventar"
+                    checked={eVnesiPrivzetiDrobniInventar}
+                    onCheckedChange={checked => setEVnesiPrivzetiDrobniInventar(checked === true)}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="create-enota-default-drobni-inventar" className="cursor-pointer">
+                      Dodaj privzete predloge drobnega inventarja
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Artikli se dodajo novi enoti. Ne ustvari se začetna zaloga in ne nastanejo knjižbe v glavno knjigo.
+                    </p>
+                  </div>
+                </div>
                 <Button type="submit" disabled={createEnota.isPending} className="md:col-span-4">
                   <PlusCircle className="w-4 h-4 mr-2" />Dodaj enoto
                 </Button>
@@ -2754,6 +2958,7 @@ export default function Settings() {
               </Table>
             </CardContent>
           </Card>
+          <DrobniInventarPredloge />
           {prijavljen?.vloga === "admin" && <TipPolicySettings />}
         </TabsContent>
         )}

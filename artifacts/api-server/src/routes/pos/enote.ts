@@ -21,6 +21,7 @@ import type { Request, Response } from "express";
 import { isValidIpNetwork, normalizeClientIp, normalizeIpNetworks } from "../../lib/ip-network";
 import { getRemovedCapabilities } from "../../lib/unitCapabilityPolicy";
 import { ensureKdsUnitConfiguration } from "../../lib/kds-unit-configuration";
+import { uvoziDrobniInventar } from "../../lib/drobni-inventar-catalog";
 
 const router: IRouter = Router();
 const QR_WIFI_SSID_MAX_LENGTH = 64;
@@ -227,6 +228,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     ime, opis, aktiven, zacetekDnevaUra, costCenterId,
     hospitalityProfile, serviceMode, capabilities, isTemporary, temporaryLocation, parentUnitId, activeFrom, activeTo,
     qrLatitude, qrLongitude, qrWifiNetworks, qrWifiSsid, qrWifiPassword,
+    vnesiPrivzetiDrobniInventar,
   } = req.body as {
     ime?: string;
     opis?: string;
@@ -246,8 +248,13 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     qrWifiNetworks?: unknown;
     qrWifiSsid?: unknown;
     qrWifiPassword?: unknown;
+    vnesiPrivzetiDrobniInventar?: boolean;
   };
   if (!ime) { res.status(400).json({ napaka: "Ime je obvezno" }); return; }
+  if (vnesiPrivzetiDrobniInventar !== undefined && typeof vnesiPrivzetiDrobniInventar !== "boolean") {
+    res.status(400).json({ napaka: "Nastavitev privzetega drobnega inventarja mora biti logična vrednost." });
+    return;
+  }
   const profileError = validateUnitProfile(hospitalityProfile, capabilities, serviceMode);
   if (profileError) { res.status(400).json({ napaka: profileError }); return; }
   const selectedProfile = (hospitalityProfile ?? "restaurant") as keyof typeof HOSPITALITY_PROFILE_DEFAULTS;
@@ -310,6 +317,9 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     activeTo: finalIsTemporary ? period.activeTo : null,
     }).returning();
     await ensureKdsUnitConfiguration(created.id, tx);
+    if (vnesiPrivzetiDrobniInventar === true) {
+      await uvoziDrobniInventar(tx, created.id);
+    }
     return [created];
   });
   res.status(201).json({ ...row, studentskiBonAktiven: false });

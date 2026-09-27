@@ -4559,6 +4559,75 @@ export interface EnotaInput {
   activeTo?: string | null;
 }
 
+export type CreateEnotaInput = EnotaInput & {
+  /** Ob ustvarjanju enote doda glave predlogov drobnega inventarja; ne ustvari zalog ali knjižb. */
+  vnesiPrivzetiDrobniInventar?: boolean;
+};
+
+export type DrobniInventarArticleTemplateSkupinaId = typeof DrobniInventarArticleTemplateSkupinaId[keyof typeof DrobniInventarArticleTemplateSkupinaId];
+
+
+export const DrobniInventarArticleTemplateSkupinaId = {
+  NUMBER_01: '01',
+  NUMBER_02: '02',
+  NUMBER_03: '03',
+  NUMBER_04: '04',
+  NUMBER_05: '05',
+  NUMBER_06: '06',
+  NUMBER_07: '07',
+} as const;
+
+export interface DrobniInventarArticleTemplate {
+  kljuc: string;
+  ime: string;
+  opis?: string;
+  skupinaId: DrobniInventarArticleTemplateSkupinaId;
+  skupina: string;
+}
+
+export type DrobniInventarSkupinaId = typeof DrobniInventarSkupinaId[keyof typeof DrobniInventarSkupinaId];
+
+
+export const DrobniInventarSkupinaId = {
+  NUMBER_01: '01',
+  NUMBER_02: '02',
+  NUMBER_03: '03',
+  NUMBER_04: '04',
+  NUMBER_05: '05',
+  NUMBER_06: '06',
+  NUMBER_07: '07',
+} as const;
+
+export type DrobniInventarSkupinaArtikliItem = {
+  kljuc: string;
+  ime: string;
+  opis?: string;
+};
+
+export interface DrobniInventarSkupina {
+  id: DrobniInventarSkupinaId;
+  naziv: string;
+  artikli: DrobniInventarSkupinaArtikliItem[];
+}
+
+export interface OsPredlog {
+  kljuc: string;
+  ime: string;
+  razlog: string;
+}
+
+export interface DrobniInventarPredlogeResponse {
+  skupine: DrobniInventarSkupina[];
+  osPredlogi: OsPredlog[];
+}
+
+export interface DrobniInventarImportResult {
+  /** @minimum 0 */
+  insertedCount: number;
+  /** @minimum 0 */
+  skippedCount: number;
+}
+
 export interface EnotaPreklopTelo {
   enotaId: number;
 }

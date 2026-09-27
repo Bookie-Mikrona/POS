@@ -20,9 +20,11 @@ import {
   companiesTable,
   costCentersTable,
   enoteTable,
+  artikliTable,
 } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import enoteRouter from "./enote";
+import { vsiDrobniInventarPredlogi } from "../../lib/drobni-inventar-catalog";
 
 const RUN_ID = Math.random().toString(36).slice(2, 8).toUpperCase();
 
@@ -109,7 +111,7 @@ describe("POST /enote — costCenterId", () => {
     const app = buildApp(companyId);
     const res = await supertest(app)
       .post("/")
-      .send({ ime: `Enota brez STM ${RUN_ID}`, aktiven: true });
+      .send({ ime: `Enota brez STM ${RUN_ID}`, aktiven: true, vnesiPrivzetiDrobniInventar: false });
     expect(res.status).toBe(201);
     expect(res.body.costCenterId).toBeNull();
     const [stored] = await db
@@ -117,7 +119,41 @@ describe("POST /enote — costCenterId", () => {
       .from(enoteTable)
       .where(eq(enoteTable.id, res.body.id));
     expect(stored?.costCenterId).toBeNull();
+    expect(await db.select({ id: artikliTable.id }).from(artikliTable)
+      .where(eq(artikliTable.enotaId, res.body.id))).toHaveLength(0);
     createdEnotaIds.push(res.body.id);
+  });
+
+  it("ustvari predloge drobnega inventarja samo ob izrecni izbiri in brez OS/zalog", async () => {
+    const response = await supertest(buildApp(companyId))
+      .post("/")
+      .send({
+        ime: `Enota s privzetim inventarjem ${RUN_ID}`,
+        aktiven: true,
+        vnesiPrivzetiDrobniInventar: true,
+      });
+    expect(response.status).toBe(201);
+    createdEnotaIds.push(response.body.id);
+    const rows = await db.select().from(artikliTable)
+      .where(eq(artikliTable.enotaId, response.body.id));
+    expect(rows).toHaveLength(vsiDrobniInventarPredlogi().length);
+    expect(rows.every((article) =>
+      article.nabavniArtikel
+      && !article.prodajniArtikel
+      && article.vrstaArtikla === "material"
+      && article.drobniInventar
+      && Number(article.cena) === 0
+      && Number(article.davek) === 0
+      && article.enotaMere === "kos",
+    )).toBe(true);
+    expect(rows.some((article) => article.ime.includes("POS terminal") || article.ime.includes("mize –"))).toBe(false);
+  });
+
+  it("zavrne ne-logično vnesiPrivzetiDrobniInventar", async () => {
+    const response = await supertest(buildApp(companyId))
+      .post("/")
+      .send({ ime: `Neveljavno ${RUN_ID}`, aktiven: true, vnesiPrivzetiDrobniInventar: "true" });
+    expect(response.status).toBe(400);
   });
 });
 

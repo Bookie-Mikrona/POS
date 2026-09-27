@@ -405,6 +405,16 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["228-polizdelki-brez-racunovodske-vrste.sql"],
   },
+  {
+    file: "230-pos-small-equipment-no-valuation.sql",
+    classification: "schema",
+    dependsOn: ["229-pos-nested-modifier-source.sql"],
+  },
+  {
+    file: "231-pos-drobni-inventar-predloge.sql",
+    classification: "schema",
+    dependsOn: ["230-pos-small-equipment-no-valuation.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

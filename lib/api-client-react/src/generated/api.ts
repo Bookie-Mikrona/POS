@@ -59,6 +59,7 @@ import type {
   CreateCompanyBody,
   CreateCounterpartyBody,
   CreateDimensionBody,
+  CreateEnotaInput,
   CreateGlasovniSinonim400,
   CreateInvoiceBody,
   CreateJournalEntryBody,
@@ -98,6 +99,8 @@ import type {
   DostavniKurirAktivnostInput,
   DostavniKurirInput,
   DownloadPlateWasteExportParams,
+  DrobniInventarImportResult,
+  DrobniInventarPredlogeResponse,
   EmailRacunaOdgovor,
   EmbalazaBilanca,
   EmbalazaOdpisRequest,
@@ -2955,6 +2958,154 @@ export const useCreateArtikel = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateArtikelMutationOptions(options));
+    }
+
+export const getGetDrobniInventarPredlogeUrl = () => {
+
+
+
+
+  return `/api/artikli/drobni-inventar-predloge`
+}
+
+/**
+ * @summary Prebere predloge drobnega inventarja in ločen seznam predlogov OS
+ */
+export const getDrobniInventarPredloge = async ( options?: RequestInit): Promise<DrobniInventarPredlogeResponse> => {
+
+  return customFetch<DrobniInventarPredlogeResponse>(getGetDrobniInventarPredlogeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDrobniInventarPredlogeQueryKey = () => {
+    return [
+    `/api/artikli/drobni-inventar-predloge`
+    ] as const;
+    }
+
+
+export const getGetDrobniInventarPredlogeQueryOptions = <TData = Awaited<ReturnType<typeof getDrobniInventarPredloge>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDrobniInventarPredloge>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDrobniInventarPredlogeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDrobniInventarPredloge>>> = ({ signal }) => getDrobniInventarPredloge({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDrobniInventarPredloge>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDrobniInventarPredlogeQueryResult = NonNullable<Awaited<ReturnType<typeof getDrobniInventarPredloge>>>
+export type GetDrobniInventarPredlogeQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Prebere predloge drobnega inventarja in ločen seznam predlogov OS
+ */
+
+export function useGetDrobniInventarPredloge<TData = Awaited<ReturnType<typeof getDrobniInventarPredloge>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDrobniInventarPredloge>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDrobniInventarPredlogeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportDrobniInventarPredlogeUrl = () => {
+
+
+
+
+  return `/api/artikli/drobni-inventar-predloge`
+}
+
+/**
+ * @summary Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+ */
+export const importDrobniInventarPredloge = async ( options?: RequestInit): Promise<DrobniInventarImportResult> => {
+
+  return customFetch<DrobniInventarImportResult>(getImportDrobniInventarPredlogeUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportDrobniInventarPredlogeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,void, TContext> => {
+
+const mutationKey = ['importDrobniInventarPredloge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, void> = () => {
+
+
+          return  importDrobniInventarPredloge(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportDrobniInventarPredlogeMutationResult = NonNullable<Awaited<ReturnType<typeof importDrobniInventarPredloge>>>
+
+    export type ImportDrobniInventarPredlogeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+ */
+export const useImportDrobniInventarPredloge = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDrobniInventarPredloge>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importDrobniInventarPredloge>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getImportDrobniInventarPredlogeMutationOptions(options));
     }
 
 export const getUvozArtiklovCsvUrl = (params?: UvozArtiklovCsvParams,) => {
@@ -15916,14 +16067,14 @@ export const getCreateEnotaUrl = () => {
 /**
  * @summary Ustvari poslovno enoto
  */
-export const createEnota = async (enotaInput: EnotaInput, options?: RequestInit): Promise<Enota> => {
+export const createEnota = async (createEnotaInput: CreateEnotaInput, options?: RequestInit): Promise<Enota> => {
 
   return customFetch<Enota>(getCreateEnotaUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(enotaInput)
+    body: JSON.stringify(createEnotaInput)
   }
 );}
 
@@ -15932,8 +16083,8 @@ export const createEnota = async (enotaInput: EnotaInput, options?: RequestInit)
 
 
 export const getCreateEnotaMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnota>>, TError,{data: BodyType<EnotaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createEnota>>, TError,{data: BodyType<EnotaInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnota>>, TError,{data: BodyType<CreateEnotaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEnota>>, TError,{data: BodyType<CreateEnotaInput>}, TContext> => {
 
 const mutationKey = ['createEnota'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -15945,7 +16096,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEnota>>, {data: BodyType<EnotaInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEnota>>, {data: BodyType<CreateEnotaInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createEnota(data,requestOptions)
@@ -15959,18 +16110,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateEnotaMutationResult = NonNullable<Awaited<ReturnType<typeof createEnota>>>
-    export type CreateEnotaMutationBody = BodyType<EnotaInput>
+    export type CreateEnotaMutationBody = BodyType<CreateEnotaInput>
     export type CreateEnotaMutationError = ErrorType<unknown>
 
     /**
  * @summary Ustvari poslovno enoto
  */
 export const useCreateEnota = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnota>>, TError,{data: BodyType<EnotaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnota>>, TError,{data: BodyType<CreateEnotaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createEnota>>,
         TError,
-        {data: BodyType<EnotaInput>},
+        {data: BodyType<CreateEnotaInput>},
         TContext
       > => {
       return useMutation(getCreateEnotaMutationOptions(options));

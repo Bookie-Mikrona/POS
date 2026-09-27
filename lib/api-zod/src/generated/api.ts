@@ -1084,6 +1084,42 @@ export const CreateArtikelResponse = zod.object({
 
 
 /**
+ * @summary Prebere predloge drobnega inventarja in ločen seznam predlogov OS
+ */
+export const GetDrobniInventarPredlogeResponse = zod.object({
+  "skupine": zod.array(zod.object({
+  "id": zod.enum(['01', '02', '03', '04', '05', '06', '07']),
+  "naziv": zod.string(),
+  "artikli": zod.array(zod.object({
+  "kljuc": zod.string(),
+  "ime": zod.string(),
+  "opis": zod.string().optional()
+}))
+})),
+  "osPredlogi": zod.array(zod.object({
+  "kljuc": zod.string(),
+  "ime": zod.string(),
+  "razlog": zod.string()
+}))
+})
+
+
+/**
+ * @summary Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+ */
+export const importDrobniInventarPredlogeResponseInsertedCountMin = 0;
+
+export const importDrobniInventarPredlogeResponseSkippedCountMin = 0;
+
+
+
+export const ImportDrobniInventarPredlogeResponse = zod.object({
+  "insertedCount": zod.number().min(importDrobniInventarPredlogeResponseInsertedCountMin),
+  "skippedCount": zod.number().min(importDrobniInventarPredlogeResponseSkippedCountMin)
+})
+
+
+/**
  * @summary Uvoz artiklov iz CSV datoteke
  */
 export const uvozArtiklovCsvQueryDryRunDefault = true;
@@ -8575,19 +8611,19 @@ export const ListEnoteResponse = zod.array(ListEnoteResponseItem)
 /**
  * @summary Ustvari poslovno enoto
  */
-export const createEnotaBodyQrLatitudeMin = -90;
-export const createEnotaBodyQrLatitudeMax = 90;
+export const createEnotaBodyOneQrLatitudeMin = -90;
+export const createEnotaBodyOneQrLatitudeMax = 90;
 
-export const createEnotaBodyQrLongitudeMin = -180;
-export const createEnotaBodyQrLongitudeMax = 180;
+export const createEnotaBodyOneQrLongitudeMin = -180;
+export const createEnotaBodyOneQrLongitudeMax = 180;
 
-export const createEnotaBodyQrWifiNetworksMax = 20;
+export const createEnotaBodyOneQrWifiNetworksMax = 20;
 
-export const createEnotaBodyQrWifiSsidMax = 64;
+export const createEnotaBodyOneQrWifiSsidMax = 64;
 
-export const createEnotaBodyQrWifiPasswordMax = 128;
+export const createEnotaBodyOneQrWifiPasswordMax = 128;
 
-
+export const createEnotaBodyTwoVnesiPrivzetiDrobniInventarDefault = false;
 
 export const CreateEnotaBody = zod.object({
   "ime": zod.string(),
@@ -8595,11 +8631,11 @@ export const CreateEnotaBody = zod.object({
   "aktiven": zod.boolean(),
   "zacetekDnevaUra": zod.string().optional().describe('Ura začetka poslovnega dne v formatu HH:MM (npr. \"04:00\")'),
   "costCenterId": zod.string().nullish().describe('STM (stroškovno mesto) za POS→ERP knjiženje (cost_centers.id)'),
-  "qrLatitude": zod.number().min(createEnotaBodyQrLatitudeMin).max(createEnotaBodyQrLatitudeMax).nullish(),
-  "qrLongitude": zod.number().min(createEnotaBodyQrLongitudeMin).max(createEnotaBodyQrLongitudeMax).nullish(),
-  "qrWifiNetworks": zod.array(zod.string()).max(createEnotaBodyQrWifiNetworksMax).optional().describe('Dovoljeni javni IP-ji ali CIDR-obsegi lokalnega Wi-Fi-ja (npr. 203.0.113.10 ali 2001:db8:1234::\/48).'),
-  "qrWifiSsid": zod.string().max(createEnotaBodyQrWifiSsidMax).nullish().describe('Ime gostujočega Wi-Fi omrežja (AP\/SSID), izpisano na QR PDF-ju.'),
-  "qrWifiPassword": zod.string().max(createEnotaBodyQrWifiPasswordMax).nullish().describe('Geslo gostujočega Wi-Fi omrežja, izpisano na QR PDF-ju.'),
+  "qrLatitude": zod.number().min(createEnotaBodyOneQrLatitudeMin).max(createEnotaBodyOneQrLatitudeMax).nullish(),
+  "qrLongitude": zod.number().min(createEnotaBodyOneQrLongitudeMin).max(createEnotaBodyOneQrLongitudeMax).nullish(),
+  "qrWifiNetworks": zod.array(zod.string()).max(createEnotaBodyOneQrWifiNetworksMax).optional().describe('Dovoljeni javni IP-ji ali CIDR-obsegi lokalnega Wi-Fi-ja (npr. 203.0.113.10 ali 2001:db8:1234::\/48).'),
+  "qrWifiSsid": zod.string().max(createEnotaBodyOneQrWifiSsidMax).nullish().describe('Ime gostujočega Wi-Fi omrežja (AP\/SSID), izpisano na QR PDF-ju.'),
+  "qrWifiPassword": zod.string().max(createEnotaBodyOneQrWifiPasswordMax).nullish().describe('Geslo gostujočega Wi-Fi omrežja, izpisano na QR PDF-ju.'),
   "studentskiBonAktiven": zod.boolean().optional().describe('Omogoči ali onemogoči študentski bon v tej poslovni enoti.'),
   "hospitalityProfile": zod.enum(['restaurant', 'inn', 'fine_dining', 'self_service', 'fast_food', 'bar', 'cafe_pastry', 'tourist_farm', 'festival_society', 'event_stall', 'catering_celebrations', 'food_truck', 'hotel_food_service']).optional(),
   "serviceMode": zod.enum(['table_service', 'counter', 'self_service', 'mobile_event', 'catering', 'mixed']).optional(),
@@ -8609,7 +8645,9 @@ export const CreateEnotaBody = zod.object({
   "parentUnitId": zod.number().nullish(),
   "activeFrom": zod.coerce.date().nullish(),
   "activeTo": zod.coerce.date().nullish()
-})
+}).and(zod.object({
+  "vnesiPrivzetiDrobniInventar": zod.boolean().default(createEnotaBodyTwoVnesiPrivzetiDrobniInventarDefault).describe('Ob ustvarjanju enote doda glave predlogov drobnega inventarja; ne ustvari zalog ali knjižb.')
+}))
 
 export const createEnotaResponseQrWifiNetworksMax = 20;
 

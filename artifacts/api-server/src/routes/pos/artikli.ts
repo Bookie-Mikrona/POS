@@ -35,6 +35,11 @@ import { normalizeDrainedYield } from "../../lib/drained-yield";
 import { slovenianCollated } from "../../lib/slovenian-collation";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
 import {
+  DROBNI_INVENTAR_KATALOG,
+  OS_PREDLOGI,
+  importirajDrobniInventar,
+} from "../../lib/drobni-inventar-catalog";
+import {
   assertPlausibleInitialServing,
   getInitialRecipeResearch,
   initialRecipeSearchSources,
@@ -59,6 +64,23 @@ type NormativeGraphLockTestContext = {
 let normativRevisionLockTestHook:
   ((context: NormativeGraphLockTestContext) => Promise<void>) | undefined;
 const NORMATIVE_GRAPH_LOCK_NAMESPACE = 1_315_924_557;
+
+router.get("/artikli/drobni-inventar-predloge", requireEnota, (req, res): void => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json({
+    skupine: DROBNI_INVENTAR_KATALOG,
+    osPredlogi: OS_PREDLOGI,
+  });
+});
+
+router.post("/artikli/drobni-inventar-predloge", requireEnota, async (req, res): Promise<void> => {
+  if (!["admin", "admin_enote", "superadmin"].includes((req as any).vloga)) {
+    res.status(403).json({ error: "Uvoz predlog drobnega inventarja zahteva vlogo admin ali admin_enote." });
+    return;
+  }
+  const result = await importirajDrobniInventar(db, (req as any).enotaId);
+  res.json(result);
+});
 
 export function setNormativRevisionLockTestHook(
   hook?: (context: NormativeGraphLockTestContext) => Promise<void>,

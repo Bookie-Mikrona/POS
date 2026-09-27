@@ -535,6 +535,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Artikel"
+  /artikli/drobni-inventar-predloge:
+    get:
+      operationId: getDrobniInventarPredloge
+      tags: [artikli]
+      summary: Prebere predloge drobnega inventarja in ločen seznam predlogov OS
+      responses:
+        "200":
+          description: Katalog po skupinah in ločeni predlogi osnovnih sredstev
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrobniInventarPredlogeResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      operationId: importDrobniInventarPredloge
+      tags: [artikli]
+      summary: Idempotentno uvozi predloge drobnega inventarja v aktivno enoto
+      responses:
+        "200":
+          description: Število novo dodanih in preskočenih predlog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrobniInventarImportResult"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /artikli/uvozi-csv:
     post:
       operationId: uvozArtiklovCsv
@@ -4359,7 +4387,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/EnotaInput"
+                $ref: "#/components/schemas/CreateEnotaInput"
       responses:
         "201":
           description: Created
@@ -14293,6 +14321,62 @@ components:
         parentUnitId: { type: [integer, "null"] }
         activeFrom: { type: [string, "null"], format: date-time }
         activeTo: { type: [string, "null"], format: date-time }
+    CreateEnotaInput:
+      allOf:
+        - $ref: "#/components/schemas/EnotaInput"
+        - type: object
+          properties:
+            vnesiPrivzetiDrobniInventar:
+              type: boolean
+              default: false
+              description: Ob ustvarjanju enote doda glave predlogov drobnega inventarja; ne ustvari zalog ali knjižb.
+    DrobniInventarArticleTemplate:
+      type: object
+      required: [kljuc, ime, skupinaId, skupina]
+      properties:
+        kljuc: { type: string }
+        ime: { type: string }
+        opis: { type: string }
+        skupinaId: { type: string, enum: ["01", "02", "03", "04", "05", "06", "07"] }
+        skupina: { type: string }
+    DrobniInventarSkupina:
+      type: object
+      required: [id, naziv, artikli]
+      properties:
+        id: { type: string, enum: ["01", "02", "03", "04", "05", "06", "07"] }
+        naziv: { type: string }
+        artikli:
+          type: array
+          items:
+            type: object
+            required: [kljuc, ime]
+            properties:
+              kljuc: { type: string }
+              ime: { type: string }
+              opis: { type: string }
+    OsPredlog:
+      type: object
+      required: [kljuc, ime, razlog]
+      properties:
+        kljuc: { type: string }
+        ime: { type: string }
+        razlog: { type: string }
+    DrobniInventarPredlogeResponse:
+      type: object
+      required: [skupine, osPredlogi]
+      properties:
+        skupine:
+          type: array
+          items: { $ref: "#/components/schemas/DrobniInventarSkupina" }
+        osPredlogi:
+          type: array
+          items: { $ref: "#/components/schemas/OsPredlog" }
+    DrobniInventarImportResult:
+      type: object
+      required: [insertedCount, skippedCount]
+      properties:
+        insertedCount: { type: integer, minimum: 0 }
+        skippedCount: { type: integer, minimum: 0 }
     EnotaPreklopTelo:
       type: object
       required:
