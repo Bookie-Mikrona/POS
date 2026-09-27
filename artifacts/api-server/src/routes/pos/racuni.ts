@@ -197,8 +197,7 @@ async function buildZalogaMovementPlan(
           .from(artikliTable).where(eq(artikliTable.id, normativ.vhodniArtikelId));
         add(normativ.vhodniArtikelId, porabaZaVelikostPice(
           Number(normativ.kolicina) * Number(postavka.kolicina),
-          faktorNormativaModifikatorja(postavka.normativFaktor, normativ.cenaDodatek)
-            * Number(postavka.izvorniNormativFaktor ?? 1),
+          faktorNormativaModifikatorja(postavka.normativFaktor, normativ.cenaDodatek),
           input?.enotaMere ?? null,
         ));
       }
@@ -2491,11 +2490,7 @@ router.post("/racuni", async (req, res): Promise<void> => {
         const [vhodniArtikel] = await tx.select({ enotaMere: artikliTable.enotaMere })
           .from(artikliTable).where(eq(artikliTable.id, mn.vhodniArtikelId));
         const faktor = faktorNormativaModifikatorja(postavka.normativFaktor, mn.cenaDodatek);
-        const porabljeno = porabaZaVelikostPice(
-          Number(mn.kolicina) * postavka.kolicina,
-          faktor * Number(postavka.izvorniNormativFaktor ?? 1),
-          vhodniArtikel?.enotaMere ?? null,
-        );
+        const porabljeno = porabaZaVelikostPice(Number(mn.kolicina) * postavka.kolicina, faktor, vhodniArtikel?.enotaMere ?? null);
         await tx.insert(zalogaGibiTable).values({
           artikelId: mn.vhodniArtikelId,
           tip: "poraba",

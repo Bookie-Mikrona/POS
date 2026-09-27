@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { AddPostavkaBody } from "@workspace/api-zod";
 import {
   loadPreparedFoodAvailability,
   resolvePreparedFoodAvailability,
   resolveModifierPortions,
-  buildModifierAvailabilityRequests,
   type AvailabilityArticle,
   type AvailabilityNorm,
 } from "./prepared-food-availability";
@@ -27,46 +25,6 @@ function calculate(norms: AvailabilityNorm[], frozen = new Map([[1, 40], [2, 20]
 }
 
 describe("resolvePreparedFoodAvailability", () => {
-  it("validates one-level per-norm modifier choices in the generated request contract", () => {
-    expect(AddPostavkaBody.safeParse({
-      artikelId: 1,
-      kolicina: 1,
-      izbranModifikatorji: [{
-        modifikatorId: 10,
-        ime: "Dodatek",
-        cenaDodatek: 0.5,
-        podIzbire: [{ normativId: 77, modifikatorji: [20, 21] }],
-      }],
-    }).success).toBe(true);
-    expect(AddPostavkaBody.safeParse({
-      artikelId: 1,
-      kolicina: 1,
-      izbranModifikatorji: [{
-        modifikatorId: 10,
-        ime: "Dodatek",
-        cenaDodatek: 0.5,
-        podIzbire: [{ normativId: 77, modifikatorji: ["not-an-id"] }],
-      }],
-    }).success).toBe(false);
-  });
-
-  it("counts each nested modifier once at its source normative quantity", () => {
-    const snapshot = new Map([
-      [901, [{ articleId: 1, quantity: 2, mealType: "prepared" as const }]],
-    ]);
-    // The same modifier can be selected against distinct parent norm rows;
-    // each child row contributes at its own captured source quantity.
-    const requests = [
-      ...buildModifierAvailabilityRequests(snapshot, [901], 2 * 0.25),
-      ...buildModifierAvailabilityRequests(snapshot, [901], 2 * 0.75),
-    ];
-    expect(requests).toEqual([
-      { articleId: 1, quantity: 1 },
-      { articleId: 1, quantity: 3 },
-    ]);
-    expect(requests.reduce((total, request) => total + request.quantity, 0)).toBe(4);
-  });
-
   it("prikaže porcije za modifikator s pripravljeno jedjo tudi ob à la carte osnovnem artiklu", () => {
     const state = resolvePreparedFoodAvailability({
       articles,

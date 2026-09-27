@@ -400,11 +400,6 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["227-pos-source-price-semantics.sql"],
   },
-  {
-    file: "229-pos-nested-modifier-selections.sql",
-    classification: "schema",
-    dependsOn: ["228-polizdelki-brez-racunovodske-vrste.sql"],
-  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

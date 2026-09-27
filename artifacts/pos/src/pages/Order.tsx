@@ -110,27 +110,6 @@ type VelikostPice = "mala" | "normalna" | "druzinska";
 
 const ORDER_MENU_STALE_TIME = 60_000;
 
-type NestedInputArticle = {
-  normativId: number;
-  artikelId: number;
-  ime: string;
-  kolicina: number;
-  modSkupine: ModSkupinaFull[];
-};
-
-type NestedModifier = {
-  id: number;
-  vhodniArtikli?: NestedInputArticle[];
-};
-
-function nestedInputArticles(modifier: unknown): NestedInputArticle[] {
-  return ((modifier as NestedModifier | undefined)?.vhodniArtikli ?? []);
-}
-
-function nestedSelectionKey(modifierId: number, normativId: number, occurrence: number): string {
-  return `${modifierId}:${normativId}:${occurrence}`;
-}
-
 function IkonaVelikostiPice({ velikost }: { velikost: VelikostPice }) {
   const meta: Record<VelikostPice, { naziv: string; razred: string; barva: string }> = {
     mala: { naziv: "Mala pica", razred: "h-4 w-4", barva: "bg-sky-100 text-sky-700" },
@@ -994,15 +973,12 @@ export default function Order() {
   // Modifikatorji dialog: prikaže se pred dodajanjem artikla z obveznimi skupinami
   const [modDialogArtikelId, setModDialogArtikelId] = useState<number | null>(null);
   const [modDialogIzbrani, setModDialogIzbrani] = useState<{ skupinaId: number; modifikatorId: number }[]>([]);
-  const [modDialogPodIzbire, setModDialogPodIzbire] = useState<Record<string, number[]>>({});
   const [modDialogKolicina, setModDialogKolicina] = useState(1);
   const [modDialogOpomba, setModDialogOpomba] = useState<string | null>(null);
   const [modDialogVelikostPice, setModDialogVelikostPice] = useState<"mala" | "normalna" | "druzinska" | undefined>();
   // Opcije dialog: naknadni dostop do izbirnih skupin obstoječe postavke
   const [opcijePostavkaId, setOpcijePostavkaId] = useState<number | null>(null);
   const [opcijeIzbrani, setOpcijeIzbrani] = useState<{ skupinaId: number; modifikatorId: number }[]>([]);
-  const [opcijePodIzbire, setOpcijePodIzbire] = useState<Record<string, number[]>>({});
-  const [opcijePodIzbireManjkajo, setOpcijePodIzbireManjkajo] = useState<number[]>([]);
   const [mikrofon, setMikrofon] = useState<{ postavkaId: number; stanje: "poslusam" | "napaka" } | null>(null);
   const [aiObdeluje, setAiObdeluje] = useState(false);
   // Ločeno od hook-ovega poslusam: ostane true skozi celotno glasovno sejo (vključno z
@@ -1953,16 +1929,10 @@ export default function Order() {
            && aktivneVelikostiPice.some((velikost) => velikost.id === p.velikostPice)
            ? p.velikostPice
            : privzetaVelikostPice;
-          const izbraniIds = p.modifikatorji ?? [];
 
-          const selectedHasNestedInputs = izbraniIds.some(modId =>
-            artModSkupine.some(sk => {
-              const mod = sk.modifikatorji.find(m => m.id === modId);
-              return nestedInputArticles(mod).length > 0;
-            }),
-          );
-          if (artModSkupine.length > 0 || (jePica && aktivneVelikostiPice.length > 1)) {
+         if (artModSkupine.length > 0 || (jePica && aktivneVelikostiPice.length > 1)) {
           // Sestavi payload iz AI izbranih modifikatorjev
+          const izbraniIds = p.modifikatorji ?? [];
           const modPayload: { modifikatorId: number; ime: string; cenaDodatek: number }[] = [];
           for (const modId of izbraniIds) {
             for (const sk of artModSkupine) {
@@ -1974,7 +1944,7 @@ export default function Order() {
           const obveznePokriti = artModSkupine.filter(s => s.obvezna).every(s =>
             modPayload.some(mp => s.modifikatorji.some(m => m.id === mp.modifikatorId))
           );
-          if (!obveznePokriti || selectedHasNestedInputs) {
+          if (!obveznePokriti) {
             // Odpri dialog z AI predizbranimi modifikatorji
             const privzetiSelected = modPayload.flatMap(mp => {
               for (const sk of artModSkupine) {
@@ -1984,7 +1954,6 @@ export default function Order() {
             });
             setModDialogArtikelId(p.artikelId);
             setModDialogIzbrani(privzetiSelected);
-            setModDialogPodIzbire({});
              setModDialogVelikostPice(aiVelikostPice ?? null);
             setModDialogKolicina(p.kolicina);
             setModDialogOpomba(p.opomba ?? null);
@@ -2227,7 +2196,6 @@ export default function Order() {
         return [];
       });
       setModDialogIzbrani(privzetiSelected);
-      setModDialogPodIzbire({});
       setModDialogKolicina(kolicina);
       setModDialogOpomba(opomba ?? null);
       setModDialogVelikostPice(privzetaVelikostPice);
@@ -2288,7 +2256,6 @@ export default function Order() {
       : [...privzetiSelected, { skupinaId, modifikatorId }];
     setModDialogArtikelId(artikelId);
     setModDialogIzbrani(iskaničeNi);
-    setModDialogPodIzbire({});
     setModDialogKolicina(kolicina);
     setModDialogOpomba(opomba ?? null);
     setModDialogVelikostPice(artInfo?.jePica ? privzetaVelikostPice : undefined);
@@ -2296,13 +2263,10 @@ export default function Order() {
     const skupina = artModSkupine.find(s => s.id === skupinaId);
     const vskeObvezne = artModSkupine.filter(s => s.obvezna);
     const vseIzpolnjene = vskeObvezne.every(s => iskaničeNi.some(sel => sel.skupinaId === s.id));
-    const izbraniMod = skupina?.modifikatorji.find(mod => mod.id === modifikatorId);
-    if (artModSkupine.length === 1 && !skupina?.obvezna && vseIzpolnjene
-      && nestedInputArticles(izbraniMod).length === 0) {
+    if (artModSkupine.length === 1 && !skupina?.obvezna && vseIzpolnjene) {
       // Ena neobvezna skupina — direktno dodaj brez dialoga
       setModDialogArtikelId(null);
       setModDialogIzbrani([]);
-      setModDialogPodIzbire({});
       setModDialogKolicina(1);
       setModDialogOpomba(null);
       if (pendingArtikli.has(artikelId)) return;
@@ -3128,7 +3092,6 @@ export default function Order() {
               {(() => {
                 const dodMapOrder = new Map<number, typeof filtiranePostavke[0][]>();
                 const modChildMapOrder = new Map<number, typeof filtiranePostavke[0][]>();
-                const allOrderRows = narocilo?.postavke ?? [];
                 for (const p of filtiranePostavke) {
                   const pid = (p as typeof p & { parentPostavkaId?: number | null }).parentPostavkaId;
                   if (pid != null) {
@@ -3150,22 +3113,6 @@ export default function Order() {
                 return topPostavkeOrder.map((postavka, idx) => {
                 const artRaw = artikliMapForOrder.get(postavka.artikelId) as { jePica?: boolean; modSkupine?: ModSkupinaFull[] } | undefined;
                 const artIzbirneOrder = (artRaw?.modSkupine ?? []).filter(s => !s.obvezna);
-                const rootModChildren = modChildMapOrder.get(postavka.id) ?? [];
-                const rootModifierRowIds = new Set(rootModChildren.map(row => row.id));
-                const nestedModChildren = allOrderRows.filter(row => {
-                  const nested = row as typeof row & {
-                    parentPostavkaId?: number | null;
-                    izvorniModifikatorId?: number | null;
-                    izvorniNormativId?: number | null;
-                  };
-                  return (nested.parentPostavkaId === postavka.id
-                    || (nested.parentPostavkaId != null && rootModifierRowIds.has(nested.parentPostavkaId)))
-                    && nested.izvorniModifikatorId != null
-                    && nested.izvorniNormativId != null;
-                });
-                const shownRootModChildren = rootModChildren.filter(row =>
-                  (row as typeof row & { izvorniModifikatorId?: number | null }).izvorniModifikatorId == null,
-                );
                 const dodat = dodMapOrder.get(postavka.id) ?? [];
                 const jeVecHodniMeni = postavka.isMulticourseBundle === true;
                 const hasDiscount =
@@ -3397,45 +3344,15 @@ export default function Order() {
                       </div>
                     ))}
                     {/* Modifikatorji (read-only) */}
-                    {shownRootModChildren.map(mc => {
-                      const parentModifierId = (mc as typeof mc & { modifikatorId?: number | null }).modifikatorId;
-                      const nestedModifier = parentModifierId == null
-                        ? undefined
-                        : artIzbirneOrder.flatMap(group => group.modifikatorji).find(option => option.id === parentModifierId);
-                      const nestedRows = nestedModChildren.filter(row =>
-                        (row as typeof row & { izvorniModifikatorId?: number | null }).izvorniModifikatorId === parentModifierId,
-                      );
-                      return (
-                        <div key={mc.id}>
-                          <div className="flex items-center gap-1 pl-7 py-0.5">
-                            <Settings2 className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                            <span className="flex-1 text-[10px] leading-snug text-muted-foreground">{mc.ime}</span>
-                            {mc.skupaj > 0 && (
-                              <span className="text-[10px] tabular-nums text-muted-foreground">+{mc.skupaj.toFixed(2)} €</span>
-                            )}
-                          </div>
-                          {nestedRows.map((nestedRow, nestedIndex) => {
-                            const sourceNormativId = (nestedRow as typeof nestedRow & { izvorniNormativId?: number | null }).izvorniNormativId;
-                            const inputArticle = nestedInputArticles(nestedModifier)
-                              .find(input => input.normativId === sourceNormativId);
-                            return (
-                              <div
-                                key={`${nestedRow.id}-${nestedIndex}`}
-                                data-testid={`nested-order-row-${nestedRow.id}`}
-                                className="flex items-center gap-1 pl-12 py-0.5"
-                              >
-                                <span className="flex-1 text-[10px] leading-snug text-muted-foreground">
-                                  {inputArticle ? `${inputArticle.ime}: ` : ""}{nestedRow.ime}
-                                </span>
-                                {nestedRow.skupaj > 0 && (
-                                  <span className="text-[10px] tabular-nums text-muted-foreground">+{nestedRow.skupaj.toFixed(2)} €</span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
+                    {(modChildMapOrder.get(postavka.id) ?? []).map(mc => (
+                      <div key={mc.id} className="flex items-center gap-1 pl-7 py-0.5">
+                        <Settings2 className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <span className="flex-1 text-[10px] leading-snug text-muted-foreground">{mc.ime}</span>
+                        {mc.skupaj > 0 && (
+                          <span className="text-[10px] tabular-nums text-muted-foreground">+{mc.skupaj.toFixed(2)} €</span>
+                        )}
+                      </div>
+                    ))}
                     {artIzbirneOrder.length > 0 && !jeRacunana && !jeVecHodniMeni && (
                       <div className="flex gap-1.5 pl-5 mt-0.5 mb-0.5">
                         {artIzbirneOrder.length > 0 && (
@@ -3446,7 +3363,6 @@ export default function Order() {
                               const childRows = (narocilo?.postavke ?? []).filter(
                                 p => (p as typeof p & { parentPostavkaId?: number | null }).parentPostavkaId === postavka.id
                                   && (p as typeof p & { modifikatorId?: number | null }).modifikatorId != null
-                                  && (p as typeof p & { izvorniModifikatorId?: number | null }).izvorniModifikatorId == null
                               );
                               const preloaded: { skupinaId: number; modifikatorId: number }[] = [];
                               for (const cr of childRows) {
@@ -3458,58 +3374,8 @@ export default function Order() {
                                   }
                                 }
                               }
-                              const nestedPreload: Record<string, number[]> = {};
-                              const nestedMetadataMissing: number[] = [];
-                              const postavkaNestedMetadata = postavka as typeof postavka & {
-                                podIzbire?: { modifikatorId?: number; normativId: number; modifikatorji?: number[] }[];
-                                izbranModifikatorji?: {
-                                  modifikatorId: number;
-                                  podIzbire?: { normativId: number; modifikatorji?: number[] }[];
-                                }[];
-                              };
-                              const parentMetadata = [
-                                ...(postavkaNestedMetadata.podIzbire ?? []),
-                                ...(postavkaNestedMetadata.izbranModifikatorji ?? []).flatMap(selected =>
-                                  (selected.podIzbire ?? []).map(nested => ({
-                                    ...nested,
-                                    modifikatorId: selected.modifikatorId,
-                                  })),
-                                ),
-                              ];
-                              for (const selected of preloaded) {
-                                const modifier = artIzbirneOrder.flatMap(group => group.modifikatorji)
-                                  .find(option => option.id === selected.modifikatorId);
-                                const inputs = nestedInputArticles(modifier);
-                                if (inputs.length === 0) continue;
-                                const modifierChild = childRows.find(child =>
-                                  (child as typeof child & { modifikatorId?: number | null }).modifikatorId === selected.modifikatorId,
-                                ) as (typeof postavka & {
-                                  podIzbire?: { normativId: number; modifikatorji?: number[] }[];
-                                }) | undefined;
-                                const nestedMeta = [
-                                  ...parentMetadata.filter(entry => entry.modifikatorId === selected.modifikatorId),
-                                  ...(modifierChild?.podIzbire ?? []),
-                                ];
-                                const usedMetadata = new Set<number>();
-                                let complete = nestedMeta.length > 0;
-                                inputs.forEach((input, occurrence) => {
-                                  const metadataIndex = nestedMeta.findIndex((entry, index) =>
-                                    !usedMetadata.has(index) && entry.normativId === input.normativId,
-                                  );
-                                  if (metadataIndex < 0) {
-                                    complete = false;
-                                    return;
-                                  }
-                                  usedMetadata.add(metadataIndex);
-                                  const selectedIds = nestedMeta[metadataIndex]?.modifikatorji ?? [];
-                                  nestedPreload[nestedSelectionKey(selected.modifikatorId, input.normativId, occurrence)] = selectedIds;
-                                });
-                                if (!complete) nestedMetadataMissing.push(selected.modifikatorId);
-                              }
                               setOpcijePostavkaId(postavka.id);
                               setOpcijeIzbrani(preloaded);
-                              setOpcijePodIzbire(nestedPreload);
-                              setOpcijePodIzbireManjkajo(nestedMetadataMissing);
                             }}
                           >
                             <Settings2 className="h-3 w-3" />Opcije
@@ -3839,10 +3705,6 @@ export default function Order() {
             modifikatorji: sk.modifikatorji.filter(m => danesMeniModIds.has(m.id)),
           })).filter(sk => sk.modifikatorji.length > 0)
         : artRawSkupine;
-      const modZaId = (modifikatorId: number) => artSkupine
-        .flatMap(skupina => skupina.modifikatorji)
-        .find(modifikator => modifikator.id === modifikatorId);
-      const nestedArticlesForModifier = (modifikatorId: number) => nestedInputArticles(modZaId(modifikatorId));
       const artIme = modDialogArtikelId !== null
         ? String((artikliMapForOrder.get(modDialogArtikelId) as { ime?: string } | undefined)?.ime ?? "Artikel")
         : "Artikel";
@@ -3929,21 +3791,10 @@ export default function Order() {
           ?.mods.map(mod => `${mod.skupinaId}:${mod.id}`) ?? [],
       );
 
-      const isPotrdiDisabled = jeIzbranaVelikostPiceRazprodana || artSkupine.some(s => {
+      const isPotrdiDisabled = jeIzbranaVelikostPiceRazprodana || artSkupine.filter(s => s.obvezna).some(s => {
         const selected = modDialogIzbrani.filter(m => m.skupinaId === s.id).length;
-        return ((s.obvezna || s.minIzbir > 0) && selected < Math.max(s.obvezna ? 1 : 0, s.minIzbir))
-          || (s.maxIzbir > 0 && selected > s.maxIzbir);
-      }) || modDialogIzbrani.some(parent => nestedArticlesForModifier(parent.modifikatorId).some((input, occurrence) =>
-        input.modSkupine.some(group => {
-          const key = nestedSelectionKey(parent.modifikatorId, input.normativId, occurrence);
-          const selected = (modDialogPodIzbire[key] ?? []).filter(modId =>
-            group.modifikatorji.some(mod => mod.id === modId),
-          ).length;
-          return ((group.obvezna || group.minIzbir > 0)
-            && selected < Math.max(group.obvezna ? 1 : 0, group.minIzbir))
-            || (group.maxIzbir > 0 && selected > group.maxIzbir);
-        }),
-      ));
+        return selected < Math.max(1, s.minIzbir);
+      });
 
       const skupajDoplačilo = modDialogIzbrani.reduce((sum, m) => {
         for (const sk of artSkupine) {
@@ -3952,109 +3803,27 @@ export default function Order() {
         }
         return sum;
       }, 0);
-      const skupajPodIzbire = modDialogIzbrani.reduce((sum, parent) =>
-        sum + nestedArticlesForModifier(parent.modifikatorId).reduce((inputSum, input, occurrence) => {
-          const key = nestedSelectionKey(parent.modifikatorId, input.normativId, occurrence);
-          const selectedIds = modDialogPodIzbire[key] ?? [];
-          const selectedPrice = input.modSkupine.reduce((groupSum, group) =>
-            groupSum + group.modifikatorji
-              .filter(mod => selectedIds.includes(mod.id))
-              .reduce((modsSum, mod) => modsSum + Number(mod.cenaDodatek), 0),
-          0);
-          return inputSum + selectedPrice * Number(input.kolicina || 0);
-        }, 0),
-      0);
 
       function toggleMod(skupinaId: number, modifikatorId: number, maxIzbir: number, samoEnRazrez = false) {
-        const prev = modDialogIzbrani;
-        const isSelected = prev.some(m => m.skupinaId === skupinaId && m.modifikatorId === modifikatorId);
-        let next: typeof prev;
-        if (samoEnRazrez) {
-          const brezRazreza = prev.filter(
-            izbira => !razrezIzbire.has(`${izbira.skupinaId}:${izbira.modifikatorId}`),
-          );
-          next = isSelected ? brezRazreza : [...brezRazreza, { skupinaId, modifikatorId }];
-        } else if (maxIzbir === 1) {
-          const filtered = prev.filter(m => m.skupinaId !== skupinaId);
-          next = isSelected ? filtered : [...filtered, { skupinaId, modifikatorId }];
-        } else if (isSelected) {
-          next = prev.filter(m => !(m.skupinaId === skupinaId && m.modifikatorId === modifikatorId));
-        } else {
-          const currentCount = prev.filter(m => m.skupinaId === skupinaId).length;
-          if (maxIzbir > 0 && currentCount >= maxIzbir) return;
-          next = [...prev, { skupinaId, modifikatorId }];
-        }
-        setModDialogIzbrani(next);
-        const nextParentIds = new Set(next.map(selection => selection.modifikatorId));
-        setModDialogPodIzbire(current => Object.fromEntries(
-          Object.entries(current).filter(([key]) => nextParentIds.has(Number(key.split(":")[0]))),
-        ));
-      }
-
-      function toggleNestedMod(key: string, group: ModSkupinaFull, modifikatorId: number) {
-        setModDialogPodIzbire(prev => {
-          const current = prev[key] ?? [];
-          const groupOptionIds = new Set(group.modifikatorji.map(option => option.id));
-          const selectedInGroup = current.filter(id => groupOptionIds.has(id));
-          const isSelected = selectedInGroup.includes(modifikatorId);
-          if (isSelected) return { ...prev, [key]: current.filter(id => id !== modifikatorId) };
-          if (group.maxIzbir === 1) {
-            return { ...prev, [key]: [...current.filter(id => !groupOptionIds.has(id)), modifikatorId] };
+        setModDialogIzbrani(prev => {
+          const isSelected = prev.some(m => m.skupinaId === skupinaId && m.modifikatorId === modifikatorId);
+          if (samoEnRazrez) {
+            const brezRazreza = prev.filter(
+              izbira => !razrezIzbire.has(`${izbira.skupinaId}:${izbira.modifikatorId}`),
+            );
+            return isSelected ? brezRazreza : [...brezRazreza, { skupinaId, modifikatorId }];
           }
-          if (group.maxIzbir > 0 && selectedInGroup.length >= group.maxIzbir) return prev;
-          return { ...prev, [key]: [...current, modifikatorId] };
+          if (maxIzbir === 1) {
+            const filtered = prev.filter(m => m.skupinaId !== skupinaId);
+            return isSelected ? filtered : [...filtered, { skupinaId, modifikatorId }];
+          }
+          if (isSelected) {
+            return prev.filter(m => !(m.skupinaId === skupinaId && m.modifikatorId === modifikatorId));
+          }
+          const currentCount = prev.filter(m => m.skupinaId === skupinaId).length;
+          if (maxIzbir > 0 && currentCount >= maxIzbir) return prev;
+          return [...prev, { skupinaId, modifikatorId }];
         });
-      }
-
-      function renderNestedOptions(modifikatorId: number) {
-        if (!modDialogIzbrani.some(selection => selection.modifikatorId === modifikatorId)) return null;
-        const inputs = nestedArticlesForModifier(modifikatorId);
-        if (inputs.length === 0) return null;
-        return (
-          <div className="ml-5 mt-2 space-y-2 border-l-2 border-primary/20 pl-3" data-testid={`nested-options-${modifikatorId}`}>
-            {inputs.map((input, occurrence) => {
-              const key = nestedSelectionKey(modifikatorId, input.normativId, occurrence);
-              return (
-                <div key={`${input.normativId}-${occurrence}`} className="rounded-md bg-muted/30 p-2">
-                  <p className="mb-1 text-xs font-medium">
-                    {input.ime}
-                    <span className="ml-1 text-muted-foreground">× {Number(input.kolicina)}</span>
-                  </p>
-                  {input.modSkupine.map(group => (
-                    <div key={group.id} className="mt-2 first:mt-0">
-                      <p className="mb-1 text-[11px] font-semibold text-muted-foreground">
-                        {group.ime}
-                        {(group.obvezna || group.minIzbir > 0) && <span className="ml-1 text-destructive">★</span>}
-                        {group.maxIzbir > 1 && <span className="ml-1 font-normal">(do {group.maxIzbir})</span>}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.modifikatorji.filter(option => option.aktiven).map(option => {
-                          const isSelected = (modDialogPodIzbire[key] ?? []).includes(option.id);
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              data-testid={`nested-option-${modifikatorId}-${input.normativId}-${occurrence}-${option.id}`}
-                              aria-pressed={isSelected}
-                              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30 hover:bg-muted"}`}
-                              onClick={() => toggleNestedMod(key, group, option.id)}
-                            >
-                              {isSelected && <Check className="mr-1 inline h-3 w-3" />}
-                              {option.ime}
-                              {Number(option.cenaDodatek) > 0 && (
-                                <span className="ml-1 tabular-nums opacity-80">+{Number(option.cenaDodatek).toFixed(2)} €</span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        );
       }
 
       function handlePotrdiModifikatorje() {
@@ -4069,25 +3838,11 @@ export default function Order() {
           : undefined;
         setPendingArtikli(prev => new Set(prev).add(artikelId));
         const settle = () => setPendingArtikli(prev => { const s = new Set(prev); s.delete(artikelId); return s; });
-        const modPayload: { modifikatorId: number; ime: string; cenaDodatek: number; podIzbire?: { normativId: number; modifikatorji: number[] }[] }[] = [];
+        const modPayload: { modifikatorId: number; ime: string; cenaDodatek: number }[] = [];
         for (const m of izbrani) {
           for (const sk of artSkupine) {
             const mod = sk.modifikatorji.find(mod2 => mod2.id === m.modifikatorId);
-            if (mod) {
-              const nestedArticles = nestedInputArticles(mod);
-              modPayload.push({
-                modifikatorId: mod.id,
-                ime: mod.ime,
-                cenaDodatek: Number(mod.cenaDodatek),
-                ...(nestedArticles.length > 0 ? {
-                  podIzbire: nestedArticles.map((input, occurrence) => ({
-                    normativId: input.normativId,
-                    modifikatorji: modDialogPodIzbire[nestedSelectionKey(mod.id, input.normativId, occurrence)] ?? [],
-                  })),
-                } : {}),
-              });
-              break;
-            }
+            if (mod) { modPayload.push({ modifikatorId: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek) }); break; }
           }
         }
         addPostavka.mutate(
@@ -4097,7 +3852,6 @@ export default function Order() {
             onSuccess: (updatedNarocilo) => {
               setModDialogArtikelId(null);
               setModDialogIzbrani([]);
-              setModDialogPodIzbire({});
               setModDialogKolicina(1);
               setModDialogOpomba(null);
               setModDialogVelikostPice(undefined);
@@ -4120,7 +3874,7 @@ export default function Order() {
       }
 
       return (
-        <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
+        <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); } }}>
           <DialogContent className="w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -4179,36 +3933,33 @@ export default function Order() {
                         const isSelected = modDialogIzbrani.some(m => m.skupinaId === mod.skupinaId && m.modifikatorId === mod.id);
                         const availablePortions = modifierAvailabilityById.get(mod.id);
                         return (
-                          <div key={mod.id} className="min-w-0">
-                            <button
-                              type="button"
-                              aria-pressed={isSelected}
-                              data-testid={`modifier-option-${mod.id}`}
-                              className={`flex min-h-10 min-w-0 w-full items-center justify-center gap-1 rounded-md border px-2 py-2 text-center text-sm leading-tight transition-colors ${
-                                isSelected
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "hover:bg-muted/60 border-muted-foreground/30"
-                              }`}
-                              onClick={() => toggleMod(
-                                mod.skupinaId,
-                                mod.id,
-                                mod.maxIzbir,
-                                grupa.naslov === "Razrez",
-                              )}
-                            >
-                              {isSelected && <Check className="h-3 w-3 shrink-0" />}
-                              <span className="min-w-0 break-words">{mod.ime}</span>
-                              {availablePortions !== undefined && (
-                                <span className="shrink-0 text-[10px] opacity-80">{availablePortions} porcij</span>
-                              )}
-                              {Number(mod.cenaDodatek) > 0 && (
-                                <span className={`shrink-0 tabular-nums text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                                  +{Number(mod.cenaDodatek).toFixed(2)} €
-                                </span>
-                              )}
-                            </button>
-                            {renderNestedOptions(mod.id)}
-                          </div>
+                          <button
+                            key={mod.id}
+                            type="button"
+                            aria-pressed={isSelected}
+                            className={`flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 py-2 text-center text-sm leading-tight transition-colors ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "hover:bg-muted/60 border-muted-foreground/30"
+                            }`}
+                            onClick={() => toggleMod(
+                              mod.skupinaId,
+                              mod.id,
+                              mod.maxIzbir,
+                              grupa.naslov === "Razrez",
+                            )}
+                          >
+                            {isSelected && <Check className="h-3 w-3 shrink-0" />}
+                            <span className="min-w-0 break-words">{mod.ime}</span>
+                            {availablePortions !== undefined && (
+                              <span className="shrink-0 text-[10px] opacity-80">{availablePortions} porcij</span>
+                            )}
+                            {Number(mod.cenaDodatek) > 0 && (
+                              <span className={`shrink-0 tabular-nums text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                                +{Number(mod.cenaDodatek).toFixed(2)} €
+                              </span>
+                            )}
+                          </button>
                         );
                       })}
                     </div>
@@ -4230,26 +3981,23 @@ export default function Order() {
                         const isSelected = modDialogIzbrani.some(m => m.skupinaId === skupina.id && m.modifikatorId === mod.id);
                         const availablePortions = modifierAvailabilityById.get(mod.id);
                         return (
-                          <div key={mod.id}>
-                            <button
-                              type="button"
-                              data-testid={`modifier-option-${mod.id}`}
-                              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border text-left transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-muted/50 border-transparent"}`}
-                              onClick={() => toggleMod(skupina.id, mod.id, skupina.maxIzbir)}
-                            >
-                              <div className={`w-4 h-4 shrink-0 flex items-center justify-center border-2 transition-colors ${isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"} ${skupina.maxIzbir === 1 ? "rounded-full" : "rounded"}`}>
-                                {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
-                              </div>
-                              <span className="flex-1 text-sm">{mod.ime}</span>
-                              {availablePortions !== undefined && (
-                                <span className="text-xs text-muted-foreground tabular-nums">{availablePortions} porcij</span>
-                              )}
-                              {Number(mod.cenaDodatek) > 0 && (
-                                <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
-                              )}
-                            </button>
-                            {renderNestedOptions(mod.id)}
-                          </div>
+                          <button
+                            key={mod.id}
+                            type="button"
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border text-left transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-muted/50 border-transparent"}`}
+                            onClick={() => toggleMod(skupina.id, mod.id, skupina.maxIzbir)}
+                          >
+                            <div className={`w-4 h-4 shrink-0 flex items-center justify-center border-2 transition-colors ${isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"} ${skupina.maxIzbir === 1 ? "rounded-full" : "rounded"}`}>
+                              {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+                            </div>
+                            <span className="flex-1 text-sm">{mod.ime}</span>
+                            {availablePortions !== undefined && (
+                              <span className="text-xs text-muted-foreground tabular-nums">{availablePortions} porcij</span>
+                            )}
+                            {Number(mod.cenaDodatek) > 0 && (
+                              <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
+                            )}
+                          </button>
                         );
                       })}
                     </div>
@@ -4257,14 +4005,14 @@ export default function Order() {
                 ))
               )}
             </div>
-            {skupajDoplačilo + skupajPodIzbire > 0 && (
+            {skupajDoplačilo > 0 && (
               <div className="border-t pt-2 flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">Skupaj</span>
-                <span className="font-bold tabular-nums">{(artCenaZaPrikaz + skupajDoplačilo + skupajPodIzbire).toFixed(2)} €</span>
+                <span className="font-bold tabular-nums">{(artCenaZaPrikaz + skupajDoplačilo).toFixed(2)} €</span>
               </div>
             )}
             <div className="flex gap-2 pt-2 border-t">
-              <Button variant="outline" className="flex-1" onClick={() => { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); }}>Prekliči</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { setModDialogArtikelId(null); setModDialogIzbrani([]); }}>Prekliči</Button>
               <Button className="flex-1" disabled={isPotrdiDisabled || addPostavka.isPending} onClick={handlePotrdiModifikatorje}>
                 Potrdi
               </Button>
@@ -4444,45 +4192,20 @@ export default function Order() {
         ? ((artikliMapForOrder.get(opcijeArtikelId) as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? []).filter(s => !s.obvezna)
         : [];
       const opcijeArtIme = opcijePostavka?.ime ?? "Artikel";
-      const opcijeModZaId = (modifikatorId: number) => opcijeArtSkupine
-        .flatMap(group => group.modifikatorji)
-        .find(modifier => modifier.id === modifikatorId);
-      const opcijeNestedArticles = (modifikatorId: number) => nestedInputArticles(opcijeModZaId(modifikatorId));
 
       function toggleOpcije(skupinaId: number, modifikatorId: number, maxIzbir: number) {
-        const prev = opcijeIzbrani;
-        const isSelected = prev.some(m => m.skupinaId === skupinaId && m.modifikatorId === modifikatorId);
-        let next: typeof prev;
-        if (maxIzbir === 1) {
-          const filtered = prev.filter(m => m.skupinaId !== skupinaId);
-          next = isSelected ? filtered : [...filtered, { skupinaId, modifikatorId }];
-        } else if (isSelected) {
-          next = prev.filter(m => !(m.skupinaId === skupinaId && m.modifikatorId === modifikatorId));
-        } else {
+        setOpcijeIzbrani(prev => {
+          const isSelected = prev.some(m => m.skupinaId === skupinaId && m.modifikatorId === modifikatorId);
+          if (maxIzbir === 1) {
+            const filtered = prev.filter(m => m.skupinaId !== skupinaId);
+            return isSelected ? filtered : [...filtered, { skupinaId, modifikatorId }];
+          }
+          if (isSelected) {
+            return prev.filter(m => !(m.skupinaId === skupinaId && m.modifikatorId === modifikatorId));
+          }
           const currentCount = prev.filter(m => m.skupinaId === skupinaId).length;
-          if (maxIzbir > 0 && currentCount >= maxIzbir) return;
-          next = [...prev, { skupinaId, modifikatorId }];
-        }
-        setOpcijeIzbrani(next);
-        const selectedIds = new Set(next.map(selection => selection.modifikatorId));
-        setOpcijePodIzbire(current => Object.fromEntries(
-          Object.entries(current).filter(([key]) => selectedIds.has(Number(key.split(":")[0]))),
-        ));
-      }
-
-      function toggleOpcijeNested(key: string, group: ModSkupinaFull, modifikatorId: number) {
-        setOpcijePodIzbire(prev => {
-          const current = prev[key] ?? [];
-          const groupOptionIds = new Set(group.modifikatorji.map(option => option.id));
-          const selectedInGroup = current.filter(id => groupOptionIds.has(id));
-          if (selectedInGroup.includes(modifikatorId)) {
-            return { ...prev, [key]: current.filter(id => id !== modifikatorId) };
-          }
-          if (group.maxIzbir === 1) {
-            return { ...prev, [key]: [...current.filter(id => !groupOptionIds.has(id)), modifikatorId] };
-          }
-          if (group.maxIzbir > 0 && selectedInGroup.length >= group.maxIzbir) return prev;
-          return { ...prev, [key]: [...current, modifikatorId] };
+          if (maxIzbir > 0 && currentCount >= maxIzbir) return prev;
+          return [...prev, { skupinaId, modifikatorId }];
         });
       }
 
@@ -4490,40 +4213,25 @@ export default function Order() {
         if (opcijePostavkaId === null) return;
         const stavkaId = opcijePostavkaId;
         const izbrani = [...opcijeIzbrani];
-        if (opcijePodIzbireManjkajo.some(modId => izbrani.some(selection => selection.modifikatorId === modId))) return;
         // Include all optional skupinaIds so server can clear groups with empty selection
         const skupineScope = opcijeArtSkupine.map(s => s.id);
-        const selectedPayload = izbrani.map(selection => {
-          const nested = opcijeNestedArticles(selection.modifikatorId);
-          return {
-            modifikatorId: selection.modifikatorId,
-            ...(nested.length > 0 ? {
-              podIzbire: nested.map((input, occurrence) => ({
-                normativId: input.normativId,
-                modifikatorji: opcijePodIzbire[nestedSelectionKey(selection.modifikatorId, input.normativId, occurrence)] ?? [],
-              })),
-            } : {}),
-          };
-        });
+        setOpcijePostavkaId(null);
+        setOpcijeIzbrani([]);
         addModifikatorji.mutate(
           {
             id,
             postavkaId: stavkaId,
             data: {
-              modifikatorji: selectedPayload,
+              modifikatorji: izbrani.map(m => ({ modifikatorId: m.modifikatorId })),
               skupineIds: skupineScope,
-            } as any,
+            },
           },
           {
             onSuccess: (updatedNarocilo) => {
               queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
               queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
-              setOpcijePostavkaId(null);
-              setOpcijeIzbrani([]);
-              setOpcijePodIzbire({});
-              setOpcijePodIzbireManjkajo([]);
             },
-            onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče shraniti možnosti. Izbori so ostali odprti, poskusi znova.", variant: "destructive" }),
+            onError: () => toast({ title: "Napaka", description: "Ni bilo mogoče shraniti možnosti", variant: "destructive" }),
           }
         );
       }
@@ -4535,31 +4243,9 @@ export default function Order() {
         }
         return sum;
       }, 0);
-      const skupajPodIzbireOpcije = opcijeIzbrani.reduce((sum, selection) =>
-        sum + opcijeNestedArticles(selection.modifikatorId).reduce((inputSum, input, occurrence) => {
-          const ids = opcijePodIzbire[nestedSelectionKey(selection.modifikatorId, input.normativId, occurrence)] ?? [];
-          const price = input.modSkupine.reduce((groupSum, group) =>
-            groupSum + group.modifikatorji
-              .filter(mod => ids.includes(mod.id))
-              .reduce((modsSum, mod) => modsSum + Number(mod.cenaDodatek), 0),
-          0);
-          return inputSum + price * Number(input.kolicina || 0);
-        }, 0),
-      0);
-      const opcijeNestedNapaka = opcijeIzbrani.some(selection =>
-        opcijeNestedArticles(selection.modifikatorId).some((input, occurrence) =>
-          input.modSkupine.some(group => {
-            const key = nestedSelectionKey(selection.modifikatorId, input.normativId, occurrence);
-            const count = (opcijePodIzbire[key] ?? []).filter(id => group.modifikatorji.some(mod => mod.id === id)).length;
-            return ((group.obvezna || group.minIzbir > 0)
-              && count < Math.max(group.obvezna ? 1 : 0, group.minIzbir))
-              || (group.maxIzbir > 0 && count > group.maxIzbir);
-          }),
-        ),
-      );
 
       return (
-        <Dialog open={opcijePostavkaId !== null} onOpenChange={(open) => { if (!open) { setOpcijePostavkaId(null); setOpcijeIzbrani([]); setOpcijePodIzbire({}); setOpcijePodIzbireManjkajo([]); } }}>
+        <Dialog open={opcijePostavkaId !== null} onOpenChange={(open) => { if (!open) { setOpcijePostavkaId(null); setOpcijeIzbrani([]); } }}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -4569,11 +4255,6 @@ export default function Order() {
               <DialogDescription>Dodaj izbirne možnosti k tej postavki.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 max-h-72 overflow-y-auto">
-              {opcijePodIzbireManjkajo.some(modId => opcijeIzbrani.some(selection => selection.modifikatorId === modId)) && (
-                <p role="alert" data-testid="nested-edit-metadata-warning" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-                  Strežnik za to postavko ni vrnil shranjenih podizbir. Možnosti ni mogoče varno shraniti, ker bi se lahko izgubile že izbrane podmožnosti. Osvežite naročilo ali izberite drugo postavko.
-                </p>
-              )}
               {opcijeArtSkupine.length === 0 && (
                 <p className="py-4 text-center text-sm text-muted-foreground">Ni izbirnih možnosti za ta artikel.</p>
               )}
@@ -4589,77 +4270,37 @@ export default function Order() {
                     {skupina.modifikatorji.filter(m => m.aktiven).map(mod => {
                       const isSelected = opcijeIzbrani.some(m => m.skupinaId === skupina.id && m.modifikatorId === mod.id);
                       return (
-                        <div key={mod.id}>
-                          <button
-                            type="button"
-                            data-testid={`optional-modifier-option-${mod.id}`}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border text-left transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-muted/50 border-transparent"}`}
-                            onClick={() => toggleOpcije(skupina.id, mod.id, skupina.maxIzbir)}
-                          >
-                            <div className={`w-4 h-4 shrink-0 flex items-center justify-center border-2 transition-colors ${isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"} ${skupina.maxIzbir === 1 ? "rounded-full" : "rounded"}`}>
-                              {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
-                            </div>
-                            <span className="flex-1 text-sm">{mod.ime}</span>
-                            {Number(mod.cenaDodatek) > 0 && (
-                              <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
-                            )}
-                          </button>
-                          {isSelected && opcijeNestedArticles(mod.id).map((input, occurrence) => {
-                            const key = nestedSelectionKey(mod.id, input.normativId, occurrence);
-                            return (
-                              <div key={`${input.normativId}-${occurrence}`} className="ml-5 mt-2 space-y-2 border-l-2 border-primary/20 pl-3" data-testid={`optional-nested-options-${mod.id}-${occurrence}`}>
-                                <p className="text-xs font-medium">
-                                  {input.ime}<span className="ml-1 text-muted-foreground">× {Number(input.kolicina)}</span>
-                                </p>
-                                {input.modSkupine.map(group => (
-                                  <div key={group.id}>
-                                    <p className="mb-1 text-[11px] font-semibold text-muted-foreground">
-                                      {group.ime}
-                                      {(group.obvezna || group.minIzbir > 0) && <span className="ml-1 text-destructive">★</span>}
-                                      {group.maxIzbir > 1 && <span className="ml-1 font-normal">(do {group.maxIzbir})</span>}
-                                    </p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {group.modifikatorji.filter(option => option.aktiven).map(option => {
-                                        const selectedNested = (opcijePodIzbire[key] ?? []).includes(option.id);
-                                        return (
-                                          <button
-                                            key={option.id}
-                                            type="button"
-                                            data-testid={`optional-nested-option-${mod.id}-${input.normativId}-${occurrence}-${option.id}`}
-                                            aria-pressed={selectedNested}
-                                            className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${selectedNested ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30 hover:bg-muted"}`}
-                                            onClick={() => toggleOpcijeNested(key, group, option.id)}
-                                          >
-                                            {selectedNested && <Check className="mr-1 inline h-3 w-3" />}
-                                            {option.ime}
-                                            {Number(option.cenaDodatek) > 0 && <span className="ml-1 tabular-nums opacity-80">+{Number(option.cenaDodatek).toFixed(2)} €</span>}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <button
+                          key={mod.id}
+                          type="button"
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border text-left transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-muted/50 border-transparent"}`}
+                          onClick={() => toggleOpcije(skupina.id, mod.id, skupina.maxIzbir)}
+                        >
+                          <div className={`w-4 h-4 shrink-0 flex items-center justify-center border-2 transition-colors ${isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"} ${skupina.maxIzbir === 1 ? "rounded-full" : "rounded"}`}>
+                            {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+                          </div>
+                          <span className="flex-1 text-sm">{mod.ime}</span>
+                          {Number(mod.cenaDodatek) > 0 && (
+                            <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
+                          )}
+                        </button>
                       );
                     })}
                   </div>
                 </div>
               ))}
             </div>
-            {skupajDoplačiloOpcije + skupajPodIzbireOpcije > 0 && (
+            {skupajDoplačiloOpcije > 0 && (
               <div className="border-t pt-2 flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">Doplačilo</span>
-                <span className="font-bold tabular-nums">+{(skupajDoplačiloOpcije + skupajPodIzbireOpcije).toFixed(2)} €</span>
+                <span className="font-bold tabular-nums">+{skupajDoplačiloOpcije.toFixed(2)} €</span>
               </div>
             )}
             <div className="flex gap-2 pt-2 border-t">
-              <Button variant="outline" className="flex-1" onClick={() => { setOpcijePostavkaId(null); setOpcijeIzbrani([]); setOpcijePodIzbire({}); setOpcijePodIzbireManjkajo([]); }}>Prekliči</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { setOpcijePostavkaId(null); setOpcijeIzbrani([]); }}>Prekliči</Button>
               <Button
                 className="flex-1"
-                disabled={addModifikatorji.isPending || opcijeNestedNapaka || opcijePodIzbireManjkajo.some(modId => opcijeIzbrani.some(selection => selection.modifikatorId === modId))}
+                disabled={addModifikatorji.isPending}
                 onClick={handlePotrdiOpcije}
               >
                 Potrdi ({opcijeIzbrani.length})

@@ -84,12 +84,6 @@ export const postavkeTable = pgTable("postavke", {
    */
   kategorijaId: integer("kategorija_id"),
   modifikatorId: integer("modifikator_id"),
-  /** Nested modifier selection records which parent modifier/norm row offered it. */
-  izvorniModifikatorId: integer("izvorni_modifikator_id"),
-  izvorniNormativId: integer("izvorni_normativ_id"),
-  izvorniNormativFaktor: numeric("izvorni_normativ_faktor", { precision: 12, scale: 6 }),
-  /** Immutable submitted nested modifier ids keyed by the source modifier norm row. */
-  podIzbire: jsonb("pod_izbire").$type<Array<{ normativId: number; modifikatorji: number[] }>>(),
   ime: text("ime").notNull(),
   kolicina: integer("kolicina").notNull().default(1),
   cenaKos: numeric("cena_kos", { precision: 10, scale: 2 }).notNull(),

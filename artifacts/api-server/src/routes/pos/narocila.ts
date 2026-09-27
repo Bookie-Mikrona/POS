@@ -4,8 +4,8 @@ export function assertNoClaimedMalicaAllocations(claims: readonly unknown[]): vo
   if (claims.length > 0) throw new Error("MALICA_ALLOCATION_CLAIMED");
 }
 import { aliasedTable, and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modNormativiTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
-import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse, AddPostavkaBody, AddPostavkaModifikatorjiBody } from "@workspace/api-zod";
+import { artModSkupineTable, artikliTable, db, dostavaStatusZgodovinaTable, enoteTable, kategorijeTable, kdsDogodkiTable, kdsIzdajaDogodkiTable, kdsNalogiTable, mizeTable, modSkupineTable, modifikatorjiTable, multicourseMenuCoursesTable, multicourseMenusTable, narocnikNasloviTable, narocnikiTable, narocilaTable, naseljaTable, nastavitveTable, normativiTable, postavkeTable, prenosiNarocilTable, prostoriTable, racuniTable, rezervacijeMizTable, shranjeniKupciTable, zacetneZalogeTable } from "@workspace/db";
+import { AddMulticourseMenuBody, AddMulticourseMenuParams, AddMulticourseMenuResponse } from "@workspace/api-zod";
 import { broadcastToDevice, broadcastToUnit } from "../../lib/pos-sse";
 import { round2 } from "../../lib/pos-furs";
 import { splitMulticourseGross } from "../../lib/multicourse-pricing";
@@ -236,9 +236,6 @@ async function fetchPostavke(narociloId: number) {
       gostStevilka: postavkeTable.gostStevilka,
       parentPostavkaId: postavkeTable.parentPostavkaId,
       modifikatorId: postavkeTable.modifikatorId,
-      izvorniModifikatorId: postavkeTable.izvorniModifikatorId,
-      izvorniNormativId: postavkeTable.izvorniNormativId,
-      podIzbire: postavkeTable.podIzbire,
       velikostPice: postavkeTable.velikostPice,
       toGo: postavkeTable.toGo,
       jeDelMenija: postavkeTable.jeDelMenija,
@@ -285,11 +282,6 @@ async function fetchPostavke(narociloId: number) {
     gostStevilka: p.gostStevilka ?? null,
     parentPostavkaId: p.parentPostavkaId ?? null,
     modifikatorId: p.modifikatorId ?? null,
-    izvorniModifikatorId: p.izvorniModifikatorId ?? null,
-    izvorniNormativId: p.izvorniNormativId ?? null,
-    ...(p.modifikatorId != null && p.izvorniNormativId == null && p.podIzbire != null
-      ? { podIzbire: p.podIzbire }
-      : {}),
     velikostPice: p.velikostPice ?? null,
     toGo: p.toGo ?? false,
     jeDelMenija: p.jeDelMenija ?? false,
@@ -2289,8 +2281,8 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = { success: true as const, data: { id: Number(rawId) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
-  const parsed = AddPostavkaBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const parsed = { success: true, data: req.body };
+  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
   const [artikel] = await db.select().from(artikliTable)
     .where(and(eq(artikliTable.id, parsed.data.artikelId), sql`true`, eq(artikliTable.enotaId, tenotaId)));
@@ -2462,19 +2454,8 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   }
 
   // Pre-transaction: validate modifier selections and resolve authoritative DB values
-  const izbranModifikatorjiRaw = (parsed.data as { izbranModifikatorji?: Array<{
-    modifikatorId: number;
-    podIzbire?: Array<{ normativId: number; modifikatorji: number[] }>;
-  }> }).izbranModifikatorji ?? [];
-  type NestedResolvedMod = { parentModId: number; normativId: number; normativKolicina: number; id: number; ime: string; cenaDodatek: number };
-  type ResolvedMod = {
-    skupinaId: number;
-    id: number;
-    ime: string;
-    cenaDodatek: number;
-    nested: NestedResolvedMod[];
-    podIzbire: Array<{ normativId: number; modifikatorji: number[] }>;
-  };
+  const izbranModifikatorjiRaw = (parsed.data as { izbranModifikatorji?: Array<{ modifikatorId: number }> }).izbranModifikatorji ?? [];
+  type ResolvedMod = { skupinaId: number; id: number; ime: string; cenaDodatek: number };
   let resolvedMods: ResolvedMod[] = [];
 
   if (!parentPostavkaId) {
@@ -2517,134 +2498,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           res.status(400).json({ napaka: `Modifikator ${req.modifikatorId} ni veljaven, ni aktiven ali ne pripada temu artiklu` });
           return;
         }
-        resolvedMods.push({
-          skupinaId: mod.skupinaId,
-          id: mod.id,
-          ime: mod.ime,
-          cenaDodatek: Number(mod.cenaDodatek),
-          nested: [],
-          podIzbire: [],
-        });
-      }
-      if (new Set(resolvedMods.map((modifier) => modifier.id)).size !== resolvedMods.length) {
-        res.status(400).json({ error: "Podvojeni modifikatorji v zahtevku." });
-        return;
-      }
-
-      const allPodIzbire = izbranModifikatorjiRaw.flatMap((selected) =>
-        (selected.podIzbire ?? []).map((choice) => ({ parentModId: selected.modifikatorId, ...choice })),
-      );
-      if (new Set(allPodIzbire.map((choice) => `${choice.parentModId}:${choice.normativId}`)).size !== allPodIzbire.length) {
-        res.status(400).json({ error: "Podvojeni normativi v podizbirah modifikatorjev." });
-        return;
-      }
-      const outerModIds = resolvedMods.map((modifier) => modifier.id);
-      const parentNormRows = outerModIds.length > 0
-        ? await db.select({
-          id: modNormativiTable.id,
-          modifikatorId: modNormativiTable.modifikatorId,
-          artikelId: modNormativiTable.vhodniArtikelId,
-          kolicina: modNormativiTable.kolicina,
-        }).from(modNormativiTable)
-          .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-          .where(and(inArray(modNormativiTable.modifikatorId, outerModIds), eq(artikliTable.enotaId, tenotaId)))
-        : [];
-      const normById = new Map(parentNormRows.map((norm) => [norm.id, norm]));
-      const selectedNestedIds = allPodIzbire.flatMap((choice) => choice.modifikatorji);
-      const nestedChoiceKeys = allPodIzbire.flatMap((choice) => choice.modifikatorji.map((id) => `${choice.normativId}:${id}`));
-      if (new Set(nestedChoiceKeys).size !== nestedChoiceKeys.length) {
-        res.status(400).json({ error: "Podvojeni modifikatorji v podizbirah." });
-        return;
-      }
-      const nestedGroupRows = parentNormRows.length > 0
-        ? await db.select({
-          normativId: modNormativiTable.id,
-          skupinaId: modSkupineTable.id,
-          ime: modSkupineTable.ime,
-          obvezna: modSkupineTable.obvezna,
-          minIzbir: modSkupineTable.minIzbir,
-          maxIzbir: modSkupineTable.maxIzbir,
-        }).from(modNormativiTable)
-          .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, modNormativiTable.vhodniArtikelId))
-          .innerJoin(modSkupineTable, eq(modSkupineTable.id, artModSkupineTable.skupinaId))
-          .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-          .where(and(
-            inArray(modNormativiTable.id, parentNormRows.map((norm) => norm.id)),
-            eq(modSkupineTable.enotaId, tenotaId),
-            eq(artikliTable.enotaId, tenotaId),
-          ))
-        : [];
-      const groupsByNorm = new Map<number, typeof nestedGroupRows>();
-      for (const group of nestedGroupRows) groupsByNorm.set(group.normativId, [...(groupsByNorm.get(group.normativId) ?? []), group]);
-      for (const choice of allPodIzbire) {
-        const norm = normById.get(choice.normativId);
-        if (!norm || norm.modifikatorId !== choice.parentModId) {
-          res.status(400).json({ error: `Normativ ${choice.normativId} ne pripada izbranemu modifikatorju ali tej poslovni enoti.` });
-          return;
-        }
-      }
-      const nestedGroups = nestedGroupRows.map((row) => row.skupinaId);
-      const nestedOptions = nestedGroups.length > 0
-        ? await db.select().from(modifikatorjiTable)
-          .where(and(inArray(modifikatorjiTable.skupinaId, [...new Set(nestedGroups)]), eq(modifikatorjiTable.aktiven, true)))
-        : [];
-      const nestedOptionMap = new Map(nestedOptions.map((option) => [option.id, option]));
-      if (selectedNestedIds.length > 0) {
-        const deeperNorms = await db.select({ modifierId: modNormativiTable.modifikatorId })
-          .from(modNormativiTable)
-          .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-          .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, artikliTable.id))
-          .innerJoin(modSkupineTable, eq(modSkupineTable.id, artModSkupineTable.skupinaId))
-          .where(and(
-            inArray(modNormativiTable.modifikatorId, selectedNestedIds),
-            eq(artikliTable.enotaId, tenotaId),
-            eq(modSkupineTable.enotaId, tenotaId),
-          ));
-        if (deeperNorms.length > 0) {
-          res.status(400).json({ error: "Podizbire modifikatorjev so podprte samo na eni ravni." });
-          return;
-        }
-      }
-      for (const norm of parentNormRows) {
-        const parent = resolvedMods.find((modifier) => modifier.id === norm.modifikatorId);
-        if (!parent) continue;
-        const choice = allPodIzbire.find((item) => item.parentModId === norm.modifikatorId && item.normativId === norm.id);
-        const chosenIds = choice?.modifikatorji ?? [];
-        parent.podIzbire.push({ normativId: norm.id, modifikatorji: [...chosenIds] });
-        const allGroups = groupsByNorm.get(norm.id) ?? [];
-        for (const group of allGroups) {
-          const activeCount = nestedOptions.filter((option) => option.skupinaId === group.skupinaId).length;
-          if (activeCount === 0 && (group.obvezna || group.minIzbir > 0)) {
-            res.status(409).json({ error: `Obvezna podizbirna skupina "${group.ime}" nima aktivnih možnosti.` });
-            return;
-          }
-        }
-        const availableGroups = allGroups.filter((group) =>
-          nestedOptions.some((option) => option.skupinaId === group.skupinaId),
-        );
-        for (const group of availableGroups) {
-          const count = chosenIds.filter((id) => nestedOptionMap.get(id)?.skupinaId === group.skupinaId).length;
-          const minRequired = group.obvezna ? Math.max(1, group.minIzbir) : group.minIzbir;
-          if (count < minRequired || (group.maxIzbir > 0 && count > group.maxIzbir)) {
-            res.status(400).json({ error: `Podizbira skupine "${group.ime}": zahtevano ${minRequired}${group.maxIzbir > 0 ? `–${group.maxIzbir}` : "+"}, izbrano ${count}.` });
-            return;
-          }
-        }
-        for (const id of chosenIds) {
-          const option = nestedOptionMap.get(id);
-          if (!option || !availableGroups.some((group) => group.skupinaId === option.skupinaId)) {
-            res.status(400).json({ error: `Modifikator ${id} ni aktiven ali ne pripada skupini vhodnega artikla.` });
-            return;
-          }
-          parent.nested.push({
-            parentModId: parent.id,
-            normativId: norm.id,
-            normativKolicina: Number(norm.kolicina),
-            id: option.id,
-            ime: option.ime,
-            cenaDodatek: Number(option.cenaDodatek),
-          });
-        }
+        resolvedMods.push({ skupinaId: mod.skupinaId, id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek) });
       }
 
       // Validate group constraints — runs even when izbranModifikatorjiRaw is empty (required groups)
@@ -2687,10 +2541,6 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       const modifierSnapshots = resolvedMods.length > 0
         ? await loadModifierAvailabilitySnapshots(tx, resolvedMods.map((modifier) => modifier.id))
         : new Map();
-      const nestedMods = resolvedMods.flatMap((modifier) => modifier.nested);
-      const nestedSnapshots = nestedMods.length > 0
-        ? await loadModifierAvailabilitySnapshots(tx, nestedMods.map((modifier) => modifier.id))
-        : new Map();
       if (
         (artikel.mealType ?? "ala_carte") !== "ala_carte"
         || resolvedMods.length > 0
@@ -2701,18 +2551,10 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           resolvedMods.map((modifier) => modifier.id),
           effectiveQuantity,
         );
-        const nestedRequests = nestedMods.flatMap((modifier) =>
-          buildModifierAvailabilityRequests(
-            nestedSnapshots,
-            [modifier.id],
-            effectiveQuantity * modifier.normativKolicina,
-          ),
-        );
         await assertPreparedFoodAvailability(tx, tenotaId, businessDate, [
           { articleId: artikel.id, quantity: effectiveQuantity },
           ...(doughArticleId == null ? [] : [{ articleId: doughArticleId, quantity: kolicina }]),
           ...modifierRequests,
-          ...nestedRequests,
         ]);
       } else if (doughArticleId != null) {
         await assertPreparedFoodAvailability(tx, tenotaId, businessDate, [
@@ -2776,37 +2618,8 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
           velikostPice: izbranaVelikostPice?.id,
           normativFaktor: String(izbranaVelikostPice?.normativFaktor ?? 1),
           availabilityRequirements: modifierSnapshots.get(mod.id) ?? [],
-          podIzbire: mod.podIzbire,
           toGo: postavkaToGo,
         parentPostavkaId: inserted.id});
-    }
-    for (const mod of resolvedMods) {
-      for (const nested of mod.nested) {
-        const cenaMod = round2(nested.cenaDodatek * nested.normativKolicina);
-        await tx.insert(postavkeTable).values({
-          narociloId: params.data.id,
-          artikelId: null,
-          modifikatorId: nested.id,
-          izvorniModifikatorId: nested.parentModId,
-          izvorniNormativId: nested.normativId,
-          izvorniNormativFaktor: String(nested.normativKolicina * Number(izbranaVelikostPice?.normativFaktor ?? 1)),
-          ime: nested.ime,
-          kolicina,
-          cenaKos: String(cenaMod.toFixed(2)),
-          cenaKosOriginalna: String(cenaMod.toFixed(2)),
-          skupaj: String(round2(cenaMod * kolicina).toFixed(2)),
-          davek: davekZaPostavko,
-          jeDelMenija: jeDelMenijaZaPostavko,
-          opomba: null,
-          gostStevilka,
-          vrstaArtikla: vrstaArtiklaZaPostavko,
-          velikostPice: izbranaVelikostPice?.id,
-          normativFaktor: "1",
-          availabilityRequirements: nestedSnapshots.get(nested.id) ?? [],
-          toGo: postavkaToGo,
-          parentPostavkaId: inserted.id,
-        });
-      }
     }
 
     // Telefonski prevzem in dostava sta vedno To Go. Dodaj pripadajoče
@@ -2889,10 +2702,6 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
 
   if (postavka.racunId != null) {
     res.status(409).json({ error: "Postavke ni mogoče urejati — že je pokrita z računom." });
-    return;
-  }
-  if (postavka.izvorniNormativId != null) {
-    res.status(409).json({ error: "Vrstica podizbire se ureja prek nadrejene postavke; samostojno spreminjanje ni dovoljeno." });
     return;
   }
 
@@ -2984,9 +2793,6 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
         const modifierRows = await tx.select({
           modifierId: postavkeTable.modifikatorId,
           availabilityRequirements: postavkeTable.availabilityRequirements,
-          normativFaktor: postavkeTable.normativFaktor,
-          izvorniNormativId: postavkeTable.izvorniNormativId,
-          izvorniNormativFaktor: postavkeTable.izvorniNormativFaktor,
         })
           .from(postavkeTable)
           .where(and(
@@ -2995,18 +2801,16 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
             isNull(postavkeTable.artikelId),
           ))
           .for("update");
-        const directModifierRows = modifierRows.filter((row) => row.izvorniNormativId == null);
-        const nestedModifierRows = modifierRows.filter((row) => row.izvorniNormativId != null);
-        const modifierIds = directModifierRows
+        const modifierIds = modifierRows
           .map((row) => row.modifierId)
           .filter((modifierId): modifierId is number => modifierId != null);
-        const legacyModifierIds = directModifierRows
+        const legacyModifierIds = modifierRows
           .filter((row) => row.modifierId != null && row.availabilityRequirements == null)
           .map((row) => row.modifierId!)
         const modifierSnapshots = legacyModifierIds.length > 0
           ? await loadModifierAvailabilitySnapshots(tx, legacyModifierIds)
           : new Map();
-        for (const row of directModifierRows) {
+        for (const row of modifierRows) {
           if (row.modifierId != null && row.availabilityRequirements != null) {
             modifierSnapshots.set(row.modifierId, row.availabilityRequirements);
           }
@@ -3016,20 +2820,11 @@ router.patch("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<voi
           modifierIds,
           effectiveIncrease,
         );
-        const nestedModifierRequests = nestedModifierRows.flatMap((row) => {
-          if (row.modifierId == null || row.availabilityRequirements == null) return [];
-          return buildModifierAvailabilityRequests(
-            new Map([[row.modifierId, row.availabilityRequirements]]),
-            [row.modifierId],
-            increase * Number(row.izvorniNormativFaktor ?? 1),
-          );
-        });
         const availabilityRequests = [
           ...((lockedPostavka.mealType ?? "ala_carte") !== "ala_carte"
             ? [{ articleId: lockedPostavka.artikelId, quantity: effectiveIncrease }]
             : []),
           ...modifierRequests,
-          ...nestedModifierRequests,
         ];
         if (lockedPostavka.parentPostavkaId == null) {
           const doughSnapshot = await tx.execute(sql`
@@ -3156,10 +2951,6 @@ router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<vo
     res.status(409).json({ error: "Postavke ni mogoče izbrisati — že je pokrita z računom." });
     return;
   }
-  if (postavkaCheck.izvorniNormativId != null) {
-    res.status(409).json({ error: "Podizbiro je mogoče odstraniti samo z nadrejenim modifikatorjem ali postavko." });
-    return;
-  }
   try {
     await db.transaction(async (tx) => {
       await lockKdsOrder(tx, params.data.id);
@@ -3214,13 +3005,6 @@ router.delete("/narocila/:id/postavke/:postavkaId", async (req, res): Promise<vo
         ));
       } else {
         // Izbriši modifier otroke pred staršem (kaskada)
-        if (postavkaCheck.modifikatorId != null && postavkaCheck.parentPostavkaId != null) {
-          await tx.delete(postavkeTable).where(and(
-            eq(postavkeTable.parentPostavkaId, postavkaCheck.parentPostavkaId),
-            eq(postavkeTable.narociloId, params.data.id),
-            eq(postavkeTable.izvorniModifikatorId, postavkaCheck.modifikatorId),
-          ));
-        }
         await tx.delete(postavkeTable).where(and(eq(postavkeTable.parentPostavkaId, params.data.postavkaId), eq(postavkeTable.narociloId, params.data.id)));
         await tx.delete(postavkeTable).where(and(eq(postavkeTable.id, params.data.postavkaId), eq(postavkeTable.narociloId, params.data.id)));
       }
@@ -3345,8 +3129,8 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   const rawPostavkaId = Array.isArray(req.params.postavkaId) ? req.params.postavkaId[0] : req.params.postavkaId;
   const params = { success: true as const, data: { id: Number(rawId), postavkaId: Number(rawPostavkaId) } };
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
-  const parsed = AddPostavkaModifikatorjiBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const parsed = { success: true, data: req.body };
+  if (!parsed.success) { res.status(400).json({ error: (parsed as any).error?.message ?? "Napačni parametri" }); return; }
 
   const narociloCheck = await getNarociloById(params.data.id, "", tenotaId);
   if (!narociloCheck) { res.status(404).json({ error: "Naročilo ni najdeno" }); return; }
@@ -3356,6 +3140,7 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   if (!parentPostavka) { res.status(404).json({ error: "Postavka ni najdena" }); return; }
   if (parentPostavka.racunId != null) { res.status(409).json({ error: "Postavke ni mogoče urejati — že je pokrita z računom." }); return; }
   if (parentPostavka.artikelId == null) { res.status(400).json({ error: "Ta postavka ne more imeti modifikatorjev (nima artikla)." }); return; }
+
   // Resolve modifikatorji — only allow modifikatorji from groups assigned to this artikel
   const skupineVezave = await db
     .select({ skupinaId: artModSkupineTable.skupinaId })
@@ -3379,39 +3164,20 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   const allMods = await db.select().from(modifikatorjiTable)
     .where(and(inArray(modifikatorjiTable.skupinaId, skupinaIds), eq(modifikatorjiTable.aktiven, true)));
   const modMap = new Map(allMods.map((m) => [m.id, m]));
-  const everyGroupModifier = await db.select({
-    id: modifikatorjiTable.id,
-    skupinaId: modifikatorjiTable.skupinaId,
-  }).from(modifikatorjiTable)
-    .where(inArray(modifikatorjiTable.skupinaId, skupinaIds));
-  const groupByAnyModifier = new Map(everyGroupModifier.map((row) => [row.id, row.skupinaId]));
 
   // Load skupin details for min/maxIzbir validation
   const skupineDetails = await db.select().from(modSkupineTable).where(inArray(modSkupineTable.id, skupinaIds));
   const skupinaMap = new Map(skupineDetails.map((s) => [s.id, s]));
 
-  const reqIds = parsed.data.modifikatorji.map((row) => row.modifikatorId);
+  // Check for duplicate modifikatorId entries in the request
+  const reqIds = parsed.data.modifikatorji.map((r: any) => r.modifikatorId);
   if (new Set(reqIds).size !== reqIds.length) {
     res.status(400).json({ error: "Podvojeni modifikatorji v zahtevku." });
     return;
   }
 
-  type ResolvedNested = {
-    parentModId: number;
-    normativId: number;
-    normativKolicina: number;
-    id: number;
-    ime: string;
-    cenaDodatek: number;
-  };
-  type ResolvedMod = {
-    id: number;
-    ime: string;
-    cenaDodatek: number;
-    davek: string;
-    nested: ResolvedNested[];
-    podIzbire: Array<{ normativId: number; modifikatorji: number[] }>;
-  };
+  // Resolve modifiers and group by skupinaId for min/maxIzbir checks
+  type ResolvedMod = { id: number; ime: string; cenaDodatek: number; davek: string };
   const resolvedMods: ResolvedMod[] = [];
   const bySkupina = new Map<number, number>();
   for (const req2 of parsed.data.modifikatorji) {
@@ -3421,155 +3187,26 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
       return;
     }
     bySkupina.set(mod.skupinaId, (bySkupina.get(mod.skupinaId) ?? 0) + 1);
-    resolvedMods.push({
-      id: mod.id,
-      ime: mod.ime,
-      cenaDodatek: Number(mod.cenaDodatek),
-      davek: parentPostavka.davek,
-      nested: [],
-      podIzbire: [],
-    });
+    resolvedMods.push({ id: mod.id, ime: mod.ime, cenaDodatek: Number(mod.cenaDodatek), davek: parentPostavka.davek });
   }
 
-  const requestedSkupineIds = parsed.data.skupineIds?.length ? parsed.data.skupineIds : [...bySkupina.keys()];
-  if (new Set(requestedSkupineIds).size !== requestedSkupineIds.length
-    || requestedSkupineIds.some((id) => !skupinaIds.includes(id))) {
-    res.status(400).json({ error: "Seznam skupin za zamenjavo vsebuje skupino, ki ne pripada temu artiklu." });
-    return;
-  }
-  if (resolvedMods.some((modifier) => !requestedSkupineIds.includes(modMap.get(modifier.id)!.skupinaId))) {
-    res.status(400).json({ error: "Izbran modifikator je zunaj obsega skupin za zamenjavo." });
-    return;
-  }
-  for (const skupinaId of requestedSkupineIds) {
-    const group = skupinaMap.get(skupinaId);
-    if (!group) continue;
-    const count = bySkupina.get(skupinaId) ?? 0;
-    const minimum = group.obvezna ? Math.max(1, Number(group.minIzbir)) : Number(group.minIzbir);
-    if (count < minimum || (Number(group.maxIzbir) > 0 && count > Number(group.maxIzbir))) {
-      res.status(400).json({
-        error: `Skupina "${group.ime}": zahtevano ${minimum}${Number(group.maxIzbir) > 0 ? `–${group.maxIzbir}` : "+"}, izbrano ${count}.`,
-      });
+  // Validate maxIzbir per skupin (within the request payload itself)
+  for (const [skupinaId, count] of bySkupina) {
+    const sk = skupinaMap.get(skupinaId);
+    if (sk && Number(sk.maxIzbir) > 0 && count > Number(sk.maxIzbir)) {
+      res.status(400).json({ error: `Preveč modifikatorjev za skupino "${sk.ime}": dovoljeno ${sk.maxIzbir}, posredovano ${count}.` });
       return;
     }
   }
 
-  const allNestedRequests = parsed.data.modifikatorji.flatMap((selection) =>
-    (selection.podIzbire ?? []).map((choice) => ({ parentModId: selection.modifikatorId, ...choice })),
-  );
-  const nestedRequestKeys = allNestedRequests.flatMap((choice) =>
-    choice.modifikatorji.map((id) => `${choice.normativId}:${id}`),
-  );
-  if (new Set(nestedRequestKeys).size !== nestedRequestKeys.length) {
-    res.status(400).json({ error: "Podvojeni modifikatorji v podizbirah." });
-    return;
-  }
-  if (new Set(allNestedRequests.map((choice) => `${choice.parentModId}:${choice.normativId}`)).size !== allNestedRequests.length) {
-    res.status(400).json({ error: "Podvojeni normativi v podizbirah modifikatorjev." });
-    return;
-  }
-  const selectedOuterIds = resolvedMods.map((modifier) => modifier.id);
-  const parentNorms = selectedOuterIds.length > 0
-    ? await db.select({
-      id: modNormativiTable.id,
-      modifikatorId: modNormativiTable.modifikatorId,
-      artikelId: modNormativiTable.vhodniArtikelId,
-      kolicina: modNormativiTable.kolicina,
-    }).from(modNormativiTable)
-      .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-      .where(and(inArray(modNormativiTable.modifikatorId, selectedOuterIds), eq(artikliTable.enotaId, tenotaId)))
-    : [];
-  const normById = new Map(parentNorms.map((norm) => [norm.id, norm]));
-  for (const choice of allNestedRequests) {
-    const norm = normById.get(choice.normativId);
-    if (!norm || norm.modifikatorId !== choice.parentModId) {
-      res.status(400).json({ error: `Normativ ${choice.normativId} ne pripada izbranemu modifikatorju ali tej poslovni enoti.` });
-      return;
-    }
-  }
-  const nestedGroupRows = parentNorms.length > 0
-    ? await db.select({
-      normativId: modNormativiTable.id,
-      skupinaId: modSkupineTable.id,
-      ime: modSkupineTable.ime,
-      obvezna: modSkupineTable.obvezna,
-      minIzbir: modSkupineTable.minIzbir,
-      maxIzbir: modSkupineTable.maxIzbir,
-    }).from(modNormativiTable)
-      .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, modNormativiTable.vhodniArtikelId))
-      .innerJoin(modSkupineTable, eq(modSkupineTable.id, artModSkupineTable.skupinaId))
-      .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-      .where(and(
-        inArray(modNormativiTable.id, parentNorms.map((norm) => norm.id)),
-        eq(modSkupineTable.enotaId, tenotaId),
-        eq(artikliTable.enotaId, tenotaId),
-      ))
-    : [];
-  const nestedGroupsByNorm = new Map<number, typeof nestedGroupRows>();
-  for (const group of nestedGroupRows) {
-    nestedGroupsByNorm.set(group.normativId, [...(nestedGroupsByNorm.get(group.normativId) ?? []), group]);
-  }
-  const nestedGroupIds = [...new Set(nestedGroupRows.map((group) => group.skupinaId))];
-  const nestedOptions = nestedGroupIds.length > 0
-    ? await db.select().from(modifikatorjiTable)
-      .where(and(inArray(modifikatorjiTable.skupinaId, nestedGroupIds), eq(modifikatorjiTable.aktiven, true)))
-    : [];
-  const nestedOptionMap = new Map(nestedOptions.map((option) => [option.id, option]));
-  const selectedNestedIds = allNestedRequests.flatMap((choice) => choice.modifikatorji);
-  if (selectedNestedIds.length > 0) {
-    const deeper = await db.select({ id: modNormativiTable.id })
-      .from(modNormativiTable)
-      .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-      .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, artikliTable.id))
-      .innerJoin(modSkupineTable, eq(modSkupineTable.id, artModSkupineTable.skupinaId))
-      .where(and(
-        inArray(modNormativiTable.modifikatorId, selectedNestedIds),
-        eq(artikliTable.enotaId, tenotaId),
-        eq(modSkupineTable.enotaId, tenotaId),
-      ));
-    if (deeper.length > 0) {
-      res.status(400).json({ error: "Podizbire modifikatorjev so podprte samo na eni ravni." });
-      return;
-    }
-  }
-  for (const norm of parentNorms) {
-    const parent = resolvedMods.find((modifier) => modifier.id === norm.modifikatorId);
-    if (!parent) continue;
-    const choice = allNestedRequests.find((row) => row.parentModId === norm.modifikatorId && row.normativId === norm.id);
-    const chosen = choice?.modifikatorji ?? [];
-    parent.podIzbire.push({ normativId: norm.id, modifikatorji: [...chosen] });
-    const groups = nestedGroupsByNorm.get(norm.id) ?? [];
-    for (const group of groups) {
-      const activeOptions = nestedOptions.filter((option) => option.skupinaId === group.skupinaId);
-      const minimum = group.obvezna ? Math.max(1, group.minIzbir) : group.minIzbir;
-      if (activeOptions.length === 0 && minimum > 0) {
-        res.status(409).json({ error: `Obvezna podizbirna skupina "${group.ime}" nima aktivnih možnosti.` });
-        return;
-      }
-      const count = chosen.filter((id) => nestedOptionMap.get(id)?.skupinaId === group.skupinaId).length;
-      if (count < minimum || (group.maxIzbir > 0 && count > group.maxIzbir)) {
-        res.status(400).json({ error: `Podizbira skupine "${group.ime}": zahtevano ${minimum}${group.maxIzbir > 0 ? `–${group.maxIzbir}` : "+"}, izbrano ${count}.` });
-        return;
-      }
-    }
-    for (const id of chosen) {
-      const option = nestedOptionMap.get(id);
-      if (!option || !groups.some((group) => group.skupinaId === option.skupinaId)) {
-        res.status(400).json({ error: `Modifikator ${id} ni aktiven ali ne pripada skupini vhodnega artikla.` });
-        return;
-      }
-      parent.nested.push({
-        parentModId: parent.id,
-        normativId: norm.id,
-        normativKolicina: Number(norm.kolicina),
-        id: option.id,
-        ime: option.ime,
-        cenaDodatek: Number(option.cenaDodatek),
-      });
-    }
-  }
+  const gostStevilka = (parentPostavka as typeof parentPostavka & { gostStevilka?: number | null }).gostStevilka ?? null;
 
-  const gostStevilka = parentPostavka.gostStevilka ?? null;
+  // Replace semantics: for each skupinaId in scope (from skupineIds param or inferred from request),
+  // delete existing child modifier rows for that skupinaId, then insert the new selection.
+  // skupineIds param allows clearing all selections for a group (empty modifikatorji).
+  const requestedSkupineIds = parsed.data.skupineIds?.length
+    ? parsed.data.skupineIds.filter((sid: any) => skupinaIds.includes(sid))
+    : Array.from(bySkupina.keys());
   try {
     await db.transaction(async (tx) => {
       await lockKdsOrder(tx, params.data.id);
@@ -3593,122 +3230,11 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
       )).for("update");
       if (!lockedParent) throw new Error("Postavka ni najdena");
       if (lockedParent.racunId != null) throw new Error("Postavke ni mogoče urejati — že je pokrita z računom.");
-      const currentBindings = await tx.select({ skupinaId: artModSkupineTable.skupinaId })
-        .from(artModSkupineTable)
-        .innerJoin(modSkupineTable, eq(artModSkupineTable.skupinaId, modSkupineTable.id))
-        .where(and(
-          eq(artModSkupineTable.artikelId, parentPostavka.artikelId!),
-          eq(modSkupineTable.enotaId, tenotaId),
-        )).for("share");
-      if (JSON.stringify(currentBindings.map((row) => row.skupinaId).sort((a, b) => a - b))
-        !== JSON.stringify([...skupinaIds].sort((a, b) => a - b))) {
-        throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-      }
-      const lockedOuterOptions = selectedOuterIds.length > 0
-        ? await tx.select({
-          id: modifikatorjiTable.id,
-          skupinaId: modifikatorjiTable.skupinaId,
-          ime: modifikatorjiTable.ime,
-          cenaDodatek: modifikatorjiTable.cenaDodatek,
-        }).from(modifikatorjiTable)
-          .where(and(inArray(modifikatorjiTable.id, selectedOuterIds), eq(modifikatorjiTable.aktiven, true)))
-          .for("share")
-        : [];
-      if (lockedOuterOptions.length !== resolvedMods.length
-        || lockedOuterOptions.some((current) => {
-          const initial = modMap.get(current.id);
-          return !initial || current.skupinaId !== initial.skupinaId
-            || current.ime !== initial.ime || current.cenaDodatek !== initial.cenaDodatek;
-        })) {
-        throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-      }
-      if (parentNorms.length > 0) {
-        const lockedNorms = await tx.select({
-          id: modNormativiTable.id,
-          modifikatorId: modNormativiTable.modifikatorId,
-          artikelId: artikliTable.id,
-          kolicina: modNormativiTable.kolicina,
-        }).from(modNormativiTable)
-          .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-          .where(and(
-            inArray(modNormativiTable.id, parentNorms.map((norm) => norm.id)),
-            eq(artikliTable.enotaId, tenotaId),
-          )).for("share");
-        if (lockedNorms.length !== parentNorms.length
-          || lockedNorms.some((current) => {
-            const initial = normById.get(current.id);
-            return !initial || current.modifikatorId !== initial.modifikatorId
-              || current.artikelId !== initial.artikelId || current.kolicina !== initial.kolicina;
-          })) {
-          throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-        }
-        const lockedNestedGroups = await tx.select({
-          normativId: modNormativiTable.id,
-          skupinaId: modSkupineTable.id,
-          ime: modSkupineTable.ime,
-          obvezna: modSkupineTable.obvezna,
-          minIzbir: modSkupineTable.minIzbir,
-          maxIzbir: modSkupineTable.maxIzbir,
-        }).from(modNormativiTable)
-          .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, modNormativiTable.vhodniArtikelId))
-          .innerJoin(modSkupineTable, eq(modSkupineTable.id, artModSkupineTable.skupinaId))
-          .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-          .where(and(
-            inArray(modNormativiTable.id, parentNorms.map((norm) => norm.id)),
-            eq(modSkupineTable.enotaId, tenotaId),
-            eq(artikliTable.enotaId, tenotaId),
-          )).for("share");
-        const groupKey = (row: typeof nestedGroupRows[number]) => [
-          row.normativId, row.skupinaId, row.ime, row.obvezna, row.minIzbir, row.maxIzbir,
-        ];
-        const initialGroupKeys = nestedGroupRows.map(groupKey).sort((a, b) => Number(a[0]) - Number(b[0]) || Number(a[1]) - Number(b[1]));
-        const lockedGroupKeys = lockedNestedGroups.map(groupKey).sort((a, b) => Number(a[0]) - Number(b[0]) || Number(a[1]) - Number(b[1]));
-        if (JSON.stringify(lockedGroupKeys) !== JSON.stringify(initialGroupKeys)) {
-          throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-        }
-        const configuredNestedGroupIds = [...new Set(lockedNestedGroups.map((group) => group.skupinaId))];
-        const lockedNestedOptions = configuredNestedGroupIds.length > 0
-          ? await tx.select({
-            id: modifikatorjiTable.id,
-            skupinaId: modifikatorjiTable.skupinaId,
-            ime: modifikatorjiTable.ime,
-            cenaDodatek: modifikatorjiTable.cenaDodatek,
-          }).from(modifikatorjiTable)
-            .where(and(
-              inArray(modifikatorjiTable.skupinaId, configuredNestedGroupIds),
-              eq(modifikatorjiTable.aktiven, true),
-            )).for("share")
-          : [];
-        const optionKey = (option: typeof nestedOptions[number]) => [
-          option.id, option.skupinaId, option.ime, option.cenaDodatek,
-        ];
-        const initialOptionKeys = nestedOptions.map(optionKey).sort((a, b) => Number(a[0]) - Number(b[0]));
-        const lockedOptionKeys = lockedNestedOptions.map(optionKey).sort((a, b) => Number(a[0]) - Number(b[0]));
-        if (JSON.stringify(lockedOptionKeys) !== JSON.stringify(initialOptionKeys)) {
-          throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-        }
-        if (selectedNestedIds.length > 0) {
-          const lockedDeeperRows = await tx.select({ normativId: modNormativiTable.id })
-            .from(modNormativiTable)
-            .innerJoin(artikliTable, eq(artikliTable.id, modNormativiTable.vhodniArtikelId))
-            .innerJoin(artModSkupineTable, eq(artModSkupineTable.artikelId, artikliTable.id))
-            .innerJoin(modSkupineTable, eq(modSkupineTable.id, artModSkupineTable.skupinaId))
-            .where(and(
-              inArray(modNormativiTable.modifikatorId, selectedNestedIds),
-              eq(artikliTable.enotaId, tenotaId),
-              eq(modSkupineTable.enotaId, tenotaId),
-            )).for("share");
-          if (lockedDeeperRows.length > 0) throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-        }
-      }
       const existingChildMods = requestedSkupineIds.length > 0
         ? await tx.select({
           id: postavkeTable.id,
           modifikatorId: postavkeTable.modifikatorId,
           availabilityRequirements: postavkeTable.availabilityRequirements,
-          izvorniNormativId: postavkeTable.izvorniNormativId,
-          izvorniModifikatorId: postavkeTable.izvorniModifikatorId,
-          izvorniNormativFaktor: postavkeTable.izvorniNormativFaktor,
         })
           .from(postavkeTable)
           .where(and(
@@ -3718,93 +3244,43 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
           ))
           .for("update")
         : [];
-      const sourceModifierIds = [...new Set(existingChildMods
-        .flatMap((row) => [row.modifikatorId, row.izvorniModifikatorId])
-        .filter((id): id is number => id != null))];
-      const currentSourceGroups = sourceModifierIds.length > 0
-        ? await tx.select({
-          id: modifikatorjiTable.id,
-          skupinaId: modifikatorjiTable.skupinaId,
-        }).from(modifikatorjiTable)
-          .innerJoin(modSkupineTable, eq(modifikatorjiTable.skupinaId, modSkupineTable.id))
-          .where(and(
-            inArray(modifikatorjiTable.id, sourceModifierIds),
-            eq(modSkupineTable.enotaId, tenotaId),
-          )).for("share")
-        : [];
-      const currentSourceGroupMap = new Map(currentSourceGroups.map((row) => [row.id, row.skupinaId]));
-      for (const [modifierId, initialGroupId] of groupByAnyModifier) {
-        const currentGroupId = currentSourceGroupMap.get(modifierId);
-        if (currentGroupId != null && currentGroupId !== initialGroupId) {
-          throw new Error("MODIFIER_CONFIGURATION_CHANGED");
-        }
-      }
       const existingScopedMods = existingChildMods.filter(
         (row) => row.modifikatorId != null
-          && row.izvorniNormativId == null
-          && requestedSkupineIds.includes(currentSourceGroupMap.get(row.modifikatorId) ?? -1),
+          && requestedSkupineIds.includes(modMap.get(row.modifikatorId)?.skupinaId ?? -1),
       );
-      const existingScopedNested = existingChildMods.filter(
-        (row) => row.izvorniNormativId != null
-          && row.izvorniModifikatorId != null
-          && requestedSkupineIds.includes(currentSourceGroupMap.get(row.izvorniModifikatorId) ?? -1),
-      );
-      const existingToDelete = [
-        ...existingScopedMods.map((row) => row.id),
-        ...existingScopedNested.map((row) => row.id),
-      ];
+      const existingToDelete = existingScopedMods.map((row) => row.id);
       const parentQuantity = Number(lockedParent.kolicina) * Number(lockedParent.normativFaktor ?? 1);
-      const legacyOldIds = [...existingScopedMods, ...existingScopedNested]
+      const oldModifierIds = existingScopedMods
+        .map((child) => child.modifikatorId)
+        .filter((id): id is number => id != null);
+      const legacyOldIds = existingScopedMods
         .filter((child) => child.modifikatorId != null && child.availabilityRequirements == null)
         .map((child) => child.modifikatorId!);
       const oldSnapshots = await loadModifierAvailabilitySnapshots(tx, legacyOldIds);
-      for (const child of [...existingScopedMods, ...existingScopedNested]) {
+      for (const child of existingScopedMods) {
         if (child.modifikatorId != null && child.availabilityRequirements != null) {
           oldSnapshots.set(child.modifikatorId, child.availabilityRequirements);
         }
       }
       const newModifierIds = resolvedMods.map((modifier) => modifier.id);
-      const newNestedMods = resolvedMods.flatMap((modifier) => modifier.nested);
-      const newSnapshots = await loadModifierAvailabilitySnapshots(
-        tx,
-        [...newModifierIds, ...newNestedMods.map((modifier) => modifier.id)],
+      const newSnapshots = await loadModifierAvailabilitySnapshots(tx, newModifierIds);
+      const oldRequirements = buildModifierAvailabilityRequests(
+        oldSnapshots,
+        oldModifierIds,
+        parentQuantity,
       );
-      const oldRequirements = [...existingScopedMods, ...existingScopedNested].flatMap((child) => {
-        if (child.modifikatorId == null) return [];
-        const snapshot = child.availabilityRequirements ?? oldSnapshots.get(child.modifikatorId) ?? [];
-        const quantity = child.izvorniNormativId == null
-          ? parentQuantity
-          : Number(lockedParent.kolicina) * Number(child.izvorniNormativFaktor ?? 1);
-        return buildModifierAvailabilityRequests(new Map([[child.modifikatorId, snapshot]]), [child.modifikatorId], quantity);
-      });
-      const newRequirements = [
-        ...buildModifierAvailabilityRequests(
-          newSnapshots,
-          resolvedMods.map((modifier) => modifier.id),
-          parentQuantity,
-        ),
-        ...newNestedMods.flatMap((modifier) =>
-          buildModifierAvailabilityRequests(
-            newSnapshots,
-            [modifier.id],
-            Number(lockedParent.kolicina)
-              * Number(lockedParent.normativFaktor ?? 1)
-              * modifier.normativKolicina,
-          ),
-        ),
-      ];
-      const oldByArticle = new Map<number, number>();
-      const newByArticle = new Map<number, number>();
-      for (const requirement of oldRequirements) {
-        oldByArticle.set(requirement.articleId, (oldByArticle.get(requirement.articleId) ?? 0) + requirement.quantity);
-      }
-      for (const requirement of newRequirements) {
-        newByArticle.set(requirement.articleId, (newByArticle.get(requirement.articleId) ?? 0) + requirement.quantity);
-      }
-      const positiveDelta = [...newByArticle].map(([articleId, quantity]) => ({
-        articleId,
-        quantity: quantity - (oldByArticle.get(articleId) ?? 0),
-      })).filter((requirement) => requirement.quantity > 0);
+      const newRequirements = buildModifierAvailabilityRequests(
+        newSnapshots,
+        newModifierIds,
+        parentQuantity,
+      );
+      const oldByArticle = new Map(oldRequirements.map((requirement) => [requirement.articleId, requirement.quantity]));
+      const positiveDelta = newRequirements
+        .map((requirement) => ({
+          articleId: requirement.articleId,
+          quantity: requirement.quantity - (oldByArticle.get(requirement.articleId) ?? 0),
+        }))
+        .filter((requirement) => requirement.quantity > 0);
       if (positiveDelta.length > 0) {
         await assertPreparedFoodAvailability(tx, tenotaId, businessDate, positiveDelta);
       }
@@ -3833,36 +3309,8 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
           velikostPice: parentPostavka.velikostPice,
           normativFaktor: lockedParent.normativFaktor,
           availabilityRequirements: newSnapshots.get(mod.id) ?? [],
-          podIzbire: mod.podIzbire,
           parentPostavkaId: params.data.postavkaId,
         });
-      }
-      for (const mod of resolvedMods) {
-        for (const nested of mod.nested) {
-          await tx.insert(postavkeTable).values({
-            narociloId: params.data.id,
-            artikelId: null,
-            modifikatorId: nested.id,
-            izvorniModifikatorId: nested.parentModId,
-            izvorniNormativId: nested.normativId,
-            izvorniNormativFaktor: String(
-              nested.normativKolicina * Number(lockedParent.normativFaktor ?? 1),
-            ),
-            ime: nested.ime,
-            kolicina: lockedParent.kolicina,
-            cenaKos: String(round2(nested.cenaDodatek * nested.normativKolicina).toFixed(2)),
-            cenaKosOriginalna: String(round2(nested.cenaDodatek * nested.normativKolicina).toFixed(2)),
-            skupaj: String(round2(nested.cenaDodatek * nested.normativKolicina * Number(lockedParent.kolicina)).toFixed(2)),
-            davek: parentPostavka.davek,
-            jeDelMenija: lockedParent.jeDelMenija,
-            opomba: null,
-            gostStevilka,
-            velikostPice: parentPostavka.velikostPice,
-            normativFaktor: "1",
-            availabilityRequirements: newSnapshots.get(nested.id) ?? [],
-            parentPostavkaId: params.data.postavkaId,
-          });
-        }
       }
     });
   } catch (error) {
@@ -3872,13 +3320,6 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
     }
     if (error instanceof Error && error.message === "REZERVACIJA_BLOKIRA_SPREMEMBE_NAROCILA") {
       res.status(409).json({ error: "Spremembe naročila so blokirane zaradi bližajoče se rezervacije.", code: error.message });
-      return;
-    }
-    if (error instanceof Error && error.message === "MODIFIER_CONFIGURATION_CHANGED") {
-      res.status(409).json({
-        error: "Nastavitve modifikatorjev so se med urejanjem spremenile. Osvežite naročilo in poskusite znova.",
-        code: error.message,
-      });
       return;
     }
     if (error instanceof InsufficientPreparedFoodAvailabilityError) {

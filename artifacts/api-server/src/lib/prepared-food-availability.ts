@@ -356,7 +356,6 @@ export async function loadPreparedFoodAvailability(
         COALESCE(snapshot.value->>'mealType', 'ala_carte') AS meal_type,
         child.kolicina::numeric
           * COALESCE(child.normativ_faktor, 1)::numeric
-          * COALESCE(child.izvorni_normativ_faktor, 1)::numeric
           * (snapshot.value->>'quantity')::numeric AS quantity,
         NULL::integer AS pizza_dough_article_id,
         NULL::numeric AS pizza_dough_quantity
@@ -378,7 +377,6 @@ export async function loadPreparedFoodAvailability(
         COALESCE(a.meal_type, 'ala_carte') AS meal_type,
         child.kolicina::numeric
           * COALESCE(child.normativ_faktor, 1)::numeric
-          * COALESCE(child.izvorni_normativ_faktor, 1)::numeric
           * mn.kolicina::numeric AS quantity,
         NULL::integer AS pizza_dough_article_id,
         NULL::numeric AS pizza_dough_quantity

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import supertest from "supertest";
 import { and, eq, inArray } from "drizzle-orm";
@@ -9,17 +9,12 @@ import {
   enoteTable,
   artModSkupineTable,
   modifikatorjiTable,
-  modNormativiTable,
   modSkupineTable,
   nastavitveTable,
   narocilaTable,
   pool,
   postavkeTable,
 } from "@workspace/db";
-vi.mock("./kds", () => ({
-  materializirajKdsNaloge: vi.fn().mockResolvedValue(undefined),
-}));
-
 import narocilaRouter from "./narocila";
 import { buildInvoiceXML } from "../../lib/pos-furs";
 
@@ -36,13 +31,6 @@ let samostojniArtikelId: number;
 let tujArtikelId: number;
 let modSkupinaId: number;
 let modifikatorId: number;
-let nestedArtikelId: number;
-let nestedSkupinaId: number;
-let nestedModifikatorId: number;
-let nestedAlternateModifikatorId: number;
-let nestedNormativId: number;
-let unchangedSkupinaId: number;
-let unchangedModifikatorId: number;
 const narociloIds: number[] = [];
 const postavkaIds: number[] = [];
 
@@ -116,57 +104,7 @@ beforeAll(async () => {
   }).returning({ id: modifikatorjiTable.id });
   modifikatorId = modifikator!.id;
 
-  const [nestedArtikel] = await db.insert(artikliTable).values({
-    enotaId,
-    ime: `Vhodni artikel ${RUN_ID}`,
-    cena: "1.00",
-    davek: "22",
-    vrstniRed: 2,
-  }).returning({ id: artikliTable.id });
-  nestedArtikelId = nestedArtikel!.id;
-
-  const [nestedSkupina] = await db.insert(modSkupineTable).values({
-    enotaId,
-    ime: `Obvezna podizbira ${RUN_ID}`,
-    obvezna: true,
-    minIzbir: 1,
-    maxIzbir: 1,
-  }).returning({ id: modSkupineTable.id });
-  nestedSkupinaId = nestedSkupina!.id;
-
-  const [nestedOption] = await db.insert(modifikatorjiTable).values({
-    skupinaId: nestedSkupinaId,
-    ime: `Podizbira A ${RUN_ID}`,
-  }).returning({ id: modifikatorjiTable.id });
-  nestedModifikatorId = nestedOption!.id;
-  const [nestedAlternate] = await db.insert(modifikatorjiTable).values({
-    skupinaId: nestedSkupinaId,
-    ime: `Podizbira B ${RUN_ID}`,
-  }).returning({ id: modifikatorjiTable.id });
-  nestedAlternateModifikatorId = nestedAlternate!.id;
-
-  await db.insert(artModSkupineTable).values([
-    { artikelId, skupinaId: modSkupinaId },
-    { artikelId: nestedArtikelId, skupinaId: nestedSkupinaId },
-  ]);
-  const [norm] = await db.insert(modNormativiTable).values({
-    modifikatorId,
-    vhodniArtikelId: nestedArtikelId,
-    kolicina: "2",
-  }).returning({ id: modNormativiTable.id });
-  nestedNormativId = norm!.id;
-
-  const [unchangedGroup] = await db.insert(modSkupineTable).values({
-    enotaId,
-    ime: `Nespremenjena skupina ${RUN_ID}`,
-  }).returning({ id: modSkupineTable.id });
-  unchangedSkupinaId = unchangedGroup!.id;
-  const [unchangedOption] = await db.insert(modifikatorjiTable).values({
-    skupinaId: unchangedSkupinaId,
-    ime: `Ohrani me ${RUN_ID}`,
-  }).returning({ id: modifikatorjiTable.id });
-  unchangedModifikatorId = unchangedOption!.id;
-  await db.insert(artModSkupineTable).values({ artikelId, skupinaId: unchangedSkupinaId });
+  await db.insert(artModSkupineTable).values({ artikelId, skupinaId: modSkupinaId });
 });
 
 afterAll(async () => {
@@ -178,21 +116,12 @@ afterAll(async () => {
   }
   await db.delete(artModSkupineTable).where(and(
     eq(artModSkupineTable.artikelId, artikelId),
-    inArray(artModSkupineTable.skupinaId, [modSkupinaId, unchangedSkupinaId]),
+    eq(artModSkupineTable.skupinaId, modSkupinaId),
   ));
-  await db.delete(modifikatorjiTable).where(inArray(modifikatorjiTable.id, [
-    modifikatorId, nestedModifikatorId, nestedAlternateModifikatorId, unchangedModifikatorId,
-  ]));
-  await db.delete(modNormativiTable).where(eq(modNormativiTable.id, nestedNormativId));
-  await db.delete(artModSkupineTable).where(and(
-    eq(artModSkupineTable.artikelId, nestedArtikelId),
-    eq(artModSkupineTable.skupinaId, nestedSkupinaId),
-  ));
-  await db.delete(modSkupineTable).where(inArray(modSkupineTable.id, [
-    modSkupinaId, nestedSkupinaId, unchangedSkupinaId,
-  ]));
+  await db.delete(modifikatorjiTable).where(eq(modifikatorjiTable.id, modifikatorId));
+  await db.delete(modSkupineTable).where(eq(modSkupineTable.id, modSkupinaId));
   await db.delete(nastavitveTable).where(eq(nastavitveTable.enotaId, enotaId));
-  await db.delete(artikliTable).where(inArray(artikliTable.id, [artikelId, tujArtikelId, nestedArtikelId]));
+  await db.delete(artikliTable).where(inArray(artikliTable.id, [artikelId, tujArtikelId]));
   if (cajArtikelId) {
     await db.delete(artikliTable).where(eq(artikliTable.id, cajArtikelId));
   }
@@ -211,157 +140,6 @@ afterAll(async () => {
 });
 
 describe("naročila — obramba med naročili in enotami", () => {
-  it("ob dodajanju zahteva podizbiro ter shrani njeno ceno in normativni faktor", async () => {
-    const narociloId = await ustvariNarocilo();
-    const withoutNested = await supertest(app()).post(`/narocila/${narociloId}/postavke`)
-      .send({
-        artikelId, kolicina: 2,
-        izbranModifikatorji: [{ modifikatorId, ime: "Dodatek", cenaDodatek: 0 }],
-      });
-    expect(withoutNested.status).toBe(400);
-
-    await db.update(modifikatorjiTable).set({ cenaDodatek: "1.25" })
-      .where(eq(modifikatorjiTable.id, nestedModifikatorId));
-    const response = await supertest(app()).post(`/narocila/${narociloId}/postavke`)
-      .send({
-        artikelId, kolicina: 2,
-        izbranModifikatorji: [{
-          modifikatorId, ime: "Dodatek", cenaDodatek: 0,
-          podIzbire: [{ normativId: nestedNormativId, modifikatorji: [nestedModifikatorId] }],
-        }],
-      });
-    expect(response.status).toBe(201);
-    const direct = response.body.postavke.find((line: { modifikatorId: number | null }) =>
-      line.modifikatorId === modifikatorId);
-    const nested = response.body.postavke.find((line: { modifikatorId: number | null }) =>
-      line.modifikatorId === nestedModifikatorId);
-    expect(direct?.podIzbire).toEqual([
-      { normativId: nestedNormativId, modifikatorji: [nestedModifikatorId] },
-    ]);
-    expect(nested).toMatchObject({
-      parentPostavkaId: direct.parentPostavkaId,
-      izvorniModifikatorId: modifikatorId,
-      izvorniNormativId: nestedNormativId,
-      cenaKos: 2.5,
-      skupaj: 5,
-    });
-    await db.update(modifikatorjiTable).set({ cenaDodatek: "0" })
-      .where(eq(modifikatorjiTable.id, nestedModifikatorId));
-  });
-
-  it("zamenja samo izbrane skupine ter ohrani enonivojske podizbire in njihov normativ", async () => {
-    const narociloId = await ustvariNarocilo();
-    const [parent] = await db.insert(postavkeTable).values({
-      narociloId,
-      artikelId,
-      ime: "Postavka za podizbire",
-      kolicina: 1,
-      cenaKos: "10.00",
-      skupaj: "10.00",
-      davek: "22",
-    }).returning({ id: postavkeTable.id });
-    postavkaIds.push(parent!.id);
-    await db.insert(postavkeTable).values([
-      {
-        narociloId,
-        artikelId: null,
-        modifikatorId,
-        ime: `Brez čebule ${RUN_ID}`,
-        kolicina: 1,
-        cenaKos: "0.00",
-        skupaj: "0.00",
-        davek: "22",
-        parentPostavkaId: parent!.id,
-        podIzbire: [{ normativId: nestedNormativId, modifikatorji: [nestedModifikatorId] }],
-      },
-      {
-        narociloId,
-        artikelId: null,
-        modifikatorId: nestedModifikatorId,
-        izvorniModifikatorId: modifikatorId,
-        izvorniNormativId: nestedNormativId,
-        izvorniNormativFaktor: "2",
-        ime: `Podizbira A ${RUN_ID}`,
-        kolicina: 1,
-        cenaKos: "0.00",
-        skupaj: "0.00",
-        davek: "22",
-        parentPostavkaId: parent!.id,
-      },
-      {
-        narociloId,
-        artikelId: null,
-        modifikatorId: unchangedModifikatorId,
-        ime: `Ohrani me ${RUN_ID}`,
-        kolicina: 1,
-        cenaKos: "0.00",
-        skupaj: "0.00",
-        davek: "22",
-        parentPostavkaId: parent!.id,
-      },
-    ]);
-
-    const missingRequired = await supertest(app())
-      .post(`/narocila/${narociloId}/postavke/${parent!.id}/modifikatorji`)
-      .send({
-        skupineIds: [modSkupinaId],
-        modifikatorji: [{ modifikatorId }],
-      });
-    expect(missingRequired.status).toBe(400);
-
-    await db.update(modifikatorjiTable).set({ aktiven: false }).where(inArray(
-      modifikatorjiTable.id,
-      [nestedModifikatorId, nestedAlternateModifikatorId],
-    ));
-    const emptyMandatoryGroup = await supertest(app())
-      .post(`/narocila/${narociloId}/postavke/${parent!.id}/modifikatorji`)
-      .send({
-        skupineIds: [modSkupinaId],
-        modifikatorji: [{ modifikatorId }],
-      });
-    expect(emptyMandatoryGroup.status).toBe(409);
-    await db.update(modifikatorjiTable).set({ aktiven: true }).where(inArray(
-      modifikatorjiTable.id,
-      [nestedModifikatorId, nestedAlternateModifikatorId],
-    ));
-
-    const response = await supertest(app())
-      .post(`/narocila/${narociloId}/postavke/${parent!.id}/modifikatorji`)
-      .send({
-        skupineIds: [modSkupinaId],
-        modifikatorji: [{
-          modifikatorId,
-          podIzbire: [{ normativId: nestedNormativId, modifikatorji: [nestedAlternateModifikatorId] }],
-        }],
-      });
-    expect(response.status).toBe(201);
-    expect(response.body.postavke.find((row: { modifikatorId: number | null }) =>
-      row.modifikatorId === modifikatorId)?.podIzbire).toEqual([
-      { normativId: nestedNormativId, modifikatorji: [nestedAlternateModifikatorId] },
-    ]);
-
-    const children = await db.select({
-      modifikatorId: postavkeTable.modifikatorId,
-      izvorniModifikatorId: postavkeTable.izvorniModifikatorId,
-      izvorniNormativId: postavkeTable.izvorniNormativId,
-      izvorniNormativFaktor: postavkeTable.izvorniNormativFaktor,
-      podIzbire: postavkeTable.podIzbire,
-    }).from(postavkeTable).where(and(
-      eq(postavkeTable.narociloId, narociloId),
-      eq(postavkeTable.parentPostavkaId, parent!.id),
-    ));
-    expect(children).toHaveLength(3);
-    expect(children.some((row) => row.modifikatorId === unchangedModifikatorId)).toBe(true);
-    expect(children.some((row) => row.modifikatorId === nestedModifikatorId)).toBe(false);
-    expect(children.find((row) => row.modifikatorId === nestedAlternateModifikatorId)).toMatchObject({
-      izvorniModifikatorId: modifikatorId,
-      izvorniNormativId: nestedNormativId,
-      izvorniNormativFaktor: "2.000000",
-    });
-    expect(children.find((row) => row.modifikatorId === modifikatorId)?.podIzbire)
-      .toEqual([{ normativId: nestedNormativId, modifikatorji: [nestedAlternateModifikatorId] }]);
-  });
-
   it("zavrne parentPostavkaId iz drugega naročila pred vstavljanjem", async () => {
     const ciljnoNarociloId = await ustvariNarocilo();
     const drugoNarociloId = await ustvariNarocilo();
