@@ -32,3 +32,9 @@ Ko se predloga drobnega inventarja premakne v drugo podskupino, njenega stabilne
 **Why:** Kozarci, skodelice in servirne deske so bili sprva uvrščeni v drugačne skupine. Preimenovanje ključev ob popravku skupin bi pri naslednjem uvozu lahko ustvarilo dvojnike.
 
 **How to apply:** Popravi oznake podskupin in prikaz, pri obstoječih samodejnih predlogah pa ohrani prvotne identifikatorje. Ročno določene skupine ne prepisuj s širokimi migracijami.
+
+Pri drobnem inventarju alergeni niso pomembni: njegov vnos naj ne zahteva profila, zavihka ali potrjevanja alergenov. Že shranjene morebitne podatke ob običajnem urejanju artikla ohrani, namesto da jih tiho izbrišeš.
+
+**Why:** Uporabnik je posebej opozoril, da oprema (kozarci, krožniki, pribor) ni živilo; zahtevati deklaracijo alergenov pri ročnem dodajanju takšne opreme zavaja.
+
+**How to apply:** V obrazcih in seznamih za drobni inventar umakni alergenski prikaz ter validacijo, brez spreminjanja alergenskih podatkov za prehranske artikle.

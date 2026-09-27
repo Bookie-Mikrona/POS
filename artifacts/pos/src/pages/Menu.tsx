@@ -816,11 +816,12 @@ export default function Menu() {
         (artNabavniArtikel && !artProdajniArtikel && artDialogTab === "normativ")
         || (!artProdajniArtikel && artDialogTab === "slika")
         || (artPolizdelek && artDialogTab === "cena_ddv")
+        || (artDrobniInventar && artDialogTab === "alergeni")
       )
     ) {
       setArtDialogTab("osnovno");
     }
-  }, [artDialogOpen, artNabavniArtikel, artProdajniArtikel, artPolizdelek, artDialogTab]);
+  }, [artDialogOpen, artNabavniArtikel, artProdajniArtikel, artPolizdelek, artDrobniInventar, artDialogTab]);
 
   // ── Kategorija handlers ──────────────────────────────────────
   const openNewCat = () => {
@@ -953,6 +954,17 @@ export default function Menu() {
       alergeniDocumentId: null,
     });
     setArtDialogOpen(true);
+  };
+
+  const openNewDrobniInventar = () => {
+    openNewArt();
+    setArtNabavniArtikel(true);
+    setArtProdajniArtikel(false);
+    setArtDrobniInventar(true);
+    setArtVrstaArtikla("material");
+    setArtTaxCategory("other");
+    setArtEnotaMere("kos");
+    setArtFilter("drobni");
   };
 
   const openEditArt = (a: Artikel) => {
@@ -1410,7 +1422,7 @@ export default function Menu() {
       toast({ title: "Čas priprave mora biti celo število 0 ali več", variant: "destructive" });
       return;
     }
-    if (!imaIzrecnoPotrjenProfil && normativAlergeniIds.length > 0 && loadingInheritedAlergeni) {
+    if (!artDrobniInventar && !imaIzrecnoPotrjenProfil && normativAlergeniIds.length > 0 && loadingInheritedAlergeni) {
       setArtDialogTab("alergeni");
       toast({
         title: "Preverjam alergene surovin",
@@ -1420,7 +1432,8 @@ export default function Menu() {
     }
 
     if (
-      !uporabiDedovaneAlergene
+      !artDrobniInventar
+      && !uporabiDedovaneAlergene
       &&
       artProdajniArtikel
       && (artMode === "nov" || artAktiven)
@@ -1436,7 +1449,8 @@ export default function Menu() {
       return;
     }
     if (
-      !uporabiDedovaneAlergene
+      !artDrobniInventar
+      && !uporabiDedovaneAlergene
       && artAlergeni.alergeniStatus !== "nepreverjeno"
       && !artAlergeni.alergeniVir
     ) {
@@ -1449,7 +1463,8 @@ export default function Menu() {
       return;
     }
     if (
-      !uporabiDedovaneAlergene
+      !artDrobniInventar
+      && !uporabiDedovaneAlergene
       &&
       artAlergeni.alergeniStatus === "potrjeno"
       && artAlergeni.alergeni.length === 0
@@ -1549,12 +1564,14 @@ export default function Menu() {
       jeDelMenija: artProdajniArtikel && artLahkoJeDelMenija && artJeDelMenija,
       addedSugar: artTaxCategory === "food_drink" ? false : artAddedSugar,
       opisSlike: artProdajniArtikel ? (artOpisSlike.trim() || null) : null,
-      alergeni: alergeniZaShranjevanje.alergeni,
-      alergeniSledi: alergeniZaShranjevanje.alergeniSledi,
-      alergeniStatus: alergeniZaShranjevanje.alergeniStatus,
-      alergeniVir: alergeniZaShranjevanje.alergeniVir,
-      alergeniOpombaVira: alergeniZaShranjevanje.alergeniOpombaVira,
-      alergeniDocumentId: alergeniZaShranjevanje.alergeniDocumentId,
+      ...(!artDrobniInventar ? {
+        alergeni: alergeniZaShranjevanje.alergeni,
+        alergeniSledi: alergeniZaShranjevanje.alergeniSledi,
+        alergeniStatus: alergeniZaShranjevanje.alergeniStatus,
+        alergeniVir: alergeniZaShranjevanje.alergeniVir,
+        alergeniOpombaVira: alergeniZaShranjevanje.alergeniOpombaVira,
+        alergeniDocumentId: alergeniZaShranjevanje.alergeniDocumentId,
+      } : {}),
     };
 
     const finishSave = (artikelId: number, label: string, operation: "created" | "updated") => {
@@ -1900,9 +1917,14 @@ export default function Menu() {
               {lahkoVidiZgodovinoNormativa && (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span>Predloge drobnega inventarja se dodajo samo trenutno aktivni enoti, brez začetnih količin in knjižb.</span>
-                  <Button size="sm" variant="outline" onClick={() => setImportDrobniInventarOpen(true)} disabled={!getEnotaId() || importDrobniInventar.isPending}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Naloži drobni inventar
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={openNewDrobniInventar} disabled={!getEnotaId()}>
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Nov drobni inventar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setImportDrobniInventarOpen(true)} disabled={!getEnotaId() || importDrobniInventar.isPending}>
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Naloži drobni inventar
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2218,7 +2240,7 @@ export default function Menu() {
 
               <Tabs defaultValue="osnovno" value={artDialogTab} onValueChange={setArtDialogTab} className="flex flex-col w-full">
                 <div className="pb-2">
-                  <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-5">
+                  <TabsList className={`grid h-auto w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 ${artDrobniInventar ? "sm:grid-cols-4" : "sm:grid-cols-5"}`}>
                     <TabsTrigger value="osnovno" className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Osnovno</TabsTrigger>
                     <TabsTrigger value="cena_ddv" disabled={artPolizdelek} title={artPolizdelek ? "Polizdelek nima prodajnih ali nabavnih nastavitev." : undefined} className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Cena in DDV</TabsTrigger>
                     <TabsTrigger
@@ -2229,7 +2251,7 @@ export default function Menu() {
                     >
                       Normativ
                     </TabsTrigger>
-                    <TabsTrigger value="alergeni" className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Alergeni</TabsTrigger>
+                    {!artDrobniInventar && <TabsTrigger value="alergeni" className="border-2 border-border bg-background px-2 py-2 text-[11px] font-semibold data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-xs">Alergeni</TabsTrigger>}
                     <TabsTrigger
                       value="slika"
                       disabled={!artProdajniArtikel}
@@ -2244,7 +2266,7 @@ export default function Menu() {
                 <TabsContent value="osnovno" className="mt-4 space-y-4 focus-visible:outline-none">
               {/* Ime za prodajo */}
               <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
-                <Label>{artPovratnaEmbalaza ? "Naziv embalaže" : artPolizdelek ? "Ime polizdelka" : "Ime za prodajo"}</Label>
+                <Label>{artDrobniInventar ? "Naziv drobnega inventarja" : artPovratnaEmbalaza ? "Naziv embalaže" : artPolizdelek ? "Ime polizdelka" : "Ime za prodajo"}</Label>
                 <KlavijaturaInput value={artName} onChange={handleArtNameChange} placeholder="Npr. Espresso" naslov="Ime artikla" />
               </div>
 
@@ -3073,7 +3095,7 @@ export default function Menu() {
 
                 </TabsContent>
 
-                <TabsContent value="alergeni" className="mt-4 space-y-4 focus-visible:outline-none">
+                {!artDrobniInventar && <TabsContent value="alergeni" className="mt-4 space-y-4 focus-visible:outline-none">
               {/* Deklaracija sledi normativu, ker se alergeni dedujejo iz njegovih vhodnih artiklov. */}
               <div className="space-y-4 rounded-lg border p-4 bg-muted/10">
                 <div className="flex flex-col gap-1">
@@ -3182,7 +3204,7 @@ export default function Menu() {
                 )}
               </div>
 
-                </TabsContent>
+                </TabsContent>}
 
                 <TabsContent value="slika" className="mt-4 space-y-4 focus-visible:outline-none">
               {/* Slika Artikla za QR meni */}
@@ -3612,14 +3634,14 @@ export default function Menu() {
                             : artikel.mealType === "prepared" ? "Pripravljena jed" : "Drugo"}
                       </span>
                     )}
-                    <AlergeniBadge snapshot={{
+                    {!artikel.drobniInventar && <AlergeniBadge snapshot={{
                       alergeni: artikel.alergeni ?? [],
                       alergeniSledi: artikel.alergeniSledi ?? [],
                       alergeniStatus: (artikel as any).alergeniStatus ?? "nepreverjeno",
                       alergeniVir: (artikel as any).alergeniVir ?? null,
                       alergeniOpombaVira: (artikel as any).alergeniOpombaVira ?? null,
                       alergeniDocumentId: (artikel as any).alergeniDocumentId ?? null,
-                    }} className="scale-75 origin-right" />
+                    }} className="scale-75 origin-right" />}
                   </button>
                 ))
               )}
