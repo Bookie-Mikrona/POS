@@ -4539,17 +4539,11 @@ export default function Order() {
 
       function renderOpcijeNestedChoices(parentModifierId: number) {
         return opcijeSourcesForModifier(parentModifierId).map(source => (
-          <div key={`${parentModifierId}-${source.artikelId}`} className="ml-5 mt-2 space-y-3 border-l-2 border-primary/20 pl-3" data-testid={`edit-nested-source-${parentModifierId}-${source.artikelId}`}>
-            <p className="text-xs font-semibold text-muted-foreground">{source.ime}</p>
+          <div key={`${parentModifierId}-${source.artikelId}`} className="ml-5 mt-1 space-y-1 border-l-2 border-primary/20 pl-3" data-testid={`edit-nested-source-${parentModifierId}-${source.artikelId}`}>
             {source.groups.map(group => {
               const selectedIds = opcijePodIzbire[`${parentModifierId}:${source.artikelId}`] ?? [];
               return (
-                <div key={group.id} data-testid={`edit-nested-group-${parentModifierId}-${source.artikelId}-${group.id}`}>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {group.ime}
-                    {group.obvezna && <span className="ml-1 text-destructive">★</span>}
-                    {group.maxIzbir > 1 && <span className="ml-1 normal-case font-normal tracking-normal">(do {group.maxIzbir})</span>}
-                  </p>
+                <div key={group.id} role="group" aria-label={`${source.ime} – ${group.ime}`} data-testid={`edit-nested-group-${parentModifierId}-${source.artikelId}-${group.id}`}>
                   <div className="space-y-1">
                     {group.modifikatorji.filter(option => option.aktiven || selectedIds.includes(option.id)).map(option => {
                       const selected = selectedIds.includes(option.id);

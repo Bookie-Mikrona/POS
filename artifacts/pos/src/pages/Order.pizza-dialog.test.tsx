@@ -460,7 +460,7 @@ function prepareExistingNestedModifierEdit() {
       modifikatorji: options,
     }],
   });
-  const sourceA = makeSource(200, "Zelena solata – mala", 20, "Dodatki solate", [garlicOption, lessGarlicOption]);
+  const sourceA = makeSource(200, "Zelena solata – mala", 20, "Zelena solata", [garlicOption, lessGarlicOption]);
   const sourceB = makeSource(202, "Juha – mala", 21, "Dodatki juhe", [saltOption]);
   mockListArtikliData.mockReturnValue([mockPica, sourceA, sourceB]);
   mockModifierNormatives.current = {
@@ -1069,6 +1069,11 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     });
 
     const changedChoice = await screen.findByTestId("button-edit-nested-100-200-202");
+    const saladChoices = screen.getByTestId("edit-nested-source-100-200");
+    expect(saladChoices).not.toHaveTextContent("Zelena solata – mala");
+    expect(saladChoices).not.toHaveTextContent("Zelena solata");
+    expect(saladChoices).toHaveTextContent("Brez česna");
+    expect(screen.getByTestId("edit-nested-group-100-200-20")).toHaveAttribute("aria-label", "Zelena solata – mala – Zelena solata");
     expect(screen.getByTestId("button-edit-nested-100-200-201")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("button-edit-nested-100-202-203")).toHaveAttribute("aria-pressed", "true");
     await act(async () => {
