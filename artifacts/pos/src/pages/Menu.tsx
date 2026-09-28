@@ -1865,7 +1865,7 @@ export default function Menu() {
               <div className="px-1.5 sm:px-2 py-1 border-b border-border/50 bg-muted/30 flex flex-col sm:flex-row sm:items-center gap-1">
                 <div className="flex items-center gap-1 w-full min-w-0 sm:flex-1">
                  <div role="group" aria-label="Filtri artiklov" className="flex flex-1 min-w-0 overflow-x-auto gap-0.5 rounded-md border border-primary/30 bg-background p-0.5 scrollbar-hidden">
-                  {(["vsi", "prodajni", "nabavni", "drobni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike"] as const).map(f => (
+                  {(["vsi", "prodajni", "nabavni", "polizdelek", "embalaza", "zNormativom", "brezNormativa", "brezSlike", "drobni"] as const).map(f => (
                     <button
                       key={f}
                       type="button"

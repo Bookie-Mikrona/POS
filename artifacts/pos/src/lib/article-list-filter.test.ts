@@ -31,9 +31,26 @@ const polizdelek: FilterableArticle = {
 };
 
 describe("filtri seznama artiklov", () => {
-  it("drobni inventar ima ločen filter in ostane v nabavnem seznamu", () => {
+  it("drobni inventar prikaže samo v Vsi in Drobni inventar, ne glede na druge oznake", () => {
     expect(articleMatchesListFilter(smallEquipment, "drobni")).toBe(true);
-    expect(articleMatchesListFilter(smallEquipment, "nabavni")).toBe(true);
+    expect(articleMatchesListFilter(smallEquipment, "vsi")).toBe(true);
+    const overlapping: FilterableArticle = {
+      ...smallEquipment,
+      prodajniArtikel: true,
+      povratnaEmbalaza: true,
+      hasNormativ: true,
+      slikaUrl: null,
+    };
+    const otherFilters = [
+      "prodajni", "nabavni", "polizdelek", "embalaza",
+      "zNormativom", "brezNormativa", "brezSlike",
+    ] as const;
+    for (const filter of otherFilters) {
+      expect(articleMatchesListFilter(smallEquipment, filter), filter).toBe(false);
+      expect(articleMatchesListFilter(overlapping, filter), filter).toBe(false);
+    }
+    expect(articleMatchesListFilter(overlapping, "vsi")).toBe(true);
+    expect(articleMatchesListFilter(overlapping, "drobni")).toBe(true);
     expect(articleMatchesListFilter(ordinary, "drobni")).toBe(false);
     expect(articleMatchesListFilter(packaging, "drobni")).toBe(false);
   });
