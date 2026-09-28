@@ -348,9 +348,9 @@ export default function Menu() {
 
   // ── Excel uvoz ────────────────────────────────────────────────
   type UvozKorak = "izbira" | "predogled" | "rezultat";
-  type UvozPredogled = { ime: string; cena: number; ddv: number; kategorija: string | null };
-  type UvozNapaka = { vrstica: number; napaka: string };
-  type UvozRezultat = { uvozenih: number; preskocenih: number; napake: UvozNapaka[]; normativiUvozenih: number };
+  type UvozPredogled = { ime: string; cena: number; ddv: number; kategorija: string | null; list?: string; dejanje?: string };
+  type UvozNapaka = { vrstica: number; napaka: string; list?: string };
+  type UvozRezultat = { uvozenih: number; posodobljenih: number; preskocenih: number; napake: UvozNapaka[]; normativiUvozenih: number };
 
   const [uvozOpen, setUvozOpen] = useState(false);
   const [uvozKorak, setUvozKorak] = useState<UvozKorak>("izbira");
@@ -361,7 +361,6 @@ export default function Menu() {
   const [uvozSkupaj, setUvozSkupaj] = useState(0);
   const [uvozVeljavnih, setUvozVeljavnih] = useState(0);
   const [uvozNormativov, setUvozNormativov] = useState(0);
-  const [uvozPodvojeni, setUvozPodvojeni] = useState<"preskoči" | "posodobi">("preskoči");
   const [uvozRezultat, setUvozRezultat] = useState<UvozRezultat | null>(null);
   const uvozFileRef = useRef<HTMLInputElement>(null);
 
@@ -374,7 +373,6 @@ export default function Menu() {
     setUvozSkupaj(0);
     setUvozVeljavnih(0);
     setUvozNormativov(0);
-    setUvozPodvojeni("preskoči");
     setUvozRezultat(null);
     if (uvozFileRef.current) uvozFileRef.current.value = "";
   };
@@ -391,15 +389,15 @@ export default function Menu() {
         credentials: "include",
         headers: user?.enotaId ? { "X-Enota-Id": String(user.enotaId) } : {},
       });
-      const data = await r.json() as { napaka?: string; predogled?: UvozPredogled[]; napake?: UvozNapaka[]; skupaj?: number; veljavnih?: number; normativov?: number };
-      if (!r.ok) {
-        toast({ title: data.napaka ?? "Napaka pri branju datoteke", variant: "destructive" });
+      const data = await r.json() as { error?: string; napaka?: string; predogled?: UvozPredogled[]; napake?: UvozNapaka[]; skupaj?: number; veljavnih?: number; normativov?: number };
+      if (!r.ok && !data.napake?.length) {
+        toast({ title: data.error ?? data.napaka ?? "Napaka pri branju datoteke", variant: "destructive" });
         return;
       }
       setUvozPredogled(data.predogled ?? []);
       setUvozNapake(data.napake ?? []);
       setUvozSkupaj(data.skupaj ?? 0);
-      setUvozVeljavnih(data.veljavnih ?? 0);
+      setUvozVeljavnih(r.ok ? (data.veljavnih ?? 0) : 0);
       setUvozNormativov(data.normativov ?? 0);
       setUvozKorak("predogled");
     } catch {
@@ -414,19 +412,21 @@ export default function Menu() {
     try {
       const fd = new FormData();
       fd.append("excel", uvozDatoteka!);
-      const r = await fetch(`${import.meta.env.BASE_URL}api/artikli/uvozi-excel?dryRun=false&podvojeni=${uvozPodvojeni}`, {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/artikli/uvozi-excel?dryRun=false`, {
         method: "POST",
         body: fd,
         credentials: "include",
         headers: user?.enotaId ? { "X-Enota-Id": String(user.enotaId) } : {},
       });
-      const data = await r.json() as { napaka?: string; uvozenih?: number; preskocenih?: number; napake?: UvozNapaka[]; normativiUvozenih?: number };
+      const data = await r.json() as { error?: string; napaka?: string; uvozenih?: number; posodobljenih?: number; preskocenih?: number; napake?: UvozNapaka[]; normativiUvozenih?: number };
       if (!r.ok) {
-        toast({ title: data.napaka ?? "Napaka pri uvozu", variant: "destructive" });
+        setUvozNapake(data.napake ?? []);
+        toast({ title: data.error ?? data.napaka ?? "Napaka pri uvozu", variant: "destructive" });
         return;
       }
       setUvozRezultat({
         uvozenih: data.uvozenih ?? 0,
+        posodobljenih: data.posodobljenih ?? 0,
         preskocenih: data.preskocenih ?? 0,
         napake: data.napake ?? [],
         normativiUvozenih: data.normativiUvozenih ?? 0,
@@ -1921,10 +1921,10 @@ export default function Menu() {
                       {!jeUporabnik && (
                         <>
                           <DropdownMenuItem disabled={cenikPdfLoading} onSelect={() => void handleCenikPdf()}>Cenik PDF</DropdownMenuItem>
-                          <DropdownMenuItem disabled={izvozLoading} onSelect={() => void handleIzvozi()}>Izvozi Excel</DropdownMenuItem>
+                          <DropdownMenuItem disabled={izvozLoading} onSelect={() => void handleIzvozi()}>Izvozi šifrant Excel</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => setUskladiOpen(true)}>Uskladi DDV</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => { resetUvoz(); setUvozOpen(true); }}>Uvozi artikle</DropdownMenuItem>
+                          {lahkoVidiZgodovinoNormativa && <DropdownMenuItem onSelect={() => { resetUvoz(); setUvozOpen(true); }}>Uvozi šifrant Excel</DropdownMenuItem>}
                         </>
                       )}
                       {lahkoVidiZgodovinoNormativa && (
@@ -2276,9 +2276,9 @@ export default function Menu() {
                 </div>
 
                 <TabsContent value="osnovno" className="mt-4 space-y-4 focus-visible:outline-none">
-              {/* Ime za prodajo */}
+              {/* Naziv artikla */}
               <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
-                <Label>{artDrobniInventar ? "Naziv drobnega inventarja" : artPovratnaEmbalaza ? "Naziv embalaže" : artPolizdelek ? "Ime polizdelka" : "Ime za prodajo"}</Label>
+                <Label>{artDrobniInventar ? "Naziv drobnega inventarja" : artPovratnaEmbalaza ? "Naziv embalaže" : artPolizdelek ? "Ime polizdelka" : "Naziv artikla"}</Label>
                 <KlavijaturaInput value={artName} onChange={handleArtNameChange} placeholder="Npr. Espresso" naslov="Ime artikla" />
               </div>
 
@@ -3821,7 +3821,7 @@ export default function Menu() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileUp className="w-5 h-5" />
-              {uvozKorak === "izbira" && "Uvoz artiklov iz Excela"}
+              {uvozKorak === "izbira" && "Uvoz šifranta artiklov iz Excela"}
               {uvozKorak === "predogled" && "Predogled uvoza"}
               {uvozKorak === "rezultat" && "Rezultat uvoza"}
             </DialogTitle>
@@ -3837,14 +3837,12 @@ export default function Menu() {
                   <div>
                     <p className="text-sm font-medium">Izberite Excel datoteko (.xlsx)</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      List <strong>Artikli</strong> — obvezni stolpci:{" "}
-                      <code className="font-mono bg-muted px-1 rounded">ime</code>,{" "}
-                      <code className="font-mono bg-muted px-1 rounded">cena</code>,{" "}
-                      <code className="font-mono bg-muted px-1 rounded">ddv</code>{" "}
-                      + opcijsko: kategorija, barva, aktiven, nabavniArtikel, prodajniArtikel, imeZaNabavo, enotaMere
+                      Excel vsebuje ločene liste <strong>Artikli</strong>, <strong>Povratna embalaža</strong> in <strong>Drobni inventar</strong>.
+                      Za nov artikel vnesite ime, ceno in DDV; pri izvoženih artiklih ID ohrani povezavo z obstoječim zapisom.
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      List <strong>Normativi</strong> (opcijsko) — stolpci: artikelIme, sestavinaIme, kolicina, enotaMere
+                      List <strong>Normativi</strong> je namenjen pregledu. Normative spreminjajte v POS, kjer se preverijo povezave in količine;
+                      zaloge in zgodovinski dokumenti se ne uvažajo.
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Veljavne DDV stopnje: <strong>0</strong>, <strong>{ddvStopnje.znizanaSt}</strong>, <strong>{ddvStopnje.nizjaSt}</strong>, <strong>{ddvStopnje.splosnaSt}</strong>
@@ -3868,8 +3866,8 @@ export default function Menu() {
                 <div className="rounded-lg bg-muted/50 p-4 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nasvet</p>
                   <p className="text-xs text-muted-foreground">
-                    Za pripravo predloge najprej uporabite <strong>Izvozi Excel</strong> — izvoz vsebuje vse obstoječe
-                    artikle in normative v pravilni strukturi, ki jo lahko uredite in uvozite nazaj.
+                    Najprej uporabite <strong>Izvozi šifrant Excel</strong>. Vsak tip artikla urejajte na njegovem listu.
+                    ID-jev ne spreminjajte; izpuščene vrstice ne izbrišejo obstoječih artiklov.
                   </p>
                 </div>
               </div>
@@ -3908,7 +3906,9 @@ export default function Menu() {
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50">
                           <tr>
+                            <th className="text-left px-3 py-2 font-medium text-muted-foreground">List</th>
                             <th className="text-left px-3 py-2 font-medium text-muted-foreground">Ime</th>
+                            <th className="text-left px-3 py-2 font-medium text-muted-foreground hidden sm:table-cell">Dejanje</th>
                             <th className="text-right px-3 py-2 font-medium text-muted-foreground">Cena</th>
                             <th className="text-right px-3 py-2 font-medium text-muted-foreground">DDV</th>
                             <th className="text-left px-3 py-2 font-medium text-muted-foreground hidden sm:table-cell">Kategorija</th>
@@ -3917,7 +3917,9 @@ export default function Menu() {
                         <tbody>
                           {uvozPredogled.map((r, i) => (
                             <tr key={i} className="border-t">
+                              <td className="px-3 py-2 text-xs">{r.list ?? "Artikli"}</td>
                               <td className="px-3 py-2">{r.ime}</td>
+                              <td className="px-3 py-2 text-xs hidden sm:table-cell">{r.dejanje ?? "Vnos"}</td>
                               <td className="px-3 py-2 text-right font-mono">{r.cena.toFixed(2)} €</td>
                               <td className="px-3 py-2 text-right font-mono">{r.ddv}%</td>
                               <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{r.kategorija ?? "—"}</td>
@@ -3936,7 +3938,7 @@ export default function Menu() {
                     <div className="rounded-lg border border-red-200 bg-red-50 divide-y divide-red-100 max-h-40 overflow-y-auto">
                       {uvozNapake.map((n, i) => (
                         <div key={i} className="px-3 py-1.5 flex gap-2 text-xs text-red-800">
-                          <span className="font-mono shrink-0">Vrstica {n.vrstica}:</span>
+                          <span className="font-mono shrink-0">{n.list ? `${n.list}, ` : ""}vrstica {n.vrstica}:</span>
                           <span>{n.napaka}</span>
                         </div>
                       ))}
@@ -3944,34 +3946,11 @@ export default function Menu() {
                   </div>
                 )}
 
-                {/* Možnosti za podvojene */}
+                {/* Pravila posodobitve */}
                 {uvozVeljavnih > 0 && (
-                  <div className="space-y-2 rounded-lg border p-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Podvojeni artikli</p>
-                    <div className="flex flex-col gap-2">
-                      {(["preskoči", "posodobi"] as const).map(v => (
-                        <label key={v} className="flex items-start gap-2.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="podvojeni"
-                            value={v}
-                            checked={uvozPodvojeni === v}
-                            onChange={() => setUvozPodvojeni(v)}
-                            className="mt-0.5 accent-primary"
-                          />
-                          <div>
-                            <span className="text-sm font-medium">
-                              {v === "preskoči" ? "Preskoči obstoječe" : "Posodobi ceno in DDV"}
-                            </span>
-                            <p className="text-xs text-muted-foreground">
-                              {v === "preskoči"
-                                ? "Artikli z enakim imenom ne bodo uvoženi (dodani med napake)."
-                                : "Artikli z enakim imenom bodo posodobljeni s podatki iz Excela."}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                  <div className="rounded-lg border p-3 text-xs text-muted-foreground">
+                    Obstoječi artikli se posodobijo po ID-ju, novi se dodajo brez ID-ja.
+                    Uvoz ne izbriše manjkajočih artiklov ali zgodovine. Če ima kateri koli list napake, se ne uvozi nič.
                   </div>
                 )}
               </div>
@@ -3986,7 +3965,7 @@ export default function Menu() {
                     <div>
                       <p className="font-semibold text-green-900">Uvoz zaključen</p>
                       <p className="text-sm text-green-800 mt-0.5">
-                        Uvoženih: <strong>{uvozRezultat.uvozenih}</strong> artiklov
+                        Dodanih: <strong>{uvozRezultat.uvozenih}</strong>, posodobljenih: <strong>{uvozRezultat.posodobljenih}</strong>
                         {uvozRezultat.preskocenih > 0 && `, preskočenih: ${uvozRezultat.preskocenih}`}
                         {uvozRezultat.normativiUvozenih > 0 && `, normativov nastavljenih: ${uvozRezultat.normativiUvozenih}`}
                       </p>
@@ -3998,7 +3977,7 @@ export default function Menu() {
                       <div className="rounded-lg border border-red-200 bg-red-50 divide-y divide-red-100 max-h-52 overflow-y-auto">
                         {uvozRezultat.napake.map((n, i) => (
                           <div key={i} className="px-3 py-1.5 flex gap-2 text-xs text-red-800">
-                            <span className="font-mono shrink-0">Vrstica {n.vrstica}:</span>
+                          <span className="font-mono shrink-0">{n.list ? `${n.list}, ` : ""}vrstica {n.vrstica}:</span>
                             <span>{n.napaka}</span>
                           </div>
                         ))}
@@ -4025,9 +4004,9 @@ export default function Menu() {
                 <Button
                   className="flex-1"
                   onClick={handleUvozPotrdi}
-                  disabled={uvozLoading || uvozVeljavnih === 0}
+                  disabled={uvozLoading || uvozVeljavnih === 0 || uvozNapake.length > 0}
                 >
-                  {uvozLoading ? "Uvažam..." : `Uvozi ${uvozVeljavnih} artiklov`}
+                  {uvozLoading ? "Uvažam..." : `Potrdi uvoz (${uvozVeljavnih} vrstic)`}
                 </Button>
               </>
             )}

@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, ClipboardList, ArrowLeft } from "lucide-react";
+import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, ClipboardList, ArrowLeft, Check } from "lucide-react";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { WasteRecordsPanel } from "@/pages/prepared-food/WasteRecordsPanel";
 
@@ -344,7 +344,25 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                         {row.isReadOnly ? (
                           <div className="text-right">{row.frozenAtEndQuantity}</div>
                         ) : (
-                           <TouchQuantityInput label="Zamrznjeno" value={row.edit.frozen} onChange={(value) => updateEdit(row.artikelId, "frozen", value)} />
+                            <div className="flex items-center justify-end gap-1">
+                              <TouchQuantityInput label="Zamrznjeno" value={row.edit.frozen} onChange={(value) => updateEdit(row.artikelId, "frozen", value)} />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 touch-manipulation"
+                                aria-label={`Zamrzni vso razpoložljivo količino: ${row.articleName || `Artikel #${row.artikelId}`}`}
+                                title="Vso preostalo količino vpiši za zamrznitev"
+                                disabled={isSaving || isClosing || row.totalQuantity <= Number(row.soldQuantity)}
+                                onClick={() => updateEdit(
+                                  row.artikelId,
+                                  "frozen",
+                                  String(Math.max(0, Math.round((row.totalQuantity - Number(row.soldQuantity)) * 10_000) / 10_000)),
+                                )}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                            </div>
                         )}
                       </TableCell>
                        <TableCell className={`${isCompactReadOnlyTable ? "p-1" : "align-top pt-2"} text-right ${row.hasInvalidWaste ? "font-semibold text-destructive" : ""}`}>

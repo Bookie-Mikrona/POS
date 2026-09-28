@@ -66,6 +66,7 @@
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
 - [XLSX native numerika](xlsx-native-numerics.md) — typed kanal je opt-in; Excel formule v numeričnih poljih berejo cached number, GTIN in besedilo vedno ostaneta text.
+- [POS Excel šifrant](pos-excel-catalog.md) — ločeni listi v eni datoteki; posodabljanje po ID, normativi le za ogled, dokler uvoz ne prevzame njihovih varoval.
 - [Zunanje slike – SSRF](article-image-reference-ssrf.md) — reference slike morajo povezavo pripeti na preverjen javni IP, omejiti tok in preveriti podpis slike.
 - [Pripravljena in sestavljena hrana](prepared-composite-food.md) — zamrznjena zaloga je operativna; priprava porabi surovine, kalo pa prerazporedi strošek.
 - [Prodajna priloga in skupna zaloga](prepared-side-dish-shared-stock.md) — samostojna prodaja priloge in modifikator morata porabljati isto pripravljeno jed.

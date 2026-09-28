@@ -32,8 +32,10 @@ import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { broadcastToUnit } from "../../lib/pos-sse";
 import { normalizeDrainedYield } from "../../lib/drained-yield";
+import { normalizeOptionalSlovenianArticleName, normalizeSlovenianArticleName } from "../../lib/slovenian-article-name";
 import { slovenianCollated } from "../../lib/slovenian-collation";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
+import { artikliExcelUpload, uvoziArtikliExcel } from "./artikli-excel-import";
 import {
   DROBNI_INVENTAR_KATALOG,
   OS_PREDLOGI,
@@ -518,6 +520,8 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
   const parsed = CreateArtikelBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const ime = normalizeSlovenianArticleName(parsed.data.ime);
+  if (!ime) { res.status(400).json({ error: "Ime artikla ne sme biti prazno." }); return; }
   let drainedYield;
   try {
     drainedYield = normalizeDrainedYield(parsed.data);
@@ -595,7 +599,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
       const mealType = parsed.data.mealType ?? "ala_carte";
       const [inserted] = await tx.insert(artikliTable).values({
         enotaId: tenotaId,
-        ime: parsed.data.ime,
+        ime,
         opis: parsed.data.opis ?? null,
         cena: String(polizdelek ? 0 : parsed.data.cena ?? 0),
         cenaMala: polizdelek || parsed.data.cenaMala == null ? null : String(parsed.data.cenaMala),
@@ -616,7 +620,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         drobniInventar,
         vrstaEmbalaze: (parsed.data as any).vrstaEmbalaze ?? null,
         depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
-        imeZaNabavo: parsed.data.imeZaNabavo ?? null,
+        imeZaNabavo: normalizeOptionalSlovenianArticleName(parsed.data.imeZaNabavo),
         enotaMere: parsed.data.enotaMere ?? null,
         brutoTezaG: polizdelek ? null : drainedYield.brutoTezaG,
         netoTezaG: polizdelek ? null : drainedYield.netoTezaG,
@@ -1145,8 +1149,11 @@ router.post("/artikli/uskladi-ddv", requireEnota, async (req, res): Promise<void
   res.json({ posodobljeno, splosnaSt, nizjaSt, znizanaSt });
 });
 
-// ── GET /artikli/izvozi-excel — izvoz vseh artiklov in normativov v .xlsx ──────
-router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise<void> => {
+// Excel roundtrip endpoints must precede the generic /artikli/:id routes.
+router.post("/artikli/uvozi-excel", requireEnota, artikliExcelUpload, uvoziArtikliExcel);
+
+// ── GET /artikli/izvozi-excel — izvoz kataloga in normativov v .xlsx ───────────
+router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Response): Promise<void> => {
   const tenotaId = (req as any).enotaId ?? 1;
 
   const ENOTE_MERE = ["kom", "kos", "par", "set", "porcija", "kg", "dag", "g", "l", "dl", "ml", "m", "m²", "m³"];
@@ -1154,13 +1161,23 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
 
   const [artikli, normativi, kategorije] = await Promise.all([
     db.select({
+      id: artikliTable.id,
       ime: artikliTable.ime,
       opis: artikliTable.opis,
       cena: artikliTable.cena,
       davek: artikliTable.davek,
       vrstaArtikla: artikliTable.vrstaArtikla,
       povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+      drobniInventar: artikliTable.drobniInventar,
+      drobniInventarPredlogaKljuc: artikliTable.drobniInventarPredlogaKljuc,
+      vrstaEmbalaze: artikliTable.vrstaEmbalaze,
+      depozitnaVrednost: artikliTable.depozitnaVrednost,
+      gtin: artikliTable.gtin,
+      nabavnaDdvStopnja: artikliTable.nabavnaDdvStopnja,
+      taxCategory: artikliTable.taxCategory,
+      jeSkupinskiNabavniArtikel: artikliTable.jeSkupinskiNabavniArtikel,
       kategorijaIme: kategorijeTable.ime,
+      kategorijaId: artikliTable.kategorijaId,
       barva: artikliTable.barva,
       aktiven: artikliTable.aktiven,
       nabavniArtikel: artikliTable.nabavniArtikel,
@@ -1168,6 +1185,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
       toGo: artikliTable.toGo,
+      skupina: artikliTable.skupina,
     })
       .from(artikliTable)
       .leftJoin(kategorijeTable, and(eq(artikliTable.kategorijaId, kategorijeTable.id), eq(kategorijeTable.enotaId, tenotaId)))
@@ -1176,7 +1194,9 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     db.execute(sql`
       SELECT
         a.ime        AS "artikelIme",
+        a.id         AS "artikelId",
         v.ime        AS "sestavinaIme",
+        v.id         AS "sestavinaId",
         n.kolicina   AS "kolicina",
         v.enota_mere AS "enotaMere"
       FROM normativi n
@@ -1201,11 +1221,26 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   for (let i = 0; i < maxSifVrstic; i++) {
     wsSif.addRow([katImena[i] ?? "", ENOTE_MERE[i] ?? ""]);
   }
+  // Full source snapshot lets apply reject stale workbook updates atomically.
+  for (const a of artikli) {
+    const fields = {
+      ime: a.ime, opis: a.opis, cena: a.cena, davek: a.davek,
+      vrstaArtikla: a.vrstaArtikla, kategorijaId: a.kategorijaId, barva: a.barva,
+      aktiven: a.aktiven, nabavniArtikel: a.nabavniArtikel, prodajniArtikel: a.prodajniArtikel,
+      jeSkupinskiNabavniArtikel: a.jeSkupinskiNabavniArtikel, povratnaEmbalaza: a.povratnaEmbalaza,
+      drobniInventar: a.drobniInventar, drobniInventarPredlogaKljuc: a.drobniInventarPredlogaKljuc,
+      vrstaEmbalaze: a.vrstaEmbalaze, depozitnaVrednost: a.depozitnaVrednost,
+      imeZaNabavo: a.imeZaNabavo, enotaMere: a.enotaMere, toGo: a.toGo,
+      skupina: a.skupina, gtin: a.gtin, nabavnaDdvStopnja: a.nabavnaDdvStopnja,
+      taxCategory: a.taxCategory,
+    };
+    wsSif.addRow(["", "", a.id, JSON.stringify({ version: 1, fields })]);
+  }
 
   // ── List 1: Artikli ────────────────────────────────────────────────────────
-  // Stolpci: A=ime B=cena C=ddv D=vrstaArtikla E=kategorija F=opis G=barva H=aktiven I=nabavniArtikel J=prodajniArtikel K=imeZaNabavo L=enotaMere M=toGo
-  const wsArt = wb.addWorksheet("Artikli");
-  wsArt.columns = [
+  // Stolpci vključujejo stabilni ID v A, zato so editable fields premaknjena za en stolpec.
+  const columns = [
+    { header: "id", key: "id", width: 9 },
     { header: "ime",             key: "ime",             width: 28 },
     { header: "cena",            key: "cena",            width: 10 },
     { header: "ddv",             key: "ddv",             width: 7  },
@@ -1220,6 +1255,24 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     { header: "enotaMere",       key: "enotaMere",       width: 13 },
     { header: "toGo",            key: "toGo",            width: 9  },
     { header: "skupina",         key: "skupina",         width: 20 },
+    { header: "gtin",            key: "gtin",            width: 18 },
+    { header: "nabavnaDdvStopnja", key: "nabavnaDdvStopnja", width: 19 },
+    { header: "taxCategory",     key: "taxCategory",     width: 20 },
+    { header: "povratnaEmbalaza", key: "povratnaEmbalaza", width: 18 },
+  ];
+  const wsArt = wb.addWorksheet("Artikli");
+  wsArt.columns = columns;
+  const wsReturn = wb.addWorksheet("Povratna embalaža");
+  wsReturn.columns = [
+    ...columns,
+    { header: "vrstaEmbalaze", key: "vrstaEmbalaze", width: 18 },
+    { header: "depozitnaVrednost", key: "depozitnaVrednost", width: 18 },
+  ];
+  const wsInventory = wb.addWorksheet("Drobni inventar");
+  wsInventory.columns = [
+    ...columns,
+    { header: "drobniInventar", key: "drobniInventar", width: 16 },
+    { header: "drobniInventarPredlogaKljuc", key: "drobniInventarPredlogaKljuc", width: 28 },
   ];
 
   // Glava — krepko + ozadje
@@ -1228,10 +1281,15 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
   headerRow.alignment = { vertical: "middle" };
   wsArt.views = [{ state: "frozen", ySplit: 1 }]; // zamrznjena glava
+  for (const ws of [wsReturn, wsInventory]) {
+    ws.getRow(1).font = { bold: true };
+    ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+  }
 
   // Obstoječi artikli
-  for (const a of artikli) {
-    wsArt.addRow({
+  const articleRow = (a: typeof artikli[number]) => ({
+      id: a.id,
       ime:             a.ime,
       cena:            Number(a.cena),
       ddv:             Number(a.davek),
@@ -1250,20 +1308,31 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
       enotaMere:       a.enotaMere ?? "",
       toGo:            a.toGo ? "DA" : "NE",
       skupina:         (a as typeof a & { skupina?: string | null }).skupina ?? "",
-    });
+      gtin:            a.gtin ?? "",
+      nabavnaDdvStopnja: a.nabavnaDdvStopnja == null ? "" : Number(a.nabavnaDdvStopnja),
+      taxCategory:     a.taxCategory ?? "food",
+      povratnaEmbalaza: a.povratnaEmbalaza ? "DA" : "NE",
+  });
+  for (const a of artikli) {
+    const values = articleRow(a);
+    if (a.povratnaEmbalaza) {
+      wsReturn.addRow({ ...values, vrstaEmbalaze: a.vrstaEmbalaze ?? "", depozitnaVrednost: a.depozitnaVrednost == null ? "" : Number(a.depozitnaVrednost) });
+    } else if (a.drobniInventar) {
+      wsInventory.addRow({ ...values, drobniInventar: "DA", drobniInventarPredlogaKljuc: a.drobniInventarPredlogaKljuc ?? "" });
+    } else wsArt.addRow(values);
   }
 
   // Prazne vrstice s privzetimi vrednostmi in formulami
-  // Stolpci: H=aktiven I=nabavniArtikel J=prodajniArtikel K=imeZaNabavo M=toGo
-  const prvaVrsticaZaVnos = artikli.length + 2; // +1 za glavo, +1 za 1-based
-  for (let r = prvaVrsticaZaVnos; r <= MAX_VRSTIC + 1; r++) {
+  // Stolpci: I=aktiven J=nabavniArtikel K=prodajniArtikel L=imeZaNabavo N=toGo
+  const prvaVrsticaZaVnos = wsArt.rowCount + 1;
+  for (let r = prvaVrsticaZaVnos; r <= Math.max(MAX_VRSTIC + 1, prvaVrsticaZaVnos + 100); r++) {
     const row = wsArt.getRow(r);
-    row.getCell("D").value = "storitev"; // vrstaArtikla (prodajniArtikel=DA)
-    row.getCell("H").value = "DA";       // aktiven
-    row.getCell("J").value = "DA";       // prodajniArtikel
-    row.getCell("M").value = "NE";       // toGo
+    row.getCell("E").value = "storitev"; // vrstaArtikla (prodajniArtikel=DA)
+    row.getCell("I").value = "DA";       // aktiven
+    row.getCell("K").value = "DA";       // prodajniArtikel
+    row.getCell("N").value = "NE";       // toGo
     // imeZaNabavo: avtomatično iz imena ko je nabavniArtikel=DA
-    row.getCell("K").value = { formula: `IF(I${r}="DA",A${r},"")` };
+    row.getCell("L").value = { formula: `IF(J${r}="DA",B${r},"")` };
   }
 
   // Validacija podatkov (dropdowni) — za vse vrstice s podatki
@@ -1272,8 +1341,8 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wsArtDv = (wsArt as any).dataValidations;
 
-  // Vrsta artikla (D)
-  wsArtDv.add(`D${r1}:D${r2}`, {
+  // Vrsta artikla (E)
+  wsArtDv.add(`E${r1}:E${r2}`, {
     type: "list",
     allowBlank: false,
     formulae: ['"blago,material,storitev"'],
@@ -1281,10 +1350,24 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     errorStyle: "stop",
     error: 'Veljavne vrednosti: blago, material, storitev',
   });
+  wsArtDv.add(`D${r1}:D${r2}`, {
+    type: "list",
+    allowBlank: true,
+    formulae: ['"0,5,9.5,22"'],
+    showErrorMessage: true,
+    errorStyle: "stop",
+  });
+  wsArtDv.add(`R${r1}:R${r2}`, {
+    type: "list",
+    allowBlank: true,
+    formulae: ['"food,hot_beverage,cold_beverage,alcoholic,food_drink,vat_super_reduced_5,other"'],
+    showErrorMessage: true,
+    errorStyle: "stop",
+  });
 
-  // Kategorija (E)
+  // Kategorija (F)
   if (katImena.length > 0) {
-    wsArtDv.add(`E${r1}:E${r2}`, {
+    wsArtDv.add(`F${r1}:F${r2}`, {
       type: "list",
       allowBlank: true,
       formulae: [`Sifranti!$A$1:$A$${katImena.length}`],
@@ -1292,8 +1375,8 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     });
   }
 
-  // DA/NE polja: H=aktiven, I=nabavniArtikel, J=prodajniArtikel, M=toGo
-  for (const col of ["H", "I", "J", "M"]) {
+  // DA/NE polja: I=aktiven, J=nabavniArtikel, K=prodajniArtikel, N=toGo, S=povratnaEmbalaza
+  for (const col of ["I", "J", "K", "N", "S"]) {
     wsArtDv.add(`${col}${r1}:${col}${r2}`, {
       type: "list",
       allowBlank: false,
@@ -1304,18 +1387,43 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
     });
   }
 
-  // Enota mere (L)
-  wsArtDv.add(`L${r1}:L${r2}`, {
+  // Enota mere (M)
+  wsArtDv.add(`M${r1}:M${r2}`, {
     type: "list",
     allowBlank: true,
     formulae: [`Sifranti!$B$1:$B$${ENOTE_MERE.length}`],
     showErrorMessage: false,
   });
 
+  // Specialty sheets retain validation for the explicit role flags, tax rates,
+  // tax category and returnable-packaging type.
+  const addSheetListValidation = (sheet: ExcelJS.Worksheet, column: string, formula: string, allowBlank = true) => {
+    (sheet as any).dataValidations.add(`${column}${r1}:${column}${r2}`, {
+      type: "list",
+      allowBlank,
+      formulae: [formula],
+      showErrorMessage: true,
+      errorStyle: "stop",
+    });
+  };
+  for (const sheet of [wsReturn, wsInventory]) {
+    for (const column of ["E", "I", "J", "K", "N", "S"]) {
+      addSheetListValidation(sheet, column, column === "E" ? '"blago,material,storitev"' : '"DA,NE"', column !== "E");
+    }
+    addSheetListValidation(sheet, "D", '"0,5,9.5,22"');
+    addSheetListValidation(sheet, "R", '"food,hot_beverage,cold_beverage,alcoholic,food_drink,vat_super_reduced_5,other"');
+    if (katImena.length > 0) addSheetListValidation(sheet, "F", `Sifranti!$A$1:$A$${katImena.length}`);
+    addSheetListValidation(sheet, "M", `Sifranti!$B$1:$B$${ENOTE_MERE.length}`);
+  }
+  addSheetListValidation(wsReturn, "T", '"steklenica,zaboj,keg,balon,drugo"');
+  addSheetListValidation(wsInventory, "T", '"DA,NE"', false);
+
   // ── List 2: Normativi ──────────────────────────────────────────────────────
-  const normRows = normativi.rows as { artikelIme: string; sestavinaIme: string; kolicina: string; enotaMere: string | null }[];
+  const normRows = normativi.rows as { artikelIme: string; artikelId: number; sestavinaIme: string; sestavinaId: number; kolicina: string; enotaMere: string | null }[];
   const wsNorm = wb.addWorksheet("Normativi");
   wsNorm.columns = [
+    { header: "artikelId",   key: "artikelId",   width: 12 },
+    { header: "sestavinaId", key: "sestavinaId", width: 12 },
     { header: "artikelIme",   key: "artikelIme",   width: 28 },
     { header: "sestavinaIme", key: "sestavinaIme", width: 28 },
     { header: "kolicina",     key: "kolicina",     width: 12 },
@@ -1326,7 +1434,7 @@ router.get("/artikli/izvozi-excel", async (req: Request, res: Response): Promise
   normHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
   wsNorm.views = [{ state: "frozen", ySplit: 1 }];
   for (const n of normRows) {
-    wsNorm.addRow({ artikelIme: n.artikelIme, sestavinaIme: n.sestavinaIme, kolicina: Number(n.kolicina), enotaMere: n.enotaMere ?? "" });
+    wsNorm.addRow({ artikelId: n.artikelId, sestavinaId: n.sestavinaId, artikelIme: n.artikelIme, sestavinaIme: n.sestavinaIme, kolicina: Number(n.kolicina), enotaMere: n.enotaMere ?? "" });
   }
 
   const buf = await wb.xlsx.writeBuffer() as unknown as Buffer;
@@ -1469,6 +1577,8 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: (params as any).error.message }); return; }
   const parsed = UpdateArtikelBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const ime = parsed.data.ime === undefined ? undefined : normalizeSlovenianArticleName(parsed.data.ime);
+  if (ime === "") { res.status(400).json({ error: "Ime artikla ne sme biti prazno." }); return; }
   const [obstojeci] = await db.select({
     jePica: artikliTable.jePica,
     pripravaVrsta: artikliTable.pripravaVrsta,
@@ -1587,7 +1697,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (napakaCenePic) { res.status(400).json({ error: napakaCenePic }); return; }
 
   const updateData: Partial<typeof artikliTable.$inferInsert> = {};
-  if (parsed.data.ime !== undefined) updateData.ime = parsed.data.ime;
+  if (ime !== undefined) updateData.ime = ime;
   if (parsed.data.opis !== undefined) updateData.opis = parsed.data.opis;
   if (parsed.data.cena !== undefined) updateData.cena = String(parsed.data.cena);
   if ("cenaMala" in parsed.data) {
@@ -1611,7 +1721,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (parsed.data.jeSkupinskiNabavniArtikel !== undefined) {
     updateData.jeSkupinskiNabavniArtikel = parsed.data.jeSkupinskiNabavniArtikel;
   }
-  if ("imeZaNabavo" in parsed.data) updateData.imeZaNabavo = parsed.data.imeZaNabavo ?? null;
+  if ("imeZaNabavo" in parsed.data) updateData.imeZaNabavo = normalizeOptionalSlovenianArticleName(parsed.data.imeZaNabavo);
   if ("enotaMere" in parsed.data) updateData.enotaMere = parsed.data.enotaMere ?? null;
   if (["brutoTezaG", "netoTezaG", "netoDelezOdst"].some((key) => key in parsed.data)) {
     updateData.brutoTezaG = drainedYield.brutoTezaG;
@@ -2784,8 +2894,8 @@ router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, asyn
           const classification = classifications.find(value => value.index === index)!;
           const [created] = await tx.insert(artikliTable).values({
             enotaId,
-            ime: item.name,
-            imeZaNabavo: item.name,
+            ime: normalizeSlovenianArticleName(item.name),
+            imeZaNabavo: normalizeSlovenianArticleName(item.name),
             cena: "0",
             davek: initialIngredientVatRate(classification.taxCategory, classification.addedSugar, ddvMap),
             nabavniArtikel: true,

@@ -160,6 +160,31 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     expect(screen.getByText("23")).not.toBeNull();
   });
 
+  it("s kljukico prenese preostanek v zamrzovanje, količina pa ostane ročno nastavljiva", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PreparedFoodPage />
+      </QueryClientProvider>
+    );
+    await openTestDate();
+
+    const freezeAll = screen.getByRole("button", { name: "Zamrzni vso razpoložljivo količino: Goveja juha" });
+    fireEvent.click(freezeAll);
+    const frozen = screen.getByRole("textbox", { name: "Zamrznjeno" }) as HTMLInputElement;
+    expect(frozen.value).toBe("3"); // Skupaj 15 − prodano 12
+    expect(mockSave).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zamrznjeno: zmanjšaj za eno" }));
+    expect(frozen.value).toBe("2");
+    fireEvent.click(screen.getByRole("button", { name: "Pripravljeno: povečaj za eno" }));
+    fireEvent.click(freezeAll);
+    expect(frozen.value).toBe("4"); // Ponovno upošteva trenutno pripravljeno količino
+
+    fireEvent.click(screen.getByRole("button", { name: "Shrani vse" }));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    expect(mockSave.mock.calls[0][0].data.frozenAtEndQuantity).toBe(4);
+  });
+
   it("zaključi vse postavke prek skupnega potrditvenega okna", async () => {
     render(
       <QueryClientProvider client={queryClient}>
@@ -191,6 +216,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     await openTestDate();
     expect(await screen.findByText("Samo ogled")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Shrani vse" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Zamrzni vso razpoložljivo količino/ })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Zgodovina" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Zapisniki kala" })).not.toBeNull();
   });

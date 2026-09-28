@@ -17,6 +17,7 @@ import {
 } from "../../lib/eventPolicy";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
 import { parseStrictDateTime, validateTemporaryPeriod } from "../../lib/temporaryUnitValidation";
+import { normalizeOptionalSlovenianArticleName, normalizeSlovenianArticleName } from "../../lib/slovenian-article-name";
 
 const router: IRouter = Router();
 const EVENT_TYPES = new Set<string>(POS_EVENT_TYPES);
@@ -412,7 +413,10 @@ router.post("/pos-events/:id/prepare", async (req: Request, res: Response): Prom
         const { id: _id, enotaId: _unit, kategorijaId, privzetiDodatki: _a,
           privzetiModifikatorji: _m, toGoArtikli: _t, ...copy } = source;
         const [target] = await tx.insert(artikliTable).values({
-          ...copy, enotaId: targetUnitId, kategorijaId: kategorijaId ? categoryMap.get(kategorijaId) : null,
+          ...copy,
+          ime: normalizeSlovenianArticleName(copy.ime),
+          imeZaNabavo: normalizeOptionalSlovenianArticleName(copy.imeZaNabavo),
+          enotaId: targetUnitId, kategorijaId: kategorijaId ? categoryMap.get(kategorijaId) : null,
           privzetiDodatki: [], privzetiModifikatorji: [], toGoArtikli: [],
         }).returning();
         articleMap.set(source.id, target.id);

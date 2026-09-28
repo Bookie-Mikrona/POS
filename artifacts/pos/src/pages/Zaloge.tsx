@@ -1325,7 +1325,7 @@ function NovArtikelKartica({
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); enotaTriggerRef.current?.focus(); } }}
         />
         {imeZaNabavo.trim() && (
-          <p className="text-xs text-muted-foreground">Ime za prodajo bo enako: „{imeZaNabavo.trim()}"</p>
+          <p className="text-xs text-muted-foreground">Naziv artikla bo enak: „{imeZaNabavo.trim()}"</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-2">

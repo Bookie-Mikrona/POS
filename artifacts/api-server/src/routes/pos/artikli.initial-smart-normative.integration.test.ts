@@ -593,7 +593,7 @@ describe("initial smart normative proposal and apply", () => {
   });
 
   it("previews without DB writes and atomically creates raw purchase ingredients and norms on confirmation", async () => {
-    currentIngredient = "Water";
+    currentIngredient = "čista Water";
     const before = await db.select({ id: artikliTable.id }).from(artikliTable).where(eq(artikliTable.enotaId, enotaA));
     const response = await supertest(app)
       .post(`/artikli/${parentId}/normativi/pametni-predlog`)
@@ -620,8 +620,8 @@ describe("initial smart normative proposal and apply", () => {
     const [ingredient] = await db.select().from(artikliTable).where(eq(artikliTable.id, applied.body.createdArticleIds[0]));
     expect(ingredient).toMatchObject({
       enotaId: enotaA,
-      ime: currentIngredient,
-      imeZaNabavo: currentIngredient,
+      ime: "Čista Water",
+      imeZaNabavo: "Čista Water",
       nabavniArtikel: true,
       prodajniArtikel: false,
       vrstaArtikla: "material",

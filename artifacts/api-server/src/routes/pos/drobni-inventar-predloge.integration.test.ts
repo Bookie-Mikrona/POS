@@ -122,21 +122,28 @@ describe("POST/GET /artikli/drobni-inventar-predloge", () => {
   it("tudi ročno dodan drobni inventar ob napačno poslani kategoriji uporablja 22 %", async () => {
     requestContext.enotaId = enotaId;
     requestContext.vloga = "admin";
+    const blankName = await supertest(app()).post("/artikli").send({ ime: " \t " });
+    expect(blankName.status).toBe(400);
+
     const created = await supertest(app()).post("/artikli").send({
-      ime: `Ročni kozarec ${RUN_ID}`, cena: 0, davek: 9.5,
+      ime: `  črni Kozarec ${RUN_ID}  `, imeZaNabavo: "  črni kozarec dobavitelja  ", cena: 0, davek: 9.5,
       enotaMere: "kos", nabavniArtikel: true, prodajniArtikel: false,
       vrstaArtikla: "material", drobniInventar: true, taxCategory: "food",
     });
     expect(created.status).toBe(201);
     const [article] = await db.select().from(artikliTable).where(eq(artikliTable.id, created.body.id));
+    expect(article?.ime).toBe(`Črni Kozarec ${RUN_ID}`);
+    expect(article?.imeZaNabavo).toBe("Črni kozarec dobavitelja");
     expect(Number(article?.davek)).toBe(22);
     expect(article?.taxCategory).toBe("other");
 
     const updated = await supertest(app()).put(`/artikli/${created.body.id}`).send({
-      ime: `Ročni kozarec ${RUN_ID}`, davek: 9.5, taxCategory: "food",
+      ime: `  žganje ABC ${RUN_ID}  `, imeZaNabavo: " \t ", davek: 9.5, taxCategory: "food",
     });
     expect(updated.status, JSON.stringify(updated.body)).toBe(200);
     const [afterEdit] = await db.select().from(artikliTable).where(eq(artikliTable.id, created.body.id));
+    expect(afterEdit?.ime).toBe(`Žganje ABC ${RUN_ID}`);
+    expect(afterEdit?.imeZaNabavo).toBeNull();
     expect(Number(afterEdit?.davek)).toBe(22);
     expect(afterEdit?.taxCategory).toBe("other");
   });

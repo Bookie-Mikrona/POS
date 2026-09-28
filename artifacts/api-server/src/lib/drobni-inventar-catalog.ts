@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { artikliTable } from "@workspace/db";
+import { normalizeSlovenianArticleName } from "./slovenian-article-name";
 
 export type DrobniInventarSkupina = {
   id: "01" | "02" | "03" | "04" | "05" | "06" | "07";
@@ -229,7 +230,7 @@ export async function uvoziDrobniInventar(tx: any, enotaId: number): Promise<{ i
   const inserted = toInsert.length
     ? await tx.insert(artikliTable).values(toInsert.map((article) => ({
       enotaId,
-      ime: article.ime,
+      ime: normalizeSlovenianArticleName(article.ime),
       opis: article.opis ?? null,
       cena: "0",
       davek: "22",
