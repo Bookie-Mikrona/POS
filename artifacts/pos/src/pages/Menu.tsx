@@ -500,7 +500,7 @@ export default function Menu() {
     }
   };
 
-  const handleKatalogPdf = async (scope: Extract<ArtikelKatalogScope, "prodajni" | "polizdelki">) => {
+  const handleKatalogPdf = async (scope: Extract<ArtikelKatalogScope, "nabavni" | "prodajni" | "polizdelki" | "drobni">) => {
     setKatalogPdfLoading(true);
     try {
       await downloadArtikelKatalogPdf(scope);
@@ -1914,8 +1914,10 @@ export default function Menu() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 max-h-[80vh] overflow-y-auto">
                       <DropdownMenuLabel>Izvoz PDF</DropdownMenuLabel>
+                      <DropdownMenuItem data-testid="button-export-katalog-nabavni" disabled={katalogPdfLoading} onSelect={() => void handleKatalogPdf("nabavni")}>Nabavni katalog</DropdownMenuItem>
                       <DropdownMenuItem data-testid="button-export-katalog-prodajni" disabled={katalogPdfLoading} onSelect={() => void handleKatalogPdf("prodajni")}>Prodajni katalog</DropdownMenuItem>
                       <DropdownMenuItem data-testid="button-export-katalog-polizdelki" disabled={katalogPdfLoading} onSelect={() => void handleKatalogPdf("polizdelki")}>Katalog polizdelkov</DropdownMenuItem>
+                      <DropdownMenuItem data-testid="button-export-katalog-drobni" disabled={katalogPdfLoading} onSelect={() => void handleKatalogPdf("drobni")}>Katalog drobnega inventarja</DropdownMenuItem>
                       {!jeUporabnik && (
                         <>
                           <DropdownMenuItem disabled={cenikPdfLoading} onSelect={() => void handleCenikPdf()}>Cenik PDF</DropdownMenuItem>
