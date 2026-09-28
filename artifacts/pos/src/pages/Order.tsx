@@ -211,7 +211,7 @@ interface ArtikelItem {
   taxCategory?: string;
   mealType?: "ala_carte" | "prepared" | "composite";
   availableQuantity?: number | null;
-  availableBySize?: { mala: number | null; normalna: number | null; druzinska: number | null };
+  availableBySize?: Partial<Record<VelikostPice, number | null>>;
   modifierAvailability?: Map<number, number>;
 }
 
@@ -426,6 +426,12 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
     sk.modifikatorji.filter(m => m.aktiven && artikel.modifierAvailability?.has(m.id))
       .map(m => `${m.ime}: ${artikel.modifierAvailability!.get(m.id)} porcij`),
   );
+  // Strežnik izpusti neaktivne velikosti; odsotna velikost ni neomejena zaloga.
+  const availablePizzaSizes = ([
+    ["mala", "Mala"],
+    ["normalna", "Normalna"],
+    ["druzinska", "Družinska"],
+  ] as const).filter(([size]) => artikel.availableBySize?.[size] !== undefined);
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -481,7 +487,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
           );
         })()}
 
-        {artikel.jePica && artikel.availableBySize ? (
+        {artikel.jePica && availablePizzaSizes.length > 0 ? (
           <span
             className="rounded px-1.5 py-0.5 text-[10px] font-bold"
             style={{
@@ -490,13 +496,9 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
             }}
             data-testid={`available-portions-${artikel.id}`}
           >
-            {([
-              ["mala", "Mala"],
-              ["normalna", "Normalna"],
-              ["druzinska", "Družinska"],
-            ] as const).map(([size, label]) => (
+            {availablePizzaSizes.map(([size, label]) => (
               <span key={size} className="mr-1.5 last:mr-0">
-                {label}: {artikel.availableBySize?.[size] == null ? "∞" : artikel.availableBySize?.[size]}
+                {label}: {artikel.availableBySize?.[size] == null ? "brez izračunane omejitve" : artikel.availableBySize?.[size]}
               </span>
             ))}
           </span>
@@ -4129,7 +4131,7 @@ export default function Order() {
                         <span className="text-xs opacity-80">{velikost.premer} cm</span>
                         {artRazpolozljivostVelikosti && (
                           <span className="text-[10px] opacity-80">
-                            {artRazpolozljivostVelikosti[velikost.id] == null ? "Na voljo: ∞" : `Na voljo: ${artRazpolozljivostVelikosti[velikost.id]}`}
+                            {artRazpolozljivostVelikosti[velikost.id] == null ? "Brez izračunane omejitve" : `Na voljo: ${artRazpolozljivostVelikosti[velikost.id]}`}
                           </span>
                         )}
                         <span className="font-bold">{cenaZaVelikostPice(velikost.id).toFixed(2)} €</span>

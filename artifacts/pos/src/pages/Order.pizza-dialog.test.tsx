@@ -199,6 +199,13 @@ const mockListArtikliData = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
 const mockModifierNormatives = vi.hoisted(() => ({ current: {} as Record<number, unknown[]> }));
 const mockOrderForOptions = vi.hoisted(() => ({ current: null as unknown }));
+const mockPizzaAvailability = vi.hoisted(() => ({
+  current: [] as Array<{
+    articleId: number;
+    availableQuantity: number | null;
+    availableBySize: Partial<Record<"mala" | "normalna" | "druzinska", number | null>>;
+  }>,
+}));
 
 vi.stubGlobal("fetch", vi.fn((url: string, options?: RequestInit) => Promise.resolve({
   ok: true,
@@ -295,7 +302,7 @@ vi.mock("@workspace/api-client-react", () => ({
     ...options?.query,
   }),
   useGetPreparedFoodAvailability: () => ({ data: {
-    businessDate: "2026-08-28", items: [],
+    businessDate: "2026-08-28", items: mockPizzaAvailability.current,
     modifierItems: [{ modifierId: 100, availableQuantity: 3 }],
   }, isLoading: false }),
   getGetPreparedFoodAvailabilityQueryKey: () => ["/prepared-food/availability"],
@@ -490,6 +497,23 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     mockListArtikliData.mockReturnValue([mockPica]);
     mockModifierNormatives.current = {};
     mockOrderForOptions.current = null;
+    mockPizzaAvailability.current = [];
+  });
+
+  it("v kartici ne prikaže izpuščene velikosti kot neskončno zalogo", async () => {
+    mockPizzaAvailability.current = [{
+      articleId: mockPica.id,
+      availableQuantity: null,
+      availableBySize: { mala: 7, normalna: 4 },
+    }];
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    const badge = await screen.findByTestId(`available-portions-${mockPica.id}`);
+    expect(badge.textContent).toContain("Mala: 7");
+    expect(badge.textContent).toContain("Normalna: 4");
+    expect(badge.textContent).not.toContain("Družinska");
+    expect(badge.textContent).not.toContain("∞");
   });
 
   it("mobilna glava prikaže čas priprave samo enkrat in ga ne ponavlja v preklopniku ali QR opozorilu", async () => {

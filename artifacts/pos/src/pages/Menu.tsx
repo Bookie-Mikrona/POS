@@ -92,6 +92,7 @@ import {
 import { SmartNormativeProposalDialog } from "@/components/SmartNormativeProposalDialog";
 import { EslogUnitPicker } from "@/components/EslogUnitPicker";
 import { isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
+import { mealTypeForArticleSave } from "@/lib/article-meal-type";
 
 type KategorijaDialogMode = "nova" | "uredi";
 type ArtDialogMode = "nov" | "uredi";
@@ -1572,7 +1573,7 @@ export default function Menu() {
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       ...(artPolizdelek ? {} : { vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla }),
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
-      mealType: artPolizdelek || artPripravaVrsta === "hrana" ? artMealType : "ala_carte",
+      mealType: mealTypeForArticleSave(artMealType, artPolizdelek, artPripravaVrsta, artJePica),
       ...(!artDrobniInventar ? { casPripraveMin } : {}),
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,

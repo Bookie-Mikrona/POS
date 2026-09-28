@@ -7,6 +7,7 @@ interface ToGoArticle {
   ime: string;
   aktiven: boolean;
   prodajniArtikel?: boolean;
+  kategorijaIme?: string | null;
 }
 
 function matchesSearch(name: string, query: string): boolean {
@@ -27,7 +28,9 @@ export function ToGoArticlePicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const available = articles.filter(article =>
-    article.aktiven && article.prodajniArtikel && !selectedIds.includes(article.id)
+    article.aktiven && article.prodajniArtikel
+    && article.kategorijaIme?.trim().toLocaleLowerCase("sl") === "embalaža"
+    && !selectedIds.includes(article.id)
     && matchesSearch(article.ime, query));
 
   return (
@@ -70,11 +73,11 @@ export function ToGoArticlePicker({
               </button>
             )) : (
               <p className="p-3 text-sm text-muted-foreground">
-                Ni zadetkov med aktivnimi prodajnimi artikli.
+                Ni zadetkov med aktivnimi prodajnimi artikli v kategoriji Embalaža.
               </p>
             )}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Na seznamu so samo aktivni prodajni artikli.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Na seznamu so samo aktivni prodajni artikli iz kategorije Embalaža.</p>
         </div>
       )}
     </div>
