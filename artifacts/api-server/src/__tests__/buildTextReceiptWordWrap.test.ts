@@ -393,6 +393,47 @@ describe("buildTextReceipt — plačljivi dodatek", () => {
 
 });
 
+describe("račun z enonivojskimi podizbirami in To-Go artiklom", () => {
+  const postavke: PrintRacunData["postavke"] = [
+    { ime: "Dunajski", postavkaId: 1, kolicina: 1, cenaKos: 15, skupaj: 15, davek: 9.5 },
+    { ime: "Zelena", postavkaId: 2, parentPostavkaId: 1, kolicina: 1, cenaKos: 0, skupaj: 0, davek: 9.5 },
+    { ime: "brez česna", postavkaId: 3, parentPostavkaId: 2, kolicina: 1, cenaKos: 0, skupaj: 0, davek: 9.5 },
+    { ime: "Dunajski", postavkaId: 4, kolicina: 1, cenaKos: 15, skupaj: 15, davek: 9.5 },
+    { ime: "Zelena", postavkaId: 5, parentPostavkaId: 4, kolicina: 1, cenaKos: 0, skupaj: 0, davek: 9.5 },
+    { ime: "brez česna", postavkaId: 6, parentPostavkaId: 5, kolicina: 1, cenaKos: 0, skupaj: 0, davek: 9.5 },
+    { ime: "Bolonjska", postavkaId: 7, toGo: true, kolicina: 2, cenaKos: 13.5, skupaj: 27, davek: 9.5 },
+    { ime: "Škatla za pico", postavkaId: 8, parentPostavkaId: 7, jeEmbalaza: true, kolicina: 2, cenaKos: 0.7, skupaj: 1.4, davek: 9.5 },
+    { ime: "Feferoni", postavkaId: 9, parentPostavkaId: 7, kolicina: 2, cenaKos: 2, skupaj: 4, davek: 9.5 },
+  ];
+
+  it.each([
+    ["58mm", (data: PrintRacunData) => buildTextReceipt(data, 32).linee],
+    ["NB80", (data: PrintRacunData) => buildNb80TextReceipt(data).linee],
+  ] as const)("%s pod vsako zeleno izpiše njeno podizbiro in označi pico To-Go", (_printer, build) => {
+    const lines = build({ ...BASE, skupaj: 62.4, postavke });
+    const saladIndexes = lines.flatMap((line, i) => line.includes("* Zelena") ? [i] : []);
+    const garlicIndexes = lines.flatMap((line, i) => line.includes("* brez česna") ? [i] : []);
+    expect(saladIndexes).toHaveLength(2);
+    expect(garlicIndexes).toHaveLength(2);
+    expect(garlicIndexes[0]).toBe(saladIndexes[0] + 1);
+    expect(garlicIndexes[1]).toBe(saladIndexes[1] + 1);
+    const pizzaLine = lines.findIndex(line => line.includes("Bolonjska"));
+    expect(pizzaLine).toBeGreaterThan(-1);
+    expect(lines.slice(pizzaLine, pizzaLine + 2).some(line => line.includes("To-Go"))).toBe(true);
+    expect(lines.some(line => line.includes("14.20 €") && line.includes("28.40 €"))).toBe(true);
+    expect(lines.some(line => line.includes("Feferoni"))).toBe(true);
+  });
+
+  it("ESC/POS enako gnezdi podizbiro in označi pico To-Go brez spremembe vhodnih vrstic", () => {
+    const input = { ...BASE, postavke };
+    const printed = Buffer.from(buildEscPosReceipt(input, 32, { encoding: "ascii-translit" })).toString("latin1");
+    expect(printed).toContain("Bolonjska To-Go");
+    expect(printed.match(/Zelena\r?\n\s+\* brez cesna/g)).toHaveLength(2);
+    expect(postavke[6].ime).toBe("Bolonjska");
+    expect(postavke[7].ime).toBe("Škatla za pico");
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 7. Opomba artikla — ena vrstica, brez lomljenja
 // ═══════════════════════════════════════════════════════════════════════════════

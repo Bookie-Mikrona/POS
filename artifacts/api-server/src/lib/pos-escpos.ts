@@ -259,6 +259,7 @@ export interface PrintPostavka {
   parentPostavkaId?: number | null;
   postavkaId?: number | null;
   jeEmbalaza?: boolean;
+  toGo?: boolean;
 }
 
 /** Pure display projection; never use this for fiscal or accounting values. */
@@ -281,10 +282,13 @@ export function projectPackagingDisplayPrices(postavke: PrintPostavka[]): PrintP
     }
   }
   return postavke.map((line) => {
-    if (line.jeEmbalaza && !foldablePackaging.has(line)) return { ...line, jeEmbalaza: false };
-    if (foldablePackaging.has(line)) return { ...line, cenaKos: 0, cenaKosOriginalna: null, skupaj: 0 };
+    const displayLine = line.toGo && line.parentPostavkaId == null && !/\sTo-Go$/i.test(line.ime)
+      ? { ...line, ime: `${line.ime} To-Go` }
+      : line;
+    if (line.jeEmbalaza && !foldablePackaging.has(line)) return { ...displayLine, jeEmbalaza: false };
+    if (foldablePackaging.has(line)) return { ...displayLine, cenaKos: 0, cenaKosOriginalna: null, skupaj: 0 };
     const packagingTotal = line.postavkaId == null ? 0 : packagingByParent.get(line.postavkaId) ?? 0;
-    if (packagingTotal === 0) return line;
+    if (packagingTotal === 0) return displayLine;
     const together = Math.round((line.skupaj + packagingTotal + Number.EPSILON) * 100) / 100;
     const cenaKos = line.kolicina
       ? Math.round((together / line.kolicina + Number.EPSILON) * 100) / 100
@@ -296,7 +300,7 @@ export function projectPackagingDisplayPrices(postavke: PrintPostavka[]): PrintP
         ? Math.round((line.cenaKosOriginalna + packagingTotal / line.kolicina + Number.EPSILON) * 100) / 100
         : line.cenaKosOriginalna;
     return {
-      ...line,
+      ...displayLine,
       cenaKosOriginalna: originalPrice,
       skupaj: together,
       cenaKos,
@@ -505,7 +509,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
   const topPostavkeIds = new Set(data.postavke.filter(p => p.parentPostavkaId == null && p.postavkaId != null).map(p => p.postavkaId as number));
   const topPostavke = data.postavke.filter(p => p.parentPostavkaId == null);
   // Osirotele podredne postavke (parent ni v tiskanem naboru)
-  const orphanDodatki = data.postavke.filter(p => p.parentPostavkaId != null && !topPostavkeIds.has(p.parentPostavkaId));
+  const printedIds = new Set(topPostavkeIds);
 
   const printPostavkaRow = (p: PrintPostavka) => {
     // imaPopust: prikaži "Redna cena / Popust X%" samo pri delnem popustu (cenaKos > 0).
@@ -532,6 +536,17 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
     line(padEnd(okr, artW) + " " + padStart(String(p.kolicina), kolW) + " " + padStart(p.cenaKos.toFixed(2) + " €", cenaW) + " " + padStart(p.skupaj.toFixed(2) + " €", skupajW));
   };
 
+  const printNested = (parent: PrintPostavka) => {
+    for (const child of parent.postavkaId != null ? dodatekMap.get(parent.postavkaId) ?? [] : []) {
+      if (child.postavkaId != null) printedIds.add(child.postavkaId);
+      for (const text of wrapText(child.ime, cols - 6)) line("    * " + text);
+      if (child.skupaj !== 0 || child.cenaKos !== 0) {
+        line(twoColumns("      Dodatek:", faL(child.skupaj), cols));
+      }
+      if (child.opomba) line("      " + child.opomba.slice(0, cols - 6));
+    }
+  };
+
   for (const p of topPostavke) {
     printPostavkaRow(p);
     // Dodatki
@@ -541,21 +556,27 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
     const placljeniDodatki = dodatki.filter(d => !d.jeEmbalaza && (d.skupaj !== 0 || d.cenaKos !== 0));
     const brezplacniDodatki = dodatki.filter(d => !d.jeEmbalaza && d.skupaj === 0 && d.cenaKos === 0);
     for (const d of embalaze) {
+      if (d.postavkaId != null) printedIds.add(d.postavkaId);
       for (const l of wrapText(d.ime, cols - 2)) line("  " + l);
+      printNested(d);
     }
     for (const d of placljeniDodatki) {
+      if (d.postavkaId != null) printedIds.add(d.postavkaId);
       // "+ " + naziv v 1. vrstici, DDV+zneski v 2. vrstici — enako kot USB
       const dOkr = davekOkrajsava.get(d.davek) ?? "";
       const dLines = wrapText(d.ime, cols - 2);
       for (let i = 0; i < dLines.length; i++) line((i === 0 ? "+ " : "  ") + dLines[i]);
       if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
       line(padEnd(dOkr, artW) + " " + padStart(String(d.kolicina), kolW) + " " + padStart(d.cenaKos.toFixed(2) + " €", cenaW) + " " + padStart(d.skupaj.toFixed(2) + " €", skupajW));
+      printNested(d);
     }
     for (const d of brezplacniDodatki) {
+      if (d.postavkaId != null) printedIds.add(d.postavkaId);
       // Brezplačni dodatek: "  * " + naziv
       const dBrezVrstice = wrapText(d.ime, cols - 4).slice(0, 3);
       for (let i = 0; i < dBrezVrstice.length; i++) line((i === 0 ? "  * " : "    ") + dBrezVrstice[i]);
       if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
+      printNested(d);
     }
     if (placljeniDodatki.length > 0) {
       const skupajPica = p.skupaj + placljeniDodatki.reduce((s, d) => s + d.skupaj, 0);
@@ -563,7 +584,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
     }
   }
   // Osirotele dodatke tiskamo kot samostojne postavke
-  for (const d of orphanDodatki) {
+  for (const d of data.postavke.filter(d => d.parentPostavkaId != null && (d.postavkaId == null || !printedIds.has(d.postavkaId)))) {
     printPostavkaRow(d);
   }
 
@@ -863,7 +884,7 @@ export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
       .map(p => p.postavkaId as number)
   );
   const topPostavke = data.postavke.filter(p => p.parentPostavkaId == null);
-  const orphani     = data.postavke.filter(p => p.parentPostavkaId != null && !topIds.has(p.parentPostavkaId));
+  const printedIds = new Set(topIds);
 
   const printRow = (p: PrintPostavka) => {
     const imaPopust = p.cenaKosOriginalna != null && p.cenaKosOriginalna > p.cenaKos + 0.001 && p.cenaKos > 0.001;
@@ -890,6 +911,15 @@ export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
     }
   };
 
+  const printNested = (parent: PrintPostavka) => {
+    for (const child of parent.postavkaId != null ? dodatekMap.get(parent.postavkaId) ?? [] : []) {
+      if (child.postavkaId != null) printedIds.add(child.postavkaId);
+      line("    * " + child.ime.slice(0, COLS - 6));
+      if (child.skupaj !== 0 || child.cenaKos !== 0) line(twoColumns("      Dodatek:", faL(child.skupaj), COLS));
+      if (child.opomba) line("      " + child.opomba.slice(0, COLS - 6));
+    }
+  };
+
   for (const p of topPostavke) {
     printRow(p);
     const pId = p.postavkaId ?? null;
@@ -897,22 +927,30 @@ export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
     const embalaze = dodatki.filter(d => d.jeEmbalaza);
     const placljeni   = dodatki.filter(d => !d.jeEmbalaza && (d.skupaj !== 0 || d.cenaKos !== 0));
     const brezplacni  = dodatki.filter(d => !d.jeEmbalaza && d.skupaj === 0 && d.cenaKos === 0);
-    for (const d of embalaze) line("  " + d.ime.slice(0, COLS - 2));
+    for (const d of embalaze) {
+      if (d.postavkaId != null) printedIds.add(d.postavkaId);
+      line("  " + d.ime.slice(0, COLS - 2));
+      printNested(d);
+    }
     for (const d of placljeni) {
+      if (d.postavkaId != null) printedIds.add(d.postavkaId);
       line("+ " + d.ime.slice(0, COLS - 2));
       if (d.opomba) line("    " + d.opomba.slice(0, COLS - 4));
       line(padEnd("", NAZIV_W) + padEnd("", DDV_W) + fmtKol(d.kolicina) + fmtEur(d.cenaKos, CENA_W) + fmtEur(d.skupaj, SUM_W));
+      printNested(d);
     }
     for (const d of brezplacni) {
+      if (d.postavkaId != null) printedIds.add(d.postavkaId);
       line("  * " + d.ime.slice(0, COLS - 4));
       if (d.opomba) line("    " + d.opomba.slice(0, COLS - 4));
+      printNested(d);
     }
     if (placljeni.length > 0) {
       const skupajPica = p.skupaj + placljeni.reduce((s, d) => s + d.skupaj, 0);
       line(twoColumns("  Skupaj artikel:", faL(skupajPica), COLS));
     }
   }
-  for (const d of orphani) printRow(d);
+  for (const d of data.postavke.filter(d => d.parentPostavkaId != null && (d.postavkaId == null || !printedIds.has(d.postavkaId)))) printRow(d);
 
   line(dashedLine(COLS));
 
@@ -1283,7 +1321,7 @@ export function buildEscPosReceipt(
   }
   const topPostavkeEscIds = new Set(data.postavke.filter(p => p.parentPostavkaId == null && p.postavkaId != null).map(p => p.postavkaId as number));
   const topPostavkeEsc = data.postavke.filter(p => p.parentPostavkaId == null);
-  const orphanDodatkiEsc = data.postavke.filter(p => p.parentPostavkaId != null && !topPostavkeEscIds.has(p.parentPostavkaId));
+  const printedIdsEsc = new Set(topPostavkeEscIds);
 
   const printPostavkaRowEsc = (p: PrintPostavka) => {
     const cenaKosOriginalna = p.cenaKosOriginalna;
@@ -1304,6 +1342,15 @@ export function buildEscPosReceipt(
     line(padEnd(okr, artW) + " " + padStart(String(p.kolicina), kolW) + " " + padStart(p.cenaKos.toFixed(2) + amtSuffix, cenaW) + " " + padStart(p.skupaj.toFixed(2) + amtSuffix, skupajW));
   };
 
+  const printNestedEsc = (parent: PrintPostavka) => {
+    for (const child of parent.postavkaId != null ? dodatekMapEsc.get(parent.postavkaId) ?? [] : []) {
+      if (child.postavkaId != null) printedIdsEsc.add(child.postavkaId);
+      line("    * " + child.ime.slice(0, cols - 6));
+      if (child.skupaj !== 0 || child.cenaKos !== 0) line(twoColumns(lbl("      Dodatek:"), faL(child.skupaj), cols));
+      if (child.opomba) line("      " + child.opomba.slice(0, cols - 6));
+    }
+  };
+
   for (const p of topPostavkeEsc) {
     printPostavkaRowEsc(p);
     // Dodatki
@@ -1312,15 +1359,23 @@ export function buildEscPosReceipt(
     const embalazeEsc = dodatki.filter(d => d.jeEmbalaza);
     const placljeniDodatkiEsc = dodatki.filter(d => !d.jeEmbalaza && (d.skupaj !== 0 || d.cenaKos !== 0));
     const brezplacniDodatkiEsc = dodatki.filter(d => !d.jeEmbalaza && d.skupaj === 0 && d.cenaKos === 0);
-    for (const d of embalazeEsc) line("  " + d.ime.slice(0, cols - 2));
+    for (const d of embalazeEsc) {
+      if (d.postavkaId != null) printedIdsEsc.add(d.postavkaId);
+      line("  " + d.ime.slice(0, cols - 2));
+      printNestedEsc(d);
+    }
     for (const d of placljeniDodatkiEsc) {
+      if (d.postavkaId != null) printedIdsEsc.add(d.postavkaId);
       line("+ " + d.ime.slice(0, cols - 2));
       if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
       line(padEnd("", artW) + " " + padStart(String(d.kolicina), kolW) + " " + padStart(d.cenaKos.toFixed(2) + amtSuffix, cenaW) + " " + padStart(d.skupaj.toFixed(2) + amtSuffix, skupajW));
+      printNestedEsc(d);
     }
     for (const d of brezplacniDodatkiEsc) {
+      if (d.postavkaId != null) printedIdsEsc.add(d.postavkaId);
       line("  * " + d.ime.slice(0, cols - 4));
       if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));
+      printNestedEsc(d);
     }
     if (placljeniDodatkiEsc.length > 0) {
       const skupajPica = p.skupaj + placljeniDodatkiEsc.reduce((s, d) => s + d.skupaj, 0);
@@ -1328,7 +1383,7 @@ export function buildEscPosReceipt(
     }
   }
   // Osirotele dodatke tiskamo kot samostojne postavke
-  for (const d of orphanDodatkiEsc) {
+  for (const d of data.postavke.filter(d => d.parentPostavkaId != null && (d.postavkaId == null || !printedIdsEsc.has(d.postavkaId)))) {
     printPostavkaRowEsc(d);
   }
 
