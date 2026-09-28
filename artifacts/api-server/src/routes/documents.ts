@@ -27,7 +27,7 @@ import {
   accountingRolesTable,
   counterpartiesTable,
   accountsTable,
-  vatCodesTable,
+  vatCodeTable,
   invoicesTable,
   invoiceLinesTable,
   accountingPeriodsTable,
@@ -92,6 +92,55 @@ type SuggestionBookingRow = {
   counterpartyId: string;
   accountCode: string;
 };
+
+type AssetCandidate = "OTHER_FA" | "REALESTATE";
+const EU_VAT_PREFIXES = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR",
+  "EL", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO",
+  "SE", "SK", "XI",
+]);
+
+type OcrCandidateLine = ProposedLine & {
+  assetTypeCandidate?: AssetCandidate;
+  assetTypeReason?: string;
+  assetTypeOriginalAccountCode?: string | null;
+  assetTypeOriginalAccountId?: string | null;
+  assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
+  vatCodeId?: string | null;
+  vatCodeReason?: string;
+  vatCodeReviewRequired?: boolean;
+  vatCodeReviewReason?: string;
+};
+
+type OcrReviewResult = OcrResult & {
+  counterpartyTaxId?: string;
+  invoiceDate?: string;
+  lines: OcrCandidateLine[];
+};
+
+export function isEuSupplierTaxId(taxId: string | null | undefined): boolean {
+  const normalized = (taxId ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+  return normalized.length > 2 && EU_VAT_PREFIXES.has(normalized.slice(0, 2));
+}
+
+/**
+ * OCR asset classification is deliberately a proposal, never a booking rule.
+ * Only unmistakable asset terminology is enough to create a visible candidate.
+ */
+export function inferAssetCandidate(description: string, documentText = ""): {
+  candidate: AssetCandidate | null;
+  reason?: string;
+} {
+  const text = `${description} ${documentText}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const acquisitionEvidence = /\b(nakup|nabava|dobava|investicija|investicijska)\b/.test(text);
+  if (acquisitionEvidence && /\b(nepremicnin\w*|zemljisc\w*|stavb\w*|poslovn\w*\s+prostor\w*)\b/.test(text)) {
+    return { candidate: "REALESTATE", reason: "Opis izrecno omenja nakup oziroma investicijo v nepremičnino." };
+  }
+  if (acquisitionEvidence && /\b(stroj\w*|oprem\w*|racunalnik\w*|vozil\w*|pohistv\w*)\b/.test(text)) {
+    return { candidate: "OTHER_FA", reason: "Opis izrecno kaže na nabavo trajnejše opreme oziroma osnovnega sredstva." };
+  }
+  return { candidate: null };
+}
 
 export function enrichLinesWithSuggestionSource(
   lines: ProposedLine[],
@@ -172,14 +221,22 @@ async function runOcrWithClaude(
       .from(counterpartiesTable)
       .where(and(eq(counterpartiesTable.companyId, companyId), eq(counterpartiesTable.isActive, true)))
       .limit(100),
-    db.select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name })
+    db.select({ id: accountsTable.id, code: accountsTable.code, name: accountsTable.name, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
       .from(accountsTable)
       .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.isActive, true)))
       .orderBy(asc(accountsTable.code))
       .limit(200),
-    db.select({ id: vatCodesTable.id, code: vatCodesTable.code, rate: vatCodesTable.rate })
-      .from(vatCodesTable)
-      .where(and(eq(vatCodesTable.companyId, companyId), eq(vatCodesTable.isActive, true))),
+    db.select({
+      id: vatCodeTable.id,
+      code: vatCodeTable.code,
+      rate: vatCodeTable.rate,
+      direction: vatCodeTable.direction,
+      isReverseCharge: vatCodeTable.isReverseCharge,
+      validFrom: vatCodeTable.validFrom,
+      validTo: vatCodeTable.validTo,
+    })
+      .from(vatCodeTable)
+      .where(eq(vatCodeTable.direction, "IN")),
     // Pretekle potrjene knjižbe za učenje vzorcev kontiranja po partnerjih
     db.select({
       counterpartyId: counterpartiesTable.id,
@@ -335,6 +392,7 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
       "vatRate": 22,
       "vatBase": 1000.00,
       "vatAmount": 220.00,
+      "vatCodeId": "uuid-globalne-vstopne-ddv-kode-ali-null",
       "accountCode": "400",
       "accountId": "uuid-konta-ali-null",
       "confidence": 0.9
@@ -394,7 +452,50 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     detectedCounterpartyId,
     templateRows,
     recentBookingRows,
+  ).map((line) => {
+    const asset = inferAssetCandidate(line.description ?? "");
+    if (!asset.candidate) return line;
+    // Suggested fixed-asset accounts must be active, directly postable OS 02/04
+    // accounts. In particular, never retain a proposed 4* expense account.
+    const prefix = asset.candidate === "REALESTATE" ? "02" : "04";
+    const account = accounts.find(a =>
+      a.code.startsWith(prefix) && a.isActive && a.allowsPosting,
+    );
+    return {
+      ...line,
+      assetTypeCandidate: asset.candidate,
+      assetTypeReason: asset.reason,
+      assetTypeOriginalAccountCode: line.accountCode ?? null,
+      assetTypeOriginalAccountId: line.accountId ?? null,
+      accountCode: account?.code ?? undefined,
+      accountId: account?.id ?? undefined,
+      suggestionSource: "pattern" as const,
+    };
+  });
+  const euSupplier = isEuSupplierTaxId(parsed.counterpartyTaxId);
+  const reverseChargeEvidence = /reverse charge|tax to be accounted for by the recipient|obrnjena davcna obveznost|obracun davka po 76\. clenu/i
+    .test(parsed.rawText ?? rawText);
+  const invoiceDate = parsed.invoiceDate?.slice(0, 10);
+  const euVatCode = vatCodes.find(code =>
+    code.code === "EUB22/95"
+    && code.direction === "IN"
+    && (!invoiceDate || code.validFrom <= invoiceDate)
+    && (!invoiceDate || !code.validTo || code.validTo >= invoiceDate),
   );
+  const vatEnrichedLines = enrichedLines.map(line => {
+    const assetCandidate = inferAssetCandidate(line.description ?? "").candidate;
+    if (!euSupplier || (Number(line.vatRate) !== 0 && !assetCandidate)) return line;
+    if (reverseChargeEvidence && euVatCode && Number(line.vatRate) === 0) return {
+      ...line,
+      vatCodeId: euVatCode.id,
+      vatCodeReason: "EU DDV-ID, 0 % DDV in izrecna navedba obrnjene davčne obveznosti; predlagana je EUB22/95.",
+    };
+    return {
+      ...line,
+      vatCodeReviewRequired: true,
+      vatCodeReviewReason: "Prepoznan je dobaviteljev EU DDV-ID oziroma osnovno sredstvo pri EU dobavitelju. Izberite veljavno vstopno kodo EUB pred ustvarjanjem računa.",
+    };
+  });
 
   return {
     rawText: parsed.rawText ?? rawText,
@@ -409,7 +510,7 @@ VRNI TOČNO ta JSON (brez markdowna, brez besedila pred/po):
     totalVat: parsed.totalVat ?? undefined,
     totalGross: parsed.totalGross ?? undefined,
     currency: parsed.currency ?? "EUR",
-    lines: enrichedLines,
+    lines: vatEnrichedLines,
     suggestedCounterpartyId: parsed.suggestedCounterpartyId ?? undefined,
     suggestedCounterpartyName: parsed.suggestedCounterpartyName ?? undefined,
     suggestedDocumentType: parsed.suggestedDocumentType ?? undefined,
@@ -593,6 +694,7 @@ router.post(
       createInvoice?: boolean;
       arApAccountId?: string;
     };
+    const ocrReview = doc.ocrResult as OcrReviewResult | null;
 
     if (!Array.isArray(lines) || lines.length === 0) {
       res.status(400).json({ error: "Dokument nima vrstic za kontiranje — dodajte vsaj eno vrstico." });
@@ -602,7 +704,88 @@ router.post(
     // Validacija: vse vrstice morajo imeti aktiven, knjižljiv konto iz kontnega
     // načrta tega podjetja. Skupinski konti (allowsPosting=false) so namenjeni
     // samo grupiranju v poročilih in jih ni dovoljeno neposredno knjižiti.
-    const submittedLines: ProposedLine[] = lines;
+    const submittedLines = lines as Array<ProposedLine & {
+      assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
+      assetTypeCandidate?: "OTHER_FA" | "REALESTATE";
+      assetTypeReason?: string;
+      assetTypeOriginalAccountCode?: string | null;
+      assetTypeOriginalAccountId?: string | null;
+      vatCodeId?: string | null;
+      vatCodeReason?: string;
+      vatCodeReviewRequired?: boolean;
+      vatCodeReviewReason?: string;
+    }>;
+    const ocrProposalLines = ocrReview?.lines ?? [];
+    if (createInvoice) {
+      for (const [index, proposed] of ocrProposalLines.entries()) {
+        if (proposed.assetTypeCandidate) {
+          const submitted = submittedLines[index];
+          if (!submitted || submitted.assetType == null) {
+            res.status(400).json({
+              error: `Pred potrditvijo računa morate sprejeti ali zavrniti predlog osnovnega sredstva za vrstico ${index + 1}.`
+            });
+            return;
+          }
+          if (submitted.assetType !== "NONE" && submitted.assetType !== proposed.assetTypeCandidate) {
+            res.status(400).json({ error: "Potrjena vrsta osnovnega sredstva ne ustreza predlogu OCR." });
+            return;
+          }
+        }
+        if (proposed.vatCodeReviewRequired && !submittedLines[index]?.vatCodeId) {
+          res.status(400).json({
+            error: proposed.vatCodeReviewReason ?? "Izberite veljavno vstopno DDV-kodo pred ustvarjanjem računa."
+          });
+          return;
+        }
+      }
+    }
+    // Preserve the server-generated proposal and VAT evidence for audit. These
+    // metadata fields are not client-authoritative.
+    submittedLines.forEach((line, index) => {
+      const proposal = ocrProposalLines[index];
+      if (!proposal) return;
+      line.assetTypeCandidate = proposal.assetTypeCandidate;
+      line.assetTypeReason = proposal.assetTypeReason;
+      line.assetTypeOriginalAccountCode = proposal.assetTypeOriginalAccountCode;
+      line.assetTypeOriginalAccountId = proposal.assetTypeOriginalAccountId;
+      if (proposal.vatCodeId) line.vatCodeId = proposal.vatCodeId;
+      if (proposal.vatCodeReason) line.vatCodeReason = proposal.vatCodeReason;
+      if (proposal.vatCodeReviewRequired) {
+        line.vatCodeReviewRequired = true;
+        line.vatCodeReviewReason = proposal.vatCodeReviewReason;
+      }
+    });
+    for (const line of submittedLines) {
+      if (line.assetType != null && !["NONE", "OTHER_FA", "REALESTATE"].includes(line.assetType)) {
+        res.status(400).json({ error: "Neveljavna vrsta osnovnega sredstva na vrstici." });
+        return;
+      }
+      if (
+        createInvoice
+        && line.assetTypeCandidate
+        && line.assetType == null
+      ) {
+        res.status(400).json({
+          error: `Pred potrditvijo računa morate sprejeti ali zavrniti predlog osnovnega sredstva za vrstico »${line.description}«.`
+        });
+        return;
+      }
+      if (createInvoice && line.vatCodeReviewRequired && !line.vatCodeId) {
+        res.status(400).json({
+          error: line.vatCodeReviewReason ?? "Izberite veljavno vstopno DDV-kodo pred ustvarjanjem računa."
+        });
+        return;
+      }
+      if (
+        createInvoice
+        && line.assetTypeCandidate
+        && line.assetType !== "NONE"
+        && line.assetType !== line.assetTypeCandidate
+      ) {
+        res.status(400).json({ error: "Potrjena vrsta osnovnega sredstva ne ustreza predlogu OCR." });
+        return;
+      }
+    }
     const allLineAccountIds = submittedLines.map(l => l.accountId).filter((id): id is string => !!id);
     const missingAccountLines = submittedLines.filter(l => !l.accountId);
     if (missingAccountLines.length > 0) {
@@ -649,6 +832,49 @@ router.post(
         });
         return;
       }
+      const acceptedAssetLines = createInvoice ? submittedLines.filter(line =>
+        line.assetType === "OTHER_FA" || line.assetType === "REALESTATE",
+      ) : [];
+      const accountById = new Map(validAccounts.map(account => [account.id, account]));
+      const invalidAssetAccount = acceptedAssetLines.find(line => {
+        const code = line.accountId ? accountById.get(line.accountId)?.code : undefined;
+        return !code || !/^(02|04)/.test(code) || /^4/.test(code);
+      });
+      if (invalidAssetAccount) {
+        res.status(400).json({
+          error: `Sprejeta vrstica osnovnega sredstva »${invalidAssetAccount.description}« mora imeti izbran knjižljiv konto OS iz skupine 02 ali 04.`
+        });
+        return;
+      }
+    }
+
+    const requestedVatCodeIds = [...new Set(submittedLines.map(line => line.vatCodeId).filter((id): id is string => !!id))];
+    const fursVatCodesById = new Map<string, { code: string; direction: "IN" | "OUT"; validFrom: string; validTo: string | null }>();
+    if (requestedVatCodeIds.length > 0) {
+      const invoiceVatDate = (invoiceDate ?? ocrReview?.invoiceDate ?? "").slice(0, 10);
+      const requestedVatCodes = await db.select({
+        id: vatCodeTable.id,
+        code: vatCodeTable.code,
+        direction: vatCodeTable.direction,
+        validFrom: vatCodeTable.validFrom,
+        validTo: vatCodeTable.validTo,
+      })
+        .from(vatCodeTable)
+        .where(and(
+          inArray(vatCodeTable.id, requestedVatCodeIds),
+          eq(vatCodeTable.direction, "IN"),
+        ));
+      for (const code of requestedVatCodes) fursVatCodesById.set(code.id, code);
+      const hasInvalidVatCode = requestedVatCodeIds.some(id => {
+        const code = fursVatCodesById.get(id);
+        return !code
+          || (invoiceVatDate !== "" && code.validFrom > invoiceVatDate)
+          || (invoiceVatDate !== "" && code.validTo != null && code.validTo < invoiceVatDate);
+      });
+      if (hasInvalidVatCode) {
+        res.status(400).json({ error: "Izbrana vstopna DDV-koda ne obstaja ali ni veljavna na datum računa." });
+        return;
+      }
     }
 
     // Sestavi confirmedData iz OCR + popravkov računovodje
@@ -658,7 +884,7 @@ router.post(
       invoiceNumber: invoiceNumber ?? base.invoiceNumber,
       invoiceDate: invoiceDate ?? base.invoiceDate,
       dueDate: dueDate ?? base.dueDate,
-      lines,
+      lines: submittedLines,
       suggestedCounterpartyId: counterpartyId ?? base.suggestedCounterpartyId,
       suggestedPeriodId: periodId ?? base.suggestedPeriodId,
       suggestedDocumentType: (documentType as OcrResult["suggestedDocumentType"]) ?? base.suggestedDocumentType,
@@ -669,6 +895,12 @@ router.post(
     const confirmedBy = await resolveActorLabel(authReq.clerkUserId);
 
     // Ustvari draft račun (opcijsko)
+    if (createInvoice && (!counterpartyId || !periodId || !invoiceDate)) {
+      res.status(400).json({
+        error: "Za ustvarjanje osnutka računa iz dokumenta so obvezni partner, obračunsko obdobje in datum računa."
+      });
+      return;
+    }
     if (createInvoice && counterpartyId && periodId && invoiceDate) {
       const effectiveInvoiceNumber = invoiceNumber ?? base.invoiceNumber;
       if (!effectiveInvoiceNumber) {
@@ -676,11 +908,26 @@ router.post(
         return;
       }
       // Validacija partnerja in obdobja
-      const [cp] = await db.select({ id: counterpartiesTable.id })
+      const [cp] = await db.select({ id: counterpartiesTable.id, taxId: counterpartiesTable.taxId })
         .from(counterpartiesTable)
         .where(and(eq(counterpartiesTable.id, counterpartyId), eq(counterpartiesTable.companyId, companyId)))
         .limit(1);
       if (!cp) { res.status(400).json({ error: "Partner ni najden" }); return; }
+      const effectiveDocumentType = documentType ?? ocrReview?.suggestedDocumentType ?? doc.documentType;
+      const isEuSupplier = effectiveDocumentType !== "invoice_issued"
+        && (isEuSupplierTaxId(cp.taxId) || isEuSupplierTaxId(ocrReview?.counterpartyTaxId));
+      if (isEuSupplier) {
+        const missingEubLine = submittedLines.find(line => {
+          if (line.assetType !== "OTHER_FA" && line.assetType !== "REALESTATE") return false;
+          return !line.vatCodeId || !fursVatCodesById.get(line.vatCodeId)?.code.startsWith("EUB");
+        });
+        if (missingEubLine) {
+          res.status(400).json({
+            error: `EU dobaviteljev račun zahteva veljavno vstopno EUB-kodo na vsaki sprejeti vrstici osnovnega sredstva (${missingEubLine.description}). Izberite EUB kodo ali zavrnite predlog osnovnega sredstva.`
+          });
+          return;
+        }
+      }
 
       const [period] = await db.select({ id: accountingPeriodsTable.id })
         .from(accountingPeriodsTable)
@@ -719,10 +966,20 @@ router.post(
       const invType = documentType === "invoice_issued" ? "issued" : "received";
 
       // Poišči privzete AR/AP konto (120 za izdane, 220 za prejete) če ni podan
-      const arApPrefix = invType === "issued" ? "120" : "220";
+      const arApPrefix = invType === "issued" ? "120" : isEuSupplier ? "221" : "220";
       const revenuePrefix = invType === "issued" ? "760" : "400";
 
-      const [resolvedArApAccount] = arApAccountId
+      const [resolvedArApAccount] = isEuSupplier
+        ? await db.select({ id: accountsTable.id, code: accountsTable.code, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
+            .from(accountsTable)
+            .where(and(
+              eq(accountsTable.companyId, companyId),
+              eq(accountsTable.code, "2210000"),
+              eq(accountsTable.isActive, true),
+              eq(accountsTable.allowsPosting, true),
+            ))
+            .limit(1)
+        : arApAccountId
         ? await db.select({ id: accountsTable.id, isActive: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
             .from(accountsTable)
             .where(and(
@@ -744,7 +1001,11 @@ router.post(
             .limit(1);
 
       if (!resolvedArApAccount) {
-        res.status(400).json({ error: `Privzeti AR/AP konto (${arApPrefix}*) ni najden — ročno izberite konto terjatev/obveznosti` });
+        res.status(400).json({
+          error: isEuSupplier
+            ? "EU dobaviteljevemu računu ni mogoče ustvariti osnutka: manjka aktiven, knjižljiv konto 2210000 v kontnem načrtu podjetja."
+            : `Privzeti AR/AP konto (${arApPrefix}*) ni najden — ročno izberite konto terjatev/obveznosti`
+        });
         return;
       }
 
@@ -818,8 +1079,10 @@ router.post(
             vatBase: String(line.vatBase),
             vatAmount: String(line.vatAmount),
             accountId: acctId,
+            assetType: line.assetType ?? "NONE",
+            ...(line.vatCodeId ? { vatCodeId: line.vatCodeId } : {}),
             sequence: i,
-          });
+          } as any);
         }
         const [savedDocument] = await tx.update(documentsTable)
           .set({ linkedInvoiceId: inv.id, sourceDocumentId })

@@ -153,3 +153,4 @@
 - [Drobni inventar gostinstva](drobni-inventar-gostinstva.md) — kozarci in krožniki so ob nabavi strošek; inventure usklajujejo samo količine, brez novih temeljnic.
 - [POS test obrazca artiklov](pos-menu-test-mocks.md) — ob razširitvi API odvisnosti popraviti namenske testne mocke; uvoz celotnega odjemalca lahko obvisi.
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
+- [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.

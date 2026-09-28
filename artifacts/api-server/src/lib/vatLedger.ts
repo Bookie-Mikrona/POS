@@ -42,6 +42,8 @@ export interface VatLine {
   partnerId: string | null;
   /** Opis vrstice (za document_no fallback) */
   description: string | null;
+  /** Potrjena vrsta nabavljenega sredstva za KPR. */
+  assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
 }
 
 export interface EntryMeta {
@@ -165,6 +167,8 @@ export async function createVatLedgerEntries(
           name: counterpartiesTable.name,
           taxId: counterpartiesTable.taxId,
           country: counterpartiesTable.country,
+          countryCode: counterpartiesTable.kodaDrzave,
+          vatId: counterpartiesTable.idZaDdv,
         })
         .from(counterpartiesTable)
         .where(inArray(counterpartiesTable.id, partnerIds))
@@ -194,8 +198,8 @@ export async function createVatLedgerEntries(
     const { vatPeriod, vatPeriodYear } = vatPeriodFromDate(taxPointDate);
 
     const partner = line.partnerId ? partnerMap.get(line.partnerId) : null;
-    const partnerCountryCode = partner?.country?.slice(0, 2) ?? null;
-    const partnerVatId = stripCountryFromTaxId(partner?.taxId ?? null);
+    const partnerCountryCode = partner?.countryCode ?? partner?.country?.slice(0, 2) ?? null;
+    const partnerVatId = stripCountryFromTaxId(partner?.vatId ?? partner?.taxId ?? null);
     const partnerName = partner?.name ?? null;
 
     // Validacija: dobave v EU (SEU-B) zahtevajo partner_vat_id
@@ -231,7 +235,7 @@ export async function createVatLedgerEntries(
         vatCodeId: vatCode.id,
         direction: "IN",
         pairId: null, // nastavimo po vstavitvi OUT vrstice
-        assetType: "NONE",
+        assetType: line.assetType ?? "NONE",
         invoiceDate,
         serviceDate,
         receiptDate,
@@ -307,7 +311,7 @@ export async function createVatLedgerEntries(
         partnerName,
         vatCodeId: vatCode.id,
         direction: vatCode.direction as "IN" | "OUT",
-        assetType: "NONE",
+        assetType: line.assetType ?? "NONE",
         invoiceDate,
         serviceDate,
         receiptDate,

@@ -240,6 +240,9 @@ async function fetchInvoiceWithLines(invoiceId: string) {
       quantity: invoiceLinesTable.quantity,
       unitPrice: invoiceLinesTable.unitPrice,
       vatRate: invoiceLinesTable.vatRate,
+      vatCodeId: invoiceLinesTable.vatCodeId,
+      assetType: invoiceLinesTable.assetType,
+      reverseCharge: vatCodeTable.isReverseCharge,
       accountId: invoiceLinesTable.accountId,
       accountCode: accountsTable.code,
       accountName: accountsTable.name,
@@ -247,6 +250,7 @@ async function fetchInvoiceWithLines(invoiceId: string) {
     })
     .from(invoiceLinesTable)
     .innerJoin(accountsTable, eq(accountsTable.id, invoiceLinesTable.accountId))
+    .leftJoin(vatCodeTable, eq(vatCodeTable.id, invoiceLinesTable.vatCodeId))
     .where(eq(invoiceLinesTable.invoiceId, invoiceId))
     .orderBy(asc(invoiceLinesTable.sequence));
 
@@ -258,7 +262,7 @@ async function fetchInvoiceWithLines(invoiceId: string) {
     const price = parseFloat(l.unitPrice);
     const vatR = parseFloat(l.vatRate);
     const lineTotal = qty * price;
-    const vatAmt = lineTotal * vatR / 100;
+    const vatAmt = l.reverseCharge ? 0 : lineTotal * vatR / 100;
     totalNet += lineTotal;
     totalVat += vatAmt;
     return {
@@ -819,9 +823,11 @@ router.get(
         quantity: invoiceLinesTable.quantity,
         unitPrice: invoiceLinesTable.unitPrice,
         vatRate: invoiceLinesTable.vatRate,
+        reverseCharge: vatCodeTable.isReverseCharge,
       })
       .from(invoiceLinesTable)
       .innerJoin(invoicesTable, eq(invoicesTable.id, invoiceLinesTable.invoiceId))
+      .leftJoin(vatCodeTable, eq(vatCodeTable.id, invoiceLinesTable.vatCodeId))
       .where(eq(invoicesTable.companyId, companyId));
 
     const totalsMap = new Map<string, { net: number; vat: number }>();
@@ -830,7 +836,7 @@ router.get(
       const price = parseFloat(l.unitPrice);
       const vatR = parseFloat(l.vatRate);
       const lineTotal = qty * price;
-      const vatAmt = lineTotal * vatR / 100;
+      const vatAmt = l.reverseCharge ? 0 : lineTotal * vatR / 100;
       const prev = totalsMap.get(l.invoiceId) ?? { net: 0, vat: 0 };
       totalsMap.set(l.invoiceId, { net: prev.net + lineTotal, vat: prev.vat + vatAmt });
     }
@@ -971,6 +977,8 @@ router.post(
           quantity: l.quantity.toFixed(3),
           unitPrice: l.unitPrice.toFixed(4),
           vatRate: l.vatRate.toFixed(2),
+          vatCodeId: l.vatCodeId ?? null,
+          assetType: l.assetType ?? "NONE",
           accountId: l.accountId,
           sequence: i,
         })),
@@ -2000,6 +2008,8 @@ router.patch(
             quantity: l.quantity.toFixed(3),
             unitPrice: l.unitPrice.toFixed(4),
             vatRate: l.vatRate.toFixed(2),
+            vatCodeId: l.vatCodeId ?? null,
+            assetType: l.assetType ?? "NONE",
             accountId: l.accountId,
             sequence: i,
           })),
@@ -2110,6 +2120,8 @@ router.post(
         quantity: invoiceLinesTable.quantity,
         unitPrice: invoiceLinesTable.unitPrice,
         vatRate: invoiceLinesTable.vatRate,
+        vatCodeId: invoiceLinesTable.vatCodeId,
+        assetType: invoiceLinesTable.assetType,
         description: invoiceLinesTable.description,
       })
       .from(invoiceLinesTable)
@@ -2121,6 +2133,74 @@ router.post(
       return;
     }
 
+    const selectedVatCodeIds = [...new Set(lines.map((line) => line.vatCodeId).filter((id): id is string => !!id))];
+    const selectedVatCodes = selectedVatCodeIds.length > 0
+      ? await db.select().from(vatCodeTable).where(inArray(vatCodeTable.id, selectedVatCodeIds))
+      : [];
+    const selectedVatCodeById = new Map(selectedVatCodes.map((code) => [code.id, code]));
+    if (selectedVatCodeById.size !== selectedVatCodeIds.length) {
+      res.status(400).json({ error: "Izbrana DDV koda ne obstaja." });
+      return;
+    }
+    const euAcquisitionLines = lines.filter((line) =>
+      line.vatCodeId && selectedVatCodeById.get(line.vatCodeId)?.code.startsWith("EUB"));
+    if (lines.some((line) => line.assetType !== "NONE" && !line.vatCodeId)) {
+      res.status(400).json({ error: "Postavka osnovnega sredstva nima potrjene DDV-kode; račun ostane osnutek." });
+      return;
+    }
+    if (lines.some((line) => line.assetType !== "NONE" && line.vatCodeId
+      && !selectedVatCodeById.get(line.vatCodeId)?.code.startsWith("EUB"))) {
+      res.status(400).json({ error: "Za osnovno sredstvo iz EU izberite kodo pridobitve blaga EUB; drugih nabav OS ta tok še ne knjiži." });
+      return;
+    }
+    if (lines.some((line) => line.vatCodeId && selectedVatCodeById.get(line.vatCodeId)?.isReverseCharge
+        && !selectedVatCodeById.get(line.vatCodeId)?.code.startsWith("EUB"))) {
+      res.status(400).json({ error: "Ta način knjiženja prejetega računa podpira samo pridobitev blaga iz EU; druge samoobdavčitve zahtevajo ločeno obravnavo." });
+      return;
+    }
+    if (euAcquisitionLines.length > 0) {
+      if (invoice.type !== "received" || euAcquisitionLines.length !== lines.length) {
+        res.status(400).json({ error: "Pridobitve blaga iz EU in drugih vrst postavk na tem računu ni mogoče varno knjižiti skupaj." });
+        return;
+      }
+      const [supplier] = await db.select({
+        country: counterpartiesTable.country,
+        countryCode: counterpartiesTable.kodaDrzave,
+        vatId: counterpartiesTable.idZaDdv,
+      }).from(counterpartiesTable)
+        .where(and(eq(counterpartiesTable.id, invoice.counterpartyId), eq(counterpartiesTable.companyId, companyId)))
+        .limit(1);
+      const country = (supplier?.countryCode || supplier?.country || "").trim().toUpperCase();
+      const euCountries = new Set(["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "ES", "SE"]);
+      if (!euCountries.has(country) || !supplier?.vatId?.trim().toUpperCase().startsWith(country)) {
+        res.status(400).json({ error: "Za pridobitev OS iz EU mora imeti dobavitelj usklajeno državo EU in ID za DDV z oznako te države." });
+        return;
+      }
+      const [payableAccount] = await db.select({ code: accountsTable.code, active: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
+        .from(accountsTable).where(and(eq(accountsTable.id, invoice.arApAccountId), eq(accountsTable.companyId, companyId))).limit(1);
+      if (!payableAccount?.code.startsWith("221") || !payableAccount.active || !payableAccount.allowsPosting) {
+        res.status(400).json({ error: "Za prejeti račun iz EU izberite knjižljivi konto obveznosti do dobaviteljev EU (221)." });
+        return;
+      }
+      const assetAccounts = await db.select({ id: accountsTable.id, code: accountsTable.code, active: accountsTable.isActive, allowsPosting: accountsTable.allowsPosting })
+        .from(accountsTable).where(and(eq(accountsTable.companyId, companyId), inArray(accountsTable.id, lines.map((line) => line.accountId))));
+      const assetAccountMap = new Map(assetAccounts.map((account) => [account.id, account]));
+      for (const line of lines) {
+        const code = selectedVatCodeById.get(line.vatCodeId!)!;
+        const account = assetAccountMap.get(line.accountId);
+        const assetPrefix = line.assetType === "REALESTATE" ? /^(02|03)/ : /^04/;
+        if (line.assetType === "NONE" || !account?.active || !account.allowsPosting || !assetPrefix.test(account.code)) {
+          res.status(400).json({ error: "Vsaka postavka pridobitve OS iz EU potrebuje potrjeno vrsto osnovnega sredstva in knjižljivi konto 02/03 oziroma 04." });
+          return;
+        }
+        if (code.direction !== "IN" || !code.isReverseCharge || Number(code.rate) !== Number(line.vatRate)
+          || code.validFrom > invoice.invoiceDate || (code.validTo && code.validTo < invoice.invoiceDate)) {
+          res.status(400).json({ error: `DDV koda ${code.code} ni veljavna za datum ali stopnjo tega računa.` });
+          return;
+        }
+      }
+    }
+
     // Izračunaj zneske
     const lineCalcs = lines.map((l) => {
       const qty = parseFloat(l.quantity);
@@ -2128,7 +2208,8 @@ router.post(
       const vatR = parseFloat(l.vatRate);
       const lineTotal = qty * price;
       const vatAmt = lineTotal * vatR / 100;
-      return { ...l, lineTotal, vatAmt, grossTotal: lineTotal + vatAmt, vatR };
+      const isEuAcquisition = Boolean(l.vatCodeId && selectedVatCodeById.get(l.vatCodeId)?.code.startsWith("EUB"));
+      return { ...l, lineTotal, vatAmt, grossTotal: lineTotal + (isEuAcquisition ? 0 : vatAmt), vatR, isEuAcquisition };
     });
 
     const totalGross = lineCalcs.reduce((s, l) => s + l.grossTotal, 0);
@@ -2206,6 +2287,10 @@ router.post(
       ? await getInvoicePosReceiptLinksResponse(companyId, id)
       : null;
     const hasPosLinks = Boolean(posLinks && posLinks.body.links.length > 0);
+    if (hasPosLinks && euAcquisitionLines.length > 0) {
+      res.status(409).json({ error: "Računa za pridobitev osnovnega sredstva iz EU ni dovoljeno povezati z zalogovno POS prejemnico." });
+      return;
+    }
     const isDirectDeliveryNoteInvoice = Boolean(
       hasPosLinks
       && posLinks!.body.links.every((link) => link.mode === "delivery_note_invoice"),
@@ -2292,7 +2377,7 @@ router.post(
     // Poišči DDV konto za vrstice z vatRate > 0
     const vatLines = isContractSummary
       ? []
-      : lineCalcs.filter((l) => l.vatR > 0 && l.vatAmt > 0);
+      : lineCalcs.filter((l) => !l.isEuAcquisition && l.vatR > 0 && l.vatAmt > 0);
     const vatRates = [...new Set(vatLines.map((line) => line.vatR))];
     const vatAccountByRate = new Map<number, string>();
     for (const rate of vatRates) {
@@ -2363,6 +2448,7 @@ router.post(
       partnerId?: string | null;
       vatCodeId?: string | null;
       vatAmount?: string | null;
+      assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
     }[] = [];
     let posVatLedgerLines: VatLine[] | null = hasPosLinks ? [] : null;
     let posClosureSummary: {
@@ -2412,6 +2498,45 @@ router.post(
           description: `DDV na izhodni račun ${rate}%`,
         });
       }
+    } else if (euAcquisitionLines.length > 0) {
+      const reverseAccounts = await db.select({
+        id: accountsTable.id, code: accountsTable.code,
+      }).from(accountsTable).where(and(
+        eq(accountsTable.companyId, companyId),
+        eq(accountsTable.isActive, true),
+        eq(accountsTable.allowsPosting, true),
+        inArray(accountsTable.code, ["1604000", "2604000"]),
+      ));
+      const accountByCode = new Map(reverseAccounts.map((account) => [account.code, account.id]));
+      const inputAccount = accountByCode.get("1604000");
+      const outputAccount = accountByCode.get("2604000");
+      if (!inputAccount || !outputAccount) {
+        res.status(400).json({ error: "Za samoobdavčitev EU nastavite aktivna knjižljiva konta 1604000 in 2604000." });
+        return;
+      }
+      let totalBase = new Decimal(0);
+      let totalTax = new Decimal(0);
+      for (const line of lineCalcs) {
+        const base = new Decimal(line.quantity).mul(line.unitPrice).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        const tax = base.mul(line.vatRate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        totalBase = totalBase.plus(base);
+        totalTax = totalTax.plus(tax);
+        journalLines.push({
+          accountId: line.accountId,
+          side: "debit",
+          amount: money(base),
+          description: line.description,
+          partnerId: invoice.counterpartyId,
+          vatCodeId: line.vatCodeId,
+          vatAmount: money(tax),
+          assetType: line.assetType,
+        });
+      }
+      journalLines.push(
+        { accountId: inputAccount, side: "debit", amount: money(totalTax), description: "Vstopni DDV od pridobitve OS iz EU" },
+        { accountId: outputAccount, side: "credit", amount: money(totalTax), description: "Obračunani DDV od pridobitve OS iz EU" },
+        { accountId: invoice.arApAccountId, side: "credit", amount: money(totalBase), description: entryDescription, partnerId: invoice.counterpartyId },
+      );
     } else {
       const matchedBuckets = new Map<string, { net: Decimal; vat: Decimal; gross: Decimal }>();
       let matchedGross = new Decimal(0);
@@ -2662,6 +2787,7 @@ router.post(
             vatDeductionPercent: "100.00",
             partnerId: invoice.counterpartyId,
             description: line.description,
+             assetType: line.assetType,
           }));
         if (vatLedgerLines.length > 0) {
         const entryMeta: EntryMeta = {
@@ -2674,7 +2800,7 @@ router.post(
           reference: invoice.invoiceNumber,
           sourceType: "document",
         };
-          await createVatLedgerEntries(tx, entryMeta, vatLedgerLines, authReq.clerkUserId);
+           await createVatLedgerEntries(tx, entryMeta, vatLedgerLines, authReq.clerkUserId, id);
         }
 
         await tx

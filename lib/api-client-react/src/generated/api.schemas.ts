@@ -9231,6 +9231,15 @@ export interface InvoicePosReceiptLinksResponse {
   preview: InvoicePosReceipt109Preview;
 }
 
+export type InvoiceLineAssetType = typeof InvoiceLineAssetType[keyof typeof InvoiceLineAssetType];
+
+
+export const InvoiceLineAssetType = {
+  NONE: 'NONE',
+  OTHER_FA: 'OTHER_FA',
+  REALESTATE: 'REALESTATE',
+} as const;
+
 export interface InvoiceLine {
   id: string;
   invoiceId: string;
@@ -9241,6 +9250,9 @@ export interface InvoiceLine {
   unitPrice: string;
   /** VAT rate percentage (0, 9.50, 22.00) */
   vatRate: string;
+  /** @nullable */
+  vatCodeId?: string | null;
+  assetType: InvoiceLineAssetType;
   accountId: string;
   accountCode: string;
   accountName: string;
@@ -9396,6 +9408,18 @@ export const CreateInvoiceLineBodyVatRate = {
   NUMBER_22: 22,
 } as const;
 
+/**
+ * Accountant-approved asset classification, defaults to NONE
+ */
+export type CreateInvoiceLineBodyAssetType = typeof CreateInvoiceLineBodyAssetType[keyof typeof CreateInvoiceLineBodyAssetType];
+
+
+export const CreateInvoiceLineBodyAssetType = {
+  NONE: 'NONE',
+  OTHER_FA: 'OTHER_FA',
+  REALESTATE: 'REALESTATE',
+} as const;
+
 export interface CreateInvoiceLineBody {
   /** @minLength 1 */
   description: string;
@@ -9404,6 +9428,13 @@ export interface CreateInvoiceLineBody {
   /** @minimum 0 */
   unitPrice: number;
   vatRate: CreateInvoiceLineBodyVatRate;
+  /**
+     * Explicit FURS tax treatment, required for an EU acquisition
+     * @nullable
+     */
+  vatCodeId?: string | null;
+  /** Accountant-approved asset classification, defaults to NONE */
+  assetType?: CreateInvoiceLineBodyAssetType;
   accountId: string;
 }
 

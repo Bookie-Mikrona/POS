@@ -37,6 +37,10 @@ import { appendStockMovementReversals } from '../stockMovementHistory';
 import { packagingMovementKindForQuantity } from '../packagingMovementKind';
 import { normalizeIncomingPaymentMethod } from '../posReceiptBooking';
 import { normalizeDrainedYield } from '../drained-yield';
+import {
+  inferEslogFixedAssetCandidate,
+  type FixedAssetType,
+} from './eslog-fixed-asset-candidate';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
@@ -627,6 +631,219 @@ export class DuplicatePrejemnicaError extends Error {
   }
 }
 
+export class DuplicatePurchaseSourceError extends Error {
+  constructor() {
+    super('Ta izvorna listina je že zajeta kot ERP račun ali prejemnica.');
+    this.name = 'DuplicatePurchaseSourceError';
+  }
+}
+
+export class FixedAssetReviewRequiredError extends Error {
+  constructor() {
+    super('e-SLOG račun vsebuje možna osnovna sredstva; potreben je izrecen računovodski pregled pred izbiro ERP ali POS poti.');
+    this.name = 'FixedAssetReviewRequiredError';
+  }
+}
+
+/**
+ * After a reviewer explicitly approves an e-SLOG fixed-asset candidate,
+ * create an ERP received-invoice draft. This intentionally does not invoke
+ * any posting, AP, stock, or VAT-ledger booking path.
+ */
+export async function ustvariOsnutekErpPrejetegaRacuna(
+  db: Db,
+  opts: {
+    enotaId: number;
+    sejaId: string;
+    dobaviteljId: string;
+    dto: PrejemDTO;
+    assetTypes: Record<number, FixedAssetType>;
+    actorSnapshot: string | null;
+  },
+): Promise<{ invoiceId: string }> {
+  const { enotaId, sejaId, dobaviteljId, dto, assetTypes, actorSnapshot } = opts;
+  if (imaBlokado(dto)) throw new Error('Dokument vsebuje blokirne napake; ERP osnutka ni mogoče ustvariti.');
+  if (!dto.stDokumenta?.trim() || !dto.datumDokumenta) {
+    throw new Error('Za ERP račun sta obvezni izvorna številka in datum računa.');
+  }
+  const invoiceNumber = dto.stDokumenta.trim();
+  const invoiceDate = dto.datumDokumenta;
+  if (dto.postavke.length === 0) throw new Error('Izvorni račun nima vrstic.');
+
+  return db.transaction(async (tx) => {
+    const [session] = (await tx.execute<{
+      sha256: string;
+      format: string;
+      metapodatki: Record<string, unknown> | null;
+    }>(sql`
+      SELECT sha256, format, metapodatki
+        FROM uvoz_seja
+       WHERE id = ${sejaId} AND enota_id = ${enotaId}
+       FOR UPDATE
+    `)).rows;
+    if (!session || session.format !== 'ESLOG_2_0_RACUN') {
+      throw new Error('Seja ni e-SLOG račun ali ne pripada tej enoti.');
+    }
+    if (session.metapodatki?.fixedAssetReviewRequired !== true) {
+      throw new Error('Seja nima odprtega pregleda osnovnih sredstev.');
+    }
+
+    const [companyAndSupplier] = (await tx.execute<{
+      company_id: string;
+      supplier_id: string;
+    }>(sql`
+      SELECT e.company_id, cp.id AS supplier_id
+        FROM enote e
+        JOIN counterparties cp ON cp.company_id = e.company_id
+       WHERE e.id = ${enotaId}
+         AND cp.id = ${dobaviteljId}
+         AND cp.is_active = true
+       LIMIT 1
+    `)).rows;
+    if (!companyAndSupplier) throw new Error('Dobavitelj ne pripada aktivnemu podjetju.');
+
+    const candidate = inferEslogFixedAssetCandidate(dto, true);
+    if (!candidate) throw new Error('Dokument ne vsebuje več veljavnih predlogov osnovnih sredstev.');
+    const candidateSequences = new Set(candidate.lines.map((line) => line.sequence));
+    const assignedSequences = Object.keys(assetTypes).map(Number);
+    if (
+      assignedSequences.length !== candidateSequences.size
+      || assignedSequences.some((sequence) => !candidateSequences.has(sequence))
+      || [...candidateSequences].some((sequence) => assetTypes[sequence] == null)
+      || dto.postavke.some((line) =>
+        assetTypes[line.zap] !== undefined
+        && assetTypes[line.zap] !== 'OTHER_FA'
+        && assetTypes[line.zap] !== 'REALESTATE')
+    ) {
+      throw new Error('Pregled osnovnih sredstev ne ustreza vrsticam izvornega računa.');
+    }
+
+    const sourceDocumentId = await claimPurchaseSourceDocument(tx, {
+      companyId: companyAndSupplier.company_id,
+      counterpartyId: dobaviteljId,
+      kind: 'invoice',
+      documentNumber: dto.stDokumenta,
+      documentDate: dto.datumDokumenta,
+      currency: dto.valuta,
+      contentSha256: session.sha256,
+    });
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${sourceDocumentId}))`);
+
+    const existing = await tx.execute(sql`
+      SELECT EXISTS (
+        SELECT 1 FROM invoices WHERE source_document_id = ${sourceDocumentId}
+      ) OR EXISTS (
+        SELECT 1 FROM goods_receipts WHERE source_document_id = ${sourceDocumentId}
+      ) OR EXISTS (
+        SELECT 1 FROM prejemnice WHERE source_document_id = ${sourceDocumentId}
+      ) AS already_imported
+    `);
+    if ((existing.rows[0] as { already_imported?: boolean } | undefined)?.already_imported) {
+      throw new DuplicatePurchaseSourceError();
+    }
+
+    const [period] = (await tx.execute<{ id: string }>(sql`
+      SELECT id FROM accounting_periods
+       WHERE company_id = ${companyAndSupplier.company_id}
+         AND status = 'open'
+       AND start_date <= ${invoiceDate}
+         AND end_date >= ${invoiceDate}
+       ORDER BY start_date DESC
+       LIMIT 1
+    `)).rows;
+    if (!period) throw new Error('Za datum računa ni odprtega računovodskega obdobja.');
+
+    const [apAccount] = (await tx.execute<{ id: string }>(sql`
+      SELECT id FROM accounts
+       WHERE company_id = ${companyAndSupplier.company_id}
+         AND is_active = true AND allows_posting = true AND code LIKE '220%'
+       ORDER BY code LIMIT 1
+    `)).rows;
+    if (!apAccount) throw new Error('Ni aktivnega knjižljivega konta obveznosti 220*.');
+    const [lineAccount] = (await tx.execute<{ id: string }>(sql`
+      SELECT id FROM accounts
+       WHERE company_id = ${companyAndSupplier.company_id}
+         AND is_active = true AND allows_posting = true AND code LIKE '400%'
+       ORDER BY code LIMIT 1
+    `)).rows;
+    if (!lineAccount) throw new Error('Ni aktivnega knjižljivega privzetega konta vrstice 400*.');
+
+    const vatCodes = (await tx.execute<InputVatCodeCandidate>(sql`
+      SELECT id, code, rate
+        FROM vat_code
+       WHERE direction = 'IN'
+         AND valid_from <= ${invoiceDate}
+         AND (valid_to IS NULL OR valid_to >= ${invoiceDate})
+    `)).rows;
+    const [invoice] = (await tx.execute<{ id: string }>(sql`
+      INSERT INTO invoices (
+        company_id, type, counterparty_id, period_id, invoice_number,
+        invoice_date, due_date, destination_iban, destination_bic,
+        payment_model, payment_reference, payment_purpose, status,
+        ar_ap_account_id, notes, created_by, source_document_id
+      ) VALUES (
+        ${companyAndSupplier.company_id}, 'received', ${dobaviteljId}, ${period.id},
+        ${invoiceNumber}, ${invoiceDate}, ${dto.datumZapadlosti ?? null},
+        ${dto.dobaviteljIban ?? null}, ${dto.dobaviteljBic ?? null},
+        ${dto.placilniModel ?? null}, ${dto.placilniSklic ?? null},
+        ${dto.placilniNamen ?? null}, 'draft', ${apAccount.id},
+        ${'e-SLOG uvoz; zahteva računovodski pregled pred knjiženjem.'},
+        ${actorSnapshot ?? 'uvoz'}, ${sourceDocumentId}
+      )
+      RETURNING id
+    `)).rows;
+    if (!invoice) throw new Error('ERP osnutka prejetega računa ni bilo mogoče ustvariti.');
+
+    for (const [sequence, line] of dto.postavke.entries()) {
+      if (!line.izvKolicina.gt(0)) {
+        throw new Error(`Količina vrstice ${line.zap} mora biti večja od nič.`);
+      }
+      const base = line.ddvOsnova ?? line.izvVrednost ?? line.izvCena.mul(line.izvKolicina);
+      if (!base.isFinite() || base.lt(0)) {
+        throw new Error(`Davčna osnova vrstice ${line.zap} ni veljavna.`);
+      }
+      const rate = line.ddvStopnja ?? new Decimal(0);
+      const vat = line.ddvZnesek ?? base.mul(rate).div(100);
+      const mappedVat = resolveInputVatCode(
+        vatCodes,
+        line.ddvKoda ?? line.ddvKategorija,
+        line.ddvStopnja?.toString() ?? null,
+      );
+      const vatCodeId = mappedVat.kind === 'matched' ? mappedVat.vatCodeId : null;
+      const assetType = assetTypes[line.zap] ?? 'NONE';
+      await tx.execute(sql`
+        INSERT INTO invoice_lines (
+          invoice_id, description, quantity, unit_price, vat_rate, vat_code_id,
+          vat_base, vat_amount, account_id, sequence, asset_type
+        ) VALUES (
+          ${invoice.id}, ${line.izvNaziv}, ${line.izvKolicina.toString()},
+          ${base.div(line.izvKolicina).toString()}, ${rate.toString()}, ${vatCodeId},
+          ${base.toString()}, ${vat.toString()}, ${lineAccount.id}, ${sequence},
+          ${assetType}
+        )
+      `);
+    }
+
+    await tx.execute(sql`
+      UPDATE uvoz_seja
+         SET status = 'OBDELANO',
+             metapodatki = COALESCE(metapodatki, '{}'::jsonb)
+               || jsonb_build_object(
+                    'fixedAssetReviewRequired', false,
+                    'fixedAssetReviewApprovedBy', ${actorSnapshot},
+                    'erpInvoiceId', ${invoice.id}
+                  )
+       WHERE id = ${sejaId}
+    `);
+    await tx.execute(sql`
+      INSERT INTO uvoz_dnevnik (enota_id, seja_id, uporabnik_id, dogodek, podrobnosti)
+      VALUES (${enotaId}, ${sejaId}, 0, 'ERP_RACUN_OSNUTEK_USTVARJEN',
+              ${JSON.stringify({ invoiceId: invoice.id, fixedAssetLines: assetTypes })}::jsonb)
+    `);
+    return { invoiceId: invoice.id };
+  });
+}
+
 export async function ustvariOsnutek(
   db: Db,
   opts: {
@@ -646,6 +863,17 @@ export async function ustvariOsnutek(
       'Dokument vsebuje blokirne napake in ga ni mogoče uvoziti. ' +
       'Preglejte napake seje.',
     );
+  }
+  const [sessionFormat] = (await db.execute<{ format: string }>(sql`
+    SELECT format FROM uvoz_seja
+     WHERE id = ${sejaId} AND enota_id = ${enotaId}
+     LIMIT 1
+  `)).rows;
+  if (
+    sessionFormat?.format === 'ESLOG_2_0_RACUN'
+    && inferEslogFixedAssetCandidate(dto, true)
+  ) {
+    throw new FixedAssetReviewRequiredError();
   }
 
   // Datum prejema = danes ali simulacijski datum (NE datum na dokumentu)
@@ -732,11 +960,10 @@ export async function ustvariOsnutek(
     const existingFinalInvoice = await tx.execute(sql`
       SELECT id FROM invoices
        WHERE source_document_id = ${sourceDocumentId}
-         AND status <> 'draft'
        LIMIT 1
     `);
     if (existingFinalInvoice.rows[0]) {
-      throw new Error("Ta listina je že finančno zajeta kot prejeti račun.");
+      throw new Error("Ta listina je že zajeta kot ERP prejeti račun (tudi če je račun še osnutek).");
     }
     const trr = Array.isArray(snapshotSource.supplier_trr) ? snapshotSource.supplier_trr[0] as { iban?: unknown; bic?: unknown } | undefined : undefined;
     const supplierIban = dto.dobaviteljIban ?? snapshotSource.supplier_iban ?? (typeof trr?.iban === "string" ? trr.iban : null);

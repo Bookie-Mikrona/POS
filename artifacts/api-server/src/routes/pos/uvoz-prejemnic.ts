@@ -24,9 +24,12 @@ import {
   ustvariOsnutek,
   uvozi,
   zajemi,
+  ustvariOsnutekErpPrejetegaRacuna,
+  DuplicatePurchaseSourceError,
+  FixedAssetReviewRequiredError,
   zaznajFormat,
 } from '../../lib/uvoz/uvoz-service';
-import { prazenDto, dodajNapako, prejemDtoSchema, type PrejemDTO } from '../../lib/uvoz/dto';
+import { prazenDto, dodajNapako, imaBlokado, prejemDtoSchema, type PrejemDTO } from '../../lib/uvoz/dto';
 import {
   GenericArticleUnitMismatch,
   PurchaseArticleTargetNotFound,
@@ -40,6 +43,11 @@ import { lockPosReceiptForEdit, ReceiptEditConflict } from '../../lib/posReceipt
 import { CsvRazclenjevalnik } from '../../lib/uvoz/parser-csv';
 import { poisciDobaviteljaAI } from '../../lib/uvoz/poisci-dobavitelja';
 import { DrainedYieldError } from '../../lib/drained-yield';
+import { razcleniXml } from '../../lib/uvoz/parser-eslog';
+import {
+  inferEslogFixedAssetCandidate,
+  type FixedAssetType,
+} from '../../lib/uvoz/eslog-fixed-asset-candidate';
 
 // =====================================================================
 // OCR helper — Claude Vision → PrejemDTO
@@ -365,6 +373,25 @@ const nalozi = multer({
 const jsonVarno = (v: unknown): string =>
   JSON.stringify(v, (_k, x) => (x instanceof Decimal ? x.toString() : x));
 
+function assetReviewResponse(
+  sejaId: string,
+  dobaviteljId: string | null,
+  dto: PrejemDTO,
+) {
+  const candidate = inferEslogFixedAssetCandidate(dto, true);
+  return {
+    status: 'ASSET_REVIEW_REQUIRED',
+    sejaId,
+    dobaviteljId,
+    dobaviteljNaziv: dto.dobaviteljNaziv,
+    dobaviteljDrzava: candidate?.supplierCountry,
+    stDokumenta: dto.stDokumenta,
+    datumDokumenta: dto.datumDokumenta,
+    lines: candidate?.lines ?? [],
+    sporocilo: 'e-SLOG vsebuje možne osnovne sredstva. Pred uvozom v ERP prejeti račun mora računovodja potrditi vsako označeno vrstico.',
+  };
+}
+
 function posljiJson(res: Response, koda: number, telo: unknown): void {
   res.status(koda).type('application/json').send(jsonVarno(telo));
 }
@@ -465,6 +492,8 @@ router.post('/ocr', requireEnota, async (req: PosRequest, res: Response) => {
 
     // 4. Ustvari osnutek
     const osnutek = await ustvariOsnutek(db, {
+      // An explicitly identified e-SLOG fixed-asset candidate must never
+      // fall through this legacy POS receipt endpoint.
       enotaId:      req.enotaId,
       sejaId:       zajem.sejaId,
       dobaviteljId,
@@ -518,8 +547,8 @@ router.post('/seja/:sejaId/s-dobaviteljem', requireEnota, async (req: PosRequest
       });
     }
 
-    const [seja] = (await db.execute<{ razclenitev: unknown }>(sql`
-      SELECT razclenitev FROM uvoz_seja
+    const [seja] = (await db.execute<{ razclenitev: unknown; format: string }>(sql`
+      SELECT razclenitev, format FROM uvoz_seja
        WHERE id = ${sejaId} AND enota_id = ${req.enotaId}
     `)).rows;
 
@@ -527,11 +556,22 @@ router.post('/seja/:sejaId/s-dobaviteljem', requireEnota, async (req: PosRequest
       return posljiJson(res, 404, { sporocilo: 'Seja ne obstaja ali nima shranjene razčlenitve.' });
     }
 
+    const dto = prejemDtoSchema.parse(seja.razclenitev);
+    if (seja.format === 'ESLOG_2_0_RACUN' && inferEslogFixedAssetCandidate(dto, true)) {
+      await db.execute(sql`
+        UPDATE uvoz_seja
+           SET metapodatki = COALESCE(metapodatki, '{}'::jsonb)
+             || jsonb_build_object('fixedAssetReviewRequired', true)
+         WHERE id = ${sejaId} AND enota_id = ${req.enotaId}
+      `);
+      return posljiJson(res, 202, assetReviewResponse(sejaId, vhod.data.dobaviteljId, dto));
+    }
+
     const osnutek = await ustvariOsnutek(db, {
       enotaId:      req.enotaId,
       sejaId,
       dobaviteljId: vhod.data.dobaviteljId,
-      dto:          prejemDtoSchema.parse(seja.razclenitev),
+      dto,
       uporabnikId:  0,
       actorSnapshot: req.clerkUserId,
     });
@@ -548,6 +588,115 @@ router.post('/seja/:sejaId/s-dobaviteljem', requireEnota, async (req: PosRequest
     }
     req.log?.error({ err: e }, 'Uvoz s-dobaviteljem napaka');
     return posljiJson(res, 500, { sporocilo: `Uvoz ni uspel: ${(e as Error).message}` });
+  }
+});
+
+// Explicit accountant confirmation is the only path from the candidate queue
+// to an ERP received-invoice draft. It never creates a POS stock receipt.
+router.post('/seja/:sejaId/potrdi-osnovno-sredstvo', requireEnota, async (req: PosRequest, res: Response) => {
+  const sejaId = String(req.params.sejaId);
+  const vhod = z.object({
+    potrjujem: z.literal(true),
+    dobaviteljId: z.string().uuid(),
+    assetTypes: z.array(z.object({
+      sequence: z.number().int().positive(),
+      assetType: z.enum(['OTHER_FA', 'REALESTATE']),
+    })).min(1),
+  }).safeParse(req.body);
+  if (!vhod.success) {
+    return posljiJson(res, 400, {
+      sporocilo: 'Za nadaljevanje je potrebna izrecna potrditev računovodje, dobavitelj in razvrstitev vseh označenih vrstic.',
+      napake: vhod.error.issues,
+    });
+  }
+
+  try {
+    const [seja] = (await db.execute<{
+      razclenitev: unknown;
+      format: string;
+      metapodatki: Record<string, unknown> | null;
+    }>(sql`
+      SELECT razclenitev, format, metapodatki
+        FROM uvoz_seja
+       WHERE id = ${sejaId} AND enota_id = ${req.enotaId}
+       LIMIT 1
+    `)).rows;
+    if (!seja?.razclenitev) {
+      return posljiJson(res, 404, { sporocilo: 'Uvozna seja ne obstaja ali nima razčlenitve.' });
+    }
+    if (
+      seja.format !== 'ESLOG_2_0_RACUN'
+      || seja.metapodatki?.fixedAssetReviewRequired !== true
+    ) {
+      return posljiJson(res, 409, { sporocilo: 'Seja nima odprtega pregleda osnovnih sredstev.' });
+    }
+
+    const dto = prejemDtoSchema.parse(seja.razclenitev);
+    const candidate = inferEslogFixedAssetCandidate(dto, true);
+    if (!candidate || imaBlokado(dto)) {
+      return posljiJson(res, 422, {
+        sporocilo: 'Vrstic ni mogoče varno potrditi; ponovno razčlenite izvor ali odpravite blokirne napake.',
+        napake: dto.napake,
+      });
+    }
+    const assetTypes: Record<number, FixedAssetType> = {};
+    for (const item of vhod.data.assetTypes) {
+      if (assetTypes[item.sequence]) {
+        return posljiJson(res, 400, { sporocilo: 'Vsaka predlagana vrstica mora biti razvrščena samo enkrat.' });
+      }
+      assetTypes[item.sequence] = item.assetType;
+    }
+    const expected = candidate.lines.map((line) => line.sequence).sort((a, b) => a - b);
+    const received = Object.keys(assetTypes).map(Number).sort((a, b) => a - b);
+    if (expected.length !== received.length || expected.some((sequence, i) => sequence !== received[i])) {
+      return posljiJson(res, 400, { sporocilo: 'Potrdite razvrstitev vseh in samo predlaganih osnovnih sredstev.' });
+    }
+
+    const [supplier] = (await db.execute<{ id: string; country: string | null; vat_id: string | null }>(sql`
+      SELECT id, COALESCE(koda_drzave, country) AS country, id_za_ddv AS vat_id
+        FROM counterparties
+       WHERE id = ${vhod.data.dobaviteljId}
+         AND company_id = ${req.companyId}
+         AND is_active = true
+       LIMIT 1
+    `)).rows;
+    if (!supplier) {
+      return posljiJson(res, 400, { sporocilo: 'Izbrani dobavitelj ni aktiven v podjetju.' });
+    }
+    const sourceVatId = (dto.dobaviteljIdDdv ?? '').replace(/\s/g, '').toUpperCase();
+    const supplierVatId = (supplier.vat_id ?? '').replace(/\s/g, '').toUpperCase();
+    const countryMatches =
+      supplier.country?.trim().toUpperCase() === candidate.supplierCountry
+      || (
+        sourceVatId.startsWith(candidate.supplierCountry)
+        && sourceVatId === supplierVatId
+      );
+    if (
+      !countryMatches
+      || (sourceVatId && supplierVatId && sourceVatId !== supplierVatId)
+    ) {
+      return posljiJson(res, 400, {
+        sporocilo: 'Izbrani dobavitelj se ne ujema z državo oziroma DDV-identifikatorjem iz izvornega e-SLOG dokumenta.',
+      });
+    }
+
+    const result = await ustvariOsnutekErpPrejetegaRacuna(db, {
+      enotaId: req.enotaId,
+      sejaId,
+      dobaviteljId: vhod.data.dobaviteljId,
+      dto,
+      assetTypes,
+      actorSnapshot: req.clerkUserId,
+    });
+    return posljiJson(res, 201, { status: 'ERP_RACUN_OSNUTEK_USTVARJEN', ...result });
+  } catch (error) {
+    if (error instanceof DuplicatePurchaseSourceError) {
+      return posljiJson(res, 409, { status: 'PODVOJENO', sporocilo: error.message });
+    }
+    req.log?.error({ err: error }, 'Potrditev e-SLOG osnovnih sredstev ni uspela');
+    return posljiJson(res, 422, {
+      sporocilo: error instanceof Error ? error.message : 'ERP osnutka ni bilo mogoče ustvariti.',
+    });
   }
 });
 
@@ -582,6 +731,67 @@ router.post(
     try {
       // PDF → Claude Vision OCR (zaznajFormat vrne 'PDF_PREDLOGA', ki ni razčlenljiv)
       const format = zaznajFormat(req.file.buffer, req.file.originalname);
+
+      // Conservative source-content routing: only verified e-SLOG invoices
+      // with EU supplier identity and explicit fixed-asset wording pause for
+      // human review. Other imports continue through the unchanged pipeline.
+      if (format === 'ESLOG_2_0_RACUN') {
+        const dto = razcleniXml(req.file.buffer);
+        const assetCandidate = inferEslogFixedAssetCandidate(dto, true);
+        if (assetCandidate) {
+          if (dto.napake.some((n) => n.resnost === 'B')) {
+            return posljiJson(res, 422, {
+              status: 'NAPAKA',
+              napake: dto.napake,
+              sporocilo: 'e-SLOG vsebuje možna osnovna sredstva, vendar ima tudi blokirne napake. Popravite izvorne podatke pred uvozom.',
+            });
+          }
+          const zajem = await zajemi(db, {
+            enotaId: req.enotaId,
+            kanal: 'ROCNI_NALOG',
+            raw: req.file.buffer,
+            imeDatoteke: req.file.originalname,
+            mimeTip: req.file.mimetype,
+            metapodatki: { vir: 'ESLOG_FIXED_ASSET_REVIEW', fixedAssetReviewRequired: true },
+          });
+          if (zajem.status === 'PODVOJENO') {
+            const [existingSession] = (await db.execute<{
+              razclenitev: unknown;
+              metapodatki: Record<string, unknown> | null;
+            }>(sql`
+              SELECT razclenitev, metapodatki FROM uvoz_seja
+               WHERE id = ${zajem.sejaId} AND enota_id = ${req.enotaId}
+               LIMIT 1
+            `)).rows;
+            if (
+              existingSession?.metapodatki?.fixedAssetReviewRequired === true
+              && existingSession.razclenitev
+            ) {
+              const existingDto = prejemDtoSchema.parse(existingSession.razclenitev);
+              return posljiJson(res, 202, assetReviewResponse(zajem.sejaId, null, existingDto));
+            }
+            return posljiJson(res, 409, {
+              status: 'PODVOJENO',
+              sejaId: zajem.sejaId,
+              sporocilo: 'Ta izvorna datoteka je bila že zajeta. Nadaljujte v obstoječi uvozni seji.',
+            });
+          }
+          await db.execute(sql`
+            UPDATE uvoz_seja
+               SET razclenitev = ${jsonVarno(dto)}::jsonb,
+                   napake = ${jsonVarno(dto.napake)}::jsonb,
+                   status = 'RAZCLENJENO',
+                   obdelano = now()
+             WHERE id = ${zajem.sejaId} AND enota_id = ${req.enotaId}
+          `);
+          const dob = await dolociDobavitelja(
+            db, req.companyId, dto, null, vhod.data.dobaviteljId ?? null,
+          );
+          const dobaviteljId = await resolveOrCreateDobavitelja(db, req.companyId, dob, dto);
+          return posljiJson(res, 202, assetReviewResponse(zajem.sejaId, dobaviteljId, dto));
+        }
+      }
+
       if (format === 'PDF_PREDLOGA' || format === 'PDF_OCR') {
         const base64 = req.file.buffer.toString('base64');
         const dto = await ocrSlikaVDto(base64, 'application/pdf');

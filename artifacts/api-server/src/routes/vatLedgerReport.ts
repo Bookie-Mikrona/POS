@@ -128,6 +128,7 @@ router.get(
       kirVatField: string | null;
       kprBaseField: string | null;
       kprVatField: string | null;
+      assetType: string;
       isReverseCharge: boolean;
       pairId: string | null;
       reversedById: string | null;
@@ -160,6 +161,7 @@ router.get(
         vc.kir_vat_field                   AS "kirVatField",
         vc.kpr_base_field                  AS "kprBaseField",
         vc.kpr_vat_field                   AS "kprVatField",
+        vl.asset_type                      AS "assetType",
         vc.is_reverse_charge               AS "isReverseCharge",
         vl.pair_id                         AS "pairId",
         vl.reversed_by_id                  AS "reversedById",
@@ -291,6 +293,14 @@ router.get(
       for (const r of docRows) {
         if (r.kprBaseField) p[r.kprBaseField] = (p[r.kprBaseField] ?? 0) + dec(r.baseAmount);
         if (r.kprVatField)  p[r.kprVatField]  = (p[r.kprVatField]  ?? 0) + dec(r.vatAmount);
+        if (["P8", "P9", "P10"].includes(r.kprBaseField ?? "")) {
+          if (r.assetType === "REALESTATE") p["P12"] = (p["P12"] ?? 0) + dec(r.baseAmount);
+          if (r.assetType === "OTHER_FA") p["P13"] = (p["P13"] ?? 0) + dec(r.baseAmount);
+        }
+        if (r.kprBaseField === "P14") {
+          if (r.assetType === "REALESTATE") p["P15"] = (p["P15"] ?? 0) + dec(r.baseAmount);
+          if (r.assetType === "OTHER_FA") p["P16"] = (p["P16"] ?? 0) + dec(r.baseAmount);
+        }
         // P17 = neodbitni DDV
         if (dec(r.nonDeductibleVat) > 0) {
           p["P17"] = (p["P17"] ?? 0) + dec(r.nonDeductibleVat);
@@ -331,6 +341,14 @@ router.get(
     const kprTotals: Record<string, string> = {};
     for (const p of ["P8","P9","P10","P11","P12","P13","P14","P15","P16","P17","P18","P19","P20","P21","P22"]) {
       const sum = inRows.reduce((acc, r) => {
+        if (p === "P12" || p === "P13") {
+          if (["P8", "P9", "P10"].includes(r.kprBaseField ?? "")
+            && r.assetType === (p === "P12" ? "REALESTATE" : "OTHER_FA")) return acc + dec(r.baseAmount);
+        }
+        if (p === "P15" || p === "P16") {
+          if (r.kprBaseField === "P14"
+            && r.assetType === (p === "P15" ? "REALESTATE" : "OTHER_FA")) return acc + dec(r.baseAmount);
+        }
         if (r.kprBaseField === p) return acc + dec(r.baseAmount);
         if (r.kprVatField  === p) return acc + dec(r.vatAmount);
         if (p === "P17")          return acc + dec(r.nonDeductibleVat);
@@ -372,6 +390,8 @@ router.get(
       { dvoField: "f32",  label: "Vrednost pridobitev EU (blago)",       kprField: "P10", value: fmt(inSum("P10")) },
       { dvoField: "f32a", label: "Vrednost storitev EU",                 kprField: "P11", value: fmt(inSum("P11")) },
       { dvoField: "f33",  label: "Oproščene nabave in pridobitve",        kprField: "P14", value: fmt(inSum("P14")) },
+      { dvoField: "f34",  label: "Nabave nepremičnin (informativno)",    kprField: "P12", value: kprTotals.p12 },
+      { dvoField: "f35",  label: "Nabave drugih OS (informativno)",     kprField: "P13", value: kprTotals.p13 },
       { dvoField: "f41",  label: "Odbitni DDV 22 %",                     kprField: "P18", value: fmt(inSum("P18")) },
       { dvoField: "f42",  label: "Odbitni DDV 9,5 %",                    kprField: "P19", value: fmt(inSum("P19")) },
       { dvoField: "f42a", label: "Odbitni DDV 5 %",                      kprField: "P20", value: fmt(inSum("P20")) },

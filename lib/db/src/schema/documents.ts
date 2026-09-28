@@ -53,6 +53,16 @@ export interface ProposedLine {
   suggestionSource?: "history" | "pattern" | "manual";
   /** Število preteklih potrditev tega konta za istega partnerja (samo za "history") */
   suggestionCount?: number;
+  /** OCR predlog in računovodjeva potrjena razvrstitev sta ločena podatka. */
+  assetTypeCandidate?: "OTHER_FA" | "REALESTATE";
+  assetTypeReason?: string;
+  assetTypeOriginalAccountCode?: string | null;
+  assetTypeOriginalAccountId?: string | null;
+  assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
+  vatCodeId?: string | null;
+  vatCodeReason?: string;
+  vatCodeReviewRequired?: boolean;
+  vatCodeReviewReason?: string;
 }
 
 /**

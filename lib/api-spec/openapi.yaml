@@ -20545,6 +20545,11 @@ components:
         vatRate:
           type: string
           description: VAT rate percentage (0, 9.50, 22.00)
+        vatCodeId:
+          type: ["string", "null"]
+        assetType:
+          type: string
+          enum: [NONE, OTHER_FA, REALESTATE]
         accountId:
           type: string
         accountCode:
@@ -20569,6 +20574,7 @@ components:
         - quantity
         - unitPrice
         - vatRate
+        - assetType
         - accountId
         - accountCode
         - accountName
@@ -20763,6 +20769,13 @@ components:
             - 0
             - 9.5
             - 22
+        vatCodeId:
+          type: ["string", "null"]
+          description: Explicit FURS tax treatment, required for an EU acquisition
+        assetType:
+          type: string
+          enum: [NONE, OTHER_FA, REALESTATE]
+          description: Accountant-approved asset classification, defaults to NONE
         accountId:
           type: string
       required:

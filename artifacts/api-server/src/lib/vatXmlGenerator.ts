@@ -251,13 +251,13 @@ export async function generateKirKprXml(
 
       // Asset type → informativna polja P12/P13/P15/P16
       if (r.assetType === "REALESTATE") {
-        if (r.kprBaseField === "P8" || r.kprBaseField === "P9") {
+        if (r.kprBaseField === "P8" || r.kprBaseField === "P9" || r.kprBaseField === "P10") {
           addToField(g, "P12", baseAmt); // KPR P12 = obdavčene nabave nepremičnin
         } else if (r.kprBaseField === "P14") {
           addToField(g, "P15", baseAmt); // KPR P15 = oproščene nabave nepremičnin
         }
       } else if (r.assetType === "OTHER_FA") {
-        if (r.kprBaseField === "P8" || r.kprBaseField === "P9") {
+        if (r.kprBaseField === "P8" || r.kprBaseField === "P9" || r.kprBaseField === "P10") {
           addToField(g, "P13", baseAmt);
         } else if (r.kprBaseField === "P14") {
           addToField(g, "P16", baseAmt);

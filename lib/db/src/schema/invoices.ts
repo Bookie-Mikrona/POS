@@ -122,6 +122,8 @@ export const invoiceLinesTable = pgTable("invoice_lines", {
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).notNull().default("22.00"),
   /** DDV koda (FK) — nova metoda; ko je nastavljena, vatRate se izračuna iz nje */
   vatCodeId: uuid("vat_code_id").references(() => vatCodesTable.id),
+  /** Potrjena razvrstitev nabave za DDV evidenco; predlog OCR/e-SLOG sam po sebi ne knjiži. */
+  assetType: text("asset_type").$type<"NONE" | "OTHER_FA" | "REALESTATE">().notNull().default("NONE"),
   /** Davčna osnova (quantity × unitPrice brez DDV) */
   vatBase: numeric("vat_base", { precision: 18, scale: 2 }),
   /** Znesek DDV */

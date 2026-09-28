@@ -106,6 +106,23 @@ interface BridgeStatus {
   scanners: BridgeScanner[];
 }
 
+interface AssetReviewLine {
+  sequence: number;
+  description: string;
+  suggestedAssetType: 'OTHER_FA' | 'REALESTATE';
+  sourceAmount: string | null;
+}
+
+interface AssetReviewData {
+  sejaId: string;
+  dobaviteljId: string | null;
+  dobaviteljNaziv: string | null;
+  dobaviteljDrzava: string;
+  stDokumenta: string | null;
+  datumDokumenta: string | null;
+  lines: AssetReviewLine[];
+}
+
 // ─── Tipi za dodajanje dobavitelja ────────────────────────────────────────
 
 interface KupecForm {
@@ -268,6 +285,9 @@ export function UvozPrejemniceDialog({
   const [stUparjenih,        setStUparjenih]        = useState(0);
   const [podvojenoPrejId,    setPodvojenoPrejId]    = useState<number | null>(null);
   const [novArtikelPostavka, setNovArtikelPostavka] = useState<NeuparjenaPostavka | null>(null);
+  const [assetReview, setAssetReview] = useState<AssetReviewData | null>(null);
+  const [assetReviewConfirmed, setAssetReviewConfirmed] = useState(false);
+  const [assetTypeBySequence, setAssetTypeBySequence] = useState<Record<number, 'OTHER_FA' | 'REALESTATE'>>({});
 
   // OCR slika (kamera ali scanner)
   const [slikaBase64,  setSlikaBase64]  = useState<string | null>(null);
@@ -378,6 +398,9 @@ export function UvozPrejemniceDialog({
     setCsvDobaviteljId(null);
     setCsvDobaviteljFilter('');
     setBookingPreviewId(null);
+    setAssetReview(null);
+    setAssetReviewConfirmed(false);
+    setAssetTypeBySequence({});
   }, []);
 
   // Filtrirani dobavitelji za MANJKA_DOBAVITELJ iskanje (prag ≥ 2 znaka)
@@ -497,6 +520,23 @@ export function UvozPrejemniceDialog({
         body: JSON.stringify({ dobaviteljId: aktivniId }),
       });
       const data = await r.json();
+      if (data.status === 'ASSET_REVIEW_REQUIRED') {
+        const candidate = data as AssetReviewData & { status: string };
+        setAssetReview({
+          sejaId: candidate.sejaId,
+          dobaviteljId: candidate.dobaviteljId ?? null,
+          dobaviteljNaziv: candidate.dobaviteljNaziv ?? null,
+          dobaviteljDrzava: candidate.dobaviteljDrzava ?? '',
+          stDokumenta: candidate.stDokumenta ?? null,
+          datumDokumenta: candidate.datumDokumenta ?? null,
+          lines: Array.isArray(candidate.lines) ? candidate.lines : [],
+        });
+        setAssetTypeBySequence(Object.fromEntries(
+          (candidate.lines ?? []).map(line => [line.sequence, line.suggestedAssetType]),
+        ));
+        setAssetReviewConfirmed(false);
+        return;
+      }
       if (!r.ok || data.status !== 'OSNUTEK_USTVARJEN') {
         setNapaka(data.sporocilo ?? `Uvoz ni uspel (${r.status}).`); return;
       }
@@ -535,6 +575,23 @@ export function UvozPrejemniceDialog({
         body: fd,
       });
       const data = await r.json();
+      if (data.status === 'ASSET_REVIEW_REQUIRED') {
+        const candidate = data as AssetReviewData & { status: string };
+        setAssetReview({
+          sejaId: candidate.sejaId,
+          dobaviteljId: candidate.dobaviteljId ?? null,
+          dobaviteljNaziv: candidate.dobaviteljNaziv ?? null,
+          dobaviteljDrzava: candidate.dobaviteljDrzava ?? '',
+          stDokumenta: candidate.stDokumenta ?? null,
+          datumDokumenta: candidate.datumDokumenta ?? null,
+          lines: Array.isArray(candidate.lines) ? candidate.lines : [],
+        });
+        setAssetTypeBySequence(Object.fromEntries(
+          (candidate.lines ?? []).map(line => [line.sequence, line.suggestedAssetType]),
+        ));
+        setAssetReviewConfirmed(false);
+        return;
+      }
       if (r.status === 409) {
         const id = (data as { prejemnicaId?: number }).prejemnicaId;
         if (id) { setPodvojenoPrejId(id); } else { setNapaka('Ta dobavnica je bila že uvožena.'); }
@@ -576,6 +633,53 @@ export function UvozPrejemniceDialog({
       setNalaga(false);
     }
   }, [base, handleUvozIzid]);
+
+  const potrdiAssetReview = useCallback(async () => {
+    if (!assetReview || !assetReviewConfirmed) return;
+    const dobaviteljId = assetReview.dobaviteljId;
+    if (!dobaviteljId) {
+      setNapaka('Pred potrditvijo izberite dobavitelja iz šifranta.');
+      return;
+    }
+    setNalaga(true);
+    setNapaka(null);
+    try {
+      const r = await posFetch(
+        `${base}/api/uvoz/seja/${encodeURIComponent(assetReview.sejaId)}/potrdi-osnovno-sredstvo`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            potrjujem: true,
+            dobaviteljId,
+            assetTypes: assetReview.lines.map(line => ({
+              sequence: line.sequence,
+              assetType: assetTypeBySequence[line.sequence] ?? line.suggestedAssetType,
+            })),
+          }),
+        },
+      );
+      const result = await r.json();
+      if (!r.ok || result.status !== 'ERP_RACUN_OSNUTEK_USTVARJEN') {
+        setNapaka(result.sporocilo ?? `ERP osnutka ni bilo mogoče ustvariti (${r.status}).`);
+        return;
+      }
+      toast({
+        title: 'ERP prejeti račun je pripravljen',
+        description: `Ustvarjen je osnutek ${assetReview.stDokumenta ?? ''} (#${result.invoiceId}). Ni bilo ustvarjeno POS prejemnice ali knjižbe.`,
+      });
+      onUvozDone();
+      resetState();
+      onClose();
+    } catch (error) {
+      setNapaka((error as Error).message ?? 'Potrditve ERP osnutka ni bilo mogoče dokončati.');
+    } finally {
+      setNalaga(false);
+    }
+  }, [
+    assetReview, assetReviewConfirmed, assetTypeBySequence, base, onUvozDone, onClose,
+    resetState, toast,
+  ]);
 
   // CSV/XLSX: sprejmi datoteko brez uploadа — pokaži picker za dobavitelja
   const sprejmiDatoteko = useCallback((datoteka: File) => {
@@ -1184,6 +1288,7 @@ export function UvozPrejemniceDialog({
   const imaSliko = !!(slikaBase64 && (nacin === 'kamera' || nacin === 'skener'));
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => { if (!v) zapri(); }}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col overscroll-contain">
         <DialogHeader className="shrink-0">
@@ -1858,5 +1963,96 @@ export function UvozPrejemniceDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <Dialog
+      open={assetReview !== null}
+      onOpenChange={value => { if (!value) setAssetReview(null); }}
+    >
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Računovodski pregled možnih osnovnih sredstev</DialogTitle>
+        </DialogHeader>
+        {assetReview && (
+          <div className="space-y-4">
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              Uvoz je zaznal tuji EU e-SLOG račun z vrsticami, ki bi lahko predstavljale osnovna sredstva.
+              To je samo vsebinsko opozorilo, ne samodejna razvrstitev ali knjižba. Po potrditvi bo nastal
+              samo ERP prejeti račun v statusu osnutka; POS prejemnica, zaloga in knjižbe DDV/AP se ne ustvarijo.
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><strong>Dobavitelj:</strong> {assetReview.dobaviteljNaziv ?? 'Izberite iz šifranta'}</div>
+              <div><strong>Država iz dokumenta:</strong> {assetReview.dobaviteljDrzava}</div>
+              <div><strong>Številka računa:</strong> {assetReview.stDokumenta ?? '—'}</div>
+              <div><strong>Datum:</strong> {assetReview.datumDokumenta ?? '—'}</div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="asset-review-supplier">Potrjeni dobavitelj</Label>
+              <select
+                id="asset-review-supplier"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={assetReview.dobaviteljId ?? ''}
+                onChange={event => {
+                  const supplier = (shranjeniKupci ?? []).find(item => item.id === event.target.value);
+                  setAssetReview(current => current
+                    ? {
+                      ...current,
+                      dobaviteljId: supplier?.id ?? null,
+                      dobaviteljNaziv: supplier?.naziv ?? null,
+                    }
+                    : current);
+                }}
+              >
+                <option value="">Izberite dobavitelja iz šifranta…</option>
+                {(shranjeniKupci ?? []).map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.naziv}{supplier.davcnaStevilka ? ` · ${supplier.davcnaStevilka}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              {assetReview.lines.map(line => (
+                <div key={line.sequence} className="grid grid-cols-[1fr_150px] items-center gap-3 rounded-md border p-3">
+                  <div>
+                    <div className="font-medium">{line.description}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Vrstica {line.sequence}{line.sourceAmount ? ` · davčna osnova ${line.sourceAmount}` : ''}
+                    </div>
+                  </div>
+                  <select
+                    aria-label={`Razvrstitev osnovnega sredstva, vrstica ${line.sequence}`}
+                    className="rounded-md border bg-background px-2 py-2 text-sm"
+                    value={assetTypeBySequence[line.sequence] ?? line.suggestedAssetType}
+                    onChange={event => setAssetTypeBySequence(current => ({
+                      ...current,
+                      [line.sequence]: event.target.value as 'OTHER_FA' | 'REALESTATE',
+                    }))}
+                  >
+                    <option value="OTHER_FA">Drugo osnovno sredstvo</option>
+                    <option value="REALESTATE">Nepremičnina</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+            {napaka && <p role="alert" className="text-sm text-destructive">{napaka}</p>}
+            <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+              <Checkbox
+                checked={assetReviewConfirmed}
+                onCheckedChange={value => setAssetReviewConfirmed(value === true)}
+              />
+              <span>Računovodja sem pregledal/-a izvorni e-SLOG dokument, potrdil/-a dobavitelja in razvrstitev označenih vrstic ter odobravam samo ustvaritev ERP osnutka.</span>
+            </label>
+          </div>
+        )}
+        <DialogFooter>
+          <Button
+            onClick={() => void potrdiAssetReview()}
+            disabled={!assetReview || !assetReviewConfirmed || !assetReview.dobaviteljId || nalaga}
+          >
+            {nalaga ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Ustvarjam osnutek…</> : 'Potrdi in ustvari ERP osnutek'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

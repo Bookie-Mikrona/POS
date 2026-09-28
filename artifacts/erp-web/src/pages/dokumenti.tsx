@@ -22,6 +22,7 @@ import {
   useListAccounts,
   useListPeriods,
   useGetCounterpartyAccountTemplates,
+  useListCompanyFursVatCodes,
   getListDocumentsQueryKey,
   getGetDocumentQueryKey,
   getListCounterpartiesQueryKey,
@@ -184,7 +185,7 @@ export default function Dokumenti() {
       <div className="flex justify-between items-end shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dokumenti v obdelavi</h1>
-          <p className="text-muted-foreground mt-1">Naložite dokumente za AI prepoznavo in avtomatsko knjiženje.</p>
+          <p className="text-muted-foreground mt-1">Naložite dokumente za AI-prepoznavo in predlog; računovodja pregleda podatke pred ustvarjanjem osnutka.</p>
         </div>
       </div>
 
@@ -743,6 +744,12 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
   const { data: periodsData } = useListPeriods(activeCompany?.id ?? "", { query: { enabled: !!activeCompany?.id } as any });
   const periods = periodsData?.periods ?? [];
   const openPeriods = periods.filter(p => p.status === "open");
+  const { data: fursVatCodesData } = useListCompanyFursVatCodes(
+    activeCompany?.id ?? "",
+    { direction: "IN" },
+    { query: { enabled: !!activeCompany?.id } },
+  );
+  const allEubVatCodes = (fursVatCodesData?.codes ?? []).filter(code => code.code.startsWith("EUB"));
 
   const confirmMut = useConfirmDocument();
   const createCounterpartyMut = useCreateCounterparty();
@@ -785,6 +792,11 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     dueDate: ocr?.dueDate?.split("T")[0] || "",
     createInvoice: true
   });
+  const invoiceVatDate = form.invoiceDate || ocr?.invoiceDate?.slice(0, 10) || "";
+  const eubVatCodes = allEubVatCodes.filter(code =>
+    (!invoiceVatDate || code.validFrom <= invoiceVatDate)
+    && (!invoiceVatDate || !code.validTo || code.validTo >= invoiceVatDate),
+  );
 
   const {
     data: accountTemplatesData,
@@ -813,7 +825,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
   // Editable lines state — initialized with OCR lines, fuzzy-resolved account applied
   // We delay init until accounts are loaded; useEffect updates when accounts arrive
-  const [editableLines, setEditableLines] = useState<Array<{
+  type ReviewLine = ProposedLine & {
     description: string;
     quantity: number;
     unitPrice: number;
@@ -825,8 +837,18 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     confidence: number;
     suggestionSource?: "history" | "pattern" | "manual";
     suggestionCount?: number;
-  }>>(() =>
-    (ocr?.lines ?? []).map(l => {
+    assetType?: "NONE" | "OTHER_FA" | "REALESTATE";
+    assetTypeCandidate?: "OTHER_FA" | "REALESTATE";
+    assetTypeReason?: string;
+    assetTypeOriginalAccountCode?: string | null;
+    assetTypeOriginalAccountId?: string | null;
+    vatCodeId?: string;
+    vatCodeReason?: string;
+    vatCodeReviewRequired?: boolean;
+    vatCodeReviewReason?: string;
+  };
+  const [editableLines, setEditableLines] = useState<ReviewLine[]>(() =>
+    ((ocr?.lines ?? []) as ReviewLine[]).map(l => {
       return {
         description: l.description,
         quantity: l.quantity,
@@ -839,6 +861,15 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
         confidence: l.confidence,
         suggestionSource: l.suggestionSource,
         suggestionCount: l.suggestionCount ?? undefined,
+        assetType: l.assetType,
+        assetTypeCandidate: l.assetTypeCandidate,
+        assetTypeReason: l.assetTypeReason,
+        assetTypeOriginalAccountCode: l.assetTypeOriginalAccountCode ?? null,
+        assetTypeOriginalAccountId: l.assetTypeOriginalAccountId ?? null,
+        vatCodeId: l.vatCodeId,
+        vatCodeReason: l.vatCodeReason,
+        vatCodeReviewRequired: l.vatCodeReviewRequired,
+        vatCodeReviewReason: l.vatCodeReviewReason,
       };
     })
   );
@@ -883,6 +914,40 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
     updateLine(idx, accountId);
   };
 
+  const decideAssetCandidate = (idx: number, accepted: boolean) => {
+    setEditableLines(prev => prev.map((line, i) => {
+      if (i !== idx || !line.assetTypeCandidate) return line;
+      if (accepted) return { ...line, assetType: line.assetTypeCandidate };
+      const original = line.assetTypeOriginalAccountId
+        ? accounts.find(account => account.id === line.assetTypeOriginalAccountId)
+        : undefined;
+      return {
+        ...line,
+        assetType: "NONE",
+        accountId: original?.id ?? null,
+        accountCode: original?.code ?? null,
+        suggestionSource: original ? "pattern" : line.suggestionSource,
+      };
+    }));
+  };
+  const resolveVatCodeForLine = (idx: number, vatCodeId: string) => {
+    const vatCode = eubVatCodes.find(code => code.id === vatCodeId);
+    if (!vatCode) return;
+    setEditableLines(prev => prev.map((line, i) => i === idx
+      ? {
+          ...line,
+          vatCodeId,
+          vatCodeReviewRequired: false,
+          vatCodeReviewReason: undefined,
+          vatCodeReason: `Ročno izbrana vstopna koda ${vatCode.code}: ${vatCode.description}`,
+        }
+      : line));
+  };
+
+  const linesAwaitingAssetDecision = editableLines.filter(line =>
+    line.assetTypeCandidate && line.assetType == null,
+  );
+  const linesAwaitingVatReview = editableLines.filter(line => line.vatCodeReviewRequired && !line.vatCodeId);
   const linesWithMissingAccount = editableLines.filter(l => !l.accountId);
   const hasUnresolvedLines = linesWithMissingAccount.length > 0;
   const linesWithInvalidAccount = editableLines.filter(line => {
@@ -1033,6 +1098,26 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                 </Alert>
               </div>
             )}
+            {linesAwaitingAssetDecision.length > 0 && form.createInvoice && (
+              <div className="px-5 pb-2">
+                <Alert className="py-2 px-3 border-amber-300 bg-amber-50 text-amber-950">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    Računovodja mora za vsako označeno osnovno sredstvo izrecno sprejeti ali zavrniti predlog pred ustvarjanjem računa.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+            {linesAwaitingVatReview.length > 0 && form.createInvoice && (
+              <div className="px-5 pb-2">
+                <Alert className="py-2 px-3 border-amber-300 bg-amber-50 text-amber-950">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                  <AlertDescription className="text-xs ml-1">
+                    {linesAwaitingVatReview[0].vatCodeReviewReason} Osnutka računa zaradi DDV ne bo mogoče ustvariti, dokler DDV-koda ni preverjena.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             {form.counterpartyId && (
               <div className="px-5 pb-3">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs">
@@ -1075,7 +1160,58 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
                       const accountIsGroup = selectedAccount ? selectedAccount.allowsPosting === false : false;
                       return (
                         <tr key={idx} className={`hover:bg-muted/10 ${missing ? "bg-amber-50/40" : ""}`}>
-                          <td className="px-4 py-3 font-medium truncate max-w-[150px]" title={line.description}>{line.description}</td>
+                          <td className="px-4 py-3 font-medium max-w-[190px]" title={line.description}>
+                            <div className="truncate">{line.description}</div>
+                            {line.assetTypeCandidate && (
+                              <div className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-950">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <Badge variant="outline" className="border-amber-300 text-amber-900">
+                                    Predlog OS: {line.assetTypeCandidate === "REALESTATE" ? "nepremičnina" : "drugo OS"}
+                                  </Badge>
+                                  {line.assetType === "NONE" && <span className="text-muted-foreground">zavrnjeno</span>}
+                                  {(line.assetType === "OTHER_FA" || line.assetType === "REALESTATE") && <span className="text-emerald-700">sprejeto</span>}
+                                </div>
+                                <p className="mt-1 font-normal">{line.assetTypeReason}</p>
+                                {!isViewer && form.createInvoice && (
+                                  <div className="mt-1.5 flex gap-2">
+                                    <button type="button" onClick={() => decideAssetCandidate(idx, true)} className="font-medium text-emerald-700 hover:underline">
+                                      Sprejmi predlog
+                                    </button>
+                                    <button type="button" onClick={() => decideAssetCandidate(idx, false)} className="font-medium text-muted-foreground hover:underline">
+                                      Zavrni predlog
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {line.vatCodeReviewRequired && !line.vatCodeId && (
+                              <div className="mt-1.5 space-y-1.5">
+                                <p className="text-[10px] font-normal text-amber-800">{line.vatCodeReviewReason}</p>
+                                {!isViewer && form.createInvoice && (
+                                  <Select value={line.vatCodeId ?? ""} onValueChange={value => resolveVatCodeForLine(idx, value)}>
+                                    <SelectTrigger className="h-8 bg-background text-xs">
+                                      <SelectValue placeholder="Izberite vstopno EUB DDV-kodo…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {eubVatCodes.map(code => (
+                                        <SelectItem key={code.id} value={code.id}>
+                                          <span className="font-mono">{code.code}</span> — {code.description}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                                {eubVatCodes.length === 0 && (
+                                  <p className="text-[10px] font-normal text-destructive">
+                                    Veljavne vstopne EUB kode niso na voljo. Obrnite se na skrbnika DDV šifranta.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {line.vatCodeId && line.vatCodeReason && (
+                              <p className="mt-1 text-[10px] font-normal text-blue-800">DDV EUB22/95: {line.vatCodeReason}</p>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-right tabular-nums">{formatEur(line.vatBase)}</td>
                           <td className="px-4 py-3 text-right">{line.vatRate}%</td>
                           <td className="px-4 py-2">
@@ -1354,6 +1490,15 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
 
           <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground space-y-1">
+              {confirmMut.isError && (
+                <Alert variant="destructive" className="max-w-2xl">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Osnutka računa ni bilo mogoče ustvariti</AlertTitle>
+                  <AlertDescription>
+                    {confirmMut.error instanceof Error ? confirmMut.error.message : "Preverite konto obveznosti dobavitelju in izbrane DDV-kode, nato poskusite znova."}
+                  </AlertDescription>
+                </Alert>
+              )}
               {!form.counterpartyId && (
                 <p className="text-destructive flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" /> Partner ni izbran</p>
               )}
@@ -1370,7 +1515,7 @@ export function DocumentReviewForm({ doc }: { doc: DocumentRecord }) {
             <Button 
               size="lg" 
               onClick={handleSubmit} 
-              disabled={!form.counterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || confirmMut.isPending || isViewer}
+              disabled={!form.counterpartyId || !form.periodId || hasNoLines || hasUnresolvedLines || hasInvalidAccounts || (form.createInvoice && (linesAwaitingAssetDecision.length > 0 || linesAwaitingVatReview.length > 0)) || confirmMut.isPending || isViewer}
               className="bg-primary text-primary-foreground min-w-[200px]"
             >
               {confirmMut.isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}

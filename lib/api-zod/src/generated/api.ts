@@ -11621,6 +11621,8 @@ export const CreateInvoiceBody = zod.object({
   "quantity": zod.number().min(createInvoiceBodyLinesItemQuantityMin),
   "unitPrice": zod.number().min(createInvoiceBodyLinesItemUnitPriceMin),
   "vatRate": zod.union([zod.literal(0),zod.literal(9.5),zod.literal(22)]),
+  "vatCodeId": zod.string().nullish().describe('Explicit FURS tax treatment, required for an EU acquisition'),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']).optional().describe('Accountant-approved asset classification, defaults to NONE'),
   "accountId": zod.string()
 })).min(1)
 })
@@ -11674,6 +11676,8 @@ export const CreateInvoiceResponse = zod.object({
   "quantity": zod.string().describe('Decimal quantity as string'),
   "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
   "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "vatCodeId": zod.string().nullish(),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']),
   "accountId": zod.string(),
   "accountCode": zod.string(),
   "accountName": zod.string(),
@@ -11791,6 +11795,8 @@ export const CreatePosContractSummaryResponse = zod.object({
   "quantity": zod.string().describe('Decimal quantity as string'),
   "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
   "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "vatCodeId": zod.string().nullish(),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']),
   "accountId": zod.string(),
   "accountCode": zod.string(),
   "accountName": zod.string(),
@@ -11859,6 +11865,8 @@ export const GetInvoiceResponse = zod.object({
   "quantity": zod.string().describe('Decimal quantity as string'),
   "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
   "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "vatCodeId": zod.string().nullish(),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']),
   "accountId": zod.string(),
   "accountCode": zod.string(),
   "accountName": zod.string(),
@@ -11914,6 +11922,8 @@ export const UpdateInvoiceBody = zod.object({
   "quantity": zod.number().min(updateInvoiceBodyLinesItemQuantityMin),
   "unitPrice": zod.number().min(updateInvoiceBodyLinesItemUnitPriceMin),
   "vatRate": zod.union([zod.literal(0),zod.literal(9.5),zod.literal(22)]),
+  "vatCodeId": zod.string().nullish().describe('Explicit FURS tax treatment, required for an EU acquisition'),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']).optional().describe('Accountant-approved asset classification, defaults to NONE'),
   "accountId": zod.string()
 })).optional()
 })
@@ -11967,6 +11977,8 @@ export const UpdateInvoiceResponse = zod.object({
   "quantity": zod.string().describe('Decimal quantity as string'),
   "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
   "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "vatCodeId": zod.string().nullish(),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']),
   "accountId": zod.string(),
   "accountCode": zod.string(),
   "accountName": zod.string(),
@@ -12035,6 +12047,8 @@ export const PostInvoiceResponse = zod.object({
   "quantity": zod.string().describe('Decimal quantity as string'),
   "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
   "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "vatCodeId": zod.string().nullish(),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']),
   "accountId": zod.string(),
   "accountCode": zod.string(),
   "accountName": zod.string(),
@@ -12307,6 +12321,8 @@ export const VoidInvoiceResponse = zod.object({
   "quantity": zod.string().describe('Decimal quantity as string'),
   "unitPrice": zod.string().describe('Unit price excl. VAT as string'),
   "vatRate": zod.string().describe('VAT rate percentage (0, 9.50, 22.00)'),
+  "vatCodeId": zod.string().nullish(),
+  "assetType": zod.enum(['NONE', 'OTHER_FA', 'REALESTATE']),
   "accountId": zod.string(),
   "accountCode": zod.string(),
   "accountName": zod.string(),
