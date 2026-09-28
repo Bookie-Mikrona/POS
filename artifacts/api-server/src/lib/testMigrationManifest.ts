@@ -440,6 +440,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["235-invoice-line-asset-type.sql"],
   },
+  {
+    file: "237-purchase-article-eslog-units.sql",
+    classification: "schema",
+    dependsOn: ["236-pos-line-packaging-snapshot.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

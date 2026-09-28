@@ -4,17 +4,22 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { X } from "lucide-react";
 
 export const ESLOG_UNITS = [
-  { code: "H87", label: "kos (H87)" },
-  { code: "KGM", label: "kilogram (KGM)" },
-  { code: "GRM", label: "gram (GRM)" },
-  { code: "LTR", label: "liter (LTR)" },
-  { code: "MLT", label: "mililiter (MLT)" },
-  { code: "MTR", label: "meter (MTR)" },
-  { code: "MTK", label: "kvadratni meter (MTK)" },
-  { code: "MTQ", label: "kubični meter (MTQ)" },
-  { code: "CT", label: "karton (CT)" },
-  { code: "BX", label: "škatla (BX)" },
+  { code: "H87", label: "kos (H87)", display: "kos" },
+  { code: "KGM", label: "kilogram (KGM)", display: "kg" },
+  { code: "GRM", label: "gram (GRM)", display: "g" },
+  { code: "LTR", label: "liter (LTR)", display: "l" },
+  { code: "MLT", label: "mililiter (MLT)", display: "ml" },
+  { code: "MTR", label: "meter (MTR)", display: "m" },
+  { code: "MTK", label: "kvadratni meter (MTK)", display: "m²" },
+  { code: "MTQ", label: "kubični meter (MTQ)", display: "m³" },
+  { code: "CT", label: "karton (CT)", display: "karton" },
+  { code: "BX", label: "škatla (BX)", display: "škatla" },
 ] as const;
+
+export function displayEslogUnit(value: string | null | undefined): string {
+  const unit = value?.trim() ?? "";
+  return ESLOG_UNITS.find(item => item.code === unit.toUpperCase())?.display ?? unit;
+}
 
 function normalize(value: string): string {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("sl");
@@ -71,7 +76,7 @@ export function EslogUnitPicker({ id, value, onChange, open: controlledOpen, onO
             aria-expanded={open}
             aria-controls={`${id}-options`}
             aria-activedescendant={open && matches[active] ? `${id}-option-${matches[active].code}` : undefined}
-            value={open ? query : (selected?.label ?? value ?? "")}
+            value={open ? query : (current.length ? selected?.label ?? value ?? "" : displayEslogUnit(value))}
             placeholder={open ? "Išči po nazivu ali kodi..." : "Izberi enoto mere..."}
             autoComplete="off"
             onFocus={() => {

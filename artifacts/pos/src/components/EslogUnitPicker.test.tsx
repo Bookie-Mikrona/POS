@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ESLOG_UNITS, EslogUnitPicker, filterEslogUnits } from "./EslogUnitPicker";
+import { ESLOG_UNITS, EslogUnitPicker, displayEslogUnit, filterEslogUnits } from "./EslogUnitPicker";
 
 describe("izbira enote mere artikla", () => {
   it("išče po nazivu brez šumnikov in po kodi ter ne omeji rezultatov na prvih nekaj enot", () => {
@@ -13,13 +13,16 @@ describe("izbira enote mere artikla", () => {
       "H87", "KGM", "GRM", "LTR", "MLT", "MTR", "MTK", "MTQ", "CT", "BX",
     ]);
     expect(filterEslogUnits("paleta")).toHaveLength(0);
+    expect(displayEslogUnit("H87")).toBe("kos");
+    expect(displayEslogUnit("KGM")).toBe("kg");
+    expect(displayEslogUnit("nova")).toBe("nova");
   });
 
   it("ohrani izbrano vrednost med iskanjem in jo spremeni šele ob izbiri", () => {
     const onChange = vi.fn();
     const { rerender } = render(<EslogUnitPicker id="enota-test" value="LTR" onChange={onChange} />);
     const input = screen.getByRole("combobox");
-    expect((input as HTMLInputElement).value).toBe("liter (LTR)");
+    expect((input as HTMLInputElement).value).toBe("l");
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "gra" } });
     expect(onChange).not.toHaveBeenCalled();
@@ -27,7 +30,17 @@ describe("izbira enote mere artikla", () => {
     fireEvent.click(screen.getByRole("option", { name: "gram (GRM)" }));
     expect(onChange).toHaveBeenCalledWith("GRM");
     rerender(<EslogUnitPicker id="enota-test" value="GRM" onChange={onChange} />);
-    expect((input as HTMLInputElement).value).toBe("gram (GRM)");
+    expect((input as HTMLInputElement).value).toBe("g");
+  });
+
+  it("pri shranjeni kodi H87 pokaže kos, tehnično kodo pa ohrani v izboru", () => {
+    const onChange = vi.fn();
+    render(<EslogUnitPicker id="kos-test" value="H87" onChange={onChange} />);
+    const input = screen.getByRole("combobox") as HTMLInputElement;
+    expect(input.value).toBe("kos");
+    fireEvent.focus(input);
+    expect(screen.getByRole("option", { name: "kos (H87)" })).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("omogoči izbiro tudi v pogovornem oknu za urejanje artikla", () => {

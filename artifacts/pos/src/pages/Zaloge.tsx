@@ -98,7 +98,7 @@ import {
   validateGroupSourceLine,
 } from "@/lib/skupinski-nabavni-artikel";
 import { posFetch } from "@/lib/pos-auth-headers";
-import { ESLOG_UNITS } from "@/components/EslogUnitPicker";
+import { ESLOG_UNITS, displayEslogUnit } from "@/components/EslogUnitPicker";
 import { downloadArtikelKatalogPdf, type ArtikelKatalogScope } from "@/lib/artikel-katalog-pdf";
 
 function AlergeniRowPopover({
@@ -280,7 +280,7 @@ function IzvornaPostavkaPolja({
     sourceUnitUnsupported
       ? `Enota dobavitelja »${row.izvEnota}« ni podprta e-SLOG enota.`
       : sourceMismatch
-        ? `Enota dobavitelja (${row.izvEnota}) ne ustreza enoti skupinskega artikla (${target.enotaMere ?? "ni navedena"}).`
+        ? `Enota dobavitelja (${row.izvEnota}) ne ustreza enoti skupinskega artikla (${displayEslogUnit(target.enotaMere) || "ni navedena"}).`
         : undefined
   );
   if (!isGroupTarget && !row.izvNaziv && !row.izvEnota) return null;
@@ -331,7 +331,7 @@ function IzvornaPostavkaPolja({
           {row.izvEnota && <> ({row.izvEnota})</>}
           {" → zaloga: "}
           <span className="font-semibold text-foreground">{targetName}</span>
-          {target.enotaMere && <> ({target.enotaMere})</>}
+          {target.enotaMere && <> ({displayEslogUnit(target.enotaMere)})</>}
         </p>
       )}
     </div>
@@ -1236,7 +1236,7 @@ function EnotaMereDropdown({
         }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       >
-        <span>{ESLOG_UNITS.find(unit => unit.code === value)?.label ?? (value || "— izberite —")}</span>
+        <span>{displayEslogUnit(value) || "— izberite —"}</span>
         <ChevronDown className="w-3 h-3 text-muted-foreground" />
       </button>
       {open && (
@@ -1454,14 +1454,14 @@ function KarticaDialog({ artikelId, onClose }: { artikelId: number; onClose: () 
                 <p className={`text-2xl font-bold tabular-nums ${data.kolicina <= 0 ? "text-red-600" : data.kolicina < 5 ? "text-amber-600" : "text-green-700"}`}>
                   {fmt(data.kolicina, 3)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{data.enotaMere ?? "–"}</p>
+                <p className="text-xs text-muted-foreground mt-1">{displayEslogUnit(data.enotaMere) || "–"}</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Povpr. nab. cena (WAC)</p>
                 <p className="text-2xl font-bold tabular-nums">
                   {(data.povprecnaCena ?? data.zadnjaCena) != null ? `${fmt(data.povprecnaCena ?? data.zadnjaCena!, 6)} €` : "–"}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">/ {data.enotaMere ?? "enoto"}</p>
+                <p className="text-xs text-muted-foreground mt-1">/ {displayEslogUnit(data.enotaMere) || "enoto"}</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Vrednost zaloge</p>
@@ -1745,7 +1745,7 @@ function EditIzdajnicaDialog({
                           ref={el => { if (el) izdEditArtInputRefs.current.set(i, el); else izdEditArtInputRefs.current.delete(i); }}
                           className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                           placeholder="Izberi artikel"
-                          value={isOpen ? izdEditDdFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
+                          value={isOpen ? izdEditDdFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${displayEslogUnit(selectedArtikel.enotaMere)})` : ""}` : "")}
                           onChange={e => { if (selectedArtikel) return; setIzdEditDdFilter(e.target.value); setIzdEditDdHighlight(0); if (!isOpen) setIzdEditDdOpenIdx(i); }}
                           readOnly={!!selectedArtikel && !isOpen}
                           onFocus={() => { if (!selectedArtikel) { setIzdEditDdOpenIdx(i); setIzdEditDdFilter(""); setIzdEditDdHighlight(0); } }}
@@ -1774,7 +1774,7 @@ function EditIzdajnicaDialog({
                                 <div key={a.id}
                                   className={`px-3 py-1.5 text-sm cursor-pointer ${j === izdEditDdHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
                                   onMouseDown={e => { e.preventDefault(); updateArtikel(i, a.id); }}>
-                                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
+                                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </div>
                               ))
                             }
@@ -2494,7 +2494,7 @@ function EditPrejemnicaDialog({
                           >
                             <span className="flex-1 truncate">
                               {selectedArtikel.imeZaNabavo || selectedArtikel.ime}
-                              {selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}
+                              {selectedArtikel.enotaMere ? ` (${displayEslogUnit(selectedArtikel.enotaMere)})` : ""}
                             </span>
                             <button type="button" tabIndex={-1}
                               className="text-muted-foreground hover:text-foreground shrink-0"
@@ -2571,7 +2571,7 @@ function EditPrejemnicaDialog({
                           className="w-24" />
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.kolicina) > 0 && (
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            = {fmt(parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1))} {nabavniArtikli.find(a => a.id === row.artikelId)?.enotaMere ?? "enot"}
+                            = {fmt(parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1))} {displayEslogUnit(nabavniArtikli.find(a => a.id === row.artikelId)?.enotaMere) || "enot"}
                           </span>
                         )}
                       </div>
@@ -2790,7 +2790,7 @@ function EditPrejemnicaDialog({
                 <div key={a.id}
                   className={`px-3 py-1.5 text-sm cursor-pointer ${j === ddHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
                   onMouseDown={e => { e.preventDefault(); selectArtikelInEditRow(ddOpenIdx, a.id); }}>
-                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}
                 </div>
               ))}
             </div>
@@ -2977,7 +2977,7 @@ function EditInventuraDialog({
                               <option value={0} disabled>— Izberi artikel —</option>
                               {nabavniArtikli.map(a => (
                                 <option key={a.id} value={a.id}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}
                                 </option>
                               ))}
                             </select>
@@ -3184,7 +3184,7 @@ function EditZacetnaZalogaDialog({
                             >
                               {nabavniArtikli.map(a => (
                             <option key={a.id} value={a.id}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </option>
                               ))}
                             </select>
@@ -4212,7 +4212,7 @@ export default function Zaloge() {
                         {fmt(z.kolicina, 3)}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{z.enotaMere ?? "–"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{displayEslogUnit(z.enotaMere) || "–"}</TableCell>
                     <TableCell className="text-right text-sm tabular-nums">
                       {jeKolicinski ? <span className="text-amber-800">Količinsko</span> : (z.povprecnaCena ?? z.zadnjaCena) != null ? `${fmt((z.povprecnaCena ?? z.zadnjaCena)!, 4)} €` : <span className="text-muted-foreground">–</span>}
                     </TableCell>
@@ -4515,7 +4515,7 @@ export default function Zaloge() {
                           ref={el => { if (el) izdArtInputRefs.current.set(i, el); else izdArtInputRefs.current.delete(i); }}
                           className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                           placeholder="Izberi artikel"
-                          value={isOpen ? izdDropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}` : "")}
+                          value={isOpen ? izdDropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${displayEslogUnit(selectedArtikel.enotaMere)})` : ""}` : "")}
                           onChange={e => {
                             if (selectedArtikel) return;
                             setIzdDropdownFilter(e.target.value);
@@ -4627,7 +4627,7 @@ export default function Zaloge() {
                           <TableRow key={row.artikelId} className={poraba > 0.0001 ? "bg-orange-50/60" : ""}>
                             <TableCell className="text-sm font-medium whitespace-nowrap py-1.5">
                               {art?.imeZaNabavo || art?.ime}
-                              {art?.enotaMere && <span className="text-muted-foreground text-xs ml-1">({art.enotaMere})</span>}
+                              {art?.enotaMere && <span className="text-muted-foreground text-xs ml-1">({displayEslogUnit(art.enotaMere)})</span>}
                             </TableCell>
                             <TableCell className="text-right tabular-nums text-sm py-1.5">{fmt(row.knjizno, 3)}</TableCell>
                             <TableCell className="text-right py-1.5">
@@ -4683,7 +4683,7 @@ export default function Zaloge() {
                   <div key={a.id}
                     className={`px-3 py-1.5 text-sm cursor-pointer ${j === izdDropdownHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
                     onMouseDown={e => { e.preventDefault(); if (izdDropdownOpenIdx !== null) selectIzdArtikelInRow(izdDropdownOpenIdx, a.id); }}>
-                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}
+                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}
                   </div>
                 ))}
               </div>
@@ -4825,7 +4825,7 @@ export default function Zaloge() {
                           ref={el => { if (el) artInputRefs.current.set(i, el); else artInputRefs.current.delete(i); }}
                           className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                           placeholder="Izberi artikel"
-                          value={isOpen ? dropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}${jeDrobniInventar(selectedArtikel) ? " · Drobni inventar — nabavni strošek" : ""}` : "")}
+                          value={isOpen ? dropdownFilter : (selectedArtikel ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${displayEslogUnit(selectedArtikel.enotaMere)})` : ""}${jeDrobniInventar(selectedArtikel) ? " · Drobni inventar — nabavni strošek" : ""}` : "")}
                           onChange={e => {
                             if (selectedArtikel) return;
                             setDropdownFilter(e.target.value);
@@ -4918,7 +4918,7 @@ export default function Zaloge() {
                           className="w-24" />
                         {row.enotVPaketu && parseDecimal(row.enotVPaketu) > 1 && parseDecimal(row.kolicina) > 0 && (
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            = {fmt(parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1))} {nabavniArtikli.find(a => a.id === row.artikelId)?.enotaMere ?? "enot"}
+                            = {fmt(parseDecimal(row.kolicina) * (parseDecimal(row.enotVPaketu) || 1))} {displayEslogUnit(nabavniArtikli.find(a => a.id === row.artikelId)?.enotaMere) || "enot"}
                           </span>
                         )}
                       </div>
@@ -5123,7 +5123,7 @@ export default function Zaloge() {
                   <div key={a.id}
                     className={`px-3 py-1.5 text-sm cursor-pointer ${j === dropdownHighlight ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
                     onMouseDown={e => { e.preventDefault(); selectArtikelInRow(dropdownOpenIdx, a.id); }}>
-                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar (nakup = strošek)" : ""}
+                    {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar (nakup = strošek)" : ""}
                   </div>
                 ))}
               </div>
@@ -5336,7 +5336,7 @@ export default function Zaloge() {
                       return (
                         <TableRow key={row.artikelId}>
                           <TableCell className="font-medium text-sm whitespace-nowrap">
-                             {art?.imeZaNabavo || art?.ime} <span className="text-muted-foreground">({art?.enotaMere ?? "–"})</span>
+                             {art?.imeZaNabavo || art?.ime} <span className="text-muted-foreground">({displayEslogUnit(art?.enotaMere) || "–"})</span>
                              {jeKolicinski && <Badge className="ml-2 border-amber-300 bg-amber-100 text-amber-900">Drobni inventar · količina</Badge>}
                           </TableCell>
                           <TableCell className="text-right">
@@ -5498,7 +5498,7 @@ export default function Zaloge() {
                                }}>
                               {nabavniArtikli.map(a => (
                                 <option key={a.id} value={a.id}>
-                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${a.enotaMere})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
+                                  {a.imeZaNabavo || a.ime}{a.enotaMere ? ` (${displayEslogUnit(a.enotaMere)})` : ""}{jeDrobniInventar(a) ? " · Drobni inventar" : ""}
                                 </option>
                               ))}
                             </select>

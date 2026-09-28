@@ -9,6 +9,7 @@ const mockClose = vi.fn();
 const mockSaveStocks = vi.fn();
 let mockEditable = true;
 let mockClosedAt: string | null = null;
+let mockFrozenQuantity = 20;
 const testDate = "2026-08-28";
 
 vi.mock("@workspace/api-client-react", async () => {
@@ -44,7 +45,7 @@ vi.mock("@workspace/api-client-react", async () => {
         year,
         openingQuantity: 20,
         openingCostPerPortion: 1.5,
-        frozenQuantity: 8,
+        frozenQuantity: mockFrozenQuantity,
         frozenCostPerPortion: 1.75,
       }],
       isLoading: false,
@@ -84,6 +85,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     mockSaveStocks.mockClear();
     mockEditable = true;
     mockClosedAt = null;
+    mockFrozenQuantity = 20;
     mockSave.mockResolvedValue({});
     mockClose.mockResolvedValue({});
   });
@@ -106,7 +108,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     await openTestDate();
     expect(screen.getByText("15")).not.toBeNull();
     expect(screen.getByText("12")).not.toBeNull();
-    expect(screen.getByText("Na voljo za odtajanje: 8")).not.toBeNull();
+    expect(screen.getByText("Na voljo za odtajanje: 20")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /28. avgust 2026/i }));
     expect(await screen.findByText("28. avgust 2026")).not.toBeNull();
@@ -137,6 +139,41 @@ describe("PreparedFoodPage - Daily Ledger", () => {
       correctionQuantity: 0,
       frozenAtEndQuantity: 2 // unchanged
     });
+  });
+
+  it("odtajanje omeji na razpoložljivo količino in na nič, tudi pri korakih po deset", async () => {
+    mockFrozenQuantity = 13;
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+    const thawed = screen.getByRole("textbox", { name: "Odtajano" }) as HTMLInputElement;
+    fireEvent.click(screen.getByRole("button", { name: "Odtajano: povečaj za deset" }));
+    expect(thawed.value).toBe("13");
+    expect((screen.getByRole("button", { name: "Odtajano: povečaj za eno" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Odtajano: zmanjšaj za deset" }));
+    expect(thawed.value).toBe("3");
+    fireEvent.click(screen.getByRole("button", { name: "Odtajano: zmanjšaj za deset" }));
+    expect(thawed.value).toBe("0");
+    expect((screen.getByRole("button", { name: "Odtajano: zmanjšaj za eno" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Odtajano: povečaj za deset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Odtajano: povečaj za deset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Shrani vse" }));
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+    expect(mockSave.mock.calls[0][0].data.thawedQuantity).toBe(13);
+  });
+
+  it("ne shrani že vpisane odtajane količine nad zalogo, dokler ni popravljena", async () => {
+    mockFrozenQuantity = 8;
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+    expect(screen.getByText("Na voljo za odtajanje: 8")).not.toBeNull();
+    expect(screen.getByText("Vnesite od 0 do 8.")).not.toBeNull();
+    expect((screen.getByRole("button", { name: "Shrani vse" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Zaključi vse" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Odtajano: zmanjšaj za eno" }));
+    expect((screen.getByRole("textbox", { name: "Odtajano" }) as HTMLInputElement).value).toBe("8");
+    expect((screen.getByRole("button", { name: "Shrani vse" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Shrani vse" }));
+    await waitFor(() => expect(mockSave.mock.calls[0][0].data.thawedQuantity).toBe(8));
   });
 
   it("omogoča touch spremembe za enice in desetice ter negativen popravek", async () => {

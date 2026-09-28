@@ -53,7 +53,7 @@ describe("editing size-specific pizza dough in the normative editor", () => {
       { enotaId: unitId, ime: `${run}-pizza-2`, cena: "10", jePica: true, prodajniArtikel: true },
       { enotaId: unitId, ime: `${run}-normal`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
       { enotaId: unitId, ime: `${run}-small`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
-      { enotaId: unitId, ime: `${run}-replacement`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
+      { enotaId: unitId, ime: `${run}-replacement`, cena: "0", enotaMere: "H87", mealType: "prepared", prodajniArtikel: false },
       { enotaId: otherUnitId, ime: `${run}-foreign`, cena: "0", enotaMere: "kos", mealType: "prepared", prodajniArtikel: false },
       { enotaId: unitId, ime: `${run}-sale`, cena: "1", enotaMere: "kos", mealType: "prepared", prodajniArtikel: true },
     ]).returning({ id: artikliTable.id });

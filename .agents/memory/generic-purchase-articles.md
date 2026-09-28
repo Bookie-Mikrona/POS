@@ -20,3 +20,16 @@ e-SLOG/UNECE kodo izvorne postavke in skupinskega artikla. Dobaviteljsko
 specifične šifre in GTIN naj ostanejo na preslikavi, ne na skupinskem
 artiklu. Pri pakiranjih ohrani izvorni znesek in pravilno preračunaj
 zalogovno količino ter ceno na zalogovno enoto.
+
+Enakovredne stare okrajšave enot na karticah nabavnih artiklov je dovoljeno
+samodejno kanonizirati v podprto e-SLOG kodo, vendar nikoli ne spreminjaj
+količin, cen, normativov in zgodovinskih posnetkov prejemnic.
+
+**Why:** Pretvorba `kg` v `KGM` spremeni samo zapis iste enote; preračun
+številčne količine bi pri takšni pretvorbi pokvaril zalogo in zgodovino.
+
+**How to apply:** Samodejno spremeni samo enoznačne sopomenke; pri neznanih
+enotah zahtevaj izrecno odločitev namesto ugibanja o fizični meri.
+Ob kanonizaciji preveri tudi poslovna pravila, ki preverjajo besedilno enoto:
+ta morajo prepoznati novo kodo; uporabniku prikaži razumljivo oznako, šifro pa
+hrani za izvoz.

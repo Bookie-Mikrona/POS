@@ -118,6 +118,39 @@ describe("PUT /prepared-food/stocks/:year", () => {
   });
 });
 
+describe("meje odtajanja pripravljene hrane", () => {
+  it("zavrne več od zamrznjene zaloge in negativno količino, dovoli pa nič in celotno zalogo", async () => {
+    const date = "2098-05-01";
+    await supertest(buildApp()).put(`/prepared-food/stocks/${YEAR}/${firstArticleId}`)
+      .send({ openingQuantity: 10, openingCostPerPortion: 1.25 })
+      .expect(200);
+    const url = `/prepared-food/daily/${date}/${firstArticleId}`;
+    const payload = (thawedQuantity: number) => ({
+      thawedQuantity, preparedQuantity: 0, correctionQuantity: 0, frozenAtEndQuantity: 0,
+    });
+    try {
+      const excessive = await supertest(buildApp()).put(url).send(payload(20));
+      expect(excessive.status).toBe(422);
+      expect(excessive.body.error).toMatch(/presega razpoložljivo/);
+      await supertest(buildApp()).put(url).send(payload(-1)).expect(400);
+      await supertest(buildApp()).put(url).send(payload(0)).expect(200);
+      await supertest(buildApp()).put(url).send(payload(10)).expect(200);
+      const [ledger] = await db.select({ thawedQuantity: preparedFoodDailyLedgersTable.thawedQuantity })
+        .from(preparedFoodDailyLedgersTable).where(and(
+          eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+          eq(preparedFoodDailyLedgersTable.businessDate, date),
+          eq(preparedFoodDailyLedgersTable.artikelId, firstArticleId),
+        ));
+      expect(ledger?.thawedQuantity).toBe("10.0000");
+    } finally {
+      await db.delete(preparedFoodDailyLedgersTable).where(and(
+        eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+        eq(preparedFoodDailyLedgersTable.businessDate, date),
+      ));
+    }
+  });
+});
+
 describe("dnevna prodaja pripravljenih prilog", () => {
   it("upošteva shranjeno izbiro in starejšo izbiro brez posnetka, brez podvajanja", async () => {
     const date = "2098-06-09";

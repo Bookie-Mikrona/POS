@@ -506,7 +506,7 @@ router.put("/artikli/:id/pizza-dough-norms", requireEnota, async (req, res): Pro
     ));
     if (selected.length !== 2 || selected.some(article =>
       article.mealType !== "prepared" || article.sales || !article.active
-      || !["kos", "kom"].includes(article.unit?.trim().toLocaleLowerCase("sl") ?? ""))) {
+      || toUneceUnitCode(article.unit) !== "H87")) {
       return { status: 422, error: "Hlebčka morata biti aktivna neprodajna pripravljena artikla v kosih iste enote." };
     }
     await tx.update(pizzaDoughSettingsTable).set({ normalDoughArticleId, smallDoughArticleId })

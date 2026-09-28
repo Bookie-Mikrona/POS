@@ -90,8 +90,8 @@ import {
   usePreviewArtikelAlergeniNormativ,
 } from "@workspace/api-client-react";
 import { SmartNormativeProposalDialog } from "@/components/SmartNormativeProposalDialog";
-import { EslogUnitPicker } from "@/components/EslogUnitPicker";
-import { isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
+import { EslogUnitPicker, displayEslogUnit } from "@/components/EslogUnitPicker";
+import { canonicalEslogUnit, isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
 import { mealTypeForArticleSave } from "@/lib/article-meal-type";
 
 type KategorijaDialogMode = "nova" | "uredi";
@@ -593,7 +593,7 @@ export default function Menu() {
       || pizzaDoughSelection.mala !== pizzaDoughSaved.mala));
   const pizzaDoughChoices = (artikli ?? []).filter(article =>
     article.mealType === "prepared" && !article.prodajniArtikel && article.aktiven
-    && ["kos", "kom"].includes(article.enotaMere?.trim().toLocaleLowerCase("sl") ?? ""));
+    && canonicalEslogUnit(article.enotaMere) === "H87");
   const savePizzaDough = async () => {
     if (!editingArt || !pizzaDoughSelection || !pizzaDoughSaved) return;
     if (pizzaDoughSelection.normalna === pizzaDoughSelection.mala) {
@@ -2956,7 +2956,7 @@ export default function Menu() {
                                     isDropdownOpen
                                       ? normativDropdownFilter
                                       : selectedArtikel
-                                        ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${selectedArtikel.enotaMere})` : ""}`
+                                        ? `${selectedArtikel.imeZaNabavo || selectedArtikel.ime}${selectedArtikel.enotaMere ? ` (${displayEslogUnit(selectedArtikel.enotaMere)})` : ""}`
                                         : item.ime ?? ""
                                   }
                                   onChange={event => {
@@ -3018,7 +3018,7 @@ export default function Menu() {
                               </div>
                             )}
                             <span className="text-left text-sm text-muted-foreground font-mono sm:text-center">
-                              {isSelf ? (artEnotaMere ?? "—") : (vhodni?.enotaMere ?? "—")}
+                              {displayEslogUnit(isSelf ? artEnotaMere : vhodni?.enotaMere) || "—"}
                             </span>
                             <DecimalInput
                               ref={element => {
@@ -3635,7 +3635,7 @@ export default function Menu() {
                   >
                     <span>
                       {artikel.imeZaNabavo || artikel.ime}
-                      {artikel.enotaMere && ` (${artikel.enotaMere})`}
+                      {artikel.enotaMere && ` (${displayEslogUnit(artikel.enotaMere)})`}
                     </span>
                     {artMealType === "composite" && (
                       <span className="ml-auto shrink-0 px-2 text-xs text-muted-foreground">

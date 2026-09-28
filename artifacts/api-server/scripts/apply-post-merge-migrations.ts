@@ -74,6 +74,7 @@ const migrations = [
   "232-inventura-document-path.sql",
   "233-drobni-inventar-vhodni-ddv.sql",
   "234-drobni-inventar-skupine.sql",
+  "237-purchase-article-eslog-units.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");

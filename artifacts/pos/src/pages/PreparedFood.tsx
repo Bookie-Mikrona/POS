@@ -48,30 +48,32 @@ function TouchQuantityInput({
   value,
   onChange,
   allowNegative = false,
+  maxQuantity,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   allowNegative?: boolean;
+  maxQuantity?: number;
 }) {
   const amount = parseQuantity(value);
   const adjust = (delta: number) => {
     const next = amount + delta;
-    onChange(String(allowNegative ? next : Math.max(0, next)));
+    onChange(String(Math.min(maxQuantity ?? Infinity, allowNegative ? next : Math.max(0, next))));
   };
   return (
     <div className="flex items-stretch justify-end gap-1">
       <div className="flex flex-col gap-0.5">
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za deset`} onClick={() => adjust(10)}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za deset`} onClick={() => adjust(10)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
           +10
         </Button>
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za deset`} onClick={() => adjust(-10)} disabled={!allowNegative && amount < 10}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za deset`} onClick={() => adjust(-10)} disabled={!allowNegative && amount < (maxQuantity === undefined ? 10 : 1)}>
           −10
         </Button>
       </div>
       <DecimalInput value={value} readOnly aria-label={label} className="text-center font-semibold" style={{ height: 32, width: 44, fontSize: 12 }} />
       <div className="flex flex-col gap-0.5">
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za eno`} onClick={() => adjust(1)}>
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za eno`} onClick={() => adjust(1)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
           +1
         </Button>
         <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za eno`} onClick={() => adjust(-1)} disabled={!allowNegative && amount < 1}>
@@ -122,9 +124,10 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: getListPreparedFoodDailyQueryKey(date) });
+      queryClient.invalidateQueries({ queryKey: getListPreparedFoodStocksQueryKey(year) });
     }, 15000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [date, queryClient]);
+  }, [date, year, queryClient]);
 
   const updateEdit = useCallback((artikelId: number, field: keyof EditState, value: string) => {
     setEdits(prev => ({
@@ -154,6 +157,9 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
     if (!data) return [];
     return data.map(row => {
       const edit = edits[row.artikelId] || { thawed: String(row.thawedQuantity || 0), prepared: String(row.preparedQuantity || 0), correction: String(row.correctionQuantity || 0), frozen: String(row.frozenAtEndQuantity || 0) };
+      const stock = stocks?.find(s => s.artikelId === row.artikelId);
+      const availableThaw = Number(stock?.frozenQuantity ?? 0);
+      const maxThaw = Number.isFinite(availableThaw) ? Math.max(0, availableThaw) : 0;
       const totalQuantity = parseQuantity(edit.thawed)
         + parseQuantity(edit.prepared)
         + parseQuantity(edit.correction);
@@ -167,18 +173,21 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
         totalQuantity,
         calculatedWaste,
         hasInvalidWaste: !isClosed && calculatedWaste < 0,
+        maxThaw,
+        hasInvalidThaw: !isReadOnly && (parseQuantity(edit.thawed) < 0 || parseQuantity(edit.thawed) > maxThaw),
         isClosed,
         isReadOnly
       };
     });
-  }, [data, edits]);
+  }, [data, edits, stocks]);
 
   const hasAnyInvalidWaste = useMemo(() => rowsWithCalculations.some(r => r.hasInvalidWaste), [rowsWithCalculations]);
+  const hasAnyInvalidThaw = rowsWithCalculations.some(r => r.hasInvalidThaw);
   const isCompactReadOnlyTable = rowsWithCalculations.length > 0
     && rowsWithCalculations.every(row => row.isReadOnly);
 
   const handleSaveAll = async () => {
-    if (!data) return;
+    if (!data || loadingStocks || hasAnyInvalidThaw) return;
     setIsSaving(true);
     try {
       for (const row of data.filter(row => row.editable && !row.closedAt)) {
@@ -206,7 +215,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
   };
 
   const handleCloseAll = async () => {
-    if (!data) return;
+    if (!data || loadingStocks || hasAnyInvalidThaw) return;
     setIsClosing(true);
     try {
       const openRows = data.filter(row => row.editable && !row.closedAt);
@@ -272,14 +281,14 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
               <Button 
                 variant={isDirty ? "default" : "secondary"} 
                 onClick={handleSaveAll}
-                disabled={isSaving || isClosing}
+                 disabled={isSaving || isClosing || loadingStocks || hasAnyInvalidThaw}
               >
                 <Save className="w-4 h-4 mr-2" /> Shrani vse
               </Button>
               <Button 
                 variant="destructive" 
                 onClick={() => setConfirmOpen(true)}
-                disabled={isSaving || isClosing || hasAnyInvalidWaste}
+                 disabled={isSaving || isClosing || loadingStocks || hasAnyInvalidWaste || hasAnyInvalidThaw}
               >
                 <CheckCircle2 className="w-4 h-4 mr-2" /> Zaključi vse
               </Button>
@@ -310,7 +319,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
               </TableHeader>
                <TableBody className="block lg:table-row-group">
                 {rowsWithCalculations.map((row) => {
-                  const stock = stocks?.find(s => s.artikelId === row.artikelId);
+                   const stock = stocks?.find(s => s.artikelId === row.artikelId);
                   const availableToFreeze = Math.max(0, Math.round((row.totalQuantity - Number(row.soldQuantity)) * 10_000) / 10_000);
                   return (
                      <TableRow key={row.id} className={`mb-3 block overflow-hidden rounded-md ring-1 ring-border last:mb-0 lg:mb-0 lg:table-row lg:overflow-visible lg:rounded-none lg:ring-0 ${row.isClosed ? "bg-muted/30" : ""}`}>
@@ -321,12 +330,11 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                           <div className="text-right">{row.thawedQuantity}</div>
                         ) : (
                           <div className="flex flex-col items-end gap-1">
-                            <TouchQuantityInput label="Odtajano" value={row.edit.thawed} onChange={(value) => updateEdit(row.artikelId, "thawed", value)} />
-                            {stock != null && (
-                              <div className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                Na voljo za odtajanje: {stock.frozenQuantity}
-                              </div>
-                            )}
+                             <TouchQuantityInput label="Odtajano" value={row.edit.thawed} maxQuantity={row.maxThaw} onChange={(value) => updateEdit(row.artikelId, "thawed", value)} />
+                             <div className={`text-right text-[10px] ${row.hasInvalidThaw ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                               Na voljo za odtajanje: {stock?.frozenQuantity ?? 0}
+                               {row.hasInvalidThaw && <span className="block">Vnesite od 0 do {row.maxThaw}.</span>}
+                             </div>
                           </div>
                         )}
                       </TableCell>
