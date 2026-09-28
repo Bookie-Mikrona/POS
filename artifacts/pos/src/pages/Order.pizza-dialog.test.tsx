@@ -917,6 +917,11 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
 
     await screen.findByTestId("button-nested-modifier-100-200-201");
     await screen.findByTestId("button-nested-modifier-100-202-203");
+    const saladChoices = screen.getByTestId("nested-modifier-source-100-200");
+    expect(saladChoices).not.toHaveTextContent("Zelena solata – mala");
+    expect(saladChoices).not.toHaveTextContent("Dodatki solate");
+    expect(saladChoices).toHaveTextContent("Brez česna");
+    expect(screen.getByTestId("button-nested-modifier-100-200-201")).toHaveAttribute("role", "checkbox");
     const confirm = screen.getByRole("button", { name: /Potrdi/i });
     expect(confirm).toBeDisabled();
 
@@ -928,7 +933,7 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId("button-modifier-100"));
     });
-    expect(screen.getByTestId("button-nested-modifier-100-200-201")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("button-nested-modifier-100-200-201")).toHaveAttribute("aria-checked", "false");
     await act(async () => {
       fireEvent.click(screen.getByTestId("button-nested-modifier-100-200-201"));
       fireEvent.click(screen.getByTestId("button-nested-modifier-100-202-203"));

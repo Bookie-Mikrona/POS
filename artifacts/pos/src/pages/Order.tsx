@@ -3981,22 +3981,14 @@ export default function Order() {
         return nestedSourcesForModifier(parentModifierId).map(source => (
           <div
             key={`${parentModifierId}-${source.artikelId}`}
-            className="ml-5 mt-2 space-y-3 border-l-2 border-primary/20 pl-3"
+            className="ml-5 mt-1 space-y-1 border-l-2 border-primary/20 pl-3"
             data-testid={`nested-modifier-source-${parentModifierId}-${source.artikelId}`}
           >
-            <p className="text-xs font-semibold text-muted-foreground">{source.ime}</p>
             {source.groups.map(nestedGroup => {
               const nestedKey = `${parentModifierId}:${source.artikelId}`;
               const nestedSelected = modDialogPodIzbire[nestedKey] ?? [];
               return (
-                <div key={nestedGroup.id} data-testid={`nested-modifier-group-${nestedGroup.id}`}>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {nestedGroup.ime}
-                    {nestedGroup.obvezna && <span className="ml-1 text-destructive">★</span>}
-                    {nestedGroup.maxIzbir > 1 && (
-                      <span className="ml-1 normal-case font-normal tracking-normal">(do {nestedGroup.maxIzbir})</span>
-                    )}
-                  </p>
+                <div key={nestedGroup.id} role="group" aria-label={`${source.ime} – ${nestedGroup.ime}`} data-testid={`nested-modifier-group-${nestedGroup.id}`}>
                   <div className="space-y-1">
                     {nestedGroup.modifikatorji.filter(choice => choice.aktiven).map(choice => {
                       const nestedIsSelected = nestedSelected.includes(choice.id);
@@ -4004,12 +3996,14 @@ export default function Order() {
                         <button
                           key={choice.id}
                           type="button"
+                          role="checkbox"
+                          aria-label={choice.ime}
                           data-testid={`button-nested-modifier-${parentModifierId}-${source.artikelId}-${choice.id}`}
-                          aria-pressed={nestedIsSelected}
+                          aria-checked={nestedIsSelected}
                           className={`w-full flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm transition-colors ${nestedIsSelected ? "bg-primary/10 border-primary/30" : "hover:bg-muted/50 border-transparent"}`}
                           onClick={() => toggleNestedMod(parentModifierId, source, nestedGroup, choice.id)}
                         >
-                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center border-2 ${nestedIsSelected ? "border-primary bg-primary" : "border-muted-foreground/40"} ${nestedGroup.maxIzbir === 1 ? "rounded-full" : "rounded"}`}>
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 ${nestedIsSelected ? "border-primary bg-primary" : "border-muted-foreground/40"}`}>
                             {nestedIsSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
                           </span>
                           <span className="flex-1">{choice.ime}</span>
