@@ -167,18 +167,28 @@ describe("PreparedFoodPage - Daily Ledger", () => {
       </QueryClientProvider>
     );
     await openTestDate();
+    const ledgerTable = screen.getByRole("table", { name: "Dnevna evidenca pripravljene hrane" });
+    expect(ledgerTable.className).toContain("block w-full");
+    expect(ledgerTable.className).not.toContain("min-w-[900px]");
 
-    const freezeAll = screen.getByRole("button", { name: "Zamrzni vso razpoložljivo količino: Goveja juha" });
+    const freezeAll = screen.getByRole("checkbox", { name: "Zamrzni vso razpoložljivo količino: Goveja juha" });
     fireEvent.click(freezeAll);
     const frozen = screen.getByRole("textbox", { name: "Zamrznjeno" }) as HTMLInputElement;
     expect(frozen.value).toBe("3"); // Skupaj 15 − prodano 12
+    expect(freezeAll.getAttribute("data-state")).toBe("checked");
     expect(mockSave).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Zamrznjeno: zmanjšaj za eno" }));
     expect(frozen.value).toBe("2");
+    expect(freezeAll.getAttribute("data-state")).toBe("unchecked");
     fireEvent.click(screen.getByRole("button", { name: "Pripravljeno: povečaj za eno" }));
     fireEvent.click(freezeAll);
     expect(frozen.value).toBe("4"); // Ponovno upošteva trenutno pripravljeno količino
+
+    fireEvent.click(freezeAll);
+    expect(frozen.value).toBe("0"); // Odkljukanje pomeni, da gre preostanek v kalo
+    fireEvent.click(freezeAll);
+    expect(frozen.value).toBe("4");
 
     fireEvent.click(screen.getByRole("button", { name: "Shrani vse" }));
     await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
@@ -216,7 +226,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     await openTestDate();
     expect(await screen.findByText("Samo ogled")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Shrani vse" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Zamrzni vso razpoložljivo količino/ })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: /Zamrzni vso razpoložljivo količino/ })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Zgodovina" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Zapisniki kala" })).not.toBeNull();
   });

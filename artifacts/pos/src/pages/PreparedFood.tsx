@@ -23,14 +23,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, ClipboardList, ArrowLeft, Check } from "lucide-react";
+import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, ClipboardList, ArrowLeft } from "lucide-react";
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { WasteRecordsPanel } from "@/pages/prepared-food/WasteRecordsPanel";
 
 function parseQuantity(value: string): number {
   const parsed = parseDecimal(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
+const mobileCell = "flex min-w-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-2 text-sm last:border-0 lg:table-cell lg:border-0 lg:p-2";
+const mobileLabel = "shrink-0 text-xs font-medium text-muted-foreground lg:hidden";
 
 type EditState = {
   thawed: string;
@@ -289,9 +293,9 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
         ) : rowsWithCalculations.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">Ni artiklov z operativnim načinom "Pripravljena hrana".</div>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
-             <Table className={`w-full table-fixed ${isCompactReadOnlyTable ? "min-w-0 text-xs" : "min-w-[900px]"}`}>
-              <TableHeader>
+          <div className="rounded-md border p-3 lg:p-0">
+              <Table aria-label="Dnevna evidenca pripravljene hrane" className={`block w-full table-fixed lg:table ${isCompactReadOnlyTable ? "lg:text-xs" : ""}`}>
+               <TableHeader className="hidden lg:table-header-group">
                 <TableRow>
                   <TableHead className={isCompactReadOnlyTable ? "w-28 !px-1 text-[11px]" : "w-32"}>Artikel</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Odtajano</TableHead>
@@ -299,18 +303,20 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                   <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Korekcija</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-16 text-right"}>Skupaj</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-16 text-right"}>Prodano</TableHead>
-                  <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-24 text-right"}>Zamrznjeno</TableHead>
+                  <TableHead className={isCompactReadOnlyTable ? "w-24 !px-1 text-right text-[11px]" : "w-44 text-right"}>Zamrznjeno</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-14 !px-1 text-right text-[11px]" : "w-16 text-right"}>Kalo</TableHead>
                   <TableHead className={isCompactReadOnlyTable ? "w-16 !px-1 text-right text-[11px]" : "w-16 text-right"}>Stanje</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+               <TableBody className="block lg:table-row-group">
                 {rowsWithCalculations.map((row) => {
                   const stock = stocks?.find(s => s.artikelId === row.artikelId);
+                  const availableToFreeze = Math.max(0, Math.round((row.totalQuantity - Number(row.soldQuantity)) * 10_000) / 10_000);
                   return (
-                    <TableRow key={row.id} className={row.isClosed ? "bg-muted/30" : ""}>
-                      <TableCell className={`${isCompactReadOnlyTable ? "p-1 text-xs" : "align-top pt-2"} font-medium`}>{row.articleName || `Artikel #${row.artikelId}`}</TableCell>
-                       <TableCell className={isCompactReadOnlyTable ? "p-1 text-xs" : "align-top pt-2"}>
+                     <TableRow key={row.id} className={`mb-3 block overflow-hidden rounded-md ring-1 ring-border last:mb-0 lg:mb-0 lg:table-row lg:overflow-visible lg:rounded-none lg:ring-0 ${row.isClosed ? "bg-muted/30" : ""}`}>
+                      <TableCell className={`${mobileCell} break-words font-medium ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>{row.articleName || `Artikel #${row.artikelId}`}</TableCell>
+                       <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
+                        <span className={mobileLabel}>Odtajano</span>
                         {row.isReadOnly ? (
                           <div className="text-right">{row.thawedQuantity}</div>
                         ) : (
@@ -324,51 +330,49 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                           </div>
                         )}
                       </TableCell>
-                       <TableCell className={isCompactReadOnlyTable ? "p-1 text-xs" : "align-top pt-2"}>
+                       <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
+                        <span className={mobileLabel}>Pripravljeno</span>
                         {row.isReadOnly ? (
                           <div className="text-right">{row.preparedQuantity}</div>
                         ) : (
                            <TouchQuantityInput label="Pripravljeno" value={row.edit.prepared} onChange={(value) => updateEdit(row.artikelId, "prepared", value)} />
                         )}
                       </TableCell>
-                        <TableCell className={isCompactReadOnlyTable ? "p-1 text-xs" : "align-top pt-2"}>
+                        <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
+                         <span className={mobileLabel}>Korekcija</span>
                          {row.isReadOnly ? (
                            <div className="text-right">{row.correctionQuantity}</div>
                          ) : (
                             <TouchQuantityInput label="Korekcija" value={row.edit.correction} onChange={(value) => updateEdit(row.artikelId, "correction", value)} allowNegative />
                          )}
                        </TableCell>
-                       <TableCell className={isCompactReadOnlyTable ? "p-1 text-right text-xs font-bold" : "align-top pt-2 text-right font-bold"}>{row.totalQuantity}</TableCell>
-                       <TableCell className={isCompactReadOnlyTable ? "p-1 text-right text-xs" : "align-top pt-2 text-right"}>{row.soldQuantity}</TableCell>
-                       <TableCell className={isCompactReadOnlyTable ? "p-1 text-xs" : "align-top pt-2"}>
+                       <TableCell className={`${mobileCell} font-bold lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}><span className={mobileLabel}>Skupaj</span>{row.totalQuantity}</TableCell>
+                       <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}><span className={mobileLabel}>Prodano</span>{row.soldQuantity}</TableCell>
+                       <TableCell className={`${mobileCell} flex-wrap ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
+                        <span className={mobileLabel}>Zamrznjeno</span>
                         {row.isReadOnly ? (
                           <div className="text-right">{row.frozenAtEndQuantity}</div>
                         ) : (
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex shrink-0 items-center justify-end gap-1.5">
                               <TouchQuantityInput label="Zamrznjeno" value={row.edit.frozen} onChange={(value) => updateEdit(row.artikelId, "frozen", value)} />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 shrink-0 touch-manipulation"
+                              <Checkbox
+                                id={`freeze-all-${row.artikelId}`}
                                 aria-label={`Zamrzni vso razpoložljivo količino: ${row.articleName || `Artikel #${row.artikelId}`}`}
                                 title="Vso preostalo količino vpiši za zamrznitev"
-                                disabled={isSaving || isClosing || row.totalQuantity <= Number(row.soldQuantity)}
-                                onClick={() => updateEdit(
-                                  row.artikelId,
-                                  "frozen",
-                                  String(Math.max(0, Math.round((row.totalQuantity - Number(row.soldQuantity)) * 10_000) / 10_000)),
-                                )}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
+                                checked={availableToFreeze > 0 && parseQuantity(row.edit.frozen) === availableToFreeze}
+                                disabled={isSaving || isClosing || availableToFreeze <= 0}
+                                onCheckedChange={(checked) => updateEdit(row.artikelId, "frozen", checked === true ? String(availableToFreeze) : "0")}
+                              />
+                              <Label htmlFor={`freeze-all-${row.artikelId}`} className="cursor-pointer text-xs">Vse</Label>
                             </div>
                         )}
                       </TableCell>
-                       <TableCell className={`${isCompactReadOnlyTable ? "p-1" : "align-top pt-2"} text-right ${row.hasInvalidWaste ? "font-semibold text-destructive" : ""}`}>
+                       <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1" : "lg:align-top lg:pt-2"} ${row.hasInvalidWaste ? "font-semibold text-destructive" : ""}`}>
+                        <span className={mobileLabel}>Kalo</span>
                         {row.isClosed ? row.wasteQuantity : <span className="text-muted-foreground">-</span>}
                       </TableCell>
-                       <TableCell className={isCompactReadOnlyTable ? "p-1 text-right" : "align-top pt-2 text-right"}>
+                       <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1" : "lg:align-top lg:pt-2"}`}>
+                        <span className={mobileLabel}>Stanje</span>
                         {row.isClosed ? (
                           <Badge variant="secondary" className="whitespace-nowrap">Zaključeno</Badge>
                         ) : row.isReadOnly ? (
@@ -395,35 +399,27 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
             </DialogDescription>
           </DialogHeader>
           
-          <div className="max-h-[60vh] overflow-y-auto pr-2 rounded-md border mt-2">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Artikel</TableHead>
-                  <TableHead className="text-right">Pripravljeno</TableHead>
-                    <TableHead className="text-right">Korekcija</TableHead>
-                    <TableHead className="text-right">Skupaj</TableHead>
-                  <TableHead className="text-right">Prodano</TableHead>
-                  <TableHead className="text-right">Zamrznjeno</TableHead>
-                  <TableHead className="text-right">Kalo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rowsWithCalculations.filter(r => r.editable && !r.isClosed).map(row => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.articleName || `Artikel #${row.artikelId}`}</TableCell>
-                    <TableCell className="text-right">{parseQuantity(row.edit.prepared)}</TableCell>
-                    <TableCell className="text-right">{parseQuantity(row.edit.correction)}</TableCell>
-                    <TableCell className="text-right">{row.totalQuantity}</TableCell>
-                    <TableCell className="text-right">{row.soldQuantity}</TableCell>
-                    <TableCell className="text-right">{parseQuantity(row.edit.frozen)}</TableCell>
-                    <TableCell className={`text-right font-medium ${row.calculatedWaste < 0 ? "text-destructive" : "text-destructive/80"}`}>
-                      {row.calculatedWaste}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="mt-2 max-h-[60vh] space-y-3 overflow-y-auto rounded-md border p-3">
+            {rowsWithCalculations.filter(r => r.editable && !r.isClosed).map(row => (
+              <div key={row.id} className="rounded-md border p-3">
+                <div className="mb-2 font-medium">{row.articleName || `Artikel #${row.artikelId}`}</div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                  {[
+                    ["Pripravljeno", parseQuantity(row.edit.prepared)],
+                    ["Korekcija", parseQuantity(row.edit.correction)],
+                    ["Skupaj", row.totalQuantity],
+                    ["Prodano", row.soldQuantity],
+                    ["Zamrznjeno", parseQuantity(row.edit.frozen)],
+                    ["Kalo", row.calculatedWaste],
+                  ].map(([label, value]) => (
+                    <div key={label} className={label === "Kalo" ? "font-medium text-destructive" : ""}>
+                      <dt className="text-xs text-muted-foreground">{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
           </div>
 
           <DialogFooter className="mt-4">
