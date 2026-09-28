@@ -9,6 +9,12 @@ Pripravljena hrana ima operativno zamrznjeno zalogo brez lastnega konta glavne k
 
 **How to apply:** Kalo vrednoti po sledljivi ponderirani alokaciji in ga v POS→ERP temeljnici prenese s stroška materiala na ločen konto kala. Sestavljena hrana nima lastnega surovinskega normativa: à la carte komponente razširi do njihovih surovin, pripravljene komponente pa povečajo le dnevno prodajo pripravljene hrane.
 
+Neprodajni à la carte polizdelek, izbran kot vhod modifikatorja, ob prodaji porabi surovine po svojem normativu. Oznaka »prodajni artikel« določa vidnost v šifrantu za prodajo, ne pa razknjiževanja; pripravljene jedi ohranijo ločeno porabo pri pripravi.
+
+**Why:** Če razširjanje recepta pogojujemo s prodajno oznako, modifikator odpiše le eno enoto polizdelka, čeprav je njegova dejanska zaloga sestavljena iz surovin.
+
+**How to apply:** Pri pozitivnem vhodu modifikatorja razširi recept vsakega à la carte artikla z normativom, tudi neprodajnega. Negativni popravki, na primer »brez česna«, ostanejo neposredni odmiki; pripravljenih porcij pri prodaji ne razširjaj ponovno.
+
 Skupna fizična količina za prikaz zalog je nezamrznjena razpoložljiva količina + zamrznjeni saldo − odtajano v izbrani še odprti dnevni evidenci. Če je evidenca zaključena, je odtajano za ta prikaz 0.
 
 **Why:** Odtajanje se od zamrznjenega salda odšteje šele ob zaključku evidence. Med odprto evidenco so iste porcije že vključene v nezamrznjeno razpoložljivost in še vedno v shranjenem zamrznjenem saldu; neposredno seštevanje bi jih štelo dvakrat.

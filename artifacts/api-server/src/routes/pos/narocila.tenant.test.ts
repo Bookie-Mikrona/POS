@@ -166,6 +166,46 @@ afterAll(async () => {
 });
 
 describe("naročila — obramba med naročili in enotami", () => {
+  it("pri modifikatorju razknjiži normativ neprodajnega à la carte polizdelka, pripravljeno prilogo pa kot porcijo", async () => {
+    const articles = await db.insert(artikliTable).values([
+      { enotaId, ime: `Surovina ${RUN_ID}`, cena: "0", davek: "9.5", enotaMere: "kg" },
+      { enotaId, ime: `Polizdelek ${RUN_ID}`, cena: "0", davek: "9.5", mealType: "ala_carte", prodajniArtikel: false },
+      { enotaId, ime: `Pripravljena priloga ${RUN_ID}`, cena: "0", davek: "9.5", mealType: "prepared", prodajniArtikel: false },
+    ]).returning({ id: artikliTable.id });
+    const [ingredient, semiProduct, prepared] = articles;
+    const modifiers: number[] = [];
+    try {
+      const created = await db.insert(modifikatorjiTable).values([
+        { skupinaId: modSkupinaId, ime: `Izbira polizdelka ${RUN_ID}`, cenaDodatek: "0" },
+        { skupinaId: modSkupinaId, ime: `Izbira priloge ${RUN_ID}`, cenaDodatek: "0" },
+      ]).returning({ id: modifikatorjiTable.id });
+      modifiers.push(...created.map(row => row.id));
+      await db.insert(normativiTable).values([
+        { artikelId: semiProduct!.id, vhodniArtikelId: ingredient!.id, kolicina: "0.15" },
+        { artikelId: prepared!.id, vhodniArtikelId: ingredient!.id, kolicina: "0.30" },
+      ]);
+      await db.insert(modNormativiTable).values([
+        { modifikatorId: modifiers[0]!, vhodniArtikelId: semiProduct!.id, kolicina: "1" },
+        { modifikatorId: modifiers[1]!, vhodniArtikelId: prepared!.id, kolicina: "1" },
+      ]);
+
+      const movements = await buildZalogaMovementPlan([
+        { id: -1, modifikatorId: modifiers[0], kolicina: 2, normativFaktor: "1" },
+        { id: -2, modifikatorId: modifiers[1], kolicina: 2, normativFaktor: "1" },
+      ], `TEST-${RUN_ID}`, new Date());
+      expect(movements).toEqual(expect.arrayContaining([
+        expect.objectContaining({ artikelId: ingredient!.id, kolicina: -0.3 }),
+        expect.objectContaining({ artikelId: prepared!.id, kolicina: -2 }),
+      ]));
+      expect(movements.some(m => m.artikelId === semiProduct!.id)).toBe(false);
+      expect(movements).toHaveLength(2);
+    } finally {
+      if (modifiers.length) await db.delete(modifikatorjiTable).where(inArray(modifikatorjiTable.id, modifiers));
+      await db.delete(normativiTable).where(inArray(normativiTable.artikelId, [semiProduct!.id, prepared!.id]));
+      await db.delete(artikliTable).where(inArray(artikliTable.id, articles.map(row => row.id)));
+    }
+  });
+
   it("označi samo povezano embalažo pod To Go staršem", async () => {
     const narociloId = await ustvariNarocilo();
     const [packagingCategory] = await db.insert(kategorijeTable).values({

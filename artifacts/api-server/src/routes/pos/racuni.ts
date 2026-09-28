@@ -205,7 +205,6 @@ export async function buildZalogaMovementPlan(
         const [input] = await db.select({
           enotaMere: artikliTable.enotaMere,
           mealType: artikliTable.mealType,
-          prodajniArtikel: artikliTable.prodajniArtikel,
         })
           .from(artikliTable).where(eq(artikliTable.id, normativ.vhodniArtikelId));
         const isNestedModifier = postavka.modifierSourceArticleId != null;
@@ -227,9 +226,10 @@ export async function buildZalogaMovementPlan(
           isNestedModifier,
         );
         const modifierQuantity = Number(normativ.kolicina) * Number(postavka.kolicina);
+        // Neprodajni à la carte polizdelki imajo prav tako recept; prodajniArtikel
+        // določa le vidnost v prodaji, ne trenutka porabe njihovih surovin.
         const sourceRecipe = Number(normativ.kolicina) > 0
           && input?.mealType === "ala_carte"
-          && input.prodajniArtikel
           ? await db.select().from(normativiTable).where(eq(normativiTable.artikelId, normativ.vhodniArtikelId))
           : [];
         if (sourceRecipe.length > 0) {
