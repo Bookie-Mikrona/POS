@@ -104,9 +104,8 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
   };
 
   const saveNormativiForMod = (modId: number, onDone?: () => void) => {
-    const validVrstice = modNormativi.filter(n => n.vhodniArtikelId > 0 && n.kolicina !== "" && !isNaN(parseDecimal(n.kolicina)));
     setNormativi.mutate(
-      { id: modId, data: { normativi: validVrstice.map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseDecimal(n.kolicina) })) } },
+      { id: modId, data: { normativi: modNormativi.map(n => ({ vhodniArtikelId: n.vhodniArtikelId, kolicina: parseDecimal(n.kolicina) })) } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getGetModifikatorNormativiQueryKey(modId) });
@@ -183,6 +182,19 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
 
   const handleSaveMod = () => {
     if (!modForm.ime) return;
+    if (modNormativi.some(n =>
+      n.vhodniArtikelId <= 0
+      || n.kolicina.trim() === ""
+      || !Number.isFinite(parseDecimal(n.kolicina))
+      || parseDecimal(n.kolicina) === 0
+    )) {
+      toast({
+        title: "Nepopoln normativ modifikatorja",
+        description: "Izberite artikel in vnesite neničelno količino za vsako vrstico ali prazno vrstico odstranite.",
+        variant: "destructive",
+      });
+      return;
+    }
     const data = {
       ime: modForm.ime,
       cenaDodatek: parseDecimal(modForm.cenaDodatek) || 0,

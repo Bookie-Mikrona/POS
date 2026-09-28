@@ -5,9 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ModifikatorjePanel from "./ModifikatorjePanel";
 
 const saveNormativi = vi.hoisted(() => vi.fn());
+const showToast = vi.hoisted(() => vi.fn());
 
 vi.mock("@/hooks/use-toast", () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: showToast }),
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
@@ -38,6 +39,24 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 
 describe("normativ modifikatorja", () => {
+  it("ne potrdi modifikatorja, če izbranemu prodajnemu artiklu manjka količina", () => {
+    saveNormativi.mockClear();
+    showToast.mockClear();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ModifikatorjePanel jeUporabnik={false} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByText("Dodatki"));
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj modifikator" }));
+    fireEvent.change(screen.getByPlaceholderText("Npr. Brez čebule"), { target: { value: "Zelena" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj vrstico" }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "14" } });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Dodaj modifikator" }));
+
+    expect(saveNormativi).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: "Nepopoln normativ modifikatorja" }));
+  });
   it("ponudi prodajne artikle ločeno in shrani izbrano pripravljeno jed", () => {
     saveNormativi.mockClear();
     const client = new QueryClient();
