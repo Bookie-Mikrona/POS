@@ -85,6 +85,27 @@ describe("Menu - mealType conditions", () => {
     });
   });
 
+  it("filter drobnega inventarja preklopi gumb na ustrezen obrazec, drugi filtri pa odprejo navaden artikel", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider><NastavitveProvider><Menu /></NastavitveProvider></AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("filter-article-drobni"));
+    fireEvent.click(screen.getByRole("button", { name: "Nov drobni inventar" }));
+    expect(screen.getByRole("heading", { name: "Nov drobni inventar" })).toBeTruthy();
+    expect((screen.getByLabelText("Drobni inventar (količinsko spremljanje)") as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("button", { name: /Dodaj drobni inventar/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Nov drobni inventar" })).toBeNull());
+    fireEvent.click(screen.getByTestId("filter-article-vsi"));
+    expect(screen.getByRole("button", { name: "Nov artikel" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Nov artikel" }));
+    expect(screen.getByRole("heading", { name: "Nov artikel" })).toBeTruthy();
+  });
+
   it("omogoči izbiro zadnje kategorije v dolgem seznamu za nov prodajni artikel", async () => {
     categories.current = Array.from({ length: 35 }, (_, index) => ({
       id: index + 1, ime: `Kategorija ${index + 1}`, tip: "hrana",

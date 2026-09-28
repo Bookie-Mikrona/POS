@@ -1931,13 +1931,12 @@ export default function Menu() {
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel>Drobni inventar</DropdownMenuLabel>
-                          <DropdownMenuItem disabled={!getEnotaId()} onSelect={openNewDrobniInventar}>Nov drobni inventar</DropdownMenuItem>
                           <DropdownMenuItem disabled={!getEnotaId() || importDrobniInventar.isPending} onSelect={() => setImportDrobniInventarOpen(true)}>Naloži predloge v aktivno enoto</DropdownMenuItem>
                         </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {!jeUporabnik && <Button size="sm" className="h-8 px-2 text-xs" onClick={openNewArt}><Plus className="w-3.5 h-3.5 mr-1" />Nov artikel</Button>}
+                  {!jeUporabnik && <Button size="sm" className="h-8 px-2 text-xs" onClick={artFilter === "drobni" ? openNewDrobniInventar : openNewArt}><Plus className="w-3.5 h-3.5 mr-1" />{artFilter === "drobni" ? "Nov drobni inventar" : "Nov artikel"}</Button>}
                 </div>
             </div>
 
@@ -2230,7 +2229,7 @@ export default function Menu() {
           }}
         >
           <DialogHeader>
-            <DialogTitle>{artMode === "uredi" ? "Uredi artikel" : "Nov artikel"}</DialogTitle>
+            <DialogTitle>{artMode === "uredi" ? "Uredi artikel" : artDrobniInventar ? "Nov drobni inventar" : "Nov artikel"}</DialogTitle>
           </DialogHeader>
           <div ref={artDialogBodyRef} className="flex-1 min-h-0 overflow-y-auto">
             <div className="space-y-4 pt-2 pb-2 pr-4">
@@ -3670,7 +3669,7 @@ export default function Menu() {
               />
             )}
             <Button className="w-full" onClick={handleSaveArt} disabled={isPendingArt || isGeneratingArticleImage || isUploadingArticleImage || !artName || (artProdajniArtikel && (!artPrice || !artCat))}>
-              {isGeneratingArticleImage ? "Ustvarjam sliko..." : isUploadingArticleImage ? "Nalaganje slike..." : isPendingArt ? "Shranjujem..." : <>{artMode === "uredi" ? "Posodobi" : "Dodaj artikel"} <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
+              {isGeneratingArticleImage ? "Ustvarjam sliko..." : isUploadingArticleImage ? "Nalaganje slike..." : isPendingArt ? "Shranjujem..." : <>{artMode === "uredi" ? "Posodobi" : artDrobniInventar ? "Dodaj drobni inventar" : "Dodaj artikel"} <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd></>}
             </Button>
           </div>
         </DialogContent>

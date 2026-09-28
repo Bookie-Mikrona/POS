@@ -16,6 +16,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetModSkupina: () => ({ data: { id: 1, modifikatorji: [] }, isLoading: false }),
   useListArtikli: () => ({ data: [
     { id: 11, ime: "Surovina", nabavniArtikel: true, prodajniArtikel: false, mealType: "ala_carte" },
+    { id: 16, ime: "Kozarci", nabavniArtikel: true, prodajniArtikel: false, drobniInventar: true },
     { id: 12, ime: "Polizdelek", nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food", mealType: "prepared" },
     { id: 13, ime: "Prodajna pripravljena jed", nabavniArtikel: false, prodajniArtikel: true, mealType: "prepared" },
     { id: 14, ime: "Prodajna à la carte jed", nabavniArtikel: false, prodajniArtikel: true, mealType: "ala_carte" },
@@ -76,6 +77,8 @@ describe("normativ modifikatorja", () => {
     expect(groups.map(group => group.getAttribute("label"))).toEqual([
       "Nabavni artikli", "Polizdelki", "Prodajni artikli",
     ]);
+    expect(within(groups[0]).getAllByRole("option").map(option => option.textContent)).toEqual(["Surovina"]);
+    expect(within(select).queryByRole("option", { name: "Kozarci" })).not.toBeInTheDocument();
     expect(within(groups[2]).getAllByRole("option").map(option => option.textContent)).toEqual([
       "Prodajna pripravljena jed", "Prodajna à la carte jed",
     ]);

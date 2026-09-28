@@ -47,9 +47,10 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
 
   const { data: skupineList, isLoading } = useListModSkupine();
   const { data: vsiArtikli } = useListArtikli();
-  const nabavniArtikli = (vsiArtikli ?? []).filter(a => a.nabavniArtikel);
-  const polizdelki = (vsiArtikli ?? []).filter(a => !a.nabavniArtikel && !a.prodajniArtikel && canUseAsModifierNormativInput(a));
-  const prodajniArtikli = (vsiArtikli ?? []).filter(a => !a.nabavniArtikel && a.prodajniArtikel && canUseAsModifierNormativInput(a));
+  const kandidati = (vsiArtikli ?? []).filter(a => !a.drobniInventar);
+  const nabavniArtikli = kandidati.filter(a => a.nabavniArtikel);
+  const polizdelki = kandidati.filter(a => !a.nabavniArtikel && !a.prodajniArtikel && canUseAsModifierNormativInput(a));
+  const prodajniArtikli = kandidati.filter(a => !a.nabavniArtikel && a.prodajniArtikel && canUseAsModifierNormativInput(a));
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const { data: expandedSkupina, isLoading: loadingExpanded } = useGetModSkupina(expandedId ?? 0);

@@ -27,7 +27,7 @@ export function articleMatchesListFilter(
   filter: ArticleListFilter,
 ): boolean {
   if (article.drobniInventar) {
-    return filter === "vsi" || filter === "drobni";
+    return filter === "drobni";
   }
 
   if (article.povratnaEmbalaza) {
