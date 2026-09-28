@@ -917,6 +917,10 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
 
     await screen.findByTestId("button-nested-modifier-100-200-201");
     await screen.findByTestId("button-nested-modifier-100-202-203");
+    const modifierDialog = screen.getByRole("dialog");
+    expect(modifierDialog).toHaveClass("top-8", "md:top-8", "translate-y-0");
+    expect(modifierDialog).not.toHaveClass("md:top-[50%]", "translate-y-[-50%]");
+    expect(modifierDialog.querySelector('[style*="overflow-anchor: none"]')).not.toBeNull();
     const saladChoices = screen.getByTestId("nested-modifier-source-100-200");
     expect(saladChoices).not.toHaveTextContent("Zelena solata – mala");
     expect(saladChoices).not.toHaveTextContent("Dodatki solate");

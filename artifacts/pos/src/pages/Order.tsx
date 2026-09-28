@@ -4083,7 +4083,7 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent className="w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
+          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
@@ -4094,7 +4094,7 @@ export default function Order() {
                 <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{artCenaZaPrikaz.toFixed(2)} €</span>
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-5 max-h-[min(62dvh,34rem)] overflow-y-auto pr-1">
+            <div className="space-y-5 min-h-0 max-h-[min(62dvh,34rem)] overflow-y-auto overscroll-contain pr-1" style={{ overflowAnchor: "none" }}>
               {modDialogSelectedModifierIds.length > 0 && modifierNormativeLoading && (
                 <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground" role="status" data-testid="modifier-normative-loading">
                   Nalagam možnosti iz normativov izbranih modifikatorjev …
