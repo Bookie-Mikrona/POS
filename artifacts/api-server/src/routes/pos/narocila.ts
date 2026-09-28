@@ -3502,6 +3502,15 @@ router.post("/narocila/:id/postavke/:postavkaId/modifikatorji", async (req, res)
   const requestedSkupineIds = parsed.data.skupineIds?.length
     ? parsed.data.skupineIds.filter((sid: any) => skupinaIds.includes(sid))
     : Array.from(bySkupina.keys());
+  for (const skupinaId of requestedSkupineIds) {
+    const skupina = skupinaMap.get(skupinaId);
+    if (!skupina) continue;
+    const minimum = skupina.obvezna ? Math.max(1, skupina.minIzbir) : skupina.minIzbir;
+    if ((bySkupina.get(skupinaId) ?? 0) < minimum) {
+      res.status(400).json({ error: `Za skupino "${skupina.ime}" izberite vsaj ${minimum} možnost(i).` });
+      return;
+    }
+  }
   try {
     await db.transaction(async (tx) => {
       await lockKdsOrder(tx, params.data.id);

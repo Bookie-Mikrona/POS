@@ -22,6 +22,7 @@ import {
 import { isAllowedOneToOneSelfNorm, requiresClassicNormativ } from "../../lib/normativ-validation";
 import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import { isMenuEligibleTaxCategory, normalizeAddedSugarForTaxCategory, type TaxCategory } from "../../lib/ddv-resolver";
+import { mealTypeForPizzaUpdate } from "../../lib/pizza-meal-type";
 import PDFDocument from "pdfkit";
 import { normalizirajAlergenProfil } from "../../lib/alergeni";
 import { razresiAlergeneArtikla, razresiAlergeneVhodnihArtiklov, razveljaviAlergeneNadrejenih } from "../../lib/alergeni-resolver";
@@ -596,7 +597,9 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
           throw new Error(`ALLERGEN_INVALID:${(error as Error).message}`);
         }
       }
-      const mealType = parsed.data.mealType ?? "ala_carte";
+      const mealType = parsed.data.jePica || parsed.data.pripravaVrsta === "pica"
+        ? "composite"
+        : parsed.data.mealType ?? "ala_carte";
       const [inserted] = await tx.insert(artikliTable).values({
         enotaId: tenotaId,
         ime,
@@ -1743,8 +1746,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
   if (casPripraveMin !== undefined) {
     updateData.casPripraveMin = Math.max(0, Number(casPripraveMin));
   }
-  const mealType = (parsed.data as { mealType?: "ala_carte" | "prepared" | "composite" }).mealType;
-  if (mealType !== undefined) updateData.mealType = mealType;
+  const requestedMealType = (parsed.data as { mealType?: "ala_carte" | "prepared" | "composite" }).mealType;
   if (polizdelek) {
     updateData.vrstaArtikla = null;
   } else if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) {
@@ -1814,7 +1816,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     if (!kat) { res.status(403).json({ error: "Kategorija ne pripada temu podjetju" }); return; }
   }
 
-  const graphCanChange = Boolean(parsed.data.normativUpdate) || mealType !== undefined;
+  const graphCanChange = Boolean(parsed.data.normativUpdate) || requestedMealType !== undefined || naslednjiJePica;
   let saved: boolean;
   try {
     saved = await db.transaction(async (tx) => {
@@ -1862,6 +1864,13 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
         }
         currentOwner = lockedOwner;
       }
+      const mealType = mealTypeForPizzaUpdate(
+        requestedMealType,
+        currentOwner.mealType,
+        currentOwner.jePica,
+        naslednjiJePica,
+      );
+      if (mealType !== undefined) updateData.mealType = mealType;
       if (mealType !== undefined && mealType !== currentOwner.mealType) {
         await validateIngredientTypeChange(tx, params.data.id, tenotaId, mealType);
       }
@@ -1871,7 +1880,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
           tenotaId,
           parsed.data.normativUpdate,
           {
-            mealType: parsed.data.mealType ?? currentOwner.mealType,
+            mealType: mealType ?? currentOwner.mealType,
             nabavniArtikel: parsed.data.nabavniArtikel ?? currentOwner.nabavniArtikel,
             prodajniArtikel: parsed.data.prodajniArtikel ?? currentOwner.prodajniArtikel,
           },

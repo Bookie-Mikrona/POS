@@ -474,6 +474,7 @@ function prepareExistingNestedModifierEdit() {
     postavke: [
       { id: 501, artikelId: mockPica.id, ime: mockPica.ime, kolicina: 1, cenaKos: 8.5, skupaj: 8.5, racunId: null, parentPostavkaId: null },
       { id: 502, artikelId: null, modifikatorId: 100, ime: "Sir", kolicina: 1, cenaKos: 0.5, skupaj: 0.5, racunId: null, parentPostavkaId: 501 },
+      { id: 505, artikelId: null, modifikatorId: 105, ime: "Brez razreza", kolicina: 1, cenaKos: 0, skupaj: 0, racunId: null, parentPostavkaId: 501 },
       { id: 503, artikelId: null, modifikatorId: garlicOption.id, modifierSourceArticleId: sourceA.id, ime: garlicOption.ime, kolicina: 1, cenaKos: 0, skupaj: 0, racunId: null, parentPostavkaId: 502 },
       { id: 504, artikelId: null, modifikatorId: saltOption.id, modifierSourceArticleId: sourceB.id, ime: saltOption.ime, kolicina: 1, cenaKos: 0, skupaj: 0, racunId: null, parentPostavkaId: 502 },
     ],
@@ -511,7 +512,10 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     });
     const badge = await screen.findByTestId(`available-portions-${mockPica.id}`);
     expect(badge.textContent).toContain("Mala: 7");
-    expect(badge.textContent).toContain("Normalna: 4");
+    expect(badge.textContent).toContain("Norm.: 4");
+    expect(within(badge).getAllByText(/^(Mala|Norm\.):/)).toHaveLength(2);
+    expect(within(badge).getByText("Mala: 7")).toHaveClass("whitespace-nowrap");
+    expect(badge).toHaveClass("flex-col");
     expect(badge.textContent).not.toContain("Družinska");
     expect(badge.textContent).not.toContain("∞");
   });
@@ -985,6 +989,73 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     ]));
   });
 
+  it("pri že naročenem zrezku omogoči spremembo obvezne priloge brez izgube solate", async () => {
+    const skupine = [
+      { id: 4938, ime: "Dunajski zrezek", options: [{ id: 601, ime: "Dunajski" }, { id: 602, ime: "Piščančji" }] },
+      { id: 4947, ime: "Priloge", options: [{ id: 603, ime: "Krompir" }, { id: 604, ime: "Riž" }] },
+      { id: 4954, ime: "Solate", options: [{ id: 605, ime: "Zelena solata" }, { id: 606, ime: "Mešana solata" }] },
+    ].map(group => ({
+      id: group.id,
+      ime: group.ime,
+      obvezna: true,
+      minIzbir: 0,
+      maxIzbir: 0,
+      vrstniRed: 0,
+      modifikatorji: group.options.map(option => ({
+        ...option, skupinaId: group.id, cenaDodatek: 0, aktiven: true, vrstniRed: 0,
+      })),
+    }));
+    const zrezek = { ...mockPica, id: 27886, ime: "Dunajski zrezek s prilogo in solato", jePica: false, modSkupine: skupine };
+    const brezOpcij = { ...mockPica, id: 27887, ime: "Voda", jePica: false, modSkupine: [] };
+    mockListArtikliData.mockReturnValue([zrezek, brezOpcij]);
+    mockOrderForOptions.current = {
+      ...mockNarocilo,
+      postavke: [
+        { id: 501, artikelId: zrezek.id, ime: zrezek.ime, kolicina: 1, cenaKos: 12, skupaj: 12, racunId: null, parentPostavkaId: null },
+        ...[601, 603, 605].map((modifikatorId, index) => ({
+          id: 502 + index, artikelId: null, modifikatorId, ime: "Izbira", kolicina: 1,
+          cenaKos: 0, skupaj: 0, racunId: null, parentPostavkaId: 501,
+        })),
+        { id: 506, artikelId: brezOpcij.id, ime: brezOpcij.ime, kolicina: 1, cenaKos: 2, skupaj: 2, racunId: null, parentPostavkaId: null },
+      ],
+    };
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    expect(screen.getAllByRole("button", { name: "Opcije" })).toHaveLength(1);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Opcije" }));
+    });
+    expect(screen.getByText("Priloge")).toBeInTheDocument();
+    expect(screen.getByText("Solate")).toBeInTheDocument();
+    expect(screen.getByTestId("button-edit-modifier-603")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("button-edit-modifier-605")).toHaveAttribute("aria-pressed", "true");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("button-edit-modifier-603"));
+    });
+    expect(screen.getByTestId("edit-modifier-group-error")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Potrdi/i })).toBeDisabled();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("button-edit-modifier-604"));
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: /Potrdi/i })).toBeEnabled());
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Potrdi/i }));
+    });
+    expect(mockAddPostavkaModifikatorjiMutate).toHaveBeenCalledWith(expect.objectContaining({
+      postavkaId: 501,
+      data: {
+        skupineIds: [4938, 4947, 4954],
+        modifikatorji: [
+          { modifikatorId: 601, podIzbire: [] },
+          { modifikatorId: 605, podIzbire: [] },
+          { modifikatorId: 604, podIzbire: [] },
+        ],
+      },
+    }), expect.anything());
+  });
+
   it("urejanje opcij predizbere več shranjenih virov, ohrani nespremenjeno izbiro in pošlje poln scoped payload", async () => {
     const { lessGarlicOption, sourceA, sourceB, saltOption } = prepareExistingNestedModifierEdit();
     mockAddPostavkaModifikatorjiMutate.mockImplementation(
@@ -1019,8 +1090,8 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
           { artikelId: sourceA.id, modifikatorIds: [lessGarlicOption.id] },
           { artikelId: sourceB.id, modifikatorIds: [saltOption.id] },
         ],
-      }],
-      skupineIds: [1],
+      }, { modifikatorId: 105, podIzbire: [] }],
+      skupineIds: [1, 2],
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

@@ -429,7 +429,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
   // Strežnik izpusti neaktivne velikosti; odsotna velikost ni neomejena zaloga.
   const availablePizzaSizes = ([
     ["mala", "Mala"],
-    ["normalna", "Normalna"],
+    ["normalna", "Norm."],
     ["druzinska", "Družinska"],
   ] as const).filter(([size]) => artikel.availableBySize?.[size] !== undefined);
 
@@ -489,7 +489,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
 
         {artikel.jePica && availablePizzaSizes.length > 0 ? (
           <span
-            className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+            className="inline-flex flex-col items-start rounded px-1.5 py-0.5 text-[10px] font-bold leading-tight"
             style={{
               backgroundColor: hasColor ? "rgba(255,255,255,0.2)" : "hsl(var(--secondary))",
               color: hasColor ? "#fff" : "hsl(var(--secondary-foreground))",
@@ -497,7 +497,7 @@ function SortableArtikelCard({ artikel, onAdd, pending, flashing, artikliMap, is
             data-testid={`available-portions-${artikel.id}`}
           >
             {availablePizzaSizes.map(([size, label]) => (
-              <span key={size} className="mr-1.5 last:mr-0">
+              <span key={size} className="whitespace-nowrap">
                 {label}: {artikel.availableBySize?.[size] == null ? "brez izračunane omejitve" : artikel.availableBySize?.[size]}
               </span>
             ))}
@@ -3131,7 +3131,7 @@ export default function Order() {
                 ));
                 return topPostavkeOrder.map((postavka, idx) => {
                 const artRaw = artikliMapForOrder.get(postavka.artikelId) as { jePica?: boolean; modSkupine?: ModSkupinaFull[] } | undefined;
-                const artIzbirneOrder = (artRaw?.modSkupine ?? []).filter(s => !s.obvezna);
+                const artSkupineOrder = artRaw?.modSkupine ?? [];
                 const dodat = dodMapOrder.get(postavka.id) ?? [];
                 const jeVecHodniMeni = postavka.isMulticourseBundle === true;
                 const hasDiscount =
@@ -3391,9 +3391,8 @@ export default function Order() {
                         </div>
                       </div>
                     ))}
-                    {artIzbirneOrder.length > 0 && !jeRacunana && !jeVecHodniMeni && (
+                    {artSkupineOrder.length > 0 && !jeRacunana && !jeVecHodniMeni && !jePostavkaVObdelavi && (
                       <div className="flex gap-1.5 pl-5 mt-0.5 mb-0.5">
-                        {artIzbirneOrder.length > 0 && (
                           <button
                             type="button"
                             className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
@@ -3405,7 +3404,7 @@ export default function Order() {
                               const preloaded: { skupinaId: number; modifikatorId: number }[] = [];
                               for (const cr of childRows) {
                                 const modId = (cr as typeof cr & { modifikatorId?: number | null }).modifikatorId!;
-                                for (const sk of artIzbirneOrder) {
+                                for (const sk of artSkupineOrder) {
                                   if (sk.modifikatorji.some(m => m.id === modId)) {
                                     preloaded.push({ skupinaId: sk.id, modifikatorId: modId });
                                     break;
@@ -3440,7 +3439,6 @@ export default function Order() {
                           >
                             <Settings2 className="h-3 w-3" />Opcije
                           </button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -4416,12 +4414,12 @@ export default function Order() {
       );
     })()}
 
-    {/* ── Dialog: Opcije — izbirne modifikatorske skupine obstoječe postavke ── */}
+    {/* ── Dialog: Opcije — modifikatorske skupine obstoječe postavke ── */}
     {(() => {
       const opcijePostavka = opcijePostavkaId !== null ? (narocilo?.postavke ?? []).find(p => p.id === opcijePostavkaId) : undefined;
       const opcijeArtikelId = opcijePostavka?.artikelId ?? null;
       const opcijeArtSkupine = opcijeArtikelId !== null
-        ? ((artikliMapForOrder.get(opcijeArtikelId) as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? []).filter(s => !s.obvezna)
+        ? ((artikliMapForOrder.get(opcijeArtikelId) as { modSkupine?: ModSkupinaFull[] } | undefined)?.modSkupine ?? [])
         : [];
       const opcijeArtIme = opcijePostavka?.ime ?? "Artikel";
       const opcijeQueryByModifierId = new Map(
@@ -4486,7 +4484,15 @@ export default function Order() {
         const knownOptionIds = new Set(source.groups.flatMap(group => group.modifikatorji.map(option => option.id)));
         return selectedIds.some(optionId => !knownOptionIds.has(optionId));
       });
-      const opcijeCanSubmit = !opcijeNormativiLoading && !opcijeNormativiError && !opcijeInvalidSources
+      const opcijeGroupsInvalid = opcijeArtSkupine.some(group => {
+        const selected = opcijeIzbrani.filter(selection => selection.skupinaId === group.id);
+        const valid = selected.filter(selection =>
+          group.modifikatorji.some(option => option.id === selection.modifikatorId && option.aktiven),
+        ).length;
+        const minimum = group.obvezna ? Math.max(1, group.minIzbir) : group.minIzbir;
+        return valid !== selected.length || valid < minimum || (group.maxIzbir > 0 && valid > group.maxIzbir);
+      });
+      const opcijeCanSubmit = !opcijeGroupsInvalid && !opcijeNormativiLoading && !opcijeNormativiError && !opcijeInvalidSources
         && !opcijeNestedDataError && !opcijeNestedSourceMissing && !opcijeNestedChoiceMissing && !opcijeNestedInvalid;
 
       function toggleOpcije(skupinaId: number, modifikatorId: number, maxIzbir: number) {
@@ -4579,7 +4585,7 @@ export default function Order() {
         if (!opcijeCanSubmit || addModifikatorji.isPending) return;
         const stavkaId = opcijePostavkaId;
         const izbrani = [...opcijeIzbrani];
-        // Include all optional skupinaIds so server can clear groups with empty selection
+        // Include all groups so changing a required selection keeps the other groups intact.
         const skupineScope = opcijeArtSkupine.map(s => s.id);
         const modifikatorji = izbrani.map(selection => ({
           modifikatorId: selection.modifikatorId,
@@ -4637,7 +4643,7 @@ export default function Order() {
                 <Settings2 className="h-5 w-5" />
                 Opcije — {opcijeArtIme}
               </DialogTitle>
-              <DialogDescription>Dodaj izbirne možnosti k tej postavki.</DialogDescription>
+              <DialogDescription>Spremeni izbire pri tej postavki.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 max-h-72 overflow-y-auto">
               {opcijeIzbrani.length > 0 && opcijeNormativiLoading && (
@@ -4660,6 +4666,11 @@ export default function Order() {
                   Dopolni obvezne nested izbire in upoštevaj omejitve največjega števila izbir.
                 </p>
               )}
+              {opcijeGroupsInvalid && (
+                <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm text-amber-800 dark:text-amber-200" role="alert" data-testid="edit-modifier-group-error">
+                  Izberi zahtevane možnosti v vsaki obvezni skupini.
+                </p>
+              )}
               {opcijeArtSkupine.length === 0 && (
                 <p className="py-4 text-center text-sm text-muted-foreground">Ni izbirnih možnosti za ta artikel.</p>
               )}
@@ -4667,12 +4678,13 @@ export default function Order() {
                 <div key={skupina.id}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                     {skupina.ime}
+                    {skupina.obvezna && <span className="ml-1 text-destructive">★</span>}
                     {skupina.maxIzbir > 1 && (
                       <span className="ml-1 normal-case font-normal tracking-normal">(do {skupina.maxIzbir})</span>
                     )}
                   </p>
                   <div className="space-y-1">
-                    {skupina.modifikatorji.filter(m => m.aktiven).map(mod => {
+                    {skupina.modifikatorji.filter(m => m.aktiven || opcijeIzbrani.some(selection => selection.modifikatorId === m.id && selection.skupinaId === skupina.id)).map(mod => {
                       const isSelected = opcijeIzbrani.some(m => m.skupinaId === skupina.id && m.modifikatorId === mod.id);
                       return (
                         <div key={mod.id} data-testid={`edit-modifier-row-${mod.id}`}>
@@ -4680,6 +4692,7 @@ export default function Order() {
                             type="button"
                             data-testid={`button-edit-modifier-${mod.id}`}
                             aria-pressed={isSelected}
+                            disabled={!mod.aktiven && !isSelected}
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border text-left transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-muted/50 border-transparent"}`}
                             onClick={() => toggleOpcije(skupina.id, mod.id, skupina.maxIzbir)}
                           >
@@ -4687,6 +4700,7 @@ export default function Order() {
                               {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
                             </div>
                             <span className="flex-1 text-sm">{mod.ime}</span>
+                            {!mod.aktiven && <span className="text-[10px] text-destructive">Ni več na voljo</span>}
                             {Number(mod.cenaDodatek) > 0 && (
                               <span className="text-xs text-muted-foreground tabular-nums">+{Number(mod.cenaDodatek).toFixed(2)} €</span>
                             )}
