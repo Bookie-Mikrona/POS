@@ -3,7 +3,7 @@ import { useListAktivnaNarocila, useListKategorije, getListAktivnaNarocilaQueryK
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Clock, UtensilsCrossed, History, ChefHat, MonitorPlay, AlertTriangle } from "lucide-react";
-import { getActiveKdsTarget, getKdsCountdown, KdsNarociloGlava, kdsUrgencyClass, sortKdsNarocila } from "@/lib/kdsNarocilo";
+import { getActiveKdsTarget, getKdsCountdown, getKdsModifierRows, KdsNarociloGlava, kdsUrgencyClass, sortKdsNarocila } from "@/lib/kdsNarocilo";
 import { useKdsPostaje, useKdsNalogiVecPostaj, useBumpNalog, useAckNalog, useFireKdsCourse, KdsNalog, useNalogZgodovina } from "@/hooks/use-kds";
 import { canAcknowledgeKdsTicket } from "@/lib/kdsDispatch";
 import { getNextKdsCoursesToFire } from "@/lib/kdsCourses";
@@ -634,7 +634,7 @@ function KdsKitchenView({
                            const servingSize = barOnly ? getBarServingSize(p.ime) : undefined;
                         const isWaitingForDispatch = done && nastavitve?.dispatchOmogocen && nalog.stanje === "bumped";
                         const mins = minutesSince(getKdsTimerStart(nalog));
-                        const otroci = narocilo.childMap.get(p.id) ?? [];
+                        const otroci = getKdsModifierRows(p.id, narocilo.childMap);
                          const itemNalogi = narocilo.kdsZaToNarocilo.filter(x => x.postavkaId === p.id);
                          const actionable = nalog.stanje === "aktivno"
                            || canAcknowledgeKdsTicket(nalog.stanje, Boolean(nastavitve?.dispatchOmogocen));
@@ -680,7 +680,7 @@ function KdsKitchenView({
                                    <span className={`text-xs italic leading-snug block mt-0.5 ${held ? "text-slate-500" : done ? "text-emerald-800" : "text-gray-600"}`}>↳ {p.opomba}</span>
                                 )}
                                 {otroci.map(d => (
-                                   <div key={d.id} className={`text-xs font-medium leading-tight mt-0.5 ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-orange-700"}`}>+ {d.ime}</div>
+                                   <div key={d.id} className={`text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""} ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-orange-700"}`}>{d.depth === 1 ? "↳ " : "+ "}{d.ime}</div>
                                 ))}
                                  {itemNalogi.length > 1 && (
                                   <div className="mt-1">
@@ -1004,7 +1004,6 @@ function LegacyKitchenView() {
                     {narocilo.topPostavke.map(p => {
                       const done = !!p.pripravljeno;
                       const mins = minutesSince(p.ustvarjeno);
-                      const otroci = narocilo.childMap.get(p.id) ?? [];
                       return (
                         <li
                           key={p.id}
@@ -1024,8 +1023,8 @@ function LegacyKitchenView() {
                               {p.opomba && (
                                 <span className="text-gray-500 text-xs italic leading-snug block mt-0.5">↳ {p.opomba}</span>
                               )}
-                              {otroci.map(d => (
-                                <div key={d.id} className="text-orange-700 text-xs font-medium leading-tight mt-0.5">+ {d.ime}</div>
+                              {getKdsModifierRows(p.id, narocilo.childMap).map(d => (
+                                <div key={d.id} className={`text-orange-700 text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""}`}>{d.depth === 1 ? "↳ " : "+ "}{d.ime}</div>
                               ))}
                             </div>
                             {done ? (

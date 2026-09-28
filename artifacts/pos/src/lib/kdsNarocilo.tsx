@@ -29,6 +29,21 @@ export type KdsTarget = {
 
 export type KdsUrgency = "normal" | "soon" | "late";
 
+/** KDS prikaže modifikatorje in njihove enonivojske podizbire pod isto prodajno postavko. */
+export function getKdsModifierRows<T extends { id: number; ime: string }>(
+  postavkaId: number,
+  childrenByParent: Map<number, T[]>,
+): Array<{ id: number; ime: string; depth: 0 | 1 }> {
+  return (childrenByParent.get(postavkaId) ?? []).flatMap(parent => [
+    { id: parent.id, ime: parent.ime, depth: 0 as const },
+    ...(childrenByParent.get(parent.id) ?? []).map(nested => ({
+      id: nested.id,
+      ime: nested.ime,
+      depth: 1 as const,
+    })),
+  ]);
+}
+
 export function isTelefonskoNarocilo(narocilo: KdsNarocilo): boolean {
   return narocilo.nacin === "telefon";
 }

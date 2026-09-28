@@ -7,6 +7,7 @@ import {
   getKdsCountdown,
   getKdsTarget,
   getKdsTypeLabel,
+  getKdsModifierRows,
   KdsCountdown,
   KdsNarociloGlava,
   sortKdsNarocila,
@@ -119,5 +120,21 @@ describe("KDS telefonska naročila", () => {
     expect(screen.getByTestId("kds-countdown")).toHaveTextContent("čez 1 min");
     act(() => { vi.advanceTimersByTime(90000); });
     expect(screen.getByTestId("kds-countdown")).toHaveTextContent("zamuja 1 min");
+  });
+});
+
+describe("KDS modifikatorji", () => {
+  it("pokaže brez česna pod zeleno solato brez dodatne prodajne vrstice", () => {
+    const rows = getKdsModifierRows(1, new Map([
+      [1, [{ id: 2, ime: "Svinjski" }, { id: 3, ime: "Pražen krompir" }, { id: 4, ime: "Zelena" }]],
+      [4, [{ id: 5, ime: "brez česna" }]],
+      [10, [{ id: 11, ime: "brez soli" }]],
+    ]));
+    expect(rows).toEqual([
+      { id: 2, ime: "Svinjski", depth: 0 },
+      { id: 3, ime: "Pražen krompir", depth: 0 },
+      { id: 4, ime: "Zelena", depth: 0 },
+      { id: 5, ime: "brez česna", depth: 1 },
+    ]);
   });
 });
