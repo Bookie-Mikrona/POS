@@ -1,0 +1,86 @@
+Pozdravljeni,
+
+ 
+
+prosim za pomoč kateri konto (DDV terjatev in obveznosti)
+
+uporabiti za prejet račun iz EU, če gre za nabavo OS.
+
+ 
+
+Hvala in lep dan še naprej.
+
+ 
+
+ 
+
+Spoštovani,
+
+Pri nabavi osnovnega sredstva (OS) iz druge države članice EU gre za pridobitev blaga znotraj EU, pri čemer se izvede t.i. samoobdavčitev (sočasno izkazovanje obveznosti in terjatve za DDV).
+
+Glede na veljavni Slovenski računovodski kodeks (SRK) ter priporočeni enotni kontni načrt se za obračunani in vstopni DDV pri pridobitvi OS iz EU običajno uporabljajo naslednji konti:
+
+Priporočeni konti za DDV (Samoobdavčitev)
+Vrsta DDV	Priporočeni konto	Opis in namen
+Obveznost za DDV	2600 ali 2605	
+Obveznost za DDV od pridobitve blaga iz EU
+
+
+(Obračunani izstopni DDV po predpisani stopnji, npr. 22 %)
+
+Terjatev za DDV	1600 ali 1601	
+Vstopni DDV od nabave osnovnih sredstev
+
+
+(Pravica do odbitka vstopnega DDV od investicij / OS)
+
+Primer knjiženja prejetega računa za OS iz EU
+Predpostavimo, da je vrednost osnovnega sredstva 10.000 €, stopnja DDV pa 22 % (2.200 € DDV):
+
+Osnovno sredstvo v pridobivanju (ali OS v uporabi):
+
+040 (ali 020) / Debet (V breme): 10.000 €
+
+Obveznost do dobavitelja iz EU:
+
+221 (Dobavitelji v tujini - EU) / Kredit (V dobro): 10.000 €
+
+Obračun vstopnega DDV (terjatev):
+
+1600 / Debet (V breme): 2.200 €
+
+Obračun izstopnega DDV (obveznost):
+
+2600 / Kredit (V dobro): 2.200 €
+
+Pomembna opozorila glede davčnih evidenc (Knjiga DDV)
+Vstopni DDV za OS: Ker gre za nabavo osnovnega sredstva, se vstopni DDV v knjigi prejetih računov (I-RAČ / PR) evidentira v rubriko za nabave osnovnih sredstev, kar je pomembno za pravilno izpolnjevanje obrazca DDV-O (polje za vstopni DDV od osnovnih sredstev).
+
+ID za DDV: Za izvedbo samoobdavčitve morata imeti tako prodajalec kot kupec veljavno EU ID številko za DDV (preverljivo v sistemu VIES).
+
+Kontni načrt podjetja: Preverite vaš interni kontni načrt, saj nekatera podjetja uporabljajo analitiko znotraj skupine 16 in 26 (npr. 1604 za vstopni DDV od OS iz EU ter 2604 za obveznost za DDV od pridobitve OS iz EU).
+
+v katero kolono v knjigi kpr?
+
+Pri pridobitvi osnovnega sredstva iz druge države članice EU (samoobdavčitev) se prejeti račun v Knjigi prejetih računov (KPR) oziroma v obrazcu DDV-O vpisuje v naslednje kolone/polja:
+
+1. Obrazec DDV-O (Davčni obračun)
+Vsebinska rubrika	Polje na obrazcu DDV-O	Opis / Vrednost
+Davčna osnova (Nabavna vrednost OS)	Polje 32	Pridobitve blaga iz drugih držav članic EU (vrednost računa brez DDV)
+Vstopni DDV (Terjatev)	Polje 41	Vstopni DDV od pridobitev blaga iz drugih članic EU (22 % ali 9,5 %)
+Dodatno razkritje za OS	Polje 62	Nabavna vrednost osnovnih sredstev (skupna vrednost računa bez DDV)
+Obračunani DDV (Obveznost)	Polje 25	Obračunani DDV od pridobitev blaga iz drugih članic EU (22 % ali 9,5 %)
+Opomba za Polje 62: Vnos v polje 62 je statični/informativni podatek o investicijah. Vrednost računa se torej vpiše tako v polje 32 kot v polje 62.
+
+2. Knjiga prejetih računov (KPR / PR-EU)
+V računovodskih programih so kolone KPR neposredno povezane s polji obrazca DDV-O. Pri vnosu prejetega računa iz EU izberete ustrezno davčno vrsto (npr. Pridobitev blaga EU - Osnovna sredstva), ki račun razvrsti v naslednje kolone:
+
+Osnova za DDV (22 % ali 9,5 %): Vpiše se znesek računa v EUR (vpliva na polje 32).
+
+Obračunani vstopni DDV: Vpiše se izračunani DDV (vpliva na polje 41).
+
+Nabava osnovnih sredstev (OS): Znesek osnove se označi oz. vpiše v kolono za OS (vpliva na polje 62).
+
+Samoobdavčitev / Izstopni DDV: Sočasno se generira vpis v evidenco izstopnega DDV v kolono za pridobitve iz EU (vpliva na polje 25).
+
+
