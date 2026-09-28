@@ -12,6 +12,15 @@ const artikli = vi.hoisted(() => ({ current: [] as any[] }));
 const authUser = vi.hoisted(() => ({ current: { vloga: "admin" } }));
 
 vi.mock("@workspace/api-client-react", () => ({
+  getAuthToken: async () => null,
+  getEnotaId: () => null,
+  useImportDrobniInventarPredloge: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useGetArtikelNormativeChangeHistory: () => ({ data: [], isLoading: false }),
+  getGetArtikelNormativeChangeHistoryQueryKey: () => ["/api/artikli/normativi/zgodovina"],
+  getGetPreparedFoodAvailabilityQueryKey: () => ["/api/prepared-food/availability"],
+  getArtikliCenikPdf: vi.fn(),
+  ApiError: class ApiError extends Error {},
+  usePreviewArtikelAlergeniNormativ: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useListKategorije: () => ({ data: [{ id: 1, ime: "Hrana", barva: "#22c55e", vrstniRed: 0 }], isLoading: false }),
   useListArtikli: () => ({ data: artikli.current, isLoading: false }),
   useCreateKategorija: () => ({ mutate: vi.fn(), isPending: false }),
@@ -159,21 +168,41 @@ describe("Menu — čas priprave artikla", () => {
     });
   });
 
-  it("pošlje čas priprave pri shranjevanju novega artikla", async () => {
+  it("pri prodajnem artiklu prikaže čas priprave in omogoči vnos", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /nov artikel/i }));
-    fireEvent.change(screen.getByPlaceholderText("Npr. Espresso"), { target: { value: "Testna jed" } });
-    fireEvent.click(screen.getByLabelText("Prodajni artikel"));
-    fireEvent.click(screen.getByLabelText("Nabavni artikel"));
-    fireEvent.change(screen.getByLabelText("Čas priprave (min)"), { target: { value: "17" } });
-    const submit = within(screen.getByRole("dialog"))
+    const input = screen.getByLabelText("Čas priprave (min)");
+    fireEvent.change(input, { target: { value: "17" } });
+    expect(input).toHaveValue(17);
+  });
+
+  it("pri samo nabavnem artiklu ne prikazuje časa priprave in shrani nič", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /nov artikel/i }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByPlaceholderText("Npr. Espresso"), {
+      target: { value: "Nabavno mleko" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Čas priprave (min)"), {
+      target: { value: "17" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Prodajni artikel"));
+    fireEvent.click(within(dialog).getByLabelText("Nabavni artikel"));
+
+    expect(within(dialog).queryByLabelText("Čas priprave (min)")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/samodejni oceni prevzema telefonskega naročila/i)).not.toBeInTheDocument();
+
+    const submit = within(dialog)
       .getAllByRole("button", { name: /dodaj artikel/i })
       .find(button => button.textContent?.includes("F2"));
     if (!submit) throw new Error("Gumb za shranjevanje artikla ni najden.");
     fireEvent.click(submit);
-
     expect(createArtikel).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ casPripraveMin: 17 }) }),
+      expect.objectContaining({ data: expect.objectContaining({
+        nabavniArtikel: true,
+        prodajniArtikel: false,
+        casPripraveMin: 0,
+      }) }),
       expect.any(Object),
     );
   });

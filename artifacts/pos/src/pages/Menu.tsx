@@ -1436,7 +1436,7 @@ export default function Menu() {
       return;
     }
     const casPripraveMin = Number(artCasPripraveMin);
-    if (!artDrobniInventar && (!Number.isInteger(casPripraveMin) || casPripraveMin < 0)) {
+    if (isProdajni && (!Number.isInteger(casPripraveMin) || casPripraveMin < 0)) {
       setArtDialogTab("osnovno");
       toast({ title: "Čas priprave mora biti celo število 0 ali več", variant: "destructive" });
       return;
@@ -1574,7 +1574,7 @@ export default function Menu() {
       ...(artPolizdelek ? {} : { vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla }),
       pripravaVrsta: isProdajni ? artPripravaVrsta : null,
       mealType: mealTypeForArticleSave(artMealType, artPolizdelek, artPripravaVrsta, artJePica),
-      ...(!artDrobniInventar ? { casPripraveMin } : {}),
+      casPripraveMin: isProdajni ? casPripraveMin : 0,
       happyHourCena: isProdajni && artHappyHourCena !== "" ? parseDecimal(artHappyHourCena) : null,
       happyHourCenaMala: isProdajni && artJePica && artHappyHourCenaMala !== "" ? parseDecimal(artHappyHourCenaMala) : null,
       happyHourCenaDruzinska: isProdajni && artJePica && artHappyHourCenaDruzinska !== "" ? parseDecimal(artHappyHourCenaDruzinska) : null,
@@ -3412,7 +3412,7 @@ export default function Menu() {
                 </div>
               </div>}
 
-              {!artDrobniInventar && <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
+              {artProdajniArtikel && <div className="space-y-2 rounded-lg border-2 border-border/80 bg-card p-3 shadow-sm">
                 <Label htmlFor="artikel-cas-priprave" className="font-semibold">Čas priprave (min)</Label>
                 <p className="text-xs text-muted-foreground">
                   Uporabi se pri samodejni oceni prevzema telefonskega naročila.
