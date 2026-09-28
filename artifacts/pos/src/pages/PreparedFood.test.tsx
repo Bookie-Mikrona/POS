@@ -170,6 +170,7 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     const ledgerTable = screen.getByRole("table", { name: "Dnevna evidenca pripravljene hrane" });
     expect(ledgerTable.className).toContain("block w-full");
     expect(ledgerTable.className).not.toContain("min-w-[900px]");
+    expect(screen.getByText("Po prodaji: 3")).not.toBeNull();
 
     const freezeAll = screen.getByRole("checkbox", { name: "Zamrzni vso razpoložljivo količino: Goveja juha" });
     fireEvent.click(freezeAll);

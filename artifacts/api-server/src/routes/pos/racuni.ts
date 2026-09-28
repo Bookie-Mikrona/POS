@@ -3110,6 +3110,9 @@ export async function finalizeConfirmedStorno(tx: any, stornoRacunId: number, ac
       eq(zalogaGibiTable.tip, "poraba"),
       or(
         eq(zalogaGibiTable.sourceSnapshot, "racun_finalization_plan"),
+        // Ročna, sledljiva uskladitev napačno odpisanega polizdelka je del
+        // iste zalogovne posledice računa in jo mora storno prav tako obrniti.
+        eq(zalogaGibiTable.sourceSnapshot, "racun_zaloga_uskladitev"),
         and(
           isNull(zalogaGibiTable.sourceSnapshot),
           eq(zalogaGibiTable.opomba, `Račun ${izvorni.stevilkaRacuna}`),

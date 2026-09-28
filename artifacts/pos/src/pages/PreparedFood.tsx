@@ -346,7 +346,12 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                             <TouchQuantityInput label="Korekcija" value={row.edit.correction} onChange={(value) => updateEdit(row.artikelId, "correction", value)} allowNegative />
                          )}
                        </TableCell>
-                       <TableCell className={`${mobileCell} font-bold lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}><span className={mobileLabel}>Skupaj</span>{row.totalQuantity}</TableCell>
+                       <TableCell className={`${mobileCell} font-bold lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
+                         <span className={mobileLabel}>Skupaj</span>{row.totalQuantity}
+                         {!row.isClosed && (
+                           <div className="text-xs font-normal text-muted-foreground">Po prodaji: {availableToFreeze}</div>
+                         )}
+                       </TableCell>
                        <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}><span className={mobileLabel}>Prodano</span>{row.soldQuantity}</TableCell>
                        <TableCell className={`${mobileCell} flex-wrap ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Zamrznjeno</span>

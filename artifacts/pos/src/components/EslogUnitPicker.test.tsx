@@ -2,13 +2,17 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { EslogUnitPicker, filterEslogUnits } from "./EslogUnitPicker";
+import { ESLOG_UNITS, EslogUnitPicker, filterEslogUnits } from "./EslogUnitPicker";
 
 describe("izbira enote mere artikla", () => {
   it("išče po nazivu brez šumnikov in po kodi ter ne omeji rezultatov na prvih nekaj enot", () => {
     expect(filterEslogUnits("sKatla").map(unit => unit.code)).toContain("BX");
     expect(filterEslogUnits("mlt").map(unit => unit.code)).toEqual(["MLT"]);
-    expect(filterEslogUnits("")).toHaveLength(22);
+    expect(filterEslogUnits("")).toHaveLength(10);
+    expect(ESLOG_UNITS.map(unit => unit.code)).toEqual([
+      "H87", "KGM", "GRM", "LTR", "MLT", "MTR", "MTK", "MTQ", "CT", "BX",
+    ]);
+    expect(filterEslogUnits("paleta")).toHaveLength(0);
   });
 
   it("ohrani izbrano vrednost med iskanjem in jo spremeni šele ob izbiri", () => {
@@ -48,13 +52,20 @@ describe("izbira enote mere artikla", () => {
     render(<Editor />);
     const input = screen.getByRole("combobox");
     fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: "clt" } });
+    fireEvent.change(input, { target: { value: "kgm" } });
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.getByText("Uredi artikel")).toBeTruthy();
     expect(input.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(input);
-    fireEvent.change(input, { target: { value: "clt" } });
-    fireEvent.click(screen.getByRole("option", { name: "centiliter (CLT)" }));
-    expect(onChange).toHaveBeenCalledWith("CLT");
+    fireEvent.change(input, { target: { value: "kgm" } });
+    fireEvent.click(screen.getByRole("option", { name: "kilogram (KGM)" }));
+    expect(onChange).toHaveBeenCalledWith("KGM");
+  });
+
+  it("staro enoto pusti nespremenjeno in opozori, da je ne more izvoziti", () => {
+    const onChange = vi.fn();
+    render(<EslogUnitPicker id="stara-enota" value="kom" onChange={onChange} />);
+    expect(screen.getByText("Obstoječa enota ni v standardnem izboru e-SLOG. Pred izvozom preverite njeno kodo.")).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

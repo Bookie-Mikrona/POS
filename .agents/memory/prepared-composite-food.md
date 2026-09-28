@@ -33,6 +33,12 @@ Razpoložljivost je v POS/QR prikazana na prodajni kartici artikla kot število 
 
 **How to apply:** Vsaka pot, ki poveča porabo, mora pred zapisom atomsko preveriti pozitivni prirast. Poznejša sprememba vrste artikla ne sme spreminjati porabe že prodanih vrstic. Razprodane artikle skrij, vendar nikoli ne zaupaj samo odjemalcu.
 
+Dnevni prikaz »Prodano« za pripravljene jedi mora šteti tudi pripravljene priloge, izbrane kot modifikatorje sestavljene prodaje; »Skupaj« pomeni pripravljeno/odtajano količino, preostanek pa odšteje prodano.
+
+**Why:** Prodaja priloge je zapisana kot podrejena izbira brez lastnega `artikelId`; štetje samo neposrednih artiklov pusti dnevno prodajo na nič, čeprav razpoložljivost pravilno zmanjša porcije.
+
+**How to apply:** Dnevna evidenca in preverjanje razpoložljivosti naj uporabljata enako osnovo poslovnega dne in posnetke vhodov modifikatorja ob naročilu; le za stare vrstice brez posnetka preberi trenutni normativ. Odprta dnevna evidenca izračunava prodano sproti, ob zaključku pa shrani posnetek.
+
 Če pripravljeno jed porablja izbirni modifikator, na prodajni kartici pokaži porcije po posamezni možnosti in jih ponovi v izbirniku; ne prikaži ene same »razpoložljivosti artikla« iz stanja neobveznih dodatkov.
 
 **Why:** Gost lahko izbere različne dodatke ali nobenega. Minimum njihovih zalog ne pove, koliko osnovnih jedi je mogoče prodati, in bi lahko napačno označil artikel za razprodan.

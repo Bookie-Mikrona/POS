@@ -7,7 +7,13 @@ import {
   companiesTable,
   db,
   enoteTable,
+  modNormativiTable,
+  modifikatorjiTable,
+  modSkupineTable,
+  narocilaTable,
   pool,
+  postavkeTable,
+  preparedFoodDailyLedgersTable,
   preparedFoodStocksTable,
 } from "@workspace/db";
 import preparedFoodRouter from "./prepared-food";
@@ -109,5 +115,63 @@ describe("PUT /prepared-food/stocks/:year", () => {
       eq(preparedFoodStocksTable.year, YEAR),
     ));
     expect(unchanged).toMatchObject({ openingQuantity: "5.0000", openingCostPerPortion: "1.250000" });
+  });
+});
+
+describe("dnevna prodaja pripravljenih prilog", () => {
+  it("upošteva shranjeno izbiro in starejšo izbiro brez posnetka, brez podvajanja", async () => {
+    const date = "2098-06-09";
+    const [group] = await db.insert(modSkupineTable).values({
+      enotaId, ime: `Priloge ${RUN_ID}`,
+    }).returning({ id: modSkupineTable.id });
+    const mods = await db.insert(modifikatorjiTable).values([
+      { skupinaId: group!.id, ime: `Pražen ${RUN_ID}` },
+      { skupinaId: group!.id, ime: `Riž ${RUN_ID}` },
+    ]).returning({ id: modifikatorjiTable.id });
+    let orderId: number | undefined;
+    try {
+      await db.insert(modNormativiTable).values([
+        { modifikatorId: mods[0]!.id, vhodniArtikelId: firstArticleId, kolicina: "1" },
+        { modifikatorId: mods[1]!.id, vhodniArtikelId: secondArticleId, kolicina: "1" },
+      ]);
+      await db.insert(preparedFoodDailyLedgersTable).values([
+        { enotaId, businessDate: date, artikelId: firstArticleId, preparedQuantity: "10" },
+        { enotaId, businessDate: date, artikelId: secondArticleId, preparedQuantity: "10" },
+      ]);
+      const [order] = await db.insert(narocilaTable).values({
+        enotaId, status: "zakljuceno", ustvarjeno: new Date(`${date}T12:00:00Z`),
+      }).returning({ id: narocilaTable.id });
+      orderId = order!.id;
+      const [parent] = await db.insert(postavkeTable).values({
+        narociloId: orderId, artikelId: regularArticleId, ime: "Kosilo",
+        cenaKos: "10", skupaj: "10", davek: "9.5",
+      }).returning({ id: postavkeTable.id });
+      await db.insert(postavkeTable).values([
+        {
+          narociloId: orderId, parentPostavkaId: parent!.id, modifikatorId: mods[0]!.id,
+          ime: "Pražen", cenaKos: "0", skupaj: "0", davek: "9.5",
+          availabilityRequirements: [{ articleId: firstArticleId, quantity: 1, mealType: "prepared" }],
+        },
+        {
+          narociloId: orderId, parentPostavkaId: parent!.id, modifikatorId: mods[1]!.id,
+          ime: "Riž", cenaKos: "0", skupaj: "0", davek: "9.5",
+        },
+      ]);
+      const response = await supertest(buildApp()).get(`/prepared-food/daily/${date}`);
+      expect(response.status).toBe(200);
+      expect(response.body.find((row: { artikelId: number }) => row.artikelId === firstArticleId).soldQuantity).toBe(1);
+      expect(response.body.find((row: { artikelId: number }) => row.artikelId === secondArticleId).soldQuantity).toBe(1);
+    } finally {
+      if (orderId) {
+        await db.delete(postavkeTable).where(eq(postavkeTable.narociloId, orderId));
+        await db.delete(narocilaTable).where(eq(narocilaTable.id, orderId));
+      }
+      await db.delete(preparedFoodDailyLedgersTable).where(and(
+        eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+        eq(preparedFoodDailyLedgersTable.businessDate, date),
+      ));
+      await db.delete(modifikatorjiTable).where(inArray(modifikatorjiTable.id, mods.map(mod => mod.id)));
+      await db.delete(modSkupineTable).where(eq(modSkupineTable.id, group!.id));
+    }
   });
 });

@@ -296,7 +296,7 @@ async function soldQuantity(
       FROM postavke p JOIN narocila n ON n.id = p.narocilo_id
       WHERE n.enota_id = ${enotaId} AND p.artikel_id IS NOT NULL
         AND p.parent_postavka_id IS NULL AND n.status <> 'preklicano'
-        AND ((p.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
+        AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
       UNION ALL
       SELECT norm.vhodni_artikel_id, tree.quantity * norm.kolicina,
              COALESCE(child_article.meal_type, 'ala_carte'),
@@ -319,7 +319,36 @@ async function soldQuantity(
         AND p.parent_postavka_id IS NULL
         AND p.pizza_dough_article_id IS NOT NULL
         AND n.status <> 'preklicano'
-        AND ((p.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
+        AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
+      UNION ALL
+      -- Izbire pripravljenih prilog niso samostojne prodajne postavke.
+      -- Uporabi posnetek vhodov ob naročilu; za stare postavke brez posnetka normativ.
+      SELECT (snapshot.value->>'articleId')::integer,
+             child.kolicina::numeric * COALESCE(child.normativ_faktor, 1)::numeric
+               * (snapshot.value->>'quantity')::numeric,
+             COALESCE(snapshot.value->>'mealType', 'ala_carte')
+      FROM postavke child
+      JOIN narocila n ON n.id = child.narocilo_id
+      CROSS JOIN LATERAL jsonb_array_elements(child.availability_requirements) snapshot(value)
+      WHERE n.enota_id = ${enotaId}
+        AND child.parent_postavka_id IS NOT NULL
+        AND child.modifikator_id IS NOT NULL
+        AND child.availability_requirements IS NOT NULL
+        AND n.status <> 'preklicano'
+        AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
+      UNION ALL
+      SELECT mn.vhodni_artikel_id,
+             child.kolicina::numeric * COALESCE(child.normativ_faktor, 1)::numeric * mn.kolicina::numeric,
+             COALESCE(a.meal_type, 'ala_carte')
+      FROM postavke child
+      JOIN narocila n ON n.id = child.narocilo_id
+      JOIN modifikator_normativi mn ON mn.modifikator_id = child.modifikator_id
+      JOIN artikli a ON a.id = mn.vhodni_artikel_id
+      WHERE n.enota_id = ${enotaId}
+        AND child.parent_postavka_id IS NOT NULL
+        AND child.availability_requirements IS NULL
+        AND n.status <> 'preklicano'
+        AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
     )
     SELECT COALESCE(SUM(su.quantity), 0)::float8 AS sold
     FROM sold_usage su

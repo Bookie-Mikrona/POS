@@ -98,6 +98,7 @@ import {
   validateGroupSourceLine,
 } from "@/lib/skupinski-nabavni-artikel";
 import { posFetch } from "@/lib/pos-auth-headers";
+import { ESLOG_UNITS } from "@/components/EslogUnitPicker";
 import { downloadArtikelKatalogPdf, type ArtikelKatalogScope } from "@/lib/artikel-katalog-pdf";
 
 function AlergeniRowPopover({
@@ -148,7 +149,7 @@ const DDV_OPCIJE = [
   { label: "5 % (znižana)", value: 5 },
   { label: "0 % (oproščeno)", value: 0 },
 ];
-const ENOTE_MERE = ["kom", "kg", "g", "l", "dl", "ml", "m", "m²", "m³", "par", "pak", "šk", "pal", "set"];
+const ENOTE_MERE: string[] = ESLOG_UNITS.map(unit => unit.code);
 
 function massYieldZaPrejemnico(
   row: PrejemnicaRow,
@@ -1235,7 +1236,7 @@ function EnotaMereDropdown({
         }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       >
-        <span>{value || "— izberite —"}</span>
+        <span>{ESLOG_UNITS.find(unit => unit.code === value)?.label ?? (value || "— izberite —")}</span>
         <ChevronDown className="w-3 h-3 text-muted-foreground" />
       </button>
       {open && (
@@ -1246,7 +1247,7 @@ function EnotaMereDropdown({
               data-idx={j}
               className={`px-3 py-1.5 text-sm cursor-pointer ${j === hi ? "bg-primary/10 font-medium" : "hover:bg-muted"}`}
               onMouseDown={ev => { ev.preventDefault(); select(e); }}
-            >{e}</div>
+            >{ESLOG_UNITS[j]?.label}</div>
           ))}
         </div>
       )}

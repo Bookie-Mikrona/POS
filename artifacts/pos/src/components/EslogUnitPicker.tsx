@@ -5,27 +5,15 @@ import { X } from "lucide-react";
 
 export const ESLOG_UNITS = [
   { code: "H87", label: "kos (H87)" },
-  { code: "KOM", label: "kos (KOM, starejši zapis)" },
-  { code: "C62", label: "kos (C62)" },
-  { code: "EA", label: "kos (EA)" },
-  { code: "PCE", label: "kos (PCE)" },
-  { code: "NAR", label: "kos (NAR)" },
   { code: "KGM", label: "kilogram (KGM)" },
   { code: "GRM", label: "gram (GRM)" },
-  { code: "DJ", label: "dekagram (DJ)" },
-  { code: "TNE", label: "tona (TNE)" },
   { code: "LTR", label: "liter (LTR)" },
-  { code: "DLT", label: "deciliter (DLT)" },
-  { code: "CLT", label: "centiliter (CLT)" },
   { code: "MLT", label: "mililiter (MLT)" },
   { code: "MTR", label: "meter (MTR)" },
   { code: "MTK", label: "kvadratni meter (MTK)" },
   { code: "MTQ", label: "kubični meter (MTQ)" },
   { code: "CT", label: "karton (CT)" },
   { code: "BX", label: "škatla (BX)" },
-  { code: "CS", label: "zaboj (CS)" },
-  { code: "PF", label: "paleta (PF)" },
-  { code: "KEG", label: "sod (KEG)" },
 ] as const;
 
 function normalize(value: string): string {
@@ -144,6 +132,9 @@ export function EslogUnitPicker({ id, value, onChange, open: controlledOpen, onO
           </div>
         </PopoverContent>
       </Popover>
+      {current.length > 0 && (
+        <span className="text-xs text-amber-700">Obstoječa enota ni v standardnem izboru e-SLOG. Pred izvozom preverite njeno kodo.</span>
+      )}
       {value && (
         <button type="button" aria-label="Odstrani enoto mere" title="Odstrani enoto mere"
           className="rounded p-2 text-muted-foreground hover:bg-muted" onClick={() => { onChange(null); setQuery(""); setOpen(false); }}>
