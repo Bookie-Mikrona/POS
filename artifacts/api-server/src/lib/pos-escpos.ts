@@ -258,6 +258,65 @@ export interface PrintPostavka {
   opomba?: string | null;
   parentPostavkaId?: number | null;
   postavkaId?: number | null;
+  jeEmbalaza?: boolean;
+}
+
+/** Pure display projection; never use this for fiscal or accounting values. */
+export function projectPackagingDisplayPrices(postavke: PrintPostavka[]): PrintPostavka[] {
+  const postavkeById = new Map(
+    postavke.filter(line => line.postavkaId != null).map(line => [line.postavkaId!, line]),
+  );
+  const foldablePackaging = new Set<PrintPostavka>();
+  const packagingByParent = new Map<number, number>();
+  for (const line of postavke) {
+    const parent = line.parentPostavkaId == null ? undefined : postavkeById.get(line.parentPostavkaId);
+    if (
+      line.jeEmbalaza
+      && parent
+      && Number(line.davek) === Number(parent.davek)
+      && line.parentPostavkaId != null
+    ) {
+      foldablePackaging.add(line);
+      packagingByParent.set(line.parentPostavkaId, (packagingByParent.get(line.parentPostavkaId) ?? 0) + line.skupaj);
+    }
+  }
+  return postavke.map((line) => {
+    if (line.jeEmbalaza && !foldablePackaging.has(line)) return { ...line, jeEmbalaza: false };
+    if (foldablePackaging.has(line)) return { ...line, cenaKos: 0, cenaKosOriginalna: null, skupaj: 0 };
+    const packagingTotal = line.postavkaId == null ? 0 : packagingByParent.get(line.postavkaId) ?? 0;
+    if (packagingTotal === 0) return line;
+    const together = Math.round((line.skupaj + packagingTotal + Number.EPSILON) * 100) / 100;
+    const cenaKos = line.kolicina
+      ? Math.round((together / line.kolicina + Number.EPSILON) * 100) / 100
+      : line.cenaKos;
+    const isFullyBonCovered = line.cenaKos === 0 && line.skupaj === 0 && (line.cenaKosOriginalna ?? 0) > 0;
+    const originalPrice = isFullyBonCovered || line.cenaKosOriginalna == null
+      ? null
+      : line.kolicina
+        ? Math.round((line.cenaKosOriginalna + packagingTotal / line.kolicina + Number.EPSILON) * 100) / 100
+        : line.cenaKosOriginalna;
+    return {
+      ...line,
+      cenaKosOriginalna: originalPrice,
+      skupaj: together,
+      cenaKos,
+    };
+  });
+}
+
+/** Prevent e-SLOG from folding differently taxed packaging into a parent's VAT line. */
+export function assertPackagingVatMatchesParent(postavke: PrintPostavka[]): void {
+  const byId = new Map(postavke.filter(line => line.postavkaId != null).map(line => [line.postavkaId!, line]));
+  for (const packaging of postavke) {
+    if (!packaging.jeEmbalaza || packaging.parentPostavkaId == null) continue;
+    const parent = byId.get(packaging.parentPostavkaId);
+    if (parent && Number(packaging.davek) !== Number(parent.davek)) {
+      throw new Error(
+        `e-SLOG display consolidation blocked: packaging "${packaging.ime}" has VAT ${packaging.davek}% ` +
+        `but parent "${parent.ime}" has VAT ${parent.davek}%.`,
+      );
+    }
+  }
 }
 
 export interface PrintRacunData {
@@ -324,6 +383,7 @@ export interface ZcsRacunJson {
  * Enaka vsebina kot buildEscPosReceipt, a brez ESC/POS ukazov.
  */
 export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDoubleHeight = false): ZcsRacunJson {
+  data = { ...data, postavke: projectPackagingDisplayPrices(data.postavke) };
   const linee: string[] = [];
   const formati: string[] = [];
   // fmt: false/"N" = navadno, true/"B" = krepko, "H" = dvojna višina+krepko (BT most v2.5+, NB80 APK v1.2+).
@@ -459,6 +519,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
 
     // Opomba: ena vrstica (brez lomljenja), polnih cols, zamik 2 presledka
     if (p.opomba) line("  " + p.opomba.slice(0, cols - 2));
+    if (p.jeEmbalaza) return;
 
     if (imaPopust && p.cenaKosOriginalna != null) {
       const popustPct = Math.round((1 - p.cenaKos / p.cenaKosOriginalna) * 100);
@@ -476,8 +537,12 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
     // Dodatki
     const pId = p.postavkaId ?? null;
     const dodatki = pId != null ? (dodatekMap.get(pId) ?? []) : [];
-    const placljeniDodatki = dodatki.filter(d => d.skupaj !== 0 || d.cenaKos !== 0);
-    const brezplacniDodatki = dodatki.filter(d => d.skupaj === 0 && d.cenaKos === 0);
+    const embalaze = dodatki.filter(d => d.jeEmbalaza);
+    const placljeniDodatki = dodatki.filter(d => !d.jeEmbalaza && (d.skupaj !== 0 || d.cenaKos !== 0));
+    const brezplacniDodatki = dodatki.filter(d => !d.jeEmbalaza && d.skupaj === 0 && d.cenaKos === 0);
+    for (const d of embalaze) {
+      for (const l of wrapText(d.ime, cols - 2)) line("  " + l);
+    }
     for (const d of placljeniDodatki) {
       // "+ " + naziv v 1. vrstici, DDV+zneski v 2. vrstici — enako kot USB
       const dOkr = davekOkrajsava.get(d.davek) ?? "";
@@ -669,6 +734,7 @@ export function buildTextReceipt(data: PrintRacunData, cols = 32, supportsDouble
 // ZOI:/EOR: brez presledka za dvopičjem — ZOI (32 z.) in EOR (36 z.) se izpišeta
 //   brez dodatnih vrstic vmesnega prostora.
 export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
+  data = { ...data, postavke: projectPackagingDisplayPrices(data.postavke) };
   const COLS    = 40;
   const NAZIV_W = 14;   // širina naziva (zlom tu) — skrajšano za širše stolpce zneskov
   const DDV_W   = 2;    // T1, T2 …
@@ -806,6 +872,11 @@ export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
 
     // Prelom naziva pri NAZIV_W znakih, največ 3 vrstice
     const nazVrstice = wrapText(p.ime, NAZIV_W).slice(0, 3);
+    if (p.jeEmbalaza) {
+      for (const nameLine of nazVrstice) line(padEnd(nameLine, COLS));
+      if (p.opomba) line("  " + p.opomba.slice(0, COLS - 2));
+      return;
+    }
     for (let i = 0; i < nazVrstice.length - 1; i++)
       line(padEnd(nazVrstice[i], COLS));                       // vmesne: samo naziv
     line(padEnd(nazVrstice[nazVrstice.length - 1], NAZIV_W) + nums); // zadnja: naziv + numerika
@@ -823,8 +894,10 @@ export function buildNb80TextReceipt(data: PrintRacunData): ZcsRacunJson {
     printRow(p);
     const pId = p.postavkaId ?? null;
     const dodatki = pId != null ? (dodatekMap.get(pId) ?? []) : [];
-    const placljeni   = dodatki.filter(d => d.skupaj !== 0 || d.cenaKos !== 0);
-    const brezplacni  = dodatki.filter(d => d.skupaj === 0 && d.cenaKos === 0);
+    const embalaze = dodatki.filter(d => d.jeEmbalaza);
+    const placljeni   = dodatki.filter(d => !d.jeEmbalaza && (d.skupaj !== 0 || d.cenaKos !== 0));
+    const brezplacni  = dodatki.filter(d => !d.jeEmbalaza && d.skupaj === 0 && d.cenaKos === 0);
+    for (const d of embalaze) line("  " + d.ime.slice(0, COLS - 2));
     for (const d of placljeni) {
       line("+ " + d.ime.slice(0, COLS - 2));
       if (d.opomba) line("    " + d.opomba.slice(0, COLS - 4));
@@ -961,6 +1034,7 @@ export function buildEscPosReceipt(
   cols = 32,
   opts?: { encoding?: "cp1250" | "wpc1250" | "cp852" | "ascii-translit" },
 ): Uint8Array {
+  data = { ...data, postavke: projectPackagingDisplayPrices(data.postavke) };
   const enc        = opts?.encoding ?? "cp1250";
   const codepageCmd = enc === "ascii-translit"
     ? CMD.CODE_PAGE_437     // PC437 (n=0) — standardna ASCII privzeta tabela
@@ -1218,6 +1292,7 @@ export function buildEscPosReceipt(
     const okr = davekOkrajsava.get(p.davek) ?? "";
     line(p.ime.slice(0, cols));
     if (p.opomba) line("  " + p.opomba.slice(0, cols - 2));
+    if (p.jeEmbalaza) return;
     if (imaPopust && cenaKosOriginalna != null) {
       const popustPct = Math.round((1 - p.cenaKos / cenaKosOriginalna) * 100);
       const popustZnesek = cenaKosOriginalna - p.cenaKos;
@@ -1234,8 +1309,10 @@ export function buildEscPosReceipt(
     // Dodatki
     const pIdEsc = p.postavkaId ?? null;
     const dodatki = pIdEsc != null ? (dodatekMapEsc.get(pIdEsc) ?? []) : [];
-    const placljeniDodatkiEsc = dodatki.filter(d => d.skupaj !== 0 || d.cenaKos !== 0);
-    const brezplacniDodatkiEsc = dodatki.filter(d => d.skupaj === 0 && d.cenaKos === 0);
+    const embalazeEsc = dodatki.filter(d => d.jeEmbalaza);
+    const placljeniDodatkiEsc = dodatki.filter(d => !d.jeEmbalaza && (d.skupaj !== 0 || d.cenaKos !== 0));
+    const brezplacniDodatkiEsc = dodatki.filter(d => !d.jeEmbalaza && d.skupaj === 0 && d.cenaKos === 0);
+    for (const d of embalazeEsc) line("  " + d.ime.slice(0, cols - 2));
     for (const d of placljeniDodatkiEsc) {
       line("+ " + d.ime.slice(0, cols - 2));
       if (d.opomba) line("    " + d.opomba.slice(0, cols - 4));

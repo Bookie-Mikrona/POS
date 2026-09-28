@@ -74,6 +74,7 @@ let tenantMizaId: number;
 let qrToken = randomBytes(32).toString("base64url");
 let vidniArtikelId: number;
 let embalazaArtikelId: number;
+let embalazaKategorijaId: number;
 let skupinaId: number;
 let kategorijaId: number;
 const TEST_QR_LATITUDE = 46.056947;
@@ -300,6 +301,12 @@ beforeAll(async () => {
     vrstniRed: 1,
   }).returning({ id: kategorijeTable.id });
   kategorijaId = kategorija!.id;
+  const [embalazaKategorija] = await db.insert(kategorijeTable).values({
+    enotaId,
+    ime: "eMbAlAžA",
+    vrstniRed: 2,
+  }).returning({ id: kategorijeTable.id });
+  embalazaKategorijaId = embalazaKategorija!.id;
 
   const [vidniArtikel] = await db.insert(artikliTable).values({
     enotaId,
@@ -321,6 +328,7 @@ beforeAll(async () => {
     ime: `Embalaža ${RUN_ID}`,
     cena: "0.30",
     davek: "22",
+    kategorijaId: embalazaKategorijaId,
     prodajniArtikel: false,
     qrNaVoljo: false,
   }).returning({ id: artikliTable.id });
@@ -1153,6 +1161,17 @@ describe("javni QR meni", () => {
       .post(`/javno/meni/${qrToken}/narocilo`)
       .send({ qrNapravaId, postavke: [postavka], znesekNapitnina: 1.25 });
     expect(prvo.status).toBe(201);
+    const savedLines = await db.select({
+      artikelId: postavkeTable.artikelId,
+      modifikatorId: postavkeTable.modifikatorId,
+      parentPostavkaId: postavkeTable.parentPostavkaId,
+      jeEmbalaza: postavkeTable.jeEmbalaza,
+    }).from(postavkeTable).where(eq(postavkeTable.narociloId, prvo.body.narociloId));
+    expect(savedLines.find(line => line.artikelId === embalazaArtikelId)).toMatchObject({
+      parentPostavkaId: expect.any(Number),
+      jeEmbalaza: true,
+    });
+    expect(savedLines.find(line => line.modifikatorId != null)?.jeEmbalaza).toBe(false);
 
     const brezIdentitete = await supertest(publicApp()).get(`/javno/meni/${qrToken}`);
     expect(brezIdentitete.status).toBe(200);

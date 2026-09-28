@@ -105,7 +105,14 @@ export type PosInvoicePdfData = {
   paymentMethod: string;
   total: string;
   vat: string;
-  items: Array<{ name: string; quantity: string; unitPrice: string; total: string; vatRate: string }>;
+  items: Array<{
+    name: string;
+    quantity: string;
+    unitPrice: string;
+    total: string;
+    vatRate: string;
+    isPackaging?: boolean;
+  }>;
 };
 
 export async function generatePosInvoicePdf(data: PosInvoicePdfData): Promise<Buffer> {
@@ -136,8 +143,8 @@ export async function generatePosInvoicePdf(data: PosInvoicePdfData): Promise<Bu
   for (const item of data.items) {
     if (y > 720) { doc.addPage(); y = 42; }
     doc.font("DejaVuSans").fontSize(8).fillColor("#111827").text(`${item.name} (${item.vatRate}% DDV)`, 42, y, { width: 250 })
-      .text(item.quantity, 300, y).text(money(item.unitPrice), 365, y, { width: 75, align: "right" })
-      .text(money(item.total), 450, y, { width: 90, align: "right" });
+      .text(item.quantity, 300, y).text(item.isPackaging ? "" : money(item.unitPrice), 365, y, { width: 75, align: "right" })
+      .text(item.isPackaging ? "" : money(item.total), 450, y, { width: 90, align: "right" });
     y += 16;
   }
   y += 8;

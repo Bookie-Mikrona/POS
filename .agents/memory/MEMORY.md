@@ -13,6 +13,7 @@
 - [POS izbira podjetja](pos-izbira-podjetja.md) — več aktivnih POS vlog je dvoumnih; zahtevaj X-Company-Id, en sam vnos se lahko razreši samodejno
 - [POS kartične reference](pos-karticne-reference.md) — SumUp/Viva referenco je treba atomsko globalno rezervirati pred FURS klicem v vseh računskih tokovih
 - [QR To Go artikli](qr-to-go-artikli.md) — javni QR meni možnost To Go pokaže le pri artiklu, ki jo ima omogočeno; strežnik izbiro vedno preveri.
+- [Prikaz cene To Go embalaže](pos-embalaza-cenovni-prikaz.md) — cena je le prikazno pri staršu, računovodska/DDV vrstica ostane ločena; drugi dodatki ostanejo plačljivi.
 - [Več QR naročil na mizi](qr-vec-narocil-na-mizi.md) — različne naprave ostanejo ločene, POS pa mora na isti mizi prikazati in odpreti vsako naročilo.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
 - [Komunikacija](komunikacija.md) — izključno slovenščina

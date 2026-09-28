@@ -3133,6 +3133,11 @@ export default function Order() {
                 const artRaw = artikliMapForOrder.get(postavka.artikelId) as { jePica?: boolean; modSkupine?: ModSkupinaFull[] } | undefined;
                 const artSkupineOrder = artRaw?.modSkupine ?? [];
                 const dodat = dodMapOrder.get(postavka.id) ?? [];
+                const embalazaSkupaj = dodat
+                  .filter(d => d.jeEmbalaza === true)
+                  .reduce((vsota, d) => vsota + Math.round(d.skupaj * 100), 0) / 100;
+                const cenaKosZEmbalazo = postavka.cenaKos + (postavka.kolicina ? embalazaSkupaj / postavka.kolicina : 0);
+                const skupajZEmbalazo = (Math.round(postavka.skupaj * 100) + Math.round(embalazaSkupaj * 100)) / 100;
                 const jeVecHodniMeni = postavka.isMulticourseBundle === true;
                 const hasDiscount =
                   !jeVecHodniMeni &&
@@ -3308,16 +3313,16 @@ export default function Order() {
                       <span className="hidden sm:flex flex-col items-start ml-1 leading-none">
                         {hasDiscount && (
                           <span className="text-[9px] text-muted-foreground line-through tabular-nums">
-                            {postavka.cenaKosOriginalna!.toFixed(2)} €
+                            {(postavka.cenaKosOriginalna! + (postavka.kolicina ? embalazaSkupaj / postavka.kolicina : 0)).toFixed(2)} €
                           </span>
                         )}
                         <span className={`text-[10px] tabular-nums ${hasDiscount ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
-                          {postavka.cenaKos.toFixed(2)} €/kos
+                          {cenaKosZEmbalazo.toFixed(2)} €/kos
                         </span>
                       </span>
                       <span className="flex-1" />
                       <span className={`text-base font-extrabold tabular-nums ${postavka.kolicina < 0 ? "text-destructive" : "text-foreground"}`}>
-                        {postavka.skupaj.toFixed(2)} €
+                        {skupajZEmbalazo.toFixed(2)} €
                       </span>
                     </div>
                     {/* Vrstica 3: vnosno polje za popust (pogojno) */}
@@ -3359,7 +3364,7 @@ export default function Order() {
                             <Plus className="h-2.5 w-2.5" />
                           </Button>
                         )}
-                        <span className="text-[10px] tabular-nums text-muted-foreground ml-1">{d.skupaj.toFixed(2)} €</span>
+                        {!d.jeEmbalaza && <span className="text-[10px] tabular-nums text-muted-foreground ml-1">{d.skupaj.toFixed(2)} €</span>}
                       </div>
                     ))}
                     {/* Modifikatorji (read-only) */}

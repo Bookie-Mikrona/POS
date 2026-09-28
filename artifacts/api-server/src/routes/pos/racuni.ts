@@ -9,7 +9,7 @@ import { syncPosBookingForDay } from "../../lib/posSyncBooking";
 import { getSimDatumOrNow } from "../../lib/sim-datum";
 import { preveriCheckout as preveriSumupCheckout } from "../../lib/pos-sumup";
 import { classifyFursDeliveryOutcome, fursQrKoda, fursQrUrl as buildFursQrUrl, fursSigningContextFingerprint as signingContextFingerprint, izracunajDDVZaokrozen, izracunajZOILokalno, posljiNaFURS, preveriSkupajKonsistentnost, pridobiCompanyCert, round2, zgradiStornoPayloadIzSnapshota } from "../../lib/pos-furs";
-import { buildEscPosReceipt, buildNb80TextReceipt, buildTextReceipt, type PrintRacunData } from "../../lib/pos-escpos";
+import { assertPackagingVatMatchesParent, buildEscPosReceipt, buildNb80TextReceipt, buildTextReceipt, projectPackagingDisplayPrices, type PrintRacunData } from "../../lib/pos-escpos";
 import { buildEscPosReceiptBitmap } from "../../lib/pos-escpos-bitmap";
 import * as net from "net";
 import iconv from "iconv-lite";
@@ -2697,6 +2697,30 @@ router.post("/racuni", async (req, res): Promise<void> => {
         }
 
         // Zgradi vhod za generator
+        assertPackagingVatMatchesParent(receiptPostavke.map(p => ({
+          ime: String(p.ime),
+          kolicina: Number(p.kolicina),
+          cenaKos: Number(p.cenaKos),
+          skupaj: Number(p.skupaj),
+          davek: Number(p.davek ?? "22"),
+          postavkaId: p.id,
+          parentPostavkaId: p.parentPostavkaId ?? null,
+          jeEmbalaza: p.jeEmbalaza === true,
+        })));
+        const eracunPostavke = projectPackagingDisplayPrices(receiptPostavke.map(p => {
+          const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
+          const cenaBruto = customCena !== undefined ? customCena : Number(p.cenaKos);
+          return {
+            postavkaId: p.id,
+            ime: String(p.ime),
+            kolicina: Number(p.kolicina),
+            cenaKos: cenaBruto,
+            skupaj: round2(cenaBruto * Number(p.kolicina)),
+            davek: Number(p.davek ?? "22"),
+            parentPostavkaId: p.parentPostavkaId ?? null,
+            jeEmbalaza: p.jeEmbalaza === true,
+          };
+        }));
         const eracunVhod: EracunInput = {
           stevilkaRacuna,
           datumCas,
@@ -2704,16 +2728,12 @@ router.post("/racuni", async (req, res): Promise<void> => {
           skupaj: skupaj,
           ddv: ddv,
           osnova: osnova,
-          postavke: receiptPostavke.map(p => {
-            const customCena = (partnerCenikMap && p.artikelId) ? partnerCenikMap.get(p.artikelId) : undefined;
-            const cenaBruto = customCena !== undefined ? customCena : Number(p.cenaKos);
-            return {
-              ime: String(p.ime),
-              kolicina: String(p.kolicina),
-              cenaBrutoKos: String(cenaBruto),
-              davek: String(p.davek ?? "22"),
-            };
-          }),
+          postavke: eracunPostavke.map(p => ({
+            ime: p.ime,
+            kolicina: String(p.kolicina),
+            cenaBrutoKos: String(p.cenaKos),
+            davek: String(p.davek),
+          })),
           izdajatelj: {
             naziv: podjetje.naziv,
             ulica: podjetje.ulica,
@@ -2759,12 +2779,22 @@ router.post("/racuni", async (req, res): Promise<void> => {
             paymentMethod: "negotovinsko",
             total: String(skupaj),
             vat: String(ddv),
-            items: receiptPostavke.map(p => ({
-              name: String(p["ime"]),
-              quantity: String(p["kolicina"]),
-              unitPrice: String(Number(p["cenaKos"])),
-              total: String(p["skupaj"]),
-              vatRate: String(p["davek"] ?? "22"),
+            items: projectPackagingDisplayPrices(receiptPostavke.map(p => ({
+              postavkaId: p.id,
+              ime: String(p.ime),
+              kolicina: Number(p.kolicina),
+              cenaKos: Number(p.cenaKos),
+              skupaj: Number(p.skupaj),
+              davek: Number(p.davek ?? "22"),
+              parentPostavkaId: p.parentPostavkaId ?? null,
+              jeEmbalaza: p.jeEmbalaza === true,
+            }))).map(p => ({
+              name: p.ime,
+              quantity: String(p.kolicina),
+              unitPrice: String(p.cenaKos),
+              total: String(p.skupaj),
+              vatRate: String(p.davek),
+              isPackaging: p.jeEmbalaza === true,
             })),
           });
           eRacunPdf = pdfBuf.toString("base64");
@@ -4199,11 +4229,14 @@ router.get("/racuni/:id/eracun-paket.zip", async (req, res): Promise<void> => {
       pdf = Buffer.from(racun.eRacunPdf, "base64");
     } else {
       const items = await db.select({
+        id: postavkeTable.id,
         name: postavkeTable.ime,
         quantity: postavkeTable.kolicina,
         unitPrice: postavkeTable.cenaKos,
         total: postavkeTable.skupaj,
         vatRate: postavkeTable.davek,
+        parentPostavkaId: postavkeTable.parentPostavkaId,
+        jeEmbalaza: postavkeTable.jeEmbalaza,
       }).from(postavkeTable).where(and(
         eq(postavkeTable.racunId, id),
         receiptVisiblePostavkaClause(),
@@ -4217,12 +4250,22 @@ router.get("/racuni/:id/eracun-paket.zip", async (req, res): Promise<void> => {
         paymentMethod: racun.placilnaNacin,
         total: racun.skupaj,
         vat: racun.ddv,
-        items: items.map((item) => ({
-          name: item.name,
-          quantity: String(item.quantity),
-          unitPrice: String(item.unitPrice),
-          total: String(item.total),
-          vatRate: String(item.vatRate),
+        items: projectPackagingDisplayPrices(items.map((item) => ({
+          postavkaId: item.id,
+          ime: item.name,
+          kolicina: Number(item.quantity),
+          cenaKos: Number(item.unitPrice),
+          skupaj: Number(item.total),
+          davek: Number(item.vatRate),
+          parentPostavkaId: item.parentPostavkaId,
+          jeEmbalaza: item.jeEmbalaza === true,
+        }))).map((item) => ({
+          name: item.ime,
+          quantity: String(item.kolicina),
+          unitPrice: String(item.cenaKos),
+          total: String(item.skupaj),
+          vatRate: String(item.davek),
+          isPackaging: item.jeEmbalaza === true,
         })),
       });
     }
@@ -4312,11 +4355,14 @@ router.post("/racuni/:id/eracun/poslji-email", async (req, res): Promise<void> =
   } else {
     try {
       const items = await db.select({
+        id: postavkeTable.id,
         name: postavkeTable.ime,
         quantity: postavkeTable.kolicina,
         unitPrice: postavkeTable.cenaKos,
         total: postavkeTable.skupaj,
         vatRate: postavkeTable.davek,
+        parentPostavkaId: postavkeTable.parentPostavkaId,
+        jeEmbalaza: postavkeTable.jeEmbalaza,
       }).from(postavkeTable).where(and(
         eq(postavkeTable.racunId, id),
         receiptVisiblePostavkaClause(),
@@ -4331,12 +4377,22 @@ router.post("/racuni/:id/eracun/poslji-email", async (req, res): Promise<void> =
         paymentMethod: racun.placilnaNacin,
         total: racun.skupaj,
         vat: racun.ddv,
-        items: items.map(item => ({
-          name: item.name,
-          quantity: String(item.quantity),
-          unitPrice: String(item.unitPrice),
-          total: String(item.total),
-          vatRate: String(item.vatRate),
+        items: projectPackagingDisplayPrices(items.map((item) => ({
+          postavkaId: item.id,
+          ime: item.name,
+          kolicina: Number(item.quantity),
+          cenaKos: Number(item.unitPrice),
+          skupaj: Number(item.total),
+          davek: Number(item.vatRate),
+          parentPostavkaId: item.parentPostavkaId,
+          jeEmbalaza: item.jeEmbalaza === true,
+        }))).map(item => ({
+          name: item.ime,
+          quantity: String(item.kolicina),
+          unitPrice: String(item.cenaKos),
+          total: String(item.skupaj),
+          vatRate: String(item.davek),
+          isPackaging: item.jeEmbalaza === true,
         })),
       });
     } catch (pdfErr) {
@@ -4561,7 +4617,7 @@ router.get("/print/racun/:id/nb80", async (req: Request, res: Response): Promise
       cenaKos: postavkeTable.cenaKos, cenaKosOriginalna: postavkeTable.cenaKosOriginalna,
       skupaj: postavkeTable.skupaj, davek: postavkeTable.davek,
       opomba: postavkeTable.opomba, parentPostavkaId: postavkeTable.parentPostavkaId,
-      artikelId: postavkeTable.artikelId,
+      artikelId: postavkeTable.artikelId, jeEmbalaza: postavkeTable.jeEmbalaza,
     }).from(postavkeTable).where(and(
       eq(postavkeTable.racunId, id),
       receiptVisiblePostavkaClause(),
@@ -4638,6 +4694,7 @@ router.get("/print/racun/:id/nb80", async (req: Request, res: Response): Promise
       cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
       skupaj: Number(p.skupaj), davek: Number(p.davek),
       opomba: p.opomba ?? null, parentPostavkaId: p.parentPostavkaId ?? null,
+      jeEmbalaza: p.jeEmbalaza === true,
     })),
   };
   // NB80 58mm: 32 kolon (vsi 58mm izpisi imajo 32 kolon, razen ZCS Z92 s 30)
@@ -4694,7 +4751,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
       cenaKos: postavkeTable.cenaKos, cenaKosOriginalna: postavkeTable.cenaKosOriginalna,
       skupaj: postavkeTable.skupaj, davek: postavkeTable.davek,
       opomba: postavkeTable.opomba, parentPostavkaId: postavkeTable.parentPostavkaId,
-      artikelId: postavkeTable.artikelId,
+      artikelId: postavkeTable.artikelId, jeEmbalaza: postavkeTable.jeEmbalaza,
     }).from(postavkeTable).where(and(
       eq(postavkeTable.racunId, id),
       receiptVisiblePostavkaClause(),
@@ -4778,6 +4835,7 @@ router.get("/print/racun/:id/zcs", async (req: Request, res: Response): Promise<
       cenaKosOriginalna: p.cenaKosOriginalna != null ? Number(p.cenaKosOriginalna) : null,
       skupaj: Number(p.skupaj), davek: Number(p.davek),
       opomba: p.opomba ?? null, parentPostavkaId: p.parentPostavkaId ?? null,
+      jeEmbalaza: p.jeEmbalaza === true,
     })),
   }, reqCols, supportsDoubleHeight);
 
@@ -4873,6 +4931,7 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       opomba: postavkeTable.opomba,
       parentPostavkaId: postavkeTable.parentPostavkaId,
       artikelId: postavkeTable.artikelId,
+      jeEmbalaza: postavkeTable.jeEmbalaza,
     }).from(postavkeTable).where(and(
       eq(postavkeTable.racunId, id),
       receiptVisiblePostavkaClause(),
@@ -4915,6 +4974,7 @@ router.get("/print/racun/:id/html", async (req: Request, res: Response): Promise
       davek: Number(p.davek),
       opomba: p.opomba ?? null,
       parentPostavkaId: p.parentPostavkaId ?? null,
+      jeEmbalaza: p.jeEmbalaza === true,
     })),
     skupaj: Number(racun.skupaj),
     ddv: Number(racun.ddv),
@@ -5242,6 +5302,7 @@ async function buildEscPosBytes(
       skupaj: Number(p.skupaj), davek: Number(p.davek),
       opomba: (p.opomba as string | null) ?? null,
       parentPostavkaId: (p.parentPostavkaId as number | null) ?? null,
+      jeEmbalaza: p.jeEmbalaza === true,
     })),
   };
   // ── Bitmap (slikovni) način — rastrska slika; GBK-odporno ─────────────────

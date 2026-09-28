@@ -430,6 +430,16 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     classification: "schema",
     dependsOn: ["233-drobni-inventar-vhodni-ddv.sql"],
   },
+  {
+    file: "235-invoice-line-asset-type.sql",
+    classification: "schema",
+    dependsOn: ["234-drobni-inventar-skupine.sql"],
+  },
+  {
+    file: "236-pos-line-packaging-snapshot.sql",
+    classification: "schema",
+    dependsOn: ["235-invoice-line-asset-type.sql"],
+  },
 ];
 
 const migrationHeader = /^(?:\uFEFF)?--[ \t]*test-bootstrap:[ \t]*(schema|integrity|privacy|audit|excluded)[ \t]*\r?\n(?:--[ \t]*test-bootstrap-reason:[ \t]*(\S(?:.*\S)?)[ \t]*\r?\n)?/;

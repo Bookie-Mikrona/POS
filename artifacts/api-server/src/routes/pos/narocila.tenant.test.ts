@@ -11,6 +11,7 @@ import {
   kdsDogodkiTable,
   kdsIzdajaDogodkiTable,
   kdsNalogiTable,
+  kategorijeTable,
   modNormativiTable,
   modifikatorjiTable,
   modSkupineTable,
@@ -165,6 +166,102 @@ afterAll(async () => {
 });
 
 describe("naročila — obramba med naročili in enotami", () => {
+  it("označi samo povezano embalažo pod To Go staršem", async () => {
+    const narociloId = await ustvariNarocilo();
+    const [packagingCategory] = await db.insert(kategorijeTable).values({
+      enotaId,
+      ime: "eMbAlAžA",
+    }).returning({ id: kategorijeTable.id });
+    const [foodCategory] = await db.insert(kategorijeTable).values({
+      enotaId,
+      ime: "Hrana",
+    }).returning({ id: kategorijeTable.id });
+    const [packagingArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Embalaža ${RUN_ID}`,
+      cena: "0.30",
+      davek: "22",
+      kategorijaId: packagingCategory!.id,
+    }).returning({ id: artikliTable.id });
+    const [unlistedPackagingArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Druga embalaža ${RUN_ID}`,
+      cena: "0.40",
+      davek: "22",
+      kategorijaId: packagingCategory!.id,
+    }).returning({ id: artikliTable.id });
+    const [ordinaryArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `Dodatek ${RUN_ID}`,
+      cena: "0.50",
+      davek: "22",
+      kategorijaId: foodCategory!.id,
+    }).returning({ id: artikliTable.id });
+    const [parentArticle] = await db.insert(artikliTable).values({
+      enotaId,
+      ime: `To Go obrok ${RUN_ID}`,
+      cena: "10.00",
+      davek: "22",
+      toGo: true,
+      toGoArtikli: [packagingArticle!.id, ordinaryArticle!.id],
+    }).returning({ id: artikliTable.id });
+
+    const parentResponse = await supertest(app())
+      .post(`/narocila/${narociloId}/postavke`)
+      .send({ artikelId: parentArticle!.id, kolicina: 1, toGo: true });
+    expect(parentResponse.status).toBe(201);
+    const [parentLine] = await db.select({ id: postavkeTable.id }).from(postavkeTable).where(and(
+      eq(postavkeTable.narociloId, narociloId),
+      eq(postavkeTable.artikelId, parentArticle!.id),
+    ));
+
+    for (const childArticleId of [packagingArticle!.id, unlistedPackagingArticle!.id, ordinaryArticle!.id]) {
+      const childResponse = await supertest(app())
+        .post(`/narocila/${narociloId}/postavke`)
+        .send({
+          artikelId: childArticleId,
+          kolicina: 1,
+          parentPostavkaId: parentLine!.id,
+        });
+      expect(childResponse.status).toBe(201);
+      expect(childResponse.body.postavke.find((line: { artikelId: number }) => line.artikelId === childArticleId)?.jeEmbalaza)
+        .toBe(childArticleId === packagingArticle!.id);
+    }
+
+    const childLines = await db.select({
+      artikelId: postavkeTable.artikelId,
+      jeEmbalaza: postavkeTable.jeEmbalaza,
+    }).from(postavkeTable).where(and(
+      eq(postavkeTable.narociloId, narociloId),
+      eq(postavkeTable.parentPostavkaId, parentLine!.id),
+    ));
+    expect(childLines.find(line => line.artikelId === packagingArticle!.id)?.jeEmbalaza).toBe(true);
+    expect(childLines.find(line => line.artikelId === unlistedPackagingArticle!.id)?.jeEmbalaza).toBe(false);
+    expect(childLines.find(line => line.artikelId === ordinaryArticle!.id)?.jeEmbalaza).toBe(false);
+
+    const dineInOrderId = await ustvariNarocilo();
+    await supertest(app())
+      .post(`/narocila/${dineInOrderId}/postavke`)
+      .send({ artikelId: parentArticle!.id, kolicina: 1, toGo: false });
+    const [dineInParent] = await db.select({ id: postavkeTable.id }).from(postavkeTable).where(and(
+      eq(postavkeTable.narociloId, dineInOrderId),
+      eq(postavkeTable.artikelId, parentArticle!.id),
+    ));
+    await supertest(app())
+      .post(`/narocila/${dineInOrderId}/postavke`)
+      .send({
+        artikelId: packagingArticle!.id,
+        kolicina: 1,
+        parentPostavkaId: dineInParent!.id,
+      });
+    const [dineInChild] = await db.select({ jeEmbalaza: postavkeTable.jeEmbalaza }).from(postavkeTable).where(and(
+      eq(postavkeTable.narociloId, dineInOrderId),
+      eq(postavkeTable.parentPostavkaId, dineInParent!.id),
+      eq(postavkeTable.artikelId, packagingArticle!.id),
+    ));
+    expect(dineInChild?.jeEmbalaza).toBe(false);
+  });
+
   it("shrani enonivojske izbire po pozitivnem izvornem artiklu z ulomljeno količino", async () => {
     const narociloId = await ustvariNarocilo();
     const [sourceArticle] = await db.insert(artikliTable).values({

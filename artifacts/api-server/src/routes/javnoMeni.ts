@@ -1814,11 +1814,14 @@ router.post(
           id: artikliTable.id,
           ime: artikliTable.ime,
           cena: artikliTable.cena,
-        }).from(artikliTable).where(and(
-          inArray(artikliTable.id, toGoArtikelIds),
-          eq(artikliTable.enotaId, context.enotaId),
-          eq(artikliTable.aktiven, true),
-        ))
+          kategorijaIme: kategorijeTable.ime,
+        }).from(artikliTable)
+          .leftJoin(kategorijeTable, eq(artikliTable.kategorijaId, kategorijeTable.id))
+          .where(and(
+            inArray(artikliTable.id, toGoArtikelIds),
+            eq(artikliTable.enotaId, context.enotaId),
+            eq(artikliTable.aktiven, true),
+          ))
       : [];
     const toGoArtikliById = new Map(toGoArtikli.map((artikel) => [artikel.id, artikel]));
 
@@ -1840,7 +1843,7 @@ router.post(
       cenaKos: number;
       velikostPice: { id: PizzaVelikostId; naziv: string; premerCm: number; normativFaktor: number } | undefined;
       pizzaDoughArticleId: number | null;
-      samodejniToGoArtikli: Array<{ id: number; ime: string; cena: string }>;
+      samodejniToGoArtikli: Array<{ id: number; ime: string; cena: string; kategorijaIme: string | null }>;
     }> = [];
 
     for (const line of input.postavke) {
@@ -1954,7 +1957,7 @@ router.post(
                 .filter((artikelId): artikelId is number => Number.isInteger(artikelId) && artikelId > 0 && artikelId !== artikel.id),
             ))
               .map((artikelId) => toGoArtikliById.get(artikelId))
-              .filter((artikel): artikel is { id: number; ime: string; cena: string } => artikel !== undefined)
+              .filter((artikel): artikel is { id: number; ime: string; cena: string; kategorijaIme: string | null } => artikel !== undefined)
           : [],
       });
     }
@@ -2244,6 +2247,7 @@ router.post(
             jeDelMenija: line.jeDelMenija,
             opomba: null,
             toGo: true,
+            jeEmbalaza: toGoArtikel.kategorijaIme?.toLowerCase() === "embalaža",
             vrstaArtikla: line.artikel.vrstaArtikla,
             parentPostavkaId: postavka.id,
             ustvarjeno: simDatum,

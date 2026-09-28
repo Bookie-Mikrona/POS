@@ -386,6 +386,7 @@ async function fetchPostavke(narociloId: number) {
       velikostPice: postavkeTable.velikostPice,
       toGo: postavkeTable.toGo,
       jeDelMenija: postavkeTable.jeDelMenija,
+      jeEmbalaza: postavkeTable.jeEmbalaza,
       courseNumber: postavkeTable.courseNumber,
       courseSequence: postavkeTable.courseSequence,
       courseNameSnapshot: postavkeTable.courseNameSnapshot,
@@ -433,6 +434,7 @@ async function fetchPostavke(narociloId: number) {
     velikostPice: p.velikostPice ?? null,
     toGo: p.toGo ?? false,
     jeDelMenija: p.jeDelMenija ?? false,
+    jeEmbalaza: p.jeEmbalaza ?? false,
     courseNumber: p.courseNumber ?? null,
     courseSequence: p.courseSequence ?? null,
     courseNameSnapshot: p.courseNameSnapshot ?? null,
@@ -2541,11 +2543,14 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
         id: artikliTable.id,
         ime: artikliTable.ime,
         cena: artikliTable.cena,
-      }).from(artikliTable).where(and(
-        inArray(artikliTable.id, samodejniToGoArtikelIds),
-        eq(artikliTable.enotaId, tenotaId),
-        eq(artikliTable.aktiven, true),
-      ))
+        kategorijaIme: kategorijeTable.ime,
+      }).from(artikliTable)
+        .leftJoin(kategorijeTable, eq(artikliTable.kategorijaId, kategorijeTable.id))
+        .where(and(
+          inArray(artikliTable.id, samodejniToGoArtikelIds),
+          eq(artikliTable.enotaId, tenotaId),
+          eq(artikliTable.aktiven, true),
+        ))
     : [];
 
   // DDV zavezanec — ko podjetje ni DDV zavezanec (id_za_ddv ne začne s "SI"), je davek vedno 0.
@@ -2557,6 +2562,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   let davekZaPostavko = jeDdvZavezanec ? String(artikel.davek) : "0";
   let vrstaArtiklaZaPostavko: string = artikel.vrstaArtikla ?? "storitev";
   let appliedRuleId: number | null = null;
+  let jeEmbalaza = false;
   let jeDelMenijaZaPostavko =
     Boolean((artikel as Record<string, unknown>).jeDelMenija)
     && isMenuEligibleTaxCategory(String((artikel as Record<string, unknown>).taxCategory ?? ""));
@@ -2564,6 +2570,8 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   if (parentPostavkaId != null) {
     // Child postavka → podeduje DDV od starša (PZDDV pravilo)
     const [parentPostavka] = await db.select({
+      artikelId: postavkeTable.artikelId,
+      toGo: postavkeTable.toGo,
       davek: postavkeTable.davek,
       vrstaArtikla: postavkeTable.vrstaArtikla,
       jeDelMenija: postavkeTable.jeDelMenija,
@@ -2580,6 +2588,20 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
     davekZaPostavko = jeDdvZavezanec ? String(parentPostavka.davek) : "0";
     if (parentPostavka.vrstaArtikla) vrstaArtiklaZaPostavko = parentPostavka.vrstaArtikla;
     jeDelMenijaZaPostavko = parentPostavka.jeDelMenija;
+    if (parentPostavka.toGo && parentPostavka.artikelId != null) {
+      const [parentArtikel] = await db.select({ toGoArtikli: artikliTable.toGoArtikli })
+        .from(artikliTable).where(and(
+          eq(artikliTable.id, parentPostavka.artikelId),
+          eq(artikliTable.enotaId, tenotaId),
+        ));
+      const [childCategory] = await db.select({ ime: kategorijeTable.ime })
+        .from(artikliTable)
+        .leftJoin(kategorijeTable, eq(artikliTable.kategorijaId, kategorijeTable.id))
+        .where(and(eq(artikliTable.id, artikel.id), eq(artikliTable.enotaId, tenotaId)));
+      jeEmbalaza = Array.isArray(parentArtikel?.toGoArtikli)
+        && parentArtikel.toGoArtikli.includes(artikel.id)
+        && childCategory?.ime?.toLowerCase() === "embalaža";
+    }
   } else if (jeDdvZavezanec) {
     // Starševska postavka → DDV razreševalnik
     const [vatRules, nastavitve] = await Promise.all([
@@ -2773,6 +2795,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
       mealType: artikel.mealType ?? "ala_carte",
       appliedRuleId: appliedRuleId ?? undefined,
       jeDelMenija: jeDelMenijaZaPostavko,
+      jeEmbalaza,
        velikostPice: izbranaVelikostPice?.id,
        normativFaktor: String(izbranaVelikostPice?.normativFaktor ?? 1),
        toGo: postavkaToGo,
@@ -2855,6 +2878,7 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
         gostStevilka,
         vrstaArtikla: vrstaArtiklaZaPostavko,
         toGo: true,
+        jeEmbalaza: toGoArtikel.kategorijaIme?.toLowerCase() === "embalaža",
         parentPostavkaId: inserted.id,
       });
     }

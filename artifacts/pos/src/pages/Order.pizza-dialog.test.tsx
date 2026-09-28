@@ -989,6 +989,36 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     ]));
   });
 
+  it("ceno To Go embalaže prikaže pri pici, ne pa pri škatli; plačljivi dodatek ostane ločen", async () => {
+    mockOrderForOptions.current = {
+      ...mockNarocilo,
+      postavke: [
+        {
+          id: 501, artikelId: mockPica.id, ime: "Bolonjska", kolicina: 1,
+          cenaKos: 13.5, skupaj: 13.5, davek: 9.5, toGo: true, racunId: null,
+          parentPostavkaId: null, modifikatorId: null,
+        },
+        {
+          id: 502, artikelId: 30, ime: "Škatla za pico", kolicina: 1,
+          cenaKos: 0.7, skupaj: 0.7, davek: 9.5, jeEmbalaza: true, racunId: null,
+          parentPostavkaId: 501, modifikatorId: null,
+        },
+        {
+          id: 503, artikelId: 31, ime: "Plačljiv dodatek", kolicina: 1,
+          cenaKos: 1.2, skupaj: 1.2, davek: 9.5, jeEmbalaza: false, racunId: null,
+          parentPostavkaId: 501, modifikatorId: null,
+        },
+      ],
+    };
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+    expect(screen.getByText("14.20 €")).toBeInTheDocument();
+    expect(screen.getByText("14.20 €/kos")).toBeInTheDocument();
+    expect(screen.getByText("Škatla za pico").parentElement).not.toHaveTextContent("0.70 €");
+    expect(screen.getByText("Plačljiv dodatek").parentElement).toHaveTextContent("1.20 €");
+  });
+
   it("pri že naročenem zrezku omogoči spremembo obvezne priloge brez izgube solate", async () => {
     const skupine = [
       { id: 4938, ime: "Dunajski zrezek", options: [{ id: 601, ime: "Dunajski" }, { id: 602, ime: "Piščančji" }] },

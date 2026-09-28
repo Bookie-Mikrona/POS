@@ -120,6 +120,8 @@ export const postavkeTable = pgTable("postavke", {
   appliedRuleId: integer("applied_rule_id"),
   /** Nespremenljiv posnetek, da je bila postavka ob prodaji del menija. */
   jeDelMenija: boolean("je_del_menija").notNull().default(false),
+  /** Nespremenljiv posnetek, da je postavka embalaža, dodana za s seboj. */
+  jeEmbalaza: boolean("je_embalaza").notNull().default(false),
   /** Izbrana velikost pice in njen nespremenljiv faktor za normative. */
   velikostPice: text("velikost_pice", { enum: ["mala", "normalna", "druzinska"] }),
   /** Nespremenljiv posnetek artikla testa, uporabljenega za velikost pice. */

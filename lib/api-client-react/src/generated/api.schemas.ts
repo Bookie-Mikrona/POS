@@ -2868,6 +2868,8 @@ export interface Postavka {
      * @nullable
      */
   parentPostavkaId?: number | null;
+  /** Nespremenljiv posnetek, da je podrejena postavka To Go embalaža; njena cena je prikazana pri nadrejenem artiklu. */
+  jeEmbalaza?: boolean;
   /**
      * ID modifikatorja, ce je ta postavka modifier child row (null za navadne postavke)
      * @nullable

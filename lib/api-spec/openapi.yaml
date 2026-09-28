@@ -12888,6 +12888,9 @@ components:
             - integer
             - "null"
           description: ID nadrejene postavke (pice), kateri ta dodatek pripada
+        jeEmbalaza:
+          type: boolean
+          description: Nespremenljiv posnetek, da je podrejena postavka To Go embalaža; njena cena je prikazana pri nadrejenem artiklu.
         modifikatorId:
           type:
             - integer
