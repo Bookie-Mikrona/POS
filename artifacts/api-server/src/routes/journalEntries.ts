@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type IRouter } from "express";
-import { eq, and, asc, gte, lte, inArray, exists } from "drizzle-orm";
+import { eq, and, asc, gte, lte, inArray, exists, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 import {
   db,
@@ -37,6 +37,7 @@ import {
   deleteDraftJournalEntry,
   JournalEntryDeletionError,
 } from "../lib/journalEntryDeletion";
+import { isReservedOpeningReference, loadAnnualOpening, matchesAnnualOpening } from "../lib/annualOpening";
 
 const router: IRouter = Router();
 
@@ -320,6 +321,12 @@ router.post(
     }
 
     const { periodId, description, reference, lines: requestedLines, autoPost, sourceType } = parsed.data;
+    // Annual opening references are reserved for the audited annual-opening
+    // workflow. In particular, autoPost must never bypass its reconciliation.
+    if (isReservedOpeningReference(reference)) {
+      res.status(409).json({ error: "Letno otvoritev pripravite prek postopka v Računovodskih obdobjih" });
+      return;
+    }
     let lines = requestedLines;
 
     // Preveri period pripada podjetju
@@ -736,6 +743,7 @@ router.post(
         partnerId: journalEntryLinesTable.partnerId,
         costCenterId: journalEntryLinesTable.costCenterId,
         projectId: journalEntryLinesTable.projectId,
+        departmentId: journalEntryLinesTable.departmentId,
         vatCodeId: journalEntryLinesTable.vatCodeId,
         companyVatCodeId: journalEntryLinesTable.companyVatCodeId,
         vatAmount: journalEntryLinesTable.vatAmount,
@@ -748,6 +756,37 @@ router.post(
     // §68 — Balance check z Decimal natančnostjo
     const balanceErr = checkBalance(lines);
     if (balanceErr) { res.status(400).json(balanceErr); return; }
+
+    // An annual aggregate opening is the ONLY partner-free posting on 120/220.
+    // Verify every amount against the locked prior year, never just the reference.
+    let verifiedOpening = false;
+    if (entry.reference?.startsWith("OTV-")) {
+      try {
+        const snapshot = await loadAnnualOpening(companyId, entry.periodId);
+        if (!matchesAnnualOpening(entry, lines, snapshot)) {
+          throw new Error("Vrstice otvoritve se ne ujemajo z zaključenim letom");
+        }
+        if (!snapshot.reconciled) {
+          throw new Error("Odprte postavke 120/220 se ne ujemajo z GK ali nimajo dokazil; preverite razliko pred knjiženjem");
+        }
+        const [other] = await db.select({ id: journalEntriesTable.id }).from(journalEntriesTable)
+          .where(and(
+            eq(journalEntriesTable.companyId, companyId),
+            eq(journalEntriesTable.periodId, entry.periodId),
+            eq(journalEntriesTable.status, "posted"),
+            sql`${journalEntriesTable.id} <> ${id}`,
+            sql`(${journalEntriesTable.reference} LIKE ${`OTV-${snapshot.year}-%`}
+              OR ${journalEntriesTable.reference} LIKE ${`BOOKIE-OLD/K2/${snapshot.year}/00/%`})`,
+          )).limit(1);
+        if (other) throw new Error("Otvoritev za to leto je že knjižena");
+        verifiedOpening = true;
+      } catch (error) {
+        res.status(409).json(accountingError(
+          "ENTRY_NOT_BALANCED", error instanceof Error ? error.message : "Otvoritve ni mogoče knjižiti",
+        ));
+        return;
+      }
+    }
 
     // §69, §70 — Validacija kontov (isActive, allowsPosting, dimenzije)
     const lineAccountIds = [...new Set(lines.map((l) => l.accountId))];
@@ -777,7 +816,8 @@ router.post(
           res.status(400).json(accountingError("ACCOUNT_NOT_POSTABLE", `Na konto ${acc.code} ni dovoljeno neposredno knjižiti (skupinski konto).`, { account: acc.code }));
           return;
         }
-        if (acc.requiresPartner && !line.partnerId) {
+        if (acc.requiresPartner && !line.partnerId
+          && !(verifiedOpening && /^(120|220)/.test(acc.code))) {
           res.status(400).json(accountingError("PARTNER_REQUIRED", `Za konto ${acc.code} je poslovni partner obvezen.`, { account: acc.code, dimension: "PARTNER" }));
           return;
         }
@@ -799,10 +839,29 @@ router.post(
     const now = new Date();
     try {
       await db.transaction(async (tx) => {
-        await tx
+        if (verifiedOpening) {
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`annual-opening:${companyId}:${entry.periodId}`}))`);
+          const fresh = await loadAnnualOpening(companyId, entry.periodId, tx as unknown as typeof db);
+          if (!fresh.reconciled || !matchesAnnualOpening(entry, lines, fresh)) {
+            throw new Error("Otvoritev ali odprte postavke so se med potrditvijo spremenile");
+          }
+          const [duplicate] = await tx.select({ id: journalEntriesTable.id }).from(journalEntriesTable)
+            .where(and(
+              eq(journalEntriesTable.companyId, companyId),
+              eq(journalEntriesTable.periodId, entry.periodId),
+              eq(journalEntriesTable.status, "posted"),
+              sql`${journalEntriesTable.id} <> ${id}`,
+              sql`(${journalEntriesTable.reference} LIKE ${`OTV-${fresh.year}-%`}
+                OR ${journalEntriesTable.reference} LIKE ${`BOOKIE-OLD/K2/${fresh.year}/00/%`})`,
+            )).limit(1);
+          if (duplicate) throw new Error("Otvoritev za to leto je že knjižena");
+        }
+        const [posted] = await tx
           .update(journalEntriesTable)
           .set({ status: "posted", approvedBy: authReq.clerkUserId, postedAt: now })
-          .where(eq(journalEntriesTable.id, id));
+          .where(and(eq(journalEntriesTable.id, id), eq(journalEntriesTable.status, "draft")))
+          .returning({ id: journalEntriesTable.id });
+        if (!posted) throw new Error("Temeljnica ni več osnutek");
         // SŠP zbirni dokument je vezan na dnevno POS temeljnico. Dokler je
         // temeljnica osnutek, ni poravnaven; ob potrditvi postane viden
         // generičnemu payment toku kot odprta terjatev.

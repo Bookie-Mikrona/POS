@@ -24,3 +24,9 @@ Stari izvozi glavne knjige in prometa niso nadomestilo za izvirne prejete/izdane
 Ne trdi, da izvoz Promet nima številk računov: polje **Stevilka1** je izpolnjeno pri vseh opazovanih prejetih in izdanih računih. Pri prejetih je videti kot dobaviteljeva številka, pri izdanih kot zaporedna številka; pri banki je lahko številka izpiska. **Why:** Prazni polji Dokument1/Dokument2 sta zavajajoči in sta povzročili preveč kategorično oceno manjkajočih podatkov. **How to apply:** Loči glavo/finančni povzetek, ki ga je morda mogoče rekonstruirati, od neobstoječih izvirnih postavk, preverjenega DDV pomena, plačilne sledi in dokazila izvirnega dokumenta.
 
 Več starih šifer partnerjev lahko nosi isto davčno številko, tudi pod različnimi nazivi. **Why:** Ciljna baza zahteva edinstveno davčno številko na podjetje, zato ločen vnos vseh starih šifer odpove. **How to apply:** Pri GK osnutkih jih poveži na enega davčnega zavezanca, na vsaki knjižbeni vrstici pa ohrani zgodovinsko staro šifro in naziv; ne spreminjaj ali združuj izvirnih dokumentov na podlagi ugibanja.
+
+Pri časovnem preseku zgodovinskih zapiranj **sourceAsOf ni datum zaprtja**: označuje dan izdelave posnetka. Datum posamezne povezave je v dokazilu Zapiranje zapisan kot `recordedDate` v obliki mesec/dan/leto (M/D/YYYY), ne kot slovenski dan/mesec/leto.
+
+**Why:** Naknadno pridobljen posnetek vsebuje tudi mnogo starejša zapiranja. Filtriranje po datumu posnetka bi v prejšnjih letih napačno prikazalo že poravnane račune kot odprte.
+
+**How to apply:** Za saldakontni izpis na zgodovinski datum preverjaj datum posameznega zapiranja v dokazilu; pred uporabo kontroliraj obliko in veljavnost datuma. Ne predpostavljaj, da je trenutni seznam odprtih postavk tudi pravilen zgodovinski seznam.

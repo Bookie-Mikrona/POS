@@ -27,6 +27,7 @@ import type {
   AjpesLookupBody,
   AjpesLookupResponse,
   AlergenPovzetek,
+  AnnualOpeningPreview,
   AnthropicConversation,
   AnthropicConversationInput,
   ApiError,
@@ -22062,6 +22063,161 @@ export const useUpdatePeriod = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdatePeriodMutationOptions(options));
+    }
+
+export const getPreviewAnnualOpeningUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/periods/${id}/opening`
+}
+
+/**
+ * @summary Preview the opening based on the locked previous year
+ */
+export const previewAnnualOpening = async (companyId: string,
+    id: string, options?: RequestInit): Promise<AnnualOpeningPreview> => {
+
+  return customFetch<AnnualOpeningPreview>(getPreviewAnnualOpeningUrl(companyId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewAnnualOpeningQueryKey = (companyId: string,
+    id: string,) => {
+    return [
+    `/api/companies/${companyId}/periods/${id}/opening`
+    ] as const;
+    }
+
+
+export const getPreviewAnnualOpeningQueryOptions = <TData = Awaited<ReturnType<typeof previewAnnualOpening>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewAnnualOpening>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewAnnualOpeningQueryKey(companyId,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewAnnualOpening>>> = ({ signal }) => previewAnnualOpening(companyId,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewAnnualOpening>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewAnnualOpeningQueryResult = NonNullable<Awaited<ReturnType<typeof previewAnnualOpening>>>
+export type PreviewAnnualOpeningQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Preview the opening based on the locked previous year
+ */
+
+export function usePreviewAnnualOpening<TData = Awaited<ReturnType<typeof previewAnnualOpening>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewAnnualOpening>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewAnnualOpeningQueryOptions(companyId,id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPrepareAnnualOpeningUrl = (companyId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/periods/${id}/opening`
+}
+
+/**
+ * @summary Create an unposted annual opening or return the matching existing one
+ */
+export const prepareAnnualOpening = async (companyId: string,
+    id: string, options?: RequestInit): Promise<AnnualOpeningPreview> => {
+
+  return customFetch<AnnualOpeningPreview>(getPrepareAnnualOpeningUrl(companyId,id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPrepareAnnualOpeningMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareAnnualOpening>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof prepareAnnualOpening>>, TError,{companyId: string;id: string}, TContext> => {
+
+const mutationKey = ['prepareAnnualOpening'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof prepareAnnualOpening>>, {companyId: string;id: string}> = (props) => {
+          const {companyId,id} = props ?? {};
+
+          return  prepareAnnualOpening(companyId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrepareAnnualOpeningMutationResult = NonNullable<Awaited<ReturnType<typeof prepareAnnualOpening>>>
+
+    export type PrepareAnnualOpeningMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create an unposted annual opening or return the matching existing one
+ */
+export const usePrepareAnnualOpening = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareAnnualOpening>>, TError,{companyId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof prepareAnnualOpening>>,
+        TError,
+        {companyId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getPrepareAnnualOpeningMutationOptions(options));
     }
 
 export const getListJournalEntriesUrl = (companyId: string,

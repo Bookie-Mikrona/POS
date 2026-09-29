@@ -27,8 +27,9 @@ function extractParam(raw: string | string[]): string {
 }
 
 /**
- * Bookie Old carries its closing balances into a new, posted 00 voucher every
- * year. Never add prior years to that year's opening again.
+ * Historical Bookie Old 00 vouchers and verified annual OTV vouchers each
+ * carry one year's closing balances into the following year. Never add the
+ * earlier years on top of a posted opening.
  */
 async function historicalOpening(companyId: string, date: string | undefined): Promise<{ start: string; id: string } | null> {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
@@ -38,7 +39,10 @@ async function historicalOpening(companyId: string, date: string | undefined): P
     .from(journalEntriesTable)
     .where(and(
       eq(journalEntriesTable.companyId, companyId),
-      sql`${journalEntriesTable.reference} LIKE ${`BOOKIE-OLD/K2/${year}/00/%`}`,
+       or(
+         sql`${journalEntriesTable.reference} LIKE ${`BOOKIE-OLD/K2/${year}/00/%`}`,
+         eq(journalEntriesTable.reference, `OTV-${year}-01`),
+       ),
       gte(journalEntriesTable.entryDate, start),
       lte(journalEntriesTable.entryDate, `${year}-12-31`),
       or(eq(journalEntriesTable.status, "posted"), eq(journalEntriesTable.status, "reversed")),
@@ -50,8 +54,12 @@ async function historicalOpening(companyId: string, date: string | undefined): P
     .from(journalEntriesTable)
     .where(and(
       eq(journalEntriesTable.companyId, companyId),
-      sql`${journalEntriesTable.reference} LIKE 'BOOKIE-OLD/K2/%/00/%'`,
-      sql`${journalEntriesTable.entryDate} < ${start}`,
+       or(
+         sql`${journalEntriesTable.reference} LIKE 'BOOKIE-OLD/K2/%/00/%'`,
+         sql`${journalEntriesTable.reference} LIKE 'OTV-%-01'`,
+       ),
+       sql`${journalEntriesTable.entryDate} < ${start}`,
+       or(eq(journalEntriesTable.status, "posted"), eq(journalEntriesTable.status, "reversed")),
     ))
     .limit(1);
   if (earlier) throw new Error(`Manjka potrjena otvoritev za leto ${year}; zgodovinskega salda ni dovoljeno sešteti čez več let`);

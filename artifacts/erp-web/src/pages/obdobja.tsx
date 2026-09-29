@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useF2Save } from "@/hooks/useF2Save";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, AlertCircle, Calendar as CalendarIcon, Lock, Unlock, Loader2 } from "lucide-react";
+import { Plus, AlertCircle, Calendar as CalendarIcon, Lock, Unlock, Loader2, BookOpen } from "lucide-react";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import {
@@ -9,6 +9,10 @@ import {
   useCreatePeriod,
   useUpdatePeriod,
   getListPeriodsQueryKey,
+  getListJournalEntriesQueryKey,
+  getPreviewAnnualOpeningQueryKey,
+  usePreviewAnnualOpening,
+  usePrepareAnnualOpening,
   type PeriodRecord
 } from "@workspace/api-client-react";
 
@@ -45,6 +49,7 @@ export default function Obdobja() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [lockingPeriod, setLockingPeriod] = useState<PeriodRecord | null>(null);
+  const [openingPeriod, setOpeningPeriod] = useState<PeriodRecord | null>(null);
 
   const currentYear = new Date().getFullYear();
   const [formData, setFormData] = useState({
@@ -60,6 +65,12 @@ export default function Obdobja() {
 
   const createMut = useCreatePeriod();
   const updateMut = useUpdatePeriod();
+  const prepareOpeningMut = usePrepareAnnualOpening();
+  const { data: opening, isLoading: openingLoading, error: openingError } = usePreviewAnnualOpening(
+    activeCompany?.id ?? "",
+    openingPeriod?.id ?? "",
+    { query: { enabled: !!activeCompany?.id && !!openingPeriod?.id, staleTime: 0 } as any },
+  );
 
   const periods = data?.periods ?? [];
   const isOwner = activeCompany?.role === "owner";
@@ -103,6 +114,18 @@ export default function Obdobja() {
         setLockingPeriod(null);
         queryClient.invalidateQueries({ queryKey: getListPeriodsQueryKey(activeCompany.id) });
       }
+    });
+  };
+
+  const handlePrepareOpening = () => {
+    if (!activeCompany || !openingPeriod) return;
+    prepareOpeningMut.mutate({ companyId: activeCompany.id, id: openingPeriod.id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: getPreviewAnnualOpeningQueryKey(activeCompany.id, openingPeriod.id),
+        });
+        queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey(activeCompany.id) });
+      },
     });
   };
 
@@ -203,8 +226,21 @@ export default function Obdobja() {
                           ) : (
                             <><Unlock className="h-3.5 w-3.5 mr-1.5" /> Odkleni</>
                           )}
-                        </Button>
-                      )}
+                         </Button>
+                       )}
+                       {period.status === "open" && activeCompany?.role !== "viewer" && periods.some((previous) => {
+                         const previousYear = Number(period.startDate.slice(0, 4)) - 1;
+                         return previous.status === "locked"
+                           && previous.startDate === `${previousYear}-01-01`
+                           && previous.endDate === `${previousYear}-12-31`;
+                       }) && (
+                         <Button variant="outline" size="sm" onClick={() => {
+                           prepareOpeningMut.reset();
+                           setOpeningPeriod(period);
+                         }}>
+                           <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Otvoritev
+                         </Button>
+                       )}
                     </div>
                   </div>
                 ))}
@@ -257,6 +293,76 @@ export default function Obdobja() {
             <Button onClick={handleSave} disabled={createMut.isPending || !formData.name || !formData.startDate || !formData.endDate}>
               {createMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Shrani <kbd className="ml-1 text-[10px] font-mono opacity-60 border border-current/40 rounded px-0.5 leading-none">F2</kbd>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!openingPeriod} onOpenChange={(open) => !open && setOpeningPeriod(null)}>
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Letna otvoritev {openingPeriod?.startDate.slice(0, 4)}</DialogTitle>
+            <DialogDescription>
+              Prenos bilančnih saldov iz zaklenjenega prejšnjega leta. Računi in plačila se ne kopirajo.
+              Priprava ustvari samo osnutek; knjiženje je ločen korak.
+            </DialogDescription>
+          </DialogHeader>
+          {openingLoading && <p className="text-sm text-muted-foreground">Preverjam zaključne salde …</p>}
+          {openingError && <Alert variant="destructive"><AlertDescription>
+            {openingError.message || "Predogleda otvoritve ni mogoče naložiti."}
+          </AlertDescription></Alert>}
+          {opening && (
+            <div className="space-y-4 text-sm">
+              <p><strong>{opening.reference}</strong> · {opening.lines.length} vrstic · breme {opening.debit} € · dobro {opening.credit} €</p>
+              {opening.conflict && <Alert variant="destructive"><AlertDescription>
+                V tem letu obstaja druga otvoritev. Ustvarjanje nove je blokirano.
+              </AlertDescription></Alert>}
+              {opening.entryId && !opening.conflict && <Alert><AlertDescription>
+                Otvoritev že obstaja ({opening.entryStatus === "draft" ? "osnutek" : "knjižena"}).
+                Ponovno ustvarjanje ni potrebno.
+              </AlertDescription></Alert>}
+              {opening.reconciliation.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-2">Kontrola saldakontov 120/220 na dan 31. 12.</h4>
+                  <div className="rounded-md border divide-y">
+                    {opening.reconciliation.map((item) => (
+                      <div key={item.code} className="px-3 py-2 flex flex-wrap justify-between gap-x-4">
+                        <span className="font-medium">{item.code}</span>
+                        <span>GK: {item.generalLedger} € · odprte postavke: {item.openItems} €</span>
+                        <span className={item.matched ? "text-green-700" : "text-destructive"}>
+                          {item.matched ? "Usklajeno" : `Razlika: ${item.difference} €${item.evidenceComplete ? "" : " (manjkajo dokazila)"}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!opening.reconciled && <Alert variant="destructive"><AlertDescription>
+                Osnutek lahko pripravite, knjiženje pa bo zadržano, dokler odprte postavke niso usklajene z GK.
+                Partnerjev ne dodajajte na pamet.
+              </AlertDescription></Alert>}
+              <details>
+                <summary className="cursor-pointer font-medium">Vseh {opening.lines.length} vrstic otvoritve</summary>
+                <div className="mt-2 max-h-48 overflow-y-auto divide-y rounded border">
+                  {opening.lines.map((line) => (
+                    <div key={line.accountId} className="p-2 flex justify-between gap-4">
+                      <span>{line.code} · {line.name}</span>
+                      <span className="whitespace-nowrap">{line.side === "debit" ? "Breme" : "Dobro"} {line.amount} €</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </div>
+          )}
+          {prepareOpeningMut.isError && <Alert variant="destructive"><AlertDescription>
+            {prepareOpeningMut.error.message || "Osnutka ni bilo mogoče pripraviti."}
+          </AlertDescription></Alert>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpeningPeriod(null)}>Zapri</Button>
+            <Button onClick={handlePrepareOpening}
+              disabled={!opening || opening.conflict || !!opening.entryId || prepareOpeningMut.isPending}>
+              {prepareOpeningMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Pripravi osnutek
             </Button>
           </DialogFooter>
         </DialogContent>

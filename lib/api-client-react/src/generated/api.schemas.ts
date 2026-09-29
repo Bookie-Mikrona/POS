@@ -8519,6 +8519,50 @@ export interface PeriodRecord {
   updatedAt: string;
 }
 
+export type AnnualOpeningLineSide = typeof AnnualOpeningLineSide[keyof typeof AnnualOpeningLineSide];
+
+
+export const AnnualOpeningLineSide = {
+  debit: 'debit',
+  credit: 'credit',
+} as const;
+
+export interface AnnualOpeningLine {
+  accountId: string;
+  code: string;
+  name: string;
+  side: AnnualOpeningLineSide;
+  amount: string;
+}
+
+export interface AnnualOpeningReconciliation {
+  code: string;
+  generalLedger: string;
+  openItems: string;
+  difference: string;
+  evidenceComplete: boolean;
+  matched: boolean;
+}
+
+export interface AnnualOpeningPreview {
+  sourcePeriodId: string;
+  destinationPeriodId: string;
+  year: string;
+  date: string;
+  reference: string;
+  lines: AnnualOpeningLine[];
+  debit: string;
+  credit: string;
+  reconciliation: AnnualOpeningReconciliation[];
+  reconciled: boolean;
+  /** @nullable */
+  entryId: string | null;
+  /** @nullable */
+  entryStatus: string | null;
+  conflict?: boolean;
+  created?: boolean;
+}
+
 export interface ListPeriodsResponse {
   periods: PeriodRecord[];
 }

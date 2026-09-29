@@ -10971,6 +10971,84 @@ export const UpdatePeriodResponse = zod.object({
 
 
 /**
+ * @summary Preview the opening based on the locked previous year
+ */
+export const PreviewAnnualOpeningParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const PreviewAnnualOpeningResponse = zod.object({
+  "sourcePeriodId": zod.string(),
+  "destinationPeriodId": zod.string(),
+  "year": zod.string(),
+  "date": zod.string(),
+  "reference": zod.string(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string()
+})),
+  "debit": zod.string(),
+  "credit": zod.string(),
+  "reconciliation": zod.array(zod.object({
+  "code": zod.string(),
+  "generalLedger": zod.string(),
+  "openItems": zod.string(),
+  "difference": zod.string(),
+  "evidenceComplete": zod.boolean(),
+  "matched": zod.boolean()
+})),
+  "reconciled": zod.boolean(),
+  "entryId": zod.string().nullable(),
+  "entryStatus": zod.string().nullable(),
+  "conflict": zod.boolean().optional(),
+  "created": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Create an unposted annual opening or return the matching existing one
+ */
+export const PrepareAnnualOpeningParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const PrepareAnnualOpeningResponse = zod.object({
+  "sourcePeriodId": zod.string(),
+  "destinationPeriodId": zod.string(),
+  "year": zod.string(),
+  "date": zod.string(),
+  "reference": zod.string(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string()
+})),
+  "debit": zod.string(),
+  "credit": zod.string(),
+  "reconciliation": zod.array(zod.object({
+  "code": zod.string(),
+  "generalLedger": zod.string(),
+  "openItems": zod.string(),
+  "difference": zod.string(),
+  "evidenceComplete": zod.boolean(),
+  "matched": zod.boolean()
+})),
+  "reconciled": zod.boolean(),
+  "entryId": zod.string().nullable(),
+  "entryStatus": zod.string().nullable(),
+  "conflict": zod.boolean().optional(),
+  "created": zod.boolean().optional()
+})
+
+
+/**
  * @summary List journal entries
  */
 export const ListJournalEntriesParams = zod.object({

@@ -6279,6 +6279,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/periods/{id}/opening:
+    get:
+      operationId: previewAnnualOpening
+      tags:
+        - periods
+      summary: Preview the opening based on the locked previous year
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Opening and open-item reconciliation preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnualOpeningPreview"
+        "409":
+          description: Previous period not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: prepareAnnualOpening
+      tags:
+        - periods
+      summary: Create an unposted annual opening or return the matching existing one
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching opening already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnualOpeningPreview"
+        "201":
+          description: Unposted annual opening created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnualOpeningPreview"
+        "409":
+          description: Opening conflict or invalid source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -19512,6 +19577,49 @@ components:
         - status
         - createdAt
         - updatedAt
+    AnnualOpeningLine:
+      type: object
+      required: [accountId, code, name, side, amount]
+      properties:
+        accountId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        side: { type: string, enum: [debit, credit] }
+        amount: { type: string }
+    AnnualOpeningReconciliation:
+      type: object
+      required: [code, generalLedger, openItems, difference, evidenceComplete, matched]
+      properties:
+        code: { type: string }
+        generalLedger: { type: string }
+        openItems: { type: string }
+        difference: { type: string }
+        evidenceComplete: { type: boolean }
+        matched: { type: boolean }
+    AnnualOpeningPreview:
+      type: object
+      required: [sourcePeriodId, destinationPeriodId, year, date, reference, lines, debit, credit, reconciliation, reconciled, entryId, entryStatus]
+      properties:
+        sourcePeriodId: { type: string }
+        destinationPeriodId: { type: string }
+        year: { type: string }
+        date: { type: string }
+        reference: { type: string }
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnualOpeningLine"
+        debit: { type: string }
+        credit: { type: string }
+        reconciliation:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnualOpeningReconciliation"
+        reconciled: { type: boolean }
+        entryId: { type: ["string", "null"] }
+        entryStatus: { type: ["string", "null"] }
+        conflict: { type: boolean }
+        created: { type: boolean }
     ListPeriodsResponse:
       type: object
       properties:
