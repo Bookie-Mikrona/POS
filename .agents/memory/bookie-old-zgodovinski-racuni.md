@@ -33,6 +33,12 @@ Pri preverjanju odprtih postavk ne predpostavljaj, da vsaka stara GK vrstica z n
 
 **How to apply:** Pred prenosom ali usklajevanjem salda primerjaj postavke po računu in partnerju ter izrecno izpiši izpuščene GK ostanke; ne odpiraj jih kot dokazano neplačane račune brez potrditve.
 
+Zgodovinski računi, preneseni kot knjiženi brez njihovih zapiranj in alokacij plačil, v novi nadzorni plošči navidezno kažejo skoraj vse izdane zneske kot odprte. Ujemanje vsote uvoženih računov z zaslonom zato **ni** potrditev salda terjatev; stari IOP je primerjalni izpis, ne samodejna knjigovodska poravnava.
+
+**Why:** Uporabnik je opozoril na velik razkorak med nadzorno ploščo in že predloženim starim IOP. Preverjanje je pokazalo, da zgodovinski računi nimajo prenesenih alokacij; tudi delna zapiranja in dobroimetja zahtevajo posamično uskladitev.
+
+**How to apply:** Pred predstavitvijo zgodovinskega salda kot dejansko odprtega prenesi in preveri povezave zapiranj/plačil po izvornih identifikatorjih, primerjaj postavke in vsoto z IOP ter ne izmišljaj sintetičnih plačil ali ročno prepisanega skupnega zneska.
+
 Uporabnik je potrdil, da pri vseh treh obravnavanih računih istega dobavitelja velja enaka sestava: 9,5-odstotna komunalna storitev in neobdavčena okoljska dajatev. GK strošek zajame oboje, davčna osnova zajame le obdavčene storitve; zgodovinski KPR vnos lahko vsebuje tudi centno odstopanje od dejanskega računa.
 
 **Why:** Izvirni račun je pokazal okoljsko dajatev z oznako »neobdavčeno«, medtem ko je bila stara KPR davčna osnova za dva centa nižja od vsote obdavčenih vrstic na računu.
