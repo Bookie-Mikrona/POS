@@ -19,7 +19,6 @@
 - [Nabavna vs. prodajna DDV](nabavna-prodajna-ddv.md) — razlika je sistemska in zakonita; nikoli ne primerjaj davek z taxCategory
 - [Purchase rate map spec](purchase-rate-map-spec.md) — spec za ERP prejemnice: DB tabela, validacija, 3 pravila (datum dobave, asimetrično opozorilo, ločena kontrola)
 - [Ljubljana timezone](ljubljana-timezone.md) — UTC+1 zima / UTC+2 poletje; doc datumi shranjeni kot UTC wall-clock, prikaz z timeZone:"UTC"
-- [POS dnevne temeljnice](pos-dnevne-temeljnice.md) — samodejno POS→ERP knjiženje: 3 osnutki na dan, konfiguracija v ERP nastavitve, fire-and-forget trigger v racuni+prejemnice
 - [KDS čas priprave](kds-cas-priprave.md) — kuhinja odšteva do pripravljenosti, čas dostave je vedno le ločena informacija
 - [KDS zasloni po enoti](kds-zasloni-po-enoti.md) — enota določi točilnico, skupno ali ločeno kuhinjo/pico ter izbirno izdajo.
 - [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
@@ -34,7 +33,6 @@
 - [lib/db rebuild in migracija](libdb-rebuild-migracija.md) — stale .d.ts po spremembi sheme: rebuild z `cd lib/db && npx tsc -p tsconfig.json`; drizzle date() = ISO string; psql za migracije; tsx za teste
 - [UBL InvoiceLine AllowanceCharge](ubl-linijski-rabat.md) — parser-eslog ni bral InvoiceLine/AllowanceCharge (samo Price/AllowanceCharge); POS007 validacija zdaj primerja min(bruto, neto) razliko
 - [bizBox Faza B](bizbox-faza-b.md) — ročna oddaja e-SLOG prek ZZI; modul bizbox.ts; JSZip STORE; eDDress iz davčne; env poverilnice; UBL≠EDIFACT opozorilo
-- [Neodbitni vstopni DDV](neodbitni-ddv.md) — 013 migracija (PN5/PN95/UVP5/UVP95); fursVatCodes ruta+hook; vatDeductionPercent UI v temeljnicah; isNonDeductible → privzeto 0%
 - [OS amortizacija pravilo](os-amortizacija-pravilo.md) — 022 migracija; naslednji_dan|naslednji_mesec; usklajenost izpis/pregled (023 vhodni_podpis); 3b stornacija POST /storno
 - [OS datum odtujitve](os-datum-odtujitve.md) — SRS/ZDDPO-2 pravilo: mesec odtujitve se NE šteje; glava.datumOdtujitve override > per-doknjizba datumIzpisa; register filtrira dispYear < leto
 - [OS negativna NV korekcija](os-negativna-nv.md) — uvožene korekcijske doknjižbe imajo negativno NV; engine mora vrniti 0 (ne negativno AM); opomba "negativna_osnova"
@@ -64,7 +62,6 @@
 - [FURS certifikat scope](furs-certifikat-scope.md) — premise override je legacy disk-pot; globalni upload in resolver nista usklajena, zato naj bo en šifriran company vir.
 - [PostgreSQL backup manifest](postgres-backup-manifest.md) — DDL dump ni tekstovno idempotenten; pred restore preveri odtis, po njem strukturo in pravilno obravnavaj neuporabljene sekvence.
 - [XLSX native numerika](xlsx-native-numerics.md) — typed kanal je opt-in; Excel formule v numeričnih poljih berejo cached number, GTIN in besedilo vedno ostaneta text.
-- [POS Excel šifrant](pos-excel-catalog.md) — ločeni listi v eni datoteki; posodabljanje po ID, normativi le za ogled, dokler uvoz ne prevzame njihovih varoval.
 - [Zunanje slike – SSRF](article-image-reference-ssrf.md) — reference slike morajo povezavo pripeti na preverjen javni IP, omejiti tok in preveriti podpis slike.
 - [Pripravljena in sestavljena hrana](prepared-composite-food.md) — zamrznjena zaloga je operativna; priprava porabi surovine, kalo pa prerazporedi strošek.
 - [Prodajna priloga in skupna zaloga](prepared-side-dish-shared-stock.md) — samostojna prodaja priloge in modifikator morata porabljati isto pripravljeno jed.
@@ -106,7 +103,6 @@
 - [Windows lokalni POS gateway](windows-local-gateway.md) — en Windows single-writer za offline gotovinske račune; LAN zahteva TLS, OS trust, pairing in brez samodejnega failoverja.
 - [API bundle in workspace odvisnosti](api-bundle-workspace-dependencies.md) — zunanje odvisnosti notranjih workspace paketov lahko po Publish pruning-u manjkajo; vključiti jih je treba v bundle.
 - [Identiteta natakarja v poročilih](natakar-report-identity.md) — promet združuj po trajnem natakari ID-ju; ime na računu je le zgodovinski posnetek.
-- [Več Happy Hour pravil](happy-hour-rules.md) — urniki izbirajo dneve, čas in artikle; cena ostane na artiklu, ročni preklop pa velja globalno.
 - [PNPM varnostni overrides](pnpm-security-overrides.md) — globalne varnostne pripone dodajaj v korenski package.json; vzporedni workspace overrides se ne združijo.
 - [Python PDF generator](python-pdf-generator.md) — priročnik generiraj z `uv run python`; neposredni `python3` lahko naloži nezdružljiv Pillow iz `.pythonlibs`.
 - [Delovni imenik pnpm filtra](pnpm-filter-cwd.md) — `pnpm --filter ... exec` požene skript iz mape paketa, ne iz korena repozitorija.
@@ -129,9 +125,7 @@
 - [KDS preklic nepredanega paketa](kds-preklic-paketa.md) — preklic ohrani append-only audit; brisanje, materializacija in prehodi uporabljajo isti zaklep naročila.
 - [POS actor PIN brez ERP računa](pos-actor-pin.md) — natakar uporablja ID+PIN na skupni prijavi; manjkajoča actor seja ne sme blokirati vodje pri nastavitvi PIN-a.
 - [POS audit identitete](pos-audit-identitete.md) — Clerk izvajalec in natakar actor sta ločena; legacy integer stolpca ne pretipkaj.
-- [Dolgi izbirniki v POS dialogih](article-category-native-select.md) — pri kategorijah in artiklih malic uporabi izvorni mobilni izbirnik, da drsenje ne obtiči.
 - [Začetne cene malic](malice-initial-prices.md) — prvo ceno skupine je dovoljeno določiti za nazaj; poznejše spremembe veljajo šele od naslednjega poslovnega dne.
-- [Drsenje zgornjega Vaul predala](vaul-top-drawer-scroll.md) — seznam v zgornjem predalu mora prevzeti potege; predal se ne sme zapirati ob drsenju vsebine.
 - [Priprava plačil dobaviteljem](supplier-payment-preparation.md) — računi po zapadlosti z delnimi zneski; vsota ne sme preseči stanja izbranega konta 110x.
 - [Evidenca bančnih izpiskov](bank-statement-evidence.md) — vsak uvoz ima glavo, vrstice in odtis datoteke; plačilo je vezano na eno bančno vrstico.
 - [Pametno OCR uparjanje](ocr-pametno-uparjanje.md) — kanonične mere naj razširijo nabor; AI sme le predlagati dovoljen ID in nikoli sam potrditi.
@@ -140,6 +134,7 @@
 - [Brisanje osnutkov temeljnic](journal-entry-draft-deletion.md) — osnutek je izbrisljiv z auditom; knjižene, stornirane in storno temeljnice niso.
 - [Celovitost POS priročnika](pos-manual-traceability.md) — izdaja je celovita šele po ločeni potrditvi izvedbe in dokumentacijske pokritosti vseh inventarnih postopkov.
 - [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.
+- [PDFKit strani in noge poročil](pdfkit-strani-in-noge.md) — absolutne noge lahko dodajo prazne strani; preveri dejanski PDF in omeji višino dolgih nazivov kontov.
 - [KIR/KPR izvoz](kirkpr-export-safety.md) — predogled in XML morata uporabljati isti eksplicitni mesečni/trimesečni obseg; nepopolna davčna sled blokira izvoz.
 - [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.
 - [Križišče POS brez interne GK](krizisce-pos-only.md) — poslovne knjige vodi zunanji izvajalec; ne odpiraj obdobij, razvojno testiranje osnovnih sredstev ohrani.

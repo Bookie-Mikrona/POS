@@ -812,8 +812,9 @@ export async function generateTrialBalancePdf(opts: {
   const COL_OB_D   = COL_OB_C - NUM_W_L - 4;
   const NAME_W     = COL_OB_D - COL_NAME - 8;
 
-  const ROWS_PER_PAGE = 48;
-  const totalPages = Math.max(1, Math.ceil((rows.length + 3) / ROWS_PER_PAGE));
+  const ROW_HEIGHT = 12;
+  const FOOTER_Y = PAGE_H_L - MARGIN - 15;
+  const CONTENT_BOTTOM = FOOTER_Y - 12;
 
   const doc = new PDFDocument({
     size: [PAGE_W_L, PAGE_H_L],
@@ -841,10 +842,6 @@ export async function generateTrialBalancePdf(opts: {
       doc.moveTo(MARGIN, MARGIN + 13).lineTo(PAGE_W_L - MARGIN, MARGIN + 13)
         .strokeColor(COLOR_LINE).lineWidth(0.5).stroke();
     }
-    const genDate = new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
-    doc.font("DejaVuSans").fontSize(7).fillColor("#9ca3af")
-      .text(`Generirano: ${genDate}`, MARGIN, PAGE_H_L - MARGIN + 4, { continued: false })
-      .text(`Stran ${page} / ${totalPages}`, MARGIN, PAGE_H_L - MARGIN + 4, { align: "right" });
     doc.fillColor(COLOR_PRIMARY);
   }
 
@@ -881,23 +878,27 @@ export async function generateTrialBalancePdf(opts: {
 
   drawTableHeader();
 
+  function nextPage() {
+    doc.addPage({ size: [PAGE_W_L, PAGE_H_L] });
+    currentPage++;
+    y = contentStartY(currentPage);
+    drawLandscapeHeader(currentPage);
+    drawTableHeader();
+  }
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
 
-    if (y + 14 > PAGE_H_L - MARGIN - 20) {
-      doc.addPage({ size: [PAGE_W_L, PAGE_H_L] });
-      currentPage++;
-      y = contentStartY(currentPage);
-      drawLandscapeHeader(currentPage);
-      drawTableHeader();
-    }
+    if (y + ROW_HEIGHT > CONTENT_BOTTOM) nextPage();
 
     const bg = i % 2 === 0 ? "#ffffff" : "#f9fafb";
-    doc.rect(MARGIN, y, USABLE_W_L, 13).fillColor(bg).fill();
+    doc.rect(MARGIN, y, USABLE_W_L, ROW_HEIGHT).fillColor(bg).fill();
     doc.font("DejaVuSans").fontSize(7).fillColor(COLOR_MUTED)
       .text(row.accountCode, COL_CODE + 2, y + 2, { width: 50, lineBreak: false });
     doc.font("DejaVuSans").fontSize(7).fillColor(COLOR_PRIMARY)
-      .text(row.accountName, COL_NAME + 2, y + 2, { width: NAME_W, lineBreak: false });
+      .text(row.accountName, COL_NAME + 2, y + 2, {
+        width: NAME_W, height: ROW_HEIGHT - 3, lineBreak: false, ellipsis: true,
+      });
 
     const od = parseFloat(row.openingBalanceDebit);
     const oc = parseFloat(row.openingBalanceCredit);
@@ -921,16 +922,11 @@ export async function generateTrialBalancePdf(opts: {
     if (bd !== 0) doc.font("DejaVuSans-Bold").fontSize(7).text(fmtNum(bd), COL_SAL_D, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
     if (bc !== 0) doc.font("DejaVuSans-Bold").fontSize(7).text(fmtNum(bc), COL_SAL_C, y + 2, { width: NUM_W_L, align: "right", lineBreak: false });
 
-    y += 13;
+    y += ROW_HEIGHT;
   }
 
-  // Vrstica skupaj
-  if (y + 20 > PAGE_H_L - MARGIN - 20) {
-    doc.addPage({ size: [PAGE_W_L, PAGE_H_L] });
-    currentPage++;
-    y = contentStartY(currentPage);
-    drawLandscapeHeader(currentPage);
-  }
+  // Skupaj in kontrola bilance morata ostati skupaj in nad nogo strani.
+  if (y + 18 + 22 > CONTENT_BOTTOM) nextPage();
   doc.rect(MARGIN, y, USABLE_W_L, 18).fillColor(COLOR_TOTAL).fill();
   doc.font("DejaVuSans-Bold").fontSize(8).fillColor(COLOR_PRIMARY)
     .text("SKUPAJ", COL_CODE + 2, y + 4, { width: 200, lineBreak: false });
@@ -950,9 +946,23 @@ export async function generateTrialBalancePdf(opts: {
   doc.font("DejaVuSans").fontSize(8).fillColor(balanced ? COLOR_POSITIVE : COLOR_NEGATIVE)
     .text(
       balanced ? "Bilanca uravnotežena" : "Bilanca ni uravnotežena",
-      MARGIN, y,
+      MARGIN, y, { width: USABLE_W_L, lineBreak: false },
     );
 
+  // Število strani je znano šele po izpisu vseh vrstic. Nogo dodaj naknadno
+  // znotraj spodnjega roba; PDFKit sicer sam vstavi skoraj prazne strani.
+  const pageRange = doc.bufferedPageRange();
+  const genDate = new Date().toLocaleDateString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric" });
+  for (let page = pageRange.start; page < pageRange.start + pageRange.count; page++) {
+    doc.switchToPage(page);
+    // Footer je v spodnjem robu, zato zanj izključimo PDFKitov samodejni
+    // prelom strani (ta sicer doda prazno stran tudi pri ročni koordinati).
+    doc.page.margins.bottom = 0;
+    doc.font("DejaVuSans").fontSize(7).fillColor("#9ca3af");
+    doc.text(`Generirano: ${genDate}`, MARGIN, FOOTER_Y, { width: 220, lineBreak: false });
+    doc.text(`Stran ${page - pageRange.start + 1} / ${pageRange.count}`,
+      PAGE_W_L - MARGIN - 120, FOOTER_Y, { width: 120, align: "right", lineBreak: false });
+  }
   doc.end();
   return bufferPromise;
 }

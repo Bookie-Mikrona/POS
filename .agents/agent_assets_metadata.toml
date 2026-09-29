@@ -1201,3 +1201,17 @@ mtime_ms = 1790717447976
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/66283d46-6555-4edd-af82-0aa7f9b36e09/250d8a42-ad7e-4e8b-b8e5-9d6691d71056"
 storage_version_token = "1790717684629135"
 content_type = "text/csv"
+
+[[outputs]]
+id = "TpfCbUz_Ez3lw0tbo6CeW"
+uri = "file://reports/mikrona-2025-bruto-bilanca-popravljena.pdf"
+type = "pdf"
+title = "Popravljena bruto bilanca Mikrona 2025"
+description = "Dve strani, 65 kontov, pravilno oštevilčenje in preverjene vsote. Pregledni izvod iz razvojne GK."
+logical_id = "79844d64-6979-49ca-84fd-89a233d259a5"
+content_hash = "sha256:99b9407e06308249f8b1c7816dafa4b65260b967da5a9e910917e305d159244d"
+size = 31387
+mtime_ms = 1790718734436
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/79844d64-6979-49ca-84fd-89a233d259a5/b4ea1218-8f07-4201-a660-1644c7465ba5"
+storage_version_token = "1790718837181126"
+content_type = "application/pdf"
