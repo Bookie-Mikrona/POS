@@ -142,6 +142,7 @@
 - [Upodabljanje POS priročnika](pos-manual-pdf-rendering.md) — PDF preštevilči naslove; medvrstični prelomi krepkega tiska v korakih se lahko izpišejo dobesedno.
 - [KIR/KPR izvoz](kirkpr-export-safety.md) — predogled in XML morata uporabljati isti eksplicitni mesečni/trimesečni obseg; nepopolna davčna sled blokira izvoz.
 - [Meni Gostilne Križišče](krizisce-menu-import.md) — velika pica pomeni normalno; malice niso artikli; pice uporabljajo sestavinske normative in skupne ter lastne modifikatorje.
+- [Križišče POS brez interne GK](krizisce-pos-only.md) — poslovne knjige vodi zunanji izvajalec; ne odpiraj obdobij, razvojno testiranje osnovnih sredstev ohrani.
 - [Skupinski nabavni artikli](generic-purchase-articles.md) — dobaviteljeva postavka ohrani identiteto; skupna zaloga združuje le postavke z isto kanonično e-SLOG enoto.
 - [Git prenosi in tihe izgube](git-transfer-tree-audit.md) — po vsakem prenosu primerjaj celotno drevo s stanjem pred prenosom; zgodovina lahko skrije množične izgube.
 - [Stripe boni po gostincu](stripe-boni-po-gostincu.md) — spletni bon uporablja neposredno plačilo povezanega računa podjetja; brez povezave ni platformskega nadomestnega plačila.
