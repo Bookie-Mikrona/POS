@@ -4067,7 +4067,8 @@ export default function Order() {
               clearSkipAutoStart();
               queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
               queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
-              setSearch("");
+              // Ne preuredi filtrirane mreže pod dialogom med zapiranjem:
+              // na namizju to premakne pogled na artikel in nato nazaj.
               settle();
             },
             onError: (err) => {
@@ -4084,7 +4085,10 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
+          <DialogContent
+            className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6"
+            onCloseAutoFocus={event => event.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />

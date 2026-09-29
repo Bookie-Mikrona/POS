@@ -879,6 +879,31 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     ]);
   });
 
+  it("po potrditvi modifikatorjev ohrani iskanje, da se mreža artiklov pod dialogom ne preuredi", async () => {
+    mockAddPostavkaMutate.mockImplementation(
+      (_args: unknown, options?: { onSuccess?: (data: unknown) => void }) =>
+        options?.onSuccess?.({ ...mockNarocilo, postavke: [] }),
+    );
+    await act(async () => {
+      render(<Wrapper qc={qc}><Order /></Wrapper>);
+    });
+
+    const search = screen.getByRole("textbox", { name: "Iskanje artikla" });
+    await act(async () => {
+      fireEvent.change(search, { target: { value: "Margherita" } });
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /Margherita/i }));
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /^Potrdi$/i }));
+    });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(search).toHaveValue("Margherita");
+    expect(screen.getByRole("button", { name: /Margherita/i })).toBeInTheDocument();
+  });
+
   it("izbire nested skupin veže na izvorni prodajni artikel, jih počisti ob odznačitvi in ne doda drugega artikla", async () => {
     const nestedOption = {
       id: 201,
