@@ -1215,3 +1215,31 @@ mtime_ms = 1790718734436
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/79844d64-6979-49ca-84fd-89a233d259a5/b4ea1218-8f07-4201-a660-1644c7465ba5"
 storage_version_token = "1790718837181126"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "KFl8zXSD0gtnRUJ8LfNKc"
+uri = "file://reports/mikrona-2025-predlog-zakljucne-temeljnice.pdf"
+type = "pdf"
+title = "Mikrona 2025 – pregledni predlog zaključne temeljnice"
+description = "Neknjižen, uravnotežen predlog zaprtja prihodkov in odhodkov. Vključuje kontrole in pogoje za računovodski pregled."
+logical_id = "b7ab85d5-b398-4f29-99fe-d521eed321ff"
+content_hash = "sha256:768e71db8d7ad7f50a09bd76f087ba4c6694d77877f2046e2b150125e910dc91"
+size = 47803
+mtime_ms = 1790719529848
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/b7ab85d5-b398-4f29-99fe-d521eed321ff/6b381e86-60e5-40d8-9816-ed3e27c02258"
+storage_version_token = "1790719592765354"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "fliylBG4EjOnHV9XrZAxW"
+uri = "file://reports/mikrona-2025-predlog-zakljucne-temeljnice.csv"
+type = "table"
+title = "Mikrona 2025 – vrstice predloga (CSV)"
+description = "20 vrstic za pregled; ni uvoženo ali knjiženo v ERP."
+logical_id = "8f40641e-9eeb-41f9-befa-06cd2d9b4aee"
+content_hash = "sha256:1f0a0f347477009a2c2a72ca338c0114751121b331a0ff4a81233b9205e754dd"
+size = 1088
+mtime_ms = 1790719529768
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/8f40641e-9eeb-41f9-befa-06cd2d9b4aee/344d4959-d72b-4c0c-a5f6-bbdee6baea68"
+storage_version_token = "1790719593451313"
+content_type = "text/csv"
