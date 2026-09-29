@@ -42,7 +42,7 @@ export const invoicesTable = pgTable("invoices", {
   type: invoiceTypeEnum("type").notNull(),
   /** Izvor določa poseben knjižbeni tok; POS zbirni A-račun ne knjiži DDV/prihodkov znova. */
   sourceType: text("source_type")
-    .$type<"manual" | "pos-sync" | "pos-contract-summary">()
+    .$type<"manual" | "pos-sync" | "pos-contract-summary" | "bookie-old">()
     .notNull()
     .default("manual"),
   /** Poslovni mesec izvornega zbirnika (YYYY-MM); pri običajnih računih je NULL. */
@@ -79,6 +79,12 @@ export const invoicesTable = pgTable("invoices", {
     { onDelete: "restrict" },
   ),
   notes: text("notes"),
+  /** Izvorni finančni zneski starega sistema; ne ustvarjajo novih GK knjižb. */
+  historicalNet: numeric("historical_net", { precision: 18, scale: 2 }),
+  historicalVat: numeric("historical_vat", { precision: 18, scale: 2 }),
+  historicalGross: numeric("historical_gross", { precision: 18, scale: 2 }),
+  /** Stabilni izvorni ključ za ponovljivost zgodovinskega uvoza. */
+  historicalReference: text("historical_reference"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -90,6 +96,8 @@ export const invoicesTable = pgTable("invoices", {
 }, (t) => [
   uniqueIndex("invoices_source_document_unique")
     .on(t.sourceDocumentId),
+  uniqueIndex("invoices_historical_reference_unique")
+    .on(t.companyId, t.historicalReference),
   uniqueIndex("invoices_contract_summary_period_unique")
     .on(t.companyId, t.sourceType, t.counterpartyId, t.sourcePeriod),
 ]);

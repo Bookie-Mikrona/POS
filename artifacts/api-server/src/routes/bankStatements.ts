@@ -891,8 +891,7 @@ router.get(
       .leftJoin(bankStatementLinesTable, eq(bankStatementLinesTable.statementId, bankStatementsTable.id))
       .where(eq(bankStatementsTable.companyId, companyId))
       .groupBy(bankStatementsTable.id, accountsTable.id)
-      .orderBy(desc(bankStatementsTable.statementDate), desc(bankStatementsTable.createdAt))
-      .limit(100);
+      .orderBy(desc(bankStatementsTable.statementDate), desc(bankStatementsTable.createdAt));
     res.json({ statements });
   },
 );

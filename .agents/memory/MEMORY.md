@@ -153,4 +153,5 @@
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
 - [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.
 - [Bookie Old preslikava GK](bookie-old-gk-mapping.md) — vir nazivov je K2; stare šifre lahko pomenijo nekaj drugega kot enake šifre ERP; zapiranja po števcih so večinoma dvosmerna.
+- [Bookie Old zgodovinski računi](bookie-old-zgodovinski-racuni.md) — neknjiženi izdani računi so napaka starega postopka; ne ustvarjaj GK ali saldov brez izvirne potrditve.
 - [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.

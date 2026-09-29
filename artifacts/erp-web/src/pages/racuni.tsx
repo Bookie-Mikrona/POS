@@ -274,8 +274,8 @@ export default function Racuni() {
                     {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("sl-SI") : "-"}
                   </TableCell>
                   <TableCell>{inv.counterpartyName}</TableCell>
-                  <TableCell className="text-right">{parseFloat(inv.totalNet).toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{parseFloat(inv.totalVat).toFixed(2)}</TableCell>
+                   <TableCell className="text-right">{(inv as any).sourceType === "bookie-old" && (inv as any).historicalNet == null ? "—" : parseFloat(inv.totalNet).toFixed(2)}</TableCell>
+                   <TableCell className="text-right text-muted-foreground">{(inv as any).sourceType === "bookie-old" && (inv as any).historicalVat == null ? "—" : parseFloat(inv.totalVat).toFixed(2)}</TableCell>
                   <TableCell className="text-right font-semibold">{parseFloat(inv.totalGross).toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge
@@ -289,7 +289,7 @@ export default function Racuni() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    {inv.status === "draft" && activeCompany?.role !== "viewer" && (
+                     {inv.status === "draft" && (inv as any).sourceType !== "bookie-old" && activeCompany?.role !== "viewer" && (
                       <Button variant="outline" size="sm" onClick={(e) => handlePost(e, inv.id)} disabled={postMut.isPending}>
                         <CheckCircle2 className="mr-1.5 h-3 w-3 text-green-600" />
                         Poknjiži
@@ -1002,6 +1002,13 @@ export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { op
             </Badge>
           </div>
         </SheetHeader>
+        {(invoice as any).sourceType === "bookie-old" && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 mb-4">
+            Zgodovinski zapis Bookie Old. Zneski in postavke so prevzeti iz izvornih evidenc;
+            povezane temeljnice v ERP ostanejo osnutki. Tega računa ni dovoljeno ponovno knjižiti.
+            {!invoice.linkedEntryId && " Temeljnica GK manjka — potreben je pregled."}
+          </div>
+        )}
 
         <div className="grid gap-6">
           <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm bg-muted/20 p-4 rounded-lg border">
@@ -1049,8 +1056,18 @@ export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { op
             </div>
           )}
 
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Postavke</h3>
+           <div className="space-y-3">
+             <h3 className="text-sm font-semibold">{(invoice as any).sourceType === "bookie-old" && invoice.type === "received" ? "Finančni račun" : "Postavke"}</h3>
+             {!isLoading && (invoice as any).sourceType === "bookie-old" && invoice.type === "received" && (
+               <p className="text-sm text-muted-foreground">
+                 Prejeti račun v starem programu nima artikelskih postavk. Finančni zneski so prikazani spodaj;
+                 podrobna kontiranja so v povezani GK temeljnici.
+               </p>
+             )}
+             {!isLoading && (invoice as any).sourceType === "bookie-old" && invoice.type === "issued" && (
+               <p className="text-xs text-muted-foreground">Količina in cena sta izvorna podatka; pri popustih veljata izvorna neto in DDV vrednost postavke.</p>
+             )}
+             {((invoice as any).sourceType !== "bookie-old" || invoice.type === "issued") && (
             <div className="border rounded-md overflow-hidden bg-card">
               <Table>
                 <TableHeader className="bg-muted/50">
@@ -1079,7 +1096,7 @@ export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { op
                         <TableCell className="text-right">{parseFloat(line.quantity).toFixed(2)}</TableCell>
                         <TableCell className="text-right">{parseFloat(line.unitPrice).toFixed(2)}</TableCell>
                         <TableCell className="text-right">{parseFloat(line.vatRate)}%</TableCell>
-                        <TableCell className="text-right">{parseFloat(line.grossTotal).toFixed(2)}</TableCell>
+                         <TableCell className="text-right">{parseFloat(line.grossTotal).toFixed(2)}</TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -1090,15 +1107,16 @@ export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { op
                 </TableBody>
               </Table>
             </div>
+             )}
             <div className="flex justify-end p-4 border rounded-md bg-muted/10">
               <div className="w-64 space-y-1.5 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Neto:</span>
-                  <span>{parseFloat(invoice.totalNet).toFixed(2)}</span>
+                   <span>{(invoice as any).sourceType === "bookie-old" && (invoice as any).historicalNet == null ? "Ni razrešeno" : parseFloat(invoice.totalNet).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>DDV:</span>
-                  <span>{parseFloat(invoice.totalVat).toFixed(2)}</span>
+                   <span>{(invoice as any).sourceType === "bookie-old" && (invoice as any).historicalVat == null ? "Ni razrešeno" : parseFloat(invoice.totalVat).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold pt-1 border-t">
                   <span>Bruto:</span>
@@ -1463,7 +1481,7 @@ export function DetailInvoiceSheet({ open, onOpenChange, invoice, onVoid }: { op
 
         <SheetFooter className="mt-8 pt-4 border-t sticky bottom-0 bg-background pb-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Zapri</Button>
-          {invoice.status === "draft" && activeCompany?.role !== "viewer" && (
+          {invoice.status === "draft" && (invoice as any).sourceType !== "bookie-old" && activeCompany?.role !== "viewer" && (
             <Button onClick={handlePost} disabled={postMut.isPending}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
               Poknjiži

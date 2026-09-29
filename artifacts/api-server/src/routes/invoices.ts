@@ -220,6 +220,10 @@ async function fetchInvoiceWithLines(invoiceId: string) {
       linkedEntryId: invoicesTable.linkedEntryId,
       sourceDocumentId: invoicesTable.sourceDocumentId,
       notes: invoicesTable.notes,
+      historicalNet: invoicesTable.historicalNet,
+      historicalVat: invoicesTable.historicalVat,
+      historicalGross: invoicesTable.historicalGross,
+      historicalReference: invoicesTable.historicalReference,
       createdBy: invoicesTable.createdBy,
       createdAt: invoicesTable.createdAt,
       updatedAt: invoicesTable.updatedAt,
@@ -240,6 +244,8 @@ async function fetchInvoiceWithLines(invoiceId: string) {
       quantity: invoiceLinesTable.quantity,
       unitPrice: invoiceLinesTable.unitPrice,
       vatRate: invoiceLinesTable.vatRate,
+      vatBase: invoiceLinesTable.vatBase,
+      storedVatAmount: invoiceLinesTable.vatAmount,
       vatCodeId: invoiceLinesTable.vatCodeId,
       assetType: invoiceLinesTable.assetType,
       reverseCharge: vatCodeTable.isReverseCharge,
@@ -261,8 +267,10 @@ async function fetchInvoiceWithLines(invoiceId: string) {
     const qty = parseFloat(l.quantity);
     const price = parseFloat(l.unitPrice);
     const vatR = parseFloat(l.vatRate);
-    const lineTotal = qty * price;
-    const vatAmt = l.reverseCharge ? 0 : lineTotal * vatR / 100;
+    const lineTotal = inv.sourceType === "bookie-old" && l.vatBase !== null
+      ? parseFloat(l.vatBase) : qty * price;
+    const vatAmt = inv.sourceType === "bookie-old" && l.storedVatAmount !== null
+      ? parseFloat(l.storedVatAmount) : l.reverseCharge ? 0 : lineTotal * vatR / 100;
     totalNet += lineTotal;
     totalVat += vatAmt;
     return {
@@ -275,9 +283,9 @@ async function fetchInvoiceWithLines(invoiceId: string) {
 
   return {
     ...inv,
-    totalNet: totalNet.toFixed(2),
-    totalVat: totalVat.toFixed(2),
-    totalGross: (totalNet + totalVat).toFixed(2),
+    totalNet: inv.historicalNet ?? totalNet.toFixed(2),
+    totalVat: inv.historicalVat ?? totalVat.toFixed(2),
+    totalGross: inv.historicalGross ?? (totalNet + totalVat).toFixed(2),
     lines,
   };
 }
@@ -785,6 +793,10 @@ router.get(
         vatAccountId: invoicesTable.vatAccountId,
         linkedEntryId: invoicesTable.linkedEntryId,
         notes: invoicesTable.notes,
+        historicalNet: invoicesTable.historicalNet,
+        historicalVat: invoicesTable.historicalVat,
+        historicalGross: invoicesTable.historicalGross,
+        historicalReference: invoicesTable.historicalReference,
         createdBy: invoicesTable.createdBy,
         createdAt: invoicesTable.createdAt,
         updatedAt: invoicesTable.updatedAt,
@@ -845,9 +857,9 @@ router.get(
       const t = totalsMap.get(inv.id) ?? { net: 0, vat: 0 };
       return {
         ...inv,
-        totalNet: t.net.toFixed(2),
-        totalVat: t.vat.toFixed(2),
-        totalGross: (t.net + t.vat).toFixed(2),
+        totalNet: inv.historicalNet ?? t.net.toFixed(2),
+        totalVat: inv.historicalVat ?? t.vat.toFixed(2),
+        totalGross: inv.historicalGross ?? (t.net + t.vat).toFixed(2),
       };
     });
 
@@ -1865,6 +1877,10 @@ router.patch(
       .limit(1);
 
     if (!existing) { res.status(404).json({ error: "Račun ni najden" }); return; }
+    if (existing.sourceType === "bookie-old") {
+      res.status(409).json({ error: "Zgodovinskega računa ni mogoče urejati kot novega; vir in povezano GK temeljnico je treba uskladiti ločeno." });
+      return;
+    }
     if (existing.status !== "draft") {
       res.status(400).json({ error: "Samo osnutke je mogoče urejati" });
       return;
@@ -2091,6 +2107,10 @@ router.post(
       .limit(1);
 
     if (!invoice) { res.status(404).json({ error: "Račun ni najden" }); return; }
+    if (invoice.sourceType === "bookie-old") {
+      res.status(409).json({ error: "Zgodovinskega računa ni mogoče ponovno knjižiti; to bi podvojilo promet v GK. Preverite povezano izvorno temeljnico." });
+      return;
+    }
     if (invoice.status !== "draft") {
       res.status(400).json({ error: "Samo osnutke je mogoče knjižiti" });
       return;
