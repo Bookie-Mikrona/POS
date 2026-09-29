@@ -1075,3 +1075,17 @@ mtime_ms = 1790683847482
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/ec9a2748-b8d2-488d-b65c-8fb4023715f4/857d6a76-5c9b-48b5-b8af-90587d0bdf36"
 storage_version_token = "1790683871465129"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "xwUBs8dSuTXOPUuBQSBp9"
+uri = "file://reports/bookie-old-K2-finalna-preslikava-2020plus.csv"
+type = "table"
+title = "Končna preslikava Bookie Old K2 (2020+)"
+description = "108 starih kontov: 27 sprejetih predlogov, 61 novih z izvorno šifro in 20 novih z nadomestno šifro zaradi kolizije."
+logical_id = "844fdb7d-e72e-4212-adb0-3bda2a91560b"
+content_hash = "sha256:f7913acbaa9f62226b220f95c84073cbbc731ea12a1c3de870c33efd728c9df4"
+size = 8775
+mtime_ms = 1790685310249
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/844fdb7d-e72e-4212-adb0-3bda2a91560b/9475ec3c-6da9-4fa5-9bd3-5e2cb7df4a89"
+storage_version_token = "1790685316474754"
+content_type = "text/csv"

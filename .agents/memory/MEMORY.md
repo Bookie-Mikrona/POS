@@ -1,8 +1,6 @@
-- [GitHub repozitorij](github-repo.md) — https://github.com/Bookie-Mikrona/POS — edini GitHub remote; ZCS APK koda je v `zcs-z92-print/` (ne artifacts/)
 - [Produkcijska domena](produkcijska-domena.md) — aktivni primarni naslov vedno preveri prek deployment metadata; trenutno Bookie-ERP.replit.app
 - [GitHub ERP push postopek](github-erp-push.md) — Replit ne more direktno pushati na ERP; vmesnik: gitPush erp-source veja → Windows git push erp origin/erp-source:main --force
 - [Claude konzultacija](claude-konzultacija.md) — pri neznanih SDK/hardware/algoritmičnih problemih pokliči Claude najprej, šele nato implementiraj
-- [ERP foundation](erp-foundation.md) — skupna Clerk + PostgreSQL infrastruktura z FURS POS Web; architecture decisions
 - [Brisanje razvojnih prijav](dev-clerk-user-cleanup.md) — e-pošto razreši v razvojnem Clerku; DB vloge veži na Clerk ID, poslovno/revizijsko zgodovino ohrani.
 - [ERP company header](erp-company-header.md) — ERP poročila morajo aktivno podjetje vedno poslati eksplicitno, ne zanašati se na legacy localStorage fallback.
 - [QR meni slike in ETA pijač](qr-meni-slike-eta-pijac.md) — široke slike so 3 : 1; čista naročila pijač uporabljajo ločeno barsko vrsto.
@@ -16,7 +14,6 @@
 - [Prikaz cene To Go embalaže](pos-embalaza-cenovni-prikaz.md) — cena je le prikazno pri staršu, računovodska/DDV vrstica ostane ločena; drugi dodatki ostanejo plačljivi.
 - [Več QR naročil na mizi](qr-vec-narocil-na-mizi.md) — različne naprave ostanejo ločene, POS pa mora na isti mizi prikazati in odpreti vsako naročilo.
 - [CTI žeton po enoti](cti-zeton-po-enoti.md) — dohodni MacroDroid klic se enolično veže na aktivno enoto prek lastnega žetona, nikoli prek telesa ali skupne skrivnosti
-- [Komunikacija](komunikacija.md) — izključno slovenščina
 - [Navigacija po formah](form-navigation.md) — puščice + Enter na vseh vnosnih poljih; navFoo() helper za tabelarne forme
 - [DDV zavezanec logika](ddv-zavezanec-logika.md) — idZaDdv=prazno→ni zavezanec; davčna štev. je vedno brez SI
 - [Nabavna vs. prodajna DDV](nabavna-prodajna-ddv.md) — razlika je sistemska in zakonita; nikoli ne primerjaj davek z taxCategory
@@ -28,7 +25,6 @@
 - [QR alkohol brez blokade](qr-alkohol-brez-blokade.md) — QR alkohol gre takoj v pripravo; osebje starost in opitost preveri ob postrežbi pri mizi.
 - [Zapiranje POS 109](pos-109-zapiranje.md) — prejemnico je dovoljeno zapreti le iz natančnega POS posnetka v temeljnici in z usklajenim zaklepanjem računa
 - [Bon za pico logika](bon-za-pico-logika.md) — skupaj/ddv je že neto; bon za pico je info vrstica; buildBonPicaAdjustedPostavke za tiskanje; statistike ne odštevajo bonPica
-- [ZCS bridge stale process](zcs-bridge-stale.md) — most "ni dosegljiv" = star proces drži port; fix: restart APK na napravi
 - [ZCS bridge tiskanje](zcs-bridge-tiskanje.md) — ✅ delujoč ZCS most; download APK je lahko ločen od source metadata, zato vedno preveri konkretni asset
 - [POS nastavitve HTTP caching](nastavitve-caching.md) — Cache-Control: no-store obvezen; ETag/304 blokira auto-fill vrednosti (IBAN, BIC, matična, idZaDdv)
 - [Vertex AI image/PDF omejitev](vertex-ai-image-pdf.md) — Vertex AI proxy zavrne image/base64 (PNG+JPEG); rešitev: pdfkit PNG→PDF wrapper, pošlji kot application/pdf document
@@ -157,3 +153,4 @@
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
 - [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.
 - [Bookie Old preslikava GK](bookie-old-gk-mapping.md) — vir nazivov je K2; stare šifre lahko pomenijo nekaj drugega kot enake šifre ERP; zapiranja po števcih so večinoma dvosmerna.
+- [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.

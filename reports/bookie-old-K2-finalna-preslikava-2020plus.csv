@@ -1,0 +1,109 @@
+﻿stari_konto;stari_naziv_k2;ciljni_konto;odločitev;vrsta_novega_konta;vrstic_2020_plus
+1200000;KRAT.TERJATVE OD KUPCEV V DRŽA;1200000;potrjen predlog;;3340
+2600020;OBV.DOM.TRG ZAVEZ.22%;2600000;potrjen predlog;;1688
+7602000;PRIH.OD STORTEV NA DOM.TRGU;7601000;potrjen predlog;;1643
+2200000;KR.OBV.DO DOBAVIT.V DRŽAVI;2200000;potrjen predlog;;1447
+1100000;DENARNA SREDSTVA NA RAČUNU;1100000;potrjen predlog;;1108
+1600020;TER.DOM.TRG ZAVEZ.DDV 22%;1600000;potrjen predlog;;508
+4010000;STROŠKI POMOŽNEGA MATERIALA;4010000;potrjen predlog;;230
+1600010;TERJATVE ZA VSTOPNI DDV 9.5%;1601000;potrjen predlog;;206
+4191100;TELEKOMUNIKACIJE;4191000;potrjen predlog;;166
+2211000;PLAČILO Z EUROCARD;2211001;nov konto – nadomestna šifra zaradi kolizije;liability;131
+2210000;KR.OBV.DO DOBAVIT.V TUJIN;2210001;nov konto – nadomestna šifra zaradi kolizije;liability;120
+2557000;OBVEZNOST DO P.JULIJANA;2557000;nov konto – izvorna šifra;liability;114
+4160000;ST.INELEKTUAL.IN OSEB.STORITE;4160001;nov konto – nadomestna šifra zaradi kolizije;expense;112
+4191000;KOMUNALNE STORITVE;4190000;potrjen predlog;;112
+4150000;S.PL.PROM.IN BAN. ST.;4172000;potrjen predlog;;96
+2851001;OBV.ZA PAVŠAL PO PODJ.POGODBI;2851001;nov konto – izvorna šifra;liability;91
+2607000;CELOTNA OBV.ZA DDV ZA OBD.;2607000;nov konto – izvorna šifra;liability;74
+9930000;TERJATVE OPROŠČENE DDV-ZAVEZAN;9930000;nov konto – izvorna šifra;equity;72
+2608000;OBV.ZA PLAČILO DDV ZA OBDOBJE;2609000;potrjen predlog;;62
+2650001;AK. DOHODNINE OD PODJ.POGODBE;2650001;nov konto – izvorna šifra;liability;61
+2851002;OBV.ZA ZPIZ PO PODJ.POG.8,85%;2851002;nov konto – izvorna šifra;liability;61
+2851003;OBV.ZA POS.DAV. PO POD.POG.25%;2851003;nov konto – izvorna šifra;liability;61
+2851004;NETO PODJEMNA POGODBA;2851004;nov konto – izvorna šifra;liability;60
+1610000;AK.DAV.OD DOHODKA;1610000;potrjen predlog;;49
+1607000;CEL.TERJ.ZA VSTOPNI DDV;1607000;nov konto – izvorna šifra;asset;48
+2556000;OBVEZNOST DO P. MIRJANE;2556000;nov konto – izvorna šifra;liability;42
+7601000;PRIH.OD PROD.PROI.NA DOM.TRGU;7600000;potrjen predlog;;41
+4191200;POŠTA;4102000;potrjen predlog;;39
+1603020;PRIDOBIT. BLAGA IZ EU SAMOOBD.;1604000;potrjen predlog;;37
+2603020;SAMOOBD.PRID.BL.IZ EU 22%;2604000;potrjen predlog;;37
+4196000;STROŠKI OSTALIH STORITEV;4196000;nov konto – izvorna šifra;expense;33
+4011100;DROBNI INVENTAR;4012000;potrjen predlog;;31
+4172000;REPREZENTANCA;4141000;potrjen predlog;;29
+4181000;PODJEMNA POGODBA;4181000;nov konto – izvorna šifra;expense;25
+4181100;PAVŠAL OD PODJ.POGODBE;4181100;nov konto – izvorna šifra;expense;25
+4181200;PRISP.8,85% OD PODJ.POGODBE;4181200;nov konto – izvorna šifra;expense;25
+4181300;POSEB.DAVEK OD PODJ.POGODE;4181300;nov konto – izvorna šifra;expense;25
+4000000;STROŠKI MATERIALA;4000000;potrjen predlog;;22
+1500001;OBRESTI ZA KREDIT P.F.;1500001;nov konto – izvorna šifra;asset;21
+7546000;DANE DONACIJE;7546000;nov konto – izvorna šifra;expense;19
+2640000;OBVEZNOSTI ZA DAVEK OD DOBIČKA;2640000;nov konto – izvorna šifra;liability;16
+7750002;PRIH.OD OBR.PETERKOVIČ F.;7750002;nov konto – izvorna šifra;revenue;16
+9999100;DDV 9,5%, KI SE NE ODBIJA;9999100;nov konto – izvorna šifra;equity;14
+9999200;DDV 22%, KI SE NE ODBIJA;9999200;nov konto – izvorna šifra;equity;13
+1330000;DRUGI KRATKOROČNI DANI PREDUJM;1330000;nov konto – izvorna šifra;asset;12
+1500000;KRATKOROČNE TERJATVE ZA OBREST;1500000;nov konto – izvorna šifra;asset;12
+1600030;ČASOPIS 5% DDV;1600030;nov konto – izvorna šifra;asset;12
+4198000;STAVBNO ZEMLJIŠČE;4198000;nov konto – izvorna šifra;expense;11
+8100000;DAVEK OD DOBIČKA-RED.POSLOV.;8100001;nov konto – nadomestna šifra zaradi kolizije;equity;11
+9310000;PREN.ČISTA IZGIBA IZ PREJŠ.LET;9310000;nov konto – izvorna šifra;equity;11
+9320000;OSTANEK ČIST.DOB.POSL.LETA;9320000;nov konto – izvorna šifra;equity;11
+2300000;KREATKOROČNO PREJETI PREDUJMI;2300001;nov konto – nadomestna šifra zaradi kolizije;liability;10
+4910000;PRENOS STR.NEPOSR. V ODHODKE;4910000;nov konto – izvorna šifra;expense;10
+7000000;VR.PRODANIH POSL. UČINKOV;7000001;nov konto – nadomestna šifra zaradi kolizije;expense;10
+7580000;NEGATIVNE PAR.IZRAVNAVE;7580000;nov konto – izvorna šifra;expense;10
+8000000;DOBIČEK ALI IZGUBA IZ RED.DELO;8000001;nov konto – nadomestna šifra zaradi kolizije;equity;10
+0724000;POSOILO PETERKOVIČ;0724000;nov konto – izvorna šifra;asset;9
+1611000;AK.DAV.IZ DOH.STARI KONTO;1611001;nov konto – nadomestna šifra zaradi kolizije;asset;9
+4190000;STR.DRUGIH STORITEV;4199000;potrjen predlog;;8
+7880000;POZITINE PAR.IZRAVNAVE;7880000;nov konto – izvorna šifra;revenue;8
+1600420;SAMOOBDAVČITVE V SLO;1600420;nov konto – izvorna šifra;asset;7
+2600420;SAMOOBD.KOT PREJ BLAG.IN STOR.;2600420;nov konto – izvorna šifra;liability;7
+4022000;STROŠKI OGREVANJA;4022001;nov konto – nadomestna šifra zaradi kolizije;expense;7
+4120000;STR.STORITEV ZA VZDRŽEVANJE;4120001;nov konto – nadomestna šifra zaradi kolizije;expense;7
+0400000;NABAVNA VR.OPREME IN NAD.DELOV;0400001;nov konto – nadomestna šifra zaradi kolizije;asset;6
+0500000;POP.VR.OPR.IN NADOM.DELOV;0500001;nov konto – nadomestna šifra zaradi kolizije;asset;6
+0726000;POS. 2021 PETERKOVIČ F. 0,78%;0726000;nov konto – izvorna šifra;asset;6
+1500003;OBR.ZA KREDIT0,0079% P.JUL.;1500003;nov konto – izvorna šifra;asset;6
+2542000;OBV.ZA DOH.OD NAJEMNIN;2542000;nov konto – izvorna šifra;liability;6
+2800000;KR.OBV.ZA OBRESTI;2800000;nov konto – izvorna šifra;liability;6
+2810000;KR.OBV.V ZV.Z RAZD.POS.IZIDA;2810000;nov konto – izvorna šifra;liability;6
+2851000;OBV.ZA NETO NAJEMNINO;2851005;nov konto – nadomestna šifra zaradi kolizije;liability;6
+4195000;STROŠKI VNOSA PODATKOV;4195000;nov konto – izvorna šifra;expense;6
+8150000;ČISTI DOBIČEK POSLOVNEGA LETA;8150000;nov konto – izvorna šifra;equity;6
+9030000;OSNOVNI KAPITAL-KAPIT.VLOGA;9030000;nov konto – izvorna šifra;equity;6
+9200000;ZAKONSKE REZERVE;9200000;potrjen predlog;;6
+0727000;POS.2021 PETERKOVIČ FRANCU;0727000;nov konto – izvorna šifra;asset;5
+1500004;OBR.ZA KRED.0,03622%;1500004;nov konto – izvorna šifra;asset;5
+7750003;PRIH.OD OBR.PETERKOVIČ JUL.;7750003;nov konto – izvorna šifra;revenue;5
+1761002;POSOJILO PETERKOVIČ F.851/2021;1761002;nov konto – izvorna šifra;asset;4
+1762001;POSOJILO P. JULIJANU 2022;1762001;nov konto – izvorna šifra;asset;4
+2201000;NAPAČNA NAKAZILA;2201001;nov konto – nadomestna šifra zaradi kolizije;liability;4
+4191300;MICROSOFT ONED;4191300;nov konto – izvorna šifra;expense;4
+7403000;ZAM.OBRESTI OD DAV. IN PRISP.;7403001;nov konto – nadomestna šifra zaradi kolizije;expense;4
+0728000;POS.2022 PETERKOVIČ JULIJANU;0728000;nov konto – izvorna šifra;asset;3
+1761009;POSOJILO MC PETERKOVIČ F.;1761009;nov konto – izvorna šifra;asset;3
+1762002;POSOJILO P. JULIJANU 2023;1762002;nov konto – izvorna šifra;asset;3
+4192000;STROŠKI OPOMINA;4192001;nov konto – nadomestna šifra zaradi kolizije;expense;3
+7404000;OBRESTI OD DOBAVITELJEV;7404000;nov konto – izvorna šifra;expense;3
+1201000;NAPAČNA NAKAZILA;1201001;nov konto – nadomestna šifra zaradi kolizije;asset;2
+1603021;STORITVE V EU SAMOOBD.V SLO;1603021;nov konto – izvorna šifra;asset;2
+1901000;ČASOVNE RAZMEJITVE;1901001;nov konto – nadomestna šifra zaradi kolizije;asset;2
+2554000;OBVEZNOST DO PETERKOVIČ F.;2554000;nov konto – izvorna šifra;liability;2
+2603021;SAMOOBD.-PREJ. STOR.IZ EU 22%;2603021;nov konto – izvorna šifra;liability;2
+2720001;POSOJILO PETERKOVIČ MIRJANA;2720001;nov konto – izvorna šifra;liability;2
+3100000;ZALOGE SUR.IN MAT.V SKLADIŠČU;3100000;potrjen predlog;;2
+4060000;STR.PIS.MAT.IN STROK.LITER.;4060000;nov konto – izvorna šifra;expense;2
+4151000;ZAVAROVALNE PREMIJE;4151001;nov konto – nadomestna šifra zaradi kolizije;expense;2
+7230000;ODPISI TERJATEV;7230000;nov konto – izvorna šifra;expense;2
+7701000;PRIH.OD OBRESTI AVISTA;7701001;nov konto – nadomestna šifra zaradi kolizije;revenue;2
+0729000;POS.2025 PETERKOVIČ FRANCU;0729000;nov konto – izvorna šifra;asset;1
+1000000;TOLARSKA SREDSTVA V BLAGAJNI;1000000;potrjen predlog;;1
+1761010;POSOJILO P.MIRJANI 2025;1761010;nov konto – izvorna šifra;asset;1
+1761011;POSOJILO P.FRANCU 2025;1761011;nov konto – izvorna šifra;asset;1
+3000000;VR.SUR.IN MAT.PO OB.DOBAVITELJ;3000000;potrjen predlog;;1
+3090000;OBRAČUN NABAVE SUROVIN IN MATE;3090000;nov konto – izvorna šifra;asset;1
+6630000;BLAGO V PRODAJALNI;6630000;potrjen predlog;;1
+6690000;VRAČ.RAZL. V CENAH ZALOG BLAGA;6638000;potrjen predlog;;1
