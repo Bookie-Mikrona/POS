@@ -3,11 +3,17 @@ name: Bookie Old zgodovinski računi
 description: Pravila za interpretacijo neknjiženih računov in bančnega prometa pri zgodovinskem uvozu.
 ---
 
-Zgodovinske izdane račune brez temeljnice obravnavaj kot napako starega postopka, ne kot namerno izpuščene ali plačane. Ohrani jih za pregled; manjkajoče knjižbe ne ustvarjaj samodejno. Nejasnosti tekočega leta ostanejo osnutki. Pri bančnem prometu ne izpeljuj otvoritvenega ali zaključnega salda iz prometa; tekoče leto še nima otvoritvene bilance.
+Zgodovinske izdane račune brez temeljnice ohrani za pregled; ne domnevaj, da so plačani, in ne ustvarjaj manjkajočih knjižb samodejno. Preden jih označiš za napako starega postopka, preveri znesek po popustu: ničelne listine ne izkazujejo terjatve. Nejasnosti tekočega leta ostanejo osnutki. Pri bančnem prometu ne izpeljuj otvoritvenega ali zaključnega salda iz prometa; tekoče leto še nima otvoritvene bilance.
 
-**Why:** Uporabnik je izrecno potrdil, da so taki izdani računi dejansko neknjiženi, da se pri banki knjiži samo promet in da otvoritvena temeljnica za tekoče leto še ni pripravljena. Samodejna poprava bi podvojila ali ponaredila finančno stanje.
+**Why:** Uporabnik je izrecno potrdil, da so taki izdani računi dejansko neknjiženi, da se pri banki knjiži samo promet in da otvoritvena temeljnica za tekoče leto še ni pripravljena. Poznejši pregled je pokazal tudi ničelne račune s 100-odstotnim popustom. Samodejna poprava bi lahko ustvarila fiktivno terjatev ali podvojila finančno stanje.
 
 **How to apply:** Pri prihodnjih uskladitvah vedno pokaži vir in razliko ter zahtevaj računovodsko presojo, preden iz osnutka nastane knjižba, plačilo ali saldo.
+
+Pri zgodovinskih izdanih računih brez GK najprej preveri dejanski znesek po popustu, ne kataloške cene. Nekateri imajo na vseh postavkah 100-odstotni popust ter ničelno osnovo, DDV in skupaj; to ne dokazuje, ali je stari postopek namenoma izpustil knjižbo ali jo je opustil po pomoti.
+
+**Why:** Nepovezane zgodovinske listine, ki so bile sprva označene kot manjkajoče knjižbe, lahko v izvornih prodajnih postavkah izkazujejo ničelni finančni učinek kljub nenicelni redni ceni.
+
+**How to apply:** Ohraniti jih je treba ločeno za pregled; ne ustvarjaj terjatev po redni ceni in ne sklepaj iz same odsotnosti GK, da gre za plačilo ali napako.
 
 Izvoženi stari obračuni DDV ter datoteke KIR/KPR in eDavki DDV-O so **samo kontrolna referenca**, ne podatki za uvoz v novi ERP.
 
