@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Envelope xmlns="http://edavki.durs.si/Documents/Schemas/DDV_O_11.xsd"
+ xmlns:edp="http://edavki.durs.si/Documents/Schemas/EDP-Common-1.xsd">
+  <edp:Header>
+    <edp:taxpayer>
+      <edp:taxNumber>84040653</edp:taxNumber>
+      <edp:taxpayerType>PO</edp:taxpayerType>
+    </edp:taxpayer>
+  </edp:Header>
+  <edp:Signatures />
+  <body>
+    <edp:bodyContent />
+    <DDV-O>
+      <n_ddv>9.50</n_ddv>
+      <v_ddv>22.00</v_ddv>
+      <z_ddv>5.00</z_ddv>
+      <taxPeriodStart>2026-04-01</taxPeriodStart>
+      <taxPeriodEnd>2026-06-30</taxPeriodEnd>
+      <selfReport>false</selfReport>      <depositAfterDeadline>false</depositAfterDeadline>      <f04>false</f04>
+      <f11>3591</f11>
+      <f11a>0</f11a>
+      <f12>0</f12>
+      <f13>0</f13>
+      <f14>0</f14>
+      <f15>0</f15>
+      <f21>790</f21>
+      <f22>0</f22>
+      <f22a>0</f22a>
+      <f23>0</f23>
+      <f23a>0</f23a>
+      <f24>0</f24>
+      <f24a>0</f24a>
+      <f24b>0</f24b>
+      <f24c>0</f24c>
+      <f25>0</f25>
+      <f25a>0</f25a>
+      <f25b>0</f25b>
+      <f26>0</f26>
+      <f31>2234</f31>
+      <f31a>0</f31a>
+      <f32>0</f32>
+      <f32a>0</f32a>
+      <f33>400</f33>
+      <f34>0</f34>
+      <f35>0</f35>
+      <f41>397</f41>
+      <f42>41</f42>
+      <f42a>0</f42a>
+      <f43>0</f43>
+      <f51>352</f51>
+      <f52>0</f52>
+    </DDV-O>
+  </body>
+</Envelope>
