@@ -1159,3 +1159,17 @@ mtime_ms = 1790696537674
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/de061ece-3af6-4994-ba73-0b34650bf1af/4149e43b-845b-4657-bd29-c2420d27075f"
 storage_version_token = "1790696617099438"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "UmEO50PldjfTD0jGKteKE"
+uri = "file://reports/mikrona-pregled-pred-knjizenjem-2020-2026.xlsx"
+type = "table"
+title = "Mikrona — pregled osnutkov pred knjiženjem 2020–2026"
+description = "Kontrolna Excel datoteka: povzetek po letih, 714 blokiranih temeljnic z razlogi, 741 vrstic z manjkajočimi dimenzijami, 15 neuravnoteženih temeljnic, 10 računov brez temeljnice in opozorila glede DDV. Nič ni bilo knjiženo."
+logical_id = "34b07ba6-bf4a-4eb6-b554-176eb1b3dcdc"
+content_hash = "sha256:a7acc0077ca09cf3f53fb62c66430085a4ce4d1e6f4403a2e291fe7c185de312"
+size = 119619
+mtime_ms = 1790699155823
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/34b07ba6-bf4a-4eb6-b554-176eb1b3dcdc/f7fb2ca4-a4f7-466c-af9f-3ef81f69d9e6"
+storage_version_token = "1790699176129768"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
