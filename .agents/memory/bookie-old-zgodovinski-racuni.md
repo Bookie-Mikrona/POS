@@ -20,3 +20,9 @@ Pri preverjanju odprtih postavk ne predpostavljaj, da vsaka stara GK vrstica z n
 **Why:** IOP in goli seštevek polja ostanka v starem GLAVNA lahko pokažeta različen saldo zaradi vrstic, ki jih IOP ne vključi. Samodejno enačenje bi ustvarilo navidezne odprte terjatve oziroma obveznosti.
 
 **How to apply:** Pred prenosom ali usklajevanjem salda primerjaj postavke po računu in partnerju ter izrecno izpiši izpuščene GK ostanke; ne odpiraj jih kot dokazano neplačane račune brez potrditve.
+
+Pri komunalnih računih lahko 9,5-odstotna storitev in neobdavčena okoljska dajatev nastopata na istem računu. GK strošek zajame oboje, davčna osnova zajame le obdavčene storitve; zgodovinski KPR vnos lahko vsebuje tudi centno odstopanje od dejanskega računa.
+
+**Why:** Izvirni račun je pokazal okoljsko dajatev z oznako »neobdavčeno«, medtem ko je bila stara KPR davčna osnova za dva centa nižja od vsote obdavčenih vrstic na računu.
+
+**How to apply:** Pri kontrolah DDV primerjaj osnove in davek z izvirnimi vrsticami računa, ne s skupnim GK stroškom ali zgolj s prepisom stare KPR.
