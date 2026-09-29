@@ -541,7 +541,7 @@ export default function Dashboard() {
               <KpiCard
                 title="Skupaj odprte terjatve"
                 value={terjatveTotal !== null ? fmtEur(terjatveTotal) : null}
-                sub="Izdani računi brez plačila"
+                sub="Knjiženi računi; osnutki niso vključeni"
                 href="/saldakonti"
                 icon={TrendingUp}
                 iconColor="text-blue-600"

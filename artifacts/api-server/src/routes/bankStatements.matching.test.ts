@@ -14,13 +14,16 @@ vi.mock("@workspace/db", () => {
         const chain = {
           from: () => chain,
           innerJoin: () => chain,
-          where: () => result,
+          where: () => chain,
+          groupBy: () => result,
+          then: result.then.bind(result),
         };
         return chain;
       },
     },
     counterpartiesTable: table,
     invoicesTable: table,
+    bookieOldArSettlementsTable: table,
     invoiceLinesTable: table,
     paymentAllocationsTable: table,
     paymentsTable: table,
@@ -28,6 +31,30 @@ vi.mock("@workspace/db", () => {
     accountsTable: table,
     accountingPeriodsTable: table,
   };
+});
+
+describe("zgodovinska zapiranja pri predlogih banke", () => {
+  const oldInvoice = {
+    id: "old-invoice", invoiceNumber: "2025-100", invoiceDate: "2025-01-01",
+    dueDate: "2025-02-01", type: "issued", counterpartyId: "partner-1",
+    counterpartyName: "Partner", counterpartyIban: null,
+  };
+
+  it("ne predlaga že zaprtega računa in pri delnem zapiranju upošteva le ostanek", async () => {
+    dbState.selectResults = [
+      [], [oldInvoice], [{ invoiceId: oldInvoice.id, gross: "12.00" }], [],
+      [{ invoiceId: oldInvoice.id, closed: "12.00" }],
+    ];
+    const closed = await buildMatchSuggestions("company-1", [transactions[0]]);
+    expect(closed[0].suggestions).toEqual([]);
+
+    dbState.selectResults = [
+      [], [oldInvoice], [{ invoiceId: oldInvoice.id, gross: "12.00" }], [],
+      [{ invoiceId: oldInvoice.id, closed: "9.00" }],
+    ];
+    const partial = await buildMatchSuggestions("company-1", [{ ...transactions[0], amount: 3 }]);
+    expect(partial[0].suggestions[0]?.invoiceId).toBe(oldInvoice.id);
+  });
 });
 
 vi.mock("drizzle-orm", () => ({

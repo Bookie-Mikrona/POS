@@ -366,6 +366,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     dependsOn: ["220-restored-pos-public-features.sql"],
   },
   {
+    file: "221-bookie-old-financial-invoices.sql",
+    classification: "schema",
+    dependsOn: ["221-public-voucher-stripe-connect.sql"],
+  },
+  {
     file: "222-pos-individual-voucher-redemption-holds.sql",
     classification: "schema",
     dependsOn: ["221-public-voucher-stripe-connect.sql"],
@@ -444,6 +449,11 @@ export const testMigrationManifest: readonly TestMigrationManifestEntry[] = [
     file: "237-purchase-article-eslog-units.sql",
     classification: "schema",
     dependsOn: ["236-pos-line-packaging-snapshot.sql"],
+  },
+  {
+    file: "238-bookie-old-ar-settlements.sql",
+    classification: "schema",
+    dependsOn: ["237-purchase-article-eslog-units.sql", "221-bookie-old-financial-invoices.sql"],
   },
 ];
 

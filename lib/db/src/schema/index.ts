@@ -11,6 +11,7 @@ export * from "./audit-log";
 export * from "./counterparties";
 export * from "./purchase-source-documents";
 export * from "./invoices";
+export * from "./bookie-old-ar-settlements";
 export * from "./bank-statements";
 export * from "./payments";
 export * from "./vat-codes";

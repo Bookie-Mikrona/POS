@@ -39,6 +39,12 @@ Zgodovinski računi, preneseni kot knjiženi brez njihovih zapiranj in alokacij 
 
 **How to apply:** Pred predstavitvijo zgodovinskega salda kot dejansko odprtega prenesi in preveri povezave zapiranj/plačil po izvornih identifikatorjih, primerjaj postavke in vsoto z IOP ter ne izmišljaj sintetičnih plačil ali ročno prepisanega skupnega zneska.
 
+Zgodovinska zapiranja hrani kot dokazila starih knjižb, ločeno od novih plačil; pri nadaljnji izterjavi ali uparjanju banke je razpoložljiv znesek računa bruto minus stara zapiranja minus kasnejša knjižena plačila. Zgodovinski izpis in stanje poknjiženih računov nista ista množica, dokler ostanejo poznejša leta osnutek.
+
+**Why:** Če se dokazilo uvozi kot novo plačilo, podvoji bančni dogodek. Če se upošteva samo v nadzorni plošči, lahko uparjanje banke ponudi že zaprt račun; če se osnutki tiho vključijo v uradne odprte postavke, se zamešata predogled in knjiženo stanje.
+
+**How to apply:** Uvoženo dokazilo mora imeti izvorno identiteto, kontrolno vsoto in datum posnetka; vsi izračuni preostanka in omejitve novih alokacij uporabljajo isto formulo. Osnutke in nepovezana dobroimetja prikaži ločeno od poknjiženega salda.
+
 Uporabnik je potrdil, da pri vseh treh obravnavanih računih istega dobavitelja velja enaka sestava: 9,5-odstotna komunalna storitev in neobdavčena okoljska dajatev. GK strošek zajame oboje, davčna osnova zajame le obdavčene storitve; zgodovinski KPR vnos lahko vsebuje tudi centno odstopanje od dejanskega računa.
 
 **Why:** Izvirni račun je pokazal okoljsko dajatev z oznako »neobdavčeno«, medtem ko je bila stara KPR davčna osnova za dva centa nižja od vsote obdavčenih vrstic na računu.

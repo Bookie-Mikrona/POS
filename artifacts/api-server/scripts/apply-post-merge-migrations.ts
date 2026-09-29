@@ -69,12 +69,14 @@ const migrations = [
   "199-company-pos-plans.sql",
   "220-restored-pos-public-features.sql",
   "221-public-voucher-stripe-connect.sql",
+  "221-bookie-old-financial-invoices.sql",
   "222-pos-individual-voucher-redemption-holds.sql",
   "223-company-offboarding-cases.sql",
   "232-inventura-document-path.sql",
   "233-drobni-inventar-vhodni-ddv.sql",
   "234-drobni-inventar-skupine.sql",
   "237-purchase-article-eslog-units.sql",
+  "238-bookie-old-ar-settlements.sql",
 ] as const;
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptsDir, "../../../lib/db/src/migrations");

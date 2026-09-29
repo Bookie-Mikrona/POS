@@ -13,6 +13,7 @@ import {
   journalEntryLinesTable,
   invoicesTable,
   invoiceLinesTable,
+  bookieOldArSettlementsTable,
   enoteTable,
   posBookingSettingsTable,
   companiesTable,
@@ -30,6 +31,23 @@ const router: IRouter = Router();
 
 function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
+}
+
+// A legacy closing is historical evidence, not a newly posted payment.
+async function historicalClosedMap(
+  companyId: string,
+  invoiceIds: string[],
+  executor: typeof db = db,
+): Promise<Map<string, number>> {
+  if (invoiceIds.length === 0) return new Map();
+  const rows = await executor.select({
+    invoiceId: bookieOldArSettlementsTable.invoiceId,
+    closed: bookieOldArSettlementsTable.closedAmount,
+  }).from(bookieOldArSettlementsTable).where(and(
+    eq(bookieOldArSettlementsTable.companyId, companyId),
+    inArray(bookieOldArSettlementsTable.invoiceId, invoiceIds),
+  ));
+  return new Map(rows.map((row) => [row.invoiceId, Number(row.closed)]));
 }
 
 function xml(value: unknown): string {
@@ -246,9 +264,10 @@ async function refreshInvoiceStatuses(
 
     const allocated = parseFloat(allocRow?.allocated ?? "0");
     const gross = parseFloat(grossRow?.gross ?? "0");
+    const historicalClosed = (await historicalClosedMap(inv.companyId, [invoiceId], tx as typeof db)).get(invoiceId) ?? 0;
 
     let newStatus: "posted" | "paid" = "posted";
-    if (gross > 0 && allocated >= gross - 0.005) {
+    if (gross > 0 && allocated + historicalClosed >= gross - 0.005) {
       newStatus = "paid";
     }
 
@@ -605,11 +624,12 @@ router.post(
         .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
         .groupBy(invoiceLinesTable.invoiceId);
       const grossMap = new Map(grossRows.map((r) => [r.invoiceId, parseFloat(r.gross ?? "0")]));
+      const historical = await historicalClosedMap(companyId, invoiceIds);
 
       for (const alloc of allocations) {
         const gross = grossMap.get(alloc.invoiceId) ?? 0;
         const alreadyAllocated = existingAllocMap.get(alloc.invoiceId) ?? 0;
-        const remaining = gross - alreadyAllocated;
+        const remaining = gross - alreadyAllocated - (historical.get(alloc.invoiceId) ?? 0);
         if (alloc.allocatedAmount > remaining + 0.005) {
           res.status(400).json({
             error: `Poravnava (${alloc.allocatedAmount.toFixed(2)}) presega preostali odprti znesek računa (${remaining.toFixed(2)})`,
@@ -1003,11 +1023,12 @@ router.post(
           .where(inArray(invoiceLinesTable.invoiceId, invoiceIds))
           .groupBy(invoiceLinesTable.invoiceId);
         const grossMap = new Map(grossRows.map((r) => [r.invoiceId, parseFloat(r.gross ?? "0")]));
+        const historical = await historicalClosedMap(companyId, invoiceIds, tx as unknown as typeof db);
 
         for (const alloc of allocsToPost) {
           const gross = grossMap.get(alloc.invoiceId) ?? 0;
           const alreadyAllocated = existingAllocMap.get(alloc.invoiceId) ?? 0;
-          const remaining = gross - alreadyAllocated;
+          const remaining = gross - alreadyAllocated - (historical.get(alloc.invoiceId) ?? 0);
           const thisAlloc = parseFloat(alloc.allocatedAmount);
           if (thisAlloc > remaining + 0.005) {
             throw Object.assign(
@@ -1022,7 +1043,7 @@ router.post(
           const gross = grossMap.get(inv.id) ?? 0;
           const alreadyAllocated = existingAllocMap.get(inv.id) ?? 0;
           const thisAlloc = parseFloat(allocsToPost.find((a) => a.invoiceId === inv.id)?.allocatedAmount ?? "0");
-          const totalAllocated = alreadyAllocated + thisAlloc;
+          const totalAllocated = alreadyAllocated + thisAlloc + (historical.get(inv.id) ?? 0);
           const newStatus: "posted" | "paid" = gross > 0 && totalAllocated >= gross - 0.005 ? "paid" : "posted";
           if (newStatus !== inv.status) {
             await tx.update(invoicesTable).set({ status: newStatus }).where(eq(invoicesTable.id, inv.id));
@@ -1344,6 +1365,7 @@ router.get(
 
     const allocMap = new Map<string, number>();
     for (const r of allocRows) allocMap.set(r.invoiceId, parseFloat(r.allocated ?? "0"));
+    const historical = await historicalClosedMap(companyId, invoiceIds);
 
     // Izračunaj preostalo
     let totalRemaining = 0;
@@ -1352,7 +1374,8 @@ router.get(
     for (const inv of eligibleInvoices) {
       const gross = grossMap.get(inv.id) ?? 0;
       const allocated = allocMap.get(inv.id) ?? 0;
-      const remaining = gross - allocated;
+      const historicalClosed = historical.get(inv.id) ?? 0;
+      const remaining = gross - allocated - historicalClosed;
 
       if (remaining < 0.005) continue; // Popolnoma poravnano
 
@@ -1372,7 +1395,7 @@ router.get(
         arApAccountId: inv.arApAccountId,
         invoiceType: inv.type,
         totalGross: gross.toFixed(2),
-        allocatedAmount: allocated.toFixed(2),
+        allocatedAmount: (allocated + historicalClosed).toFixed(2),
         remainingAmount: remaining.toFixed(2),
         daysOverdue,
         ...(sspOnlyRequested ? {
@@ -1450,6 +1473,7 @@ router.get(
       .where(and(inArray(paymentAllocationsTable.invoiceId, invoiceIds), eq(paymentsTable.status, "posted")))
       .groupBy(paymentAllocationsTable.invoiceId);
     const allocMap = new Map(allocRows.map((r) => [r.invoiceId, parseFloat(r.allocated ?? "0")]));
+    const historical = await historicalClosedMap(companyId, invoiceIds);
 
     // Grupiraj po partnerju
     type Buckets = { current: number; b1: number; b31: number; b61: number; b90: number };
@@ -1459,7 +1483,7 @@ router.get(
     for (const inv of invoices) {
       const gross = grossMap.get(inv.id) ?? 0;
       const allocated = allocMap.get(inv.id) ?? 0;
-      const remaining = gross - allocated;
+      const remaining = gross - allocated - (historical.get(inv.id) ?? 0);
       if (remaining < 0.005) continue;
 
       const dueDate = inv.dueDate ?? inv.invoiceDate;

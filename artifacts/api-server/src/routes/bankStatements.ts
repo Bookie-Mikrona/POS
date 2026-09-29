@@ -7,6 +7,7 @@ import {
   db,
   counterpartiesTable,
   invoicesTable,
+  bookieOldArSettlementsTable,
   invoiceLinesTable,
   paymentAllocationsTable,
   paymentsTable,
@@ -680,13 +681,21 @@ export async function buildMatchSuggestions(
     )
     .groupBy(paymentAllocationsTable.invoiceId);
   const allocMap = new Map(allocRows.map(r => [r.invoiceId, parseFloat(r.allocated ?? "0")]));
+  const historicalRows = await db.select({
+    invoiceId: bookieOldArSettlementsTable.invoiceId,
+    closed: bookieOldArSettlementsTable.closedAmount,
+  }).from(bookieOldArSettlementsTable).where(and(
+    eq(bookieOldArSettlementsTable.companyId, companyId),
+    inArray(bookieOldArSettlementsTable.invoiceId, invoiceIds),
+  ));
+  const historicalMap = new Map(historicalRows.map(r => [r.invoiceId, Number(r.closed)]));
 
   // Build open items with remaining amounts
   const openItems = invoices
     .map(inv => {
       const gross = grossMap.get(inv.id) ?? 0;
       const allocated = allocMap.get(inv.id) ?? 0;
-      const remaining = gross - allocated;
+      const remaining = gross - allocated - (historicalMap.get(inv.id) ?? 0);
       return { ...inv, gross, remaining };
     })
     .filter(i => i.remaining >= 0.005);

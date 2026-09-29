@@ -1,3 +1,4 @@
+-- test-bootstrap: schema
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS historical_net numeric(18,2);
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS historical_vat numeric(18,2);
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS historical_gross numeric(18,2);
