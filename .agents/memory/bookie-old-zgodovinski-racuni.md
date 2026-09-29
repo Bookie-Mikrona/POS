@@ -26,3 +26,9 @@ Uporabnik je potrdil, da pri vseh treh obravnavanih računih istega dobavitelja 
 **Why:** Izvirni račun je pokazal okoljsko dajatev z oznako »neobdavčeno«, medtem ko je bila stara KPR davčna osnova za dva centa nižja od vsote obdavčenih vrstic na računu.
 
 **How to apply:** Pri kontrolah DDV primerjaj osnove in davek z izvirnimi vrsticami računa, ne s skupnim GK stroškom ali zgolj s prepisom stare KPR.
+
+Uporabnik želi nepravilnosti oziroma odstopanja zgodovinske KPR obravnavati pri knjiženju novih dokumentov iz skenov v novi GK, ne s samodejnim prepisom starih kontrolnih evidenc.
+
+**Why:** Izvirnik vsebuje razčlenitev obdavčene storitve in neobdavčene dajatve, ki je stari agregirani vnos ne pokaže dovolj zanesljivo.
+
+**How to apply:** Pri novem uvozu skena zahtevaj pregled in pravilno ločitev osnove, DDV in neobdavčene postavke pred knjiženjem; starih kontrolnih evidenc ne popravljaj samodejno.
