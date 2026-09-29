@@ -1089,3 +1089,73 @@ mtime_ms = 1790685310249
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/844fdb7d-e72e-4212-adb0-3bda2a91560b/9475ec3c-6da9-4fa5-9bd3-5e2cb7df4a89"
 storage_version_token = "1790685316474754"
 content_type = "text/csv"
+
+[[outputs]]
+id = "hHvtDBF-JxwjoyHziUO--"
+uri = "file://reports/mikrona-kontrolni-predogledi/DDV-O_2026-04_06_kontrolni_predogled.pdf"
+type = "pdf"
+title = "DDV-O — april–junij 2026"
+description = "Kontrolni predogled: DDV-O ni izračunan."
+logical_id = "8faf4fcb-212c-47c1-85d3-96d68b3e52ec"
+content_hash = "sha256:7ecd2e244739ffc9d30c6bf9f4c85c9cff47ff6019aacb32e42311426724346f"
+size = 44789
+mtime_ms = 1790696533910
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/8faf4fcb-212c-47c1-85d3-96d68b3e52ec/3a75f9ff-1610-449c-8082-4f0920f3ebdd"
+storage_version_token = "1790696610495426"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "IZzaa1vI1l3mRXb7fhaIi"
+uri = "file://reports/mikrona-kontrolni-predogledi/KIR_2026-04_06_kontrolni_predogled.pdf"
+type = "pdf"
+title = "KIR — kontrolni predogled"
+description = "45 osnutkov izdanih računov; ni davčna evidenca."
+logical_id = "0616b0e8-caf4-4275-9274-678a6ed22652"
+content_hash = "sha256:5312daaa150713c99bac84e7c6e94f283fa4ba6d2f2c20a34db9be030ddfedc8"
+size = 48878
+mtime_ms = 1790696534158
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/0616b0e8-caf4-4275-9274-678a6ed22652/99901acb-eda1-4132-a3da-432e3765d5d7"
+storage_version_token = "1790696612081426"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "E_9skGa_uLDH0tfEUEOIR"
+uri = "file://reports/mikrona-kontrolni-predogledi/KPR_2026-04_06_kontrolni_predogled.pdf"
+type = "pdf"
+title = "KPR — kontrolni predogled"
+description = "29 osnutkov prejetih računov; ni davčna evidenca."
+logical_id = "de256b19-7b19-48c5-9b12-d930bc78bb46"
+content_hash = "sha256:dca118dc059763f5f63be1100b7afdba4b17d3679f41e313428118e83b42b99b"
+size = 47619
+mtime_ms = 1790696534394
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/de256b19-7b19-48c5-9b12-d930bc78bb46/ee222919-12ed-4969-a79e-40d086bad705"
+storage_version_token = "1790696613481641"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "M3V2y14YQ1MtqKSIuK-yI"
+uri = "file://reports/mikrona-kontrolni-predogledi/odprte_postavke_120_kontrolni_predogled.pdf"
+type = "pdf"
+title = "Odprte postavke 120 — kontrola"
+description = "65 postavk starega IOP; ni saldo nove GK."
+logical_id = "ba96ef5c-3e0b-4f2d-bc74-02e25e36b8c8"
+content_hash = "sha256:83b747392a43f9f4282934dbf02386656bbdab06520bcb613bce0c181328598a"
+size = 52642
+mtime_ms = 1790696537418
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/ba96ef5c-3e0b-4f2d-bc74-02e25e36b8c8/b591c771-6c7e-4b1b-876f-36cc009fed29"
+storage_version_token = "1790696615365383"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "RaC-gf1yttdjJCTtPBgNl"
+uri = "file://reports/mikrona-kontrolni-predogledi/odprte_postavke_220_kontrolni_predogled.pdf"
+type = "pdf"
+title = "Odprte postavke 220 — kontrola"
+description = "17 postavk starega IOP; ni saldo nove GK."
+logical_id = "de061ece-3af6-4994-ba73-0b34650bf1af"
+content_hash = "sha256:f6193c2a3a33490bee888faad1170083b782edc55b8568a9d16332085eac4f08"
+size = 47749
+mtime_ms = 1790696537674
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/de061ece-3af6-4994-ba73-0b34650bf1af/4149e43b-845b-4657-bd29-c2420d27075f"
+storage_version_token = "1790696617099438"
+content_type = "application/pdf"
