@@ -33,8 +33,8 @@ Uporabnik želi nepravilnosti oziroma odstopanja zgodovinske KPR obravnavati pri
 
 **How to apply:** Pri novem uvozu skena zahtevaj pregled in pravilno ločitev osnove, DDV in neobdavčene postavke pred knjiženjem; starih kontrolnih evidenc ne popravljaj samodejno.
 
-Zahteva za dokončno knjiženje zgodovinske GK je omejena na leta 2020–2025; leto 2026 mora ostati osnutek. Uporabnik je izbral najprej urediti DDV sled, vendar je potrdil, da izvirnih računov za ta leta trenutno nima na voljo.
+Zahteva za dokončno knjiženje zgodovinske GK je omejena na leta 2020–2025; leto 2026 mora ostati osnutek. Uporabnik je sprva izbral ureditev DDV sledi pred knjiženjem, nato potrdil, da izvirnih računov nima, in izrecno dovolil knjiženje zgodovinske GK ter povezanih računov brez popolne KIR/KPR.
 
-**Why:** Brez izvirnikov ni mogoče zanesljivo dokazati davčne razčlenitve prejetih računov. Stari DDV izvozi so po prejšnjem dogovoru le kontrola, ne vir novih davčnih knjižb.
+**Why:** Brez izvirnikov ni mogoče zanesljivo dokazati davčne razčlenitve prejetih računov. Stari DDV izvozi so po prejšnjem dogovoru le kontrola, ne vir novih davčnih knjižb; uporabnik je po pojasnilu posledic sprejel nepopolnost nove DDV evidence za arhivski GK prenos.
 
-**How to apply:** Ne obravnavaj manjkajočih DDV kod kot zgolj tehnično oviro, ki jo lahko obideš z generiranimi kodami; pred knjiženjem pojasni razliko med zgodovinsko GK in popolno novo DDV evidenco ter pridobi izrecno poslovno odločitev o nepopolni evidenci, če izvirniki ostanejo nedostopni.
+**How to apply:** Zgodovinskih potrjenih računov ne predstavljaj kot dokaz popolne nove KIR/KPR ali DDV-O; ne dodajaj ugibanih kod in ne prepisuj starih kontrolnih izvozov v novo DDV evidenco. Ob morebitni poznejši rekonstrukciji ohrani ločnico med GK in davčno sledjo.
