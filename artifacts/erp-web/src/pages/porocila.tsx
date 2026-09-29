@@ -20,6 +20,7 @@ import {
   Sheet,
 } from "lucide-react";
 import ExcelJS from "exceljs";
+import { LedgerStatementTable, type LedgerStatementView } from "@/components/reports/ledger-statement-table";
 import {
   useGetBalanceSheet,
   useGetIncomeStatement,
@@ -1311,6 +1312,7 @@ function TrialBalanceTab() {
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
+  const [statementView, setStatementView] = useState<"standard" | LedgerStatementView>("standard");
 
   const [appliedFrom, setAppliedFrom] = useState(yearStart());
   const [appliedTo, setAppliedTo] = useState(todayStr());
@@ -1331,8 +1333,13 @@ function TrialBalanceTab() {
     e.preventDefault();
     setAppliedFrom(dateFrom);
     setAppliedTo(dateTo);
+    if (!/^\d{4}-01-01$/.test(dateFrom) || dateTo !== `${dateFrom.slice(0, 4)}-12-31`) {
+      setStatementView("standard");
+    }
     setQueried(true);
   }
+
+  const isAnnual = /^\d{4}-01-01$/.test(appliedFrom) && appliedTo === `${appliedFrom.slice(0, 4)}-12-31`;
 
   const filtered: TrialBalanceRow[] = React.useMemo(() => {
     if (!data) return [];
@@ -1357,8 +1364,13 @@ function TrialBalanceTab() {
       await serverExportPdf({
         companyId: activeCompany.id,
         reportType: "trial-balance",
-        params: { dateFrom: appliedFrom, dateTo: appliedTo },
-        filename: `bruto-bilanca-${appliedFrom}-${appliedTo}.pdf`,
+        params: {
+          dateFrom: appliedFrom, dateTo: appliedTo,
+          ...(statementView !== "standard" ? { statementView } : {}),
+          ...(classFilter !== "all" ? { accountClass: classFilter } : {}),
+          ...(search.trim() ? { searchTerm: search.trim() } : {}),
+        },
+        filename: `${statementView === "standard" ? "bruto-bilanca" : statementView}-${appliedFrom}-${appliedTo}.pdf`,
         token: token ?? "",
       });
       trackEvent("report_exported", { report_type: "trial_balance", format: "pdf" });
@@ -1386,8 +1398,8 @@ function TrialBalanceTab() {
         ["Šifra", "Naziv konta", "Tip", "Začetni saldo B", "Začetni saldo D", "Promet breme", "Promet dobro", "Saldo breme", "Saldo dobro"],
       ];
 
-      // Data rows — all rows from the full dataset (not filtered)
-      const dataRows: (string | number)[][] = data.rows.map((row) => [
+      // Export the same account set currently visible on screen.
+      const dataRows: (string | number)[][] = filtered.map((row) => [
         row.accountCode,
         row.accountName,
         ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType,
@@ -1400,12 +1412,12 @@ function TrialBalanceTab() {
       ]);
 
       // Totals row
-      const totalObD = data.rows.reduce((s, r) => s + parseFloat(r.openingBalanceDebit || "0"), 0);
-      const totalObC = data.rows.reduce((s, r) => s + parseFloat(r.openingBalanceCredit || "0"), 0);
-      const totalDebit = data.rows.reduce((s, r) => s + parseFloat(r.turnoverDebit || "0"), 0);
-      const totalCredit = data.rows.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0);
-      const totalBalDebit = data.rows.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0);
-      const totalBalCredit = data.rows.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
+      const totalObD = filtered.reduce((s, r) => s + parseFloat(r.openingBalanceDebit || "0"), 0);
+      const totalObC = filtered.reduce((s, r) => s + parseFloat(r.openingBalanceCredit || "0"), 0);
+      const totalDebit = filtered.reduce((s, r) => s + parseFloat(r.turnoverDebit || "0"), 0);
+      const totalCredit = filtered.reduce((s, r) => s + parseFloat(r.turnoverCredit || "0"), 0);
+      const totalBalDebit = filtered.reduce((s, r) => s + parseFloat(r.balanceDebit || "0"), 0);
+      const totalBalCredit = filtered.reduce((s, r) => s + parseFloat(r.balanceCredit || "0"), 0);
       const totalsRow: (string | number)[] = ["", "SKUPAJ", "", totalObD, totalObC, totalDebit, totalCredit, totalBalDebit, totalBalCredit];
 
       const workbook = new ExcelJS.Workbook();
@@ -1469,7 +1481,12 @@ function TrialBalanceTab() {
       await serverSendEmail({
         companyId: activeCompany.id,
         reportType: "trial-balance",
-        params: { dateFrom: appliedFrom, dateTo: appliedTo },
+        params: {
+          dateFrom: appliedFrom, dateTo: appliedTo,
+          ...(statementView !== "standard" ? { statementView } : {}),
+          ...(classFilter !== "all" ? { accountClass: classFilter } : {}),
+          ...(search.trim() ? { searchTerm: search.trim() } : {}),
+        },
         email,
         token: token ?? "",
       });
@@ -1547,6 +1564,7 @@ function TrialBalanceTab() {
               <Input
                 id="tb-search"
                 placeholder="Šifra ali naziv…"
+                maxLength={100}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-44 h-8 text-sm"
@@ -1617,6 +1635,35 @@ function TrialBalanceTab() {
       )}
 
       {queried && data && !isFetching && (
+        <div className="flex flex-wrap items-center gap-2 print:hidden" role="group" aria-label="Prikaz bilance kontov">
+          {([
+            ["standard", "Bruto bilanca"],
+            ["bilanca", "Bilanca kontov"],
+            ["zakljucni", "Zaključni račun"],
+          ] as const).map(([value, label]) => (
+            <Button key={value} type="button" size="sm"
+              variant={statementView === value ? "default" : "outline"}
+              disabled={value !== "standard" && !isAnnual}
+              onClick={() => setStatementView(value)}>
+              {label}
+            </Button>
+          ))}
+          {activeCompany?.naziv?.toLocaleLowerCase("sl-SI").includes("mikrona") && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => {
+              setDateFrom("2025-01-01");
+              setDateTo("2025-12-31");
+              setAppliedFrom("2025-01-01");
+              setAppliedTo("2025-12-31");
+              setStatementView("zakljucni");
+            }}>
+              Oddani izpisi 2025
+            </Button>
+          )}
+          {!isAnnual && <span className="text-xs text-muted-foreground">Bilanca kontov in zaključni račun zahtevata celo koledarsko leto.</span>}
+        </div>
+      )}
+
+      {queried && data && !isFetching && (
         <div ref={contentRef}>
           {/* Balance check badge */}
           <div className="flex items-center gap-3 mb-3 print:hidden">
@@ -1637,7 +1684,16 @@ function TrialBalanceTab() {
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-md border">
+          {statementView !== "standard" && (
+            <LedgerStatementTable
+              rows={filtered}
+              view={statementView}
+              dateFrom={appliedFrom}
+              dateTo={appliedTo}
+              companyName={activeCompany?.naziv ?? ""}
+            />
+          )}
+          {statementView === "standard" && <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-muted/60">
@@ -1735,12 +1791,15 @@ function TrialBalanceTab() {
                 </tfoot>
               )}
             </table>
-          </div>
+          </div>}
 
           {/* Print header (hidden on screen) */}
           <div className="hidden print:block mb-4">
             <p className="text-base font-bold">{activeCompany?.naziv}</p>
-            <p className="text-sm font-semibold">Bruto bilanca (preizkusna bilanca)</p>
+            <p className="text-sm font-semibold">
+              {statementView === "standard" ? "Bruto bilanca (preizkusna bilanca)"
+                : statementView === "bilanca" ? "Bilanca kontov" : "Zaključni račun"}
+            </p>
             <p className="text-xs text-muted-foreground">Obdobje: {appliedFrom} – {appliedTo}</p>
           </div>
         </div>
@@ -1796,7 +1855,13 @@ function formatExportParams(params: Record<string, string | undefined>, reportTy
       : base;
   }
   if (reportType === "trial-balance") {
-    return `${params.dateFrom} – ${params.dateTo}`;
+    return [
+      `${params.dateFrom} – ${params.dateTo}`,
+      params.statementView === "bilanca" ? "Bilanca kontov" :
+        params.statementView === "zakljucni" ? "Zaključni račun" : null,
+      params.accountClass ? `Razred ${params.accountClass}` : null,
+      params.searchTerm ? `Iskanje: ${params.searchTerm}` : null,
+    ].filter(Boolean).join(" | ");
   }
   return JSON.stringify(params);
 }
@@ -1996,7 +2061,7 @@ export default function Porocila() {
         <TabsList>
           <TabsTrigger value="balance-sheet">Bilanca stanja</TabsTrigger>
           <TabsTrigger value="income-statement">Izkaz poslovnega izida</TabsTrigger>
-          <TabsTrigger value="trial-balance">Bruto bilanca</TabsTrigger>
+          <TabsTrigger value="trial-balance">Bilanca kontov / zaključni račun</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5">
             <History className="h-3.5 w-3.5" />
             Zgodovina izvozov

@@ -1187,3 +1187,17 @@ mtime_ms = 1790714532254
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/8860a4d6-60a4-417c-a390-95668082753e/ce6cec00-3ef0-49db-b0a7-75e0d5586b95"
 storage_version_token = "1790714543428090"
 content_type = "text/csv"
+
+[[outputs]]
+id = "3C73ODuMfa8tQ36PUSOyb"
+uri = "file://reports/mikrona-2025-pdf-gk-reconciliation.csv"
+type = "table"
+title = "Mikrona 2025 – primerjava oddanih izpisov z novo GK"
+description = "65 kontov, devet stolpcev zaključnega računa; vse primerjave po preslikavi so brez razlik."
+logical_id = "66283d46-6555-4edd-af82-0aa7f9b36e09"
+content_hash = "sha256:ff78c1bd4955de2ab029d881159c4dbdfdde02b5bccc725ea849e44ada04d6db"
+size = 8822
+mtime_ms = 1790717447976
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/66283d46-6555-4edd-af82-0aa7f9b36e09/250d8a42-ad7e-4e8b-b8e5-9d6691d71056"
+storage_version_token = "1790717684629135"
+content_type = "text/csv"

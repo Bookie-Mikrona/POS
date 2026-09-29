@@ -155,4 +155,5 @@
 - [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.
 - [Bookie Old preslikava GK](bookie-old-gk-mapping.md) — K2 je vir nazivov; otvoritev je zbirna brez partnerjev, Mikrona ne uporablja stroškovnih mest; zapiranja preveri v izvirnih letih.
 - [Bookie Old zgodovinski računi](bookie-old-zgodovinski-racuni.md) — GK 2020–2025 je dovoljena brez popolne nove KIR/KPR; 2026 ostane osnutek, stari DDV izvozi so le kontrola.
+- [Oddana bilanca Bookie Old](bookie-old-oddana-bilanca.md) — oddana Bilanca in Zaključni račun sta avtoriteta; primerjaj bruto otvoritev, promet in skupaj po preslikanih kontih.
 - [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.

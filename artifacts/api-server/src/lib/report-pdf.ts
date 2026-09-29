@@ -668,6 +668,115 @@ export async function generateIncomeStatementPdf(opts: {
 
 // ── Bruto bilanca ─────────────────────────────────────────────────────────────
 
+type LedgerView = "bilanca" | "zakljucni";
+type LedgerField = "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" |
+  "turnoverCredit" | "balanceDebit" | "balanceCredit";
+
+/**
+ * Account ledger in the form of the submitted Bilanca / Zaključni račun.
+ * All three signed saldo columns are debit minus credit, NOT natural-side balances.
+ */
+async function generateLedgerStatementPdf(opts: {
+  companyName: string; dateFrom: string; dateTo: string;
+  rows: TrialBalanceRow[]; statementView: LedgerView;
+}): Promise<Buffer> {
+  const { companyName, dateFrom, dateTo, rows, statementView } = opts;
+  const closing = statementView === "bilanca";
+  const headers = closing
+    ? ["Debet", "Kredit", "Saldo"]
+    : ["Debet OTV", "Kredit OTV", "Saldo OTV", "Debet tekoči", "Kredit tekoči", "Saldo tekoči", "Debet skupaj", "Kredit skupaj", "Saldo"];
+  const pairs: [LedgerField, LedgerField][] = closing
+    ? [["balanceDebit", "balanceCredit"]]
+    : [["openingBalanceDebit", "openingBalanceCredit"], ["turnoverDebit", "turnoverCredit"], ["balanceDebit", "balanceCredit"]];
+  const width = closing ? 841.89 : 1190.55;
+  const height = closing ? 595.28 : 841.89;
+  const numericWidth = closing ? 114 : 92;
+  const leftWidth = closing ? 350 : 275;
+  const numX = MARGIN + leftWidth;
+  const title = closing ? "BILANCA KONTOV" : "ZAKLJUČNI RAČUN";
+  const doc = new PDFDocument({
+    size: [width, height],
+    margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+    bufferPages: true,
+    autoFirstPage: false,
+  });
+  registerFonts(doc);
+  const bufferPromise = collectDocBuffer(doc);
+  let y = 0;
+
+  const amount = (row: TrialBalanceRow, field: LedgerField) => Number(row[field]);
+  const values = (subset: TrialBalanceRow[]): number[] =>
+    pairs.flatMap(([debit, credit]) => {
+      const d = subset.reduce((sum, row) => sum + amount(row, debit), 0);
+      const c = subset.reduce((sum, row) => sum + amount(row, credit), 0);
+      return [d, c, d - c];
+    });
+  const drawAmounts = (numbers: number[], atY: number, bold = false) => {
+    doc.font(bold ? "DejaVuSans-Bold" : "DejaVuSans").fontSize(closing ? 8 : 7);
+    numbers.forEach((number, i) => doc.text(fmtNum(number), numX + i * numericWidth, atY, {
+      width: numericWidth - 5, align: "right", lineBreak: false, height: 12,
+    }));
+  };
+  const addPage = () => {
+    doc.addPage({ size: [width, height] });
+    y = 37;
+    doc.font("DejaVuSans-Bold").fontSize(10).fillColor(COLOR_PRIMARY)
+      .text(companyName, MARGIN, y, { width: width - 2 * MARGIN, lineBreak: false });
+    y += 17;
+    doc.font("DejaVuSans-Bold").fontSize(11).text(title, MARGIN, y, { lineBreak: false });
+    doc.font("DejaVuSans").fontSize(8).text(`${dateFrom} – ${dateTo}  ·  konti nove GK`, MARGIN + 200, y + 2, { lineBreak: false });
+    y += 25;
+    doc.rect(MARGIN, y, width - 2 * MARGIN, 19).fillColor(COLOR_SECTION).fill();
+    doc.font("DejaVuSans-Bold").fontSize(closing ? 8 : 6.8).fillColor(COLOR_PRIMARY);
+    doc.text("Konto", MARGIN + 3, y + 4, { width: 65, lineBreak: false });
+    doc.text("Naziv konta", MARGIN + 76, y + 4, { width: leftWidth - 78, lineBreak: false });
+    headers.forEach((header, i) => doc.text(header, numX + i * numericWidth, y + 4, {
+      width: numericWidth - 5, align: "right", lineBreak: false, height: 11,
+    }));
+    y += 23;
+  };
+  const ensureSpace = (needed = 17) => {
+    // PDFKit can paginate positioned text near the bottom independently of our
+    // row cursor; leave enough clearance to keep every account on one page.
+    if (y + needed > height - MARGIN - 70) addPage();
+  };
+  addPage();
+  let group: string | null = null;
+  let groupRows: TrialBalanceRow[] = [];
+  const drawSubtotal = () => {
+    if (!groupRows.length) return;
+    ensureSpace(21);
+    doc.rect(MARGIN, y, width - 2 * MARGIN, 17).fillColor(COLOR_SECTION).fill();
+    doc.font("DejaVuSans-Bold").fontSize(8).fillColor(COLOR_PRIMARY)
+      .text(`Skupaj razred ${group}`, MARGIN + 3, y + 3, { width: leftWidth - 5, lineBreak: false });
+    drawAmounts(values(groupRows), y + 3, true);
+    y += 20;
+  };
+  for (const row of rows) {
+    const digit = row.accountCode.slice(0, 1);
+    if (group !== digit) {
+      drawSubtotal();
+      group = digit;
+      groupRows = [];
+    }
+    ensureSpace();
+    doc.font("DejaVuSans").fontSize(7.5).fillColor(COLOR_PRIMARY);
+    doc.text(row.accountCode, MARGIN + 3, y + 2, { width: 68, lineBreak: false });
+    doc.text(row.accountName, MARGIN + 76, y + 2, { width: leftWidth - 78, lineBreak: false, ellipsis: true });
+    drawAmounts(values([row]), y + 2);
+    y += 16;
+    groupRows.push(row);
+  }
+  drawSubtotal();
+  ensureSpace(25);
+  doc.rect(MARGIN, y, width - 2 * MARGIN, 21).fillColor(COLOR_TOTAL).fill();
+  doc.font("DejaVuSans-Bold").fontSize(9).fillColor(COLOR_PRIMARY)
+    .text("SKUPAJ", MARGIN + 3, y + 5, { width: leftWidth - 5, lineBreak: false });
+  drawAmounts(values(rows), y + 5, true);
+  doc.end();
+  return bufferPromise;
+}
+
 export async function generateTrialBalancePdf(opts: {
   companyName: string;
   dateFrom: string;
@@ -679,7 +788,9 @@ export async function generateTrialBalancePdf(opts: {
   totalTurnoverCredit: string;
   totalBalanceDebit: string;
   totalBalanceCredit: string;
+  statementView?: LedgerView;
 }): Promise<Buffer> {
+  if (opts.statementView) return generateLedgerStatementPdf({ ...opts, statementView: opts.statementView });
   const { companyName, dateFrom, dateTo, rows } = opts;
   const reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
   const subtitle = `Obdobje: ${dateFrom} - ${dateTo}`;

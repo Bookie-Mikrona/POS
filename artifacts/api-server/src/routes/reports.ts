@@ -26,6 +26,38 @@ function extractParam(raw: string | string[]): string {
   return Array.isArray(raw) ? raw[0] : raw;
 }
 
+/**
+ * Bookie Old carries its closing balances into a new, posted 00 voucher every
+ * year. Never add prior years to that year's opening again.
+ */
+async function historicalOpening(companyId: string, date: string | undefined): Promise<{ start: string; id: string } | null> {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const year = date.slice(0, 4);
+  const start = `${year}-01-01`;
+  const rows = await db.select({ id: journalEntriesTable.id })
+    .from(journalEntriesTable)
+    .where(and(
+      eq(journalEntriesTable.companyId, companyId),
+      sql`${journalEntriesTable.reference} LIKE ${`BOOKIE-OLD/K2/${year}/00/%`}`,
+      gte(journalEntriesTable.entryDate, start),
+      lte(journalEntriesTable.entryDate, `${year}-12-31`),
+      or(eq(journalEntriesTable.status, "posted"), eq(journalEntriesTable.status, "reversed")),
+    ))
+    .limit(2);
+  if (rows.length > 1) throw new Error(`Več zgodovinskih otvoritev za leto ${year}`);
+  if (rows.length === 1) return { start, id: rows[0]!.id };
+  const [earlier] = await db.select({ id: journalEntriesTable.id })
+    .from(journalEntriesTable)
+    .where(and(
+      eq(journalEntriesTable.companyId, companyId),
+      sql`${journalEntriesTable.reference} LIKE 'BOOKIE-OLD/K2/%/00/%'`,
+      sql`${journalEntriesTable.entryDate} < ${start}`,
+    ))
+    .limit(1);
+  if (earlier) throw new Error(`Manjka potrjena otvoritev za leto ${year}; zgodovinskega salda ni dovoljeno sešteti čez več let`);
+  return null;
+}
+
 async function resolveAccess(
   clerkUserId: string,
   companyId: string,
@@ -208,7 +240,7 @@ function classLabel(digit: string): string {
  * Build report sections from an array of account balances filtered to specific types.
  * Accounts are grouped by the first digit of their code.
  */
-function buildSections(accounts: AccountBalance[]): ReportSection[] {
+function buildSections(accounts: AccountBalance[], historical = false): ReportSection[] {
   const sectionMap = new Map<string, ReportSection>();
 
   for (const acct of accounts) {
@@ -219,7 +251,7 @@ function buildSections(accounts: AccountBalance[]): ReportSection[] {
     if (!sectionMap.has(digit)) {
       sectionMap.set(digit, {
         class: digit,
-        label: classLabel(digit),
+        label: historical ? `Razred ${digit}` : classLabel(digit),
         items: [],
         subtotal: "0.00",
       });
@@ -356,11 +388,13 @@ function balanceForType(acct: AccountBalance, effectiveType: string): number {
 
 // ── Balance sheet ─────────────────────────────────────────────────────────────
 
-export function buildBalanceSheet(accounts: AccountBalance[]) {
+export function buildBalanceSheet(accounts: AccountBalance[], historical = false, periodResult?: number) {
   // Resolve effective classification for every account; recompute balance sign
   // so that SRS-overridden accounts display correctly in their new section.
   const resolved = accounts.map((a) => {
-    const effectiveType = resolveEffectiveType(a);
+    const effectiveType = historical
+      ? (VALID_REPORT_TYPES.has(a.type) ? a.type : "unclassified")
+      : resolveEffectiveType(a);
     return { ...a, effectiveType, balance: balanceForType(a, effectiveType) };
   });
 
@@ -371,11 +405,30 @@ export function buildBalanceSheet(accounts: AccountBalance[]) {
   // Explicitly unclassifiable — collected here, NEVER silently dropped
   const unclassifiedRaw = resolved.filter((a) => a.effectiveType === "unclassified");
 
-  const aktivaSections = buildSections(assets);
-  const pasivaSections = buildSections(liabEquity);
+  const aktivaSections = buildSections(assets, historical);
+  const pasivaSections = buildSections(liabEquity, historical);
 
   const totalAktiva = aktivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
-  const totalPasiva = pasivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
+  let totalPasiva = pasivaSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
+  if (historical && periodResult !== undefined) {
+    if (Math.abs(totalAktiva - totalPasiva - periodResult) > 0.01) {
+      throw new Error("Zgodovinska bilanca se ne ujema z rezultatom obdobja");
+    }
+    if (Math.abs(periodResult) >= 0.005) {
+      pasivaSections.push({
+        class: "rezultat",
+        label: "Rezultat tekočega leta pred zapiranjem",
+        items: [{
+          accountId: "historical-period-result",
+          accountCode: "—",
+          accountName: "Rezultat tekočega leta",
+          balance: periodResult.toFixed(2),
+        }],
+        subtotal: periodResult.toFixed(2),
+      });
+      totalPasiva += periodResult;
+    }
+  }
 
   // Warnings: accounts that DID appear in the report but whose stored type
   // was overridden by the SRS code-digit rule.
@@ -414,10 +467,12 @@ export function buildBalanceSheet(accounts: AccountBalance[]) {
 
 // ── Income statement ──────────────────────────────────────────────────────────
 
-export function buildIncomeStatement(accounts: AccountBalance[]) {
+export function buildIncomeStatement(accounts: AccountBalance[], historical = false) {
   // Same SRS-consistent classification as buildBalanceSheet.
   const resolved = accounts.map((a) => {
-    const effectiveType = resolveEffectiveType(a);
+    const effectiveType = historical
+      ? (VALID_REPORT_TYPES.has(a.type) ? a.type : "unclassified")
+      : resolveEffectiveType(a);
     return { ...a, effectiveType, balance: balanceForType(a, effectiveType) };
   });
 
@@ -426,8 +481,8 @@ export function buildIncomeStatement(accounts: AccountBalance[]) {
   // Explicitly unclassifiable — collected here, NEVER silently dropped
   const unclassifiedRaw = resolved.filter((a) => a.effectiveType === "unclassified");
 
-  const revenueSections = buildSections(revenues);
-  const expenseSections = buildSections(expenses);
+  const revenueSections = buildSections(revenues, historical);
+  const expenseSections = buildSections(expenses, historical);
 
   const totalRevenue  = revenueSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
   const totalExpenses = expenseSections.reduce((s, sec) => s + parseFloat(sec.subtotal), 0);
@@ -468,6 +523,23 @@ export function buildIncomeStatement(accounts: AccountBalance[]) {
   };
 }
 
+async function loadBalanceSheet(companyId: string, asOf: string | undefined) {
+  const opening = await historicalOpening(companyId, asOf);
+  const accounts = await aggregateBalances(companyId, asOf, opening?.start);
+  const periodResult = opening
+    ? Number(buildIncomeStatement(accounts, true).netResult)
+    : undefined;
+  return buildBalanceSheet(accounts, !!opening, periodResult);
+}
+
+async function loadIncomeStatement(companyId: string, dateFrom: string | undefined, dateTo: string | undefined) {
+  const opening = await historicalOpening(companyId, dateTo);
+  return buildIncomeStatement(
+    await aggregateBalances(companyId, dateTo, dateFrom),
+    !!opening,
+  );
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // GET /companies/:companyId/reports/balance-sheet
@@ -483,19 +555,13 @@ router.get(
 
     const { asOf, compareAsOf } = req.query as Record<string, string | undefined>;
 
-    // Balance sheet is cumulative — all posted entries up to asOf date.
-    // No dateFrom so the balance captures the full history.
-    const currentAccounts = await aggregateBalances(companyId, asOf, undefined);
-    const current = buildBalanceSheet(currentAccounts);
-
-    let compare = null;
-    if (compareAsOf) {
-      const compareAccounts = await aggregateBalances(
-        companyId,
-        compareAsOf,
-        undefined,
-      );
-      compare = buildBalanceSheet(compareAccounts);
+    let current, compare = null;
+    try {
+      current = await loadBalanceSheet(companyId, asOf);
+      if (compareAsOf) compare = await loadBalanceSheet(companyId, compareAsOf);
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
+      return;
     }
 
     res.json({
@@ -522,17 +588,15 @@ router.get(
       req.query as Record<string, string | undefined>;
 
     // Income statement is period-based — only entries within [dateFrom, dateTo].
-    const currentAccounts = await aggregateBalances(companyId, dateTo, dateFrom);
-    const current = buildIncomeStatement(currentAccounts);
-
-    let compare = null;
-    if (compareDateFrom || compareDateTo) {
-      const compareAccounts = await aggregateBalances(
-        companyId,
-        compareDateTo,
-        compareDateFrom,
-      );
-      compare = buildIncomeStatement(compareAccounts);
+    let current, compare = null;
+    try {
+      current = await loadIncomeStatement(companyId, dateFrom, dateTo);
+      if (compareDateFrom || compareDateTo) {
+        compare = await loadIncomeStatement(companyId, compareDateFrom, compareDateTo);
+      }
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
+      return;
     }
 
     res.json({
@@ -863,6 +927,8 @@ async function aggregateRaw(
   companyId: string,
   dateFrom?: string,
   dateTo?: string,
+  openingId?: string,
+  excludeOpening = false,
 ): Promise<Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>> {
   // Vključimo "reversed" vnose za pravilni neto pri storniranih plačilih
   const conditions = [
@@ -874,6 +940,11 @@ async function aggregateRaw(
   ];
   if (dateFrom) conditions.push(gte(journalEntriesTable.entryDate, dateFrom));
   if (dateTo) conditions.push(lte(journalEntriesTable.entryDate, dateTo));
+  if (openingId) {
+    conditions.push(excludeOpening
+      ? sql`${journalEntriesTable.id} <> ${openingId}`
+      : eq(journalEntriesTable.id, openingId));
+  }
 
   const rows = await db
     .select({
@@ -913,6 +984,53 @@ async function aggregateRaw(
   return map;
 }
 
+async function loadTrialBalance(companyId: string, dateFrom?: string, dateTo?: string): Promise<TrialBalanceResponse> {
+  const opening = await historicalOpening(companyId, dateTo ?? dateFrom);
+  if (opening && (!dateFrom || !dateTo || dateFrom.slice(0, 4) !== dateTo.slice(0, 4))) {
+    throw new Error("Za uvožena zgodovinska leta izberite datuma znotraj istega koledarskega leta.");
+  }
+  const isHistoricalYearStart = opening?.start === dateFrom;
+  const openingDateTo = dateFrom ? dayBefore(dateFrom) : undefined;
+  const [openingMap, turnoverMap, balanceMap] = await Promise.all([
+    isHistoricalYearStart
+      ? aggregateRaw(companyId, opening!.start, dateTo, opening!.id)
+      : opening && openingDateTo
+        ? aggregateRaw(companyId, opening.start, openingDateTo)
+        : openingDateTo
+          ? aggregateRaw(companyId, undefined, openingDateTo)
+          : Promise.resolve(new Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>()),
+    aggregateRaw(companyId, dateFrom, dateTo, isHistoricalYearStart ? opening!.id : undefined, isHistoricalYearStart),
+    aggregateRaw(companyId, opening?.start, dateTo),
+  ]);
+
+  const allIds = new Set([...openingMap.keys(), ...turnoverMap.keys(), ...balanceMap.keys()]);
+  const rows: TrialBalanceRow[] = Array.from(allIds)
+    .map((accountId) => {
+      const o = openingMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
+      const t = turnoverMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
+      const b = balanceMap.get(accountId) ?? { accountCode: t.accountCode, accountName: t.accountName, accountType: t.accountType, debit: 0, credit: 0 };
+      const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId) ?? openingMap.get(accountId)!;
+      return {
+        accountId, accountCode: meta.accountCode, accountName: meta.accountName, accountType: meta.accountType,
+        openingBalanceDebit: o.debit.toFixed(2), openingBalanceCredit: o.credit.toFixed(2),
+        turnoverDebit: t.debit.toFixed(2), turnoverCredit: t.credit.toFixed(2),
+        balanceDebit: b.debit.toFixed(2), balanceCredit: b.credit.toFixed(2),
+      };
+    })
+    .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
+    rows.reduce((s, r) => s + parseFloat(r[field]), 0).toFixed(2);
+  return {
+    dateFrom: dateFrom ?? null, dateTo: dateTo ?? null, rows,
+    totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
+    totalOpeningBalanceCredit: sumField("openingBalanceCredit"),
+    totalTurnoverDebit: sumField("turnoverDebit"),
+    totalTurnoverCredit: sumField("turnoverCredit"),
+    totalBalanceDebit: sumField("balanceDebit"),
+    totalBalanceCredit: sumField("balanceCredit"),
+  };
+}
+
 // GET /companies/:companyId/reports/trial-balance
 router.get(
   "/companies/:companyId/reports/trial-balance",
@@ -927,55 +1045,11 @@ router.get(
     const dateFrom = dfRaw ?? undefined;
     const dateTo = dtRaw ?? undefined;
 
-    // Opening balance: all posted entries strictly before dateFrom (if dateFrom given)
-    // Turnover: entries in [dateFrom, dateTo]
-    // Balance (closing): cumulative all posted entries up to dateTo
-    const openingDateTo = dateFrom ? dayBefore(dateFrom) : undefined;
-    const [openingMap, turnoverMap, balanceMap] = await Promise.all([
-      openingDateTo ? aggregateRaw(companyId, undefined, openingDateTo) : Promise.resolve(new Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>()),
-      aggregateRaw(companyId, dateFrom, dateTo),
-      aggregateRaw(companyId, undefined, dateTo),
-    ]);
-
-    const allIds = new Set([...openingMap.keys(), ...turnoverMap.keys(), ...balanceMap.keys()]);
-
-    const rows: TrialBalanceRow[] = Array.from(allIds)
-      .map((accountId) => {
-        const o = openingMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
-        const t = turnoverMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
-        const b = balanceMap.get(accountId) ?? { accountCode: t.accountCode, accountName: t.accountName, accountType: t.accountType, debit: 0, credit: 0 };
-        const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId) ?? openingMap.get(accountId)!;
-        return {
-          accountId,
-          accountCode: meta.accountCode,
-          accountName: meta.accountName,
-          accountType: meta.accountType,
-          openingBalanceDebit: o.debit.toFixed(2),
-          openingBalanceCredit: o.credit.toFixed(2),
-          turnoverDebit: t.debit.toFixed(2),
-          turnoverCredit: t.credit.toFixed(2),
-          balanceDebit: b.debit.toFixed(2),
-          balanceCredit: b.credit.toFixed(2),
-        };
-      })
-      .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
-
-    const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
-      rows.reduce((s, r) => s + parseFloat(r[field]), 0).toFixed(2);
-
-    const response: TrialBalanceResponse = {
-      dateFrom: dateFrom ?? null,
-      dateTo: dateTo ?? null,
-      rows,
-      totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
-      totalOpeningBalanceCredit: sumField("openingBalanceCredit"),
-      totalTurnoverDebit: sumField("turnoverDebit"),
-      totalTurnoverCredit: sumField("turnoverCredit"),
-      totalBalanceDebit: sumField("balanceDebit"),
-      totalBalanceCredit: sumField("balanceCredit"),
-    };
-
-    res.json(response);
+    try {
+      res.json(await loadTrialBalance(companyId, dateFrom, dateTo));
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
+    }
   },
 );
 
@@ -1005,6 +1079,9 @@ router.post(
       dateTo,
       compareDateFrom,
       compareDateTo,
+      statementView,
+      accountClass,
+      searchTerm,
     } = req.body as {
       reportType: "balance-sheet" | "income-statement" | "trial-balance";
       email?: string;
@@ -1014,6 +1091,9 @@ router.post(
       dateTo?: string;
       compareDateFrom?: string;
       compareDateTo?: string;
+      statementView?: "bilanca" | "zakljucni";
+      accountClass?: string;
+      searchTerm?: string;
     };
 
     if (!reportType) {
@@ -1040,12 +1120,10 @@ router.post(
           res.status(400).json({ error: "asOf je obvezen za bilanco stanja." });
           return;
         }
-        const currentAccounts = await aggregateBalances(companyId, asOf, undefined);
-        const current = buildBalanceSheet(currentAccounts);
+        const current = await loadBalanceSheet(companyId, asOf);
         let compare = null;
         if (compareAsOf) {
-          const cmpAccounts = await aggregateBalances(companyId, compareAsOf, undefined);
-          compare = buildBalanceSheet(cmpAccounts);
+          compare = await loadBalanceSheet(companyId, compareAsOf);
         }
         reportTitle = "BILANCA STANJA";
         subtitle = compareAsOf
@@ -1055,12 +1133,10 @@ router.post(
         pdfBuffer = await generateBalanceSheetPdf({ companyName, asOf, compareAsOf: compareAsOf ?? null, current, compare });
 
       } else if (reportType === "income-statement") {
-        const currentAccounts = await aggregateBalances(companyId, dateTo, dateFrom);
-        const current = buildIncomeStatement(currentAccounts);
+        const current = await loadIncomeStatement(companyId, dateFrom, dateTo);
         let compare = null;
         if (compareDateFrom || compareDateTo) {
-          const cmpAccounts = await aggregateBalances(companyId, compareDateTo, compareDateFrom);
-          compare = buildIncomeStatement(cmpAccounts);
+          compare = await loadIncomeStatement(companyId, compareDateFrom, compareDateTo);
         }
         reportTitle = "IZKAZ POSLOVNEGA IZIDA";
         subtitle = compareDateFrom
@@ -1074,40 +1150,36 @@ router.post(
         });
 
       } else if (reportType === "trial-balance") {
-        const openingDateTo = dateFrom ? dayBefore(dateFrom) : undefined;
-        const [openingMap, turnoverMap, balanceMap] = await Promise.all([
-          openingDateTo ? aggregateRaw(companyId, undefined, openingDateTo) : Promise.resolve(new Map<string, { accountCode: string; accountName: string; accountType: string; debit: number; credit: number }>()),
-          aggregateRaw(companyId, dateFrom, dateTo),
-          aggregateRaw(companyId, undefined, dateTo),
-        ]);
-        const allIds = new Set([...openingMap.keys(), ...turnoverMap.keys(), ...balanceMap.keys()]);
-        const rows = Array.from(allIds)
-          .map((accountId) => {
-            const o = openingMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
-            const t = turnoverMap.get(accountId) ?? { accountCode: "", accountName: "", accountType: "", debit: 0, credit: 0 };
-            const b = balanceMap.get(accountId) ?? { accountCode: t.accountCode, accountName: t.accountName, accountType: t.accountType, debit: 0, credit: 0 };
-            const meta = balanceMap.get(accountId) ?? turnoverMap.get(accountId) ?? openingMap.get(accountId)!;
-            return {
-              accountId,
-              accountCode: meta.accountCode,
-              accountName: meta.accountName,
-              accountType: meta.accountType,
-              openingBalanceDebit: o.debit.toFixed(2),
-              openingBalanceCredit: o.credit.toFixed(2),
-              turnoverDebit: t.debit.toFixed(2),
-              turnoverCredit: t.credit.toFixed(2),
-              balanceDebit: b.debit.toFixed(2),
-              balanceCredit: b.credit.toFixed(2),
-            };
-          })
-          .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
-        const sumField = (field: "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit") =>
-          rows.reduce((s, r) => s + parseFloat(r[field]), 0).toFixed(2);
-        reportTitle = "BRUTO BILANCA (PREIZKUSNA BILANCA)";
+        if (statementView && statementView !== "bilanca" && statementView !== "zakljucni") {
+          res.status(400).json({ error: "Neveljaven prikaz poročila." });
+          return;
+        }
+        if (statementView && (!dateFrom || !dateTo ||
+            !/^\d{4}-01-01$/.test(dateFrom) || dateTo !== `${dateFrom.slice(0, 4)}-12-31`)) {
+          res.status(400).json({ error: "Bilanca kontov in zaključni račun zahtevata celo koledarsko leto." });
+          return;
+        }
+        if ((accountClass && !/^\d$/.test(accountClass)) || (searchTerm && searchTerm.length > 100)) {
+          res.status(400).json({ error: "Neveljaven filter kontov." });
+          return;
+        }
+        const report = await loadTrialBalance(companyId, dateFrom, dateTo);
+        const q = (searchTerm ?? "").trim().toLocaleLowerCase("sl-SI");
+        const rows = report.rows.filter((row) =>
+          (!accountClass || row.accountCode.startsWith(accountClass)) &&
+          (!q || row.accountCode.toLocaleLowerCase("sl-SI").includes(q) ||
+            row.accountName.toLocaleLowerCase("sl-SI").includes(q)));
+        const sumField = (field: keyof Pick<TrialBalanceRow, "openingBalanceDebit" | "openingBalanceCredit" | "turnoverDebit" | "turnoverCredit" | "balanceDebit" | "balanceCredit">) =>
+          rows.reduce((sum, row) => sum + Number(row[field]), 0).toFixed(2);
+        reportTitle = statementView === "bilanca" ? "BILANCA KONTOV"
+          : statementView === "zakljucni" ? "ZAKLJUČNI RAČUN" : "BRUTO BILANCA (PREIZKUSNA BILANCA)";
         subtitle = `Obdobje: ${dateFrom ?? ""} – ${dateTo ?? ""}`;
-        filename = `bruto-bilanca-${dateFrom ?? "brez"}-${dateTo ?? "brez"}.pdf`;
+        filename = `${statementView ?? "bruto-bilanca"}-${dateFrom ?? "brez"}-${dateTo ?? "brez"}.pdf`;
         pdfBuffer = await generateTrialBalancePdf({
-          companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "", rows,
+          ...report,
+          companyName, dateFrom: dateFrom ?? "", dateTo: dateTo ?? "",
+          statementView,
+          rows,
           totalOpeningBalanceDebit: sumField("openingBalanceDebit"),
           totalOpeningBalanceCredit: sumField("openingBalanceCredit"),
           totalTurnoverDebit: sumField("turnoverDebit"),
@@ -1139,6 +1211,9 @@ router.post(
     } else {
       exportParams.dateFrom = dateFrom;
       exportParams.dateTo = dateTo;
+      if (statementView) exportParams.statementView = statementView;
+      if (accountClass) exportParams.accountClass = accountClass;
+      if (searchTerm) exportParams.searchTerm = searchTerm;
     }
 
     await db.insert(reportExportsTable).values({
