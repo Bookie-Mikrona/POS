@@ -1047,3 +1047,17 @@ mtime_ms = 1790535141692
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/d8b5e576-e7a0-4163-934e-ee203354a59c/a66f7d8b-3ceb-46ea-bfac-f714777a0502"
 storage_version_token = "1790535413002425"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "j-TjSNATmwBsH8I9VgXJ_"
+uri = "file://reports/bookie-old-K2-preslikava-za-potrditev.xlsx"
+type = "table"
+title = "Preslikava kontov Bookie Old K2 → Bookie ERP"
+description = "Excelova preglednica za potrditev 230 uporabljenih starih kontov od leta 2006, s predlogi, kandidati in stolpci za tvojo odločitev."
+logical_id = "9c3180d8-08ed-4c64-bdf4-9e938e8aa196"
+content_hash = "sha256:6615ae07977a60ceb9607c1e87744c9f5ab7e01dfe287e5aff2b3f3a41d35e32"
+size = 61071
+mtime_ms = 1790683522273
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/9c3180d8-08ed-4c64-bdf4-9e938e8aa196/b0781306-9f6d-4ac6-bea6-414ffc19b53c"
+storage_version_token = "1790683556314073"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

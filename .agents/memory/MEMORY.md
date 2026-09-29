@@ -156,3 +156,4 @@
 - [POS test obrazca artiklov](pos-menu-test-mocks.md) — ob razširitvi API odvisnosti popraviti namenske testne mocke; uvoz celotnega odjemalca lahko obvisi.
 - [OCR popisni list](ocr-popisni-list.md) — prepoznane količine in cene so samo predlogi; brez uporabnikovega pregleda in potrditve ni inventure.
 - [EU nabava osnovnega sredstva](eu-os-prejeti-racun.md) — OCR/e-SLOG predlog mora biti potrjen; dobaviteljeva obveznost je neto, DDV samoobdavčitve pa ločen in uravnotežen.
+- [Bookie Old preslikava GK](bookie-old-gk-mapping.md) — vir nazivov je K2; stare šifre lahko pomenijo nekaj drugega kot enake šifre ERP; zapiranja po števcih so večinoma dvosmerna.
