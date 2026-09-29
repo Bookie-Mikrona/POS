@@ -39,6 +39,12 @@ Zgodovinski računi, preneseni kot knjiženi brez njihovih zapiranj in alokacij 
 
 **How to apply:** Pred predstavitvijo zgodovinskega salda kot dejansko odprtega prenesi in preveri povezave zapiranj/plačil po izvornih identifikatorjih, primerjaj postavke in vsoto z IOP ter ne izmišljaj sintetičnih plačil ali ročno prepisanega skupnega zneska.
 
+IOP, izpisan pozneje z datumskim filtrom do poznejšega leta, ni samodejno dokaz salda na predhodni 31. december. Pri starih obveznostih lahko večina bank in zapiranj v GK že obstaja, medtem ko uvoženi računi v novi evidenci nimajo povezav do njih; seštevek njihovih bruto zneskov zato ni odprti saldo.
+
+**Why:** Primerjava pozneje izpisanega IOP, posameznih zapiranj in prejšnje zaključne GK pokaže, da datum listin in časovni presek odprtih postavk nista ista stvar. Nezvezane stare banke niso nova plačila, vsota računov brez zapiranj pa lahko preseže GK za velik red velikosti.
+
+**How to apply:** Za zgodovinski presek zahtevaj arhivski IOP z ustreznim stanjem ali dokazno rekonstruiraj zapiranja po datumih posameznih povezav; preveri tudi pobote in dobropise. Stara plačila le poveži z izvirnimi postavkami, nikoli jih znova ne knjiži.
+
 Zgodovinska zapiranja hrani kot dokazila starih knjižb, ločeno od novih plačil; pri nadaljnji izterjavi ali uparjanju banke je razpoložljiv znesek računa bruto minus stara zapiranja minus kasnejša knjižena plačila. Zgodovinski izpis in stanje poknjiženih računov nista ista množica, dokler ostanejo poznejša leta osnutek.
 
 **Why:** Če se dokazilo uvozi kot novo plačilo, podvoji bančni dogodek. Če se upošteva samo v nadzorni plošči, lahko uparjanje banke ponudi že zaprt račun; če se osnutki tiho vključijo v uradne odprte postavke, se zamešata predogled in knjiženo stanje.
