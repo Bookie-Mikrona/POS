@@ -14,3 +14,9 @@ Izvoženi stari obračuni DDV ter datoteke KIR/KPR in eDavki DDV-O so **samo kon
 **Why:** Uporabnik je izrecno razjasnil, da jih je poslal za preverjanje, ali novi program neodvisno izračuna enake rezultate.
 
 **How to apply:** Primerjaj izvorne zneske z rezultati novega programa; ne polni davčnih evidenc ali obrazcev s temi kontrolnimi datotekami, ker bi to prikrilo napake izračuna.
+
+Pri preverjanju odprtih postavk ne predpostavljaj, da vsaka stara GK vrstica z neničelnim ostankom nastopa tudi v izpisu IOP. Pri dobaviteljih lahko ostanejo nepovezani ali drobni GK ostanki zunaj natisnjenega IOP, čeprav se vsaka prikazana IOP vrstica z GK ujema; pri kupcih se lahko oba nabora povsem ujemata.
+
+**Why:** IOP in goli seštevek polja ostanka v starem GLAVNA lahko pokažeta različen saldo zaradi vrstic, ki jih IOP ne vključi. Samodejno enačenje bi ustvarilo navidezne odprte terjatve oziroma obveznosti.
+
+**How to apply:** Pred prenosom ali usklajevanjem salda primerjaj postavke po računu in partnerju ter izrecno izpiši izpuščene GK ostanke; ne odpiraj jih kot dokazano neplačane račune brez potrditve.
