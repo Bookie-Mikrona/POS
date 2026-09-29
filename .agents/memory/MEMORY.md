@@ -152,3 +152,4 @@
 - [Bookie Old zgodovinski računi](bookie-old-zgodovinski-racuni.md) — GK 2020–2025 je dovoljena brez popolne nove KIR/KPR; 2026 ostane osnutek, stari DDV izvozi so le kontrola.
 - [Oddana bilanca Bookie Old](bookie-old-oddana-bilanca.md) — oddana Bilanca in Zaključni račun sta avtoriteta; primerjaj bruto otvoritev, promet in skupaj po preslikanih kontih.
 - [Poti predstavljenih datotek](present-asset-paths.md) — za sredstva v knjižnici uporabi ASCII ime datoteke; Unicode v poti lahko odpove pri prenosu.
+- [AJPES JOLP preverjanje](ajpes-jolp-preverjanje.md) — javni JOLP lahko zahteva prijavo; številk iz zbirnih portalov ne obravnavaj kot dokazilo o razporeditvi dobička.
