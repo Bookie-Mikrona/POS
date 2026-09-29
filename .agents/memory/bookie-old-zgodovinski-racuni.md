@@ -15,11 +15,11 @@ Pri zgodovinskih izdanih računih brez GK najprej preveri dejanski znesek po pop
 
 **How to apply:** Tako potrjene ničelne zgodovinske račune obravnavaj kot zaključene račune brez finančnih GK vrstic in brez terjatve; revizijska sled naj loči to izjemo od navadnega knjiženja. Drugih nepovezanih računov nikoli ne potrjuj samodejno le zato, ker nimajo temeljnice.
 
-Pri ničelnih računih za gostinske in trgovske stranke iz obdobja zaprtja leta 2020 je uporabnik dodatno pojasnil poslovni razlog: trgovine in gostilne po njegovem pojasnilu zakonsko niso smele obratovati, zato so prejele račune s 100-odstotnim popustom, brez zaračunanega zneska.
+Pri ničelnih računih za gostinske in trgovske stranke iz obdobja zaprtja leta 2020 je uporabnik dodatno pojasnil poslovni razlog: trgovine in gostilne po njegovem pojasnilu zakonsko niso smele obratovati, zato so prejele račune s 100-odstotnim popustom, brez zaračunanega zneska. Dva ničelna računa iz avgusta 2023 sta imela po njegovem pojasnilu 100-odstotni **popust za zvestobo**, ne zaradi zaprtja.
 
-**Why:** Sam izvoz izkazuje popust, ne pa njegovega poslovnega razloga; ta je bil naknadno potrjen s strani uporabnika. Med obravnavanimi ničelnimi računi sta tudi dva z datumom avgust 2023, za katera veljavnosti razloga zakonskega zaprtja ne smemo samodejno predpostaviti.
+**Why:** Sam izvoz izkazuje popust, ne pa njegovega poslovnega razloga; tega je za obe skupini naknadno potrdil uporabnik. Napačna skupna oznaka »COVID« bi pri dveh listinah iz leta 2023 napačno opisala razlog.
 
-**How to apply:** Razlog zaprtja pripiši le listinam, za katere čas in poslovni kontekst to podpirata; pri računih iz leta 2023 ločeno preveri, zakaj je bil uporabljen 100-odstotni popust, preden zapišeš takšno razlago v dokumentacijo ali opombe.
+**How to apply:** Razlog zaprtja pripiši le ustreznim listinam iz obdobja zaprtja; za potrjena ničelna računa iz leta 2023 uporabi razlog »popust za zvestobo«. Finančni učinek ostane 0,00 EUR v obeh primerih.
 
 Izvoženi stari obračuni DDV ter datoteke KIR/KPR in eDavki DDV-O so **samo kontrolna referenca**, ne podatki za uvoz v novi ERP.
 
