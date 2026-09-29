@@ -1,0 +1,24 @@
+﻿Temeljnica;Datum;Vrstica;Konto;Naziv;Breme EUR;Dobro EUR;Status;Vir
+ZT-2025-01;2025-12-31;1;4000000;Poraba materiala (splošno);0.00;52.82;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;2;4010000;Pomožni material;0.00;5783.76;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;3;4012000;Odpis drobnega inventarja;0.00;799.11;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;4;4022001;STROŠKI OGREVANJA;0.00;1027.07;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;5;4060000;STR.PIS.MAT.IN STROK.LITER.;0.00;44.35;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;6;4102000;Poštne in kurirske storitve;0.00;6.73;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;7;4141000;Reprezentanca;0.00;547.20;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;8;4160001;ST.INELEKTUAL.IN OSEB.STORITE;0.00;1966.07;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;9;4172000;Bančne provizije in plačilni promet;0.00;319.31;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;10;4190000;Komunalne storitve in odvoz odpadkov;0.00;788.77;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;11;4191000;Telekomunikacije in internet;0.00;1328.30;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;12;4195000;STROŠKI VNOSA PODATKOV;0.00;1150.00;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;13;4196000;STROŠKI OSTALIH STORITEV;0.00;961.25;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;14;4198000;STAVBNO ZEMLJIŠČE;0.00;66.36;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;15;7546000;DANE DONACIJE;0.00;55.00;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;16;7601000;Prihodki od prodaje storitev na domačem trgu;17400.12;0.00;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;17;7750002;PRIH.OD OBR.PETERKOVIČ F.;273.54;0.00;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;18;7750003;PRIH.OD OBR.PETERKOVIČ JUL.;30.09;0.00;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;19;8100001;DAVEK OD DOBIČKA-RED.POSLOV.;0.00;332.89;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-01;2025-12-31;20;8150000;ČISTI DOBIČEK POSLOVNEGA LETA;0.00;2474.76;PREDLOG - NI KNJIŽENO;Usklajena GK 2025 / oddana Bilanca in Zaključni račun
+ZT-2025-02;2025-12-31;1;9320000;Ostanek čistega dobička poslovnega leta;2414.11;0.00;PREDLOG - NI KNJIŽENO;AJPES JOLP 2025 / izkaz poslovnega izida in bilanca stanja
+ZT-2025-02;2025-12-31;2;9310000;Prenesena čista izguba iz prejšnjih let;0.00;2295.11;PREDLOG - NI KNJIŽENO;AJPES JOLP 2025 / izkaz poslovnega izida in bilanca stanja
+ZT-2025-02;2025-12-31;3;9200000;Zakonske rezerve;0.00;119.00;PREDLOG - NI KNJIŽENO;AJPES JOLP 2025 / izkaz poslovnega izida in bilanca stanja

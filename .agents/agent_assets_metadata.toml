@@ -1243,3 +1243,31 @@ mtime_ms = 1790719529768
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/8f40641e-9eeb-41f9-befa-06cd2d9b4aee/344d4959-d72b-4c0c-a5f6-bbdee6baea68"
 storage_version_token = "1790719593451313"
 content_type = "text/csv"
+
+[[outputs]]
+id = "82MJZb2qj3LcHFXGvPDOB"
+uri = "file://reports/mikrona-2025-predlog-zakljucnih-temeljnic.pdf"
+type = "pdf"
+title = "Mikrona 2025 — zaključni temeljnici (PDF)"
+description = "Dve preverjeni, neknjiženi temeljnici: zapiranje prihodkov in odhodkov ter pokritje izgube in povečanje zakonskih rezerv po AJPES."
+logical_id = "575ad697-885a-4ccc-9518-0d0cb43b809a"
+content_hash = "sha256:850f967c0f9dbe744f5f54925e11f761ca6745a6ce84e304929d83618ff6af49"
+size = 49068
+mtime_ms = 1790721112064
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/575ad697-885a-4ccc-9518-0d0cb43b809a/8f636810-e4b3-4a15-9196-c4f0adc313b5"
+storage_version_token = "1790721137492466"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "OS_Uh0BmdwVKsi-OfBEFu"
+uri = "file://reports/mikrona-2025-predlog-zakljucnih-temeljnic.csv"
+type = "table"
+title = "Mikrona 2025 — zaključni temeljnici (CSV)"
+description = "23 knjižbenih vrstic, ločenih po obeh temeljnicah, s statusom NI KNJIŽENO."
+logical_id = "a1dfd770-4c4d-4e55-b0d5-a1fd2fb38314"
+content_hash = "sha256:13eaf21d5a89163573235eb2ef7eb7718193c2fa3787b61dfab5d2ef4b2e92df"
+size = 3592
+mtime_ms = 1790721112039
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/a1dfd770-4c4d-4e55-b0d5-a1fd2fb38314/6ec5a2fc-00d4-435a-90e0-b1ae97112d00"
+storage_version_token = "1790721138129767"
+content_type = "text/csv"
