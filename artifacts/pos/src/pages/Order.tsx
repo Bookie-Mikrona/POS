@@ -4067,8 +4067,7 @@ export default function Order() {
               clearSkipAutoStart();
               queryClient.setQueryData(getGetNarociloQueryKey(id), updatedNarocilo);
               queryClient.invalidateQueries({ queryKey: getListAktivnaNarocilaQueryKey() });
-              // Ne preuredi filtrirane mreže pod dialogom med zapiranjem:
-              // na namizju to premakne pogled na artikel in nato nazaj.
+              setSearch("");
               settle();
             },
             onError: (err) => {
@@ -4085,10 +4084,7 @@ export default function Order() {
 
         return (
         <Dialog open={modDialogArtikelId !== null} onOpenChange={(open) => { if (!open) { setModDialogArtikelId(null); setModDialogIzbrani([]); setModDialogPodIzbire({}); } }}>
-          <DialogContent
-            className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6"
-            onCloseAutoFocus={event => event.preventDefault()}
-          >
+          <DialogContent className="top-8 md:top-8 translate-y-0 w-[calc(100%-1rem)] max-w-4xl p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5" />
@@ -4099,12 +4095,16 @@ export default function Order() {
                 <span className="tabular-nums font-semibold text-foreground shrink-0 ml-2">{artCenaZaPrikaz.toFixed(2)} €</span>
               </DialogDescription>
             </DialogHeader>
+            {modDialogSelectedModifierIds.length > 0 && modifierNormativeLoading && (
+              <p
+                className="absolute right-5 top-20 z-10 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground shadow-sm pointer-events-none"
+                role="status"
+                data-testid="modifier-normative-loading"
+              >
+                Nalagam možnosti iz normativov izbranih modifikatorjev …
+              </p>
+            )}
             <div className="space-y-5 min-h-0 max-h-[min(62dvh,34rem)] overflow-y-auto overscroll-contain pr-1" style={{ overflowAnchor: "none" }}>
-              {modDialogSelectedModifierIds.length > 0 && modifierNormativeLoading && (
-                <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground" role="status" data-testid="modifier-normative-loading">
-                  Nalagam možnosti iz normativov izbranih modifikatorjev …
-                </p>
-              )}
               {modifierNormativeError && (
                 <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert" data-testid="modifier-normative-error">
                   Normativa izbranega modifikatorja ni mogoče naložiti. Poskusi znova; naročila še ni mogoče potrditi.

@@ -198,6 +198,7 @@ const mockSetLocation = vi.hoisted(() => vi.fn());
 const mockListArtikliData = vi.hoisted(() => vi.fn());
 const mockZacniGlasovni = vi.hoisted(() => vi.fn());
 const mockModifierNormatives = vi.hoisted(() => ({ current: {} as Record<number, unknown[]> }));
+const mockPendingNormatives = vi.hoisted(() => ({ current: new Set<number>() }));
 const mockOrderForOptions = vi.hoisted(() => ({ current: null as unknown }));
 const mockPizzaAvailability = vi.hoisted(() => ({
   current: [] as Array<{
@@ -298,7 +299,9 @@ vi.mock("@workspace/api-client-react", () => ({
   getGetModifikatorNormativiQueryKey: (id: number) => [`/api/modifikatorji/${id}/normativi`],
   getGetModifikatorNormativiQueryOptions: (id: number, options?: { query?: Record<string, unknown> }) => ({
     queryKey: options?.query?.queryKey ?? [`/api/modifikatorji/${id}/normativi`],
-    queryFn: () => Promise.resolve(mockModifierNormatives.current[id] ?? []),
+    queryFn: () => mockPendingNormatives.current.has(id)
+      ? new Promise<unknown[]>(() => {})
+      : Promise.resolve(mockModifierNormatives.current[id] ?? []),
     ...options?.query,
   }),
   useGetPreparedFoodAvailability: () => ({ data: {
@@ -497,6 +500,7 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     mockZacniGlasovni.mockReturnValue(true);
     mockListArtikliData.mockReturnValue([mockPica]);
     mockModifierNormatives.current = {};
+    mockPendingNormatives.current.clear();
     mockOrderForOptions.current = null;
     mockPizzaAvailability.current = [];
   });
@@ -879,29 +883,25 @@ describe("Order — splošni ModifikatorjiDialog za pico z modSkupine", () => {
     ]);
   });
 
-  it("po potrditvi modifikatorjev ohrani iskanje, da se mreža artiklov pod dialogom ne preuredi", async () => {
-    mockAddPostavkaMutate.mockImplementation(
-      (_args: unknown, options?: { onSuccess?: (data: unknown) => void }) =>
-        options?.onSuccess?.({ ...mockNarocilo, postavke: [] }),
-    );
+  it("nalaganje normativa po kliku ne vstavi vrstice nad izbire modifikatorjev", async () => {
+    mockPendingNormatives.current.add(101);
     await act(async () => {
       render(<Wrapper qc={qc}><Order /></Wrapper>);
-    });
-
-    const search = screen.getByRole("textbox", { name: "Iskanje artikla" });
-    await act(async () => {
-      fireEvent.change(search, { target: { value: "Margherita" } });
     });
     await act(async () => {
       fireEvent.click(await screen.findByRole("button", { name: /Margherita/i }));
     });
     await act(async () => {
-      fireEvent.click(await screen.findByRole("button", { name: /^Potrdi$/i }));
+      fireEvent.click(screen.getByTestId("button-modifier-101"));
     });
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(search).toHaveValue("Margherita");
-    expect(screen.getByRole("button", { name: /Margherita/i })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    const loading = await screen.findByTestId("modifier-normative-loading");
+    const choices = screen.getByTestId("pizza-mod-group-dodatki");
+    expect(loading).toHaveClass("absolute");
+    expect(loading.parentElement).toBe(dialog);
+    expect(choices.parentElement?.parentElement?.contains(loading)).toBe(false);
+    expect(screen.getByRole("button", { name: /^Potrdi$/i })).toBeDisabled();
   });
 
   it("izbire nested skupin veže na izvorni prodajni artikel, jih počisti ob odznačitvi in ne doda drugega artikla", async () => {
