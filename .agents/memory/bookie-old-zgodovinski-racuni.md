@@ -32,3 +32,9 @@ Uporabnik želi nepravilnosti oziroma odstopanja zgodovinske KPR obravnavati pri
 **Why:** Izvirnik vsebuje razčlenitev obdavčene storitve in neobdavčene dajatve, ki je stari agregirani vnos ne pokaže dovolj zanesljivo.
 
 **How to apply:** Pri novem uvozu skena zahtevaj pregled in pravilno ločitev osnove, DDV in neobdavčene postavke pred knjiženjem; starih kontrolnih evidenc ne popravljaj samodejno.
+
+Zahteva za dokončno knjiženje zgodovinske GK je omejena na leta 2020–2025; leto 2026 mora ostati osnutek. Uporabnik je izbral najprej urediti DDV sled, vendar je potrdil, da izvirnih računov za ta leta trenutno nima na voljo.
+
+**Why:** Brez izvirnikov ni mogoče zanesljivo dokazati davčne razčlenitve prejetih računov. Stari DDV izvozi so po prejšnjem dogovoru le kontrola, ne vir novih davčnih knjižb.
+
+**How to apply:** Ne obravnavaj manjkajočih DDV kod kot zgolj tehnično oviro, ki jo lahko obideš z generiranimi kodami; pred knjiženjem pojasni razliko med zgodovinsko GK in popolno novo DDV evidenco ter pridobi izrecno poslovno odločitev o nepopolni evidenci, če izvirniki ostanejo nedostopni.
