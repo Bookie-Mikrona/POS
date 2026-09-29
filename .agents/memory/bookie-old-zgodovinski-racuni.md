@@ -9,11 +9,17 @@ Zgodovinske izdane račune brez temeljnice ohrani za pregled; ne domnevaj, da so
 
 **How to apply:** Pri prihodnjih uskladitvah vedno pokaži vir in razliko ter zahtevaj računovodsko presojo, preden iz osnutka nastane knjižba, plačilo ali saldo.
 
-Pri zgodovinskih izdanih računih brez GK najprej preveri dejanski znesek po popustu, ne kataloške cene. Nekateri imajo na vseh postavkah 100-odstotni popust ter ničelno osnovo, DDV in skupaj; to ne dokazuje, ali je stari postopek namenoma izpustil knjižbo ali jo je opustil po pomoti.
+Pri zgodovinskih izdanih računih brez GK najprej preveri dejanski znesek po popustu, ne kataloške cene. Uporabnik je potrdil, da so obravnavani računi s 100-odstotnim popustom pravilni računi iz časa COVID: strankam so jih poslali kot obvestilo, vendar jim niso ničesar zaračunali; veljajo za knjižene z ničlami.
 
-**Why:** Nepovezane zgodovinske listine, ki so bile sprva označene kot manjkajoče knjižbe, lahko v izvornih prodajnih postavkah izkazujejo ničelni finančni učinek kljub nenicelni redni ceni.
+**Why:** Izvorne prodajne postavke izkazujejo ničelno osnovo, DDV in plačilo kljub nenicelni redni ceni. To ni manjkajoča terjatev. Uporabnik je izrecno potrdil poslovni namen, ki ga zgolj izvoz ne bi mogel dokazati.
 
-**How to apply:** Ohraniti jih je treba ločeno za pregled; ne ustvarjaj terjatev po redni ceni in ne sklepaj iz same odsotnosti GK, da gre za plačilo ali napako.
+**How to apply:** Tako potrjene ničelne zgodovinske račune obravnavaj kot zaključene račune brez finančnih GK vrstic in brez terjatve; revizijska sled naj loči to izjemo od navadnega knjiženja. Drugih nepovezanih računov nikoli ne potrjuj samodejno le zato, ker nimajo temeljnice.
+
+Pri ničelnih računih za gostinske in trgovske stranke iz obdobja zaprtja leta 2020 je uporabnik dodatno pojasnil poslovni razlog: trgovine in gostilne po njegovem pojasnilu zakonsko niso smele obratovati, zato so prejele račune s 100-odstotnim popustom, brez zaračunanega zneska.
+
+**Why:** Sam izvoz izkazuje popust, ne pa njegovega poslovnega razloga; ta je bil naknadno potrjen s strani uporabnika. Med obravnavanimi ničelnimi računi sta tudi dva z datumom avgust 2023, za katera veljavnosti razloga zakonskega zaprtja ne smemo samodejno predpostaviti.
+
+**How to apply:** Razlog zaprtja pripiši le listinam, za katere čas in poslovni kontekst to podpirata; pri računih iz leta 2023 ločeno preveri, zakaj je bil uporabljen 100-odstotni popust, preden zapišeš takšno razlago v dokumentacijo ali opombe.
 
 Izvoženi stari obračuni DDV ter datoteke KIR/KPR in eDavki DDV-O so **samo kontrolna referenca**, ne podatki za uvoz v novi ERP.
 
