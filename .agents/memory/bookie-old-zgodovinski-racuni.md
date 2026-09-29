@@ -21,7 +21,7 @@ Pri preverjanju odprtih postavk ne predpostavljaj, da vsaka stara GK vrstica z n
 
 **How to apply:** Pred prenosom ali usklajevanjem salda primerjaj postavke po računu in partnerju ter izrecno izpiši izpuščene GK ostanke; ne odpiraj jih kot dokazano neplačane račune brez potrditve.
 
-Pri komunalnih računih lahko 9,5-odstotna storitev in neobdavčena okoljska dajatev nastopata na istem računu. GK strošek zajame oboje, davčna osnova zajame le obdavčene storitve; zgodovinski KPR vnos lahko vsebuje tudi centno odstopanje od dejanskega računa.
+Uporabnik je potrdil, da pri vseh treh obravnavanih računih istega dobavitelja velja enaka sestava: 9,5-odstotna komunalna storitev in neobdavčena okoljska dajatev. GK strošek zajame oboje, davčna osnova zajame le obdavčene storitve; zgodovinski KPR vnos lahko vsebuje tudi centno odstopanje od dejanskega računa.
 
 **Why:** Izvirni račun je pokazal okoljsko dajatev z oznako »neobdavčeno«, medtem ko je bila stara KPR davčna osnova za dva centa nižja od vsote obdavčenih vrstic na računu.
 
