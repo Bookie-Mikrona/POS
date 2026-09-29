@@ -1173,3 +1173,17 @@ mtime_ms = 1790699494068
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/34b07ba6-bf4a-4eb6-b554-176eb1b3dcdc/30da5d77-47f1-4986-9d33-499220c5566f"
 storage_version_token = "1790699520245404"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "gClbdZu8UAAHlwnIc0Gud"
+uri = "file://reports/mikrona-odprte-postavke-predogled-2026-09-29.csv"
+type = "table"
+title = "Mikrona – predogled uskladitve terjatev"
+description = "65 vrstic starega IOP: izvorna knjižba, povezava z računom nove GK, zapiranja, odprti znesek in status; brez sprememb v bazi."
+logical_id = "8860a4d6-60a4-417c-a390-95668082753e"
+content_hash = "sha256:e591a64b87e1ca769d8daf70ff35bb212b595440ba1a0b96bb96995555a09553"
+size = 6329
+mtime_ms = 1790714532254
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:befbd562-eaa8-4c79-a6c7-0ef7fbc7fc6f/8860a4d6-60a4-417c-a390-95668082753e/ce6cec00-3ef0-49db-b0a7-75e0d5586b95"
+storage_version_token = "1790714543428090"
+content_type = "text/csv"
