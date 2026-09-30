@@ -63,6 +63,12 @@ Uporabnik želi nepravilnosti oziroma odstopanja zgodovinske KPR obravnavati pri
 
 **How to apply:** Pri novem uvozu skena zahtevaj pregled in pravilno ločitev osnove, DDV in neobdavčene postavke pred knjiženjem; starih kontrolnih evidenc ne popravljaj samodejno.
 
+Pri rekonstruiranem bančnem izpisku ena vrstica konta 110 lahko predstavlja **neto znesek več ločenih plačil**, tudi prejemov kupcev in odliva dobavitelju na isti temeljnici. Ni dokaz, da je nastalo samo eno plačilo.
+
+**Why:** Preverjena zgodovinska bančna temeljnica je imela eno neto bančno vrstico, vendar več vrstic terjatev in obveznosti s partnerji in starimi povezavami zapiranj. Povzetek neta je skril že dokazani zapiranji dveh izdanih računov.
+
+**How to apply:** Pri razlagi ali prenosu plačil preveri vse vrstice iste izvorne temeljnice in izvorni ZAPIRANJE ter loči datum listine od datuma knjiženja. Ločena dokazila pokaži kot zgodovinska zapiranja; neto vrstice ne pretvori v eno novo plačilo ali v izvirno bančno datoteko.
+
 Zahteva za dokončno knjiženje zgodovinske GK je omejena na leta 2020–2025; leto 2026 mora ostati osnutek. Uporabnik je sprva izbral ureditev DDV sledi pred knjiženjem, nato potrdil, da izvirnih računov nima, in izrecno dovolil knjiženje zgodovinske GK ter povezanih računov brez popolne KIR/KPR.
 
 **Why:** Brez izvirnikov ni mogoče zanesljivo dokazati davčne razčlenitve prejetih računov. Stari DDV izvozi so po prejšnjem dogovoru le kontrola, ne vir novih davčnih knjižb; uporabnik je po pojasnilu posledic sprejel nepopolnost nove DDV evidence za arhivski GK prenos.
