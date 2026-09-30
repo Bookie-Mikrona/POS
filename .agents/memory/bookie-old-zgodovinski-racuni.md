@@ -69,6 +69,12 @@ Pri rekonstruiranem bančnem izpisku ena vrstica konta 110 lahko predstavlja **n
 
 **How to apply:** Pri razlagi ali prenosu plačil preveri vse vrstice iste izvorne temeljnice in izvorni ZAPIRANJE ter loči datum listine od datuma knjiženja. Ločena dokazila pokaži kot zgodovinska zapiranja; neto vrstice ne pretvori v eno novo plačilo ali v izvirno bančno datoteko.
 
+Izvorni ZAPIRANJE vsako povezavo shrani v obe smeri. Pri prejetem računu je za dokazilo dobaviteljevega zapiranja izhodišče vrstica računa in cilj bančna GK vrstica; obratni zapis preveri kot par, ne vštevaj ga še enkrat. Datum povezave ne pomeni vedno datuma plačila: pri izdanih računih lahko kaže datum izvornega računa.
+
+**Why:** Ena dvosmerna povezava bi sicer postala dve zapiranji, neenotna semantika datuma pa bi napačno prestavila stara plačila med obdobji.
+
+**How to apply:** Pred prikazom ali prenosom preveri obe smeri po izvornih ID-jih in znesku, datum izrecno opiši kot datum izvorne povezave in zgodovinskih povezav ne pretvarjaj v nova plačila.
+
 Zahteva za dokončno knjiženje zgodovinske GK je omejena na leta 2020–2025; leto 2026 mora ostati osnutek. Uporabnik je sprva izbral ureditev DDV sledi pred knjiženjem, nato potrdil, da izvirnih računov nima, in izrecno dovolil knjiženje zgodovinske GK ter povezanih računov brez popolne KIR/KPR.
 
 **Why:** Brez izvirnikov ni mogoče zanesljivo dokazati davčne razčlenitve prejetih računov. Stari DDV izvozi so po prejšnjem dogovoru le kontrola, ne vir novih davčnih knjižb; uporabnik je po pojasnilu posledic sprejel nepopolnost nove DDV evidence za arhivski GK prenos.

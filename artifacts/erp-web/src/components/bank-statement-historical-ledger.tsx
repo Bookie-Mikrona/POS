@@ -18,6 +18,7 @@ export function BankStatementHistoricalLedgerView({ ledger, bankAccountCode, cur
   const debit = bankLines.reduce((sum, line) => sum + (line.side === "debit" ? Number(line.amount) : 0), 0);
   const credit = bankLines.reduce((sum, line) => sum + (line.side === "credit" ? Number(line.amount) : 0), 0);
   const closingCount = ledger.lines.reduce((sum, line) => sum + line.historicalClosings.length, 0);
+  const hasSupplierEvidence = ledger.reference.startsWith("BOOKIE-OLD/K2/2026/10/");
 
   return (
     <section className="space-y-3 border-t pt-5" data-testid="section-statement-historical-ledger">
@@ -27,10 +28,14 @@ export function BankStatementHistoricalLedgerView({ ledger, bankAccountCode, cur
           {ledger.reference} · listina {dateLabel(ledger.documentDate)} · knjiženje {dateLabel(ledger.bookingDate)} · {ledger.status === "draft" ? "osnutek" : ledger.status === "posted" ? "knjiženo" : "stornirano"}
         </p>
       </div>
-      <p className="text-sm" data-testid="text-historical-bank-net">
-        Konto {bankAccountCode}: debet {money.format(debit)} {currency} − kredit {money.format(credit)} {currency} = neto {money.format(debit - credit)} {currency}.
-        <span className="text-muted-foreground"> Neto bančna vrstica ni nujno eno plačilo.</span>
-      </p>
+      {bankLines.length > 0
+        ? <p className="text-sm" data-testid="text-historical-bank-net">
+            Konto {bankAccountCode}: debet {money.format(debit)} {currency} − kredit {money.format(credit)} {currency} = neto {money.format(debit - credit)} {currency}.
+            <span className="text-muted-foreground"> Neto bančna vrstica ni nujno eno plačilo.</span>
+          </p>
+        : <p className="text-sm text-muted-foreground" data-testid="text-historical-bank-net">
+            Na tej stari temeljnici ni prometne vrstice konta {bankAccountCode}; neto bančnega zneska ni mogoče izračunati.
+          </p>}
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left">
@@ -53,7 +58,7 @@ export function BankStatementHistoricalLedgerView({ ledger, bankAccountCode, cur
                   <div className="text-xs text-muted-foreground">{line.description || "—"}</div>
                   {line.historicalClosings.map(closing => (
                     <div key={closing.closingId} className="mt-2 rounded border bg-muted/40 p-2 text-xs" data-testid={`text-historical-closing-${closing.closingId}`}>
-                      Staro zapiranje: {closing.invoiceType === "issued" ? "izdani" : "prejeti"} račun {closing.invoiceNumber} · {money.format(Number(closing.amount))} {currency} · {closingDate(closing.recordedDate)}
+                      Staro zapiranje: {closing.invoiceType === "issued" ? "izdani" : "prejeti"} račun {closing.invoiceNumber} · {money.format(Number(closing.amount))} {currency} · datum izvorne povezave {closingDate(closing.recordedDate)}
                     </div>
                   ))}
                 </td>
@@ -65,8 +70,9 @@ export function BankStatementHistoricalLedgerView({ ledger, bankAccountCode, cur
         </table>
       </div>
       <p className="text-xs text-muted-foreground" data-testid="status-historical-closing-coverage">
-        V ERP je prenesenih {closingCount} dokazil o zapiranju izdanih računov.
-        Zapiranja dobaviteljev niso prenesena v to evidenco; odsotnost oznake ne pomeni, da v starem sistemu ni bilo zapiranja.
+        V ERP je za to temeljnico prenesenih {closingCount} dokazil o zapiranju
+        {hasSupplierEvidence ? " izdanih in prejetih računov." : " izdanih računov. Zapiranja dobaviteljev za ta leta niso prenesena."}
+        Odsotnost oznake ni dokaz, da v starem sistemu ni bilo zapiranja.
         Ta pregled ne ustvarja plačil ali novih knjižb.
       </p>
     </section>

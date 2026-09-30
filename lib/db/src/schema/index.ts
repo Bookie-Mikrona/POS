@@ -12,6 +12,7 @@ export * from "./counterparties";
 export * from "./purchase-source-documents";
 export * from "./invoices";
 export * from "./bookie-old-ar-settlements";
+export * from "./bookie-old-bank-ap-closings";
 export * from "./bank-statements";
 export * from "./payments";
 export * from "./vat-codes";

@@ -8,6 +8,7 @@ import {
   counterpartiesTable,
   invoicesTable,
   bookieOldArSettlementsTable,
+  bookieOldBankApClosingsTable,
   invoiceLinesTable,
   paymentAllocationsTable,
   paymentsTable,
@@ -1033,6 +1034,36 @@ router.get(
               recordedDate: evidence.recordedDate,
             });
             closingsBySourceLine.set(evidence.otherLineId, closings);
+          }
+        }
+        if (source[1] === "2026") {
+          const supplierClosings = await db.select({
+            sourceBankLineId: bookieOldBankApClosingsTable.sourceBankLineId,
+            closingId: bookieOldBankApClosingsTable.closingId,
+            invoiceNumber: invoicesTable.invoiceNumber,
+            invoiceType: invoicesTable.type,
+            amount: bookieOldBankApClosingsTable.amount,
+            recordedDate: bookieOldBankApClosingsTable.recordedDate,
+          }).from(bookieOldBankApClosingsTable)
+            .innerJoin(invoicesTable, and(
+              eq(invoicesTable.id, bookieOldBankApClosingsTable.invoiceId),
+              eq(invoicesTable.companyId, companyId),
+            ))
+            .where(and(
+              eq(bookieOldBankApClosingsTable.companyId, companyId),
+              eq(bookieOldBankApClosingsTable.statementId, statementId),
+            ));
+          for (const closing of supplierClosings) {
+            if (!sourceLineIds.includes(closing.sourceBankLineId)) continue;
+            const list = closingsBySourceLine.get(closing.sourceBankLineId) ?? [];
+            list.push({
+              closingId: closing.closingId,
+              invoiceNumber: closing.invoiceNumber,
+              invoiceType: closing.invoiceType,
+              amount: closing.amount,
+              recordedDate: closing.recordedDate,
+            });
+            closingsBySourceLine.set(closing.sourceBankLineId, list);
           }
         }
         historicalLedger = {
