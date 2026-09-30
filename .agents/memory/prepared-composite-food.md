@@ -63,6 +63,12 @@ Pripravljena hrana se vodi v porcijah, kg ali l. Pripravljena jed v kg/l je vedn
 
 **How to apply:** Ohrani pripravljene osnovne enote porcija/kg/l; prikaz kosa jedi gostu ni razlog za uvedbo kosovne nabavne evidence. Obstoječih porcij ali hlebčkov ne pretvarjaj samodejno. Sprememba osnovne enote ne pomeni preračuna recepta; ko obstaja količinska zgodovina ali normativna uporaba, potrebuje drug artikel ali posebej dogovorjen sledljiv pretvorbeni postopek. Porcijski AI predlog ni veljaven recept za 1 kg/l.
 
+Izrecno odobrena pretvorba obstoječega polizdelka z znanim faktorjem je uskladitev merske osnove, ne nova priprava ali sprememba računov. Tudi pri obstoječi prodaji mora ohraniti število gostovih porcij in denarne vrednosti.
+
+**Why:** Uporabnik je zahteval pretvorbo obstoječih pripravljenih prilog z že evidentirano prodajo. Samo zamenjana enota bi napačno povečala porabo; ponovna priprava ali prepis surovinskih gibov pa bi spremenil zgodovinski strošek.
+
+**How to apply:** Skupaj uskladi recept na novo osnovo, povezane prodajne normative in modifikatorje, interne količinske posnetke naročil ter dnevne in zamrznjene količine. Izvorne surovinske in prodajne zalogovne gibe ohrani; morebitna količinska uskladitev prodajnega odpisa naj bo dodaten sledljiv zapis, ki ga zna obrniti tudi poznejši storno istega računa. Ohrani stanje pred in po pretvorbi.
+
 Neprodajni in nenabavni živilski artikel tipa à la carte je lahko polizdelek z lastnim normativom surovin. Ne potrebuje prodajne cene ali pripravljene zamrznjene zaloge.
 
 **Why:** Polizdelek, kot je paniran zrezek, nastaja sproti iz nabavnih surovin in je lahko sestavina sestavljene jedi, čeprav sam ni naprodaj. Brez njegovega normativa sestavljena jed ne more pravilno razširiti porabe do surovin.
