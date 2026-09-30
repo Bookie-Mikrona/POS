@@ -2,6 +2,7 @@ import { useGetBankStatementDetail, getGetBankStatementDetailQueryKey } from "@w
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BankStatementHistoricalLedgerView } from "@/components/bank-statement-historical-ledger";
 
 const amountFormat = new Intl.NumberFormat("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dateLabel = (value: string | null | undefined) => value ? value.slice(0, 10).split("-").reverse().join(". ") : "—";
@@ -68,6 +69,10 @@ export function BankStatementDetail({ companyId, statementId, onClose }: Props) 
                 </div>
               )}
             </div>
+            {reconstructed && (data.historicalLedger
+              ? <BankStatementHistoricalLedgerView ledger={data.historicalLedger} bankAccountCode={data.bankAccountCode} currency={data.currency} />
+              : <Alert data-testid="status-historical-ledger-missing"><AlertCircle className="h-4 w-4" /><AlertDescription>Povezana stara temeljnica ni bila najdena. Rekonstruirane bančne vrstice ni mogoče razčleniti na plačila.</AlertDescription></Alert>
+            )}
           </div>
         )}
       </DialogContent>

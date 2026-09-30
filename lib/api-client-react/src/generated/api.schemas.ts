@@ -10227,6 +10227,38 @@ export interface BankStatementDetailLine {
   description?: string | null;
 }
 
+export interface BankStatementHistoricalClosing {
+  closingId: string;
+  invoiceNumber: string;
+  invoiceType: string;
+  amount: string;
+  recordedDate: string;
+}
+
+export interface BankStatementHistoricalLedgerLine {
+  id: string;
+  accountCode: string;
+  accountName: string;
+  side: string;
+  amount: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  partnerName?: string | null;
+  /** @nullable */
+  sourceLineId: string | null;
+  historicalClosings: BankStatementHistoricalClosing[];
+}
+
+export interface BankStatementHistoricalLedger {
+  reference: string;
+  /** @nullable */
+  documentDate: string | null;
+  bookingDate: string;
+  status: string;
+  lines: BankStatementHistoricalLedgerLine[];
+}
+
 export interface BankStatementDetail {
   id: string;
   bankAccountCode: string;
@@ -10247,6 +10279,8 @@ export interface BankStatementDetail {
   currency: string;
   sourceFilename: string;
   lines: BankStatementDetailLine[];
+  /** Read-only old general ledger voucher, when a reconstructed record has a matching company-scoped source. */
+  historicalLedger: BankStatementHistoricalLedger | null;
 }
 
 export interface ParseBankStatementResponse {

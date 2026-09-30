@@ -22105,7 +22105,7 @@ components:
         - currency
     BankStatementDetail:
       type: object
-      required: [id, bankAccountCode, bankAccountName, statementDate, currency, sourceFilename, lines]
+      required: [id, bankAccountCode, bankAccountName, statementDate, currency, sourceFilename, lines, historicalLedger]
       properties:
         id: { type: string }
         bankAccountCode: { type: string }
@@ -22123,6 +22123,48 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BankStatementDetailLine"
+        historicalLedger:
+          oneOf:
+            - $ref: "#/components/schemas/BankStatementHistoricalLedger"
+            - type: "null"
+          description: Read-only old general ledger voucher, when a reconstructed record has a matching company-scoped source.
+    BankStatementHistoricalLedger:
+      type: object
+      required: [reference, documentDate, bookingDate, status, lines]
+      properties:
+        reference: { type: string }
+        documentDate: { type: [string, "null"] }
+        bookingDate: { type: string }
+        status: { type: string }
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankStatementHistoricalLedgerLine"
+    BankStatementHistoricalLedgerLine:
+      type: object
+      required: [id, accountCode, accountName, side, amount, sourceLineId, historicalClosings]
+      properties:
+        id: { type: string }
+        accountCode: { type: string }
+        accountName: { type: string }
+        side: { type: string }
+        amount: { type: string }
+        description: { type: [string, "null"] }
+        partnerName: { type: [string, "null"] }
+        sourceLineId: { type: [string, "null"] }
+        historicalClosings:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankStatementHistoricalClosing"
+    BankStatementHistoricalClosing:
+      type: object
+      required: [closingId, invoiceNumber, invoiceType, amount, recordedDate]
+      properties:
+        closingId: { type: string }
+        invoiceNumber: { type: string }
+        invoiceType: { type: string }
+        amount: { type: string }
+        recordedDate: { type: string }
     BankStatementDetailLine:
       type: object
       required: [id, lineNumber, bookingDate, amount, currency]

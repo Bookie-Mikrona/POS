@@ -12985,7 +12985,30 @@ export const GetBankStatementDetailResponse = zod.object({
   "counterpartyName": zod.string().nullish(),
   "counterpartyIban": zod.string().nullish(),
   "description": zod.string().nullish()
+})),
+  "historicalLedger": zod.union([zod.object({
+  "reference": zod.string(),
+  "documentDate": zod.string().nullable(),
+  "bookingDate": zod.string(),
+  "status": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "side": zod.string(),
+  "amount": zod.string(),
+  "description": zod.string().nullish(),
+  "partnerName": zod.string().nullish(),
+  "sourceLineId": zod.string().nullable(),
+  "historicalClosings": zod.array(zod.object({
+  "closingId": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceType": zod.string(),
+  "amount": zod.string(),
+  "recordedDate": zod.string()
 }))
+}))
+}),zod.null()]).describe('Read-only old general ledger voucher, when a reconstructed record has a matching company-scoped source.')
 })
 
 

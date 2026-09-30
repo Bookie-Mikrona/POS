@@ -16,6 +16,8 @@ import {
   accountingPeriodsTable,
   bankStatementsTable,
   bankStatementLinesTable,
+  journalEntriesTable,
+  journalEntryLinesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
 import { GetBankStatementDetailParams, GetBankStatementDetailResponse } from "@workspace/api-zod";
@@ -959,7 +961,93 @@ router.get(
     }).from(bankStatementLinesTable)
       .where(eq(bankStatementLinesTable.statementId, statementId))
       .orderBy(bankStatementLinesTable.lineNumber, bankStatementLinesTable.id);
-    res.json(GetBankStatementDetailResponse.parse({ ...statement, lines }));
+
+    let historicalLedger = null;
+    // Only the explicitly marked Bookie Old reconstruction has a trustworthy
+    // voucher key. A net 110 movement is not a list of individual payments.
+    const source = /^Bookie Old Promet (\d{4})\/(\d{6}) – rekonstrukcija iz GK(?: –.*)?$/.exec(statement.sourceFilename);
+    if (source) {
+      const reference = `BOOKIE-OLD/K2/${source[1]}/10/${source[2]}`;
+      const [entry] = await db.select({
+        id: journalEntriesTable.id,
+        reference: journalEntriesTable.reference,
+        documentDate: journalEntriesTable.documentDate,
+        bookingDate: journalEntriesTable.entryDate,
+        status: journalEntriesTable.status,
+      }).from(journalEntriesTable)
+        .where(and(eq(journalEntriesTable.companyId, companyId), eq(journalEntriesTable.reference, reference)))
+        .limit(1);
+
+      if (entry) {
+        const ledgerLines = await db.select({
+          id: journalEntryLinesTable.id,
+          accountCode: accountsTable.code,
+          accountName: accountsTable.name,
+          side: journalEntryLinesTable.side,
+          amount: journalEntryLinesTable.amount,
+          description: journalEntryLinesTable.description,
+          partnerName: counterpartiesTable.name,
+        }).from(journalEntryLinesTable)
+          .innerJoin(accountsTable, and(
+            eq(accountsTable.id, journalEntryLinesTable.accountId),
+            eq(accountsTable.companyId, companyId),
+          ))
+          .leftJoin(counterpartiesTable, and(
+            eq(counterpartiesTable.id, journalEntryLinesTable.partnerId),
+            eq(counterpartiesTable.companyId, companyId),
+          ))
+          .where(eq(journalEntryLinesTable.entryId, entry.id))
+          .orderBy(journalEntryLinesTable.sequence, journalEntryLinesTable.id);
+
+        const sourceLineIds = ledgerLines
+          .map(line => line.description?.match(/GLAVNA #(\d+)/)?.[1])
+          .filter((id): id is string => !!id);
+        const settlements = sourceLineIds.length ? await db.select({
+          invoiceNumber: invoicesTable.invoiceNumber,
+          invoiceType: invoicesTable.type,
+          evidence: bookieOldArSettlementsTable.evidence,
+        }).from(bookieOldArSettlementsTable)
+          .innerJoin(invoicesTable, and(
+            eq(invoicesTable.id, bookieOldArSettlementsTable.invoiceId),
+            eq(invoicesTable.companyId, companyId),
+          ))
+          .where(and(
+            eq(bookieOldArSettlementsTable.companyId, companyId),
+            sql`EXISTS (
+              SELECT 1 FROM jsonb_array_elements(${bookieOldArSettlementsTable.evidence}) AS item
+              WHERE ${inArray(sql<string>`item->>'otherLineId'`, sourceLineIds)}
+            )`,
+          )) : [];
+        const closingsBySourceLine = new Map<string, Array<{
+          closingId: string; invoiceNumber: string; invoiceType: string; amount: string; recordedDate: string;
+        }>>();
+        for (const settlement of settlements) {
+          for (const evidence of settlement.evidence) {
+            if (!sourceLineIds.includes(evidence.otherLineId)) continue;
+            const closings = closingsBySourceLine.get(evidence.otherLineId) ?? [];
+            closings.push({
+              closingId: evidence.closingId,
+              invoiceNumber: settlement.invoiceNumber,
+              invoiceType: settlement.invoiceType,
+              amount: evidence.amount,
+              recordedDate: evidence.recordedDate,
+            });
+            closingsBySourceLine.set(evidence.otherLineId, closings);
+          }
+        }
+        historicalLedger = {
+          reference,
+          documentDate: entry.documentDate,
+          bookingDate: entry.bookingDate,
+          status: entry.status,
+          lines: ledgerLines.map(line => {
+            const sourceLineId = line.description?.match(/GLAVNA #(\d+)/)?.[1] ?? null;
+            return { ...line, sourceLineId, historicalClosings: sourceLineId ? closingsBySourceLine.get(sourceLineId) ?? [] : [] };
+          }),
+        };
+      }
+    }
+    res.json(GetBankStatementDetailResponse.parse({ ...statement, lines, historicalLedger }));
   },
 );
 
