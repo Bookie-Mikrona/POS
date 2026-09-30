@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const mockSave = vi.fn();
 const mockClose = vi.fn();
 const mockSaveStocks = vi.fn();
+const mockConsumption = vi.fn();
 let mockEditable = true;
 let mockClosedAt: string | null = null;
 let mockFrozenQuantity = 20;
@@ -68,6 +69,7 @@ vi.mock("@workspace/api-client-react", async () => {
       isLoading: false,
     }),
     useSavePreparedFoodDaily: () => ({ mutateAsync: mockSave, isPending: false }),
+    useGetPreparedFoodConsumption: (...args: unknown[]) => mockConsumption(...args),
     useClosePreparedFoodDaily: () => ({ mutateAsync: mockClose, isPending: false }),
     useUpdatePreparedFoodStocks: () => ({ mutate: mockSaveStocks, isPending: false }),
     getListPreparedFoodDailyQueryKey: vi.fn(),
@@ -86,6 +88,16 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     mockSave.mockClear();
     mockClose.mockClear();
     mockSaveStocks.mockClear();
+    mockConsumption.mockReset();
+    mockConsumption.mockImplementation((_date, _articleId, params) => ({
+      data: {
+        articleId: 10, articleName: "Goveja juha",
+        preparedQuantity: params?.quantity ?? 5, unitOfMeasure: mockUnitOfMeasure,
+        source: mockClosedAt ? "actual" : "normative",
+        items: [{ ingredientId: 50, ingredientName: "Goveje meso", unitOfMeasure: "KGM",
+          quantity: mockClosedAt ? 1.25 : (params?.quantity ?? 5) * 0.25, quantityPerUnit: 0.25 }],
+      }, isLoading: false, isError: false, refetch: vi.fn(),
+    }));
     mockEditable = true;
     mockClosedAt = null;
     mockFrozenQuantity = 20;
@@ -98,6 +110,47 @@ describe("PreparedFoodPage - Daily Ledger", () => {
     fireEvent.click(await screen.findByText("28. avgust 2026"));
     await screen.findByText("Goveja juha");
   }
+
+  it("klik na pripravljeno pokaže porabo; sprememba količine osveži predogled brez shranjevanja", async () => {
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+    fireEvent.click(screen.getByLabelText("Pripravljeno"));
+    expect(await screen.findByRole("dialog")).not.toBeNull();
+    expect(screen.getByText("Goveje meso")).not.toBeNull();
+    expect(screen.getByText("1,25")).not.toBeNull();
+    expect(screen.getByText(/Poraba se razknjiži šele ob zaključku/)).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Količina pripravljeno za izračun porabe"), { target: { value: "8" } });
+    await waitFor(() => expect(screen.getByText("Neshranjena količina")).not.toBeNull());
+    expect(mockConsumption.mock.lastCall?.[2]).toEqual({ quantity: 8 });
+    expect(mockSave).not.toHaveBeenCalled();
+    expect(mockClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Zapri" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByLabelText("Pripravljeno").getAttribute("value")).toBe("8");
+  });
+
+  it("na zaključeni evidenci pokaže dejansko porabo brez možnosti spremembe količine", async () => {
+    mockEditable = false;
+    mockClosedAt = "2026-08-28T18:00:00Z";
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+    fireEvent.click(screen.getByRole("button", { name: "Poraba artiklov: Goveja juha" }));
+    expect(await screen.findByText("Dejanska knjižena poraba ob zaključku dnevne evidence.")).not.toBeNull();
+    expect(screen.getByText("1,25")).not.toBeNull();
+    expect(screen.queryByLabelText("Količina pripravljeno za izračun porabe")).toBeNull();
+    expect(mockConsumption.mock.lastCall?.[2]).toBeUndefined();
+    expect(mockSave).not.toHaveBeenCalled();
+    expect(mockClose).not.toHaveBeenCalled();
+  });
+
+  it("napako pridobivanja porabe jasno prikaže in ponudi ponovni poskus", async () => {
+    mockConsumption.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: vi.fn() });
+    render(<QueryClientProvider client={queryClient}><PreparedFoodPage /></QueryClientProvider>);
+    await openTestDate();
+    fireEvent.click(screen.getByLabelText("Pripravljeno"));
+    expect(await screen.findByRole("alert")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Poskusi znova" })).not.toBeNull();
+  });
 
   it("razširi in ponovno skrči izbrani datum", async () => {
     render(

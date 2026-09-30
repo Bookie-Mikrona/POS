@@ -9987,6 +9987,33 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedFoodDailyLedger" }
+  /prepared-food/daily/{date}/{articleId}/consumption:
+    get:
+      operationId: getPreparedFoodConsumption
+      tags: [prepared-food]
+      summary: Predogled ali dejanska poraba sestavin pripravljene jedi
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+        - name: articleId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: quantity
+          in: query
+          required: false
+          description: Količina priprave za normativni predogled; pri zaključeni evidenci se prezre.
+          schema: { type: number, minimum: 0, maximum: 999999.9999 }
+      responses:
+        "200":
+          description: Normativni predogled ali dokazljiva dejanska poraba zaprte evidence
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedFoodConsumption" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /pos-events:
     get:
       operationId: listPosEvents
@@ -11302,6 +11329,28 @@ components:
         articleName: { type: string }
         unitOfMeasure: { type: string }
         editable: { type: boolean }
+    PreparedFoodConsumption:
+      type: object
+      required: [articleId, articleName, preparedQuantity, unitOfMeasure, source, items]
+      properties:
+        articleId: { type: integer }
+        articleName: { type: string }
+        preparedQuantity: { type: number, minimum: 0 }
+        unitOfMeasure: { type: string }
+        source: { type: string, enum: [actual, normative] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PreparedFoodConsumptionItem" }
+        message: { type: [string, "null"] }
+    PreparedFoodConsumptionItem:
+      type: object
+      required: [ingredientId, ingredientName, unitOfMeasure, quantity, quantityPerUnit]
+      properties:
+        ingredientId: { type: integer }
+        ingredientName: { type: string }
+        unitOfMeasure: { type: [string, "null"] }
+        quantity: { type: number }
+        quantityPerUnit: { type: [number, "null"] }
     PreparedFoodWasteRecordInput:
       type: object
       required: [recordDate, periodFrom, periodTo, wasteObservedAt, disposalReason, signaturePerson, signatureManager]

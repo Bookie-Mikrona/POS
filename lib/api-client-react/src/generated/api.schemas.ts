@@ -1264,6 +1264,36 @@ export interface PreparedFoodDailyLedger {
   editable: boolean;
 }
 
+export type PreparedFoodConsumptionSource = typeof PreparedFoodConsumptionSource[keyof typeof PreparedFoodConsumptionSource];
+
+
+export const PreparedFoodConsumptionSource = {
+  actual: 'actual',
+  normative: 'normative',
+} as const;
+
+export interface PreparedFoodConsumptionItem {
+  ingredientId: number;
+  ingredientName: string;
+  /** @nullable */
+  unitOfMeasure: string | null;
+  quantity: number;
+  /** @nullable */
+  quantityPerUnit: number | null;
+}
+
+export interface PreparedFoodConsumption {
+  articleId: number;
+  articleName: string;
+  /** @minimum 0 */
+  preparedQuantity: number;
+  unitOfMeasure: string;
+  source: PreparedFoodConsumptionSource;
+  items: PreparedFoodConsumptionItem[];
+  /** @nullable */
+  message?: string | null;
+}
+
 export interface PreparedFoodWasteRecordInput {
   recordDate: string;
   periodFrom: string;
@@ -12724,6 +12754,15 @@ to: string;
 export type ListTipsLedgerParams = {
 from: string;
 to: string;
+};
+
+export type GetPreparedFoodConsumptionParams = {
+/**
+ * Količina priprave za normativni predogled; pri zaključeni evidenci se prezre.
+ * @minimum 0
+ * @maximum 999999.9999
+ */
+quantity?: number;
 };
 
 export type CreateOfflineProvisioningChallengeBody = {

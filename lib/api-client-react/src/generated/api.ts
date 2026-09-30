@@ -150,6 +150,7 @@ import type {
   GetOperativnaPorocilaZalogeParams,
   GetPlateWasteOverviewParams,
   GetPosContractSummaryPreviewParams,
+  GetPreparedFoodConsumptionParams,
   GetPublicMenuDeviceHistoryParams,
   GetPublicMenuParams,
   GetQrOrderCompletionParams,
@@ -378,6 +379,7 @@ import type {
   PrejemnicaInput,
   PrejemnicaUrediVnos,
   PreparedFoodAvailability,
+  PreparedFoodConsumption,
   PreparedFoodDailyInput,
   PreparedFoodDailyLedger,
   PreparedFoodStock,
@@ -30090,6 +30092,100 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getClosePreparedFoodDailyMutationOptions(options));
     }
+
+export const getGetPreparedFoodConsumptionUrl = (date: string,
+    articleId: number,
+    params?: GetPreparedFoodConsumptionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/prepared-food/daily/${date}/${articleId}/consumption?${stringifiedParams}` : `/api/prepared-food/daily/${date}/${articleId}/consumption`
+}
+
+/**
+ * @summary Predogled ali dejanska poraba sestavin pripravljene jedi
+ */
+export const getPreparedFoodConsumption = async (date: string,
+    articleId: number,
+    params?: GetPreparedFoodConsumptionParams, options?: RequestInit): Promise<PreparedFoodConsumption> => {
+
+  return customFetch<PreparedFoodConsumption>(getGetPreparedFoodConsumptionUrl(date,articleId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPreparedFoodConsumptionQueryKey = (date: string,
+    articleId: number,
+    params?: GetPreparedFoodConsumptionParams,) => {
+    return [
+    `/api/prepared-food/daily/${date}/${articleId}/consumption`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPreparedFoodConsumptionQueryOptions = <TData = Awaited<ReturnType<typeof getPreparedFoodConsumption>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(date: string,
+    articleId: number,
+    params?: GetPreparedFoodConsumptionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPreparedFoodConsumption>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPreparedFoodConsumptionQueryKey(date,articleId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPreparedFoodConsumption>>> = ({ signal }) => getPreparedFoodConsumption(date,articleId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: date !== null && date !== undefined && articleId !== null && articleId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPreparedFoodConsumption>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPreparedFoodConsumptionQueryResult = NonNullable<Awaited<ReturnType<typeof getPreparedFoodConsumption>>>
+export type GetPreparedFoodConsumptionQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+
+/**
+ * @summary Predogled ali dejanska poraba sestavin pripravljene jedi
+ */
+
+export function useGetPreparedFoodConsumption<TData = Awaited<ReturnType<typeof getPreparedFoodConsumption>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
+ date: string,
+    articleId: number,
+    params?: GetPreparedFoodConsumptionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPreparedFoodConsumption>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPreparedFoodConsumptionQueryOptions(date,articleId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListPosEventsUrl = () => {
 

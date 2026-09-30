@@ -116,3 +116,9 @@ Pri PDFKit nogi mora biti absolutna koordinata tudi znotraj spodnjega roba dokum
 **Why:** PDFKit samodejno doda stran, ko absolutno postavljen tekst preseže spodnjo mejo strani.
 
 **How to apply:** Nogo postavi nad `page.height - margin` in za PDF izpis preveri število strani, ne samo glave `%PDF-`.
+
+Prikaz sestavin ob količini »Pripravljeno« je na odprti dnevni evidenci informativni načrt za kuho, ne potrdilo dejanske porabe ali dodaten odpis.
+
+**Why:** Uporabnik je izrecno pojasnil, da kuhar zjutraj vnese količino, ki jo bo skuhal, da vidi, katere surovine in koliko jih mora pripraviti.
+
+**How to apply:** Pred zaključkom prikaži normativ za vneseno količino in jasno označi predogled; sam ogled ne spreminja zaloge. Pri zaključeni evidenci loči dejansko shranjeno porabo od trenutnega recepta.

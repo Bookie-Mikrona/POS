@@ -10,6 +10,7 @@ import {
   ClosePreparedFoodDailyParams, ClosePreparedFoodDailyResponse,
   ConfirmPreparedFoodWasteRecordParams, ConfirmPreparedFoodWasteRecordResponse,
   CreatePreparedFoodWasteRecordBody, CreatePreparedFoodWasteRecordResponse,
+  GetPreparedFoodConsumptionParams, GetPreparedFoodConsumptionQueryParams, GetPreparedFoodConsumptionResponse,
   GetPreparedFoodWasteRecordParams, GetPreparedFoodWasteRecordResponse,
   ListPreparedFoodDailyHistoryParams, ListPreparedFoodDailyHistoryResponse,
   ListPreparedFoodDailyParams, ListPreparedFoodDailyResponse,
@@ -524,6 +525,146 @@ router.get("/prepared-food/daily/history/:year", async (req: Request, res: Respo
     unitOfMeasure: preparedFoodUnitLabel(row.unitOfMeasure),
     editable: !row.ledger.closedAt && row.ledger.businessDate === latest,
   }))));
+});
+
+router.get("/prepared-food/daily/:date/:articleId/consumption", async (req: Request, res: Response): Promise<void> => {
+  const businessDate = String(req.params.date);
+  const parsedDate = new Date(`${businessDate}T00:00:00.000Z`);
+  if (!dateOk(businessDate) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== businessDate) {
+    res.status(400).json({ error: "Neveljaven datum." });
+    return;
+  }
+  const params = GetPreparedFoodConsumptionParams.safeParse({
+    ...req.params,
+    date: parsedDate,
+  });
+  const rawQuantity = req.query.quantity;
+  const query = GetPreparedFoodConsumptionQueryParams.safeParse(
+    rawQuantity === undefined ? {} : { quantity: rawQuantity },
+  );
+  if (!params.success || !query.success || (rawQuantity !== undefined && typeof rawQuantity !== "string")
+    || (typeof rawQuantity === "string" && rawQuantity.trim() === "")
+    || (query.success && query.data.quantity !== undefined && !Number.isFinite(query.data.quantity))) {
+    res.status(400).json({ error: "Neveljavna količina predogleda porabe." });
+    return;
+  }
+
+  const enotaId = (req as any).enotaId as number;
+  const [article] = await db.select({
+    id: artikliTable.id,
+    name: artikliTable.ime,
+    mealType: artikliTable.mealType,
+    unitOfMeasure: artikliTable.enotaMere,
+  }).from(artikliTable).where(and(
+    eq(artikliTable.id, params.data.articleId),
+    eq(artikliTable.enotaId, enotaId),
+  ));
+  if (!article || article.mealType !== "prepared") {
+    res.status(404).json({ error: "Pripravljena jed ni najdena." });
+    return;
+  }
+
+  const [ledger] = await db.select().from(preparedFoodDailyLedgersTable).where(and(
+    eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+    eq(preparedFoodDailyLedgersTable.businessDate, businessDate),
+    eq(preparedFoodDailyLedgersTable.artikelId, article.id),
+  ));
+
+  if (ledger?.closedAt) {
+    const movements = await db.select({
+      ingredientId: zalogaGibiTable.artikelId,
+      movementQuantity: zalogaGibiTable.kolicina,
+      ingredientName: artikliTable.ime,
+      ingredientUnitOfMeasure: artikliTable.enotaMere,
+    }).from(zalogaGibiTable)
+      .leftJoin(artikliTable, and(
+        eq(artikliTable.id, zalogaGibiTable.artikelId),
+        eq(artikliTable.enotaId, enotaId),
+      ))
+      .where(and(
+        eq(zalogaGibiTable.tip, "poraba"),
+        eq(zalogaGibiTable.sourceSnapshot, "prepared_food_daily_close"),
+        eq(zalogaGibiTable.referencaId, ledger.id),
+        sql`${zalogaGibiTable.kolicina}::numeric < 0`,
+      ));
+    const byIngredient = new Map<number, {
+      ingredientId: number;
+      ingredientName: string;
+      unitOfMeasure: string | null;
+      quantity: number;
+      quantityPerUnit: null;
+    }>();
+    let hasUnavailableIngredient = false;
+    for (const movement of movements) {
+      const current = byIngredient.get(movement.ingredientId);
+      if (current) {
+        current.quantity += -Number(movement.movementQuantity);
+        continue;
+      }
+      if (movement.ingredientName == null) hasUnavailableIngredient = true;
+      byIngredient.set(movement.ingredientId, {
+        ingredientId: movement.ingredientId,
+        ingredientName: movement.ingredientName ?? "Sestavina ni na voljo v tej poslovni enoti",
+        unitOfMeasure: movement.ingredientUnitOfMeasure,
+        quantity: -Number(movement.movementQuantity),
+        quantityPerUnit: null,
+      });
+    }
+    const message = movements.length === 0
+      ? "Za zaključeno evidenco ni bilo najdenih dokaznih premikov porabe."
+      : hasUnavailableIngredient
+        ? "Nekaterih sestavin ni mogoče razpoznati v tej poslovni enoti."
+        : undefined;
+    res.json(GetPreparedFoodConsumptionResponse.parse({
+      articleId: article.id,
+      articleName: article.name,
+      preparedQuantity: Number(ledger.preparedQuantity),
+      unitOfMeasure: preparedFoodUnitLabel(article.unitOfMeasure),
+      source: "actual",
+      items: [...byIngredient.values()],
+      ...(message === undefined ? {} : { message }),
+    }));
+    return;
+  }
+
+  const preparedQuantity = query.data.quantity
+    ?? (ledger ? Number(ledger.preparedQuantity) : 0);
+  const recipe = await db.select({
+    ingredientId: normativiTable.vhodniArtikelId,
+    quantityPerUnit: normativiTable.kolicina,
+    ingredientName: artikliTable.ime,
+    ingredientUnitOfMeasure: artikliTable.enotaMere,
+  }).from(normativiTable)
+    .leftJoin(artikliTable, and(
+      eq(artikliTable.id, normativiTable.vhodniArtikelId),
+      eq(artikliTable.enotaId, enotaId),
+    ))
+    .where(eq(normativiTable.artikelId, article.id));
+  const hasUnavailableIngredient = recipe.some((row) => row.ingredientName == null);
+  const items = recipe.map((row) => {
+    const quantityPerUnit = Number(row.quantityPerUnit);
+    return {
+      ingredientId: row.ingredientId,
+      ingredientName: row.ingredientName ?? "Sestavina ni na voljo v tej poslovni enoti",
+      unitOfMeasure: row.ingredientUnitOfMeasure,
+      quantityPerUnit,
+      quantity: quantityPerUnit * preparedQuantity,
+    };
+  });
+  const message = recipe.length === 0
+    ? "Za jed ni določenih sestavin v normativu."
+    : hasUnavailableIngredient
+      ? "Nekaterih sestavin ni mogoče razpoznati v tej poslovni enoti."
+      : undefined;
+  res.json(GetPreparedFoodConsumptionResponse.parse({
+    articleId: article.id,
+    articleName: article.name,
+    preparedQuantity,
+    unitOfMeasure: preparedFoodUnitLabel(article.unitOfMeasure),
+    source: "normative",
+    items,
+    ...(message === undefined ? {} : { message }),
+  }));
 });
 
 router.get("/prepared-food/daily/:date", async (req: Request, res: Response): Promise<void> => {

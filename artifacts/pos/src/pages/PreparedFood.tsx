@@ -27,6 +27,7 @@ import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, C
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WasteRecordsPanel } from "@/pages/prepared-food/WasteRecordsPanel";
+import { PreparationConsumptionDialog } from "@/pages/prepared-food/PreparationConsumptionDialog";
 import {
   formatPreparedFoodQuantity,
   preparedFoodQuantityLargeStep,
@@ -56,6 +57,7 @@ function TouchQuantityInput({
   allowNegative = false,
   maxQuantity,
   unit = "porcija",
+  onInspect,
 }: {
   label: string;
   value: string;
@@ -63,6 +65,7 @@ function TouchQuantityInput({
   allowNegative?: boolean;
   maxQuantity?: number;
   unit?: string | null;
+  onInspect?: () => void;
 }) {
   const amount = parseQuantity(value);
   const step = preparedFoodQuantityStep(unit);
@@ -88,6 +91,13 @@ function TouchQuantityInput({
       </div>
       <DecimalInput
         value={value}
+        onClick={onInspect}
+        onKeyDown={event => {
+          if (onInspect && event.key === "Enter") {
+            event.preventDefault();
+            onInspect();
+          }
+        }}
         readOnly={portionBased}
         aria-label={label}
         onChange={portionBased ? undefined : event => onChange(event.target.value)}
@@ -120,6 +130,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [consumptionArticleId, setConsumptionArticleId] = useState<number | null>(null);
 
   useEffect(() => {
     if (data) {
@@ -368,11 +379,21 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                       </TableCell>
                        <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Pripravljeno</span>
-                        {row.isReadOnly ? (
-                           <div className="text-right">{formatPreparedFoodQuantity(row.preparedQuantity)}</div>
-                        ) : (
-                            <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Pripravljeno" : `Pripravljeno (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.prepared} onChange={(value) => updateEdit(row.artikelId, "prepared", value)} />
-                        )}
+                        <div className="flex flex-col items-end gap-1">
+                          {row.isReadOnly ? (
+                            <button type="button" className="text-right underline decoration-dotted underline-offset-4"
+                              aria-label={`Poraba artiklov: ${row.articleName}`}
+                              onClick={() => setConsumptionArticleId(row.artikelId)}>
+                              {formatPreparedFoodQuantity(row.preparedQuantity)}
+                            </button>
+                          ) : (
+                            <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Pripravljeno" : `Pripravljeno (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.prepared} onChange={(value) => updateEdit(row.artikelId, "prepared", value)} onInspect={() => setConsumptionArticleId(row.artikelId)} />
+                          )}
+                          {!row.isReadOnly && <button type="button" className="text-[10px] text-primary underline underline-offset-2"
+                            aria-label={`Poraba artiklov: ${row.articleName}`} onClick={() => setConsumptionArticleId(row.artikelId)}>
+                            Poraba artiklov
+                          </button>}
+                        </div>
                       </TableCell>
                         <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                          <span className={mobileLabel}>Korekcija</span>
@@ -431,6 +452,15 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
         )}
       </CardContent>
 
+      {rowsWithCalculations.filter(row => row.artikelId === consumptionArticleId).map(row => (
+        <PreparationConsumptionDialog key={row.artikelId} date={date}
+          selection={{ articleId: row.artikelId, articleName: row.articleName || `Artikel #${row.artikelId}`,
+            quantity: row.isReadOnly ? String(row.preparedQuantity) : row.edit.prepared,
+            unit: row.unitOfMeasure, readOnly: row.isReadOnly, closed: row.isClosed,
+            unsaved: parseQuantity(row.edit.prepared) !== Number(row.preparedQuantity) }}
+          onClose={() => setConsumptionArticleId(null)}
+          onQuantityChange={value => updateEdit(row.artikelId, "prepared", value)} />
+      ))}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

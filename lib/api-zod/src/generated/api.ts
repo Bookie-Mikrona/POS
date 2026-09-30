@@ -15565,6 +15565,47 @@ export const ClosePreparedFoodDailyResponse = zod.object({
 })
 
 
+/**
+ * @summary Predogled ali dejanska poraba sestavin pripravljene jedi
+ */
+
+
+
+export const GetPreparedFoodConsumptionParams = zod.object({
+  "date": zod.date(),
+  "articleId": zod.coerce.number().min(1)
+})
+
+export const getPreparedFoodConsumptionQueryQuantityMin = 0;
+export const getPreparedFoodConsumptionQueryQuantityMax = 999999.9999;
+
+
+
+export const GetPreparedFoodConsumptionQueryParams = zod.object({
+  "quantity": zod.coerce.number().min(getPreparedFoodConsumptionQueryQuantityMin).max(getPreparedFoodConsumptionQueryQuantityMax).optional().describe('Količina priprave za normativni predogled; pri zaključeni evidenci se prezre.')
+})
+
+export const getPreparedFoodConsumptionResponsePreparedQuantityMin = 0;
+
+
+
+export const GetPreparedFoodConsumptionResponse = zod.object({
+  "articleId": zod.number(),
+  "articleName": zod.string(),
+  "preparedQuantity": zod.number().min(getPreparedFoodConsumptionResponsePreparedQuantityMin),
+  "unitOfMeasure": zod.string(),
+  "source": zod.enum(['actual', 'normative']),
+  "items": zod.array(zod.object({
+  "ingredientId": zod.number(),
+  "ingredientName": zod.string(),
+  "unitOfMeasure": zod.string().nullable(),
+  "quantity": zod.number(),
+  "quantityPerUnit": zod.number().nullable()
+})),
+  "message": zod.string().nullish()
+})
+
+
 export const ListPosEventsResponseItem = zod.object({
   "id": zod.number(),
   "enotaId": zod.number(),
