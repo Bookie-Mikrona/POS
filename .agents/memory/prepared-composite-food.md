@@ -59,9 +59,9 @@ V normativu modifikatorja so kot vhodni artikli primerni tudi prodajni à la car
 
 Pripravljena hrana se vodi v porcijah, kg ali l. Pripravljena jed v kg/l je vedno nenabavni in neprodajni polizdelek; gostu se prodaja porcija drugega artikla, ki ga porablja prek normativa sestavljene prodajne jedi ali modifikatorja (npr. 0,35 kg golaža). Normativ priprave velja za 1 izbrano osnovno enoto, ne za poljubno velik lonec.
 
-**Why:** Uporabnik je izrecno določil ločitev kuhinjske količinske evidence od prodajne porcije. Ne želimo pretvorbe prodajne cene po teži niti neposredne prodaje kg/l pripravljenega polizdelka.
+**Why:** Uporabnik je izrecno določil ločitev kuhinjske količinske evidence od prodajne porcije. Ne želimo pretvorbe prodajne cene po teži niti neposredne prodaje kg/l pripravljenega polizdelka. Potrdil je tudi, da za krvavice, sarme in polnjene paprike ne dodajamo osnovne enote »kos«: nabava je v kg, dodatno štetje kosov ob nabavi pa bi oteževalo delo.
 
-**How to apply:** Obstoječih porcij ali hlebčkov ne pretvarjaj samodejno. Sprememba osnovne enote ne pomeni preračuna recepta; ko obstaja količinska zgodovina ali normativna uporaba, potrebuje drug artikel ali posebej dogovorjen sledljiv pretvorbeni postopek. Porcijski AI predlog ni veljaven recept za 1 kg/l.
+**How to apply:** Ohrani pripravljene osnovne enote porcija/kg/l; prikaz kosa jedi gostu ni razlog za uvedbo kosovne nabavne evidence. Obstoječih porcij ali hlebčkov ne pretvarjaj samodejno. Sprememba osnovne enote ne pomeni preračuna recepta; ko obstaja količinska zgodovina ali normativna uporaba, potrebuje drug artikel ali posebej dogovorjen sledljiv pretvorbeni postopek. Porcijski AI predlog ni veljaven recept za 1 kg/l.
 
 Neprodajni in nenabavni živilski artikel tipa à la carte je lahko polizdelek z lastnim normativom surovin. Ne potrebuje prodajne cene ali pripravljene zamrznjene zaloge.
 
