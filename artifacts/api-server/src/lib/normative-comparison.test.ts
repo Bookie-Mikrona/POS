@@ -1,8 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildNormativeComparisonCacheKey, clearNormativeComparisonCache, compareNormative, filterResearchSources, getCachedNormativeComparison, isSafeResearchUrl, normalizeQuantity, NORMATIVE_COMPARISON_MAX_IN_FLIGHT, NORMATIVE_COMPARISON_MAX_IN_FLIGHT_PER_TENANT, signNormativeProposal, verifyNormativeProposal, type LocalNormative } from "./normative-comparison";
+import { buildNormativeComparisonCacheKey, clearNormativeComparisonCache, compareNormative, filterResearchSources, getCachedNormativeComparison, isPreparedFoodBulkNormative, isSafeResearchUrl, normalizeQuantity, NORMATIVE_COMPARISON_MAX_IN_FLIGHT, NORMATIVE_COMPARISON_MAX_IN_FLIGHT_PER_TENANT, PREPARED_BULK_COMPARISON_MESSAGE, signNormativeProposal, verifyNormativeProposal, type LocalNormative } from "./normative-comparison";
 import { researchNormative } from "../routes/pos/glasovni-ukaz";
 
 describe("normative comparison units and evidence", () => {
+  it("prepozna samo pripravljene jedi z enoto kg ali l kot neprimerljive s porcijskimi recepti", () => {
+    expect(isPreparedFoodBulkNormative({ mealType: "prepared", enotaMere: "kg" })).toBe(true);
+    expect(isPreparedFoodBulkNormative({ mealType: "prepared", enotaMere: "LTR" })).toBe(true);
+    expect(isPreparedFoodBulkNormative({ mealType: "prepared", enotaMere: "porcija" })).toBe(false);
+    expect(isPreparedFoodBulkNormative({ mealType: "ala_carte", enotaMere: "kg" })).toBe(false);
+    expect(isPreparedFoodBulkNormative({})).toBe(false);
+  });
+
+  it("pred spletno raziskavo ustavi pripravljene jedi na kg/l", async () => {
+    const create = vi.fn();
+    const bulkFood: LocalNormative = {
+      artikelId: 8, revision: 1, targetName: "Juha", mealType: "prepared", enotaMere: "l", rows: [],
+    };
+    await expect(researchNormative(bulkFood, create as never)).rejects.toThrow(PREPARED_BULK_COMPARISON_MESSAGE);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("reuses only a fresh tenant-scoped result with an unchanged deterministic normative fingerprint", async () => {
     clearNormativeComparisonCache();
     const local: LocalNormative = { artikelId: 7, revision: 3, targetName: "Golaž", rows: [

@@ -52,6 +52,11 @@ describe("POST web normative proposals (HTTP + PostgreSQL)", () => {
     await db.execute(sql.raw(`ALTER TABLE pos_normative_change_audit DISABLE TRIGGER pos_normative_change_audit_append_only`));
     await db.delete(posNormativeChangeAuditTable).where(eq(posNormativeChangeAuditTable.sourceTitle, run));
     await db.execute(sql.raw(`ALTER TABLE pos_normative_change_audit ENABLE TRIGGER pos_normative_change_audit_append_only`));
+    await db.execute(sql`
+      DELETE FROM normativi WHERE artikel_id IN (
+        SELECT id FROM artikli WHERE enota_id IN (${enotaA}, ${enotaB})
+      )
+    `);
     if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
     await pool.end();
   });
@@ -80,5 +85,26 @@ describe("POST web normative proposals (HTTP + PostgreSQL)", () => {
     expect(stale.status).toBe(409); expect(stale.body.code).toBe("NORMATIVE_PROPOSAL_STALE");
     expect((await db.select().from(normativiTable).where(eq(normativiTable.id, rowA)))[0].kolicina).toBe("11.2500");
     expect((await db.select().from(posNormativeChangeAuditTable).where(eq(posNormativeChangeAuditTable.sourceTitle, run))).length).toBe(2);
+  });
+  it("rejects portion-comparison tokens for kg/l prepared output without changing quantities", async () => {
+    const [ingredient] = await db.select({ id: normativiTable.vhodniArtikelId })
+      .from(normativiTable).where(eq(normativiTable.id, rowA));
+    for (const unit of ["KGM", "LTR"]) {
+      const [bulk] = await db.insert(artikliTable).values({
+        enotaId: enotaA, ime: `${run}-bulk-${unit}`, cena: "0", davek: "9.5",
+        mealType: "prepared", enotaMere: unit, prodajniArtikel: false, nabavniArtikel: false,
+      }).returning({ id: artikliTable.id });
+      const [norm] = await db.insert(normativiTable).values({
+        artikelId: bulk.id, vhodniArtikelId: ingredient.id, kolicina: "10",
+      }).returning({ id: normativiTable.id });
+      const response = await supertest(app()).post(`/artikli/${bulk.id}/normativi/spletni-predlogi`)
+        .set(headers()).send({
+          selections: [{ proposalToken: token(norm.id, ingredient.id, "10", "11", bulk.id), confirmed: true }],
+        });
+      expect(response.status).toBe(422);
+      expect(response.body.error).toContain("1 kg");
+      const [unchanged] = await db.select().from(normativiTable).where(eq(normativiTable.id, norm.id));
+      expect(Number(unchanged.kolicina)).toBe(10);
+    }
   });
 });

@@ -6,6 +6,7 @@ import {
   getEnotaBusinessDayStart,
 } from "./pos-business-day";
 import { izracunajVelikostiPic } from "./pica-velikosti";
+import { isPreparedFoodBulkUnit, normalizePreparedFoodUnit } from "./prepared-food-units";
 
 export type MealType = "ala_carte" | "prepared" | "composite";
 
@@ -13,6 +14,8 @@ export type AvailabilityArticle = {
   id: number;
   name: string;
   mealType: MealType;
+  unitOfMeasure?: string | null;
+  salesArticle?: boolean;
   isPizza?: boolean;
 };
 
@@ -211,9 +214,13 @@ export function resolvePreparedFoodAvailability(input: AvailabilityInput): Prepa
         ([preparedId, quantity]) => (preparedAvailableRaw.get(preparedId) ?? 0) / quantity,
       );
       // Sestavljena jed samo iz à la carte sestavin ni količinsko omejena.
-      availableQuantity = limits.length === 0
+      const rawLimit = limits.length === 0 ? null : Math.max(0, Math.min(...limits));
+      const exposeRawAmount = article.mealType === "prepared"
+        && article.salesArticle === false
+        && isPreparedFoodBulkUnit(article.unitOfMeasure);
+      availableQuantity = rawLimit === null
         ? null
-        : Math.max(0, Math.floor(Math.min(...limits) + EPSILON));
+        : exposeRawAmount ? rawLimit : Math.floor(rawLimit + EPSILON);
     }
     let availableBySize: Partial<Record<PizzaSize, number | null>> | undefined;
     if (article.isPizza) {
@@ -277,7 +284,8 @@ export async function loadPreparedFoodAvailability(
   const startTime = await getEnotaBusinessDayStart(enotaId, executor);
   const startInterval = `${startTime}:00`;
   const articleResult = await executor.execute(sql`
-    SELECT id, ime, COALESCE(meal_type, 'ala_carte') AS meal_type, je_pica
+    SELECT id, ime, COALESCE(meal_type, 'ala_carte') AS meal_type, je_pica,
+           enota_mere, prodajni_artikel
     FROM artikli
     WHERE enota_id = ${enotaId}
   `);
@@ -345,6 +353,7 @@ export async function loadPreparedFoodAvailability(
       WHERE n.enota_id = ${enotaId}
         AND p.artikel_id IS NOT NULL
         AND p.parent_postavka_id IS NULL
+        AND p.kolicina::numeric * COALESCE(p.normativ_faktor, 1)::numeric > 0
         AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date
           BETWEEN (SELECT start_date FROM availability_window) AND ${businessDate}::date
@@ -366,6 +375,8 @@ export async function loadPreparedFoodAvailability(
         AND child.parent_postavka_id IS NOT NULL
         AND child.modifikator_id IS NOT NULL
         AND child.availability_requirements IS NOT NULL
+        AND child.kolicina::numeric * COALESCE(child.normativ_faktor, 1)::numeric > 0
+        AND (snapshot.value->>'quantity')::numeric > 0
         AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date
           BETWEEN (SELECT start_date FROM availability_window) AND ${businessDate}::date
@@ -387,6 +398,7 @@ export async function loadPreparedFoodAvailability(
       WHERE n.enota_id = ${enotaId}
         AND child.parent_postavka_id IS NOT NULL
         AND child.availability_requirements IS NULL
+        AND child.kolicina::numeric * COALESCE(child.normativ_faktor, 1)::numeric * mn.kolicina::numeric > 0
         AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date
           BETWEEN (SELECT start_date FROM availability_window) AND ${businessDate}::date
@@ -406,6 +418,8 @@ export async function loadPreparedFoodAvailability(
     name: String((row as Record<string, unknown>).ime),
     mealType: String((row as Record<string, unknown>).meal_type) as MealType,
     isPizza: Boolean((row as Record<string, unknown>).je_pica),
+    unitOfMeasure: normalizePreparedFoodUnit((row as Record<string, unknown>).enota_mere as string | null),
+    salesArticle: Boolean((row as Record<string, unknown>).prodajni_artikel),
   }));
   const norms = normResult.rows.map((row) => ({
     articleId: Number((row as Record<string, unknown>).artikel_id),
@@ -609,7 +623,7 @@ export class InsufficientPreparedFoodAvailabilityError extends Error {
       availableQuantity: number;
     },
   ) {
-    super(`Artikel »${details.articleName}« nima dovolj razpoložljivih porcij.`);
+    super(`Artikel »${details.articleName}« nima dovolj razpoložljive količine.`);
   }
 }
 
@@ -656,7 +670,8 @@ export async function assertPreparedFoodAvailability(
         articleId: preparedId,
         articleName: item?.articleName ?? `#${preparedId}`,
         requestedQuantity,
-        availableQuantity: Math.max(0, Math.floor(availableQuantity + EPSILON)),
+        availableQuantity: state.items.find(candidate => candidate.articleId === preparedId)?.availableQuantity
+          ?? Math.max(0, Math.floor(availableQuantity + EPSILON)),
       });
     }
   }

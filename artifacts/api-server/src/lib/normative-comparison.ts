@@ -4,6 +4,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { artikliTable, db, normativiTable } from "@workspace/db";
+import { isPreparedFoodBulkUnit } from "./prepared-food-units";
 
 export const NormativeComparisonRequestSchema = z.object({
   artikelId: z.number().int().positive(),
@@ -26,8 +27,17 @@ export type LocalNormative = {
   artikelId: number;
   revision: number;
   targetName: string;
+  enotaMere?: string | null;
+  mealType?: "ala_carte" | "prepared" | "composite" | null;
   rows: Array<{ normativRowId: number; ingredientId: number; ingredientName: string; quantity: number; unit: string | null }>;
 };
+
+export const PREPARED_BULK_COMPARISON_MESSAGE =
+  "Primerjava spletnih receptov temelji na količinah na porcijo. Za pripravljeno jed, ki se meri v kg ali l, primerjava ni varna; potreben je ročni normativ na kg/l.";
+
+export function isPreparedFoodBulkNormative(local: Pick<LocalNormative, "mealType" | "enotaMere">): boolean {
+  return local.mealType === "prepared" && isPreparedFoodBulkUnit(local.enotaMere);
+}
 
 export const NORMATIVE_COMPARISON_CACHE_TTL_MS = 5 * 60_000;
 const NORMATIVE_COMPARISON_CACHE_MAX_ENTRIES = 100;
@@ -60,6 +70,8 @@ export function buildNormativeComparisonCacheKey(local: LocalNormative, enotaId:
     artikelId: local.artikelId,
     targetName: local.targetName,
     revision: local.revision,
+    enotaMere: local.enotaMere ?? null,
+    mealType: local.mealType ?? null,
     rows,
   })).digest("hex");
   return `normative-comparison:${enotaId}:${local.artikelId}:${fingerprint}`;
@@ -145,7 +157,10 @@ export function normalizeQuantity(quantity: number | string, unit: string | null
 }
 
 export async function loadTenantNormative(artikelId: number, enotaId: number): Promise<LocalNormative | null> {
-  const targets = await db.select({ id: artikliTable.id, ime: artikliTable.ime, revision: artikliTable.normativRevision })
+  const targets = await db.select({
+    id: artikliTable.id, ime: artikliTable.ime, revision: artikliTable.normativRevision,
+    enotaMere: artikliTable.enotaMere, mealType: artikliTable.mealType,
+  })
     .from(artikliTable).where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId))).limit(1);
   if (!targets[0]) return null;
   const ingredient = artikliTable;
@@ -157,9 +172,13 @@ export async function loadTenantNormative(artikelId: number, enotaId: number): P
   // A partial result would conceal a cross-tenant corrupt reference; reject it instead.
   const allRows = await db.select({ id: normativiTable.id }).from(normativiTable).where(eq(normativiTable.artikelId, artikelId));
   if (!rows.length || rows.length !== allRows.length) return null;
-  return { artikelId, revision: targets[0].revision, targetName: targets[0].ime, rows: rows.map(row => ({
-    ...row, quantity: Number(row.quantity),
-  })) };
+  return {
+    artikelId, revision: targets[0].revision, targetName: targets[0].ime,
+    enotaMere: targets[0].enotaMere, mealType: targets[0].mealType,
+    rows: rows.map(row => ({
+      ...row, quantity: Number(row.quantity),
+    })),
+  };
 }
 
 export type ComparisonRow = {

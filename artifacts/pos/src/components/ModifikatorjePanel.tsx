@@ -28,6 +28,8 @@ import {
 } from "@workspace/api-client-react";
 import type { ModSkupina, Modifikator } from "@workspace/api-client-react";
 import { canUseAsModifierNormativInput } from "@/lib/normativ-eligibility";
+import { normalizePreparedFoodUnit } from "@/lib/prepared-food-unit";
+import { displayEslogUnit } from "@/components/EslogUnitPicker";
 
 interface Props {
   jeUporabnik: boolean;
@@ -486,8 +488,13 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                   <p className="text-xs text-muted-foreground py-1">Ni sestavin — ob izbiri tega modifikatorja se zaloga ne razknjižuje.</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {modNormativi.map((vrstica, idx) => (
-                      <div key={idx} className="grid grid-cols-[minmax(0,1fr)_6rem_2.25rem] items-center gap-2">
+                    {modNormativi.map((vrstica, idx) => {
+                      const selected = kandidati.find(article => article.id === vrstica.vhodniArtikelId);
+                      const unit = selected?.mealType === "prepared"
+                        ? normalizePreparedFoodUnit(selected.enotaMere)
+                        : displayEslogUnit(selected?.enotaMere) || "—";
+                      return (
+                      <div key={idx} className="grid grid-cols-[minmax(0,1fr)_7rem_2.25rem] items-center gap-2">
                         <select
                           className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                           value={vrstica.vhodniArtikelId || ""}
@@ -516,14 +523,17 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                             </optgroup>
                           )}
                         </select>
-                        <DecimalInput
-                          allowNegative
-                          className="w-full min-w-0"
-                          aria-label={`Količina sestavnice ${idx + 1}`}
-                          placeholder="Kol."
-                          value={vrstica.kolicina}
-                          onChange={e => updateNormativVrstica(idx, "kolicina", e.target.value)}
-                        />
+                        <div className="flex min-w-0 items-center gap-1">
+                          <DecimalInput
+                            allowNegative
+                            className="w-full min-w-0"
+                            aria-label={`Količina sestavnice ${idx + 1}`}
+                            placeholder="Kol."
+                            value={vrstica.kolicina}
+                            onChange={e => updateNormativVrstica(idx, "kolicina", e.target.value)}
+                          />
+                          <span className="text-xs text-muted-foreground">{unit}</span>
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
@@ -534,7 +544,8 @@ export default function ModifikatorjePanel({ jeUporabnik }: Props) {
                           <X className="w-4 h-4 text-destructive" />
                         </Button>
                       </div>
-                    ))}
+                      );
+                    })}
                     <p className="text-xs text-muted-foreground">Negativna količina = ob izbiri modifikatorja se zaloga poveča (npr. sneti sestavino).</p>
                   </div>
                 )}

@@ -201,6 +201,36 @@ describe("initial smart normative proposal and apply", () => {
     mockCreate.mockImplementation(async () => makeSearchResponse());
   });
 
+  it("rejects portion-based research for kg/l prepared intermediates before contacting AI", async () => {
+    for (const unit of ["KGM", "LTR"]) {
+      const [bulk] = await db.insert(artikliTable).values({
+        enotaId: enotaA, ime: `${run}-bulk-${unit}`, cena: "0", davek: "9.5",
+        nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food",
+        mealType: "prepared", enotaMere: unit,
+      }).returning({ id: artikliTable.id });
+      mockCreate.mockClear();
+      const response = await preview(bulk!.id);
+      expect(response.status).toBe(422);
+      expect(response.body.error).toContain("na porcijo");
+      expect(mockCreate).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects an already issued portion proposal after the target becomes kg/l", async () => {
+    const [portion] = await db.insert(artikliTable).values({
+      enotaId: enotaA, ime: `${run}-bulk-stale`, cena: "0", davek: "9.5",
+      nabavniArtikel: false, prodajniArtikel: false, taxCategory: "food",
+      mealType: "prepared", enotaMere: "H87",
+    }).returning({ id: artikliTable.id });
+    const suggestion = await preview(portion!.id);
+    expect(suggestion.status).toBe(200);
+    await db.update(artikliTable).set({ enotaMere: "KGM" }).where(eq(artikliTable.id, portion!.id));
+    const response = await apply(portion!.id, suggestion.body.token);
+    expect(response.status).toBe(409);
+    const stored = await db.select().from(normativiTable).where(eq(normativiTable.artikelId, portion!.id));
+    expect(stored).toHaveLength(0);
+  });
+
   it("predlaga in po potrditvi shrani normativ živilskega polizdelka obeh vrst, brez spremembe v prodajni artikel", async () => {
     const intermediates = await db.insert(artikliTable).values([
       {

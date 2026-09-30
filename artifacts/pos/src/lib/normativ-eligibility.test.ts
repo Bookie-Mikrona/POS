@@ -27,6 +27,9 @@ describe("upravičenost za urejanje normativa", () => {
     const intermediate = { mealType: "ala_carte", taxCategory: "food", prodajniArtikel: false, nabavniArtikel: false };
     expect(canOfferSmartNormativ(intermediate)).toBe(true);
     expect(canOfferSmartNormativ({ ...intermediate, mealType: "prepared" })).toBe(true);
+    expect(canOfferSmartNormativ({ ...intermediate, mealType: "prepared", enotaMere: "H87" })).toBe(true);
+    expect(canOfferSmartNormativ({ ...intermediate, mealType: "prepared", enotaMere: "KGM" })).toBe(false);
+    expect(canOfferSmartNormativ({ ...intermediate, mealType: "prepared", enotaMere: "LTR" })).toBe(false);
     expect(canOfferSmartNormativ({ ...intermediate, nabavniArtikel: true })).toBe(false);
     expect(canOfferSmartNormativ({ ...intermediate, taxCategory: "other" })).toBe(false);
     expect(canOfferSmartNormativ({ ...intermediate, mealType: "composite" })).toBe(false);

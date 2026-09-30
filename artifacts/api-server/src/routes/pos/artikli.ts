@@ -36,6 +36,12 @@ import { normalizeDrainedYield } from "../../lib/drained-yield";
 import { normalizeOptionalSlovenianArticleName, normalizeSlovenianArticleName } from "../../lib/slovenian-article-name";
 import { slovenianCollated } from "../../lib/slovenian-collation";
 import { toUneceUnitCode } from "../../lib/received-invoice-eslog";
+import {
+  normalizePreparedFoodUnit,
+  isPreparedFoodBulkUnit,
+  preparedFoodUnitSemantic,
+  preparedFoodUnitRoleError,
+} from "../../lib/prepared-food-units";
 import { artikliExcelUpload, uvoziArtikliExcel } from "./artikli-excel-import";
 import {
   DROBNI_INVENTAR_KATALOG,
@@ -542,6 +548,18 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
 
   const nabavniArtikel = parsed.data.nabavniArtikel ?? false;
   const prodajniArtikel = parsed.data.prodajniArtikel ?? true;
+  const enotaMere = normalizePreparedFoodUnit(parsed.data.enotaMere);
+  const mealType = parsed.data.jePica || parsed.data.pripravaVrsta === "pica"
+    ? "composite"
+    : parsed.data.mealType ?? "ala_carte";
+  const preparedUnitError = preparedFoodUnitRoleError({
+    mealType,
+    unit: enotaMere,
+    purchaseArticle: nabavniArtikel,
+    salesArticle: prodajniArtikel,
+    returnablePackaging: parsed.data.povratnaEmbalaza,
+  });
+  if (preparedUnitError) { res.status(400).json({ error: preparedUnitError }); return; }
   const polizdelek = !nabavniArtikel && !prodajniArtikel && !parsed.data.povratnaEmbalaza;
   if (parsed.data.pripravaVrsta && (!prodajniArtikel ||
     (parsed.data.jePica !== undefined && (parsed.data.pripravaVrsta === "pica") !== parsed.data.jePica))) {
@@ -597,9 +615,6 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
           throw new Error(`ALLERGEN_INVALID:${(error as Error).message}`);
         }
       }
-      const mealType = parsed.data.jePica || parsed.data.pripravaVrsta === "pica"
-        ? "composite"
-        : parsed.data.mealType ?? "ala_carte";
       const [inserted] = await tx.insert(artikliTable).values({
         enotaId: tenotaId,
         ime,
@@ -624,7 +639,7 @@ router.post("/artikli", requireEnota, async (req, res): Promise<void> => {
         vrstaEmbalaze: (parsed.data as any).vrstaEmbalaze ?? null,
         depozitnaVrednost: (parsed.data as any).depozitnaVrednost == null ? null : String((parsed.data as any).depozitnaVrednost),
         imeZaNabavo: normalizeOptionalSlovenianArticleName(parsed.data.imeZaNabavo),
-        enotaMere: parsed.data.enotaMere ?? null,
+        enotaMere,
         brutoTezaG: polizdelek ? null : drainedYield.brutoTezaG,
         netoTezaG: polizdelek ? null : drainedYield.netoTezaG,
         netoDelezOdst: polizdelek ? null : drainedYield.netoDelezOdst,
@@ -1185,6 +1200,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
       aktiven: artikliTable.aktiven,
       nabavniArtikel: artikliTable.nabavniArtikel,
       prodajniArtikel: artikliTable.prodajniArtikel,
+      mealType: artikliTable.mealType,
       imeZaNabavo: artikliTable.imeZaNabavo,
       enotaMere: artikliTable.enotaMere,
       toGo: artikliTable.toGo,
@@ -1236,6 +1252,7 @@ router.get("/artikli/izvozi-excel", requireEnota, async (req: Request, res: Resp
       imeZaNabavo: a.imeZaNabavo, enotaMere: a.enotaMere, toGo: a.toGo,
       skupina: a.skupina, gtin: a.gtin, nabavnaDdvStopnja: a.nabavnaDdvStopnja,
       taxCategory: a.taxCategory,
+      mealType: a.mealType,
     };
     wsSif.addRow(["", "", a.id, JSON.stringify({ version: 1, fields })]);
   }
@@ -1635,7 +1652,9 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Vrsta priprave mora biti usklajena z oznako pice in prodajno vlogo artikla." });
     return;
   }
-  const naslednjaEnota = "enotaMere" in parsed.data ? parsed.data.enotaMere : obstojeci.enotaMere;
+  const naslednjaEnota = "enotaMere" in parsed.data
+    ? normalizePreparedFoodUnit(parsed.data.enotaMere)
+    : obstojeci.enotaMere;
   // Generirana shema za PUT vstavi default false tudi, če klicatelj polja ne pošlje.
   const drobniInventarPoslan = Object.prototype.hasOwnProperty.call(req.body, "drobniInventar");
   const naslednjiDrobniInventar = drobniInventarPoslan
@@ -1725,7 +1744,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     updateData.jeSkupinskiNabavniArtikel = parsed.data.jeSkupinskiNabavniArtikel;
   }
   if ("imeZaNabavo" in parsed.data) updateData.imeZaNabavo = normalizeOptionalSlovenianArticleName(parsed.data.imeZaNabavo);
-  if ("enotaMere" in parsed.data) updateData.enotaMere = parsed.data.enotaMere ?? null;
+  if ("enotaMere" in parsed.data) updateData.enotaMere = naslednjaEnota;
   if (["brutoTezaG", "netoTezaG", "netoDelezOdst"].some((key) => key in parsed.data)) {
     updateData.brutoTezaG = drainedYield.brutoTezaG;
     updateData.netoTezaG = drainedYield.netoTezaG;
@@ -1747,6 +1766,20 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     updateData.casPripraveMin = Math.max(0, Number(casPripraveMin));
   }
   const requestedMealType = (parsed.data as { mealType?: "ala_carte" | "prepared" | "composite" }).mealType;
+  const requestedUpdatedMealType = mealTypeForPizzaUpdate(
+    requestedMealType,
+    obstojeci.mealType,
+    obstojeci.jePica,
+    naslednjiJePica,
+  ) ?? obstojeci.mealType;
+  const preparedRoleError = preparedFoodUnitRoleError({
+    mealType: requestedUpdatedMealType,
+    unit: naslednjaEnota,
+    purchaseArticle: naslednjiNabavni,
+    salesArticle: naslednjiProdajni,
+    returnablePackaging: parsed.data.povratnaEmbalaza ?? obstojeci.povratnaEmbalaza,
+  });
+  if (preparedRoleError) { res.status(400).json({ error: preparedRoleError }); return; }
   if (polizdelek) {
     updateData.vrstaArtikla = null;
   } else if ((parsed.data as { vrstaArtikla?: string }).vrstaArtikla !== undefined) {
@@ -1816,7 +1849,10 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
     if (!kat) { res.status(403).json({ error: "Kategorija ne pripada temu podjetju" }); return; }
   }
 
-  const graphCanChange = Boolean(parsed.data.normativUpdate) || requestedMealType !== undefined || naslednjiJePica;
+  const graphCanChange = Boolean(parsed.data.normativUpdate) || requestedMealType !== undefined || naslednjiJePica
+    || ("enotaMere" in parsed.data && preparedFoodUnitSemantic(naslednjaEnota) !== preparedFoodUnitSemantic(obstojeci.enotaMere))
+    || parsed.data.prodajniArtikel !== undefined
+    || parsed.data.nabavniArtikel !== undefined;
   let saved: boolean;
   try {
     saved = await db.transaction(async (tx) => {
@@ -1827,6 +1863,7 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
       });
       await lockPosBusinessDay(tx, tenotaId);
       if (graphCanChange) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(376, ${tenotaId})`);
         await lockNormativeGraph(tx, tenotaId);
         const [lockedOwner] = await tx.select({
           jePica: artikliTable.jePica,
@@ -1870,6 +1907,63 @@ router.put("/artikli/:id", requireEnota, async (req, res): Promise<void> => {
         currentOwner.jePica,
         naslednjiJePica,
       );
+      const finalMealType = mealType ?? currentOwner.mealType;
+      const finalUnit = "enotaMere" in parsed.data
+        ? normalizePreparedFoodUnit(parsed.data.enotaMere)
+        : currentOwner.enotaMere;
+      const roleError = preparedFoodUnitRoleError({
+        mealType: finalMealType,
+        unit: finalUnit,
+        purchaseArticle: parsed.data.nabavniArtikel ?? currentOwner.nabavniArtikel,
+        salesArticle: parsed.data.prodajniArtikel ?? currentOwner.prodajniArtikel,
+        returnablePackaging: parsed.data.povratnaEmbalaza ?? currentOwner.povratnaEmbalaza,
+      });
+      if (roleError) throw new NormativeRequestError(400, { error: roleError });
+      const finalSalesArticle = parsed.data.prodajniArtikel ?? currentOwner.prodajniArtikel;
+      if ((finalMealType !== currentOwner.mealType || finalSalesArticle !== currentOwner.prodajniArtikel)
+        && (finalMealType !== "composite" || !finalSalesArticle)) {
+        const existingIngredients = await tx.select({ unit: artikliTable.enotaMere })
+          .from(normativiTable)
+          .innerJoin(artikliTable, eq(artikliTable.id, normativiTable.vhodniArtikelId))
+          .where(eq(normativiTable.artikelId, params.data.id));
+        if (existingIngredients.some(ingredient => isPreparedFoodBulkUnit(ingredient.unit))) {
+          throw new NormativeRequestError(409, {
+            error: "Vrste artikla ni mogoče spremeniti: kg/l pripravljena sestavina je dovoljena samo v sestavljeni prodajni jedi.",
+          });
+        }
+      }
+      const preparedInterpretationChanged =
+        preparedFoodUnitSemantic(finalUnit) !== preparedFoodUnitSemantic(currentOwner.enotaMere)
+        || (finalMealType !== currentOwner.mealType
+          && (finalMealType === "prepared" || currentOwner.mealType === "prepared"));
+      if (preparedInterpretationChanged && (finalMealType === "prepared" || currentOwner.mealType === "prepared")) {
+        const history = await tx.execute<{ has_history: boolean }>(sql`
+          SELECT (
+            EXISTS (SELECT 1 FROM prepared_food_stocks WHERE artikel_id = ${params.data.id})
+            OR EXISTS (SELECT 1 FROM prepared_food_daily_ledgers WHERE artikel_id = ${params.data.id})
+            OR EXISTS (SELECT 1 FROM prepared_food_waste_record_lines WHERE artikel_id = ${params.data.id})
+            OR EXISTS (
+              SELECT 1 FROM pizza_dough_settings
+              WHERE normal_dough_article_id = ${params.data.id}
+                OR small_dough_article_id = ${params.data.id}
+            )
+            OR EXISTS (SELECT 1 FROM postavke WHERE artikel_id = ${params.data.id})
+            OR EXISTS (
+              SELECT 1
+              FROM postavke p
+              CROSS JOIN LATERAL jsonb_array_elements(COALESCE(p.availability_requirements, '[]'::jsonb)) snapshot(value)
+              WHERE snapshot.value->>'articleId' = ${String(params.data.id)}
+            )
+            OR EXISTS (SELECT 1 FROM normativi WHERE vhodni_artikel_id = ${params.data.id})
+            OR EXISTS (SELECT 1 FROM modifikator_normativi WHERE vhodni_artikel_id = ${params.data.id})
+          ) AS has_history
+        `);
+        if (history.rows[0]?.has_history) {
+          throw new NormativeRequestError(409, {
+            error: "Merske enote ali vrste pripravljene jedi ni mogoče spremeniti, ker obstaja zaloga, evidenca kala ali normativna uporaba.",
+          });
+        }
+      }
       if (mealType !== undefined) updateData.mealType = mealType;
       if (mealType !== undefined && mealType !== currentOwner.mealType) {
         await validateIngredientTypeChange(tx, params.data.id, tenotaId, mealType);
@@ -2170,13 +2264,19 @@ async function prepareNormativUpdate(
   const expectedRevision = Number(body.expectedRevision);
   const items = body.items;
   const vhodniIds = [...new Set(items.map(item => item.vhodniArtikelId))];
-  let validVhodni: Array<{ id: number; ime: string; mealType: "ala_carte" | "prepared" | "composite" }> = [];
+  let validVhodni: Array<{
+    id: number;
+    ime: string;
+    mealType: "ala_carte" | "prepared" | "composite";
+    unit: string | null;
+  }> = [];
 
   if (items.length > 0) {
     validVhodni = await queryDb.select({
       id: artikliTable.id,
       ime: artikliTable.ime,
       mealType: artikliTable.mealType,
+      unit: artikliTable.enotaMere,
     }).from(artikliTable).where(and(
       inArray(artikliTable.id, vhodniIds),
       eq(artikliTable.enotaId, tenotaId),
@@ -2193,6 +2293,15 @@ async function prepareNormativUpdate(
 
   if (items.some(item => !Number.isFinite(item.kolicina) || item.kolicina <= 0)) {
     throw new NormativeRequestError(400, { error: "Količina normativa mora biti pozitivna." });
+  }
+  const bulkPreparedIngredients = validVhodni.filter(article =>
+    article.mealType === "prepared" && isPreparedFoodBulkUnit(article.unit));
+  if (bulkPreparedIngredients.length > 0
+    && (owner.mealType !== "composite" || !owner.prodajniArtikel)) {
+    throw new NormativeRequestError(422, {
+      error: "Pripravljeno jed v kg ali l je mogoče uporabiti samo v normativu sestavljene prodajne jedi ali modifikatorja.",
+      manjkajoceSestavine: bulkPreparedIngredients.map(article => article.id),
+    });
   }
   const allowsSelfNorm = isAllowedOneToOneSelfNorm(owner, id, items);
   if (items.some(item => item.vhodniArtikelId === id) && !allowsSelfNorm) {
@@ -2452,7 +2561,10 @@ function requireCanonicalNormativeUnit(req: Request, res: Response): number | nu
 function eligibleInitialNormativeTarget(owner: {
   sale: boolean; purchase: boolean; taxCategory: string | null;
   mealType: "ala_carte" | "prepared" | "composite";
+  unit: string | null;
 }): boolean {
+  // Initial research produces a recipe per serving, never per kg/l of output.
+  if (owner.mealType === "prepared" && isPreparedFoodBulkUnit(owner.unit)) return false;
   return owner.sale || (!owner.purchase && owner.taxCategory === "food"
     && (owner.mealType === "ala_carte" || owner.mealType === "prepared"));
 }
@@ -2556,6 +2668,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
   let owner: {
     revision: number; name: string; taxCategory: string | null; categoryId: number | null;
     sale: boolean; purchase: boolean; mealType: "ala_carte" | "prepared" | "composite";
+    unit: string | null;
   } | undefined;
   try {
     owner = await db.transaction(async tx => {
@@ -2569,10 +2682,16 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
         sale: artikliTable.prodajniArtikel,
         purchase: artikliTable.nabavniArtikel,
         mealType: artikliTable.mealType,
+        unit: artikliTable.enotaMere,
       }).from(artikliTable)
         .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)))
         .for("update");
       if (!row) throw new NormativeRequestError(404, { error: "Artikel ni najden." });
+      if (row.mealType === "prepared" && isPreparedFoodBulkUnit(row.unit)) {
+        throw new NormativeRequestError(422, {
+          error: "Pametni predlog je na porcijo. Za polizdelek v kg ali l ročno vnesite normativ za 1 kg oziroma 1 l.",
+        });
+      }
       if (!eligibleInitialNormativeTarget(row)) throw new NormativeRequestError(422, { error: "Pametni predlog je na voljo samo za prodajne artikle ali živilske polizdelke." });
       const [existingNorm] = await tx.select({ id: normativiTable.id }).from(normativiTable)
         .where(eq(normativiTable.artikelId, artikelId)).limit(1);
@@ -2580,6 +2699,7 @@ router.post("/artikli/:id/normativi/pametni-predlog", requireEnota, async (req, 
       return {
         revision: Number(row.revision), name: row.name, taxCategory: row.taxCategory,
         categoryId: row.categoryId, sale: row.sale, purchase: row.purchase, mealType: row.mealType,
+        unit: row.unit,
       };
     });
   } catch (error) {
@@ -2841,6 +2961,7 @@ router.post("/artikli/:id/normativi/pametni-predlog/uporabi", requireEnota, asyn
         sale: artikliTable.prodajniArtikel,
         mealType: artikliTable.mealType,
         nabavniArtikel: artikliTable.nabavniArtikel,
+        unit: artikliTable.enotaMere,
         categoryId: artikliTable.kategorijaId,
       }).from(artikliTable)
         .where(and(eq(artikliTable.id, artikelId), eq(artikliTable.enotaId, enotaId)))
@@ -3036,9 +3157,14 @@ router.post("/artikli/:id/normativi/spletni-predlogi", requireEnota, async (req,
   class StaleProposal extends Error {}
   try {
     const applied = await db.transaction(async (tx) => {
-      const owner = await tx.execute(sql`SELECT id, normativ_revision AS revision FROM artikli WHERE id = ${artikelId} AND enota_id = ${enotaId} FOR UPDATE`) as any;
-      const ownerRow = (owner.rows ?? owner)[0] as { revision: number } | undefined;
+      const owner = await tx.execute(sql`SELECT id, normativ_revision AS revision, meal_type AS "mealType", enota_mere AS unit FROM artikli WHERE id = ${artikelId} AND enota_id = ${enotaId} FOR UPDATE`) as any;
+      const ownerRow = (owner.rows ?? owner)[0] as { revision: number; mealType: string; unit: string | null } | undefined;
       if (!ownerRow || Number(ownerRow.revision) !== signed[0].expectedRevision) throw new StaleProposal();
+      if (ownerRow.mealType === "prepared" && isPreparedFoodBulkUnit(ownerRow.unit)) {
+        throw new NormativeRequestError(422, {
+          error: "Spletni predlog primerja porcije, ne normativa za 1 kg ali 1 l polizdelka.",
+        });
+      }
       const ids = signed.map(p => p.normativRowId);
       const locked = await tx.execute(sql`
         SELECT n.id AS "normativRowId", n.artikel_id AS "artikelId", n.vhodni_artikel_id AS "ingredientId",
@@ -3076,6 +3202,7 @@ router.post("/artikli/:id/normativi/spletni-predlogi", requireEnota, async (req,
     });
     res.json({ applied: applied.result, changed: applied.result.length, revision: applied.revision });
   } catch (error) {
+    if (error instanceof NormativeRequestError) { res.status(error.status).json(error.responseBody); return; }
     if (error instanceof StaleProposal) { res.status(409).json({ code: "NORMATIVE_PROPOSAL_STALE", error: "Normativ se je medtem spremenil." }); return; }
     throw error;
   }

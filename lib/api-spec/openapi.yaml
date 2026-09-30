@@ -11270,12 +11270,13 @@ components:
               openingCostPerPortion: { type: number, minimum: 0 }
     PreparedFoodStock:
       type: object
-      required: [id, enotaId, artikelId, articleName, year, openingQuantity, openingCostPerPortion, frozenQuantity, frozenCostPerPortion]
+      required: [id, enotaId, artikelId, articleName, unitOfMeasure, year, openingQuantity, openingCostPerPortion, frozenQuantity, frozenCostPerPortion]
       properties:
         id: { type: integer }
         enotaId: { type: integer }
         artikelId: { type: integer }
         articleName: { type: string }
+        unitOfMeasure: { type: string }
         year: { type: integer }
         openingQuantity: { type: number }
         openingCostPerPortion: { type: number }

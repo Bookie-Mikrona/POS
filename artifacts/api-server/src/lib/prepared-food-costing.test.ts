@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { allocatePreparedFood, preparedMaterialUnitCost } from "./prepared-food-costing";
+import {
+  allocatePreparedFood,
+  preparedMaterialQuantityForProduction,
+  preparedMaterialUnitCost,
+} from "./prepared-food-costing";
 
 describe("prepared food costing", () => {
   it("keeps frozen portions from thawed stock first and values waste at today's prepared unit cost", () => {
@@ -55,6 +59,10 @@ describe("prepared food costing", () => {
 
     expect(result.wasteQuantity).toBe(2);
     expect(result.wasteValue).toBe(9);
+  });
+
+  it("multiplies recipe quantities by prepared kilograms produced", () => {
+    expect(preparedMaterialQuantityForProduction(3, 10)).toBe(30);
   });
 
   it("negativna korekcija zmanjša skupno količino in fizični kalo", () => {

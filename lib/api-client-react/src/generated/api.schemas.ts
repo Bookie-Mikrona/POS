@@ -1235,6 +1235,7 @@ export interface PreparedFoodStock {
   enotaId: number;
   artikelId: number;
   articleName: string;
+  unitOfMeasure: string;
   year: number;
   openingQuantity: number;
   openingCostPerPortion: number;

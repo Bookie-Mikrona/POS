@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 const mockCreate = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/integrations-anthropic-ai", () => ({
@@ -34,6 +34,7 @@ let enotaId = 0;
 let napravaId = 0;
 let napravaKljuc = "";
 let artikelId = 0;
+let bulkArtikelId = 0;
 let actorNatakarId = 0;
 
 function aiDeviceToken(): string {
@@ -42,12 +43,12 @@ function aiDeviceToken(): string {
   return `${payload}.${signature}`;
 }
 
-function compare(forceRefresh = false) {
+function compare(forceRefresh = false, requestedArtikelId = artikelId) {
   return request(app)
     .post("/ai/normativ-primerjava")
     .set("x-naprava-id", napravaKljuc)
     .set("x-ai-device-token", aiDeviceToken())
-    .send({ artikelId, forceRefresh });
+    .send({ artikelId: requestedArtikelId, forceRefresh });
 }
 
 const app = express();
@@ -95,8 +96,17 @@ describe("POST /ai/normativ-primerjava audit", () => {
       { enotaId, ime: `${run}-ingredient`, cena: "1", davek: "9.5", enotaMere: "g", nabavniArtikel: true },
     ]).returning({ id: artikliTable.id });
     artikelId = articles[0]!.id;
+    const [bulkTarget] = await db.insert(artikliTable).values({
+      enotaId, ime: `${run}-bulk-target`, cena: "10", davek: "9.5", mealType: "prepared", enotaMere: "kg",
+    }).returning({ id: artikliTable.id });
+    bulkArtikelId = bulkTarget!.id;
     await db.insert(normativiTable).values({
       artikelId,
+      vhodniArtikelId: articles[1]!.id,
+      kolicina: "100",
+    });
+    await db.insert(normativiTable).values({
+      artikelId: bulkArtikelId,
       vhodniArtikelId: articles[1]!.id,
       kolicina: "100",
     });
@@ -111,6 +121,9 @@ describe("POST /ai/normativ-primerjava audit", () => {
   });
 
   afterAll(async () => {
+    if (artikelId && bulkArtikelId) {
+      await db.delete(normativiTable).where(inArray(normativiTable.artikelId, [artikelId, bulkArtikelId]));
+    }
     if (companyId) await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
     if (secretBefore === undefined) delete process.env.SESSION_SECRET;
     else process.env.SESSION_SECRET = secretBefore;
@@ -155,6 +168,27 @@ describe("POST /ai/normativ-primerjava audit", () => {
         "artikelId", "cacheHit", "coalesced", "comparableRows", "forceRefresh", "trigger",
       ]);
     }
+  });
+
+  it("zavrne primerjavo pripravljene jedi na kg pred raziskavo v HTTP in glasovni poti", async () => {
+    const callsBefore = mockCreate.mock.calls.length;
+    const httpResponse = await compare(false, bulkArtikelId);
+    expect(httpResponse.status).toBe(422);
+    expect(httpResponse.body.napaka).toMatch(/na porcijo/iu);
+    expect(httpResponse.body.napaka).toMatch(/ro[cč]ni normativ na kg\/l/iu);
+    expect(mockCreate).toHaveBeenCalledTimes(callsBefore);
+
+    const voiceResponse = await request(app)
+      .post("/ai/agent")
+      .set("x-naprava-id", napravaKljuc)
+      .set("x-ai-device-token", aiDeviceToken())
+      .send({ ukaz: `primerjaj normativ za ${run}-bulk-target` });
+    expect(voiceResponse.status).toBe(200);
+    expect(voiceResponse.body).toMatchObject({
+      action: "explain",
+      odgovor: httpResponse.body.napaka,
+    });
+    expect(mockCreate).toHaveBeenCalledTimes(callsBefore);
   });
 
   it("ob globalni preobremenitvi vrne retryable 503, ne zažene plačljive raziskave in zapiše busy audit", async () => {

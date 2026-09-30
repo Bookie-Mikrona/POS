@@ -102,6 +102,41 @@ describe("resolvePreparedFoodAvailability", () => {
     expect(state.items.find((item) => item.articleId === 4)?.freshQuantity).toBeNull();
   });
 
+  it("za kg polizdelek ohrani surovo količino, omeji sestavljene jedi in modifikatorje na cele prodaje", () => {
+    const state = resolvePreparedFoodAvailability({
+      articles: [
+        { id: 10, name: "Golaž", mealType: "prepared", unitOfMeasure: "KGM", salesArticle: false },
+        { id: 11, name: "Porcija golaža", mealType: "composite" },
+      ],
+      norms: [{ articleId: 11, ingredientId: 10, quantity: 0.35 }],
+      frozenByPreparedArticle: new Map(),
+      preparedTodayByArticle: new Map([[10, 10]]),
+      sales: [],
+    });
+    expect(state.items.find((item) => item.articleId === 10)?.availableQuantity).toBe(10);
+    expect(state.items.find((item) => item.articleId === 11)?.availableQuantity).toBe(28);
+    expect(resolveModifierPortions(state, new Map([
+      [91, [{ articleId: 10, quantity: 0.35, mealType: "prepared" }]],
+    ]))).toEqual([{ modifierId: 91, availableQuantity: 28 }]);
+  });
+
+  it("izračuna preostanek kg po decimalni neposredni in modifikatorski prodaji", () => {
+    const state = resolvePreparedFoodAvailability({
+      articles: [
+        { id: 10, name: "Golaž", mealType: "prepared", unitOfMeasure: "kg", salesArticle: false },
+        { id: 11, name: "Porcija golaža", mealType: "composite" },
+      ],
+      norms: [{ articleId: 11, ingredientId: 10, quantity: 0.35 }],
+      frozenByPreparedArticle: new Map(),
+      preparedTodayByArticle: new Map([[10, 10]]),
+      sales: [
+        { articleId: 11, quantity: 2, mealType: "composite" },
+        { articleId: 11, quantity: -1, mealType: "composite" },
+      ],
+    });
+    expect(state.preparedAvailableRaw.get(10)).toBeCloseTo(9.3);
+  });
+
   it("pri fizični zalogi ohrani delne nezamrznjene porcije, čeprav je za prodajo na voljo le celo število", () => {
     const state = resolvePreparedFoodAvailability({
       articles: [{ id: 1, name: "Juha", mealType: "prepared" }],

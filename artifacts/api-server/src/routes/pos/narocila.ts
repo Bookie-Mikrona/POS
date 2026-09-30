@@ -32,6 +32,7 @@ import {
   lockPreparedFoodAvailability,
   loadModifierAvailabilitySnapshots,
 } from "../../lib/prepared-food-availability";
+import { isPreparedFoodBulkUnit } from "../../lib/prepared-food-units";
 import { assertOpenOrderCanChange, jeMizaBlokiranaZaNarocilo, reservationBlockingClause, zakleniMizo } from "../../lib/rezervacijeMiz";
 import {
   checkPreviousBusinessDayClosed,
@@ -2437,6 +2438,10 @@ router.post("/narocila/:id/postavke", async (req, res): Promise<void> => {
   const [artikel] = await db.select().from(artikliTable)
     .where(and(eq(artikliTable.id, parsed.data.artikelId), sql`true`, eq(artikliTable.enotaId, tenotaId)));
   if (!artikel) { res.status(404).json({ error: "Artikel ni najden" }); return; }
+  if (artikel.mealType === "prepared" && !artikel.prodajniArtikel && isPreparedFoodBulkUnit(artikel.enotaMere)) {
+    res.status(422).json({ error: "Pripravljena jed v kg ali l je neprodajni polizdelek; dodajte jo kot normativ sestavljene jedi ali modifikatorja." });
+    return;
+  }
   const [multicourseMenu] = await db.select({ id: multicourseMenusTable.id })
     .from(multicourseMenusTable)
     .where(and(

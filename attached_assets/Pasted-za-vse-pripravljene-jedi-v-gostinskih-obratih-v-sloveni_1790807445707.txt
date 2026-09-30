@@ -1,0 +1,130 @@
+za vse pripravljene jedi v gostinskih obratih v sloveniji, ki se pripravljajo v l ali kg prikaži velikosti porcij in cene. poišči primere v vseh znanih gostinskih obratih za primerjavo velikosti porcij in cen in jih prikaži.
+
+V slovenskih gostinskih obratih (gostilnah, restavracijah, gostiščih in bistrojih) se jedi, ki se v kuhinji pripravljajo v večjih količinah (izražene v litrih ali kilogramih), na jedilnem listu za gosta vedno pretvorijo v klasične normirane porcije (z izjemo specialitet, ki se izrecno prodajajo na teži, kot so ribe ali pečenke iz vitrine po kilogramu).   
+Omisli.si
+
+V nadaljevanju so prikazane standardne velikosti porcij v kg/l, povprečne cene v slovenskih gostilnah ter primerjave iz znanih slovenskih gostinskih obratov.
+
+Pregled porcij, gramatur in povprečnih cen za pripravljene jedi   
+Omisli.si
+Vrsta jedi	Velikost normalne porcije	Velikost male porcije	Povprečna cena v SLO gostilnah (normalna porcija)	Znani primeri iz prakse
+Juhe (goveja, gobova, paradižnikova)	0,25 l (250 ml)	0,15 l (150 ml)	3,50 € – 5,50 €	Ribja restavracija Krpan: Dnevna juha ali ribja juha (2,5 dl) = 7,00 € – 8,50 €
+Goveji golaž / Enolončnice	0,35 kg – 0,40 kg	0,20 kg	8,50 € – 12,00 €	Bistro pri Karlu: Domači goveji golaž s polento (400 g) = 9,40 €
+Priloge (pražen krompir, dušeni riž)	0,20 kg (200 g)	0,12 kg (120 g)	3,50 € – 5,00 €	Gostilna Krpan: Maslen krompir (250 g) = 5,00 €
+Morske jedi / Rižote z morskimi sadeži	0,30 kg (300 g)	0,18 kg	14,00 € – 22,00 €	Gostilna Krpan: Rižota s sipo ali gamberi (300 g) = 19,50 € – 25,00 €
+Lignji (ocvrti ali na žara s prilogo)	0,25 kg – 0,30 kg	0,15 kg	13,00 € – 18,00 €	Gostišče Portal (Ljubljana): Ocvrti lignji s tatarsko omako (250 g) = 15,00 €
+Meso z žara (čevapčiči, pleskavice)	0,22 kg – 0,25 kg	0,13 kg	10,00 € – 14,00 €	Gostišče Portal: Čevapčiči / pleskavica = 11,00 € – 13,00 €
+Kako to izgleda v praksi za gosta vs. v ozadju v sistemu?
+Na jedilnem listu (Cenik za gosta):
+Gost vidi razumljivo postavko, npr. »1x Goveji golaž s polento (porcija 400 g) – 9,40 €«. Gostu ni treba preračunavati gramov ali kilogramov, saj natanko ve, kaj naroča.   
+si.pricelisto.com
+
+V POS/ERP sistemu (Kuhinja in zaloge):
+
+Polizdelek v loncu: Kuhar skuha 10 kg golaža (vodenje v kg).
+
+Normativ na porcijo: Ko natakar proda 1 porcijo golaža, sistem iz zaloge polizdelkov odpiše natanko 0,35 kg (ali 0,40 kg, odvisno od normativa) ter hkrati iz skladišča surovin razknjiži pripadajoče surove sestavine (meso, čebulo, maščobo).   
+Omisli.si
+
+T takšnim sistemom zagotovite, da je recepcija, strežba in finančno poslovanje povsem usklajeno s slovenskimi gostinskimi standardi in zahtevami zakonodaje.
+
+uporabljamo program, ki razknjiži surovine avtomatsko že ob pripravi jedi (npr 10kg golaža). meso z žara ne vodimo kot pripravljena jed, temveč a la carte, ker se pripravlja sproti ob naročilu gosta, prav tako (praženi, ocvrti ali na žaru)lignji. kako je s kislim zabeljenim zeljem, ki je postrežen s krvavico ali pečenico. pečenica se pripravi sproti, krvavice pa se spečejo vnaprej. naprej je vprašanje polnjenih paprik ali sarm, ker gost dobi 1-2 paprike ali sarme.
+
+Odlično zastavljeno vprašanje! Vaš pristop v sistemu je zelo profesionalen – ločujete med tovarniško/vnaprej pripravljenimi polizdelki v večjih količinah in svežimi a la carte jedmi, ki se pečejo sproti.
+
+Za primere, ki ste jih navedli (krvavice/pečenice s kislim zeljem ter polnjene paprike/sarme), velja specifična logika vodenja zalog in normativov. Poglejmo, kako se to elegantno reši v POS/ERP sistemu:
+
+1. Kislo zabeljeno zelje + Pečenica ali Krvavica
+Tukaj imate hibridni primer: ena komponenta (zelje) se kuha vnaprej v večji količini, druga komponenta pa se obravnava ločeno (pečenica se peče sproti, krvavica se peče vnaprej).
+
+Kislo zabeljeno zelje (Polizdelek v kg):
+
+Priprava: Kuhar skuha večjo količino kislega zelja z ocvirki/moko (npr. 5 kg). V sistem vnese proizvodnjo 5 kg zelja.
+
+Normativ za 1 porcijo na krožniku: V normativu prodajnega artikla je za zelje določena teža (npr. 0,25 kg ali 0,30 kg zelja).
+
+Pečenica (Surovina / A la carte):
+
+Surova pečenica se hrani na zalogi surovin v kosih (kos) ali kg. Ker se peče sproti, nima statusa "kuhane enolončnice".
+
+V normativ prodajnega krožnika (Pečenica s kislim zeljem) se vnese natanko 1 kos surove pečenice (ki se avtomatsko odpiše ob prodaji) + 0,30 kg pripravljenega kislega zelja iz zaloge polizdelkov.
+
+Krvavica (Polizdelek ali Vnaprej pečena enota):
+
+Ker se krvavice pogosto pečejo v večjih serijah hkrati (da ne počijo ali da so pripravljene za hitro izdajo), se jih lahko vodi kot pecivo/polizdelek v kosih (kos).
+
+Kuhar speče npr. 10 kosov krvavic in jih vnese kot zalogo pečenih krvavic. Ob prodaji sistema direktno odpiše 1 kos pečene krvavice iz zaloge polizdelkov + 0,30 kg kislega zelja.
+
+2. Polnjene paprike in Sarme (Kosovne jedi v omaki)
+Polnjene paprike in sarme so klasičen primer jedi, ki se kuhajo vnaprej v večjem loncu (skupaj z omako), vendar se gostu izdajajo po številu kosov (1 kos ali 2 kosa).
+
+Kako se to pravilno postavi v sistemu, da imate popoln nadzor nad gramaturami in Food Costom?
+
+A. Priprava v kuhinji (Proizvodnja polizdelka v kg)
+Kuhar skuha velik lonec sarm ali polnjenih paprik. Ker so različno težke, se kuhanje v sistem vnese skupaj (meso + omaka) v kilogramih (kg):
+
+Kuhar v sistem zabeleži: Proizvodnja polizdelka "Polnjena paprika v omaki" = 10 kg.
+
+B. Kako se definira normativ na blagajni (kos)?
+Ker gost naroči »1x Polnjena paprika« ali »2x Polnjena paprika«, ima prodajni artikel na blagajni enoto mere kos, v normativu v ozadju pa je preračunana povprečna teža enega kosa:
+
+Normativ za 1 kos polnjene paprike:
+
+Če je povprečna teža ene kuhane paprike z omako npr. 0,35 kg (350 g, od tega npr. 200 g paprika z mesom in 150 g paradižnikova omaka):
+
+V normativ za 1 kos Polnjene paprike vpišete: 0,35 kg polizdelka "Polnjena paprika v omaki".
+
+C. Kaj se zgodi ob prodaji in inventuri?
+Ob prodaji: Ko natakar pritisne 1x Polnjena paprika, sistem z zaloge kuhinjskih polizdelkov avtomatsko odpiše natanko 0,35 kg. Če gost naroči 2 kosa, sistem odpiše 0,70 kg.
+
+Ob inventuri: Kuhar preprosto stehta preostanek lonca s sarmami/paprikami (npr. ostanek je 2,40 kg). V program vnese preostanek v kilogramih, program pa skozi inventuro preveri, ali se ustreza številu prodanih kosov na računih.
+
+Povzetek nastavitev za vaš tip sistema:
+Zelje / Golaž / Sarme / Polnjene paprike: Kuhajo se v večjih količinah → vodijo se kot polizdelki v kilogramih (kg), na blagajni pa se odmerjajo preko normativov v kg (za priloge/omake) ali v kos (za sarme/paprike, kjer vsak kos predstavlja točno določeno težo v gramih).
+
+Pečenice / Čevapčiči / Lignji: Pečejo se sproti a la carte → surovine so na zalogi v kos ali kg, sistem pa jih ob prodaji neposredno odpiše iz surove zaloge.
+
+zelje pripravljamo sproti v manjših količinah. ko vidimo da ga zmanjkuje ga pripravimo še dodatno, tako, da je stalno na razpolago. ali lahko odpisujemo surovine za zelje samo ob prodaji in preskočimo vmesno zalogo pripravljene jediin označimo jed kislo zelje a la carte in ne kot pripravljena jed
+
+Da, absolutno lahko. To je v gostinstvu celo zelo pogosta praksa, kadar se določene jedi ali priloge kuhajo sproti v manjših serijah ves dan, namesto da bi kuhar vnaprej skuhal velik lonec za cel dan.
+
+V vašem POS/ERP sistemu lahko kislo zelje enostavno obravnavate kot a la carte artikel (podobno kot pečenice ali zrezke), kar pomeni, da preskočite vmesno zalogo polizdelkov v kilogramih.
+
+Evo, kako to deluje v praksi in kako se nastavi:
+
+Kako deluje A la Carte vodenje za kislo zelje?
+Zaloga surovin: Na zalogi v skladišču imate surovine:
+
+Kislo zelje (surovo/v vrečkah ali sodu) – vodeno v kg
+
+Ocvirki / mast / slanina – vodeno v kg
+
+Moka / čebula (če se zelje zabeli z zabelo) – vodeno v kg
+
+Definicija prodajnega artikla na blagajni:
+
+Artikel: Kislo zelje (priloga) ali Zabeljeno kislo zelje
+
+Enota mere na blagajni: kos ali porcija
+
+Normativ v ozadju (Direktni odpis surovine):
+Ker se zelje pripravlja sproti, ima ta prodajni artikel normativ postavljen neposredno na surove sestavine za 1 porciju:
+
+Surovo kislo zelje: 0,25 kg
+
+Zasip / ocvirki / maščoba: 0,02 kg
+
+Moka (za zabelo): 0,005 kg
+
+Kaj se zgodi ob prodaji?
+Ko natakar na blagajni izda 1x Kislo zelje, sistem v tistem trenutku avtomatsko in direktno z zaloge surovin odpiše 0,25 kg surovega zelja in pripadajočo maščobo. Ni vmesnega koraka vnosa »skuhal sem 3 kg zelja«.
+
+Prednosti in slabosti tega pristopa
+Prednost (Enostavnost): Ni administrativnega dela v kuhinji. Kuharju ni treba beležiti, kdaj in koliko manjših loncev zelja je pristavil. Zaloga surovin se sproti in točno čisti glede na izdane račune.
+
+Slabost (Manjši nadzor nad kuhinjskim kalom): Ker se zelje praži/duši sproti, se med termično obdelavo nekaj teže izgubi (voda izpari). Če delate direktni odpis surovega zelja na prodano porcijo, morate v normativ za 1 porcijo vračunati to izgubo (zato vpišete malenkost več surovega zelja, npr. 0,25 kg, čeprav je na krožniku morda le 0,20 kg končnega zelja).
+
+Kdaj je ta pristop najbolj smiseln?
+Točno takrat, kot ste opisali: ko gre za jedi, ki se pripravljajo sproti, v manjših količinah in sproti rotirajo (tako kot npr. pražen krompir, ki ga kuhar večkrat na dan pristavi na novo v manjši ponvi, ali pa zabeljeno zelje).
+
+Sistem bo kljub temu odlično deloval, vi pa boste imeli urejene normative in avtomatski odpise brez odvečnih korakov v kuhinji!

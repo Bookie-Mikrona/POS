@@ -93,6 +93,7 @@ import { SmartNormativeProposalDialog } from "@/components/SmartNormativeProposa
 import { EslogUnitPicker, displayEslogUnit } from "@/components/EslogUnitPicker";
 import { canonicalEslogUnit, isGroupablePurchaseUnit } from "@/lib/skupinski-nabavni-artikel";
 import { mealTypeForArticleSave } from "@/lib/article-meal-type";
+import { normalizePreparedFoodUnit, preparedFoodUnitCode, type PreparedFoodUnit } from "@/lib/prepared-food-unit";
 
 type KategorijaDialogMode = "nova" | "uredi";
 type ArtDialogMode = "nov" | "uredi";
@@ -217,6 +218,8 @@ export default function Menu() {
   const [artHappyHourCenaDruzinska, setArtHappyHourCenaDruzinska] = useState<string>("");
   const [artVrstaArtikla, setArtVrstaArtikla] = useState<"blago" | "material" | "storitev">(DEFAULT_NEW_SALES_ARTICLE_TYPE);
   const [artMealType, setArtMealType] = useState<"ala_carte" | "prepared" | "composite">("ala_carte");
+  const preparedFoodUnit = normalizePreparedFoodUnit(artEnotaMere);
+  const preparedFoodMassUnit = artMealType === "prepared" && preparedFoodUnit !== "porcija";
   const [artCasPripraveMin, setArtCasPripraveMin] = useState("0");
   const [artSkupina, setArtSkupina] = useState<string>("");
   const [artTaxCategory, setArtTaxCategory] = useState<"food" | "hot_beverage" | "cold_beverage" | "alcoholic" | "food_drink" | "vat_super_reduced_5" | "other">("food");
@@ -998,7 +1001,13 @@ export default function Menu() {
     setArtColor(a.barva ?? null);
     const drobniInventar = Boolean((a as typeof a & { drobniInventar?: boolean }).drobniInventar);
     setArtNabavniArtikel(drobniInventar || (a.nabavniArtikel ?? false));
-    setArtProdajniArtikel(drobniInventar ? false : (a.prodajniArtikel ?? true));
+    const preparedMassUnit = a.mealType === "prepared" && normalizePreparedFoodUnit(a.enotaMere) !== "porcija";
+    setArtProdajniArtikel(drobniInventar || preparedMassUnit
+      ? false
+      : (a.prodajniArtikel ?? true));
+    if (!drobniInventar && preparedMassUnit) {
+      setArtNabavniArtikel(false);
+    }
     setArtDrobniInventar(drobniInventar);
     setArtPovratnaEmbalaza(drobniInventar ? false : a.povratnaEmbalaza);
     setArtVrstaEmbalaze((a.vrstaEmbalaze ?? "steklenica") as "steklenica" | "zaboj" | "keg" | "balon" | "drugo");
@@ -1568,7 +1577,9 @@ export default function Menu() {
       toGoArtikli: isProdajni ? artToGoArtikli : [],
       toGo: isProdajni ? artToGo : false,
       imeZaNabavo: artNabavniArtikel ? (artImeZaNabavo || null) : null,
-      enotaMere: artNabavniArtikel ? (artEnotaMere || null) : null,
+      enotaMere: artMealType === "prepared"
+        ? preparedFoodUnitCode(preparedFoodUnit)
+        : artNabavniArtikel ? (artEnotaMere || null) : null,
       ...(artDrobniInventar ? {} : normalizeMassYield(artPolizdelek ? EMPTY_MASS_YIELD : artMassYield)),
       jeSkupinskiNabavniArtikel: Boolean(lahkoJeSkupinskiNabavniArtikel && artJeSkupinskiNabavniArtikel),
       ...(artPolizdelek ? {} : { vrstaArtikla: artPovratnaEmbalaza ? "material" : artVrstaArtikla }),
@@ -2290,7 +2301,7 @@ export default function Menu() {
                     <input
                       type="checkbox"
                       checked={artProdajniArtikel}
-                      disabled={artPovratnaEmbalaza}
+                      disabled={artPovratnaEmbalaza || preparedFoodMassUnit}
                       onChange={e => {
                         setArtProdajniArtikel(e.target.checked);
                         if (e.target.checked) setArtDrobniInventar(false);
@@ -2303,7 +2314,7 @@ export default function Menu() {
                     <input
                       type="checkbox"
                       checked={artNabavniArtikel}
-                      disabled={artPovratnaEmbalaza}
+                      disabled={artPovratnaEmbalaza || preparedFoodMassUnit}
                       onChange={e => {
                         setArtNabavniArtikel(e.target.checked);
                         if (!e.target.checked) setArtDrobniInventar(false);
@@ -2808,6 +2819,43 @@ export default function Menu() {
                       <span className="block font-bold mb-0.5">Pripravljena hrana (zaloga)</span>
                       <span className="block text-xs font-normal opacity-80">Skuhano vnaprej in zamrznjeno/shranjeno. Normativ so osnovne surovine.</span>
                     </button>
+                    {artMealType === "prepared" && (
+                      <div className="space-y-2 rounded-md border border-violet-200 bg-violet-50/60 p-3">
+                        <Label htmlFor="prepared-food-base-unit">Osnovna enota pripravljene jedi</Label>
+                        <Select
+                          value={preparedFoodUnit}
+                          onValueChange={value => {
+                            const unit = value as PreparedFoodUnit;
+                            setArtEnotaMere(preparedFoodUnitCode(unit));
+                            if (unit !== "porcija") {
+                              setArtNabavniArtikel(false);
+                              setArtProdajniArtikel(false);
+                              setArtDrobniInventar(false);
+                              setArtPovratnaEmbalaza(false);
+                              setArtJeSkupinskiNabavniArtikel(false);
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="prepared-food-base-unit" data-testid="select-prepared-food-unit">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="porcija">Porcija</SelectItem>
+                            <SelectItem value="kg">Kilogram (kg)</SelectItem>
+                            <SelectItem value="l">Liter (l)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {preparedFoodMassUnit ? (
+                          <p className="text-xs text-violet-900">
+                            Jed na kg/l je polizdelek: ni prodajni ali nabavni artikel. Normativ je na 1 {preparedFoodUnit}; količine se ne pretvarjajo. Če je artikel že uporabljen v normativu ali ima zalogo oziroma dnevno/zgodovinsko evidenco, enote ni mogoče spremeniti — za drugo osnovo ustvarite nov polizdelek.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Normativ je na 1 porcijo; količine se ob spremembi enote ne pretvarjajo. Če je artikel že uporabljen v normativu ali ima zalogo oziroma dnevno/zgodovinsko evidenco, enote ni mogoče spremeniti — za drugo osnovo ustvarite nov artikel.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -2878,6 +2926,7 @@ export default function Menu() {
                          nabavniArtikel: artNabavniArtikel,
                          taxCategory: artTaxCategory,
                          mealType: artMealType,
+                          enotaMere: artEnotaMere,
                        }) &&
                        canOfferSmartNormativ(editingArt) &&
                        artProdajniArtikel === editingArt.prodajniArtikel &&
@@ -2921,6 +2970,16 @@ export default function Menu() {
                       </Button>
                     </div>
                   </div>
+                  {artMealType === "prepared" && (
+                    <p data-testid="text-normative-unit-basis" className="text-xs text-muted-foreground">
+                      Normativ je za 1 {preparedFoodUnit}. Količine ob spremembi osnovne enote ostanejo nespremenjene in jih je treba preveriti ročno.
+                    </p>
+                  )}
+                  {preparedFoodMassUnit && (
+                    <p data-testid="text-smart-normative-unit-warning" className="text-xs text-amber-800">
+                      Pametni predlog je trenutno na voljo samo za porcijske osnove. Normativ za polizdelek vnesite ročno na 1 {preparedFoodUnit}.
+                    </p>
+                  )}
                   {normativItems.length === 0 && !(editingArt && artJePica) ? (
                     <p className="text-sm text-muted-foreground">Ni določenih vhodnih artiklov.</p>
                   ) : (
@@ -3018,7 +3077,9 @@ export default function Menu() {
                               </div>
                             )}
                             <span className="text-left text-sm text-muted-foreground font-mono sm:text-center">
-                              {displayEslogUnit(isSelf ? artEnotaMere : vhodni?.enotaMere) || "—"}
+                              {(isSelf || vhodni?.mealType === "prepared")
+                                ? normalizePreparedFoodUnit(isSelf ? artEnotaMere : vhodni?.enotaMere)
+                                : displayEslogUnit(vhodni?.enotaMere) || "—"}
                             </span>
                             <DecimalInput
                               ref={element => {

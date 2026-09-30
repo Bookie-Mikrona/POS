@@ -7,6 +7,7 @@ const { state } = vi.hoisted(() => ({
     categories: [] as Array<Record<string, any>>,
     norms: [] as Array<Record<string, any>>,
     writes: 0,
+    onLock: undefined as (() => void) | undefined,
   },
 }));
 
@@ -21,7 +22,7 @@ vi.mock("@workspace/db", async importOriginal => {
     ? state.articles
     : table === original.kategorijeTable ? state.categories
       : table === original.normativiTable ? state.norms : [];
-  const makeSelect = (transaction = false) => {
+  const makeSelect = () => {
     let table: unknown;
     const result: any = {
       from(value: unknown) { table = value; return result; },
@@ -29,13 +30,18 @@ vi.mock("@workspace/db", async importOriginal => {
       for() { return result; },
       limit() { return result; },
       then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
-        return Promise.resolve(transaction && table === original.normativiTable ? [] : sourceRows(table)).then(resolve, reject);
+        return Promise.resolve(sourceRows(table)).then(resolve, reject);
       },
     };
     return result;
   };
   const tx = {
-    select: () => makeSelect(true),
+    select: () => makeSelect(),
+    execute: async () => {
+      state.onLock?.();
+      state.onLock = undefined;
+      return { rows: [] };
+    },
     update: (table: unknown) => ({
       set: (patch: Record<string, unknown>) => ({
         where: () => ({
@@ -90,6 +96,7 @@ async function workbookUpload(rows: Array<Record<string, unknown>>, sheetName = 
     povratnaEmbalaza: null, drobniInventar: null, drobniInventarPredlogaKljuc: null,
     vrstaEmbalaze: null, depozitnaVrednost: null, imeZaNabavo: null, enotaMere: null,
     toGo: null, skupina: null, gtin: null, nabavnaDdvStopnja: null, taxCategory: null,
+    mealType: null,
   };
   for (const id of [...new Set(rows.map(row => Number(row.id)).filter(Number.isSafeInteger))]) {
     const article = state.articles.find(row => row.id === id)!;
@@ -125,6 +132,7 @@ describe("POS article Excel import", () => {
     state.categories = [{ id: 4, enotaId: 5, ime: "Pijača" }];
     state.norms = [];
     state.writes = 0;
+    state.onLock = undefined;
   });
 
   it("previews the same stable-ID workbook without writing", async () => {
@@ -189,6 +197,58 @@ describe("POS article Excel import", () => {
     await uvoziArtikliExcel(req, res);
     expect(res.statusCode).toBe(422);
     expect(res.body.napake[0].napaka).toContain("spremenjen po izvozu");
+    expect(state.writes).toBe(0);
+  });
+
+  it("rejects a non-sales composite owner with a prepared bulk ingredient during preview", async () => {
+    state.articles[0] = {
+      ...state.articles[0],
+      mealType: "composite",
+      nabavniArtikel: false,
+      prodajniArtikel: true,
+      enotaMere: null,
+    };
+    state.articles.push({
+      id: 35, enotaId: 5, ime: "Goulash", cena: "0", davek: "0",
+      mealType: "prepared", enotaMere: "KGM",
+      nabavniArtikel: false, prodajniArtikel: false, povratnaEmbalaza: false, drobniInventar: false,
+    });
+    state.norms = [{ artikelId: 31, vhodniArtikelId: 35, kolicina: "0.35" }];
+
+    const { res } = await workbookUpload([{
+      id: 31, ime: "Existing", cena: 2, ddv: 22, prodajniArtikel: false,
+    }]);
+    expect(res.statusCode).toBe(422);
+    expect(res.body.napake.some((error: { napaka: string }) => error.napaka.includes("morajo ostati prodajne"))).toBe(true);
+    expect(state.writes).toBe(0);
+  });
+
+  it("rechecks bulk ingredient ownership under the import transaction locks", async () => {
+    state.articles[0] = {
+      ...state.articles[0],
+      mealType: "composite",
+      nabavniArtikel: false,
+      prodajniArtikel: true,
+      enotaMere: null,
+    };
+    state.articles.push({
+      id: 35, enotaId: 5, ime: "Goulash", cena: "0", davek: "0",
+      mealType: "prepared", enotaMere: "KGM",
+      nabavniArtikel: false, prodajniArtikel: false, povratnaEmbalaza: false, drobniInventar: false,
+    });
+    const { req, res } = await workbookUpload([{
+      id: 31, ime: "Existing", cena: 2, ddv: 22, prodajniArtikel: false,
+    }]);
+    req.query.dryRun = "false";
+    state.onLock = () => {
+      state.norms.push({ artikelId: 31, vhodniArtikelId: 35, kolicina: "0.35" });
+    };
+
+    await uvoziArtikliExcel(req, res);
+
+    expect(state.norms.some(norm => norm.artikelId === 31 && norm.vhodniArtikelId === 35)).toBe(true);
+    expect(res.statusCode).toBe(422);
+    expect(res.body.napake[0].napaka).toContain("sestavinami v kg ali l");
     expect(state.writes).toBe(0);
   });
 

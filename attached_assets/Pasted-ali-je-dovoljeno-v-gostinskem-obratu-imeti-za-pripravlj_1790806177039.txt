@@ -1,0 +1,31 @@
+ali je dovoljeno v gostinskem obratu imeti za pripravljeno hrano cenik npr. v kg in ne na porcijo? npr. juha je cena na liter, golaž je cena na kilogram in se potem glede na velikost porcije preračunava cena iz osnovne cene podane v l ali kg na ceniku?
+
+Ne, v klasičnem gostinskem lokalu (gostilni ali restavraciji) za klasične jedi to ni običajno in davčno/tržno ni najbolj primerno, čeprav obstajajo specifične izjeme (npr. mesnice-gostilne ali ribarnice, kjer si gost sam izbere kos mesa ali ribe iz vitrine, ki se nato stehta in zaračuna po kilogramu).
+
+Za standardno strežbo jedi v gostinskem obratu veljajo naslednja pravila:
+
+1. Kaj zahteva zakonodaja (Tržni inšpektorat in zakon o varstvu potrošnikov)?
+Cenik mora biti jasen in nedvoumni za gosta: Gost, ki sede za mizo, mora točno vedeti, koliko bo plačal za to, kar naroči. Če je na ceniku cena izražena na kilogram (kg) ali liter (l), gost pa naroči eno porcijo, bi moral natakar pred postrežbo vsakič tehtati krožnik in izračunati znesek. To v praksi povzroča zmedo, poleg tega pa gostje ne znajo vnaprej preračunati, koliko stane npr. 0,35 kg golaža.
+
+Normirane porcije na ceniku: Na ceniku mora biti cena navedena na kos ali na porcijo (npr. Goveji golaž (porcija) = 8,50 € ali Gobova juha = 3,50 €).
+
+2. Izjeme, kjer se ceni po kg ali na maso (Kdaj je to dovoljeno?)
+Tovrstno zaračunavanje je legalno in običajno samo v določenih tipih lokalov:
+
+Solatni bari in »All-you-can-eat« / hrana na teži (Self-service): Kjer si gost sam naloži hrano na krožnik, nato pa se na blagajni celoten krožnik stehta, cena pa se obračuna na 100 g ali na kg (npr. Solatni bar: 1,50 € / 100 g).
+
+Pečenke ali ribe po teži (iz vitrine): Če gost v gostilni s prstom pokaže na pečenega prašička, jagenjčka ali svežo morsko ribo v vitrini, se kos pred peko ali po njej stehta in zaračuna po dejanski teži na kilogram. To mora biti izrecno označeno na ceniku (npr. Janjetina pod peko (po kg) = 35,00 €/kg).
+
+3. Kako pa je to urejeno v ozadju v vašem ERP/POS sistemu?
+Čeprav je na ceniku za gosta cena vedno izražena na kos/porcijo, pa ima vaš program v ozadju (v bazi in normativih) vse nastavljeno točno tako, kot ste predlagali – preko kilogramov in litrov:
+
+Gost vidi na ceniku: 1x Goveji golaž (porcija) = 9,00 €
+
+V ozadju programa (Normativ): Program ve, da je 1 porcija golaža enaka 0,35 kg kuhanega golaža. Ko natakar proda 1 porcijo, program s kuhinjske zaloge polizdelkov odpiše natanko 0,35 kg.
+
+Kuhinja kuha na kilograme: Kuhar skuha lonec, v katerem je npr. 10 kg golaža. V sistem vnese proizvodnjo polizdelka 10 kg golaža, ki se nato avtomatsko manjša, ko natakarji izdajajo porcije po 0,35 kg.
+
+Povzetek
+Na ceniku za gosta: Vedno piše cena za kos ali porcijo (razen pri solatnih barih in mesu/ribah iz vitrine po teži).
+
+V vašem ERP sistemu (zaloge in normativi): Vse teče v kilogramih (kg) in litrih (l), da imate natančen nadzor nad porabo surovin (Food Cost).

@@ -22,7 +22,11 @@ import {
   UpdatePreparedFoodStockBody, UpdatePreparedFoodStockParams, UpdatePreparedFoodStockResponse,
 } from "@workspace/api-zod";
 import { recomputeZaloge } from "../../lib/pos-zaloge-utils";
-import { allocatePreparedFood, preparedMaterialUnitCost } from "../../lib/prepared-food-costing";
+import {
+  allocatePreparedFood,
+  preparedMaterialQuantityForProduction,
+  preparedMaterialUnitCost,
+} from "../../lib/prepared-food-costing";
 import {
   currentBusinessDate,
   loadPreparedFoodAvailability,
@@ -33,6 +37,7 @@ import { getEnotaBusinessDayStart } from "../../lib/pos-business-day";
 import { buildPreparedFoodWasteRecordPdf } from "../../lib/prepared-food-waste-pdf";
 import { isPosBusinessDayClosed, lockPosBusinessDay } from "../../lib/pos-z-helpers";
 import type { PosRequest } from "../../middlewares/pos";
+import { preparedFoodUnitLabel } from "../../lib/prepared-food-units";
 
 const router: IRouter = Router();
 const dateOk = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -52,8 +57,9 @@ const mapLedger = (
   unitOfMeasure: options.unitOfMeasure,
   editable: options.editable ?? false,
 });
-const mapStock = (row: typeof preparedFoodStocksTable.$inferSelect, articleName: string) => ({
+const mapStock = (row: typeof preparedFoodStocksTable.$inferSelect, articleName: string, unitOfMeasure: string | null) => ({
   id: row.id, enotaId: row.enotaId, artikelId: row.artikelId, articleName, year: row.year,
+  unitOfMeasure: preparedFoodUnitLabel(unitOfMeasure),
   openingQuantity: Number(row.openingQuantity), openingCostPerPortion: Number(row.openingCostPerPortion),
   frozenQuantity: Number(row.frozenQuantity), frozenCostPerPortion: Number(row.frozenCostPerPortion),
 });
@@ -150,7 +156,7 @@ async function buildWastePreview(
     businessDate: row.businessDate,
     articleId: row.articleId,
     articleName: row.articleName,
-    unitOfMeasure: row.unitOfMeasure?.trim() || "porcija",
+    unitOfMeasure: preparedFoodUnitLabel(row.unitOfMeasure),
     quantity: Number(row.wasteQuantity) - Number(row.wasteDeliveredQuantity),
     unitCost: Number(row.wasteQuantity) > 0
       ? Number(row.wasteValue ?? 0) / Number(row.wasteQuantity)
@@ -178,7 +184,7 @@ async function loadWasteRecord(executor: typeof db, enotaId: number, id: number)
     businessDate: line.businessDate,
     articleId: line.artikelId,
     articleName: line.articleName,
-    unitOfMeasure: line.unitOfMeasure,
+    unitOfMeasure: preparedFoodUnitLabel(line.unitOfMeasure),
     quantity: Number(line.quantity),
     unitCost: Number(line.costPerUnit),
     totalValue: Number(line.totalValue),
@@ -291,11 +297,14 @@ async function soldQuantity(
   const startInterval = `${startTime}:00`;
   const result = await executor.execute(sql`
     WITH RECURSIVE sold_tree(article_id, quantity, meal_type, path, pizza_dough_article_id) AS (
-      SELECT p.artikel_id, p.kolicina::numeric, p.meal_type, ARRAY[p.artikel_id],
+      SELECT p.artikel_id, p.kolicina::numeric * COALESCE(p.normativ_faktor, 1)::numeric,
+             p.meal_type, ARRAY[p.artikel_id],
              p.pizza_dough_article_id
       FROM postavke p JOIN narocila n ON n.id = p.narocilo_id
       WHERE n.enota_id = ${enotaId} AND p.artikel_id IS NOT NULL
-        AND p.parent_postavka_id IS NULL AND n.status <> 'preklicano'
+        AND p.parent_postavka_id IS NULL
+        AND p.kolicina::numeric * COALESCE(p.normativ_faktor, 1)::numeric > 0
+        AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
       UNION ALL
       SELECT norm.vhodni_artikel_id, tree.quantity * norm.kolicina,
@@ -318,6 +327,7 @@ async function soldQuantity(
       WHERE n.enota_id = ${enotaId}
         AND p.parent_postavka_id IS NULL
         AND p.pizza_dough_article_id IS NOT NULL
+        AND p.kolicina::numeric * COALESCE(p.normativ_faktor, 1)::numeric > 0
         AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
       UNION ALL
@@ -334,6 +344,8 @@ async function soldQuantity(
         AND child.parent_postavka_id IS NOT NULL
         AND child.modifikator_id IS NOT NULL
         AND child.availability_requirements IS NOT NULL
+        AND child.kolicina::numeric * COALESCE(child.normativ_faktor, 1)::numeric > 0
+        AND (snapshot.value->>'quantity')::numeric > 0
         AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
       UNION ALL
@@ -347,6 +359,7 @@ async function soldQuantity(
       WHERE n.enota_id = ${enotaId}
         AND child.parent_postavka_id IS NOT NULL
         AND child.availability_requirements IS NULL
+        AND child.kolicina::numeric * COALESCE(child.normativ_faktor, 1)::numeric * mn.kolicina::numeric > 0
         AND n.status <> 'preklicano'
         AND ((n.ustvarjeno AT TIME ZONE 'Europe/Ljubljana') - ${startInterval}::interval)::date = ${date}::date
     )
@@ -361,10 +374,14 @@ router.get("/prepared-food/stocks/:year", async (req: Request, res: Response): P
   if (!params.success) { res.status(400).json({ error: "Neveljavno leto." }); return; }
   const enotaId = (req as any).enotaId as number;
   const rows = await db.transaction(async (tx) => {
-    const articles = await tx.select({ id: artikliTable.id, name: artikliTable.ime }).from(artikliTable)
+    const articles = await tx.select({
+      id: artikliTable.id,
+      name: artikliTable.ime,
+      unitOfMeasure: artikliTable.enotaMere,
+    }).from(artikliTable)
       .where(and(eq(artikliTable.enotaId, enotaId), eq(artikliTable.mealType, "prepared")));
     return Promise.all(articles.map(async (article) =>
-      mapStock(await stockForYear(tx, enotaId, article.id, params.data.year), article.name)));
+      mapStock(await stockForYear(tx, enotaId, article.id, params.data.year), article.name, article.unitOfMeasure)));
   });
   res.json(ListPreparedFoodStocksResponse.parse(rows));
 });
@@ -382,12 +399,14 @@ router.put("/prepared-food/stocks/:year", async (req: Request, res: Response): P
 
   const enotaId = (req as any).enotaId as number;
   const result = await db.transaction(async (tx) => {
+    await lockPreparedFoodEnota(tx, enotaId);
     const articles = [];
     for (const item of body.data.items) {
       const [article] = await tx.select({
         id: artikliTable.id,
         name: artikliTable.ime,
         mealType: artikliTable.mealType,
+        unitOfMeasure: artikliTable.enotaMere,
       }).from(artikliTable).where(and(
         eq(artikliTable.id, item.articleId),
         eq(artikliTable.enotaId, enotaId),
@@ -424,7 +443,7 @@ router.put("/prepared-food/stocks/:year", async (req: Request, res: Response): P
         frozenCostPerPortion: String(item.openingCostPerPortion),
         updatedAt: new Date(),
       }).where(eq(preparedFoodStocksTable.id, stock.id)).returning();
-      updated.push(mapStock(row, article.name));
+      updated.push(mapStock(row, article.name, article.unitOfMeasure));
     }
     return { updated };
   });
@@ -438,22 +457,45 @@ router.put("/prepared-food/stocks/:year/:articleId", async (req: Request, res: R
   const body = UpdatePreparedFoodStockBody.safeParse(req.body);
   if (!params.success || !body.success) { res.status(400).json({ error: "Neveljavni podatki zaloge." }); return; }
   const enotaId = (req as any).enotaId as number;
-  const [article] = await db.select({ id: artikliTable.id, name: artikliTable.ime, mealType: artikliTable.mealType })
-    .from(artikliTable).where(and(eq(artikliTable.id, params.data.articleId), eq(artikliTable.enotaId, enotaId)));
-  if (!article || article.mealType !== "prepared") { res.status(422).json({ error: "Zaloga je dovoljena samo za pripravljeno jed." }); return; }
-  const start = `${params.data.year}-01-01`;
-  const end = `${params.data.year + 1}-01-01`;
-  const [closed] = await db.select({ id: preparedFoodDailyLedgersTable.id }).from(preparedFoodDailyLedgersTable)
-    .where(and(eq(preparedFoodDailyLedgersTable.enotaId, enotaId), eq(preparedFoodDailyLedgersTable.artikelId, article.id),
-      isNotNull(preparedFoodDailyLedgersTable.closedAt),
-      sql`${preparedFoodDailyLedgersTable.businessDate} >= ${start}::date AND ${preparedFoodDailyLedgersTable.businessDate} < ${end}::date`)).limit(1);
-  if (closed) { res.status(409).json({ error: "Otvoritvene zaloge po prvem zaključenem dnevu leta ni več mogoče spreminjati." }); return; }
-  const stock = await stockForYear(db, enotaId, article.id, params.data.year);
-  const [updated] = await db.update(preparedFoodStocksTable).set({
-    openingQuantity: String(body.data.openingQuantity), openingCostPerPortion: String(body.data.openingCostPerPortion),
-    frozenQuantity: String(body.data.openingQuantity), frozenCostPerPortion: String(body.data.openingCostPerPortion), updatedAt: new Date(),
-  }).where(eq(preparedFoodStocksTable.id, stock.id)).returning();
-  res.json(UpdatePreparedFoodStockResponse.parse(mapStock(updated, article.name)));
+   const result = await db.transaction(async tx => {
+    await lockPreparedFoodEnota(tx, enotaId);
+    const [article] = await tx.select({
+      id: artikliTable.id,
+      name: artikliTable.ime,
+      mealType: artikliTable.mealType,
+      unitOfMeasure: artikliTable.enotaMere,
+    }).from(artikliTable).where(and(
+      eq(artikliTable.id, params.data.articleId),
+      eq(artikliTable.enotaId, enotaId),
+    ));
+    if (!article || article.mealType !== "prepared") {
+       return { ok: false as const, error: "Zaloga je dovoljena samo za pripravljeno jed.", status: 422 as const };
+    }
+    const start = `${params.data.year}-01-01`;
+    const end = `${params.data.year + 1}-01-01`;
+    const [closed] = await tx.select({ id: preparedFoodDailyLedgersTable.id }).from(preparedFoodDailyLedgersTable)
+      .where(and(eq(preparedFoodDailyLedgersTable.enotaId, enotaId), eq(preparedFoodDailyLedgersTable.artikelId, article.id),
+        isNotNull(preparedFoodDailyLedgersTable.closedAt),
+        sql`${preparedFoodDailyLedgersTable.businessDate} >= ${start}::date AND ${preparedFoodDailyLedgersTable.businessDate} < ${end}::date`)).limit(1);
+    if (closed) {
+       return {
+         ok: false as const,
+         error: "Otvoritvene zaloge po prvem zaključenem dnevu leta ni več mogoče spreminjati.",
+         status: 409 as const,
+       };
+    }
+    const stock = await stockForYear(tx, enotaId, article.id, params.data.year);
+    const [updated] = await tx.update(preparedFoodStocksTable).set({
+      openingQuantity: String(body.data.openingQuantity), openingCostPerPortion: String(body.data.openingCostPerPortion),
+      frozenQuantity: String(body.data.openingQuantity), frozenCostPerPortion: String(body.data.openingCostPerPortion), updatedAt: new Date(),
+    }).where(eq(preparedFoodStocksTable.id, stock.id)).returning();
+     return { ok: true as const, row: mapStock(updated, article.name, article.unitOfMeasure) };
+  });
+   if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  res.json(UpdatePreparedFoodStockResponse.parse(result.row));
 });
 
 router.get("/prepared-food/daily/history/:year", async (req: Request, res: Response): Promise<void> => {
@@ -479,7 +521,7 @@ router.get("/prepared-food/daily/history/:year", async (req: Request, res: Respo
   ]);
   res.json(ListPreparedFoodDailyHistoryResponse.parse(rows.map((row) => mapLedger(row.ledger, {
     articleName: row.articleName,
-    unitOfMeasure: row.unitOfMeasure?.trim() || "porcija",
+    unitOfMeasure: preparedFoodUnitLabel(row.unitOfMeasure),
     editable: !row.ledger.closedAt && row.ledger.businessDate === latest,
   }))));
 });
@@ -524,7 +566,7 @@ router.get("/prepared-food/daily/:date", async (req: Request, res: Response): Pr
       if (ledger) {
         return mapLedger({ ...ledger, soldQuantity: String(sold) }, {
           articleName: article.name,
-          unitOfMeasure: article.unitOfMeasure?.trim() || "porcija",
+          unitOfMeasure: preparedFoodUnitLabel(article.unitOfMeasure),
           editable: !ledger.closedAt && (!latest || businessDate >= latest),
         });
       }
@@ -543,7 +585,7 @@ router.get("/prepared-food/daily/:date", async (req: Request, res: Response): Pr
         wasteValue: null,
         closedAt: null,
         articleName: article.name,
-        unitOfMeasure: article.unitOfMeasure?.trim() || "porcija",
+        unitOfMeasure: preparedFoodUnitLabel(article.unitOfMeasure),
         editable: !latest || businessDate >= latest,
       };
     }));
@@ -569,7 +611,10 @@ router.put("/prepared-food/daily/:date/:articleId", async (req: Request, res: Re
       }
       await lockPreparedFoodEnota(tx, enotaId);
       await ensureLatestOpenLedgerDate(tx, enotaId, businessDate);
-      const [article] = await tx.select({ id: artikliTable.id, mealType: artikliTable.mealType })
+      const [article] = await tx.select({
+        id: artikliTable.id,
+        mealType: artikliTable.mealType,
+      })
         .from(artikliTable)
         .where(and(eq(artikliTable.id, params.data.articleId), eq(artikliTable.enotaId, enotaId)));
       if (!article || article.mealType !== "prepared") {
@@ -615,7 +660,15 @@ router.put("/prepared-food/daily/:date/:articleId", async (req: Request, res: Re
       if (!updated) throw new Error("Dnevna evidenca je bila med shranjevanjem zaključena.");
       return updated;
     });
-    res.json(SavePreparedFoodDailyResponse.parse(mapLedger(row, { editable: true })));
+    const [article] = await db.select({ unitOfMeasure: artikliTable.enotaMere })
+      .from(artikliTable).where(and(
+        eq(artikliTable.id, params.data.articleId),
+        eq(artikliTable.enotaId, enotaId),
+      ));
+    res.json(SavePreparedFoodDailyResponse.parse(mapLedger(row, {
+      unitOfMeasure: preparedFoodUnitLabel(article?.unitOfMeasure),
+      editable: true,
+    })));
   } catch (error) {
     const message = (error as Error).message;
     const conflict = message.includes("zaključen") || message.includes("zadnjo odprto") || message.includes("Z-poročilom");
@@ -670,7 +723,10 @@ router.post("/prepared-food/daily/:date/:articleId/close", async (req: Request, 
     const preparedCost = preparedMaterialUnitCost(norms.map((n) => ({ quantity: Number(n.quantity), wac: Number(n.wac ?? 0) })));
      const allocation = allocatePreparedFood({ thawedQuantity: Number(ledger.thawedQuantity), preparedQuantity: Number(ledger.preparedQuantity), correctionQuantity: Number(ledger.correctionQuantity), soldQuantity: currentSold, frozenAtEndQuantity: Number(ledger.frozenAtEndQuantity), thawedCostPerPortion: Number(stock.frozenCostPerPortion), preparedCostPerPortion: preparedCost });
     for (const norm of norms) {
-      const quantity = -Number(norm.quantity) * Number(ledger.preparedQuantity);
+      const quantity = -preparedMaterialQuantityForProduction(
+        Number(norm.quantity),
+        Number(ledger.preparedQuantity),
+      );
       const unitCost = Number(norm.wac ?? 0);
       await tx.insert(zalogaGibiTable).values({
         artikelId: norm.ingredientId,

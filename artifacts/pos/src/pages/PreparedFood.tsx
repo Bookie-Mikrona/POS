@@ -27,6 +27,12 @@ import { Snowflake, Calendar as CalendarIcon, PackageOpen, CheckCircle2, Save, C
 import { DecimalInput, parseDecimal } from "@/components/ui/decimal-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WasteRecordsPanel } from "@/pages/prepared-food/WasteRecordsPanel";
+import {
+  formatPreparedFoodQuantity,
+  preparedFoodQuantityLargeStep,
+  preparedFoodQuantityStep,
+  preparedFoodUnitLabel,
+} from "@/lib/prepared-food-unit";
 
 function parseQuantity(value: string): number {
   const parsed = parseDecimal(value);
@@ -49,35 +55,51 @@ function TouchQuantityInput({
   onChange,
   allowNegative = false,
   maxQuantity,
+  unit = "porcija",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   allowNegative?: boolean;
   maxQuantity?: number;
+  unit?: string | null;
 }) {
   const amount = parseQuantity(value);
+  const step = preparedFoodQuantityStep(unit);
+  const largeStep = preparedFoodQuantityLargeStep(unit);
+  const stepLabel = formatPreparedFoodQuantity(step);
+  const largeStepLabel = formatPreparedFoodQuantity(largeStep);
+  const portionBased = step === 1;
+  const accessibleStepLabel = portionBased ? "eno" : stepLabel;
+  const accessibleLargeStepLabel = portionBased ? "deset" : largeStepLabel;
   const adjust = (delta: number) => {
-    const next = amount + delta;
+    const next = Math.round((amount + delta) * 10_000) / 10_000;
     onChange(String(Math.min(maxQuantity ?? Infinity, allowNegative ? next : Math.max(0, next))));
   };
   return (
     <div className="flex items-stretch justify-end gap-1">
       <div className="flex flex-col gap-0.5">
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za deset`} onClick={() => adjust(10)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
-          +10
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(largeStep)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
+          +{largeStepLabel}
         </Button>
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za deset`} onClick={() => adjust(-10)} disabled={!allowNegative && amount < (maxQuantity === undefined ? 10 : 1)}>
-          −10
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za ${accessibleLargeStepLabel}`} onClick={() => adjust(-largeStep)} disabled={!allowNegative && amount < (maxQuantity === undefined ? largeStep : step)}>
+          −{largeStepLabel}
         </Button>
       </div>
-      <DecimalInput value={value} readOnly aria-label={label} className="text-center font-semibold" style={{ height: 32, width: 44, fontSize: 12 }} />
+      <DecimalInput
+        value={value}
+        readOnly={portionBased}
+        aria-label={label}
+        onChange={portionBased ? undefined : event => onChange(event.target.value)}
+        className="text-center font-semibold"
+        style={{ height: 32, width: 44, fontSize: 12 }}
+      />
       <div className="flex flex-col gap-0.5">
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za eno`} onClick={() => adjust(1)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
-          +1
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: povečaj za ${accessibleStepLabel}`} onClick={() => adjust(step)} disabled={maxQuantity !== undefined && amount >= maxQuantity}>
+          +{stepLabel}
         </Button>
-        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 24, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za eno`} onClick={() => adjust(-1)} disabled={!allowNegative && amount < 1}>
-          −1
+        <Button type="button" variant="outline" size="sm" className="touch-manipulation p-0 font-semibold" style={{ height: 16, minHeight: 16, width: 30, fontSize: 8, lineHeight: 1, borderRadius: 2 }} aria-label={`${label}: zmanjšaj za ${accessibleStepLabel}`} onClick={() => adjust(-step)} disabled={!allowNegative && amount < step}>
+          −{stepLabel}
         </Button>
       </div>
     </div>
@@ -170,6 +192,9 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
       return {
         ...row,
         edit,
+        unitOfMeasure: preparedFoodUnitLabel(
+          (stock as typeof stock & { unitOfMeasure?: string })?.unitOfMeasure ?? row.unitOfMeasure,
+        ),
         totalQuantity,
         calculatedWaste,
         hasInvalidWaste: !isClosed && calculatedWaste < 0,
@@ -272,7 +297,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                 </button>
               </CardTitle>
               <CardDescription>
-                Korekcija +/− uskladi računalniško stanje z dejansko količino v posodi.
+                Količine vseh stolpcev so v enoti ob imenu artikla. Korekcija +/− uskladi računalniško stanje z dejansko količino v posodi.
               </CardDescription>
             </div>
           </div>
@@ -323,16 +348,19 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                   const availableToFreeze = Math.max(0, Math.round((row.totalQuantity - Number(row.soldQuantity)) * 10_000) / 10_000);
                   return (
                      <TableRow key={row.id} className={`mb-3 block overflow-hidden rounded-md ring-1 ring-border last:mb-0 lg:mb-0 lg:table-row lg:overflow-visible lg:rounded-none lg:ring-0 ${row.isClosed ? "bg-muted/30" : ""}`}>
-                      <TableCell className={`${mobileCell} break-words font-medium ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>{row.articleName || `Artikel #${row.artikelId}`}</TableCell>
+                       <TableCell className={`${mobileCell} break-words font-medium ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
+                         <span>{row.articleName || `Artikel #${row.artikelId}`}</span>
+                         <span className="ml-1 whitespace-nowrap text-xs font-normal text-muted-foreground">({preparedFoodUnitLabel(row.unitOfMeasure)})</span>
+                       </TableCell>
                        <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Odtajano</span>
                         {row.isReadOnly ? (
-                          <div className="text-right">{row.thawedQuantity}</div>
+                           <div className="text-right">{formatPreparedFoodQuantity(row.thawedQuantity)}</div>
                         ) : (
                           <div className="flex flex-col items-end gap-1">
-                             <TouchQuantityInput label="Odtajano" value={row.edit.thawed} maxQuantity={row.maxThaw} onChange={(value) => updateEdit(row.artikelId, "thawed", value)} />
+                              <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Odtajano" : `Odtajano (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.thawed} maxQuantity={row.maxThaw} onChange={(value) => updateEdit(row.artikelId, "thawed", value)} />
                              <div className={`text-right text-[10px] ${row.hasInvalidThaw ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
-                               Na voljo za odtajanje: {stock?.frozenQuantity ?? 0}
+                                Na voljo za odtajanje: {formatPreparedFoodQuantity(stock?.frozenQuantity ?? 0)} {preparedFoodUnitLabel(row.unitOfMeasure)}
                                {row.hasInvalidThaw && <span className="block">Vnesite od 0 do {row.maxThaw}.</span>}
                              </div>
                           </div>
@@ -341,33 +369,33 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                        <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Pripravljeno</span>
                         {row.isReadOnly ? (
-                          <div className="text-right">{row.preparedQuantity}</div>
+                           <div className="text-right">{formatPreparedFoodQuantity(row.preparedQuantity)}</div>
                         ) : (
-                           <TouchQuantityInput label="Pripravljeno" value={row.edit.prepared} onChange={(value) => updateEdit(row.artikelId, "prepared", value)} />
+                            <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Pripravljeno" : `Pripravljeno (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.prepared} onChange={(value) => updateEdit(row.artikelId, "prepared", value)} />
                         )}
                       </TableCell>
                         <TableCell className={`${mobileCell} ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                          <span className={mobileLabel}>Korekcija</span>
                          {row.isReadOnly ? (
-                           <div className="text-right">{row.correctionQuantity}</div>
+                            <div className="text-right">{formatPreparedFoodQuantity(row.correctionQuantity)}</div>
                          ) : (
-                            <TouchQuantityInput label="Korekcija" value={row.edit.correction} onChange={(value) => updateEdit(row.artikelId, "correction", value)} allowNegative />
+                             <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Korekcija" : `Korekcija (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.correction} onChange={(value) => updateEdit(row.artikelId, "correction", value)} allowNegative />
                          )}
                        </TableCell>
                        <TableCell className={`${mobileCell} font-bold lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
-                         <span className={mobileLabel}>Skupaj</span>{row.totalQuantity}
+                          <span className={mobileLabel}>Skupaj</span>{formatPreparedFoodQuantity(row.totalQuantity)}
                          {!row.isClosed && (
-                           <div className="text-xs font-normal text-muted-foreground">Po prodaji: {availableToFreeze}</div>
+                            <div className="text-xs font-normal text-muted-foreground">Po prodaji: {formatPreparedFoodQuantity(availableToFreeze)} {preparedFoodUnitLabel(row.unitOfMeasure)}</div>
                          )}
                        </TableCell>
-                       <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}><span className={mobileLabel}>Prodano</span>{row.soldQuantity}</TableCell>
+                        <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}><span className={mobileLabel}>Prodano</span>{formatPreparedFoodQuantity(row.soldQuantity)}</TableCell>
                        <TableCell className={`${mobileCell} flex-wrap ${isCompactReadOnlyTable ? "lg:p-1 lg:text-xs" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Zamrznjeno</span>
                         {row.isReadOnly ? (
-                          <div className="text-right">{row.frozenAtEndQuantity}</div>
+                           <div className="text-right">{formatPreparedFoodQuantity(row.frozenAtEndQuantity)}</div>
                         ) : (
                             <div className="flex shrink-0 items-center justify-end gap-1.5">
-                              <TouchQuantityInput label="Zamrznjeno" value={row.edit.frozen} onChange={(value) => updateEdit(row.artikelId, "frozen", value)} />
+                              <TouchQuantityInput label={row.unitOfMeasure === "porcija" ? "Zamrznjeno" : `Zamrznjeno (${row.unitOfMeasure})`} unit={row.unitOfMeasure} value={row.edit.frozen} onChange={(value) => updateEdit(row.artikelId, "frozen", value)} />
                               <Checkbox
                                 id={`freeze-all-${row.artikelId}`}
                                 aria-label={`Zamrzni vso razpoložljivo količino: ${row.articleName || `Artikel #${row.artikelId}`}`}
@@ -382,7 +410,7 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                       </TableCell>
                        <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1" : "lg:align-top lg:pt-2"} ${row.hasInvalidWaste ? "font-semibold text-destructive" : ""}`}>
                         <span className={mobileLabel}>Kalo</span>
-                        {row.isClosed ? row.wasteQuantity : <span className="text-muted-foreground">-</span>}
+                         {row.isClosed ? formatPreparedFoodQuantity(row.wasteQuantity) : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                        <TableCell className={`${mobileCell} lg:text-right ${isCompactReadOnlyTable ? "lg:p-1" : "lg:align-top lg:pt-2"}`}>
                         <span className={mobileLabel}>Stanje</span>
@@ -418,12 +446,12 @@ function DailyDateDetail({ date, year, onBack }: { date: string, year: number, o
                 <div className="mb-2 font-medium">{row.articleName || `Artikel #${row.artikelId}`}</div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
                   {[
-                    ["Pripravljeno", parseQuantity(row.edit.prepared)],
-                    ["Korekcija", parseQuantity(row.edit.correction)],
-                    ["Skupaj", row.totalQuantity],
-                    ["Prodano", row.soldQuantity],
-                    ["Zamrznjeno", parseQuantity(row.edit.frozen)],
-                    ["Kalo", row.calculatedWaste],
+                    ["Pripravljeno", formatPreparedFoodQuantity(row.edit.prepared)],
+                    ["Korekcija", formatPreparedFoodQuantity(row.edit.correction)],
+                    ["Skupaj", formatPreparedFoodQuantity(row.totalQuantity)],
+                    ["Prodano", formatPreparedFoodQuantity(row.soldQuantity)],
+                    ["Zamrznjeno", formatPreparedFoodQuantity(row.edit.frozen)],
+                    ["Kalo", formatPreparedFoodQuantity(row.calculatedWaste)],
                   ].map(([label, value]) => (
                     <div key={label} className={label === "Kalo" ? "font-medium text-destructive" : ""}>
                       <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -577,17 +605,20 @@ function StockRow({
 }) {
   return (
     <TableRow>
-      <TableCell className="font-medium">{articleName}</TableCell>
+      <TableCell className="font-medium">
+        {articleName}
+        <span className="ml-1 whitespace-nowrap text-xs font-normal text-muted-foreground">({preparedFoodUnitLabel(stock.unitOfMeasure)})</span>
+      </TableCell>
                        <TableCell className="align-top pt-2">
-        <DecimalInput value={edit.openingQuantity} onChange={(e) => onChange("openingQuantity", e.target.value)} className="w-full text-right" />
+        <DecimalInput step="0.0001" value={edit.openingQuantity} onChange={(e) => onChange("openingQuantity", e.target.value)} className="w-full text-right" />
       </TableCell>
       <TableCell>
         <div className="relative w-full">
-          <DecimalInput value={edit.openingCostPerPortion} onChange={(e) => onChange("openingCostPerPortion", e.target.value)} className="w-full pr-8 text-right" />
+          <DecimalInput step="0.0001" value={edit.openingCostPerPortion} onChange={(e) => onChange("openingCostPerPortion", e.target.value)} className="w-full pr-8 text-right" />
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
         </div>
       </TableCell>
-      <TableCell className="text-right font-medium">{stock.frozenQuantity}</TableCell>
+      <TableCell className="text-right font-medium">{formatPreparedFoodQuantity(stock.frozenQuantity)}</TableCell>
       <TableCell className="text-right text-muted-foreground">€{stock.frozenCostPerPortion.toFixed(4)}</TableCell>
     </TableRow>
   );
@@ -707,7 +738,7 @@ export default function PreparedFoodPage() {
                 <div className="min-w-0">
                   <CardTitle>Letna začetna zaloga</CardTitle>
                   <CardDescription>
-                    Vnesite začetno število porcij in strošek na porcijo. To je operativni podatek za vrednotenje kala, ne računovodska začetna knjižba.
+                    Vnesite začetno količino in strošek na enoto, prikazano ob posameznem artiklu. To je operativni podatek za vrednotenje kala, ne računovodska začetna knjižba.
                   </CardDescription>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
@@ -743,10 +774,10 @@ export default function PreparedFoodPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[260px]">Artikel</TableHead>
-                        <TableHead className="w-[160px] whitespace-nowrap text-right">Začetne porcije (01.01)</TableHead>
-                        <TableHead className="w-[160px] whitespace-nowrap text-right">Strošek na porcijo</TableHead>
-                        <TableHead className="w-[160px] whitespace-nowrap text-right">Trenutna kol. zamrznjeno</TableHead>
-                        <TableHead className="w-[160px] whitespace-nowrap text-right">Trenutna drseča cena</TableHead>
+                        <TableHead className="w-[160px] whitespace-nowrap text-right">Začetna količina (01.01)</TableHead>
+                        <TableHead className="w-[160px] whitespace-nowrap text-right">Strošek na enoto</TableHead>
+                        <TableHead className="w-[160px] whitespace-nowrap text-right">Trenutno zamrznjeno</TableHead>
+                        <TableHead className="w-[160px] whitespace-nowrap text-right">Drseča cena na enoto</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

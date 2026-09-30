@@ -1,8 +1,10 @@
 import type { Request, Response } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { artikliTable, db, kategorijeTable, normativiTable } from "@workspace/db";
+import { normalizePreparedFoodUnit, isPreparedFoodBulkUnit, preparedFoodUnitRoleError } from "../../lib/prepared-food-units";
+import { lockPosBusinessDay } from "../../lib/pos-z-helpers";
 
 export const artikliExcelUpload = multer({
   storage: multer.memoryStorage(),
@@ -47,6 +49,7 @@ const FULL_BASELINE_FIELDS = [
   "nabavniArtikel", "prodajniArtikel", "jeSkupinskiNabavniArtikel", "povratnaEmbalaza",
   "drobniInventar", "drobniInventarPredlogaKljuc", "vrstaEmbalaze", "depozitnaVrednost",
   "imeZaNabavo", "enotaMere", "toGo", "skupina", "gtin", "nabavnaDdvStopnja", "taxCategory",
+  "mealType",
 ] as const;
 const NUMERIC_BASELINE_FIELDS = new Set(["cena", "davek", "depozitnaVrednost", "nabavnaDdvStopnja"]);
 
@@ -194,6 +197,8 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
               } else if (field === "taxCategory") {
                 if (!taxCategories.includes(valText)) errors.push({ vrstica: rowNo, list: sheet.name, napaka: "Neveljavna taxCategory; obstoječe dovoljene vrednosti so food, hot_beverage, cold_beverage, alcoholic, food_drink, vat_super_reduced_5 in other." });
                 else parsed.taxCategory = valText;
+              } else if (field === "enotaMere") {
+                parsed.enotaMere = normalizePreparedFoodUnit(valText) ?? undefined;
               } else (parsed as any)[field] = valText;
             }
           }
@@ -301,7 +306,16 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
     ? await db.select().from(artikliTable).where(and(eq(artikliTable.enotaId, unitId)))
     : [];
   const existingById = new Map(existing.filter(a => currentIds.includes(a.id)).map(a => [a.id, a]));
-  const unitArticles = await db.select({ id: artikliTable.id, ime: artikliTable.ime, povratnaEmbalaza: artikliTable.povratnaEmbalaza, drobniInventar: artikliTable.drobniInventar })
+  const unitArticles = await db.select({
+    id: artikliTable.id,
+    ime: artikliTable.ime,
+    mealType: artikliTable.mealType,
+    enotaMere: artikliTable.enotaMere,
+    nabavniArtikel: artikliTable.nabavniArtikel,
+    prodajniArtikel: artikliTable.prodajniArtikel,
+    povratnaEmbalaza: artikliTable.povratnaEmbalaza,
+    drobniInventar: artikliTable.drobniInventar,
+  })
     .from(artikliTable).where(eq(artikliTable.enotaId, unitId));
   const names = new Map<string, typeof unitArticles>();
   for (const a of unitArticles) {
@@ -325,9 +339,18 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
             (expected === "inventory" && !old.drobniInventar)) {
           errors.push({ vrstica: a.row, list: a.sheet, napaka: "ID pripada drugemu tipu artikla; vrste artikla s tem uvozom ni mogoče spremeniti." });
         }
-        if (a.enotaMere !== undefined && a.enotaMere !== old.enotaMere) {
+        if (a.enotaMere !== undefined
+          && normalizePreparedFoodUnit(a.enotaMere) !== normalizePreparedFoodUnit(old.enotaMere)) {
           errors.push({ vrstica: a.row, list: a.sheet, napaka: "Merske enote obstoječega artikla ni mogoče spremeniti z Excelom; lahko vpliva na zaloge, normative in prejete račune." });
         }
+        const preparedUnitError = preparedFoodUnitRoleError({
+          mealType: old.mealType,
+          unit: a.enotaMere ?? old.enotaMere,
+          purchaseArticle: a.nabavniArtikel ?? old.nabavniArtikel,
+          salesArticle: a.prodajniArtikel ?? old.prodajniArtikel,
+          returnablePackaging: a.povratnaEmbalaza ?? old.povratnaEmbalaza,
+        });
+        if (preparedUnitError) errors.push({ vrstica: a.row, list: a.sheet, napaka: preparedUnitError });
         if (expected === "inventory") {
           const inventoryRoleValid =
             (a.drobniInventar ?? old.drobniInventar) === true &&
@@ -396,7 +419,15 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
     normKeys.add(key);
   }
 
-  const parentIds = [...new Set(resolvedNorms.flatMap(n => n.parent?.id ? [n.parent.id] : []))];
+  const bulkIngredientOwnerIds = articles.flatMap(row => {
+    const owner = row.id ? existingById.get(row.id) : undefined;
+    const finalSalesArticle = row.prodajniArtikel ?? owner?.prodajniArtikel;
+    return owner?.mealType === "composite" && finalSalesArticle === false ? [owner.id] : [];
+  });
+  const parentIds = [...new Set([
+    ...resolvedNorms.flatMap(n => n.parent?.id ? [n.parent.id] : []),
+    ...bulkIngredientOwnerIds,
+  ])];
   const savedNorms = parentIds.length
     ? await db.select({
       artikelId: normativiTable.artikelId,
@@ -414,6 +445,23 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
       errors.push({ vrstica: n.row, list: "Normativi", napaka: "Normativna sprememba ni dovoljena prek Excel uvoza; uporabite urejevalnik, ki preveri revizijo, cikle in alergen." });
     } else if (Number(existingNorm.kolicina) !== n.kolicina) {
       errors.push({ vrstica: n.row, list: "Normativi", napaka: "Sprememba količine normativa ni dovoljena prek Excel uvoza; uporabite urejevalnik, ki preveri revizijo, cikle in alergen." });
+    }
+  }
+  for (const ownerId of bulkIngredientOwnerIds) {
+    const owner = existingById.get(ownerId);
+    const hasBulkPreparedIngredient = savedNorms
+      .filter(norm => norm.artikelId === ownerId)
+      .some(norm => {
+        const ingredient = unitArticles.find(article => article.id === norm.vhodniArtikelId);
+        return ingredient?.mealType === "prepared" && isPreparedFoodBulkUnit(ingredient.enotaMere);
+      });
+    if (hasBulkPreparedIngredient && owner) {
+      const row = articles.find(article => article.id === ownerId)!;
+      errors.push({
+        vrstica: row.row,
+        list: row.sheet,
+        napaka: "Sestavljene jedi s pripravljenimi sestavinami v kg ali l morajo ostati prodajne.",
+      });
     }
   }
 
@@ -443,6 +491,9 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
 
   try {
     const outcome = await db.transaction(async tx => {
+      await lockPosBusinessDay(tx, unitId);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(376, ${unitId}::integer)`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(1315924557::integer, ${unitId}::integer)`);
       let imported = 0;
       let updated = 0;
       const skipped = skipRows.size;
@@ -459,7 +510,7 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
         if (a.nabavniArtikel !== undefined) patch.nabavniArtikel = a.nabavniArtikel;
         if (a.prodajniArtikel !== undefined) patch.prodajniArtikel = a.prodajniArtikel;
         if (a.imeZaNabavo !== undefined) patch.imeZaNabavo = a.imeZaNabavo;
-        if (a.enotaMere !== undefined) patch.enotaMere = a.enotaMere;
+        if (a.enotaMere !== undefined) patch.enotaMere = normalizePreparedFoodUnit(a.enotaMere);
         if (a.toGo !== undefined) patch.toGo = a.toGo;
         if (a.skupina !== undefined) patch.skupina = a.skupina;
         if (a.gtin !== undefined) patch.gtin = a.gtin;
@@ -493,6 +544,27 @@ export async function uvoziArtikliExcel(req: Request, res: Response): Promise<vo
             .where(and(eq(artikliTable.id, a.id), eq(artikliTable.enotaId, unitId))).for("update");
           if (!lockedArticle || !baselineMatches(lockedArticle, baseline)) {
             throw new Error(`Artikel ID ${a.id} je bil spremenjen po izvozu; najprej izvozite svež katalog.`);
+          }
+          const finalSalesArticle = a.prodajniArtikel ?? lockedArticle.prodajniArtikel;
+          if (lockedArticle.mealType === "composite" && !finalSalesArticle) {
+            const ownerNorms = await tx.select({
+              ingredientId: normativiTable.vhodniArtikelId,
+            }).from(normativiTable).where(eq(normativiTable.artikelId, lockedArticle.id));
+            const ingredientIds = [...new Set(ownerNorms.map(norm => norm.ingredientId))];
+            const ingredients = ingredientIds.length
+              ? await tx.select({
+                id: artikliTable.id,
+                mealType: artikliTable.mealType,
+                enotaMere: artikliTable.enotaMere,
+              }).from(artikliTable).where(and(
+                inArray(artikliTable.id, ingredientIds),
+                eq(artikliTable.enotaId, unitId),
+              )).for("update")
+              : [];
+            if (ingredients.some(ingredient =>
+              ingredient.mealType === "prepared" && isPreparedFoodBulkUnit(ingredient.enotaMere))) {
+              throw new Error(`Sestavljena jed ID ${a.id} s pripravljenimi sestavinami v kg ali l mora ostati prodajna.`);
+            }
           }
           const [updatedRow] = await tx.update(artikliTable).set(patch as any)
             .where(and(eq(artikliTable.id, a.id), eq(artikliTable.enotaId, unitId))).returning({ id: artikliTable.id });

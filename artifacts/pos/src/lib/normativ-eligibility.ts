@@ -4,6 +4,7 @@ export type NormativArticleCandidate = {
   prodajniArtikel?: boolean | null;
   mealType?: string | null;
   taxCategory?: string | null;
+  enotaMere?: string | null;
   hasNormativ?: boolean | null;
 };
 
@@ -18,6 +19,8 @@ export function canEditNormativ(article: NormativArticleCandidate): boolean {
 }
 
 export function canOfferSmartNormativ(article: NormativArticleCandidate): boolean {
+  const unit = article.enotaMere?.trim().toLocaleLowerCase("sl");
+  if (article.mealType === "prepared" && ["kg", "kgm", "l", "ltr"].includes(unit ?? "")) return false;
   return article.prodajniArtikel === true
     || (article.prodajniArtikel === false
       && article.nabavniArtikel === false

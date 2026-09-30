@@ -13,7 +13,8 @@ import {
 import { broadcastToUnit } from "../../lib/pos-sse";
 import {
   APPROVED_RECIPE_DOMAINS, compareNormative, filterResearchSources, loadTenantNormative, NormativeComparisonRequestSchema,
-  NormativeComparisonResponseSchema, ResearchResponseSchema, canonicalDecimal, getCachedNormativeComparison, signNormativeProposal,
+  NormativeComparisonResponseSchema, PREPARED_BULK_COMPARISON_MESSAGE, ResearchResponseSchema, canonicalDecimal,
+  getCachedNormativeComparison, isPreparedFoodBulkNormative, signNormativeProposal,
 } from "../../lib/normative-comparison";
 
 const router: IRouter = Router();
@@ -39,6 +40,7 @@ export async function researchNormative(
   timeoutMs = 30_000,
 ) {
   if (!local) throw new Error("NOT_FOUND");
+  if (isPreparedFoodBulkNormative(local)) throw new Error(PREPARED_BULK_COMPARISON_MESSAGE);
   const names = local.rows.map(row => row.ingredientName);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -1589,6 +1591,10 @@ router.post("/ai/normativ-primerjava", async (req: Request, res: Response): Prom
   if (!actorNatakarId) { res.status(401).json({ napaka: "Za AI agenta je potrebna veljavna POS actor seja." }); return; }
   const local = await loadTenantNormative(body.data.artikelId, enotaId);
   if (!local) { res.status(404).json({ napaka: "Artikel ali normativ v izbrani enoti ne obstaja." }); return; }
+  if (isPreparedFoodBulkNormative(local)) {
+    res.status(422).json({ napaka: PREPARED_BULK_COMPARISON_MESSAGE });
+    return;
+  }
   try {
     const { comparison, cacheHit, coalesced } = await getCachedNormativeComparison(
       local,
@@ -1762,6 +1768,10 @@ router.post("/ai/agent", async (req: Request, res: Response): Promise<void> => {
   if (normativeCommand?.action === "compare_normative") {
     const local = await loadTenantNormative(normativeCommand.artikelId, enotaId);
     if (!local) { res.status(404).json({ napaka: "Normativ v izbrani enoti ne obstaja." }); return; }
+    if (isPreparedFoodBulkNormative(local)) {
+      res.json({ odgovor: PREPARED_BULK_COMPARISON_MESSAGE, action: "explain", entity: {} });
+      return;
+    }
     try {
       const { comparison, cacheHit, coalesced } = await getCachedNormativeComparison(
         local,

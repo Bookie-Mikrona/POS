@@ -85,7 +85,8 @@ describe("normativ modifikatorja", () => {
     expect(within(select).queryByRole("option", { name: "Sestavljena jed" })).not.toBeInTheDocument();
     fireEvent.change(select, { target: { value: "13" } });
     const quantity = screen.getByRole("textbox", { name: "Količina sestavnice 1" });
-    expect(quantity.parentElement).toHaveClass("grid", "grid-cols-[minmax(0,1fr)_6rem_2.25rem]");
+    expect(quantity.parentElement).toHaveClass("flex", "min-w-0", "items-center");
+    expect(screen.getByText("porcija")).toBeInTheDocument();
     fireEvent.change(quantity, { target: { value: "1" } });
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Dodaj modifikator" }));
 

@@ -91,3 +91,10 @@ export function preparedMaterialUnitCost(
     return total + ingredient.quantity * ingredient.wac;
   }, 0);
 }
+
+export function preparedMaterialQuantityForProduction(
+  quantityPerPreparedUnit: number,
+  preparedQuantity: number,
+): number {
+  return quantityPerPreparedUnit * preparedQuantity;
+}

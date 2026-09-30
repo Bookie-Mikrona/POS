@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import supertest from "supertest";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   artikliTable,
   companiesTable,
@@ -11,12 +11,16 @@ import {
   modifikatorjiTable,
   modSkupineTable,
   narocilaTable,
+  normativiTable,
   pool,
   postavkeTable,
   preparedFoodDailyLedgersTable,
   preparedFoodStocksTable,
+  zalogaGibiTable,
+  zalogeTable,
 } from "@workspace/db";
 import preparedFoodRouter from "./prepared-food";
+import { preparedMaterialQuantityForProduction } from "../../lib/prepared-food-costing";
 
 const RUN_ID = Math.random().toString(36).slice(2, 8).toUpperCase();
 const YEAR = 2098;
@@ -52,7 +56,7 @@ beforeAll(async () => {
   enotaId = enota!.id;
 
   const articles = await db.insert(artikliTable).values([
-    { enotaId, ime: `Prva jed ${RUN_ID}`, cena: "8.00", mealType: "prepared" },
+    { enotaId, ime: `Prva jed ${RUN_ID}`, cena: "8.00", mealType: "prepared", enotaMere: "KGM", prodajniArtikel: false },
     { enotaId, ime: `Druga jed ${RUN_ID}`, cena: "9.00", mealType: "prepared" },
     { enotaId, ime: `Navaden artikel ${RUN_ID}`, cena: "3.00", mealType: "ala_carte" },
   ]).returning({ id: artikliTable.id, mealType: artikliTable.mealType });
@@ -93,6 +97,7 @@ describe("PUT /prepared-food/stocks/:year", () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(2);
     expect(response.body.map((row: { openingQuantity: number }) => row.openingQuantity)).toEqual([5, 7]);
+    expect(response.body[0].unitOfMeasure).toBe("kg");
   });
 
   it("ob eni neveljavni vrstici ne shrani nobene spremembe", async () => {
@@ -182,17 +187,22 @@ describe("dnevna prodaja pripravljenih prilog", () => {
       await db.insert(postavkeTable).values([
         {
           narociloId: orderId, parentPostavkaId: parent!.id, modifikatorId: mods[0]!.id,
-          ime: "Pražen", cenaKos: "0", skupaj: "0", davek: "9.5",
-          availabilityRequirements: [{ articleId: firstArticleId, quantity: 1, mealType: "prepared" }],
+          ime: "Pražen", kolicina: 2, cenaKos: "0", skupaj: "0", davek: "9.5",
+          availabilityRequirements: [{ articleId: firstArticleId, quantity: 0.35, mealType: "prepared" }],
         },
         {
           narociloId: orderId, parentPostavkaId: parent!.id, modifikatorId: mods[1]!.id,
           ime: "Riž", cenaKos: "0", skupaj: "0", davek: "9.5",
         },
+        {
+          narociloId: orderId, parentPostavkaId: parent!.id, modifikatorId: mods[0]!.id,
+          ime: "Razveljavljena priloga", kolicina: -1, cenaKos: "0", skupaj: "0", davek: "9.5",
+          availabilityRequirements: [{ articleId: firstArticleId, quantity: 0.35, mealType: "prepared" }],
+        },
       ]);
       const response = await supertest(buildApp()).get(`/prepared-food/daily/${date}`);
       expect(response.status).toBe(200);
-      expect(response.body.find((row: { artikelId: number }) => row.artikelId === firstArticleId).soldQuantity).toBe(1);
+      expect(response.body.find((row: { artikelId: number }) => row.artikelId === firstArticleId).soldQuantity).toBeCloseTo(0.7);
       expect(response.body.find((row: { artikelId: number }) => row.artikelId === secondArticleId).soldQuantity).toBe(1);
     } finally {
       if (orderId) {
@@ -205,6 +215,73 @@ describe("dnevna prodaja pripravljenih prilog", () => {
       ));
       await db.delete(modifikatorjiTable).where(inArray(modifikatorjiTable.id, mods.map(mod => mod.id)));
       await db.delete(modSkupineTable).where(eq(modSkupineTable.id, group!.id));
+    }
+  });
+
+  it("porabi normativ na kilogram priprave in evidentira decimalno prodajo prek sestavljene jedi", async () => {
+    const date = "2098-07-01";
+    const [bulk] = await db.insert(artikliTable).values({
+      enotaId, ime: `Golaž kg ${RUN_ID}`, cena: "0", davek: "0", enotaMere: "KGM",
+      nabavniArtikel: false, prodajniArtikel: false, mealType: "prepared",
+    }).returning({ id: artikliTable.id });
+    const [dish] = await db.insert(artikliTable).values({
+      enotaId, ime: `Porcija golaža ${RUN_ID}`, cena: "8", davek: "9.5", mealType: "composite",
+    }).returning({ id: artikliTable.id });
+    const [ingredient] = await db.insert(artikliTable).values({
+      enotaId, ime: `Meso ${RUN_ID}`, cena: "1", davek: "9.5", enotaMere: "kos",
+    }).returning({ id: artikliTable.id });
+    const [order] = await db.insert(narocilaTable).values({
+      enotaId, status: "zakljuceno", ustvarjeno: new Date(`${date}T12:00:00Z`),
+    }).returning({ id: narocilaTable.id });
+    try {
+      await db.insert(normativiTable).values([
+        { artikelId: bulk!.id, vhodniArtikelId: ingredient!.id, kolicina: "3" },
+        { artikelId: dish!.id, vhodniArtikelId: bulk!.id, kolicina: "0.35" },
+      ]);
+      await db.insert(preparedFoodDailyLedgersTable).values({
+        enotaId, businessDate: date, artikelId: bulk!.id, preparedQuantity: "10",
+      });
+      await db.insert(postavkeTable).values({
+        narociloId: order!.id, artikelId: dish!.id, ime: "Porcija golaža",
+        mealType: "composite", kolicina: 2, normativFaktor: "0.5",
+        cenaKos: "8", skupaj: "16", davek: "9.5",
+      });
+
+      const daily = await supertest(buildApp()).get(`/prepared-food/daily/${date}`).expect(200);
+      expect(daily.body.find((row: { artikelId: number }) => row.artikelId === bulk!.id).soldQuantity).toBeCloseTo(0.35);
+      expect(daily.body.find((row: { artikelId: number }) => row.artikelId === bulk!.id).unitOfMeasure).toBe("kg");
+      const close = await supertest(buildApp())
+        .post(`/prepared-food/daily/${date}/${bulk!.id}/close`).send({});
+      expect(close.status, JSON.stringify(close.body)).toBe(200);
+      const consumption = await db.select({ quantity: zalogaGibiTable.kolicina }).from(zalogaGibiTable)
+        .where(and(
+          eq(zalogaGibiTable.artikelId, ingredient!.id),
+          eq(zalogaGibiTable.sourceSnapshot, "prepared_food_daily_close"),
+        ));
+      expect(consumption.map(row => Number(row.quantity))).toContain(-30);
+      expect(preparedMaterialQuantityForProduction(3, 10)).toBe(30);
+    } finally {
+      await db.delete(postavkeTable).where(eq(postavkeTable.narociloId, order!.id));
+      await db.delete(narocilaTable).where(eq(narocilaTable.id, order!.id));
+      await db.delete(preparedFoodDailyLedgersTable).where(and(
+        eq(preparedFoodDailyLedgersTable.enotaId, enotaId),
+        eq(preparedFoodDailyLedgersTable.businessDate, date),
+      ));
+      await db.delete(preparedFoodStocksTable).where(and(
+        eq(preparedFoodStocksTable.enotaId, enotaId),
+        eq(preparedFoodStocksTable.artikelId, bulk!.id),
+      ));
+      await db.transaction(async tx => {
+        await tx.execute(sql`SET LOCAL app.allow_stock_movement_cleanup = 'on'`);
+        await tx.delete(zalogaGibiTable).where(eq(zalogaGibiTable.artikelId, ingredient!.id));
+        await tx.delete(zalogeTable).where(eq(zalogeTable.artikelId, ingredient!.id));
+        await tx.delete(preparedFoodStocksTable).where(and(
+          eq(preparedFoodStocksTable.enotaId, enotaId),
+          eq(preparedFoodStocksTable.artikelId, bulk!.id),
+        ));
+        await tx.delete(normativiTable).where(inArray(normativiTable.artikelId, [bulk!.id, dish!.id]));
+        await tx.delete(artikliTable).where(inArray(artikliTable.id, [bulk!.id, dish!.id, ingredient!.id]));
+      });
     }
   });
 });
