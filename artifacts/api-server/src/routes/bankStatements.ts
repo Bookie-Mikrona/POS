@@ -18,6 +18,7 @@ import {
   bankStatementLinesTable,
 } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/requireAuth";
+import { GetBankStatementDetailParams, GetBankStatementDetailResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -902,6 +903,63 @@ router.get(
       .groupBy(bankStatementsTable.id, accountsTable.id)
       .orderBy(desc(bankStatementsTable.statementDate), desc(bankStatementsTable.createdAt));
     res.json({ statements });
+  },
+);
+
+router.get(
+  "/companies/:companyId/bank-statements/detail/:statementId",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = GetBankStatementDetailParams.safeParse(req.params);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Neveljaven ID bančnega izpiska" });
+      return;
+    }
+    const { companyId, statementId } = parsed.data;
+    const access = await resolveAccess((req as AuthenticatedRequest).clerkUserId, companyId, res);
+    if (!access) return;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(statementId)) {
+      res.status(400).json({ error: "Neveljaven ID bančnega izpiska" });
+      return;
+    }
+    const [statement] = await db.select({
+      id: bankStatementsTable.id,
+      bankAccountCode: accountsTable.code,
+      bankAccountName: accountsTable.name,
+      statementNumber: bankStatementsTable.statementNumber,
+      statementDate: bankStatementsTable.statementDate,
+      periodFrom: bankStatementsTable.periodFrom,
+      periodTo: bankStatementsTable.periodTo,
+      sourceIban: bankStatementsTable.sourceIban,
+      openingBalance: bankStatementsTable.openingBalance,
+      closingBalance: bankStatementsTable.closingBalance,
+      currency: bankStatementsTable.currency,
+      sourceFilename: bankStatementsTable.sourceFilename,
+    }).from(bankStatementsTable)
+      .innerJoin(accountsTable, and(
+        eq(accountsTable.id, bankStatementsTable.bankAccountId),
+        eq(accountsTable.companyId, companyId),
+      ))
+      .where(and(eq(bankStatementsTable.id, statementId), eq(bankStatementsTable.companyId, companyId)))
+      .limit(1);
+    if (!statement) {
+      res.status(404).json({ error: "Bančni izpisek ni bil najden" });
+      return;
+    }
+    const lines = await db.select({
+      id: bankStatementLinesTable.id,
+      lineNumber: bankStatementLinesTable.lineNumber,
+      bookingDate: bankStatementLinesTable.bookingDate,
+      amount: bankStatementLinesTable.amount,
+      currency: bankStatementLinesTable.currency,
+      reference: bankStatementLinesTable.reference,
+      counterpartyName: bankStatementLinesTable.counterpartyName,
+      counterpartyIban: bankStatementLinesTable.counterpartyIban,
+      description: bankStatementLinesTable.description,
+    }).from(bankStatementLinesTable)
+      .where(eq(bankStatementLinesTable.statementId, statementId))
+      .orderBy(bankStatementLinesTable.lineNumber, bankStatementLinesTable.id);
+    res.json(GetBankStatementDetailResponse.parse({ ...statement, lines }));
   },
 );
 

@@ -36,6 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BankStatementDetail } from "@/components/bank-statement-detail";
 
 // ─── Types mirrored from backend ─────────────────────────────────────────────
 
@@ -361,6 +362,7 @@ export default function BancniIzpis() {
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
   const [parsedStatement, setParsedStatement] = useState<ParsedStatement | null>(null);
   const [registeredStatements, setRegisteredStatements] = useState<RegisteredStatement[]>([]);
+  const [selectedStatement, setSelectedStatement] = useState<{ companyId: string; id: string } | null>(null);
   const loadRegisteredStatements = useCallback(async () => {
     if (!activeCompany) return;
     const response = await fetch(`/api/companies/${activeCompany.id}/bank-statements`);
@@ -754,8 +756,25 @@ export default function BancniIzpis() {
               </thead>
               <tbody>
                 {registeredStatements.map(statement => (
-                  <tr key={statement.id} className="border-t">
-                    <td className="p-3 font-medium">{statement.statementNumber || "—"}</td>
+                  <tr
+                    key={statement.id}
+                    className="border-t cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Odpri bančni izpisek ${statement.statementNumber || statement.statementDate}`}
+                    data-testid={`button-open-statement-${statement.id}`}
+                    onClick={() => { if (activeCompany) setSelectedStatement({ companyId: activeCompany.id, id: statement.id }); }}
+                    onKeyDown={event => {
+                      if ((event.key === "Enter" || event.key === " ") && activeCompany) {
+                        event.preventDefault();
+                        setSelectedStatement({ companyId: activeCompany.id, id: statement.id });
+                      }
+                    }}
+                  >
+                    <td className="p-3 font-medium">
+                      {statement.statementNumber || "—"}
+                      <span className="block text-xs font-normal text-primary">Odpri podrobnosti</span>
+                    </td>
                     <td className="p-3">
                       <div>{statement.statementDate}</div>
                       {statement.periodFrom && statement.periodTo && (
@@ -778,6 +797,13 @@ export default function BancniIzpis() {
               </tbody>
             </table>
           </div>
+          {activeCompany && (
+            <BankStatementDetail
+              companyId={activeCompany.id}
+              statementId={selectedStatement?.companyId === activeCompany.id ? selectedStatement.id : null}
+              onClose={() => setSelectedStatement(null)}
+            />
+          )}
         </div>
       )}
 

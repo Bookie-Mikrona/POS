@@ -41,6 +41,7 @@ import type {
   BadRequestResponse,
   BalanceSheetResponse,
   BankBalanceResponse,
+  BankStatementDetail,
   BlagajnaPogled,
   BlagajnaPosodobitev,
   BlagajnaVnos,
@@ -24976,6 +24977,88 @@ export const useVoidPayment = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getVoidPaymentMutationOptions(options));
     }
+
+export const getGetBankStatementDetailUrl = (companyId: string,
+    statementId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/bank-statements/detail/${statementId}`
+}
+
+/**
+ * @summary View one registered bank statement and its transaction lines
+ */
+export const getBankStatementDetail = async (companyId: string,
+    statementId: string, options?: RequestInit): Promise<BankStatementDetail> => {
+
+  return customFetch<BankStatementDetail>(getGetBankStatementDetailUrl(companyId,statementId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankStatementDetailQueryKey = (companyId: string,
+    statementId: string,) => {
+    return [
+    `/api/companies/${companyId}/bank-statements/detail/${statementId}`
+    ] as const;
+    }
+
+
+export const getGetBankStatementDetailQueryOptions = <TData = Awaited<ReturnType<typeof getBankStatementDetail>>, TError = ErrorType<ErrorResponse>>(companyId: string,
+    statementId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankStatementDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankStatementDetailQueryKey(companyId,statementId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankStatementDetail>>> = ({ signal }) => getBankStatementDetail(companyId,statementId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined && statementId !== null && statementId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankStatementDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankStatementDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getBankStatementDetail>>>
+export type GetBankStatementDetailQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary View one registered bank statement and its transaction lines
+ */
+
+export function useGetBankStatementDetail<TData = Awaited<ReturnType<typeof getBankStatementDetail>>, TError = ErrorType<ErrorResponse>>(
+ companyId: string,
+    statementId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankStatementDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankStatementDetailQueryOptions(companyId,statementId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getParseBankStatementUrl = (companyId: string,) => {
 

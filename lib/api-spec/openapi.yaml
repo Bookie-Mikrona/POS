@@ -8066,6 +8066,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /companies/{companyId}/bank-statements/detail/{statementId}:
+    get:
+      operationId: getBankStatementDetail
+      tags: [payments]
+      summary: View one registered bank statement and its transaction lines
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: companyId, in: path, required: true, schema: { type: string } }
+        - { name: statementId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Statement with transaction lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankStatementDetail"
+        "400":
+          description: Invalid statement ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Statement not found in this company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /companies/{companyId}/bank-statements/parse:
     post:
       operationId: parseBankStatement
@@ -22068,6 +22103,39 @@ components:
         - date
         - amount
         - currency
+    BankStatementDetail:
+      type: object
+      required: [id, bankAccountCode, bankAccountName, statementDate, currency, sourceFilename, lines]
+      properties:
+        id: { type: string }
+        bankAccountCode: { type: string }
+        bankAccountName: { type: string }
+        statementNumber: { type: [string, "null"] }
+        statementDate: { type: string }
+        periodFrom: { type: [string, "null"] }
+        periodTo: { type: [string, "null"] }
+        sourceIban: { type: [string, "null"] }
+        openingBalance: { type: [string, "null"] }
+        closingBalance: { type: [string, "null"] }
+        currency: { type: string }
+        sourceFilename: { type: string }
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankStatementDetailLine"
+    BankStatementDetailLine:
+      type: object
+      required: [id, lineNumber, bookingDate, amount, currency]
+      properties:
+        id: { type: string }
+        lineNumber: { type: integer }
+        bookingDate: { type: string }
+        amount: { type: string }
+        currency: { type: string }
+        reference: { type: [string, "null"] }
+        counterpartyName: { type: [string, "null"] }
+        counterpartyIban: { type: [string, "null"] }
+        description: { type: [string, "null"] }
     ParseBankStatementResponse:
       type: object
       properties:

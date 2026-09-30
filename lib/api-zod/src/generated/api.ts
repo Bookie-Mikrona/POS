@@ -12955,6 +12955,41 @@ export const VoidPaymentResponse = zod.object({
 
 
 /**
+ * @summary View one registered bank statement and its transaction lines
+ */
+export const GetBankStatementDetailParams = zod.object({
+  "companyId": zod.coerce.string(),
+  "statementId": zod.coerce.string()
+})
+
+export const GetBankStatementDetailResponse = zod.object({
+  "id": zod.string(),
+  "bankAccountCode": zod.string(),
+  "bankAccountName": zod.string(),
+  "statementNumber": zod.string().nullish(),
+  "statementDate": zod.string(),
+  "periodFrom": zod.string().nullish(),
+  "periodTo": zod.string().nullish(),
+  "sourceIban": zod.string().nullish(),
+  "openingBalance": zod.string().nullish(),
+  "closingBalance": zod.string().nullish(),
+  "currency": zod.string(),
+  "sourceFilename": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNumber": zod.number(),
+  "bookingDate": zod.string(),
+  "amount": zod.string(),
+  "currency": zod.string(),
+  "reference": zod.string().nullish(),
+  "counterpartyName": zod.string().nullish(),
+  "counterpartyIban": zod.string().nullish(),
+  "description": zod.string().nullish()
+}))
+})
+
+
+/**
  * Accepts multipart/form-data with a single `file` field (CAMT.053 XML, CSV or MT940/STA). Returns parsed transactions.
  * @summary Parse an uploaded CAMT.053 XML, CSV or MT940 bank statement file
  */

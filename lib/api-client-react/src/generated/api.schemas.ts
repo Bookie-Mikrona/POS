@@ -10211,6 +10211,44 @@ export interface BankTransaction {
   currency: string;
 }
 
+export interface BankStatementDetailLine {
+  id: string;
+  lineNumber: number;
+  bookingDate: string;
+  amount: string;
+  currency: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  counterpartyName?: string | null;
+  /** @nullable */
+  counterpartyIban?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface BankStatementDetail {
+  id: string;
+  bankAccountCode: string;
+  bankAccountName: string;
+  /** @nullable */
+  statementNumber?: string | null;
+  statementDate: string;
+  /** @nullable */
+  periodFrom?: string | null;
+  /** @nullable */
+  periodTo?: string | null;
+  /** @nullable */
+  sourceIban?: string | null;
+  /** @nullable */
+  openingBalance?: string | null;
+  /** @nullable */
+  closingBalance?: string | null;
+  currency: string;
+  sourceFilename: string;
+  lines: BankStatementDetailLine[];
+}
+
 export interface ParseBankStatementResponse {
   transactions: BankTransaction[];
   count: number;
