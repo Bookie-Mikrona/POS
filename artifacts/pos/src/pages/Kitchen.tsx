@@ -16,6 +16,12 @@ import { formatPosCas } from "@/lib/posCas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGatewayOfflineContext } from "@/lib/gatewayOfflineStore";
 import { primerjajSlovensko } from "@/lib/slovensko-razvrscanje";
+import {
+  KitchenAvailabilityBadge,
+  KitchenModifierAvailabilityBadge,
+  PreparedAvailabilityToolbar,
+  useKitchenPreparedAvailability,
+} from "@/pages/kitchen/PreparedAvailability";
 
 // Helper functions (same as legacy)
 function minutesSince(iso: string): number {
@@ -251,6 +257,11 @@ function KdsKitchenView({
   const subbedPostajaIds = stationTypes?.length
     ? postaje.filter((postaja) => stationTypes.includes(postaja.tip as KdsStationType)).map((postaja) => postaja.id)
     : activeDisplay?.postajaIds || [];
+  const showPreparedAvailability = !barOnly && subbedPostajaIds.some(id => {
+    const tip = postaje.find(postaja => postaja.id === id)?.tip;
+    return tip === "kitchen" || tip === "pizza";
+  });
+  const preparedAvailability = useKitchenPreparedAvailability(showPreparedAvailability);
 
   const postajaQueries = useKdsNalogiVecPostaj(subbedPostajaIds);
   const loadingNalogi = postajaQueries.some(q => q.isLoading);
@@ -487,6 +498,14 @@ function KdsKitchenView({
               </SelectContent>
             </Select>
           )}
+          {showPreparedAvailability && (
+            <PreparedAvailabilityToolbar
+              state={preparedAvailability.state}
+              isFetching={preparedAvailability.isFetching}
+              onRetry={() => { void preparedAvailability.refetch(); }}
+              canRetry={preparedAvailability.canRetry}
+            />
+          )}
           <div className="flex items-center gap-2 text-gray-400 text-sm hidden sm:flex">
             <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
             Osveži vsakih 15s
@@ -659,6 +678,9 @@ function KdsKitchenView({
                                    <span className={`text-sm font-semibold leading-tight ${held ? "text-slate-600" : done ? "text-emerald-900" : "text-gray-900"}`}>{p.ime}</span>
                                    <span className={`font-bold text-xs shrink-0 ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-gray-500"}`}>×{p.kolicina}</span>
                                 </div>
+                                 {showPreparedAvailability && (
+                                   <KitchenAvailabilityBadge line={p} state={preparedAvailability.state} />
+                                 )}
                                   {statusLabel && (
                                     <Badge variant="outline" className={`mt-1 border-0 px-1.5 py-0.5 text-[9px] font-bold uppercase ${
                                       barOnly && nalog.stanje === "aktivno"
@@ -679,9 +701,17 @@ function KdsKitchenView({
                                 {p.opomba && (
                                    <span className={`text-xs italic leading-snug block mt-0.5 ${held ? "text-slate-500" : done ? "text-emerald-800" : "text-gray-600"}`}>↳ {p.opomba}</span>
                                 )}
-                                {otroci.map(d => (
-                                   <div key={d.id} className={`text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""} ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-orange-700"}`}>{d.depth === 1 ? "↳ " : "+ "}{d.ime}</div>
-                                ))}
+                                {otroci.map(d => {
+                                  const childLine = narocilo.postavke?.find(line => line.id === d.id);
+                                  return (
+                                    <div key={d.id} className={`text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""} ${held ? "text-slate-500" : done ? "text-emerald-700" : "text-orange-700"}`}>
+                                      {d.depth === 1 ? "↳ " : "+ "}{d.ime}
+                                      {showPreparedAvailability && childLine?.modifikatorId != null && (
+                                        <KitchenModifierAvailabilityBadge modifierId={childLine.modifikatorId} state={preparedAvailability.state} />
+                                      )}
+                                    </div>
+                                  );
+                                })}
                                  {itemNalogi.length > 1 && (
                                   <div className="mt-1">
                                     <Badge variant="outline" className={`text-[9px] uppercase font-bold border-0 bg-black/5 ${done ? "text-emerald-700" : "text-gray-600"}`}>
@@ -872,6 +902,7 @@ function NalogZgodovinaDialog({
 
 function LegacyKitchenView() {
   const gatewayOffline = useGatewayOfflineContext();
+  const preparedAvailability = useKitchenPreparedAvailability(true);
   const { data: narocila } = useListAktivnaNarocila();
   const { data: kategorije } = useListKategorije();
   const queryClient = useQueryClient();
@@ -893,6 +924,14 @@ function LegacyKitchenView() {
         <p className="mt-2 text-sm text-gray-300">
           Gateway jobs: {jobs.length}. Cloud naročila so v tem načinu samo za branje in niso vir KDS podatkov.
         </p>
+        <div className="mt-4">
+          <PreparedAvailabilityToolbar
+            state={preparedAvailability.state}
+            isFetching={preparedAvailability.isFetching}
+            onRetry={() => { void preparedAvailability.refetch(); }}
+            canRetry={preparedAvailability.canRetry}
+          />
+        </div>
       </div>
     );
   }
@@ -952,6 +991,14 @@ function LegacyKitchenView() {
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
           Osveži vsakih 15s
+        </div>
+        <div>
+          <PreparedAvailabilityToolbar
+            state={preparedAvailability.state}
+            isFetching={preparedAvailability.isFetching}
+            onRetry={() => { void preparedAvailability.refetch(); }}
+            canRetry={preparedAvailability.canRetry}
+          />
         </div>
       </div>
 
@@ -1020,12 +1067,21 @@ function LegacyKitchenView() {
                                 <span className={`text-sm font-semibold leading-tight ${done ? "line-through text-gray-400" : "text-gray-800"}`}>{p.ime}</span>
                                 <span className="text-gray-500 font-bold text-xs shrink-0">×{p.kolicina}</span>
                               </div>
+                              <KitchenAvailabilityBadge line={p} state={preparedAvailability.state} />
                               {p.opomba && (
                                 <span className="text-gray-500 text-xs italic leading-snug block mt-0.5">↳ {p.opomba}</span>
                               )}
-                              {getKdsModifierRows(p.id, narocilo.childMap).map(d => (
-                                <div key={d.id} className={`text-orange-700 text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""}`}>{d.depth === 1 ? "↳ " : "+ "}{d.ime}</div>
-                              ))}
+                              {getKdsModifierRows(p.id, narocilo.childMap).map(d => {
+                                const childLine = narocilo.postavke?.find(line => line.id === d.id);
+                                return (
+                                  <div key={d.id} className={`text-orange-700 text-xs font-medium leading-tight mt-0.5 ${d.depth === 1 ? "pl-4" : ""}`}>
+                                    {d.depth === 1 ? "↳ " : "+ "}{d.ime}
+                                    {childLine?.modifikatorId != null && (
+                                      <KitchenModifierAvailabilityBadge modifierId={childLine.modifikatorId} state={preparedAvailability.state} />
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                             {done ? (
                               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />

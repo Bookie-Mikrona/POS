@@ -1,0 +1,84 @@
+kaj zahtevajo programske hiše v sloveniji od nove stranke - podjetja, ki želi začeti uporabljati njihov program za glavno knjigo v novem letu (npr. 2027). Katere podatke mora dostaviti iz starega programa, ki ga uporablja trenutno, da lahko začne nemoteno delati
+
+Ko podjetje v Sloveniji prestopa k Novi programski hiši in želi z novo glavno knjigo (in celotnim ERP/POS sistemom) začeti s 1. januarjem prihodnjega leta (npr. 2027), mora programski hiši dostaviti sklop začetnih stanj, šifrantov in nastavitvenih podatkov.
+
+Postopek in obseg podatkov sta zakonsko in tehnično precej standardizirana, saj mora nova glavna knjiga nemoteno nadaljevati poslovanje skladno s Slovenskimi računovodskimi standardi (SRS) in davčno zakonodajo (ZDavP-2, ZDDV-1).
+
+1. Začetna bilanca stanja (Finančni podatki)
+To je najpomembnejši sklop podatkov za glavno knjigo, ki mora izkazovati točno stanje na dan 31. decembra preteklega leta:
+
+Začetna bruto bilanca (zaključna bruto bilanca starega leta): Saldi po kontih (razred 0 do 9) na dan 31.12., ki služijo kot otvoritvena stanja v Novi glavni knjigi za 1. januar.
+
+Oprta odprta stanja kupcev (Salda-konti kupcev): Seznam vseh odprtih terjatev do kupcev na dan 31.12., razvrščen po strankah in zapadlosti, da lahko program spremlja plačila in opomnike.
+
+Odprta stanja dobaviteljev (Salda-konti dobaviteljev): Seznam vseh odprtih obveznosti do dobaviteljev na dan 31.12., prav tako z zapadlostmi za knjiženje prihajajočih plačil.
+
+Stanje denarnih sredstev: Stanja na transakcijskih računih (TRR), v blagajnah (gotovina) in eventualnih prehodnih računih na dan zaprtja leta.
+
+2. Šifranti (Osnovni podatki za delovanje sistema)
+Da program sploh lahko začne delovati, mora programska hiša v sistem uvoziti vaše osnovne sezname:
+
+Šifrant poslovnih partnerjev (Kupci in dobavitelji): Imena, naslovi, davčne številke, matične številke ter podatki o plačilnih pogojih in TRR-jih za vse aktivne stranke.
+
+Šifrant artiklov / storitev (če gre tudi za trgovino/gostinstvo): Seznam vseh artiklov, surovin, polizdelkov, normativov, enot mere (kg, l, kos) in veljavnih stopenj DDV (9,5% ali 22%).
+
+Kontni načrt: Če uporabljate specifičen ali prirejen kontni načrt, se ga posreduje programski hiši, sicer večina ponudnikov ponuja svoj standardni kontni načrt, prilagojen slovenskemu gospodarstvu.
+
+3. Podatki o osnovnih sredstvih (Oprema in inventar)
+Če podjetje vodi osnovna sredstva:
+
+Register osnovnih sredstev na dan 31.12.: Seznam vseh aktivnih osnovnih sredstev, nabavna vrednost, dosedanji popravek vrednosti (amortizacija), preostala knjigovodska vrednost in stopnja amortizacije za vsako sredstvo posebej, da lahko program obračunava amortizacijo v novem letu.
+
+4. Kadrovski in plačni podatki (če program prevzema tudi plače)
+Če nova programska hiša prevzema obračun plač in kadrovske evidence:
+
+Podatki o zaposlenih: Osebni podatki, vzdrževani družinski člani, stopnje dohodnine.
+
+Rekapitulacije izplačil za pretekle mesece tekočega leta: Potrebno zaradi pravilnega obračuna letne lestvice dohodnine, minulega dela in rekapitulacij za REK obrazce (FURS) ter M4/M8 podatke, če prehod ni povsem na začetku leta (čeprav se pri prehodu 1. januarja običajno prenašajo le osnovni podatki o zaposlenih).
+
+Kakšen je običajen format oddaje teh podatkov?
+Programske hiše v Sloveniji običajno zahtevajo podatke v strukturiranih elektronskih oblikah, da se izognejo ročnemu vnašanju:
+
+Izvozi iz starega programa (CSV, Excel ali XML datoteke): Večina obstoječih računovodskih programov (npr. Vasco, Pantheon, Birokrat, Vasco, Vasco, Vasco ipd.) ima možnosti izvoza podatkov v Excel ali namenske izvozne formate.
+
+Zaključne poročile v PDF obliki: Kot kontrolni podatek (zaključna bilanca stanja in izkaz poslovnega izida), s katerim računovodja in programska hiša navzkrižno preverita, ali se ujemajo centi in skupni zneski ob otvoritvi novega leta.
+
+Nasvet: Celoten postopek prenosa podatkov in testiranja baze programske hiše običajno izvedejo že v mesecu novembru ali decembru preteklega leta na testni bazi, da se 1. januarja lahko takoj začne delati "v živo" brez začetnih napak.
+
+odprte postavke, zaključni račun se izvaja šele v začetku leta še na starem programu. kako se to uskladi
+
+To je povsem običajna in v praksi ustaljena situacija v vseh podjetjih in računovodskih servisih. Ker se zaključni račun, popravki, inventure in davčni obračun za preteklo leto (npr. 2026) v praksi zaključujejo šele v januarju, februarju ali celo marcu prihodnjega leta, podjetje pa mora od 1. januarja dalje nemoteno poslovati naprej, se prehod izvede v dveh korakih: z začasnimi stanji in kasnejšo uskladitvijo.
+
+Usklajevanje med starim programom (kjer se dela zaključni račun) in novim programom (kjer teče tekoče poslovanje) poteka na naslednji način:
+
+1. Priprava začasnih (provizoričnih) stanj za 1. januar
+Preden začnete delati v novem letu v novem programu, stari program še vedno deluje.
+
+Zaslon stanj na dan 31.12.: Preden se odpre novo leto, iz starega programa izvozite začasno bruto bilanco in seznam odprtih postavk (salda-kontov), kakršna so bila na dan 31. decembra zvečer.
+
+Ti podatki se vpišejo v novi program kot začetna (otvoritvena) stanja za 1. januar. Z njimi novi program štarta.
+
+2. Tekoče poslovanje v novem programu teče naprej
+Od 1. januarja dalje se vsa nova dokumentacija (izdani računi, prejemi, plačila, blagajna) knjiži izključno v novem programu.
+
+Kaj pa odprte terjatve/obveznosti iz prejšnjega leta? Ko decembrski kupec plača račun v januarju, se to plačilo knjiži v novem programu proti preneseni odprti postavki iz decembra. Program bo to postavko pravilno zaprl.
+
+3. Delo na zaključnem računu v starem programu (Januar – Marec)
+Medtem ko v novem programu že normalno delate za tekoče leto, računovodja v starem programu še vedno zaključuje preteklo leto:
+
+Us-klajuje terjatve s kupci.
+
+Knjiži zadnje prejete račune za preteklo leto, ki so prispeli z zamudo.
+
+Naredi popravke vrednosti, časovne razmejitve in obračun davka od dobička (DDPO).
+
+Ko je zaključni račun 100-% končan in potrjen, stari program izda končno bruto bilanco na dan 31.12.
+
+4. Končna uskladitev in prenos razlik (Korekcija otvoritve)
+Ko so zaključni računi v starem programu čisto gotovi, se primerja začasna začetna bilanca (ki je bila vnesena v novi program 1. januarja) s končno zaključno bilanco starega programa.
+
+Morebitne razlike: Če so se pri zaključnem računu naredili kakšni popravki (npr. knjiženje rezervacij, odpisi terjatev ali stroški preteklega leta, ki so jih odkrili med zaključkom), te razlike niso večje.
+
+Vnos v novi program: Računovodja te končne razlike v novem programu enostavno knjiži kot korekcijo otvoritvenega stanja (preko temeljnega dnevnika na kontih prehodnega obdobja ali otvoritve bilance stanja).
+
+Ko so te razlike knjižene, se stanja v obeh programih popolnoma ujemajo, stari program pa se lahko trajno zapre ali shrani samo še za arhiv in vpogled v preteklost.
